@@ -66,7 +66,7 @@
             :refresh-loading="loading"
             data-testid="user-table-toolbar"
             @column-settings="columnDrawerVisible = true"
-            @refresh="fetchUsers"
+            @refresh="refetchUsers"
           />
         </template>
 
@@ -101,7 +101,7 @@
           :description="listError"
         >
           <template #actions>
-            <t-button theme="primary" variant="outline" @click="fetchUsers">
+            <t-button theme="primary" variant="outline" @click="refetchUsers">
               {{ t('user.userList.retry') }}
             </t-button>
           </template>
@@ -553,12 +553,13 @@ import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
 import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from '../api/user-roles';
-import { createUser, deleteUser, getUsers, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
+import { createUser, deleteUser, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
 import { resolveResetPasswordFieldError, resolveUserFormFieldError } from '../error-adapter';
 import { evaluateUserPasswordPolicy } from '../shared/password-policy';
+import { updateUserListCache, useUsersQuery } from '../shared/user-queries';
 import type { BatchUserRoleMutationPayload, RoleListItem, UserRoleMutation } from '../types/role';
 import type {
   CreateUserPayload,
@@ -572,6 +573,7 @@ defineOptions({
   name: 'UsersIndex',
 });
 
+// 用户页将用户列表作为 Query 管理的服务端快照；筛选、选择与抽屉草稿仍保持页面局部状态。
 const logger = createLogger('user.userList');
 
 type UserFilters = {
@@ -616,10 +618,11 @@ const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
-const users = ref<UserRow[]>([]);
+const usersQuery = useUsersQuery();
+const users = computed<UserRow[]>(() => usersQuery.data.value?.items ?? []);
 const roles = ref<RoleListItem[]>([]);
-const loading = ref(false);
-const listError = ref('');
+const loading = usersQuery.isFetching;
+const listError = computed(() => (usersQuery.isError.value ? t('user.userList.loadFailed') : ''));
 const roleCatalogLoading = ref(false);
 const userDrawerVisible = ref(false);
 const userDrawerMode = ref<UserDrawerMode>('create');
@@ -1146,23 +1149,10 @@ const visibleColumns = computed(() => {
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
 
-async function fetchUsers() {
-  loading.value = true;
-  listError.value = '';
-
-  try {
-    const response = await getUsers();
-    users.value = response.items;
-    selectedRowKeys.value = [];
-    pagination.value.current = 1;
-  } catch (error) {
-    users.value = [];
-    logger.error('failed to fetch users', error);
-    listError.value = t('user.userList.loadFailed');
-    MessagePlugin.error(listError.value);
-  } finally {
-    loading.value = false;
-  }
+async function refetchUsers() {
+  selectedRowKeys.value = [];
+  pagination.value.current = 1;
+  await usersQuery.refetch();
 }
 
 async function loadRoleCatalog() {
@@ -1427,7 +1417,7 @@ async function handleUserSubmit(ctx: SubmitContext) {
         password: userForm.value.password,
       };
       const created = await createUser(payload);
-      users.value = [{ ...created, roles: [] as UserRoleSummary[] }, ...users.value];
+      updateUserListCache((items) => [{ ...created, roles: [] as UserRoleSummary[] }, ...items]);
       MessagePlugin.success(formatHintedMessage(t('user.userList.createSuccess')));
     } else if (userDrawerTarget.value) {
       const payload: UpdateUserPayload = {
@@ -1435,8 +1425,8 @@ async function handleUserSubmit(ctx: SubmitContext) {
         display: userForm.value.display.trim(),
       };
       const updated = await updateUser(userDrawerTarget.value.id, payload);
-      users.value = users.value.map((item) =>
-        item.id === updated.id ? { ...item, ...updated, roles: item.roles } : item,
+      updateUserListCache((items) =>
+        items.map((item) => (item.id === updated.id ? { ...item, ...updated, roles: item.roles } : item)),
       );
       MessagePlugin.success(formatHintedMessage(t('user.userList.editSuccess')));
     }
@@ -1600,7 +1590,7 @@ async function submitStatusDialog() {
   pendingStatusSubmit.value = true;
   try {
     const updated = await updateUserStatus(pendingStatusTarget.value.id, { status: pendingStatusNext.value });
-    users.value = users.value.map((item) => (item.id === updated.id ? { ...item, ...updated } : item));
+    updateUserListCache((items) => items.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
     MessagePlugin.success(formatHintedMessage(t('user.userList.statusUpdateSuccess')));
     closeStatusDialog();
   } catch (error) {
@@ -1651,7 +1641,7 @@ async function submitDeleteDialog() {
   pendingDeleteSubmit.value = true;
   try {
     await deleteUser(deleteTargetId);
-    users.value = users.value.filter((item) => item.id !== deleteTargetId);
+    updateUserListCache((items) => items.filter((item) => item.id !== deleteTargetId));
     selectedRowKeys.value = selectedRowKeys.value.filter((item) => item !== deleteTargetId);
     MessagePlugin.success(formatHintedMessage(t('user.userList.deleteSuccess')));
     closeDeleteDialog();
@@ -1917,13 +1907,15 @@ async function submitUserRoleAssignment() {
 
     if (roleDialogMode.value === 'batch') {
       const targetIds = new Set(selectedBatchUserIds.value);
-      users.value = users.value.map((item) =>
-        targetIds.has(item.id) ? { ...item, roles: applyRoleMutation(item.roles) } : item,
+      updateUserListCache((items) =>
+        items.map((item) => (targetIds.has(item.id) ? { ...item, roles: applyRoleMutation(item.roles) } : item)),
       );
       MessagePlugin.success(formatHintedMessage(t('user.userList.batchRoleUpdateSuccess')));
     } else {
-      users.value = users.value.map((item) =>
-        item.id === selectedUser.value?.id ? { ...item, roles: applyRoleMutation(item.roles) } : item,
+      updateUserListCache((items) =>
+        items.map((item) =>
+          item.id === selectedUser.value?.id ? { ...item, roles: applyRoleMutation(item.roles) } : item,
+        ),
       );
       MessagePlugin.success(formatHintedMessage(t('user.userList.roleUpdateSuccess')));
     }
@@ -1976,7 +1968,6 @@ defineExpose({
 });
 
 onMounted(() => {
-  fetchUsers();
   void loadRoleCatalog();
 });
 

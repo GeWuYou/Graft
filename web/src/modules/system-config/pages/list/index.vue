@@ -48,6 +48,7 @@
             hover
             expand-on-click-node
             @active="handleTreeActive"
+            @expand="handleTreeExpand"
           >
             <template #label="{ node }">
               <span class="system-config-tree-node">
@@ -393,7 +394,7 @@
 import { CopyIcon, EditIcon, InfoCircleIcon, RefreshIcon, RollbackIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
@@ -415,10 +416,12 @@ import {
 import { formatJsonValue, isJsonRecord, parseJsonValue } from '@/shared/schema-form/json';
 import type { ApiRequestError } from '@/types/axios';
 
-import { getSystemConfigs, resetSystemConfig, updateSystemConfig } from '../../api/system-config';
+import { resetSystemConfig, updateSystemConfig } from '../../api/system-config';
 import { SYSTEM_CONFIG_PERMISSION_CODE } from '../../contract/permissions';
+import { upsertSystemConfigCache, useSystemConfigsQuery } from '../../shared/system-config-query';
 import type { SystemConfigItem } from '../../types/system-config';
 
+/** 系统配置页将服务端配置集合交给 Query cache，树、搜索与编辑器交互保持页面本地。 */
 defineOptions({
   name: 'SystemConfigListPage',
 });
@@ -485,13 +488,19 @@ const CORE_VALUE_ROW_LIMIT = 3;
 
 const { getLocaleMessage, locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
-const items = ref<SystemConfigItem[]>([]);
-const loading = ref(false);
+const systemConfigsQuery = useSystemConfigsQuery();
+const items = computed(() => systemConfigsQuery.data.value?.items ?? []);
+const loading = systemConfigsQuery.isFetching;
 const saving = ref(false);
 const resettingKey = ref('');
-const errorMessage = ref('');
+const errorMessage = computed(() =>
+  systemConfigsQuery.isError.value
+    ? readableError(systemConfigsQuery.error.value, t('systemConfig.list.loadError'))
+    : '',
+);
 const activeGroupKey = ref('');
 const expandedDomainKeys = ref<TreeNodeValue[]>([]);
+let hasInitializedDomainExpansion = false;
 const groupSearchKeyword = ref('');
 const editorVisible = ref(false);
 const editingItem = ref<SystemConfigItem | null>(null);
@@ -642,8 +651,6 @@ const editorPreview = computed(
   () => formatEditorPreview(editingSchema.value, editorForm.value) || t('systemConfig.list.emptyValue'),
 );
 
-onMounted(refreshConfigs);
-
 watch(filteredDomains, (nextDomains) => {
   const visibleGroups = nextDomains.flatMap((domain) => domain.groups);
   if (!visibleGroups.some((group) => group.key === activeGroupKey.value)) {
@@ -654,21 +661,26 @@ watch(filteredDomains, (nextDomains) => {
   }
 });
 
-async function refreshConfigs() {
-  loading.value = true;
-  errorMessage.value = '';
-  try {
-    const response = await getSystemConfigs();
-    items.value = response.items ?? [];
+watch(
+  items,
+  () => {
     if (!activeGroupKey.value || !groupedConfigs.value.some((group) => group.key === activeGroupKey.value)) {
       activeGroupKey.value = groupedConfigs.value[0]?.key ?? '';
     }
-    expandedDomainKeys.value = domains.value.map((domain) => domain.key);
-  } catch (error) {
-    errorMessage.value = readableError(error, t('systemConfig.list.loadError'));
-  } finally {
-    loading.value = false;
-  }
+    if (!hasInitializedDomainExpansion) {
+      expandedDomainKeys.value = domains.value.map((domain) => domain.key);
+      hasInitializedDomainExpansion = domains.value.length > 0;
+      return;
+    }
+
+    const domainKeys = new Set(domains.value.map((domain) => domain.key));
+    expandedDomainKeys.value = expandedDomainKeys.value.filter((key) => domainKeys.has(String(key)));
+  },
+  { immediate: true },
+);
+
+async function refreshConfigs() {
+  await systemConfigsQuery.refetch();
 }
 
 function handleTreeActive(value: TreeNodeValue[]) {
@@ -676,6 +688,10 @@ function handleTreeActive(value: TreeNodeValue[]) {
   if (groupedConfigs.value.some((group) => group.key === selected)) {
     activeGroupKey.value = selected;
   }
+}
+
+function handleTreeExpand(value: TreeNodeValue[]) {
+  expandedDomainKeys.value = value;
 }
 
 function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem, previousSearchText = '') {
@@ -728,7 +744,7 @@ async function saveEditor() {
   saving.value = true;
   try {
     const updated = await updateSystemConfig(editingItem.value.key, { value: editorForm.value });
-    upsertConfig(updated);
+    upsertSystemConfigCache(updated);
     closeEditor();
     MessagePlugin.success(t('systemConfig.list.saveSuccess'));
   } catch (error) {
@@ -742,24 +758,13 @@ async function resetConfigOverride(item: SystemConfigItem) {
   resettingKey.value = item.key;
   try {
     const updated = await resetSystemConfig(item.key);
-    upsertConfig(updated);
+    upsertSystemConfigCache(updated);
     MessagePlugin.success(t('systemConfig.list.resetSuccess'));
   } catch (error) {
     MessagePlugin.error(readableError(error, t('systemConfig.list.resetError')));
   } finally {
     resettingKey.value = '';
   }
-}
-
-function upsertConfig(item: SystemConfigItem) {
-  const nextItems = [...items.value];
-  const index = nextItems.findIndex((candidate) => candidate.key === item.key);
-  if (index >= 0) {
-    nextItems[index] = item;
-  } else {
-    nextItems.push(item);
-  }
-  items.value = nextItems;
 }
 
 function initialEditorValue(item: SystemConfigItem) {

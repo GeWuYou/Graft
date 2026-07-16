@@ -51,7 +51,7 @@
             :refresh-label="t('rbac.permissionList.refresh')"
             :refresh-loading="loading"
             @column-settings="columnDrawerVisible = true"
-            @refresh="() => fetchPermissions()"
+            @refresh="refreshPermissions"
           />
         </template>
 
@@ -67,7 +67,7 @@
           :description="listError"
         >
           <template #actions>
-            <t-button theme="primary" variant="outline" @click="() => fetchPermissions()">
+            <t-button theme="primary" variant="outline" @click="refreshPermissions">
               {{ t('rbac.permissionList.retry') }}
             </t-button>
           </template>
@@ -243,7 +243,7 @@
 <script setup lang="ts">
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -273,17 +273,19 @@ import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { createLogger } from '@/utils/logger';
 
-import { getPermissionDetail, getPermissions } from '../../api/rbac';
+import { getPermissionDetail } from '../../api/rbac';
 import {
   localizedPermissionDescription as localizePermissionDescription,
   localizedPermissionDisplay as localizePermissionDisplay,
 } from '../../shared/permission-copy';
-import type { PermissionDetailResponse, PermissionFilters, PermissionListItem } from '../../types/permission';
+import { usePermissionListQuery } from '../../shared/rbac-queries';
+import type { PermissionDetailResponse, PermissionListItem } from '../../types/permission';
 
 defineOptions({
   name: 'PermissionIndex',
 });
 
+/** 权限目录页按筛选键消费 Query 快照；详情抽屉保留独立加载和失败状态以隔离会话。 */
 const logger = createLogger('rbac.permissionList');
 const router = useRouter();
 
@@ -303,9 +305,6 @@ type PermissionPageSnapshot = {
 };
 
 const { t, locale } = useI18n();
-const loading = ref(false);
-const listError = ref('');
-const permissions = ref<PermissionListItem[]>([]);
 const filters = ref<PermissionFilterState>({
   keyword: '',
   module: '',
@@ -321,6 +320,16 @@ const pagination = ref({
   current: 1,
   pageSize: 10,
 });
+const permissionListQuery = usePermissionListQuery(
+  computed(() => ({ keyword: filters.value.keyword, module: filters.value.module })),
+);
+const permissions = computed(() => permissionListQuery.data.value?.items ?? []);
+const loading = computed(() => permissionListQuery.isFetching.value);
+const listError = computed(() =>
+  permissionListQuery.isError.value
+    ? resolveLocalizedErrorMessage(t, permissionListQuery.error.value, t('rbac.permissionList.loadFailed'))
+    : '',
+);
 
 useTabPageSnapshot<PermissionPageSnapshot>({
   apply(snapshot) {
@@ -393,33 +402,8 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
 
-async function fetchPermissions(preservePagination = false) {
-  loading.value = true;
-  listError.value = '';
-
-  try {
-    const requestFilters: PermissionFilters = {};
-    const keyword = filters.value.keyword.trim();
-    if (keyword) {
-      requestFilters.keyword = keyword;
-    }
-    if (filters.value.module) {
-      requestFilters.module = filters.value.module;
-    }
-
-    const permissionResult = await getPermissions(requestFilters);
-    permissions.value = permissionResult.items;
-    if (!preservePagination) {
-      pagination.value.current = 1;
-    }
-  } catch (error) {
-    permissions.value = [];
-    logger.error('failed to fetch permissions', error);
-    listError.value = resolveLocalizedErrorMessage(t, error, t('rbac.permissionList.loadFailed'));
-    MessagePlugin.error(resolveErrorMessageWithCorrelation(t, error, listError.value));
-  } finally {
-    loading.value = false;
-  }
+async function refreshPermissions() {
+  await permissionListQuery.refetch();
 }
 
 function resetFilters() {
@@ -492,15 +476,10 @@ function formatTimestamp(value?: string | null) {
   return formatCompactDateTime(value);
 }
 
-onMounted(() => {
-  fetchPermissions(true);
-});
-
 watch(
   () => [filters.value.keyword, filters.value.module] as const,
   () => {
     pagination.value.current = 1;
-    fetchPermissions();
   },
 );
 </script>

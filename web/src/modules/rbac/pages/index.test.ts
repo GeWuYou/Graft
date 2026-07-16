@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 
+import { queryClient } from '@/shared/query';
+
 import { RBAC_PERMISSION_CODE } from '../contract/permissions';
 import RolePage from './index.vue';
 
@@ -747,6 +749,7 @@ function setPermissionMutationMode(wrapper: ReturnType<typeof mountRolePage>, mo
 
 describe('RolePage', () => {
   beforeEach(() => {
+    queryClient.clear();
     permissionState.grantedCodes = [];
     tabSnapshotState.snapshots = {};
     rbacApiMocks.addRolePermissions.mockReset();

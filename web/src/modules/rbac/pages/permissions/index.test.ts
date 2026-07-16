@@ -4,6 +4,7 @@ import { defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { formatCompactDateTime } from '@/shared/components/management';
+import { queryClient } from '@/shared/query';
 
 import PermissionPage from './index.vue';
 
@@ -274,6 +275,7 @@ async function mountPermissionPage() {
 
 describe('PermissionPage', () => {
   beforeEach(() => {
+    queryClient.clear();
     tabSnapshotState.snapshots = {};
     rbacApiMocks.getPermissionDetail.mockReset();
     rbacApiMocks.getPermissions.mockReset();
@@ -440,7 +442,7 @@ describe('PermissionPage', () => {
     await clearButton?.trigger('click');
     await flushPromises();
 
-    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({});
+    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match' });
     expect((wrapper.get('.management-list-search').element as HTMLInputElement).value).toBe('');
     expect(wrapper.text()).toContain('Read Permissions Localized');
   });

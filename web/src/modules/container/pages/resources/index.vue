@@ -31,22 +31,46 @@
 </template>
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { ManagementPageHeader } from '@/shared/components/management';
 
-import { getDockerImages, getDockerNetworks, getDockerSystem, getDockerVolumes } from '../../api/container';
 import { CONTAINER_ROUTE_PATH } from '../../contract/paths';
+import { type DockerResourceTab, useDockerResourceQueries } from '../../shared/container-resource-queries';
+
 const { t } = useI18n();
 const router = useRouter();
-const active = ref('containers');
-const loading = ref(false);
-const images = ref<any[]>([]),
-  networks = ref<any[]>([]),
-  volumes = ref<any[]>([]),
-  system = ref<Record<string, unknown>>({});
+
+/** 此页面仅展示按 tab 激活的 Docker 静态资源快照，不承载容器实时运行状态。 */
+const active = ref<DockerResourceTab>('containers');
+const {
+  images: imagesQuery,
+  networks: networksQuery,
+  system: systemQuery,
+  volumes: volumesQuery,
+} = useDockerResourceQueries(active);
+
+const images = computed(() => imagesQuery.data.value?.items ?? []);
+const networks = computed(() => networksQuery.data.value?.items ?? []);
+const volumes = computed(() => volumesQuery.data.value?.items ?? []);
+const system = computed(() => systemQuery.data.value ?? {});
+const loading = computed(() => {
+  switch (active.value) {
+    case 'images':
+      return imagesQuery.isFetching.value;
+    case 'networks':
+      return networksQuery.isFetching.value;
+    case 'volumes':
+      return volumesQuery.isFetching.value;
+    case 'system':
+      return systemQuery.isFetching.value;
+    default:
+      return false;
+  }
+});
+
 const imageColumns: TableProps['columns'] = [
   { colKey: 'id', title: 'ID' },
   { colKey: 'repository_tags', title: t('container.resources.columns.tags') },
@@ -68,17 +92,4 @@ const systemItems = computed(() =>
     value: Array.isArray(value) ? value.join(', ') : String(value ?? '-'),
   })),
 );
-async function load() {
-  loading.value = true;
-  try {
-    if (active.value === 'images') images.value = (await getDockerImages()).items ?? [];
-    if (active.value === 'networks') networks.value = (await getDockerNetworks()).items ?? [];
-    if (active.value === 'volumes') volumes.value = (await getDockerVolumes()).items ?? [];
-    if (active.value === 'system') system.value = await getDockerSystem();
-  } finally {
-    loading.value = false;
-  }
-}
-watch(active, load);
-onMounted(load);
 </script>

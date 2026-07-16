@@ -57,7 +57,7 @@
             :refresh-label="t('rbac.roleList.refresh')"
             :refresh-loading="loading"
             @column-settings="columnDrawerVisible = true"
-            @refresh="() => fetchRolePageData()"
+            @refresh="refreshRolePageData"
           />
         </template>
 
@@ -72,7 +72,7 @@
           :description="listError"
         >
           <template #actions>
-            <t-button theme="primary" variant="outline" @click="() => fetchRolePageData()">
+            <t-button theme="primary" variant="outline" @click="refreshRolePageData">
               {{ t('rbac.roleList.retry') }}
             </t-button>
           </template>
@@ -485,7 +485,7 @@
 <script setup lang="ts">
 import type { FormRule, FormValidateMessage, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -531,10 +531,8 @@ import {
   addRolePermissions,
   createRole,
   deleteRole,
-  getPermissions,
   getRoleDetail,
   getRolePermissionBindings,
-  getRoles,
   removeRolePermissions,
   replaceRolePermissions,
   updateRole,
@@ -547,6 +545,12 @@ import {
   localizedPermissionDescription as localizePermissionDescription,
   localizedPermissionDisplay as localizePermissionDisplay,
 } from '../shared/permission-copy';
+import {
+  invalidateRolesQuery,
+  updateRoleListCache,
+  usePermissionCatalogQuery,
+  useRolesQuery,
+} from '../shared/rbac-queries';
 import type { PermissionListItem } from '../types/permission';
 import type {
   CreateRolePayload,
@@ -561,6 +565,7 @@ defineOptions({
   name: 'RolesIndex',
 });
 
+/** 角色页消费 Query 中的角色与权限目录快照，筛选和抽屉编辑会话仍由页面局部拥有。 */
 const logger = createLogger('rbac.roleList');
 
 type RoleDrawerMode = 'create' | 'detail' | 'update';
@@ -623,16 +628,11 @@ const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
-const roles = ref<RoleListItem[]>([]);
-const permissions = ref<PermissionListItem[]>([]);
 const filters = ref<RoleFilters>({
   keyword: '',
   type: '',
 });
 const visibleColumnKeys = ref<string[]>([...DEFAULT_VISIBLE_COLUMNS]);
-const loading = ref(false);
-const listError = ref('');
-const permissionCatalogError = ref('');
 const roleDrawerVisible = ref(false);
 const roleDrawerMode = ref<RoleDrawerMode>('create');
 const roleDrawerRole = ref<RoleStatusCompat | null>(null);
@@ -692,6 +692,28 @@ const canCreateRoles = computed(() => permissionStore.hasPermission(permissionCo
 const canDeleteRoles = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_DELETE));
 const canToggleRoleStatus = computed(() => permissionStore.hasPermission(permissionCodes.ROLE_STATUS_UPDATE));
 const canReadPermissions = computed(() => permissionStore.hasPermission(permissionCodes.PERMISSION_READ));
+const rolesQuery = useRolesQuery();
+const permissionCatalogQuery = usePermissionCatalogQuery(canReadPermissions);
+const roles = computed(() => rolesQuery.data.value?.items ?? []);
+const permissions = computed(() => permissionCatalogQuery.data.value?.items ?? []);
+const loading = computed(
+  () => rolesQuery.isFetching.value || (canReadPermissions.value && permissionCatalogQuery.isFetching.value),
+);
+const listError = computed(() =>
+  rolesQuery.isError.value
+    ? resolveLocalizedErrorMessage(t, rolesQuery.error.value, t('rbac.roleList.loadFailed'))
+    : '',
+);
+const permissionCatalogError = computed(() =>
+  permissionCatalogQuery.isError.value
+    ? resolveLocalizedErrorMessage(t, permissionCatalogQuery.error.value, t('rbac.roleList.permissionLoadFailed'))
+    : '',
+);
+watch(permissionCatalogError, (message) => {
+  if (message) {
+    MessagePlugin.warning(message);
+  }
+});
 const canAssignPermissions = computed(
   () => canReadPermissions.value && permissionStore.hasPermission(permissionCodes.ROLE_PERMISSION_ASSIGN),
 );
@@ -1092,45 +1114,11 @@ const visibleColumns = computed(() => {
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
 const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
 
-async function fetchRolePageData(preservePagination = false) {
-  loading.value = true;
-  listError.value = '';
-
-  try {
-    const [roleResult, permissionResult] = await Promise.allSettled([
-      getRoles(),
-      canReadPermissions.value ? getPermissions() : Promise.resolve({ items: [] as PermissionListItem[] }),
-    ]);
-
-    if (roleResult.status === 'rejected') {
-      throw roleResult.reason;
-    }
-
-    roles.value = roleResult.value.items;
-    if (!preservePagination) {
-      pagination.value.current = 1;
-    }
-
-    if (permissionResult.status === 'fulfilled') {
-      permissions.value = permissionResult.value.items;
-      permissionCatalogError.value = '';
-    } else {
-      permissions.value = [];
-      permissionCatalogError.value = resolveLocalizedErrorMessage(
-        t,
-        permissionResult.reason,
-        t('rbac.roleList.permissionLoadFailed'),
-      );
-      MessagePlugin.warning(permissionCatalogError.value);
-    }
-  } catch (error) {
-    roles.value = [];
-    logger.error('failed to fetch role page data', error);
-    listError.value = resolveLocalizedErrorMessage(t, error, t('rbac.roleList.loadFailed'));
-    MessagePlugin.error(listError.value);
-  } finally {
-    loading.value = false;
-  }
+async function refreshRolePageData() {
+  await Promise.all([
+    rolesQuery.refetch(),
+    canReadPermissions.value ? permissionCatalogQuery.refetch() : Promise.resolve(),
+  ]);
 }
 
 function resetFilters() {
@@ -1433,7 +1421,7 @@ async function handleRoleSubmit(ctx: SubmitContext) {
   try {
     if (roleDrawerMode.value === 'create') {
       const created = await createRole(toCreateRolePayload(roleForm.value));
-      roles.value = [...roles.value, created].sort((left, right) => left.id - right.id);
+      updateRoleListCache((items) => [...items, created].sort((left, right) => left.id - right.id));
       if (copiedRolePermissionIds.value?.length) {
         try {
           await replaceRolePermissions(created.id, toReplaceRolePermissionsPayload(copiedRolePermissionIds.value));
@@ -1453,7 +1441,7 @@ async function handleRoleSubmit(ctx: SubmitContext) {
       );
     } else if (roleDrawerRole.value) {
       const updated = await updateRole(roleDrawerRole.value.id, toUpdateRolePayload(roleForm.value));
-      roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
+      updateRoleListCache((items) => items.map((item) => (item.id === updated.id ? updated : item)));
       roleDrawerRole.value = updated;
       MessagePlugin.success(formatHintedMessage(t('rbac.roleList.updateSuccess')));
     }
@@ -1698,7 +1686,7 @@ async function submitPermissionAssignment() {
 
     MessagePlugin.success(formatHintedMessage(t('rbac.roleList.assignSuccess')));
     closePermissionDrawer();
-    await fetchRolePageData();
+    await invalidateRolesQuery();
   } catch (error) {
     if (isActivePermissionDrawerSession(session)) {
       if (isApiRequestError(error)) {
@@ -1751,7 +1739,7 @@ async function toggleRoleStatus(role: RoleStatusCompat) {
     const updated = await updateRoleStatus(role.id, {
       status: isRoleEnabled(role) ? 'disabled' : 'enabled',
     });
-    roles.value = roles.value.map((item) => (item.id === updated.id ? updated : item));
+    updateRoleListCache((items) => items.map((item) => (item.id === updated.id ? updated : item)));
     MessagePlugin.success(
       formatHintedMessage(
         isRoleEnabled(updated) ? t('rbac.roleList.statusEnabledSuccess') : t('rbac.roleList.statusDisabledSuccess'),
@@ -1787,7 +1775,7 @@ async function removeRole(role: RoleStatusCompat) {
 
   try {
     await deleteRole(role.id);
-    roles.value = roles.value.filter((item) => item.id !== role.id);
+    updateRoleListCache((items) => items.filter((item) => item.id !== role.id));
     MessagePlugin.success(formatHintedMessage(t('rbac.roleList.deleteSuccess')));
   } catch (error) {
     logger.error('failed to delete role', error);
@@ -1819,10 +1807,6 @@ async function removeRoleFromDrawer() {
     closeRoleDrawer();
   }
 }
-
-onMounted(() => {
-  fetchRolePageData(true);
-});
 
 watch(
   () => [filters.value.keyword, filters.value.type] as const,
