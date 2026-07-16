@@ -15,6 +15,8 @@ Overlay note:
 
 ## Active Topics
 
+- `high-frequency-log-governance`
+  - Recovery entry: `ai-plan/public/high-frequency-log-governance/README.md`
 - `handwritten-comment-governance`
   - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`

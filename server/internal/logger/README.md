@@ -42,6 +42,22 @@
 如果后续需要增加日志采样、输出目的地或 trace 关联字段，应继续收敛在
 这个模块中，而不是让模块直接持有不同配置的 Zap 实例。
 
+## 高频类别诊断
+
+现有 runtime / module 的依赖注入继续使用 `*zap.Logger`。有界的高频诊断通过
+`logger.Category(base, logger.CategoryDockerStats)` 获得薄 `CategoryLogger`，它只提供 `Enabled`、`Trace`、
+`TraceLazy`、`Debug`、`Info`、`Warn`、`Error` 和 `With`。
+
+注册叶子类别为 `docker.stats`、`docker.events`、`runtime.cache`、`runtime.metrics`、`runtime.stats`、
+`compose.runtime`、`scheduler.poll` 和 `database.ent`。它们由 typed `logger.LogCategory` constants 和 logger
+registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output diagnostic；不会改变 `AppLogger` persistence
+或 App Log API。
+
+`GRAFT_LOG_LEVEL=trace` 只开放 TRACE 阈值；类别 TRACE 默认仍关闭。`GRAFT_LOG_CATEGORIES` 严格使用逗号分隔的
+`category=bool`：格式错误、非法 bool、重复项和未知 registry namespace 都会拒绝启动。最长命名空间前缀规则优先；
+`false` 抑制该类别每个级别，`true` 开启类别 TRACE。过滤在 Zap core 路径完成。`TraceLazy` 只会在 TRACE 已启用时
+构造字段；其它昂贵计算仍必须由调用者先以 `Enabled(level)` 显式保护。
+
 ## AppLogger 采用规则
 
 优先使用 `AppLogger` 的场景：

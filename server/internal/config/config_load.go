@@ -50,6 +50,7 @@ func readConfig(reader *viper.Viper) *Config {
 			Level:         reader.GetString("log.level"),
 			Format:        LogFormat(reader.GetString("log.format")),
 			Color:         LogColor(reader.GetString("log.color")),
+			Categories:    reader.GetString("log.categories"),
 			AppLogPersist: reader.GetBool("log.app_log_persist"),
 		},
 		Runtime: RuntimeConfig{

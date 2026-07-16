@@ -55,6 +55,8 @@ const (
 	EnvLogFormat = "GRAFT_LOG_FORMAT"
 	// EnvLogColor 是控制日志级别 ANSI 颜色的进程环境变量名。
 	EnvLogColor = "GRAFT_LOG_COLOR"
+	// EnvLogCategories 是定义受控日志类别开关的聚合环境变量名。
+	EnvLogCategories = "GRAFT_LOG_CATEGORIES"
 	// EnvGinMode 是选择 Gin 运行模式的进程环境变量名。
 	EnvGinMode = "GRAFT_GIN_MODE"
 	// EnvAccessLogConsole 是控制访问日志是否输出到进程日志的环境变量名。
@@ -198,6 +200,7 @@ type LogConfig struct {
 	Level         string
 	Format        LogFormat
 	Color         LogColor
+	Categories    string
 	AppLogPersist bool
 }
 
@@ -374,6 +377,14 @@ func validateAuditConfig(_ *Config) error {
 
 // 如果配置值无效，则返回错误。
 func validateLogConfig(c *Config) error {
+	c.Log.Level = strings.ToLower(strings.TrimSpace(c.Log.Level))
+	switch c.Log.Level {
+	case "trace", "debug", "info", "warn", "warning", "error", "dpanic", "panic", "fatal":
+	default:
+		return fmt.Errorf("unsupported GRAFT_LOG_LEVEL value %q", c.Log.Level)
+	}
+	c.Log.Categories = strings.TrimSpace(c.Log.Categories)
+
 	c.Log.Format = LogFormat(strings.ToLower(strings.TrimSpace(string(c.Log.Format))))
 	if c.Log.Format == "" {
 		c.Log.Format = LogFormatAuto

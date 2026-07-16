@@ -34,6 +34,7 @@ func New(cfg *config.Config) (*zap.Logger, error) {
 		strings.TrimSpace(cfg.Log.Level),
 		cfg.Log.Format,
 		cfg.Log.Color,
+		cfg.Log.Categories,
 	)
 	if err != nil {
 		return nil, err
@@ -58,7 +59,8 @@ func NewBootstrap() *zap.Logger {
 	logFormat := config.LogFormat(strings.TrimSpace(os.Getenv(config.EnvLogFormat)))
 	logColor := config.LogColor(strings.TrimSpace(os.Getenv(config.EnvLogColor)))
 
-	logger, err := buildLogger(bootstrapAppName, appEnv, logLevel, logFormat, logColor)
+	logCategories := strings.TrimSpace(os.Getenv(config.EnvLogCategories))
+	logger, err := buildLogger(bootstrapAppName, appEnv, logLevel, logFormat, logColor, logCategories)
 	if err != nil {
 		fallback := zap.NewNop()
 		zap.ReplaceGlobals(fallback)
@@ -75,10 +77,15 @@ func buildLogger(
 	logLevel string,
 	logFormat config.LogFormat,
 	logColor config.LogColor,
+	logCategories string,
 ) (*zap.Logger, error) {
-	level, err := zap.ParseAtomicLevel(logLevel)
+	level, err := parseAtomicLevel(logLevel)
 	if err != nil {
 		return nil, fmt.Errorf("parse log level %q: %w", logLevel, err)
+	}
+	rules, err := ParseCategoryRules(logCategories)
+	if err != nil {
+		return nil, err
 	}
 
 	zapConfig := buildZapConfig(appEnv, logFormat, logColor)
@@ -86,6 +93,7 @@ func buildLogger(
 
 	logger, err := zapConfig.Build(
 		zap.AddCaller(),
+		zap.WrapCore(wrapCategoryCore(rules)),
 		zap.WrapCore(logsafe.WrapCore),
 		zap.Fields(
 			zap.String("app", firstNonEmpty(appName, bootstrapAppName)),
@@ -99,21 +107,53 @@ func buildLogger(
 	return logger, nil
 }
 
+func parseAtomicLevel(raw string) (zap.AtomicLevel, error) {
+	if strings.EqualFold(strings.TrimSpace(raw), "trace") {
+		return zap.NewAtomicLevelAt(TraceLevel), nil
+	}
+	return zap.ParseAtomicLevel(raw)
+}
+
 func buildZapConfig(appEnv string, logFormat config.LogFormat, logColor config.LogColor) zap.Config {
 	effectiveFormat := config.ResolveLogFormat(appEnv, logFormat)
 	if effectiveFormat == config.LogFormatConsole {
 		zapConfig := zap.NewDevelopmentConfig()
 		zapConfig.Encoding = string(config.LogFormatConsole)
-		zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		zapConfig.EncoderConfig.EncodeLevel = capitalLevelEncoder
 		if config.ResolveLogColor(appEnv, logFormat, logColor) {
-			zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+			zapConfig.EncoderConfig.EncodeLevel = capitalColorLevelEncoder
 		}
 		return zapConfig
 	}
 
 	zapConfig := zap.NewProductionConfig()
 	zapConfig.Encoding = string(config.LogFormatJSON)
+	zapConfig.EncoderConfig.EncodeLevel = lowercaseLevelEncoder
 	return zapConfig
+}
+
+func lowercaseLevelEncoder(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
+	if level == TraceLevel {
+		encoder.AppendString("trace")
+		return
+	}
+	zapcore.LowercaseLevelEncoder(level, encoder)
+}
+
+func capitalLevelEncoder(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
+	if level == TraceLevel {
+		encoder.AppendString("TRACE")
+		return
+	}
+	zapcore.CapitalLevelEncoder(level, encoder)
+}
+
+func capitalColorLevelEncoder(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
+	if level == TraceLevel {
+		encoder.AppendString("\x1b[35mTRACE\x1b[0m")
+		return
+	}
+	zapcore.CapitalColorLevelEncoder(level, encoder)
 }
 
 // Close 刷新日志缓冲并忽略标准输出场景下的已知 Sync 噪声。

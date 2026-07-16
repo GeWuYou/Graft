@@ -55,6 +55,47 @@ func TestNewRejectsInvalidLogLevel(t *testing.T) {
 	}
 }
 
+func TestNewRejectsInvalidCategoryRules(t *testing.T) {
+	cfg := &config.Config{
+		App: config.AppConfig{Name: "graft", Env: "test"},
+		Log: config.LogConfig{
+			Level:      "trace",
+			Categories: "not.registered=true",
+		},
+	}
+
+	if _, err := New(cfg); err == nil {
+		t.Fatal("expected invalid category rules to reject logger construction")
+	}
+}
+
+func TestNewEncodesTraceInConsoleAndJSON(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		format config.LogFormat
+		want   string
+	}{
+		{name: "console", format: config.LogFormatConsole, want: "TRACE"},
+		{name: "json", format: config.LogFormatJSON, want: `"level":"trace"`},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			zapConfig := buildZapConfig("test", testCase.format, config.LogColorNever)
+			zapConfig.Level = zap.NewAtomicLevelAt(TraceLevel)
+			var buffer bytes.Buffer
+			zapConfig.OutputPaths = []string{"stdout"}
+			encoder := zapcore.NewConsoleEncoder(zapConfig.EncoderConfig)
+			if testCase.format == config.LogFormatJSON {
+				encoder = zapcore.NewJSONEncoder(zapConfig.EncoderConfig)
+			}
+			logger := zap.New(zapcore.NewCore(encoder, zapcore.AddSync(&buffer), TraceLevel))
+			Category(logger, CategoryDockerStats).Trace("poll")
+			if output := buffer.String(); !strings.Contains(output, testCase.want) {
+				t.Fatalf("trace output %q does not contain %q", output, testCase.want)
+			}
+		})
+	}
+}
+
 func TestBuildZapConfigUsesColorOnlyForConsole(t *testing.T) {
 	tests := []struct {
 		name      string
