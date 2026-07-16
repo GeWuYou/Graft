@@ -1229,6 +1229,7 @@ const cronPopoverOverlayInnerStyle = {
 
 const statusOptions: ScheduledTaskStatus[] = ['idle', 'running', 'success', 'failed', 'unknown'];
 const CONFIG_JSON_PLACEHOLDER = JSON.stringify({ window_days: 30 }, null, 2);
+// 这里只登记模块提供的内置任务文案键，避免把任意后端消息键误当作本页可解析的内置文案。
 const builtinTaskMessageKeys = [
   'scheduler.job.accessLogRetentionCleanup.title',
   'scheduler.job.auditLogRetentionCleanup.title',
@@ -1736,7 +1737,7 @@ function resetFilters() {
 }
 
 async function refreshRunSummaries(items: ScheduledTaskItem[]) {
-  // Summary runs are enrichment only; a per-task failure must not block the list.
+  // 运行摘要属于列表的补充数据；单个任务取数失败时保留空摘要，不阻断任务列表加载。
   const entries = await Promise.all(
     items.map(async (task) => {
       try {
@@ -1907,7 +1908,7 @@ function buildTaskPayload(): CreateScheduledTaskRequest | UpdateScheduledTaskReq
   }
 
   if (formMode.value === 'edit' && isSystemEdit.value) {
-    // Builtin tasks keep their module-owned identity; users may tune schedule, enabled state, and schema-backed config.
+    // 内置任务的身份由所属模块维护；本页只允许调整计划、启用状态和经 schema 校验的配置。
     const payload = {
       cron_expression: cronExpression,
       enabled: taskForm.enabled,
@@ -2720,7 +2721,7 @@ function localizedDisplayText(messageKey?: string, fallback?: string | null, pre
     return localized;
   }
 
-  // Custom tasks usually carry literal titles, while builtin jobs prefer translated message keys.
+  // 自定义任务通常使用后端保存的字面标题；内置任务优先使用所属模块提供的翻译消息键。
   return localizeDisplayValue(fallback) || localized;
 }
 
