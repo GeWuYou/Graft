@@ -16,9 +16,9 @@ var (
 	ErrExpiredAccessToken = errors.New("expired access token")
 	// ErrPermissionDenied 表示认证成功但缺少访问所需权限。
 	ErrPermissionDenied = errors.New("permission denied")
-	// ErrPasswordPolicyViolation indicates a password does not satisfy auth's current policy.
+	// ErrPasswordPolicyViolation 表示密码不满足认证模块当前的密码策略。
 	ErrPasswordPolicyViolation = errors.New("password policy violation")
-	// ErrPasswordReuseForbidden indicates a password is not permitted for reuse by auth policy.
+	// ErrPasswordReuseForbidden 表示认证策略禁止重复使用该密码。
 	ErrPasswordReuseForbidden = errors.New("password reuse forbidden")
 )
 
@@ -167,10 +167,8 @@ type AuthSessionService interface {
 	) (AuthSessionRevokeResult, error)
 }
 
-// AuthCredentialManagementService exposes credential lifecycle operations to
-// user-profile management without leaking auth persistence details. Password
-// inputs that violate policy return ErrPasswordPolicyViolation; inputs that
-// violate auth's reuse rule return ErrPasswordReuseForbidden.
+// AuthCredentialManagementService 向用户资料管理暴露凭据生命周期操作，但不泄漏认证持久化细节。
+// 违反密码策略时返回 ErrPasswordPolicyViolation；违反认证模块复用规则时返回 ErrPasswordReuseForbidden。
 type AuthCredentialManagementService interface {
 	ProvisionPasswordCredential(ctx context.Context, userID uint64, password string, mustChangePassword bool) error
 	ResetPassword(ctx context.Context, userID uint64, password string) error
@@ -193,16 +191,16 @@ type AuthFlowService interface {
 	RouteError(err error) AuthRouteError
 }
 
-// UserIdentityProvider exposes only user-profile identity facts needed by
-// auth. Credentials, password state, and sessions are deliberately excluded.
+// UserIdentityProvider 仅暴露认证模块需要的用户资料身份事实。
+// 凭据、密码状态和会话信息由认证模块拥有，不在此边界中暴露。
 type UserIdentityProvider interface {
 	LookupUserByUsername(ctx context.Context, username string) (CurrentUser, error)
 	GetCurrentUserByID(ctx context.Context, userID uint64) (CurrentUser, error)
 	EnsureDefaultAdminProfile(ctx context.Context) (CurrentUser, error)
 }
 
-// UserBootstrapProvider exposes the user-owned profile, RBAC, menu, and locale
-// snapshot used by auth's bootstrap route. Credential state remains auth-owned.
+// UserBootstrapProvider 暴露认证 bootstrap 路由需要的用户资料、RBAC、菜单和 locale 快照。
+// 凭据状态仍由认证模块拥有。
 type UserBootstrapProvider interface {
 	ReadBootstrap(ctx context.Context, request *http.Request) (AuthBootstrapPayload, error)
 }

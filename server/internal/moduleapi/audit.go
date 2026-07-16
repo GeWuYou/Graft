@@ -5,19 +5,19 @@ import (
 	"time"
 )
 
-// AuditOverviewPreset identifies the bounded audit window used by security overview reads.
+// AuditOverviewPreset 定义安全概览读取使用的有界审计时间窗口。
 type AuditOverviewPreset string
 
 const (
-	// AuditOverviewPresetLast24Hours identifies the most recent 24-hour window.
+	// AuditOverviewPresetLast24Hours 表示最近 24 小时窗口。
 	AuditOverviewPresetLast24Hours AuditOverviewPreset = "last_24h"
-	// AuditOverviewPresetLast7Days identifies the most recent seven-day window.
+	// AuditOverviewPresetLast7Days 表示最近 7 天窗口。
 	AuditOverviewPresetLast7Days AuditOverviewPreset = "last_7d"
-	// AuditOverviewPresetLast30Days identifies the most recent 30-day window.
+	// AuditOverviewPresetLast30Days 表示最近 30 天窗口。
 	AuditOverviewPresetLast30Days AuditOverviewPreset = "last_30d"
 )
 
-// AuditSecurityRiskGroup is the bounded risk grouping exposed to the security module.
+// AuditSecurityRiskGroup 是暴露给安全模块的有界风险分组。
 type AuditSecurityRiskGroup struct {
 	Key       string `json:"key"`
 	LabelKey  string `json:"label_key"`
@@ -25,7 +25,7 @@ type AuditSecurityRiskGroup struct {
 	RiskLevel string `json:"risk_level"`
 }
 
-// AuditSecurityEvent is the minimal recent-event projection used by the security overview.
+// AuditSecurityEvent 是安全概览使用的最小近期事件投影。
 type AuditSecurityEvent struct {
 	ID        uint64    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -36,7 +36,7 @@ type AuditSecurityEvent struct {
 	RequestID string    `json:"request_id"`
 }
 
-// AuditSecuritySnapshot contains audit-owned counters and bounded recent security signals.
+// AuditSecuritySnapshot 包含审计模块拥有的计数器和有界近期安全信号。
 type AuditSecuritySnapshot struct {
 	TimePreset          AuditOverviewPreset      `json:"time_preset"`
 	TotalLogs           int                      `json:"total_logs"`
@@ -47,7 +47,7 @@ type AuditSecuritySnapshot struct {
 	RecentEvents        []AuditSecurityEvent     `json:"recent_events"`
 }
 
-// AuditSecurityReader exposes a bounded audit-owned security read model.
+// AuditSecurityReader 暴露由审计模块拥有的有界安全只读模型。
 type AuditSecurityReader interface {
 	ReadSecuritySnapshot(ctx context.Context, preset AuditOverviewPreset) (AuditSecuritySnapshot, error)
 }
@@ -58,13 +58,13 @@ type EventName string
 // AuditRecordEventName 是业务模块主动发布审计事件时使用的稳定事件名。
 const AuditRecordEventName EventName = "audit.record"
 
-// AuditEventKind identifies the audit candidate source class published on the bus.
+// AuditEventKind 标识通过事件总线发布的审计候选来源类别。
 type AuditEventKind string
 
 const (
-	// AuditEventKindDomain marks business-domain audit events published by modules.
+	// AuditEventKindDomain 表示模块发布的业务域审计事件。
 	AuditEventKindDomain AuditEventKind = "DOMAIN_EVENT"
-	// AuditEventKindSecurity marks auth/authz security events emitted from request guards.
+	// AuditEventKindSecurity 表示请求守卫发出的认证或授权安全事件。
 	AuditEventKindSecurity AuditEventKind = "SECURITY_EVENT"
 )
 

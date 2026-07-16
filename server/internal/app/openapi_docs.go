@@ -85,17 +85,17 @@ type openAPIDocsAssets struct {
 	json []byte
 }
 
-// OpenAPIDocsBundleSourcePath returns the canonical bundled OpenAPI source path in the repository.
+// OpenAPIDocsBundleSourcePath 返回仓库中规范 OpenAPI 打包源文件的路径。
 func OpenAPIDocsBundleSourcePath() string {
 	return openapiBundleSourcePath
 }
 
-// OpenAPIDocsBundleSHA256 returns the digest of the embedded bundled OpenAPI asset.
+// OpenAPIDocsBundleSHA256 返回嵌入式 OpenAPI 打包资源的摘要。
 func OpenAPIDocsBundleSHA256() string {
 	return generatedOpenAPIBundleSHA256
 }
 
-// loadOpenAPIDocsAssets loads and validates the embedded OpenAPI documentation assets.
+// loadOpenAPIDocsAssets 加载并校验嵌入式 OpenAPI 文档资源。
 func loadOpenAPIDocsAssets() (*openAPIDocsAssets, error) {
 	return buildOpenAPIDocsAssets(generatedOpenAPIBundleJSON, buildinfo.Current())
 }

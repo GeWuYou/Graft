@@ -2,10 +2,9 @@ package moduleapi
 
 import "context"
 
-// ContainerProjectMember describes the narrow runtime projection Project may consume for one container.
+// ContainerProjectMember 描述 Project 模块可消费的单个容器窄化运行时投影。
 //
-// It intentionally excludes logs, events, stats, shell, inspect payloads, and other container-detail
-// fields so Project cannot become a second runtime authority.
+// 它有意排除日志、事件、统计、Shell、inspect 载荷等容器详情，避免 Project 模块形成第二份运行时真相。
 type ContainerProjectMember struct {
 	ContainerID    string
 	ContainerName  string
@@ -13,7 +12,7 @@ type ContainerProjectMember struct {
 	CanonicalState string
 }
 
-// ContainerProjectRuntimeSummary describes the bounded runtime aggregate for one Compose project identity.
+// ContainerProjectRuntimeSummary 描述一个 Compose 项目标识的有界运行时聚合结果。
 type ContainerProjectRuntimeSummary struct {
 	CanonicalProjectName string
 	RunningCount         int
@@ -21,7 +20,7 @@ type ContainerProjectRuntimeSummary struct {
 	Members              []ContainerProjectMember
 }
 
-// ContainerProjectServiceResourceSummary describes one bounded per-service runtime resource aggregate.
+// ContainerProjectServiceResourceSummary 描述单个服务的有界运行时资源聚合结果。
 type ContainerProjectServiceResourceSummary struct {
 	ServiceName                  string
 	ContainerCount               int
@@ -40,7 +39,7 @@ type ContainerProjectServiceResourceSummary struct {
 	MemoryLimitBytes             int64
 }
 
-// ContainerProjectResourceSummary describes one bounded project-level runtime resource aggregate.
+// ContainerProjectResourceSummary 描述项目级有界运行时资源聚合结果。
 type ContainerProjectResourceSummary struct {
 	CanonicalProjectName         string
 	CollectedAt                  string
@@ -58,17 +57,17 @@ type ContainerProjectResourceSummary struct {
 	Services                     []ContainerProjectServiceResourceSummary
 }
 
-// ContainerProjectRuntimeContainerCounts describes one bounded runtime container aggregate.
+// ContainerProjectRuntimeContainerCounts 描述有界的运行时容器计数聚合结果。
 type ContainerProjectRuntimeContainerCounts struct {
 	Running int
 	Stopped int
 	Total   int
 }
 
-// ContainerProjectRuntimeCandidate describes one Compose import candidate projected from container runtime metadata.
+// ContainerProjectRuntimeCandidate 描述根据容器运行时元数据投影出的一个 Compose 导入候选。
 //
-// The container module owns runtime metadata extraction and status/reason codes tied to runtime authority.
-// Project may consume these candidates but must not parse Docker labels on its own.
+// 容器模块拥有运行时元数据提取以及与运行时真相绑定的状态、原因码；Project 模块可以消费候选，
+// 但不得自行解析 Docker labels。
 type ContainerProjectRuntimeCandidate struct {
 	CandidateKey           string
 	CanonicalProjectName   string
@@ -85,10 +84,9 @@ type ContainerProjectRuntimeCandidate struct {
 	Warnings               []string
 }
 
-// ContainerProjectRuntimeReader exposes the narrow shared boundary for Project-owned service aggregation.
+// ContainerProjectRuntimeReader 暴露供 Project 模块聚合服务状态的窄化共享边界。
 //
-// This boundary exists so the project module can aggregate runtime counts without importing container
-// module internals. Container remains the runtime authority.
+// 该边界允许 Project 模块聚合运行时计数而不导入 container 模块内部实现；container 仍是运行时真相拥有者。
 type ContainerProjectRuntimeReader interface {
 	ListProjectMembers(ctx context.Context, hostScope string, canonicalProjectName string) (ContainerProjectRuntimeSummary, error)
 	ListImportCandidates(ctx context.Context, hostScope string) ([]ContainerProjectRuntimeCandidate, error)
@@ -99,10 +97,10 @@ type ContainerProjectRuntimeReader interface {
 	) ([]ContainerProjectMember, error)
 }
 
-// ContainerProjectResourceReader exposes the narrow shared boundary for Project-owned overview resource aggregation.
+// ContainerProjectResourceReader 暴露供 Project 模块聚合概览资源的窄化共享边界。
 //
-// Container remains the authority for stats collection, normalization, cache, and realtime topics. Project may only
-// consume this bounded aggregate rather than direct container stats snapshots or runtime internals.
+// container 仍拥有统计采集、规范化、缓存和实时主题语义；Project 模块只能消费该有界聚合结果，
+// 不得直接读取容器统计快照或运行时内部实现。
 type ContainerProjectResourceReader interface {
 	ReadProjectResourceSummary(
 		ctx context.Context,
@@ -111,19 +109,18 @@ type ContainerProjectResourceReader interface {
 	) (ContainerProjectResourceSummary, error)
 }
 
-// ContainerProjectLogQuery describes the bounded log query Project may request from Container runtime authority.
+// ContainerProjectLogQuery 描述 Project 模块可向 container 运行时真相请求的有界日志查询。
 type ContainerProjectLogQuery struct {
 	Tail       int
 	Since      string
 	Timestamps bool
 	Stdout     bool
 	Stderr     bool
-	// FollowOnly suppresses the runtime tail replay when the query is used for a live stream.
-	// Historical entries must be obtained from ReadProjectLogs before follow begins.
+	// FollowOnly 在查询用于实时流时抑制运行时尾部重放；历史条目必须在开始 follow 前通过 ReadProjectLogs 获取。
 	FollowOnly bool
 }
 
-// ContainerProjectLogEntry preserves one project-owned log entry with explicit runtime source attribution.
+// ContainerProjectLogEntry 保留一条带有明确运行时来源归属的项目日志条目。
 type ContainerProjectLogEntry struct {
 	ContainerID   string
 	ContainerName string
@@ -133,7 +130,7 @@ type ContainerProjectLogEntry struct {
 	OccurredAt    string
 }
 
-// ContainerProjectLogSnapshot returns a bounded project log snapshot aggregated from project member containers.
+// ContainerProjectLogSnapshot 描述从项目成员容器聚合出的有界项目日志快照。
 type ContainerProjectLogSnapshot struct {
 	CanonicalProjectName string
 	Tail                 int
@@ -145,10 +142,9 @@ type ContainerProjectLogSnapshot struct {
 	Entries              []ContainerProjectLogEntry
 }
 
-// ContainerProjectLogReader exposes the narrow shared boundary for Project-owned log aggregation and realtime fan-in.
+// ContainerProjectLogReader 暴露供 Project 模块聚合日志并接入实时 fan-in 的窄化共享边界。
 //
-// Container remains the authority for runtime log transport, normalization, and per-container log semantics. Project
-// may only consume this bounded multi-container projection.
+// container 仍拥有运行时日志传输、规范化和单容器日志语义；Project 模块只能消费该有界多容器投影。
 type ContainerProjectLogReader interface {
 	ReadProjectLogs(
 		ctx context.Context,

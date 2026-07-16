@@ -32,7 +32,7 @@ type RBACBootstrapService interface {
 	EnsureDefaultAdminAccess(ctx context.Context, userID uint64, permissions []PermissionSeed) error
 }
 
-// SecurityPosture contains RBAC-owned security posture counters.
+// SecurityPosture 包含由 RBAC 模块拥有的安全态势计数器。
 type SecurityPosture struct {
 	TotalUsers           int `json:"total_users"`
 	DisabledUsers        int `json:"disabled_users"`
@@ -45,7 +45,7 @@ type SecurityPosture struct {
 	EmptyCustomRoleCount int `json:"empty_custom_role_count"`
 }
 
-// RBACSecurityPostureService exposes the aggregate authorization posture without leaking repositories.
+// RBACSecurityPostureService 暴露聚合授权态势，但不泄漏仓储实现。
 type RBACSecurityPostureService interface {
 	ReadSecurityPosture(ctx context.Context) (SecurityPosture, error)
 }
