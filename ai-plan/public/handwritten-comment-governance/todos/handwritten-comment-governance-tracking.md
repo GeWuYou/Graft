@@ -43,7 +43,7 @@ closeout:
 
 - startup preflight completed; initial read-only inventory sized the candidate source at 1701 files and comment-bearing files at 868.
 - Verified worker configuration: `model=gpt-5.6-luna`, `reasoning_effort=medium`.
-- Next step: complete residual inventory and archive-readiness review after the eight-wave parallel batch.
+- Next step: complete residual inventory and archive-readiness review after this four-worker parallel batch.
 
 ## Task Checklist
 
@@ -68,14 +68,15 @@ closeout:
     "second-wave auth/project/web project-shared comments",
     "third-wave audit/container/web container-monitor comments",
     "fourth-wave remaining core modules and scheduled-task",
-    "current-session eight-wave parallel residual governance"
+    "current-session eight-wave parallel residual governance",
+    "current-session four-worker residual module governance"
   ],
   "pending_batches": [
     "final mixed-commit scope reconciliation and residual acceptance review"
   ],
   "current_batch": "final residual inventory and archive-readiness review",
-  "next_batch": null,
+  "next_batch": "main-agent residual acceptance and archive-readiness review",
   "closeout_status": "handoff-required",
-  "validation_note": "backend lint passes with scoped suppression repair e3806925; web full check passes all governance stages but has one existing configuration-workspace test failure"
+  "validation_note": "four scoped commits 53335b2f, e4d367d0, 2befdf7b, 479369b0 accepted; backend full validation passes with 0 lint issues; web full check has 222 passing files / 1 existing configuration-workspace failure"
 }
 ```

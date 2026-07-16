@@ -47,6 +47,16 @@
 - Backend lint passed with `0 issues`. Web full check passed formatting, typecheck, contract, i18n, lint, style, and governance stages; Vitest had 222 passing files / 1 existing `configuration-workspace` failure and 1409 passing tests / 1 failure.
 - New-session scheduling rule: use `$graft-multi-agent-batch` directly for parallel, disjoint module scopes; use the main agent for acceptance, validation, tracking, and commit-scope review. Stop on context insufficiency or an auditable 20% session progress increment.
 
+## 2026-07-16 four-worker residual module governance
+
+- Re-ran the root startup preflight with `cross-boundary` task class and parent-topic recovery source; verified the worker configuration surface exposes `model=gpt-5.6-luna`, `reasoning_effort=medium`, and `fork_context=false`.
+- Dispatched four mutually exclusive module-level workers through `$graft-multi-agent-batch`: backend internal/announcement/notification/security/saved-view, backend project/rbac/user, web shell/shared infrastructure, and web project/runtime-target/scheduled-task/system-config/task/monitor.
+- Accepted scoped worker commits `53335b2f`, `e4d367d0`, `2befdf7b`, and `479369b0`; 81 changed files were confirmed disjoint across the four commits. No scripts, generated code, migration, third-party, or build artifact paths were modified.
+- Worker comment-governance receipts classified decisions as added, updated, and removed across why, constraint, business-rule, and external-behavior categories. Each worker used the requested model configuration and ran scoped `graft-comment-governance` plus `$graft-commit` closeout.
+- Main-agent validation passed: `cd server && go run ./cmd/graft validate backend` completed with migration/contract/locale gates passing, backend lint `0 issues`, and all Go tests passing; `git diff --check` passed.
+- `cd web && bun run check` passed formatting, typecheck, OpenAPI, i18n, lint, style, hygiene, and governance stages; Vitest remains at 222 passing files / 1409 passing tests with the existing `configuration-workspace` single-pane diff failure.
+- This session reached the user-defined approximately 20% auditable progress stop condition. Archive readiness remains pending the next main-agent residual inventory and final implementation review.
+
 ## Loop Batch State
 
 ```json
