@@ -64,7 +64,7 @@
       <template #usage="{ row }"
         ><t-tag :theme="usageTheme(row)" variant="light-outline">{{ usageLabel(row) }}</t-tag></template
       >
-      <template #size="{ row }">{{ formatBytes(row.size_bytes) }}</template>
+      <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
       <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
       <template #labels="{ row }">{{ Object.keys(row.labels || {}).length }}</template>
       <template #actions="{ row }">
@@ -103,9 +103,10 @@ import {
   TableViewToolbar,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
-import { type DockerVolumeListQuery,listDockerVolumes, removeDockerVolume } from '../../api/container';
+import { type DockerVolumeListQuery, listDockerVolumes, removeDockerVolume } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 
@@ -207,16 +208,8 @@ function usageTheme(row: VolumeRow) {
       ? 'primary'
       : 'default';
 }
-function formatBytes(value?: number | null) {
-  if (value === null || value === undefined) return t('container.volume.unavailable');
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / 1024 ** 2).toFixed(1)} MB`;
-}
 function formatTime(value?: string) {
-  return value
-    ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-    : t('container.volume.unavailable');
+  return value ? formatLocaleDateTime(value, locale) : t('container.volume.unavailable');
 }
 function confirmRemove(row: VolumeRow) {
   let typedName = '';

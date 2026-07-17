@@ -19,7 +19,7 @@
         ><t-descriptions-item :label="t('container.volume.columns.scope')">{{ volume.scope }}</t-descriptions-item
         ><t-descriptions-item :label="t('container.volume.columns.usage')">{{ usageLabel }}</t-descriptions-item
         ><t-descriptions-item :label="t('container.volume.columns.size')">{{
-          formatBytes(volume.size_bytes)
+          formatBytes(volume.size_bytes, t('container.volume.unavailable'))
         }}</t-descriptions-item
         ><t-descriptions-item :label="t('container.volume.columns.createdAt')">{{
           formatTime(volume.created_at)
@@ -44,8 +44,9 @@ import { useRoute } from 'vue-router';
 
 import { ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 
-import { type DockerVolumeDetail,getDockerVolume } from '../../api/container';
+import { type DockerVolumeDetail, getDockerVolume } from '../../api/container';
 const { locale, t } = useI18n();
 const route = useRoute();
 const volume = ref<DockerVolumeDetail | null>(null);
@@ -76,14 +77,8 @@ async function load() {
     loading.value = false;
   }
 }
-function formatBytes(value?: number | null) {
-  if (value === null || value === undefined) return t('container.volume.unavailable');
-  return value < 1024 ** 2 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 ** 2).toFixed(1)} MB`;
-}
 function formatTime(value?: string) {
-  return value
-    ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-    : t('container.volume.unavailable');
+  return value ? formatLocaleDateTime(value, locale) : t('container.volume.unavailable');
 }
 </script>
 <style scoped lang="less">
