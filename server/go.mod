@@ -41,6 +41,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.47
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0
+	github.com/oapi-codegen/runtime v1.1.2
 	github.com/robfig/cron/v3 v3.0.1
 )
 
@@ -73,8 +74,7 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/oapi-codegen/oapi-codegen/v2 v2.7.0 // indirect
-	github.com/oapi-codegen/runtime v1.1.2 // indirect
+	github.com/oapi-codegen/oapi-codegen/v2 v2.7.1 // indirect
 	github.com/oasdiff/yaml v0.1.1 // indirect
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
