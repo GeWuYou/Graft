@@ -1,0 +1,3 @@
+type: string
+enum: [database, cache, mq, proxy, storage, monitoring, logging, cicd, ai, other]
+description: Controlled Application template catalog category.

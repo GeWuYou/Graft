@@ -2817,6 +2817,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/applications/templates/{templateId}/published': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    /** Get the current published Application template for catalog browsing */
+    get: operations['getPublishedApplicationTemplate'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/template-versions/{templateVersionId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateVersionId: string;
+      };
+      cookie?: never;
+    };
+    /** Get an immutable published Application template version for creation */
+    get: operations['getPublishedApplicationTemplateVersion'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/templates/{templateId}/clone': {
     parameters: {
       query?: never;
@@ -7184,6 +7222,64 @@ export interface components {
     'enveloped-application-create-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-create-response'];
     };
+    /**
+     * @description Controlled Application template catalog category.
+     * @enum {string}
+     */
+    'application-template-category':
+      'database' | 'cache' | 'mq' | 'proxy' | 'storage' | 'monitoring' | 'logging' | 'cicd' | 'ai' | 'other';
+    'application-template-catalog-item': {
+      template_id: string;
+      display_name: string;
+      description: string;
+      category: components['schemas']['application-template-category'];
+      /** @enum {string} */
+      deployment_adapter_kind: 'compose';
+      /** Format: date-time */
+      updated_at: string;
+      version: {
+        template_version_id: string;
+        version_number: number;
+        /** Format: date-time */
+        published_at: string;
+      };
+    };
+    'application-template-catalog-list-response': {
+      items: components['schemas']['application-template-catalog-item'][];
+      page: number;
+      page_size: number;
+      has_more: boolean;
+    };
+    'enveloped-application-template-catalog-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-template-catalog-list-response'];
+    };
+    'application-template-documentation': {
+      readme_markdown?: string;
+      variables?: {
+        name: string;
+        required: boolean;
+        description: string;
+      }[];
+    };
+    'application-template-draft-request': {
+      display_name: string;
+      description?: string;
+      category: components['schemas']['application-template-category'];
+      /** @enum {string} */
+      deployment_adapter_kind: 'compose';
+      definition_schema_version: number;
+      /** @description Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset. */
+      definition: {
+        /** @description Workspace-relative primary Compose file reference. */
+        compose_file_path?: string;
+        /** @description Complete managed workspace manifest owned by the Compose adapter. */
+        workspace_entries?: components['schemas']['application-workspace-entry'][];
+        lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
+        catalog_documentation?: components['schemas']['application-template-documentation'];
+      } & {
+        [key: string]: unknown;
+      };
+    };
     'application-template-version': {
       template_version_id: string;
       version_number: number;
@@ -7206,37 +7302,23 @@ export interface components {
       template_id: string;
       display_name: string;
       description: string;
+      category: components['schemas']['application-template-category'];
       /** @enum {string} */
       deployment_adapter_kind: 'compose';
       /** Format: date-time */
+      updated_at: string;
+      /** Format: date-time */
       archived_at?: string | null;
       version: components['schemas']['application-template-version'];
+    };
+    'enveloped-application-template-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-template-response'];
     };
     'application-template-list-response': {
       items: components['schemas']['application-template-response'][];
     };
     'enveloped-application-template-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-template-list-response'];
-    };
-    'application-template-draft-request': {
-      display_name: string;
-      description?: string;
-      /** @enum {string} */
-      deployment_adapter_kind: 'compose';
-      definition_schema_version: number;
-      /** @description Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset. */
-      definition: {
-        /** @description Workspace-relative primary Compose file reference. */
-        compose_file_path?: string;
-        /** @description Complete managed workspace manifest owned by the Compose adapter. */
-        workspace_entries?: components['schemas']['application-workspace-entry'][];
-        lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
-      } & {
-        [key: string]: unknown;
-      };
-    };
-    'enveloped-application-template-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['application-template-response'];
     };
     'enveloped-application-detail-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-detail-response'];
@@ -15400,6 +15482,12 @@ export interface operations {
     parameters: {
       query?: {
         deployment_adapter_kind?: 'compose';
+        /** @description Case-insensitive template name and description search term. */
+        q?: string;
+        category?: components['schemas']['application-template-category'];
+        sort?: 'updated_desc' | 'name_asc';
+        page?: number;
+        page_size?: number;
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15421,7 +15509,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-application-template-list-response'];
+          'application/json': components['schemas']['enveloped-application-template-catalog-list-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -15584,6 +15672,68 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Application template not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getPublishedApplicationTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Published Application template detail. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Published Application template was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getPublishedApplicationTemplateVersion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateVersionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Immutable published Application template version. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Published Application template version was not found. */
       404: {
         headers: {
           [name: string]: unknown;

@@ -225,7 +225,7 @@ func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 func createApplicationTemplateStoreSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	mustExec(t, db, `CREATE TABLE application_templates (
-		template_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', deployment_adapter_kind TEXT NOT NULL,
+		template_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT 'other', deployment_adapter_kind TEXT NOT NULL,
 		archived_at TIMESTAMP NULL, created_by INTEGER NULL, updated_by INTEGER NULL, deleted_by INTEGER NULL,
 		created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0
 	)`)

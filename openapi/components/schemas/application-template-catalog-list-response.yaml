@@ -1,0 +1,9 @@
+type: object
+required: [items, page, page_size, has_more]
+properties:
+  items:
+    type: array
+    items: { $ref: ./application-template-catalog-item.yaml }
+  page: { type: integer, minimum: 1 }
+  page_size: { type: integer, minimum: 1 }
+  has_more: { type: boolean }

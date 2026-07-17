@@ -9,7 +9,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/utils/request', () => ({ request: mocks }));
 
-import { getApplicationTemplate, postApplicationTemplateClone, postApplicationTemplateWithdraw } from './project';
+import {
+  getApplicationTemplate,
+  getApplicationTemplateCatalog,
+  getPublishedApplicationTemplate,
+  getPublishedApplicationTemplateVersion,
+  postApplicationTemplateClone,
+  postApplicationTemplateWithdraw,
+} from './project';
 
 describe('application template API client', () => {
   beforeEach(() => {
@@ -40,5 +47,20 @@ describe('application template API client', () => {
     expect(mocks.post).toHaveBeenNthCalledWith(2, {
       url: '/api/ops/applications/templates/tpl_1/withdraw',
     });
+  });
+
+  it('uses catalog and immutable published snapshot endpoints', async () => {
+    mocks.get.mockResolvedValue({ items: [] });
+
+    await getApplicationTemplateCatalog({ deployment_adapter_kind: 'compose', category: 'cache', page: 2 });
+    await getPublishedApplicationTemplate('tpl_1');
+    await getPublishedApplicationTemplateVersion('tplv_1');
+
+    expect(mocks.get).toHaveBeenNthCalledWith(1, {
+      url: '/api/ops/applications/templates',
+      params: { deployment_adapter_kind: 'compose', category: 'cache', page: 2 },
+    });
+    expect(mocks.get).toHaveBeenNthCalledWith(2, { url: '/api/ops/applications/templates/tpl_1/published' });
+    expect(mocks.get).toHaveBeenNthCalledWith(3, { url: '/api/ops/applications/template-versions/tplv_1' });
   });
 });

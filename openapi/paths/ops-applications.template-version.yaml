@@ -1,0 +1,18 @@
+parameters:
+  - name: templateVersionId
+    in: path
+    required: true
+    schema: { type: string, pattern: '^tplv_[0-9A-HJKMNP-TV-Z]{26}$' }
+get:
+  tags: [application]
+  summary: Get an immutable published Application template version for creation
+  operationId: getPublishedApplicationTemplateVersion
+  responses:
+    '200':
+      description: Immutable published Application template version.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Published Application template version was not found. }

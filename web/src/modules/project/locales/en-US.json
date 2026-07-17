@@ -73,6 +73,10 @@
         "title": "Create From Template",
         "breadcrumb": "Create From Template"
       },
+      "createTemplateDetail": {
+        "title": "Template Preview",
+        "breadcrumb": "Template Preview"
+      },
       "templates": {
         "title": "Application Templates",
         "breadcrumb": "Application Templates"
@@ -1055,6 +1059,48 @@
       "deployPermissionRequired": "You need application deploy permission to deploy after creation. The application can still be created without deployment.",
       "deploySuccess": "Application deployed after creation.",
       "deployFailed": "Application was created, but deployment failed."
+    },
+    "templateCatalog": {
+      "description": "Browse published Compose templates and inspect their version snapshots before creating an application.",
+      "searchPlaceholder": "Search template names or descriptions",
+      "category": "Category",
+      "allCategories": "All categories",
+      "sortUpdated": "Recently updated",
+      "sortName": "Name",
+      "updatedAt": "Updated {value}",
+      "viewDetail": "View details",
+      "empty": "No published templates match these filters.",
+      "detailDescription": "Review the documentation, variables, and workspace snapshot of this published template version.",
+      "detailLoadFailed": "Template details could not be loaded.",
+      "backToCatalog": "Back to template catalog",
+      "readmeTitle": "README",
+      "noReadme": "This template does not include a README.",
+      "variablesTitle": "Variables",
+      "noVariables": "This template does not declare any variables.",
+      "variableName": "Variable",
+      "variableRequired": "Required",
+      "variableDescription": "Description",
+      "required": "Required",
+      "optional": "Optional",
+      "workspaceTitle": "Workspace Preview",
+      "noWorkspace": "This template does not include workspace files.",
+      "path": "Path",
+      "kind": "Kind",
+      "preview": "Preview",
+      "file": "File",
+      "directory": "Directory",
+      "categories": {
+        "database": "Database",
+        "cache": "Cache",
+        "mq": "Message Queue",
+        "proxy": "Proxy",
+        "storage": "Storage",
+        "monitoring": "Monitoring",
+        "logging": "Logging",
+        "cicd": "CI/CD",
+        "ai": "AI",
+        "other": "Other"
+      }
     },
     "templates": {
       "eyebrow": "Application Templates",

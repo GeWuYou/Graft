@@ -25,6 +25,24 @@ func TestValidateTemplateDefinitionAcceptsSnakeCaseWorkspaceEntries(t *testing.T
 	}
 }
 
+func TestValidateTemplateDefinitionRejectsInvalidCatalogDocumentation(t *testing.T) {
+	t.Parallel()
+	_, err := (&Service{}).validateTemplateDefinition(projectcontract.DeploymentAdapterKindCompose, []byte(`{
+  "compose_file_path": "compose.yaml",
+  "workspace_entries": [
+    {"path": "compose.yaml", "node_type": "file", "content": "services: {}\n"}
+  ],
+  "catalog_documentation": {
+    "variables": [
+      {"name": "invalid-name", "required": true, "description": "invalid"}
+    ]
+  }
+}`))
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("invalid catalog documentation error = %v, want invalid argument", err)
+	}
+}
+
 func TestNormalizeManagedWorkspaceEntriesAcceptsArbitraryTextAndEmptyDirectory(t *testing.T) {
 	compose := "services: {}\n"
 	content := "arbitrary text\n"

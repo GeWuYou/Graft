@@ -75,6 +75,9 @@
                     <t-form-item :label="t('project.templates.adapter')"
                       ><t-input :value="templateRecord.deployment_adapter_kind" disabled
                     /></t-form-item>
+                    <t-form-item :label="t('project.templateCatalog.category')"
+                      ><t-select v-model="category" :disabled="!isDraft" :options="categoryOptions"
+                    /></t-form-item>
                   </div>
                   <t-form-item :label="t('project.templates.descriptionField')"
                     ><t-textarea v-model="description" :disabled="!isDraft" :autosize="{ minRows: 2, maxRows: 4 }"
@@ -154,6 +157,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import type { SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -185,6 +189,7 @@ import { emitApplicationTemplateDebug } from '../../shared/project-template-debu
 import type {
   ApplicationLifecycleConfigurationDraft,
   ApplicationTemplate,
+  ApplicationTemplateCategory,
   ApplicationWorkspaceDraftEntry,
 } from '../../types/project';
 
@@ -213,6 +218,7 @@ const cloneDisplayName = ref('');
 const errorMessage = ref('');
 const displayName = ref('');
 const description = ref('');
+const category = ref<ApplicationTemplateCategory>('other');
 const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([]);
 const composeFilePath = ref('compose.yaml');
 const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft | null>(null);
@@ -229,6 +235,11 @@ const statusLabel = computed(() =>
       : t('project.templates.statusPublished'),
 );
 const statusTheme = computed(() => (isArchived.value ? 'default' : isDraft.value ? 'warning' : 'success'));
+const categoryOptions = computed<SelectProps['options']>(() =>
+  (['database', 'cache', 'mq', 'proxy', 'storage', 'monitoring', 'logging', 'cicd', 'ai', 'other'] as const).map(
+    (value) => ({ value, label: t(`project.templateCatalog.categories.${value}`) }),
+  ),
+);
 
 watch(templateId, () => void loadTemplate(), { immediate: true });
 
@@ -285,6 +296,7 @@ function hydrate(template: ApplicationTemplate) {
   templateRecord.value = template;
   displayName.value = template.display_name;
   description.value = template.description || '';
+  category.value = template.category;
   const definition = template.version.definition as Record<string, unknown>;
   composeFilePath.value =
     typeof definition.compose_file_path === 'string' ? definition.compose_file_path : 'compose.yaml';
@@ -307,6 +319,7 @@ function draftPayload() {
   return {
     display_name: displayName.value.trim(),
     description: description.value.trim(),
+    category: category.value,
     deployment_adapter_kind: 'compose' as const,
     definition_schema_version: templateRecord.value?.version.definition_schema_version || 1,
     definition: {

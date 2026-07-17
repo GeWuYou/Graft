@@ -19,6 +19,8 @@ const createBlankRouteTitle = localizeRouteTitleKey('project.route.createBlank.t
 const createBlankBreadcrumbTitle = localizeRouteTitleKey('project.route.createBlank.breadcrumb');
 const createTemplateRouteTitle = localizeRouteTitleKey('project.route.createTemplate.title');
 const createTemplateBreadcrumbTitle = localizeRouteTitleKey('project.route.createTemplate.breadcrumb');
+const createTemplateDetailRouteTitle = localizeRouteTitleKey('project.route.createTemplateDetail.title');
+const createTemplateDetailBreadcrumbTitle = localizeRouteTitleKey('project.route.createTemplateDetail.breadcrumb');
 const templatesRouteTitle = localizeRouteTitleKey('project.route.templates.title');
 const templatesBreadcrumbTitle = localizeRouteTitleKey('project.route.templates.breadcrumb');
 const templateCreateRouteTitle = localizeRouteTitleKey('project.route.templateCreate.title');
@@ -188,6 +190,25 @@ export const applicationGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createTemplateRouteTitle,
       title: createTemplateRouteTitle,
       titleKey: 'project.route.createTemplate.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE_DETAIL,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
+    loadPage: () => import('./pages/create/catalog-detail.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: createTemplateDetailRouteTitle,
+      breadcrumbTitle: createTemplateDetailBreadcrumbTitle,
+      domainTitle: listRouteTitle,
+      tabGroup: 'application',
+      tabTitle: createTemplateDetailRouteTitle,
+      title: createTemplateDetailRouteTitle,
+      titleKey: 'project.route.createTemplateDetail.title',
     },
   },
   {

@@ -319,6 +319,10 @@ paths:
     $ref: ./paths/ops-applications.templates.manage.yaml
   /api/ops/applications/templates/{templateId}:
     $ref: ./paths/ops-applications.template-detail.yaml
+  /api/ops/applications/templates/{templateId}/published:
+    $ref: ./paths/ops-applications.template-published.yaml
+  /api/ops/applications/template-versions/{templateVersionId}:
+    $ref: ./paths/ops-applications.template-version.yaml
   /api/ops/applications/templates/{templateId}/clone:
     $ref: ./paths/ops-applications.template-clone.yaml
   /api/ops/applications/templates/{templateId}/publish:

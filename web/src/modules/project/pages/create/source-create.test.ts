@@ -6,7 +6,7 @@ import ApplicationSourceCreate from './source-create.vue';
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   replace: vi.fn(),
-  getApplicationTemplates: vi.fn().mockResolvedValue({ items: [] }),
+  getApplicationTemplateCatalog: vi.fn().mockResolvedValue({ items: [], has_more: false }),
   navigateToApplicationCreateSource: vi.fn(),
 }));
 
@@ -16,7 +16,7 @@ vi.mock('vue-router', () => ({
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('tdesign-vue-next', () => ({ MessagePlugin: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
-vi.mock('../../api/project', () => ({ getApplicationTemplates: mocks.getApplicationTemplates }));
+vi.mock('../../api/project', () => ({ getApplicationTemplateCatalog: mocks.getApplicationTemplateCatalog }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
@@ -37,6 +37,10 @@ describe('ApplicationSourceCreate', () => {
           't-card': { template: '<section><slot /></section>' },
           't-alert': true,
           't-empty': true,
+          't-input': true,
+          't-select': true,
+          't-loading': { template: '<div><slot /></div>' },
+          't-pagination': true,
           't-tag': true,
           't-descriptions': { template: '<div><slot /></div>' },
           't-descriptions-item': { template: '<div><slot /></div>' },

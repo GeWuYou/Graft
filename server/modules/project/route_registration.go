@@ -95,6 +95,8 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.POST(projectcontract.ApplicationCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleCreate)
 	// Template static routes precede /:applicationId so the Application detail route cannot capture them.
 	group.GET(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplates)
+	group.GET(projectcontract.ApplicationTemplatePublishedRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplateDetail)
+	group.GET(projectcontract.ApplicationTemplateVersionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplateVersion)
 	group.GET(projectcontract.ApplicationTemplateManagementRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleManagedTemplates)
 	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCreateTemplateDraft)
 	group.GET(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateDetail)

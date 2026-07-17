@@ -20,7 +20,7 @@ var (
 	ErrTemplatePublishedState = errors.New("application template published version is immutable")
 )
 
-// ListTemplates 返回按创建者目录或管理目录条件筛选的模板聚合；管理目录优先返回草稿，其次返回已发布版本。
+// ListTemplates 返回管理目录的模板聚合；每个模板优先返回草稿，其次返回已发布版本。
 func (r *SQLRepository) ListTemplates(ctx context.Context, query TemplateListQuery) ([]ApplicationTemplateAggregate, error) {
 	if err := r.ensureReady(); err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (r *SQLRepository) ListTemplates(ctx context.Context, query TemplateListQue
 	if query.PublishedOnly {
 		versionJoin = "JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0 AND v.status = 'published'"
 	}
-	querySQL := `SELECT t.template_id, t.display_name, t.description, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
+	querySQL := `SELECT t.template_id, t.display_name, t.description, t.category, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
 		v.template_version_id, v.version_number, v.status, v.definition_schema_version, v.definition_json, v.published_at, v.published_by, v.withdrawn_at, v.withdrawn_by, v.created_by, v.updated_by, v.created_at, v.updated_at, v.deleted_at
 		FROM application_templates t ` + versionJoin + ` WHERE ` + strings.Join(where, " AND ") + ` ORDER BY t.updated_at DESC, t.template_id DESC`
 	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(querySQL), args...)
@@ -57,6 +57,42 @@ func (r *SQLRepository) ListTemplates(ctx context.Context, query TemplateListQue
 	return items, rows.Err()
 }
 
+// ListTemplateCatalog 返回面向创建者的已发布模板摘要，并以多取一条记录判断后续页。
+func (r *SQLRepository) ListTemplateCatalog(ctx context.Context, query TemplateCatalogQuery) (TemplateCatalogPage, error) {
+	if err := r.ensureReady(); err != nil {
+		return TemplateCatalogPage{}, err
+	}
+	page, pageSize, sort := normalizeTemplateCatalogQuery(query)
+	where, args := templateCatalogFilters(query)
+	offset := (page - 1) * pageSize
+	querySQL := `SELECT t.template_id, t.display_name, t.description, t.category, t.deployment_adapter_kind, t.updated_at,
+		v.template_version_id, v.version_number, v.published_at
+		FROM application_templates t JOIN application_template_versions v ON v.template_id = t.template_id
+		WHERE ` + strings.Join(where, " AND ") + ` ORDER BY ` + templateCatalogOrder(sort) + ` LIMIT ? OFFSET ?`
+	args = append(args, pageSize+1, offset)
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(querySQL), args...)
+	if err != nil {
+		return TemplateCatalogPage{}, fmt.Errorf("list application template catalog: %w", err)
+	}
+	defer closeRows(rows)
+	items := make([]ApplicationTemplateCatalogItem, 0, pageSize)
+	for rows.Next() {
+		var item ApplicationTemplateCatalogItem
+		if scanErr := rows.Scan(&item.TemplateID, &item.DisplayName, &item.Description, &item.Category, &item.DeploymentAdapterKind, &item.UpdatedAt, &item.TemplateVersionID, &item.VersionNumber, &item.PublishedAt); scanErr != nil {
+			return TemplateCatalogPage{}, scanErr
+		}
+		items = append(items, item)
+	}
+	if err = rows.Err(); err != nil {
+		return TemplateCatalogPage{}, err
+	}
+	hasMore := len(items) > pageSize
+	if hasMore {
+		items = items[:pageSize]
+	}
+	return TemplateCatalogPage{Items: items, HasMore: hasMore}, nil
+}
+
 // GetTemplate 返回存活模板身份的当前草稿；没有草稿时返回最新已发布或撤回版本。
 func (r *SQLRepository) GetTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error) {
 	return r.getTemplate(ctx, templateID, "")
@@ -67,7 +103,7 @@ func (r *SQLRepository) GetPublishedTemplateVersion(ctx context.Context, version
 	if err := r.ensureReady(); err != nil {
 		return ApplicationTemplateAggregate{}, err
 	}
-	query := `SELECT t.template_id, t.display_name, t.description, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
+	query := `SELECT t.template_id, t.display_name, t.description, t.category, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
 		v.template_version_id, v.version_number, v.status, v.definition_schema_version, v.definition_json, v.published_at, v.published_by, v.withdrawn_at, v.withdrawn_by, v.created_by, v.updated_by, v.created_at, v.updated_at, v.deleted_at
 		FROM application_templates t JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0
 		WHERE t.deleted_at = 0 AND t.archived_at IS NULL AND v.template_version_id = ? AND v.status = 'published'`
@@ -77,6 +113,26 @@ func (r *SQLRepository) GetPublishedTemplateVersion(ctx context.Context, version
 	}
 	if err != nil {
 		return ApplicationTemplateAggregate{}, fmt.Errorf("get published application template version: %w", err)
+	}
+	return item, nil
+}
+
+// GetPublishedTemplate 返回当前仍可用于创建的已发布模板详情。
+func (r *SQLRepository) GetPublishedTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error) {
+	if err := r.ensureReady(); err != nil {
+		return ApplicationTemplateAggregate{}, err
+	}
+	query := `SELECT t.template_id, t.display_name, t.description, t.category, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
+		v.template_version_id, v.version_number, v.status, v.definition_schema_version, v.definition_json, v.published_at, v.published_by, v.withdrawn_at, v.withdrawn_by, v.created_by, v.updated_by, v.created_at, v.updated_at, v.deleted_at
+		FROM application_templates t JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0
+		WHERE t.deleted_at = 0 AND t.archived_at IS NULL AND t.template_id = ? AND v.status = 'published'
+		ORDER BY v.version_number DESC LIMIT 1`
+	item, err := scanTemplateAggregate(r.db.QueryRowContext(ctx, r.placeholder.rebind(query), strings.TrimSpace(templateID)))
+	if errors.Is(err, sql.ErrNoRows) {
+		return ApplicationTemplateAggregate{}, ErrTemplateNotFound
+	}
+	if err != nil {
+		return ApplicationTemplateAggregate{}, fmt.Errorf("get published application template: %w", err)
 	}
 	return item, nil
 }
@@ -92,7 +148,7 @@ func (r *SQLRepository) getTemplate(ctx context.Context, templateID, displayName
 	if value == "" {
 		return ApplicationTemplateAggregate{}, ErrInvalidInput
 	}
-	query := `SELECT t.template_id, t.display_name, t.description, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
+	query := `SELECT t.template_id, t.display_name, t.description, t.category, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
 		v.template_version_id, v.version_number, v.status, v.definition_schema_version, v.definition_json, v.published_at, v.published_by, v.withdrawn_at, v.withdrawn_by, v.created_by, v.updated_by, v.created_at, v.updated_at, v.deleted_at
 		FROM application_templates t JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0
 		WHERE t.deleted_at = 0 AND ` + column + ` = ? ORDER BY CASE v.status WHEN 'draft' THEN 0 WHEN 'published' THEN 1 ELSE 2 END, v.version_number DESC LIMIT 1`
@@ -119,8 +175,8 @@ func (r *SQLRepository) CreateTemplateDraft(ctx context.Context, input CreateTem
 		return ApplicationTemplateAggregate{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	insertTemplate := r.placeholder.rebind(`INSERT INTO application_templates (template_id, display_name, description, deployment_adapter_kind, created_by, updated_by, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`)
-	if _, err = tx.ExecContext(ctx, insertTemplate, input.TemplateID, input.DisplayName, input.Description, input.DeploymentAdapterKind, input.ActorID, input.ActorID); err != nil {
+	insertTemplate := r.placeholder.rebind(`INSERT INTO application_templates (template_id, display_name, description, category, deployment_adapter_kind, created_by, updated_by, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`)
+	if _, err = tx.ExecContext(ctx, insertTemplate, input.TemplateID, input.DisplayName, input.Description, input.Category, input.DeploymentAdapterKind, input.ActorID, input.ActorID); err != nil {
 		return ApplicationTemplateAggregate{}, mapTemplateWriteError(err)
 	}
 	insertVersion := r.placeholder.rebind(`INSERT INTO application_template_versions (template_version_id, template_id, version_number, status, definition_schema_version, definition_json, created_by, updated_by, created_at, updated_at, deleted_at) VALUES (?, ?, 1, 'draft', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`)
@@ -148,8 +204,8 @@ func (r *SQLRepository) UpdateTemplateDraft(ctx context.Context, input UpdateTem
 		return ApplicationTemplateAggregate{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	updateTemplate := r.placeholder.rebind(`UPDATE application_templates SET display_name = ?, description = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE template_id = ? AND deleted_at = 0 AND archived_at IS NULL`)
-	result, err := tx.ExecContext(ctx, updateTemplate, strings.TrimSpace(input.DisplayName), strings.TrimSpace(input.Description), input.ActorID, strings.TrimSpace(input.TemplateID))
+	updateTemplate := r.placeholder.rebind(`UPDATE application_templates SET display_name = ?, description = ?, category = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE template_id = ? AND deleted_at = 0 AND archived_at IS NULL`)
+	result, err := tx.ExecContext(ctx, updateTemplate, strings.TrimSpace(input.DisplayName), strings.TrimSpace(input.Description), input.Category, input.ActorID, strings.TrimSpace(input.TemplateID))
 	if err != nil {
 		return ApplicationTemplateAggregate{}, mapTemplateWriteError(err)
 	}
@@ -187,21 +243,21 @@ func (r *SQLRepository) CloneTemplate(ctx context.Context, input CloneTemplateIn
 		return ApplicationTemplateAggregate{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	var description, adapterKind string
+	var description, category, adapterKind string
 	var schema int
 	var definition []byte
-	read := r.placeholder.rebind(`SELECT t.description, t.deployment_adapter_kind, v.definition_schema_version, v.definition_json
+	read := r.placeholder.rebind(`SELECT t.description, t.category, t.deployment_adapter_kind, v.definition_schema_version, v.definition_json
 		FROM application_templates t JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0
 		WHERE t.template_id = ? AND t.deleted_at = 0
 		ORDER BY CASE v.status WHEN 'draft' THEN 0 WHEN 'published' THEN 1 ELSE 2 END, v.version_number DESC LIMIT 1`)
-	if err = tx.QueryRowContext(ctx, read, input.SourceTemplateID).Scan(&description, &adapterKind, &schema, &definition); errors.Is(err, sql.ErrNoRows) {
+	if err = tx.QueryRowContext(ctx, read, input.SourceTemplateID).Scan(&description, &category, &adapterKind, &schema, &definition); errors.Is(err, sql.ErrNoRows) {
 		return ApplicationTemplateAggregate{}, ErrTemplateNotFound
 	}
 	if err != nil {
 		return ApplicationTemplateAggregate{}, err
 	}
-	insertTemplate := r.placeholder.rebind(`INSERT INTO application_templates (template_id, display_name, description, deployment_adapter_kind, created_by, updated_by, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`)
-	if _, err = tx.ExecContext(ctx, insertTemplate, input.TemplateID, strings.TrimSpace(input.DisplayName), description, adapterKind, input.ActorID, input.ActorID); err != nil {
+	insertTemplate := r.placeholder.rebind(`INSERT INTO application_templates (template_id, display_name, description, category, deployment_adapter_kind, created_by, updated_by, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`)
+	if _, err = tx.ExecContext(ctx, insertTemplate, input.TemplateID, strings.TrimSpace(input.DisplayName), description, category, adapterKind, input.ActorID, input.ActorID); err != nil {
 		return ApplicationTemplateAggregate{}, mapTemplateWriteError(err)
 	}
 	insertVersion := r.placeholder.rebind(`INSERT INTO application_template_versions (template_version_id, template_id, version_number, status, definition_schema_version, definition_json, created_by, updated_by, created_at, updated_at, deleted_at) VALUES (?, ?, 1, 'draft', ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)`)
@@ -317,7 +373,7 @@ func scanTemplateAggregate(scanner templateScanner) (ApplicationTemplateAggregat
 	var versionID, versionStatus sql.NullString
 	var versionNumber, schemaVersion, publishedBy, withdrawnBy, createdBy, updatedBy, deletedAt sql.NullInt64
 	var publishedAt, withdrawnAt, createdAt, updatedAt sql.NullTime
-	err := scanner.Scan(&item.Template.ID, &item.Template.DisplayName, &item.Template.Description, &item.Template.DeploymentAdapterKind, &item.Template.ArchivedAt, &item.Template.CreatedBy, &item.Template.UpdatedBy, &item.Template.DeletedBy, &item.Template.CreatedAt, &item.Template.UpdatedAt, &item.Template.DeletedAt, &versionID, &versionNumber, &versionStatus, &schemaVersion, &item.Version.DefinitionJSON, &publishedAt, &publishedBy, &withdrawnAt, &withdrawnBy, &createdBy, &updatedBy, &createdAt, &updatedAt, &deletedAt)
+	err := scanner.Scan(&item.Template.ID, &item.Template.DisplayName, &item.Template.Description, &item.Template.Category, &item.Template.DeploymentAdapterKind, &item.Template.ArchivedAt, &item.Template.CreatedBy, &item.Template.UpdatedBy, &item.Template.DeletedBy, &item.Template.CreatedAt, &item.Template.UpdatedAt, &item.Template.DeletedAt, &versionID, &versionNumber, &versionStatus, &schemaVersion, &item.Version.DefinitionJSON, &publishedAt, &publishedBy, &withdrawnAt, &withdrawnBy, &createdBy, &updatedBy, &createdAt, &updatedAt, &deletedAt)
 	if err != nil {
 		return item, err
 	}
@@ -357,10 +413,51 @@ func nullableUint64Pointer(value sql.NullInt64) *uint64 {
 }
 
 func validateCreateTemplateDraft(input CreateTemplateDraftInput) error {
-	if strings.TrimSpace(input.TemplateID) == "" || strings.TrimSpace(input.VersionID) == "" || strings.TrimSpace(input.DisplayName) == "" || strings.TrimSpace(input.DeploymentAdapterKind) == "" || input.DefinitionSchemaVersion < 1 || len(input.DefinitionJSON) == 0 {
+	if strings.TrimSpace(input.TemplateID) == "" || strings.TrimSpace(input.VersionID) == "" || strings.TrimSpace(input.DisplayName) == "" || strings.TrimSpace(input.Category) == "" || strings.TrimSpace(input.DeploymentAdapterKind) == "" || input.DefinitionSchemaVersion < 1 || len(input.DefinitionJSON) == 0 {
 		return ErrInvalidInput
 	}
 	return nil
+}
+
+func normalizeTemplateCatalogQuery(query TemplateCatalogQuery) (int, int, string) {
+	page, pageSize := query.Page, query.PageSize
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = templateCatalogPageSizeDefault
+	}
+	if pageSize > templateCatalogPageSizeMax {
+		pageSize = templateCatalogPageSizeMax
+	}
+	sort := strings.TrimSpace(query.Sort)
+	if sort != "name_asc" {
+		sort = "updated_desc"
+	}
+	return page, pageSize, sort
+}
+
+func templateCatalogFilters(query TemplateCatalogQuery) ([]string, []any) {
+	where := []string{"t.deleted_at = 0", "t.archived_at IS NULL", "v.deleted_at = 0", "v.status = 'published'"}
+	args := []any{}
+	if kind := strings.TrimSpace(query.DeploymentAdapterKind); kind != "" {
+		where, args = append(where, "t.deployment_adapter_kind = ?"), append(args, kind)
+	}
+	if category := strings.TrimSpace(query.Category); category != "" {
+		where, args = append(where, "t.category = ?"), append(args, category)
+	}
+	if search := strings.TrimSpace(query.Search); search != "" {
+		where = append(where, "(LOWER(t.display_name) LIKE LOWER(?) OR LOWER(t.description) LIKE LOWER(?))")
+		args = append(args, "%"+search+"%", "%"+search+"%")
+	}
+	return where, args
+}
+
+func templateCatalogOrder(sort string) string {
+	if sort == "name_asc" {
+		return "LOWER(t.display_name) ASC, t.template_id ASC"
+	}
+	return "t.updated_at DESC, t.template_id DESC"
 }
 
 func mapTemplateWriteError(err error) error {

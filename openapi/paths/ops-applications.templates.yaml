@@ -8,12 +8,28 @@ get:
     - name: deployment_adapter_kind
       in: query
       schema: { type: string, enum: [compose] }
+    - name: q
+      in: query
+      description: Case-insensitive template name and description search term.
+      schema: { type: string, maxLength: 128 }
+    - name: category
+      in: query
+      schema: { $ref: ../components/schemas/application-template-category.yaml }
+    - name: sort
+      in: query
+      schema: { type: string, enum: [updated_desc, name_asc], default: updated_desc }
+    - name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    - name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 24 }
   responses:
     '200':
       description: Published Application templates.
       content:
         application/json:
-          schema: { $ref: ../components/schemas/enveloped-application-template-list-response.yaml }
+          schema: { $ref: ../components/schemas/enveloped-application-template-catalog-list-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
 post:
