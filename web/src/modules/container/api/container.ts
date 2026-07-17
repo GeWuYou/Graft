@@ -133,8 +133,6 @@ export const getDockerImages = () =>
   request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES }) as Promise<DockerImagesData>;
 export const getDockerNetworks = () =>
   request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
-export const getDockerVolumes = () =>
-  request.get<DockerVolumesData>({ url: CONTAINER_API_PATH.DOCKER_VOLUMES }) as Promise<DockerVolumesData>;
 
 type DockerVolumeListPath = (typeof CONTAINER_API_PATH)['DOCKER_VOLUMES'];
 type GetDockerVolumesOperation = paths[DockerVolumeListPath]['get'];
