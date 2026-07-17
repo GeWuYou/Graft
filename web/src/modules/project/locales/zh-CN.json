@@ -1103,6 +1103,11 @@
         "workspace": "配置文件",
         "lifecycle": "生命周期配置"
       },
+      "tabs": {
+        "overview": "概览",
+        "workspace": "配置工作区",
+        "lifecycle": "生命周期配置"
+      },
       "status": "状态",
       "version": "版本",
       "versionValue": "版本 {version}",

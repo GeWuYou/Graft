@@ -11,12 +11,17 @@
           <div class="project-lifecycle-configuration-review__field-grid">
             <label class="project-lifecycle-configuration-review__field">
               <span>{{ t('project.detail.lifecycle.profiles') }}</span>
-              <t-input v-model="profilesInput" :placeholder="t('project.detail.lifecycle.profilesPlaceholder')" />
+              <t-input
+                v-model="profilesInput"
+                :disabled="disabled"
+                :placeholder="t('project.detail.lifecycle.profilesPlaceholder')"
+              />
             </label>
             <label class="project-lifecycle-configuration-review__field">
               <span>{{ t('project.detail.lifecycle.additionalArgs') }}</span>
               <t-input
                 v-model="draft.additional_args"
+                :disabled="disabled"
                 :placeholder="t('project.detail.lifecycle.additionalArgsPlaceholder')"
               />
             </label>
@@ -31,7 +36,7 @@
                 <p>{{ t(definition.summaryKey) }}</p>
               </div>
               <div class="project-lifecycle-configuration-review__option-control">
-                <t-switch v-model="draft[definition.field]" :aria-label="t(definition.titleKey)" />
+                <t-switch v-model="draft[definition.field]" :aria-label="t(definition.titleKey)" :disabled="disabled" />
               </div>
             </div>
             <label
@@ -39,7 +44,13 @@
               class="project-lifecycle-configuration-review__field"
             >
               <span>{{ t(waitTimeoutDefinition.titleKey) }}</span>
-              <t-input-number v-model="draft.wait_timeout_seconds" :min="1" :max="3600" :step="1" />
+              <t-input-number
+                v-model="draft.wait_timeout_seconds"
+                :disabled="disabled"
+                :min="1"
+                :max="3600"
+                :step="1"
+              />
               <small>{{ t(waitTimeoutDefinition.summaryKey) }}</small>
             </label>
           </template>
@@ -85,6 +96,7 @@ defineProps<{
   authorityMessage: string;
   configurationTitle: string;
   commandPreviewTitle: string;
+  disabled?: boolean;
 }>();
 const { t } = useApplicationPageContext();
 const waitTimeoutDefinition = lifecycleWaitTimeoutHelpDefinition;
@@ -157,6 +169,10 @@ const commandPreviews = computed(() =>
 .project-lifecycle-configuration-review__option-control :deep(.t-switch) {
   flex: none;
   width: auto;
+}
+
+.project-lifecycle-configuration-review__option-control :deep(.t-switch:disabled) {
+  cursor: not-allowed;
 }
 
 .project-lifecycle-configuration-review__option-title {

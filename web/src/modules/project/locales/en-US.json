@@ -1103,6 +1103,11 @@
         "workspace": "Configuration Files",
         "lifecycle": "Lifecycle Settings"
       },
+      "tabs": {
+        "overview": "Overview",
+        "workspace": "Configuration Workspace",
+        "lifecycle": "Lifecycle Configuration"
+      },
       "status": "Status",
       "version": "Version",
       "versionValue": "Version {version}",

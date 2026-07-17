@@ -60,39 +60,60 @@
             :message="t('project.templates.archivedHint')"
             class="application-template-detail__notice"
           />
-          <t-card bordered class="application-template-detail__section">
-            <t-form label-align="top">
-              <div class="application-template-detail__form-grid">
-                <t-form-item :label="t('project.templates.name')"
-                  ><t-input v-model="displayName" :disabled="!isDraft"
-                /></t-form-item>
-                <t-form-item :label="t('project.templates.adapter')"
-                  ><t-input :value="templateRecord.deployment_adapter_kind" disabled
-                /></t-form-item>
-              </div>
-              <t-form-item :label="t('project.templates.descriptionField')"
-                ><t-textarea v-model="description" :disabled="!isDraft" :autosize="{ minRows: 2, maxRows: 4 }"
-              /></t-form-item>
-            </t-form>
-          </t-card>
+          <t-tabs v-model:value="activeDetailTab" class="application-template-detail__tabs" theme="normal">
+            <t-tab-panel
+              value="overview"
+              :destroy-on-hide="false"
+              :label="t('project.templates.tabs.overview')"
+            >
+              <t-card bordered>
+                <t-form label-align="top">
+                  <div class="application-template-detail__form-grid">
+                    <t-form-item :label="t('project.templates.name')"
+                      ><t-input v-model="displayName" :disabled="!isDraft"
+                    /></t-form-item>
+                    <t-form-item :label="t('project.templates.adapter')"
+                      ><t-input :value="templateRecord.deployment_adapter_kind" disabled
+                    /></t-form-item>
+                  </div>
+                  <t-form-item :label="t('project.templates.descriptionField')"
+                    ><t-textarea v-model="description" :disabled="!isDraft" :autosize="{ minRows: 2, maxRows: 4 }"
+                  /></t-form-item>
+                </t-form>
+              </t-card>
+            </t-tab-panel>
 
-          <section class="application-template-detail__section">
-            <project-create-workspace-editor
-              v-model:files="workspaceFiles"
-              :class="{ 'application-template-detail__readonly': !isDraft }"
-            />
-          </section>
+            <t-tab-panel
+              value="workspace"
+              :destroy-on-hide="false"
+              :label="t('project.templates.tabs.workspace')"
+            >
+              <section class="application-template-detail__tab-panel">
+                <project-create-workspace-editor
+                  v-model:files="workspaceFiles"
+                  :class="{ 'application-template-detail__readonly': !isDraft }"
+                />
+              </section>
+            </t-tab-panel>
 
-          <section v-if="lifecycleDraft" class="application-template-detail__section">
-            <project-lifecycle-configuration-review
-              v-model:draft="lifecycleDraft"
-              :title="t('project.templates.lifecycleTitle')"
-              :description="t('project.templates.lifecycleDescription')"
-              :authority-message="t('project.templates.lifecycleAuthority')"
-              :configuration-title="t('project.create.lifecycle.configurationTitle')"
-              :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
-            />
-          </section>
+            <t-tab-panel
+              value="lifecycle"
+              :destroy-on-hide="false"
+              :label="t('project.templates.tabs.lifecycle')"
+            >
+              <section v-if="lifecycleDraft" class="application-template-detail__tab-panel">
+                <project-lifecycle-configuration-review
+                  v-model:draft="lifecycleDraft"
+                  :disabled="!isDraft"
+                  :title="t('project.templates.lifecycleTitle')"
+                  :description="t('project.templates.lifecycleDescription')"
+                  :authority-message="t('project.templates.lifecycleAuthority')"
+                  :configuration-title="t('project.create.lifecycle.configurationTitle')"
+                  :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
+                />
+              </section>
+            </t-tab-panel>
+          </t-tabs>
         </template>
       </t-loading>
     </management-page-content>
@@ -168,7 +189,9 @@ import type {
 
 defineOptions({ name: 'ApplicationTemplateDetailIndex' });
 
-// 详情页将 adapter-owned definition 映射为共享工作区和生命周期编辑器，提交时仍保留单一模板版本写入边界。
+type ApplicationTemplateDetailTab = 'overview' | 'workspace' | 'lifecycle';
+
+// 三个详情标签共享同一草稿，切换时保留未保存的工作区与生命周期编辑状态。
 
 const { t } = useI18n();
 const route = useRoute();
@@ -192,6 +215,7 @@ const description = ref('');
 const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([]);
 const composeFilePath = ref('compose.yaml');
 const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft | null>(null);
+const activeDetailTab = ref<ApplicationTemplateDetailTab>(normalizeDetailTab(route.query.tab));
 const templateId = computed(() => String(route.params.templateId || ''));
 const isArchived = computed(() => Boolean(templateRecord.value?.archived_at));
 const isDraft = computed(() => templateRecord.value?.version.status === 'draft' && !isArchived.value);
@@ -206,6 +230,27 @@ const statusLabel = computed(() =>
 const statusTheme = computed(() => (isArchived.value ? 'default' : isDraft.value ? 'warning' : 'success'));
 
 watch(templateId, () => void loadTemplate(), { immediate: true });
+
+watch(
+  () => route.query.tab,
+  (value) => {
+    const nextTab = normalizeDetailTab(value);
+    if (activeDetailTab.value !== nextTab) {
+      activeDetailTab.value = nextTab;
+    }
+  },
+);
+
+watch(activeDetailTab, (value) => {
+  if (normalizeDetailTab(route.query.tab) === value) return;
+
+  void router.replace({
+    query: {
+      ...route.query,
+      tab: value,
+    },
+  });
+});
 
 async function loadTemplate() {
   if (!templateId.value) return;
@@ -385,11 +430,22 @@ async function leaveMissingTemplate() {
 	});
 	await router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
 }
+
+function normalizeDetailTab(value: unknown): ApplicationTemplateDetailTab {
+  return value === 'workspace' || value === 'lifecycle' ? value : 'overview';
+}
 </script>
 <style scoped>
-.application-template-detail__section,
 .application-template-detail__notice {
   margin-top: var(--graft-density-gap-16);
+}
+
+.application-template-detail__tabs {
+  margin-top: var(--graft-density-gap-16);
+}
+
+.application-template-detail__tabs :deep(.t-tabs__content) {
+  padding-top: var(--graft-density-gap-16);
 }
 
 .application-template-detail__form-grid {
