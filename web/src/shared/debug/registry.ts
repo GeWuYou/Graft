@@ -1,5 +1,5 @@
 export type DebugFlagId =
-  'tabs' | 'tabs.layout' | 'tabs.store' | 'project.logs' | 'project.monaco' | 'project.workspace';
+  'tabs' | 'tabs.layout' | 'tabs.store' | 'project.logs' | 'project.monaco' | 'project.templates' | 'project.workspace';
 
 export type DebugFlagDefinition = {
   defaultEnabled: boolean;
@@ -71,6 +71,18 @@ export const DEBUG_FLAG_REGISTRY = [
       'src/modules/project/store/workspace.ts',
       'src/modules/project/components/ProjectCreateWorkspaceEditor.vue',
       'src/modules/project/components/ProjectWorkspaceEditor.vue',
+    ],
+    defaultEnabled: false,
+  },
+  {
+    flagId: 'project.templates',
+    envKeys: ['VITE_DEBUG_PROJECT_TEMPLATES'],
+    owner: 'project template catalog and detail runtime',
+    summary: '应用模板创建、详情路由与详情加载诊断日志。',
+    relatedPaths: [
+      'src/modules/project/pages/templates/index.vue',
+      'src/modules/project/pages/template-detail/index.vue',
+      'src/modules/project/shared/project-template-debug.ts',
     ],
     defaultEnabled: false,
   },

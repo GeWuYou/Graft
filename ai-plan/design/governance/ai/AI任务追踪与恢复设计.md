@@ -8,7 +8,7 @@
 
 - 为什么仓库需要 `ai-plan/`
 - `design`、`roadmap`、`public topic` 的职责如何划分
-- 长期主题、长期工作树、长分支、追踪文件、轨迹文件、归档如何协作
+- 长期主题、临时任务分支、可复用工作树、追踪文件、轨迹文件、归档如何协作
 - 什么时候应该新增 topic，什么时候应该归档 topic
 - 新的长期工作应该如何进入这套体系
 
@@ -283,113 +283,30 @@ bootstrap、loop、closeout 和归档消费的统一输入。
 
 ---
 
-## 4. 长期主题、长期工作树与长分支
+## 4. 长期主题与可复用工作树
 
-长期主题表示一个需要跨多轮推进、需要稳定恢复入口的工作方向。
-
-长期主题至少包含：
-
-- 一个稳定 topic 名称
-- 一个默认恢复入口
-- 一个 tracking 文件
-- 一个 trace 文件
-
-当仓库仍由单一主线推进时，这个默认恢复入口通常只需要绑定到一个长分支。
-
-当仓库进入并行推进阶段时，长期主题可以绑定到一个长期保留的本地 worktree，而不是只绑定到一个仍然存在的远程分支。
+长期主题是跨多轮推进、需要稳定恢复入口的工作方向；工作树只是 Agent 的临时执行空间。主题至少包含稳定 topic 名称、默认恢复入口、tracking 和 trace，不能把某个本地目录或任务分支当作主题身份。
 
 这里需要区分三种对象：
 
-- 短分支
-  - 提交、hotfix、fixbug 或短期验证所用
-  - 提交完成后可以删除
-  - 默认不进入 `ai-plan/public/README.md` 的 active-topic 映射
-- 长分支
-  - 某个长期主题当前使用的分支名
-  - 可以作为 topic 的恢复线索之一，但不应假定它永远存在于远程
-- 长期 worktree
-  - 为某个长期主题长期保留的本地工作目录
-  - 即使远程分支删除，本地 worktree 仍可继续作为该 topic 的默认恢复入口
+- active topic：持久恢复与工作状态的唯一入口。
+- task branch：一次 Agent 任务的唯一分支；完成集成后可删除，默认不写入 active-topic 映射。
+- reusable worktree：编号固定的临时目录；用完回到 `main` 基线并可被下一任务复用。
 
-因此，`ai-plan/public/README.md` 的公开映射应优先表达：
+`main` 是稳定基线。开发者主工作区负责 review、merge 或 cherry-pick，分支名可按当前集成需要变化；Agent 不负责最终集成。`ai-plan/public/README.md` 只映射 active topic 与恢复文件，最多记录当前任务分支作为辅助线索。
 
-- worktree 名称（如果已经存在）
-- 当前分支名
-- 对应 active topic
+### 4.1 可复用工作树生命周期
 
-如果某个长期主题尚未真正创建独立 worktree，则可以暂时只记录分支映射，并在 tracking 中明确“当前仍未拆出独立长期
-worktree”的状态。
+1. Agent 使用 `graft-worktree-manager acquire <branch>` 获取最低编号的空闲目录，或创建下一个编号目录。
+2. Agent 在唯一任务分支内修改、验证和提交。
+3. Agent 输出 Review Summary 并等待开发者在主工作区完成 merge 或 cherry-pick。
+4. 开发者以确认的集成引用调用 `release`；目录回到 `main` 或 detached `origin/main`，本地任务分支被清理。
 
-仓库早期的首个长期主题为：
+常规生命周期不频繁执行 `git worktree remove/add`。仓库物理迁移是一次性、开发者批准的操作，必须先确保所有工作树干净且提交已推送。
 
-- Topic: `mvp-extension-path`
-- Branch: `feat/mvp-extension-path`
+### 4.2 shared local resource 规则
 
-这个主题覆盖了早期 MVP 主线，并在当时作为默认恢复入口。
-
-当该主线完成并被并回 `main` 后，应将其整体移入 `ai-plan/public/archive/`，而不是继续把已经完成的长期主题保留在
-active topic 列表中伪装成默认恢复入口。
-
-如果仓库接下来需要先在 `main` 上治理共享基线，以便后续再从本地分支拉出多个长期 worktree，可以新增一个以 `main`
-为默认恢复入口的治理型 active topic。这个 topic 的职责应收敛为：
-
-- worktree/topic 映射治理
-- 共享热点 ownership 治理
-- 归档旧 topic
-- 为后续独立长期 worktree 准备新的 active topics
-
-此类治理型 topic 不替代未来真正按 worktree 拆出的业务 active topics；它只是多 worktree 切分前的主分支准备阶段。
-
-当 `mvp-extension-path` 同时承载前后端持续迭代、但 tracking/trace 已经明显过重时，可以在该主题下引入
-`server` 与 `web` 子主题，而不是把它们升级成多个并列 active topic。
-
-### 4.1 `main` 共享基线阶段
-
-在真正拆出多个长期 worktree/topic pair 之前，`main` 可以短期承担“共享基线 worktree”的角色，但它不是永久默认入口。
-
-这个阶段的 `main` topic 应只承载：
-
-- 共享热点 ownership 收口
-- 长期 worktree 候选边界梳理
-- active topic / subtopic 与 worktree 映射治理
-- 已完成旧 topic 的归档和恢复入口切换
-
-不应继续把下列内容长期堆在 `main` topic 里：
-
-- 某个模块的日常 feature backlog
-- 本可独立 owned 的长期实现细节
-- 反复混写多个模块的验证记录和下一步
-
-如果某个方向仍需频繁修改共享热点、仍未形成稳定 owned scope，说明它还停留在共享基线治理阶段，不应过早登记为 dedicated
-long-lived worktree/topic pair。
-
-### 4.2 dedicated long-lived worktree/topic pair 的准入条件
-
-一个方向要从 `main` 共享基线切换成独立长期 worktree/topic pair，至少同时满足：
-
-- 有清晰且可长期维持的 owned scope
-- 共享热点白名单已明确，而不是把所有白名单都默认算可写范围
-- 已知的 cross-worktree 依赖可以收敛到共享稳定边界或短生命周期集成点
-- 该方向值得拥有独立 tracking / trace，恢复时不再依赖父 topic 的混合上下文
-- 该方向的验证责任已经清楚，能够独立报告最近验证与剩余风险
-
-若这些条件不满足，优先继续留在 `main` 治理型 topic 或父 topic 的子主题下推进。
-
-### 4.3 从根分支切换到 dedicated pair 的步骤
-
-从 root branch / `main` 切换到 dedicated long-lived worktree/topic pair 时，治理顺序应固定为：
-
-1. 在 `main` 治理 topic 中先确认该方向的 owned scope、共享热点白名单和当前 branch/worktree 候选名
-2. 为该方向建立独立 worktree 与长期分支，并同步建立对应 tracking / trace 恢复入口
-3. 在 active-topic 映射中登记新的 topic 与 worktree 关系，让后续 startup preflight 可以得到明确恢复入口
-4. 将该方向的日常下一步、验证、风险迁移到新 topic 或子主题
-5. 把 `main` 治理 topic 收缩回共享基线职责，不再继续承接该方向的常规实现推进
-
-如果切换后发现该方向仍反复争抢共享热点，应撤回为共享基线治理问题处理，而不是放任 dedicated pair 名义存在但实际持续混写。
-
-### 4.4 shared local resource 规则
-
-创建新的 dedicated 或临时 worktree 时，本地共享资源必须只有一套仓库真值：
+创建或复用临时 worktree 时，本地共享资源必须只有一套仓库真值：
 
 - worktree 初始化入口应统一走仓库 skill / helper，而不是每个贡献者维护一份私有脚本
 - 不要硬编码机器专属 `ROOT_DIR`、`REPO_DIR`、`WORKTREE_ROOT`
@@ -421,8 +338,8 @@ Tracking 文件应长期保留：
 - 子主题清单
 - 哪些事项必须留在父级
 - 哪些事项应该下沉到子主题
-- 哪些方向仍留在 `main` 共享基线阶段
-- 哪些方向已经拥有 dedicated long-lived worktree/topic pair
+- 哪些方向仍需要开发者集成处理共享热点
+- 当前任务是否依赖某个临时 Agent worktree
 
 Trace 文件记录执行轨迹，但也不能退化为无边界流水账。它应保留：
 
@@ -461,12 +378,7 @@ Trace 文件记录执行轨迹，但也不能退化为无边界流水账。它�
 - 需要独立风险、验证和下一步
 - 该方向与现有 active topic 的边界已经明显不同
 
-如果未来准备让“一个长期 worktree 对应一个长期 topic”，还应同时满足：
-
-- 该方向会持续跨多轮推进，而不是一次性切片
-- 该方向有足够稳定的 owned scope，可避免长期反复争抢共享热点
-- 该方向值得拥有独立 tracking / trace，而不是继续挂在父主题下等待整合
-- 该方向的共享热点白名单和切换后的验证责任已经写清
+长期主题的准入取决于恢复与协调成本，而不是是否拥有独立工作树。若某方向会持续跨多轮推进、拥有独立风险和验证责任，就应建立 tracking / trace；它使用哪个编号 worktree 由每次 acquire 决定。
 
 如果总体目标仍然一致，只是 `server`、`web`、模块族或某个子系统的恢复材料已经过重，优先在现有 active
 topic 下增加子主题，而不是拆成多个并列 active topic。
@@ -474,18 +386,17 @@ topic 下增加子主题，而不是拆成多个并列 active topic。
 满足以下任一条件时，优先新增子主题而不是新增 active topic：
 
 - 父主题仍然是默认恢复入口
-- 多个边界共享同一个长期分支或总体目标
+- 多个边界共享同一个总体目标
 - 纯边界内工作已经需要独立风险、验证和下一步
 - 父级 tracking/trace 已经因为混合记录多个边界而变得冗长
 
 不满足新增 active topic 或新增子主题条件时，优先继续挂在现有 active topic 下推进。
 
-如果旧 active topic 已经完成并且仓库正在 `main` 上为多 worktree 做共享治理准备，则应优先：
+如果旧 active topic 已经完成并且仓库正在收口多 worktree 共享治理，则应优先：
 
 - 归档旧 active topic
-- 在 `main` 上建立新的治理型 active topic
-- 等新的长期 worktree 真正创建后，再把它们登记为独立 active topics
-- 只把仍需共享基线治理的事项留在 `main` topic，其余长期实现方向尽快下沉到 dedicated pair 或父 topic 子主题
+- 建立新的治理型 active topic
+- 只把仍需共享基线治理的事项留在该 topic，其余长期实现方向下沉到父 topic 子主题或独立 topic
 
 ---
 

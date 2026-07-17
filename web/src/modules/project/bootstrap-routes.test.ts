@@ -38,7 +38,7 @@ describe('project bootstrap route registrations', () => {
       expect.objectContaining({
         menuPath: APPLICATION_ROUTE_PATH.TEMPLATES,
         routeName: 'ApplicationTemplates',
-        pageRouteName: 'ApplicationTemplateList',
+        pageRouteName: 'ApplicationTemplatesIndex',
         meta: expect.objectContaining({
           pageKind: 'list',
           pageSurface: 'paged-table',
@@ -47,6 +47,29 @@ describe('project bootstrap route registrations', () => {
     );
     expect(applicationGlobalRouteRegistrations).not.toContainEqual(
       expect.objectContaining({ path: APPLICATION_ROUTE_PATH.TEMPLATES }),
+    );
+  });
+
+  it('navigates template detail actions to the mounted child route', () => {
+    const detail = applicationGlobalRouteRegistrations.find((route) => route.routeName === 'ApplicationTemplateDetail');
+
+    expect(detail).toMatchObject({ pageRouteName: 'ApplicationTemplateDetailIndex' });
+  });
+
+  it('registers template creation as a hidden workflow below template management', () => {
+    expect(applicationGlobalRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        path: APPLICATION_ROUTE_PATH.TEMPLATE_CREATE,
+        routeName: 'ApplicationTemplateCreateWizard',
+        pageRouteName: 'ApplicationTemplateCreateWizardIndex',
+        navigationParentPath: APPLICATION_ROUTE_PATH.TEMPLATES,
+        meta: expect.objectContaining({
+          hiddenMenu: true,
+          keepAlive: false,
+          pageSurface: 'form-detail',
+          titleKey: 'project.route.templateCreate.title',
+        }),
+      }),
     );
   });
 

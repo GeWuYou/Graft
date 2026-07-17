@@ -51,6 +51,15 @@ describe('debug runtime', () => {
     expect(isDebugFlagEnabled('project.workspace')).toBe(true);
   });
 
+  it('resolves the project template diagnostic flag through the debug store', () => {
+    vi.stubEnv('VITE_DEBUG_PROJECT_TEMPLATES', 'true');
+
+    const debugStore = useDebugStore(store);
+    debugStore.recompute();
+
+    expect(isDebugFlagEnabled('project.templates')).toBe(true);
+  });
+
   it('exposes a window developer API backed by the debug store', () => {
     initDebugRuntime();
 

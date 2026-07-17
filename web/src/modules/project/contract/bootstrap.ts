@@ -42,12 +42,17 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
   },
   TEMPLATES: {
     menuPath: APPLICATION_ROUTE_PATH.TEMPLATES,
-    pageRouteName: 'ApplicationTemplateList',
+    pageRouteName: 'ApplicationTemplatesIndex',
     routeName: 'ApplicationTemplates',
+  },
+  TEMPLATE_CREATE: {
+    path: APPLICATION_ROUTE_PATH.TEMPLATE_CREATE,
+    pageRouteName: 'ApplicationTemplateCreateWizardIndex',
+    routeName: 'ApplicationTemplateCreateWizard',
   },
   TEMPLATE_DETAIL: {
     path: APPLICATION_ROUTE_PATH.TEMPLATE_DETAIL,
-    pageRouteName: 'ApplicationTemplateDetail',
+    pageRouteName: 'ApplicationTemplateDetailIndex',
     routeName: 'ApplicationTemplateDetail',
   },
   DETAIL: {

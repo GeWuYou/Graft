@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Worktree Manager"
+  short_description: "Acquire, inspect, and release reusable AI-agent worktrees."
+  default_prompt: "Use $graft-worktree-manager to inspect the reusable Graft worktree pool, acquire a clean unique task branch, or release a developer-integrated task workspace."

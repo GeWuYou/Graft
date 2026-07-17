@@ -83,6 +83,25 @@ func TestTemplateRepositorySoftDeletesTemplate(t *testing.T) {
 	}
 }
 
+func TestTemplateRepositoryRejectsDuplicateLiveNamesAndAllowsReuseAfterDelete(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	ctx := context.Background()
+	first, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAA", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAA", DisplayName: "Reusable", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	if err != nil {
+		t.Fatalf("create first template: %v", err)
+	}
+	if _, err = repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAB", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAB", DisplayName: "Reusable", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)}); !errors.Is(err, ErrTemplateNameOccupied) {
+		t.Fatalf("duplicate live name error = %v, want %v", err, ErrTemplateNameOccupied)
+	}
+	if err = repository.DeleteTemplate(ctx, first.Template.ID, nil); err != nil {
+		t.Fatalf("delete first template: %v", err)
+	}
+	if _, err = repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAC", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAC", DisplayName: "Reusable", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)}); err != nil {
+		t.Fatalf("reuse deleted template name: %v", err)
+	}
+}
+
 func TestTemplateRepositoryHidesArchivedTemplatesFromCreatorCatalog(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)

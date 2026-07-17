@@ -32,5 +32,6 @@ post:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
     '400': { description: Invalid template draft input. }
+    '409': { description: A live Application template already uses the requested display name. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

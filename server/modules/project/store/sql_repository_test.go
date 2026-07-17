@@ -225,10 +225,11 @@ func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 func createApplicationTemplateStoreSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	mustExec(t, db, `CREATE TABLE application_templates (
-		template_id TEXT PRIMARY KEY, display_name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '', deployment_adapter_kind TEXT NOT NULL,
+		template_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', deployment_adapter_kind TEXT NOT NULL,
 		archived_at TIMESTAMP NULL, created_by INTEGER NULL, updated_by INTEGER NULL, deleted_by INTEGER NULL,
 		created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0
 	)`)
+	mustExec(t, db, `CREATE UNIQUE INDEX application_templates_display_name_live ON application_templates(display_name) WHERE deleted_at = 0`)
 	mustExec(t, db, `CREATE TABLE application_template_versions (
 		template_version_id TEXT PRIMARY KEY, template_id TEXT NOT NULL, version_number INTEGER NOT NULL, status TEXT NOT NULL,
 		definition_schema_version INTEGER NOT NULL, definition_json BLOB NOT NULL, published_at TIMESTAMP NULL, published_by INTEGER NULL, withdrawn_at TIMESTAMP NULL, withdrawn_by INTEGER NULL,

@@ -5,7 +5,6 @@ import ApplicationTemplateListIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
   getApplicationManagedTemplates: vi.fn(),
-  postApplicationTemplate: vi.fn(),
   deleteApplicationTemplate: vi.fn(),
   postApplicationTemplateArchive: vi.fn(),
   postApplicationTemplateClone: vi.fn(),
@@ -16,7 +15,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../api/project', () => ({
   getApplicationManagedTemplates: mocks.getApplicationManagedTemplates,
-  postApplicationTemplate: mocks.postApplicationTemplate,
   deleteApplicationTemplate: mocks.deleteApplicationTemplate,
   postApplicationTemplateArchive: mocks.postApplicationTemplateArchive,
   postApplicationTemplateClone: mocks.postApplicationTemplateClone,
@@ -51,12 +49,18 @@ function mountPage() {
           },
         },
         't-tag': WrapperStub,
-        't-dialog': WrapperStub,
+        't-dialog': {
+          template: '<div v-if="visible"><slot /><button data-testid="dialog-confirm" @click="$emit(\'confirm\')">confirm</button></div>',
+          props: ['visible'],
+        },
         't-form': WrapperStub,
         't-form-item': WrapperStub,
         't-empty': { template: '<div>{{ title }}</div>', props: ['title'] },
         't-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
-        't-input': { template: '<input />' },
+        't-input': {
+          template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          props: ['modelValue'],
+        },
         't-select': { template: '<select />' },
       },
     },
@@ -66,7 +70,6 @@ function mountPage() {
 describe('ApplicationTemplateListIndex', () => {
   beforeEach(() => {
     mocks.getApplicationManagedTemplates.mockReset();
-    mocks.postApplicationTemplate.mockReset();
     mocks.deleteApplicationTemplate.mockReset();
     mocks.postApplicationTemplateArchive.mockReset();
     mocks.postApplicationTemplateClone.mockReset();
@@ -128,6 +131,17 @@ describe('ApplicationTemplateListIndex', () => {
     expect(wrapper.text()).toContain('project.templates.archive');
     expect(wrapper.text()).toContain('project.templates.delete');
     expect(wrapper.text()).not.toContain('project.templates.importLegacy');
+  });
+
+  it('opens the template creation workflow without creating a draft', async () => {
+    mocks.getApplicationManagedTemplates.mockResolvedValue({ items: [] });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findAll('button').find((button) => button.text() === 'project.templates.create')?.trigger('click');
+
+    expect(mocks.push).toHaveBeenCalledWith({ name: 'ApplicationTemplateCreateWizardIndex' });
   });
 
   it('shows withdraw for published templates and keeps clone/delete for archived templates', async () => {

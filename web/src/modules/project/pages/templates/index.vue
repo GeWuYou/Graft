@@ -8,7 +8,7 @@
       >
         <template #actions>
           <t-space size="small">
-            <t-button theme="primary" :loading="creating" @click="createBlankDraft">
+			<t-button theme="primary" @click="openCreateDialog">
               {{ t('project.templates.create') }}
             </t-button>
           </t-space>
@@ -83,10 +83,10 @@
         <template #empty
           ><t-empty :title="t('project.templates.emptyTitle')" :description="t('project.templates.emptyDescription')"
         /></template>
-      </t-table>
-    </management-page-content>
+		</t-table>
+	  </management-page-content>
 
-    <t-dialog
+	  <t-dialog
       v-model:visible="cloneVisible"
       :header="t('project.templates.cloneTitle')"
       :confirm-btn="t('project.templates.cloneConfirm')"
@@ -123,14 +123,14 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   deleteApplicationTemplate,
   getApplicationManagedTemplates,
-  postApplicationTemplate,
   postApplicationTemplateArchive,
   postApplicationTemplateClone,
   postApplicationTemplatePublish,
   postApplicationTemplateWithdraw,
 } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import type { ApplicationTemplate, ApplicationTemplateDraftRequest } from '../../types/project';
+import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
+import type { ApplicationTemplate } from '../../types/project';
 
 defineOptions({ name: 'ApplicationTemplateListIndex' });
 
@@ -140,7 +140,6 @@ const { t } = useI18n();
 const router = useRouter();
 const templates = ref<ApplicationTemplate[]>([]);
 const loading = ref(false);
-const creating = ref(false);
 const cloning = ref(false);
 const deleting = ref(false);
 const errorMessage = ref('');
@@ -188,35 +187,18 @@ async function loadTemplates() {
   }
 }
 
-function blankDraftPayload(): ApplicationTemplateDraftRequest {
-  return {
-    display_name: t('project.templates.untitled'),
-    description: '',
-    deployment_adapter_kind: 'compose',
-    definition_schema_version: 1,
-    definition: {
-      compose_file_path: 'compose.yaml',
-      workspace_entries: [
-        { path: '.env', node_type: 'file', content: '' },
-        { path: 'compose.yaml', node_type: 'file', content: t('project.templates.defaultCompose') },
-      ],
-      lifecycle_configuration: {},
-    },
-  } as unknown as ApplicationTemplateDraftRequest;
-}
-
-async function createBlankDraft() {
-  creating.value = true;
-  try {
-    openTemplate(await postApplicationTemplate(blankDraftPayload()));
-  } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.createFailed')));
-  } finally {
-    creating.value = false;
-  }
+function openCreateDialog() {
+	emitApplicationTemplateDebug('create-wizard-opened', {
+	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_CREATE.pageRouteName,
+	});
+	void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_CREATE.pageRouteName });
 }
 
 function openTemplate(template: ApplicationTemplate) {
+	emitApplicationTemplateDebug('detail-navigation-requested', {
+	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
+	  templateId: template.template_id,
+	});
   void router.push({
     name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
     params: { templateId: template.template_id },

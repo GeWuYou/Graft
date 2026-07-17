@@ -8,6 +8,7 @@ export const APPLICATION_ROUTE_PATH = {
   CREATE_BLANK: '/applications/create/blank',
   CREATE_TEMPLATE: '/applications/create/template',
   TEMPLATES: '/applications/templates',
+  TEMPLATE_CREATE: '/applications/templates/create',
   TEMPLATE_DETAIL: '/applications/templates/:templateId',
   DETAIL: '/applications/:applicationId',
   CONFIGURATION_WORKSPACE: '/applications/:applicationId/configuration',

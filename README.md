@@ -333,8 +333,8 @@ Notes:
 
 - Keep `web/.env.development`, `web/.env.local`, and other `web/.env.*` local files untracked.
 - `web/.env.example` is only a shared template and must not contain personal secrets or machine-specific addresses.
-- When multiple long-lived or temporary worktrees exist, keep one canonical `web/.env.development` and let the
-  worktree initialization flow create relative symlinks instead of copying per-worktree local config.
+- When reusable agent worktrees exist, keep one canonical `web/.env.development` and let Worktree Manager create
+  relative symlinks instead of copying per-worktree local config.
 
 ## Web Validation
 
@@ -465,15 +465,31 @@ bun run contract:check:changed
 
 ## Worktrees
 
-Use the repository worktree initialization workflow instead of creating private machine-specific setup scripts. The
-standard workflow:
+Worktrees are reusable AI-agent temporary workspaces, not long-lived feature branches. `main` is the stable baseline;
+the developer-owned primary checkout is the integration and review workspace and may use whichever branch the current
+integration needs.
 
-- Detects the canonical `repo_dir` from the current Git environment.
-- Places worktrees under sibling `<repo-name>-wt/` paths by default.
-- Uses the root `.worktree-shared.json` as the shared local-resource source of truth.
-- Creates relative symlinks for shared local resources, including `web/.env.development` when available.
-- Warns, but does not fail, when optional local files are missing.
-- Does not rely on legacy `.local` conventions or hard-coded machine paths.
+Use Worktree Manager rather than private setup scripts or routine `git worktree add/remove` commands:
+
+```bash
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py status
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py acquire feature/runtime-target
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py release --confirm-integrated <commit-or-ref>
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
+```
+
+- `acquire` reuses the lowest clean numbered `/.worktrees/01` style directory or creates the next pool slot, then creates
+  a unique task branch from `main`.
+- `release` first prints a review summary. Only after a developer confirms that the branch was merged or cherry-picked
+  does it return the directory to `main` and remove the local task branch.
+- Agents may commit their task branch but never perform the final merge or cherry-pick. Developers integrate in the
+  primary checkout.
+- Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources; final generation
+  and conflict resolution occur in the developer integration workspace.
+- The manager uses `.worktree-shared.json` for relative shared-resource links and never relies on `.local`.
+- `relocate --confirm` is the developer-approved, one-time migration for clean legacy sibling worktrees. It moves them
+  into `/.worktrees/<slot>` and rebuilds declared shared-resource links; it refuses dirty or non-baseline pool slots
+  but does not depend on unrelated primary-workspace changes.
 
 The shared local-resource source of truth is `.worktree-shared.json`, not `.local`.
 

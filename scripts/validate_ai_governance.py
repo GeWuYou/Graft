@@ -29,6 +29,7 @@ PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.
 AI_AUDIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-governance-audit" / "SKILL.md"
 AI_PLAN_GOVERNANCE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-plan-governance" / "SKILL.md"
 WORK_INTAKE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-work-intake" / "SKILL.md"
+WORKTREE_MANAGER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-worktree-manager" / "SKILL.md"
 PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
@@ -495,6 +496,7 @@ def validate_agents_skill_list() -> list[Finding]:
         "graft-ai-governance-audit",
         "graft-ai-plan-governance",
         "graft-work-intake",
+        "graft-worktree-manager",
         "graft-validation-runner",
         "graft-sql-migration",
         "graft-shared-asset-reuse",
@@ -505,6 +507,34 @@ def validate_agents_skill_list() -> list[Finding]:
         findings.append(Finding(AGENTS, "Headroom/RTK automatic instruction block must not be committed"))
     if contains_project_rtk_prefix_rule(text):
         findings.append(Finding(AGENTS, "project governance must not require agents to always prefix commands with rtk"))
+    return findings
+
+
+def validate_worktree_manager_skill() -> list[Finding]:
+    """Validate the reusable worktree manager's required safety boundaries."""
+    if not WORKTREE_MANAGER_SKILL.is_file():
+        return [Finding(WORKTREE_MANAGER_SKILL, "worktree manager skill is missing")]
+
+    text = read_text(WORKTREE_MANAGER_SKILL)
+    findings = missing_exact_terms(
+        text,
+        WORKTREE_MANAGER_SKILL,
+        "worktree manager",
+        (
+            "`status`",
+            "`acquire`",
+            "`release`",
+            "`main` is the stable baseline",
+            "must not perform the final merge or cherry-pick",
+            "linear resources",
+            "`git worktree remove`",
+        ),
+    )
+    helper = WORKTREE_MANAGER_SKILL.parent / "scripts" / "worktree_manager.py"
+    test = WORKTREE_MANAGER_SKILL.parent / "scripts" / "test_worktree_manager.py"
+    for path in (helper, test):
+        if not path.is_file():
+            findings.append(Finding(path, "worktree manager helper or regression test is missing"))
     return findings
 
 
@@ -840,6 +870,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_skills())
     findings.extend(validate_ai_plan_governance_skill())
     findings.extend(validate_work_intake_skill())
+    findings.extend(validate_worktree_manager_skill())
     findings.extend(validate_skill_mcp_guidance())
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())

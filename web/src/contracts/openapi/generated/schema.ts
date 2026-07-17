@@ -7225,7 +7225,15 @@ export interface components {
       deployment_adapter_kind: 'compose';
       definition_schema_version: number;
       /** @description Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset. */
-      definition: Record<string, never>;
+      definition: {
+        /** @description Workspace-relative primary Compose file reference. */
+        compose_file_path?: string;
+        /** @description Complete managed workspace manifest owned by the Compose adapter. */
+        workspace_entries?: components['schemas']['application-workspace-entry'][];
+        lifecycle_configuration?: components['schemas']['application-lifecycle-configuration-request'];
+      } & {
+        [key: string]: unknown;
+      };
     };
     'enveloped-application-template-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-template-response'];
@@ -15451,6 +15459,13 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description A live Application template already uses the requested display name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getApplicationManagedTemplates: {
@@ -15497,7 +15512,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Application template not found. */
+      /** @description Application template was deleted or does not exist. */
       404: {
         headers: {
           [name: string]: unknown;

@@ -60,39 +60,61 @@
             :message="t('project.templates.archivedHint')"
             class="application-template-detail__notice"
           />
-          <t-card bordered class="application-template-detail__section">
-            <t-form label-align="top">
-              <div class="application-template-detail__form-grid">
-                <t-form-item :label="t('project.templates.name')"
-                  ><t-input v-model="displayName" :disabled="!isDraft"
-                /></t-form-item>
-                <t-form-item :label="t('project.templates.adapter')"
-                  ><t-input :value="templateRecord.deployment_adapter_kind" disabled
-                /></t-form-item>
-              </div>
-              <t-form-item :label="t('project.templates.descriptionField')"
-                ><t-textarea v-model="description" :disabled="!isDraft" :autosize="{ minRows: 2, maxRows: 4 }"
-              /></t-form-item>
-            </t-form>
-          </t-card>
+          <t-tabs v-model:value="activeDetailTab" class="application-template-detail__tabs" theme="normal">
+            <t-tab-panel
+              value="overview"
+              :destroy-on-hide="false"
+              :label="t('project.templates.tabs.overview')"
+            >
+              <t-card bordered>
+                <t-form label-align="top">
+                  <div class="application-template-detail__form-grid">
+                    <t-form-item :label="t('project.templates.name')"
+                      ><t-input v-model="displayName" :disabled="!isDraft"
+                    /></t-form-item>
+                    <t-form-item :label="t('project.templates.adapter')"
+                      ><t-input :value="templateRecord.deployment_adapter_kind" disabled
+                    /></t-form-item>
+                  </div>
+                  <t-form-item :label="t('project.templates.descriptionField')"
+                    ><t-textarea v-model="description" :disabled="!isDraft" :autosize="{ minRows: 2, maxRows: 4 }"
+                  /></t-form-item>
+                </t-form>
+              </t-card>
+            </t-tab-panel>
 
-          <section class="application-template-detail__section">
-            <project-create-workspace-editor
-              v-model:files="workspaceFiles"
-              :class="{ 'application-template-detail__readonly': !isDraft }"
-            />
-          </section>
+            <t-tab-panel
+              value="workspace"
+              :destroy-on-hide="false"
+              :label="t('project.templates.tabs.workspace')"
+            >
+              <section class="application-template-detail__tab-panel">
+                <project-create-workspace-editor
+                  v-model:files="workspaceFiles"
+                  :disabled="!isDraft"
+                  :class="{ 'application-template-detail__readonly': !isDraft }"
+                />
+              </section>
+            </t-tab-panel>
 
-          <section v-if="lifecycleDraft" class="application-template-detail__section">
-            <project-lifecycle-configuration-review
-              v-model:draft="lifecycleDraft"
-              :title="t('project.templates.lifecycleTitle')"
-              :description="t('project.templates.lifecycleDescription')"
-              :authority-message="t('project.templates.lifecycleAuthority')"
-              :configuration-title="t('project.create.lifecycle.configurationTitle')"
-              :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
-            />
-          </section>
+            <t-tab-panel
+              value="lifecycle"
+              :destroy-on-hide="false"
+              :label="t('project.templates.tabs.lifecycle')"
+            >
+              <section v-if="lifecycleDraft" class="application-template-detail__tab-panel">
+                <project-lifecycle-configuration-review
+                  v-model:draft="lifecycleDraft"
+                  :disabled="!isDraft"
+                  :title="t('project.templates.lifecycleTitle')"
+                  :description="t('project.templates.lifecycleDescription')"
+                  :authority-message="t('project.templates.lifecycleAuthority')"
+                  :configuration-title="t('project.create.lifecycle.configurationTitle')"
+                  :command-preview-title="t('project.create.lifecycle.commandPreviewTitle')"
+                />
+              </section>
+            </t-tab-panel>
+          </t-tabs>
         </template>
       </t-loading>
     </management-page-content>
@@ -139,6 +161,8 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { useTabsRouterStore } from '@/store';
+import { isApiRequestError } from '@/utils/request';
 
 import {
   deleteApplicationTemplate,
@@ -157,6 +181,7 @@ import {
   buildLifecycleConfigurationRequest,
   type LifecycleDraftSource,
 } from '../../shared/lifecycle';
+import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
 import type {
   ApplicationLifecycleConfigurationDraft,
   ApplicationTemplate,
@@ -165,11 +190,14 @@ import type {
 
 defineOptions({ name: 'ApplicationTemplateDetailIndex' });
 
-// 详情页将 adapter-owned definition 映射为共享工作区和生命周期编辑器，提交时仍保留单一模板版本写入边界。
+type ApplicationTemplateDetailTab = 'overview' | 'workspace' | 'lifecycle';
+
+// 三个详情标签共享同一草稿，切换时保留未保存的工作区与生命周期编辑状态。
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const templateRecord = ref<ApplicationTemplate | null>(null);
 const loading = ref(false);
 const saving = ref(false);
@@ -188,6 +216,7 @@ const description = ref('');
 const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([]);
 const composeFilePath = ref('compose.yaml');
 const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft | null>(null);
+const activeDetailTab = ref<ApplicationTemplateDetailTab>(normalizeDetailTab(route.query.tab));
 const templateId = computed(() => String(route.params.templateId || ''));
 const isArchived = computed(() => Boolean(templateRecord.value?.archived_at));
 const isDraft = computed(() => templateRecord.value?.version.status === 'draft' && !isArchived.value);
@@ -203,14 +232,50 @@ const statusTheme = computed(() => (isArchived.value ? 'default' : isDraft.value
 
 watch(templateId, () => void loadTemplate(), { immediate: true });
 
+watch(
+  () => route.query.tab,
+  (value) => {
+    const nextTab = normalizeDetailTab(value);
+    if (activeDetailTab.value !== nextTab) {
+      activeDetailTab.value = nextTab;
+    }
+  },
+);
+
+watch(activeDetailTab, (value) => {
+  if (normalizeDetailTab(route.query.tab) === value) return;
+
+  void router.replace({
+    query: {
+      ...route.query,
+      tab: value,
+    },
+  });
+});
+
 async function loadTemplate() {
   if (!templateId.value) return;
   loading.value = true;
   errorMessage.value = '';
-  try {
-    hydrate(await getApplicationTemplate(templateId.value));
-  } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templates.detailLoadFailed'));
+	emitApplicationTemplateDebug('detail-load-requested', {
+	  routeName: String(route.name || ''),
+	  templateId: templateId.value,
+	});
+	try {
+	  const template = await getApplicationTemplate(templateId.value);
+	  emitApplicationTemplateDebug('detail-load-succeeded', { templateId: template.template_id });
+	  hydrate(template);
+	} catch (error) {
+	  if (isApiRequestError(error) && error.status === 404) {
+		emitApplicationTemplateDebug('detail-load-not-found', { templateId: templateId.value });
+		void leaveMissingTemplate();
+		return;
+	  }
+	  emitApplicationTemplateDebug('detail-load-failed', {
+		errorName: error instanceof Error ? error.name : typeof error,
+		templateId: templateId.value,
+	  });
+	  errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templates.detailLoadFailed'));
   } finally {
     loading.value = false;
   }
@@ -334,10 +399,10 @@ async function deleteTemplate() {
   if (!templateRecord.value) return;
   deleting.value = true;
   try {
-    await deleteApplicationTemplate(templateRecord.value.template_id);
-    deleteVisible.value = false;
-    MessagePlugin.success(t('project.templates.deleteSuccess'));
-    backToList();
+	  await deleteApplicationTemplate(templateRecord.value.template_id);
+	  deleteVisible.value = false;
+	  MessagePlugin.success(t('project.templates.deleteSuccess'));
+	  await leaveMissingTemplate();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.deleteFailed')));
   } finally {
@@ -346,13 +411,42 @@ async function deleteTemplate() {
 }
 
 function backToList() {
-  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
+	void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
+}
+
+async function leaveMissingTemplate() {
+	const activeTab = tabsRouterStore.tabRouters.find((tab) => tab.tabKey === tabsRouterStore.activeTabKey);
+	const currentTab = activeTab?.path === route.path ? activeTab : tabsRouterStore.tabRouters.find((tab) => tab.path === route.path);
+	if (currentTab) {
+		emitApplicationTemplateDebug('detail-tab-discarded', { tabKey: currentTab.tabKey, templateId: templateId.value });
+		tabsRouterStore.discardTabRouter({
+			tabKey: currentTab.tabKey,
+			path: currentTab.path,
+			routeIdx: tabsRouterStore.tabRouters.indexOf(currentTab),
+		});
+	}
+	emitApplicationTemplateDebug('detail-navigation-replaced-with-list', {
+	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName,
+	  templateId: templateId.value,
+	});
+	await router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
+}
+
+function normalizeDetailTab(value: unknown): ApplicationTemplateDetailTab {
+  return value === 'workspace' || value === 'lifecycle' ? value : 'overview';
 }
 </script>
 <style scoped>
-.application-template-detail__section,
 .application-template-detail__notice {
   margin-top: var(--graft-density-gap-16);
+}
+
+.application-template-detail__tabs {
+  margin-top: var(--graft-density-gap-16);
+}
+
+.application-template-detail__tabs :deep(.t-tabs__content) {
+  padding-top: var(--graft-density-gap-16);
 }
 
 .application-template-detail__form-grid {
