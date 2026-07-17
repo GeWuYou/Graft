@@ -114,6 +114,62 @@ describe('ApplicationCreateWorkspaceEditor', () => {
     expect(wrapper.text()).toContain('nginx.conf');
   });
 
+  it('browses files in read-only mode without changing their content', async () => {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
+      props: {
+        disabled: true,
+        files: [
+          { path: 'compose.yaml', content: 'services: {}' },
+          { path: '.env', content: 'APP_PORT=8080' },
+          { path: 'config', node_type: 'directory' },
+          { path: 'config/app.yaml', content: 'name: app' },
+        ],
+      },
+    });
+    const editor = wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' });
+
+    expect(editor.props('activeBuffer')).toMatchObject({
+      path: 'compose.yaml',
+      content: 'services: {}',
+      readOnly: true,
+    });
+
+    await wrapper
+      .findAll('.project-workspace-editor__tree-entry')
+      .find((entry) => entry.text() === '.env')
+      ?.trigger('click');
+    await nextTick();
+
+    expect(editor.props('activeBuffer')).toMatchObject({
+      path: '.env',
+      content: 'APP_PORT=8080',
+      readOnly: true,
+    });
+
+    await wrapper
+      .findAll('.project-workspace-editor__tree-entry')
+      .find((entry) => entry.text() === 'config')
+      ?.trigger('click');
+    await nextTick();
+    expect(wrapper.text()).toContain('app.yaml');
+
+    expect(wrapper.find('[data-testid="workspace-create-save"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="workspace-create-save-all"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="workspace-create-validate"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="workspace-create-format"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="workspace-create-copy"]').attributes('disabled')).not.toBe('true');
+    expect(wrapper.find('[data-testid="workspace-fullscreen-toggle"]').attributes('disabled')).not.toBe('true');
+
+    editor.vm.$emit('update-content', '.env', 'APP_PORT=3000');
+    await nextTick();
+    expect(wrapper.props('files')).toEqual([
+      { path: 'compose.yaml', content: 'services: {}' },
+      { path: '.env', content: 'APP_PORT=8080' },
+      { path: 'config', node_type: 'directory' },
+      { path: 'config/app.yaml', content: 'name: app' },
+    ]);
+  });
+
   it('provides a stable editor-height storage key to the shared viewer frame', () => {
     const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [{ path: '.env', content: 'APP_PORT=8080' }] },

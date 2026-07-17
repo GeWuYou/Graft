@@ -95,7 +95,6 @@
                 <project-create-workspace-editor
                   v-model:files="workspaceFiles"
                   :disabled="!isDraft"
-                  :class="{ 'application-template-detail__readonly': !isDraft }"
                 />
               </section>
             </t-tab-panel>
@@ -466,11 +465,6 @@ function normalizeDetailTab(value: unknown): ApplicationTemplateDetailTab {
   display: grid;
   gap: var(--graft-density-gap-16);
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.application-template-detail__readonly {
-  opacity: 0.72;
-  pointer-events: none;
 }
 
 @media (width <= 720px) {

@@ -352,12 +352,6 @@ export function postApplicationApplicationNameAvailability(payload: ApplicationA
   }) as Promise<ApplicationApplicationNameAvailabilityResponse>;
 }
 
-export function getApplicationTemplates() {
-  return request.get<GetApplicationTemplatesData>({
-    url: APPLICATION_API_PATH.TEMPLATES,
-  }) as Promise<ApplicationTemplateCatalogListResponse>;
-}
-
 export function getApplicationTemplateCatalog(query: ApplicationTemplateCatalogQuery) {
   return request.get<GetApplicationTemplatesData>({
     url: APPLICATION_API_PATH.TEMPLATES,
