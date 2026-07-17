@@ -140,7 +140,8 @@ UI route 的 canonical 语义固定为：
 | `/applications/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Adapter picker |
 | `/applications/create/source?deployment=compose&runtime_target_id=<target-id>` | Compose Source picker；无效或缺失选择回到上一步 |
 | `/applications/create/blank?deployment=compose&runtime_target_id=<target-id>` | Compose 空白 Workspace 向导 |
-| `/applications/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose 模板向导 |
+| `/applications/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose Template Catalog；负责搜索、分类、排序和选择已发布版本 |
+| `/applications/create/template/:templateId?deployment=compose&runtime_target_id=<target-id>` | 创建者可访问的只读已发布模板详情；不是模板管理编辑页 |
 | `/applications/create/import?deployment=compose&runtime_target_id=<target-id>` | Compose 导入向导 |
 
 `/applications/**` 是唯一 Application 领域 URL；不得引入 `/projects/**`、`/docker/**`、`/compose/**` 或
@@ -521,6 +522,10 @@ Application Template 是独立于受管工作区的版本化创建蓝图。模�
 - 模板版本仅作为预填工作区和 lifecycle preset 的来源证明。用户可在统一受管创建编辑器修改内容；创建结果记录 `template_id` 与 `template_version_id`，但不会反写模板。
 - 模板可归档或软删除；软删除保留审计与既有 Application 的来源元数据，但从所有模板读取和管理目录中排除。
 - 模板定义仅存于持久化版本快照，不能作为 `workspace_key`、应用工作区、导入目标或应用文件 API 的可访问根目录。
+- 创建来源页是 Template Catalog，而不是模板管理详情的重复卡片列表。公开目录只读取已发布、未归档的轻量摘要，并以服务端分页、名称/简介检索、分类和稳定排序支撑大目录；不得把完整 workspace definition 放进每个列表项。
+- 模板身份使用单一受控 `category`：`database`、`cache`、`mq`、`proxy`、`storage`、`monitoring`、`logging`、`cicd`、`ai`、`other`。首期不提供自由标签、作者、评分、使用次数或官方发布者语义。
+- 创建者的目录详情和按版本读取接口只返回已发布快照，并要求 Application 创建权限；管理员模板详情继续拥有草稿编辑、发布、撤回、归档和删除能力。二者不得共享管理权限、草稿读取 API 或页面状态。
+- 版本定义可携带只读目录文档：README Markdown 与受控变量说明。它们与 workspace、Compose path、lifecycle preset 一起随发布版本冻结；详情可预览文件，但不能把预览变为 workspace 编辑入口。
 
 ### `compose_project_snapshots`
 

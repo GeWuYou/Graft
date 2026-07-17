@@ -10,9 +10,12 @@ properties:
   updated_at:
     type: string
     format: date-time
-  archived_at:
-    type: string
-    format: date-time
-    nullable: true
   version:
-    $ref: ./application-template-version.yaml
+    type: object
+    required: [template_version_id, version_number, published_at]
+    properties:
+      template_version_id: { type: string }
+      version_number: { type: integer, minimum: 1 }
+      published_at:
+        type: string
+        format: date-time

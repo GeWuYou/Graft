@@ -52,6 +52,13 @@ export type ApplicationApplicationNameAvailabilityResponse =
 export type ApplicationTemplate = components['schemas']['application-template-response'];
 export type ApplicationTemplateVersion = components['schemas']['application-template-version'];
 export type ApplicationTemplateListResponse = components['schemas']['application-template-list-response'];
+export type ApplicationTemplateCatalogItem = components['schemas']['application-template-catalog-item'];
+export type ApplicationTemplateCatalogListResponse =
+  components['schemas']['application-template-catalog-list-response'];
+export type ApplicationTemplateCategory = components['schemas']['application-template-category'];
+export type ApplicationTemplateCatalogQuery = NonNullable<
+  paths[(typeof APPLICATION_API_PATH)['TEMPLATES']]['get']['parameters']['query']
+>;
 export type ApplicationTemplateDraftRequest = components['schemas']['application-template-draft-request'];
 export type ApplicationWorkspaceManifestFile = components['schemas']['application-workspace-manifest-file'];
 export type ApplicationWorkspaceEntry = components['schemas']['application-workspace-entry'];

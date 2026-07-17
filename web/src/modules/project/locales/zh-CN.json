@@ -73,6 +73,10 @@
         "title": "基于模板创建",
         "breadcrumb": "基于模板创建"
       },
+      "createTemplateDetail": {
+        "title": "模板预览",
+        "breadcrumb": "模板预览"
+      },
       "templates": {
         "title": "应用模板",
         "breadcrumb": "应用模板"
@@ -1055,6 +1059,48 @@
       "deployPermissionRequired": "需要应用部署权限才能在创建后部署；不部署也可以正常创建应用。",
       "deploySuccess": "应用已在创建后部署。",
       "deployFailed": "应用已创建，但部署失败。"
+    },
+    "templateCatalog": {
+      "description": "浏览已发布的 Compose 模板，并在创建应用前查看其版本快照。",
+      "searchPlaceholder": "搜索模板名称或说明",
+      "category": "分类",
+      "allCategories": "全部分类",
+      "sortUpdated": "最近更新",
+      "sortName": "名称",
+      "updatedAt": "更新于 {value}",
+      "viewDetail": "查看详情",
+      "empty": "没有匹配的已发布模板。",
+      "detailDescription": "查看已发布模板版本的文档、变量和工作区快照。",
+      "detailLoadFailed": "模板详情加载失败。",
+      "backToCatalog": "返回模板目录",
+      "readmeTitle": "README",
+      "noReadme": "该模板未提供 README。",
+      "variablesTitle": "变量",
+      "noVariables": "该模板未声明变量。",
+      "variableName": "变量名",
+      "variableRequired": "必填",
+      "variableDescription": "说明",
+      "required": "必填",
+      "optional": "可选",
+      "workspaceTitle": "工作区预览",
+      "noWorkspace": "该模板未提供工作区文件。",
+      "path": "路径",
+      "kind": "类型",
+      "preview": "预览",
+      "file": "文件",
+      "directory": "目录",
+      "categories": {
+        "database": "数据库",
+        "cache": "缓存",
+        "mq": "消息队列",
+        "proxy": "代理",
+        "storage": "存储",
+        "monitoring": "监控",
+        "logging": "日志",
+        "cicd": "CI/CD",
+        "ai": "AI",
+        "other": "其他"
+      }
     },
     "templates": {
       "eyebrow": "应用模板",

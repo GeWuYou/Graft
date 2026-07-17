@@ -6,11 +6,68 @@ import (
 	"testing"
 )
 
+func TestTemplateCatalogFiltersAndPaginatesPublishedSummaries(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	ctx := context.Background()
+	for _, input := range []CreateTemplateDraftInput{
+		{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FB1", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FB1", DisplayName: "Redis", Description: "Fast cache", Category: "cache", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)},
+		{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FB2", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FB2", DisplayName: "Postgres", Description: "Relational database", Category: "database", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)},
+		{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FB3", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FB3", DisplayName: "Nginx", Description: "Reverse proxy", Category: "proxy", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)},
+	} {
+		created, err := repository.CreateTemplateDraft(ctx, input)
+		if err != nil {
+			t.Fatalf("create template %s: %v", input.DisplayName, err)
+		}
+		if _, err = repository.PublishTemplateDraft(ctx, created.Template.ID, nil); err != nil {
+			t.Fatalf("publish template %s: %v", input.DisplayName, err)
+		}
+	}
+	page, err := repository.ListTemplateCatalog(ctx, TemplateCatalogQuery{DeploymentAdapterKind: "compose", Category: "cache", Page: 1, PageSize: 24})
+	if err != nil || len(page.Items) != 1 || page.Items[0].DisplayName != "Redis" || page.Items[0].TemplateVersionID == "" || page.Items[0].PublishedAt.IsZero() {
+		t.Fatalf("category catalog = %#v, err = %v", page, err)
+	}
+	page, err = repository.ListTemplateCatalog(ctx, TemplateCatalogQuery{DeploymentAdapterKind: "compose", Search: "database", Sort: "name_asc", Page: 1, PageSize: 24})
+	if err != nil || len(page.Items) != 1 || page.Items[0].DisplayName != "Postgres" {
+		t.Fatalf("search catalog = %#v, err = %v", page, err)
+	}
+	page, err = repository.ListTemplateCatalog(ctx, TemplateCatalogQuery{DeploymentAdapterKind: "compose", Page: 1, PageSize: 2})
+	if err != nil || len(page.Items) != 2 || !page.HasMore {
+		t.Fatalf("first catalog page = %#v, err = %v", page, err)
+	}
+}
+
+func TestTemplateRepositoryHidesPublishedDetailAfterWithdrawalArchiveAndDelete(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	ctx := context.Background()
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FB4", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FB4", DisplayName: "Detail", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	published, err := repository.PublishTemplateDraft(ctx, created.Template.ID, nil)
+	if err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if item, getErr := repository.GetPublishedTemplate(ctx, created.Template.ID); getErr != nil || item.Version.ID != published.Version.ID {
+		t.Fatalf("published detail = %#v, err = %v", item, getErr)
+	}
+	if _, err = repository.WithdrawTemplate(ctx, WithdrawTemplateInput{TemplateID: created.Template.ID, VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FB5"}); err != nil {
+		t.Fatalf("withdraw: %v", err)
+	}
+	if _, err = repository.GetPublishedTemplate(ctx, created.Template.ID); !errors.Is(err, ErrTemplateNotFound) {
+		t.Fatalf("withdrawn template detail must be hidden, got %v", err)
+	}
+	if _, err = repository.GetPublishedTemplateVersion(ctx, published.Version.ID); !errors.Is(err, ErrTemplateNotFound) {
+		t.Fatalf("withdrawn version must be hidden, got %v", err)
+	}
+}
+
 func TestTemplateRepositoryWithdrawsPublishedVersionAndCreatesNextDraft(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAV", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAV", DisplayName: "Redis", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAV", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAV", DisplayName: "Redis", Category: "cache", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
 	if err != nil {
 		t.Fatalf("create template draft: %v", err)
 	}
@@ -43,7 +100,7 @@ func TestTemplateRepositoryClonesCurrentDefinition(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FA1", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FA1", DisplayName: "Source", Description: "source definition", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FA1", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FA1", DisplayName: "Source", Description: "source definition", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -67,7 +124,7 @@ func TestTemplateRepositorySoftDeletesTemplate(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FA4", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FA4", DisplayName: "Delete source", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FA4", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FA4", DisplayName: "Delete source", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -87,17 +144,17 @@ func TestTemplateRepositoryRejectsDuplicateLiveNamesAndAllowsReuseAfterDelete(t 
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	first, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAA", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAA", DisplayName: "Reusable", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	first, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAA", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAA", DisplayName: "Reusable", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
 	if err != nil {
 		t.Fatalf("create first template: %v", err)
 	}
-	if _, err = repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAB", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAB", DisplayName: "Reusable", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)}); !errors.Is(err, ErrTemplateNameOccupied) {
+	if _, err = repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAB", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAB", DisplayName: "Reusable", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)}); !errors.Is(err, ErrTemplateNameOccupied) {
 		t.Fatalf("duplicate live name error = %v, want %v", err, ErrTemplateNameOccupied)
 	}
 	if err = repository.DeleteTemplate(ctx, first.Template.ID, nil); err != nil {
 		t.Fatalf("delete first template: %v", err)
 	}
-	if _, err = repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAC", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAC", DisplayName: "Reusable", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)}); err != nil {
+	if _, err = repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAC", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAC", DisplayName: "Reusable", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)}); err != nil {
 		t.Fatalf("reuse deleted template name: %v", err)
 	}
 }
@@ -106,7 +163,7 @@ func TestTemplateRepositoryHidesArchivedTemplatesFromCreatorCatalog(t *testing.T
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAW", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAW", DisplayName: "Gitea", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAW", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAW", DisplayName: "Gitea", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -129,7 +186,7 @@ func TestTemplateRepositoryManagedCatalogFallsBackToPublishedVersionWithoutDraft
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAT", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAT", DisplayName: "Postgres", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml"}`)})
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAT", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAT", DisplayName: "Postgres", Category: "database", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml"}`)})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -149,7 +206,7 @@ func TestTemplateRepositoryResolvesOnlyPublishedUnarchivedVersionsForCreation(t 
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
 	ctx := context.Background()
-	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAZ", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAZ", DisplayName: "Grafana", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
+	created, err := repository.CreateTemplateDraft(ctx, CreateTemplateDraftInput{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FAZ", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAZ", DisplayName: "Grafana", Category: "monitoring", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml","workspace_entries":[]}`)})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

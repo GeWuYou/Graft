@@ -13,6 +13,10 @@ const (
 	ApplicationTemplateManagementRoute = "/templates/manage"
 	// ApplicationTemplateDetailRoute 标识模板详情和草稿编辑接口。
 	ApplicationTemplateDetailRoute = "/templates/:templateId"
+	// ApplicationTemplatePublishedRoute 标识创建者可读的已发布模板详情接口。
+	ApplicationTemplatePublishedRoute = "/templates/:templateId/published"
+	// ApplicationTemplateVersionRoute 标识创建者可读取的不可变发布版本接口。
+	ApplicationTemplateVersionRoute = "/template-versions/:templateVersionId"
 	// ApplicationTemplateCloneRoute 标识将当前定义复制为独立草稿模板的接口。
 	ApplicationTemplateCloneRoute = "/templates/:templateId/clone"
 	// ApplicationTemplatePublishRoute 标识模板草稿发布接口。

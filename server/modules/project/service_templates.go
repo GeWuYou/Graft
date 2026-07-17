@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	projectcontract "graft/server/modules/project/contract"
@@ -15,20 +16,36 @@ var (
 	errProjectTemplateUnavailable = errors.New("application template repository is unavailable")
 	errProjectTemplateArchived    = errors.New("application template is archived")
 	errProjectTemplateUnpublished = errors.New("application template version is not published")
+	templateVariableNamePattern   = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 )
 
 // ComposeTemplateDefinition 是 Compose adapter 对通用模板 definition 的唯一解释。
 // 它不把 Docker、Podman 或 Swarm 字段泄漏到通用模板表。
 type ComposeTemplateDefinition struct {
-	WorkspaceEntries []ManagedWorkspaceEntry  `json:"workspace_entries"`
-	ComposeFilePath  string                   `json:"compose_file_path"`
-	LifecycleConfig  *LifecycleStandardConfig `json:"lifecycle_configuration,omitempty"`
+	WorkspaceEntries     []ManagedWorkspaceEntry                  `json:"workspace_entries"`
+	ComposeFilePath      string                                   `json:"compose_file_path"`
+	LifecycleConfig      *LifecycleStandardConfig                 `json:"lifecycle_configuration,omitempty"`
+	CatalogDocumentation *ApplicationTemplateCatalogDocumentation `json:"catalog_documentation,omitempty"`
+}
+
+// ApplicationTemplateCatalogDocumentation 是随发布定义冻结的目录详情内容。
+type ApplicationTemplateCatalogDocumentation struct {
+	ReadmeMarkdown string                               `json:"readme_markdown,omitempty"`
+	Variables      []ApplicationTemplateCatalogVariable `json:"variables,omitempty"`
+}
+
+// ApplicationTemplateCatalogVariable 描述模板使用者在创建时需要理解的变量。
+type ApplicationTemplateCatalogVariable struct {
+	Name        string `json:"name"`
+	Required    bool   `json:"required"`
+	Description string `json:"description"`
 }
 
 // ApplicationTemplateDraftRequest 是创建或更新通用模板草稿的服务输入。
 type ApplicationTemplateDraftRequest struct {
 	DisplayName             string
 	Description             string
+	Category                projectcontract.ApplicationTemplateCategory
 	DeploymentAdapterKind   projectcontract.DeploymentAdapterKind
 	DefinitionSchemaVersion int
 	DefinitionJSON          []byte
@@ -42,16 +59,39 @@ func (s *Service) templateRepositoryOrErr() (projectstore.TemplateRepository, er
 	return repository, nil
 }
 
-// ListPublishedApplicationTemplates 返回创建者可使用的已发布、未归档模板。
-func (s *Service) ListPublishedApplicationTemplates(ctx context.Context, kind projectcontract.DeploymentAdapterKind) ([]projectstore.ApplicationTemplateAggregate, error) {
+// ListPublishedApplicationTemplates 返回创建者可发现的已发布、未归档模板目录页。
+func (s *Service) ListPublishedApplicationTemplates(ctx context.Context, kind projectcontract.DeploymentAdapterKind, query projectstore.TemplateCatalogQuery) (projectstore.TemplateCatalogPage, error) {
 	if _, err := s.deploymentAdapter(kind); err != nil {
-		return nil, err
+		return projectstore.TemplateCatalogPage{}, err
+	}
+	query.Search, query.Category, query.Sort = strings.TrimSpace(query.Search), strings.TrimSpace(query.Category), strings.TrimSpace(query.Sort)
+	if len(query.Search) > 128 || (query.Category != "" && !projectcontract.ApplicationTemplateCategory(query.Category).Valid()) || (query.Sort != "" && query.Sort != "updated_desc" && query.Sort != "name_asc") {
+		return projectstore.TemplateCatalogPage{}, errProjectInvalidArgument
 	}
 	repository, err := s.templateRepositoryOrErr()
 	if err != nil {
-		return nil, err
+		return projectstore.TemplateCatalogPage{}, err
 	}
-	return repository.ListTemplates(ctx, projectstore.TemplateListQuery{DeploymentAdapterKind: kind.String(), PublishedOnly: true})
+	query.DeploymentAdapterKind = kind.String()
+	return repository.ListTemplateCatalog(ctx, query)
+}
+
+// GetPublishedApplicationTemplate 返回创建者可浏览的当前已发布模板详情。
+func (s *Service) GetPublishedApplicationTemplate(ctx context.Context, templateID string) (projectstore.ApplicationTemplateAggregate, error) {
+	repository, err := s.templateRepositoryOrErr()
+	if err != nil {
+		return projectstore.ApplicationTemplateAggregate{}, err
+	}
+	return repository.GetPublishedTemplate(ctx, templateID)
+}
+
+// GetPublishedApplicationTemplateVersion 返回创建时可安全预填的不可变发布版本。
+func (s *Service) GetPublishedApplicationTemplateVersion(ctx context.Context, versionID string) (projectstore.ApplicationTemplateAggregate, error) {
+	repository, err := s.templateRepositoryOrErr()
+	if err != nil {
+		return projectstore.ApplicationTemplateAggregate{}, err
+	}
+	return repository.GetPublishedTemplateVersion(ctx, versionID)
 }
 
 // resolveManagedCreateSource 将可选模板版本转换为受管创建的来源溯源信息。
@@ -110,7 +150,7 @@ func (s *Service) CreateApplicationTemplateDraft(ctx context.Context, request Ap
 	if err != nil {
 		return projectstore.ApplicationTemplateAggregate{}, err
 	}
-	return repository.CreateTemplateDraft(ctx, projectstore.CreateTemplateDraftInput{TemplateID: newTemplateID(), VersionID: newTemplateVersionID(), DisplayName: normalized.DisplayName, Description: normalized.Description, DeploymentAdapterKind: normalized.DeploymentAdapterKind.String(), DefinitionSchemaVersion: normalized.DefinitionSchemaVersion, DefinitionJSON: normalized.DefinitionJSON, ActorID: actorID})
+	return repository.CreateTemplateDraft(ctx, projectstore.CreateTemplateDraftInput{TemplateID: newTemplateID(), VersionID: newTemplateVersionID(), DisplayName: normalized.DisplayName, Description: normalized.Description, Category: normalized.Category.String(), DeploymentAdapterKind: normalized.DeploymentAdapterKind.String(), DefinitionSchemaVersion: normalized.DefinitionSchemaVersion, DefinitionJSON: normalized.DefinitionJSON, ActorID: actorID})
 }
 
 // UpdateApplicationTemplateDraft 校验并替换单个模板唯一可编辑草稿的定义快照。
@@ -133,7 +173,7 @@ func (s *Service) UpdateApplicationTemplateDraft(ctx context.Context, templateID
 	if current.Template.DeploymentAdapterKind != normalized.DeploymentAdapterKind.String() {
 		return projectstore.ApplicationTemplateAggregate{}, errProjectInvalidArgument
 	}
-	return repository.UpdateTemplateDraft(ctx, projectstore.UpdateTemplateDraftInput{TemplateID: templateID, DisplayName: normalized.DisplayName, Description: normalized.Description, DefinitionSchemaVersion: normalized.DefinitionSchemaVersion, DefinitionJSON: normalized.DefinitionJSON, ActorID: actorID})
+	return repository.UpdateTemplateDraft(ctx, projectstore.UpdateTemplateDraftInput{TemplateID: templateID, DisplayName: normalized.DisplayName, Description: normalized.Description, Category: normalized.Category.String(), DefinitionSchemaVersion: normalized.DefinitionSchemaVersion, DefinitionJSON: normalized.DefinitionJSON, ActorID: actorID})
 }
 
 // CloneApplicationTemplate 将当前定义复制为具有独立身份的新草稿模板。
@@ -211,7 +251,7 @@ func (s *Service) DeleteApplicationTemplate(ctx context.Context, templateID stri
 
 func (s *Service) normalizeTemplateDraft(request ApplicationTemplateDraftRequest) (ApplicationTemplateDraftRequest, error) {
 	request.DisplayName, request.Description = strings.TrimSpace(request.DisplayName), strings.TrimSpace(request.Description)
-	if request.DisplayName == "" || len(request.DisplayName) > 128 || request.DefinitionSchemaVersion < 1 {
+	if request.DisplayName == "" || len(request.DisplayName) > 128 || !request.Category.Valid() || request.DefinitionSchemaVersion < 1 {
 		return ApplicationTemplateDraftRequest{}, errProjectInvalidArgument
 	}
 	if _, err := s.validateTemplateDefinition(request.DeploymentAdapterKind, request.DefinitionJSON); err != nil {
@@ -240,28 +280,66 @@ func (s *Service) validateTemplateDefinition(kind projectcontract.DeploymentAdap
 	if err = adapter.ValidateDefinition(definition); err != nil {
 		return ComposeTemplateDefinition{}, fmt.Errorf("%w: %v", errProjectInvalidArgument, err)
 	}
+	return s.validateComposeTemplateDefinition(kind, definition)
+}
+
+func (s *Service) validateComposeTemplateDefinition(kind projectcontract.DeploymentAdapterKind, definition []byte) (ComposeTemplateDefinition, error) {
 	if kind != projectcontract.DeploymentAdapterKindCompose {
 		return ComposeTemplateDefinition{}, errProjectInvalidArgument
 	}
 	var parsed ComposeTemplateDefinition
-	if err = json.Unmarshal(definition, &parsed); err != nil {
+	if err := json.Unmarshal(definition, &parsed); err != nil {
 		return ComposeTemplateDefinition{}, errProjectInvalidArgument
 	}
 	if strings.TrimSpace(parsed.ComposeFilePath) == "" {
 		return ComposeTemplateDefinition{}, errProjectInvalidArgument
 	}
-	if _, err = normalizeManagedWorkspaceEntries(parsed.WorkspaceEntries, parsed.ComposeFilePath); err != nil {
+	if _, err := normalizeManagedWorkspaceEntries(parsed.WorkspaceEntries, parsed.ComposeFilePath); err != nil {
 		return ComposeTemplateDefinition{}, err
 	}
-	if _, err = workspaceEntryContent(parsed.WorkspaceEntries, parsed.ComposeFilePath); err != nil {
+	if _, err := workspaceEntryContent(parsed.WorkspaceEntries, parsed.ComposeFilePath); err != nil {
 		return ComposeTemplateDefinition{}, err
 	}
-	if parsed.LifecycleConfig != nil {
-		if _, err = normalizeLifecycleStandardConfig(*parsed.LifecycleConfig); err != nil {
-			return ComposeTemplateDefinition{}, err
-		}
+	if err := validateTemplateLifecycleConfig(parsed.LifecycleConfig); err != nil {
+		return ComposeTemplateDefinition{}, err
+	}
+	if err := validateTemplateCatalogDocumentation(parsed.CatalogDocumentation); err != nil {
+		return ComposeTemplateDefinition{}, err
 	}
 	return parsed, nil
+}
+
+func validateTemplateLifecycleConfig(config *LifecycleStandardConfig) error {
+	if config == nil {
+		return nil
+	}
+	_, err := normalizeLifecycleStandardConfig(*config)
+	return err
+}
+
+func validateTemplateCatalogDocumentation(documentation *ApplicationTemplateCatalogDocumentation) error {
+	if documentation == nil {
+		return nil
+	}
+	if len(documentation.ReadmeMarkdown) > 65535 || len(documentation.Variables) > 100 {
+		return errProjectInvalidArgument
+	}
+	seen := make(map[string]struct{}, len(documentation.Variables))
+	for _, variable := range documentation.Variables {
+		name, description := strings.TrimSpace(variable.Name), strings.TrimSpace(variable.Description)
+		if !validTemplateVariableName(name) || description == "" || len(description) > 512 {
+			return errProjectInvalidArgument
+		}
+		if _, exists := seen[name]; exists {
+			return errProjectInvalidArgument
+		}
+		seen[name] = struct{}{}
+	}
+	return nil
+}
+
+func validTemplateVariableName(value string) bool {
+	return templateVariableNamePattern.MatchString(value)
 }
 
 func workspaceEntryContent(entries []ManagedWorkspaceEntry, path string) (string, error) {
