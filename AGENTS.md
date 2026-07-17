@@ -587,6 +587,14 @@ For repository work:
   slot to `origin/main`, and creates a unique task branch from that baseline
 - agents may read, modify, validate, and commit their task branch, but must not perform the final merge or cherry-pick
 - developers review, merge, or cherry-pick in the primary checkout; no agent may assume it owns final repository state
+- numbered agent worktrees are non-runtime execution environments: agents must not start frontend or backend services,
+  development servers, Docker/Compose stacks, or other long-running runtime processes from a worktree
+- agents must not apply SQL migrations or execute state-changing database operations from a worktree, including
+  `graft migrate up`, `atlas migrate apply`, manual DDL/DML, or migration replay; tests, builds, lint, static migration
+  validation, and migration checksum generation remain allowed when they do not target a live database
+- only the developer-owned primary checkout may start local runtime services or apply migrations, and only with the
+  developer or user approval appropriate to that operation; an agent must stop every process it started before its
+  worktree is released
 - use branch names in the form `<type>/<topic-or-scope>`
 - keep `<topic-or-scope>` in lowercase kebab-case and aligned with the real intent of the branch, not with stale
   earlier work

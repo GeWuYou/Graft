@@ -64,6 +64,12 @@ checkout do not block relocation.
 - Pool-mutating commands are serialized by a repository-local lock under the Git common directory.
 - Do not use a worktree path as an active-topic identity. Recovery records name the topic and current task branch only
   when that information is useful for resumption.
+- Numbered agent worktrees are non-runtime environments: do not start frontend/backend services, development servers,
+  Docker/Compose stacks, or other long-running runtime processes from them.
+- Do not apply SQL migrations or execute state-changing database operations from a worktree. Static migration
+  validation, checksum generation, tests, builds, and lint remain allowed when they do not target a live database.
+- Runtime services and migration application belong to the developer-owned primary checkout with the necessary user or
+  developer approval. Stop every process started for a task before releasing its worktree.
 - Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources. Agents may edit
   their sources, but the developer generates and resolves final artifacts in the integration workspace.
 - A one-time repository relocation is a separate, developer-approved migration after every legacy pool slot is clean
