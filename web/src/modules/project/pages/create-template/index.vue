@@ -157,7 +157,7 @@ function payload(): ApplicationTemplateDraftRequest {
       ),
       lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
     },
-  } as unknown as ApplicationTemplateDraftRequest;
+  } satisfies ApplicationTemplateDraftRequest;
 }
 
 async function createTemplate() {

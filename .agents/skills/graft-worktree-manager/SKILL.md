@@ -13,7 +13,7 @@ final integration.
 
 - The primary checkout is the developer's integration and review workspace. This manager never resets, switches, or
   releases it.
-- `main` is the stable baseline. Numbered directories under `/.worktrees/`, such as `/.worktrees/01`, are reusable agent workspaces, not
+- `main` is the stable baseline. Numbered directories under `.worktrees/`, such as `.worktrees/01`, are reusable agent workspaces, not
   feature branches or topic ownership records.
 - Every acquired task gets one globally unique `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `chore/*`, `build/*`, or
   `ci/*` branch. Do not create new `feat/*` or `wt-*` branches.
@@ -44,7 +44,7 @@ when `main` is already checked out elsewhere), and deletes only the local task b
 force-pushes, deletes a remote branch, or discards an unconfirmed task branch.
 
 `relocate --confirm` is a one-time developer-approved migration from legacy sibling directories such as
-`<repo>-wt-01` into `/.worktrees/01`. It refuses to run unless every legacy pool slot is clean and at `origin/main`,
+`<repo>-wt-01` into `<repo>/.worktrees/01`. It refuses to run unless every legacy pool slot is clean and at `origin/main`,
 all destinations are free, and shared-link targets are safe to rebuild. Unrelated changes in the primary integration
 checkout do not block relocation.
 

@@ -91,10 +91,19 @@ def origin_main(root: Path) -> str:
     return git(root, "rev-parse", "origin/main")
 
 
+def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    completed = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
 def at_main_baseline(worktree: Worktree, root: Path) -> bool:
-    if worktree.branch == "main":
-        return True
-    return worktree.branch is None and worktree.head == origin_main(root)
+    return worktree.head == origin_main(root) and (worktree.branch == "main" or worktree.branch is None)
 
 
 def state(worktree: Worktree, root: Path) -> str:
@@ -186,16 +195,39 @@ def validate_link_rebuild(root: Path, target: Path) -> None:
 
 
 def rebuild_links(root: Path, target: Path) -> None:
-    for link in load_links(root):
-        source = root / str(link["source"])
-        destination = target / str(link["target"])
-        if destination.is_symlink():
-            destination.unlink()
-        if not source.exists():
-            continue
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        relative = Path(os.path.relpath(source, destination.parent))
-        destination.symlink_to(relative)
+    links = load_links(root)
+    previous: dict[Path, str] = {
+        target / str(link["target"]): os.readlink(target / str(link["target"]))
+        for link in links
+        if (target / str(link["target"])).is_symlink()
+    }
+
+    try:
+        for link in links:
+            source = root / str(link["source"])
+            destination = target / str(link["target"])
+            if destination.is_symlink():
+                destination.unlink()
+            if not source.exists():
+                continue
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            relative = Path(os.path.relpath(source, destination.parent))
+            destination.symlink_to(relative)
+    except OSError as exc:
+        try:
+            for link in links:
+                destination = target / str(link["target"])
+                if destination.is_symlink():
+                    destination.unlink()
+                if destination in previous:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.symlink_to(previous[destination])
+        except OSError as restore_exc:
+            raise WorktreeManagerError(
+                f"rebuild_links failed for {target}: {exc}; "
+                f"failed to restore old links: {restore_exc}"
+            ) from exc
+        raise WorktreeManagerError(f"rebuild_links failed for {target}: {exc}") from exc
 
 
 def next_pool_path(root: Path) -> Path:
@@ -253,6 +285,10 @@ def release(root: Path, target: Path, confirmation: str | None) -> None:
         print("Awaiting developer integration confirmation; no worktree state changed.")
         return
     git(root, "rev-parse", "--verify", confirmation)
+    if not is_ancestor(root, entry.branch, confirmation):
+        raise WorktreeManagerError(
+            f"confirmation ref does not contain task branch: {entry.branch} -> {confirmation}"
+        )
     fetch(root)
     old_branch = entry.branch
     sync_main_baseline(root, target)
@@ -286,12 +322,21 @@ def relocate(root: Path, confirmed: bool) -> None:
     try:
         for item, target in destinations:
             git(root, "worktree", "move", str(item.path), str(target))
-            rebuild_links(root, target)
             moved.append((item.path, target))
-    except WorktreeManagerError:
+            rebuild_links(root, target)
+    except WorktreeManagerError as exc:
+        rollback_errors: list[str] = []
         for source, target in reversed(moved):
-            git(root, "worktree", "move", str(target), str(source), check=False)
-        raise
+            try:
+                git(root, "worktree", "move", str(target), str(source))
+                rebuild_links(root, source)
+            except WorktreeManagerError as rollback_exc:
+                rollback_errors.append(f"{source}: {rollback_exc}")
+        if rollback_errors:
+            raise WorktreeManagerError(
+                f"relocation failed: {exc}; rollback failed: {'; '.join(rollback_errors)}"
+            ) from exc
+        raise WorktreeManagerError(f"relocation failed and was rolled back: {exc}") from exc
     print(f"Relocated {len(moved)} worktree(s) into {pool_root(root)}")
 
 

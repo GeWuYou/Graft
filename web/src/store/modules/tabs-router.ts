@@ -486,6 +486,9 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       const targetKey = tabKey || (target ? getTabKey(target) : path);
       if (!targetKey) return;
 
+      const wasActive = this.activeTabKey === targetKey;
+      const nextActiveTab = wasActive ? this.getNextRouteAfterClose(targetKey) : null;
+
       this.tabRouterList = this.tabRouterList.filter((route) => getTabKey(route) !== targetKey);
       this.closedTabStack = this.closedTabStack.filter((route) => getTabKey(route) !== targetKey);
       this.clearPageSnapshot(targetKey);
@@ -494,6 +497,9 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.refreshNonceByTabKey = remainingNonces;
       if (this.refreshingTabKey === targetKey) {
         this.refreshingTabKey = undefined;
+      }
+      if (wasActive) {
+        this.activeTabKey = getTabKey(nextActiveTab ?? this.tabRouterList[0] ?? homeRoute[0]);
       }
       this.syncPinnedTabsStorage();
     },

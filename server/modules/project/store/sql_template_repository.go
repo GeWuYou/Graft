@@ -11,8 +11,10 @@ import (
 
 // 模板仓储错误保持独立，避免调用方将模板状态与 Application 注册状态混淆。
 var (
-	ErrTemplateNotFound       = errors.New("application template not found")
-	ErrTemplateConflict       = errors.New("application template conflict")
+	ErrTemplateNotFound = errors.New("application template not found")
+	// ErrTemplateConflict 表示模板写入违反模板身份或其它唯一性约束。
+	ErrTemplateConflict = errors.New("application template conflict")
+	// ErrTemplateNameOccupied 表示存活模板已占用当前展示名称。
 	ErrTemplateNameOccupied   = errors.New("application template display name is already in use")
 	ErrTemplateDraftNotFound  = errors.New("application template draft not found")
 	ErrTemplatePublishedState = errors.New("application template published version is immutable")

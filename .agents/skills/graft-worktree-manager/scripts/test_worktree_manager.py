@@ -6,11 +6,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
-
+from unittest import mock
 
 SCRIPT = Path(__file__).with_name("worktree_manager.py")
+sys.path.insert(0, str(SCRIPT.parent))
+import worktree_manager
 
 
 def run(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -67,6 +70,29 @@ class WorktreeManagerTests(unittest.TestCase):
         self.assertNotEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "feature/runtime-target")
         self.assertIn("available", self.manager("status").stdout)
 
+    def test_release_rejects_confirmation_without_integrated_branch(self) -> None:
+        self.manager("acquire", "feature/runtime-target")
+        worker = self.repo / ".worktrees" / "01"
+        (worker / "worker.txt").write_text("worker\n", encoding="utf-8")
+        run("git", "add", "worker.txt", cwd=worker)
+        run("git", "commit", "-m", "worker change", cwd=worker)
+
+        rejected = self.manager("release", "--worktree", str(worker), "--confirm-integrated", "origin/main", check=False)
+
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("does not contain task branch", rejected.stderr)
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "feature/runtime-target")
+
+    def test_main_baseline_requires_current_origin_head(self) -> None:
+        origin = worktree_manager.Worktree(self.repo, "main", "different-head")
+        detached = worktree_manager.Worktree(self.repo / ".worktrees" / "01", None, run("git", "rev-parse", "origin/main", cwd=self.repo).stdout.strip())
+
+        with mock.patch.object(worktree_manager, "origin_main", return_value="origin-head"):
+            self.assertFalse(worktree_manager.at_main_baseline(origin, self.repo))
+            self.assertFalse(worktree_manager.at_main_baseline(detached, self.repo))
+        with mock.patch.object(worktree_manager, "origin_main", return_value=detached.head):
+            self.assertTrue(worktree_manager.at_main_baseline(detached, self.repo))
+
     def test_acquire_rejects_duplicate_remote_or_local_branch(self) -> None:
         self.manager("acquire", "feature/runtime-target")
         duplicate = self.manager("acquire", "feature/runtime-target", check=False)
@@ -106,6 +132,34 @@ class WorktreeManagerTests(unittest.TestCase):
         self.assertEqual((worker / ".env").resolve(), (self.repo / "shared.env").resolve())
         rows = json.loads(self.manager("status", "--json").stdout)["worktrees"]
         self.assertEqual(next(row for row in rows if row["path"] == str(worker))["state"], "available")
+
+    def test_relocate_rolls_back_move_and_restores_old_links_when_rebuild_fails(self) -> None:
+        legacy = self.base / "graft-wt-01"
+        run("git", "-C", str(self.repo), "worktree", "add", "--detach", str(legacy), "origin/main", cwd=self.repo)
+        (self.repo / ".git" / "info" / "exclude").write_text(".env\n", encoding="utf-8")
+        (self.repo / "old.env").write_text("old\n", encoding="utf-8")
+        (self.repo / ".worktree-shared.json").write_text(
+            json.dumps({"links": [{"source": "old.env", "target": ".env", "required": True}]}),
+            encoding="utf-8",
+        )
+        (legacy / ".env").symlink_to("../graft/old.env")
+
+        original_symlink_to = Path.symlink_to
+        calls = 0
+
+        def fail_once(path: Path, target: str | Path, *args: object, **kwargs: object) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise OSError("disk full")
+            original_symlink_to(path, target, *args, **kwargs)
+
+        with mock.patch.object(Path, "symlink_to", new=fail_once):
+            with self.assertRaisesRegex(worktree_manager.WorktreeManagerError, "relocation"):
+                worktree_manager.relocate(self.repo, True)
+
+        self.assertTrue(legacy.exists())
+        self.assertEqual((legacy / ".env").readlink(), Path("../graft/old.env"))
 
     def test_relocate_refuses_dirty_legacy_pool_without_moving_it(self) -> None:
         legacy = self.base / "graft-wt-01"

@@ -46,7 +46,12 @@ validation rules.
    - `type` should use an established repository prefix such as `feature`, `fix`, `refactor`, `docs`, `chore`, `build`,
      or `ci`
    - `topic-or-scope` must be lowercase kebab-case and summarize the commits that are about to be pushed
-   - avoid stale names, unrelated names, `feat/*`, and generic `wt-*` placeholders
+   - reject the push when the branch type is outside the established prefixes, the topic is not lowercase kebab-case,
+     or the topic does not describe the local commit range being pushed
+   - reject `feat/*`, `wt-*`, stale names, and unrelated names; generic `wt-*` placeholders are naming or scope
+     failures, not advisory style suggestions
+   - compare the branch name with the commits selected in step 1 and reject the push when that relationship cannot be
+     established; report the mismatch before choosing a rename target
    - if the current branch name does not fit the local-only commit range well, rename the local branch before pushing
      and continue with the renamed branch as the only push target
 3. Classify the blocker or next action:
@@ -87,6 +92,8 @@ Do not push when any of these are true:
 
 * the current slice is still uncommitted and the user did not explicitly authorize the needed commit step
 * ownership is mixed and the push would depend on an unsafe commit
+* the branch fails the established type, lowercase kebab-case topic, or commit-range relevance check, including
+  `feat/*`, `wt-*`, stale, or unrelated branch names
 * the branch rename target or destination ref is ambiguous
 * the only available path would require force push without explicit user approval
 * the push would be used to imply closure of a `$graft-pr-review` run whose latest finding inventory still leaves

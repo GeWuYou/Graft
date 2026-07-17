@@ -4,7 +4,7 @@
     <project-workspace-editor
       ref="workspaceEditor"
       v-model:active-path="activePath"
-      v-model:fullscreen="fullscreen"
+      :fullscreen="fullscreen"
       :inline-edit="inlineEdit"
       :active-buffer="editorActiveBuffer"
       :editor-aria-label="t('project.create.workspace.editorAriaLabel', { path: '{path}' })"
@@ -19,14 +19,15 @@
       :tabs-empty-description="t('project.create.workspace.selectFile')"
       :tree-title="t('project.create.workspace.filesTitle')"
       :root-label="t('project.create.workspace.rootLabel')"
-      @close-tab="(path) => workspaceStore.closeFile(workspaceSessionKey, path)"
+      @close-tab="closeTab"
       @context-action="(action, row) => handleContextAction(action, row?.path ?? null)"
       @inline-edit-cancel="cancelInlineEdit"
       @inline-edit-submit="submitInlineEdit"
       @select-entry="(row) => selectEntry(row.path)"
       @toggle-directory="(row) => toggleDirectory(row.path)"
       @update-content="updateContent"
-      @update:inline-edit="inlineEdit = $event"
+      @update:inline-edit="inlineEdit = props.disabled ? null : $event"
+      @update:fullscreen="updateFullscreen"
     >
       <template #editor-actions>
         <t-tooltip :content="t('project.create.workspace.saveAction')" theme="light">
@@ -37,7 +38,7 @@
               variant="text"
               shape="square"
               size="small"
-              :disabled="!canSaveActiveFile"
+              :disabled="props.disabled || !canSaveActiveFile"
               :loading="saveLoading && pendingSave.action === 'current'"
               @click="saveCurrentFile"
             >
@@ -54,7 +55,7 @@
               variant="text"
               shape="square"
               size="small"
-              :disabled="!canSaveAllFiles"
+              :disabled="props.disabled || !canSaveAllFiles"
               :loading="saveLoading && pendingSave.action === 'all'"
               @click="saveAllFiles"
             >
@@ -71,7 +72,7 @@
               variant="text"
               shape="square"
               size="small"
-              :disabled="!editorActiveBuffer"
+              :disabled="props.disabled || !editorActiveBuffer"
               :loading="validationLoading"
               @click="validateCurrentFile"
             >
@@ -87,7 +88,7 @@
             variant="text"
             shape="square"
             size="small"
-            :disabled="!editorActiveBuffer"
+            :disabled="props.disabled || !editorActiveBuffer"
             @click="formatActiveFile"
           >
             <template #icon><edit-icon /></template>
@@ -100,7 +101,7 @@
             variant="text"
             shape="square"
             size="small"
-            :disabled="!editorActiveBuffer"
+            :disabled="props.disabled || !editorActiveBuffer"
             @click="copyActiveFile"
           >
             <template #icon><copy-icon /></template>
@@ -202,6 +203,7 @@ const MONACO_MARKER_ERROR_SEVERITY = 8;
 let workspaceSessionSeed = 0;
 
 const files = defineModel<ApplicationWorkspaceDraftEntry[]>('files', { required: true });
+const props = withDefaults(defineProps<{ disabled?: boolean }>(), { disabled: false });
 const { t } = useApplicationPageContext();
 const workspaceStore = useProjectWorkspaceStore(store);
 const workspaceSessionKey = `project-create-workspace:${++workspaceSessionSeed}`;
@@ -249,7 +251,7 @@ const editorRows = computed<ApplicationWorkspaceEditorRow[]>(() =>
     name: row.item.name,
     nodeType: row.item.node_type,
     path: row.item.relative_path,
-    readOnly: !row.item.editable,
+    readOnly: props.disabled || !row.item.editable,
   })),
 );
 function toEditorBuffer(file: OpenedWorkspaceFile): ApplicationWorkspaceEditorBuffer {
@@ -262,7 +264,7 @@ function toEditorBuffer(file: OpenedWorkspaceFile): ApplicationWorkspaceEditorBu
     modelKey: file.path,
     name: file.name,
     path: file.path,
-    readOnly: !file.editable,
+    readOnly: props.disabled || !file.editable,
   };
 }
 
@@ -375,6 +377,7 @@ function entryAt(path: string) {
   return files.value.find((entry) => entry.path === path);
 }
 function activateTab(path: string) {
+  if (props.disabled) return;
   const entry = entryAt(path);
   if (!entry || entry.node_type === 'directory') return;
   workspaceStore.openFile(workspaceSessionKey, path, {
@@ -384,6 +387,7 @@ function activateTab(path: string) {
   });
 }
 function selectEntry(path: string) {
+  if (props.disabled) return;
   const entry = entryAt(path);
   if (!entry) return;
   if (entry.node_type === 'directory') {
@@ -398,10 +402,12 @@ function selectEntry(path: string) {
   });
 }
 function toggleDirectory(path: string) {
+  if (props.disabled) return;
   const expanded = workspaceStore.session(workspaceSessionKey).expandedKeys.includes(path);
   workspaceStore.setExpanded(workspaceSessionKey, path, !expanded);
 }
 function updateContent(path: string, content: string) {
+  if (props.disabled) return;
   const entry = entryAt(path);
   if (!entry || entry.node_type === 'directory') return;
   entry.content = content;
@@ -409,6 +415,7 @@ function updateContent(path: string, content: string) {
 }
 
 function formatActiveFile() {
+  if (props.disabled) return;
   const activeFile = editorActiveBuffer.value;
   if (!activeFile) return;
   updateContent(activeFile.path, normalizeTextBlock(activeFile.content));
@@ -481,6 +488,7 @@ function markPathsSaved(paths: string[]) {
 }
 
 async function saveFiles(action: Exclude<PendingSaveAction, null>) {
+  if (props.disabled) return;
   const paths = resolveSavePaths(action);
   if (!paths.length || saveLoading.value) return;
   saveLoading.value = true;
@@ -522,6 +530,7 @@ function confirmSaveWithSyntaxErrors() {
 }
 
 async function validateCurrentFile() {
+  if (props.disabled) return;
   const active = editorActiveBuffer.value;
   if (!active || validationLoading.value) {
     MessagePlugin.warning(t('project.create.workspace.validateNoFile'));
@@ -549,6 +558,7 @@ async function validateCurrentFile() {
 }
 
 async function copyActiveFile() {
+  if (props.disabled) return;
   const activeFile = editorActiveBuffer.value;
   if (!activeFile) return;
   const copied = await copyText(activeFile.content);
@@ -558,10 +568,19 @@ async function copyActiveFile() {
   }
   MessagePlugin.error(t('project.create.workspace.copyFailed'));
 }
+function closeTab(path: string) {
+  if (props.disabled) return;
+  workspaceStore.closeFile(workspaceSessionKey, path);
+}
+function updateFullscreen(value: boolean) {
+  if (props.disabled) return;
+  fullscreen.value = value;
+}
 function handleContextAction(
   action: 'create-file' | 'create-directory' | 'annotation' | 'rename' | 'delete',
   path: string | null,
 ) {
+  if (props.disabled) return;
   if (action === 'annotation') return;
   if (action === 'delete') {
     if (!path) return;
@@ -579,6 +598,7 @@ function handleContextAction(
   };
 }
 function cancelInlineEdit() {
+  if (props.disabled) return;
   inlineEdit.value = null;
 }
 function setInlineEditError(error: string) {
@@ -598,6 +618,7 @@ function migrateWorkspaceBuffers(oldPath: string, newPath: string) {
   workspaceStore.syncOpenedFiles(workspaceSessionKey, openedFiles, remapPath(session.activeFileKey));
 }
 function submitInlineEdit() {
+  if (props.disabled) return;
   const edit = inlineEdit.value;
   if (!edit) return;
   const name = normalizeEntryName(edit.value);
@@ -658,6 +679,7 @@ function submitInlineEdit() {
   inlineEdit.value = null;
 }
 function confirmDelete() {
+  if (props.disabled) return;
   const target = entryAt(deleteDialog.path);
   if (target?.node_type === 'directory' && deleteDialog.count > 1 && deleteDialog.stage === 'initial') {
     deleteDialog.stage = 'recursive';

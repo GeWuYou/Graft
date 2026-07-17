@@ -91,6 +91,7 @@
               <section class="application-template-detail__tab-panel">
                 <project-create-workspace-editor
                   v-model:files="workspaceFiles"
+                  :disabled="!isDraft"
                   :class="{ 'application-template-detail__readonly': !isDraft }"
                 />
               </section>

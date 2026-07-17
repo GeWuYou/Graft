@@ -15,3 +15,15 @@ properties:
   definition:
     type: object
     description: Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.
+    properties:
+      compose_file_path:
+        type: string
+        description: Workspace-relative primary Compose file reference.
+      workspace_entries:
+        type: array
+        description: Complete managed workspace manifest owned by the Compose adapter.
+        items:
+          $ref: ./application-workspace-entry.yaml
+      lifecycle_configuration:
+        $ref: ./application-lifecycle-configuration-request.yaml
+    additionalProperties: true

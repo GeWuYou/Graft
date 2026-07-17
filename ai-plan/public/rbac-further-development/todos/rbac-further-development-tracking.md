@@ -30,6 +30,37 @@
 - Before implementation, use Worktree Manager to acquire a clean unique task branch from `main`.
 - Shared registry, contract, router, layout, locale, and migration work remains an explicit bounded integration slice.
 
+## Task Checklist
+
+- [x] Replace fixed worktree/branch recovery with reusable numbered worktrees and unique task branches.
+- [x] Record the active topic's bounded scope and shared integration hotspots.
+- [ ] Continue RBAC implementation from a fresh startup preflight and a bounded task branch.
+- [ ] Run the required server/web validation for each cross-boundary RBAC batch before integration.
+
+## Acceptance Conditions
+
+- Recovery uses the topic documents and startup preflight, never a fixed local directory or stale task branch.
+- Every RBAC batch declares owned files, avoids shared hotspots unless explicitly integrated, and records validation evidence.
+- A batch is complete only when its directly affected server and web validation passes, or a concrete blocker is recorded.
+- The topic remains active until all planned RBAC batches are complete and the archive-readiness conditions are verified.
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "reusable-worktree-migration-and-recovery-docs"
+  ],
+  "pending_batches": [
+    "rbac-bounded-cross-boundary-implementation"
+  ],
+  "current_batch": "rbac-bounded-cross-boundary-implementation",
+  "next_batch": "rbac-bounded-cross-boundary-implementation",
+  "closeout_status": "recovery-docs-complete-implementation-pending"
+}
+```
+
 ## Shared Hotspots
 
 - `ai-plan/public/README.md`
