@@ -297,10 +297,14 @@ bootstrap、loop、closeout 和归档消费的统一输入。
 
 ### 4.1 可复用工作树生命周期
 
-1. Agent 使用 `graft-worktree-manager acquire <branch>` 获取最低编号的空闲目录，或创建下一个编号目录。
+1. Agent 使用 `graft-worktree-manager acquire <branch>` 获取最低编号的空闲目录，或创建下一个编号目录。每个槽位保留一个
+   本地-only 的 `main-XX` 标记分支；空闲槽位即使落后缓存的 `origin/main` 也可在 acquire 时刷新。
 2. Agent 在唯一任务分支内修改、验证和提交。
 3. Agent 输出 Review Summary 并等待开发者在主工作区完成 merge 或 cherry-pick。
-4. 开发者以确认的集成引用调用 `release`；目录回到 `main` 或 detached `origin/main`，本地任务分支被清理。
+4. 开发者以确认的集成引用调用 `release`；目录刷新到当前 `origin/main` 并恢复对应的 `main-XX` 标记分支，本地任务分支被清理。
+
+对于历史上以 detached HEAD 保存的干净槽位，开发者可使用 `reconcile --confirm <slot> ...` 进行一次性转换。该命令只处理
+明确指定且可证明属于旧 main 基线的槽位，不接管脏工作树、任务分支或包含未合并提交的 detached 工作树。
 
 常规生命周期不频繁执行 `git worktree remove/add`。仓库物理迁移是一次性、开发者批准的操作，必须先确保所有工作树干净且提交已推送。
 

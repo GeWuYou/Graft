@@ -67,8 +67,69 @@ class WorktreeManagerTests(unittest.TestCase):
 
         released = self.manager("release", "--worktree", str(worker), "--confirm-integrated", "origin/main")
         self.assertIn("Released Worktree", released.stdout)
-        self.assertNotEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "feature/runtime-target")
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "main-01")
+        self.assertEqual(
+            run("git", "rev-parse", "HEAD", cwd=worker).stdout.strip(),
+            run("git", "rev-parse", "origin/main", cwd=self.repo).stdout.strip(),
+        )
         self.assertIn("available", self.manager("status").stdout)
+
+    def test_acquire_reuses_stale_clean_detached_slot_after_fetch(self) -> None:
+        worker = self.repo / ".worktrees" / "01"
+        run("git", "worktree", "add", "--detach", str(worker), "origin/main", cwd=self.repo)
+        (self.seed / "advance.txt").write_text("advance\n", encoding="utf-8")
+        run("git", "add", "advance.txt", cwd=self.seed)
+        run("git", "commit", "-m", "advance main", cwd=self.seed)
+        run("git", "push", "origin", "main", cwd=self.seed)
+
+        acquired = self.manager("acquire", "feature/reuse-stale-slot")
+
+        self.assertIn(str(worker), acquired.stdout)
+        self.assertEqual(
+            run("git", "rev-parse", "HEAD", cwd=worker).stdout.strip(),
+            run("git", "rev-parse", "origin/main", cwd=self.repo).stdout.strip(),
+        )
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "feature/reuse-stale-slot")
+
+    def test_reconcile_converts_selected_legacy_slots_to_pool_branches(self) -> None:
+        worker = self.repo / ".worktrees" / "01"
+        run("git", "worktree", "add", "--detach", str(worker), "origin/main", cwd=self.repo)
+        (self.seed / "advance.txt").write_text("advance\n", encoding="utf-8")
+        run("git", "add", "advance.txt", cwd=self.seed)
+        run("git", "commit", "-m", "advance main", cwd=self.seed)
+        run("git", "push", "origin", "main", cwd=self.seed)
+
+        reconciled = self.manager("reconcile", "--confirm", "01")
+
+        self.assertIn("main-01", reconciled.stdout)
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "main-01")
+        self.assertEqual(
+            run("git", "rev-parse", "HEAD", cwd=worker).stdout.strip(),
+            run("git", "rev-parse", "origin/main", cwd=self.repo).stdout.strip(),
+        )
+        self.assertEqual(
+            subprocess.run(
+                ["git", "config", "--get", "branch.main-01.remote"],
+                cwd=self.repo,
+                text=True,
+                capture_output=True,
+                check=False,
+            ).returncode,
+            1,
+        )
+
+    def test_reconcile_refuses_detached_worktree_with_unmerged_commit(self) -> None:
+        worker = self.repo / ".worktrees" / "01"
+        run("git", "worktree", "add", "--detach", str(worker), "origin/main", cwd=self.repo)
+        (worker / "unmerged.txt").write_text("unmerged\n", encoding="utf-8")
+        run("git", "add", "unmerged.txt", cwd=worker)
+        run("git", "commit", "-m", "unmerged work", cwd=worker)
+
+        rejected = self.manager("reconcile", "--confirm", "01", check=False)
+
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("dirty or occupied", rejected.stderr)
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "")
 
     def test_release_rejects_confirmation_without_integrated_branch(self) -> None:
         self.manager("acquire", "feature/runtime-target")

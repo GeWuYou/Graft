@@ -475,15 +475,19 @@ Use Worktree Manager rather than private setup scripts or routine `git worktree 
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py status
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py acquire feature/runtime-target
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py release --confirm-integrated <commit-or-ref>
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py reconcile --confirm 01 02 03
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
 ```
 
-- `acquire` reuses the lowest clean numbered `/.worktrees/01` style directory or creates the next pool slot, then creates
-  a unique task branch from `main`.
+- `acquire` fetches `origin`, reuses the lowest clean numbered `/.worktrees/01` style directory even when its cached
+  baseline is stale, synchronizes it to the current `origin/main`, then creates a unique task branch.
 - `release` first prints a review summary. Only after a developer confirms that the branch was merged or cherry-picked
-  does it return the directory to `main` and remove the local task branch.
+  does it restore the directory to its local-only `main-01` style pool marker and remove the local task branch.
+- `reconcile --confirm 01 02 03` converts selected clean legacy detached slots to `main-01`, `main-02`, and `main-03`
+  and refreshes them to the current baseline. It refuses dirty or divergent slots.
 - Agents may commit their task branch but never perform the final merge or cherry-pick. Developers integrate in the
   primary checkout.
+- `main-XX` pool marker branches are local-only, have no upstream, and are never valid `$graft-push` targets.
 - Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources; final generation
   and conflict resolution occur in the developer integration workspace.
 - The manager uses `.worktree-shared.json` for relative shared-resource links and never relies on `.local`.

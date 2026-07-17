@@ -582,15 +582,16 @@ For repository work:
   explicitly authorizes it
 - the developer-owned primary checkout is the integration and review workspace and has no fixed branch identity
 - numbered agent worktree directories are reusable temporary workspaces, not feature branches, active-topic identities,
-  or standing ownership boundaries
-- acquire an agent workspace through `graft-worktree-manager`; it creates a unique task branch from `main` and returns
-  the directory to a clean `main` baseline after developer-confirmed integration
+  or standing ownership boundaries; each slot may retain a local-only `main-XX` marker branch
+- acquire an agent workspace through `graft-worktree-manager`; it fetches `origin`, refreshes the lowest clean reusable
+  slot to `origin/main`, and creates a unique task branch from that baseline
 - agents may read, modify, validate, and commit their task branch, but must not perform the final merge or cherry-pick
 - developers review, merge, or cherry-pick in the primary checkout; no agent may assume it owns final repository state
 - use branch names in the form `<type>/<topic-or-scope>`
 - keep `<topic-or-scope>` in lowercase kebab-case and aligned with the real intent of the branch, not with stale
   earlier work
 - use `feature`, `fix`, `refactor`, `docs`, `chore`, `build`, or `ci`; do not create new `feat` or `wt-*` branches
+- reserve `main-XX` for local worktree pool markers; these branches have no upstream and are never task or push branches
 - reject duplicate local or remote task branch names before work begins
 - decide change ownership before staging or committing; a validated change is auto-committable only when its ownership
   is reliably known
