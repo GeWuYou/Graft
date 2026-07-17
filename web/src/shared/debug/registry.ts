@@ -2,6 +2,7 @@ export type DebugFlagId =
   | 'tabs'
   | 'tabs.layout'
   | 'tabs.store'
+  | 'observability.log-viewer'
   | 'project.logs'
   | 'project.monaco'
   | 'project.templates'
@@ -44,6 +45,13 @@ export const DEBUG_FLAG_REGISTRY = [
     relatedPaths: ['src/store/modules/tabs-router.ts', 'src/utils/tabs-debug.ts'],
     defaultEnabled: false,
     parentFlagId: 'tabs',
+  },
+  {
+    flagId: 'observability.log-viewer',
+    owner: 'shared observability log viewer',
+    summary: '共享日志查看器的行交互、复制与视口诊断日志。',
+    relatedPaths: ['src/shared/observability/LogViewer.vue'],
+    defaultEnabled: false,
   },
   {
     flagId: 'project.logs',

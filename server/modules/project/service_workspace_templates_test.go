@@ -1,10 +1,12 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	projectcontract "graft/server/modules/project/contract"
+	projectstore "graft/server/modules/project/store"
 )
 
 func TestValidateTemplateDefinitionAcceptsSnakeCaseWorkspaceEntries(t *testing.T) {
@@ -40,6 +42,54 @@ func TestValidateTemplateDefinitionRejectsInvalidCatalogDocumentation(t *testing
 }`))
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("invalid catalog documentation error = %v, want invalid argument", err)
+	}
+}
+
+func TestNormalizeTemplateDraftRejectsInvalidCategory(t *testing.T) {
+	t.Parallel()
+	_, err := (&Service{}).normalizeTemplateDraft(ApplicationTemplateDraftRequest{
+		DisplayName:             "Template",
+		Category:                "unsupported",
+		DeploymentAdapterKind:   projectcontract.DeploymentAdapterKindCompose,
+		DefinitionSchemaVersion: 1,
+	})
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("invalid category error = %v, want invalid argument", err)
+	}
+}
+
+func TestValidateTemplateDefinitionRejectsUnnormalizedCatalogVariableName(t *testing.T) {
+	t.Parallel()
+
+	_, err := (&Service{}).validateTemplateDefinition(projectcontract.DeploymentAdapterKindCompose, []byte(`{
+  "compose_file_path": "compose.yaml",
+  "workspace_entries": [
+    {"path": "compose.yaml", "node_type": "file", "content": "services: {}\n"}
+  ],
+  "catalog_documentation": {
+    "variables": [
+      {"name": " APP_PORT ", "required": true, "description": "port"}
+    ]
+  }
+}`))
+	if !errors.Is(err, errProjectInvalidArgument) {
+		t.Fatalf("unnormalized catalog variable name error = %v, want invalid argument", err)
+	}
+}
+
+func TestListPublishedApplicationTemplatesRejectsUnsafePagination(t *testing.T) {
+	t.Parallel()
+
+	for _, query := range []projectstore.TemplateCatalogQuery{
+		{Page: 0, PageSize: 24},
+		{Page: 1, PageSize: 0},
+		{Page: 1, PageSize: 101},
+		{Page: int(^uint(0) >> 1), PageSize: 100},
+	} {
+		_, err := (&Service{}).ListPublishedApplicationTemplates(context.Background(), projectcontract.DeploymentAdapterKindCompose, query)
+		if !errors.Is(err, errProjectInvalidArgument) {
+			t.Fatalf("pagination %#v error = %v, want invalid argument", query, err)
+		}
 	}
 }
 

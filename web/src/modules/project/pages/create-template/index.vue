@@ -88,6 +88,7 @@ import { postApplicationTemplate } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationReview from '../../components/ProjectLifecycleConfigurationReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { APPLICATION_TEMPLATE_CATEGORIES } from '../../contract/categories';
 import { createBlankComposeWorkspaceFiles } from '../../shared/blank-compose-workspace';
 import { buildBlankLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
 import { useApplicationPageContext } from '../../shared/page-context';
@@ -133,9 +134,10 @@ const adapterOptions = computed<SelectProps['options']>(() => [
   { label: t('project.templates.adapterCompose'), value: 'compose' },
 ]);
 const categoryOptions = computed<SelectProps['options']>(() =>
-  (['database', 'cache', 'mq', 'proxy', 'storage', 'monitoring', 'logging', 'cicd', 'ai', 'other'] as const).map(
-    (value) => ({ value, label: t(`project.templateCatalog.categories.${value}`) }),
-  ),
+  APPLICATION_TEMPLATE_CATEGORIES.map((value) => ({
+    value,
+    label: t(`project.templateCatalog.categories.${value}`),
+  })),
 );
 const stepOptions = computed(() =>
   ['info', 'workspace', 'lifecycle'].map((key) => ({ title: t(`project.templates.steps.${key}`) })),

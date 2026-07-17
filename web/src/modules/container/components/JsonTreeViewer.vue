@@ -133,7 +133,7 @@ function reconcileExpandedPaths() {
   collapsedPaths.value = nextCollapsedPaths;
 
   if (!props.expandedAll) {
-    expandedPaths.value = new Set();
+    expandedPaths.value = new Set([...expandedPaths.value].filter((path) => expandablePaths.has(path)));
     return;
   }
 

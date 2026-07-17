@@ -732,6 +732,7 @@
         "reset": "Reset Form",
         "back": "Back",
         "backToSource": "Back to Application Source",
+        "clearFilters": "Clear Filters",
         "next": "Next",
         "confirm": "Confirm",
         "cancel": "Cancel"

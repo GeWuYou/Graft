@@ -155,6 +155,35 @@ describe('ContainerRawJsonPanel', () => {
     expect(wrapper.text()).not.toContain('status');
   });
 
+  it('preserves manually expanded nodes when collapsed-all data is refreshed', async () => {
+    const initialValue = {
+      details: {
+        status: 'running',
+      },
+    };
+    const wrapper = mountPanel(initialValue, initialValue);
+
+    const collapseButton = wrapper.findAll('button').find((button) => button.text().includes('折叠全部'));
+    await collapseButton!.trigger('click');
+    await wrapper.vm.$nextTick();
+    await wrapper.find('.json-tree-viewer__row').trigger('click');
+    await wrapper.vm.$nextTick();
+    const detailsRow = wrapper.findAll('.json-tree-viewer__row').find((row) => row.text().includes('details'));
+    await detailsRow!.trigger('click');
+    await wrapper.vm.$nextTick();
+
+    const refreshedValue = {
+      details: {
+        status: 'running',
+        meta: { region: 'cn' },
+      },
+    };
+    await wrapper.setProps({ value: refreshedValue, copyValue: refreshedValue });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('meta');
+  });
+
   it('updates toolbar view labels when props change', async () => {
     const wrapper = mountPanel();
 

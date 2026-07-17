@@ -19,6 +19,8 @@ var (
 	templateVariableNamePattern   = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 )
 
+const templateCatalogSearchMaxLength = 128
+
 // ComposeTemplateDefinition 是 Compose adapter 对通用模板 definition 的唯一解释。
 // 它不把 Docker、Podman 或 Swarm 字段泄漏到通用模板表。
 type ComposeTemplateDefinition struct {
@@ -65,7 +67,10 @@ func (s *Service) ListPublishedApplicationTemplates(ctx context.Context, kind pr
 		return projectstore.TemplateCatalogPage{}, err
 	}
 	query.Search, query.Category, query.Sort = strings.TrimSpace(query.Search), strings.TrimSpace(query.Category), strings.TrimSpace(query.Sort)
-	if len(query.Search) > 128 || (query.Category != "" && !projectcontract.ApplicationTemplateCategory(query.Category).Valid()) || (query.Sort != "" && query.Sort != "updated_desc" && query.Sort != "name_asc") {
+	if err := validateTemplateCatalogPagination(query); err != nil {
+		return projectstore.TemplateCatalogPage{}, err
+	}
+	if err := validateTemplateCatalogFilters(query); err != nil {
 		return projectstore.TemplateCatalogPage{}, errProjectInvalidArgument
 	}
 	repository, err := s.templateRepositoryOrErr()
@@ -74,6 +79,29 @@ func (s *Service) ListPublishedApplicationTemplates(ctx context.Context, kind pr
 	}
 	query.DeploymentAdapterKind = kind.String()
 	return repository.ListTemplateCatalog(ctx, query)
+}
+
+func validateTemplateCatalogPagination(query projectstore.TemplateCatalogQuery) error {
+	if query.Page < 1 || query.PageSize < 1 || query.PageSize > 100 {
+		return errProjectInvalidArgument
+	}
+	if query.Page > int(^uint(0)>>1)/query.PageSize+1 {
+		return errProjectInvalidArgument
+	}
+	return nil
+}
+
+func validateTemplateCatalogFilters(query projectstore.TemplateCatalogQuery) error {
+	if len(query.Search) > templateCatalogSearchMaxLength {
+		return errProjectInvalidArgument
+	}
+	if query.Category != "" && !projectcontract.ApplicationTemplateCategory(query.Category).Valid() {
+		return errProjectInvalidArgument
+	}
+	if query.Sort != "" && query.Sort != "updated_desc" && query.Sort != "name_asc" {
+		return errProjectInvalidArgument
+	}
+	return nil
 }
 
 // GetPublishedApplicationTemplate 返回创建者可浏览的当前已发布模板详情。
@@ -327,7 +355,7 @@ func validateTemplateCatalogDocumentation(documentation *ApplicationTemplateCata
 	seen := make(map[string]struct{}, len(documentation.Variables))
 	for _, variable := range documentation.Variables {
 		name, description := strings.TrimSpace(variable.Name), strings.TrimSpace(variable.Description)
-		if !validTemplateVariableName(name) || description == "" || len(description) > 512 {
+		if name != variable.Name || !validTemplateVariableName(name) || description == "" || len(description) > 512 {
 			return errProjectInvalidArgument
 		}
 		if _, exists := seen[name]; exists {

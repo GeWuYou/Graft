@@ -115,6 +115,7 @@ const templateRecord = ref<ApplicationTemplate | null>(null);
 const loading = ref(false);
 const selecting = ref(false);
 const errorMessage = ref('');
+const loadRequestId = ref(0);
 const templateId = computed(() => String(route.params.templateId || ''));
 const definition = computed(() => (templateRecord.value?.version.definition ?? {}) as Record<string, unknown>);
 const documentation = computed(
@@ -147,15 +148,22 @@ const workspaceColumns = computed<TableProps['columns']>(() => [
 watch(templateId, () => void loadTemplate(), { immediate: true });
 async function loadTemplate() {
   if (!templateId.value) return;
+  const requestId = ++loadRequestId.value;
+  const requestedTemplateId = templateId.value;
   loading.value = true;
   errorMessage.value = '';
   try {
-    templateRecord.value = await getPublishedApplicationTemplate(templateId.value);
+    const template = await getPublishedApplicationTemplate(requestedTemplateId);
+    if (requestId !== loadRequestId.value || requestedTemplateId !== templateId.value) return;
+    templateRecord.value = template;
   } catch (error) {
+    if (requestId !== loadRequestId.value || requestedTemplateId !== templateId.value) return;
     templateRecord.value = null;
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templateCatalog.detailLoadFailed'));
   } finally {
-    loading.value = false;
+    if (requestId === loadRequestId.value && requestedTemplateId === templateId.value) {
+      loading.value = false;
+    }
   }
 }
 async function useTemplate() {

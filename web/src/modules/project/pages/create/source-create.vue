@@ -76,7 +76,11 @@
             </template>
           </t-card>
         </div>
-        <t-empty v-else-if="!loadError" :description="t('project.templateCatalog.empty')" />
+        <t-empty v-else-if="!loadError" :description="t('project.templateCatalog.empty')">
+          <template #action>
+            <t-button variant="outline" @click="clearFilters">{{ t('project.create.actions.clearFilters') }}</t-button>
+          </template>
+        </t-empty>
       </t-loading>
       <div v-if="items.length" class="template-catalog__pagination">
         <t-pagination
@@ -102,6 +106,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { getApplicationTemplateCatalog } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { APPLICATION_TEMPLATE_CATEGORIES } from '../../contract/categories';
 import { navigateToApplicationCreateSource } from '../../shared/navigation';
 import type { ApplicationTemplateCatalogItem, ApplicationTemplateCategory } from '../../types/project';
 
@@ -121,12 +126,11 @@ const sort = ref<'updated_desc' | 'name_asc'>(queryString('sort') === 'name_asc'
 const page = ref(Math.max(1, Number(queryString('page')) || 1));
 const pageSize = 24;
 const hasMore = ref(false);
+const loadRequestId = ref(0);
 
 const categoryOptions = computed(() => [
   { value: '', label: t('project.templateCatalog.allCategories') },
-  ...(['database', 'cache', 'mq', 'proxy', 'storage', 'monitoring', 'logging', 'cicd', 'ai', 'other'] as const).map(
-    (value) => ({ value, label: categoryLabel(value) }),
-  ),
+  ...APPLICATION_TEMPLATE_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) })),
 ]);
 const sortOptions = computed(() => [
   { value: 'updated_desc', label: t('project.templateCatalog.sortUpdated') },
@@ -140,6 +144,7 @@ onMounted(() => void loadCatalog());
 watch(() => route.query, syncFromRoute);
 
 async function loadCatalog() {
+  const requestId = ++loadRequestId.value;
   loading.value = true;
   loadError.value = '';
   try {
@@ -151,13 +156,17 @@ async function loadCatalog() {
       page: page.value,
       page_size: pageSize,
     });
+    if (requestId !== loadRequestId.value) return;
     items.value = response.items;
     hasMore.value = response.has_more;
   } catch (error) {
+    if (requestId !== loadRequestId.value) return;
     items.value = [];
     loadError.value = resolveLocalizedErrorMessage(t, error, t('project.sourceCreate.templatesLoadFailed'));
   } finally {
-    loading.value = false;
+    if (requestId === loadRequestId.value) {
+      loading.value = false;
+    }
   }
 }
 
@@ -214,6 +223,13 @@ async function selectTemplate(item: ApplicationTemplateCatalogItem) {
 function goToSource() {
   navigateToApplicationCreateSource(router, route.query);
 }
+function clearFilters() {
+  keyword.value = '';
+  category.value = '';
+  sort.value = 'updated_desc';
+  page.value = 1;
+  void replaceQuery();
+}
 function categoryLabel(value: ApplicationTemplateCategory) {
   return t(`project.templateCatalog.categories.${value}`);
 }
@@ -224,7 +240,7 @@ function queryString(key: string) {
   return typeof route.query[key] === 'string' ? route.query[key] : '';
 }
 function validCategory(value: string): ApplicationTemplateCategory | '' {
-  return ['database', 'cache', 'mq', 'proxy', 'storage', 'monitoring', 'logging', 'cicd', 'ai', 'other'].includes(value)
+  return APPLICATION_TEMPLATE_CATEGORIES.includes(value as ApplicationTemplateCategory)
     ? (value as ApplicationTemplateCategory)
     : '';
 }

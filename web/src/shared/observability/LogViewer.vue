@@ -636,6 +636,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
+import { emitDebugLog, isDebugFlagEnabled } from '@/shared/debug/runtime';
 import { createLogger } from '@/utils/logger';
 
 import { copyText } from './copy';
@@ -648,6 +649,7 @@ import type { StreamViewportState } from './stream-viewport-state';
 import StreamViewportStateSurface from './StreamViewportStateSurface.vue';
 import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
 
+const LOG_VIEWER_DEBUG_FLAG = 'observability.log-viewer' as const;
 const logger = createLogger('shared.observability.logViewer');
 
 const props = withDefaults(
@@ -991,7 +993,7 @@ async function copyContent() {
 }
 
 async function copyLine(raw: string) {
-  logger.debug('log viewer copy action received', { valueLength: raw.length });
+  emitLogViewerDebug('copy-action-received', { valueLength: raw.length });
   await copyTextWithFeedback(raw);
 }
 
@@ -1045,7 +1047,7 @@ function handleViewportScroll(event: Event) {
 
 function beginViewportInteraction(event: PointerEvent) {
   const interactiveTarget = isViewportInteractiveTarget(event.target);
-  logger.debug('log viewer pointerdown received', {
+  emitLogViewerDebug('pointerdown-received', {
     interactiveTarget,
     targetClass: event.target instanceof Element ? event.target.className : undefined,
     targetTag: event.target instanceof Element ? event.target.tagName : undefined,
@@ -1143,7 +1145,7 @@ function scheduleScrollToBottom() {
 }
 
 function openLineDetail(line: LogViewLine) {
-  logger.debug('log viewer detail action received', {
+  emitLogViewerDebug('detail-action-received', {
     lineNo: line.lineNo,
     rowKey: line.rowKey,
   });
@@ -1260,7 +1262,7 @@ function tokenClass(token: LogToken) {
 async function copyTextWithFeedback(value: string) {
   try {
     const copied = await copyText(value);
-    logger.debug('log viewer copy operation completed', {
+    emitLogViewerDebug('copy-operation-completed', {
       copied,
       valueLength: value.length,
     });
@@ -1273,6 +1275,14 @@ async function copyTextWithFeedback(value: string) {
     logger.warn('log viewer copy operation failed', { error });
     MessagePlugin.error(props.copyErrorLabel);
   }
+}
+
+function emitLogViewerDebug(event: string, detail: Record<string, unknown> = {}) {
+  if (!isDebugFlagEnabled(LOG_VIEWER_DEBUG_FLAG)) {
+    return;
+  }
+
+  emitDebugLog(LOG_VIEWER_DEBUG_FLAG, event, detail);
 }
 
 function findFirstEndAfter(ends: readonly number[], target: number) {

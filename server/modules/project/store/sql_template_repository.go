@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	projectcontract "graft/server/modules/project/contract"
 )
 
 // 模板仓储错误保持独立，避免调用方将模板状态与 Application 注册状态混淆。
@@ -75,7 +77,7 @@ func (r *SQLRepository) ListTemplateCatalog(ctx context.Context, query TemplateC
 		return TemplateCatalogPage{}, fmt.Errorf("list application template catalog: %w", err)
 	}
 	defer closeRows(rows)
-	items := make([]ApplicationTemplateCatalogItem, 0, pageSize)
+	items := make([]ApplicationTemplateCatalogItem, 0, templateCatalogPageSizeMax)
 	for rows.Next() {
 		var item ApplicationTemplateCatalogItem
 		if scanErr := rows.Scan(&item.TemplateID, &item.DisplayName, &item.Description, &item.Category, &item.DeploymentAdapterKind, &item.UpdatedAt, &item.TemplateVersionID, &item.VersionNumber, &item.PublishedAt); scanErr != nil {
@@ -196,7 +198,8 @@ func (r *SQLRepository) UpdateTemplateDraft(ctx context.Context, input UpdateTem
 	if err := r.ensureReady(); err != nil {
 		return ApplicationTemplateAggregate{}, err
 	}
-	if strings.TrimSpace(input.TemplateID) == "" || strings.TrimSpace(input.DisplayName) == "" || input.DefinitionSchemaVersion < 1 || len(input.DefinitionJSON) == 0 {
+	category := strings.TrimSpace(input.Category)
+	if strings.TrimSpace(input.TemplateID) == "" || strings.TrimSpace(input.DisplayName) == "" || !projectcontract.ApplicationTemplateCategory(category).Valid() || input.DefinitionSchemaVersion < 1 || len(input.DefinitionJSON) == 0 {
 		return ApplicationTemplateAggregate{}, ErrInvalidInput
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -205,7 +208,7 @@ func (r *SQLRepository) UpdateTemplateDraft(ctx context.Context, input UpdateTem
 	}
 	defer func() { _ = tx.Rollback() }()
 	updateTemplate := r.placeholder.rebind(`UPDATE application_templates SET display_name = ?, description = ?, category = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE template_id = ? AND deleted_at = 0 AND archived_at IS NULL`)
-	result, err := tx.ExecContext(ctx, updateTemplate, strings.TrimSpace(input.DisplayName), strings.TrimSpace(input.Description), input.Category, input.ActorID, strings.TrimSpace(input.TemplateID))
+	result, err := tx.ExecContext(ctx, updateTemplate, strings.TrimSpace(input.DisplayName), strings.TrimSpace(input.Description), category, input.ActorID, strings.TrimSpace(input.TemplateID))
 	if err != nil {
 		return ApplicationTemplateAggregate{}, mapTemplateWriteError(err)
 	}
@@ -447,10 +450,16 @@ func templateCatalogFilters(query TemplateCatalogQuery) ([]string, []any) {
 		where, args = append(where, "t.category = ?"), append(args, category)
 	}
 	if search := strings.TrimSpace(query.Search); search != "" {
-		where = append(where, "(LOWER(t.display_name) LIKE LOWER(?) OR LOWER(t.description) LIKE LOWER(?))")
-		args = append(args, "%"+search+"%", "%"+search+"%")
+		pattern := "%" + escapeTemplateCatalogLikePattern(search) + "%"
+		where = append(where, "(LOWER(t.display_name) LIKE LOWER(?) ESCAPE '\\' OR LOWER(t.description) LIKE LOWER(?) ESCAPE '\\')")
+		args = append(args, pattern, pattern)
 	}
 	return where, args
+}
+
+// escapeTemplateCatalogLikePattern 转义模板目录搜索词中的 SQL LIKE 模式字符。
+func escapeTemplateCatalogLikePattern(value string) string {
+	return strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(value)
 }
 
 func templateCatalogOrder(sort string) string {

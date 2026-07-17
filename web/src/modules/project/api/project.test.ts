@@ -52,7 +52,9 @@ describe('application template API client', () => {
   it('uses catalog and immutable published snapshot endpoints', async () => {
     mocks.get.mockResolvedValue({ items: [] });
 
-    await getApplicationTemplateCatalog({ deployment_adapter_kind: 'compose', category: 'cache', page: 2 });
+    await expect(
+      getApplicationTemplateCatalog({ deployment_adapter_kind: 'compose', category: 'cache', page: 2 }),
+    ).resolves.toEqual({ items: [] });
     await getPublishedApplicationTemplate('tpl_1');
     await getPublishedApplicationTemplateVersion('tplv_1');
 

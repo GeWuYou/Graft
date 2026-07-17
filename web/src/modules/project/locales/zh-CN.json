@@ -732,6 +732,7 @@
         "reset": "重置表单",
         "back": "上一步",
         "backToSource": "返回应用来源",
+        "clearFilters": "清除筛选",
         "next": "下一步",
         "confirm": "确认",
         "cancel": "取消"

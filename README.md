@@ -479,7 +479,7 @@ python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py reconc
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
 ```
 
-- `acquire` fetches `origin`, reuses the lowest clean numbered `/.worktrees/01` style directory even when its cached
+- `acquire` fetches `origin`, reuses the lowest clean numbered `.worktrees/01` style directory even when its cached
   baseline is stale, synchronizes it to the current `origin/main`, then creates a unique task branch.
 - `release` first prints a review summary. Only after a developer confirms that the branch was merged or cherry-picked
   does it restore the directory to its local-only `main-01` style pool marker and remove the local task branch.
@@ -492,7 +492,7 @@ python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py reloca
   and conflict resolution occur in the developer integration workspace.
 - The manager uses `.worktree-shared.json` for relative shared-resource links and never relies on `.local`.
 - `relocate --confirm` is the developer-approved, one-time migration for clean legacy sibling worktrees. It moves them
-  into `/.worktrees/<slot>` and rebuilds declared shared-resource links; it refuses dirty or non-baseline pool slots
+  into `.worktrees/<slot>` and rebuilds declared shared-resource links; it refuses dirty or non-baseline pool slots
   but does not depend on unrelated primary-workspace changes.
 
 The shared local-resource source of truth is `.worktree-shared.json`, not `.local`.

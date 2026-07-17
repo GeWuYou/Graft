@@ -138,11 +138,6 @@ type ApplicationApplicationNameAvailabilityData = NonNullable<
   ApplicationApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
 >;
 
-type ApplicationTemplatesPath = (typeof APPLICATION_API_PATH)['TEMPLATES'];
-type GetApplicationTemplatesOperation = paths[ApplicationTemplatesPath]['get'];
-type GetApplicationTemplatesData = NonNullable<
-  GetApplicationTemplatesOperation['responses'][200]['content']['application/json']['data']
->;
 type ApplicationManagedTemplatesPath = (typeof APPLICATION_API_PATH)['TEMPLATES_MANAGE'];
 type GetApplicationManagedTemplatesOperation = paths[ApplicationManagedTemplatesPath]['get'];
 type GetApplicationManagedTemplatesData = NonNullable<
@@ -353,10 +348,10 @@ export function postApplicationApplicationNameAvailability(payload: ApplicationA
 }
 
 export function getApplicationTemplateCatalog(query: ApplicationTemplateCatalogQuery) {
-  return request.get<GetApplicationTemplatesData>({
+  return request.get<ApplicationTemplateCatalogListResponse>({
     url: APPLICATION_API_PATH.TEMPLATES,
     params: query,
-  }) as Promise<ApplicationTemplateCatalogListResponse>;
+  });
 }
 
 export function getPublishedApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {

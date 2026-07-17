@@ -37,6 +37,36 @@ func TestTemplateCatalogFiltersAndPaginatesPublishedSummaries(t *testing.T) {
 	}
 }
 
+func TestTemplateCatalogSearchEscapesLikeWildcards(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	ctx := context.Background()
+	for _, input := range []CreateTemplateDraftInput{
+		{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FC1", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FC1", DisplayName: "50%_off", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml"}`)},
+		{TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FC2", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FC2", DisplayName: "500xoff", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml"}`)},
+	} {
+		created, err := repository.CreateTemplateDraft(ctx, input)
+		if err != nil {
+			t.Fatalf("create template %s: %v", input.DisplayName, err)
+		}
+		if _, err = repository.PublishTemplateDraft(ctx, created.Template.ID, nil); err != nil {
+			t.Fatalf("publish template %s: %v", input.DisplayName, err)
+		}
+	}
+	page, err := repository.ListTemplateCatalog(ctx, TemplateCatalogQuery{Search: "50%_"})
+	if err != nil || len(page.Items) != 1 || page.Items[0].DisplayName != "50%_off" {
+		t.Fatalf("escaped search = %#v, err = %v", page, err)
+	}
+}
+
+func TestNormalizeTemplateCatalogQueryBoundsPageSize(t *testing.T) {
+	t.Parallel()
+	page, pageSize, _ := normalizeTemplateCatalogQuery(TemplateCatalogQuery{Page: 7, PageSize: int(^uint(0) >> 1)})
+	if page != 7 || pageSize != templateCatalogPageSizeMax {
+		t.Fatalf("normalized catalog query = page %d, page size %d", page, pageSize)
+	}
+}
+
 func TestTemplateRepositoryHidesPublishedDetailAfterWithdrawalArchiveAndDelete(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
@@ -78,7 +108,7 @@ func TestTemplateRepositoryWithdrawsPublishedVersionAndCreatesNextDraft(t *testi
 	if published.Version.Status != "published" || published.Version.PublishedAt == nil {
 		t.Fatalf("unexpected published version: %#v", published.Version)
 	}
-	if _, err = repository.UpdateTemplateDraft(ctx, UpdateTemplateDraftInput{TemplateID: created.Template.ID, DisplayName: "Redis", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{}`)}); !errors.Is(err, ErrTemplateDraftNotFound) {
+	if _, err = repository.UpdateTemplateDraft(ctx, UpdateTemplateDraftInput{TemplateID: created.Template.ID, DisplayName: "Redis", Category: "cache", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{}`)}); !errors.Is(err, ErrTemplateDraftNotFound) {
 		t.Fatalf("published version must not be editable, got %v", err)
 	}
 	withdrawn, err := repository.WithdrawTemplate(ctx, WithdrawTemplateInput{TemplateID: created.Template.ID, VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAX", ActorID: nil})
@@ -93,6 +123,20 @@ func TestTemplateRepositoryWithdrawsPublishedVersionAndCreatesNextDraft(t *testi
 	}
 	if _, err = repository.WithdrawTemplate(ctx, WithdrawTemplateInput{TemplateID: created.Template.ID, VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FAY"}); !errors.Is(err, ErrTemplateDraftNotFound) {
 		t.Fatalf("expected no published version after withdraw, got %v", err)
+	}
+}
+
+func TestTemplateRepositoryRejectsInvalidUpdateCategory(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	created, err := repository.CreateTemplateDraft(context.Background(), CreateTemplateDraftInput{
+		TemplateID: "tpl_01ARZ3NDEKTSV4RRFFQ69G5FC3", VersionID: "tplv_01ARZ3NDEKTSV4RRFFQ69G5FC3", DisplayName: "Invalid category", Category: "other", DeploymentAdapterKind: "compose", DefinitionSchemaVersion: 1, DefinitionJSON: []byte(`{"compose_file_path":"compose.yaml"}`),
+	})
+	if err != nil {
+		t.Fatalf("create template: %v", err)
+	}
+	if _, err = repository.UpdateTemplateDraft(context.Background(), UpdateTemplateDraftInput{TemplateID: created.Template.ID, DisplayName: created.Template.DisplayName, Category: "unsupported", DefinitionSchemaVersion: 1, DefinitionJSON: created.Version.DefinitionJSON}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid category error = %v, want %v", err, ErrInvalidInput)
 	}
 }
 

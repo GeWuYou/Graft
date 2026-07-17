@@ -179,7 +179,7 @@ def print_status(root: Path, as_json: bool) -> None:
 
 @contextmanager
 def manager_lock(root: Path):
-    common_dir = Path(git(root, "rev-parse", "--git-common-dir")).resolve()
+    common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")).resolve()
     lock_path = common_dir / "graft-worktree-manager.lock"
     with lock_path.open("w", encoding="utf-8") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
@@ -339,12 +339,12 @@ def release(root: Path, target: Path, confirmation: str | None) -> None:
         if confirmation is None:
             print("Awaiting developer integration confirmation; no worktree state changed.")
             return
+        fetch(root)
         git(root, "rev-parse", "--verify", confirmation)
         if not is_ancestor(root, entry.branch, confirmation):
             raise WorktreeManagerError(
                 f"confirmation ref does not contain task branch: {entry.branch} -> {confirmation}"
             )
-        fetch(root)
         old_branch = entry.branch
         marker = pool_branch(root, target)
         git(target, "switch", "-C", marker, "origin/main")

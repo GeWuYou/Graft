@@ -179,6 +179,7 @@ import {
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationReview from '../../components/ProjectLifecycleConfigurationReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { APPLICATION_TEMPLATE_CATEGORIES } from '../../contract/categories';
 import {
   buildBlankLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
@@ -235,9 +236,10 @@ const statusLabel = computed(() =>
 );
 const statusTheme = computed(() => (isArchived.value ? 'default' : isDraft.value ? 'warning' : 'success'));
 const categoryOptions = computed<SelectProps['options']>(() =>
-  (['database', 'cache', 'mq', 'proxy', 'storage', 'monitoring', 'logging', 'cicd', 'ai', 'other'] as const).map(
-    (value) => ({ value, label: t(`project.templateCatalog.categories.${value}`) }),
-  ),
+  APPLICATION_TEMPLATE_CATEGORIES.map((value) => ({
+    value,
+    label: t(`project.templateCatalog.categories.${value}`),
+  })),
 );
 
 watch(templateId, () => void loadTemplate(), { immediate: true });
