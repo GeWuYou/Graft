@@ -13,7 +13,7 @@ final integration.
 
 - The primary checkout is the developer's integration and review workspace. This manager never resets, switches, or
   releases it.
-- `main` is the stable baseline. Numbered directories such as `<repo>-wt-01` are reusable agent workspaces, not
+- `main` is the stable baseline. Numbered directories under `/.worktrees/`, such as `/.worktrees/01`, are reusable agent workspaces, not
   feature branches or topic ownership records.
 - Every acquired task gets one globally unique `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `chore/*`, `build/*`, or
   `ci/*` branch. Do not create new `feat/*` or `wt-*` branches.
@@ -28,6 +28,7 @@ Run the helper from any checkout in the repository:
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py status
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py acquire feature/runtime-target
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py release --confirm-integrated <commit-or-ref>
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
 ```
 
 `status` reports every registered worktree, its branch or detached ref, uncommitted-change count, and derived state.
@@ -42,6 +43,11 @@ summary. With the confirmation ref it requires a clean task worktree, returns it
 when `main` is already checked out elsewhere), and deletes only the local task branch. It never merges, cherry-picks,
 force-pushes, deletes a remote branch, or discards an unconfirmed task branch.
 
+`relocate --confirm` is a one-time developer-approved migration from legacy sibling directories such as
+`<repo>-wt-01` into `/.worktrees/01`. It refuses to run unless every legacy pool slot is clean and at `origin/main`,
+all destinations are free, and shared-link targets are safe to rebuild. Unrelated changes in the primary integration
+checkout do not block relocation.
+
 ## Guardrails
 
 - Do not use `git worktree remove` or `git worktree add` as the normal lifecycle; the helper only creates a missing
@@ -50,5 +56,5 @@ force-pushes, deletes a remote branch, or discards an unconfirmed task branch.
   when that information is useful for resumption.
 - Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources. Agents may edit
   their sources, but the developer generates and resolves final artifacts in the integration workspace.
-- A one-time repository relocation is a separate, developer-approved migration after every existing worktree is clean
-  and pushed. It is not a `release` operation.
+- A one-time repository relocation is a separate, developer-approved migration after every legacy pool slot is clean
+  and pushed. Use `relocate --confirm`; it is not a `release` operation.

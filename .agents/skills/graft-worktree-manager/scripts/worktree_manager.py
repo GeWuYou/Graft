@@ -13,7 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-POOL_SUFFIX = re.compile(r"-wt-(?P<slot>\d{2,})$")
+POOL_SLOT = re.compile(r"(?P<slot>\d{2,})$")
+LEGACY_POOL_SUFFIX = re.compile(r"-wt-(?P<slot>\d{2,})$")
 ALLOWED_BRANCH = re.compile(r"^(feature|fix|refactor|docs|chore|build|ci)/[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -61,9 +62,22 @@ def parse_worktrees(repo_dir: Path) -> list[Worktree]:
 
 
 def pool_slot(root: Path, path: Path) -> int | None:
+    if path.parent != pool_root(root):
+        return None
+    match = POOL_SLOT.fullmatch(path.name)
+    if match is None:
+        return None
+    return int(match.group("slot"))
+
+
+def pool_root(root: Path) -> Path:
+    return root / ".worktrees"
+
+
+def legacy_pool_slot(root: Path, path: Path) -> int | None:
     if path.parent != root.parent:
         return None
-    match = POOL_SUFFIX.search(path.name)
+    match = LEGACY_POOL_SUFFIX.search(path.name)
     if match is None or not path.name.startswith(f"{root.name}-"):
         return None
     return int(match.group("slot"))
@@ -161,9 +175,32 @@ def apply_links(root: Path, target: Path) -> None:
         destination.symlink_to(relative)
 
 
+def validate_link_rebuild(root: Path, target: Path) -> None:
+    for link in load_links(root):
+        source = root / str(link["source"])
+        destination = target / str(link["target"])
+        if not source.exists() and link.get("required", True):
+            raise WorktreeManagerError(f"required shared resource missing: {link['source']}")
+        if destination.exists() and not destination.is_symlink():
+            raise WorktreeManagerError(f"shared resource destination is not a symlink: {destination}")
+
+
+def rebuild_links(root: Path, target: Path) -> None:
+    for link in load_links(root):
+        source = root / str(link["source"])
+        destination = target / str(link["target"])
+        if destination.is_symlink():
+            destination.unlink()
+        if not source.exists():
+            continue
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        relative = Path(os.path.relpath(source, destination.parent))
+        destination.symlink_to(relative)
+
+
 def next_pool_path(root: Path) -> Path:
     slots = [slot for item in parse_worktrees(root) if (slot := pool_slot(root, item.path)) is not None]
-    return root.parent / f"{root.name}-wt-{max(slots, default=0) + 1:02d}"
+    return pool_root(root) / f"{max(slots, default=0) + 1:02d}"
 
 
 def sync_main_baseline(root: Path, target: Path) -> None:
@@ -186,6 +223,7 @@ def acquire(root: Path, branch: str) -> None:
         target = available[0].path
     else:
         target = next_pool_path(root)
+        target.parent.mkdir(parents=True, exist_ok=True)
         git(root, "worktree", "add", "--detach", str(target), "origin/main")
     if changes(target):
         raise WorktreeManagerError(f"refusing to acquire dirty worktree: {target}")
@@ -223,6 +261,40 @@ def release(root: Path, target: Path, confirmation: str | None) -> None:
     print(f"Deleted local branch: {old_branch}")
 
 
+def relocate(root: Path, confirmed: bool) -> None:
+    if not confirmed:
+        raise WorktreeManagerError("relocate requires --confirm")
+    fetch(root)
+    worktrees = parse_worktrees(root)
+    legacy = [item for item in worktrees if legacy_pool_slot(root, item.path) is not None]
+    if not legacy:
+        raise WorktreeManagerError("no legacy sibling pool worktrees found")
+    legacy.sort(key=lambda item: legacy_pool_slot(root, item.path) or 0)
+    destinations: list[tuple[Worktree, Path]] = []
+    for item in legacy:
+        if changes(item.path):
+            raise WorktreeManagerError(f"legacy pool worktree must be clean: {item.path}")
+        if not at_main_baseline(item, root):
+            raise WorktreeManagerError(f"legacy pool worktree is not at origin/main: {item.path}")
+        target = pool_root(root) / f"{legacy_pool_slot(root, item.path):02d}"
+        if target.exists() or target.is_symlink():
+            raise WorktreeManagerError(f"relocation destination already exists: {target}")
+        validate_link_rebuild(root, item.path)
+        destinations.append((item, target))
+    pool_root(root).mkdir(parents=True, exist_ok=True)
+    moved: list[tuple[Path, Path]] = []
+    try:
+        for item, target in destinations:
+            git(root, "worktree", "move", str(item.path), str(target))
+            rebuild_links(root, target)
+            moved.append((item.path, target))
+    except WorktreeManagerError:
+        for source, target in reversed(moved):
+            git(root, "worktree", "move", str(target), str(source), check=False)
+        raise
+    print(f"Relocated {len(moved)} worktree(s) into {pool_root(root)}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-dir", type=Path, help="Canonical repository root override")
@@ -234,6 +306,8 @@ def parse_args() -> argparse.Namespace:
     release_parser = subparsers.add_parser("release")
     release_parser.add_argument("--worktree", type=Path, default=Path.cwd())
     release_parser.add_argument("--confirm-integrated")
+    relocate_parser = subparsers.add_parser("relocate")
+    relocate_parser.add_argument("--confirm", action="store_true")
     return parser.parse_args()
 
 
@@ -245,8 +319,10 @@ def main() -> int:
             print_status(root, args.json)
         elif args.command == "acquire":
             acquire(root, args.branch)
-        else:
+        elif args.command == "release":
             release(root, args.worktree.resolve(), args.confirm_integrated)
+        else:
+            relocate(root, args.confirm)
     except (WorktreeManagerError, json.JSONDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

@@ -475,9 +475,10 @@ Use Worktree Manager rather than private setup scripts or routine `git worktree 
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py status
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py acquire feature/runtime-target
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py release --confirm-integrated <commit-or-ref>
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
 ```
 
-- `acquire` reuses the lowest clean numbered `<repo>-wt-01` style directory or creates the next pool slot, then creates
+- `acquire` reuses the lowest clean numbered `/.worktrees/01` style directory or creates the next pool slot, then creates
   a unique task branch from `main`.
 - `release` first prints a review summary. Only after a developer confirms that the branch was merged or cherry-picked
   does it return the directory to `main` and remove the local task branch.
@@ -486,6 +487,9 @@ python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py releas
 - Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources; final generation
   and conflict resolution occur in the developer integration workspace.
 - The manager uses `.worktree-shared.json` for relative shared-resource links and never relies on `.local`.
+- `relocate --confirm` is the developer-approved, one-time migration for clean legacy sibling worktrees. It moves them
+  into `/.worktrees/<slot>` and rebuilds declared shared-resource links; it refuses dirty or non-baseline pool slots
+  but does not depend on unrelated primary-workspace changes.
 
 The shared local-resource source of truth is `.worktree-shared.json`, not `.local`.
 
