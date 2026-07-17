@@ -41,6 +41,14 @@ func toDockerImageList(items []DockerImage) containergen.DockerImageListResponse
 	return containergen.DockerImageListResponse{Items: mapped}
 }
 
+func toDockerImageAction(result DockerImageActionResult) containergen.DockerImageActionResponse {
+	return containergen.DockerImageActionResponse{
+		Action:     containergen.DockerImageActionResponseAction(result.Action),
+		Id:         result.ID,
+		MessageKey: result.MessageKey,
+	}
+}
+
 // toDockerNetwork 将 Docker 网络领域对象转换为 OpenAPI 网络响应。
 func toDockerNetwork(item DockerNetwork) containergen.DockerNetwork {
 	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Labels: optionalStringMap(item.Labels)}

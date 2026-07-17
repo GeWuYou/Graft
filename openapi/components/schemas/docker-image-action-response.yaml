@@ -1,0 +1,13 @@
+type: object
+required: [id, action, message_key]
+properties:
+  id:
+    type: string
+  action:
+    type: string
+    enum: [tag, remove]
+    x-enum-varnames:
+      - DockerImageActionResponseActionTag
+      - DockerImageActionResponseActionRemove
+  message_key:
+    type: string

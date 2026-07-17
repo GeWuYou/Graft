@@ -1,0 +1,23 @@
+post:
+  operationId: postDockerImagePull
+  summary: Pull a Docker image through the configured daemon
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/docker-image-pull-request.yaml
+  responses:
+    '200':
+      description: Sanitized Docker pull progress as newline-delimited JSON.
+      content:
+        application/x-ndjson:
+          schema:
+            $ref: ../components/schemas/docker-image-pull-event.yaml
+    '400': { description: Invalid image reference }
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

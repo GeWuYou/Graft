@@ -268,6 +268,35 @@ describe('request auth handling', () => {
     );
   });
 
+  it('streams NDJSON through the canonical request boundary with session headers', async () => {
+    const { request } = await loadRequestModule();
+    const { setAccessToken } = await import('@/utils/auth-state');
+    const chunks: string[] = [];
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"status":"pulling"}\n', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    setAccessToken('stream-token');
+
+    await request.postNdjson({
+      data: { reference: 'nginx:latest' },
+      onChunk: (chunk) => chunks.push(chunk),
+      url: '/api/ops/docker/images/pull',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/ops/docker/images/pull',
+      expect.objectContaining({
+        body: JSON.stringify({ reference: 'nginx:latest' }),
+        credentials: 'include',
+        headers: expect.objectContaining({
+          [HTTP_HEADER.AUTHORIZATION]: 'Bearer stream-token',
+          [HTTP_HEADER.LOCALE]: 'zh-CN',
+        }),
+        method: 'POST',
+      }),
+    );
+    expect(chunks).toEqual(['{"status":"pulling"}\n']);
+  });
+
   it('serializes array params with repeated canonical keys', async () => {
     const { request, serializeRequestParams } = await loadRequestModule();
 

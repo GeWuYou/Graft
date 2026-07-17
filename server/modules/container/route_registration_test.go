@@ -75,6 +75,7 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	assertMountUsageRoutePermission(t, engine, authorizer)
 	assertRemoveRoutePermission(t, engine, authorizer)
 	assertBatchActionRoutePermission(t, engine, authorizer)
+	assertDockerImageWriteRoutePermissions(t, engine, authorizer)
 }
 
 func assertDetailRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
@@ -204,6 +205,30 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
+	}
+}
+
+func assertDockerImageWriteRoutePermissions(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+	cases := []struct {
+		name       string
+		path       string
+		body       string
+		permission string
+	}{
+		{name: "pull", path: "/api/ops/docker/images/pull", body: `{"reference":"alpine:3.20"}`, permission: containercontract.DockerImagePullPermission.String()},
+		{name: "tag", path: "/api/ops/docker/images/sha256:abc123/tag", body: `{"target":"example/app:stable"}`, permission: containercontract.DockerImageTagPermission.String()},
+		{name: "remove", path: "/api/ops/docker/images/sha256:abc123/remove", body: `{"force":false}`, permission: containercontract.DockerImageRemovePermission.String()},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			authorizer.reset()
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, testCase.path, testCase.body))
+			if !slices.Contains(authorizer.permissions, testCase.permission) {
+				t.Fatalf("expected %s permission, got %#v", testCase.permission, authorizer.permissions)
+			}
+		})
 	}
 }
 

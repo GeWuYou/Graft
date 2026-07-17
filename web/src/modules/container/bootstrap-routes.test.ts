@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { containerBootstrapRouteRegistrations } from './bootstrap-routes';
+import { containerBootstrapRouteRegistrations, containerGlobalRouteRegistrations } from './bootstrap-routes';
 
 describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
@@ -31,11 +31,9 @@ describe('container bootstrap route registrations', () => {
     expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('titleKey');
   });
 
-  it('registers the detail page as a menu-hidden global route', async () => {
-    const { containerGlobalRouteRegistrations } = await import('./bootstrap-routes');
-
-    expect(containerGlobalRouteRegistrations).toHaveLength(2);
-    expect(containerGlobalRouteRegistrations[1]).toMatchObject({
+  it('registers the detail page as a menu-hidden global route', () => {
+    expect(containerGlobalRouteRegistrations).toHaveLength(3);
+    expect(containerGlobalRouteRegistrations[2]).toMatchObject({
       path: '/infrastructure/docker/containers/:id',
       pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
@@ -46,6 +44,16 @@ describe('container bootstrap route registrations', () => {
         tabGroup: 'infrastructure',
         titleKey: 'container.route.detail.title',
       },
+    });
+  });
+
+  it('registers image management at its canonical Docker child menu route', () => {
+    expect(containerGlobalRouteRegistrations[0]).toMatchObject({
+      path: '/infrastructure/images',
+      pageRouteName: 'DockerImageListIndex',
+      routeName: 'DockerImageList',
+      navigationParentPath: '/infrastructure/docker/containers',
+      meta: { titleKey: 'container.route.images.title' },
     });
   });
 });

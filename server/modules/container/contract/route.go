@@ -37,6 +37,12 @@ const (
 	DockerImagesRoute = "/images"
 	// DockerImageRoute 是 Docker 镜像详情路由片段。
 	DockerImageRoute = "/images/:id"
+	// DockerImagePullRoute 是通过 Docker 守护进程拉取镜像的路由片段。
+	DockerImagePullRoute = "/images/pull"
+	// DockerImageTagRoute 是为镜像创建标签的路由片段。
+	DockerImageTagRoute = "/images/:id/tag"
+	// DockerImageRemoveRoute 是删除镜像的路由片段。
+	DockerImageRemoveRoute = "/images/:id/remove"
 	// DockerNetworksRoute 是 Docker 网络集合路由片段。
 	DockerNetworksRoute = "/networks"
 	// DockerNetworkRoute 是 Docker 网络详情路由片段。
@@ -51,4 +57,6 @@ const (
 	ContainerMenuRootPath = "/infrastructure/docker/containers"
 	// ContainerMenuPath 是容器管理菜单路径，与前端路由和后端菜单注册保持一致。
 	ContainerMenuPath = "/infrastructure/docker/containers"
+	// DockerImageMenuPath 是镜像管理菜单路径，与前端路由和后端菜单注册保持一致。
+	DockerImageMenuPath = "/infrastructure/images"
 )

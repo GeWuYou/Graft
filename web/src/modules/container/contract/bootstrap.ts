@@ -15,6 +15,11 @@ export const CONTAINER_BOOTSTRAP_ROUTE = {
     pageRouteName: 'DockerResourcesIndex',
     routeName: 'DockerResources',
   },
+  IMAGES: {
+    path: CONTAINER_ROUTE_PATH.IMAGES,
+    pageRouteName: 'DockerImageListIndex',
+    routeName: 'DockerImageList',
+  },
 } as const;
 
 export type ContainerBootstrapRouteName =

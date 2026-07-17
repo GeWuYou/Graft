@@ -42,8 +42,16 @@ export class TaskLogRealtimeBatcher {
   }
 
   append(response: TaskLogResponse) {
+    const entryVersion = this.#entries.version();
+    const currentCursor = this.#nextAfterSequence;
     this.#append(response.items);
-    this.#nextAfterSequence = Math.max(this.#nextAfterSequence, response.next_after_sequence);
+    this.#nextAfterSequence = Math.max(currentCursor, response.next_after_sequence);
+
+    // 空轮询且游标未推进时不创建新的响应式快照，避免日志视图无意义重渲染。
+    if (this.#entries.version() === entryVersion && this.#nextAfterSequence === currentCursor) {
+      return;
+    }
+
     this.#emit();
   }
 

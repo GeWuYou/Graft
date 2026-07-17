@@ -32,4 +32,10 @@ const (
 	ContainerRestartPermission PermissionCode = "ops.container.restart"
 	// ContainerRemovePermission 表示容器移除权限，值保持稳定。
 	ContainerRemovePermission PermissionCode = "ops.container.remove"
+	// DockerImagePullPermission 表示 Docker 镜像拉取权限，值保持稳定。
+	DockerImagePullPermission PermissionCode = "ops.container.image.pull"
+	// DockerImageTagPermission 表示 Docker 镜像标签管理权限，值保持稳定。
+	DockerImageTagPermission PermissionCode = "ops.container.image.tag"
+	// DockerImageRemovePermission 表示 Docker 镜像删除权限，值保持稳定。
+	DockerImageRemovePermission PermissionCode = "ops.container.image.remove"
 )

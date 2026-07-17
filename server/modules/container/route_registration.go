@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -133,7 +134,10 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 	docker.Use(httpx.RequestIDMiddleware())
 	requireView := httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher)
 	docker.GET(containercontract.DockerImagesRoute, requireView, routes.handleDockerImages)
+	docker.POST(containercontract.DockerImagePullRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImagePullPermission.String(), publisher), routes.handleDockerImagePull)
 	docker.GET(containercontract.DockerImageRoute, requireView, routes.handleDockerImage)
+	docker.POST(containercontract.DockerImageTagRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageTagPermission.String(), publisher), routes.handleDockerImageTag)
+	docker.POST(containercontract.DockerImageRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), routes.handleDockerImageRemove)
 	docker.GET(containercontract.DockerNetworksRoute, requireView, routes.handleDockerNetworks)
 	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
 	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
@@ -161,6 +165,91 @@ func (r routeRuntime) handleDockerImage(c *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, toDockerImage(item))
+}
+
+func (r routeRuntime) handleDockerImagePull(c *gin.Context) {
+	var request containeropenapi.PostDockerImagePullJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	if err := validateDockerImageReference(request.Reference); err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	writer, err := r.service.dockerImageWriter(c.Request.Context())
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	c.Header("Content-Type", "application/x-ndjson")
+	c.Status(http.StatusOK)
+	err = writer.PullDockerImage(c.Request.Context(), request.Reference, func(event DockerImagePullEvent) error {
+		return writeDockerImagePullEvent(c, event)
+	})
+	if err != nil {
+		_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "error", Error: true})
+	} else {
+		_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "completed"})
+	}
+	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionPull, request.Reference, request.Reference, false, err)
+}
+
+func (r routeRuntime) handleDockerImageTag(c *gin.Context) {
+	var request containeropenapi.PostDockerImageTagJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	ref, ok := readDockerImageRef(c, r)
+	if !ok {
+		return
+	}
+	result, err := r.service.TagDockerImage(c.Request.Context(), ref, request.Target)
+	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionTag, ref, request.Target, false, err)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageAction(result))
+}
+
+func (r routeRuntime) handleDockerImageRemove(c *gin.Context) {
+	var request containeropenapi.PostDockerImageRemoveJSONRequestBody
+	if !bindOptionalJSON(c, r, &request) {
+		return
+	}
+	ref, ok := readDockerImageRef(c, r)
+	if !ok {
+		return
+	}
+	force := boolPtrValue(request.Force)
+	result, err := r.service.RemoveDockerImage(c.Request.Context(), ref, force)
+	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionRemove, ref, "", force, err)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageAction(result))
+}
+
+func readDockerImageRef(c *gin.Context, r routeRuntime) (string, bool) {
+	value := strings.TrimSpace(c.Param("id"))
+	if err := validateDockerImageReference(value); err != nil {
+		r.writeRouteError(c, err)
+		return "", false
+	}
+	return value, true
+}
+
+func writeDockerImagePullEvent(c *gin.Context, event DockerImagePullEvent) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	if _, err := c.Writer.Write(append(payload, '\n')); err != nil {
+		return err
+	}
+	c.Writer.Flush()
+	return nil
 }
 
 func (r routeRuntime) handleDockerNetworks(c *gin.Context) {

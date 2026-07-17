@@ -11660,6 +11660,46 @@
         }
       }
     },
+    "/api/ops/docker/images/pull": {
+      "post": {
+        "operationId": "postDockerImagePull",
+        "summary": "Pull a Docker image through the configured daemon",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-image-pull-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sanitized Docker pull progress as newline-delimited JSON.",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/docker-image-pull-event"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid image reference"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/docker/images/{id}": {
       "get": {
         "tags": [
@@ -11696,6 +11736,105 @@
           },
           "404": {
             "description": "Image not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/images/{id}/tag": {
+      "post": {
+        "operationId": "postDockerImageTag",
+        "summary": "Tag a Docker image",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/docker-image-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-image-tag-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker image tag result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid image reference"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Image not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/images/{id}/remove": {
+      "post": {
+        "operationId": "postDockerImageRemove",
+        "summary": "Remove a Docker image",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/docker-image-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-image-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker image removal result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid image reference"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Image not found"
+          },
+          "409": {
+            "description": "Image is in use by a container"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -16624,6 +16763,21 @@
       "DockerImageListResponse": {
         "$ref": "#/components/schemas/docker-image-list-response"
       },
+      "DockerImagePullRequest": {
+        "$ref": "#/components/schemas/docker-image-pull-request"
+      },
+      "DockerImageTagRequest": {
+        "$ref": "#/components/schemas/docker-image-tag-request"
+      },
+      "DockerImageRemoveRequest": {
+        "$ref": "#/components/schemas/docker-image-remove-request"
+      },
+      "DockerImageActionResponse": {
+        "$ref": "#/components/schemas/docker-image-action-response"
+      },
+      "DockerImagePullEvent": {
+        "$ref": "#/components/schemas/docker-image-pull-event"
+      },
       "DockerNetwork": {
         "$ref": "#/components/schemas/docker-network"
       },
@@ -16641,6 +16795,9 @@
       },
       "EnvelopedDockerImageListResponse": {
         "$ref": "#/components/schemas/enveloped-docker-image-list-response"
+      },
+      "EnvelopedDockerImageActionResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-image-action-response"
       },
       "EnvelopedDockerNetwork": {
         "$ref": "#/components/schemas/enveloped-docker-network"
@@ -25598,6 +25755,42 @@
           }
         ]
       },
+      "docker-image-pull-request": {
+        "type": "object",
+        "required": [
+          "reference"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Complete image reference resolved by the configured Docker daemon credential store."
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-image-pull-event": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "string"
+          },
+          "error": {
+            "type": "boolean",
+            "description": "Indicates a sanitized daemon error. Raw daemon error text is never returned."
+          }
+        }
+      },
       "enveloped-docker-image": {
         "allOf": [
           {
@@ -25615,6 +25808,77 @@
             }
           }
         ]
+      },
+      "docker-image-tag-request": {
+        "type": "object",
+        "required": [
+          "target"
+        ],
+        "properties": {
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Complete repository and tag target, for example registry.example.com/team/app:stable."
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-image-action-response": {
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "message_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "tag",
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "DockerImageActionResponseActionTag",
+              "DockerImageActionResponseActionRemove"
+            ]
+          },
+          "message_key": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-docker-image-action-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image-action-response"
+              }
+            }
+          }
+        ]
+      },
+      "docker-image-remove-request": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Force deletion even when Docker reports that a container references the image."
+          }
+        },
+        "additionalProperties": false
       },
       "docker-network": {
         "type": "object",
@@ -31666,6 +31930,17 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "docker-image-id-path": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Docker image ID or repository reference.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
         }
       },
       "application-list-keyword": {

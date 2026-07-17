@@ -127,8 +127,15 @@ type DockerSystemData = NonNullable<
   paths['/api/ops/docker/system']['get']['responses'][200]['content']['application/json']['data']
 >;
 
+export type DockerImageRecord = DockerImagesData['items'][number];
+
 export const getDockerImages = () =>
   request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES }) as Promise<DockerImagesData>;
+
+export const getDockerImage = (imageId: string) =>
+  request.get<DockerImageRecord>({
+    url: `${CONTAINER_API_PATH.DOCKER_IMAGES}/${encodeURIComponent(imageId)}`,
+  }) as Promise<DockerImageRecord>;
 export const getDockerNetworks = () =>
   request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
 export const getDockerVolumes = () =>

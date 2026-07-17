@@ -5,7 +5,7 @@ import { defineComponent, h, ref } from 'vue';
 
 import { queryClient } from '@/shared/query';
 
-import { getDockerImages, getDockerNetworks, getDockerSystem, getDockerVolumes } from '../api/container';
+import { getDockerNetworks, getDockerSystem, getDockerVolumes } from '../api/container';
 import {
   containerResourceQueryKeys,
   type DockerResourceTab,
@@ -13,13 +13,11 @@ import {
 } from './container-resource-queries';
 
 vi.mock('../api/container', () => ({
-  getDockerImages: vi.fn(),
   getDockerNetworks: vi.fn(),
   getDockerSystem: vi.fn(),
   getDockerVolumes: vi.fn(),
 }));
 
-const getDockerImagesMock = vi.mocked(getDockerImages);
 const getDockerNetworksMock = vi.mocked(getDockerNetworks);
 const getDockerVolumesMock = vi.mocked(getDockerVolumes);
 const getDockerSystemMock = vi.mocked(getDockerSystem);
@@ -27,23 +25,21 @@ const getDockerSystemMock = vi.mocked(getDockerSystem);
 describe('container resource query keys', () => {
   beforeEach(() => {
     queryClient.clear();
-    getDockerImagesMock.mockReset();
     getDockerNetworksMock.mockReset();
     getDockerVolumesMock.mockReset();
     getDockerSystemMock.mockReset();
   });
 
-  it('keeps every static Docker resource snapshot in a distinct module key', () => {
-    expect(containerResourceQueryKeys.images()).toEqual(['container', 'resources', 'images']);
+  it('keeps every remaining Docker resource snapshot in a distinct module key', () => {
     expect(containerResourceQueryKeys.networks()).toEqual(['container', 'resources', 'networks']);
     expect(containerResourceQueryKeys.volumes()).toEqual(['container', 'resources', 'volumes']);
     expect(containerResourceQueryKeys.system()).toEqual(['container', 'resources', 'system']);
   });
 
   it('does not use page-local snapshots as a second cache', () => {
-    queryClient.setQueryData(containerResourceQueryKeys.images(), { items: [{ id: 'image-1' }] });
+    queryClient.setQueryData(containerResourceQueryKeys.networks(), { items: [{ id: 'network-1' }] });
 
-    const active = ref<DockerResourceTab>('images');
+    const active = ref<DockerResourceTab>('networks');
     const Harness = defineComponent({
       setup() {
         useDockerResourceQueries(active);
@@ -56,8 +52,7 @@ describe('container resource query keys', () => {
       },
     });
 
-    expect(queryClient.getQueryData(containerResourceQueryKeys.images())).toEqual({ items: [{ id: 'image-1' }] });
-    expect(getDockerImagesMock).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(containerResourceQueryKeys.networks())).toEqual({ items: [{ id: 'network-1' }] });
     expect(getDockerNetworksMock).not.toHaveBeenCalled();
     expect(getDockerVolumesMock).not.toHaveBeenCalled();
     expect(getDockerSystemMock).not.toHaveBeenCalled();
@@ -66,18 +61,6 @@ describe('container resource query keys', () => {
   });
 
   it('fetches only the active resource and reuses its cached snapshot', async () => {
-    getDockerImagesMock.mockResolvedValue({
-      items: [
-        {
-          id: 'sha256:image-1',
-          repository_tags: ['alpine:latest'],
-          repository_digests: ['alpine@sha256:image-1'],
-          created_at: '2026-07-16T00:00:00Z',
-          size_bytes: 7340032,
-          containers: 0,
-        },
-      ],
-    });
     getDockerNetworksMock.mockResolvedValue({
       items: [
         {
@@ -93,8 +76,9 @@ describe('container resource query keys', () => {
         },
       ],
     });
+    getDockerVolumesMock.mockResolvedValue({ items: [] });
 
-    const active = ref<DockerResourceTab>('images');
+    const active = ref<DockerResourceTab>('networks');
     const Harness = defineComponent({
       setup() {
         useDockerResourceQueries(active);
@@ -108,16 +92,15 @@ describe('container resource query keys', () => {
     });
 
     await flushPromises();
-    expect(getDockerImagesMock).toHaveBeenCalledTimes(1);
-    expect(getDockerNetworksMock).not.toHaveBeenCalled();
+    expect(getDockerNetworksMock).toHaveBeenCalledTimes(1);
+
+    active.value = 'volumes';
+    await flushPromises();
+    expect(getDockerVolumesMock).toHaveBeenCalledTimes(1);
 
     active.value = 'networks';
     await flushPromises();
     expect(getDockerNetworksMock).toHaveBeenCalledTimes(1);
-
-    active.value = 'images';
-    await flushPromises();
-    expect(getDockerImagesMock).toHaveBeenCalledTimes(1);
 
     wrapper.unmount();
   });
