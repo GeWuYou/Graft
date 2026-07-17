@@ -30,6 +30,10 @@
 - 大范围 rename wave、目录迁移、批量移动文件
 - 以“统一风格”为名的仓库级格式化或整理 import
 
+Agent 也不得执行最终 merge 或 cherry-pick。Agent 可以在临时工作树中提交经过验证的任务分支；开发者在主工作区 review 后负责集成。
+
+Atlas migration、生成代码、OpenAPI generated client、lock file 和 snapshot 属于线性资源。Agent 可以修改源文件，但最终生成、冲突解决、验证和提交由开发者在集成工作区完成。
+
 这些场景如确有必要，必须先形成明确设计、范围、验证与回滚路径，再进入实施。
 
 ## 4. 禁止机会主义修复

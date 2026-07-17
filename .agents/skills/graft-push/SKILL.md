@@ -43,11 +43,10 @@ validation rules.
      - otherwise compare `HEAD` against the merge-base with the intended base branch, normally `main`
 2. Validate branch-name fit before pushing:
    - branch names must follow `<type>/<topic-or-scope>`
-   - `type` should use an established repository prefix such as `feat`, `fix`, `refactor`, `docs`, `chore`, `build`,
+   - `type` should use an established repository prefix such as `feature`, `fix`, `refactor`, `docs`, `chore`, `build`,
      or `ci`
    - `topic-or-scope` must be lowercase kebab-case and summarize the commits that are about to be pushed
-   - avoid stale names, unrelated names, or generic `wt-*` placeholders unless the branch is intentionally the tracked
-     long-lived topic/worktree branch
+   - avoid stale names, unrelated names, `feat/*`, and generic `wt-*` placeholders
    - if the current branch name does not fit the local-only commit range well, rename the local branch before pushing
      and continue with the renamed branch as the only push target
 3. Classify the blocker or next action:

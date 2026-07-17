@@ -343,9 +343,9 @@ Prefer the repository skills below when their trigger matches the task:
     comments, migration versions, indexes, unique constraints, foreign keys, or soft-delete columns; it owns the
     `scripts/validate_sql_migrations.py` live SQL comment gate and treats the removed historical Ent/manual replay
     chain as non-authoritative
-- `graft-worktree-init`
-  - use when creating or rebuilding a local `Graft` git worktree and the setup should follow the repository-standard
-    shared local resource rules without hard-coded machine paths
+- `graft-worktree-manager`
+  - use when acquiring, inspecting, or releasing a reusable numbered AI-agent worktree; it keeps directories stable
+    while task branches remain short-lived and developer integration remains explicit
 - `graft-codegraph-mcp`
   - use when installing, registering, initializing, validating, or troubleshooting CodeGraph MCP as a developer-local
     AI navigation aid for this repository
@@ -578,15 +578,20 @@ truth. When wording diverges, root `AGENTS.md` plus the repository entrypoints i
 
 For repository work:
 
-- default to a dedicated branch and PR for repository work
-- direct development on `main` is allowed only for emergency fixes or when the user explicitly authorizes it
+- `main` is the stable baseline; direct development on it is allowed only for emergency fixes or when the user
+  explicitly authorizes it
+- the developer-owned primary checkout is the integration and review workspace and has no fixed branch identity
+- numbered agent worktree directories are reusable temporary workspaces, not feature branches, active-topic identities,
+  or standing ownership boundaries
+- acquire an agent workspace through `graft-worktree-manager`; it creates a unique task branch from `main` and returns
+  the directory to a clean `main` baseline after developer-confirmed integration
+- agents may read, modify, validate, and commit their task branch, but must not perform the final merge or cherry-pick
+- developers review, merge, or cherry-pick in the primary checkout; no agent may assume it owns final repository state
 - use branch names in the form `<type>/<topic-or-scope>`
 - keep `<topic-or-scope>` in lowercase kebab-case and aligned with the real intent of the branch, not with stale
   earlier work
-- use established branch types such as `feat`, `fix`, `refactor`, `docs`, `chore`, `build`, or `ci`; do not invent a
-  one-off prefix when an existing repository type already matches
-- avoid generic placeholders or worktree-marker names such as `wt-*` unless the branch is intentionally the tracked
-  long-lived topic/worktree branch recorded in `ai-plan/public/**`
+- use `feature`, `fix`, `refactor`, `docs`, `chore`, `build`, or `ci`; do not create new `feat` or `wt-*` branches
+- reject duplicate local or remote task branch names before work begins
 - decide change ownership before staging or committing; a validated change is auto-committable only when its ownership
   is reliably known
 - when one logical feature slice reaches a directly validated milestone, commit it before starting the next unrelated
@@ -667,6 +672,14 @@ For push-triggered branch-name hygiene:
   mandatory branch-name fit check happens at `$graft-push`
 - when a push-triggered rename happens, update the upstream mapping through the new branch name and do not auto-delete
   the old remote branch unless the user explicitly asks
+
+Linear resources:
+
+- Atlas migrations, generated code, OpenAPI generated clients, lock files, and snapshots are linear resources
+- agents may modify their source inputs within a task branch, but do not finalize generated outputs when parallel work
+  could conflict
+- after integration, the developer generates, resolves conflicts, validates, and commits the final linear artifacts in
+  the primary checkout
 
 For staging and mixed-ownership files:
 

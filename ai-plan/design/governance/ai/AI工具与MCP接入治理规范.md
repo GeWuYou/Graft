@@ -38,6 +38,9 @@ MCP 和 skill 不得定义第二套启动 receipt、第二套 validation truth�
 workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `graft-work-intake`，它只能执行文档已经批准的
 `Work Intake` 规则。
 
+`graft-worktree-manager` 是可复用 Agent 工作树的唯一入口：它只派发、检查和回收临时目录，不拥有 startup、validation、
+commit 或最终集成 authority。最终 merge、cherry-pick 和线性资源生成仍由开发者在主工作区完成。
+
 仓库根 `Justfile` 属于 optional developer entrypoint / convenience layer：
 
 - 可以推荐给贡献者作为 first-run 或 common workflow shortcut。

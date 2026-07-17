@@ -71,6 +71,11 @@ class WorkIntakeGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_work_intake_skill(), [])
 
 
+class WorktreeManagerGovernanceTests(unittest.TestCase):
+    def test_worktree_manager_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_worktree_manager_skill(), [])
+
+
 class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
