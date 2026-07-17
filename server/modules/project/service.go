@@ -403,9 +403,9 @@ type ManagedApplicationCreateRequest struct {
 
 // ManagedWorkspaceEntry 表示任意 UTF-8 文本文件或空/非空目录。
 type ManagedWorkspaceEntry struct {
-	Path     string
-	NodeType string
-	Content  *string
+	Path     string  `json:"path"`
+	NodeType string  `json:"node_type"`
+	Content  *string `json:"content,omitempty"`
 }
 
 // ManagedApplicationCreateValidationResult 返回创建契约校验元数据，不写入文件。
