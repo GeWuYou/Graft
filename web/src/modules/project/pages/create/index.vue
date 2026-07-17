@@ -110,7 +110,7 @@ import { ManagementPageContent, ManagementPageHeader } from '@/shared/components
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
-  getApplicationTemplates,
+  getPublishedApplicationTemplateVersion,
   postApplicationApplicationNameAvailability,
   postApplicationCreate,
 } from '../../api/project';
@@ -226,7 +226,7 @@ onMounted(async () => {
   }
 });
 
-/** 只消费已发布目录返回的 Compose 快照，避免通过管理详情接口读取草稿。 */
+/** 只读取按版本锁定的发布快照，创建页不依赖目录分页结果。 */
 function blankCreatePreset(): CreatePreset {
   return {
     workspace_entries: createBlankComposeWorkspaceFiles(),
@@ -237,9 +237,7 @@ function blankCreatePreset(): CreatePreset {
 
 async function resolveSelectedTemplate(): Promise<CreatePreset | null> {
   if (!templateVersionID.value) return null;
-  const template = (await getApplicationTemplates()).items.find(
-    (item) => item.version.template_version_id === templateVersionID.value && item.version.status === 'published',
-  );
+  const template = await getPublishedApplicationTemplateVersion(templateVersionID.value);
   if (!template || template.deployment_adapter_kind !== 'compose') {
     throw new Error('selected template version is unavailable');
   }

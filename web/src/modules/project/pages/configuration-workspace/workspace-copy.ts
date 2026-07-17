@@ -76,7 +76,7 @@ type WorkspaceCopy = {
   summaryCurrentPathLabel: string;
   summaryOpenTabsLabel: string;
   summaryTitle: string;
-  summaryWorkspacePathLabel: string;
+  summaryWorkingDirectoryLabel: string;
   tabsEmpty: string;
   upAction: string;
   validateNoFile: string;
@@ -168,7 +168,7 @@ const workspaceCopyKeyMap: Record<WorkspaceCopyKey, string> = {
   summaryCurrentPathLabel: 'project.configurationWorkspace.copy.summaryCurrentPathLabel',
   summaryOpenTabsLabel: 'project.configurationWorkspace.copy.summaryOpenTabsLabel',
   summaryTitle: 'project.configurationWorkspace.copy.summaryTitle',
-  summaryWorkspacePathLabel: 'project.configurationWorkspace.copy.summaryWorkspacePathLabel',
+  summaryWorkingDirectoryLabel: 'project.configurationWorkspace.copy.summaryWorkingDirectoryLabel',
   tabsEmpty: 'project.configurationWorkspace.copy.tabsEmpty',
   upAction: 'project.configurationWorkspace.copy.upAction',
   validateNoFile: 'project.configurationWorkspace.copy.validateNoFile',

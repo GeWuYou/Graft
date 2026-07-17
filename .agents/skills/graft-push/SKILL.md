@@ -52,6 +52,8 @@ validation rules.
      failures, not advisory style suggestions
    - compare the branch name with the commits selected in step 1 and reject the push when that relationship cannot be
      established; report the mismatch before choosing a rename target
+   - reject local-only worktree pool marker branches such as `main-01`; push must run from the primary integration
+     checkout or a legal task branch, never from a reusable pool marker
    - if the current branch name does not fit the local-only commit range well, rename the local branch before pushing
      and continue with the renamed branch as the only push target
 3. Classify the blocker or next action:

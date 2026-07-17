@@ -236,7 +236,7 @@
         "networks": "网络",
         "metadata": "标签与元数据",
         "environment": "环境变量",
-        "rawJson": "原始详情 JSON",
+        "rawJson": "详情(JSON)",
         "command": "命令",
         "entrypoint": "入口",
         "workingDir": "工作目录",
@@ -363,7 +363,7 @@
         "config": "配置",
         "network": "网络",
         "storage": "挂载",
-        "raw": "原始 JSON"
+        "raw": "详情(JSON)"
       },
       "viewer": {
         "enterFullscreen": "全屏",
@@ -569,8 +569,8 @@
         }
       },
       "raw": {
-        "title": "原始 JSON",
-        "description": "容器原始 JSON 调试视图。",
+        "title": "详情(JSON)",
+        "description": "容器详情 JSON 调试视图。",
         "searchPlaceholder": "搜索字段或内容",
         "root": "container",
         "source": "源码视图",
@@ -589,17 +589,17 @@
         "networkCount": "网络",
         "updatedAt": "更新时间",
         "sensitive": "敏感",
-        "copyMaskedTooltip": "复制当前展示的脱敏 JSON",
-        "copyRealValueTooltip": "复制包含敏感环境变量真实值的 JSON",
-        "copyDisabledTooltip": "当前系统配置禁止复制包含敏感字段的 JSON",
-        "copyDisabledMessage": "当前系统配置禁止复制包含敏感字段的 JSON",
+        "copyMaskedTooltip": "复制当前展示的脱敏详情 JSON",
+        "copyRealValueTooltip": "复制包含敏感环境变量真实值的详情 JSON",
+        "copyDisabledTooltip": "当前系统配置禁止复制包含敏感字段的详情 JSON",
+        "copyDisabledMessage": "当前系统配置禁止复制包含敏感字段的详情 JSON",
         "policy": {
-          "noSensitive": "当前策略：当前原始 JSON 不包含敏感环境变量，可直接复制展示 JSON。",
-          "maskedCopyEnabled": "当前策略：敏感值按 {strategy} 脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。",
-          "maskedCopyDisabled": "当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。"
+          "noSensitive": "当前策略：当前详情 JSON 不包含敏感环境变量，可直接复制展示 JSON。",
+          "maskedCopyEnabled": "当前策略：敏感值按 {strategy} 脱敏展示，界面仍显示 *****，复制时可获得真实值详情 JSON。",
+          "maskedCopyDisabled": "当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的详情 JSON。"
         },
-        "empty": "暂无原始 JSON 数据",
-        "error": "原始 JSON 无法格式化。",
+        "empty": "暂无详情 JSON 数据",
+        "error": "详情 JSON 无法格式化。",
         "noMatches": "未找到匹配内容"
       },
       "health": {

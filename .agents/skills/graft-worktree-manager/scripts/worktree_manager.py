@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import json
 import os
 import re
@@ -15,6 +17,7 @@ from pathlib import Path
 
 POOL_SLOT = re.compile(r"(?P<slot>\d{2,})$")
 LEGACY_POOL_SUFFIX = re.compile(r"-wt-(?P<slot>\d{2,})$")
+POOL_BRANCH = re.compile(r"main-(?P<slot>\d{2,})$")
 ALLOWED_BRANCH = re.compile(r"^(feature|fix|refactor|docs|chore|build|ci)/[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -74,6 +77,13 @@ def pool_root(root: Path) -> Path:
     return root / ".worktrees"
 
 
+def pool_branch(root: Path, path: Path) -> str:
+    slot = pool_slot(root, path)
+    if slot is None:
+        raise WorktreeManagerError(f"not a numbered pool worktree: {path}")
+    return f"main-{slot:02d}"
+
+
 def legacy_pool_slot(root: Path, path: Path) -> int | None:
     if path.parent != root.parent:
         return None
@@ -106,12 +116,31 @@ def at_main_baseline(worktree: Worktree, root: Path) -> bool:
     return worktree.head == origin_main(root) and (worktree.branch == "main" or worktree.branch is None)
 
 
+def is_reusable_slot(worktree: Worktree, root: Path) -> bool:
+    if pool_slot(root, worktree.path) is None or changes(worktree.path):
+        return False
+    marker = pool_branch(root, worktree.path)
+    if worktree.branch not in (None, marker):
+        return False
+    current = origin_main(root)
+    return worktree.head == current or is_ancestor(root, worktree.head, current)
+
+
+def baseline_state(worktree: Worktree, root: Path) -> str:
+    current = origin_main(root)
+    if worktree.head == current:
+        return "current"
+    if is_ancestor(root, worktree.head, current):
+        return "stale"
+    return "unknown"
+
+
 def state(worktree: Worktree, root: Path) -> str:
     if worktree.path == root:
         return "integration"
     if changes(worktree.path):
         return "dirty"
-    if pool_slot(root, worktree.path) is not None and at_main_baseline(worktree, root):
+    if is_reusable_slot(worktree, root):
         return "available"
     return "occupied"
 
@@ -126,6 +155,12 @@ def status_rows(root: Path) -> list[dict[str, object]]:
                 "head": worktree.head,
                 "changes": changes(worktree.path),
                 "state": state(worktree, root),
+                "slot_branch": pool_branch(root, worktree.path)
+                if pool_slot(root, worktree.path) is not None
+                else None,
+                "baseline": baseline_state(worktree, root)
+                if pool_slot(root, worktree.path) is not None
+                else None,
             }
         )
     return sorted(rows, key=lambda row: str(row["path"]))
@@ -138,7 +173,20 @@ def print_status(root: Path, as_json: bool) -> None:
         return
     for row in rows:
         ref = row["branch"] or f"detached@{str(row['head'])[:12]}"
-        print(f"{row['state']}: {row['path']} | {ref} | changes={row['changes']}")
+        baseline = f" | baseline={row['baseline']}" if row["baseline"] else ""
+        print(f"{row['state']}: {row['path']} | {ref} | changes={row['changes']}{baseline}")
+
+
+@contextmanager
+def manager_lock(root: Path):
+    common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir")).resolve()
+    lock_path = common_dir / "graft-worktree-manager.lock"
+    with lock_path.open("w", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 def fetch(root: Path) -> None:
@@ -235,69 +283,109 @@ def next_pool_path(root: Path) -> Path:
     return pool_root(root) / f"{max(slots, default=0) + 1:02d}"
 
 
-def sync_main_baseline(root: Path, target: Path) -> None:
-    git(target, "switch", "main", check=False)
-    if git(target, "branch", "--show-current") == "main":
-        git(target, "pull", "--ff-only", "origin", "main")
-        return
-    git(target, "switch", "--detach", "origin/main")
+def sync_pool_slot(root: Path, target: Path) -> None:
+    entry = next((item for item in parse_worktrees(root) if item.path == target), None)
+    if entry is None:
+        raise WorktreeManagerError(f"unregistered pool worktree: {target}")
+    if changes(target):
+        raise WorktreeManagerError(f"refusing to sync dirty worktree: {target}")
+    marker = pool_branch(root, target)
+    if entry.branch not in (None, marker):
+        raise WorktreeManagerError(f"worktree has an active branch: {target}")
+    if entry.branch is None and not is_ancestor(root, entry.head, origin_main(root)):
+        raise WorktreeManagerError(f"detached worktree is not an old main baseline: {target}")
+    git(target, "switch", "-C", marker, "origin/main")
+    git(target, "branch", "--unset-upstream", check=False)
+    apply_links(root, target)
 
 
 def acquire(root: Path, branch: str) -> None:
-    if ALLOWED_BRANCH.fullmatch(branch) is None:
-        raise WorktreeManagerError("branch must use an approved type and lowercase kebab-case name")
-    fetch(root)
-    if branch_exists(root, branch):
-        raise WorktreeManagerError(f"branch already exists locally or on origin: {branch}")
-    available = [item for item in parse_worktrees(root) if state(item, root) == "available"]
-    available.sort(key=lambda item: pool_slot(root, item.path) or 0)
-    if available:
-        target = available[0].path
-    else:
-        target = next_pool_path(root)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        git(root, "worktree", "add", "--detach", str(target), "origin/main")
-    if changes(target):
-        raise WorktreeManagerError(f"refusing to acquire dirty worktree: {target}")
-    apply_links(root, target)
-    sync_main_baseline(root, target)
-    git(target, "switch", "-c", branch, "origin/main")
-    print(f"Using Worktree: {target}")
-    print(f"Branch: {branch}")
+    with manager_lock(root):
+        if ALLOWED_BRANCH.fullmatch(branch) is None:
+            raise WorktreeManagerError("branch must use an approved type and lowercase kebab-case name")
+        fetch(root)
+        if branch_exists(root, branch):
+            raise WorktreeManagerError(f"branch already exists locally or on origin: {branch}")
+        available = [item for item in parse_worktrees(root) if is_reusable_slot(item, root)]
+        available.sort(key=lambda item: pool_slot(root, item.path) or 0)
+        if available:
+            target = available[0].path
+        else:
+            target = next_pool_path(root)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            git(root, "worktree", "add", "--detach", str(target), "origin/main")
+        sync_pool_slot(root, target)
+        git(target, "switch", "-c", branch, "origin/main")
+        print(f"Using Worktree: {target}")
+        print(f"Branch: {branch}")
 
 
 def release(root: Path, target: Path, confirmation: str | None) -> None:
-    entry = next((item for item in parse_worktrees(root) if item.path == target), None)
-    if entry is None or pool_slot(root, target) is None:
-        raise WorktreeManagerError("release only accepts a registered numbered pool worktree")
-    if entry.branch in (None, "main"):
-        raise WorktreeManagerError("worktree has no releasable task branch")
-    if changes(target):
-        raise WorktreeManagerError("release requires a clean worktree")
-    print("Review Summary:")
-    print(f"- worktree: {target}")
-    print(f"- branch: {entry.branch}")
-    print("- commits:")
-    print(git(target, "log", "--oneline", f"origin/main..{entry.branch}") or "  - none")
-    print("- diff_stat:")
-    print(git(target, "diff", "--stat", f"origin/main...{entry.branch}") or "  - none")
-    if confirmation is None:
-        print("Awaiting developer integration confirmation; no worktree state changed.")
-        return
-    git(root, "rev-parse", "--verify", confirmation)
-    if not is_ancestor(root, entry.branch, confirmation):
-        raise WorktreeManagerError(
-            f"confirmation ref does not contain task branch: {entry.branch} -> {confirmation}"
-        )
-    fetch(root)
-    old_branch = entry.branch
-    sync_main_baseline(root, target)
-    git(root, "branch", "-D", old_branch)
-    print(f"Released Worktree: {target}")
-    print(f"Deleted local branch: {old_branch}")
+    with manager_lock(root):
+        entry = next((item for item in parse_worktrees(root) if item.path == target), None)
+        if entry is None or pool_slot(root, target) is None:
+            raise WorktreeManagerError("release only accepts a registered numbered pool worktree")
+        if entry.branch in (None, "main") or POOL_BRANCH.fullmatch(entry.branch or ""):
+            raise WorktreeManagerError("worktree has no releasable task branch")
+        if changes(target):
+            raise WorktreeManagerError("release requires a clean worktree")
+        print("Review Summary:")
+        print(f"- worktree: {target}")
+        print(f"- branch: {entry.branch}")
+        print("- commits:")
+        print(git(target, "log", "--oneline", f"origin/main..{entry.branch}") or "  - none")
+        print("- diff_stat:")
+        print(git(target, "diff", "--stat", f"origin/main...{entry.branch}") or "  - none")
+        if confirmation is None:
+            print("Awaiting developer integration confirmation; no worktree state changed.")
+            return
+        fetch(root)
+        git(root, "rev-parse", "--verify", confirmation)
+        if not is_ancestor(root, entry.branch, confirmation):
+            raise WorktreeManagerError(
+                f"confirmation ref does not contain task branch: {entry.branch} -> {confirmation}"
+            )
+        old_branch = entry.branch
+        marker = pool_branch(root, target)
+        git(target, "switch", "-C", marker, "origin/main")
+        git(target, "branch", "--unset-upstream", check=False)
+        apply_links(root, target)
+        git(root, "branch", "-D", old_branch)
+        print(f"Released Worktree: {target}")
+        print(f"Restored pool branch: {marker}")
+        print(f"Deleted local branch: {old_branch}")
 
 
-def relocate(root: Path, confirmed: bool) -> None:
+def reconcile(root: Path, slots: list[str], confirmed: bool) -> None:
+    if not confirmed:
+        raise WorktreeManagerError("reconcile requires --confirm")
+    with manager_lock(root):
+        fetch(root)
+        try:
+            requested = [int(slot) for slot in slots] if slots else None
+        except ValueError as exc:
+            raise WorktreeManagerError("reconcile slots must be numeric") from exc
+        if requested is not None and (any(slot < 1 for slot in requested) or len(set(requested)) != len(requested)):
+            raise WorktreeManagerError("reconcile slots must be unique positive numbers")
+        worktrees = parse_worktrees(root)
+        candidates = [
+            item
+            for item in worktrees
+            if pool_slot(root, item.path) is not None
+            and (requested is None or pool_slot(root, item.path) in requested)
+        ]
+        if requested is not None and {pool_slot(root, item.path) for item in candidates} != set(requested):
+            raise WorktreeManagerError("reconcile requested an unregistered pool slot")
+        for item in candidates:
+            if not is_reusable_slot(item, root):
+                raise WorktreeManagerError(f"pool slot is dirty or occupied: {item.path}")
+            validate_link_rebuild(root, item.path)
+        for item in sorted(candidates, key=lambda value: pool_slot(root, value.path) or 0):
+            sync_pool_slot(root, item.path)
+            print(f"Reconciled Worktree: {item.path} -> {pool_branch(root, item.path)}")
+
+
+def _relocate(root: Path, confirmed: bool) -> None:
     if not confirmed:
         raise WorktreeManagerError("relocate requires --confirm")
     fetch(root)
@@ -340,6 +428,11 @@ def relocate(root: Path, confirmed: bool) -> None:
     print(f"Relocated {len(moved)} worktree(s) into {pool_root(root)}")
 
 
+def relocate(root: Path, confirmed: bool) -> None:
+    with manager_lock(root):
+        _relocate(root, confirmed)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-dir", type=Path, help="Canonical repository root override")
@@ -353,6 +446,9 @@ def parse_args() -> argparse.Namespace:
     release_parser.add_argument("--confirm-integrated")
     relocate_parser = subparsers.add_parser("relocate")
     relocate_parser.add_argument("--confirm", action="store_true")
+    reconcile_parser = subparsers.add_parser("reconcile")
+    reconcile_parser.add_argument("--confirm", action="store_true")
+    reconcile_parser.add_argument("slots", nargs="*")
     return parser.parse_args()
 
 
@@ -366,6 +462,8 @@ def main() -> int:
             acquire(root, args.branch)
         elif args.command == "release":
             release(root, args.worktree.resolve(), args.confirm_integrated)
+        elif args.command == "reconcile":
+            reconcile(root, args.slots, args.confirm)
         else:
             relocate(root, args.confirm)
     except (WorktreeManagerError, json.JSONDecodeError) as exc:

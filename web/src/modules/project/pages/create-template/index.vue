@@ -25,6 +25,9 @@
                   :scroll="{ type: 'virtual', rowHeight: 32, threshold: 8 }"
                 />
               </t-form-item>
+              <t-form-item :label="t('project.templateCatalog.category')" name="category">
+                <t-select v-model="formData.category" :options="categoryOptions" />
+              </t-form-item>
             </div>
             <div class="application-template-create__actions">
               <t-button variant="outline" @click="cancelVisible = true">{{ t('project.templates.cancel') }}</t-button>
@@ -85,12 +88,14 @@ import { postApplicationTemplate } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationReview from '../../components/ProjectLifecycleConfigurationReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { APPLICATION_TEMPLATE_CATEGORIES } from '../../contract/categories';
 import { createBlankComposeWorkspaceFiles } from '../../shared/blank-compose-workspace';
 import { buildBlankLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
 import { useApplicationPageContext } from '../../shared/page-context';
 import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
 import type {
   ApplicationLifecycleConfigurationDraft,
+  ApplicationTemplateCategory,
   ApplicationTemplateDraftRequest,
   ApplicationWorkspaceDraftEntry,
   ApplicationWorkspaceDraftFile,
@@ -104,7 +109,15 @@ const formRef = ref<FormInstanceFunctions | null>(null);
 const step = ref(0);
 const creating = ref(false);
 const cancelVisible = ref(false);
-const formData = reactive({ display_name: '', deployment_adapter_kind: 'compose' });
+const formData = reactive<{
+  display_name: string;
+  category: ApplicationTemplateCategory;
+  deployment_adapter_kind: 'compose';
+}>({
+  display_name: '',
+  category: 'other',
+  deployment_adapter_kind: 'compose',
+});
 const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>(createBlankComposeWorkspaceFiles());
 const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft>(
   buildBlankLifecycleConfigurationDraft(
@@ -120,6 +133,12 @@ const formRules: FormProps['rules'] = {
 const adapterOptions = computed<SelectProps['options']>(() => [
   { label: t('project.templates.adapterCompose'), value: 'compose' },
 ]);
+const categoryOptions = computed<SelectProps['options']>(() =>
+  APPLICATION_TEMPLATE_CATEGORIES.map((value) => ({
+    value,
+    label: t(`project.templateCatalog.categories.${value}`),
+  })),
+);
 const stepOptions = computed(() =>
   ['info', 'workspace', 'lifecycle'].map((key) => ({ title: t(`project.templates.steps.${key}`) })),
 );
@@ -146,6 +165,7 @@ function payload(): ApplicationTemplateDraftRequest {
   return {
     display_name: formData.display_name.trim(),
     description: '',
+    category: formData.category,
     deployment_adapter_kind: formData.deployment_adapter_kind as 'compose',
     definition_schema_version: 1,
     definition: {

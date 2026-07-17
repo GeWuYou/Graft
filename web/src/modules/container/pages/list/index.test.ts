@@ -202,7 +202,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.detail.networks': '网络',
   'container.list.detail.portEmpty': '暂无端口映射。',
   'container.list.detail.ports': '端口',
-  'container.list.detail.rawJson': '原始详情 JSON',
+  'container.list.detail.rawJson': '详情(JSON)',
   'container.list.detail.runtime': '运行时',
   'container.list.detail.state': '状态与生命周期',
   'container.list.detail.title': '容器详情',

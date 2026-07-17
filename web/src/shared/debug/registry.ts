@@ -1,5 +1,13 @@
 export type DebugFlagId =
-  'tabs' | 'tabs.layout' | 'tabs.store' | 'project.logs' | 'project.monaco' | 'project.templates' | 'project.workspace';
+  | 'tabs'
+  | 'tabs.layout'
+  | 'tabs.store'
+  | 'observability.log-viewer'
+  | 'project.logs'
+  | 'project.monaco'
+  | 'project.templates'
+  | 'project.workspace'
+  | 'container.raw-json';
 
 export type DebugFlagDefinition = {
   defaultEnabled: boolean;
@@ -37,6 +45,13 @@ export const DEBUG_FLAG_REGISTRY = [
     relatedPaths: ['src/store/modules/tabs-router.ts', 'src/utils/tabs-debug.ts'],
     defaultEnabled: false,
     parentFlagId: 'tabs',
+  },
+  {
+    flagId: 'observability.log-viewer',
+    owner: 'shared observability log viewer',
+    summary: '共享日志查看器的行交互、复制与视口诊断日志。',
+    relatedPaths: ['src/shared/observability/LogViewer.vue'],
+    defaultEnabled: false,
   },
   {
     flagId: 'project.logs',
@@ -84,6 +99,14 @@ export const DEBUG_FLAG_REGISTRY = [
       'src/modules/project/pages/template-detail/index.vue',
       'src/modules/project/shared/project-template-debug.ts',
     ],
+    defaultEnabled: false,
+  },
+  {
+    flagId: 'container.raw-json',
+    envKeys: ['VITE_DEBUG_CONTAINER_RAW_JSON'],
+    owner: 'container detail JSON tree viewer',
+    summary: '容器详情 JSON 树数据刷新与展开状态保留诊断日志。',
+    relatedPaths: ['src/modules/container/components/JsonTreeViewer.vue'],
     defaultEnabled: false,
   },
 ] as const satisfies readonly DebugFlagDefinition[];

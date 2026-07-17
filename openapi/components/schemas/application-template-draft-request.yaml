@@ -1,11 +1,13 @@
 type: object
-required: [display_name, deployment_adapter_kind, definition_schema_version, definition]
+required: [display_name, category, deployment_adapter_kind, definition_schema_version, definition]
 properties:
   display_name:
     type: string
     maxLength: 128
   description:
     type: string
+  category:
+    $ref: ./application-template-category.yaml
   deployment_adapter_kind:
     type: string
     enum: [compose]
@@ -26,4 +28,6 @@ properties:
           $ref: ./application-workspace-entry.yaml
       lifecycle_configuration:
         $ref: ./application-lifecycle-configuration-request.yaml
+      catalog_documentation:
+        $ref: ./application-template-documentation.yaml
     additionalProperties: true

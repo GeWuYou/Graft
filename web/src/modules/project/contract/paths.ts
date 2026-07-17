@@ -7,6 +7,7 @@ export const APPLICATION_ROUTE_PATH = {
   CREATE_DISCOVERY: '/applications/create/discovery',
   CREATE_BLANK: '/applications/create/blank',
   CREATE_TEMPLATE: '/applications/create/template',
+  CREATE_TEMPLATE_DETAIL: '/applications/create/template/:templateId',
   TEMPLATES: '/applications/templates',
   TEMPLATE_CREATE: '/applications/templates/create',
   TEMPLATE_DETAIL: '/applications/templates/:templateId',
@@ -37,6 +38,8 @@ export const APPLICATION_API_PATH = {
   TEMPLATES: '/api/ops/applications/templates',
   TEMPLATES_MANAGE: '/api/ops/applications/templates/manage',
   TEMPLATE: '/api/ops/applications/templates/{templateId}',
+  TEMPLATE_PUBLISHED: '/api/ops/applications/templates/{templateId}/published',
+  TEMPLATE_VERSION: '/api/ops/applications/template-versions/{templateVersionId}',
   TEMPLATE_CLONE: '/api/ops/applications/templates/{templateId}/clone',
   TEMPLATE_PUBLISH: '/api/ops/applications/templates/{templateId}/publish',
   TEMPLATE_WITHDRAW: '/api/ops/applications/templates/{templateId}/withdraw',
@@ -77,6 +80,17 @@ export function buildApplicationDetailApiPath(applicationId: string) {
 
 export function buildApplicationTemplateApiPath(templateId: string) {
   return APPLICATION_API_PATH.TEMPLATE.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationPublishedTemplateApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_PUBLISHED.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplateVersionApiPath(templateVersionId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_VERSION.replace(
+    '{templateVersionId}',
+    encodeApplicationPathParam(templateVersionId),
+  );
 }
 
 export function buildApplicationTemplateCloneApiPath(templateId: string) {

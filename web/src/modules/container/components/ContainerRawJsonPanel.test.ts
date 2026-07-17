@@ -47,7 +47,7 @@ describe('ContainerRawJsonPanel', () => {
   it('renders metadata chips and tree mode by default', () => {
     const wrapper = mountPanel();
 
-    expect(wrapper.text()).toContain('原始 JSON');
+    expect(wrapper.text()).toContain('详情(JSON)');
     expect(wrapper.text()).toContain('当前策略：敏感值按脱敏脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。');
     expect(wrapper.text()).toContain('字段数 7');
     expect(wrapper.text()).toContain('已脱敏 1');
@@ -134,6 +134,56 @@ describe('ContainerRawJsonPanel', () => {
     expect(wrapper.text()).toContain('"cn"');
   });
 
+  it('preserves manually collapsed nodes when refreshed data has the same content', async () => {
+    const initialValue = {
+      details: {
+        status: 'running',
+      },
+    };
+    const wrapper = mountPanel(initialValue, initialValue);
+    const detailsRow = wrapper.findAll('.json-tree-viewer__row').find((row) => row.text().includes('details'));
+
+    expect(detailsRow).toBeTruthy();
+    await detailsRow!.trigger('click');
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).not.toContain('status');
+
+    const refreshedValue = JSON.parse(JSON.stringify(initialValue));
+    await wrapper.setProps({ value: refreshedValue, copyValue: refreshedValue });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).not.toContain('status');
+  });
+
+  it('preserves manually expanded nodes when collapsed-all data is refreshed', async () => {
+    const initialValue = {
+      details: {
+        status: 'running',
+      },
+    };
+    const wrapper = mountPanel(initialValue, initialValue);
+
+    const collapseButton = wrapper.findAll('button').find((button) => button.text().includes('折叠全部'));
+    await collapseButton!.trigger('click');
+    await wrapper.vm.$nextTick();
+    await wrapper.find('.json-tree-viewer__row').trigger('click');
+    await wrapper.vm.$nextTick();
+    const detailsRow = wrapper.findAll('.json-tree-viewer__row').find((row) => row.text().includes('details'));
+    await detailsRow!.trigger('click');
+    await wrapper.vm.$nextTick();
+
+    const refreshedValue = {
+      details: {
+        status: 'running',
+        meta: { region: 'cn' },
+      },
+    };
+    await wrapper.setProps({ value: refreshedValue, copyValue: refreshedValue });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('meta');
+  });
+
   it('updates toolbar view labels when props change', async () => {
     const wrapper = mountPanel();
 
@@ -162,7 +212,7 @@ describe('ContainerRawJsonPanel', () => {
   it('renders empty state for null raw json', () => {
     const wrapper = mountPanel(null);
 
-    expect(wrapper.text()).toContain('暂无原始 JSON 数据');
+    expect(wrapper.text()).toContain('暂无详情 JSON 数据');
   });
 
   it('blocks copy when raw json copy is disabled', async () => {
@@ -171,8 +221,8 @@ describe('ContainerRawJsonPanel', () => {
     testMocks.messageError.mockClear();
     await wrapper.setProps({
       value: createRawValue(),
-      title: '原始 JSON',
-      description: '容器原始 JSON 调试视图。',
+      title: '详情(JSON)',
+      description: '容器详情 JSON 调试视图。',
       policyMessage: '当前策略：敏感值按脱敏脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。',
       rawCopyEnabled: false,
       searchPlaceholder: '搜索字段或内容',
@@ -202,8 +252,8 @@ describe('ContainerRawJsonPanel', () => {
       updatedAtLabel: '更新时间',
       searchEmptyLabel: '未找到匹配内容',
       sensitiveLabel: '敏感',
-      emptyLabel: '暂无原始 JSON 数据',
-      errorLabel: '原始 JSON 无法格式化。',
+      emptyLabel: '暂无详情 JSON 数据',
+      errorLabel: '详情 JSON 无法格式化。',
     });
 
     const copyButton = wrapper.findAll('button').find((button) => button.text().includes('复制'));
@@ -220,8 +270,8 @@ function mountPanel(value: unknown = createRawValue(), copyValue: unknown = valu
     props: {
       copyValue,
       value,
-      title: '原始 JSON',
-      description: '容器原始 JSON 调试视图。',
+      title: '详情(JSON)',
+      description: '容器详情 JSON 调试视图。',
       policyMessage: '当前策略：敏感值按脱敏脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。',
       rawCopyEnabled: true,
       searchPlaceholder: '搜索字段或内容',
@@ -251,8 +301,8 @@ function mountPanel(value: unknown = createRawValue(), copyValue: unknown = valu
       updatedAtLabel: '更新时间',
       searchEmptyLabel: '未找到匹配内容',
       sensitiveLabel: '敏感',
-      emptyLabel: '暂无原始 JSON 数据',
-      errorLabel: '原始 JSON 无法格式化。',
+      emptyLabel: '暂无详情 JSON 数据',
+      errorLabel: '详情 JSON 无法格式化。',
     },
     global: {
       stubs: {

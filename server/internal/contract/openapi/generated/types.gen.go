@@ -5,6 +5,7 @@ package generated
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/oapi-codegen/runtime"
@@ -1011,6 +1012,63 @@ func (e ApplicationSourceType) Valid() bool {
 	case ApplicationSourceTypeManaged:
 		return true
 	case ApplicationSourceTypeTemplate:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateCatalogItemDeploymentAdapterKind.
+const (
+	ApplicationTemplateCatalogItemDeploymentAdapterKindCompose ApplicationTemplateCatalogItemDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateCatalogItemDeploymentAdapterKind enum.
+func (e ApplicationTemplateCatalogItemDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case ApplicationTemplateCatalogItemDeploymentAdapterKindCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateCategory.
+const (
+	Ai         ApplicationTemplateCategory = "ai"
+	Cache      ApplicationTemplateCategory = "cache"
+	Cicd       ApplicationTemplateCategory = "cicd"
+	Database   ApplicationTemplateCategory = "database"
+	Logging    ApplicationTemplateCategory = "logging"
+	Monitoring ApplicationTemplateCategory = "monitoring"
+	Mq         ApplicationTemplateCategory = "mq"
+	Other      ApplicationTemplateCategory = "other"
+	Proxy      ApplicationTemplateCategory = "proxy"
+	Storage    ApplicationTemplateCategory = "storage"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateCategory enum.
+func (e ApplicationTemplateCategory) Valid() bool {
+	switch e {
+	case Ai:
+		return true
+	case Cache:
+		return true
+	case Cicd:
+		return true
+	case Database:
+		return true
+	case Logging:
+		return true
+	case Monitoring:
+		return true
+	case Mq:
+		return true
+	case Other:
+		return true
+	case Proxy:
+		return true
+	case Storage:
 		return true
 	default:
 		return false
@@ -4175,19 +4233,19 @@ func (e GetAccessLogsParamsStatusGroup) Valid() bool {
 
 // Defines values for GetAnnouncementsParamsSort.
 const (
-	PinnedPublishDesc GetAnnouncementsParamsSort = "pinned_publish_desc"
-	PublishDesc       GetAnnouncementsParamsSort = "publish_desc"
-	UpdatedDesc       GetAnnouncementsParamsSort = "updated_desc"
+	GetAnnouncementsParamsSortPinnedPublishDesc GetAnnouncementsParamsSort = "pinned_publish_desc"
+	GetAnnouncementsParamsSortPublishDesc       GetAnnouncementsParamsSort = "publish_desc"
+	GetAnnouncementsParamsSortUpdatedDesc       GetAnnouncementsParamsSort = "updated_desc"
 )
 
 // Valid indicates whether the value is a known member of the GetAnnouncementsParamsSort enum.
 func (e GetAnnouncementsParamsSort) Valid() bool {
 	switch e {
-	case PinnedPublishDesc:
+	case GetAnnouncementsParamsSortPinnedPublishDesc:
 		return true
-	case PublishDesc:
+	case GetAnnouncementsParamsSortPublishDesc:
 		return true
-	case UpdatedDesc:
+	case GetAnnouncementsParamsSortUpdatedDesc:
 		return true
 	default:
 		return false
@@ -4562,13 +4620,31 @@ func (e GetApplicationImportDirectoriesParamsOrder) Valid() bool {
 
 // Defines values for GetApplicationTemplatesParamsDeploymentAdapterKind.
 const (
-	Compose GetApplicationTemplatesParamsDeploymentAdapterKind = "compose"
+	GetApplicationTemplatesParamsDeploymentAdapterKindCompose GetApplicationTemplatesParamsDeploymentAdapterKind = "compose"
 )
 
 // Valid indicates whether the value is a known member of the GetApplicationTemplatesParamsDeploymentAdapterKind enum.
 func (e GetApplicationTemplatesParamsDeploymentAdapterKind) Valid() bool {
 	switch e {
-	case Compose:
+	case GetApplicationTemplatesParamsDeploymentAdapterKindCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetApplicationTemplatesParamsSort.
+const (
+	GetApplicationTemplatesParamsSortNameAsc     GetApplicationTemplatesParamsSort = "name_asc"
+	GetApplicationTemplatesParamsSortUpdatedDesc GetApplicationTemplatesParamsSort = "updated_desc"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationTemplatesParamsSort enum.
+func (e GetApplicationTemplatesParamsSort) Valid() bool {
+	switch e {
+	case GetApplicationTemplatesParamsSortNameAsc:
+		return true
+	case GetApplicationTemplatesParamsSortUpdatedDesc:
 		return true
 	default:
 		return false
@@ -5952,14 +6028,70 @@ type ApplicationSourceMetadata struct {
 // ApplicationSourceType defines model for application-source-type.
 type ApplicationSourceType string
 
+// ApplicationTemplateCatalogItem defines model for application-template-catalog-item.
+type ApplicationTemplateCatalogItem struct {
+	// Category Controlled Application template catalog category.
+	Category              ApplicationTemplateCategory                         `json:"category"`
+	DeploymentAdapterKind ApplicationTemplateCatalogItemDeploymentAdapterKind `json:"deployment_adapter_kind"`
+	Description           string                                              `json:"description"`
+	DisplayName           string                                              `json:"display_name"`
+	TemplateId            string                                              `json:"template_id"`
+	UpdatedAt             time.Time                                           `json:"updated_at"`
+	Version               struct {
+		PublishedAt       time.Time `json:"published_at"`
+		TemplateVersionId string    `json:"template_version_id"`
+		VersionNumber     int       `json:"version_number"`
+	} `json:"version"`
+}
+
+// ApplicationTemplateCatalogItemDeploymentAdapterKind defines model for ApplicationTemplateCatalogItem.DeploymentAdapterKind.
+type ApplicationTemplateCatalogItemDeploymentAdapterKind string
+
+// ApplicationTemplateCatalogListResponse defines model for application-template-catalog-list-response.
+type ApplicationTemplateCatalogListResponse struct {
+	HasMore  bool                             `json:"has_more"`
+	Items    []ApplicationTemplateCatalogItem `json:"items"`
+	Page     int                              `json:"page"`
+	PageSize int                              `json:"page_size"`
+}
+
+// ApplicationTemplateCategory Controlled Application template catalog category.
+type ApplicationTemplateCategory string
+
+// ApplicationTemplateDocumentation defines model for application-template-documentation.
+type ApplicationTemplateDocumentation struct {
+	ReadmeMarkdown *string `json:"readme_markdown,omitempty"`
+	Variables      *[]struct {
+		Description string `json:"description"`
+		Name        string `json:"name"`
+		Required    bool   `json:"required"`
+	} `json:"variables,omitempty"`
+}
+
 // ApplicationTemplateDraftRequest defines model for application-template-draft-request.
 type ApplicationTemplateDraftRequest struct {
+	// Category Controlled Application template catalog category.
+	Category ApplicationTemplateCategory `json:"category"`
+
 	// Definition Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.
-	Definition              map[string]interface{}                               `json:"definition"`
+	Definition              ApplicationTemplateDraftRequest_Definition           `json:"definition"`
 	DefinitionSchemaVersion int                                                  `json:"definition_schema_version"`
 	DeploymentAdapterKind   ApplicationTemplateDraftRequestDeploymentAdapterKind `json:"deployment_adapter_kind"`
 	Description             *string                                              `json:"description,omitempty"`
 	DisplayName             string                                               `json:"display_name"`
+}
+
+// ApplicationTemplateDraftRequest_Definition Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.
+type ApplicationTemplateDraftRequest_Definition struct {
+	CatalogDocumentation *ApplicationTemplateDocumentation `json:"catalog_documentation,omitempty"`
+
+	// ComposeFilePath Workspace-relative primary Compose file reference.
+	ComposeFilePath        *string                                   `json:"compose_file_path,omitempty"`
+	LifecycleConfiguration *ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
+
+	// WorkspaceEntries Complete managed workspace manifest owned by the Compose adapter.
+	WorkspaceEntries     *[]ApplicationWorkspaceEntry `json:"workspace_entries,omitempty"`
+	AdditionalProperties map[string]interface{}       `json:"-"`
 }
 
 // ApplicationTemplateDraftRequestDeploymentAdapterKind defines model for ApplicationTemplateDraftRequest.DeploymentAdapterKind.
@@ -5972,11 +6104,15 @@ type ApplicationTemplateListResponse struct {
 
 // ApplicationTemplateResponse defines model for application-template-response.
 type ApplicationTemplateResponse struct {
-	ArchivedAt            *time.Time                                       `json:"archived_at,omitempty"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
+	// Category Controlled Application template catalog category.
+	Category              ApplicationTemplateCategory                      `json:"category"`
 	DeploymentAdapterKind ApplicationTemplateResponseDeploymentAdapterKind `json:"deployment_adapter_kind"`
 	Description           string                                           `json:"description"`
 	DisplayName           string                                           `json:"display_name"`
 	TemplateId            string                                           `json:"template_id"`
+	UpdatedAt             time.Time                                        `json:"updated_at"`
 	Version               ApplicationTemplateVersion                       `json:"version"`
 }
 
@@ -8034,6 +8170,26 @@ type EnvelopedApplicationServicesResponse struct {
 	// Code Existing canonical response code.
 	Code string                      `json:"code"`
 	Data ApplicationServicesResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationTemplateCatalogListResponse defines model for enveloped-application-template-catalog-list-response.
+type EnvelopedApplicationTemplateCatalogListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                 `json:"code"`
+	Data ApplicationTemplateCatalogListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -12102,6 +12258,13 @@ type PutApplicationSavedViewParams struct {
 type GetApplicationTemplatesParams struct {
 	DeploymentAdapterKind *GetApplicationTemplatesParamsDeploymentAdapterKind `form:"deployment_adapter_kind,omitempty" json:"deployment_adapter_kind,omitempty"`
 
+	// Q Case-insensitive template name and description search term.
+	Q        *string                            `form:"q,omitempty" json:"q,omitempty"`
+	Category *ApplicationTemplateCategory       `form:"category,omitempty" json:"category,omitempty"`
+	Sort     *GetApplicationTemplatesParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+	Page     *int                               `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int                               `form:"page_size,omitempty" json:"page_size,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -12112,6 +12275,9 @@ type GetApplicationTemplatesParams struct {
 
 // GetApplicationTemplatesParamsDeploymentAdapterKind defines parameters for GetApplicationTemplates.
 type GetApplicationTemplatesParamsDeploymentAdapterKind string
+
+// GetApplicationTemplatesParamsSort defines parameters for GetApplicationTemplates.
+type GetApplicationTemplatesParamsSort string
 
 // PostApplicationTemplateCloneJSONBody defines parameters for PostApplicationTemplateClone.
 type PostApplicationTemplateCloneJSONBody struct {
@@ -13349,6 +13515,119 @@ type PostUserStatusJSONRequestBody = UpdateUserStatusRequest
 
 // PostUserUpdateJSONRequestBody defines body for PostUserUpdate for application/json ContentType.
 type PostUserUpdateJSONRequestBody = UpdateUserRequest
+
+// Getter for additional properties for ApplicationTemplateDraftRequest_Definition. Returns the specified
+// element and whether it was found
+func (a ApplicationTemplateDraftRequest_Definition) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ApplicationTemplateDraftRequest_Definition
+func (a *ApplicationTemplateDraftRequest_Definition) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ApplicationTemplateDraftRequest_Definition to handle AdditionalProperties
+func (a *ApplicationTemplateDraftRequest_Definition) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["catalog_documentation"]; found {
+		err = json.Unmarshal(raw, &a.CatalogDocumentation)
+		if err != nil {
+			return fmt.Errorf("error reading 'catalog_documentation': %w", err)
+		}
+		delete(object, "catalog_documentation")
+	}
+
+	if raw, found := object["compose_file_path"]; found {
+		err = json.Unmarshal(raw, &a.ComposeFilePath)
+		if err != nil {
+			return fmt.Errorf("error reading 'compose_file_path': %w", err)
+		}
+		delete(object, "compose_file_path")
+	}
+
+	if raw, found := object["lifecycle_configuration"]; found {
+		err = json.Unmarshal(raw, &a.LifecycleConfiguration)
+		if err != nil {
+			return fmt.Errorf("error reading 'lifecycle_configuration': %w", err)
+		}
+		delete(object, "lifecycle_configuration")
+	}
+
+	if raw, found := object["workspace_entries"]; found {
+		err = json.Unmarshal(raw, &a.WorkspaceEntries)
+		if err != nil {
+			return fmt.Errorf("error reading 'workspace_entries': %w", err)
+		}
+		delete(object, "workspace_entries")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ApplicationTemplateDraftRequest_Definition to handle AdditionalProperties
+func (a ApplicationTemplateDraftRequest_Definition) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.CatalogDocumentation != nil {
+		object["catalog_documentation"], err = json.Marshal(a.CatalogDocumentation)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'catalog_documentation': %w", err)
+		}
+	}
+
+	if a.ComposeFilePath != nil {
+		object["compose_file_path"], err = json.Marshal(a.ComposeFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'compose_file_path': %w", err)
+		}
+	}
+
+	if a.LifecycleConfiguration != nil {
+		object["lifecycle_configuration"], err = json.Marshal(a.LifecycleConfiguration)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'lifecycle_configuration': %w", err)
+		}
+	}
+
+	if a.WorkspaceEntries != nil {
+		object["workspace_entries"], err = json.Marshal(a.WorkspaceEntries)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'workspace_entries': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // AsApplicationWorkspaceEntryCreateRequest0 returns the union data inside the ApplicationWorkspaceEntryCreateRequest as a ApplicationWorkspaceEntryCreateRequest0
 func (t ApplicationWorkspaceEntryCreateRequest) AsApplicationWorkspaceEntryCreateRequest0() (ApplicationWorkspaceEntryCreateRequest0, error) {

@@ -30,70 +30,74 @@
       @update:fullscreen="updateFullscreen"
     >
       <template #editor-actions>
-        <t-tooltip :content="t('project.create.workspace.saveAction')" theme="light">
-          <span>
+        <template v-if="!props.disabled">
+          <t-tooltip :content="t('project.create.workspace.saveAction')" theme="light">
+            <span>
+              <t-button
+                data-testid="workspace-create-save"
+                theme="default"
+                variant="text"
+                shape="square"
+                size="small"
+                :disabled="!canSaveActiveFile"
+                :loading="saveLoading && pendingSave.action === 'current'"
+                @click="saveCurrentFile"
+              >
+                <template #icon><save-icon /></template>
+                <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAction') }}</span>
+              </t-button>
+            </span>
+          </t-tooltip>
+          <t-tooltip :content="t('project.create.workspace.saveAllAction')" theme="light">
+            <span>
+              <t-button
+                data-testid="workspace-create-save-all"
+                theme="default"
+                variant="text"
+                shape="square"
+                size="small"
+                :disabled="!canSaveAllFiles"
+                :loading="saveLoading && pendingSave.action === 'all'"
+                @click="saveAllFiles"
+              >
+                <template #icon><file-copy-icon /></template>
+                <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAllAction') }}</span>
+              </t-button>
+            </span>
+          </t-tooltip>
+          <t-tooltip :content="t('project.create.workspace.validateAction')" theme="light">
+            <span>
+              <t-button
+                data-testid="workspace-create-validate"
+                theme="default"
+                variant="text"
+                shape="square"
+                size="small"
+                :disabled="!editorActiveBuffer"
+                :loading="validationLoading"
+                @click="validateCurrentFile"
+              >
+                <template #icon><check-circle-icon /></template>
+                <span class="project-create-workspace__sr-only">{{
+                  t('project.create.workspace.validateAction')
+                }}</span>
+              </t-button>
+            </span>
+          </t-tooltip>
+          <t-tooltip :content="t('project.create.workspace.formatAction')" theme="light">
             <t-button
-              data-testid="workspace-create-save"
+              data-testid="workspace-create-format"
               theme="default"
               variant="text"
               shape="square"
               size="small"
-              :disabled="props.disabled || !canSaveActiveFile"
-              :loading="saveLoading && pendingSave.action === 'current'"
-              @click="saveCurrentFile"
+              :disabled="!editorActiveBuffer"
+              @click="formatActiveFile"
             >
-              <template #icon><save-icon /></template>
-              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAction') }}</span>
+              <template #icon><edit-icon /></template>
             </t-button>
-          </span>
-        </t-tooltip>
-        <t-tooltip :content="t('project.create.workspace.saveAllAction')" theme="light">
-          <span>
-            <t-button
-              data-testid="workspace-create-save-all"
-              theme="default"
-              variant="text"
-              shape="square"
-              size="small"
-              :disabled="props.disabled || !canSaveAllFiles"
-              :loading="saveLoading && pendingSave.action === 'all'"
-              @click="saveAllFiles"
-            >
-              <template #icon><file-copy-icon /></template>
-              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.saveAllAction') }}</span>
-            </t-button>
-          </span>
-        </t-tooltip>
-        <t-tooltip :content="t('project.create.workspace.validateAction')" theme="light">
-          <span>
-            <t-button
-              data-testid="workspace-create-validate"
-              theme="default"
-              variant="text"
-              shape="square"
-              size="small"
-              :disabled="props.disabled || !editorActiveBuffer"
-              :loading="validationLoading"
-              @click="validateCurrentFile"
-            >
-              <template #icon><check-circle-icon /></template>
-              <span class="project-create-workspace__sr-only">{{ t('project.create.workspace.validateAction') }}</span>
-            </t-button>
-          </span>
-        </t-tooltip>
-        <t-tooltip :content="t('project.create.workspace.formatAction')" theme="light">
-          <t-button
-            data-testid="workspace-create-format"
-            theme="default"
-            variant="text"
-            shape="square"
-            size="small"
-            :disabled="props.disabled || !editorActiveBuffer"
-            @click="formatActiveFile"
-          >
-            <template #icon><edit-icon /></template>
-          </t-button>
-        </t-tooltip>
+          </t-tooltip>
+        </template>
         <t-tooltip :content="t('project.create.workspace.copyAction')" theme="light">
           <t-button
             data-testid="workspace-create-copy"
@@ -101,7 +105,7 @@
             variant="text"
             shape="square"
             size="small"
-            :disabled="props.disabled || !editorActiveBuffer"
+            :disabled="!editorActiveBuffer"
             @click="copyActiveFile"
           >
             <template #icon><copy-icon /></template>
@@ -377,7 +381,6 @@ function entryAt(path: string) {
   return files.value.find((entry) => entry.path === path);
 }
 function activateTab(path: string) {
-  if (props.disabled) return;
   const entry = entryAt(path);
   if (!entry || entry.node_type === 'directory') return;
   workspaceStore.openFile(workspaceSessionKey, path, {
@@ -387,7 +390,6 @@ function activateTab(path: string) {
   });
 }
 function selectEntry(path: string) {
-  if (props.disabled) return;
   const entry = entryAt(path);
   if (!entry) return;
   if (entry.node_type === 'directory') {
@@ -402,7 +404,6 @@ function selectEntry(path: string) {
   });
 }
 function toggleDirectory(path: string) {
-  if (props.disabled) return;
   const expanded = workspaceStore.session(workspaceSessionKey).expandedKeys.includes(path);
   workspaceStore.setExpanded(workspaceSessionKey, path, !expanded);
 }
@@ -558,7 +559,6 @@ async function validateCurrentFile() {
 }
 
 async function copyActiveFile() {
-  if (props.disabled) return;
   const activeFile = editorActiveBuffer.value;
   if (!activeFile) return;
   const copied = await copyText(activeFile.content);
@@ -569,11 +569,9 @@ async function copyActiveFile() {
   MessagePlugin.error(t('project.create.workspace.copyFailed'));
 }
 function closeTab(path: string) {
-  if (props.disabled) return;
   workspaceStore.closeFile(workspaceSessionKey, path);
 }
 function updateFullscreen(value: boolean) {
-  if (props.disabled) return;
   fullscreen.value = value;
 }
 function handleContextAction(

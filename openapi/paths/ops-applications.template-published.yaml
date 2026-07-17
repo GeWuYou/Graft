@@ -1,0 +1,18 @@
+parameters:
+  - name: templateId
+    in: path
+    required: true
+    schema: { type: string, pattern: '^tpl_[0-9A-HJKMNP-TV-Z]{26}$' }
+get:
+  tags: [application]
+  summary: Get the current published Application template for catalog browsing
+  operationId: getPublishedApplicationTemplate
+  responses:
+    '200':
+      description: Published Application template detail.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Published Application template was not found. }

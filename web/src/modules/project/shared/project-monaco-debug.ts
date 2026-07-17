@@ -26,7 +26,7 @@ function isProjectMonacoCancellationError(error: unknown) {
  * 判断是否为可忽略的 Monaco 取消错误。
  *
  * @param error - 待检查的错误
- * @returns `true` 如果错误符合取消错误且堆栈命中已知的 Monaco 相关来源，`false` 否则
+ * @returns `true` 如果错误符合取消错误且堆栈命中稳定的 Monaco 相关来源，`false` 否则
  */
 export function isProjectMonacoBenignCancellationError(error: unknown) {
   if (!isProjectMonacoCancellationError(error)) {
@@ -39,6 +39,7 @@ export function isProjectMonacoBenignCancellationError(error: unknown) {
     stack.includes('ProjectMonacoDiffSurface.vue') ||
     stack.includes('monaco-editor') ||
     stack.includes('monaco-yaml') ||
+    (stack.includes('Delayer.') && stack.includes('DisposableStore')) ||
     // 这些 Vite chunk 名称来自构建产物哈希，只能作为已知调用栈的临时兜底；构建配置或依赖升级后必须重新核对。
     stack.includes('chunk-N7RXFHJR') ||
     stack.includes('chunk-64EI5KNP') ||

@@ -5,6 +5,18 @@ import { createI18n } from 'vue-i18n';
 
 import LogViewer from './LogViewer.vue';
 
+const mockedCopyText = vi.hoisted(() => vi.fn(async () => true));
+const debugRuntimeMocks = vi.hoisted(() => ({
+  emitDebugLog: vi.fn(),
+  isDebugFlagEnabled: vi.fn(() => false),
+}));
+
+vi.mock('./copy', () => ({
+  copyText: mockedCopyText,
+}));
+
+vi.mock('@/shared/debug/runtime', () => debugRuntimeMocks);
+
 vi.mock('tdesign-icons-vue-next', () => ({
   BrowseIcon: defineComponent({ setup: () => () => h('span', 'detail-icon') }),
   CopyIcon: defineComponent({ setup: () => () => h('span', 'copy-icon') }),
@@ -65,6 +77,11 @@ const labels = {
 
 describe('LogViewer', () => {
   afterEach(() => {
+    mockedCopyText.mockReset();
+    mockedCopyText.mockResolvedValue(true);
+    debugRuntimeMocks.emitDebugLog.mockReset();
+    debugRuntimeMocks.isDebugFlagEnabled.mockReset();
+    debugRuntimeMocks.isDebugFlagEnabled.mockReturnValue(false);
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -111,6 +128,80 @@ describe('LogViewer', () => {
     expect(line.find('.log-viewer__stream-cell').text()).toContain('STDERR');
     expect(line.find('.log-viewer__stream-pill').classes()).toContain('log-viewer__stream-pill--stderr');
     expect(line.text()).not.toContain('pricing_service.go:461');
+  });
+
+  it('opens the selected log line details from the row action', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: createEntries(2),
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    await wrapper.get('[aria-label="查看详情"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('.log-viewer__detail-drawer').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__detail-drawer').text()).toContain('http request completed');
+  });
+
+  it('does not capture pointer input from a row action before clicking it', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: createEntries(1),
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLElement;
+    const setPointerCapture = vi.fn();
+    Object.defineProperty(viewport, 'setPointerCapture', { configurable: true, value: setPointerCapture });
+
+    const viewButton = wrapper.get('[aria-label="查看详情"]');
+    await viewButton.trigger('pointerdown', { pointerId: 1 });
+    await viewButton.trigger('click');
+    await nextTick();
+
+    expect(setPointerCapture).not.toHaveBeenCalled();
+    expect(wrapper.find('.log-viewer__detail-drawer').exists()).toBe(true);
+  });
+
+  it('copies a row without opening its detail drawer', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: createEntries(1),
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    await wrapper.get('[aria-label="复制本行"]').trigger('click');
+
+    expect(mockedCopyText).toHaveBeenCalledWith(expect.stringContaining('http request completed'));
+    expect(wrapper.find('.log-viewer__detail-drawer').exists()).toBe(false);
+  });
+
+  it('emits viewer diagnostics only when the registered debug flag is enabled', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: createEntries(2),
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    await wrapper.get('.log-viewer__line').trigger('click');
+    expect(debugRuntimeMocks.emitDebugLog).not.toHaveBeenCalled();
+
+    debugRuntimeMocks.isDebugFlagEnabled.mockReturnValue(true);
+    await wrapper.get('.log-viewer__line').trigger('click');
+
+    expect(debugRuntimeMocks.emitDebugLog).toHaveBeenCalledWith(
+      'observability.log-viewer',
+      'detail-action-received',
+      expect.objectContaining({ lineNo: 1 }),
+    );
   });
 
   it('renders the relative-day timestamp label from the active locale', () => {
@@ -347,10 +438,11 @@ const tdesignComponents = {
     setup:
       (props, { attrs, emit, slots }) =>
       () =>
-        h('button', { ...attrs, disabled: Boolean(props.disabled), onClick: () => emit('click') }, [
-          slots.icon?.(),
-          slots.default?.(),
-        ]),
+        h(
+          'button',
+          { ...attrs, disabled: Boolean(props.disabled), onClick: (event: MouseEvent) => emit('click', event) },
+          [slots.icon?.(), slots.default?.()],
+        ),
   }),
   TEmpty: defineComponent({
     props: ['title', 'description'],

@@ -746,7 +746,7 @@
           <t-tab-panel value="tasks" :destroy-on-hide="false" :label="t('project.detail.tabs.tasks')">
             <section class="project-section project-tab-panel">
               <task-history-table
-                owner-type="compose_project"
+                owner-type="application"
                 :owner-id="projectTaskOwnerId"
                 :resolve-task-type="(taskType) => projectTaskTypeLabel(t, taskType)"
                 @open="openTaskDrawer($event.id)"

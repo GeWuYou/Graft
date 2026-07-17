@@ -13523,6 +13523,53 @@
                 "compose"
               ]
             }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive template name and description search term.",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/application-template-category"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updated_desc",
+                "name_asc"
+              ],
+              "default": "updated_desc"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
           }
         ],
         "responses": {
@@ -13531,7 +13578,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-application-template-list-response"
+                  "$ref": "#/components/schemas/enveloped-application-template-catalog-list-response"
                 }
               }
             }
@@ -13579,6 +13626,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "A live Application template already uses the requested display name."
           }
         }
       }
@@ -13646,7 +13696,7 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Application template not found."
+            "description": "Application template was deleted or does not exist."
           }
         }
       },
@@ -13709,6 +13759,88 @@
           },
           "404": {
             "description": "Application template not found."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/published": {
+      "parameters": [
+        {
+          "name": "templateId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^tpl_[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Get the current published Application template for catalog browsing",
+        "operationId": "getPublishedApplicationTemplate",
+        "responses": {
+          "200": {
+            "description": "Published Application template detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Published Application template was not found."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/template-versions/{templateVersionId}": {
+      "parameters": [
+        {
+          "name": "templateVersionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^tplv_[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Get an immutable published Application template version for creation",
+        "operationId": "getPublishedApplicationTemplateVersion",
+        "responses": {
+          "200": {
+            "description": "Immutable published Application template version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Published Application template version was not found."
           }
         }
       }
@@ -28835,6 +28967,215 @@
           }
         ]
       },
+      "application-template-category": {
+        "type": "string",
+        "enum": [
+          "database",
+          "cache",
+          "mq",
+          "proxy",
+          "storage",
+          "monitoring",
+          "logging",
+          "cicd",
+          "ai",
+          "other"
+        ],
+        "description": "Controlled Application template catalog category."
+      },
+      "application-template-catalog-item": {
+        "type": "object",
+        "required": [
+          "template_id",
+          "display_name",
+          "description",
+          "category",
+          "deployment_adapter_kind",
+          "updated_at",
+          "version"
+        ],
+        "properties": {
+          "template_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/application-template-category"
+          },
+          "deployment_adapter_kind": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "object",
+            "required": [
+              "template_version_id",
+              "version_number",
+              "published_at"
+            ],
+            "properties": {
+              "template_version_id": {
+                "type": "string"
+              },
+              "version_number": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "published_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "application-template-catalog-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "has_more"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-template-catalog-item"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        }
+      },
+      "enveloped-application-template-catalog-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-template-catalog-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "application-template-documentation": {
+        "type": "object",
+        "properties": {
+          "readme_markdown": {
+            "type": "string",
+            "maxLength": 65535
+          },
+          "variables": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "required",
+                "description"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$"
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 512
+                }
+              }
+            }
+          }
+        }
+      },
+      "application-template-draft-request": {
+        "type": "object",
+        "required": [
+          "display_name",
+          "category",
+          "deployment_adapter_kind",
+          "definition_schema_version",
+          "definition"
+        ],
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/application-template-category"
+          },
+          "deployment_adapter_kind": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "definition_schema_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "definition": {
+            "type": "object",
+            "description": "Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.",
+            "properties": {
+              "compose_file_path": {
+                "type": "string",
+                "description": "Workspace-relative primary Compose file reference."
+              },
+              "workspace_entries": {
+                "type": "array",
+                "description": "Complete managed workspace manifest owned by the Compose adapter.",
+                "items": {
+                  "$ref": "#/components/schemas/application-workspace-entry"
+                }
+              },
+              "lifecycle_configuration": {
+                "$ref": "#/components/schemas/application-lifecycle-configuration-request"
+              },
+              "catalog_documentation": {
+                "$ref": "#/components/schemas/application-template-documentation"
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
       "application-template-version": {
         "type": "object",
         "required": [
@@ -28896,7 +29237,9 @@
           "template_id",
           "display_name",
           "description",
+          "category",
           "deployment_adapter_kind",
+          "updated_at",
           "version"
         ],
         "properties": {
@@ -28909,11 +29252,18 @@
           "description": {
             "type": "string"
           },
+          "category": {
+            "$ref": "#/components/schemas/application-template-category"
+          },
           "deployment_adapter_kind": {
             "type": "string",
             "enum": [
               "compose"
             ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
           },
           "archived_at": {
             "type": "string",
@@ -28924,6 +29274,24 @@
             "$ref": "#/components/schemas/application-template-version"
           }
         }
+      },
+      "enveloped-application-template-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-template-response"
+              }
+            }
+          }
+        ]
       },
       "application-template-list-response": {
         "type": "object",
@@ -28952,56 +29320,6 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/application-template-list-response"
-              }
-            }
-          }
-        ]
-      },
-      "application-template-draft-request": {
-        "type": "object",
-        "required": [
-          "display_name",
-          "deployment_adapter_kind",
-          "definition_schema_version",
-          "definition"
-        ],
-        "properties": {
-          "display_name": {
-            "type": "string",
-            "maxLength": 128
-          },
-          "description": {
-            "type": "string"
-          },
-          "deployment_adapter_kind": {
-            "type": "string",
-            "enum": [
-              "compose"
-            ]
-          },
-          "definition_schema_version": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "definition": {
-            "type": "object",
-            "description": "Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset."
-          }
-        }
-      },
-      "enveloped-application-template-response": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/application-template-response"
               }
             }
           }

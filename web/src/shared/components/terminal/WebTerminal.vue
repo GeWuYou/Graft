@@ -15,7 +15,7 @@
         tabindex="0"
         @focus="focused = true"
         @blur="focused = false"
-        @wheel.capture="handleTerminalWheel"
+        @wheel.passive.capture="handleTerminalWheel"
       />
     </div>
   </div>

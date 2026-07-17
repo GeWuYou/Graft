@@ -10,7 +10,7 @@ const routeQuery = vi.hoisted(() => ({
   application_name: undefined as string | undefined,
 }));
 const mocks = vi.hoisted(() => ({
-  getApplicationTemplates: vi.fn(),
+  getPublishedApplicationTemplateVersion: vi.fn(),
   postApplicationApplicationNameAvailability: vi.fn(),
   postApplicationCreate: vi.fn(),
   push: vi.fn(),
@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 const lifecycleStepDraft = vi.hoisted(() => ({ value: null as ApplicationLifecycleConfigurationDraft | null }));
 
 vi.mock('../../api/project', () => ({
-  getApplicationTemplates: mocks.getApplicationTemplates,
+  getPublishedApplicationTemplateVersion: mocks.getPublishedApplicationTemplateVersion,
   postApplicationApplicationNameAvailability: mocks.postApplicationApplicationNameAvailability,
   postApplicationCreate: mocks.postApplicationCreate,
 }));
@@ -152,7 +152,7 @@ describe('ApplicationCreateIndex', () => {
   beforeEach(() => {
     mocks.postApplicationApplicationNameAvailability.mockClear();
     mocks.postApplicationCreate.mockClear();
-    mocks.getApplicationTemplates.mockResolvedValue({ items: [] });
+    mocks.getPublishedApplicationTemplateVersion.mockReset();
     routeQuery.runtime_target_id = '7';
     delete routeQuery.application_name;
     lifecycleStepDraft.value = null;

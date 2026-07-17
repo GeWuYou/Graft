@@ -216,7 +216,7 @@
                       size="small"
                       theme="default"
                       variant="text"
-                      @click="openLineDetail(line)"
+                      @click.stop="openLineDetail(line)"
                     >
                       <template #icon>
                         <browse-icon />
@@ -231,7 +231,7 @@
                       size="small"
                       theme="default"
                       variant="text"
-                      @click="copyLine(line.raw)"
+                      @click.stop="copyLine(line.raw)"
                     >
                       <template #icon>
                         <copy-icon />
@@ -451,7 +451,7 @@
                   size="small"
                   theme="default"
                   variant="text"
-                  @click="openLineDetail(line)"
+                  @click.stop="openLineDetail(line)"
                 >
                   <template #icon>
                     <browse-icon />
@@ -466,7 +466,7 @@
                   size="small"
                   theme="default"
                   variant="text"
-                  @click="copyLine(line.raw)"
+                  @click.stop="copyLine(line.raw)"
                 >
                   <template #icon>
                     <copy-icon />
@@ -487,6 +487,7 @@
 
   <t-drawer
     v-model:visible="detailDrawerVisible"
+    attach="body"
     drawer-class-name="log-viewer__drawer"
     :footer="false"
     :header="detailTitleLabel"
@@ -635,6 +636,8 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
+import { emitDebugLog, isDebugFlagEnabled } from '@/shared/debug/runtime';
+import { createLogger } from '@/utils/logger';
 
 import { copyText } from './copy';
 import type { StructuredLogEntry } from './log-entry';
@@ -645,6 +648,9 @@ import { LogViewportCommitScheduler } from './log-viewport-commit-scheduler';
 import type { StreamViewportState } from './stream-viewport-state';
 import StreamViewportStateSurface from './StreamViewportStateSurface.vue';
 import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
+
+const LOG_VIEWER_DEBUG_FLAG = 'observability.log-viewer' as const;
+const logger = createLogger('shared.observability.logViewer');
 
 const props = withDefaults(
   defineProps<{
@@ -785,6 +791,7 @@ const viewportCommitScheduler = new LogViewportCommitScheduler<{
   },
 });
 let scrollToBottomFrameId: number | null = null;
+let viewportInteractionStarted = false;
 
 const levelOptions = computed<SelectOption[]>(() => [
   { label: `${props.levelFilterLabel}: ${props.allLevelsLabel}`, value: 'ALL' },
@@ -986,6 +993,7 @@ async function copyContent() {
 }
 
 async function copyLine(raw: string) {
+  emitLogViewerDebug('copy-action-received', { valueLength: raw.length });
   await copyTextWithFeedback(raw);
 }
 
@@ -1038,17 +1046,37 @@ function handleViewportScroll(event: Event) {
 }
 
 function beginViewportInteraction(event: PointerEvent) {
+  const interactiveTarget = isViewportInteractiveTarget(event.target);
+  emitLogViewerDebug('pointerdown-received', {
+    interactiveTarget,
+    targetClass: event.target instanceof Element ? event.target.className : undefined,
+    targetTag: event.target instanceof Element ? event.target.tagName : undefined,
+  });
+  if (interactiveTarget) {
+    return;
+  }
+
   viewportCommitScheduler.beginInteraction();
+  viewportInteractionStarted = true;
   const node = event.currentTarget;
   if (node instanceof HTMLElement) node.setPointerCapture?.(event.pointerId);
 }
 
 function endViewportInteraction(event: PointerEvent) {
+  if (!viewportInteractionStarted) {
+    return;
+  }
+
   const node = event.currentTarget;
   if (node instanceof HTMLElement && node.hasPointerCapture?.(event.pointerId)) {
     node.releasePointerCapture(event.pointerId);
   }
+  viewportInteractionStarted = false;
   viewportCommitScheduler.endInteraction();
+}
+
+function isViewportInteractiveTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('button, a, input, select, textarea, [role="button"]'));
 }
 
 function syncViewportMetrics() {
@@ -1117,6 +1145,10 @@ function scheduleScrollToBottom() {
 }
 
 function openLineDetail(line: LogViewLine) {
+  emitLogViewerDebug('detail-action-received', {
+    lineNo: line.lineNo,
+    rowKey: line.rowKey,
+  });
   selectedLineKey.value = line.rowKey;
 }
 
@@ -1230,14 +1262,27 @@ function tokenClass(token: LogToken) {
 async function copyTextWithFeedback(value: string) {
   try {
     const copied = await copyText(value);
+    emitLogViewerDebug('copy-operation-completed', {
+      copied,
+      valueLength: value.length,
+    });
     if (!copied) {
       MessagePlugin.error(props.copyErrorLabel);
       return;
     }
     MessagePlugin.success(props.copySuccessLabel);
-  } catch {
+  } catch (error) {
+    logger.warn('log viewer copy operation failed', { error });
     MessagePlugin.error(props.copyErrorLabel);
   }
+}
+
+function emitLogViewerDebug(event: string, detail: Record<string, unknown> = {}) {
+  if (!isDebugFlagEnabled(LOG_VIEWER_DEBUG_FLAG)) {
+    return;
+  }
+
+  emitDebugLog(LOG_VIEWER_DEBUG_FLAG, event, detail);
 }
 
 function findFirstEndAfter(ends: readonly number[], target: number) {
@@ -1279,6 +1324,7 @@ function isViewportNearBottom(node: HTMLElement) {
 </script>
 <style scoped lang="less">
 .log-viewer {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-10);
@@ -1322,7 +1368,9 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__toolbar-middle {
+  display: grid;
   flex: 1 1 420px;
+  grid-template-columns: 96px 140px minmax(0, 1fr) auto;
 }
 
 .log-viewer__toolbar-right {
@@ -1339,8 +1387,8 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__search {
-  flex: 1 1 280px;
-  min-width: 220px;
+  min-width: 0;
+  width: 100%;
 }
 
 .log-viewer__match-count,
@@ -1543,17 +1591,8 @@ function isViewportNearBottom(node: HTMLElement) {
   display: flex;
   gap: var(--graft-density-gap-2);
   justify-content: flex-end;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.16s ease;
-  width: 48px;
-}
-
-.log-viewer__line:hover .log-viewer__row-actions,
-.log-viewer__line:focus-within .log-viewer__row-actions,
-.log-viewer__line--active .log-viewer__row-actions {
   opacity: 1;
-  pointer-events: auto;
+  width: 48px;
 }
 
 .log-viewer__icon-action {
@@ -1818,11 +1857,19 @@ function isViewportNearBottom(node: HTMLElement) {
   color: var(--td-text-color-placeholder);
 }
 
-@media (width <= 1280px) {
+@container (width <= 760px) {
+  .log-viewer__toolbar {
+    align-items: stretch;
+  }
+
   .log-viewer__toolbar-left,
   .log-viewer__toolbar-middle,
   .log-viewer__toolbar-right {
     width: 100%;
+  }
+
+  .log-viewer__toolbar-middle {
+    grid-template-columns: 96px minmax(120px, 140px) minmax(0, 1fr) auto;
   }
 
   .log-viewer__toolbar-right {

@@ -11,6 +11,7 @@ type ApplicationTemplate struct {
 	ID                    string
 	DisplayName           string
 	Description           string
+	Category              string
 	DeploymentAdapterKind string
 	ArchivedAt            *time.Time
 	CreatedBy             *uint64
@@ -46,11 +47,45 @@ type ApplicationTemplateAggregate struct {
 	Version  ApplicationTemplateVersion
 }
 
-// TemplateListQuery 限定模板目录的类型和发布状态筛选。
+// TemplateListQuery 限定模板管理列表的类型和发布状态筛选。
 type TemplateListQuery struct {
 	DeploymentAdapterKind string
 	PublishedOnly         bool
 	IncludeArchived       bool
+}
+
+// TemplateCatalogQuery 限定创建者可发现的已发布模板目录。
+type TemplateCatalogQuery struct {
+	DeploymentAdapterKind string
+	Search                string
+	Category              string
+	Sort                  string
+	Page                  int
+	PageSize              int
+}
+
+const (
+	templateCatalogPageSizeDefault = 24
+	templateCatalogPageSizeMax     = 100
+)
+
+// TemplateCatalogPage 是无总数目录查询的有界结果。
+type TemplateCatalogPage struct {
+	Items   []ApplicationTemplateCatalogItem
+	HasMore bool
+}
+
+// ApplicationTemplateCatalogItem 是目录列表的轻量投影，不包含工作区定义快照。
+type ApplicationTemplateCatalogItem struct {
+	TemplateID            string
+	DisplayName           string
+	Description           string
+	Category              string
+	DeploymentAdapterKind string
+	UpdatedAt             time.Time
+	TemplateVersionID     string
+	VersionNumber         int
+	PublishedAt           time.Time
 }
 
 // CreateTemplateDraftInput 创建模板身份及其第一个草稿版本。
@@ -59,6 +94,7 @@ type CreateTemplateDraftInput struct {
 	VersionID               string
 	DisplayName             string
 	Description             string
+	Category                string
 	DeploymentAdapterKind   string
 	DefinitionSchemaVersion int
 	DefinitionJSON          []byte
@@ -70,6 +106,7 @@ type UpdateTemplateDraftInput struct {
 	TemplateID              string
 	DisplayName             string
 	Description             string
+	Category                string
 	DefinitionSchemaVersion int
 	DefinitionJSON          []byte
 	ActorID                 *uint64
@@ -95,7 +132,9 @@ type WithdrawTemplateInput struct {
 // 它独立于 Application 注册表，避免给既有 Application repository mock 增加无关责任。
 type TemplateRepository interface {
 	ListTemplates(ctx context.Context, query TemplateListQuery) ([]ApplicationTemplateAggregate, error)
+	ListTemplateCatalog(ctx context.Context, query TemplateCatalogQuery) (TemplateCatalogPage, error)
 	GetTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error)
+	GetPublishedTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error)
 	GetPublishedTemplateVersion(ctx context.Context, versionID string) (ApplicationTemplateAggregate, error)
 	CreateTemplateDraft(ctx context.Context, input CreateTemplateDraftInput) (ApplicationTemplateAggregate, error)
 	UpdateTemplateDraft(ctx context.Context, input UpdateTemplateDraftInput) (ApplicationTemplateAggregate, error)

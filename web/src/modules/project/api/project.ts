@@ -14,6 +14,7 @@ import {
   buildApplicationLifecycleConfigurationApiPath,
   buildApplicationLogsApiPath,
   buildApplicationOverviewApiPath,
+  buildApplicationPublishedTemplateApiPath,
   buildApplicationRedeployApiPath,
   buildApplicationRestartApiPath,
   buildApplicationSavedViewApiPath,
@@ -23,6 +24,7 @@ import {
   buildApplicationTemplateArchiveApiPath,
   buildApplicationTemplateCloneApiPath,
   buildApplicationTemplatePublishApiPath,
+  buildApplicationTemplateVersionApiPath,
   buildApplicationTemplateWithdrawApiPath,
   buildApplicationUnregisterApiPath,
   buildApplicationUpApiPath,
@@ -52,6 +54,8 @@ import type {
   ApplicationServicesResponse,
   ApplicationTaskReceipt,
   ApplicationTemplate,
+  ApplicationTemplateCatalogListResponse,
+  ApplicationTemplateCatalogQuery,
   ApplicationTemplateDraftRequest,
   ApplicationTemplateListResponse,
   ApplicationWorkspaceEntry,
@@ -134,10 +138,10 @@ type ApplicationApplicationNameAvailabilityData = NonNullable<
   ApplicationApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
 >;
 
-type ApplicationTemplatesPath = (typeof APPLICATION_API_PATH)['TEMPLATES'];
-type GetApplicationTemplatesOperation = paths[ApplicationTemplatesPath]['get'];
-type GetApplicationTemplatesData = NonNullable<
-  GetApplicationTemplatesOperation['responses'][200]['content']['application/json']['data']
+type ApplicationManagedTemplatesPath = (typeof APPLICATION_API_PATH)['TEMPLATES_MANAGE'];
+type GetApplicationManagedTemplatesOperation = paths[ApplicationManagedTemplatesPath]['get'];
+type GetApplicationManagedTemplatesData = NonNullable<
+  GetApplicationManagedTemplatesOperation['responses'][200]['content']['application/json']['data']
 >;
 type ApplicationUpOperation = paths[(typeof APPLICATION_API_PATH)['UP']]['post'];
 type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
@@ -343,16 +347,24 @@ export function postApplicationApplicationNameAvailability(payload: ApplicationA
   }) as Promise<ApplicationApplicationNameAvailabilityResponse>;
 }
 
-export function getApplicationTemplates() {
-  return request.get<GetApplicationTemplatesData>({
+export function getApplicationTemplateCatalog(query: ApplicationTemplateCatalogQuery) {
+  return request.get<ApplicationTemplateCatalogListResponse>({
     url: APPLICATION_API_PATH.TEMPLATES,
-  }) as Promise<ApplicationTemplateListResponse>;
+    params: query,
+  });
+}
+
+export function getPublishedApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {
+  return request.get<ApplicationTemplate>({ url: buildApplicationPublishedTemplateApiPath(templateId) });
+}
+
+export function getPublishedApplicationTemplateVersion(templateVersionId: string): Promise<ApplicationTemplate> {
+  return request.get<ApplicationTemplate>({ url: buildApplicationTemplateVersionApiPath(templateVersionId) });
 }
 
 /** 管理目录会返回草稿与归档项，只能由模板管理页面在已授权上下文中消费。 */
 export async function getApplicationManagedTemplates(): Promise<ApplicationTemplateListResponse> {
-  const data = await request.get<GetApplicationTemplatesData>({ url: APPLICATION_API_PATH.TEMPLATES_MANAGE });
-  return data as ApplicationTemplateListResponse;
+  return request.get<GetApplicationManagedTemplatesData>({ url: APPLICATION_API_PATH.TEMPLATES_MANAGE });
 }
 
 export async function getApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {
