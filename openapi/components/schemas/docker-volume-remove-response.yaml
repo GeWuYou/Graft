@@ -1,0 +1,13 @@
+type: object
+required: [name, action, result]
+properties:
+  name:
+    type: string
+  action:
+    type: string
+    enum: [remove]
+    x-enum-varnames: [DockerVolumeRemoveResponseActionRemove]
+  result:
+    type: string
+    enum: [completed]
+    x-enum-varnames: [DockerVolumeRemoveResponseResultCompleted]

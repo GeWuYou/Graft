@@ -267,6 +267,8 @@ paths:
     $ref: ./paths/ops-docker-volumes.collection.yaml
   /api/ops/docker/volumes/{id}:
     $ref: ./paths/ops-docker-volumes.detail.yaml
+  /api/ops/docker/volumes/{id}/remove:
+    $ref: ./paths/ops-docker-volumes.remove.yaml
   /api/ops/docker/system:
     $ref: ./paths/ops-docker-system.yaml
   /api/ops/applications:
@@ -863,6 +865,10 @@ components:
       $ref: ./components/schemas/docker-volume.yaml
     DockerVolumeListResponse:
       $ref: ./components/schemas/docker-volume-list-response.yaml
+    DockerVolumeRemoveRequest:
+      $ref: ./components/schemas/docker-volume-remove-request.yaml
+    DockerVolumeRemoveResponse:
+      $ref: ./components/schemas/docker-volume-remove-response.yaml
     EnvelopedDockerImage:
       $ref: ./components/schemas/enveloped-docker-image.yaml
     EnvelopedDockerImageListResponse:
@@ -875,6 +881,8 @@ components:
       $ref: ./components/schemas/enveloped-docker-volume.yaml
     EnvelopedDockerVolumeListResponse:
       $ref: ./components/schemas/enveloped-docker-volume-list-response.yaml
+    EnvelopedDockerVolumeRemoveResponse:
+      $ref: ./components/schemas/enveloped-docker-volume-remove-response.yaml
     EnvelopedContainerRuntimeInfo:
       $ref: ./components/schemas/enveloped-container-runtime-info.yaml
     ApplicationSourceType:

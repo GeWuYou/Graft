@@ -17,6 +17,8 @@ const (
 	ContainerAuditActionRestart AuditAction = "ops.container.action.restart"
 	// ContainerAuditActionRemove 表示单容器移除审计。
 	ContainerAuditActionRemove AuditAction = "ops.container.action.remove"
+	// ContainerAuditActionVolumeRemove 表示 Docker 数据卷删除审计。
+	ContainerAuditActionVolumeRemove AuditAction = "ops.container.volume.remove"
 	// ContainerAuditActionBatchStart 表示批量启动汇总审计。
 	ContainerAuditActionBatchStart AuditAction = "ops.container.action.batch.start"
 	// ContainerAuditActionBatchStop 表示批量停止汇总审计。

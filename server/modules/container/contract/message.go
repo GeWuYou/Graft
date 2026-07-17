@@ -13,6 +13,8 @@ const (
 	ContainerMenuTitle MessageKey = "menu.docker.title"
 	// ContainerListMenuTitle identifies the shortened container-list navigation title.
 	ContainerListMenuTitle MessageKey = "menu.container.title"
+	// DockerVolumeMenuTitle identifies the Docker volume navigation title.
+	DockerVolumeMenuTitle MessageKey = "menu.dockerVolume.title"
 	// ContainerMenuSectionTitle identifies the visual-only runtime sidebar section title.
 	ContainerMenuSectionTitle MessageKey = "menu.section.runtime"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.
@@ -25,6 +27,10 @@ const (
 	ContainerRuntimeUnavailable MessageKey = "ops.container.error.runtimeUnavailable"
 	// ContainerNotFound identifies missing container errors.
 	ContainerNotFound MessageKey = "ops.container.error.containerNotFound"
+	// DockerVolumeNotFound identifies missing Docker volume errors.
+	DockerVolumeNotFound MessageKey = "ops.container.error.volumeNotFound"
+	// DockerVolumeConflict identifies Docker volume removal conflicts.
+	DockerVolumeConflict MessageKey = "ops.container.error.volumeConflict"
 	// ContainerMountNotFound identifies missing container mount errors.
 	ContainerMountNotFound MessageKey = "ops.container.error.containerMountNotFound"
 	// ContainerInvalidRef identifies invalid container reference errors.

@@ -106,6 +106,11 @@ func (d dockerClientAdapter) VolumeInspect(ctx context.Context, volumeID string)
 	return result.Volume, nil
 }
 
+func (d dockerClientAdapter) VolumeRemove(ctx context.Context, volumeID string, force bool) error {
+	_, err := d.Client.VolumeRemove(ctx, volumeID, mobyclient.VolumeRemoveOptions{Force: force})
+	return err
+}
+
 func (d dockerClientAdapter) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
 	result, err := d.Client.ContainerInspect(ctx, containerID, mobyclient.ContainerInspectOptions{})
 	if err != nil {

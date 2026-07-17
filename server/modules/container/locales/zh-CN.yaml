@@ -41,6 +41,11 @@ ops.container.action.remove.completed: 容器删除操作已完成
 ops.container.action.batch.completed: 批量容器操作已完成
 ops.container.action.batch.partial: 批量容器操作部分完成
 ops.container.action.batch.failed: 批量容器操作全部失败
+menu.dockerVolume.title: 数据卷
+ops.container.error.volumeNotFound: Docker 数据卷不存在
+ops.container.error.volumeConflict: Docker 数据卷正在使用，无法删除
+rbac.permissionCatalog.containerVolumeRemove.display: 删除 Docker 数据卷
+rbac.permissionCatalog.containerVolumeRemove.description: 允许删除 Docker 数据卷，并在启用时允许强制删除。
 systemConfig.groups.ops.container.shell: 容器 Shell
 systemConfig.groups.ops.container.shell.description: 管理交互式容器 Shell 会话的访问能力与安全边界。
 systemConfig.container.ops.container.actions.compose_level.title: Compose 操作策略

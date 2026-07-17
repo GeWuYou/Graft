@@ -273,6 +273,7 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerStopPermission.String(),
 		containercontract.ContainerRestartPermission.String(),
 		containercontract.ContainerRemovePermission.String(),
+		containercontract.ContainerVolumeRemovePermission.String(),
 	}
 }
 
@@ -280,8 +281,8 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 2 {
-		t.Fatalf("expected Docker group and container menu item, got %#v", items)
+	if len(items) != 3 {
+		t.Fatalf("expected Docker group and resource menu items, got %#v", items)
 	}
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "docker",
@@ -303,6 +304,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
+	assertMenuItem(t, items, expectedMenuItem{code: "docker.volume.list", titleKey: containercontract.DockerVolumeMenuTitle.String(), path: containercontract.DockerVolumeMenuPath, icon: "storage", permission: containercontract.ContainerViewPermission.String(), visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String()})
 	if items[0].ParentCode != "domain.infrastructure" || items[0].Kind != menu.NodeKindGroup {
 		t.Fatalf("Docker must be a non-navigable infrastructure group, got %#v", items[0])
 	}
@@ -342,6 +344,8 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 	for _, key := range []string{
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerListMenuTitle.String(),
+		containercontract.DockerVolumeMenuTitle.String(),
+		containercontract.DockerVolumeNotFound.String(),
 		containercontract.ContainerMenuSectionTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),

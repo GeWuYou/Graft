@@ -1,7 +1,10 @@
 package container
 
 import (
+	"cmp"
 	"context"
+	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -21,6 +24,7 @@ type dockerResourceClient interface {
 	NetworkInspect(context.Context, string, mobyclient.NetworkInspectOptions) (network.Inspect, error)
 	VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error)
 	VolumeInspect(context.Context, string) (volume.Volume, error)
+	VolumeRemove(context.Context, string, bool) error
 }
 
 // DockerImage is the sanitized image projection shared by list and detail reads.
@@ -62,6 +66,18 @@ type DockerVolume struct {
 	SizeBytes      *int64
 }
 
+// DockerVolumeListQuery 描述数据卷列表的受限筛选和分页条件。
+type DockerVolumeListQuery struct {
+	Limit, Offset                 int
+	Keyword, Driver, Scope, Usage string
+}
+
+// DockerVolumeListResult 是数据卷列表的分页投影。
+type DockerVolumeListResult struct {
+	Items                []DockerVolume
+	Total, Limit, Offset int
+}
+
 // DockerResourceReader marks a runtime that can list Docker-native resources.
 type DockerResourceReader interface {
 	ListDockerImages(context.Context) ([]DockerImage, error)
@@ -70,6 +86,7 @@ type DockerResourceReader interface {
 	ReadDockerNetwork(context.Context, string) (DockerNetwork, error)
 	ListDockerVolumes(context.Context) ([]DockerVolume, error)
 	ReadDockerVolume(context.Context, string) (DockerVolume, error)
+	RemoveDockerVolume(context.Context, string, bool) error
 }
 
 // ListDockerImages returns sanitized Docker images from the configured runtime.
@@ -157,9 +174,73 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	}
 	item, err := client.VolumeInspect(ctx, id)
 	if err != nil {
-		return DockerVolume{}, mapDockerError(err)
+		return DockerVolume{}, mapDockerVolumeError(err)
 	}
 	return dockerVolume(item), nil
+}
+
+// RemoveDockerVolume 将删除请求委托给 Docker，并避免暴露驱动私有信息。
+func (r *DockerRuntime) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
+	client, ok := r.client.(dockerResourceClient)
+	if !ok {
+		return errUnsupportedContainerRuntime
+	}
+	if err := client.VolumeRemove(ctx, id, force); err != nil {
+		return mapDockerVolumeError(err)
+	}
+	return nil
+}
+
+func mapDockerVolumeError(err error) error {
+	mapped := mapDockerError(err)
+	if errors.Is(mapped, errContainerNotFound) {
+		return errDockerVolumeNotFound
+	}
+	message := strings.ToLower(err.Error())
+	if strings.Contains(message, "volume is in use") || strings.Contains(message, "volume is being used") || strings.Contains(message, "remove a volume that is in use") {
+		return errDockerVolumeConflict
+	}
+	return mapped
+}
+
+// listDockerVolumes 按受限条件筛选净化后的数据卷，并以名称稳定排序后分页。
+func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) DockerVolumeListResult {
+	filtered := make([]DockerVolume, 0, len(items))
+	for _, item := range items {
+		if !matchesDockerVolume(item, query) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	slices.SortFunc(filtered, func(a, b DockerVolume) int { return cmp.Compare(a.Name, b.Name) })
+	total := len(filtered)
+	start := min(query.Offset, total)
+	end := min(start+query.Limit, total)
+	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset}
+}
+
+func matchesDockerVolume(item DockerVolume, query DockerVolumeListQuery) bool {
+	if query.Keyword != "" && !strings.Contains(strings.ToLower(item.Name), strings.ToLower(query.Keyword)) {
+		return false
+	}
+	if query.Driver != "" && item.Driver != query.Driver {
+		return false
+	}
+	if query.Scope != "" && item.Scope != query.Scope {
+		return false
+	}
+	return matchesDockerVolumeUsage(item.ReferenceCount, query.Usage)
+}
+
+func matchesDockerVolumeUsage(referenceCount *int64, usage string) bool {
+	switch usage {
+	case "used":
+		return referenceCount != nil && *referenceCount > 0
+	case "unused":
+		return referenceCount != nil && *referenceCount == 0
+	default:
+		return true
+	}
 }
 
 // dockerImageSummary converts a Docker image summary into a sanitized DockerImage projection.

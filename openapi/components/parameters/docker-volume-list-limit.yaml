@@ -1,0 +1,8 @@
+name: limit
+in: query
+required: false
+description: Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100.
+schema:
+  type: integer
+  minimum: 1
+  maximum: 100

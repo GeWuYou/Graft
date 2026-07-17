@@ -41,6 +41,11 @@ ops.container.action.remove.completed: Container remove action completed
 ops.container.action.batch.completed: Container batch action completed
 ops.container.action.batch.partial: Container batch action partially completed
 ops.container.action.batch.failed: Container batch action failed
+menu.dockerVolume.title: Volumes
+ops.container.error.volumeNotFound: Docker volume was not found
+ops.container.error.volumeConflict: Docker volume cannot be removed while it is in use
+rbac.permissionCatalog.containerVolumeRemove.display: Remove Docker Volume
+rbac.permissionCatalog.containerVolumeRemove.description: Allows removing Docker volumes, including force removal when enabled.
 systemConfig.groups.ops.container.shell: Container Shell
 systemConfig.groups.ops.container.shell.description: Manages access and security boundaries for interactive container shell sessions.
 systemConfig.container.ops.container.actions.compose_level.title: Compose Action Policy

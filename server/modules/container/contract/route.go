@@ -45,10 +45,14 @@ const (
 	DockerVolumesRoute = "/volumes"
 	// DockerVolumeRoute 是 Docker 卷详情路由片段。
 	DockerVolumeRoute = "/volumes/:id"
+	// DockerVolumeRemoveRoute 是 Docker 卷删除动作路由片段。
+	DockerVolumeRemoveRoute = "/volumes/:id/remove"
 	// DockerSystemRoute 是 Docker 系统信息路由片段。
 	DockerSystemRoute = "/system"
 	// ContainerMenuRootPath 是运维侧容器菜单的根路径。
 	ContainerMenuRootPath = "/infrastructure/docker/containers"
 	// ContainerMenuPath 是容器管理菜单路径，与前端路由和后端菜单注册保持一致。
 	ContainerMenuPath = "/infrastructure/docker/containers"
+	// DockerVolumeMenuPath 是数据卷管理菜单路径。
+	DockerVolumeMenuPath = "/infrastructure/docker/volumes"
 )

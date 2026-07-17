@@ -1,0 +1,8 @@
+name: scope
+in: query
+required: false
+description: Optional exact Docker volume scope filter.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 128

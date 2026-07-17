@@ -41,6 +41,9 @@ func containerLocaleBackedMessageKeys() []string {
 var containerMessageKeys = []string{
 	containercontract.ContainerMenuTitle.String(),
 	containercontract.ContainerListMenuTitle.String(),
+	containercontract.DockerVolumeMenuTitle.String(),
+	containercontract.DockerVolumeNotFound.String(),
+	containercontract.DockerVolumeConflict.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),
 	containercontract.ContainerRuntimePermissionDenied.String(),
@@ -180,6 +183,7 @@ func permissionItems(moduleName string) []permission.Item {
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Module:         moduleName,
 		},
+		{Code: containercontract.ContainerVolumeRemovePermission.String(), DisplayKey: "rbac.permissionCatalog.containerVolumeRemove.display", DescriptionKey: "rbac.permissionCatalog.containerVolumeRemove.description", Module: moduleName},
 	}
 }
 
@@ -220,5 +224,6 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 		Module:                   moduleName,
 	})
+	registry.Register(menu.Item{Code: "docker.volume.list", ParentCode: "docker", Kind: menu.NodeKindEntry, TitleKey: containercontract.DockerVolumeMenuTitle.String(), Path: containercontract.DockerVolumeMenuPath, Icon: "storage", Order: containerMenuOrderList + 1, Permission: containercontract.ContainerViewPermission.String(), VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(), Module: moduleName})
 	return nil
 }

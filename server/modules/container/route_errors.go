@@ -17,9 +17,9 @@ func statusForError(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied), errors.Is(err, errShellDisabled), errors.Is(err, errShellForbidden), errors.Is(err, errShellOriginDenied):
 		return http.StatusForbidden
-	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound):
+	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound), errors.Is(err, errDockerVolumeNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning):
+	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning), errors.Is(err, errDockerVolumeConflict):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
@@ -48,6 +48,8 @@ var containerErrorMessageRules = []struct {
 	{err: errRuntimePermissionDenied, key: containercontract.ContainerRuntimePermissionDenied},
 	{err: errRuntimeDaemonUnavailable, key: containercontract.ContainerRuntimeUnavailable},
 	{err: errContainerNotFound, key: containercontract.ContainerNotFound},
+	{err: errDockerVolumeNotFound, key: containercontract.DockerVolumeNotFound},
+	{err: errDockerVolumeConflict, key: containercontract.DockerVolumeConflict},
 	{err: errInvalidRef, key: containercontract.ContainerInvalidRef},
 	{err: errInvalidListQuery, key: containercontract.ContainerInvalidListQuery},
 	{err: errInvalidBatchAction, key: containercontract.ContainerInvalidBatchAction},

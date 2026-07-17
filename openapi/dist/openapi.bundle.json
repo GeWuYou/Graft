@@ -11788,6 +11788,32 @@
         ],
         "summary": "List Docker volumes",
         "operationId": "getDockerVolumes",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-offset"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-keyword"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-driver"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-scope"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-usage"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -11796,10 +11822,30 @@
         "responses": {
           "200": {
             "description": "Docker volume list.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-docker-volume-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Docker volume list query.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -11825,7 +11871,13 @@
         "operationId": "getDockerVolume",
         "parameters": [
           {
-            "$ref": "#/components/parameters/container-id-path"
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-id-path"
           }
         ],
         "security": [
@@ -11836,10 +11888,30 @@
         "responses": {
           "200": {
             "description": "Docker volume.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-docker-volume"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Docker volume reference.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -11851,7 +11923,126 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Volume not found"
+            "description": "Volume not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes/{id}/remove": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Remove Docker volume",
+        "operationId": "postDockerVolumeRemove",
+        "description": "Removes one Docker volume when dangerous actions are enabled. Force removal requires force=true.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-volume-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker volume removal completed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-volume-remove-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Docker volume reference or removal request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Docker volume was not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Docker volume is in use and force was not requested.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -16213,6 +16404,12 @@
       "DockerVolumeListResponse": {
         "$ref": "#/components/schemas/docker-volume-list-response"
       },
+      "DockerVolumeRemoveRequest": {
+        "$ref": "#/components/schemas/docker-volume-remove-request"
+      },
+      "DockerVolumeRemoveResponse": {
+        "$ref": "#/components/schemas/docker-volume-remove-response"
+      },
       "EnvelopedDockerImage": {
         "$ref": "#/components/schemas/enveloped-docker-image"
       },
@@ -16230,6 +16427,9 @@
       },
       "EnvelopedDockerVolumeListResponse": {
         "$ref": "#/components/schemas/enveloped-docker-volume-list-response"
+      },
+      "EnvelopedDockerVolumeRemoveResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-volume-remove-response"
       },
       "EnvelopedContainerRuntimeInfo": {
         "$ref": "#/components/schemas/enveloped-container-runtime-info"
@@ -25341,7 +25541,10 @@
       "docker-volume-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -25349,6 +25552,19 @@
             "items": {
               "$ref": "#/components/schemas/docker-volume"
             }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -25383,6 +25599,68 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/docker-volume"
+              }
+            }
+          }
+        ]
+      },
+      "docker-volume-remove-request": {
+        "type": "object",
+        "required": [
+          "force"
+        ],
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "description": "Explicitly force removal when Docker reports the volume is in use."
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-volume-remove-response": {
+        "type": "object",
+        "required": [
+          "name",
+          "action",
+          "result"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "remove"
+            ],
+            "x-enum-varnames": [
+              "DockerVolumeRemoveResponseActionRemove"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ],
+            "x-enum-varnames": [
+              "DockerVolumeRemoveResponseResultCompleted"
+            ]
+          }
+        }
+      },
+      "enveloped-docker-volume-remove-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume-remove-response"
               }
             }
           }
@@ -30894,6 +31172,87 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "docker-volume-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "docker-volume-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for Docker volumes.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "docker-volume-list-keyword": {
+        "name": "keyword",
+        "in": "query",
+        "required": false,
+        "description": "Optional case-insensitive keyword matched against a Docker volume name.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "docker-volume-list-driver": {
+        "name": "driver",
+        "in": "query",
+        "required": false,
+        "description": "Optional exact Docker volume driver filter.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "docker-volume-list-scope": {
+        "name": "scope",
+        "in": "query",
+        "required": false,
+        "description": "Optional exact Docker volume scope filter.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "docker-volume-list-usage": {
+        "name": "usage",
+        "in": "query",
+        "required": false,
+        "description": "Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "used",
+            "unused"
+          ],
+          "x-enum-varnames": [
+            "DockerVolumeListUsageUsed",
+            "DockerVolumeListUsageUnused"
+          ]
+        }
+      },
+      "docker-volume-id-path": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters.",
+        "schema": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "application-list-keyword": {

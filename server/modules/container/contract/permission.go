@@ -32,4 +32,6 @@ const (
 	ContainerRestartPermission PermissionCode = "ops.container.restart"
 	// ContainerRemovePermission 表示容器移除权限，值保持稳定。
 	ContainerRemovePermission PermissionCode = "ops.container.remove"
+	// ContainerVolumeRemovePermission 表示 Docker 数据卷删除权限，值保持稳定。
+	ContainerVolumeRemovePermission PermissionCode = "ops.container.volume.remove"
 )

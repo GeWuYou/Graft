@@ -40,6 +40,7 @@ audit.visibilityCatalog.container.action.start.description: Container start dang
 audit.visibilityCatalog.container.action.stop.description: Container stop dangerous action event.
 audit.visibilityCatalog.container.action.restart.description: Container restart dangerous action event.
 audit.visibilityCatalog.container.action.remove.description: Container remove dangerous action event.
+audit.visibilityCatalog.container.volume.remove.description: Docker volume remove dangerous action event.
 audit.visibilityCatalog.container.action.batchStart.description: Container batch-start dangerous action event.
 audit.visibilityCatalog.container.action.batchStop.description: Container batch-stop dangerous action event.
 audit.visibilityCatalog.container.action.batchRestart.description: Container batch-restart dangerous action event.
