@@ -13,6 +13,7 @@ import (
 var (
 	ErrTemplateNotFound       = errors.New("application template not found")
 	ErrTemplateConflict       = errors.New("application template conflict")
+	ErrTemplateNameOccupied   = errors.New("application template display name is already in use")
 	ErrTemplateDraftNotFound  = errors.New("application template draft not found")
 	ErrTemplatePublishedState = errors.New("application template published version is immutable")
 )
@@ -365,6 +366,10 @@ func mapTemplateWriteError(err error) error {
 		return nil
 	}
 	lower := strings.ToLower(err.Error())
+	if strings.Contains(lower, "application_templates_display_name_live") ||
+		strings.Contains(lower, "application_templates.display_name") {
+		return fmt.Errorf("%w: %v", ErrTemplateNameOccupied, err)
+	}
 	if strings.Contains(lower, "unique") || strings.Contains(lower, "duplicate") {
 		return fmt.Errorf("%w: %v", ErrTemplateConflict, err)
 	}

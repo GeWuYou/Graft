@@ -99,6 +99,40 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.refreshingTabKey).toBeUndefined();
   });
 
+  it('permanently discards a resource tab and its cached state', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/applications/templates/tpl_1',
+      path: '/applications/templates/tpl_1',
+      name: 'ApplicationTemplateDetail',
+      isPinned: true,
+    });
+    tabsRouterStore.setPageSnapshot('/applications/templates/tpl_1', { filters: { keyword: 'template' } });
+    tabsRouterStore.startTabRefresh('/applications/templates/tpl_1');
+    tabsRouterStore.subtractCurrentTabRouter({
+      tabKey: '/applications/templates/tpl_1',
+      path: '/applications/templates/tpl_1',
+      routeIdx: 1,
+    });
+    tabsRouterStore.appendTabRouterList({
+      tabKey: '/applications/templates/tpl_1',
+      path: '/applications/templates/tpl_1',
+      name: 'ApplicationTemplateDetail',
+    });
+
+    tabsRouterStore.discardTabRouter({
+      tabKey: '/applications/templates/tpl_1',
+      path: '/applications/templates/tpl_1',
+      routeIdx: 1,
+    });
+
+    expect(tabsRouterStore.tabRouters.map((route) => route.tabKey)).not.toContain('/applications/templates/tpl_1');
+    expect(tabsRouterStore.closedTabs.map((route) => route.tabKey)).not.toContain('/applications/templates/tpl_1');
+    expect(tabsRouterStore.getPageSnapshot('/applications/templates/tpl_1')).toBeUndefined();
+    expect(tabsRouterStore.refreshNonceByTabKey['/applications/templates/tpl_1']).toBeUndefined();
+  });
+
   it('heals an empty persisted tab list back to home', () => {
     const tabsRouterStore = useTabsRouterStore();
 

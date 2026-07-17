@@ -72,10 +72,14 @@ const (
 	ApplicationInvalidComposeProjectName ErrorCode = "ops.application.error.invalidComposeProjectName"
 	// ApplicationConflict 标识应用注册记录违反唯一性约束。
 	ApplicationConflict ErrorCode = "ops.application.error.conflict"
+	// ApplicationTemplateNameOccupied 标识存活模板名称已被占用。
+	ApplicationTemplateNameOccupied ErrorCode = "ops.application.error.templateNameOccupied"
 	// ApplicationComposeProjectNameOccupied 标识同一运行时目标内的 Compose 名称冲突。
 	ApplicationComposeProjectNameOccupied ErrorCode = "ops.application.error.composeProjectNameOccupied"
 	// ApplicationNotFound 标识未找到存活应用记录。
 	ApplicationNotFound ErrorCode = "ops.application.error.notFound"
+	// ApplicationTemplateNotFound 标识未找到存活模板记录。
+	ApplicationTemplateNotFound ErrorCode = "ops.application.error.templateNotFound"
 	// ApplicationUnsupportedLifecycle 标识应用所有权或当前阶段不允许执行生命周期请求。
 	ApplicationUnsupportedLifecycle ErrorCode = "ops.application.error.unsupportedLifecycle"
 	// ApplicationRuntimeUnavailable 标识选定 Runtime Target 不可用，无法执行 Compose 生命周期请求。

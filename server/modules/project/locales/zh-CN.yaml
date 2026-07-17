@@ -11,8 +11,10 @@ ops.application.error.invalidApplicationName: 应用名只能包含小写 ASCII 
 ops.application.error.applicationNameOccupied: 应用名已被占用，请使用其他应用名。
 ops.application.error.invalidComposeProjectName: Compose 项目名称不符合命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。
 ops.application.error.conflict: 当前应用状态存在冲突，无法执行该操作。
+ops.application.error.templateNameOccupied: 模板名称已被占用，请使用其他名称。
 ops.application.error.composeProjectNameOccupied: 所选运行目标上已有同名 Compose 项目名称，无法继续操作。
 ops.application.error.notFound: 未找到对应的应用。
+ops.application.error.templateNotFound: 未找到对应的模板。
 ops.application.error.unsupportedLifecycle: 当前应用状态不支持该生命周期操作。
 ops.application.error.runtimeUnavailable: 所选运行目标当前不可用。工作区已保留，待运行目标恢复后即可部署。
 ops.application.error.importValidationFailed: 应用导入检查未通过校验。

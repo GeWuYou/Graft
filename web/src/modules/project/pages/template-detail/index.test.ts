@@ -12,13 +12,25 @@ const mocks = vi.hoisted(() => ({
   putApplicationTemplate: vi.fn(),
   deleteApplicationTemplate: vi.fn(),
   push: vi.fn(),
+  replace: vi.fn(),
+  tabsRouterStore: {
+    activeTabKey: '/applications/templates/tpl_1',
+    discardTabRouter: vi.fn(),
+    tabRouters: [
+      {
+        tabKey: '/applications/templates/tpl_1',
+        path: '/applications/templates/tpl_1',
+      },
+    ],
+  },
 }));
 
 vi.mock('../../api/project', () => mocks);
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { templateId: 'tpl_1' } }),
-  useRouter: () => ({ push: mocks.push }),
+  useRoute: () => ({ params: { templateId: 'tpl_1' }, path: '/applications/templates/tpl_1' }),
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
+vi.mock('@/store', () => ({ useTabsRouterStore: () => mocks.tabsRouterStore }));
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({ t: (key: string) => key }),
@@ -49,7 +61,10 @@ function mountPage() {
         't-form': WrapperStub,
         't-form-item': WrapperStub,
         't-tag': WrapperStub,
-        't-dialog': WrapperStub,
+        't-dialog': {
+          template: '<div v-if="visible"><slot /><button data-testid="dialog-confirm" @click="$emit(\'confirm\')">confirm</button></div>',
+          props: ['visible'],
+        },
         't-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
         't-input': { template: '<input :value="modelValue ?? value" />', props: ['modelValue', 'value'] },
         't-textarea': { template: '<textarea :value="modelValue" />', props: ['modelValue'] },
@@ -60,7 +75,22 @@ function mountPage() {
 
 describe('ApplicationTemplateDetailIndex', () => {
   beforeEach(() => {
-    Object.values(mocks).forEach((mock) => mock.mockReset());
+    [
+      mocks.getApplicationTemplate,
+      mocks.postApplicationTemplateArchive,
+      mocks.postApplicationTemplateClone,
+      mocks.postApplicationTemplatePublish,
+      mocks.postApplicationTemplateWithdraw,
+      mocks.putApplicationTemplate,
+      mocks.deleteApplicationTemplate,
+      mocks.push,
+      mocks.replace,
+      mocks.tabsRouterStore.discardTabRouter,
+    ].forEach((mock) => mock.mockReset());
+    mocks.tabsRouterStore.activeTabKey = '/applications/templates/tpl_1';
+    mocks.tabsRouterStore.tabRouters = [
+      { tabKey: '/applications/templates/tpl_1', path: '/applications/templates/tpl_1' },
+    ];
   });
 
   it('hydrates the unwrapped template detail response into editable fields', async () => {
@@ -88,5 +118,40 @@ describe('ApplicationTemplateDetailIndex', () => {
     expect(mocks.getApplicationTemplate).toHaveBeenCalledWith('tpl_1');
     expect(wrapper.find('input').element.value).toBe('Compose template');
     expect(wrapper.text()).toContain('stack.yml');
+  });
+
+  it('discards a deleted template tab and replaces it with the template list', async () => {
+    mocks.getApplicationTemplate.mockResolvedValue({
+      template_id: 'tpl_1',
+      display_name: 'Compose template',
+      description: '',
+      deployment_adapter_kind: 'compose',
+      version: { template_version_id: 'tplv_1', version_number: 1, status: 'draft', definition_schema_version: 1, definition: { compose_file_path: 'compose.yaml', workspace_entries: [] } },
+    });
+    mocks.deleteApplicationTemplate.mockResolvedValue(undefined);
+
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.findAll('button').find((button) => button.text() === 'project.templates.delete')?.trigger('click');
+    await wrapper.get('[data-testid="dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.tabsRouterStore.discardTabRouter).toHaveBeenCalledWith(
+      expect.objectContaining({ tabKey: '/applications/templates/tpl_1' }),
+    );
+    expect(mocks.replace).toHaveBeenCalledWith({ name: 'ApplicationTemplatesIndex' });
+  });
+
+  it('replaces a deleted template URL with the template list', async () => {
+    const error = Object.assign(new Error('not found'), { isApiRequestError: true, status: 404 });
+    mocks.getApplicationTemplate.mockRejectedValue(error);
+
+    mountPage();
+    await flushPromises();
+
+    expect(mocks.tabsRouterStore.discardTabRouter).toHaveBeenCalledWith(
+      expect.objectContaining({ tabKey: '/applications/templates/tpl_1' }),
+    );
+    expect(mocks.replace).toHaveBeenCalledWith({ name: 'ApplicationTemplatesIndex' });
   });
 });

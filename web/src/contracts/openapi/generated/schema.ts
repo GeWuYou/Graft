@@ -15451,6 +15451,13 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description A live Application template already uses the requested display name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getApplicationManagedTemplates: {
@@ -15497,7 +15504,7 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description Application template not found. */
+      /** @description Application template was deleted or does not exist. */
       404: {
         headers: {
           [name: string]: unknown;

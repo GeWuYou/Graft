@@ -8,7 +8,7 @@
       >
         <template #actions>
           <t-space size="small">
-            <t-button theme="primary" :loading="creating" @click="createBlankDraft">
+			<t-button theme="primary" @click="openCreateDialog">
               {{ t('project.templates.create') }}
             </t-button>
           </t-space>
@@ -83,10 +83,24 @@
         <template #empty
           ><t-empty :title="t('project.templates.emptyTitle')" :description="t('project.templates.emptyDescription')"
         /></template>
-      </t-table>
-    </management-page-content>
+		</t-table>
+	  </management-page-content>
 
-    <t-dialog
+	  <t-dialog
+		v-model:visible="createVisible"
+		:header="t('project.templates.createTitle')"
+		:confirm-btn="t('project.templates.createConfirm')"
+		:cancel-btn="t('project.templates.cancel')"
+		:confirm-loading="creating"
+		@confirm="createBlankDraft"
+	  >
+		<t-form label-align="top">
+		  <t-form-item :label="t('project.templates.name')">
+			<t-input v-model="createDisplayName" />
+		  </t-form-item>
+		</t-form>
+	  </t-dialog>
+	  <t-dialog
       v-model:visible="cloneVisible"
       :header="t('project.templates.cloneTitle')"
       :confirm-btn="t('project.templates.cloneConfirm')"
@@ -130,6 +144,7 @@ import {
   postApplicationTemplateWithdraw,
 } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
 import type { ApplicationTemplate, ApplicationTemplateDraftRequest } from '../../types/project';
 
 defineOptions({ name: 'ApplicationTemplateListIndex' });
@@ -148,8 +163,10 @@ const keyword = ref('');
 const status = ref('');
 const cloneVisible = ref(false);
 const deleteVisible = ref(false);
+const createVisible = ref(false);
 const selectedTemplate = ref<ApplicationTemplate | null>(null);
 const cloneDisplayName = ref('');
+const createDisplayName = ref('');
 
 const statusOptions = computed(() => [
   { label: t('project.templates.statusDraft'), value: 'draft' },
@@ -188,9 +205,9 @@ async function loadTemplates() {
   }
 }
 
-function blankDraftPayload(): ApplicationTemplateDraftRequest {
-  return {
-    display_name: t('project.templates.untitled'),
+function blankDraftPayload(displayName: string): ApplicationTemplateDraftRequest {
+	return {
+	  display_name: displayName,
     description: '',
     deployment_adapter_kind: 'compose',
     definition_schema_version: 1,
@@ -205,11 +222,24 @@ function blankDraftPayload(): ApplicationTemplateDraftRequest {
   } as unknown as ApplicationTemplateDraftRequest;
 }
 
+function openCreateDialog() {
+	createDisplayName.value = '';
+	createVisible.value = true;
+	emitApplicationTemplateDebug('create-dialog-opened');
+}
+
 async function createBlankDraft() {
-  creating.value = true;
-  try {
-    openTemplate(await postApplicationTemplate(blankDraftPayload()));
+	const displayName = createDisplayName.value.trim();
+	if (!displayName) return;
+	creating.value = true;
+	try {
+	  emitApplicationTemplateDebug('create-requested', { routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName });
+	  const template = await postApplicationTemplate(blankDraftPayload(displayName));
+	  emitApplicationTemplateDebug('create-succeeded', { templateId: template.template_id });
+	  createVisible.value = false;
+	  openTemplate(template);
   } catch (error) {
+	  emitApplicationTemplateDebug('create-failed', { errorName: error instanceof Error ? error.name : typeof error });
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.createFailed')));
   } finally {
     creating.value = false;
@@ -217,6 +247,10 @@ async function createBlankDraft() {
 }
 
 function openTemplate(template: ApplicationTemplate) {
+	emitApplicationTemplateDebug('detail-navigation-requested', {
+	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
+	  templateId: template.template_id,
+	});
   void router.push({
     name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
     params: { templateId: template.template_id },

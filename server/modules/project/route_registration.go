@@ -1074,10 +1074,12 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 			"code":         mapLifecycleErrorCode(err),
 			"actionResult": toActionResponse(action),
 		})
+	case errors.Is(err, projectstore.ErrTemplateNameOccupied):
+		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ApplicationTemplateNameOccupied.String())
 	case errors.Is(err, errProjectTemplateArchived), errors.Is(err, errProjectTemplateUnpublished), errors.Is(err, projectstore.ErrTemplateConflict), errors.Is(err, projectstore.ErrTemplateDraftNotFound), errors.Is(err, projectstore.ErrTemplatePublishedState):
 		r.writeLocalizedProjectError(ginCtx, http.StatusConflict, projectcontract.ApplicationConflict.String())
 	case errors.Is(err, projectstore.ErrTemplateNotFound):
-		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ApplicationNotFound.String())
+		r.writeLocalizedProjectError(ginCtx, http.StatusNotFound, projectcontract.ApplicationTemplateNotFound.String())
 	default:
 		return false
 	}

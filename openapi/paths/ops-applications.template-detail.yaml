@@ -15,7 +15,7 @@ get:
           schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Application template not found. }
+    '404': { description: Application template was deleted or does not exist. }
 put:
   tags: [application]
   summary: Update an editable Application template draft

@@ -139,6 +139,8 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { useTabsRouterStore } from '@/store';
+import { isApiRequestError } from '@/utils/request';
 
 import {
   deleteApplicationTemplate,
@@ -157,6 +159,7 @@ import {
   buildLifecycleConfigurationRequest,
   type LifecycleDraftSource,
 } from '../../shared/lifecycle';
+import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
 import type {
   ApplicationLifecycleConfigurationDraft,
   ApplicationTemplate,
@@ -170,6 +173,7 @@ defineOptions({ name: 'ApplicationTemplateDetailIndex' });
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const templateRecord = ref<ApplicationTemplate | null>(null);
 const loading = ref(false);
 const saving = ref(false);
@@ -207,10 +211,25 @@ async function loadTemplate() {
   if (!templateId.value) return;
   loading.value = true;
   errorMessage.value = '';
-  try {
-    hydrate(await getApplicationTemplate(templateId.value));
-  } catch (error) {
-    errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templates.detailLoadFailed'));
+	emitApplicationTemplateDebug('detail-load-requested', {
+	  routeName: String(route.name || ''),
+	  templateId: templateId.value,
+	});
+	try {
+	  const template = await getApplicationTemplate(templateId.value);
+	  emitApplicationTemplateDebug('detail-load-succeeded', { templateId: template.template_id });
+	  hydrate(template);
+	} catch (error) {
+	  if (isApiRequestError(error) && error.status === 404) {
+		emitApplicationTemplateDebug('detail-load-not-found', { templateId: templateId.value });
+		void leaveMissingTemplate();
+		return;
+	  }
+	  emitApplicationTemplateDebug('detail-load-failed', {
+		errorName: error instanceof Error ? error.name : typeof error,
+		templateId: templateId.value,
+	  });
+	  errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templates.detailLoadFailed'));
   } finally {
     loading.value = false;
   }
@@ -334,10 +353,10 @@ async function deleteTemplate() {
   if (!templateRecord.value) return;
   deleting.value = true;
   try {
-    await deleteApplicationTemplate(templateRecord.value.template_id);
-    deleteVisible.value = false;
-    MessagePlugin.success(t('project.templates.deleteSuccess'));
-    backToList();
+	  await deleteApplicationTemplate(templateRecord.value.template_id);
+	  deleteVisible.value = false;
+	  MessagePlugin.success(t('project.templates.deleteSuccess'));
+	  await leaveMissingTemplate();
   } catch (error) {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.deleteFailed')));
   } finally {
@@ -346,7 +365,25 @@ async function deleteTemplate() {
 }
 
 function backToList() {
-  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
+	void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
+}
+
+async function leaveMissingTemplate() {
+	const activeTab = tabsRouterStore.tabRouters.find((tab) => tab.tabKey === tabsRouterStore.activeTabKey);
+	const currentTab = activeTab?.path === route.path ? activeTab : tabsRouterStore.tabRouters.find((tab) => tab.path === route.path);
+	if (currentTab) {
+		emitApplicationTemplateDebug('detail-tab-discarded', { tabKey: currentTab.tabKey, templateId: templateId.value });
+		tabsRouterStore.discardTabRouter({
+			tabKey: currentTab.tabKey,
+			path: currentTab.path,
+			routeIdx: tabsRouterStore.tabRouters.indexOf(currentTab),
+		});
+	}
+	emitApplicationTemplateDebug('detail-navigation-replaced-with-list', {
+	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName,
+	  templateId: templateId.value,
+	});
+	await router.replace({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.pageRouteName });
 }
 </script>
 <style scoped>

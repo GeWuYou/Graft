@@ -51,12 +51,18 @@ function mountPage() {
           },
         },
         't-tag': WrapperStub,
-        't-dialog': WrapperStub,
+        't-dialog': {
+          template: '<div v-if="visible"><slot /><button data-testid="dialog-confirm" @click="$emit(\'confirm\')">confirm</button></div>',
+          props: ['visible'],
+        },
         't-form': WrapperStub,
         't-form-item': WrapperStub,
         't-empty': { template: '<div>{{ title }}</div>', props: ['title'] },
         't-button': { template: '<button @click="$emit(\'click\')"><slot /></button>' },
-        't-input': { template: '<input />' },
+        't-input': {
+          template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          props: ['modelValue'],
+        },
         't-select': { template: '<select />' },
       },
     },
@@ -128,6 +134,25 @@ describe('ApplicationTemplateListIndex', () => {
     expect(wrapper.text()).toContain('project.templates.archive');
     expect(wrapper.text()).toContain('project.templates.delete');
     expect(wrapper.text()).not.toContain('project.templates.importLegacy');
+  });
+
+  it('creates a blank draft only after the operator provides a name', async () => {
+    mocks.getApplicationManagedTemplates.mockResolvedValue({ items: [] });
+    mocks.postApplicationTemplate.mockResolvedValue({ template_id: 'tpl_new' });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.findAll('button').find((button) => button.text() === 'project.templates.create')?.trigger('click');
+    const inputs = wrapper.findAll('input');
+    await inputs[inputs.length - 1]?.setValue('Nginx baseline');
+    await wrapper.get('[data-testid="dialog-confirm"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.postApplicationTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({ display_name: 'Nginx baseline' }),
+    );
+    expect(mocks.push).toHaveBeenCalledWith({ name: 'ApplicationTemplateDetailIndex', params: { templateId: 'tpl_new' } });
   });
 
   it('shows withdraw for published templates and keeps clone/delete for archived templates', async () => {

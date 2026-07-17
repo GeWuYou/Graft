@@ -11,8 +11,10 @@ ops.application.error.invalidApplicationName: The application name must start wi
 ops.application.error.applicationNameOccupied: This application name is already in use. Choose another name.
 ops.application.error.invalidComposeProjectName: The Compose project name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.
 ops.application.error.conflict: Application action is blocked by a conflicting application state.
+ops.application.error.templateNameOccupied: This template name is already in use. Choose another name.
 ops.application.error.composeProjectNameOccupied: The Compose project name is already in use on the selected Runtime Target.
 ops.application.error.notFound: Application was not found.
+ops.application.error.templateNotFound: Template was not found.
 ops.application.error.unsupportedLifecycle: Application lifecycle action is not available for the current application state.
 ops.application.error.runtimeUnavailable: The selected Runtime Target is unavailable. The workspace remains registered and can be deployed after the target recovers.
 ops.application.error.importValidationFailed: Application import inspection failed validation.

@@ -476,6 +476,27 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       this.clearPageSnapshot(targetKey);
       this.syncPinnedTabsStorage();
     },
+    discardTabRouter(newRoute: TRouterInfo) {
+      const { routeIdx, path, tabKey } = newRoute;
+      const routeKey = tabKey || path;
+      const target =
+        routeIdx === undefined
+          ? this.tabRouterList.find((route) => getTabKey(route) === routeKey)
+          : (this.tabRouterList[routeIdx] ?? this.tabRouterList.find((route) => getTabKey(route) === routeKey));
+      const targetKey = tabKey || (target ? getTabKey(target) : path);
+      if (!targetKey) return;
+
+      this.tabRouterList = this.tabRouterList.filter((route) => getTabKey(route) !== targetKey);
+      this.closedTabStack = this.closedTabStack.filter((route) => getTabKey(route) !== targetKey);
+      this.clearPageSnapshot(targetKey);
+      const remainingNonces = { ...this.refreshNonceByTabKey };
+      delete remainingNonces[targetKey];
+      this.refreshNonceByTabKey = remainingNonces;
+      if (this.refreshingTabKey === targetKey) {
+        this.refreshingTabKey = undefined;
+      }
+      this.syncPinnedTabsStorage();
+    },
     subtractTabRouterBehind(newRoute: TRouterInfo) {
       const { routeIdx } = newRoute;
       if (routeIdx === undefined) return;
