@@ -150,4 +150,56 @@ describe('WebTerminal', () => {
     expect(terminalReset).toHaveBeenCalledTimes(2);
     expect(terminalClear).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps wheel events inside a scrollable terminal viewport', async () => {
+    const wrapper = mount(WebTerminal, {
+      props: {
+        connector,
+      },
+      attachTo: document.body,
+    });
+    const host = wrapper.get('.web-terminal__host');
+    const viewport = document.createElement('div');
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 300 },
+      scrollTop: { configurable: true, value: 100, writable: true },
+    });
+    viewport.className = 'xterm-viewport';
+    host.element.appendChild(viewport);
+    const outerWheel = vi.fn();
+    wrapper.element.addEventListener('wheel', outerWheel);
+
+    await host.trigger('wheel', { deltaY: 20 });
+
+    expect(outerWheel).not.toHaveBeenCalled();
+    wrapper.element.removeEventListener('wheel', outerWheel);
+    wrapper.unmount();
+  });
+
+  it('allows wheel events to escape when the terminal viewport is at its boundary', async () => {
+    const wrapper = mount(WebTerminal, {
+      props: {
+        connector,
+      },
+      attachTo: document.body,
+    });
+    const host = wrapper.get('.web-terminal__host');
+    const viewport = document.createElement('div');
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 300 },
+      scrollTop: { configurable: true, value: 200, writable: true },
+    });
+    viewport.className = 'xterm-viewport';
+    host.element.appendChild(viewport);
+    const outerWheel = vi.fn();
+    wrapper.element.addEventListener('wheel', outerWheel);
+
+    await host.trigger('wheel', { deltaY: 20 });
+
+    expect(outerWheel).toHaveBeenCalledOnce();
+    wrapper.element.removeEventListener('wheel', outerWheel);
+    wrapper.unmount();
+  });
 });
