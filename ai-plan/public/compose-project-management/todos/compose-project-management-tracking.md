@@ -357,3 +357,23 @@ Compose Project Management
 - [x] persistence authority 固定为 generic `applications`；历史 versioned migration SQL 保持不可修改，后续由
   server owned slice 新增前向迁移。
 - [x] OpenAPI source 与 generated server/web artifacts 由 canonical generation commands 同步。
+
+## 2026-07-17 Deployment Adapter Authority Repair
+
+- [x] 公共 Application 字段由 `application_type` 一次性迁移为 `deployment_adapter_kind`，当前唯一有效值为 `compose`；新增前向 SQL migration 保留既有数据，不保留 DTO、URL 或 query alias。
+- [x] 创建首步改为 Deployment Adapter picker：Compose 可操作；Helm、Kustomize、Nomad Job 仅为不可聚焦路线图卡片；移除 Swarm 卡片。
+- [x] Compose Adapter 解析 `compose_execution` 与 `docker_stack_deploy` capability；Swarm 被收敛为未来 Docker Swarm Target 上的 Docker Stack 执行模式。
+
+## 2026-07-17 Generic Application Template Backend
+
+- [x] `application-template-backend-and-contract`：新增 adapter-kind 通用模板与版本持久化，草稿/发布不可变模型与单草稿约束。
+- [x] Application 模板 API 固定在 `/api/ops/applications/templates/**`，静态路由排在 `/:applicationId` 前；创建者只读取已发布模板，管理和发布使用独立权限。
+- [x] `template-provenance-and-legacy-authority-cleanup`：统一 `/create/managed` 接收 `template_version_id`，服务端仅接受未归档的已发布 Compose 版本并持久化 `template_id` / `template_version_id` 来源；旧运行时目录模板创建端点、workspace-defaults authority 和预填配置已移除。
+- [ ] 当前批次：移除旧目录导入和内置 Compose Baseline；补齐独立克隆、软删除和发布撤回后生成下一草稿的 contract、实现与 UI。
+
+## 2026-07-17 Template Management UI
+
+- [x] `/applications/templates` 已作为 Application 域的权限菜单和管理路由接入；仅 `ops.application.template.manage` 可见并可读取草稿、发布与归档模板。
+- [ ] 管理页需支持状态/关键字筛选、空白草稿创建、草稿编辑、工作区与 lifecycle preset 编辑、发布、独立克隆、撤回发布、归档和软删除；移除旧目录导入与“派生草稿”入口。
+- [x] 创建者目录继续只消费 `/templates` 的已发布版本；管理目录使用独立 `/templates/manage` authority，避免草稿、撤回或归档状态泄露。
+- [ ] OpenAPI bundle、server/web consumer、路由单测和模板管理 UI 单测需同步到新生命周期。

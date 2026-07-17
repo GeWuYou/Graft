@@ -48,6 +48,8 @@ const (
 const (
 	// ApplicationMenuTitle 标识应用管理菜单标题的本地化键。
 	ApplicationMenuTitle MessageKey = "menu.application.title"
+	// ApplicationTemplateMenuTitle 标识应用模板管理菜单标题的本地化键。
+	ApplicationTemplateMenuTitle MessageKey = "menu.application.templates.title"
 	// ApplicationInvalidID 标识路径或载荷中的应用公开标识未通过校验。
 	ApplicationInvalidID ErrorCode = "ops.application.error.invalidApplicationId"
 	// ApplicationInvalidFileID 标识路径中的应用文件标识未通过校验。
@@ -156,6 +158,10 @@ const (
 	ApplicationCreationMethodViewPermission PermissionCode = "ops.application.creation-method.view"
 	// ApplicationDiscoveryViewPermission 允许执行有界目录扫描并查看发现候选。
 	ApplicationDiscoveryViewPermission PermissionCode = "ops.application.discovery.view"
+	// ApplicationTemplateManagePermission 允许维护 Application 模板草稿与归档状态。
+	ApplicationTemplateManagePermission PermissionCode = "ops.application.template.manage"
+	// ApplicationTemplatePublishPermission 允许发布不可变 Application 模板版本。
+	ApplicationTemplatePublishPermission PermissionCode = "ops.application.template.publish"
 	// ApplicationDeployPermission 允许比较、校验并部署受管应用配置。
 	ApplicationDeployPermission PermissionCode = "ops.application.deploy"
 )
@@ -171,8 +177,6 @@ const (
 	ApplicationWorkspaceFileTooltipRulesConfig ConfigKey = "ops.application.workspace.file_tooltip_rules"
 	// ApplicationWorkspaceDirectoryTooltipRulesConfig 保存按目录基础名匹配的有序默认提示规则。
 	ApplicationWorkspaceDirectoryTooltipRulesConfig ConfigKey = "ops.application.workspace.directory_tooltip_rules"
-	// ApplicationBlankCreatePrefillDefaultTemplateConfig 控制空白创建是否预填默认模板。
-	ApplicationBlankCreatePrefillDefaultTemplateConfig ConfigKey = "ops.application.create.blank_prefill_default_template"
 )
 
 const (
@@ -210,8 +214,4 @@ const (
 	ApplicationWorkspaceDirectoryTooltipRulesConfigTitle ConfigMessageKey = "systemConfig.application.ops.application.workspace.directory_tooltip_rules.title"
 	// ApplicationWorkspaceDirectoryTooltipRulesConfigDescription 标识工作区目录提示规则配置说明的本地化键。
 	ApplicationWorkspaceDirectoryTooltipRulesConfigDescription ConfigMessageKey = "systemConfig.application.ops.application.workspace.directory_tooltip_rules.description"
-	// ApplicationBlankCreatePrefillDefaultTemplateConfigTitle 标识空白创建默认模板预填配置标题的本地化键。
-	ApplicationBlankCreatePrefillDefaultTemplateConfigTitle ConfigMessageKey = "systemConfig.application.ops.application.create.blank_prefill_default_template.title"
-	// ApplicationBlankCreatePrefillDefaultTemplateConfigDescription 标识空白创建默认模板预填配置说明的本地化键。
-	ApplicationBlankCreatePrefillDefaultTemplateConfigDescription ConfigMessageKey = "systemConfig.application.ops.application.create.blank_prefill_default_template.description"
 )

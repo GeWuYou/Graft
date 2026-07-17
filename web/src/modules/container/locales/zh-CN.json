@@ -153,7 +153,8 @@
         "unknown": "未知部署"
       },
       "deploymentContext": {
-        "project": "Compose 项目"
+        "application": "Compose 应用",
+        "unlinkedApplication": "未关联应用"
       },
       "sourceKinds": {
         "compose_project": "项目",
@@ -288,7 +289,6 @@
     },
     "detail": {
       "title": "容器详情",
-      "viewComposeProject": "查看 Compose 项目",
       "description": "查看容器运行时详情、资源、日志、配置、网络和挂载信息。",
       "back": "返回",
       "refresh": "刷新",

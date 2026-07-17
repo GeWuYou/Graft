@@ -19,6 +19,11 @@ import {
   buildApplicationSavedViewApiPath,
   buildApplicationServicesApiPath,
   buildApplicationStopApiPath,
+  buildApplicationTemplateApiPath,
+  buildApplicationTemplateArchiveApiPath,
+  buildApplicationTemplateCloneApiPath,
+  buildApplicationTemplatePublishApiPath,
+  buildApplicationTemplateWithdrawApiPath,
   buildApplicationUnregisterApiPath,
   buildApplicationUpApiPath,
 } from '../contract/paths';
@@ -46,8 +51,9 @@ import type {
   ApplicationSavedViewRequest,
   ApplicationServicesResponse,
   ApplicationTaskReceipt,
-  ApplicationTemplateCreateRequest,
-  ApplicationWorkspaceDefaultsResponse,
+  ApplicationTemplate,
+  ApplicationTemplateDraftRequest,
+  ApplicationTemplateListResponse,
   ApplicationWorkspaceEntry,
   ApplicationWorkspaceFileAnnotationRequest,
   ApplicationWorkspaceFileAnnotationResponse,
@@ -128,10 +134,10 @@ type ApplicationApplicationNameAvailabilityData = NonNullable<
   ApplicationApplicationNameAvailabilityOperation['responses'][200]['content']['application/json']['data']
 >;
 
-type ApplicationTemplateCreatePath = (typeof APPLICATION_API_PATH)['CREATE_TEMPLATE'];
-type ApplicationTemplateCreateOperation = paths[ApplicationTemplateCreatePath]['post'];
-type ApplicationTemplateCreateData = NonNullable<
-  ApplicationTemplateCreateOperation['responses'][201]['content']['application/json']['data']
+type ApplicationTemplatesPath = (typeof APPLICATION_API_PATH)['TEMPLATES'];
+type GetApplicationTemplatesOperation = paths[ApplicationTemplatesPath]['get'];
+type GetApplicationTemplatesData = NonNullable<
+  GetApplicationTemplatesOperation['responses'][200]['content']['application/json']['data']
 >;
 type ApplicationUpOperation = paths[(typeof APPLICATION_API_PATH)['UP']]['post'];
 type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
@@ -249,10 +255,6 @@ export function getApplicationServices(applicationId: GetApplicationServicesPath
   }) as Promise<ApplicationServicesResponse>;
 }
 
-export function getApplicationWorkspaceDefaults() {
-  return request.get<ApplicationWorkspaceDefaultsResponse>({ url: APPLICATION_API_PATH.CREATE_WORKSPACE_DEFAULTS });
-}
-
 export function postApplicationWorkspaceEntry(applicationId: string, payload: ApplicationWorkspaceEntry) {
   return request.post({ url: buildApplicationFilesEntriesApiPath(applicationId), data: payload });
 }
@@ -341,11 +343,63 @@ export function postApplicationApplicationNameAvailability(payload: ApplicationA
   }) as Promise<ApplicationApplicationNameAvailabilityResponse>;
 }
 
-export function postApplicationCreateTemplate(payload: ApplicationTemplateCreateRequest) {
-  return postApplicationAction<ApplicationTemplateCreateData>(
-    APPLICATION_API_PATH.CREATE_TEMPLATE,
-    payload,
-  ) as Promise<ApplicationCreateResponse>;
+export function getApplicationTemplates() {
+  return request.get<GetApplicationTemplatesData>({
+    url: APPLICATION_API_PATH.TEMPLATES,
+  }) as Promise<ApplicationTemplateListResponse>;
+}
+
+/** 管理目录会返回草稿与归档项，只能由模板管理页面在已授权上下文中消费。 */
+export async function getApplicationManagedTemplates(): Promise<ApplicationTemplateListResponse> {
+  const data = await request.get<GetApplicationTemplatesData>({ url: APPLICATION_API_PATH.TEMPLATES_MANAGE });
+  return data as ApplicationTemplateListResponse;
+}
+
+export async function getApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {
+  return request.get<ApplicationTemplate>({
+    url: buildApplicationTemplateApiPath(templateId),
+  });
+}
+
+export async function postApplicationTemplate(payload: ApplicationTemplateDraftRequest) {
+  return request.post<ApplicationTemplate>({
+    url: APPLICATION_API_PATH.TEMPLATES,
+    data: payload,
+  });
+}
+
+export async function putApplicationTemplate(templateId: string, payload: ApplicationTemplateDraftRequest) {
+  return request.put<ApplicationTemplate>({
+    url: buildApplicationTemplateApiPath(templateId),
+    data: payload,
+  });
+}
+
+export async function postApplicationTemplateClone(templateId: string, displayName: string) {
+  return request.post<ApplicationTemplate>({
+    url: buildApplicationTemplateCloneApiPath(templateId),
+    data: { display_name: displayName },
+  });
+}
+
+export async function postApplicationTemplatePublish(templateId: string) {
+  return request.post<ApplicationTemplate>({
+    url: buildApplicationTemplatePublishApiPath(templateId),
+  });
+}
+
+export async function postApplicationTemplateWithdraw(templateId: string) {
+  return request.post<ApplicationTemplate>({
+    url: buildApplicationTemplateWithdrawApiPath(templateId),
+  });
+}
+
+export function postApplicationTemplateArchive(templateId: string) {
+  return request.post({ url: buildApplicationTemplateArchiveApiPath(templateId) });
+}
+
+export function deleteApplicationTemplate(templateId: string) {
+  return request.delete({ url: buildApplicationTemplateApiPath(templateId) });
 }
 
 function postApplicationAction<T>(url: string, data?: unknown) {

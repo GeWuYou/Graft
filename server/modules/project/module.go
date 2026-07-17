@@ -144,7 +144,10 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.service == nil || ctx == nil {
 		return nil
 	}
-	return m.service.BackfillRuntimeTargets(ctx.LifecycleContext)
+	if err := m.service.BackfillRuntimeTargets(ctx.LifecycleContext); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Shutdown 释放项目模块运行时资源；实时流由 Service.Close 在统一关闭路径中等待退出。

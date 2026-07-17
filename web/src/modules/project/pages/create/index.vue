@@ -110,14 +110,18 @@ import { ManagementPageContent, ManagementPageHeader } from '@/shared/components
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
-  getApplicationWorkspaceDefaults,
+  getApplicationTemplates,
   postApplicationApplicationNameAvailability,
   postApplicationCreate,
 } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationStep from '../../components/ProjectLifecycleConfigurationStep.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { buildBlankLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
+import {
+  buildBlankLifecycleConfigurationDraft,
+  buildLifecycleConfigurationRequest,
+  type LifecycleDraftSource,
+} from '../../shared/lifecycle';
 import {
   appendResolvedTab,
   buildDetailTitleWithFallback,
@@ -156,7 +160,15 @@ const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([
 const primaryComposePath = ref('compose.yaml');
 const workspaceDefaultsLoading = ref(true);
 const workspaceDefaultsError = ref('');
-const workspaceDefaults = ref<Awaited<ReturnType<typeof getApplicationWorkspaceDefaults>> | null>(null);
+type CreatePreset = {
+  workspace_entries: ApplicationWorkspaceEntry[];
+  compose_file_path: string;
+  lifecycle_configuration: LifecycleDraftSource;
+};
+const createPreset = ref<CreatePreset | null>(null);
+const templateVersionID = computed(() =>
+  typeof route.query.template_version_id === 'string' ? route.query.template_version_id : null,
+);
 const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft | null>(null);
 const lifecycleConfigError = ref('');
 const reuseDirectoryDialogVisible = ref(false);
@@ -197,12 +209,13 @@ onMounted(async () => {
   if (typeof route.query.display_name === 'string') formData.display_name = route.query.display_name;
   if (typeof route.query.application_name === 'string') formData.application_name = route.query.application_name;
   try {
-    const defaults = await getApplicationWorkspaceDefaults();
-    if (defaults.workspace_entries?.length) {
-      workspaceFiles.value = defaults.workspace_entries.map(toWorkspaceDraftEntry);
+    const selectedTemplate = await resolveSelectedTemplate();
+    const preset = selectedTemplate ?? blankCreatePreset();
+    if (preset.workspace_entries.length) {
+      workspaceFiles.value = preset.workspace_entries.map(toWorkspaceDraftEntry);
     }
-    if (defaults.compose_file_path) primaryComposePath.value = defaults.compose_file_path;
-    workspaceDefaults.value = defaults;
+    primaryComposePath.value = preset.compose_file_path;
+    createPreset.value = preset;
   } catch (error) {
     workspaceDefaultsError.value = resolveLocalizedErrorMessage(
       t,
@@ -214,6 +227,40 @@ onMounted(async () => {
     workspaceDefaultsLoading.value = false;
   }
 });
+
+/** 只消费已发布目录返回的 Compose 快照，避免通过管理详情接口读取草稿。 */
+function blankCreatePreset(): CreatePreset {
+  return {
+    workspace_entries: [
+      { path: '.env', node_type: 'file', content: '' },
+      { path: 'compose.yaml', node_type: 'file', content: JSON.stringify({ services: {} }) },
+    ],
+    compose_file_path: 'compose.yaml',
+    lifecycle_configuration: {},
+  };
+}
+
+async function resolveSelectedTemplate(): Promise<CreatePreset | null> {
+  if (!templateVersionID.value) return null;
+  const template = (await getApplicationTemplates()).items.find(
+    (item) => item.version.template_version_id === templateVersionID.value && item.version.status === 'published',
+  );
+  if (!template || template.deployment_adapter_kind !== 'compose') {
+    throw new Error('selected template version is unavailable');
+  }
+  const definition = template.version.definition;
+  const workspaceEntries = Array.isArray(definition.workspace_entries) ? definition.workspace_entries : null;
+  const composeFilePath = typeof definition.compose_file_path === 'string' ? definition.compose_file_path : null;
+  const lifecycleConfiguration = definition.lifecycle_configuration;
+  if (!workspaceEntries || !composeFilePath || !lifecycleConfiguration || typeof lifecycleConfiguration !== 'object') {
+    throw new Error('selected template definition is invalid');
+  }
+  return {
+    workspace_entries: workspaceEntries as ApplicationWorkspaceEntry[],
+    compose_file_path: composeFilePath,
+    lifecycle_configuration: lifecycleConfiguration as LifecycleDraftSource,
+  };
+}
 async function nextFromIdentity() {
   if ((await formRef.value?.validate()) !== true) return;
   if (workspaceDefaultsLoading.value) return;
@@ -261,6 +308,7 @@ function payload(runtimeTargetIdValue: number): ApplicationCreateRequest {
     compose_file_path: composePath.value as string,
     reuse_existing_workspace: reusingExistingWorkspace.value,
     lifecycle_configuration: buildLifecycleConfigurationRequest(lifecycleDraft.value),
+    ...(templateVersionID.value ? { template_version_id: templateVersionID.value } : {}),
   };
 }
 function useReusableWorkspace(availability: ApplicationApplicationNameAvailabilityResponse) {
@@ -304,7 +352,7 @@ function nextFromWorkspace() {
     MessagePlugin.warning(t('project.create.validation.composeFileNameRequired'));
     return;
   }
-  if (!workspaceDefaults.value?.lifecycle_configuration) {
+  if (!createPreset.value?.lifecycle_configuration) {
     lifecycleConfigError.value = t('project.create.lifecycle.defaultsLoadFailed');
     MessagePlugin.error(lifecycleConfigError.value);
     return;
@@ -312,7 +360,7 @@ function nextFromWorkspace() {
   const composeFilePath = composePath.value;
   const composeProjectName = formData.application_name.trim();
   if (!lifecycleDraft.value) {
-    lifecycleDraft.value = buildBlankLifecycleConfigurationDraft(workspaceDefaults.value, {
+    lifecycleDraft.value = buildBlankLifecycleConfigurationDraft(createPreset.value, {
       composeFilePath,
       composeProjectName,
     });

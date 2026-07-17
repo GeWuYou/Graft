@@ -213,6 +213,7 @@ func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 		t.Fatalf("enable foreign keys: %v", err)
 	}
 	createApplicationStoreSchema(t, db)
+	createApplicationTemplateStoreSchema(t, db)
 
 	repo, err := NewSQLRepository(db)
 	if err != nil {
@@ -221,13 +222,28 @@ func newTestSQLRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	return repo, db
 }
 
+func createApplicationTemplateStoreSchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	mustExec(t, db, `CREATE TABLE application_templates (
+		template_id TEXT PRIMARY KEY, display_name TEXT NOT NULL UNIQUE, description TEXT NOT NULL DEFAULT '', deployment_adapter_kind TEXT NOT NULL,
+		archived_at TIMESTAMP NULL, created_by INTEGER NULL, updated_by INTEGER NULL, deleted_by INTEGER NULL,
+		created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0
+	)`)
+	mustExec(t, db, `CREATE TABLE application_template_versions (
+		template_version_id TEXT PRIMARY KEY, template_id TEXT NOT NULL, version_number INTEGER NOT NULL, status TEXT NOT NULL,
+		definition_schema_version INTEGER NOT NULL, definition_json BLOB NOT NULL, published_at TIMESTAMP NULL, published_by INTEGER NULL, withdrawn_at TIMESTAMP NULL, withdrawn_by INTEGER NULL,
+		created_by INTEGER NULL, updated_by INTEGER NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0,
+		UNIQUE(template_id, version_number), UNIQUE(template_id, status)
+	)`)
+}
+
 func createApplicationStoreSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	mustExec(t, db, `CREATE TABLE applications (
 		application_record_id INTEGER PRIMARY KEY,
 		application_id TEXT NOT NULL DEFAULT 'app_00000000000000000000000000',
-		application_type TEXT NOT NULL DEFAULT 'compose',
+		deployment_adapter_kind TEXT NOT NULL DEFAULT 'compose',
 		application_name TEXT NULL,
 		workspace_path TEXT NOT NULL DEFAULT '',
 		compose_project_name TEXT NOT NULL DEFAULT '',

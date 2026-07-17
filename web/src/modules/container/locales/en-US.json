@@ -153,7 +153,8 @@
         "unknown": "Unknown deployment"
       },
       "deploymentContext": {
-        "project": "Compose Project"
+        "application": "Compose Application",
+        "unlinkedApplication": "Unlinked Application"
       },
       "sourceKinds": {
         "compose_project": "Project",
@@ -288,7 +289,6 @@
     },
     "detail": {
       "title": "Container Detail",
-      "viewComposeProject": "View Compose Project",
       "description": "Review Container Runtime Details, Resources, Logs, Configuration, Network, and Mounts.",
       "back": "Back",
       "refresh": "Refresh",

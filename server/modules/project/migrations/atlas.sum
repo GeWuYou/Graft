@@ -1,4 +1,4 @@
-h1:bE/6CMjMcoh3/L86133Fi4pk0X+BtsjInJhCk8ADmmY=
+h1:n1pe7Nihsj3GjeZQVyQYzPxVdPuyUS43dps/g7beNw0=
 202606300002_project_registry_baseline.sql h1:wMhlEm4mcpBCjhe7TB6xspANmNgYelvajpJSey5XMFQ=
 202607040002_project_lifecycle_configuration.sql h1:2wWHMP+Dgj1uPbKGwCErBk2fNp/L5ACQ0vRxdu05Or4=
 202607070001_project_workspace_annotations.sql h1:63ERV4kRsaSDD6vxJroLIw2w3iRMmgzW1IPDRvgHeTk=
@@ -14,3 +14,6 @@ h1:bE/6CMjMcoh3/L86133Fi4pk0X+BtsjInJhCk8ADmmY=
 202607140002_project_application_identity_indexes.sql h1:04CW/qAwAf6DhFZroBEZInv67aOKt/WBDJrh1tmwsN8=
 202607150004_rename_workspace_key_to_application_name.sql h1:76vHT4TTd1MGRbK9pfSiXAzcZ/u0QXs9QpcUYAFxLvA=
 202607160003_application_registry_rename.sql h1:yKJm0vk/BJY9nkTEQphXrpGGauvYfLgolYpY4gpY47s=
+202607170001_application_deployment_adapter.sql h1:zhrMhsoNdUa9lpgYoypYdT6ZQu57tcWI1u0aXl7SNlA=
+202607170002_application_templates.sql h1:Ze6C3A73h+S4CvSxaJg73Wl89Wzd6Wlq/lXRqcbtjD4=
+202607170003_application_template_lifecycle.sql h1:CiM/JEp+9Gl6tlxoArCMOQDvn+Xf/uMnQ8lN54Cv1MM=

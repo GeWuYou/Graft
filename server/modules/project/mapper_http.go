@@ -22,6 +22,23 @@ func toProjectListResponse(result ListResult) generated.ApplicationListResponse 
 	}
 }
 
+func toComposeContextReferenceResponse(
+	items []ComposeContextReferenceResult,
+) generated.ApplicationComposeContextReferenceResponse {
+	response := generated.ApplicationComposeContextReferenceResponse{
+		Items: make([]generated.ApplicationComposeContextReference, 0, len(items)),
+	}
+	for _, item := range items {
+		response.Items = append(response.Items, generated.ApplicationComposeContextReference{
+			ApplicationId:      item.ApplicationID,
+			ComposeProjectName: item.ComposeProjectName,
+			DisplayName:        item.DisplayName,
+			RuntimeTargetId:    item.RuntimeTargetID,
+		})
+	}
+	return response
+}
+
 func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) generated.ApplicationImportRuntimeCandidatesResponse {
 	items := make([]generated.ApplicationImportRuntimeCandidate, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -543,7 +560,7 @@ func toManagedCreateRequest(request generated.PostApplicationCreateValidateJSONR
 	if err != nil {
 		return ManagedApplicationCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace, templateVersionID: stringValue(request.TemplateVersionId)})
 }
 
 type managedCreateEntriesHTTPParts struct {
@@ -554,6 +571,7 @@ type managedCreateEntriesHTTPParts struct {
 	composeFilePath        string
 	lifecycle              *generated.ApplicationLifecycleConfigurationRequest
 	reuseExistingWorkspace bool
+	templateVersionID      string
 }
 
 // managedCreateRequestFromEntries 将工作区条目转换为托管项目创建请求，并提取 Compose 文件内容。
@@ -584,7 +602,8 @@ func managedCreateRequestFromEntries(parts managedCreateEntriesHTTPParts) (Manag
 		DisplayName: parts.displayName, RuntimeTargetID: parts.runtimeTargetID, ApplicationName: parts.applicationName,
 		ReuseExistingWorkspace: parts.reuseExistingWorkspace,
 		ComposeFileName:        filepath.Base(composePath), ComposeFileContent: composeContent, ComposeFilePath: composePath,
-		WorkspaceEntries: entries,
+		WorkspaceEntries:  entries,
+		TemplateVersionID: parts.templateVersionID,
 	}
 	if parts.lifecycle != nil {
 		config, err := lifecycleStandardConfigFromGenerated(*parts.lifecycle)
@@ -621,7 +640,7 @@ func toManagedCreateExecuteRequest(request generated.PostApplicationCreateJSONRe
 	if err != nil {
 		return ManagedApplicationCreateRequest{}, err
 	}
-	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace})
+	return managedCreateRequestFromEntries(managedCreateEntriesHTTPParts{displayName: request.DisplayName, runtimeTargetID: runtimeTargetID, applicationName: stringPointer(request.ApplicationName), workspaceEntries: request.WorkspaceEntries, composeFilePath: request.ComposeFilePath, lifecycle: request.LifecycleConfiguration, reuseExistingWorkspace: request.ReuseExistingWorkspace != nil && *request.ReuseExistingWorkspace, templateVersionID: stringValue(request.TemplateVersionId)})
 }
 
 func toApplicationNameAvailabilityResponse(result ApplicationNameAvailabilityResult) generated.ApplicationNameAvailabilityResponse {

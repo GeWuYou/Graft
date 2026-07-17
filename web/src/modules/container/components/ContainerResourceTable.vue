@@ -94,17 +94,19 @@
             {{ orchestratorLabel(readContainerOrchestratorType(row)) }}
           </t-tag>
         </div>
-        <div v-if="composeProjectName(row)" class="container-source-cell__line">
-          <span class="container-source-cell__label">{{ t('container.list.deploymentContext.project') }}</span>
+        <div v-if="isComposeContainer(row)" class="container-source-cell__line">
+          <span class="container-source-cell__label">{{ t('container.list.deploymentContext.application') }}</span>
           <t-button
-            data-testid="container-compose-project-context"
+            v-if="composeApplicationReference(row)"
+            data-testid="container-compose-application-context"
             size="small"
             theme="primary"
             variant="text"
-            @click="emitProjectContext($event, row)"
+            @click="emitApplicationContext($event, row)"
           >
-            {{ composeProjectName(row) }}
+            {{ composeApplicationReference(row)?.displayName }}
           </t-button>
+          <span v-else class="container-muted">{{ t('container.list.deploymentContext.unlinkedApplication') }}</span>
         </div>
         <div v-if="sourceMemberFilter(row)" class="container-source-cell__line">
           <span class="container-source-cell__label">{{
@@ -112,7 +114,7 @@
           }}</span>
           <span>{{ sourceMemberFilter(row)?.value }}</span>
         </div>
-        <span v-if="!composeProjectName(row) && !sourceMemberFilter(row)" class="container-muted">
+        <span v-if="!isComposeContainer(row) && !sourceMemberFilter(row)" class="container-muted">
           {{ orchestratorSummary(row) }}
         </span>
       </div>
@@ -190,12 +192,14 @@ import type {
 } from '../types/container';
 import ContainerResourceMetricCell from './ContainerResourceMetricCell.vue';
 
+/** 容器资源表只渲染父页面已解析的 Compose Application 引用，不自行访问 Application 模块。 */
 const CONTAINER_PORT_VISIBLE_LIMIT = 2;
 const BYTES_PER_MIB = 1024 * 1024;
 
 const props = withDefaults(
   defineProps<{
     alwaysVisibleColumnKeys?: string[];
+    composeApplicationReferences?: Map<string, { applicationId: string; displayName: string }>;
     emptyDescription: string;
     emptyTitle: string;
     footerSummary: string;
@@ -215,6 +219,7 @@ const props = withDefaults(
   }>(),
   {
     alwaysVisibleColumnKeys: () => [],
+    composeApplicationReferences: () => new Map(),
     headDescription: '',
     headSummary: '',
     loading: false,
@@ -235,7 +240,7 @@ const emit = defineEmits<{
   (e: 'row-click', row: ContainerSummaryRecord): void;
   (e: 'select-change', rowKeys: Array<string | number>): void;
   (e: 'sort-change', sort: TableSort): void;
-  (e: 'project-context', projectName: string): void;
+  (e: 'application-context', applicationId: string): void;
 }>();
 
 const current = defineModel<number>('current', { required: true });
@@ -330,6 +335,19 @@ function composeProjectName(row: ContainerSummaryRecord) {
     : '';
 }
 
+function isComposeContainer(row: ContainerSummaryRecord) {
+  return readContainerOrchestratorType(row) === 'compose';
+}
+
+function composeApplicationReference(row: ContainerSummaryRecord) {
+  const projectName = composeProjectName(row);
+  const targetID = row.runtime_target?.id;
+  if (!projectName || !targetID) {
+    return undefined;
+  }
+  return props.composeApplicationReferences.get(composeApplicationReferenceKey(targetID, projectName));
+}
+
 function orchestratorSummary(row: ContainerSummaryRecord) {
   const projectName = composeProjectName(row);
   if (projectName) {
@@ -344,12 +362,16 @@ function orchestratorSummary(row: ContainerSummaryRecord) {
   return row.deployment?.project || row.deployment?.service || t('container.list.sourceUnknownSummary');
 }
 
-function emitProjectContext(event: MouseEvent | undefined, row: ContainerSummaryRecord) {
+function emitApplicationContext(event: MouseEvent | undefined, row: ContainerSummaryRecord) {
   event?.stopPropagation?.();
-  const projectName = composeProjectName(row);
-  if (projectName) {
-    emit('project-context', projectName);
+  const reference = composeApplicationReference(row);
+  if (reference) {
+    emit('application-context', reference.applicationId);
   }
+}
+
+function composeApplicationReferenceKey(runtimeTargetID: number, composeProjectName: string) {
+  return `${runtimeTargetID}:${composeProjectName.trim()}`;
 }
 
 function cpuMetric(row: ContainerSummaryRecord): ContainerResourceMetric & { summaryValue: string } {

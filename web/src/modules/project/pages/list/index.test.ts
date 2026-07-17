@@ -477,7 +477,7 @@ function buildApplicationRow(overrides: Record<string, unknown>) {
   return {
     activity_authority: 'frontend-fanout',
     application_id: '1',
-    application_type: 'compose',
+    deployment_adapter_kind: 'compose',
     compose_project_name: 'alpha',
     compose_project_name_source: 'explicit',
     container_counts: { issue: 0, running: 3, stopped: 0, total: 3, transitioning: 0 },
@@ -691,7 +691,7 @@ describe('Application list page', () => {
         visible_columns: [
           'row-select',
           'name',
-          'applicationType',
+          'deploymentAdapterKind',
           'runtimeTarget',
           'provider',
           'source',

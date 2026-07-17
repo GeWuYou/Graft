@@ -1,6 +1,0 @@
-# Default Compose workspace template.
-services:
-  app:
-    image: nginx:alpine
-    ports:
-      - "${APP_PORT:-8080}:80"

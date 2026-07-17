@@ -1,0 +1,36 @@
+get:
+  tags: [application]
+  summary: List published compatible Application templates
+  operationId: getApplicationTemplates
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: deployment_adapter_kind
+      in: query
+      schema: { type: string, enum: [compose] }
+  responses:
+    '200':
+      description: Published Application templates.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-list-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+post:
+  tags: [application]
+  summary: Create an empty Application template draft
+  operationId: postApplicationTemplate
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/application-template-draft-request.yaml }
+  responses:
+    '201':
+      description: Application template draft created.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '400': { description: Invalid template draft input. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

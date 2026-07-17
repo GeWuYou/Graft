@@ -1,4 +1,5 @@
 menu.application.title: 应用管理
+menu.application.templates.title: 模板
 ops.application.error.invalidApplicationId: 应用标识不合法。
 ops.application.error.invalidFileId: 应用文件标识不合法。
 ops.application.error.invalidArgument: 应用请求参数不合法。
@@ -37,8 +38,6 @@ systemConfig.application.ops.application.workspace.hidden_directories.descriptio
 systemConfig.application.ops.application.workspace.hidden_directories.placeholder: 输入目录名后回车，例如 node_modules、.git
 systemConfig.application.ops.application.workspace.file_tooltip_rules.title: 工作台文件默认提示规则
 systemConfig.application.ops.application.workspace.file_tooltip_rules.description: 配置工作台文件名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
-systemConfig.application.ops.application.create.blank_prefill_default_template.title: 空白应用预填默认模板
-systemConfig.application.ops.application.create.blank_prefill_default_template.description: 启用后，空白应用创建会以 templates/default 的完整工作区为初始内容；关闭后仅创建空的 .env 和 compose.yaml 文件。
 systemConfig.application.ops.application.workspace.directory_tooltip_rules.title: 工作台目录默认提示规则
 systemConfig.application.ops.application.workspace.directory_tooltip_rules.description: 配置工作台目录名默认提示规则的 JSON 数组字符串；按顺序匹配 basename，后面的启用规则覆盖前面的匹配结果。
 systemConfig.groups.ops.application.import: 应用导入

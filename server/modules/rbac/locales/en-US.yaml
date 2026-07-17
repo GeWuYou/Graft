@@ -120,5 +120,9 @@ rbac.permissionCatalog.applicationDiscoveryView.display: View Application Discov
 rbac.permissionCatalog.applicationDiscoveryView.description: Preview discovered local Compose directories without registering an application.
 rbac.permissionCatalog.applicationDeploy.display: Deploy Managed Compose Application Drafts
 rbac.permissionCatalog.applicationDeploy.description: Diff, validate, and deploy managed application configuration drafts.
+rbac.permissionCatalog.applicationTemplateManage.display: Manage Application Templates
+rbac.permissionCatalog.applicationTemplateManage.description: Create, edit, derive, import, and archive reusable Application templates.
+rbac.permissionCatalog.applicationTemplatePublish.display: Publish Application Templates
+rbac.permissionCatalog.applicationTemplatePublish.description: Publish immutable Application template versions for creators.
 rbac.audit.rolePermissionsAdded: Role permissions added
 rbac.audit.rolePermissionsRemoved: Role permissions removed

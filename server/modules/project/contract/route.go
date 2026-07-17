@@ -5,6 +5,22 @@ const (
 	ApplicationAPIGroup = "/ops/applications"
 	// ApplicationCollectionRoute 标识应用列表接口的路径片段。
 	ApplicationCollectionRoute = ""
+	// ApplicationComposeContextReferencesRoute 标识按 Compose 上下文解析应用引用的接口路径片段。
+	ApplicationComposeContextReferencesRoute = "/compose-context-references"
+	// ApplicationTemplatesRoute 必须在 /:applicationId 前注册，避免被应用详情动态路由吞掉。
+	ApplicationTemplatesRoute = "/templates"
+	// ApplicationTemplateManagementRoute 仅向模板管理员提供完整目录，避免草稿和归档版本泄露给创建者。
+	ApplicationTemplateManagementRoute = "/templates/manage"
+	// ApplicationTemplateDetailRoute 标识模板详情和草稿编辑接口。
+	ApplicationTemplateDetailRoute = "/templates/:templateId"
+	// ApplicationTemplateCloneRoute 标识将当前定义复制为独立草稿模板的接口。
+	ApplicationTemplateCloneRoute = "/templates/:templateId/clone"
+	// ApplicationTemplatePublishRoute 标识模板草稿发布接口。
+	ApplicationTemplatePublishRoute = "/templates/:templateId/publish"
+	// ApplicationTemplateArchiveRoute 标识模板归档接口。
+	ApplicationTemplateArchiveRoute = "/templates/:templateId/archive"
+	// ApplicationTemplateWithdrawRoute 标识撤回已发布版本并创建下一草稿的接口。
+	ApplicationTemplateWithdrawRoute = "/templates/:templateId/withdraw"
 	// ApplicationSavedViewsRoute 标识应用列表保存视图集合接口的路径片段。
 	ApplicationSavedViewsRoute = "/saved-views"
 	// ApplicationSavedViewRoute 标识单个应用列表保存视图接口的路径片段。
@@ -61,12 +77,6 @@ const (
 	ApplicationNameAvailabilityRoute = "/create/application-name/availability"
 	// ApplicationCreateRoute 标识受管创建接口的路径片段。
 	ApplicationCreateRoute = "/create/managed"
-	// ApplicationCreateTemplateValidateRoute 标识只校验运行时模板来源、不写入工作区的接口路径片段。
-	ApplicationCreateTemplateValidateRoute = "/create/template/validate"
-	// ApplicationCreateTemplateRoute 标识模板来源创建接口的路径片段。
-	ApplicationCreateTemplateRoute = "/create/template"
-	// ApplicationWorkspaceDefaultsRoute 标识返回服务端拥有的空白工作区默认值和可用模板的接口路径片段。
-	ApplicationWorkspaceDefaultsRoute = "/create/workspace-defaults"
 	// ApplicationRefreshRoute 标识静态刷新接口的路径片段。
 	ApplicationRefreshRoute = "/:applicationId/refresh"
 	// ApplicationUpRoute 标识 Compose 启动接口的路径片段。
@@ -95,6 +105,8 @@ const (
 	ApplicationBlankCreateMenuPath = ApplicationCreationMenuPath + "/blank"
 	// ApplicationTemplateCreateMenuPath 标识模板来源创建路由路径。
 	ApplicationTemplateCreateMenuPath = ApplicationCreationMenuPath + "/template"
+	// ApplicationTemplateManagementMenuPath 标识 Application 模板管理的规范菜单路径。
+	ApplicationTemplateManagementMenuPath = ApplicationMenuRootPath + "/templates"
 	// ApplicationImportCreateMenuPath 标识导入应用创建路由路径。
 	ApplicationImportCreateMenuPath = ApplicationCreationMenuPath + "/import"
 	// ApplicationDiscoveryCandidatesMenuPath 标识隐藏的发现候选预览路由路径。

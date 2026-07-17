@@ -11,17 +11,11 @@ import (
 func TestManagedCreateRequestMappersRejectUnsupportedLifecycleStrategy(t *testing.T) {
 	t.Parallel()
 
-	invalidLifecycle := &generated.ApplicationLifecycleConfigurationRequest{
-		StrategyKind: generated.ApplicationLifecycleStrategyKind("unsupported"),
-	}
-	if _, err := toManagedCreateRequest(generated.PostApplicationCreateValidateJSONRequestBody{
-		LifecycleConfiguration: invalidLifecycle,
-	}); !errors.Is(err, errProjectInvalidArgument) {
+	invalidLifecycle := &generated.ApplicationLifecycleConfigurationRequest{StrategyKind: generated.ApplicationLifecycleStrategyKind("unsupported")}
+	if _, err := toManagedCreateRequest(generated.PostApplicationCreateValidateJSONRequestBody{LifecycleConfiguration: invalidLifecycle}); !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected invalid lifecycle strategy error from validate mapper, got %v", err)
 	}
-	if _, err := toManagedCreateExecuteRequest(generated.PostApplicationCreateJSONRequestBody{
-		LifecycleConfiguration: invalidLifecycle,
-	}); !errors.Is(err, errProjectInvalidArgument) {
+	if _, err := toManagedCreateExecuteRequest(generated.PostApplicationCreateJSONRequestBody{LifecycleConfiguration: invalidLifecycle}); !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected invalid lifecycle strategy error from create mapper, got %v", err)
 	}
 }
@@ -35,12 +29,7 @@ func TestManagedCreateRequestMappersUseCanonicalWorkspaceEntries(t *testing.T) {
 		{Path: "config/readme", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &readme},
 		{Path: "compose/compose.yaml", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &compose},
 	}
-	request, err := toManagedCreateExecuteRequest(generated.PostApplicationCreateJSONRequestBody{
-		DisplayName:      "Demo",
-		RuntimeTargetId:  1,
-		ComposeFilePath:  "compose/compose.yaml",
-		WorkspaceEntries: entries,
-	})
+	request, err := toManagedCreateExecuteRequest(generated.PostApplicationCreateJSONRequestBody{DisplayName: "Demo", RuntimeTargetId: 1, ComposeFilePath: "compose/compose.yaml", WorkspaceEntries: entries})
 	if err != nil {
 		t.Fatalf("map canonical workspace entries: %v", err)
 	}
@@ -55,29 +44,9 @@ func TestManagedCreateRequestMappersUseCanonicalWorkspaceEntries(t *testing.T) {
 func TestManagedCreateRequestMapperRejectsMissingPrimaryComposeEntry(t *testing.T) {
 	t.Parallel()
 	content := "text"
-	_, err := toManagedCreateRequest(generated.PostApplicationCreateValidateJSONRequestBody{
-		DisplayName:     "Demo",
-		RuntimeTargetId: 1,
-		ComposeFilePath: "compose.yaml",
-		WorkspaceEntries: []generated.ApplicationWorkspaceEntry{
-			{Path: "README", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &content},
-		},
-	})
+	_, err := toManagedCreateRequest(generated.PostApplicationCreateValidateJSONRequestBody{DisplayName: "Demo", RuntimeTargetId: 1, ComposeFilePath: "compose.yaml", WorkspaceEntries: []generated.ApplicationWorkspaceEntry{{Path: "README", NodeType: generated.ApplicationWorkspaceEntryNodeTypeFile, Content: &content}}})
 	if !errors.Is(err, errProjectInvalidArgument) {
 		t.Fatalf("expected missing compose entry error, got %v", err)
-	}
-}
-
-func TestTemplateApplicationCreateRequestRejectsUnsupportedLifecycleStrategy(t *testing.T) {
-	t.Parallel()
-
-	_, err := toTemplateApplicationCreateRequest(templateProjectCreateHTTP{
-		LifecycleConfiguration: &generated.ApplicationLifecycleConfigurationRequest{
-			StrategyKind: generated.ApplicationLifecycleStrategyKind("unsupported"),
-		},
-	})
-	if !errors.Is(err, errProjectInvalidArgument) {
-		t.Fatalf("expected invalid lifecycle strategy error from template mapper, got %v", err)
 	}
 }
 
@@ -88,77 +57,25 @@ func TestToRuntimeImportInspectResponseMapsStructuredResources(t *testing.T) {
 	internal := true
 	local := "local"
 	result := RuntimeImportInspectResult{
-		InspectionID:             "inspect-1",
-		ExpiresAt:                time.Date(2026, time.July, 11, 8, 5, 0, 0, time.UTC),
-		CandidateKey:             "runtime:demo",
-		ResolvedWorkspacePath:    "/srv/demo",
-		ComposeProjectName:       "demo",
-		ComposeProjectNameSource: "computed",
-		DisplayNameSuggested:     "Demo",
-		ComposeFiles: []FileView{
-			{AbsolutePath: "/srv/demo/compose.yaml", DisplayPath: "compose.yaml", Kind: "compose", Role: "primary"},
-		},
-		EnvFiles: []FileView{
-			{AbsolutePath: "/srv/demo/.env", DisplayPath: ".env", Kind: "env", Role: "primary"},
-		},
-		ServiceNames: []string{"web", "worker"},
-		NetworkResources: []RuntimeImportNetworkResource{
-			{
-				Name:           "backend",
-				Driver:         &overlay,
-				Internal:       &internal,
-				Containers:     []string{"demo-web-1", "demo-worker-1"},
-				ContainerCount: 2,
-				Services:       []string{"web", "worker"},
-				ServiceCount:   2,
-			},
-		},
-		VolumeResources: []RuntimeImportVolumeResource{
-			{
-				Name:           "data",
-				Driver:         &local,
-				Anonymous:      false,
-				MountTarget:    "/data",
-				MountedBy:      []string{"web", "worker"},
-				Containers:     []string{"demo-web-1", "demo-worker-1"},
-				ContainerCount: 2,
-			},
-		},
-		RuntimeMembers: []RuntimeImportMember{
-			{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", State: "running"},
-		},
-		ConfigHash:       "abc123",
-		Warnings:         []string{"workspace_path_derived_from_config_files"},
-		Conflicts:        []string{},
-		ValidationStatus: "ready",
+		InspectionID: "inspect-1", ExpiresAt: time.Date(2026, time.July, 11, 8, 5, 0, 0, time.UTC), CandidateKey: "runtime:demo",
+		ResolvedWorkspacePath: "/srv/demo", ComposeProjectName: "demo", ComposeProjectNameSource: "computed", DisplayNameSuggested: "Demo",
+		ComposeFiles:     []FileView{{AbsolutePath: "/srv/demo/compose.yaml", DisplayPath: "compose.yaml", Kind: "compose", Role: "primary"}},
+		EnvFiles:         []FileView{{AbsolutePath: "/srv/demo/.env", DisplayPath: ".env", Kind: "env", Role: "primary"}},
+		ServiceNames:     []string{"web", "worker"},
+		NetworkResources: []RuntimeImportNetworkResource{{Name: "backend", Driver: &overlay, Internal: &internal, Containers: []string{"demo-web-1", "demo-worker-1"}, ContainerCount: 2, Services: []string{"web", "worker"}, ServiceCount: 2}},
+		VolumeResources:  []RuntimeImportVolumeResource{{Name: "data", Driver: &local, Anonymous: false, MountTarget: "/data", MountedBy: []string{"web", "worker"}, Containers: []string{"demo-web-1", "demo-worker-1"}, ContainerCount: 2}},
+		RuntimeMembers:   []RuntimeImportMember{{ContainerID: "c1", ContainerName: "demo-web-1", ServiceName: "web", State: "running"}},
+		ConfigHash:       "abc123", Warnings: []string{"workspace_path_derived_from_config_files"}, Conflicts: []string{}, ValidationStatus: "ready",
 	}
 
 	response := toRuntimeImportInspectResponse(result)
-	if !response.ExpiresAt.Equal(result.ExpiresAt) {
-		t.Fatalf("expected inspection expiry %s, got %s", result.ExpiresAt, response.ExpiresAt)
+	if !response.ExpiresAt.Equal(result.ExpiresAt) || response.LifecycleConfiguration.Profiles == nil {
+		t.Fatalf("unexpected inspection response: %#v", response)
 	}
-	if response.LifecycleConfiguration.Profiles == nil {
-		t.Fatal("expected lifecycle profiles to serialize as an empty array")
+	if len(response.Networks) != 1 || response.Networks[0].Driver == nil || *response.Networks[0].Driver != "overlay" || response.Networks[0].Internal == nil || !*response.Networks[0].Internal || response.Networks[0].ContainerCount != 2 || response.Networks[0].ServiceCount != 2 {
+		t.Fatalf("unexpected network mapping: %#v", response.Networks)
 	}
-	if len(response.Networks) != 1 {
-		t.Fatalf("expected one mapped network resource, got %#v", response.Networks)
-	}
-	if response.Networks[0].Driver == nil || *response.Networks[0].Driver != "overlay" {
-		t.Fatalf("expected mapped network driver, got %#v", response.Networks[0].Driver)
-	}
-	if response.Networks[0].Internal == nil || !*response.Networks[0].Internal {
-		t.Fatalf("expected mapped network internal, got %#v", response.Networks[0].Internal)
-	}
-	if response.Networks[0].ContainerCount != 2 || response.Networks[0].ServiceCount != 2 {
-		t.Fatalf("unexpected mapped network counts %#v", response.Networks[0])
-	}
-	if len(response.Volumes) != 1 {
-		t.Fatalf("expected one mapped volume resource, got %#v", response.Volumes)
-	}
-	if response.Volumes[0].Driver == nil || *response.Volumes[0].Driver != "local" {
-		t.Fatalf("expected mapped volume driver, got %#v", response.Volumes[0].Driver)
-	}
-	if response.Volumes[0].MountTarget != "/data" || response.Volumes[0].Anonymous {
-		t.Fatalf("unexpected mapped volume resource %#v", response.Volumes[0])
+	if len(response.Volumes) != 1 || response.Volumes[0].Driver == nil || *response.Volumes[0].Driver != "local" || response.Volumes[0].MountTarget != "/data" || response.Volumes[0].Anonymous {
+		t.Fatalf("unexpected volume mapping: %#v", response.Volumes)
 	}
 }

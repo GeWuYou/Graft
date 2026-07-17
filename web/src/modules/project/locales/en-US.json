@@ -27,7 +27,10 @@
   },
   "menu": {
     "application": {
-      "title": "Application Management"
+      "title": "Application Management",
+      "templates": {
+        "title": "Templates"
+      }
     }
   },
   "project": {
@@ -69,6 +72,14 @@
       "createTemplate": {
         "title": "Create From Template",
         "breadcrumb": "Create From Template"
+      },
+      "templates": {
+        "title": "Application Templates",
+        "breadcrumb": "Application Templates"
+      },
+      "templateDetail": {
+        "title": "Template Detail",
+        "breadcrumb": "Template Detail"
       },
       "detail": {
         "title": "Application Detail",
@@ -189,7 +200,7 @@
       "stoppedApplications": "Stopped {count}",
       "runtimeTargetUnavailable": "No Runtime Target",
       "runtimeTargetsLoadFailed": "Failed to load runtime targets.",
-      "applicationType": {
+      "deploymentAdapterKind": {
         "compose": "Compose"
       },
       "provider": {
@@ -214,7 +225,7 @@
       },
       "filters": {
         "searchPlaceholder": "Search Display Name, Compose Project Name, or Workspace Path",
-        "applicationType": "Application Type",
+        "deploymentAdapterKind": "Deployment Adapter",
         "provider": "Provider",
         "runtimeTarget": "Runtime Target",
         "sourceType": "Source",
@@ -222,7 +233,7 @@
         "driftStatus": "Sync Status",
         "refreshStatus": "Refresh",
         "allSourceTypes": "All Sources",
-        "allApplicationTypes": "All Application Types",
+        "allDeploymentAdapterKinds": "All Deployment Adapters",
         "allProviders": "All Providers",
         "allRuntimeTargets": "All Runtime Targets",
         "allRuntimeStatuses": "All Runtime Statuses",
@@ -245,7 +256,7 @@
       "columns": {
         "selection": "Select",
         "name": "Application",
-        "applicationType": "Application Type",
+        "deploymentAdapterKind": "Deployment Adapter",
         "runtimeTarget": "Runtime Target",
         "provider": "Provider",
         "source": "Source",
@@ -941,32 +952,32 @@
     },
     "deployment": {
       "eyebrow": "Create Application",
-      "description": "Select the application deployment model.",
+      "description": "Select the deployment adapter for the application definition.",
       "backToApplicationManagement": "Back to Application Management",
       "recommended": "Recommended",
       "comingSoon": "Coming Soon",
       "selectCompose": "Select Compose",
-      "comingSoonHelper": "Creation is not supported yet. This deployment model will be available in a future release.",
+      "comingSoonHelper": "No compatible runtime target capability is available yet.",
       "items": {
         "compose": {
           "title": "Compose",
           "description": "Based on the Compose Specification",
           "capabilities": ["Docker / Podman", "Multi-container Applications", "compose.yaml"]
         },
-        "swarm": {
-          "title": "Swarm",
-          "description": "Docker Stack",
-          "capabilities": ["Docker Cluster", "Docker Stack", "Rolling Updates"]
+        "helm": {
+          "title": "Helm",
+          "description": "Kubernetes Chart",
+          "capabilities": ["Chart Definition", "Kubernetes Target", "Versioned Releases"]
         },
-        "kubernetes": {
-          "title": "Kubernetes",
-          "description": "Cluster Workloads",
-          "capabilities": ["Cluster Workloads", "Deployment / Pod", "Helm"]
+        "kustomize": {
+          "title": "Kustomize",
+          "description": "Kubernetes YAML Base",
+          "capabilities": ["YAML Definition", "Kubernetes Target"]
         },
-        "nomad": {
-          "title": "Nomad",
-          "description": "Job",
-          "capabilities": ["HashiCorp Ecosystem", "Job Scheduling"]
+        "nomadJob": {
+          "title": "Nomad Job",
+          "description": "Nomad Job File",
+          "capabilities": ["Job Definition", "HashiCorp Ecosystem"]
         }
       }
     },
@@ -1005,7 +1016,14 @@
       }
     },
     "sourceCreate": {
-      "templateDescription": "Create a managed application from a bundled Compose workspace template.",
+      "templateDescription": "Choose a published Compose template version, then confirm its workspace and lifecycle configuration before creation.",
+      "templatesLoadFailed": "Application template catalog could not be loaded.",
+      "emptyTemplates": "No published template is available for this runtime target.",
+      "noDescription": "No template description was provided.",
+      "adapter": "Deployment Adapter",
+      "version": "Template Version",
+      "versionLabel": "Version {version}",
+      "useTemplate": "Use This Template",
       "displayName": "Display Name",
       "applicationName": "Application Name",
       "applicationNamePlaceholder": "Example: orders-dev",
@@ -1033,6 +1051,68 @@
       "deployPermissionRequired": "You need application deploy permission to deploy after creation. The application can still be created without deployment.",
       "deploySuccess": "Application deployed after creation.",
       "deployFailed": "Application was created, but deployment failed."
+    },
+    "templates": {
+      "eyebrow": "Application Templates",
+      "description": "Maintain reusable, versioned blueprints for application creation.",
+      "detailDescription": "Edit the draft workspace and lifecycle preset; published versions remain immutable.",
+      "create": "New Template",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "cancel": "Cancel",
+      "back": "Back to Templates",
+      "open": "Open",
+      "edit": "Edit",
+      "clone": "Clone",
+      "cloneTitle": "Clone Application Template",
+      "cloneConfirm": "Clone",
+      "cloneSuffix": "Copy",
+      "cloneFailed": "Failed to clone the template.",
+      "withdraw": "Withdraw Publication",
+      "withdrawSuccess": "The template version was withdrawn and a new draft was created.",
+      "withdrawFailed": "Failed to withdraw the template version.",
+      "delete": "Delete",
+      "deleteTitle": "Delete Application Template",
+      "deleteBody": "The template will no longer be shown. Existing application provenance remains unchanged.",
+      "deleteConfirm": "Delete",
+      "deleteSuccess": "Template deleted.",
+      "deleteFailed": "Failed to delete the template.",
+      "name": "Template Name",
+      "descriptionField": "Description",
+      "adapter": "Deployment Adapter",
+      "status": "Status",
+      "version": "Version",
+      "versionValue": "Version {version}",
+      "operation": "Actions",
+      "searchPlaceholder": "Search template name or description",
+      "noDescription": "No description",
+      "untitled": "Untitled Template",
+      "defaultCompose": "services:\n  app:\n    image: nginx:alpine\n",
+      "statusDraft": "Draft",
+      "statusPublished": "Published",
+      "statusArchived": "Archived",
+      "emptyTitle": "No Application Templates",
+      "emptyDescription": "Create a blank template or clone an existing template.",
+      "loadFailed": "Failed to load the template catalog.",
+      "detailLoadFailed": "Failed to load template details.",
+      "createFailed": "Failed to create the template draft.",
+      "save": "Save Draft",
+      "saveSuccess": "Template draft saved.",
+      "saveFailed": "Failed to save the template draft.",
+      "publish": "Publish Version",
+      "publishSuccess": "Template version published.",
+      "publishFailed": "Failed to publish the template version.",
+      "archive": "Archive",
+      "archiveTitle": "Archive Application Template",
+      "archiveBody": "An archived template cannot create new applications. Existing application provenance remains unchanged.",
+      "archiveConfirm": "Archive",
+      "archiveSuccess": "Template archived.",
+      "archiveFailed": "Failed to archive the template.",
+      "archivedHint": "This template is archived and cannot be edited or used to create applications.",
+      "publishedImmutableHint": "Published versions are immutable. Withdraw publication to edit a new draft version.",
+      "lifecycleTitle": "Lifecycle Preset",
+      "lifecycleDescription": "The preset fills the application create flow and can be adjusted for that application.",
+      "lifecycleAuthority": "A template saves default lifecycle configuration only; it does not deploy."
     },
     "discovery": {
       "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering applications or changing runtime authority.",

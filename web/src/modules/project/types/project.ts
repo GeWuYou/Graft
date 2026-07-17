@@ -49,7 +49,10 @@ export type ApplicationApplicationNameAvailabilityRequest =
   components['schemas']['application-name-availability-request'];
 export type ApplicationApplicationNameAvailabilityResponse =
   components['schemas']['application-name-availability-response'];
-export type ApplicationTemplateCreateRequest = components['schemas']['application-template-create-request'];
+export type ApplicationTemplate = components['schemas']['application-template-response'];
+export type ApplicationTemplateVersion = components['schemas']['application-template-version'];
+export type ApplicationTemplateListResponse = components['schemas']['application-template-list-response'];
+export type ApplicationTemplateDraftRequest = components['schemas']['application-template-draft-request'];
 export type ApplicationWorkspaceManifestFile = components['schemas']['application-workspace-manifest-file'];
 export type ApplicationWorkspaceEntry = components['schemas']['application-workspace-entry'];
 export type ApplicationWorkspaceDraftFile = {
@@ -62,7 +65,6 @@ export type ApplicationWorkspaceDraftDirectory = {
   node_type: 'directory';
 };
 export type ApplicationWorkspaceDraftEntry = ApplicationWorkspaceDraftFile | ApplicationWorkspaceDraftDirectory;
-export type ApplicationWorkspaceDefaultsResponse = components['schemas']['application-workspace-defaults-response'];
 export type ApplicationWorkspaceRenameRequest = components['schemas']['application-workspace-entry-rename-request'];
 export type ApplicationConfigurationMetadataResponse =
   components['schemas']['ApplicationConfigurationMetadataResponse'];
@@ -123,7 +125,7 @@ type GetApplicationListOperation = paths[ApplicationListPath]['get'];
 
 export type ApplicationListQuery = NonNullable<GetApplicationListOperation['parameters']['query']>;
 
-export type ApplicationApplicationType = ApplicationListItem['application_type'];
+export type ApplicationDeploymentAdapterKind = ApplicationListItem['deployment_adapter_kind'];
 export type ApplicationProvider = NonNullable<ApplicationListItem['runtime_target']>['provider'];
 export type ApplicationSavedView = components['schemas']['application-saved-view'];
 export type ApplicationSavedViewRequest = components['schemas']['application-saved-view-request'];
@@ -131,7 +133,7 @@ export type ApplicationSavedViewQueryState = ApplicationSavedViewRequest['query_
 
 export type ApplicationFilters = {
   keyword: string;
-  applicationType: ApplicationApplicationType | 'all';
+  deploymentAdapterKind: ApplicationDeploymentAdapterKind | 'all';
   runtimeTargetId: number | undefined;
   provider: ApplicationProvider | 'all';
   sourceType: ApplicationSourceType | 'all';

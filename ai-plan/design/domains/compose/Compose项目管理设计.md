@@ -7,7 +7,7 @@
 - 产品对象、UI route、HTTP resource、OpenAPI schema/type 与参数语义统一使用 `Application`。
 - canonical UI route 为 `/applications/**`，canonical HTTP route 为 `/api/ops/applications/**`；资源路径参数固定为
   `applicationId`，公开 ID 固定为 `app_<ULID>`。
-- 持久化主表统一为通用 `applications`，当前记录固定 `application_type=compose`。`Compose Project Name` 仅表示
+- 持久化主表统一为通用 `applications`，当前记录固定 `deployment_adapter_kind=compose`。`Compose Project Name` 仅表示
   Compose deployment identity，不再决定产品对象或公开资源名称。
 - 公开字段固定为 `source_type`、`compose_project_name`、`workspace_path`；`host_scope` 不属于 Application
   authority，运行位置由 `runtime_target_id` 表达。
@@ -29,7 +29,7 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 
 每个 Compose Application 绑定一个具备 Compose 执行和 Workspace 访问能力的 `runtime_target_id`。当前实现只允许 Local Docker；未来 Local/Remote Docker、Local/Remote Podman 或 Containerd target 只有在对应 Provider adapter 报告真实能力后才可选择。`applications.runtime_target_id` 迁移期允许为空，以便迁移先于 Runtime Target Boot 执行；Project Boot 在发现 Local Docker 后幂等回填历史本地记录。该桥的 authority 是 Runtime Target，影响者是 Application 列表与生命周期，清理条件是生产回填观测确认无 live 空引用后另行迁移为非空。
 
-`/applications` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `application_type=compose` 的实现和生命周期能力；列表必须首先展示应用类型、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
+`/applications` 是稳定 URL 下的“应用管理”页面，不以 Compose 作为页面身份。当前 Compose 只作为 `deployment_adapter_kind=compose` 的实现和生命周期能力；列表必须首先展示部署适配器、运行目标与提供者，并把筛选交给服务端。快捷筛选是用户私有、surface-scoped 的通用分页视图：保存可见筛选、每页大小与可见列，不保存当前页；同一用户同一 surface 的展示名唯一，可创建、更新、删除和复用，但不共享。
 
 菜单图标统一由 web 的 Iconify resolver 消费 server descriptor identifier：常规导航使用 Lucide，专业补充使用 Tabler，品牌使用静态 Iconify 数据。Docker 必须使用 Tabler 的 Docker brand glyph，不能以通用 server/container 图标代替；Iconify 不得通过运行时 CDN 加载图标。
 
@@ -89,8 +89,8 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 - `Project`
   - 仅指历史实现 module/package 名称或 Compose 原生技术术语；不再是公开产品对象、HTTP resource、schema/type
     或持久化主表名称。
-- `Deployment Type`
-  - 应用模型与文件/生命周期语义，例如 `compose`、`swarm`、`kubernetes`、`nomad`。Compose 基于 Compose Specification；Docker 和 Podman 不是 Deployment Type，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
+- `Deployment Adapter`
+  - 应用定义格式、校验与生命周期语义，例如 `compose`、`helm`、`kustomize`、`nomad-job`。Compose 基于 Compose Specification；Docker、Podman、Docker Swarm 与 Kubernetes 不是 Adapter，也不得出现 `docker-compose` 或 `podman-compose` 两个一级应用模型。
 - `Application Source`
   - 在已选择 Deployment Type 和 Runtime Target 后，取得或构建 Application Workspace 的方式；当前 Compose 可执行来源为 `blank`、`template`、`import`。`git` 仅可作为禁用的路线图卡片出现，不是当前创建方式。Source 不是 Deployment Type、Provider 或菜单对象。
 - `Runtime Target`
@@ -122,13 +122,13 @@ Runtime Target 统一拥有 Provider 连接与能力发现；Compose Project 只
 ```text
 Application list
   -> Create Application
-  -> Deployment Type
+  -> Deployment Adapter
   -> Runtime Target
   -> Application Source
   -> Workspace / registry creation
 ```
 
-首期 Deployment Type 页展示 `Compose`（基于 Compose Specification）、`Swarm`（Docker Stack）、`Kubernetes`（Deployment/Pod）与 `Nomad`（Job）。仅 `Compose` 可点击；其它卡片必须禁用、不可键盘触发，并在 hover/focus 说明“暂不支持”。它们是产品路线图，不得生成菜单、OpenAPI catalog、Provider contract、持久化枚举值或空实现 API。
+首期 Deployment Adapter 页展示 `Compose`（基于 Compose Specification）、`Helm`、`Kustomize` 与 `Nomad Job`。仅 `Compose` 可点击；其它卡片必须禁用、不可键盘触发。它们是产品路线图，不得生成菜单、OpenAPI catalog、持久化枚举值或空实现 API。Swarm 不是 Adapter 或 Template 类型：未来它是 Compose Adapter 在具备 `docker_stack_deploy` capability 的 Docker Swarm Target 上选择的执行模式。
 
 选择 Compose 后进入 Runtime Target 页，只列出已登记、健康且具备 `compose_execution` 与 `workspace_access` capability 的 Target；当前是 Local Docker。该页复用运行目标卡片的 Provider 标识与交互，不虚构 Remote Docker、Podman 或 Containerd 卡片。随后才进入 Source：`blank`、`template`、`git`、`import`。其中 Git 必须是禁用、不可键盘触发的路线图卡片，并在 hover/focus 通过本地化 tooltip 显示“暂不支持”；它没有路由、API、创建方式枚举、持久化来源类型或占位页面。其余三个来源才取得或物化 Workspace，并进入同一 Compose Project creation pipeline。
 
@@ -136,8 +136,8 @@ UI route 的 canonical 语义固定为：
 
 | UI route | 页面和约束 |
 | --- | --- |
-| `/applications/create` | Deployment Type picker；不在 URL 中暴露 Provider hierarchy |
-| `/applications/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Type picker |
+| `/applications/create` | Deployment Adapter picker；不在 URL 中暴露 Provider hierarchy |
+| `/applications/create/target?deployment=compose` | Compose Runtime Target picker；无效或缺失 deployment 回到 Deployment Adapter picker |
 | `/applications/create/source?deployment=compose&runtime_target_id=<target-id>` | Compose Source picker；无效或缺失选择回到上一步 |
 | `/applications/create/blank?deployment=compose&runtime_target_id=<target-id>` | Compose 空白 Workspace 向导 |
 | `/applications/create/template?deployment=compose&runtime_target_id=<target-id>` | Compose 模板向导 |
@@ -407,7 +407,7 @@ web Project Activity tab
 - `id`（内部数值主键）
 - `application_id`（对外 `app_<ULID>`，不可变且唯一）
 - `display_name`
-- `application_type`
+- `deployment_adapter_kind`
   - 当前固定 `compose`
 - `compose_project_name`
 - `compose_project_name_source`
@@ -436,7 +436,7 @@ web Project Activity tab
   - `wait_after_up`
   - `prune_images_after_redeploy`
 
-上述 `application_id`、`application_type`、`source_type`、`workspace_key`、`workspace_path` 与
+上述 `application_id`、`deployment_adapter_kind`、`source_type`、`workspace_key`、`workspace_path` 与
 `compose_project_name` 是 canonical 字段。旧 `source_kind`、`canonical_project_name`、`working_directory`、
 `host_scope` 与 `relative_project_directory` 只能作为历史迁移输入被一次性搬迁，不得进入新 contract、UI 或兼容层。
 
@@ -487,7 +487,7 @@ Phase 1 推荐三张模块自有表：
 
 用途：
 
-- 通用 Application 注册真相；当前 `application_type` 固定为 `compose`
+- 通用 Application 注册真相；当前 `deployment_adapter_kind` 固定为 `compose`
 - Source / Ownership / Drift / Refresh 元数据
 
 不存：
@@ -511,16 +511,16 @@ Phase 1 推荐三张模块自有表：
 - 它不再是 workspace state 的 source of truth。
 - 它只继续服务 compose parsing、preview、validation、lifecycle 与 deployment 所需的 compose/env 元数据覆盖层。
 
-### Application Root templates
+### Application Templates
 
-`Application Root Directory` 下的 `templates/` 是受管工作区之外的保留运行时目录。当前默认模板固定在
-`<application-root>/templates/default`；它是 Template source 的内容 authority，不是模块内置文件或前端常量。
+Application Template 是独立于受管工作区的版本化创建蓝图。模板身份和版本由 `application_templates` 与 `application_template_versions` 持有，定义格式由 `deployment_adapter_kind` 解释；当前仅 Compose adapter 可实例化。
 
-- Project module 在目录缺失时以发布随附的种子资源初始化 `templates/default`；已有目录或文件绝不覆盖，以保留管理员维护的模板。
-- `default` 当前提供 `.env` 与 `compose.yaml` 两个示例文件；它们只定义 Blank/Template 的初始体验，不限制工作区可创建、读取或编辑的文件名、扩展名、层级或目录。
-- `templates/` 的合法一级子目录是可发现的模板 key，`default` 是默认选择；一个模板可包含任意安全相对路径的 UTF-8 文本文件、嵌套目录和空目录，materialize 时完整复制。
-- 创建 contract 由服务端提供可用模板目录清单、所选模板的安全标识及 Blank 默认草稿；web 不直接读取 Application Root，也不根据目录名推导模板内容。
-- `templates/` 本身及其子路径不能作为 `workspace_key`、项目工作区、导入目标或项目文件 API 的可访问根目录。
+- 模板只能由空白草稿创建，或从现有模板定义克隆为独立草稿；不得从现有 Application 或旧目录导入。
+- 版本状态为 `draft`、`published` 或 `withdrawn`。发布版本不可编辑且可用于创建 Application；撤回会保留原发布快照为 `withdrawn`，记录撤回审计信息，并原子创建下一版本草稿。
+- 创建者只能选择未归档、未删除且 adapter 兼容的已发布版本。草稿、撤回版本与归档模板均不能进入创建请求。
+- 模板版本仅作为预填工作区和 lifecycle preset 的来源证明。用户可在统一受管创建编辑器修改内容；创建结果记录 `template_id` 与 `template_version_id`，但不会反写模板。
+- 模板可归档或软删除；软删除保留审计与既有 Application 的来源元数据，但从所有模板读取和管理目录中排除。
+- 模板定义仅存于持久化版本快照，不能作为 `workspace_key`、应用工作区、导入目标或应用文件 API 的可访问根目录。
 
 ### `compose_project_snapshots`
 
@@ -917,7 +917,7 @@ Phase 1 的 canonical OpenAPI authority 已收口到 `openapi/**`，本节继续
 
 - `application_id`
 - `display_name`
-- `application_type`
+- `deployment_adapter_kind`
 - `compose_project_name`
 - `source_type`
 - `ownership_mode`
@@ -1084,11 +1084,7 @@ Blank create request 建议至少包含：
 
 `workspace_entries` 表达任意安全相对路径的文本文件及空目录，不按文件名、扩展名或 `file_kind` 设置创建白名单。`compose_file_path` 只标识本次创建必须存在且可解析的主 Compose 文件，不决定其他 workspace 成员资格。服务端必须拒绝绝对路径、空路径、`..` 路径逃逸、重复或冲突条目、符号链接绕过和不受支持的二进制内容；不得以现有前端文件高亮或目录隐藏配置作为创建准入规则。
 
-Blank 向导的默认草稿由 project module 返回，前端不得硬编码模板文件内容。System Config `ops.project.blank.prefill_default_template` 的产品名称为“Blank 创建预填默认模板”，默认 `true`，通过现有 `configregistry -> SystemConfigResolver` authority 链和 `runtime-hot` 语义生效：
-
-- 开启时，Blank 草稿完整复制 `templates/default` 的当前内容。
-- 关闭时，Blank 草稿仅提供空 `.env` 与空 `compose.yaml`；在审核及创建前必须填充并通过 `compose_file_path` 的 Compose 解析。
-- Template source 始终物化用户所选模板目录，且不受该开关影响。
+Blank 向导使用固定的最小本地草稿（`.env` 和 `compose.yaml`），不再读取服务端 workspace-defaults 或 System Config 模板预填开关。基于模板创建先读取已发布版本快照，再进入同一编辑器；提交时只携带 `template_version_id` 作为服务端溯源校验。
 
 服务端从 `workspace_key` 生成唯一的单层 Workspace Path：`Application Root Directory + workspace_key`。创建表单展示可编辑的 Workspace Key 控制项，初始值为 Graft 按显示名提议的可用 key；默认 key 冲突时服务端自动附加 `-2`、`-3` 等后缀。用户若显式修改 key，只能填写安全 slug，冲突时返回本地化错误与建议值。不得接受 `relative_project_directory`、绝对路径、路径分隔符或 `..`；用户界面不展示完整路径、受管根目录、权限或 Compose runtime identity。
 
@@ -1569,7 +1565,7 @@ Phase 1 处理：
 | 方向                                 | 是否兼容当前模型 | 设计说明                                                     |
 | ------------------------------------ | ---------------- | ------------------------------------------------------------ |
 | Git-based Projects                   | `yes`            | 在 `source_type` 上扩展 `git`，并追加 source metadata        |
-| Templates                            | `yes`            | Template 是 Application Root `templates/<key>` 的受管输入源 |
+| Templates                            | `yes`            | 通用 versioned Application Template，定义由 Deployment Adapter 解释 |
 | Directory Scan                       | `yes`            | 扫描只产出 candidates，不直接注册                            |
 | Auto Discovery                       | `yes`            | 后台发现只更新 candidate / drift，不改变 runtime authority   |
 | Multiple Compose Files               | `yes`            | `compose_project_files` 的 `order_index` 已为有序 `-f` 预留  |
@@ -1587,7 +1583,7 @@ Phase 1 处理：
 - Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
 - Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
 - `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。
-- `source_metadata_json` 持久化来源专属、无密钥 provenance；Template adapter 从 Application Root 模板目录发现并物化 workspace，未来来源 adapter 也只能在解析/物化 workspace 后调用同一 pipeline。
+- `source_metadata_json` 持久化来源专属、无密钥 provenance；Template adapter 只从已发布的持久化版本快照物化 workspace，未来来源 adapter 也只能在解析/物化 workspace 后调用同一 pipeline。
 
 ## 16. 分阶段实施路线
 
@@ -1765,7 +1761,7 @@ Configuration：
 - Project module owner：`server/modules/project/**`
   - source catalog 只声明 `managed | git | template` entrypoint、route path、permission、metadata field 列表与当前状态
   - managed source 继续沿用现有执行逻辑，但路由边界收口到 `/create/managed`
-  - Git 仅在隔离临时目录 clone/checkout 无凭据来源；Template 只从 Application Root `templates/<key>` 读取、发现并完整物化安全文本 workspace，不使用模块内置内容。二者都不扩展到目录扫描、remote host 或 backend activity aggregation。
+  - Git 仅在隔离临时目录 clone/checkout 无凭据来源；Template 只读取已发布的持久化版本快照并预填可编辑 workspace。二者都不扩展到目录扫描、remote host 或 backend activity aggregation。
 - Web module owner：`web/src/modules/project/**`
   - `/applications/create` 固定为 source selector
   - `/applications/create/managed` 承接现有 managed create 页面
@@ -1860,12 +1856,12 @@ IA guardrail:
 
 ## 18. 当前来源范围与扩展口
 
-当前公开且可执行的 Deployment Type 只有 `compose`，它基于 Compose Specification，不是 Docker Provider 的同义词。Deployment Type picker 只为它提供可点击入口；Swarm、Kubernetes 与 Nomad 在各自真实 Target、Provider capability、lifecycle 和 Source adapter 落地前保持 disabled placeholder。Podman 不是 Deployment Type；它在未来作为 Compose Runtime Target Provider 接入。
+当前公开且可执行的 Deployment Adapter 只有 `compose`，它基于 Compose Specification，不是 Docker Provider 的同义词。Adapter picker 只为它提供可点击入口；Helm、Kustomize 与 Nomad Job 在真实 Target capability、lifecycle 和 source adapter 落地前保持 disabled placeholder。Podman 不是 Adapter；它在未来作为 Compose Runtime Target Provider 接入。Docker Swarm 也不是 Adapter，而是 Compose Adapter 的 `docker-stack` 执行模式。
 
 当前公开且可执行的 Compose Application Source 只有：
 
 - `Managed`：编辑器生成 Workspace 并在 Managed Root 内 materialize。
-- `Template`：Application Root `templates/<key>` 模板目录生成 Workspace。
+- `Template`：已发布 Application Template 版本预填 Workspace，创建请求保留不可变版本溯源。
 - `Import Existing`：运行时候选经检查后以 adopt 模式进入同一创建管线。
 
 MVP 必须由 canonical OpenAPI 定义 Deployment Type 与 Runtime Target capability 的最小选择 contract；创建请求不再接受 canonical name 或相对目录。`GET /api/ops/applications/creation-methods` 只列出当前已实现的 `blank`、`template` 与 `import`，并只返回稳定的可用性与阻塞原因。UI 统一入口是 `/applications/create`，依次进入 deployment、target、source 与向导。Git 可在 Source 页面仅作为禁用卡片展示，并通过本地化 tooltip 显示“暂不支持”；它与 Remote Host、ZIP、GitHub Template 一样不得预先暴露 API、路由、菜单、创建方式枚举、持久化来源类型或占位页面。

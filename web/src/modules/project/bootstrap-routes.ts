@@ -19,6 +19,10 @@ const createBlankRouteTitle = localizeRouteTitleKey('project.route.createBlank.t
 const createBlankBreadcrumbTitle = localizeRouteTitleKey('project.route.createBlank.breadcrumb');
 const createTemplateRouteTitle = localizeRouteTitleKey('project.route.createTemplate.title');
 const createTemplateBreadcrumbTitle = localizeRouteTitleKey('project.route.createTemplate.breadcrumb');
+const templatesRouteTitle = localizeRouteTitleKey('project.route.templates.title');
+const templatesBreadcrumbTitle = localizeRouteTitleKey('project.route.templates.breadcrumb');
+const templateDetailRouteTitle = localizeRouteTitleKey('project.route.templateDetail.title');
+const templateDetailBreadcrumbTitle = localizeRouteTitleKey('project.route.templateDetail.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('project.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('project.route.detail.breadcrumb');
 const configurationWorkspaceRouteTitle = localizeRouteTitleKey('project.route.configurationWorkspace.title');
@@ -34,6 +38,18 @@ export const applicationBootstrapRouteRegistrations: BootstrapRouteRegistration[
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.TEMPLATES,
+    loadPage: () => import('./pages/templates/index.vue'),
+    meta: {
+      tabGroup: 'application',
+      pageKind: 'list',
+      pageSurface: 'paged-table',
+      semanticTitle: templatesRouteTitle,
+      breadcrumbTitle: templatesBreadcrumbTitle,
+      tabTitle: templatesRouteTitle,
     },
   },
 ];
@@ -170,6 +186,25 @@ export const applicationGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: createTemplateRouteTitle,
       title: createTemplateRouteTitle,
       titleKey: 'project.route.createTemplate.title',
+    },
+  },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.menuPath,
+    loadPage: () => import('./pages/template-detail/index.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: true,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: templateDetailRouteTitle,
+      breadcrumbTitle: templateDetailBreadcrumbTitle,
+      domainTitle: templatesRouteTitle,
+      tabGroup: 'application',
+      tabTitle: templateDetailRouteTitle,
+      title: templateDetailRouteTitle,
+      titleKey: 'project.route.templateDetail.title',
     },
   },
   {

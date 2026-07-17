@@ -14,7 +14,7 @@ properties:
         type: string
         minLength: 1
         maxLength: 128
-      application_type:
+      deployment_adapter_kind:
         type: string
         enum: [compose]
       runtime_target_id:

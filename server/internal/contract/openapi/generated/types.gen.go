@@ -59,19 +59,19 @@ func (e AnnouncementLevel) Valid() bool {
 
 // Defines values for AnnouncementStatus.
 const (
-	Archived  AnnouncementStatus = "archived"
-	Draft     AnnouncementStatus = "draft"
-	Published AnnouncementStatus = "published"
+	AnnouncementStatusArchived  AnnouncementStatus = "archived"
+	AnnouncementStatusDraft     AnnouncementStatus = "draft"
+	AnnouncementStatusPublished AnnouncementStatus = "published"
 )
 
 // Valid indicates whether the value is a known member of the AnnouncementStatus enum.
 func (e AnnouncementStatus) Valid() bool {
 	switch e {
-	case Archived:
+	case AnnouncementStatusArchived:
 		return true
-	case Draft:
+	case AnnouncementStatusDraft:
 		return true
-	case Published:
+	case AnnouncementStatusPublished:
 		return true
 	default:
 		return false
@@ -906,15 +906,15 @@ func (e ApplicationRuntimeTargetSummaryProvider) Valid() bool {
 	}
 }
 
-// Defines values for ApplicationSavedViewRequestQueryStateApplicationType.
+// Defines values for ApplicationSavedViewRequestQueryStateDeploymentAdapterKind.
 const (
-	ApplicationSavedViewRequestQueryStateApplicationTypeCompose ApplicationSavedViewRequestQueryStateApplicationType = "compose"
+	ApplicationSavedViewRequestQueryStateDeploymentAdapterKindCompose ApplicationSavedViewRequestQueryStateDeploymentAdapterKind = "compose"
 )
 
-// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateApplicationType enum.
-func (e ApplicationSavedViewRequestQueryStateApplicationType) Valid() bool {
+// Valid indicates whether the value is a known member of the ApplicationSavedViewRequestQueryStateDeploymentAdapterKind enum.
+func (e ApplicationSavedViewRequestQueryStateDeploymentAdapterKind) Valid() bool {
 	switch e {
-	case ApplicationSavedViewRequestQueryStateApplicationTypeCompose:
+	case ApplicationSavedViewRequestQueryStateDeploymentAdapterKindCompose:
 		return true
 	default:
 		return false
@@ -1017,15 +1017,66 @@ func (e ApplicationSourceType) Valid() bool {
 	}
 }
 
+// Defines values for ApplicationTemplateDraftRequestDeploymentAdapterKind.
+const (
+	ApplicationTemplateDraftRequestDeploymentAdapterKindCompose ApplicationTemplateDraftRequestDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateDraftRequestDeploymentAdapterKind enum.
+func (e ApplicationTemplateDraftRequestDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case ApplicationTemplateDraftRequestDeploymentAdapterKindCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateResponseDeploymentAdapterKind.
+const (
+	ApplicationTemplateResponseDeploymentAdapterKindCompose ApplicationTemplateResponseDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateResponseDeploymentAdapterKind enum.
+func (e ApplicationTemplateResponseDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case ApplicationTemplateResponseDeploymentAdapterKindCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApplicationTemplateVersionStatus.
+const (
+	ApplicationTemplateVersionStatusDraft     ApplicationTemplateVersionStatus = "draft"
+	ApplicationTemplateVersionStatusPublished ApplicationTemplateVersionStatus = "published"
+	ApplicationTemplateVersionStatusWithdrawn ApplicationTemplateVersionStatus = "withdrawn"
+)
+
+// Valid indicates whether the value is a known member of the ApplicationTemplateVersionStatus enum.
+func (e ApplicationTemplateVersionStatus) Valid() bool {
+	switch e {
+	case ApplicationTemplateVersionStatusDraft:
+		return true
+	case ApplicationTemplateVersionStatusPublished:
+		return true
+	case ApplicationTemplateVersionStatusWithdrawn:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ApplicationType.
 const (
-	ApplicationTypeCompose ApplicationType = "compose"
+	DeploymentAdapterKindCompose ApplicationType = "compose"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationType enum.
 func (e ApplicationType) Valid() bool {
 	switch e {
-	case ApplicationTypeCompose:
+	case DeploymentAdapterKindCompose:
 		return true
 	default:
 		return false
@@ -4509,6 +4560,21 @@ func (e GetApplicationImportDirectoriesParamsOrder) Valid() bool {
 	}
 }
 
+// Defines values for GetApplicationTemplatesParamsDeploymentAdapterKind.
+const (
+	Compose GetApplicationTemplatesParamsDeploymentAdapterKind = "compose"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationTemplatesParamsDeploymentAdapterKind enum.
+func (e GetApplicationTemplatesParamsDeploymentAdapterKind) Valid() bool {
+	switch e {
+	case Compose:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainersParamsState.
 const (
 	GetContainersParamsStateContainerListStateCreated    GetContainersParamsState = "created"
@@ -4871,6 +4937,31 @@ type ApplicationBatchActionResponse struct {
 	TotalCount     int                          `json:"total_count"`
 }
 
+// ApplicationComposeContext defines model for application-compose-context.
+type ApplicationComposeContext struct {
+	ComposeProjectName string `json:"compose_project_name"`
+	RuntimeTargetId    int64  `json:"runtime_target_id"`
+}
+
+// ApplicationComposeContextReference defines model for application-compose-context-reference.
+type ApplicationComposeContextReference struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId      ApplicationId `json:"application_id"`
+	ComposeProjectName string        `json:"compose_project_name"`
+	DisplayName        string        `json:"display_name"`
+	RuntimeTargetId    int64         `json:"runtime_target_id"`
+}
+
+// ApplicationComposeContextReferenceRequest defines model for application-compose-context-reference-request.
+type ApplicationComposeContextReferenceRequest struct {
+	Contexts []ApplicationComposeContext `json:"contexts"`
+}
+
+// ApplicationComposeContextReferenceResponse defines model for application-compose-context-reference-response.
+type ApplicationComposeContextReferenceResponse struct {
+	Items []ApplicationComposeContextReference `json:"items"`
+}
+
 // ApplicationComposeProjectNameSource defines model for application-compose-project-name-source.
 type ApplicationComposeProjectNameSource string
 
@@ -4942,6 +5033,9 @@ type ApplicationCreateRequest struct {
 	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
 	RuntimeTargetId        int64 `json:"runtime_target_id"`
 
+	// TemplateVersionId Optional immutable published Application Template version that originally prefilled this editable workspace.
+	TemplateVersionId *string `json:"template_version_id,omitempty"`
+
 	// WorkspaceEntries Complete managed workspace manifest. It supports arbitrary UTF-8 text files and directories, including empty directories.
 	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
 }
@@ -4951,23 +5045,23 @@ type ApplicationCreateResponse struct {
 	Action ApplicationCreateResponseAction `json:"action"`
 
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId `json:"application_id"`
-	ApplicationName *string       `json:"application_name,omitempty"`
+	ApplicationId           ApplicationId `json:"application_id"`
+	ApplicationName         *string       `json:"application_name,omitempty"`
+	ComposeFileAbsolutePath string        `json:"compose_file_absolute_path"`
+	ComposeFileName         string        `json:"compose_file_name"`
+	ComposeProjectName      string        `json:"compose_project_name"`
 
-	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
-	ApplicationType         ApplicationType                 `json:"application_type"`
-	ComposeFileAbsolutePath string                          `json:"compose_file_absolute_path"`
-	ComposeFileName         string                          `json:"compose_file_name"`
-	ComposeProjectName      string                          `json:"compose_project_name"`
-	DisplayName             string                          `json:"display_name"`
-	EnvFileAbsolutePath     *string                         `json:"env_file_absolute_path,omitempty"`
-	EnvFileName             *string                         `json:"env_file_name,omitempty"`
-	ManagedRoot             ApplicationManagedRootResponse  `json:"managed_root"`
-	Message                 *string                         `json:"message,omitempty"`
-	MessageKey              *string                         `json:"message_key,omitempty"`
-	OwnershipMode           ApplicationOwnershipMode        `json:"ownership_mode"`
-	Result                  ApplicationCreateResponseResult `json:"result"`
-	SnapshotSummary         struct {
+	// DeploymentAdapterKind Public Application deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind ApplicationType                 `json:"deployment_adapter_kind"`
+	DisplayName           string                          `json:"display_name"`
+	EnvFileAbsolutePath   *string                         `json:"env_file_absolute_path,omitempty"`
+	EnvFileName           *string                         `json:"env_file_name,omitempty"`
+	ManagedRoot           ApplicationManagedRootResponse  `json:"managed_root"`
+	Message               *string                         `json:"message,omitempty"`
+	MessageKey            *string                         `json:"message_key,omitempty"`
+	OwnershipMode         ApplicationOwnershipMode        `json:"ownership_mode"`
+	Result                ApplicationCreateResponseResult `json:"result"`
+	SnapshotSummary       struct {
 		ConfigHash           string    `json:"config_hash"`
 		DeclaredServiceCount *int      `json:"declared_service_count,omitempty"`
 		RefreshedAt          time.Time `json:"refreshed_at"`
@@ -4997,6 +5091,9 @@ type ApplicationCreateValidateRequest struct {
 	// ReuseExistingWorkspace Indicates that validation is for an inspected, unregistered managed directory.
 	ReuseExistingWorkspace *bool `json:"reuse_existing_workspace,omitempty"`
 	RuntimeTargetId        int64 `json:"runtime_target_id"`
+
+	// TemplateVersionId Optional immutable published Application Template version used only for provenance validation.
+	TemplateVersionId *string `json:"template_version_id,omitempty"`
 
 	// WorkspaceEntries Complete managed workspace manifest to validate without materializing.
 	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
@@ -5055,21 +5152,21 @@ type ApplicationDetailResponse struct {
 	ActivityAuthority ApplicationActivityAuthority `json:"activity_authority"`
 
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId `json:"application_id"`
-	ApplicationName *string       `json:"application_name,omitempty"`
-
-	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
-	ApplicationType          ApplicationType                     `json:"application_type"`
+	ApplicationId            ApplicationId                       `json:"application_id"`
+	ApplicationName          *string                             `json:"application_name,omitempty"`
 	ComposeFiles             []ApplicationFileItem               `json:"compose_files"`
 	ComposeProjectName       string                              `json:"compose_project_name"`
 	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
 	ContainerCounts          ApplicationContainerCounts          `json:"container_counts"`
-	DisplayName              string                              `json:"display_name"`
-	DriftStatus              ApplicationDriftStatus              `json:"drift_status"`
-	EnvFiles                 []ApplicationFileItem               `json:"env_files"`
-	LastDriftCheckedAt       *time.Time                          `json:"last_drift_checked_at,omitempty"`
-	LastObservedConfigHash   *string                             `json:"last_observed_config_hash,omitempty"`
-	LifecycleConfiguration   ApplicationLifecycleConfiguration   `json:"lifecycle_configuration"`
+
+	// DeploymentAdapterKind Public Application deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind  ApplicationType                   `json:"deployment_adapter_kind"`
+	DisplayName            string                            `json:"display_name"`
+	DriftStatus            ApplicationDriftStatus            `json:"drift_status"`
+	EnvFiles               []ApplicationFileItem             `json:"env_files"`
+	LastDriftCheckedAt     *time.Time                        `json:"last_drift_checked_at,omitempty"`
+	LastObservedConfigHash *string                           `json:"last_observed_config_hash,omitempty"`
+	LifecycleConfiguration ApplicationLifecycleConfiguration `json:"lifecycle_configuration"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
@@ -5573,16 +5670,16 @@ type ApplicationListItem struct {
 	ActivityAuthority ApplicationActivityAuthority `json:"activity_authority"`
 
 	// ApplicationId Stable public Graft Application identifier.
-	ApplicationId   ApplicationId `json:"application_id"`
-	ApplicationName *string       `json:"application_name,omitempty"`
-
-	// ApplicationType Public Application deployment type. Compose is the only currently supported value.
-	ApplicationType          ApplicationType                     `json:"application_type"`
+	ApplicationId            ApplicationId                       `json:"application_id"`
+	ApplicationName          *string                             `json:"application_name,omitempty"`
 	ComposeProjectName       string                              `json:"compose_project_name"`
 	ComposeProjectNameSource ApplicationComposeProjectNameSource `json:"compose_project_name_source"`
 	ContainerCounts          ApplicationContainerCounts          `json:"container_counts"`
-	DisplayName              string                              `json:"display_name"`
-	DriftStatus              ApplicationDriftStatus              `json:"drift_status"`
+
+	// DeploymentAdapterKind Public Application deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind ApplicationType        `json:"deployment_adapter_kind"`
+	DisplayName           string                 `json:"display_name"`
+	DriftStatus           ApplicationDriftStatus `json:"drift_status"`
 
 	// LifecycleReviewStatus Lifecycle configuration review state. Runtime imports must confirm the lifecycle configuration in the import workflow and are persisted as `confirmed`; `review_required` remains available for future changed configurations.
 	LifecycleReviewStatus ApplicationLifecycleReviewStatus `json:"lifecycle_review_status"`
@@ -5778,10 +5875,10 @@ type ApplicationSavedViewRequest struct {
 
 	// QueryState Application-list filter state. The server validates this payload for the application saved-view surface.
 	QueryState struct {
-		ApplicationType *ApplicationSavedViewRequestQueryStateApplicationType `json:"application_type,omitempty"`
-		DriftStatus     *ApplicationDriftStatus                               `json:"drift_status,omitempty"`
-		Keyword         *string                                               `json:"keyword,omitempty"`
-		Provider        *ApplicationSavedViewRequestQueryStateProvider        `json:"provider,omitempty"`
+		DeploymentAdapterKind *ApplicationSavedViewRequestQueryStateDeploymentAdapterKind `json:"deployment_adapter_kind,omitempty"`
+		DriftStatus           *ApplicationDriftStatus                                     `json:"drift_status,omitempty"`
+		Keyword               *string                                                     `json:"keyword,omitempty"`
+		Provider              *ApplicationSavedViewRequestQueryStateProvider              `json:"provider,omitempty"`
 
 		// RuntimeStatus Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
 		RuntimeStatus   *ApplicationRuntimeStatus `json:"runtime_status,omitempty"`
@@ -5794,8 +5891,8 @@ type ApplicationSavedViewRequest struct {
 	VisibleColumns []ApplicationSavedViewRequestVisibleColumns `json:"visible_columns"`
 }
 
-// ApplicationSavedViewRequestQueryStateApplicationType defines model for ApplicationSavedViewRequest.QueryState.ApplicationType.
-type ApplicationSavedViewRequestQueryStateApplicationType string
+// ApplicationSavedViewRequestQueryStateDeploymentAdapterKind defines model for ApplicationSavedViewRequest.QueryState.DeploymentAdapterKind.
+type ApplicationSavedViewRequestQueryStateDeploymentAdapterKind string
 
 // ApplicationSavedViewRequestQueryStateProvider defines model for ApplicationSavedViewRequest.QueryState.Provider.
 type ApplicationSavedViewRequestQueryStateProvider string
@@ -5845,51 +5942,65 @@ type ApplicationSourceMetadata struct {
 	// ManagedRootKey Canonical config key that owns the managed application root.
 	ManagedRootKey *string `json:"managed_root_key,omitempty"`
 
-	// TemplateInstanceName Planned template instance name used to derive a managed working directory.
-	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
+	// TemplateId Stable Application Template identity that originated this application.
+	TemplateId *string `json:"template_id,omitempty"`
 
-	// TemplateKey Planned stable template identifier for a future template-backed application source.
-	TemplateKey *string `json:"template_key,omitempty"`
-
-	// TemplateVersion Planned template version or release channel.
-	TemplateVersion *string `json:"template_version,omitempty"`
+	// TemplateVersionId Immutable published Application Template version that originated this application.
+	TemplateVersionId *string `json:"template_version_id,omitempty"`
 }
 
 // ApplicationSourceType defines model for application-source-type.
 type ApplicationSourceType string
 
-// ApplicationTemplateCreateRequest defines model for application-template-create-request.
-type ApplicationTemplateCreateRequest struct {
-	// ApplicationName Required unique machine-safe application name for the managed directory and Compose application identity.
-	ApplicationName        string                                    `json:"application_name"`
-	DisplayName            string                                    `json:"display_name"`
-	LifecycleConfiguration *ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration,omitempty"`
-	RuntimeTargetId        int64                                     `json:"runtime_target_id"`
-
-	// TemplateInstanceName Safe display provenance for this template instance. Defaults to the application name.
-	TemplateInstanceName *string `json:"template_instance_name,omitempty"`
-
-	// TemplateKey Runtime template directory key. Defaults to default.
-	TemplateKey *string `json:"template_key,omitempty"`
-
-	// TemplateVersion Optional operator-defined template version label. Defaults to runtime.
-	TemplateVersion *string `json:"template_version,omitempty"`
+// ApplicationTemplateDraftRequest defines model for application-template-draft-request.
+type ApplicationTemplateDraftRequest struct {
+	// Definition Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.
+	Definition              map[string]interface{}                               `json:"definition"`
+	DefinitionSchemaVersion int                                                  `json:"definition_schema_version"`
+	DeploymentAdapterKind   ApplicationTemplateDraftRequestDeploymentAdapterKind `json:"deployment_adapter_kind"`
+	Description             *string                                              `json:"description,omitempty"`
+	DisplayName             string                                               `json:"display_name"`
 }
 
-// ApplicationType Public Application deployment type. Compose is the only currently supported value.
+// ApplicationTemplateDraftRequestDeploymentAdapterKind defines model for ApplicationTemplateDraftRequest.DeploymentAdapterKind.
+type ApplicationTemplateDraftRequestDeploymentAdapterKind string
+
+// ApplicationTemplateListResponse defines model for application-template-list-response.
+type ApplicationTemplateListResponse struct {
+	Items []ApplicationTemplateResponse `json:"items"`
+}
+
+// ApplicationTemplateResponse defines model for application-template-response.
+type ApplicationTemplateResponse struct {
+	ArchivedAt            *time.Time                                       `json:"archived_at,omitempty"`
+	DeploymentAdapterKind ApplicationTemplateResponseDeploymentAdapterKind `json:"deployment_adapter_kind"`
+	Description           string                                           `json:"description"`
+	DisplayName           string                                           `json:"display_name"`
+	TemplateId            string                                           `json:"template_id"`
+	Version               ApplicationTemplateVersion                       `json:"version"`
+}
+
+// ApplicationTemplateResponseDeploymentAdapterKind defines model for ApplicationTemplateResponse.DeploymentAdapterKind.
+type ApplicationTemplateResponseDeploymentAdapterKind string
+
+// ApplicationTemplateVersion defines model for application-template-version.
+type ApplicationTemplateVersion struct {
+	Definition              map[string]interface{}           `json:"definition"`
+	DefinitionSchemaVersion int                              `json:"definition_schema_version"`
+	PublishedAt             *time.Time                       `json:"published_at,omitempty"`
+	PublishedBy             *int64                           `json:"published_by,omitempty"`
+	Status                  ApplicationTemplateVersionStatus `json:"status"`
+	TemplateVersionId       string                           `json:"template_version_id"`
+	VersionNumber           int                              `json:"version_number"`
+	WithdrawnAt             *time.Time                       `json:"withdrawn_at,omitempty"`
+	WithdrawnBy             *int64                           `json:"withdrawn_by,omitempty"`
+}
+
+// ApplicationTemplateVersionStatus defines model for ApplicationTemplateVersion.Status.
+type ApplicationTemplateVersionStatus string
+
+// ApplicationType Public Application deployment adapter kind. Compose is the only currently supported value.
 type ApplicationType string
-
-// ApplicationWorkspaceDefaultsResponse defines model for application-workspace-defaults-response.
-type ApplicationWorkspaceDefaultsResponse struct {
-	ComposeFilePath        string                                   `json:"compose_file_path"`
-	DefaultTemplateKey     string                                   `json:"default_template_key"`
-	LifecycleConfiguration ApplicationLifecycleConfigurationRequest `json:"lifecycle_configuration"`
-	Templates              []struct {
-		DisplayName string `json:"display_name"`
-		Key         string `json:"key"`
-	} `json:"templates"`
-	WorkspaceEntries []ApplicationWorkspaceEntry `json:"workspace_entries"`
-}
 
 // ApplicationWorkspaceEntry defines model for application-workspace-entry.
 type ApplicationWorkspaceEntry struct {
@@ -7431,6 +7542,26 @@ type EnvelopedApplicationBatchActionResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedApplicationComposeContextReferenceResponse defines model for enveloped-application-compose-context-reference-response.
+type EnvelopedApplicationComposeContextReferenceResponse struct {
+	// Code Existing canonical response code.
+	Code string                                     `json:"code"`
+	Data ApplicationComposeContextReferenceResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedApplicationComposeRuntimeTargetCatalogResponse defines model for enveloped-application-compose-runtime-target-catalog-response.
 type EnvelopedApplicationComposeRuntimeTargetCatalogResponse struct {
 	// Code Existing canonical response code.
@@ -7918,9 +8049,44 @@ type EnvelopedApplicationServicesResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedApplicationWorkspaceDefaultsResponse defines model for enveloped-application-workspace-defaults-response.
-type EnvelopedApplicationWorkspaceDefaultsResponse struct {
-	Data ApplicationWorkspaceDefaultsResponse `json:"data"`
+// EnvelopedApplicationTemplateListResponse defines model for enveloped-application-template-list-response.
+type EnvelopedApplicationTemplateListResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data ApplicationTemplateListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationTemplateResponse defines model for enveloped-application-template-response.
+type EnvelopedApplicationTemplateResponse struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data ApplicationTemplateResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
 }
 
 // EnvelopedAuditIncidentResponse defines model for enveloped-audit-incident-response.
@@ -10765,7 +10931,7 @@ type ApplicationImportRuntimeCandidateListLimit = int
 // ApplicationImportRuntimeCandidateListOffset defines model for application-import-runtime-candidate-list-offset.
 type ApplicationImportRuntimeCandidateListOffset = int
 
-// ApplicationListApplicationType Public Application deployment type. Compose is the only currently supported value.
+// ApplicationListApplicationType Public Application deployment adapter kind. Compose is the only currently supported value.
 type ApplicationListApplicationType = ApplicationType
 
 // ApplicationListDriftStatus defines model for application-list-drift-status.
@@ -11678,8 +11844,8 @@ type GetApplicationsParams struct {
 	// Keyword Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination.
 	Keyword *ApplicationListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
 
-	// ApplicationType Optional application type. Compose is the only currently supported type.
-	ApplicationType *ApplicationListApplicationType `form:"application_type,omitempty" json:"application_type,omitempty"`
+	// DeploymentAdapterKind Optional deployment adapter kind. Compose is the only currently supported value.
+	DeploymentAdapterKind *ApplicationListApplicationType `form:"deployment_adapter_kind,omitempty" json:"deployment_adapter_kind,omitempty"`
 
 	// RuntimeTargetId Optional Docker Runtime Target identifier. The target and provider filters are conjunctive.
 	RuntimeTargetId *ApplicationListRuntimeTargetId `form:"runtime_target_id,omitempty" json:"runtime_target_id,omitempty"`
@@ -11723,6 +11889,16 @@ type PostApplicationBatchActionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostApplicationComposeContextReferencesParams defines parameters for PostApplicationComposeContextReferences.
+type PostApplicationComposeContextReferencesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostApplicationNameAvailabilityParams defines parameters for PostApplicationNameAvailability.
 type PostApplicationNameAvailabilityParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -11745,36 +11921,6 @@ type PostApplicationCreateParams struct {
 
 // PostApplicationCreateValidateParams defines parameters for PostApplicationCreateValidate.
 type PostApplicationCreateValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostApplicationCreateTemplateParams defines parameters for PostApplicationCreateTemplate.
-type PostApplicationCreateTemplateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// PostApplicationCreateTemplateValidateParams defines parameters for PostApplicationCreateTemplateValidate.
-type PostApplicationCreateTemplateValidateParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetApplicationWorkspaceDefaultsParams defines parameters for GetApplicationWorkspaceDefaults.
-type GetApplicationWorkspaceDefaultsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -11950,6 +12096,26 @@ type PutApplicationSavedViewParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationTemplatesParams defines parameters for GetApplicationTemplates.
+type GetApplicationTemplatesParams struct {
+	DeploymentAdapterKind *GetApplicationTemplatesParamsDeploymentAdapterKind `form:"deployment_adapter_kind,omitempty" json:"deployment_adapter_kind,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetApplicationTemplatesParamsDeploymentAdapterKind defines parameters for GetApplicationTemplates.
+type GetApplicationTemplatesParamsDeploymentAdapterKind string
+
+// PostApplicationTemplateCloneJSONBody defines parameters for PostApplicationTemplateClone.
+type PostApplicationTemplateCloneJSONBody struct {
+	DisplayName string `json:"display_name"`
 }
 
 // GetApplicationParams defines parameters for GetApplication.
@@ -13055,6 +13221,9 @@ type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
 // PostApplicationBatchActionsJSONRequestBody defines body for PostApplicationBatchActions for application/json ContentType.
 type PostApplicationBatchActionsJSONRequestBody = ApplicationBatchActionRequest
 
+// PostApplicationComposeContextReferencesJSONRequestBody defines body for PostApplicationComposeContextReferences for application/json ContentType.
+type PostApplicationComposeContextReferencesJSONRequestBody = ApplicationComposeContextReferenceRequest
+
 // PostApplicationNameAvailabilityJSONRequestBody defines body for PostApplicationNameAvailability for application/json ContentType.
 type PostApplicationNameAvailabilityJSONRequestBody = ApplicationNameAvailabilityRequest
 
@@ -13063,12 +13232,6 @@ type PostApplicationCreateJSONRequestBody = ApplicationCreateRequest
 
 // PostApplicationCreateValidateJSONRequestBody defines body for PostApplicationCreateValidate for application/json ContentType.
 type PostApplicationCreateValidateJSONRequestBody = ApplicationCreateValidateRequest
-
-// PostApplicationCreateTemplateJSONRequestBody defines body for PostApplicationCreateTemplate for application/json ContentType.
-type PostApplicationCreateTemplateJSONRequestBody = ApplicationTemplateCreateRequest
-
-// PostApplicationCreateTemplateValidateJSONRequestBody defines body for PostApplicationCreateTemplateValidate for application/json ContentType.
-type PostApplicationCreateTemplateValidateJSONRequestBody = ApplicationTemplateCreateRequest
 
 // PostApplicationImportJSONRequestBody defines body for PostApplicationImport for application/json ContentType.
 type PostApplicationImportJSONRequestBody = ApplicationImportRequest
@@ -13087,6 +13250,15 @@ type PostApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
 
 // PutApplicationSavedViewJSONRequestBody defines body for PutApplicationSavedView for application/json ContentType.
 type PutApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
+
+// PostApplicationTemplateJSONRequestBody defines body for PostApplicationTemplate for application/json ContentType.
+type PostApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
+
+// PutApplicationTemplateJSONRequestBody defines body for PutApplicationTemplate for application/json ContentType.
+type PutApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
+
+// PostApplicationTemplateCloneJSONRequestBody defines body for PostApplicationTemplateClone for application/json ContentType.
+type PostApplicationTemplateCloneJSONRequestBody PostApplicationTemplateCloneJSONBody
 
 // PostApplicationDestroyJSONRequestBody defines body for PostApplicationDestroy for application/json ContentType.
 type PostApplicationDestroyJSONRequestBody = ApplicationDestroyRequest

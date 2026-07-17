@@ -27,7 +27,10 @@
   },
   "menu": {
     "application": {
-      "title": "应用管理"
+      "title": "应用管理",
+      "templates": {
+        "title": "模板"
+      }
     }
   },
   "project": {
@@ -69,6 +72,14 @@
       "createTemplate": {
         "title": "基于模板创建",
         "breadcrumb": "基于模板创建"
+      },
+      "templates": {
+        "title": "应用模板",
+        "breadcrumb": "应用模板"
+      },
+      "templateDetail": {
+        "title": "模板详情",
+        "breadcrumb": "模板详情"
       },
       "detail": {
         "title": "应用详情",
@@ -189,7 +200,7 @@
       "stoppedApplications": "已停止 {count}",
       "runtimeTargetUnavailable": "未关联运行目标",
       "runtimeTargetsLoadFailed": "加载运行目标失败。",
-      "applicationType": {
+      "deploymentAdapterKind": {
         "compose": "Compose"
       },
       "provider": {
@@ -214,7 +225,7 @@
       },
       "filters": {
         "searchPlaceholder": "搜索展示名、Canonical 名或工作区路径",
-        "applicationType": "应用类型",
+        "deploymentAdapterKind": "部署适配器",
         "provider": "提供者",
         "runtimeTarget": "运行目标",
         "sourceType": "来源",
@@ -222,7 +233,7 @@
         "driftStatus": "同步状态",
         "refreshStatus": "刷新状态",
         "allSourceTypes": "全部来源",
-        "allApplicationTypes": "全部应用类型",
+        "allDeploymentAdapterKinds": "全部部署适配器",
         "allProviders": "全部提供者",
         "allRuntimeTargets": "全部运行目标",
         "allRuntimeStatuses": "全部运行状态",
@@ -245,7 +256,7 @@
       "columns": {
         "selection": "选择",
         "name": "应用",
-        "applicationType": "应用类型",
+        "deploymentAdapterKind": "部署适配器",
         "runtimeTarget": "运行目标",
         "provider": "提供者",
         "source": "来源",
@@ -941,32 +952,32 @@
     },
     "deployment": {
       "eyebrow": "创建应用",
-      "description": "选择应用的部署模型。",
+      "description": "选择应用定义使用的部署适配器。",
       "backToApplicationManagement": "返回应用管理",
       "recommended": "推荐",
       "comingSoon": "即将推出",
       "selectCompose": "选择 Compose",
-      "comingSoonHelper": "暂不支持创建，未来版本将提供支持。",
+      "comingSoonHelper": "当前没有可用的运行目标能力，未来版本将提供支持。",
       "items": {
         "compose": {
           "title": "Compose",
           "description": "基于 Compose Specification",
           "capabilities": ["Docker / Podman", "多容器应用", "compose.yaml"]
         },
-        "swarm": {
-          "title": "Swarm",
-          "description": "Docker Stack",
-          "capabilities": ["Docker 集群", "Docker Stack", "滚动更新"]
+        "helm": {
+          "title": "Helm",
+          "description": "Kubernetes Chart",
+          "capabilities": ["Chart 定义", "Kubernetes 目标", "版本化发布"]
         },
-        "kubernetes": {
-          "title": "Kubernetes",
-          "description": "集群工作负载",
-          "capabilities": ["集群工作负载", "Deployment / Pod", "Helm"]
+        "kustomize": {
+          "title": "Kustomize",
+          "description": "Kubernetes YAML Base",
+          "capabilities": ["YAML 定义", "Kubernetes 目标"]
         },
-        "nomad": {
-          "title": "Nomad",
-          "description": "Job",
-          "capabilities": ["HashiCorp 生态", "Job 调度"]
+        "nomadJob": {
+          "title": "Nomad Job",
+          "description": "Nomad Job 文件",
+          "capabilities": ["Job 定义", "HashiCorp 生态"]
         }
       }
     },
@@ -1005,7 +1016,14 @@
       }
     },
     "sourceCreate": {
-      "templateDescription": "从内置 Compose 工作区模板创建托管应用。",
+      "templateDescription": "选择已发布的 Compose 模板版本，然后在创建前确认应用工作区和生命周期配置。",
+      "templatesLoadFailed": "应用模板目录加载失败。",
+      "emptyTemplates": "当前运行目标没有可用的已发布模板。",
+      "noDescription": "未提供模板说明。",
+      "adapter": "部署适配器",
+      "version": "模板版本",
+      "versionLabel": "版本 {version}",
+      "useTemplate": "使用此模板",
       "displayName": "显示名称",
       "applicationName": "应用名",
       "applicationNamePlaceholder": "例如：orders-dev",
@@ -1033,6 +1051,68 @@
       "deployPermissionRequired": "需要应用部署权限才能在创建后部署；不部署也可以正常创建应用。",
       "deploySuccess": "应用已在创建后部署。",
       "deployFailed": "应用已创建，但部署失败。"
+    },
+    "templates": {
+      "eyebrow": "应用模板",
+      "description": "维护可复用、可版本化的应用创建蓝图。",
+      "detailDescription": "编辑草稿工作区和生命周期预设；发布版本保持不可变。",
+      "create": "新建模板",
+      "refresh": "刷新",
+      "retry": "重试",
+      "cancel": "取消",
+      "back": "返回模板列表",
+      "open": "打开",
+      "edit": "编辑",
+      "clone": "克隆",
+      "cloneTitle": "克隆应用模板",
+      "cloneConfirm": "确认克隆",
+      "cloneSuffix": "副本",
+      "cloneFailed": "无法克隆模板。",
+      "withdraw": "撤回发布",
+      "withdrawSuccess": "模板版本已撤回并创建新的草稿。",
+      "withdrawFailed": "无法撤回模板版本。",
+      "delete": "删除",
+      "deleteTitle": "删除应用模板",
+      "deleteBody": "删除后模板将不再显示，现有应用的来源记录保持不变。",
+      "deleteConfirm": "确认删除",
+      "deleteSuccess": "模板已删除。",
+      "deleteFailed": "无法删除模板。",
+      "name": "模板名称",
+      "descriptionField": "说明",
+      "adapter": "部署适配器",
+      "status": "状态",
+      "version": "版本",
+      "versionValue": "版本 {version}",
+      "operation": "操作",
+      "searchPlaceholder": "搜索模板名称或说明",
+      "noDescription": "暂无说明",
+      "untitled": "未命名模板",
+      "defaultCompose": "services:\n  app:\n    image: nginx:alpine\n",
+      "statusDraft": "草稿",
+      "statusPublished": "已发布",
+      "statusArchived": "已归档",
+      "emptyTitle": "暂无应用模板",
+      "emptyDescription": "创建空白模板，或从现有模板克隆。",
+      "loadFailed": "无法加载模板目录。",
+      "detailLoadFailed": "无法加载模板详情。",
+      "createFailed": "无法创建模板草稿。",
+      "save": "保存草稿",
+      "saveSuccess": "模板草稿已保存。",
+      "saveFailed": "无法保存模板草稿。",
+      "publish": "发布版本",
+      "publishSuccess": "模板版本已发布。",
+      "publishFailed": "无法发布模板版本。",
+      "archive": "归档",
+      "archiveTitle": "归档应用模板",
+      "archiveBody": "归档后不能再用于创建应用，已有应用的来源记录保持不变。",
+      "archiveConfirm": "确认归档",
+      "archiveSuccess": "模板已归档。",
+      "archiveFailed": "无法归档模板。",
+      "archivedHint": "此模板已归档，不能编辑或用于创建应用。",
+      "publishedImmutableHint": "发布版本不可编辑。撤回发布后可编辑新的草稿版本。",
+      "lifecycleTitle": "生命周期预设",
+      "lifecycleDescription": "模板预设会在创建应用时填入，创建者可以按应用需要调整。",
+      "lifecycleAuthority": "模板只保存默认生命周期配置，不执行部署。"
     },
     "discovery": {
       "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册应用，也不改变 runtime authority。",

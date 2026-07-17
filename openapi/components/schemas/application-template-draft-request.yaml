@@ -1,0 +1,17 @@
+type: object
+required: [display_name, deployment_adapter_kind, definition_schema_version, definition]
+properties:
+  display_name:
+    type: string
+    maxLength: 128
+  description:
+    type: string
+  deployment_adapter_kind:
+    type: string
+    enum: [compose]
+  definition_schema_version:
+    type: integer
+    minimum: 1
+  definition:
+    type: object
+    description: Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset.

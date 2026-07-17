@@ -474,3 +474,32 @@
 - Compose Project Name 继续表示技术 deployment identity；`app_<ULID>` 继续表示公开稳定 Application ID。
 - Generic persistence authority 固定为 `applications`。历史 versioned migration SQL 没有修改；server migration
   与 implementation consumer 迁移由各自 owned slice 完成。
+
+## 2026-07-17 Deployment adapter authority repair
+
+- `deployment_adapter_kind` 是 Application 定义格式、模板定义和生命周期语义的 canonical field，当前唯一运行值为 `compose`。Provider 和 Runtime Target 不再被误称为 Application Type。
+- Adapter 目录固定为 Compose、Helm、Kustomize、Nomad Job；未实现 Adapter 只可作为不可操作路线图。Swarm 是 Compose Adapter 在具备 `docker_stack_deploy` capability 的 Docker Swarm Target 上的执行模式，不是独立选择项。
+
+## 2026-07-17 Generic Application Template backend
+
+- Application Template 已收敛为按 `deployment_adapter_kind` 管理的 versioned creation blueprint；通用表不包含 Compose、Docker、Podman 或 Swarm 专属列，Compose definition 由 adapter 解释工作区、Compose 文件路径和 lifecycle preset。
+- 模板版本有 draft/published/withdrawn 生命周期：每个模板最多一个 draft，发布版本由数据库触发器保护为不可变；草稿只能空白创建或从模板定义克隆为独立模板，明确不允许从现有 Application 或旧目录导入。
+- 模板定义只保存在持久化版本快照中；不保留内置 Compose Baseline、启动种子或 `Application Root/templates/<key>` 导入路径。
+
+## 2026-07-17 Template provenance and legacy authority cleanup
+
+- 基于模板创建统一进入 `/api/ops/applications/create/managed`：web 用已发布版本快照预填可编辑 workspace 与 lifecycle，提交 `template_version_id`；服务端验证版本为未归档已发布 Compose 模板后写入稳定 `template_id` / `template_version_id` 来源元数据。
+- 删除旧 `/create/template`、`/create/template/validate` 与 `/create/workspace-defaults` API，不保留别名。空白创建改为最小本地 Compose 草稿，移除 runtime directory 模板发现、默认模板 seed 和 `blank_prefill_default_template` 配置 authority。
+
+## 2026-07-17 Application Template management UI
+
+- 新增受 `ops.application.template.manage` 保护的 `/api/ops/applications/templates/manage` 管理目录，并保持创建者的 `/templates` 端点只返回已发布版本。该分离是权限边界而非兼容路径。
+- `/applications/templates` 注册为 Application 域可见菜单；详情页复用受管创建的工作区编辑器和生命周期配置 review，支持空白草稿、更新、发布、独立克隆、撤回发布、归档和软删除。
+- 发布版本保持不可编辑；撤回保留原版本为 `withdrawn` 并原子创建下一可编辑草稿。模板从未读取现有 Application，模板创建出的 Application 仍通过 `template_version_id` 保持 provenance。
+- 主题历史仍保留独立的 remote source/activity aggregation 工作，不能因为模板 UI 完成而将整个 compose-project-management topic 标记为 archive-ready。
+
+## 2026-07-17 Template lifecycle correction
+
+- 用户确认旧目录导入不属于产品范围，`import-legacy` contract 与入口必须移除；模块启动写入的 Compose Baseline 也必须通过前向迁移软删除现存种子记录。
+- 模板详情为空被确认是前端对已解包 API 响应再次读取 `.data` 的显示 bug；模板详情 contract 仍返回完整定义，前端需修正客户端解包而非为该症状增加后端兼容数据。
+- 新 contract 固定为 `DELETE /api/ops/applications/templates/{templateId}`、`POST .../{templateId}/clone` 和 `POST .../{templateId}/withdraw`。克隆请求只接收新 `display_name`，返回独立草稿；撤回返回新建的下一版草稿，不保留 `/derive` 兼容路由。

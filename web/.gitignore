@@ -22,6 +22,11 @@ _site
 package
 tmp*
 temp*
+# Application template pages are source modules, not temporary artifacts.
+!src/modules/project/pages/templates/
+!src/modules/project/pages/templates/**
+!src/modules/project/pages/template-detail/
+!src/modules/project/pages/template-detail/**
 test-report.html
 .idea/
 yarn-error.log

@@ -93,6 +93,22 @@ func permissionItems(moduleName string) []permission.Item {
 			Module:         moduleName,
 		},
 		{
+			Code:           projectcontract.ApplicationTemplateManagePermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.applicationTemplateManage.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.applicationTemplateManage.description",
+			Module:         moduleName,
+		},
+		{
+			Code:           projectcontract.ApplicationTemplatePublishPermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.applicationTemplatePublish.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.applicationTemplatePublish.description",
+			Module:         moduleName,
+		},
+		{
 			Code:           projectcontract.ApplicationDeployPermission.String(),
 			Name:           "",
 			DisplayKey:     "rbac.permissionCatalog.applicationDeploy.display",
@@ -120,6 +136,18 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Icon:       "application",
 		Order:      projectMenuOrderList,
 		Permission: projectcontract.ApplicationViewPermission.String(),
+		Module:     moduleName,
+	})
+	registry.Register(menu.Item{
+		Code:       "application.templates",
+		ParentCode: "domain.application",
+		Kind:       menu.NodeKindEntry,
+		Title:      "",
+		TitleKey:   projectcontract.ApplicationTemplateMenuTitle.String(),
+		Path:       projectcontract.ApplicationTemplateManagementMenuPath,
+		Icon:       "folder",
+		Order:      projectMenuOrderList + 1,
+		Permission: projectcontract.ApplicationTemplateManagePermission.String(),
 		Module:     moduleName,
 	})
 	return nil

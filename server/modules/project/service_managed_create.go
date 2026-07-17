@@ -75,7 +75,7 @@ func (s *Service) CreateManagedApplication(
 	s.logManagedCreateDiagnostic("create_succeeded", zap.Uint64("project_id", aggregate.Application.ApplicationRecordID))
 	result = ManagedApplicationCreateResult{
 		Validation:           validation,
-		SourceType:           "managed",
+		SourceType:           validation.SourceType,
 		ApplicationRecordID:  aggregate.Application.ApplicationRecordID,
 		ApplicationID:        aggregate.Application.ApplicationID,
 		ConfigHash:           parseResult.ConfigHash,
@@ -202,6 +202,7 @@ type normalizedManagedCreateRequest struct {
 	ComposeFilePath    string
 	EnvFilePaths       []string
 	LifecycleConfig    *LifecycleStandardConfig
+	TemplateVersionID  string
 }
 
 type managedCreateMaterialization struct {
@@ -216,15 +217,7 @@ type normalizedManagedWorkspaceEntry struct {
 	Content  *string
 }
 
-// normalizeManagedCreateRequest 规范化并验证受控项目创建请求，生成用于后续项目创建的输入数据。
-// 它会校验项目名称、目录、Compose 文件、可选环境文件及工作区文件，并保留生命周期配置和环境文件路径。
-// 返回规范化后的请求数据及验证错误。
-//
-// normalizeManagedCreateRequest 校验并规范化受控项目创建请求，生成用于后续创建流程的工作区配置。
-// normalizeManagedCreateRequest 规范化受控项目创建请求及其工作区条目。
-// normalizeManagedCreateRequest 规范化并校验受控项目创建请求，生成可用于创建项目的文件与工作区配置。
-// @param request 待规范化的项目创建请求。
-// @return 规范化后的项目创建请求及可能发生的校验错误。
+// normalizeManagedCreateRequest 规范化可编辑工作区，同时保留可选模板版本的来源引用。
 func normalizeManagedCreateRequest(request ManagedApplicationCreateRequest) (normalizedManagedCreateRequest, error) {
 	identity, err := normalizeManagedCreateIdentity(request)
 	if err != nil {
@@ -261,6 +254,7 @@ func normalizeManagedCreateRequest(request ManagedApplicationCreateRequest) (nor
 		ComposeFilePath:    identity.composePath,
 		EnvFilePaths:       append([]string(nil), request.EnvFilePaths...),
 		LifecycleConfig:    request.LifecycleConfig,
+		TemplateVersionID:  strings.TrimSpace(request.TemplateVersionID),
 	}, nil
 }
 
@@ -428,8 +422,7 @@ func normalizeManagedCreateFiles(request ManagedApplicationCreateRequest) (manag
 	return managedCreateFiles{composePath: composePath, envName: envName, envContent: envContent}, nil
 }
 
-// rejectComposeProjectNameOverride 检查内容中的 COMPOSE_PROJECT_NAME 是否与指定的 compose 名称一致。
-// rejectComposeProjectNameOverride 校验内容中的 COMPOSE_PROJECT_NAME 配置是否与指定的 Compose 项目名称一致；内容为空或未包含该配置时通过，否则返回参数错误。
+// rejectComposeProjectNameOverride 拒绝与派生 Compose 应用名冲突的环境变量覆盖。
 func rejectComposeProjectNameOverride(content *string, composeName string) error {
 	if content == nil {
 		return nil
@@ -536,10 +529,7 @@ func normalizeManagedOptionalContent(value *string) *string {
 	return &content
 }
 
-// ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 下。
-// ensureManagedCreatePathsUnderRoot 验证托管项目工作目录位于已配置的 managed root 内。
-//
-// 当未配置根目录，或工作目录与根目录之间不存在有效的相对关系，或工作目录超出 managed root 时，返回 errProjectInvalidArgument。
+// ensureManagedCreatePathsUnderRoot 确保物化路径不会逃逸已验证的 managed root。
 func ensureManagedCreatePathsUnderRoot(validation ManagedApplicationCreateValidationResult) error {
 	if validation.ManagedRoot.ConfiguredRootDirectory == nil {
 		return errProjectInvalidArgument

@@ -12,7 +12,6 @@ import type {
   ApplicationLifecycleStrategyKind,
   ApplicationListItemWithLifecycle,
   ApplicationSourceType,
-  ApplicationWorkspaceDefaultsResponse,
 } from '../types/project';
 
 const defaultLifecycleWaitTimeoutSeconds = 120;
@@ -317,7 +316,7 @@ function normalizeWaitTimeoutSeconds(value: number | null | undefined) {
   return Math.trunc(value);
 }
 
-type LifecycleDraftSource = {
+export type LifecycleDraftSource = {
   strategy_kind?: ApplicationLifecycleStrategyKind;
   profiles?: string[] | null;
   down_before_redeploy?: boolean;
@@ -442,10 +441,10 @@ export function buildImportLifecycleConfigurationDraft(
 }
 
 /**
- * 将服务端下发的空白创建默认配置转换为向导草稿，确保创建页与项目生命周期页使用同一套命令预览规则。
+ * 将创建预设的生命周期配置转换为向导草稿，确保模板与空白创建共用命令预览规则。
  */
 export function buildBlankLifecycleConfigurationDraft(
-  defaults: Pick<ApplicationWorkspaceDefaultsResponse, 'lifecycle_configuration'>,
+  defaults: { lifecycle_configuration: LifecycleDraftSource },
   options: { composeFilePath: string; composeProjectName: string; workspacePath?: string },
 ): ApplicationLifecycleConfigurationDraft {
   return buildLifecycleDraftFromSource(defaults.lifecycle_configuration, {

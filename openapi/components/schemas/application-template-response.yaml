@@ -1,0 +1,13 @@
+type: object
+required: [template_id, display_name, description, deployment_adapter_kind, version]
+properties:
+  template_id: { type: string }
+  display_name: { type: string }
+  description: { type: string }
+  deployment_adapter_kind: { type: string, enum: [compose] }
+  archived_at:
+    type: string
+    format: date-time
+    nullable: true
+  version:
+    $ref: ./application-template-version.yaml

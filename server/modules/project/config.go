@@ -64,26 +64,6 @@ func configDefinitions() []configregistry.Definition {
 		projectWorkspaceHiddenDirectoriesDefinition(),
 		projectWorkspaceFileTooltipRulesDefinition(),
 		projectWorkspaceDirectoryTooltipRulesDefinition(),
-		projectBlankCreatePrefillDefaultTemplateDefinition(),
-	}
-}
-
-func projectBlankCreatePrefillDefaultTemplateDefinition() configregistry.Definition {
-	return configregistry.Definition{
-		Key:                 projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfig.String(),
-		Module:              moduleID,
-		Domain:              projectConfigDomain,
-		DomainKey:           projectConfigDomainKey,
-		Group:               projectConfigGroupCreate,
-		GroupKey:            projectcontract.ApplicationCreateConfigGroupTitle.String(),
-		GroupDescriptionKey: projectcontract.ApplicationCreateConfigGroupDescription.String(),
-		TitleKey:            projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigTitle.String(),
-		DescriptionKey:      projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigDescription.String(),
-		Type:                configregistry.ValueTypeBoolean,
-		Schema:              json.RawMessage(`{"type":"boolean","x-i18n":{"titleKey":"` + projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigTitle.String() + `","descriptionKey":"` + projectcontract.ApplicationBlankCreatePrefillDefaultTemplateConfigDescription.String() + `"}}`),
-		DefaultValue:        mustRawJSON(true),
-		RuntimeApplyMode:    configregistry.RuntimeApplyModeRuntimeHot,
-		Permission:          projectcontract.ApplicationCreatePermission.String(),
 	}
 }
 

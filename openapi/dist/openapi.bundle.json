@@ -11973,6 +11973,80 @@
         }
       }
     },
+    "/api/ops/applications/compose-context-references": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Resolve Compose application references",
+        "operationId": "postApplicationComposeContextReferences",
+        "description": "Resolves live Compose application references by the canonical runtime target and Compose project name identity. Unregistered contexts are omitted.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/application-compose-context-reference-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved Compose application references.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-compose-context-reference-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Compose application context request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/applications/saved-views": {
       "get": {
         "tags": [
@@ -13426,168 +13500,385 @@
         }
       }
     },
-    "/api/ops/applications/create/template/validate": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Validate a runtime template application source",
-        "operationId": "postApplicationCreateTemplateValidate",
-        "description": "Validates the selected Application Root template directory and eventual managed-root target without writing it.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/application-template-create-request"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Template source validation result.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-application-create-validate-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid template create validation request.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          }
-        }
-      }
-    },
-    "/api/ops/applications/create/template": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Create a managed Compose application from a runtime template directory",
-        "operationId": "postApplicationCreateTemplate",
-        "description": "Materializes one operator-managed text workspace template from Application Root templates/<template-key> under the managed root, then registers it without running Compose lifecycle commands.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/locale-header"
-          },
-          {
-            "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/application-template-create-request"
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Template workspace materialized and application registered.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-application-create-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid template create request.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          }
-        }
-      }
-    },
-    "/api/ops/applications/create/workspace-defaults": {
+    "/api/ops/applications/templates": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Get blank application workspace defaults and runtime templates",
-        "operationId": "getApplicationWorkspaceDefaults",
+        "summary": "List published compatible Application templates",
+        "operationId": "getApplicationTemplates",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
           },
           {
             "$ref": "#/components/parameters/request-id-header"
-          }
-        ],
-        "security": [
+          },
           {
-            "bearerAuth": []
+            "name": "deployment_adapter_kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "compose"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Server-owned blank workspace defaults.",
+            "description": "Published Application templates.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-application-workspace-defaults-response"
+                  "$ref": "#/components/schemas/enveloped-application-template-list-response"
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create an empty Application template draft",
+        "operationId": "postApplicationTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/application-template-draft-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application template draft created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid template draft input."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/manage": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "List all Application templates for management",
+        "operationId": "getApplicationManagedTemplates",
+        "responses": {
+          "200": {
+            "description": "Application template management catalog, including drafts and archived templates.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}": {
+      "parameters": [
+        {
+          "name": "templateId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^tpl_[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Get an Application template draft or latest published version",
+        "operationId": "getApplicationTemplate",
+        "responses": {
+          "200": {
+            "description": "Application template detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Update an editable Application template draft",
+        "operationId": "putApplicationTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/application-template-draft-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Application template draft updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid template draft input."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Template is archived or has no editable draft."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Soft-delete an Application template",
+        "operationId": "deleteApplicationTemplate",
+        "responses": {
+          "204": {
+            "description": "Application template soft-deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/clone": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Clone an Application template into an independent editable draft",
+        "operationId": "postApplicationTemplateClone",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "display_name"
+                ],
+                "properties": {
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Independent Application template draft cloned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid clone input."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/publish": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Publish an Application template draft as an immutable version",
+        "operationId": "postApplicationTemplatePublish",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published immutable template version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "No editable draft exists."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/withdraw": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Withdraw a published Application template and create its next editable draft",
+        "operationId": "postApplicationTemplateWithdraw",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published version withdrawn and next editable draft created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          },
+          "409": {
+            "description": "Template is archived or has no published version that can be withdrawn."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/archive": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Archive an Application template",
+        "operationId": "postApplicationTemplateArchive",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Template archived."
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -16258,7 +16549,7 @@
       "ApplicationSourceMetadata": {
         "$ref": "#/components/schemas/application-source-metadata"
       },
-      "ApplicationType": {
+      "DeploymentAdapterKind": {
         "$ref": "#/components/schemas/application-type"
       },
       "ApplicationId": {
@@ -16356,12 +16647,6 @@
       },
       "ApplicationWorkspaceEntry": {
         "$ref": "#/components/schemas/application-workspace-entry"
-      },
-      "ApplicationWorkspaceDefaultsResponse": {
-        "$ref": "#/components/schemas/application-workspace-defaults-response"
-      },
-      "EnvelopedApplicationWorkspaceDefaultsResponse": {
-        "$ref": "#/components/schemas/enveloped-application-workspace-defaults-response"
       },
       "ApplicationImportValidateRequest": {
         "$ref": "#/components/schemas/application-import-validate-request"
@@ -25411,9 +25696,9 @@
         "enum": [
           "compose"
         ],
-        "description": "Public Application deployment type. Compose is the only currently supported value.",
+        "description": "Public Application deployment adapter kind. Compose is the only currently supported value.",
         "x-enum-varnames": [
-          "ApplicationTypeCompose"
+          "DeploymentAdapterKindCompose"
         ]
       },
       "application-source-type": {
@@ -25539,17 +25824,13 @@
             "nullable": true,
             "description": "Optional managed env file name tracked by application authority."
           },
-          "template_key": {
+          "template_id": {
             "type": "string",
-            "description": "Planned stable template identifier for a future template-backed application source."
+            "description": "Stable Application Template identity that originated this application."
           },
-          "template_version": {
+          "template_version_id": {
             "type": "string",
-            "description": "Planned template version or release channel."
-          },
-          "template_instance_name": {
-            "type": "string",
-            "description": "Planned template instance name used to derive a managed working directory."
+            "description": "Immutable published Application Template version that originated this application."
           }
         }
       },
@@ -25612,7 +25893,7 @@
         "required": [
           "application_id",
           "display_name",
-          "application_type",
+          "deployment_adapter_kind",
           "compose_project_name",
           "compose_project_name_source",
           "lifecycle_review_status",
@@ -25631,7 +25912,7 @@
           "display_name": {
             "type": "string"
           },
-          "application_type": {
+          "deployment_adapter_kind": {
             "$ref": "#/components/schemas/application-type"
           },
           "runtime_target": {
@@ -25725,6 +26006,99 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/application-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "application-compose-context": {
+        "type": "object",
+        "required": [
+          "runtime_target_id",
+          "compose_project_name"
+        ],
+        "properties": {
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "compose_project_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
+      "application-compose-context-reference-request": {
+        "type": "object",
+        "required": [
+          "contexts"
+        ],
+        "properties": {
+          "contexts": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/application-compose-context"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "application-compose-context-reference": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/application-compose-context"
+          },
+          {
+            "type": "object",
+            "required": [
+              "application_id",
+              "display_name"
+            ],
+            "properties": {
+              "application_id": {
+                "$ref": "#/components/schemas/application-id"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "application-compose-context-reference-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-compose-context-reference"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-application-compose-context-reference-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-compose-context-reference-response"
               }
             }
           }
@@ -25836,7 +26210,7 @@
                 "minLength": 1,
                 "maxLength": 128
               },
-              "application_type": {
+              "deployment_adapter_kind": {
                 "type": "string",
                 "enum": [
                   "compose"
@@ -28120,6 +28494,10 @@
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/application-lifecycle-configuration-request"
+          },
+          "template_version_id": {
+            "type": "string",
+            "description": "Optional immutable published Application Template version used only for provenance validation."
           }
         }
       },
@@ -28315,6 +28693,10 @@
           },
           "lifecycle_configuration": {
             "$ref": "#/components/schemas/application-lifecycle-configuration-request"
+          },
+          "template_version_id": {
+            "type": "string",
+            "description": "Optional immutable published Application Template version that originally prefilled this editable workspace."
           }
         }
       },
@@ -28323,7 +28705,7 @@
         "required": [
           "managed_root",
           "source_type",
-          "application_type",
+          "deployment_adapter_kind",
           "application_id",
           "action",
           "result",
@@ -28342,7 +28724,7 @@
           "source_type": {
             "$ref": "#/components/schemas/application-source-type"
           },
-          "application_type": {
+          "deployment_adapter_kind": {
             "$ref": "#/components/schemas/application-type"
           },
           "application_id": {
@@ -28453,105 +28835,177 @@
           }
         ]
       },
-      "application-template-create-request": {
+      "application-template-version": {
         "type": "object",
-        "additionalProperties": false,
+        "required": [
+          "template_version_id",
+          "version_number",
+          "status",
+          "definition_schema_version",
+          "definition"
+        ],
+        "properties": {
+          "template_version_id": {
+            "type": "string"
+          },
+          "version_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "published",
+              "withdrawn"
+            ]
+          },
+          "definition_schema_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "definition": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "published_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "withdrawn_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "withdrawn_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "application-template-response": {
+        "type": "object",
+        "required": [
+          "template_id",
+          "display_name",
+          "description",
+          "deployment_adapter_kind",
+          "version"
+        ],
+        "properties": {
+          "template_id": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "deployment_adapter_kind": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "archived_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "version": {
+            "$ref": "#/components/schemas/application-template-version"
+          }
+        }
+      },
+      "application-template-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-template-response"
+            }
+          }
+        }
+      },
+      "enveloped-application-template-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-template-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "application-template-draft-request": {
+        "type": "object",
         "required": [
           "display_name",
-          "runtime_target_id",
-          "application_name"
+          "deployment_adapter_kind",
+          "definition_schema_version",
+          "definition"
         ],
         "properties": {
           "display_name": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 120
+            "maxLength": 128
           },
-          "runtime_target_id": {
+          "description": {
+            "type": "string"
+          },
+          "deployment_adapter_kind": {
+            "type": "string",
+            "enum": [
+              "compose"
+            ]
+          },
+          "definition_schema_version": {
             "type": "integer",
-            "format": "int64",
             "minimum": 1
           },
-          "application_name": {
-            "type": "string",
-            "maxLength": 255,
-            "pattern": "^[a-z0-9][a-z0-9-]*$",
-            "description": "Required unique machine-safe application name for the managed directory and Compose application identity."
-          },
-          "template_key": {
-            "type": "string",
-            "description": "Runtime template directory key. Defaults to default."
-          },
-          "template_version": {
-            "type": "string",
-            "description": "Optional operator-defined template version label. Defaults to runtime."
-          },
-          "template_instance_name": {
-            "type": "string",
-            "description": "Safe display provenance for this template instance. Defaults to the application name."
-          },
-          "lifecycle_configuration": {
-            "$ref": "#/components/schemas/application-lifecycle-configuration-request"
+          "definition": {
+            "type": "object",
+            "description": "Adapter-owned definition snapshot. Compose currently owns workspace entries, compose path, and lifecycle preset."
           }
         }
       },
-      "application-workspace-defaults-response": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "templates",
-          "default_template_key",
-          "workspace_entries",
-          "compose_file_path",
-          "lifecycle_configuration"
-        ],
-        "properties": {
-          "templates": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "key",
-                "display_name"
-              ],
-              "properties": {
-                "key": {
-                  "type": "string"
-                },
-                "display_name": {
-                  "type": "string"
-                }
+      "enveloped-application-template-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-template-response"
               }
             }
-          },
-          "default_template_key": {
-            "type": "string"
-          },
-          "workspace_entries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/application-workspace-entry"
-            }
-          },
-          "compose_file_path": {
-            "type": "string"
-          },
-          "lifecycle_configuration": {
-            "$ref": "#/components/schemas/application-lifecycle-configuration-request"
           }
-        }
-      },
-      "enveloped-application-workspace-defaults-response": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/application-workspace-defaults-response"
-          }
-        }
+        ]
       },
       "enveloped-application-detail-response": {
         "allOf": [
@@ -30908,10 +31362,10 @@
         }
       },
       "application-list-application-type": {
-        "name": "application_type",
+        "name": "deployment_adapter_kind",
         "in": "query",
         "required": false,
-        "description": "Optional application type. Compose is the only currently supported type.",
+        "description": "Optional deployment adapter kind. Compose is the only currently supported value.",
         "schema": {
           "$ref": "#/components/schemas/application-type"
         }

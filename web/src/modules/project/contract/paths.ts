@@ -7,12 +7,15 @@ export const APPLICATION_ROUTE_PATH = {
   CREATE_DISCOVERY: '/applications/create/discovery',
   CREATE_BLANK: '/applications/create/blank',
   CREATE_TEMPLATE: '/applications/create/template',
+  TEMPLATES: '/applications/templates',
+  TEMPLATE_DETAIL: '/applications/templates/:templateId',
   DETAIL: '/applications/:applicationId',
   CONFIGURATION_WORKSPACE: '/applications/:applicationId/configuration',
 } as const;
 
 export const APPLICATION_API_PATH = {
   LIST: '/api/ops/applications',
+  COMPOSE_CONTEXT_REFERENCES: '/api/ops/applications/compose-context-references',
   SAVED_VIEWS: '/api/ops/applications/saved-views',
   SAVED_VIEW: '/api/ops/applications/saved-views/{viewId}',
   BATCH_ACTIONS: '/api/ops/applications/batch-actions',
@@ -25,14 +28,18 @@ export const APPLICATION_API_PATH = {
   IMPORT: '/api/ops/applications/import',
   CREATION_METHODS: '/api/ops/applications/creation-methods',
   COMPOSE_RUNTIME_TARGETS: '/api/ops/applications/create/runtime-targets',
-  CREATE_WORKSPACE_DEFAULTS: '/api/ops/applications/create/workspace-defaults',
   DISCOVERY_CANDIDATES: '/api/ops/applications/discovery-candidates',
   MANAGED_ROOT: '/api/ops/applications/managed/root',
   CREATE_VALIDATE: '/api/ops/applications/create/managed/validate',
   APPLICATION_NAME_AVAILABILITY: '/api/ops/applications/create/application-name/availability',
   CREATE: '/api/ops/applications/create/managed',
-  CREATE_TEMPLATE_VALIDATE: '/api/ops/applications/create/template/validate',
-  CREATE_TEMPLATE: '/api/ops/applications/create/template',
+  TEMPLATES: '/api/ops/applications/templates',
+  TEMPLATES_MANAGE: '/api/ops/applications/templates/manage',
+  TEMPLATE: '/api/ops/applications/templates/{templateId}',
+  TEMPLATE_CLONE: '/api/ops/applications/templates/{templateId}/clone',
+  TEMPLATE_PUBLISH: '/api/ops/applications/templates/{templateId}/publish',
+  TEMPLATE_WITHDRAW: '/api/ops/applications/templates/{templateId}/withdraw',
+  TEMPLATE_ARCHIVE: '/api/ops/applications/templates/{templateId}/archive',
   DETAIL: '/api/ops/applications/{applicationId}',
   OVERVIEW: '/api/ops/applications/{applicationId}/overview',
   LOGS: '/api/ops/applications/{applicationId}/logs',
@@ -65,6 +72,26 @@ export function buildApplicationSavedViewApiPath(viewId: number) {
 
 export function buildApplicationDetailApiPath(applicationId: string) {
   return APPLICATION_API_PATH.DETAIL.replace('{applicationId}', encodeApplicationPathParam(applicationId));
+}
+
+export function buildApplicationTemplateApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplateCloneApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_CLONE.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplatePublishApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_PUBLISH.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplateWithdrawApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_WITHDRAW.replace('{templateId}', encodeApplicationPathParam(templateId));
+}
+
+export function buildApplicationTemplateArchiveApiPath(templateId: string) {
+  return APPLICATION_API_PATH.TEMPLATE_ARCHIVE.replace('{templateId}', encodeApplicationPathParam(templateId));
 }
 
 export function buildApplicationOverviewApiPath(applicationId: string) {

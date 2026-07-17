@@ -1,7 +1,8 @@
 package contract
 
-// ApplicationType 标识公开应用部署模型。
-type ApplicationType string
+// DeploymentAdapterKind 标识应用定义格式及其部署适配器。
+// 运行目标和 Provider 只声明能力，不能替代此契约。
+type DeploymentAdapterKind string
 
 // SourceType 标识稳定的应用来源契约；规范 owner 为 server/modules/project/contract。
 type SourceType string
@@ -30,9 +31,19 @@ type LifecycleStrategyKind string
 // LifecycleReviewStatus 标识稳定的生命周期配置审核状态契约。
 type LifecycleReviewStatus string
 
+// ApplicationTemplateStatus 标识模板版本的可编辑与发布状态。
+type ApplicationTemplateStatus string
+
 const (
-	// ApplicationTypeCompose 表示由 Compose Specification 驱动的应用。
-	ApplicationTypeCompose ApplicationType = "compose"
+	// DeploymentAdapterKindCompose 表示由 Compose Specification 驱动的应用定义。
+	DeploymentAdapterKindCompose DeploymentAdapterKind = "compose"
+
+	// ApplicationTemplateStatusDraft 表示可由模板管理员编辑的版本。
+	ApplicationTemplateStatusDraft ApplicationTemplateStatus = "draft"
+	// ApplicationTemplateStatusPublished 表示不可变且可供创建者使用的版本。
+	ApplicationTemplateStatusPublished ApplicationTemplateStatus = "published"
+	// ApplicationTemplateStatusWithdrawn 表示已撤回且仅保留溯源的不可变历史版本。
+	ApplicationTemplateStatusWithdrawn ApplicationTemplateStatus = "withdrawn"
 
 	// SourceTypeImported 表示导入 Graft 的外部 Compose 应用。
 	SourceTypeImported SourceType = "imported"
@@ -89,7 +100,10 @@ const (
 )
 
 // String 返回线格式值，供跨边界契约序列化。
-func (v ApplicationType) String() string { return string(v) }
+func (v DeploymentAdapterKind) String() string { return string(v) }
+
+// String 返回线格式模板版本状态。
+func (v ApplicationTemplateStatus) String() string { return string(v) }
 
 // String 返回线格式值，供跨边界契约序列化。
 func (v SourceType) String() string { return string(v) }

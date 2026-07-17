@@ -1,0 +1,31 @@
+post:
+  tags: [application]
+  summary: Clone an Application template into an independent editable draft
+  operationId: postApplicationTemplateClone
+  parameters:
+    - name: templateId
+      in: path
+      required: true
+      schema: { type: string }
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required: [display_name]
+          properties:
+            display_name:
+              type: string
+              minLength: 1
+              maxLength: 128
+  responses:
+    '201':
+      description: Independent Application template draft cloned.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '400': { description: Invalid clone input. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Application template not found. }

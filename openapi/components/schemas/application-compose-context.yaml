@@ -1,0 +1,12 @@
+type: object
+required: [runtime_target_id, compose_project_name]
+properties:
+  runtime_target_id:
+    type: integer
+    format: int64
+    minimum: 1
+  compose_project_name:
+    type: string
+    minLength: 1
+    maxLength: 255
+additionalProperties: false

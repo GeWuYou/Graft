@@ -38,7 +38,7 @@ func toProjectListItemWithManagedRoot(
 	counts := buildProjectContainerCounts(runtimeSummary)
 	return generated.ApplicationListItem{
 		ApplicationId:            aggregate.Application.ApplicationID,
-		ApplicationType:          generated.ApplicationType(nonEmptyString(aggregate.Application.ApplicationType, projectcontract.ApplicationTypeCompose.String())),
+		DeploymentAdapterKind:    generated.ApplicationType(nonEmptyString(aggregate.Application.DeploymentAdapterKind, projectcontract.DeploymentAdapterKindCompose.String())),
 		DisplayName:              aggregate.Application.DisplayName,
 		ComposeProjectName:       nonEmptyString(aggregate.Application.ComposeProjectName, aggregate.Application.ComposeProjectName),
 		ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(nonEmptyString(aggregate.Application.ComposeProjectNameSource, aggregate.Application.ComposeProjectNameSource)),
@@ -77,7 +77,7 @@ func toProjectDetailResponseWithManagedRoot(
 ) generated.ApplicationDetailResponse {
 	counts := buildProjectContainerCounts(runtimeSummary)
 	item := generated.ApplicationDetailResponse{
-		ApplicationType:          generated.ApplicationType(nonEmptyString(aggregate.Application.ApplicationType, projectcontract.ApplicationTypeCompose.String())),
+		DeploymentAdapterKind:    generated.ApplicationType(nonEmptyString(aggregate.Application.DeploymentAdapterKind, projectcontract.DeploymentAdapterKindCompose.String())),
 		ComposeProjectName:       nonEmptyString(aggregate.Application.ComposeProjectName, aggregate.Application.ComposeProjectName),
 		ComposeProjectNameSource: generated.ApplicationComposeProjectNameSource(nonEmptyString(aggregate.Application.ComposeProjectNameSource, aggregate.Application.ComposeProjectNameSource)),
 		LifecycleReviewStatus:    generated.ApplicationLifecycleReviewStatus(nonEmptyString(aggregate.Application.LifecycleReviewStatus, projectcontract.LifecycleReviewStatusReviewRequired.String())),
@@ -497,9 +497,8 @@ func toGeneratedSourceMetadata(metadata map[string]string) *generated.Applicatio
 	assignSourceMetadataField(metadata, "managed_relative_directory", &result.ManagedRelativeDirectory)
 	assignSourceMetadataField(metadata, "managed_compose_file_name", &result.ManagedComposeFileName)
 	assignSourceMetadataField(metadata, "managed_env_file_name", &result.ManagedEnvFileName)
-	assignSourceMetadataField(metadata, "template_key", &result.TemplateKey)
-	assignSourceMetadataField(metadata, "template_version", &result.TemplateVersion)
-	assignSourceMetadataField(metadata, "template_instance_name", &result.TemplateInstanceName)
+	assignSourceMetadataField(metadata, "template_id", &result.TemplateId)
+	assignSourceMetadataField(metadata, "template_version_id", &result.TemplateVersionId)
 	if result == (generated.ApplicationSourceMetadata{}) {
 		return nil
 	}

@@ -149,16 +149,16 @@ func (s *Service) publishProjectAudit(
 
 func projectActionAuditMetadata(aggregate projectstore.ApplicationAggregate, result ActionResult) map[string]any {
 	metadata := map[string]any{
-		"application_id":        aggregate.Application.ApplicationID,
-		"application_record_id": aggregate.Application.ApplicationRecordID,
-		"compose_project_name":  aggregate.Application.ComposeProjectName,
-		"display_name":          aggregate.Application.DisplayName,
-		"application_type":      "compose",
-		"source_type":           aggregate.Application.SourceType,
-		"ownership_mode":        aggregate.Application.OwnershipMode,
-		"workspace_path":        aggregate.Application.WorkspacePath,
-		"action_result":         result.Result,
-		"guard_results":         guardResultsAuditMetadata(result.GuardResults),
+		"application_id":          aggregate.Application.ApplicationID,
+		"application_record_id":   aggregate.Application.ApplicationRecordID,
+		"compose_project_name":    aggregate.Application.ComposeProjectName,
+		"display_name":            aggregate.Application.DisplayName,
+		"deployment_adapter_kind": projectcontract.DeploymentAdapterKindCompose.String(),
+		"source_type":             aggregate.Application.SourceType,
+		"ownership_mode":          aggregate.Application.OwnershipMode,
+		"workspace_path":          aggregate.Application.WorkspacePath,
+		"action_result":           result.Result,
+		"guard_results":           guardResultsAuditMetadata(result.GuardResults),
 	}
 	return metadata
 }

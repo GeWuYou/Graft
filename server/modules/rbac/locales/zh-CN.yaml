@@ -120,5 +120,9 @@ rbac.permissionCatalog.applicationDiscoveryView.display: 查看应用发现候�
 rbac.permissionCatalog.applicationDiscoveryView.description: 预览本机发现到的 Compose 目录，不直接注册应用。
 rbac.permissionCatalog.applicationDeploy.display: 部署受管 Compose 应用草稿
 rbac.permissionCatalog.applicationDeploy.description: 对受管应用配置草稿执行 diff、validate 和 deploy。
+rbac.permissionCatalog.applicationTemplateManage.display: 管理应用模板
+rbac.permissionCatalog.applicationTemplateManage.description: 创建、编辑、派生、导入和归档可复用的应用模板。
+rbac.permissionCatalog.applicationTemplatePublish.display: 发布应用模板
+rbac.permissionCatalog.applicationTemplatePublish.description: 发布供创建者使用的不可变应用模板版本。
 rbac.audit.rolePermissionsAdded: 角色权限已追加
 rbac.audit.rolePermissionsRemoved: 角色权限已移除

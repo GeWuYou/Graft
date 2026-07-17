@@ -53,7 +53,7 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	strictCreate := command.SourceType == projectcontract.SourceTypeManaged.String() || command.SourceType == projectcontract.SourceTypeTemplate.String()
 	aggregate, err := repository.ImportApplication(ctx, projectstore.ImportApplicationInput{
 		ApplicationID:            newApplicationID(),
-		ApplicationType:          projectcontract.ApplicationTypeCompose.String(),
+		DeploymentAdapterKind:    projectcontract.DeploymentAdapterKindCompose.String(),
 		ApplicationName:          command.ApplicationName,
 		WorkspacePath:            strings.TrimSpace(command.WorkspacePath),
 		ComposeProjectName:       strings.TrimSpace(command.ComposeProjectName),
@@ -161,5 +161,5 @@ func lifecycleStandardConfigFromStore(config projectstore.LifecycleConfig) Lifec
 
 // managedCreationCommand 根据已验证的项目数据、规范化请求和解析结果构建受管项目的创建命令。
 func managedCreationCommand(validation ManagedApplicationCreateValidationResult, normalized normalizedManagedCreateRequest, parseResult projectcompose.Result, actorID *uint64) CreationCommand {
-	return CreationCommand{DisplayName: normalized.DisplayName, ComposeProjectName: validation.ComposeProjectName, ComposeProjectNameSource: projectcontract.ComposeProjectNameSourceComputed.String(), SourceType: projectcontract.SourceTypeManaged.String(), WorkspacePath: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName}
+	return CreationCommand{DisplayName: normalized.DisplayName, ComposeProjectName: validation.ComposeProjectName, ComposeProjectNameSource: projectcontract.ComposeProjectNameSourceComputed.String(), SourceType: validation.SourceType, WorkspacePath: validation.WorkspacePath, OwnershipMode: projectcontract.OwnershipModeManagedRootDedicated.String(), SourceMetadata: validation.SourceMetadata, LifecycleConfig: defaultManagedLifecycleConfig(normalized.LifecycleConfig), ParseResult: parseResult, ActorID: actorID, RuntimeTargetID: normalized.RuntimeTargetID, ApplicationName: validation.ApplicationName}
 }

@@ -33,7 +33,7 @@ var (
 type Application struct {
 	ApplicationRecordID      uint64
 	ApplicationID            string
-	ApplicationType          string
+	DeploymentAdapterKind    string
 	ApplicationName          *string
 	WorkspacePath            string
 	ComposeProjectName       string
@@ -125,7 +125,7 @@ type ListResult struct {
 // ImportApplicationInput 描述创建或替换一条应用注册记录的输入。
 type ImportApplicationInput struct {
 	ApplicationID            string
-	ApplicationType          string
+	DeploymentAdapterKind    string
 	ApplicationName          *string
 	WorkspacePath            string
 	ComposeProjectName       string
@@ -208,4 +208,22 @@ type ApplicationNameLookupRepository interface {
 // ApplicationIDBatchLookupRepository 批量解析公开标识，不加载完整应用聚合。
 type ApplicationIDBatchLookupRepository interface {
 	GetRecordIDsByApplicationIDs(ctx context.Context, applicationIDs []string) (map[string]uint64, error)
+}
+
+// ComposeContext 是容器运行时到 Application 注册表的规范关联键。
+type ComposeContext struct {
+	RuntimeTargetID    int64
+	ComposeProjectName string
+}
+
+// ComposeApplicationReference 是可安全暴露给关联消费者的应用标识与显示名。
+type ComposeApplicationReference struct {
+	ComposeContext
+	ApplicationID string
+	DisplayName   string
+}
+
+// ComposeContextReferenceRepository 以规范的运行目标和 Compose 项目名批量解析存活 Application 引用。
+type ComposeContextReferenceRepository interface {
+	ResolveComposeContexts(ctx context.Context, contexts []ComposeContext) ([]ComposeApplicationReference, error)
 }

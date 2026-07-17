@@ -412,7 +412,7 @@ function buildApplicationDetail(runtimeStatus: string = 'running') {
   return {
     activity_authority: 'frontend-fanout',
     application_id: '7',
-    application_type: 'compose',
+    deployment_adapter_kind: 'compose',
     compose_project_name: 'compose-demo',
     compose_project_name_source: 'explicit',
     compose_files: [],

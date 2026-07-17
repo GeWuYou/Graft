@@ -76,7 +76,7 @@ func (r *SQLRepository) listApplicationsPage(
 	rows, err := r.db.QueryContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			application_record_id, application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+			application_record_id, application_id, deployment_adapter_kind, application_name, workspace_path, compose_project_name, compose_project_name_source,
 			runtime_target_id, display_name, source_type, ownership_mode, source_metadata_json,
 			lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
@@ -141,7 +141,7 @@ func (r *SQLRepository) Get(ctx context.Context, applicationRecordID uint64) (Ap
 	application, err := scanApplication(r.db.QueryRowContext(
 		ctx,
 		r.placeholder.rebind(`SELECT
-			application_record_id, application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+			application_record_id, application_id, deployment_adapter_kind, application_name, workspace_path, compose_project_name, compose_project_name_source,
 			runtime_target_id, display_name, source_type, ownership_mode, source_metadata_json,
 			lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
@@ -252,6 +252,63 @@ func (r *SQLRepository) GetRecordIDsByApplicationIDs(ctx context.Context, applic
 		return nil, fmt.Errorf("iterate application application ids: %w", err)
 	}
 	return result, nil
+}
+
+const composeContextReferenceArgWidth = 2
+
+// ResolveComposeContexts 批量解析存活 Compose Application 的公开引用，不加载文件或运行时聚合。
+func (r *SQLRepository) ResolveComposeContexts(ctx context.Context, contexts []ComposeContext) ([]ComposeApplicationReference, error) {
+	if err := r.ensureReady(); err != nil {
+		return nil, err
+	}
+	contexts = normalizeComposeContexts(contexts)
+	if len(contexts) == 0 {
+		return []ComposeApplicationReference{}, nil
+	}
+
+	conditions := make([]string, 0, len(contexts))
+	args := make([]any, 0, len(contexts)*composeContextReferenceArgWidth)
+	for _, context := range contexts {
+		conditions = append(conditions, "(runtime_target_id = ? AND compose_project_name = ?)")
+		args = append(args, context.RuntimeTargetID, context.ComposeProjectName)
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, display_name, runtime_target_id, compose_project_name
+		FROM applications
+		WHERE deleted_at = 0 AND (`+strings.Join(conditions, " OR ")+`)`), args...)
+	if err != nil {
+		return nil, fmt.Errorf("resolve compose application contexts: %w", err)
+	}
+	defer closeRows(rows)
+
+	items := make([]ComposeApplicationReference, 0, len(contexts))
+	for rows.Next() {
+		var item ComposeApplicationReference
+		if err := rows.Scan(&item.ApplicationID, &item.DisplayName, &item.RuntimeTargetID, &item.ComposeProjectName); err != nil {
+			return nil, fmt.Errorf("scan compose application reference: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate compose application references: %w", err)
+	}
+	return items, nil
+}
+
+func normalizeComposeContexts(contexts []ComposeContext) []ComposeContext {
+	seen := make(map[ComposeContext]struct{}, len(contexts))
+	items := make([]ComposeContext, 0, len(contexts))
+	for _, context := range contexts {
+		context.ComposeProjectName = strings.TrimSpace(context.ComposeProjectName)
+		if context.RuntimeTargetID < 1 || context.ComposeProjectName == "" {
+			continue
+		}
+		if _, ok := seen[context]; ok {
+			continue
+		}
+		seen[context] = struct{}{}
+		items = append(items, context)
+	}
+	return items
 }
 
 // GetFile 返回指定应用范围内的一个文件；应用或文件不存在时返回对应错误。
@@ -791,7 +848,7 @@ func (r *SQLRepository) upsertApplication(
 		ctx,
 		r.placeholder.rebind(applicationsUpsertSQL()),
 		input.ApplicationID,
-		input.ApplicationType,
+		input.DeploymentAdapterKind,
 		input.ApplicationName,
 		input.WorkspacePath,
 		input.DisplayName,
@@ -834,13 +891,13 @@ func (r *SQLRepository) createApplication(ctx context.Context, tx *sql.Tx, input
 	}
 	var applicationRecordID uint64
 	err = tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO applications (
-		application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+		application_id, deployment_adapter_kind, application_name, workspace_path, compose_project_name, compose_project_name_source,
 		display_name, runtime_target_id, source_type, ownership_mode, source_metadata_json, lifecycle_strategy_kind, lifecycle_review_status,
 		lifecycle_config_json, last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
 		created_by, updated_by, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
 	RETURNING application_record_id`),
-		input.ApplicationID, input.ApplicationType, input.ApplicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
+		input.ApplicationID, input.DeploymentAdapterKind, input.ApplicationName, input.WorkspacePath, input.ComposeProjectName, input.ComposeProjectNameSource,
 		input.DisplayName, runtimeTargetID, input.SourceType, input.OwnershipMode, string(sourceMetadataJSON), input.LifecycleStrategyKind, input.LifecycleReviewStatus,
 		string(lifecycleConfigJSON), input.LastObservedConfigHash, `{}`, input.LastDriftCheckedAt, input.DriftStatus,
 		input.ActorID, input.ActorID, now, now,
@@ -854,7 +911,7 @@ func (r *SQLRepository) createApplication(ctx context.Context, tx *sql.Tx, input
 // applicationsUpsertSQL 返回用于插入或更新应用记录的 SQL，并通过 RETURNING 返回内部数值键。
 func applicationsUpsertSQL() string {
 	return `INSERT INTO applications (
-			application_id, application_type, application_name, workspace_path, compose_project_name, compose_project_name_source,
+			application_id, deployment_adapter_kind, application_name, workspace_path, compose_project_name, compose_project_name_source,
 			display_name, runtime_target_id, source_type, ownership_mode, source_metadata_json,
 			lifecycle_strategy_kind, lifecycle_review_status, lifecycle_config_json,
 			last_observed_config_hash, workspace_annotations_json, last_drift_checked_at, drift_status,
@@ -863,7 +920,7 @@ func applicationsUpsertSQL() string {
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?::jsonb, ?, ?::jsonb, ?, ?, ?, ?, ?, ?
 		)
 		ON CONFLICT (runtime_target_id, compose_project_name) WHERE deleted_at = 0 DO UPDATE SET
-			application_type = excluded.application_type,
+			deployment_adapter_kind = excluded.deployment_adapter_kind,
 			display_name = excluded.display_name,
 			application_name = COALESCE(excluded.application_name, applications.application_name),
 			runtime_target_id = excluded.runtime_target_id,
