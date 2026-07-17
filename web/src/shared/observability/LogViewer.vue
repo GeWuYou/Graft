@@ -487,6 +487,7 @@
 
   <t-drawer
     v-model:visible="detailDrawerVisible"
+    attach="body"
     drawer-class-name="log-viewer__drawer"
     :footer="false"
     :header="detailTitleLabel"

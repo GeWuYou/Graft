@@ -113,6 +113,22 @@ describe('LogViewer', () => {
     expect(line.text()).not.toContain('pricing_service.go:461');
   });
 
+  it('opens the selected log line details from the row action', async () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        entries: createEntries(2),
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    await wrapper.get('[aria-label="查看详情"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('.log-viewer__detail-drawer').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__detail-drawer').text()).toContain('http request completed');
+  });
+
   it('renders the relative-day timestamp label from the active locale', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-06-18T08:00:00+08:00'));

@@ -46,7 +46,6 @@ describe('ApplicationCreateSourceIndex', () => {
           't-space': { template: '<div><slot /></div>' },
           't-tag': { template: '<span><slot /></span>' },
           't-tooltip': { template: '<div><slot /></div>' },
-          'project-back-icon': true,
         },
       },
     });
@@ -84,7 +83,6 @@ describe('ApplicationCreateSourceIndex', () => {
           't-space': { template: '<div><slot /></div>' },
           't-tag': { template: '<span><slot /></span>' },
           't-tooltip': { template: '<div><slot /></div>' },
-          'project-back-icon': true,
         },
       },
     });

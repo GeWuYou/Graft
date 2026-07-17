@@ -1784,7 +1784,7 @@ async function openApplicationTask(row: ApplicationListItemWithLifecycle) {
   const requestVersion = ++taskOpenRequestVersion;
   openingTaskRowIds.value = new Set(openingTaskRowIds.value).add(row.application_id);
   try {
-    const task = await getLatestTaskForOwner({ ownerId: row.application_id, ownerType: 'compose_project' });
+    const task = await getLatestTaskForOwner({ ownerId: row.application_id, ownerType: 'application' });
     if (requestVersion !== taskOpenRequestVersion) return;
     if (task) openTaskDrawer(task.id);
     else MessagePlugin.info(t('project.list.actions.noTaskHistory'));

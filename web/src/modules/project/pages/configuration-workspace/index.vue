@@ -39,7 +39,7 @@
                 <t-descriptions-item :label="t('project.detail.configuration.ownershipMode')">
                   {{ detailRecord?.ownership_mode || '-' }}
                 </t-descriptions-item>
-                <t-descriptions-item :label="workspaceCopy.summaryWorkspacePathLabel">
+                <t-descriptions-item :label="workspaceCopy.summaryWorkingDirectoryLabel">
                   <t-tooltip :content="detailRecord?.workspace_path || '-'" placement="top-left" theme="light">
                     <code
                       :aria-label="detailRecord?.workspace_path || '-'"

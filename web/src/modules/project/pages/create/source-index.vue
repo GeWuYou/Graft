@@ -8,7 +8,7 @@
       >
         <template #actions>
           <t-button variant="text" data-testid="project-creation-back" @click="goToRuntimeTargets">
-            <template #icon><project-back-icon /></template>
+            <template #icon><application-back-icon /></template>
             {{ t('project.creation.actions.backToRuntimeTargets') }}
           </t-button>
         </template>
@@ -95,6 +95,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { ChevronLeftIcon as ApplicationBackIcon } from 'tdesign-icons-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';

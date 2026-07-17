@@ -6,7 +6,7 @@ import { useDebugStore } from '@/store/modules/debug';
 import { store } from '@/store/pinia';
 
 import { toMonacoColor } from './project-monaco-color';
-import { isProjectMonacoDebugEnabled } from './project-monaco-debug';
+import { isProjectMonacoBenignCancellationError, isProjectMonacoDebugEnabled } from './project-monaco-debug';
 import { buildProjectMonacoWorker } from './project-monaco-worker';
 
 const originalQueryCommandSupported = document.queryCommandSupported;
@@ -128,6 +128,27 @@ describe('project-monaco debug toggle', () => {
     debugStore.setRuntimeFlag('project.monaco', true);
 
     expect(isProjectMonacoDebugEnabled()).toBe(true);
+  });
+});
+
+describe('project-monaco cancellation classification', () => {
+  it('suppresses Monaco Delayer cancellation stacks from current build chunks', () => {
+    const error = Object.assign(new Error('Canceled'), {
+      name: 'Canceled',
+      stack:
+        'Error: Canceled\n at Delayer.cancel (chunk-current.js:1:1)\n at _DisposableStore.clear (chunk-current.js:2:2)',
+    });
+
+    expect(isProjectMonacoBenignCancellationError(error)).toBe(true);
+  });
+
+  it('keeps unrelated cancellation errors visible', () => {
+    const error = Object.assign(new Error('Canceled'), {
+      name: 'Canceled',
+      stack: 'Error: Canceled\n at unrelatedRequest (app.js:1:1)',
+    });
+
+    expect(isProjectMonacoBenignCancellationError(error)).toBe(false);
   });
 });
 

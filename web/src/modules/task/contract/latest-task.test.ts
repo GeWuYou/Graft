@@ -11,13 +11,14 @@ vi.mock('@/utils/request', () => ({
 import { getLatestTaskForOwner } from './latest-task';
 
 describe('getLatestTaskForOwner', () => {
-  it('uses the owner-scoped task list and returns its newest item', async () => {
+  it('uses the application-scoped task list and returns its newest item', async () => {
     const latestTask = { id: 42, status: 'success' };
+    const ownerId = 'app_01KXN51K1SW5YXS684M445V1P5';
     requestMocks.get.mockResolvedValue({ items: [latestTask] });
 
-    await expect(getLatestTaskForOwner({ ownerId: 'app_1', ownerType: 'compose_project' })).resolves.toBe(latestTask);
+    await expect(getLatestTaskForOwner({ ownerId, ownerType: 'application' })).resolves.toBe(latestTask);
     expect(requestMocks.get).toHaveBeenCalledWith({
-      params: { limit: 1, owner_id: 'app_1', owner_type: 'compose_project' },
+      params: { limit: 1, owner_id: ownerId, owner_type: 'application' },
       url: '/api/tasks',
     });
   });
