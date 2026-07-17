@@ -16,6 +16,7 @@ interface ImportMetaEnv {
   readonly VITE_DEBUG_PROJECT_MONACO?: 'true' | 'false';
   readonly VITE_DEBUG_PROJECT_TEMPLATES?: 'true' | 'false';
   readonly VITE_DEBUG_PROJECT_WORKSPACE?: 'true' | 'false';
+  readonly VITE_DEBUG_CONTAINER_RAW_JSON?: 'true' | 'false';
 }
 
 declare global {

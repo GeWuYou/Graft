@@ -56,7 +56,10 @@
   </div>
 </template>
 <script setup lang="ts">
+/** 展示 JSON 树，并在详情数据刷新时保留用户手动折叠的节点。 */
 import { computed, ref, watch } from 'vue';
+
+import { emitDebugLog } from '@/shared/debug/runtime';
 
 type JsonTreeNodeKind = 'array' | 'boolean' | 'null' | 'number' | 'object' | 'string' | 'unknown';
 
@@ -84,15 +87,28 @@ const props = defineProps<{
   value: unknown;
 }>();
 
+const RAW_JSON_DEBUG_FLAG = 'container.raw-json';
 const expandedPaths = ref(new Set<string>());
+const collapsedPaths = ref(new Set<string>());
+const valueSignature = computed(() => serializeValue(props.value));
 
 watch(() => props.expandAllToken, syncExpandedPaths, { immediate: true });
 
-watch([() => props.value, () => props.rootLabel], () => {
-  if (props.expandedAll) {
-    syncExpandedPaths();
-  }
-});
+watch(
+  [valueSignature, () => props.rootLabel],
+  ([nextSignature, nextRootLabel], [previousSignature, previousRootLabel]) => {
+    if (nextSignature === previousSignature && nextRootLabel === previousRootLabel) {
+      return;
+    }
+    reconcileExpandedPaths();
+    emitDebugLog(RAW_JSON_DEBUG_FLAG, 'tree-data-changed', {
+      rootChanged: nextRootLabel !== previousRootLabel,
+      expandedAll: props.expandedAll,
+      expandedPathCount: expandedPaths.value.size,
+      collapsedPathCount: collapsedPaths.value.size,
+    });
+  },
+);
 
 const visibleNodes = computed(() => {
   const normalizedSearch = props.searchValue.trim().toLowerCase();
@@ -100,6 +116,7 @@ const visibleNodes = computed(() => {
 });
 
 function syncExpandedPaths() {
+  collapsedPaths.value = new Set();
   if (props.expandedAll) {
     const next = new Set<string>();
     collectExpandablePaths(props.value, props.rootLabel).forEach((path) => next.add(path));
@@ -108,6 +125,19 @@ function syncExpandedPaths() {
   }
 
   expandedPaths.value = new Set();
+}
+
+function reconcileExpandedPaths() {
+  const expandablePaths = new Set(collectExpandablePaths(props.value, props.rootLabel));
+  const nextCollapsedPaths = new Set([...collapsedPaths.value].filter((path) => expandablePaths.has(path)));
+  collapsedPaths.value = nextCollapsedPaths;
+
+  if (!props.expandedAll) {
+    expandedPaths.value = new Set();
+    return;
+  }
+
+  expandedPaths.value = new Set([...expandablePaths].filter((path) => !nextCollapsedPaths.has(path)));
 }
 
 function buildVisibleNodes(
@@ -179,12 +209,21 @@ function toggleNode(path: string, expandable: boolean) {
   }
 
   const next = new Set(expandedPaths.value);
+  const nextCollapsed = new Set(collapsedPaths.value);
   if (next.has(path)) {
     next.delete(path);
+    nextCollapsed.add(path);
   } else {
     next.add(path);
+    nextCollapsed.delete(path);
   }
   expandedPaths.value = next;
+  collapsedPaths.value = nextCollapsed;
+  emitDebugLog(RAW_JSON_DEBUG_FLAG, 'tree-node-toggled', {
+    expanded: next.has(path),
+    expandedPathCount: next.size,
+    collapsedPathCount: nextCollapsed.size,
+  });
 }
 
 function resolveKind(value: unknown): JsonTreeNodeKind {
@@ -232,6 +271,15 @@ function resolveSensitive(value: unknown) {
   const record =
     value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
   return record?.sensitive === true || record?.masked === true;
+}
+
+function serializeValue(value: unknown) {
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized === undefined ? String(value) : serialized;
+  } catch {
+    return String(value);
+  }
 }
 </script>
 <style scoped lang="less">

@@ -236,7 +236,7 @@
         "networks": "Networks",
         "metadata": "Labels and Metadata",
         "environment": "Environment Variables",
-        "rawJson": "Raw Detail JSON",
+        "rawJson": "Detail JSON",
         "command": "Command",
         "entrypoint": "Entrypoint",
         "workingDir": "Working Directory",
@@ -363,7 +363,7 @@
         "config": "Config",
         "network": "Network",
         "storage": "Storage",
-        "raw": "Raw JSON"
+        "raw": "Detail JSON"
       },
       "viewer": {
         "enterFullscreen": "Fullscreen",
@@ -569,8 +569,8 @@
         }
       },
       "raw": {
-        "title": "Raw JSON",
-        "description": "Container raw JSON debugger view.",
+        "title": "Detail JSON",
+        "description": "Container detail JSON debugger view.",
         "searchPlaceholder": "Search Keys Or Values",
         "root": "Container",
         "source": "Source View",
@@ -589,17 +589,17 @@
         "networkCount": "Networks",
         "updatedAt": "Updated At",
         "sensitive": "Sensitive",
-        "copyMaskedTooltip": "Copy the currently displayed masked JSON",
-        "copyRealValueTooltip": "Copy JSON with real sensitive environment values",
-        "copyDisabledTooltip": "The current system policy blocks copying JSON with sensitive fields",
-        "copyDisabledMessage": "The current system policy blocks copying JSON with sensitive fields",
+        "copyMaskedTooltip": "Copy the currently displayed masked detail JSON",
+        "copyRealValueTooltip": "Copy detail JSON with real sensitive environment values",
+        "copyDisabledTooltip": "The current system policy blocks copying detail JSON with sensitive fields",
+        "copyDisabledMessage": "The current system policy blocks copying detail JSON with sensitive fields",
         "policy": {
-          "noSensitive": "Current policy: this raw JSON contains no sensitive environment variables, so the display JSON can be copied directly.",
-          "maskedCopyEnabled": "Current policy: sensitive values use the {strategy} strategy, the UI still shows *****, and copy returns JSON with the real values.",
-          "maskedCopyDisabled": "Current policy: sensitive values use the {strategy} strategy, and the current system policy blocks copying JSON with sensitive fields."
+          "noSensitive": "Current policy: this detail JSON contains no sensitive environment variables, so the display JSON can be copied directly.",
+          "maskedCopyEnabled": "Current policy: sensitive values use the {strategy} strategy, the UI still shows *****, and copy returns detail JSON with the real values.",
+          "maskedCopyDisabled": "Current policy: sensitive values use the {strategy} strategy, and the current system policy blocks copying detail JSON with sensitive fields."
         },
-        "empty": "No Raw JSON Data Is Available",
-        "error": "Raw JSON Could Not Be Formatted.",
+        "empty": "No Detail JSON Data Is Available",
+        "error": "Detail JSON Could Not Be Formatted.",
         "noMatches": "No Matches Found"
       },
       "health": {

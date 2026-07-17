@@ -60,6 +60,15 @@ describe('debug runtime', () => {
     expect(isDebugFlagEnabled('project.templates')).toBe(true);
   });
 
+  it('resolves the container raw JSON diagnostic flag through the debug store', () => {
+    vi.stubEnv('VITE_DEBUG_CONTAINER_RAW_JSON', 'true');
+
+    const debugStore = useDebugStore(store);
+    debugStore.recompute();
+
+    expect(isDebugFlagEnabled('container.raw-json')).toBe(true);
+  });
+
   it('exposes a window developer API backed by the debug store', () => {
     initDebugRuntime();
 

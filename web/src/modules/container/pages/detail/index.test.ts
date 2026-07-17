@@ -403,10 +403,10 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.detail.overview.fields.updatedAt': '更新时间',
   'container.detail.overview.resourceNetwork': '资源与网络',
   'container.detail.overview.runtimeInfo': '运行信息',
-  'container.detail.raw.description': '容器原始 JSON 调试视图。',
+  'container.detail.raw.description': '容器详情 JSON 调试视图。',
   'container.detail.raw.searchPlaceholder': '搜索字段或内容',
-  'container.detail.raw.empty': '暂无原始 JSON 数据',
-  'container.detail.raw.error': '原始 JSON 无法格式化。',
+  'container.detail.raw.empty': '暂无详情 JSON 数据',
+  'container.detail.raw.error': '详情 JSON 无法格式化。',
   'container.detail.raw.expandAll': '展开全部',
   'container.detail.raw.collapseAll': '折叠全部',
   'container.detail.raw.format': '格式化',
@@ -421,19 +421,19 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.detail.raw.networkCount': '网络',
   'container.detail.raw.updatedAt': '更新时间',
   'container.detail.raw.sensitive': '敏感',
-  'container.detail.raw.copyMaskedTooltip': '复制当前展示的脱敏 JSON',
-  'container.detail.raw.copyRealValueTooltip': '复制包含敏感环境变量真实值的 JSON',
-  'container.detail.raw.copyDisabledTooltip': '当前系统配置禁止复制包含敏感字段的 JSON',
-  'container.detail.raw.copyDisabledMessage': '当前系统配置禁止复制包含敏感字段的 JSON',
-  'container.detail.raw.policy.noSensitive': '当前策略：当前原始 JSON 不包含敏感环境变量，可直接复制展示 JSON。',
+  'container.detail.raw.copyMaskedTooltip': '复制当前展示的脱敏详情 JSON',
+  'container.detail.raw.copyRealValueTooltip': '复制包含敏感环境变量真实值的详情 JSON',
+  'container.detail.raw.copyDisabledTooltip': '当前系统配置禁止复制包含敏感字段的详情 JSON',
+  'container.detail.raw.copyDisabledMessage': '当前系统配置禁止复制包含敏感字段的详情 JSON',
+  'container.detail.raw.policy.noSensitive': '当前策略：当前详情 JSON 不包含敏感环境变量，可直接复制展示 JSON。',
   'container.detail.raw.policy.maskedCopyEnabled':
-    '当前策略：敏感值按 {strategy} 脱敏展示，界面仍显示 *****，复制时可获得真实值 JSON。',
+    '当前策略：敏感值按 {strategy} 脱敏展示，界面仍显示 *****，复制时可获得真实值详情 JSON。',
   'container.detail.raw.policy.maskedCopyDisabled':
-    '当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的 JSON。',
+    '当前策略：敏感值按 {strategy} 脱敏展示，当前系统配置禁止复制包含敏感字段的详情 JSON。',
   'container.detail.raw.noMatches': '未找到匹配内容',
   'container.detail.raw.root': 'container',
   'container.detail.raw.source': '源码视图',
-  'container.detail.raw.title': '原始 JSON',
+  'container.detail.raw.title': '详情(JSON)',
   'container.detail.raw.tree': '树形视图',
   'container.detail.refresh': '刷新',
   'container.detail.refreshTooltip':
@@ -543,7 +543,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.detail.tabs.logs': '日志',
   'container.detail.tabs.network': '网络',
   'container.detail.tabs.overview': '概览',
-  'container.detail.tabs.raw': '原始 JSON',
+  'container.detail.tabs.raw': '详情(JSON)',
   'container.detail.tabs.resources': '资源',
   'container.detail.tabs.storage': '挂载',
   'container.detail.viewer.enterFullscreen': '全屏',
@@ -3195,10 +3195,10 @@ describe('container detail page', () => {
     await flushPromises();
     const rawPanel = wrapper.get('.container-raw-json-panel');
 
-    expect(rawPanel.text()).toContain('原始 JSON');
+    expect(rawPanel.text()).toContain('详情(JSON)');
     expect(rawPanel.text()).toContain('当前策略：敏感值按');
     expect(rawPanel.text()).toContain('脱敏');
-    expect(rawPanel.text()).toContain('当前系统配置禁止复制包含敏感字段的 JSON。');
+    expect(rawPanel.text()).toContain('当前系统配置禁止复制包含敏感字段的详情 JSON。');
     expect(rawPanel.text()).toContain('字段数 35');
     expect(rawPanel.text()).toContain('已脱敏 2');
     expect(rawPanel.text()).toContain('环境变量 3');
