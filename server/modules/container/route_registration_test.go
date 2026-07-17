@@ -74,7 +74,26 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	assertShellWebSocketRoutePermission(t, engine, authorizer)
 	assertMountUsageRoutePermission(t, engine, authorizer)
 	assertRemoveRoutePermission(t, engine, authorizer)
+	assertDockerNetworkMutationRoutePermissions(t, engine, authorizer)
 	assertBatchActionRoutePermission(t, engine, authorizer)
+}
+
+func assertDockerNetworkMutationRoutePermissions(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+
+	authorizer.reset()
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/docker/networks", `{"name":"private","driver":"bridge"}`))
+	if !slices.Contains(authorizer.permissions, containercontract.DockerNetworkCreatePermission.String()) {
+		t.Fatalf("expected network create permission, got %#v", authorizer.permissions)
+	}
+
+	authorizer.reset()
+	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodDelete, "/api/ops/docker/networks/private", `{"confirm_network_name":"private"}`))
+	if !slices.Contains(authorizer.permissions, containercontract.DockerNetworkRemovePermission.String()) {
+		t.Fatalf("expected network remove permission, got %#v", authorizer.permissions)
+	}
 }
 
 func assertDetailRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {

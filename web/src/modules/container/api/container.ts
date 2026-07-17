@@ -12,6 +12,7 @@ import {
   buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
+  buildDockerNetworkDetailApiPath,
   CONTAINER_API_PATH,
 } from '../contract/paths';
 import type {
@@ -120,6 +121,24 @@ type DockerImagesData = NonNullable<
 type DockerNetworksData = NonNullable<
   paths['/api/ops/docker/networks']['get']['responses'][200]['content']['application/json']['data']
 >;
+type DockerNetworkDetailPath = (typeof CONTAINER_API_PATH)['DOCKER_NETWORK_DETAIL'];
+type GetDockerNetworkOperation = paths[DockerNetworkDetailPath]['get'];
+type GetDockerNetworkData = NonNullable<
+  GetDockerNetworkOperation['responses'][200]['content']['application/json']['data']
+>;
+type GetDockerNetworkPathParams = GetDockerNetworkOperation['parameters']['path'];
+type PostDockerNetworkOperation = paths[(typeof CONTAINER_API_PATH)['DOCKER_NETWORKS']]['post'];
+type PostDockerNetworkData = NonNullable<
+  PostDockerNetworkOperation['responses'][200]['content']['application/json']['data']
+>;
+type PostDockerNetworkRequest = NonNullable<PostDockerNetworkOperation['requestBody']>['content']['application/json'];
+type DeleteDockerNetworkOperation = paths[DockerNetworkDetailPath]['delete'];
+type DeleteDockerNetworkData = NonNullable<
+  DeleteDockerNetworkOperation['responses'][200]['content']['application/json']['data']
+>;
+type DeleteDockerNetworkRequest = NonNullable<
+  DeleteDockerNetworkOperation['requestBody']
+>['content']['application/json'];
 type DockerVolumesData = NonNullable<
   paths['/api/ops/docker/volumes']['get']['responses'][200]['content']['application/json']['data']
 >;
@@ -131,6 +150,23 @@ export const getDockerImages = () =>
   request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES }) as Promise<DockerImagesData>;
 export const getDockerNetworks = () =>
   request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
+export function getDockerNetwork(networkId: GetDockerNetworkPathParams['id']) {
+  return request.get<GetDockerNetworkData>({
+    url: buildDockerNetworkDetailApiPath(networkId),
+  }) as Promise<GetDockerNetworkData>;
+}
+export function createDockerNetwork(body: PostDockerNetworkRequest) {
+  return request.post<PostDockerNetworkData>({
+    url: CONTAINER_API_PATH.DOCKER_NETWORKS,
+    data: body,
+  }) as Promise<PostDockerNetworkData>;
+}
+export function removeDockerNetwork(networkId: GetDockerNetworkPathParams['id'], body: DeleteDockerNetworkRequest) {
+  return request.delete<DeleteDockerNetworkData>({
+    url: buildDockerNetworkDetailApiPath(networkId),
+    data: body,
+  }) as Promise<DeleteDockerNetworkData>;
+}
 export const getDockerVolumes = () =>
   request.get<DockerVolumesData>({ url: CONTAINER_API_PATH.DOCKER_VOLUMES }) as Promise<DockerVolumesData>;
 export const getDockerSystem = () =>

@@ -12,17 +12,21 @@ import {
   buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
+  buildDockerNetworkDetailApiPath,
   CONTAINER_API_PATH,
 } from '../contract/paths';
 import {
   batchContainerActions,
+  createDockerNetwork,
   getContainer,
   getContainerLogs,
   getContainerMountUsage,
   getContainers,
+  getDockerNetwork,
   postContainerMountUsageRefresh,
   postContainerShellSession,
   removeContainer,
+  removeDockerNetwork,
   restartContainer,
   startContainer,
   stopContainer,
@@ -32,6 +36,7 @@ vi.mock('@/utils/request', () => ({
   request: {
     get: vi.fn(),
     post: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -57,6 +62,35 @@ describe('container api', () => {
 
   it('exposes the canonical dashboard summary path', () => {
     expect(CONTAINER_API_PATH.DASHBOARD_SUMMARY).toBe('/api/ops/containers/dashboard-summary');
+  });
+
+  it('uses encoded Docker network paths for detail and removal', async () => {
+    const requestGet = vi.mocked(request.get);
+    const requestPost = vi.mocked(request.post);
+    const requestDelete = vi.mocked(request.delete);
+    requestGet.mockResolvedValue({ id: 'network/demo' } as never);
+    requestPost.mockResolvedValue({ action: 'create', id: 'network/demo', name: 'demo', result: 'completed' } as never);
+    requestDelete.mockResolvedValue({
+      action: 'remove',
+      id: 'network/demo',
+      name: 'demo',
+      result: 'completed',
+    } as never);
+
+    await getDockerNetwork('network/demo');
+    await createDockerNetwork({ name: 'demo', driver: 'bridge', internal: false, attachable: false });
+    await removeDockerNetwork('network/demo', { confirm_network_name: 'demo' });
+
+    expect(buildDockerNetworkDetailApiPath('network/demo')).toBe('/api/ops/docker/networks/network%2Fdemo');
+    expect(requestGet).toHaveBeenCalledWith({ url: buildDockerNetworkDetailApiPath('network/demo') });
+    expect(requestPost).toHaveBeenCalledWith({
+      url: CONTAINER_API_PATH.DOCKER_NETWORKS,
+      data: { name: 'demo', driver: 'bridge', internal: false, attachable: false },
+    });
+    expect(requestDelete).toHaveBeenCalledWith({
+      url: buildDockerNetworkDetailApiPath('network/demo'),
+      data: { confirm_network_name: 'demo' },
+    });
   });
 
   it('encodes container ids for detail and logs reads', async () => {

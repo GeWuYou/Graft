@@ -2262,7 +2262,8 @@ export interface paths {
     /** List Docker networks */
     get: operations['getDockerNetworks'];
     put?: never;
-    post?: never;
+    /** Create Docker network */
+    post: operations['postDockerNetwork'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2280,7 +2281,8 @@ export interface paths {
     get: operations['getDockerNetwork'];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Remove Docker network */
+    delete: operations['deleteDockerNetwork'];
     options?: never;
     head?: never;
     patch?: never;
@@ -6312,8 +6314,56 @@ export interface components {
     'enveloped-docker-network-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-network-list-response'];
     };
-    'enveloped-docker-network': components['schemas']['api-envelope'] & {
-      data: components['schemas']['docker-network'];
+    'docker-network-ipam-config': {
+      subnet?: string;
+      gateway?: string;
+    };
+    'docker-network-create-request': {
+      name: string;
+      /** @enum {string} */
+      driver: 'bridge' | 'overlay' | 'macvlan' | 'ipvlan' | 'none';
+      /** @default false */
+      internal: boolean;
+      /** @default false */
+      attachable: boolean;
+      labels?: {
+        [key: string]: string;
+      };
+      ipam?: components['schemas']['docker-network-ipam-config'];
+    };
+    'docker-network-action-response': {
+      id: string;
+      name: string;
+      /** @enum {string} */
+      action: 'create' | 'remove';
+      /** @enum {string} */
+      result: 'completed';
+      message_key: string;
+    };
+    'enveloped-docker-network-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network-action-response'];
+    };
+    'docker-network-ipam': {
+      driver?: string;
+      config?: components['schemas']['docker-network-ipam-config'][];
+    };
+    'docker-network-container-endpoint': {
+      id: string;
+      name: string;
+      endpoint_id?: string;
+      ipv4_address?: string;
+      ipv6_address?: string;
+      mac_address?: string;
+    };
+    'docker-network-detail': components['schemas']['docker-network'] & {
+      ipam?: components['schemas']['docker-network-ipam'];
+      containers?: components['schemas']['docker-network-container-endpoint'][];
+    };
+    'enveloped-docker-network-detail': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network-detail'];
+    };
+    'docker-network-remove-request': {
+      confirm_network_name: string;
     };
     'docker-volume': {
       name: string;
@@ -7520,6 +7570,9 @@ export interface components {
        */
       abnormal_services?: number;
     };
+    'enveloped-docker-network': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-network'];
+    };
     'application-workspace-manifest-file': {
       /** @description Relative text-file path within the managed workspace. Absolute paths and traversal are rejected. */
       path: string;
@@ -7646,6 +7699,8 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
+    'docker-network-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
     'application-list-keyword': string;
     /** @description Optional application type. Compose is the only currently supported type. */
@@ -14100,13 +14155,54 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postDockerNetwork: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-network-create-request'];
+      };
+    };
+    responses: {
+      /** @description Docker network created. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-network-action-response'];
+        };
+      };
+      /** @description Invalid Docker network configuration. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Docker network name already exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getDockerNetwork: {
     parameters: {
       query?: never;
       header?: never;
       path: {
-        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
-        id: components['parameters']['container-id-path'];
+        /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
+        id: components['parameters']['docker-network-id-path'];
       };
       cookie?: never;
     };
@@ -14118,13 +14214,64 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-docker-network'];
+          'application/json': components['schemas']['enveloped-docker-network-detail'];
         };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Network not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  deleteDockerNetwork: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
+        id: components['parameters']['docker-network-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-network-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Docker network removed. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-network-action-response'];
+        };
+      };
+      /** @description The network confirmation does not match. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Network not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Default and in-use Docker networks cannot be removed. */
+      409: {
         headers: {
           [name: string]: unknown;
         };

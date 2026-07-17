@@ -8,6 +8,8 @@ export const CONTAINER_PERMISSION_CODE = {
   STOP: 'ops.container.stop',
   RESTART: 'ops.container.restart',
   REMOVE: 'ops.container.remove',
+  NETWORK_CREATE: 'ops.container.network.create',
+  NETWORK_REMOVE: 'ops.container.network.remove',
 } as const;
 
 export type ContainerPermissionCode = (typeof CONTAINER_PERMISSION_CODE)[keyof typeof CONTAINER_PERMISSION_CODE];

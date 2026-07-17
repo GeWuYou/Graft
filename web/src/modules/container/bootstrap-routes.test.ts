@@ -4,10 +4,18 @@ import { containerBootstrapRouteRegistrations } from './bootstrap-routes';
 
 describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
-    expect(containerBootstrapRouteRegistrations).toHaveLength(1);
+    expect(containerBootstrapRouteRegistrations).toHaveLength(2);
     expect(containerBootstrapRouteRegistrations[0]).toMatchObject({
       menuPath: '/infrastructure/docker/containers',
       routeName: 'ContainerList',
+    });
+  });
+
+  it('registers Docker network management as a visible bootstrap route', () => {
+    expect(containerBootstrapRouteRegistrations[1]).toMatchObject({
+      menuPath: '/infrastructure/docker/networks',
+      routeName: 'DockerNetworkList',
+      meta: { pageKind: 'list', tabGroup: 'infrastructure' },
     });
   });
 

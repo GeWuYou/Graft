@@ -13,13 +13,13 @@ import (
 // 其他错误映射到 500。
 func statusForError(err error) int {
 	switch {
-	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported), errors.Is(err, errShellTicketInvalid), errors.Is(err, errShellCommandNotFound), errors.Is(err, errShellInvalidSize):
+	case errors.Is(err, errInvalidRef), errors.Is(err, errInvalidListQuery), errors.Is(err, errInvalidBatchAction), errors.Is(err, errInvalidDockerNetworkRequest), errors.Is(err, errLogsTooLarge), errors.Is(err, errInvalidLogQuery), errors.Is(err, errMountUsageUnsupported), errors.Is(err, errShellTicketInvalid), errors.Is(err, errShellCommandNotFound), errors.Is(err, errShellInvalidSize):
 		return http.StatusBadRequest
 	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied), errors.Is(err, errShellDisabled), errors.Is(err, errShellForbidden), errors.Is(err, errShellOriginDenied):
 		return http.StatusForbidden
-	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound):
+	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound), errors.Is(err, errDockerNetworkNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning):
+	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning), errors.Is(err, errDockerNetworkConfirmMismatch), errors.Is(err, errDockerNetworkDefaultProtected), errors.Is(err, errDockerNetworkInUse):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
@@ -51,6 +51,11 @@ var containerErrorMessageRules = []struct {
 	{err: errInvalidRef, key: containercontract.ContainerInvalidRef},
 	{err: errInvalidListQuery, key: containercontract.ContainerInvalidListQuery},
 	{err: errInvalidBatchAction, key: containercontract.ContainerInvalidBatchAction},
+	{err: errInvalidDockerNetworkRequest, key: containercontract.DockerNetworkInvalidRequest},
+	{err: errDockerNetworkNotFound, key: containercontract.DockerNetworkNotFound},
+	{err: errDockerNetworkConfirmMismatch, key: containercontract.DockerNetworkConfirmationMismatch},
+	{err: errDockerNetworkDefaultProtected, key: containercontract.DockerNetworkDefaultProtected},
+	{err: errDockerNetworkInUse, key: containercontract.DockerNetworkInUse},
 	{err: errInvalidContainerState, key: containercontract.ContainerInvalidState},
 	{err: errRuntimeEventHistoryUnavailable, key: containercontract.ContainerEventsUnavailable},
 	{err: errLogsTooLarge, key: containercontract.ContainerLogsTooLarge},

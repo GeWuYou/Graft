@@ -396,6 +396,14 @@
         "display": "Delete Containers",
         "description": "Allows deleting containers when dangerous actions are enabled."
       },
+      "dockerNetworkCreate": {
+        "display": "Create Docker Networks",
+        "description": "Allows creating Docker networks with the submitted network configuration."
+      },
+      "dockerNetworkRemove": {
+        "display": "Delete Docker Networks",
+        "description": "Allows deleting unused non-default Docker networks after name confirmation."
+      },
       "applicationView": {
         "display": "View Compose Applications",
         "description": "Read registered Compose application summaries and readonly details."

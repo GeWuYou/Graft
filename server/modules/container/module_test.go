@@ -273,6 +273,8 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerStopPermission.String(),
 		containercontract.ContainerRestartPermission.String(),
 		containercontract.ContainerRemovePermission.String(),
+		containercontract.DockerNetworkCreatePermission.String(),
+		containercontract.DockerNetworkRemovePermission.String(),
 	}
 }
 
@@ -280,8 +282,8 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 2 {
-		t.Fatalf("expected Docker group and container menu item, got %#v", items)
+	if len(items) != 3 {
+		t.Fatalf("expected Docker group and container/network menu items, got %#v", items)
 	}
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "docker",
@@ -292,6 +294,15 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		path:                     "",
 		icon:                     "docker",
 		permission:               "",
+		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+	})
+	assertMenuItem(t, items, expectedMenuItem{
+		code:                     "docker.network.list",
+		title:                    "",
+		titleKey:                 containercontract.DockerNetworkMenuTitle.String(),
+		path:                     containercontract.DockerNetworkMenuPath,
+		icon:                     "network",
+		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
 	assertMenuItem(t, items, expectedMenuItem{
@@ -342,11 +353,13 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 	for _, key := range []string{
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerListMenuTitle.String(),
+		containercontract.DockerNetworkMenuTitle.String(),
 		containercontract.ContainerMenuSectionTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),
 		containercontract.ContainerShellInvalidSize.String(),
 		containercontract.ContainerDangerousActionsDisabled.String(),
+		containercontract.DockerNetworkConfirmationMismatch.String(),
 		containercontract.ContainerAuditShellSessionStarted.String(),
 		containercontract.ContainerActionRemoveCompleted.String(),
 		containercontract.ContainerBatchActionPartial.String(),

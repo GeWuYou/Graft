@@ -1,0 +1,7 @@
+name: id
+in: path
+required: true
+description: Docker network ID or name. Clients must encode the value before placing it in the path.
+schema:
+  type: string
+  minLength: 1

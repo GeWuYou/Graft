@@ -1,0 +1,21 @@
+type: object
+required: [name, driver]
+additionalProperties: false
+properties:
+  name:
+    type: string
+    minLength: 1
+  driver:
+    type: string
+    enum: [bridge, overlay, macvlan, ipvlan, none]
+  internal:
+    type: boolean
+    default: false
+  attachable:
+    type: boolean
+    default: false
+  labels:
+    type: object
+    additionalProperties: { type: string }
+  ipam:
+    $ref: ./docker-network-ipam-config.yaml

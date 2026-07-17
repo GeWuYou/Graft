@@ -102,6 +102,44 @@ func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActio
 	s.publishAuditEvent(detached.ctx, event, "publish container batch audit event failed")
 }
 
+func (s *service) publishDockerNetworkAudit(ctx context.Context, result DockerNetworkActionResult, err error) {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
+		return
+	}
+	defer detached.cancel()
+	action := containercontract.DockerNetworkAuditActionCreate
+	if result.Action == "remove" {
+		action = containercontract.DockerNetworkAuditActionRemove
+	}
+	messageKey, message := auditErrorMessageFields(err)
+	metadata := map[string]any{
+		"network_id":   result.ID,
+		"network_name": result.Name,
+		"action":       action.String(),
+		"runtime":      runtimeNameDocker,
+		"endpoint":     safeEndpointLabel(s.runtimeOptions.endpoint),
+		"result":       auditResult(err),
+		"error":        messageKey,
+	}
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{
+		Kind:          moduleapi.AuditEventKindDomain,
+		Operator:      currentAuditOperator(detached.ctx),
+		Action:        action.String(),
+		ResourceType:  "docker_network",
+		ResourceID:    firstNonEmpty(result.ID, result.Name),
+		ResourceName:  result.Name,
+		StatusCode:    auditStatusCode(err),
+		Success:       err == nil,
+		MessageKey:    messageKey,
+		Message:       message,
+		Metadata:      metadata,
+		RequestMethod: "",
+		RequestPath:   "",
+	}, "publish docker network audit event failed")
+}
+
 type detachedAuditRuntime struct {
 	ctx    context.Context
 	cancel context.CancelFunc

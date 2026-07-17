@@ -6,6 +6,7 @@ import (
 
 	containergen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
+	containercontract "graft/server/modules/container/contract"
 )
 
 // toContainerListResponse 将容器列表结果转换为 OpenAPI 容器列表响应。
@@ -44,6 +45,39 @@ func toDockerImageList(items []DockerImage) containergen.DockerImageListResponse
 // toDockerNetwork 将 Docker 网络领域对象转换为 OpenAPI 网络响应。
 func toDockerNetwork(item DockerNetwork) containergen.DockerNetwork {
 	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Labels: optionalStringMap(item.Labels)}
+}
+
+func toDockerNetworkDetail(item DockerNetworkDetail) containergen.DockerNetworkDetail {
+	containers := make([]containergen.DockerNetworkContainerEndpoint, 0, len(item.Containers))
+	for _, endpoint := range item.Containers {
+		containers = append(containers, containergen.DockerNetworkContainerEndpoint{Id: endpoint.ID, Name: endpoint.Name, EndpointId: optionalString(endpoint.EndpointID), Ipv4Address: optionalString(endpoint.IPv4), Ipv6Address: optionalString(endpoint.IPv6), MacAddress: optionalString(endpoint.MAC)})
+	}
+	configs := make([]containergen.DockerNetworkIpamConfig, 0, len(item.IPAM.Config))
+	for _, config := range item.IPAM.Config {
+		configs = append(configs, containergen.DockerNetworkIpamConfig{Subnet: optionalString(config.Subnet), Gateway: optionalString(config.Gateway)})
+	}
+	var ipam *containergen.DockerNetworkIpam
+	if item.IPAM.Driver != "" || len(configs) > 0 {
+		ipam = &containergen.DockerNetworkIpam{Driver: optionalString(item.IPAM.Driver)}
+		if len(configs) > 0 {
+			ipam.Config = &configs
+		}
+	}
+	result := containergen.DockerNetworkDetail{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Labels: optionalStringMap(item.Labels), Ipam: ipam}
+	if len(containers) > 0 {
+		result.Containers = &containers
+	}
+	return result
+}
+
+func toDockerNetworkAction(result DockerNetworkActionResult) containergen.DockerNetworkActionResponse {
+	messageKey := containercontract.DockerNetworkCreateCompleted
+	action := containergen.DockerNetworkActionResponseAction("create")
+	if result.Action == "remove" {
+		messageKey = containercontract.DockerNetworkRemoveCompleted
+		action = containergen.DockerNetworkActionResponseAction("remove")
+	}
+	return containergen.DockerNetworkActionResponse{Id: result.ID, Name: result.Name, Action: action, Result: containergen.DockerNetworkActionResponseResult("completed"), MessageKey: messageKey.String()}
 }
 
 // toDockerNetworkList 将 Docker 网络列表映射为 API 响应。

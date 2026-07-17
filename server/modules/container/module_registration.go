@@ -41,6 +41,7 @@ func containerLocaleBackedMessageKeys() []string {
 var containerMessageKeys = []string{
 	containercontract.ContainerMenuTitle.String(),
 	containercontract.ContainerListMenuTitle.String(),
+	containercontract.DockerNetworkMenuTitle.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),
 	containercontract.ContainerRuntimePermissionDenied.String(),
@@ -50,6 +51,13 @@ var containerMessageKeys = []string{
 	containercontract.ContainerInvalidRef.String(),
 	containercontract.ContainerInvalidListQuery.String(),
 	containercontract.ContainerInvalidBatchAction.String(),
+	containercontract.DockerNetworkInvalidRequest.String(),
+	containercontract.DockerNetworkNotFound.String(),
+	containercontract.DockerNetworkConfirmationMismatch.String(),
+	containercontract.DockerNetworkDefaultProtected.String(),
+	containercontract.DockerNetworkInUse.String(),
+	containercontract.DockerNetworkCreateCompleted.String(),
+	containercontract.DockerNetworkRemoveCompleted.String(),
 	containercontract.ContainerInvalidState.String(),
 	containercontract.ContainerEventsUnavailable.String(),
 	containercontract.ContainerLogsTooLarge.String(),
@@ -180,6 +188,22 @@ func permissionItems(moduleName string) []permission.Item {
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Module:         moduleName,
 		},
+		{
+			Code:           containercontract.DockerNetworkCreatePermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.dockerNetworkCreate.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.dockerNetworkCreate.description",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.DockerNetworkRemovePermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.dockerNetworkRemove.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.dockerNetworkRemove.description",
+			Module:         moduleName,
+		},
 	}
 }
 
@@ -204,6 +228,19 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		SectionTitleKey:          containercontract.ContainerMenuSectionTitle.String(),
 		Icon:                     "docker",
 		Order:                    operationsMenuOrderRoot,
+		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+		Module:                   moduleName,
+	})
+	registry.Register(menu.Item{
+		Code:                     "docker.network.list",
+		ParentCode:               "docker",
+		Kind:                     menu.NodeKindEntry,
+		Title:                    "",
+		TitleKey:                 containercontract.DockerNetworkMenuTitle.String(),
+		Path:                     containercontract.DockerNetworkMenuPath,
+		Icon:                     "network",
+		Order:                    containerMenuOrderList + 1,
+		Permission:               containercontract.ContainerViewPermission.String(),
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 		Module:                   moduleName,
 	})

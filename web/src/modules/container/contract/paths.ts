@@ -2,6 +2,7 @@ export const CONTAINER_ROUTE_PATH = {
   LIST: '/infrastructure/docker/containers',
   DETAIL: '/infrastructure/docker/containers/:id',
   RESOURCES: '/infrastructure/docker/containers/resources',
+  NETWORKS: '/infrastructure/docker/networks',
 } as const;
 
 export const CONTAINER_API_PATH = {
@@ -21,6 +22,7 @@ export const CONTAINER_API_PATH = {
   BATCH_ACTIONS: '/api/ops/containers/batch-actions',
   DOCKER_IMAGES: '/api/ops/docker/images',
   DOCKER_NETWORKS: '/api/ops/docker/networks',
+  DOCKER_NETWORK_DETAIL: '/api/ops/docker/networks/{id}',
   DOCKER_VOLUMES: '/api/ops/docker/volumes',
   DOCKER_SYSTEM: '/api/ops/docker/system',
 } as const;
@@ -66,6 +68,10 @@ export function buildContainerRestartApiPath(containerId: string) {
 
 export function buildContainerRemoveApiPath(containerId: string) {
   return CONTAINER_API_PATH.REMOVE.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildDockerNetworkDetailApiPath(networkId: string) {
+  return CONTAINER_API_PATH.DOCKER_NETWORK_DETAIL.replace('{id}', encodeContainerPathParam(networkId));
 }
 
 function encodeContainerPathParam(containerId: string) {

@@ -135,7 +135,9 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 	docker.GET(containercontract.DockerImagesRoute, requireView, routes.handleDockerImages)
 	docker.GET(containercontract.DockerImageRoute, requireView, routes.handleDockerImage)
 	docker.GET(containercontract.DockerNetworksRoute, requireView, routes.handleDockerNetworks)
+	docker.POST(containercontract.DockerNetworksRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerNetworkCreatePermission.String(), publisher), routes.handleDockerNetworkCreate)
 	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
+	docker.DELETE(containercontract.DockerNetworkRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerNetworkRemovePermission.String(), publisher), routes.handleDockerNetworkRemove)
 	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
 	docker.GET(containercontract.DockerVolumeRoute, requireView, routes.handleDockerVolume)
 	docker.GET(containercontract.DockerSystemRoute, requireView, routes.handleDockerSystem)
@@ -182,7 +184,48 @@ func (r routeRuntime) handleDockerNetwork(c *gin.Context) {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerNetwork(item))
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkDetail(item))
+}
+
+func (r routeRuntime) handleDockerNetworkCreate(c *gin.Context) {
+	var request containeropenapi.PostDockerNetworkJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	if !request.Driver.Valid() {
+		r.writeRouteError(c, errInvalidDockerNetworkRequest)
+		return
+	}
+	command := DockerNetworkCreateCommand{Name: strings.TrimSpace(request.Name), Driver: string(request.Driver), Internal: boolPtrValue(request.Internal), Attachable: boolPtrValue(request.Attachable)}
+	if request.Labels != nil {
+		command.Labels = *request.Labels
+	}
+	if request.Ipam != nil {
+		command.IPAM = &DockerNetworkIPAMConfig{Subnet: stringPtrValue(request.Ipam.Subnet), Gateway: stringPtrValue(request.Ipam.Gateway)}
+	}
+	result, err := r.service.CreateDockerNetwork(c.Request.Context(), command)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkAction(result))
+}
+
+func (r routeRuntime) handleDockerNetworkRemove(c *gin.Context) {
+	var request containeropenapi.DeleteDockerNetworkJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	result, err := r.service.RemoveDockerNetwork(c.Request.Context(), ref.Value, request.ConfirmNetworkName)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkAction(result))
 }
 
 func (r routeRuntime) handleDockerVolumes(c *gin.Context) {

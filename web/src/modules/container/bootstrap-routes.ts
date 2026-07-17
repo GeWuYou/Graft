@@ -7,6 +7,8 @@ const listRouteTitle = localizeRouteTitleKey('container.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('container.route.list.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
+const networkRouteTitle = localizeRouteTitleKey('container.route.networks.title');
+const networkBreadcrumbTitle = localizeRouteTitleKey('container.route.networks.breadcrumb');
 
 export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
@@ -18,6 +20,17 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
+    },
+  },
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.NETWORKS,
+    loadPage: () => import('./pages/networks/index.vue'),
+    meta: {
+      tabGroup: 'infrastructure',
+      pageKind: 'list',
+      semanticTitle: networkRouteTitle,
+      breadcrumbTitle: networkBreadcrumbTitle,
+      tabTitle: networkRouteTitle,
     },
   },
 ];

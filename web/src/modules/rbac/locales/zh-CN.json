@@ -396,6 +396,14 @@
         "display": "删除容器",
         "description": "允许在启用高危操作后删除容器。"
       },
+      "dockerNetworkCreate": {
+        "display": "创建 Docker 网络",
+        "description": "允许使用提交的网络配置创建 Docker 网络。"
+      },
+      "dockerNetworkRemove": {
+        "display": "删除 Docker 网络",
+        "description": "允许在名称确认后删除未被使用的非默认 Docker 网络。"
+      },
       "applicationView": {
         "display": "查看 Compose 应用",
         "description": "读取已注册 Compose 应用的摘要和只读详情。"

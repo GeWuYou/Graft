@@ -392,12 +392,32 @@ func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 	return reader.ListDockerNetworks(ctx)
 }
 
-func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetwork, error) {
+func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetworkDetail, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return DockerNetwork{}, err
+		return DockerNetworkDetail{}, err
 	}
 	return reader.ReadDockerNetwork(ctx, id)
+}
+
+func (s *service) CreateDockerNetwork(ctx context.Context, command DockerNetworkCreateCommand) (result DockerNetworkActionResult, err error) {
+	defer func() { s.publishDockerNetworkAudit(ctx, result, err) }()
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerNetworkActionResult{Name: strings.TrimSpace(command.Name), Action: "create"}, err
+	}
+	result, err = reader.CreateDockerNetwork(ctx, command)
+	return result, err
+}
+
+func (s *service) RemoveDockerNetwork(ctx context.Context, id string, confirmation string) (result DockerNetworkActionResult, err error) {
+	defer func() { s.publishDockerNetworkAudit(ctx, result, err) }()
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerNetworkActionResult{ID: strings.TrimSpace(id), Action: "remove"}, err
+	}
+	result, err = reader.RemoveDockerNetwork(ctx, id, confirmation)
+	return result, err
 }
 
 func (s *service) DockerVolumes(ctx context.Context) ([]DockerVolume, error) {
