@@ -87,20 +87,6 @@
 	  </management-page-content>
 
 	  <t-dialog
-		v-model:visible="createVisible"
-		:header="t('project.templates.createTitle')"
-		:confirm-btn="t('project.templates.createConfirm')"
-		:cancel-btn="t('project.templates.cancel')"
-		:confirm-loading="creating"
-		@confirm="createBlankDraft"
-	  >
-		<t-form label-align="top">
-		  <t-form-item :label="t('project.templates.name')">
-			<t-input v-model="createDisplayName" />
-		  </t-form-item>
-		</t-form>
-	  </t-dialog>
-	  <t-dialog
       v-model:visible="cloneVisible"
       :header="t('project.templates.cloneTitle')"
       :confirm-btn="t('project.templates.cloneConfirm')"
@@ -137,7 +123,6 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   deleteApplicationTemplate,
   getApplicationManagedTemplates,
-  postApplicationTemplate,
   postApplicationTemplateArchive,
   postApplicationTemplateClone,
   postApplicationTemplatePublish,
@@ -145,7 +130,7 @@ import {
 } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
-import type { ApplicationTemplate, ApplicationTemplateDraftRequest } from '../../types/project';
+import type { ApplicationTemplate } from '../../types/project';
 
 defineOptions({ name: 'ApplicationTemplateListIndex' });
 
@@ -155,7 +140,6 @@ const { t } = useI18n();
 const router = useRouter();
 const templates = ref<ApplicationTemplate[]>([]);
 const loading = ref(false);
-const creating = ref(false);
 const cloning = ref(false);
 const deleting = ref(false);
 const errorMessage = ref('');
@@ -163,10 +147,8 @@ const keyword = ref('');
 const status = ref('');
 const cloneVisible = ref(false);
 const deleteVisible = ref(false);
-const createVisible = ref(false);
 const selectedTemplate = ref<ApplicationTemplate | null>(null);
 const cloneDisplayName = ref('');
-const createDisplayName = ref('');
 
 const statusOptions = computed(() => [
   { label: t('project.templates.statusDraft'), value: 'draft' },
@@ -205,45 +187,11 @@ async function loadTemplates() {
   }
 }
 
-function blankDraftPayload(displayName: string): ApplicationTemplateDraftRequest {
-	return {
-	  display_name: displayName,
-    description: '',
-    deployment_adapter_kind: 'compose',
-    definition_schema_version: 1,
-    definition: {
-      compose_file_path: 'compose.yaml',
-      workspace_entries: [
-        { path: '.env', node_type: 'file', content: '' },
-        { path: 'compose.yaml', node_type: 'file', content: t('project.templates.defaultCompose') },
-      ],
-      lifecycle_configuration: {},
-    },
-  } as unknown as ApplicationTemplateDraftRequest;
-}
-
 function openCreateDialog() {
-	createDisplayName.value = '';
-	createVisible.value = true;
-	emitApplicationTemplateDebug('create-dialog-opened');
-}
-
-async function createBlankDraft() {
-	const displayName = createDisplayName.value.trim();
-	if (!displayName) return;
-	creating.value = true;
-	try {
-	  emitApplicationTemplateDebug('create-requested', { routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName });
-	  const template = await postApplicationTemplate(blankDraftPayload(displayName));
-	  emitApplicationTemplateDebug('create-succeeded', { templateId: template.template_id });
-	  createVisible.value = false;
-	  openTemplate(template);
-  } catch (error) {
-	  emitApplicationTemplateDebug('create-failed', { errorName: error instanceof Error ? error.name : typeof error });
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.createFailed')));
-  } finally {
-    creating.value = false;
-  }
+	emitApplicationTemplateDebug('create-wizard-opened', {
+	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_CREATE.pageRouteName,
+	});
+	void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_CREATE.pageRouteName });
 }
 
 function openTemplate(template: ApplicationTemplate) {

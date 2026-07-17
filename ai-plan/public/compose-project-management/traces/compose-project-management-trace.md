@@ -503,3 +503,10 @@
 - 用户确认旧目录导入不属于产品范围，`import-legacy` contract 与入口必须移除；模块启动写入的 Compose Baseline 也必须通过前向迁移软删除现存种子记录。
 - 模板详情为空被确认是前端对已解包 API 响应再次读取 `.data` 的显示 bug；模板详情 contract 仍返回完整定义，前端需修正客户端解包而非为该症状增加后端兼容数据。
 - 新 contract 固定为 `DELETE /api/ops/applications/templates/{templateId}`、`POST .../{templateId}/clone` 和 `POST .../{templateId}/withdraw`。克隆请求只接收新 `display_name`，返回独立草稿；撤回返回新建的下一版草稿，不保留 `/derive` 兼容路由。
+
+## 2026-07-17 Template creation workflow
+
+- 模板管理的创建入口从列表弹窗迁移为 `/applications/templates/create` 菜单外工作流路由，归属 Application > Templates；它不与 `/applications/create/template`（基于已发布模板创建 Application）混淆。
+- 工作流固定为模板信息、配置文件工作区、生命周期配置三步。前两步只保存浏览器局部草稿，最后一步才提交现有模板创建 API；中途取消不创建空草稿。
+- 当前适配器下拉仅公开 canonical `compose`，但使用可搜索选择控件以承接未来已实现的 adapter；未加入路线图占位选项。
+- 验证通过：`git diff --check`、`python3 scripts/validate_ai_plan_structure.py` 与 `cd web && bun run check`；浏览器验收由用户自行完成。

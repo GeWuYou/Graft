@@ -374,6 +374,7 @@ Compose Project Management
 ## 2026-07-17 Template Management UI
 
 - [x] `/applications/templates` 已作为 Application 域的权限菜单和管理路由接入；仅 `ops.application.template.manage` 可见并可读取草稿、发布与归档模板。
+- [x] 模板空白创建改为 `/applications/templates/create` 三步工作流：模板信息、配置文件工作区和生命周期配置均在浏览器内暂存，仅在最后一步写入完整草稿；取消不会遗留空模板。
 - [ ] 管理页需支持状态/关键字筛选、空白草稿创建、草稿编辑、工作区与 lifecycle preset 编辑、发布、独立克隆、撤回发布、归档和软删除；移除旧目录导入与“派生草稿”入口。
 - [x] 创建者目录继续只消费 `/templates` 的已发布版本；管理目录使用独立 `/templates/manage` authority，避免草稿、撤回或归档状态泄露。
 - [ ] OpenAPI bundle、server/web consumer、路由单测和模板管理 UI 单测需同步到新生命周期。

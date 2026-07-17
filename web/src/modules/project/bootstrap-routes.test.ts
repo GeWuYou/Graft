@@ -56,6 +56,23 @@ describe('project bootstrap route registrations', () => {
     expect(detail).toMatchObject({ pageRouteName: 'ApplicationTemplateDetailIndex' });
   });
 
+  it('registers template creation as a hidden workflow below template management', () => {
+    expect(applicationGlobalRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        path: APPLICATION_ROUTE_PATH.TEMPLATE_CREATE,
+        routeName: 'ApplicationTemplateCreateWizard',
+        pageRouteName: 'ApplicationTemplateCreateWizardIndex',
+        navigationParentPath: APPLICATION_ROUTE_PATH.TEMPLATES,
+        meta: expect.objectContaining({
+          hiddenMenu: true,
+          keepAlive: false,
+          pageSurface: 'form-detail',
+          titleKey: 'project.route.templateCreate.title',
+        }),
+      }),
+    );
+  });
+
   it('exposes the three supported project creation routes', () => {
     const paths = applicationGlobalRouteRegistrations.map((route) => route.path);
 

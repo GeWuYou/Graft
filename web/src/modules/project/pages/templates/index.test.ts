@@ -5,7 +5,6 @@ import ApplicationTemplateListIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
   getApplicationManagedTemplates: vi.fn(),
-  postApplicationTemplate: vi.fn(),
   deleteApplicationTemplate: vi.fn(),
   postApplicationTemplateArchive: vi.fn(),
   postApplicationTemplateClone: vi.fn(),
@@ -16,7 +15,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../api/project', () => ({
   getApplicationManagedTemplates: mocks.getApplicationManagedTemplates,
-  postApplicationTemplate: mocks.postApplicationTemplate,
   deleteApplicationTemplate: mocks.deleteApplicationTemplate,
   postApplicationTemplateArchive: mocks.postApplicationTemplateArchive,
   postApplicationTemplateClone: mocks.postApplicationTemplateClone,
@@ -72,7 +70,6 @@ function mountPage() {
 describe('ApplicationTemplateListIndex', () => {
   beforeEach(() => {
     mocks.getApplicationManagedTemplates.mockReset();
-    mocks.postApplicationTemplate.mockReset();
     mocks.deleteApplicationTemplate.mockReset();
     mocks.postApplicationTemplateArchive.mockReset();
     mocks.postApplicationTemplateClone.mockReset();
@@ -136,23 +133,15 @@ describe('ApplicationTemplateListIndex', () => {
     expect(wrapper.text()).not.toContain('project.templates.importLegacy');
   });
 
-  it('creates a blank draft only after the operator provides a name', async () => {
+  it('opens the template creation workflow without creating a draft', async () => {
     mocks.getApplicationManagedTemplates.mockResolvedValue({ items: [] });
-    mocks.postApplicationTemplate.mockResolvedValue({ template_id: 'tpl_new' });
 
     const wrapper = mountPage();
     await flushPromises();
 
     await wrapper.findAll('button').find((button) => button.text() === 'project.templates.create')?.trigger('click');
-    const inputs = wrapper.findAll('input');
-    await inputs[inputs.length - 1]?.setValue('Nginx baseline');
-    await wrapper.get('[data-testid="dialog-confirm"]').trigger('click');
-    await flushPromises();
 
-    expect(mocks.postApplicationTemplate).toHaveBeenCalledWith(
-      expect.objectContaining({ display_name: 'Nginx baseline' }),
-    );
-    expect(mocks.push).toHaveBeenCalledWith({ name: 'ApplicationTemplateDetailIndex', params: { templateId: 'tpl_new' } });
+    expect(mocks.push).toHaveBeenCalledWith({ name: 'ApplicationTemplateCreateWizardIndex' });
   });
 
   it('shows withdraw for published templates and keeps clone/delete for archived templates', async () => {
