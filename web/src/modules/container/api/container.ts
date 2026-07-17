@@ -12,6 +12,8 @@ import {
   buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
+  buildDockerVolumeDetailApiPath,
+  buildDockerVolumeRemoveApiPath,
   CONTAINER_API_PATH,
 } from '../contract/paths';
 import type {
@@ -133,6 +135,46 @@ export const getDockerNetworks = () =>
   request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
 export const getDockerVolumes = () =>
   request.get<DockerVolumesData>({ url: CONTAINER_API_PATH.DOCKER_VOLUMES }) as Promise<DockerVolumesData>;
+
+type DockerVolumeListPath = (typeof CONTAINER_API_PATH)['DOCKER_VOLUMES'];
+type GetDockerVolumesOperation = paths[DockerVolumeListPath]['get'];
+type DockerVolumeListQuery = NonNullable<GetDockerVolumesOperation['parameters']['query']>;
+type DockerVolumeDetailPath = (typeof CONTAINER_API_PATH)['DOCKER_VOLUME_DETAIL'];
+type GetDockerVolumeOperation = paths[DockerVolumeDetailPath]['get'];
+type DockerVolumeDetail = NonNullable<
+  GetDockerVolumeOperation['responses'][200]['content']['application/json']['data']
+>;
+type DockerVolumeRemovePath = (typeof CONTAINER_API_PATH)['DOCKER_VOLUME_REMOVE'];
+type PostDockerVolumeRemoveOperation = paths[DockerVolumeRemovePath]['post'];
+type DockerVolumeRemoveRequest = PostDockerVolumeRemoveOperation['requestBody']['content']['application/json'];
+type DockerVolumeRemoveResponse = NonNullable<
+  PostDockerVolumeRemoveOperation['responses'][200]['content']['application/json']['data']
+>;
+
+export type { DockerVolumeDetail, DockerVolumeListQuery, DockerVolumeRemoveRequest, DockerVolumeRemoveResponse };
+
+export function listDockerVolumes(query: DockerVolumeListQuery) {
+  return request.get<DockerVolumesData>({
+    url: CONTAINER_API_PATH.DOCKER_VOLUMES,
+    params: query,
+  }) as Promise<DockerVolumesData>;
+}
+
+export function getDockerVolume(volumeName: GetDockerVolumeOperation['parameters']['path']['id']) {
+  return request.get<DockerVolumeDetail>({
+    url: buildDockerVolumeDetailApiPath(volumeName),
+  }) as Promise<DockerVolumeDetail>;
+}
+
+export function removeDockerVolume(
+  volumeName: PostDockerVolumeRemoveOperation['parameters']['path']['id'],
+  body: DockerVolumeRemoveRequest,
+) {
+  return request.post<DockerVolumeRemoveResponse>({
+    url: buildDockerVolumeRemoveApiPath(volumeName),
+    data: body,
+  }) as Promise<DockerVolumeRemoveResponse>;
+}
 export const getDockerSystem = () =>
   request.get<DockerSystemData>({ url: CONTAINER_API_PATH.DOCKER_SYSTEM }) as Promise<DockerSystemData>;
 

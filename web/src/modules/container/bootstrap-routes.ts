@@ -7,6 +7,8 @@ const listRouteTitle = localizeRouteTitleKey('container.route.list.title');
 const listBreadcrumbTitle = localizeRouteTitleKey('container.route.list.breadcrumb');
 const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
+const volumeListTitle = localizeRouteTitleKey('container.volume.route.list.title');
+const volumeDetailTitle = localizeRouteTitleKey('container.volume.route.detail.title');
 
 export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
@@ -18,6 +20,17 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
+    },
+  },
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.VOLUMES,
+    loadPage: () => import('./pages/volumes/index.vue'),
+    meta: {
+      tabGroup: 'infrastructure',
+      pageKind: 'list',
+      semanticTitle: volumeListTitle,
+      breadcrumbTitle: volumeListTitle,
+      tabTitle: volumeListTitle,
     },
   },
 ];
@@ -46,6 +59,25 @@ export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
       tabTitle: detailRouteTitle,
       title: detailRouteTitle,
       titleKey: 'container.route.detail.title',
+    },
+  },
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL,
+    navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.VOLUMES.menuPath,
+    loadPage: () => import('./pages/volumes/detail.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: false,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: volumeDetailTitle,
+      breadcrumbTitle: volumeDetailTitle,
+      domainTitle: volumeListTitle,
+      tabGroup: 'infrastructure',
+      tabTitle: volumeDetailTitle,
+      title: volumeDetailTitle,
+      titleKey: 'container.volume.route.detail.title',
     },
   },
 ];

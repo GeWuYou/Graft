@@ -16,9 +16,6 @@
       <t-tab-panel value="networks" :label="t('container.resources.tabs.networks')"
         ><t-table row-key="id" :data="networks" :columns="networkColumns" :loading="loading"
       /></t-tab-panel>
-      <t-tab-panel value="volumes" :label="t('container.resources.tabs.volumes')"
-        ><t-table row-key="name" :data="volumes" :columns="volumeColumns" :loading="loading"
-      /></t-tab-panel>
       <t-tab-panel value="system" :label="t('container.resources.tabs.system')"
         ><t-descriptions bordered :column="2"
           ><t-descriptions-item v-for="item in systemItems" :key="item.label" :label="item.label">{{
@@ -45,16 +42,10 @@ const router = useRouter();
 
 /** 此页面仅展示按 tab 激活的 Docker 静态资源快照，不承载容器实时运行状态。 */
 const active = ref<DockerResourceTab>('containers');
-const {
-  images: imagesQuery,
-  networks: networksQuery,
-  system: systemQuery,
-  volumes: volumesQuery,
-} = useDockerResourceQueries(active);
+const { images: imagesQuery, networks: networksQuery, system: systemQuery } = useDockerResourceQueries(active);
 
 const images = computed(() => imagesQuery.data.value?.items ?? []);
 const networks = computed(() => networksQuery.data.value?.items ?? []);
-const volumes = computed(() => volumesQuery.data.value?.items ?? []);
 const system = computed(() => systemQuery.data.value ?? {});
 const loading = computed(() => {
   switch (active.value) {
@@ -62,8 +53,6 @@ const loading = computed(() => {
       return imagesQuery.isFetching.value;
     case 'networks':
       return networksQuery.isFetching.value;
-    case 'volumes':
-      return volumesQuery.isFetching.value;
     case 'system':
       return systemQuery.isFetching.value;
     default:
@@ -77,11 +66,6 @@ const imageColumns: TableProps['columns'] = [
   { colKey: 'size_bytes', title: t('container.resources.columns.size') },
 ];
 const networkColumns: TableProps['columns'] = [
-  { colKey: 'name', title: t('container.resources.columns.name') },
-  { colKey: 'driver', title: t('container.resources.columns.driver') },
-  { colKey: 'scope', title: t('container.resources.columns.scope') },
-];
-const volumeColumns: TableProps['columns'] = [
   { colKey: 'name', title: t('container.resources.columns.name') },
   { colKey: 'driver', title: t('container.resources.columns.driver') },
   { colKey: 'scope', title: t('container.resources.columns.scope') },

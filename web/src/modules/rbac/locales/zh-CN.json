@@ -396,6 +396,10 @@
         "display": "删除容器",
         "description": "允许在启用高危操作后删除容器。"
       },
+      "containerVolumeRemove": {
+        "display": "删除数据卷",
+        "description": "允许在启用高危操作后删除 Docker 数据卷。"
+      },
       "applicationView": {
         "display": "查看 Compose 应用",
         "description": "读取已注册 Compose 应用的摘要和只读详情。"

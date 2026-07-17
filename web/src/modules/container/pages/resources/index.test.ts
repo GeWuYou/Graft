@@ -9,5 +9,7 @@ describe('container resources page', () => {
     expect(sourceText).not.toContain('onMounted');
     expect(sourceText).not.toContain('watch(active');
     expect(sourceText).not.toContain('ref<any[]>');
+    expect(sourceText).not.toContain('value="volumes"');
+    expect(sourceText).not.toContain('getDockerVolumes');
   });
 });

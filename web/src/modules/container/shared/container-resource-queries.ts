@@ -3,16 +3,15 @@ import { computed, type Ref } from 'vue';
 
 import { queryClient } from '@/shared/query';
 
-import { getDockerImages, getDockerNetworks, getDockerSystem, getDockerVolumes } from '../api/container';
+import { getDockerImages, getDockerNetworks, getDockerSystem } from '../api/container';
 
 const CONTAINER_RESOURCE_QUERY_SCOPE = ['container', 'resources'] as const;
 
-export type DockerResourceTab = 'containers' | 'images' | 'networks' | 'volumes' | 'system';
+export type DockerResourceTab = 'containers' | 'images' | 'networks' | 'system';
 
 export const containerResourceQueryKeys = {
   images: () => [...CONTAINER_RESOURCE_QUERY_SCOPE, 'images'] as const,
   networks: () => [...CONTAINER_RESOURCE_QUERY_SCOPE, 'networks'] as const,
-  volumes: () => [...CONTAINER_RESOURCE_QUERY_SCOPE, 'volumes'] as const,
   system: () => [...CONTAINER_RESOURCE_QUERY_SCOPE, 'system'] as const,
 };
 
@@ -38,14 +37,6 @@ export function useDockerResourceQueries(activeTab: Ref<DockerResourceTab>) {
     },
     queryClient,
   );
-  const volumes = useQuery(
-    {
-      queryKey: containerResourceQueryKeys.volumes(),
-      queryFn: getDockerVolumes,
-      enabled: computed(() => activeTab.value === 'volumes'),
-    },
-    queryClient,
-  );
   const system = useQuery(
     {
       queryKey: containerResourceQueryKeys.system(),
@@ -55,5 +46,5 @@ export function useDockerResourceQueries(activeTab: Ref<DockerResourceTab>) {
     queryClient,
   );
 
-  return { images, networks, system, volumes };
+  return { images, networks, system };
 }

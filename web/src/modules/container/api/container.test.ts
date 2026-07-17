@@ -12,6 +12,8 @@ import {
   buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
+  buildDockerVolumeDetailApiPath,
+  buildDockerVolumeRemoveApiPath,
   CONTAINER_API_PATH,
 } from '../contract/paths';
 import {
@@ -20,9 +22,11 @@ import {
   getContainerLogs,
   getContainerMountUsage,
   getContainers,
+  getDockerVolume,
   postContainerMountUsageRefresh,
   postContainerShellSession,
   removeContainer,
+  removeDockerVolume,
   restartContainer,
   startContainer,
   stopContainer,
@@ -160,6 +164,24 @@ describe('container api', () => {
     expect(requestPost).toHaveBeenCalledWith({
       url: CONTAINER_API_PATH.BATCH_ACTIONS,
       data: { action: 'remove', ids: ['web/api', 'worker'], force: false },
+    });
+  });
+
+  it('uses encoded generated-contract paths for Docker volume detail and removal', async () => {
+    const requestGet = vi.mocked(request.get);
+    const requestPost = vi.mocked(request.post);
+    requestGet.mockResolvedValue({ name: 'volume/name' } as never);
+    requestPost.mockResolvedValue({ name: 'volume/name', action: 'remove', result: 'completed' } as never);
+
+    await getDockerVolume('volume/name');
+    await removeDockerVolume('volume/name', { force: true });
+
+    expect(buildDockerVolumeDetailApiPath('volume/name')).toBe('/api/ops/docker/volumes/volume%2Fname');
+    expect(buildDockerVolumeRemoveApiPath('volume/name')).toBe('/api/ops/docker/volumes/volume%2Fname/remove');
+    expect(requestGet).toHaveBeenCalledWith({ url: buildDockerVolumeDetailApiPath('volume/name') });
+    expect(requestPost).toHaveBeenCalledWith({
+      url: buildDockerVolumeRemoveApiPath('volume/name'),
+      data: { force: true },
     });
   });
 });

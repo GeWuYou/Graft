@@ -4,15 +4,19 @@ import { containerBootstrapRouteRegistrations } from './bootstrap-routes';
 
 describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
-    expect(containerBootstrapRouteRegistrations).toHaveLength(1);
-    expect(containerBootstrapRouteRegistrations[0]).toMatchObject({
-      menuPath: '/infrastructure/docker/containers',
-      routeName: 'ContainerList',
-    });
+    expect(containerBootstrapRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        menuPath: '/infrastructure/docker/containers',
+        routeName: 'ContainerList',
+      }),
+    );
   });
 
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
-    expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
+    const containerListRoute = containerBootstrapRouteRegistrations.find(
+      (route) => route.routeName === 'ContainerList',
+    );
+    expect(containerListRoute?.meta).toMatchObject({
       tabGroup: 'infrastructure',
       semanticTitle: {
         'zh-CN': '容器管理',
@@ -27,15 +31,23 @@ describe('container bootstrap route registrations', () => {
         'en-US': 'Containers',
       },
     });
-    expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('title');
-    expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('titleKey');
+    expect(containerListRoute?.meta).not.toHaveProperty('title');
+    expect(containerListRoute?.meta).not.toHaveProperty('titleKey');
+  });
+
+  it('registers Docker volumes as a server-menu-backed management entry', () => {
+    expect(containerBootstrapRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        menuPath: '/infrastructure/docker/volumes',
+        routeName: 'DockerVolumeList',
+      }),
+    );
   });
 
   it('registers the detail page as a menu-hidden global route', async () => {
     const { containerGlobalRouteRegistrations } = await import('./bootstrap-routes');
 
-    expect(containerGlobalRouteRegistrations).toHaveLength(2);
-    expect(containerGlobalRouteRegistrations[1]).toMatchObject({
+    expect(containerGlobalRouteRegistrations.find((route) => route.routeName === 'ContainerDetail')).toMatchObject({
       path: '/infrastructure/docker/containers/:id',
       pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
@@ -46,6 +58,12 @@ describe('container bootstrap route registrations', () => {
         tabGroup: 'infrastructure',
         titleKey: 'container.route.detail.title',
       },
+    });
+    expect(containerGlobalRouteRegistrations.find((route) => route.routeName === 'DockerVolumeDetail')).toMatchObject({
+      path: '/infrastructure/docker/volumes/:id',
+      pageRouteName: 'DockerVolumeDetailIndex',
+      routeName: 'DockerVolumeDetail',
+      meta: { hiddenMenu: true, pageKind: 'detail' },
     });
   });
 });

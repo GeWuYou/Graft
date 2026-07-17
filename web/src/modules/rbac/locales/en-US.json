@@ -396,6 +396,10 @@
         "display": "Delete Containers",
         "description": "Allows deleting containers when dangerous actions are enabled."
       },
+      "containerVolumeRemove": {
+        "display": "Delete Docker Volumes",
+        "description": "Allows deleting Docker volumes when dangerous actions are enabled."
+      },
       "applicationView": {
         "display": "View Compose Applications",
         "description": "Read registered Compose application summaries and readonly details."

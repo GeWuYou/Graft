@@ -2,6 +2,8 @@ export const CONTAINER_ROUTE_PATH = {
   LIST: '/infrastructure/docker/containers',
   DETAIL: '/infrastructure/docker/containers/:id',
   RESOURCES: '/infrastructure/docker/containers/resources',
+  VOLUMES: '/infrastructure/docker/volumes',
+  VOLUME_DETAIL: '/infrastructure/docker/volumes/:id',
 } as const;
 
 export const CONTAINER_API_PATH = {
@@ -22,6 +24,8 @@ export const CONTAINER_API_PATH = {
   DOCKER_IMAGES: '/api/ops/docker/images',
   DOCKER_NETWORKS: '/api/ops/docker/networks',
   DOCKER_VOLUMES: '/api/ops/docker/volumes',
+  DOCKER_VOLUME_DETAIL: '/api/ops/docker/volumes/{id}',
+  DOCKER_VOLUME_REMOVE: '/api/ops/docker/volumes/{id}/remove',
   DOCKER_SYSTEM: '/api/ops/docker/system',
 } as const;
 
@@ -66,6 +70,14 @@ export function buildContainerRestartApiPath(containerId: string) {
 
 export function buildContainerRemoveApiPath(containerId: string) {
   return CONTAINER_API_PATH.REMOVE.replace('{id}', encodeContainerPathParam(containerId));
+}
+
+export function buildDockerVolumeDetailApiPath(volumeName: string) {
+  return CONTAINER_API_PATH.DOCKER_VOLUME_DETAIL.replace('{id}', encodeContainerPathParam(volumeName));
+}
+
+export function buildDockerVolumeRemoveApiPath(volumeName: string) {
+  return CONTAINER_API_PATH.DOCKER_VOLUME_REMOVE.replace('{id}', encodeContainerPathParam(volumeName));
 }
 
 function encodeContainerPathParam(containerId: string) {
