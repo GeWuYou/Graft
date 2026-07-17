@@ -187,9 +187,9 @@ def acquire(root: Path, branch: str) -> None:
     else:
         target = next_pool_path(root)
         git(root, "worktree", "add", "--detach", str(target), "origin/main")
-        apply_links(root, target)
     if changes(target):
         raise WorktreeManagerError(f"refusing to acquire dirty worktree: {target}")
+    apply_links(root, target)
     sync_main_baseline(root, target)
     git(target, "switch", "-c", branch, "origin/main")
     print(f"Using Worktree: {target}")

@@ -73,6 +73,19 @@ class WorktreeManagerTests(unittest.TestCase):
         self.assertNotEqual(duplicate.returncode, 0)
         self.assertIn("branch already exists", duplicate.stderr)
 
+    def test_acquire_applies_shared_links_to_existing_available_slot(self) -> None:
+        worker = self.base / "graft-wt-01"
+        run("git", "-C", str(self.repo), "worktree", "add", "--detach", str(worker), "origin/main", cwd=self.repo)
+        (self.repo / "shared.env").write_text("shared\n", encoding="utf-8")
+        (self.repo / ".worktree-shared.json").write_text(
+            json.dumps({"links": [{"source": "shared.env", "target": "shared.env", "required": True}]}),
+            encoding="utf-8",
+        )
+
+        self.manager("acquire", "feature/reuse-slot")
+
+        self.assertTrue((worker / "shared.env").is_symlink())
+
 
 if __name__ == "__main__":
     unittest.main()
