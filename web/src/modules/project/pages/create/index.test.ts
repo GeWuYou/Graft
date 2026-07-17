@@ -207,8 +207,12 @@ describe('ApplicationCreateIndex', () => {
     );
     expect(request.workspace_entries).toEqual(
       expect.arrayContaining([
-        { path: '.env', node_type: 'file', content: '' },
-        { path: 'compose.yaml', node_type: 'file', content: JSON.stringify({ services: {} }) },
+        { path: '.env', node_type: 'file', content: 'APP_IMAGE=nginx:alpine\nAPP_PORT=8080\n' },
+        {
+          path: 'compose.yaml',
+          node_type: 'file',
+          content: 'services:\n  app:\n    image: ${APP_IMAGE}\n    ports:\n      - "${APP_PORT}:80"\n',
+        },
       ]),
     );
   });

@@ -117,6 +117,7 @@ import {
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationStep from '../../components/ProjectLifecycleConfigurationStep.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { createBlankComposeWorkspaceFiles } from '../../shared/blank-compose-workspace';
 import {
   buildBlankLifecycleConfigurationDraft,
   buildLifecycleConfigurationRequest,
@@ -153,10 +154,7 @@ const runtimeTargetId = computed(() => {
   return Number.isSafeInteger(value) ? value : null;
 });
 const formData = reactive({ display_name: '', application_name: '' });
-const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([
-  { path: 'compose.yaml', node_type: 'file', content: '' },
-  { path: '.env', node_type: 'file', content: '' },
-]);
+const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>(createBlankComposeWorkspaceFiles());
 const primaryComposePath = ref('compose.yaml');
 const workspaceDefaultsLoading = ref(true);
 const workspaceDefaultsError = ref('');
@@ -231,10 +229,7 @@ onMounted(async () => {
 /** 只消费已发布目录返回的 Compose 快照，避免通过管理详情接口读取草稿。 */
 function blankCreatePreset(): CreatePreset {
   return {
-    workspace_entries: [
-      { path: '.env', node_type: 'file', content: '' },
-      { path: 'compose.yaml', node_type: 'file', content: JSON.stringify({ services: {} }) },
-    ],
+    workspace_entries: createBlankComposeWorkspaceFiles(),
     compose_file_path: 'compose.yaml',
     lifecycle_configuration: {},
   };

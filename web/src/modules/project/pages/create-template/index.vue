@@ -85,6 +85,7 @@ import { postApplicationTemplate } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
 import ProjectLifecycleConfigurationReview from '../../components/ProjectLifecycleConfigurationReview.vue';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { createBlankComposeWorkspaceFiles } from '../../shared/blank-compose-workspace';
 import { buildBlankLifecycleConfigurationDraft, buildLifecycleConfigurationRequest } from '../../shared/lifecycle';
 import { useApplicationPageContext } from '../../shared/page-context';
 import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
@@ -98,17 +99,13 @@ import type {
 defineOptions({ name: 'ApplicationTemplateCreateWizardIndex' });
 
 // 创建向导只在浏览器内持有未完成定义，最后一步才写入模板草稿，避免中途退出留下无效记录。
-const defaultComposeContent = 'services:\n  app:\n    image: nginx:alpine\n';
 const { router, t } = useApplicationPageContext();
 const formRef = ref<FormInstanceFunctions | null>(null);
 const step = ref(0);
 const creating = ref(false);
 const cancelVisible = ref(false);
 const formData = reactive({ display_name: '', deployment_adapter_kind: 'compose' });
-const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>([
-  { path: '.env', node_type: 'file', content: '' },
-  { path: 'compose.yaml', node_type: 'file', content: defaultComposeContent },
-]);
+const workspaceFiles = ref<ApplicationWorkspaceDraftEntry[]>(createBlankComposeWorkspaceFiles());
 const lifecycleDraft = ref<ApplicationLifecycleConfigurationDraft>(
   buildBlankLifecycleConfigurationDraft(
     { lifecycle_configuration: {} },

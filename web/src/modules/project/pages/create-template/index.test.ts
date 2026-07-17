@@ -96,7 +96,17 @@ describe('ApplicationTemplateCreateWizardIndex', () => {
       expect.objectContaining({
         display_name: 'Nginx baseline',
         deployment_adapter_kind: 'compose',
-        definition: expect.objectContaining({ compose_file_path: 'compose.yaml' }),
+        definition: expect.objectContaining({
+          compose_file_path: 'compose.yaml',
+          workspace_entries: [
+            { path: '.env', node_type: 'file', content: 'APP_IMAGE=nginx:alpine\nAPP_PORT=8080\n' },
+            {
+              path: 'compose.yaml',
+              node_type: 'file',
+              content: 'services:\n  app:\n    image: ${APP_IMAGE}\n    ports:\n      - "${APP_PORT}:80"\n',
+            },
+          ],
+        }),
       }),
     );
     expect(mocks.push).toHaveBeenCalledWith({
