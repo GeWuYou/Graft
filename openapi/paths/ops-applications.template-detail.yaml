@@ -35,3 +35,12 @@ put:
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '409': { description: Template is archived or has no editable draft. }
+delete:
+  tags: [application]
+  summary: Soft-delete an Application template
+  operationId: deleteApplicationTemplate
+  responses:
+    '204': { description: Application template soft-deleted. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Application template not found. }

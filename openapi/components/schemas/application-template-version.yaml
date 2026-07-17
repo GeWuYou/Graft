@@ -3,7 +3,7 @@ required: [template_version_id, version_number, status, definition_schema_versio
 properties:
   template_version_id: { type: string }
   version_number: { type: integer, minimum: 1 }
-  status: { type: string, enum: [draft, published] }
+  status: { type: string, enum: [draft, published, withdrawn] }
   definition_schema_version: { type: integer, minimum: 1 }
   definition:
     type: object
@@ -11,4 +11,16 @@ properties:
   published_at:
     type: string
     format: date-time
+    nullable: true
+  published_by:
+    type: integer
+    format: int64
+    nullable: true
+  withdrawn_at:
+    type: string
+    format: date-time
+    nullable: true
+  withdrawn_by:
+    type: integer
+    format: int64
     nullable: true

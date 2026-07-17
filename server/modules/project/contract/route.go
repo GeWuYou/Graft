@@ -5,20 +5,22 @@ const (
 	ApplicationAPIGroup = "/ops/applications"
 	// ApplicationCollectionRoute 标识应用列表接口的路径片段。
 	ApplicationCollectionRoute = ""
+	// ApplicationComposeContextReferencesRoute 标识按 Compose 上下文解析应用引用的接口路径片段。
+	ApplicationComposeContextReferencesRoute = "/compose-context-references"
 	// ApplicationTemplatesRoute 必须在 /:applicationId 前注册，避免被应用详情动态路由吞掉。
 	ApplicationTemplatesRoute = "/templates"
 	// ApplicationTemplateManagementRoute 仅向模板管理员提供完整目录，避免草稿和归档版本泄露给创建者。
 	ApplicationTemplateManagementRoute = "/templates/manage"
 	// ApplicationTemplateDetailRoute 标识模板详情和草稿编辑接口。
 	ApplicationTemplateDetailRoute = "/templates/:templateId"
-	// ApplicationTemplateDeriveRoute 标识从已发布版本派生草稿的接口。
-	ApplicationTemplateDeriveRoute = "/templates/:templateId/derive"
+	// ApplicationTemplateCloneRoute 标识将当前定义复制为独立草稿模板的接口。
+	ApplicationTemplateCloneRoute = "/templates/:templateId/clone"
 	// ApplicationTemplatePublishRoute 标识模板草稿发布接口。
 	ApplicationTemplatePublishRoute = "/templates/:templateId/publish"
 	// ApplicationTemplateArchiveRoute 标识模板归档接口。
 	ApplicationTemplateArchiveRoute = "/templates/:templateId/archive"
-	// ApplicationTemplateLegacyImportRoute 标识管理员显式导入旧目录模板接口。
-	ApplicationTemplateLegacyImportRoute = "/templates/import-legacy"
+	// ApplicationTemplateWithdrawRoute 标识撤回已发布版本并创建下一草稿的接口。
+	ApplicationTemplateWithdrawRoute = "/templates/:templateId/withdraw"
 	// ApplicationSavedViewsRoute 标识应用列表保存视图集合接口的路径片段。
 	ApplicationSavedViewsRoute = "/saved-views"
 	// ApplicationSavedViewRoute 标识单个应用列表保存视图接口的路径片段。

@@ -1,5 +1,5 @@
 menu.application.title: Application Management
-menu.application.templates.title: Application Templates
+menu.application.templates.title: Templates
 ops.application.error.invalidApplicationId: Invalid application id.
 ops.application.error.invalidFileId: Invalid application file id.
 ops.application.error.invalidArgument: Invalid application request.

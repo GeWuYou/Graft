@@ -23,6 +23,10 @@ const runtimeTargetMocks = vi.hoisted(() => ({
   listRuntimeTargets: vi.fn(),
 }));
 
+const composeApplicationMocks = vi.hoisted(() => ({
+  resolveComposeApplicationReferences: vi.fn(),
+}));
+
 const dialogMocks = vi.hoisted(() => ({
   alert: vi.fn(),
   confirm: vi.fn(),
@@ -284,7 +288,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.deployments.compose': 'Compose',
   'container.list.deployments.standalone': '独立容器',
   'container.list.deployments.unknown': '未知部署',
-  'container.list.deploymentContext.project': '项目',
+  'container.list.deploymentContext.application': 'Compose 应用',
+  'container.list.deploymentContext.unlinkedApplication': '未关联应用',
   'container.list.sourceKinds.compose_project': '项目',
   'container.list.sourceKinds.compose_service': '服务',
   'container.list.sourceKinds.swarm_stack': 'Stack',
@@ -334,6 +339,10 @@ vi.mock('../../api/container', () => ({
 
 vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
   listRuntimeTargets: runtimeTargetMocks.listRuntimeTargets,
+}));
+
+vi.mock('@/modules/project/contract/compose-context-references', () => ({
+  resolveComposeApplicationReferences: composeApplicationMocks.resolveComposeApplicationReferences,
 }));
 
 vi.mock('tdesign-vue-next/es/dialog', () => ({
@@ -516,6 +525,7 @@ describe('container list page', () => {
         memory_percent: 50,
         memory_usage_bytes: 268435456,
       },
+      runtime_target: { id: 7, display_name: 'Local Docker', provider: 'docker' },
       primary_ip: '172.18.0.2',
       network_summary: 'bridge',
       orchestrator: {
@@ -590,6 +600,16 @@ describe('container list page', () => {
       success_count: 2,
       total: 2,
     });
+    composeApplicationMocks.resolveComposeApplicationReferences.mockResolvedValue({
+      items: [
+        {
+          application_id: 'app_graft',
+          compose_project_name: 'graft',
+          display_name: 'Graft',
+          runtime_target_id: 7,
+        },
+      ],
+    });
   });
 
   afterEach(() => {
@@ -622,8 +642,9 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('操作已启用');
     expect(wrapper.text()).toContain('graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
-    expect(wrapper.text()).toContain('项目');
-    expect(wrapper.text()).toContain('graft');
+    expect(wrapper.text()).toContain('Compose 应用');
+    expect(wrapper.text()).toContain('Graft');
+    expect(wrapper.text()).not.toContain('Compose 项目');
     expect(wrapper.text()).toContain('服务');
     expect(wrapper.text()).toContain('web');
     expect(wrapper.text()).toContain('21.80%');
@@ -647,6 +668,18 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
     wrapper.unmount();
+  });
+
+  it('opens the associated Compose application detail instead of searching the application list', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-compose-application-context"]').trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith({
+      name: 'ApplicationDetailIndex',
+      params: { applicationId: 'app_graft' },
+    });
   });
 
   it('releases visible list subscriptions on unmount', async () => {
@@ -1953,6 +1986,7 @@ function createContainerRows(count: number, startOrdinal = 1) {
                 action_level: 'allow' as const,
                 batch_action_allowed: true,
               },
+      runtime_target: { id: 7, display_name: 'Local Docker', provider: 'docker' as const },
       can_start: ordinal !== 1,
       can_stop: ordinal === 1,
       can_restart: true,

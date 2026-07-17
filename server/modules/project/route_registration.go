@@ -74,6 +74,7 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group := ctx.Router.Group(projectcontract.ApplicationAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(projectcontract.ApplicationCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleList)
+	group.POST(projectcontract.ApplicationComposeContextReferencesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleComposeContextReferences)
 	group.GET(projectcontract.ApplicationSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewList)
 	group.POST(projectcontract.ApplicationSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewCreate)
 	group.PUT(projectcontract.ApplicationSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewUpdate)
@@ -96,11 +97,12 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplates)
 	group.GET(projectcontract.ApplicationTemplateManagementRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleManagedTemplates)
 	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCreateTemplateDraft)
-	group.POST(projectcontract.ApplicationTemplateLegacyImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleImportLegacyTemplate)
 	group.GET(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateDetail)
 	group.PUT(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleUpdateTemplateDraft)
-	group.POST(projectcontract.ApplicationTemplateDeriveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleDeriveTemplateDraft)
+	group.DELETE(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleDeleteTemplate)
+	group.POST(projectcontract.ApplicationTemplateCloneRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCloneTemplate)
 	group.POST(projectcontract.ApplicationTemplatePublishRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), routes.handlePublishTemplateDraft)
+	group.POST(projectcontract.ApplicationTemplateWithdrawRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), routes.handleWithdrawTemplate)
 	group.POST(projectcontract.ApplicationTemplateArchiveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleArchiveTemplate)
 	group.GET(projectcontract.ApplicationDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleDetail)
 	group.GET(projectcontract.ApplicationOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleOverview)
@@ -151,6 +153,34 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectListResponse(result))
+}
+
+func (r routeRuntime) handleComposeContextReferences(ginCtx *gin.Context) {
+	var request generated.PostApplicationComposeContextReferencesJSONRequestBody
+	if !bindJSON(ginCtx, r.ctx, &request) {
+		return
+	}
+	applicationGeneratedHandler{}.PostApplicationComposeContextReferences(
+		bindPostApplicationComposeContextReferencesParams(ginCtx),
+		request,
+	)
+	contexts := make([]ComposeContextReferenceRequest, 0, len(request.Contexts))
+	for _, item := range request.Contexts {
+		if item.RuntimeTargetId < 1 {
+			r.writeRouteError(ginCtx, errProjectInvalidArgument)
+			return
+		}
+		contexts = append(contexts, ComposeContextReferenceRequest{
+			RuntimeTargetID:    item.RuntimeTargetId,
+			ComposeProjectName: item.ComposeProjectName,
+		})
+	}
+	result, err := r.service.ResolveComposeContextReferences(ginCtx.Request.Context(), contexts)
+	if err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toComposeContextReferenceResponse(result))
 }
 
 func (r routeRuntime) handleComposeRuntimeTargets(ginCtx *gin.Context) {
@@ -1144,6 +1174,8 @@ func (applicationGeneratedHandler) PostApplicationCreateValidate(generated.PostA
 }
 func (applicationGeneratedHandler) PostApplicationNameAvailability(generated.PostApplicationNameAvailabilityParams, generated.PostApplicationNameAvailabilityJSONRequestBody) {
 }
+func (applicationGeneratedHandler) PostApplicationComposeContextReferences(generated.PostApplicationComposeContextReferencesParams, generated.PostApplicationComposeContextReferencesJSONRequestBody) {
+}
 func (applicationGeneratedHandler) PostApplicationCreate(generated.PostApplicationCreateParams, generated.PostApplicationCreateJSONRequestBody) {
 }
 func (applicationGeneratedHandler) GetApplication(string, generated.GetApplicationParams) {}
@@ -1582,6 +1614,11 @@ func bindPostApplicationCreateValidateParams(ginCtx *gin.Context) generated.Post
 func bindPostApplicationNameAvailabilityParams(ginCtx *gin.Context) generated.PostApplicationNameAvailabilityParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostApplicationNameAvailabilityParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostApplicationComposeContextReferencesParams(ginCtx *gin.Context) generated.PostApplicationComposeContextReferencesParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return generated.PostApplicationComposeContextReferencesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindPostApplicationCreateParams 构造应用创建请求的公共请求头参数。

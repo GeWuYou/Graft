@@ -143,6 +143,36 @@ describe('bootstrap navigation graph', () => {
     expect(routes[0]?.meta?.navigationTitle?.['en-US']).toBe('Security / Users');
   });
 
+  it('keeps a visible template menu entry in the bootstrap navigation tree', () => {
+    const menus = [
+      {
+        code: 'domain.application',
+        kind: 'group' as const,
+        order: 10,
+        title: 'Application',
+        icon: 'application',
+        permission: '',
+      },
+      {
+        code: 'application.templates',
+        parent_code: 'domain.application',
+        kind: 'entry' as const,
+        order: 53,
+        title: 'Templates',
+        path: '/applications/templates',
+        icon: 'application',
+        permission: 'ops.application.template.manage',
+      },
+    ];
+
+    const navigation = buildBootstrapNavigationTree(menus);
+    expect(navigation[0]?.children?.map((item) => item.path)).toEqual(['application.templates']);
+
+    const routes = transformBootstrapMenusToRoutes(menus);
+    expect(routes[0]?.path).toBe('/applications/templates');
+    expect(routes[0]?.name).toBe('ApplicationTemplates');
+  });
+
   it('keeps bootstrap-owned menu display metadata ahead of registration patches', () => {
     const registration = getBootstrapRouteRegistration('/security/users');
     const originalMeta = registration?.meta;

@@ -27,7 +27,10 @@
   },
   "menu": {
     "application": {
-      "title": "Application Management"
+      "title": "Application Management",
+      "templates": {
+        "title": "Templates"
+      }
     }
   },
   "project": {
@@ -1054,12 +1057,26 @@
       "description": "Maintain reusable, versioned blueprints for application creation.",
       "detailDescription": "Edit the draft workspace and lifecycle preset; published versions remain immutable.",
       "create": "New Template",
-      "importLegacy": "Import Legacy Directory",
       "refresh": "Refresh",
       "retry": "Retry",
       "cancel": "Cancel",
       "back": "Back to Templates",
       "open": "Open",
+      "edit": "Edit",
+      "clone": "Clone",
+      "cloneTitle": "Clone Application Template",
+      "cloneConfirm": "Clone",
+      "cloneSuffix": "Copy",
+      "cloneFailed": "Failed to clone the template.",
+      "withdraw": "Withdraw Publication",
+      "withdrawSuccess": "The template version was withdrawn and a new draft was created.",
+      "withdrawFailed": "Failed to withdraw the template version.",
+      "delete": "Delete",
+      "deleteTitle": "Delete Application Template",
+      "deleteBody": "The template will no longer be shown. Existing application provenance remains unchanged.",
+      "deleteConfirm": "Delete",
+      "deleteSuccess": "Template deleted.",
+      "deleteFailed": "Failed to delete the template.",
       "name": "Template Name",
       "descriptionField": "Description",
       "adapter": "Deployment Adapter",
@@ -1075,7 +1092,7 @@
       "statusPublished": "Published",
       "statusArchived": "Archived",
       "emptyTitle": "No Application Templates",
-      "emptyDescription": "Create a blank template or explicitly import a legacy directory template.",
+      "emptyDescription": "Create a blank template or clone an existing template.",
       "loadFailed": "Failed to load the template catalog.",
       "detailLoadFailed": "Failed to load template details.",
       "createFailed": "Failed to create the template draft.",
@@ -1085,9 +1102,6 @@
       "publish": "Publish Version",
       "publishSuccess": "Template version published.",
       "publishFailed": "Failed to publish the template version.",
-      "derive": "Derive Draft",
-      "deriveSuccess": "Draft derived from the published version.",
-      "deriveFailed": "Failed to derive the template draft.",
       "archive": "Archive",
       "archiveTitle": "Archive Application Template",
       "archiveBody": "An archived template cannot create new applications. Existing application provenance remains unchanged.",
@@ -1095,14 +1109,10 @@
       "archiveSuccess": "Template archived.",
       "archiveFailed": "Failed to archive the template.",
       "archivedHint": "This template is archived and cannot be edited or used to create applications.",
-      "publishedImmutableHint": "Published versions are immutable. Derive a draft to change and publish a new version.",
+      "publishedImmutableHint": "Published versions are immutable. Withdraw publication to edit a new draft version.",
       "lifecycleTitle": "Lifecycle Preset",
       "lifecycleDescription": "The preset fills the application create flow and can be adjusted for that application.",
-      "lifecycleAuthority": "A template saves default lifecycle configuration only; it does not deploy.",
-      "importLegacyTitle": "Import Legacy Directory Template",
-      "importLegacyConfirm": "Import as Draft",
-      "importLegacyFailed": "Failed to import the legacy directory template.",
-      "legacyKey": "Legacy Template Directory Key"
+      "lifecycleAuthority": "A template saves default lifecycle configuration only; it does not deploy."
     },
     "discovery": {
       "description": "Read bounded local directory-scan and auto-discovery candidate previews under the managed root without auto-registering applications or changing runtime authority.",

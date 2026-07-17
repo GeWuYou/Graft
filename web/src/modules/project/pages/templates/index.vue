@@ -8,9 +8,6 @@
       >
         <template #actions>
           <t-space size="small">
-            <t-button variant="outline" @click="legacyImportVisible = true">{{
-              t('project.templates.importLegacy')
-            }}</t-button>
             <t-button theme="primary" :loading="creating" @click="createBlankDraft">
               {{ t('project.templates.create') }}
             </t-button>
@@ -61,11 +58,28 @@
         <template #version="{ row }">{{
           t('project.templates.versionValue', { version: row.version.version_number })
         }}</template>
-        <template #operation="{ row }"
-          ><t-button variant="text" theme="primary" @click="openTemplate(row)">{{
-            t('project.templates.open')
-          }}</t-button></template
-        >
+        <template #operation="{ row }">
+          <t-space size="small" class="application-template-list__actions">
+            <t-button variant="text" theme="primary" @click="openTemplate(row)">{{
+              isDraft(row) ? t('project.templates.edit') : t('project.templates.open')
+            }}</t-button>
+            <t-button v-if="isDraft(row)" variant="text" theme="success" @click="publishTemplate(row)">{{
+              t('project.templates.publish')
+            }}</t-button>
+            <t-button variant="text" @click="openCloneDialog(row)">{{
+              t('project.templates.clone')
+            }}</t-button>
+            <t-button v-if="isPublished(row)" variant="text" theme="warning" @click="withdrawTemplate(row)">{{
+              t('project.templates.withdraw')
+            }}</t-button>
+            <t-button v-if="!isArchived(row)" variant="text" theme="warning" @click="archiveTemplate(row)">{{
+              t('project.templates.archive')
+            }}</t-button>
+            <t-button variant="text" theme="danger" @click="openDeleteDialog(row)">{{
+              t('project.templates.delete')
+            }}</t-button>
+          </t-space>
+        </template>
         <template #empty
           ><t-empty :title="t('project.templates.emptyTitle')" :description="t('project.templates.emptyDescription')"
         /></template>
@@ -73,18 +87,27 @@
     </management-page-content>
 
     <t-dialog
-      v-model:visible="legacyImportVisible"
-      :header="t('project.templates.importLegacyTitle')"
-      :confirm-btn="t('project.templates.importLegacyConfirm')"
+      v-model:visible="cloneVisible"
+      :header="t('project.templates.cloneTitle')"
+      :confirm-btn="t('project.templates.cloneConfirm')"
       :cancel-btn="t('project.templates.cancel')"
-      :confirm-loading="importing"
-      @confirm="importLegacy"
+      :confirm-loading="cloning"
+      @confirm="cloneTemplate"
     >
       <t-form label-align="top">
-        <t-form-item :label="t('project.templates.legacyKey')"><t-input v-model="legacyKey" /></t-form-item>
-        <t-form-item :label="t('project.templates.name')"><t-input v-model="legacyDisplayName" /></t-form-item>
+        <t-form-item :label="t('project.templates.name')"><t-input v-model="cloneDisplayName" /></t-form-item>
       </t-form>
     </t-dialog>
+    <t-dialog
+      v-model:visible="deleteVisible"
+      theme="danger"
+      :header="t('project.templates.deleteTitle')"
+      :body="t('project.templates.deleteBody')"
+      :confirm-btn="t('project.templates.deleteConfirm')"
+      :cancel-btn="t('project.templates.cancel')"
+      :confirm-loading="deleting"
+      @confirm="deleteTemplate"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -98,9 +121,13 @@ import { ManagementPageContent, ManagementPageHeader } from '@/shared/components
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
+  deleteApplicationTemplate,
   getApplicationManagedTemplates,
   postApplicationTemplate,
-  postApplicationTemplateLegacyImport,
+  postApplicationTemplateArchive,
+  postApplicationTemplateClone,
+  postApplicationTemplatePublish,
+  postApplicationTemplateWithdraw,
 } from '../../api/project';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import type { ApplicationTemplate, ApplicationTemplateDraftRequest } from '../../types/project';
@@ -114,13 +141,15 @@ const router = useRouter();
 const templates = ref<ApplicationTemplate[]>([]);
 const loading = ref(false);
 const creating = ref(false);
-const importing = ref(false);
+const cloning = ref(false);
+const deleting = ref(false);
 const errorMessage = ref('');
 const keyword = ref('');
 const status = ref('');
-const legacyImportVisible = ref(false);
-const legacyKey = ref('');
-const legacyDisplayName = ref('');
+const cloneVisible = ref(false);
+const deleteVisible = ref(false);
+const selectedTemplate = ref<ApplicationTemplate | null>(null);
+const cloneDisplayName = ref('');
 
 const statusOptions = computed(() => [
   { label: t('project.templates.statusDraft'), value: 'draft' },
@@ -142,7 +171,7 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'adapter', title: t('project.templates.adapter'), width: 150 },
   { colKey: 'status', title: t('project.templates.status'), width: 150 },
   { colKey: 'version', title: t('project.templates.version'), width: 110 },
-  { colKey: 'operation', title: t('project.templates.operation'), width: 110, fixed: 'right' },
+  { colKey: 'operation', title: t('project.templates.operation'), width: 420, fixed: 'right' },
 ]);
 
 onMounted(() => void loadTemplates());
@@ -194,35 +223,102 @@ function openTemplate(template: ApplicationTemplate) {
   });
 }
 
-async function importLegacy() {
-  if (!legacyKey.value.trim()) return;
-  importing.value = true;
+function isArchived(template: ApplicationTemplate) {
+  return Boolean(template.archived_at);
+}
+
+function templateStatus(template: ApplicationTemplate) {
+  return String(template.version.status);
+}
+
+function isDraft(template: ApplicationTemplate) {
+  return !isArchived(template) && templateStatus(template) === 'draft';
+}
+
+function isPublished(template: ApplicationTemplate) {
+  return !isArchived(template) && templateStatus(template) === 'published';
+}
+
+function openCloneDialog(template: ApplicationTemplate) {
+  selectedTemplate.value = template;
+  cloneDisplayName.value = template.display_name + ' ' + t('project.templates.cloneSuffix');
+  cloneVisible.value = true;
+}
+
+function openDeleteDialog(template: ApplicationTemplate) {
+  selectedTemplate.value = template;
+  deleteVisible.value = true;
+}
+
+async function cloneTemplate() {
+  if (!selectedTemplate.value || !cloneDisplayName.value.trim()) return;
+  cloning.value = true;
   try {
-    const template = await postApplicationTemplateLegacyImport({
-      key: legacyKey.value.trim(),
-      display_name: legacyDisplayName.value.trim() || undefined,
-    });
-    legacyImportVisible.value = false;
-    legacyKey.value = '';
-    legacyDisplayName.value = '';
+    const template = await postApplicationTemplateClone(selectedTemplate.value.template_id, cloneDisplayName.value.trim());
+    cloneVisible.value = false;
     openTemplate(template);
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.importLegacyFailed')));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.cloneFailed')));
   } finally {
-    importing.value = false;
+    cloning.value = false;
+  }
+}
+
+async function publishTemplate(template: ApplicationTemplate) {
+  try {
+    await postApplicationTemplatePublish(template.template_id);
+    await loadTemplates();
+    MessagePlugin.success(t('project.templates.publishSuccess'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.publishFailed')));
+  }
+}
+
+async function withdrawTemplate(template: ApplicationTemplate) {
+  try {
+    await postApplicationTemplateWithdraw(template.template_id);
+    await loadTemplates();
+    MessagePlugin.success(t('project.templates.withdrawSuccess'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.withdrawFailed')));
+  }
+}
+
+async function archiveTemplate(template: ApplicationTemplate) {
+  try {
+    await postApplicationTemplateArchive(template.template_id);
+    await loadTemplates();
+    MessagePlugin.success(t('project.templates.archiveSuccess'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.archiveFailed')));
+  }
+}
+
+async function deleteTemplate() {
+  if (!selectedTemplate.value) return;
+  deleting.value = true;
+  try {
+    await deleteApplicationTemplate(selectedTemplate.value.template_id);
+    deleteVisible.value = false;
+    await loadTemplates();
+    MessagePlugin.success(t('project.templates.deleteSuccess'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.deleteFailed')));
+  } finally {
+    deleting.value = false;
   }
 }
 
 function statusLabel(template: ApplicationTemplate) {
-  if (template.archived_at) return t('project.templates.statusArchived');
-  return template.version.status === 'draft'
+  if (isArchived(template)) return t('project.templates.statusArchived');
+  return isDraft(template)
     ? t('project.templates.statusDraft')
     : t('project.templates.statusPublished');
 }
 
 function statusTheme(template: ApplicationTemplate) {
-  if (template.archived_at) return 'default';
-  return template.version.status === 'draft' ? 'warning' : 'success';
+  if (isArchived(template)) return 'default';
+  return isDraft(template) ? 'warning' : 'success';
 }
 </script>
 <style scoped>
@@ -249,5 +345,9 @@ function statusTheme(template: ApplicationTemplate) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.application-template-list__actions {
+  flex-wrap: wrap;
 }
 </style>

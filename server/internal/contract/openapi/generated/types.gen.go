@@ -1051,6 +1051,7 @@ func (e ApplicationTemplateResponseDeploymentAdapterKind) Valid() bool {
 const (
 	ApplicationTemplateVersionStatusDraft     ApplicationTemplateVersionStatus = "draft"
 	ApplicationTemplateVersionStatusPublished ApplicationTemplateVersionStatus = "published"
+	ApplicationTemplateVersionStatusWithdrawn ApplicationTemplateVersionStatus = "withdrawn"
 )
 
 // Valid indicates whether the value is a known member of the ApplicationTemplateVersionStatus enum.
@@ -1059,6 +1060,8 @@ func (e ApplicationTemplateVersionStatus) Valid() bool {
 	case ApplicationTemplateVersionStatusDraft:
 		return true
 	case ApplicationTemplateVersionStatusPublished:
+		return true
+	case ApplicationTemplateVersionStatusWithdrawn:
 		return true
 	default:
 		return false
@@ -4934,6 +4937,31 @@ type ApplicationBatchActionResponse struct {
 	TotalCount     int                          `json:"total_count"`
 }
 
+// ApplicationComposeContext defines model for application-compose-context.
+type ApplicationComposeContext struct {
+	ComposeProjectName string `json:"compose_project_name"`
+	RuntimeTargetId    int64  `json:"runtime_target_id"`
+}
+
+// ApplicationComposeContextReference defines model for application-compose-context-reference.
+type ApplicationComposeContextReference struct {
+	// ApplicationId Stable public Graft Application identifier.
+	ApplicationId      ApplicationId `json:"application_id"`
+	ComposeProjectName string        `json:"compose_project_name"`
+	DisplayName        string        `json:"display_name"`
+	RuntimeTargetId    int64         `json:"runtime_target_id"`
+}
+
+// ApplicationComposeContextReferenceRequest defines model for application-compose-context-reference-request.
+type ApplicationComposeContextReferenceRequest struct {
+	Contexts []ApplicationComposeContext `json:"contexts"`
+}
+
+// ApplicationComposeContextReferenceResponse defines model for application-compose-context-reference-response.
+type ApplicationComposeContextReferenceResponse struct {
+	Items []ApplicationComposeContextReference `json:"items"`
+}
+
 // ApplicationComposeProjectNameSource defines model for application-compose-project-name-source.
 type ApplicationComposeProjectNameSource string
 
@@ -5960,9 +5988,12 @@ type ApplicationTemplateVersion struct {
 	Definition              map[string]interface{}           `json:"definition"`
 	DefinitionSchemaVersion int                              `json:"definition_schema_version"`
 	PublishedAt             *time.Time                       `json:"published_at,omitempty"`
+	PublishedBy             *int64                           `json:"published_by,omitempty"`
 	Status                  ApplicationTemplateVersionStatus `json:"status"`
 	TemplateVersionId       string                           `json:"template_version_id"`
 	VersionNumber           int                              `json:"version_number"`
+	WithdrawnAt             *time.Time                       `json:"withdrawn_at,omitempty"`
+	WithdrawnBy             *int64                           `json:"withdrawn_by,omitempty"`
 }
 
 // ApplicationTemplateVersionStatus defines model for ApplicationTemplateVersion.Status.
@@ -7496,6 +7527,26 @@ type EnvelopedApplicationBatchActionResponse struct {
 	// Code Existing canonical response code.
 	Code string                         `json:"code"`
 	Data ApplicationBatchActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedApplicationComposeContextReferenceResponse defines model for enveloped-application-compose-context-reference-response.
+type EnvelopedApplicationComposeContextReferenceResponse struct {
+	// Code Existing canonical response code.
+	Code string                                     `json:"code"`
+	Data ApplicationComposeContextReferenceResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11838,6 +11889,16 @@ type PostApplicationBatchActionsParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostApplicationComposeContextReferencesParams defines parameters for PostApplicationComposeContextReferences.
+type PostApplicationComposeContextReferencesParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostApplicationNameAvailabilityParams defines parameters for PostApplicationNameAvailability.
 type PostApplicationNameAvailabilityParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -12052,15 +12113,9 @@ type GetApplicationTemplatesParams struct {
 // GetApplicationTemplatesParamsDeploymentAdapterKind defines parameters for GetApplicationTemplates.
 type GetApplicationTemplatesParamsDeploymentAdapterKind string
 
-// PostApplicationTemplateImportLegacyJSONBody defines parameters for PostApplicationTemplateImportLegacy.
-type PostApplicationTemplateImportLegacyJSONBody struct {
-	DisplayName *string `json:"display_name,omitempty"`
-	Key         string  `json:"key"`
-}
-
-// PostApplicationTemplateDeriveJSONBody defines parameters for PostApplicationTemplateDerive.
-type PostApplicationTemplateDeriveJSONBody struct {
-	TemplateVersionId string `json:"template_version_id"`
+// PostApplicationTemplateCloneJSONBody defines parameters for PostApplicationTemplateClone.
+type PostApplicationTemplateCloneJSONBody struct {
+	DisplayName string `json:"display_name"`
 }
 
 // GetApplicationParams defines parameters for GetApplication.
@@ -13166,6 +13221,9 @@ type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
 // PostApplicationBatchActionsJSONRequestBody defines body for PostApplicationBatchActions for application/json ContentType.
 type PostApplicationBatchActionsJSONRequestBody = ApplicationBatchActionRequest
 
+// PostApplicationComposeContextReferencesJSONRequestBody defines body for PostApplicationComposeContextReferences for application/json ContentType.
+type PostApplicationComposeContextReferencesJSONRequestBody = ApplicationComposeContextReferenceRequest
+
 // PostApplicationNameAvailabilityJSONRequestBody defines body for PostApplicationNameAvailability for application/json ContentType.
 type PostApplicationNameAvailabilityJSONRequestBody = ApplicationNameAvailabilityRequest
 
@@ -13196,14 +13254,11 @@ type PutApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
 // PostApplicationTemplateJSONRequestBody defines body for PostApplicationTemplate for application/json ContentType.
 type PostApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
 
-// PostApplicationTemplateImportLegacyJSONRequestBody defines body for PostApplicationTemplateImportLegacy for application/json ContentType.
-type PostApplicationTemplateImportLegacyJSONRequestBody PostApplicationTemplateImportLegacyJSONBody
-
 // PutApplicationTemplateJSONRequestBody defines body for PutApplicationTemplate for application/json ContentType.
 type PutApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
 
-// PostApplicationTemplateDeriveJSONRequestBody defines body for PostApplicationTemplateDerive for application/json ContentType.
-type PostApplicationTemplateDeriveJSONRequestBody PostApplicationTemplateDeriveJSONBody
+// PostApplicationTemplateCloneJSONRequestBody defines body for PostApplicationTemplateClone for application/json ContentType.
+type PostApplicationTemplateCloneJSONRequestBody PostApplicationTemplateCloneJSONBody
 
 // PostApplicationDestroyJSONRequestBody defines body for PostApplicationDestroy for application/json ContentType.
 type PostApplicationDestroyJSONRequestBody = ApplicationDestroyRequest

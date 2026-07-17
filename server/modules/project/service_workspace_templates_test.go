@@ -2,26 +2,26 @@ package project
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
+
+	projectcontract "graft/server/modules/project/contract"
 )
 
-func TestLoadWorkspaceTemplatePreservesDirectoriesAndArbitraryTextFiles(t *testing.T) {
-	root := t.TempDir()
-	template := filepath.Join(root, "templates", "custom")
-	if err := os.MkdirAll(filepath.Join(template, "empty"), 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(template, "file-without-extension"), []byte("text"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	entries, err := loadWorkspaceTemplate(root, "custom")
+func TestValidateTemplateDefinitionAcceptsSnakeCaseWorkspaceEntries(t *testing.T) {
+	t.Parallel()
+	definition, err := (&Service{}).validateTemplateDefinition(projectcontract.DeploymentAdapterKindCompose, []byte(`{
+  "compose_file_path": "compose.yaml",
+  "workspace_entries": [
+    {"path": ".env", "node_type": "file", "content": ""},
+    {"path": "compose.yaml", "node_type": "file", "content": "services:\n  app:\n    image: nginx:alpine\n"}
+  ],
+  "lifecycle_configuration": {}
+}`))
 	if err != nil {
-		t.Fatalf("load template: %v", err)
+		t.Fatalf("validate snake_case template definition: %v", err)
 	}
-	if len(entries) != 2 || entries[0].Path != "empty" || entries[0].NodeType != "directory" || entries[1].Path != "file-without-extension" || entries[1].NodeType != "file" {
-		t.Fatalf("unexpected template entries: %#v", entries)
+	if len(definition.WorkspaceEntries) != 2 || definition.WorkspaceEntries[0].NodeType != "file" || definition.WorkspaceEntries[0].Content == nil || *definition.WorkspaceEntries[0].Content != "" {
+		t.Fatalf("unexpected parsed workspace entries: %#v", definition.WorkspaceEntries)
 	}
 }
 
@@ -50,19 +50,5 @@ func TestNormalizeManagedWorkspaceEntriesRejectsFileAncestorRegardlessOfOrder(t 
 		if _, err := normalizeManagedWorkspaceEntries(entries, "compose.yaml"); !errors.Is(err, errProjectInvalidArgument) {
 			t.Fatalf("expected file ancestor conflict, got %v", err)
 		}
-	}
-}
-
-func TestLoadWorkspaceTemplateRejectsOversizedFileBeforeRead(t *testing.T) {
-	root := t.TempDir()
-	template := filepath.Join(root, "templates", "custom")
-	if err := os.MkdirAll(template, 0o750); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(template, "large.txt"), make([]byte, maxWorkspaceFileBytes+1), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := loadWorkspaceTemplate(root, "custom"); err == nil {
-		t.Fatal("expected oversized template file rejection")
 	}
 }

@@ -1,0 +1,10 @@
+allOf:
+  - $ref: ./application-compose-context.yaml
+  - type: object
+    required: [application_id, display_name]
+    properties:
+      application_id:
+        $ref: ./application-id.yaml
+      display_name:
+        type: string
+    additionalProperties: false

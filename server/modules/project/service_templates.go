@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +10,6 @@ import (
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
-
-//go:embed all:templates/default
-var bundledWorkspaceTemplates embed.FS
 
 var (
 	errProjectTemplateUnavailable = errors.New("application template repository is unavailable")
@@ -140,8 +136,8 @@ func (s *Service) UpdateApplicationTemplateDraft(ctx context.Context, templateID
 	return repository.UpdateTemplateDraft(ctx, projectstore.UpdateTemplateDraftInput{TemplateID: templateID, DisplayName: normalized.DisplayName, Description: normalized.Description, DefinitionSchemaVersion: normalized.DefinitionSchemaVersion, DefinitionJSON: normalized.DefinitionJSON, ActorID: actorID})
 }
 
-// DeriveApplicationTemplateDraft 只接受已发布版本并建立同一模板的下一个可编辑草稿。
-func (s *Service) DeriveApplicationTemplateDraft(ctx context.Context, templateID, versionID string, actorID *uint64) (projectstore.ApplicationTemplateAggregate, error) {
+// CloneApplicationTemplate 将当前定义复制为具有独立身份的新草稿模板。
+func (s *Service) CloneApplicationTemplate(ctx context.Context, templateID, displayName string, actorID *uint64) (projectstore.ApplicationTemplateAggregate, error) {
 	repository, err := s.templateRepositoryOrErr()
 	if err != nil {
 		return projectstore.ApplicationTemplateAggregate{}, err
@@ -150,10 +146,11 @@ func (s *Service) DeriveApplicationTemplateDraft(ctx context.Context, templateID
 	if err != nil {
 		return projectstore.ApplicationTemplateAggregate{}, err
 	}
-	if current.Template.ArchivedAt != nil {
-		return projectstore.ApplicationTemplateAggregate{}, errProjectTemplateArchived
+	displayName = strings.TrimSpace(displayName)
+	if displayName == "" || len(displayName) > 128 {
+		return projectstore.ApplicationTemplateAggregate{}, errProjectInvalidArgument
 	}
-	return repository.DeriveTemplateDraft(ctx, projectstore.DeriveTemplateDraftInput{TemplateID: templateID, SourceVersionID: versionID, VersionID: newTemplateVersionID(), ActorID: actorID})
+	return repository.CloneTemplate(ctx, projectstore.CloneTemplateInput{SourceTemplateID: current.Template.ID, TemplateID: newTemplateID(), VersionID: newTemplateVersionID(), DisplayName: displayName, ActorID: actorID})
 }
 
 // PublishApplicationTemplateDraft 校验草稿后将其发布为不可变且创建者可见的版本。
@@ -184,64 +181,32 @@ func (s *Service) ArchiveApplicationTemplate(ctx context.Context, templateID str
 	return repository.ArchiveTemplate(ctx, templateID, actorID)
 }
 
-// EnsureBundledApplicationTemplate 保存内嵌基线为持久化平台模板。它必须由显式 Boot/管理路径调用，不能回退到目录读取。
-func (s *Service) EnsureBundledApplicationTemplate(ctx context.Context) error {
+// WithdrawApplicationTemplate 撤回已发布快照，并原子创建相同定义的下一可编辑草稿。
+func (s *Service) WithdrawApplicationTemplate(ctx context.Context, templateID string, actorID *uint64) (projectstore.ApplicationTemplateAggregate, error) {
+	repository, err := s.templateRepositoryOrErr()
+	if err != nil {
+		return projectstore.ApplicationTemplateAggregate{}, err
+	}
+	current, err := repository.GetTemplate(ctx, templateID)
+	if err != nil {
+		return projectstore.ApplicationTemplateAggregate{}, err
+	}
+	if current.Template.ArchivedAt != nil {
+		return projectstore.ApplicationTemplateAggregate{}, errProjectTemplateArchived
+	}
+	if current.Version.Status != projectcontract.ApplicationTemplateStatusPublished.String() {
+		return projectstore.ApplicationTemplateAggregate{}, errProjectTemplateUnpublished
+	}
+	return repository.WithdrawTemplate(ctx, projectstore.WithdrawTemplateInput{TemplateID: current.Template.ID, VersionID: newTemplateVersionID(), ActorID: actorID})
+}
+
+// DeleteApplicationTemplate 软删除模板身份，使其不再出现在任何模板目录或创建来源中。
+func (s *Service) DeleteApplicationTemplate(ctx context.Context, templateID string, actorID *uint64) error {
 	repository, err := s.templateRepositoryOrErr()
 	if err != nil {
 		return err
 	}
-	if _, err = repository.FindTemplateByDisplayName(ctx, "Compose Baseline"); err == nil {
-		return nil
-	}
-	if !errors.Is(err, projectstore.ErrTemplateNotFound) {
-		return err
-	}
-	composeContent, err := bundledWorkspaceTemplates.ReadFile("templates/default/compose.yaml")
-	if err != nil {
-		return err
-	}
-	envContent, err := bundledWorkspaceTemplates.ReadFile("templates/default/.env")
-	if err != nil {
-		return err
-	}
-	definition, err := encodeComposeTemplateDefinition(ComposeTemplateDefinition{ComposeFilePath: "compose.yaml", WorkspaceEntries: []ManagedWorkspaceEntry{{Path: ".env", NodeType: "file", Content: stringPointer(string(envContent))}, {Path: "compose.yaml", NodeType: "file", Content: stringPointer(string(composeContent))}}, LifecycleConfig: templateLifecycleConfigPointer(defaultLifecycleStandardConfig())})
-	if err != nil {
-		return err
-	}
-	created, err := s.CreateApplicationTemplateDraft(ctx, ApplicationTemplateDraftRequest{DisplayName: "Compose Baseline", DeploymentAdapterKind: projectcontract.DeploymentAdapterKindCompose, DefinitionSchemaVersion: projectcontract.ApplicationTemplateDefinitionSchemaVersionCurrent, DefinitionJSON: definition}, nil)
-	if err != nil && errors.Is(err, projectstore.ErrTemplateConflict) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	_, err = s.PublishApplicationTemplateDraft(ctx, created.Template.ID, nil)
-	return err
-}
-
-// ImportLegacyApplicationTemplate 显式将 Application Root templates/<key> 转换为 Compose 草稿。
-// 它只在管理员动作中读取旧目录，不产生启动时种子或运行时回退。
-func (s *Service) ImportLegacyApplicationTemplate(ctx context.Context, key, displayName string, actorID *uint64) (projectstore.ApplicationTemplateAggregate, error) {
-	root, err := s.applicationRootDirectory(ctx)
-	if err != nil {
-		return projectstore.ApplicationTemplateAggregate{}, err
-	}
-	entries, err := loadWorkspaceTemplate(root, strings.TrimSpace(key))
-	if err != nil {
-		return projectstore.ApplicationTemplateAggregate{}, fmt.Errorf("%w: legacy template is unavailable", errProjectInvalidArgument)
-	}
-	workspace := make([]ManagedWorkspaceEntry, 0, len(entries))
-	for _, entry := range entries {
-		workspace = append(workspace, ManagedWorkspaceEntry(entry))
-	}
-	definition, err := encodeComposeTemplateDefinition(ComposeTemplateDefinition{WorkspaceEntries: workspace, ComposeFilePath: "compose.yaml", LifecycleConfig: templateLifecycleConfigPointer(defaultLifecycleStandardConfig())})
-	if err != nil {
-		return projectstore.ApplicationTemplateAggregate{}, err
-	}
-	if strings.TrimSpace(displayName) == "" {
-		displayName = strings.TrimSpace(key)
-	}
-	return s.CreateApplicationTemplateDraft(ctx, ApplicationTemplateDraftRequest{DisplayName: displayName, DeploymentAdapterKind: projectcontract.DeploymentAdapterKindCompose, DefinitionSchemaVersion: projectcontract.ApplicationTemplateDefinitionSchemaVersionCurrent, DefinitionJSON: definition}, actorID)
+	return repository.DeleteTemplate(ctx, templateID, actorID)
 }
 
 func (s *Service) normalizeTemplateDraft(request ApplicationTemplateDraftRequest) (ApplicationTemplateDraftRequest, error) {
@@ -299,10 +264,6 @@ func (s *Service) validateTemplateDefinition(kind projectcontract.DeploymentAdap
 	return parsed, nil
 }
 
-func encodeComposeTemplateDefinition(definition ComposeTemplateDefinition) ([]byte, error) {
-	return json.Marshal(definition)
-}
-
 func workspaceEntryContent(entries []ManagedWorkspaceEntry, path string) (string, error) {
 	for _, entry := range entries {
 		if entry.NodeType == "file" && entry.Path == path && entry.Content != nil {
@@ -312,8 +273,5 @@ func workspaceEntryContent(entries []ManagedWorkspaceEntry, path string) (string
 	return "", fmt.Errorf("%w: template has no %s", errProjectInvalidArgument, path)
 }
 
-func templateLifecycleConfigPointer(value LifecycleStandardConfig) *LifecycleStandardConfig {
-	return &value
-}
 func newTemplateID() string        { return "tpl_" + strings.TrimPrefix(newApplicationID(), "app_") }
 func newTemplateVersionID() string { return "tplv_" + strings.TrimPrefix(newApplicationID(), "app_") }

@@ -41,7 +41,7 @@ export const PROJECT_BOOTSTRAP_ROUTE = {
     routeName: 'ApplicationTemplateCreate',
   },
   TEMPLATES: {
-    path: APPLICATION_ROUTE_PATH.TEMPLATES,
+    menuPath: APPLICATION_ROUTE_PATH.TEMPLATES,
     pageRouteName: 'ApplicationTemplateList',
     routeName: 'ApplicationTemplates',
   },

@@ -2357,6 +2357,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/applications/compose-context-references': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Resolve Compose application references
+     * @description Resolves live Compose application references by the canonical runtime target and Compose project name identity. Unregistered contexts are omitted.
+     */
+    post: operations['postApplicationComposeContextReferences'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/saved-views': {
     parameters: {
       query?: never;
@@ -2776,23 +2796,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/ops/applications/templates/import-legacy': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Explicitly import one legacy Application Root template directory as a draft */
-    post: operations['postApplicationTemplateImportLegacy'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/ops/applications/templates/{templateId}': {
     parameters: {
       query?: never;
@@ -2807,13 +2810,14 @@ export interface paths {
     /** Update an editable Application template draft */
     put: operations['putApplicationTemplate'];
     post?: never;
-    delete?: never;
+    /** Soft-delete an Application template */
+    delete: operations['deleteApplicationTemplate'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/api/ops/applications/templates/{templateId}/derive': {
+  '/api/ops/applications/templates/{templateId}/clone': {
     parameters: {
       query?: never;
       header?: never;
@@ -2822,8 +2826,8 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Derive an editable draft from a published template version */
-    post: operations['postApplicationTemplateDerive'];
+    /** Clone an Application template into an independent editable draft */
+    post: operations['postApplicationTemplateClone'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2841,6 +2845,23 @@ export interface paths {
     put?: never;
     /** Publish an Application template draft as an immutable version */
     post: operations['postApplicationTemplatePublish'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/{templateId}/withdraw': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Withdraw a published Application template and create its next editable draft */
+    post: operations['postApplicationTemplateWithdraw'];
     delete?: never;
     options?: never;
     head?: never;
@@ -6491,6 +6512,24 @@ export interface components {
     'enveloped-application-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-list-response'];
     };
+    'application-compose-context': {
+      /** Format: int64 */
+      runtime_target_id: number;
+      compose_project_name: string;
+    };
+    'application-compose-context-reference-request': {
+      contexts: components['schemas']['application-compose-context'][];
+    };
+    'application-compose-context-reference': components['schemas']['application-compose-context'] & {
+      application_id: components['schemas']['application-id'];
+      display_name: string;
+    };
+    'application-compose-context-reference-response': {
+      items: components['schemas']['application-compose-context-reference'][];
+    };
+    'enveloped-application-compose-context-reference-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['application-compose-context-reference-response'];
+    };
     'application-saved-view': {
       /** Format: int64 */
       id: number;
@@ -7149,13 +7188,19 @@ export interface components {
       template_version_id: string;
       version_number: number;
       /** @enum {string} */
-      status: 'draft' | 'published';
+      status: 'draft' | 'published' | 'withdrawn';
       definition_schema_version: number;
       definition: {
         [key: string]: unknown;
       };
       /** Format: date-time */
       published_at?: string | null;
+      /** Format: int64 */
+      published_by?: number | null;
+      /** Format: date-time */
+      withdrawn_at?: string | null;
+      /** Format: int64 */
+      withdrawn_by?: number | null;
     };
     'application-template-response': {
       template_id: string;
@@ -14344,6 +14389,52 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postApplicationComposeContextReferences: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['application-compose-context-reference-request'];
+      };
+    };
+    responses: {
+      /** @description Resolved Compose application references. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-compose-context-reference-response'];
+        };
+      };
+      /** @description Invalid Compose application context request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getApplicationSavedViews: {
     parameters: {
       query?: never;
@@ -15384,42 +15475,6 @@ export interface operations {
       403: components['responses']['forbidden'];
     };
   };
-  postApplicationTemplateImportLegacy: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          key: string;
-          display_name?: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Legacy directory imported as a draft. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-application-template-response'];
-        };
-      };
-      /** @description Invalid legacy template directory or draft input. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-    };
-  };
   getApplicationTemplate: {
     parameters: {
       query?: never;
@@ -15493,7 +15548,36 @@ export interface operations {
       };
     };
   };
-  postApplicationTemplateDerive: {
+  deleteApplicationTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Application template soft-deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Application template not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  postApplicationTemplateClone: {
     parameters: {
       query?: never;
       header?: never;
@@ -15505,12 +15589,12 @@ export interface operations {
     requestBody: {
       content: {
         'application/json': {
-          template_version_id: string;
+          display_name: string;
         };
       };
     };
     responses: {
-      /** @description Derived template draft. */
+      /** @description Independent Application template draft cloned. */
       201: {
         headers: {
           [name: string]: unknown;
@@ -15519,10 +15603,17 @@ export interface operations {
           'application/json': components['schemas']['enveloped-application-template-response'];
         };
       };
+      /** @description Invalid clone input. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description A draft already exists or source is not published. */
-      409: {
+      /** @description Application template not found. */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -15553,6 +15644,44 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description No editable draft exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  postApplicationTemplateWithdraw: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        templateId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Published version withdrawn and next editable draft created. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-application-template-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Application template not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Template is archived or has no published version that can be withdrawn. */
       409: {
         headers: {
           [name: string]: unknown;

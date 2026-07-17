@@ -28,11 +28,7 @@ func (value *jsonRawTemplateDefinition) UnmarshalJSON(raw []byte) error {
 }
 func (value jsonRawTemplateDefinition) MarshalJSON() ([]byte, error) { return value, nil }
 
-type deriveTemplateHTTPBody struct {
-	TemplateVersionID string `json:"template_version_id"`
-}
-type importLegacyTemplateHTTPBody struct {
-	Key         string `json:"key"`
+type cloneTemplateHTTPBody struct {
 	DisplayName string `json:"display_name"`
 }
 
@@ -89,12 +85,12 @@ func (r routeRuntime) handleUpdateTemplateDraft(ginCtx *gin.Context) {
 	}
 	httpx.WriteSuccess(ginCtx, http.StatusOK, templateAggregateHTTP(item))
 }
-func (r routeRuntime) handleDeriveTemplateDraft(ginCtx *gin.Context) {
-	var body deriveTemplateHTTPBody
+func (r routeRuntime) handleCloneTemplate(ginCtx *gin.Context) {
+	var body cloneTemplateHTTPBody
 	if !bindJSON(ginCtx, r.ctx, &body) {
 		return
 	}
-	item, err := r.service.DeriveApplicationTemplateDraft(ginCtx.Request.Context(), ginCtx.Param("templateId"), body.TemplateVersionID, currentUserIDPointer(ginCtx))
+	item, err := r.service.CloneApplicationTemplate(ginCtx.Request.Context(), ginCtx.Param("templateId"), body.DisplayName, currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
@@ -116,17 +112,20 @@ func (r routeRuntime) handleArchiveTemplate(ginCtx *gin.Context) {
 	}
 	ginCtx.Status(http.StatusNoContent)
 }
-func (r routeRuntime) handleImportLegacyTemplate(ginCtx *gin.Context) {
-	var body importLegacyTemplateHTTPBody
-	if !bindJSON(ginCtx, r.ctx, &body) {
-		return
-	}
-	item, err := r.service.ImportLegacyApplicationTemplate(ginCtx.Request.Context(), body.Key, body.DisplayName, currentUserIDPointer(ginCtx))
+func (r routeRuntime) handleWithdrawTemplate(ginCtx *gin.Context) {
+	item, err := r.service.WithdrawApplicationTemplate(ginCtx.Request.Context(), ginCtx.Param("templateId"), currentUserIDPointer(ginCtx))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusCreated, templateAggregateHTTP(item))
+	httpx.WriteSuccess(ginCtx, http.StatusOK, templateAggregateHTTP(item))
+}
+func (r routeRuntime) handleDeleteTemplate(ginCtx *gin.Context) {
+	if err := r.service.DeleteApplicationTemplate(ginCtx.Request.Context(), ginCtx.Param("templateId"), currentUserIDPointer(ginCtx)); err != nil {
+		r.writeRouteError(ginCtx, err)
+		return
+	}
+	ginCtx.Status(http.StatusNoContent)
 }
 func templateDraftRequestFromHTTP(body templateDraftHTTPBody) ApplicationTemplateDraftRequest {
 	return ApplicationTemplateDraftRequest{DisplayName: body.DisplayName, Description: body.Description, DeploymentAdapterKind: projectcontract.DeploymentAdapterKind(body.DeploymentAdapterKind), DefinitionSchemaVersion: body.DefinitionSchemaVersion, DefinitionJSON: append([]byte(nil), body.Definition...)}
@@ -139,5 +138,5 @@ func templateAggregatesHTTP(items []projectstore.ApplicationTemplateAggregate) [
 	return result
 }
 func templateAggregateHTTP(item projectstore.ApplicationTemplateAggregate) gin.H {
-	return gin.H{"template_id": item.Template.ID, "display_name": item.Template.DisplayName, "description": item.Template.Description, "deployment_adapter_kind": item.Template.DeploymentAdapterKind, "archived_at": item.Template.ArchivedAt, "version": gin.H{"template_version_id": item.Version.ID, "version_number": item.Version.VersionNumber, "status": item.Version.Status, "definition_schema_version": item.Version.DefinitionSchemaVersion, "definition": jsonRawTemplateDefinition(item.Version.DefinitionJSON), "published_at": item.Version.PublishedAt}}
+	return gin.H{"template_id": item.Template.ID, "display_name": item.Template.DisplayName, "description": item.Template.Description, "deployment_adapter_kind": item.Template.DeploymentAdapterKind, "archived_at": item.Template.ArchivedAt, "version": gin.H{"template_version_id": item.Version.ID, "version_number": item.Version.VersionNumber, "status": item.Version.Status, "definition_schema_version": item.Version.DefinitionSchemaVersion, "definition": jsonRawTemplateDefinition(item.Version.DefinitionJSON), "published_at": item.Version.PublishedAt, "published_by": item.Version.PublishedBy, "withdrawn_at": item.Version.WithdrawnAt, "withdrawn_by": item.Version.WithdrawnBy}}
 }

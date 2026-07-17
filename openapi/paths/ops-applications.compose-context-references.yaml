@@ -1,0 +1,41 @@
+post:
+  tags: [application]
+  summary: Resolve Compose application references
+  operationId: postApplicationComposeContextReferences
+  description: Resolves live Compose application references by the canonical runtime target and Compose project name identity. Unregistered contexts are omitted.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/application-compose-context-reference-request.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Resolved Compose application references.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-application-compose-context-reference-response.yaml
+    '400':
+      description: Invalid Compose application context request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

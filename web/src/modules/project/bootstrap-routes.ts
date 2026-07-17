@@ -40,6 +40,18 @@ export const applicationBootstrapRouteRegistrations: BootstrapRouteRegistration[
       tabTitle: listRouteTitle,
     },
   },
+  {
+    ...PROJECT_BOOTSTRAP_ROUTE.TEMPLATES,
+    loadPage: () => import('./pages/templates/index.vue'),
+    meta: {
+      tabGroup: 'application',
+      pageKind: 'list',
+      pageSurface: 'paged-table',
+      semanticTitle: templatesRouteTitle,
+      breadcrumbTitle: templatesBreadcrumbTitle,
+      tabTitle: templatesRouteTitle,
+    },
+  },
 ];
 
 export const applicationGlobalRouteRegistrations: GlobalRouteRegistration[] = [
@@ -177,27 +189,8 @@ export const applicationGlobalRouteRegistrations: GlobalRouteRegistration[] = [
     },
   },
   {
-    ...PROJECT_BOOTSTRAP_ROUTE.TEMPLATES,
-    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.LIST.menuPath,
-    loadPage: () => import('./pages/templates/index.vue'),
-    meta: {
-      hidden: false,
-      hiddenMenu: false,
-      keepAlive: true,
-      pageKind: 'list',
-      pageSurface: 'paged-table',
-      semanticTitle: templatesRouteTitle,
-      breadcrumbTitle: templatesBreadcrumbTitle,
-      domainTitle: listRouteTitle,
-      tabGroup: 'application',
-      tabTitle: templatesRouteTitle,
-      title: templatesRouteTitle,
-      titleKey: 'project.route.templates.title',
-    },
-  },
-  {
     ...PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL,
-    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.path,
+    navigationParentPath: PROJECT_BOOTSTRAP_ROUTE.TEMPLATES.menuPath,
     loadPage: () => import('./pages/template-detail/index.vue'),
     meta: {
       hidden: false,

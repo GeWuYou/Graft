@@ -1,0 +1,19 @@
+post:
+  tags: [application]
+  summary: Withdraw a published Application template and create its next editable draft
+  operationId: postApplicationTemplateWithdraw
+  parameters:
+    - name: templateId
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    '200':
+      description: Published version withdrawn and next editable draft created.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Application template not found. }
+    '409': { description: Template is archived or has no published version that can be withdrawn. }

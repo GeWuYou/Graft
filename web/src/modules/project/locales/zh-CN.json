@@ -27,7 +27,10 @@
   },
   "menu": {
     "application": {
-      "title": "应用管理"
+      "title": "应用管理",
+      "templates": {
+        "title": "模板"
+      }
     }
   },
   "project": {
@@ -1054,12 +1057,26 @@
       "description": "维护可复用、可版本化的应用创建蓝图。",
       "detailDescription": "编辑草稿工作区和生命周期预设；发布版本保持不可变。",
       "create": "新建模板",
-      "importLegacy": "导入旧目录",
       "refresh": "刷新",
       "retry": "重试",
       "cancel": "取消",
       "back": "返回模板列表",
       "open": "打开",
+      "edit": "编辑",
+      "clone": "克隆",
+      "cloneTitle": "克隆应用模板",
+      "cloneConfirm": "确认克隆",
+      "cloneSuffix": "副本",
+      "cloneFailed": "无法克隆模板。",
+      "withdraw": "撤回发布",
+      "withdrawSuccess": "模板版本已撤回并创建新的草稿。",
+      "withdrawFailed": "无法撤回模板版本。",
+      "delete": "删除",
+      "deleteTitle": "删除应用模板",
+      "deleteBody": "删除后模板将不再显示，现有应用的来源记录保持不变。",
+      "deleteConfirm": "确认删除",
+      "deleteSuccess": "模板已删除。",
+      "deleteFailed": "无法删除模板。",
       "name": "模板名称",
       "descriptionField": "说明",
       "adapter": "部署适配器",
@@ -1075,7 +1092,7 @@
       "statusPublished": "已发布",
       "statusArchived": "已归档",
       "emptyTitle": "暂无应用模板",
-      "emptyDescription": "创建空白模板，或显式导入旧目录模板。",
+      "emptyDescription": "创建空白模板，或从现有模板克隆。",
       "loadFailed": "无法加载模板目录。",
       "detailLoadFailed": "无法加载模板详情。",
       "createFailed": "无法创建模板草稿。",
@@ -1085,9 +1102,6 @@
       "publish": "发布版本",
       "publishSuccess": "模板版本已发布。",
       "publishFailed": "无法发布模板版本。",
-      "derive": "派生草稿",
-      "deriveSuccess": "已从发布版本派生草稿。",
-      "deriveFailed": "无法派生模板草稿。",
       "archive": "归档",
       "archiveTitle": "归档应用模板",
       "archiveBody": "归档后不能再用于创建应用，已有应用的来源记录保持不变。",
@@ -1095,14 +1109,10 @@
       "archiveSuccess": "模板已归档。",
       "archiveFailed": "无法归档模板。",
       "archivedHint": "此模板已归档，不能编辑或用于创建应用。",
-      "publishedImmutableHint": "发布版本不可编辑。派生草稿后再修改并发布新版本。",
+      "publishedImmutableHint": "发布版本不可编辑。撤回发布后可编辑新的草稿版本。",
       "lifecycleTitle": "生命周期预设",
       "lifecycleDescription": "模板预设会在创建应用时填入，创建者可以按应用需要调整。",
-      "lifecycleAuthority": "模板只保存默认生命周期配置，不执行部署。",
-      "importLegacyTitle": "导入旧目录模板",
-      "importLegacyConfirm": "导入为草稿",
-      "importLegacyFailed": "无法导入旧目录模板。",
-      "legacyKey": "旧模板目录键"
+      "lifecycleAuthority": "模板只保存默认生命周期配置，不执行部署。"
     },
     "discovery": {
       "description": "只读展示 managed root 下的目录扫描和自动发现候选预览，不自动注册应用，也不改变 runtime authority。",

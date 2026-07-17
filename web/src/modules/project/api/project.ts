@@ -21,8 +21,9 @@ import {
   buildApplicationStopApiPath,
   buildApplicationTemplateApiPath,
   buildApplicationTemplateArchiveApiPath,
-  buildApplicationTemplateDeriveApiPath,
+  buildApplicationTemplateCloneApiPath,
   buildApplicationTemplatePublishApiPath,
+  buildApplicationTemplateWithdrawApiPath,
   buildApplicationUnregisterApiPath,
   buildApplicationUpApiPath,
 } from '../contract/paths';
@@ -138,7 +139,6 @@ type GetApplicationTemplatesOperation = paths[ApplicationTemplatesPath]['get'];
 type GetApplicationTemplatesData = NonNullable<
   GetApplicationTemplatesOperation['responses'][200]['content']['application/json']['data']
 >;
-type ApplicationTemplateResponseEnvelope = { data: ApplicationTemplate };
 type ApplicationUpOperation = paths[(typeof APPLICATION_API_PATH)['UP']]['post'];
 type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
 type ApplicationUpData = NonNullable<ApplicationUpEnvelope['data']>;
@@ -356,53 +356,50 @@ export async function getApplicationManagedTemplates(): Promise<ApplicationTempl
 }
 
 export async function getApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {
-  const response = await request.get<ApplicationTemplateResponseEnvelope>({
+  return request.get<ApplicationTemplate>({
     url: buildApplicationTemplateApiPath(templateId),
   });
-  return response.data;
 }
 
 export async function postApplicationTemplate(payload: ApplicationTemplateDraftRequest) {
-  const response = await request.post<ApplicationTemplateResponseEnvelope>({
+  return request.post<ApplicationTemplate>({
     url: APPLICATION_API_PATH.TEMPLATES,
     data: payload,
   });
-  return response.data;
 }
 
 export async function putApplicationTemplate(templateId: string, payload: ApplicationTemplateDraftRequest) {
-  const response = await request.put<ApplicationTemplateResponseEnvelope>({
+  return request.put<ApplicationTemplate>({
     url: buildApplicationTemplateApiPath(templateId),
     data: payload,
   });
-  return response.data;
 }
 
-export async function postApplicationTemplateDerive(templateId: string, templateVersionId: string) {
-  const response = await request.post<ApplicationTemplateResponseEnvelope>({
-    url: buildApplicationTemplateDeriveApiPath(templateId),
-    data: { template_version_id: templateVersionId },
+export async function postApplicationTemplateClone(templateId: string, displayName: string) {
+  return request.post<ApplicationTemplate>({
+    url: buildApplicationTemplateCloneApiPath(templateId),
+    data: { display_name: displayName },
   });
-  return response.data;
 }
 
 export async function postApplicationTemplatePublish(templateId: string) {
-  const response = await request.post<ApplicationTemplateResponseEnvelope>({
+  return request.post<ApplicationTemplate>({
     url: buildApplicationTemplatePublishApiPath(templateId),
   });
-  return response.data;
+}
+
+export async function postApplicationTemplateWithdraw(templateId: string) {
+  return request.post<ApplicationTemplate>({
+    url: buildApplicationTemplateWithdrawApiPath(templateId),
+  });
 }
 
 export function postApplicationTemplateArchive(templateId: string) {
   return request.post({ url: buildApplicationTemplateArchiveApiPath(templateId) });
 }
 
-export async function postApplicationTemplateLegacyImport(payload: { key: string; display_name?: string }) {
-  const response = await request.post<ApplicationTemplateResponseEnvelope>({
-    url: APPLICATION_API_PATH.TEMPLATE_IMPORT_LEGACY,
-    data: payload,
-  });
-  return response.data;
+export function deleteApplicationTemplate(templateId: string) {
+  return request.delete({ url: buildApplicationTemplateApiPath(templateId) });
 }
 
 function postApplicationAction<T>(url: string, data?: unknown) {

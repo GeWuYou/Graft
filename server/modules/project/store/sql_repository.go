@@ -254,6 +254,63 @@ func (r *SQLRepository) GetRecordIDsByApplicationIDs(ctx context.Context, applic
 	return result, nil
 }
 
+const composeContextReferenceArgWidth = 2
+
+// ResolveComposeContexts 批量解析存活 Compose Application 的公开引用，不加载文件或运行时聚合。
+func (r *SQLRepository) ResolveComposeContexts(ctx context.Context, contexts []ComposeContext) ([]ComposeApplicationReference, error) {
+	if err := r.ensureReady(); err != nil {
+		return nil, err
+	}
+	contexts = normalizeComposeContexts(contexts)
+	if len(contexts) == 0 {
+		return []ComposeApplicationReference{}, nil
+	}
+
+	conditions := make([]string, 0, len(contexts))
+	args := make([]any, 0, len(contexts)*composeContextReferenceArgWidth)
+	for _, context := range contexts {
+		conditions = append(conditions, "(runtime_target_id = ? AND compose_project_name = ?)")
+		args = append(args, context.RuntimeTargetID, context.ComposeProjectName)
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT application_id, display_name, runtime_target_id, compose_project_name
+		FROM applications
+		WHERE deleted_at = 0 AND (`+strings.Join(conditions, " OR ")+`)`), args...)
+	if err != nil {
+		return nil, fmt.Errorf("resolve compose application contexts: %w", err)
+	}
+	defer closeRows(rows)
+
+	items := make([]ComposeApplicationReference, 0, len(contexts))
+	for rows.Next() {
+		var item ComposeApplicationReference
+		if err := rows.Scan(&item.ApplicationID, &item.DisplayName, &item.RuntimeTargetID, &item.ComposeProjectName); err != nil {
+			return nil, fmt.Errorf("scan compose application reference: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate compose application references: %w", err)
+	}
+	return items, nil
+}
+
+func normalizeComposeContexts(contexts []ComposeContext) []ComposeContext {
+	seen := make(map[ComposeContext]struct{}, len(contexts))
+	items := make([]ComposeContext, 0, len(contexts))
+	for _, context := range contexts {
+		context.ComposeProjectName = strings.TrimSpace(context.ComposeProjectName)
+		if context.RuntimeTargetID < 1 || context.ComposeProjectName == "" {
+			continue
+		}
+		if _, ok := seen[context]; ok {
+			continue
+		}
+		seen[context] = struct{}{}
+		items = append(items, context)
+	}
+	return items
+}
+
 // GetFile 返回指定应用范围内的一个文件；应用或文件不存在时返回对应错误。
 func (r *SQLRepository) GetFile(ctx context.Context, applicationRecordID uint64, fileID uint64) (ApplicationFile, error) {
 	if err := r.ensureReady(); err != nil {

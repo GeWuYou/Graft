@@ -42,6 +42,8 @@ const (
 	ApplicationTemplateStatusDraft ApplicationTemplateStatus = "draft"
 	// ApplicationTemplateStatusPublished 表示不可变且可供创建者使用的版本。
 	ApplicationTemplateStatusPublished ApplicationTemplateStatus = "published"
+	// ApplicationTemplateStatusWithdrawn 表示已撤回且仅保留溯源的不可变历史版本。
+	ApplicationTemplateStatusWithdrawn ApplicationTemplateStatus = "withdrawn"
 
 	// SourceTypeImported 表示导入 Graft 的外部 Compose 应用。
 	SourceTypeImported SourceType = "imported"

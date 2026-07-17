@@ -145,7 +145,7 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Title:      "",
 		TitleKey:   projectcontract.ApplicationTemplateMenuTitle.String(),
 		Path:       projectcontract.ApplicationTemplateManagementMenuPath,
-		Icon:       "application",
+		Icon:       "folder",
 		Order:      projectMenuOrderList + 1,
 		Permission: projectcontract.ApplicationTemplateManagePermission.String(),
 		Module:     moduleName,

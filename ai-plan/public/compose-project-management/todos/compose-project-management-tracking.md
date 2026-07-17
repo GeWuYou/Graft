@@ -366,14 +366,14 @@ Compose Project Management
 
 ## 2026-07-17 Generic Application Template Backend
 
-- [x] `application-template-backend-and-contract`：新增 adapter-kind 通用模板与版本持久化，草稿/发布不可变模型、单草稿约束、管理员显式旧目录导入及内置 Compose 基线的幂等持久化。
+- [x] `application-template-backend-and-contract`：新增 adapter-kind 通用模板与版本持久化，草稿/发布不可变模型与单草稿约束。
 - [x] Application 模板 API 固定在 `/api/ops/applications/templates/**`，静态路由排在 `/:applicationId` 前；创建者只读取已发布模板，管理和发布使用独立权限。
 - [x] `template-provenance-and-legacy-authority-cleanup`：统一 `/create/managed` 接收 `template_version_id`，服务端仅接受未归档的已发布 Compose 版本并持久化 `template_id` / `template_version_id` 来源；旧运行时目录模板创建端点、workspace-defaults authority 和预填配置已移除。
-- [ ] 后续批次：将模板目录与统一 Application 创建编辑器接入，并删除旧运行时目录模板创建 API。
+- [ ] 当前批次：移除旧目录导入和内置 Compose Baseline；补齐独立克隆、软删除和发布撤回后生成下一草稿的 contract、实现与 UI。
 
 ## 2026-07-17 Template Management UI
 
-- [x] `/applications/templates` 已作为 Application 域的权限菜单和管理路由接入；仅 `ops.application.template.manage` 可见并可读取草稿、发布与归档模板目录。
-- [x] 管理页支持状态/关键字筛选、空白草稿创建、旧目录显式导入、草稿编辑、工作区与 lifecycle preset 编辑、发布、从发布版本派生草稿和归档。
-- [x] 创建者目录继续只消费 `/templates` 的已发布版本；管理目录使用独立 `/templates/manage` authority，避免草稿或归档状态泄露。
-- [x] OpenAPI bundle、server/web generated consumer、路由单测和模板管理 UI 单测已同步；后续不再有模板管理 UI batch。
+- [x] `/applications/templates` 已作为 Application 域的权限菜单和管理路由接入；仅 `ops.application.template.manage` 可见并可读取草稿、发布与归档模板。
+- [ ] 管理页需支持状态/关键字筛选、空白草稿创建、草稿编辑、工作区与 lifecycle preset 编辑、发布、独立克隆、撤回发布、归档和软删除；移除旧目录导入与“派生草稿”入口。
+- [x] 创建者目录继续只消费 `/templates` 的已发布版本；管理目录使用独立 `/templates/manage` authority，避免草稿、撤回或归档状态泄露。
+- [ ] OpenAPI bundle、server/web consumer、路由单测和模板管理 UI 单测需同步到新生命周期。

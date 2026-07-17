@@ -5,7 +5,7 @@ import { APPLICATION_ROUTE_PATH } from './contract/paths';
 
 describe('project bootstrap route registrations', () => {
   it('keeps the project list on the canonical paged list surface', () => {
-    expect(applicationBootstrapRouteRegistrations).toHaveLength(1);
+    expect(applicationBootstrapRouteRegistrations).toHaveLength(2);
     expect(applicationBootstrapRouteRegistrations[0]).toMatchObject({
       menuPath: APPLICATION_ROUTE_PATH.LIST,
       routeName: 'ApplicationList',
@@ -34,17 +34,19 @@ describe('project bootstrap route registrations', () => {
   });
 
   it('registers Application template management as a visible Application route', () => {
-    expect(applicationGlobalRouteRegistrations).toContainEqual(
+    expect(applicationBootstrapRouteRegistrations).toContainEqual(
       expect.objectContaining({
-        path: APPLICATION_ROUTE_PATH.TEMPLATES,
+        menuPath: APPLICATION_ROUTE_PATH.TEMPLATES,
         routeName: 'ApplicationTemplates',
         pageRouteName: 'ApplicationTemplateList',
         meta: expect.objectContaining({
-          hiddenMenu: false,
           pageKind: 'list',
-          titleKey: 'project.route.templates.title',
+          pageSurface: 'paged-table',
         }),
       }),
+    );
+    expect(applicationGlobalRouteRegistrations).not.toContainEqual(
+      expect.objectContaining({ path: APPLICATION_ROUTE_PATH.TEMPLATES }),
     );
   });
 

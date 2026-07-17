@@ -22,6 +22,23 @@ func toProjectListResponse(result ListResult) generated.ApplicationListResponse 
 	}
 }
 
+func toComposeContextReferenceResponse(
+	items []ComposeContextReferenceResult,
+) generated.ApplicationComposeContextReferenceResponse {
+	response := generated.ApplicationComposeContextReferenceResponse{
+		Items: make([]generated.ApplicationComposeContextReference, 0, len(items)),
+	}
+	for _, item := range items {
+		response.Items = append(response.Items, generated.ApplicationComposeContextReference{
+			ApplicationId:      item.ApplicationID,
+			ComposeProjectName: item.ComposeProjectName,
+			DisplayName:        item.DisplayName,
+			RuntimeTargetId:    item.RuntimeTargetID,
+		})
+	}
+	return response
+}
+
 func toRuntimeImportCandidatesResponse(result RuntimeImportCandidatesResult) generated.ApplicationImportRuntimeCandidatesResponse {
 	items := make([]generated.ApplicationImportRuntimeCandidate, 0, len(result.Items))
 	for _, item := range result.Items {

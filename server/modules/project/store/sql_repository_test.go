@@ -231,7 +231,7 @@ func createApplicationTemplateStoreSchema(t *testing.T, db *sql.DB) {
 	)`)
 	mustExec(t, db, `CREATE TABLE application_template_versions (
 		template_version_id TEXT PRIMARY KEY, template_id TEXT NOT NULL, version_number INTEGER NOT NULL, status TEXT NOT NULL,
-		definition_schema_version INTEGER NOT NULL, definition_json BLOB NOT NULL, published_at TIMESTAMP NULL, published_by INTEGER NULL,
+		definition_schema_version INTEGER NOT NULL, definition_json BLOB NOT NULL, published_at TIMESTAMP NULL, published_by INTEGER NULL, withdrawn_at TIMESTAMP NULL, withdrawn_by INTEGER NULL,
 		created_by INTEGER NULL, updated_by INTEGER NULL, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0,
 		UNIQUE(template_id, version_number), UNIQUE(template_id, status)
 	)`)

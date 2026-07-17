@@ -271,6 +271,8 @@ paths:
     $ref: ./paths/ops-docker-system.yaml
   /api/ops/applications:
     $ref: ./paths/ops-applications.collection.yaml
+  /api/ops/applications/compose-context-references:
+    $ref: ./paths/ops-applications.compose-context-references.yaml
   /api/ops/applications/saved-views:
     $ref: ./paths/ops-applications.saved-views.yaml
   /api/ops/applications/saved-views/{viewId}:
@@ -315,14 +317,14 @@ paths:
     $ref: ./paths/ops-applications.templates.yaml
   /api/ops/applications/templates/manage:
     $ref: ./paths/ops-applications.templates.manage.yaml
-  /api/ops/applications/templates/import-legacy:
-    $ref: ./paths/ops-applications.templates.import-legacy.yaml
   /api/ops/applications/templates/{templateId}:
     $ref: ./paths/ops-applications.template-detail.yaml
-  /api/ops/applications/templates/{templateId}/derive:
-    $ref: ./paths/ops-applications.template-derive.yaml
+  /api/ops/applications/templates/{templateId}/clone:
+    $ref: ./paths/ops-applications.template-clone.yaml
   /api/ops/applications/templates/{templateId}/publish:
     $ref: ./paths/ops-applications.template-publish.yaml
+  /api/ops/applications/templates/{templateId}/withdraw:
+    $ref: ./paths/ops-applications.template-withdraw.yaml
   /api/ops/applications/templates/{templateId}/archive:
     $ref: ./paths/ops-applications.template-archive.yaml
   /api/ops/applications/{applicationId}:

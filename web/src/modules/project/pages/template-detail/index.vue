@@ -9,8 +9,8 @@
         <template #actions>
           <t-space size="small">
             <t-button variant="outline" @click="backToList">{{ t('project.templates.back') }}</t-button>
-            <t-button v-if="isPublished" variant="outline" :loading="deriving" @click="deriveDraft">{{
-              t('project.templates.derive')
+            <t-button variant="outline" @click="cloneVisible = true">{{
+              t('project.templates.clone')
             }}</t-button>
             <t-button v-if="isDraft" theme="primary" :loading="saving" @click="saveDraft">{{
               t('project.templates.save')
@@ -18,9 +18,13 @@
             <t-button v-if="isDraft" theme="success" :loading="publishing" @click="publishDraft">{{
               t('project.templates.publish')
             }}</t-button>
+            <t-button v-if="isPublished" theme="warning" variant="outline" :loading="withdrawing" @click="withdrawTemplate">{{
+              t('project.templates.withdraw')
+            }}</t-button>
             <t-button v-if="!isArchived" theme="danger" variant="outline" @click="archiveVisible = true">{{
               t('project.templates.archive')
             }}</t-button>
+            <t-button theme="danger" variant="text" @click="deleteVisible = true">{{ t('project.templates.delete') }}</t-button>
           </t-space>
         </template>
         <template #meta>
@@ -103,6 +107,28 @@
       :confirm-loading="archiving"
       @confirm="archiveTemplate"
     />
+    <t-dialog
+      v-model:visible="cloneVisible"
+      :header="t('project.templates.cloneTitle')"
+      :confirm-btn="t('project.templates.cloneConfirm')"
+      :cancel-btn="t('project.templates.cancel')"
+      :confirm-loading="cloning"
+      @confirm="cloneTemplate"
+    >
+      <t-form label-align="top">
+        <t-form-item :label="t('project.templates.name')"><t-input v-model="cloneDisplayName" /></t-form-item>
+      </t-form>
+    </t-dialog>
+    <t-dialog
+      v-model:visible="deleteVisible"
+      theme="danger"
+      :header="t('project.templates.deleteTitle')"
+      :body="t('project.templates.deleteBody')"
+      :confirm-btn="t('project.templates.deleteConfirm')"
+      :cancel-btn="t('project.templates.cancel')"
+      :confirm-loading="deleting"
+      @confirm="deleteTemplate"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -115,10 +141,12 @@ import { ManagementPageContent, ManagementPageHeader } from '@/shared/components
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
+  deleteApplicationTemplate,
   getApplicationTemplate,
   postApplicationTemplateArchive,
-  postApplicationTemplateDerive,
+  postApplicationTemplateClone,
   postApplicationTemplatePublish,
+  postApplicationTemplateWithdraw,
   putApplicationTemplate,
 } from '../../api/project';
 import ProjectCreateWorkspaceEditor from '../../components/ProjectCreateWorkspaceEditor.vue';
@@ -146,9 +174,14 @@ const templateRecord = ref<ApplicationTemplate | null>(null);
 const loading = ref(false);
 const saving = ref(false);
 const publishing = ref(false);
-const deriving = ref(false);
+const withdrawing = ref(false);
 const archiving = ref(false);
 const archiveVisible = ref(false);
+const cloning = ref(false);
+const cloneVisible = ref(false);
+const deleting = ref(false);
+const deleteVisible = ref(false);
+const cloneDisplayName = ref('');
 const errorMessage = ref('');
 const displayName = ref('');
 const description = ref('');
@@ -201,6 +234,7 @@ function hydrate(template: ApplicationTemplate) {
     { lifecycle_configuration: (definition.lifecycle_configuration || {}) as LifecycleDraftSource },
     { composeFilePath: composeFilePath.value, composeProjectName: 'template' },
   );
+  cloneDisplayName.value = template.display_name + ' ' + t('project.templates.cloneSuffix');
 }
 
 function draftPayload() {
@@ -251,21 +285,33 @@ async function publishDraft() {
   }
 }
 
-async function deriveDraft() {
+async function withdrawTemplate() {
   if (!templateRecord.value) return;
-  deriving.value = true;
+  withdrawing.value = true;
   try {
-    hydrate(
-      await postApplicationTemplateDerive(
-        templateRecord.value.template_id,
-        templateRecord.value.version.template_version_id,
-      ),
-    );
-    MessagePlugin.success(t('project.templates.deriveSuccess'));
+    hydrate(await postApplicationTemplateWithdraw(templateRecord.value.template_id));
+    MessagePlugin.success(t('project.templates.withdrawSuccess'));
   } catch (error) {
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.deriveFailed')));
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.withdrawFailed')));
   } finally {
-    deriving.value = false;
+    withdrawing.value = false;
+  }
+}
+
+async function cloneTemplate() {
+  if (!templateRecord.value || !cloneDisplayName.value.trim()) return;
+  cloning.value = true;
+  try {
+    const clone = await postApplicationTemplateClone(templateRecord.value.template_id, cloneDisplayName.value.trim());
+    cloneVisible.value = false;
+    void router.push({
+      name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
+      params: { templateId: clone.template_id },
+    });
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.cloneFailed')));
+  } finally {
+    cloning.value = false;
   }
 }
 
@@ -281,6 +327,21 @@ async function archiveTemplate() {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.archiveFailed')));
   } finally {
     archiving.value = false;
+  }
+}
+
+async function deleteTemplate() {
+  if (!templateRecord.value) return;
+  deleting.value = true;
+  try {
+    await deleteApplicationTemplate(templateRecord.value.template_id);
+    deleteVisible.value = false;
+    MessagePlugin.success(t('project.templates.deleteSuccess'));
+    backToList();
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.templates.deleteFailed')));
+  } finally {
+    deleting.value = false;
   }
 }
 

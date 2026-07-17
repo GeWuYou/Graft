@@ -100,6 +100,7 @@
       v-model:current="pagination.current"
       v-model:page-size="pagination.pageSize"
       :always-visible-column-keys="CONTAINER_RESOURCE_ALWAYS_VISIBLE_COLUMNS"
+      :compose-application-references="composeApplicationReferences"
       :empty-description="
         hasActiveFilters ? t('container.list.emptyFilteredDescription') : t('container.list.emptyDescription')
       "
@@ -117,7 +118,7 @@
       :visible-column-keys="visibleColumnKeys"
       @action="handleTableAction"
       @page-change="handlePageChange"
-      @project-context="openComposeProjectContext"
+      @application-context="openComposeApplicationContext"
       @select-change="handleSelectChange"
     >
       <template #toolbar>
@@ -244,6 +245,7 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
+import { resolveComposeApplicationReferences } from '@/modules/project/contract/compose-context-references';
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { ManagementPageHeader, ManagementToolbar, TableViewToolbar } from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
@@ -296,6 +298,7 @@ defineOptions({
   name: 'ContainerListIndex',
 });
 
+/** 容器列表仅消费当前页的精确 Compose 上下文引用，未登记 Application 不使用关键字搜索兜底。 */
 const { t } = useI18n();
 const router = useRouter();
 const permissionStore = usePermissionStore();
@@ -337,6 +340,7 @@ const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
 const tableDensity = ref<'medium' | 'small'>('medium');
 const selectedRowKeys = ref<Array<string | number>>([]);
 const selectedRowRecords = ref<ContainerSummaryRecord[]>([]);
+const composeApplicationReferences = ref(new Map<string, { applicationId: string; displayName: string }>());
 const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
@@ -497,6 +501,7 @@ async function refreshContainers() {
       return;
     }
     seedContainerList(payload.items);
+    composeApplicationReferences.value = await loadComposeApplicationReferences(payload.items, requestSeq);
     if (payload.items.length > 0) {
       acquireListRealtimeSubscription();
     } else {
@@ -637,11 +642,49 @@ function openAuditLogs(row: ContainerSummaryRecord) {
   void router.push(buildAuditResourceLocation('container', row.id, displayContainerName(row)));
 }
 
-function openComposeProjectContext(projectName: string) {
-  const keyword = projectName.trim();
-  if (keyword) {
-    void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName, query: { keyword } });
+function openComposeApplicationContext(applicationId: string) {
+  void router.push({
+    name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
+    params: { applicationId },
+  });
+}
+
+async function loadComposeApplicationReferences(items: ContainerSummaryRecord[], requestSeq: number) {
+  // 关联查询与列表刷新使用同一批上下文，避免逐行请求和过期响应覆盖当前页结果。
+  const contexts = new Map<string, { runtime_target_id: number; compose_project_name: string }>();
+  for (const item of items) {
+    const projectName = item.deployment?.type === 'compose' ? item.deployment.project?.trim() : '';
+    const runtimeTargetID = item.runtime_target?.id;
+    if (!projectName || !runtimeTargetID) {
+      continue;
+    }
+    contexts.set(composeApplicationReferenceKey(runtimeTargetID, projectName), {
+      runtime_target_id: runtimeTargetID,
+      compose_project_name: projectName,
+    });
   }
+  if (!contexts.size) {
+    return new Map<string, { applicationId: string; displayName: string }>();
+  }
+  try {
+    const response = await resolveComposeApplicationReferences([...contexts.values()]);
+    if (requestSeq !== refreshRequestSeq) {
+      return composeApplicationReferences.value;
+    }
+    return new Map(
+      response.items.map((item) => [
+        composeApplicationReferenceKey(item.runtime_target_id, item.compose_project_name),
+        { applicationId: item.application_id, displayName: item.display_name },
+      ]),
+    );
+  } catch (error) {
+    logger.warn('failed to resolve compose application references', error);
+    return new Map<string, { applicationId: string; displayName: string }>();
+  }
+}
+
+function composeApplicationReferenceKey(runtimeTargetID: number, composeProjectName: string) {
+  return `${runtimeTargetID}:${composeProjectName.trim()}`;
 }
 
 async function copyContainerId(row: ContainerSummaryRecord) {

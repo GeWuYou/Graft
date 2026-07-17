@@ -1,7 +1,7 @@
 post:
   tags: [application]
-  summary: Derive an editable draft from a published template version
-  operationId: postApplicationTemplateDerive
+  summary: Clone an Application template into an independent editable draft
+  operationId: postApplicationTemplateClone
   parameters:
     - name: templateId
       in: path
@@ -13,15 +13,19 @@ post:
       application/json:
         schema:
           type: object
-          required: [template_version_id]
+          required: [display_name]
           properties:
-            template_version_id: { type: string }
+            display_name:
+              type: string
+              minLength: 1
+              maxLength: 128
   responses:
     '201':
-      description: Derived template draft.
+      description: Independent Application template draft cloned.
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-application-template-response.yaml }
+    '400': { description: Invalid clone input. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '409': { description: A draft already exists or source is not published. }
+    '404': { description: Application template not found. }

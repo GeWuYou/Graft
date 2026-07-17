@@ -11973,6 +11973,80 @@
         }
       }
     },
+    "/api/ops/applications/compose-context-references": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Resolve Compose application references",
+        "operationId": "postApplicationComposeContextReferences",
+        "description": "Resolves live Compose application references by the canonical runtime target and Compose project name identity. Unregistered contexts are omitted.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/application-compose-context-reference-request"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved Compose application references.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-compose-context-reference-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Compose application context request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/applications/saved-views": {
       "get": {
         "tags": [
@@ -13536,57 +13610,6 @@
         }
       }
     },
-    "/api/ops/applications/templates/import-legacy": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Explicitly import one legacy Application Root template directory as a draft",
-        "operationId": "postApplicationTemplateImportLegacy",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "key"
-                ],
-                "properties": {
-                  "key": {
-                    "type": "string"
-                  },
-                  "display_name": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Legacy directory imported as a draft.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/enveloped-application-template-response"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid legacy template directory or draft input."
-          },
-          "401": {
-            "$ref": "#/components/responses/unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/forbidden"
-          }
-        }
-      }
-    },
     "/api/ops/applications/templates/{templateId}": {
       "parameters": [
         {
@@ -13667,15 +13690,36 @@
             "description": "Template is archived or has no editable draft."
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Soft-delete an Application template",
+        "operationId": "deleteApplicationTemplate",
+        "responses": {
+          "204": {
+            "description": "Application template soft-deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          }
+        }
       }
     },
-    "/api/ops/applications/templates/{templateId}/derive": {
+    "/api/ops/applications/templates/{templateId}/clone": {
       "post": {
         "tags": [
           "application"
         ],
-        "summary": "Derive an editable draft from a published template version",
-        "operationId": "postApplicationTemplateDerive",
+        "summary": "Clone an Application template into an independent editable draft",
+        "operationId": "postApplicationTemplateClone",
         "parameters": [
           {
             "name": "templateId",
@@ -13693,11 +13737,13 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "template_version_id"
+                  "display_name"
                 ],
                 "properties": {
-                  "template_version_id": {
-                    "type": "string"
+                  "display_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
                   }
                 }
               }
@@ -13706,7 +13752,7 @@
         },
         "responses": {
           "201": {
-            "description": "Derived template draft.",
+            "description": "Independent Application template draft cloned.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13715,14 +13761,17 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid clone input."
+          },
           "401": {
             "$ref": "#/components/responses/unauthorized"
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
-          "409": {
-            "description": "A draft already exists or source is not published."
+          "404": {
+            "description": "Application template not found."
           }
         }
       }
@@ -13763,6 +13812,49 @@
           },
           "409": {
             "description": "No editable draft exists."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/{templateId}/withdraw": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Withdraw a published Application template and create its next editable draft",
+        "operationId": "postApplicationTemplateWithdraw",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Published version withdrawn and next editable draft created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-application-template-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Application template not found."
+          },
+          "409": {
+            "description": "Template is archived or has no published version that can be withdrawn."
           }
         }
       }
@@ -25919,6 +26011,99 @@
           }
         ]
       },
+      "application-compose-context": {
+        "type": "object",
+        "required": [
+          "runtime_target_id",
+          "compose_project_name"
+        ],
+        "properties": {
+          "runtime_target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "compose_project_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
+      "application-compose-context-reference-request": {
+        "type": "object",
+        "required": [
+          "contexts"
+        ],
+        "properties": {
+          "contexts": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/application-compose-context"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "application-compose-context-reference": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/application-compose-context"
+          },
+          {
+            "type": "object",
+            "required": [
+              "application_id",
+              "display_name"
+            ],
+            "properties": {
+              "application_id": {
+                "$ref": "#/components/schemas/application-id"
+              },
+              "display_name": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "application-compose-context-reference-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/application-compose-context-reference"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-application-compose-context-reference-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/application-compose-context-reference-response"
+              }
+            }
+          }
+        ]
+      },
       "application-saved-view": {
         "type": "object",
         "required": [
@@ -28671,7 +28856,8 @@
             "type": "string",
             "enum": [
               "draft",
-              "published"
+              "published",
+              "withdrawn"
             ]
           },
           "definition_schema_version": {
@@ -28685,6 +28871,21 @@
           "published_at": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          },
+          "published_by": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "withdrawn_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "withdrawn_by": {
+            "type": "integer",
+            "format": "int64",
             "nullable": true
           }
         }

@@ -513,12 +513,14 @@ Phase 1 推荐三张模块自有表：
 
 ### Application Templates
 
-Application Template 是独立于受管工作区的版本化创建蓝图。模板身份和不可变发布版本由 `application_templates` 与 `application_template_versions` 持有，定义格式由 `deployment_adapter_kind` 解释；当前仅 Compose adapter 可实例化。
+Application Template 是独立于受管工作区的版本化创建蓝图。模板身份和版本由 `application_templates` 与 `application_template_versions` 持有，定义格式由 `deployment_adapter_kind` 解释；当前仅 Compose adapter 可实例化。
 
-- 创建者只能选择未归档的已发布版本；草稿、归档模板或 adapter 不兼容的版本都不能进入创建请求。
+- 模板只能由空白草稿创建，或从现有模板定义克隆为独立草稿；不得从现有 Application 或旧目录导入。
+- 版本状态为 `draft`、`published` 或 `withdrawn`。发布版本不可编辑且可用于创建 Application；撤回会保留原发布快照为 `withdrawn`，记录撤回审计信息，并原子创建下一版本草稿。
+- 创建者只能选择未归档、未删除且 adapter 兼容的已发布版本。草稿、撤回版本与归档模板均不能进入创建请求。
 - 模板版本仅作为预填工作区和 lifecycle preset 的来源证明。用户可在统一受管创建编辑器修改内容；创建结果记录 `template_id` 与 `template_version_id`，但不会反写模板。
-- 内置 Compose baseline 由模块以幂等方式持久化为模板。旧 `<application-root>/templates/<key>` 只允许管理员显式导入为草稿，日常创建绝不读取或回退该目录。
-- 模板目录与其历史导入路径均不能作为 `workspace_key`、应用工作区、导入目标或应用文件 API 的可访问根目录。
+- 模板可归档或软删除；软删除保留审计与既有 Application 的来源元数据，但从所有模板读取和管理目录中排除。
+- 模板定义仅存于持久化版本快照，不能作为 `workspace_key`、应用工作区、导入目标或应用文件 API 的可访问根目录。
 
 ### `compose_project_snapshots`
 
@@ -1581,7 +1583,7 @@ Phase 1 处理：
 - Managed source 负责受 managed root 约束的文本 workspace materialization 与仅限本请求新建文件/目录的回滚。
 - Import source 负责 runtime candidate、inspection TTL 与文件 hash freshness，并以 adopt 模式进入 pipeline，不改写被导入目录。
 - `compose_project_files` 继续只登记 Compose/Env 解析输入；完整 workspace 以实际目录为唯一内容真相，不能把任意文本文件伪装成 Compose inventory。
-- `source_metadata_json` 持久化来源专属、无密钥 provenance；Template adapter 从 Application Root 模板目录发现并物化 workspace，未来来源 adapter 也只能在解析/物化 workspace 后调用同一 pipeline。
+- `source_metadata_json` 持久化来源专属、无密钥 provenance；Template adapter 只从已发布的持久化版本快照物化 workspace，未来来源 adapter 也只能在解析/物化 workspace 后调用同一 pipeline。
 
 ## 16. 分阶段实施路线
 

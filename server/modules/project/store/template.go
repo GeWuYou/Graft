@@ -31,6 +31,8 @@ type ApplicationTemplateVersion struct {
 	DefinitionJSON          []byte
 	PublishedAt             *time.Time
 	PublishedBy             *uint64
+	WithdrawnAt             *time.Time
+	WithdrawnBy             *uint64
 	CreatedBy               *uint64
 	UpdatedBy               *uint64
 	CreatedAt               time.Time
@@ -73,12 +75,20 @@ type UpdateTemplateDraftInput struct {
 	ActorID                 *uint64
 }
 
-// DeriveTemplateDraftInput 从已发布版本创建下一个单一草稿。
-type DeriveTemplateDraftInput struct {
-	TemplateID      string
-	SourceVersionID string
-	VersionID       string
-	ActorID         *uint64
+// CloneTemplateInput 从当前选中的定义创建独立的草稿模板。
+type CloneTemplateInput struct {
+	SourceTemplateID string
+	TemplateID       string
+	VersionID        string
+	DisplayName      string
+	ActorID          *uint64
+}
+
+// WithdrawTemplateInput 将当前已发布版本变为撤回历史，并创建后继草稿。
+type WithdrawTemplateInput struct {
+	TemplateID string
+	VersionID  string
+	ActorID    *uint64
 }
 
 // TemplateRepository 是模板管理的模块自有持久化边界。
@@ -89,8 +99,9 @@ type TemplateRepository interface {
 	GetPublishedTemplateVersion(ctx context.Context, versionID string) (ApplicationTemplateAggregate, error)
 	CreateTemplateDraft(ctx context.Context, input CreateTemplateDraftInput) (ApplicationTemplateAggregate, error)
 	UpdateTemplateDraft(ctx context.Context, input UpdateTemplateDraftInput) (ApplicationTemplateAggregate, error)
-	DeriveTemplateDraft(ctx context.Context, input DeriveTemplateDraftInput) (ApplicationTemplateAggregate, error)
+	CloneTemplate(ctx context.Context, input CloneTemplateInput) (ApplicationTemplateAggregate, error)
+	WithdrawTemplate(ctx context.Context, input WithdrawTemplateInput) (ApplicationTemplateAggregate, error)
 	PublishTemplateDraft(ctx context.Context, templateID string, actorID *uint64) (ApplicationTemplateAggregate, error)
 	ArchiveTemplate(ctx context.Context, templateID string, actorID *uint64) error
-	FindTemplateByDisplayName(ctx context.Context, displayName string) (ApplicationTemplateAggregate, error)
+	DeleteTemplate(ctx context.Context, templateID string, actorID *uint64) error
 }
