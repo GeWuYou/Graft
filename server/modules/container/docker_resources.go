@@ -295,30 +295,39 @@ func dockerNetworkDetail(item network.Inspect) DockerNetworkDetail {
 }
 
 func validateDockerNetworkCreateCommand(command DockerNetworkCreateCommand) error {
-	command.Name = strings.TrimSpace(command.Name)
-	command.Driver = strings.TrimSpace(command.Driver)
-	if command.Name == "" || !isDockerNetworkDriver(command.Driver) {
+	if !validDockerNetworkIdentity(command) {
 		return errInvalidDockerNetworkRequest
 	}
-	if command.IPAM == nil {
-		return nil
-	}
-	subnet := strings.TrimSpace(command.IPAM.Subnet)
-	gateway := strings.TrimSpace(command.IPAM.Gateway)
-	if subnet == "" {
+	if !validDockerNetworkIPAM(command.IPAM) {
 		return errInvalidDockerNetworkRequest
-	}
-	prefix, err := netip.ParsePrefix(subnet)
-	if err != nil || !prefix.Addr().Is4() {
-		return errInvalidDockerNetworkRequest
-	}
-	if gateway != "" {
-		address, parseErr := netip.ParseAddr(gateway)
-		if parseErr != nil || !address.Is4() || !prefix.Contains(address) {
-			return errInvalidDockerNetworkRequest
-		}
 	}
 	return nil
+}
+
+func validDockerNetworkIdentity(command DockerNetworkCreateCommand) bool {
+	return strings.TrimSpace(command.Name) != "" && isDockerNetworkDriver(strings.TrimSpace(command.Driver))
+}
+
+func validDockerNetworkIPAM(config *DockerNetworkIPAMConfig) bool {
+	if config == nil {
+		return true
+	}
+	prefix, ok := dockerIPv4Prefix(config.Subnet)
+	return ok && dockerGatewayInPrefix(config.Gateway, prefix)
+}
+
+func dockerIPv4Prefix(subnet string) (netip.Prefix, bool) {
+	prefix, err := netip.ParsePrefix(strings.TrimSpace(subnet))
+	return prefix, err == nil && prefix.Addr().Is4()
+}
+
+func dockerGatewayInPrefix(gateway string, prefix netip.Prefix) bool {
+	gateway = strings.TrimSpace(gateway)
+	if gateway == "" {
+		return true
+	}
+	address, err := netip.ParseAddr(gateway)
+	return err == nil && address.Is4() && prefix.Contains(address)
 }
 
 func isDockerNetworkDriver(driver string) bool {
