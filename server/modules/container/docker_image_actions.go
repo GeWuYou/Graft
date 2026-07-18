@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"unicode"
 
 	mobyclient "github.com/moby/moby/client"
 )
@@ -140,8 +141,9 @@ func (r *DockerRuntime) RemoveDockerImage(ctx context.Context, id string, force 
 }
 
 func validateDockerImageReference(value string) error {
-	value = strings.TrimSpace(value)
-	if value == "" || len(value) > maxDockerImageReferenceLength || strings.ContainsAny(value, "\x00\r\n\t @") || strings.Contains(value, "..") {
+	if value == "" || len(value) > maxDockerImageReferenceLength || strings.Contains(value, "..") || strings.IndexFunc(value, func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsControl(r)
+	}) >= 0 {
 		return errInvalidDockerImageReference
 	}
 	return nil

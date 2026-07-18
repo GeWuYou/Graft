@@ -297,6 +297,87 @@ describe('request auth handling', () => {
     expect(chunks).toEqual(['{"status":"pulling"}\n']);
   });
 
+  it('normalizes fetch failures through the streaming request error boundary', async () => {
+    const { request } = await loadRequestModule();
+    const fetchError = new Error('network unavailable');
+    const fetchMock = vi.fn().mockRejectedValue(fetchError);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      request.postNdjson({ data: {}, onChunk: vi.fn(), url: '/api/ops/docker/images/pull' }),
+    ).rejects.toMatchObject({
+      code: API_CODE.COMMON_INTERNAL_ERROR,
+      isApiRequestError: true,
+      message: 'network unavailable',
+      status: 0,
+    });
+  });
+
+  it('cancels and releases the reader when reading fails', async () => {
+    const { request } = await loadRequestModule();
+    const readError = new Error('stream read failed');
+    const reader = {
+      cancel: vi.fn().mockResolvedValue(undefined),
+      read: vi.fn().mockRejectedValue(readError),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, body: { getReader: () => reader } }));
+
+    await expect(
+      request.postNdjson({ data: {}, onChunk: vi.fn(), url: '/api/ops/docker/images/pull' }),
+    ).rejects.toMatchObject({
+      code: API_CODE.COMMON_INTERNAL_ERROR,
+      message: 'stream read failed',
+      status: 0,
+    });
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+  });
+
+  it('cancels and releases the reader when a chunk callback fails', async () => {
+    const { request } = await loadRequestModule();
+    const onChunkError = new Error('chunk handler failed');
+    const reader = {
+      cancel: vi.fn().mockResolvedValue(undefined),
+      read: vi.fn().mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('{"status":"pulling"}') }),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, body: { getReader: () => reader } }));
+
+    await expect(
+      request.postNdjson({
+        data: {},
+        onChunk: () => {
+          throw onChunkError;
+        },
+        url: '/api/ops/docker/images/pull',
+      }),
+    ).rejects.toMatchObject({
+      code: API_CODE.COMMON_INTERNAL_ERROR,
+      message: 'chunk handler failed',
+      status: 0,
+    });
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+  });
+
+  it('preserves AbortError and still cleans up the reader', async () => {
+    const { request } = await loadRequestModule();
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    const reader = {
+      cancel: vi.fn().mockResolvedValue(undefined),
+      read: vi.fn().mockRejectedValue(abortError),
+      releaseLock: vi.fn(),
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, body: { getReader: () => reader } }));
+
+    await expect(request.postNdjson({ data: {}, onChunk: vi.fn(), url: '/api/ops/docker/images/pull' })).rejects.toBe(
+      abortError,
+    );
+    expect(reader.cancel).toHaveBeenCalledOnce();
+    expect(reader.releaseLock).toHaveBeenCalledOnce();
+  });
+
   it('serializes array params with repeated canonical keys', async () => {
     const { request, serializeRequestParams } = await loadRequestModule();
 

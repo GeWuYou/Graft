@@ -43,6 +43,20 @@
       :pagination="{ pageSize: 20, total: filteredImages.length }"
       table-layout="fixed"
     >
+      <template #empty>
+        <t-empty
+          :title="t('container.images.emptyTitle')"
+          :description="
+            t(keyword.trim() ? 'container.images.filteredEmptyDescription' : 'container.images.emptyDescription')
+          "
+        >
+          <template #action>
+            <t-button v-if="keyword.trim()" variant="outline" @click="clearKeyword">
+              {{ t('container.images.clearFilter') }}
+            </t-button>
+          </template>
+        </t-empty>
+      </template>
       <template #tags="{ row }">
         <t-space size="small" break-line>
           <t-tag v-for="tag in imageTags(row)" :key="tag" size="small" variant="light-outline">{{ tag }}</t-tag>
@@ -304,6 +318,9 @@ function shortId(value: string) {
 function refresh() {
   return query.refetch();
 }
+function clearKeyword() {
+  keyword.value = '';
+}
 async function openDetail(image: DockerImage) {
   selectedImage.value = image;
   detailDrawerVisible.value = true;
@@ -318,7 +335,10 @@ async function openDetail(image: DockerImage) {
 }
 function openTag(image: DockerImage) {
   selectedImage.value = image;
-  tagForm.repository = imageTags(image)[0]?.split(':')[0] ?? '';
+  const reference = imageTags(image)[0] ?? '';
+  const lastSlash = reference.lastIndexOf('/');
+  const lastColon = reference.lastIndexOf(':');
+  tagForm.repository = lastColon > lastSlash ? reference.slice(0, lastColon) : reference;
   tagForm.tag = 'latest';
   tagDialogVisible.value = true;
 }
@@ -362,14 +382,26 @@ async function startPull() {
   pullLogVersion.value = 0;
   pulling.value = true;
   pullController = new AbortController();
+  let pullCompleted = false;
+  let pullEventFailed = false;
   try {
-    await pullDockerImage({ reference: pullReference.value.trim() }, pullController.signal, appendPullEvent);
+    await pullDockerImage({ reference: pullReference.value.trim() }, pullController.signal, (event) => {
+      appendPullEvent(event);
+      if (event.error) {
+        pullEventFailed = true;
+        throw new Error(event.status || 'Docker image pull failed.');
+      }
+      if (event.status === 'completed') pullCompleted = true;
+    });
+    if (!pullCompleted) throw new Error('Docker image pull did not reach a terminal state.');
     pullLogBatcher.flush();
     await refresh();
     MessagePlugin.success(t('container.images.pull.success'));
   } catch (error) {
     if (!pullController?.signal.aborted) {
-      appendPullEvent({ error: true, status: error instanceof Error ? error.message : String(error) });
+      if (!pullEventFailed) {
+        appendPullEvent({ error: true, status: error instanceof Error ? error.message : String(error) });
+      }
       pullLogBatcher.flush();
       MessagePlugin.error(t('container.images.pull.failed'));
     }

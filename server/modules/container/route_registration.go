@@ -176,20 +176,19 @@ func (r routeRuntime) handleDockerImagePull(c *gin.Context) {
 		r.writeRouteError(c, err)
 		return
 	}
-	writer, err := r.service.dockerImageWriter(c.Request.Context())
-	if err != nil {
-		r.writeRouteError(c, err)
-		return
-	}
 	c.Header("Content-Type", "application/x-ndjson")
 	c.Status(http.StatusOK)
-	err = writer.PullDockerImage(c.Request.Context(), request.Reference, func(event DockerImagePullEvent) error {
+	emittedError := false
+	err := r.service.PullDockerImage(c.Request.Context(), request.Reference, func(event DockerImagePullEvent) error {
+		emittedError = emittedError || event.Error
 		return writeDockerImagePullEvent(c, event)
 	})
-	if err != nil {
+	if err != nil && !emittedError {
 		_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "error", Error: true})
 	} else {
-		_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "completed"})
+		if err == nil {
+			_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "completed"})
+		}
 	}
 	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionPull, request.Reference, request.Reference, false, err)
 }

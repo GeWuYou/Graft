@@ -21,6 +21,7 @@ export const CONTAINER_API_PATH = {
   REMOVE: '/api/ops/containers/{id}/remove',
   BATCH_ACTIONS: '/api/ops/containers/batch-actions',
   DOCKER_IMAGES: '/api/ops/docker/images',
+  DOCKER_IMAGE_DETAIL: '/api/ops/docker/images/{id}',
   DOCKER_IMAGE_PULL: '/api/ops/docker/images/pull',
   DOCKER_IMAGE_TAG: '/api/ops/docker/images/{id}/tag',
   DOCKER_IMAGE_REMOVE: '/api/ops/docker/images/{id}/remove',
@@ -74,6 +75,10 @@ export function buildContainerRemoveApiPath(containerId: string) {
 
 export function buildDockerImageTagApiPath(imageId: string) {
   return CONTAINER_API_PATH.DOCKER_IMAGE_TAG.replace('{id}', encodeContainerPathParam(imageId));
+}
+
+export function buildDockerImageDetailApiPath(imageId: string) {
+  return CONTAINER_API_PATH.DOCKER_IMAGE_DETAIL.replace('{id}', encodeContainerPathParam(imageId));
 }
 
 export function buildDockerImageRemoveApiPath(imageId: string) {

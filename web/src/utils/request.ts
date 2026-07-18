@@ -156,35 +156,61 @@ async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false
     await refreshClientSessionWithFailureHandling();
   }
 
-  const response = await fetch(`${resolveBaseURL()}${config.url}`, {
-    body: JSON.stringify(config.data),
-    credentials: 'include',
-    headers: buildStreamingHeaders(),
-    method: 'POST',
-    signal: config.signal,
-  });
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  try {
+    const response = await fetch(`${resolveBaseURL()}${config.url}`, {
+      body: JSON.stringify(config.data),
+      credentials: 'include',
+      headers: buildStreamingHeaders(),
+      method: 'POST',
+      signal: config.signal,
+    });
 
-  if (!response.ok || !response.body) {
-    const error = await normalizeStreamingError(response);
-    if (!authRefreshAttempted && shouldRefresh(error, { url: config.url })) {
-      await refreshClientSessionWithFailureHandling();
-      return postNdjson(config, true);
+    if (!response.ok || !response.body) {
+      const error = await normalizeStreamingError(response);
+      if (!authRefreshAttempted && shouldRefresh(error, { url: config.url })) {
+        await refreshClientSessionWithFailureHandling();
+        return postNdjson(config, true);
+      }
+      if (shouldExitToLogin(error)) {
+        await clearClientSession();
+      }
+      throw error;
     }
-    if (shouldExitToLogin(error)) {
-      await clearClientSession();
-    }
-    throw error;
-  }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    config.onChunk(decoder.decode(value, { stream: true }));
+    reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      config.onChunk(decoder.decode(value, { stream: true }));
+    }
+    const tail = decoder.decode();
+    if (tail) config.onChunk(tail);
+  } catch (error) {
+    if (isAbortError(error) || isApiRequestError(error)) {
+      throw error;
+    }
+
+    throw buildApiRequestError(0, {
+      success: false,
+      code: API_CODE.COMMON_INTERNAL_ERROR,
+      message: error instanceof Error ? error.message : i18n.global.t('app.request.failed'),
+      traceId: '',
+    });
+  } finally {
+    if (reader) {
+      try {
+        await reader.cancel();
+      } finally {
+        reader.releaseLock();
+      }
+    }
   }
-  const tail = decoder.decode();
-  if (tail) config.onChunk(tail);
+}
+
+function isAbortError(error: unknown): error is DOMException {
+  return error instanceof DOMException && error.name === 'AbortError';
 }
 
 function buildStreamingHeaders(): Record<string, string> {

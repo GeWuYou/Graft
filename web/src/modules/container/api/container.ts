@@ -12,6 +12,7 @@ import {
   buildContainerShellSessionsApiPath,
   buildContainerStartApiPath,
   buildContainerStopApiPath,
+  buildDockerImageDetailApiPath,
   CONTAINER_API_PATH,
 } from '../contract/paths';
 import type {
@@ -134,7 +135,7 @@ export const getDockerImages = () =>
 
 export const getDockerImage = (imageId: string) =>
   request.get<DockerImageRecord>({
-    url: `${CONTAINER_API_PATH.DOCKER_IMAGES}/${encodeURIComponent(imageId)}`,
+    url: buildDockerImageDetailApiPath(imageId),
   }) as Promise<DockerImageRecord>;
 export const getDockerNetworks = () =>
   request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
