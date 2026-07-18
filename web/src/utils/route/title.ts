@@ -47,15 +47,23 @@ export function localizeRouteTitleKey(titleKey: string): LocalizedTitle {
 /**
  * 判断标题片段是否符合前端消息 key 的稳定格式。
  */
-export function isRouteTitleKey(value: string) {
-  return ROUTE_TITLE_KEY_PATTERN.test(value.trim());
+export function isRouteTitleKey(value: string, declaredTitleKey?: string) {
+  const candidate = value.trim();
+  if (!ROUTE_TITLE_KEY_PATTERN.test(candidate)) {
+    return false;
+  }
+
+  return (
+    candidate === declaredTitleKey ||
+    supportedLocales.some((locale) => Boolean(resolveLocaleMessage(locale, candidate)))
+  );
 }
 
 /**
  * 判断本地化标题是否仍包含未解析的消息 key，包括导航层级组成的复合标题。
  */
-export function hasUnresolvedRouteTitleKey(title?: LocalizedTitle) {
+export function hasUnresolvedRouteTitleKey(title?: LocalizedTitle, declaredTitleKey?: string) {
   return Object.values(title ?? {}).some((value) =>
-    value.split('/').some((segment) => isRouteTitleKey(segment.trim())),
+    value.split('/').some((segment) => isRouteTitleKey(segment.trim(), declaredTitleKey)),
   );
 }

@@ -558,6 +558,27 @@ describe('LayoutContent', () => {
     expect(wrapper.text()).not.toContain('Observability / Overview');
   });
 
+  it('prefers live route metadata over a stale persisted route title', () => {
+    routerMock.resolve.mockReturnValueOnce({
+      href: '/infrastructure/images',
+      meta: {
+        tabTitle: { 'zh-CN': '镜像', 'en-US': 'Images' },
+      },
+    });
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      {
+        ...createTab('/infrastructure/images', 'DockerImageList'),
+        title: { 'zh-CN': '旧镜像标题', 'en-US': 'Stale image title' },
+      },
+    ];
+
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.text()).toContain('镜像');
+    expect(wrapper.text()).not.toContain('旧镜像标题');
+  });
+
   it('keeps the page main surface from collapsing while route content transitions', () => {
     const wrapper = mountLayoutContent();
     const pageContainer = wrapper.get('.tdesign-starter-page-container');

@@ -86,6 +86,8 @@ export interface TRouterInfo {
   fullPath?: string;
   routeIdx?: number;
   title?: LocalizedTitle;
+  /** `route` 标题随实时路由元数据刷新，`runtime` 标题由页面生成并跨同路由更新保留。 */
+  titleSource?: 'route' | 'runtime';
   name?: RouteRecordName | null;
   isHome?: boolean;
   isAlive?: boolean;

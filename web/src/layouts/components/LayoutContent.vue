@@ -206,13 +206,13 @@ const hasSameLocalizedTitle = (left?: LocalizedTitle, right?: LocalizedTitle) =>
     left?.[LOCALE.ZH_CN] === right?.[LOCALE.ZH_CN] &&
     left?.[LOCALE.EN_US] === right?.[LOCALE.EN_US]);
 
-const isLocalizedTitleKey = (title?: LocalizedTitle) => {
+const isLocalizedTitleKey = (title?: LocalizedTitle, declaredTitleKey?: string) => {
   const titleKey = title?.[LOCALE.ZH_CN];
-  return Boolean(titleKey && titleKey === title?.[LOCALE.EN_US] && isRouteTitleKey(titleKey));
+  return Boolean(titleKey && titleKey === title?.[LOCALE.EN_US] && isRouteTitleKey(titleKey, declaredTitleKey));
 };
 
-const localizeTitleKey = (title?: LocalizedTitle) =>
-  isLocalizedTitleKey(title) ? localizeRouteTitleKey(title![LOCALE.ZH_CN]) : title;
+const localizeTitleKey = (title?: LocalizedTitle, declaredTitleKey?: string) =>
+  isLocalizedTitleKey(title, declaredTitleKey) ? localizeRouteTitleKey(title![LOCALE.ZH_CN]) : title;
 
 const resolveTabBaseTitle = (routeItem: TRouterInfo, routeMeta: AppRouteMeta | undefined) => {
   const routeTitle = routeItem.title;
@@ -221,11 +221,15 @@ const resolveTabBaseTitle = (routeItem: TRouterInfo, routeMeta: AppRouteMeta | u
       routeMeta?.semanticTitle ??
       routeMeta?.title ??
       (routeMeta?.titleKey ? localizeRouteTitleKey(routeMeta.titleKey) : undefined),
+    routeMeta?.titleKey,
   );
 
   if (
     !routeItem.isDuplicate &&
-    (hasSameLocalizedTitle(routeTitle, routeMeta?.navigationTitle) || hasUnresolvedRouteTitleKey(routeTitle))
+    routeItem.titleSource !== 'runtime' &&
+    (hasSameLocalizedTitle(routeTitle, routeMeta?.navigationTitle) ||
+      hasUnresolvedRouteTitleKey(routeTitle, routeMeta?.titleKey) ||
+      Boolean(defaultTabTitle))
   ) {
     return defaultTabTitle ?? routeTitle;
   }

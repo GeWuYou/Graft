@@ -204,6 +204,7 @@ function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys(
 
   return {
     ...route,
+    titleSource: route.titleSource ?? 'route',
     tabKey,
     fullPath: route.fullPath || route.path,
     isPinned: route.isHome ? false : Boolean(route.isPinned || pinnedKeys.has(tabKey)),
@@ -226,8 +227,9 @@ function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
   }
   if (
     (current.fullPath === next.fullPath || current.path === next.path || getTabKey(current) === getTabKey(next)) &&
+    current.titleSource === 'runtime' &&
     current.title &&
-    !hasUnresolvedRouteTitleKey(current.title)
+    !hasUnresolvedRouteTitleKey(current.title, next.meta?.titleKey)
   ) {
     return current.title;
   }
@@ -473,7 +475,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       }
 
       this.tabRouterList = this.tabRouterList.map((tab) =>
-        getTabKey(tab) === this.activeTabKey ? { ...tab, title } : tab,
+        getTabKey(tab) === this.activeTabKey ? { ...tab, title, titleSource: 'runtime' } : tab,
       );
     },
     subtractCurrentTabRouter(newRoute: TRouterInfo) {
@@ -568,6 +570,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         ...cloneTab(target),
         tabKey: `${basePath}#copy-${Date.now()}-${duplicateCount}`,
         title: this.createDuplicatedTitle(target.title, duplicateCount),
+        titleSource: 'runtime',
         isPinned: false,
         isDuplicate: true,
         duplicatedFrom: basePath,
