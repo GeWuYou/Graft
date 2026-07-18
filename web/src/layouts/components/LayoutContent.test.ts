@@ -496,7 +496,10 @@ describe('LayoutContent', () => {
                 'zh-CN': '基础设施 / Docker / container.route.images.title',
                 'en-US': 'Infrastructure / Docker / container.route.images.title',
               },
-              titleKey: 'container.route.images.title',
+              tabTitle: {
+                'zh-CN': 'container.route.images.title',
+                'en-US': 'container.route.images.title',
+              },
             }
           : {},
     }));

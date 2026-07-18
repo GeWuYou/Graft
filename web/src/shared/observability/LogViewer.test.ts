@@ -109,6 +109,21 @@ describe('LogViewer', () => {
     expect(wrapper.find('.log-viewer__header-row').text()).not.toContain('#');
   });
 
+  it('binds caller attributes to the visible log surface without emitting fragment attribute warnings', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const wrapper = mount(LogViewer, {
+      attrs: { class: 'docker-images-pull-log' },
+      props: {
+        ...labels,
+        entries: [],
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.get('.log-viewer').classes()).toContain('docker-images-pull-log');
+    expect(warnSpy.mock.calls.flat().join(' ')).not.toContain('Extraneous non-props attributes');
+  });
+
   it('renders structured stream styling without a source column', () => {
     const wrapper = mount(LogViewer, {
       props: {
