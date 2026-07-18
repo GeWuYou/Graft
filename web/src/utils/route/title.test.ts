@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { localizeRouteTitle } from './title';
+import { hasUnresolvedRouteTitleKey, localizeRouteTitle } from './title';
 
 describe('localizeRouteTitle', () => {
   it('prefers the bootstrap title_key when the frontend locale catalog defines it', () => {
@@ -31,5 +31,20 @@ describe('localizeRouteTitle', () => {
       'zh-CN': '角色管理',
       'en-US': '角色管理',
     });
+  });
+
+  it('detects unresolved message keys inside navigation titles', () => {
+    expect(
+      hasUnresolvedRouteTitleKey({
+        'zh-CN': '基础设施 / Docker / container.route.images.title',
+        'en-US': 'Infrastructure / Docker / container.route.images.title',
+      }),
+    ).toBe(true);
+    expect(
+      hasUnresolvedRouteTitleKey({
+        'zh-CN': '基础设施 / Docker / 镜像',
+        'en-US': 'Infrastructure / Docker / Images',
+      }),
+    ).toBe(false);
   });
 });

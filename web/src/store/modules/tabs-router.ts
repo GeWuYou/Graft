@@ -11,7 +11,7 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
 import { createLogger } from '@/utils/logger';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
-import { localizeRouteTitleKey } from '@/utils/route/title';
+import { hasUnresolvedRouteTitleKey, localizeRouteTitleKey } from '@/utils/route/title';
 import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
@@ -227,7 +227,7 @@ function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
   if (
     (current.fullPath === next.fullPath || current.path === next.path || getTabKey(current) === getTabKey(next)) &&
     current.title &&
-    !isUnlocalizedTabTitle(current)
+    !hasUnresolvedRouteTitleKey(current.title)
   ) {
     return current.title;
   }

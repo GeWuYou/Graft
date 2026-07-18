@@ -64,6 +64,34 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[1]?.title).toEqual({ 'zh-CN': '镜像', 'en-US': 'Images' });
   });
 
+  it('replaces an unresolved key inside a persisted navigation title', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: {
+        'zh-CN': '基础设施 / Docker / container.route.images.title',
+        'en-US': 'Infrastructure / Docker / container.route.images.title',
+      },
+      meta: { titleKey: 'menu.docker.image.title' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: {
+        'zh-CN': '基础设施 / Docker / 镜像',
+        'en-US': 'Infrastructure / Docker / Images',
+      },
+      meta: { titleKey: 'menu.docker.image.title' },
+    });
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual({
+      'zh-CN': '基础设施 / Docker / 镜像',
+      'en-US': 'Infrastructure / Docker / Images',
+    });
+  });
+
   it('localizes a persisted raw title key during startup recovery', () => {
     const tabsRouterStore = useTabsRouterStore();
 

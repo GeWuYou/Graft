@@ -4,7 +4,8 @@ import type { LogEvent, LoggerTransport } from '@/utils/logger/types';
 
 import { isPlainObject } from '../object';
 
-const logger = createConsola();
+// 日志级别由上层 LoggerCore 统一裁决，transport 必须放行已经通过筛选的事件。
+const logger = createConsola({ level: Number.POSITIVE_INFINITY });
 const MAX_FIELD_COUNT = 12;
 const MAX_VALUE_LENGTH = 240;
 

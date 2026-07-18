@@ -142,7 +142,7 @@ import { useLocale } from '@/locales/useLocale';
 import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
-import { localizeRouteTitleKey } from '@/utils/route/title';
+import { hasUnresolvedRouteTitleKey, isRouteTitleKey, localizeRouteTitleKey } from '@/utils/route/title';
 import { logTabsDebug } from '@/utils/tabs-debug';
 import type { AppRouteMeta, TRouterInfo, TTabRemoveOptions } from '@/utils/types';
 
@@ -208,9 +208,7 @@ const hasSameLocalizedTitle = (left?: LocalizedTitle, right?: LocalizedTitle) =>
 
 const isLocalizedTitleKey = (title?: LocalizedTitle) => {
   const titleKey = title?.[LOCALE.ZH_CN];
-  return Boolean(
-    titleKey && titleKey === title?.[LOCALE.EN_US] && /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9_-]+)+$/.test(titleKey),
-  );
+  return Boolean(titleKey && titleKey === title?.[LOCALE.EN_US] && isRouteTitleKey(titleKey));
 };
 
 const localizeTitleKey = (title?: LocalizedTitle) =>
@@ -225,7 +223,10 @@ const resolveTabBaseTitle = (routeItem: TRouterInfo, routeMeta: AppRouteMeta | u
       (routeMeta?.titleKey ? localizeRouteTitleKey(routeMeta.titleKey) : undefined),
   );
 
-  if (!routeItem.isDuplicate && hasSameLocalizedTitle(routeTitle, routeMeta?.navigationTitle)) {
+  if (
+    !routeItem.isDuplicate &&
+    (hasSameLocalizedTitle(routeTitle, routeMeta?.navigationTitle) || hasUnresolvedRouteTitleKey(routeTitle))
+  ) {
     return defaultTabTitle ?? routeTitle;
   }
 

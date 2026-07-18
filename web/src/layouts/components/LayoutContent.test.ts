@@ -486,20 +486,21 @@ describe('LayoutContent', () => {
     expect(wrapper.text()).not.toContain('基础设施 / Docker / 容器管理');
   });
 
-  it('localizes a persisted route title key through its metadata without changing tab state', () => {
+  it('uses live route metadata when a persisted navigation title contains an unresolved key', () => {
     routerMock.resolve.mockImplementation((target: { path?: string }) => ({
       href: target.path ?? '/',
       meta:
         target.path === '/infrastructure/images'
           ? {
               navigationTitle: {
-                'zh-CN': '基础设施 / Docker / container.route.images.title',
-                'en-US': 'Infrastructure / Docker / container.route.images.title',
+                'zh-CN': '基础设施 / Docker / 镜像',
+                'en-US': 'Infrastructure / Docker / Images',
               },
               tabTitle: {
-                'zh-CN': 'container.route.images.title',
-                'en-US': 'container.route.images.title',
+                'zh-CN': '镜像',
+                'en-US': 'Images',
               },
+              titleKey: 'menu.docker.image.title',
             }
           : {},
     }));

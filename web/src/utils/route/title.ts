@@ -2,6 +2,8 @@ import type { LocalizedTitle, SupportedLocale } from '@/contracts/i18n/locales';
 import { supportedLocales } from '@/contracts/i18n/locales';
 import { i18n } from '@/locales';
 
+const ROUTE_TITLE_KEY_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-zA-Z0-9_-]+)+$/;
+
 function resolveLocaleMessage(locale: SupportedLocale, titleKey: string): string | undefined {
   const messageTree = i18n.global.getLocaleMessage(locale) as Record<string, unknown>;
   const directMessage = messageTree[titleKey];
@@ -40,4 +42,20 @@ export function localizeRouteTitle(fallbackTitle: string, titleKey?: string): Lo
 
 export function localizeRouteTitleKey(titleKey: string): LocalizedTitle {
   return localizeRouteTitle(titleKey, titleKey);
+}
+
+/**
+ * 判断标题片段是否符合前端消息 key 的稳定格式。
+ */
+export function isRouteTitleKey(value: string) {
+  return ROUTE_TITLE_KEY_PATTERN.test(value.trim());
+}
+
+/**
+ * 判断本地化标题是否仍包含未解析的消息 key，包括导航层级组成的复合标题。
+ */
+export function hasUnresolvedRouteTitleKey(title?: LocalizedTitle) {
+  return Object.values(title ?? {}).some((value) =>
+    value.split('/').some((segment) => isRouteTitleKey(segment.trim())),
+  );
 }
