@@ -61,7 +61,10 @@
   "container.route.images.breadcrumb": "镜像管理",
   "menu": {
     "docker": {
-      "title": "Docker"
+      "title": "Docker",
+      "image": {
+        "title": "镜像管理"
+      }
     },
     "container": {
       "title": "容器"

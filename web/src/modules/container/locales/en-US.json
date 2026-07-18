@@ -61,7 +61,10 @@
   "container.route.images.breadcrumb": "Image Management",
   "menu": {
     "docker": {
-      "title": "Docker"
+      "title": "Docker",
+      "image": {
+        "title": "Images"
+      }
     },
     "container": {
       "title": "Containers"

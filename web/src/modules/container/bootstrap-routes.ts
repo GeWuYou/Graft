@@ -22,26 +22,21 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
       tabTitle: listRouteTitle,
     },
   },
-];
-
-export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     ...CONTAINER_BOOTSTRAP_ROUTE.IMAGES,
-    navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.LIST.menuPath,
     loadPage: () => import('./pages/images/index.vue'),
     meta: {
-      hidden: false,
-      hiddenMenu: false,
+      tabGroup: 'infrastructure',
       pageKind: 'list',
       pageSurface: 'form-detail',
       semanticTitle: imageRouteTitle,
       breadcrumbTitle: imageBreadcrumbTitle,
-      tabGroup: 'infrastructure',
       tabTitle: imageRouteTitle,
-      title: imageRouteTitle,
-      titleKey: 'container.route.images.title',
     },
   },
+];
+
+export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
   {
     ...CONTAINER_BOOTSTRAP_ROUTE.RESOURCES,
     navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.LIST.menuPath,

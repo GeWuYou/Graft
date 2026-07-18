@@ -4,6 +4,11 @@ import { i18n } from '@/locales';
 
 function resolveLocaleMessage(locale: SupportedLocale, titleKey: string): string | undefined {
   const messageTree = i18n.global.getLocaleMessage(locale) as Record<string, unknown>;
+  const directMessage = messageTree[titleKey];
+  if (typeof directMessage === 'string' && directMessage.length > 0) {
+    return directMessage;
+  }
+
   const resolved = titleKey.split('.').reduce<unknown>((current, segment) => {
     if (!current || typeof current !== 'object') {
       return undefined;

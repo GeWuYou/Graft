@@ -11,6 +11,8 @@ import (
 	mobyclient "github.com/moby/moby/client"
 )
 
+const dockerImageReadTimeout = 10 * time.Second
+
 // dockerResourceClient is intentionally separate from dockerClient. It keeps
 // existing container-only runtime test doubles independent of read-only
 // Docker resource discovery.
@@ -78,7 +80,9 @@ func (r *DockerRuntime) ListDockerImages(ctx context.Context) ([]DockerImage, er
 	if !ok {
 		return nil, errUnsupportedContainerRuntime
 	}
-	items, err := client.ImageList(ctx, mobyclient.ImageListOptions{All: true})
+	readCtx, cancel := context.WithTimeout(ctx, dockerImageReadTimeout)
+	defer cancel()
+	items, err := client.ImageList(readCtx, mobyclient.ImageListOptions{All: true})
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
@@ -95,7 +99,9 @@ func (r *DockerRuntime) ReadDockerImage(ctx context.Context, id string) (DockerI
 	if !ok {
 		return DockerImage{}, errUnsupportedContainerRuntime
 	}
-	item, err := client.ImageInspect(ctx, id)
+	readCtx, cancel := context.WithTimeout(ctx, dockerImageReadTimeout)
+	defer cancel()
+	item, err := client.ImageInspect(readCtx, id)
 	if err != nil {
 		return DockerImage{}, mapDockerError(err)
 	}

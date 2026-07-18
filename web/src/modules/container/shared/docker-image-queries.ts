@@ -7,5 +7,5 @@ import { getDockerImages } from '../api/container';
 const dockerImageQueryKey = ['container', 'images'] as const;
 
 export function useDockerImageQuery() {
-  return useQuery({ queryKey: dockerImageQueryKey, queryFn: getDockerImages }, queryClient);
+  return useQuery({ queryKey: dockerImageQueryKey, queryFn: getDockerImages, retry: false }, queryClient);
 }

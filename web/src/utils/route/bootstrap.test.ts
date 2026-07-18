@@ -85,10 +85,24 @@ describe('bootstrap navigation graph', () => {
         icon: 'container',
         permission: 'container.view',
       },
+      {
+        code: 'docker.image.list',
+        parent_code: 'docker',
+        kind: 'entry',
+        order: 52,
+        title: 'Images',
+        title_key: 'menu.docker.image.title',
+        path: '/infrastructure/images',
+        icon: 'image',
+        permission: 'container.view',
+      },
     ]);
 
     expect(navigation[0]?.children?.[0]?.meta?.navigationSection?.key).toBe('runtime');
-    expect(navigation[0]?.children?.[0]?.children?.[0]?.path).toBe('container.list');
+    expect(navigation[0]?.children?.[0]?.children?.map((item) => item.path)).toEqual([
+      'container.list',
+      'docker.image.list',
+    ]);
     const routes = transformBootstrapMenusToRoutes([
       {
         code: 'domain.infrastructure',
@@ -117,12 +131,24 @@ describe('bootstrap navigation graph', () => {
         icon: 'container',
         permission: 'container.view',
       },
+      {
+        code: 'docker.image.list',
+        parent_code: 'docker',
+        kind: 'entry',
+        order: 52,
+        title: 'Images',
+        title_key: 'menu.docker.image.title',
+        path: '/infrastructure/images',
+        icon: 'image',
+        permission: 'container.view',
+      },
     ]);
-    expect(routes).toHaveLength(1);
+    expect(routes).toHaveLength(2);
     expect(routes[0]?.meta?.navigationAncestors?.map((ancestor) => ancestor.code)).toEqual([
       'domain.infrastructure',
       'docker',
     ]);
+    expect(routes[1]?.name).toBe('DockerImageList');
   });
 
   it('builds visible navigation by explicit parent code and prunes empty groups', () => {
