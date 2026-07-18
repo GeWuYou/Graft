@@ -33,7 +33,7 @@ export interface AppRouteMeta {
   navigationTargetPath?: string;
   /** 显式声明供壳层面包屑和标签页使用的本地化导航祖先。 */
   navigationAncestors?: NavigationAncestor[];
-  /** 显式声明作为标签页默认标题的本地化导航路径。 */
+  /** 标签页出现同名项时用于消歧的本地化导航路径，不作为持久化标签状态。 */
   navigationTitle?: LocalizedTitle;
   title?: LocalizedTitle;
   titleKey?: string;

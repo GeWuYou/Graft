@@ -33,7 +33,7 @@
             <template v-if="!routeItem.isHome">
               <span class="route-tabs-label">
                 <t-icon v-if="routeItem.isPinned" class="route-tabs-label__pin" name="pin" size="14px" />
-                <span class="route-tabs-label__text">{{ renderTitle(routeItem.title) }}</span>
+                <span class="route-tabs-label__text">{{ renderTabTitle(routeItem) }}</span>
               </span>
             </template>
             <t-icon v-else name="home" />
@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -142,7 +142,9 @@ import { useLocale } from '@/locales/useLocale';
 import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
-import type { TRouterInfo, TTabRemoveOptions } from '@/utils/types';
+import { localizeRouteTitleKey } from '@/utils/route/title';
+import { logTabsDebug } from '@/utils/tabs-debug';
+import type { AppRouteMeta, TRouterInfo, TTabRemoveOptions } from '@/utils/types';
 
 import LContent from './Content.vue';
 import PageContainer from './PageContainer.vue';
@@ -196,6 +198,28 @@ const footerText = computed(() => {
 });
 
 const { locale } = useLocale();
+const renderTitle = (title?: LocalizedTitle) => renderLocalizedTitle(title, locale.value);
+
+const hasSameLocalizedTitle = (left?: LocalizedTitle, right?: LocalizedTitle) =>
+  left === right ||
+  (Boolean(left && right) &&
+    left?.[LOCALE.ZH_CN] === right?.[LOCALE.ZH_CN] &&
+    left?.[LOCALE.EN_US] === right?.[LOCALE.EN_US]);
+
+const resolveTabBaseTitle = (routeItem: TRouterInfo, routeMeta: AppRouteMeta | undefined) => {
+  const routeTitle = routeItem.title;
+  const defaultTabTitle =
+    routeMeta?.tabTitle ??
+    routeMeta?.semanticTitle ??
+    routeMeta?.title ??
+    (routeMeta?.titleKey ? localizeRouteTitleKey(routeMeta.titleKey) : undefined);
+
+  if (!routeItem.isDuplicate && hasSameLocalizedTitle(routeTitle, routeMeta?.navigationTitle)) {
+    return defaultTabTitle ?? routeTitle;
+  }
+
+  return routeTitle ?? defaultTabTitle;
+};
 
 const normalizeQuery = (query?: TRouterInfo['query']): LocationQueryRaw | undefined => {
   return query;
@@ -211,6 +235,67 @@ const resolveRouteLocation = (targetRoute: TRouterInfo): RouteLocationRaw => {
     }
   );
 };
+
+const resolveLiveTabMeta = (routeItem: TRouterInfo): AppRouteMeta | undefined => {
+  try {
+    return {
+      ...routeItem.meta,
+      ...(router.resolve(resolveRouteLocation(routeItem)).meta as AppRouteMeta),
+    };
+  } catch {
+    return routeItem.meta;
+  }
+};
+
+// 标签显示标题只依赖当前打开列表、locale 与实时路由元数据，旧持久化 tab metadata 不参与权威判断。
+const tabDisplayEntries = computed(() => {
+  const entries = tabRouters.value
+    .filter((routeItem) => !routeItem.isHome)
+    .map((routeItem) => {
+      const routeMeta = resolveLiveTabMeta(routeItem);
+      return { routeItem, routeMeta, title: resolveTabBaseTitle(routeItem, routeMeta) };
+    });
+  const titleCounts = new Map<string, number>();
+
+  entries.forEach(({ title }) => {
+    const label = renderTitle(title);
+    if (label) {
+      titleCounts.set(label, (titleCounts.get(label) ?? 0) + 1);
+    }
+  });
+
+  return entries.map(({ routeItem, routeMeta, title }) => {
+    const label = renderTitle(title);
+    const displayTitle = label && (titleCounts.get(label) ?? 0) > 1 ? (routeMeta?.navigationTitle ?? title) : title;
+
+    return { displayTitle, routeItem, routeMeta, title };
+  });
+});
+
+const tabDisplayTitles = computed(
+  () => new Map(tabDisplayEntries.value.map((entry) => [getTabKey(entry.routeItem), entry.displayTitle])),
+);
+
+watch(
+  tabDisplayEntries,
+  (entries) => {
+    logTabsDebug(
+      'tabs.layout',
+      () =>
+        `tabs debug: display titles locale=${locale.value} ${entries
+          .map(
+            ({ displayTitle, routeItem, routeMeta, title }) =>
+              `[key=${getTabKey(routeItem)} stored=${renderTitle(routeItem.title)} base=${renderTitle(title)} display=${renderTitle(
+                displayTitle,
+              )} liveTab=${renderTitle(routeMeta?.tabTitle)} liveNavigation=${renderTitle(
+                routeMeta?.navigationTitle,
+              )} liveTitleKey=${routeMeta?.titleKey || ''}]`,
+          )
+          .join(' ')}`,
+    );
+  },
+  { immediate: true },
+);
 
 const navigateToTab = (targetRoute?: TRouterInfo | null) => {
   if (!targetRoute) return;
@@ -234,7 +319,8 @@ const handleRemove = (options: TTabRemoveOptions) => {
   }
 };
 
-const renderTitle = (title?: LocalizedTitle) => renderLocalizedTitle(title, locale.value);
+const renderTabTitle = (routeItem: TRouterInfo) =>
+  renderTitle(tabDisplayTitles.value.get(getTabKey(routeItem)) ?? routeItem.title);
 const handlePageSurfaceReady = (surface: PageSurfaceType) => {
   pageSurfaceType.value = surface;
 };
