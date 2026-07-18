@@ -2,8 +2,10 @@ package task
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,5 +99,22 @@ func TestTaskRouteWritesNotFoundContract(t *testing.T) {
 	}
 	if payload.Locale != "en-US" || payload.Message != "Requested resource not found" {
 		t.Fatalf("unexpected localized message: %#v", payload)
+	}
+}
+
+func TestTaskRouteDoesNotExposeInternalCause(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = httptest.NewRequest(http.MethodGet, "/api/tasks/7", nil)
+
+	routes := taskRoutes{ctx: &module.Context{}}
+	routes.writeError(context, http.StatusInternalServerError, errors.New("database password leaked"))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+	if got := recorder.Body.String(); strings.Contains(got, "database password leaked") || strings.Contains(got, "\"error\"") {
+		t.Fatalf("task response exposed internal cause: %s", got)
 	}
 }

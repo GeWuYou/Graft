@@ -40,14 +40,14 @@ closeout:
 
 ## Current Recovery Point
 
-- Batch 1 is complete: authority, topic bootstrap, and core error/logging foundation.
+- Batches 1 and 2 are complete: the Project lifecycle-to-Task submission path now records one cause-bearing business error and preserves the safe HTTP envelope.
 - No compatibility bridge or authority escalation is approved.
-- Next step: start Batch 2 - Project/Task priority request failure chain.
+- Next step: start Batch 3 - remaining synchronous HTTP modules.
 
 ## Task Checklist
 
 - [x] Batch 1 - authority, topic bootstrap, and core error/logging foundation
-- [ ] Batch 2 - Project/Task priority request failure chain
+- [x] Batch 2 - Project/Task priority request failure chain
 - [ ] Batch 3 - remaining synchronous HTTP modules
 - [ ] Batch 4 - asynchronous recovery, cause integrity, and governance guard
 - [ ] Batch 5 - full audit, validation, and archive readiness
@@ -65,17 +65,17 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "Batch 1 - authority, topic bootstrap, and core error/logging foundation"
+    "Batch 1 - authority, topic bootstrap, and core error/logging foundation",
+    "Batch 2 - Project/Task priority request failure chain"
   ],
   "pending_batches": [
-    "Batch 2 - Project/Task priority request failure chain",
     "Batch 3 - remaining synchronous HTTP modules",
     "Batch 4 - asynchronous recovery, cause integrity, and governance guard",
     "Batch 5 - full audit, validation, and archive readiness"
   ],
   "current_batch": "Batch 2 - Project/Task priority request failure chain",
-  "next_batch": "Batch 2 - Project/Task priority request failure chain",
-  "closeout_status": "batch-1-complete"
+  "next_batch": "Batch 3 - remaining synchronous HTTP modules",
+  "closeout_status": "batch-2-complete"
 }
 ```
 
@@ -94,3 +94,10 @@ closeout:
 - assets_considered_but_rejected: no existing HTTP-neutral request-context helper; the new `server/internal/requestctx` boundary prevents logger-to-httpx coupling
 - new_registry_entries: `application-error-contract`, `request-context`
 - registry_entries_removed_or_replaced: none
+
+## Batch 2 Evidence
+
+- Project lifecycle Task submission failures are recorded through `logger.ReportError` with application, action, task type, and request correlation fields; the reported error preserves the original cause for the HTTP boundary.
+- Project routes now delegate unhandled errors to `httpx.AbortAppError`, so the HTTP fallback records only unreported failures.
+- Task routes use typed safe descriptors and no longer serialize `err.Error()` into public response data.
+- Validation: `cd server && go test ./modules/project ./modules/task ./internal/logger ./internal/httpx`, `cd server && go test ./...`, `cd server && go run ./cmd/graft validate backend`, and `git diff --check`.

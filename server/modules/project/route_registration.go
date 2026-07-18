@@ -1042,7 +1042,8 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 
 func (r routeRuntime) writeRouteErrorWithAction(ginCtx *gin.Context, err error, action ActionResult) {
 	if !r.writeHandledRouteError(ginCtx, err, action) {
-		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
+		return
 	}
 	ginCtx.Abort()
 }

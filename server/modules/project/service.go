@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"graft/server/internal/config"
+	"graft/server/internal/logger"
 
 	"go.uber.org/zap"
 
@@ -460,6 +461,7 @@ type Service struct {
 	inspectCache                 *importInspectionCache
 	auditBus                     eventbus.Bus
 	logger                       *zap.Logger
+	appLogger                    logger.AppLogger
 	moduleName                   string
 	taskService                  moduleapi.TaskService
 	debugConfig                  config.ProjectConfig
@@ -469,6 +471,13 @@ type Service struct {
 func (s *Service) SetTaskService(service moduleapi.TaskService) {
 	if s != nil {
 		s.taskService = service
+	}
+}
+
+// SetAppLogger 注入项目业务错误的统一记录边界。
+func (s *Service) SetAppLogger(appLogger logger.AppLogger) {
+	if s != nil {
+		s.appLogger = appLogger
 	}
 }
 
