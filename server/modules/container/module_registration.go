@@ -13,6 +13,7 @@ import (
 const (
 	operationsMenuOrderRoot = 50
 	containerMenuOrderList  = 51
+	dockerImageMenuOrder    = 52
 )
 
 // registerMessages verifies that all required container module messages are registered for the supported locales.
@@ -41,6 +42,7 @@ func containerLocaleBackedMessageKeys() []string {
 var containerMessageKeys = []string{
 	containercontract.ContainerMenuTitle.String(),
 	containercontract.ContainerListMenuTitle.String(),
+	containercontract.DockerImageMenuTitle.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),
 	containercontract.ContainerRuntimePermissionDenied.String(),
@@ -67,6 +69,14 @@ var containerMessageKeys = []string{
 	containercontract.ContainerTimeout.String(),
 	containercontract.ContainerMountUsageUnsupported.String(),
 	containercontract.ContainerDangerousActionsDisabled.String(),
+	containercontract.DockerImageInvalidReference.String(),
+	containercontract.DockerImageInUse.String(),
+	containercontract.DockerImagePullFailed.String(),
+	containercontract.DockerImageTagFailed.String(),
+	containercontract.DockerImageRemoveFailed.String(),
+	containercontract.DockerImagePullCompleted.String(),
+	containercontract.DockerImageTagCompleted.String(),
+	containercontract.DockerImageRemoveCompleted.String(),
 	containercontract.ContainerAuditShellSessionRequested.String(),
 	containercontract.ContainerAuditShellTicketIssued.String(),
 	containercontract.ContainerAuditShellTicketRejected.String(),
@@ -180,6 +190,24 @@ func permissionItems(moduleName string) []permission.Item {
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Module:         moduleName,
 		},
+		{
+			Code:           containercontract.DockerImagePullPermission.String(),
+			DisplayKey:     "rbac.permissionCatalog.dockerImagePull.display",
+			DescriptionKey: "rbac.permissionCatalog.dockerImagePull.description",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.DockerImageTagPermission.String(),
+			DisplayKey:     "rbac.permissionCatalog.dockerImageTag.display",
+			DescriptionKey: "rbac.permissionCatalog.dockerImageTag.description",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.DockerImageRemovePermission.String(),
+			DisplayKey:     "rbac.permissionCatalog.dockerImageRemove.display",
+			DescriptionKey: "rbac.permissionCatalog.dockerImageRemove.description",
+			Module:         moduleName,
+		},
 	}
 }
 
@@ -216,6 +244,18 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Path:                     containercontract.ContainerMenuPath,
 		Icon:                     "container",
 		Order:                    containerMenuOrderList,
+		Permission:               containercontract.ContainerViewPermission.String(),
+		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+		Module:                   moduleName,
+	})
+	registry.Register(menu.Item{
+		Code:                     "docker.image.list",
+		ParentCode:               "docker",
+		Kind:                     menu.NodeKindEntry,
+		TitleKey:                 containercontract.DockerImageMenuTitle.String(),
+		Path:                     containercontract.DockerImageMenuPath,
+		Icon:                     "image",
+		Order:                    dockerImageMenuOrder,
 		Permission:               containercontract.ContainerViewPermission.String(),
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 		Module:                   moduleName,

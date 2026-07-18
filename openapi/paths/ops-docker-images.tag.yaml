@@ -1,0 +1,26 @@
+post:
+  operationId: postDockerImageTag
+  summary: Tag a Docker image
+  parameters:
+    - $ref: ../components/parameters/docker-image-id-path.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/docker-image-tag-request.yaml
+  responses:
+    '200':
+      description: Docker image tag result.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-docker-image-action-response.yaml
+    '400': { description: Invalid image reference }
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404': { description: Image not found }
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

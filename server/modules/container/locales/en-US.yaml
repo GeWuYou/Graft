@@ -1,5 +1,6 @@
 menu.docker.title: Docker
 menu.container.title: Containers
+menu.docker.image.title: Images
 menu.section.runtime: Runtime
 ops.container.error.runtimeDisabled: Container runtime access is not enabled
 ops.container.error.runtimeSocketMissing: Container runtime socket is missing
@@ -28,6 +29,14 @@ ops.container.error.shellUnsupportedControlMessage: The terminal control message
 ops.container.error.timeout: Container runtime operation timed out
 ops.container.error.mountUsageUnsupported: Mount usage is not supported for this mount
 ops.container.error.dangerousActionsDisabled: Dangerous container actions are disabled
+ops.container.error.invalidImageReference: Invalid Docker image reference
+ops.container.error.imageInUse: Docker image is referenced by one or more containers
+ops.container.error.imagePullFailed: Docker image pull failed
+ops.container.error.imageTagFailed: Docker image tag operation failed
+ops.container.error.imageRemoveFailed: Docker image remove operation failed
+ops.container.image.pull.completed: Docker image pull completed
+ops.container.image.tag.completed: Docker image tag operation completed
+ops.container.image.remove.completed: Docker image remove operation completed
 ops.container.audit.shellSessionRequested: Container shell session requested
 ops.container.audit.shellTicketIssued: Container shell ticket issued
 ops.container.audit.shellTicketRejected: Container shell ticket rejected

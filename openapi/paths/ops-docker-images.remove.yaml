@@ -1,0 +1,27 @@
+post:
+  operationId: postDockerImageRemove
+  summary: Remove a Docker image
+  parameters:
+    - $ref: ../components/parameters/docker-image-id-path.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/docker-image-remove-request.yaml
+  responses:
+    '200':
+      description: Docker image removal result.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-docker-image-action-response.yaml
+    '400': { description: Invalid image reference }
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404': { description: Image not found }
+    '409': { description: Image is in use by a container }
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

@@ -13,6 +13,8 @@ const (
 	ContainerMenuTitle MessageKey = "menu.docker.title"
 	// ContainerListMenuTitle identifies the shortened container-list navigation title.
 	ContainerListMenuTitle MessageKey = "menu.container.title"
+	// DockerImageMenuTitle identifies the image-management navigation title.
+	DockerImageMenuTitle MessageKey = "menu.docker.image.title"
 	// ContainerMenuSectionTitle identifies the visual-only runtime sidebar section title.
 	ContainerMenuSectionTitle MessageKey = "menu.section.runtime"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.
@@ -69,6 +71,22 @@ const (
 	ContainerMountUsageUnsupported MessageKey = "ops.container.error.mountUsageUnsupported"
 	// ContainerDangerousActionsDisabled identifies disabled action errors.
 	ContainerDangerousActionsDisabled MessageKey = "ops.container.error.dangerousActionsDisabled"
+	// DockerImageInvalidReference identifies invalid image pull or target tag input.
+	DockerImageInvalidReference MessageKey = "ops.container.error.invalidImageReference"
+	// DockerImageInUse identifies image deletion blocked by container references.
+	DockerImageInUse MessageKey = "ops.container.error.imageInUse"
+	// DockerImagePullFailed identifies a Docker daemon pull failure without exposing daemon diagnostics.
+	DockerImagePullFailed MessageKey = "ops.container.error.imagePullFailed"
+	// DockerImageTagFailed identifies a Docker daemon tag failure without exposing daemon diagnostics.
+	DockerImageTagFailed MessageKey = "ops.container.error.imageTagFailed"
+	// DockerImageRemoveFailed identifies a Docker daemon remove failure without exposing daemon diagnostics.
+	DockerImageRemoveFailed MessageKey = "ops.container.error.imageRemoveFailed"
+	// DockerImagePullCompleted identifies successful image pull completion.
+	DockerImagePullCompleted MessageKey = "ops.container.image.pull.completed"
+	// DockerImageTagCompleted identifies successful image tag completion.
+	DockerImageTagCompleted MessageKey = "ops.container.image.tag.completed"
+	// DockerImageRemoveCompleted identifies successful image remove completion.
+	DockerImageRemoveCompleted MessageKey = "ops.container.image.remove.completed"
 	// ContainerAuditShellSessionRequested identifies shell session request audit messages.
 	ContainerAuditShellSessionRequested MessageKey = "ops.container.audit.shellSessionRequested"
 	// ContainerAuditShellTicketIssued identifies shell ticket issue audit messages.

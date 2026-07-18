@@ -29,6 +29,23 @@ import (
 	containerlocales "graft/server/modules/container/locales"
 )
 
+type pullErrorRuntime struct {
+	fakeRuntime
+}
+
+func (pullErrorRuntime) PullDockerImage(_ context.Context, _ string, emit func(DockerImagePullEvent) error) error {
+	if err := emit(DockerImagePullEvent{Status: "error", Error: true}); err != nil {
+		return err
+	}
+	return errDockerImagePullFailed
+}
+
+func (pullErrorRuntime) TagDockerImage(context.Context, string, string) error { return nil }
+
+func (pullErrorRuntime) RemoveDockerImage(context.Context, string, bool) error { return nil }
+
+var _ DockerImageWriter = pullErrorRuntime{}
+
 func newRouteTestService(options containerServiceOptions) (*service, error) {
 	if options.shellEnabled && len(options.websocketAllowedOrigins) == 0 {
 		options.websocketAllowedOrigins = []string{"https://console.example.com"}
@@ -75,6 +92,7 @@ func TestRoutesRequireContainerPermissions(t *testing.T) {
 	assertMountUsageRoutePermission(t, engine, authorizer)
 	assertRemoveRoutePermission(t, engine, authorizer)
 	assertBatchActionRoutePermission(t, engine, authorizer)
+	assertDockerImageWriteRoutePermissions(t, engine, authorizer)
 }
 
 func assertDetailRoutePermission(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
@@ -207,6 +225,30 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 	}
 }
 
+func assertDockerImageWriteRoutePermissions(t *testing.T, engine *gin.Engine, authorizer *recordingAuthorizer) {
+	t.Helper()
+	cases := []struct {
+		name       string
+		path       string
+		body       string
+		permission string
+	}{
+		{name: "pull", path: "/api/ops/docker/images/pull", body: `{"reference":"alpine:3.20"}`, permission: containercontract.DockerImagePullPermission.String()},
+		{name: "tag", path: "/api/ops/docker/images/sha256:abc123/tag", body: `{"target":"example/app:stable"}`, permission: containercontract.DockerImageTagPermission.String()},
+		{name: "remove", path: "/api/ops/docker/images/sha256:abc123/remove", body: `{"force":false}`, permission: containercontract.DockerImageRemovePermission.String()},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			authorizer.reset()
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, testCase.path, testCase.body))
+			if !slices.Contains(authorizer.permissions, testCase.permission) {
+				t.Fatalf("expected %s permission, got %#v", testCase.permission, authorizer.permissions)
+			}
+		})
+	}
+}
+
 func TestRoutesRejectInvalidRef(t *testing.T) {
 	t.Parallel()
 
@@ -218,6 +260,34 @@ func TestRoutesRejectInvalidRef(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), containercontract.ContainerInvalidRef.String()) {
 		t.Fatalf("expected invalid ref message key, got %s", response.Body.String())
+	}
+}
+
+func TestDockerImagePullRouteUsesServiceAndDoesNotDuplicateDaemonError(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:                 pullErrorRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"registry.example.com/app@sha256:abc"}`))
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if got := strings.Count(response.Body.String(), `"error":true`); got != 1 {
+		t.Fatalf("expected one daemon error event, got %d: %s", got, response.Body.String())
 	}
 }
 

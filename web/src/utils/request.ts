@@ -25,11 +25,19 @@ type RequestConfig = AxiosRequestConfigRetry & {
   requestOptions?: RequestOptions;
 };
 
+export type NdjsonPostConfig = Readonly<{
+  data: unknown;
+  onChunk: (chunk: string) => void;
+  signal?: AbortSignal;
+  url: string;
+}>;
+
 interface RequestInstance {
   get<T>(config: RequestConfig): Promise<T>;
   post<T>(config: RequestConfig): Promise<T>;
   put<T>(config: RequestConfig): Promise<T>;
   delete<T>(config: RequestConfig): Promise<T>;
+  postNdjson(config: NdjsonPostConfig): Promise<void>;
 }
 
 type AuthSessionBridge = {
@@ -101,18 +109,21 @@ client.interceptors.request.use(async (config) => {
     headers[HTTP_HEADER.AUTHORIZATION] = `${AUTH_SCHEME.BEARER} ${accessToken}`;
   }
 
-  const runtimeLocale = normalizeLocale(i18n.global.locale.value);
-
-  try {
-    const storedLocale = normalizeLocale(localStorage.getItem(STORAGE_KEY.LOCALE));
-    headers[HTTP_HEADER.LOCALE] = runtimeLocale ?? storedLocale ?? getDefaultLocale();
-  } catch {
-    headers[HTTP_HEADER.LOCALE] = runtimeLocale ?? getDefaultLocale();
-  }
+  headers[HTTP_HEADER.LOCALE] = resolveRequestLocale();
 
   config.headers = headers;
   return config;
 });
+
+function resolveRequestLocale() {
+  const runtimeLocale = normalizeLocale(i18n.global.locale.value);
+
+  try {
+    return runtimeLocale ?? normalizeLocale(localStorage.getItem(STORAGE_KEY.LOCALE)) ?? getDefaultLocale();
+  } catch {
+    return runtimeLocale ?? getDefaultLocale();
+  }
+}
 
 client.interceptors.response.use(
   async (response) => unwrapResponse(response),
@@ -138,6 +149,97 @@ async function requestWithMethod<T>(method: 'get' | 'post' | 'put' | 'delete', c
     ...config,
   });
   return response as T;
+}
+
+async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false): Promise<void> {
+  if (!authRefreshAttempted && shouldRefreshBeforeRequest()) {
+    await refreshClientSessionWithFailureHandling();
+  }
+
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  try {
+    const response = await fetch(`${resolveBaseURL()}${config.url}`, {
+      body: JSON.stringify(config.data),
+      credentials: 'include',
+      headers: buildStreamingHeaders(),
+      method: 'POST',
+      signal: config.signal,
+    });
+
+    if (!response.ok || !response.body) {
+      const error = await normalizeStreamingError(response);
+      if (!authRefreshAttempted && shouldRefresh(error, { url: config.url })) {
+        await refreshClientSessionWithFailureHandling();
+        return postNdjson(config, true);
+      }
+      if (shouldExitToLogin(error)) {
+        await clearClientSession();
+      }
+      throw error;
+    }
+
+    reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      config.onChunk(decoder.decode(value, { stream: true }));
+    }
+    const tail = decoder.decode();
+    if (tail) config.onChunk(tail);
+  } catch (error) {
+    if (isAbortError(error) || isApiRequestError(error)) {
+      throw error;
+    }
+
+    throw buildApiRequestError(0, {
+      success: false,
+      code: API_CODE.COMMON_INTERNAL_ERROR,
+      message: error instanceof Error ? error.message : i18n.global.t('app.request.failed'),
+      traceId: '',
+    });
+  } finally {
+    if (reader) {
+      try {
+        await reader.cancel();
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  }
+}
+
+function isAbortError(error: unknown): error is DOMException {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function buildStreamingHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const accessToken = getAccessToken();
+  if (accessToken) {
+    headers[HTTP_HEADER.AUTHORIZATION] = `${AUTH_SCHEME.BEARER} ${accessToken}`;
+  }
+  headers[HTTP_HEADER.LOCALE] = resolveRequestLocale();
+  return headers;
+}
+
+async function normalizeStreamingError(response: Response): Promise<ApiRequestError> {
+  try {
+    const payload = (await response.json()) as unknown;
+    if (isApiEnvelope(payload) && !payload.success) {
+      syncLoggerCorrelation(payload.traceId);
+      return buildApiRequestError(response.status, payload);
+    }
+  } catch {
+    // 流端点的非 JSON 错误仍按统一请求错误边界处理。
+  }
+
+  return buildApiRequestError(response.status, {
+    success: false,
+    code: API_CODE.COMMON_INTERNAL_ERROR,
+    message: response.statusText || i18n.global.t('app.request.failed'),
+    traceId: '',
+  });
 }
 
 function unwrapResponse<T>(response: AxiosResponse<T | ApiEnvelope<T>>): T {
@@ -333,6 +435,9 @@ export const request: RequestInstance = {
   },
   delete<T>(config: RequestConfig) {
     return requestWithMethod<T>('delete', config);
+  },
+  postNdjson(config: NdjsonPostConfig) {
+    return postNdjson(config);
   },
 };
 

@@ -384,6 +384,51 @@ func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, erro
 	return reader.ReadDockerImage(ctx, id)
 }
 
+func (s *service) dockerImageWriter(ctx context.Context) (DockerImageWriter, error) {
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return nil, err
+	}
+	runtime, err := s.runtimeForRequest()
+	if err != nil {
+		return nil, err
+	}
+	writer, ok := runtime.(DockerImageWriter)
+	if !ok {
+		return nil, errUnsupportedContainerRuntime
+	}
+	return writer, nil
+}
+
+func (s *service) PullDockerImage(ctx context.Context, reference string, emit func(DockerImagePullEvent) error) error {
+	writer, err := s.dockerImageWriter(ctx)
+	if err != nil {
+		return err
+	}
+	return writer.PullDockerImage(ctx, reference, emit)
+}
+
+func (s *service) TagDockerImage(ctx context.Context, id, target string) (DockerImageActionResult, error) {
+	writer, err := s.dockerImageWriter(ctx)
+	if err != nil {
+		return DockerImageActionResult{ID: id, Action: "tag"}, err
+	}
+	if err := writer.TagDockerImage(ctx, id, target); err != nil {
+		return DockerImageActionResult{ID: id, Action: "tag"}, err
+	}
+	return DockerImageActionResult{ID: id, Action: "tag", MessageKey: containercontract.DockerImageTagCompleted.String()}, nil
+}
+
+func (s *service) RemoveDockerImage(ctx context.Context, id string, force bool) (DockerImageActionResult, error) {
+	writer, err := s.dockerImageWriter(ctx)
+	if err != nil {
+		return DockerImageActionResult{ID: id, Action: "remove"}, err
+	}
+	if err := writer.RemoveDockerImage(ctx, id, force); err != nil {
+		return DockerImageActionResult{ID: id, Action: "remove"}, err
+	}
+	return DockerImageActionResult{ID: id, Action: "remove", MessageKey: containercontract.DockerImageRemoveCompleted.String()}, nil
+}
+
 func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {

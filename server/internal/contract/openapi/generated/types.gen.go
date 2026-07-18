@@ -2734,6 +2734,24 @@ func (e DashboardWidgetType) Valid() bool {
 	}
 }
 
+// Defines values for DockerImageActionResponseAction.
+const (
+	DockerImageActionResponseActionRemove DockerImageActionResponseAction = "remove"
+	DockerImageActionResponseActionTag    DockerImageActionResponseAction = "tag"
+)
+
+// Valid indicates whether the value is a known member of the DockerImageActionResponseAction enum.
+func (e DockerImageActionResponseAction) Valid() bool {
+	switch e {
+	case DockerImageActionResponseActionRemove:
+		return true
+	case DockerImageActionResponseActionTag:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EnvelopedSecurityOverviewResponseSuccess.
 const (
 	True EnvelopedSecurityOverviewResponseSuccess = true
@@ -7422,9 +7440,46 @@ type DockerImage struct {
 	SizeBytes         int64              `json:"size_bytes"`
 }
 
+// DockerImageActionResponse defines model for docker-image-action-response.
+type DockerImageActionResponse struct {
+	Action     DockerImageActionResponseAction `json:"action"`
+	Id         string                          `json:"id"`
+	MessageKey string                          `json:"message_key"`
+}
+
+// DockerImageActionResponseAction defines model for DockerImageActionResponse.Action.
+type DockerImageActionResponseAction string
+
 // DockerImageListResponse defines model for docker-image-list-response.
 type DockerImageListResponse struct {
 	Items []DockerImage `json:"items"`
+}
+
+// DockerImagePullEvent defines model for docker-image-pull-event.
+type DockerImagePullEvent struct {
+	// Error Indicates a sanitized daemon error. Raw daemon error text is never returned.
+	Error    *bool   `json:"error,omitempty"`
+	Id       *string `json:"id,omitempty"`
+	Progress *string `json:"progress,omitempty"`
+	Status   string  `json:"status"`
+}
+
+// DockerImagePullRequest defines model for docker-image-pull-request.
+type DockerImagePullRequest struct {
+	// Reference Complete image reference resolved by the configured Docker daemon credential store.
+	Reference string `json:"reference"`
+}
+
+// DockerImageRemoveRequest defines model for docker-image-remove-request.
+type DockerImageRemoveRequest struct {
+	// Force Force deletion even when Docker reports that a container references the image.
+	Force *bool `json:"force,omitempty"`
+}
+
+// DockerImageTagRequest defines model for docker-image-tag-request.
+type DockerImageTagRequest struct {
+	// Target Complete repository and tag target, for example registry.example.com/team/app:stable.
+	Target string `json:"target"`
 }
 
 // DockerNetwork defines model for docker-network.
@@ -8654,6 +8709,26 @@ type EnvelopedDockerImage struct {
 	// Code Existing canonical response code.
 	Code string      `json:"code"`
 	Data DockerImage `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerImageActionResponse defines model for enveloped-docker-image-action-response.
+type EnvelopedDockerImageActionResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data DockerImageActionResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11174,6 +11249,9 @@ type ContainerMountIdPath = string
 // ContainerShellTicketQuery defines model for container-shell-ticket-query.
 type ContainerShellTicketQuery = string
 
+// DockerImageIdPath defines model for docker-image-id-path.
+type DockerImageIdPath = string
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -13452,6 +13530,15 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
+
+// PostDockerImagePullJSONRequestBody defines body for PostDockerImagePull for application/json ContentType.
+type PostDockerImagePullJSONRequestBody = DockerImagePullRequest
+
+// PostDockerImageRemoveJSONRequestBody defines body for PostDockerImageRemove for application/json ContentType.
+type PostDockerImageRemoveJSONRequestBody = DockerImageRemoveRequest
+
+// PostDockerImageTagJSONRequestBody defines body for PostDockerImageTag for application/json ContentType.
+type PostDockerImageTagJSONRequestBody = DockerImageTagRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

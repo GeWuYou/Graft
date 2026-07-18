@@ -396,6 +396,18 @@
         "display": "删除容器",
         "description": "允许在启用高危操作后删除容器。"
       },
+      "dockerImagePull": {
+        "display": "拉取镜像",
+        "description": "允许从 Docker 守护进程已配置的仓库拉取镜像。"
+      },
+      "dockerImageTag": {
+        "display": "为镜像打标签",
+        "description": "允许为本地 Docker 镜像创建新的仓库标签。"
+      },
+      "dockerImageRemove": {
+        "display": "删除镜像",
+        "description": "允许删除本地 Docker 镜像，强制删除需额外确认。"
+      },
       "applicationView": {
         "display": "查看 Compose 应用",
         "description": "读取已注册 Compose 应用的摘要和只读详情。"

@@ -8,6 +8,7 @@ import database from '@iconify-icons/lucide/database';
 import fileSearch from '@iconify-icons/lucide/file-search';
 import folder from '@iconify-icons/lucide/folder';
 import history from '@iconify-icons/lucide/history';
+import imageIcon from '@iconify-icons/lucide/image';
 import keyRound from '@iconify-icons/lucide/key-round';
 import dashboard from '@iconify-icons/lucide/layout-dashboard';
 import lock from '@iconify-icons/lucide/lock';
@@ -52,6 +53,7 @@ const menuIcons = {
   'security-overview': shieldCheck,
   folder,
   history,
+  image: imageIcon,
   lock,
   server,
   setting: settings,

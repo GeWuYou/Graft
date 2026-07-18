@@ -2332,6 +2332,51 @@ func (e GetDockerImages500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostDockerImagePull401JSONResponseBodySuccess.
+const (
+	PostDockerImagePull401JSONResponseBodySuccessFalse PostDockerImagePull401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImagePull401JSONResponseBodySuccess enum.
+func (e PostDockerImagePull401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImagePull401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImagePull403JSONResponseBodySuccess.
+const (
+	PostDockerImagePull403JSONResponseBodySuccessFalse PostDockerImagePull403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImagePull403JSONResponseBodySuccess enum.
+func (e PostDockerImagePull403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImagePull403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImagePull500JSONResponseBodySuccess.
+const (
+	PostDockerImagePull500JSONResponseBodySuccessFalse PostDockerImagePull500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImagePull500JSONResponseBodySuccess enum.
+func (e PostDockerImagePull500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImagePull500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerImage401JSONResponseBodySuccess.
 const (
 	GetDockerImage401JSONResponseBodySuccessFalse GetDockerImage401JSONResponseBodySuccess = false
@@ -2371,6 +2416,132 @@ const (
 func (e GetDockerImage500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetDockerImage500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageRemove200JSONResponseBodyDataAction.
+const (
+	PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionRemove PostDockerImageRemove200JSONResponseBodyDataAction = "remove"
+	PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionTag    PostDockerImageRemove200JSONResponseBodyDataAction = "tag"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageRemove200JSONResponseBodyDataAction enum.
+func (e PostDockerImageRemove200JSONResponseBodyDataAction) Valid() bool {
+	switch e {
+	case PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionRemove:
+		return true
+	case PostDockerImageRemove200JSONResponseBodyDataActionDockerImageActionResponseActionTag:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageRemove401JSONResponseBodySuccess.
+const (
+	PostDockerImageRemove401JSONResponseBodySuccessFalse PostDockerImageRemove401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageRemove401JSONResponseBodySuccess enum.
+func (e PostDockerImageRemove401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageRemove401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageRemove403JSONResponseBodySuccess.
+const (
+	PostDockerImageRemove403JSONResponseBodySuccessFalse PostDockerImageRemove403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageRemove403JSONResponseBodySuccess enum.
+func (e PostDockerImageRemove403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageRemove403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageRemove500JSONResponseBodySuccess.
+const (
+	PostDockerImageRemove500JSONResponseBodySuccessFalse PostDockerImageRemove500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageRemove500JSONResponseBodySuccess enum.
+func (e PostDockerImageRemove500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageRemove500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageTag200JSONResponseBodyDataAction.
+const (
+	PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionRemove PostDockerImageTag200JSONResponseBodyDataAction = "remove"
+	PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionTag    PostDockerImageTag200JSONResponseBodyDataAction = "tag"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageTag200JSONResponseBodyDataAction enum.
+func (e PostDockerImageTag200JSONResponseBodyDataAction) Valid() bool {
+	switch e {
+	case PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionRemove:
+		return true
+	case PostDockerImageTag200JSONResponseBodyDataActionDockerImageActionResponseActionTag:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageTag401JSONResponseBodySuccess.
+const (
+	PostDockerImageTag401JSONResponseBodySuccessFalse PostDockerImageTag401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageTag401JSONResponseBodySuccess enum.
+func (e PostDockerImageTag401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageTag401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageTag403JSONResponseBodySuccess.
+const (
+	PostDockerImageTag403JSONResponseBodySuccessFalse PostDockerImageTag403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageTag403JSONResponseBodySuccess enum.
+func (e PostDockerImageTag403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageTag403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageTag500JSONResponseBodySuccess.
+const (
+	PostDockerImageTag500JSONResponseBodySuccessFalse PostDockerImageTag500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageTag500JSONResponseBodySuccess enum.
+func (e PostDockerImageTag500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageTag500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2610,13 +2781,13 @@ func (e GetDockerVolume403JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for GetDockerVolume500JSONResponseBodySuccess.
 const (
-	GetDockerVolume500JSONResponseBodySuccessFalse GetDockerVolume500JSONResponseBodySuccess = false
+	False GetDockerVolume500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the GetDockerVolume500JSONResponseBodySuccess enum.
 func (e GetDockerVolume500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case GetDockerVolume500JSONResponseBodySuccessFalse:
+	case False:
 		return true
 	default:
 		return false
@@ -3201,6 +3372,21 @@ type GetDockerImages403JSONResponseBodySuccess bool
 // GetDockerImages500JSONResponseBodySuccess defines parameters for GetDockerImages.
 type GetDockerImages500JSONResponseBodySuccess bool
 
+// PostDockerImagePullJSONBody defines parameters for PostDockerImagePull.
+type PostDockerImagePullJSONBody struct {
+	// Reference Complete image reference resolved by the configured Docker daemon credential store.
+	Reference string `json:"reference"`
+}
+
+// PostDockerImagePull401JSONResponseBodySuccess defines parameters for PostDockerImagePull.
+type PostDockerImagePull401JSONResponseBodySuccess bool
+
+// PostDockerImagePull403JSONResponseBodySuccess defines parameters for PostDockerImagePull.
+type PostDockerImagePull403JSONResponseBodySuccess bool
+
+// PostDockerImagePull500JSONResponseBodySuccess defines parameters for PostDockerImagePull.
+type PostDockerImagePull500JSONResponseBodySuccess bool
+
 // GetDockerImage401JSONResponseBodySuccess defines parameters for GetDockerImage.
 type GetDockerImage401JSONResponseBodySuccess bool
 
@@ -3209,6 +3395,42 @@ type GetDockerImage403JSONResponseBodySuccess bool
 
 // GetDockerImage500JSONResponseBodySuccess defines parameters for GetDockerImage.
 type GetDockerImage500JSONResponseBodySuccess bool
+
+// PostDockerImageRemoveJSONBody defines parameters for PostDockerImageRemove.
+type PostDockerImageRemoveJSONBody struct {
+	// Force Force deletion even when Docker reports that a container references the image.
+	Force *bool `json:"force,omitempty"`
+}
+
+// PostDockerImageRemove200JSONResponseBodyDataAction defines parameters for PostDockerImageRemove.
+type PostDockerImageRemove200JSONResponseBodyDataAction string
+
+// PostDockerImageRemove401JSONResponseBodySuccess defines parameters for PostDockerImageRemove.
+type PostDockerImageRemove401JSONResponseBodySuccess bool
+
+// PostDockerImageRemove403JSONResponseBodySuccess defines parameters for PostDockerImageRemove.
+type PostDockerImageRemove403JSONResponseBodySuccess bool
+
+// PostDockerImageRemove500JSONResponseBodySuccess defines parameters for PostDockerImageRemove.
+type PostDockerImageRemove500JSONResponseBodySuccess bool
+
+// PostDockerImageTagJSONBody defines parameters for PostDockerImageTag.
+type PostDockerImageTagJSONBody struct {
+	// Target Complete repository and tag target, for example registry.example.com/team/app:stable.
+	Target string `json:"target"`
+}
+
+// PostDockerImageTag200JSONResponseBodyDataAction defines parameters for PostDockerImageTag.
+type PostDockerImageTag200JSONResponseBodyDataAction string
+
+// PostDockerImageTag401JSONResponseBodySuccess defines parameters for PostDockerImageTag.
+type PostDockerImageTag401JSONResponseBodySuccess bool
+
+// PostDockerImageTag403JSONResponseBodySuccess defines parameters for PostDockerImageTag.
+type PostDockerImageTag403JSONResponseBodySuccess bool
+
+// PostDockerImageTag500JSONResponseBodySuccess defines parameters for PostDockerImageTag.
+type PostDockerImageTag500JSONResponseBodySuccess bool
 
 // GetDockerNetworks401JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks401JSONResponseBodySuccess bool
@@ -3266,3 +3488,12 @@ type PostContainerRemoveJSONRequestBody PostContainerRemoveJSONBody
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody PostContainerShellSessionJSONBody
+
+// PostDockerImagePullJSONRequestBody defines body for PostDockerImagePull for application/json ContentType.
+type PostDockerImagePullJSONRequestBody PostDockerImagePullJSONBody
+
+// PostDockerImageRemoveJSONRequestBody defines body for PostDockerImageRemove for application/json ContentType.
+type PostDockerImageRemoveJSONRequestBody PostDockerImageRemoveJSONBody
+
+// PostDockerImageTagJSONRequestBody defines body for PostDockerImageTag for application/json ContentType.
+type PostDockerImageTagJSONRequestBody PostDockerImageTagJSONBody

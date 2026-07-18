@@ -16,6 +16,10 @@ describe('localizeRouteTitle', () => {
       'zh-CN': '服务状态',
       'en-US': 'Service Status',
     });
+    expect(localizeRouteTitle('', 'container.route.images.title')).toEqual({
+      'zh-CN': '镜像管理',
+      'en-US': 'Image Management',
+    });
   });
 
   it('falls back to bootstrap title when title_key is missing or untranslated', () => {

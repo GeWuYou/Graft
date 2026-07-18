@@ -396,6 +396,18 @@
         "display": "Delete Containers",
         "description": "Allows deleting containers when dangerous actions are enabled."
       },
+      "dockerImagePull": {
+        "display": "Pull Images",
+        "description": "Allows pulling images from registries configured for the Docker daemon."
+      },
+      "dockerImageTag": {
+        "display": "Tag Images",
+        "description": "Allows creating repository tags for local Docker images."
+      },
+      "dockerImageRemove": {
+        "display": "Delete Images",
+        "description": "Allows deleting local Docker images; force deletion requires explicit confirmation."
+      },
       "applicationView": {
         "display": "View Compose Applications",
         "description": "Read registered Compose application summaries and readonly details."

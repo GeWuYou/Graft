@@ -1,0 +1,9 @@
+type: object
+required: [reference]
+properties:
+  reference:
+    type: string
+    minLength: 1
+    maxLength: 512
+    description: Complete image reference resolved by the configured Docker daemon credential store.
+additionalProperties: false

@@ -1,5 +1,6 @@
 menu.docker.title: Docker
 menu.container.title: 容器
+menu.docker.image.title: 镜像管理
 menu.section.runtime: 运行时
 ops.container.error.runtimeDisabled: 容器运行时访问未启用
 ops.container.error.runtimeSocketMissing: 容器运行时 socket 不存在
@@ -28,6 +29,14 @@ ops.container.error.shellUnsupportedControlMessage: 当前终端控制消息不�
 ops.container.error.timeout: 容器运行时操作超时
 ops.container.error.mountUsageUnsupported: 该挂载不支持用量统计
 ops.container.error.dangerousActionsDisabled: 高危容器操作未启用
+ops.container.error.invalidImageReference: 无效的 Docker 镜像引用
+ops.container.error.imageInUse: Docker 镜像正被一个或多个容器引用
+ops.container.error.imagePullFailed: Docker 镜像拉取失败
+ops.container.error.imageTagFailed: Docker 镜像打标签失败
+ops.container.error.imageRemoveFailed: Docker 镜像删除失败
+ops.container.image.pull.completed: Docker 镜像拉取完成
+ops.container.image.tag.completed: Docker 镜像打标签完成
+ops.container.image.remove.completed: Docker 镜像删除完成
 ops.container.audit.shellSessionRequested: 已请求容器 Shell 会话
 ops.container.audit.shellTicketIssued: 已签发容器 Shell 会话票据
 ops.container.audit.shellTicketRejected: 容器 Shell 会话票据已拒绝

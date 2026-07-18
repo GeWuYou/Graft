@@ -1,0 +1,12 @@
+type: object
+required: [status]
+properties:
+  status:
+    type: string
+  id:
+    type: string
+  progress:
+    type: string
+  error:
+    type: boolean
+    description: Indicates a sanitized daemon error. Raw daemon error text is never returned.

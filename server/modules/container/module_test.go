@@ -273,6 +273,9 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerStopPermission.String(),
 		containercontract.ContainerRestartPermission.String(),
 		containercontract.ContainerRemovePermission.String(),
+		containercontract.DockerImagePullPermission.String(),
+		containercontract.DockerImageTagPermission.String(),
+		containercontract.DockerImageRemovePermission.String(),
 	}
 }
 
@@ -280,8 +283,8 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 2 {
-		t.Fatalf("expected Docker group and container menu item, got %#v", items)
+	if len(items) != 3 {
+		t.Fatalf("expected Docker group and its two management entries, got %#v", items)
 	}
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "docker",
@@ -292,6 +295,15 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		path:                     "",
 		icon:                     "docker",
 		permission:               "",
+		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+	})
+	assertMenuItem(t, items, expectedMenuItem{
+		code:                     "docker.image.list",
+		title:                    "",
+		titleKey:                 containercontract.DockerImageMenuTitle.String(),
+		path:                     containercontract.DockerImageMenuPath,
+		icon:                     "image",
+		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
 	assertMenuItem(t, items, expectedMenuItem{
@@ -308,6 +320,9 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	}
 	if items[1].ParentCode != "docker" || items[1].Kind != menu.NodeKindEntry {
 		t.Fatalf("container list must be a Docker child entry, got %#v", items[1])
+	}
+	if items[2].ParentCode != "docker" || items[2].Kind != menu.NodeKindEntry {
+		t.Fatalf("image management must be a Docker child entry, got %#v", items[2])
 	}
 }
 

@@ -43,4 +43,16 @@ describe('TaskLogRealtimeBatcher', () => {
 
     expect(batcher.nextAfterSequence()).toBe(4);
   });
+
+  it('does not commit a duplicate snapshot for an empty response with an unchanged cursor', () => {
+    const commits: number[] = [];
+    const batcher = new TaskLogRealtimeBatcher({
+      onCommit: (snapshot) => commits.push(snapshot.contentVersion),
+    });
+
+    batcher.seed(response([entry(1)], 1));
+    batcher.append(response([], 1));
+
+    expect(commits).toEqual([1]);
+  });
 });

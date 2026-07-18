@@ -101,9 +101,21 @@ func permissionSeedsFromItems(localizer *i18n.Service, items []permission.Item) 
 		}
 		description := item.Description
 		if item.DescriptionKey != "" {
-			description = localizer.Lookup(i18n.LookupRequest{Locale: i18n.LocaleTag(localizer.DefaultLocale()), Key: i18n.MessageKey(item.DescriptionKey), FallbackMessage: description})
+			description = lookupPermissionSeedMessage(localizer, item.DescriptionKey, description)
 		}
-		seeds = append(seeds, moduleapi.PermissionSeed{Code: item.Code, Display: localizer.Lookup(i18n.LookupRequest{Locale: i18n.LocaleTag(localizer.DefaultLocale()), Key: i18n.MessageKey(item.DisplayKey), FallbackMessage: item.Name}), DisplayKey: item.DisplayKey, Description: description, DescriptionKey: item.DescriptionKey, Module: item.Module})
+		seeds = append(seeds, moduleapi.PermissionSeed{Code: item.Code, Display: lookupPermissionSeedMessage(localizer, item.DisplayKey, item.Name), DisplayKey: item.DisplayKey, Description: description, DescriptionKey: item.DescriptionKey, Module: item.Module})
 	}
 	return seeds, nil
+}
+
+// lookupPermissionSeedMessage 按 canonical message key 读取已注册资源，避免 owner-local key 被误套用默认 core namespace。
+func lookupPermissionSeedMessage(localizer *i18n.Service, key string, fallback string) string {
+	resources := localizer.RegisteredMessageResources(
+		i18n.LocaleTag(localizer.DefaultLocale()),
+		i18n.MessageKey(key),
+	)
+	if len(resources) > 0 {
+		return resources[0].Text
+	}
+	return fallback
 }

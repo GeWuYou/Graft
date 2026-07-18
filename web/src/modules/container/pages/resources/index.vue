@@ -10,9 +10,6 @@
           t('container.resources.openContainers')
         }}</t-button></t-tab-panel
       >
-      <t-tab-panel value="images" :label="t('container.resources.tabs.images')"
-        ><t-table row-key="id" :data="images" :columns="imageColumns" :loading="loading"
-      /></t-tab-panel>
       <t-tab-panel value="networks" :label="t('container.resources.tabs.networks')"
         ><t-table row-key="id" :data="networks" :columns="networkColumns" :loading="loading"
       /></t-tab-panel>
@@ -45,21 +42,13 @@ const router = useRouter();
 
 /** 此页面仅展示按 tab 激活的 Docker 静态资源快照，不承载容器实时运行状态。 */
 const active = ref<DockerResourceTab>('containers');
-const {
-  images: imagesQuery,
-  networks: networksQuery,
-  system: systemQuery,
-  volumes: volumesQuery,
-} = useDockerResourceQueries(active);
+const { networks: networksQuery, system: systemQuery, volumes: volumesQuery } = useDockerResourceQueries(active);
 
-const images = computed(() => imagesQuery.data.value?.items ?? []);
 const networks = computed(() => networksQuery.data.value?.items ?? []);
 const volumes = computed(() => volumesQuery.data.value?.items ?? []);
 const system = computed(() => systemQuery.data.value ?? {});
 const loading = computed(() => {
   switch (active.value) {
-    case 'images':
-      return imagesQuery.isFetching.value;
     case 'networks':
       return networksQuery.isFetching.value;
     case 'volumes':
@@ -71,11 +60,6 @@ const loading = computed(() => {
   }
 });
 
-const imageColumns: TableProps['columns'] = [
-  { colKey: 'id', title: 'ID' },
-  { colKey: 'repository_tags', title: t('container.resources.columns.tags') },
-  { colKey: 'size_bytes', title: t('container.resources.columns.size') },
-];
 const networkColumns: TableProps['columns'] = [
   { colKey: 'name', title: t('container.resources.columns.name') },
   { colKey: 'driver', title: t('container.resources.columns.driver') },

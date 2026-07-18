@@ -25,6 +25,7 @@ describe('module registration aggregation', () => {
     expect(getBootstrapRouteRegistration('/observability/modules')?.routeName).toBe('MonitorModuleRuntimeOverview');
     expect(getBootstrapRouteRegistration('/platform/scheduled-tasks')?.routeName).toBe('ScheduledTaskList');
     expect(getBootstrapRouteRegistration('/platform/system-config')?.routeName).toBe('SystemConfigList');
+    expect(getBootstrapRouteRegistration('/infrastructure/images')?.routeName).toBe('DockerImageList');
     expect(getBootstrapRouteRegistration('/audit/overview')).toBeUndefined();
     expect(getBootstrapRouteRegistration('/security/audit')?.routeName).toBe('AuditLogList');
     expect(getBootstrapRouteRegistration('/notifications')).toBeUndefined();

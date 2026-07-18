@@ -2235,6 +2235,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/images/pull': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Pull a Docker image through the configured daemon */
+    post: operations['postDockerImagePull'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/images/{id}': {
     parameters: {
       query?: never;
@@ -2246,6 +2263,40 @@ export interface paths {
     get: operations['getDockerImage'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/images/{id}/tag': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Tag a Docker image */
+    post: operations['postDockerImageTag'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/images/{id}/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Remove a Docker image */
+    post: operations['postDockerImageRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -3547,12 +3598,18 @@ export interface components {
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     DockerImage: components['schemas']['docker-image'];
     DockerImageListResponse: components['schemas']['docker-image-list-response'];
+    DockerImagePullRequest: components['schemas']['docker-image-pull-request'];
+    DockerImageTagRequest: components['schemas']['docker-image-tag-request'];
+    DockerImageRemoveRequest: components['schemas']['docker-image-remove-request'];
+    DockerImageActionResponse: components['schemas']['docker-image-action-response'];
+    DockerImagePullEvent: components['schemas']['docker-image-pull-event'];
     DockerNetwork: components['schemas']['docker-network'];
     DockerNetworkListResponse: components['schemas']['docker-network-list-response'];
     DockerVolume: components['schemas']['docker-volume'];
     DockerVolumeListResponse: components['schemas']['docker-volume-list-response'];
     EnvelopedDockerImage: components['schemas']['enveloped-docker-image'];
     EnvelopedDockerImageListResponse: components['schemas']['enveloped-docker-image-list-response'];
+    EnvelopedDockerImageActionResponse: components['schemas']['enveloped-docker-image-action-response'];
     EnvelopedDockerNetwork: components['schemas']['enveloped-docker-network'];
     EnvelopedDockerNetworkListResponse: components['schemas']['enveloped-docker-network-list-response'];
     EnvelopedDockerVolume: components['schemas']['enveloped-docker-volume'];
@@ -6412,8 +6469,39 @@ export interface components {
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
     };
+    'docker-image-pull-request': {
+      /** @description Complete image reference resolved by the configured Docker daemon credential store. */
+      reference: string;
+    };
+    'docker-image-pull-event': {
+      status: string;
+      id?: string;
+      progress?: string;
+      /** @description Indicates a sanitized daemon error. Raw daemon error text is never returned. */
+      error?: boolean;
+    };
     'enveloped-docker-image': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image'];
+    };
+    'docker-image-tag-request': {
+      /** @description Complete repository and tag target, for example registry.example.com/team/app:stable. */
+      target: string;
+    };
+    'docker-image-action-response': {
+      id: string;
+      /** @enum {string} */
+      action: 'tag' | 'remove';
+      message_key: string;
+    };
+    'enveloped-docker-image-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image-action-response'];
+    };
+    'docker-image-remove-request': {
+      /**
+       * @description Force deletion even when Docker reports that a container references the image.
+       * @default false
+       */
+      force: boolean;
     };
     'docker-network': {
       id: string;
@@ -7860,6 +7948,8 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Docker image ID or repository reference. */
+    'docker-image-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
     'application-list-keyword': string;
     /** @description Optional deployment adapter kind. Compose is the only currently supported value. */
@@ -14258,6 +14348,40 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  postDockerImagePull: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-image-pull-request'];
+      };
+    };
+    responses: {
+      /** @description Sanitized Docker pull progress as newline-delimited JSON. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/x-ndjson': components['schemas']['docker-image-pull-event'];
+        };
+      };
+      /** @description Invalid image reference */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
   getDockerImage: {
     parameters: {
       query?: never;
@@ -14283,6 +14407,101 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Image not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postDockerImageTag: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Docker image ID or repository reference. */
+        id: components['parameters']['docker-image-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-image-tag-request'];
+      };
+    };
+    responses: {
+      /** @description Docker image tag result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image-action-response'];
+        };
+      };
+      /** @description Invalid image reference */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Image not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postDockerImageRemove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Docker image ID or repository reference. */
+        id: components['parameters']['docker-image-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['docker-image-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Docker image removal result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image-action-response'];
+        };
+      };
+      /** @description Invalid image reference */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Image not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Image is in use by a container */
+      409: {
         headers: {
           [name: string]: unknown;
         };

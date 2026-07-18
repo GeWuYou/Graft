@@ -63,6 +63,40 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 	s.publishAuditEvent(detached.ctx, event, "publish container audit event failed")
 }
 
+func (s *service) publishDockerImageAudit(ctx context.Context, action containercontract.AuditAction, imageID, target string, force bool, err error) {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
+		return
+	}
+	defer detached.cancel()
+	messageKey, message := auditErrorMessageFields(err)
+	metadata := map[string]any{
+		"image_id": imageID,
+		"target":   target,
+		"runtime":  runtimeNameDocker,
+		"endpoint": safeEndpointLabel(s.runtimeOptions.endpoint),
+		"force":    force,
+		"result":   auditResult(err),
+		"error":    messageKey,
+	}
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{
+		Kind:          moduleapi.AuditEventKindDomain,
+		Operator:      currentAuditOperator(detached.ctx),
+		Action:        action.String(),
+		ResourceType:  "docker_image",
+		ResourceID:    imageID,
+		ResourceName:  imageID,
+		StatusCode:    auditStatusCode(err),
+		Success:       err == nil,
+		MessageKey:    messageKey,
+		Message:       message,
+		Metadata:      metadata,
+		RequestMethod: "",
+		RequestPath:   "",
+	}, "publish docker image audit event failed")
+}
+
 func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
 	detached := startDetachedAuditContext(ctx, s)
 	if !detached.ok {

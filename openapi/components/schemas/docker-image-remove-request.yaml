@@ -1,0 +1,7 @@
+type: object
+properties:
+  force:
+    type: boolean
+    default: false
+    description: Force deletion even when Docker reports that a container references the image.
+additionalProperties: false

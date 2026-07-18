@@ -1,0 +1,8 @@
+name: id
+in: path
+required: true
+description: Docker image ID or repository reference.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 512
