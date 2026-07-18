@@ -16,6 +16,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	containeropenapi "graft/server/internal/contract/openapi/container"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
@@ -587,7 +588,24 @@ func readRef(ginCtx *gin.Context, r routeRuntime) (Ref, bool) {
 }
 
 func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
-	httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, statusForError(err), messageKeyForError(err).String(), nil)
+	status := statusForError(err)
+	if status != http.StatusInternalServerError {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, status, messageKeyForError(err).String(), nil)
+		return
+	}
+
+	reported := err
+	if r.ctx != nil {
+		if r.ctx.AppLogger != nil {
+			reported = logger.ReportError(ginCtx.Request.Context(), r.ctx.AppLogger.Named("modules.container.http"), "container request failed", err,
+				logger.StringField("module", moduleID),
+				logger.StringField(logger.FieldOperation, ginCtx.FullPath()),
+			)
+		}
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
+		return
+	}
+	httpx.AbortAppError(ginCtx, nil, nil, reported)
 }
 
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {

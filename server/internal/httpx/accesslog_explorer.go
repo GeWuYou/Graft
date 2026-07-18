@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/eventbus"
@@ -134,7 +135,7 @@ func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin
 
 		result, err := repo.ListAccessLogs(ctx.Request.Context(), query)
 		if err != nil {
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 
@@ -163,7 +164,7 @@ func handleGetAccessLogDetail(localizer *i18n.Service, repo AccessLogRepository)
 				})
 				return
 			}
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 

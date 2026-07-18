@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,6 +134,30 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 	expectedSlowRoute := accessLogMenuListPath + "?duration_min_ms=1000"
 	if items[1]["route_location"] != expectedSlowRoute {
 		t.Fatalf("expected slow request to drill into access-log filters, got %#v", items[1])
+	}
+}
+
+func TestHandleListAccessLogsReportsUnexpectedRepositoryFailureOnce(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	core, observed := observer.New(zapcore.ErrorLevel)
+	previous := zap.L()
+	zap.ReplaceGlobals(zap.New(core))
+	t.Cleanup(func() { zap.ReplaceGlobals(previous) })
+
+	engine := gin.New()
+	engine.Use(RequestIDMiddleware())
+	engine.GET("/access-log", handleListAccessLogs(nil, &stubAccessLogRepository{listErr: errors.New("database unavailable")}))
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/access-log", nil))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+	if len(observed.All()) != 1 {
+		t.Fatalf("expected one fallback error log, got %#v", observed.All())
+	}
+	if strings.Contains(recorder.Body.String(), "database unavailable") {
+		t.Fatalf("expected repository cause to stay out of response: %s", recorder.Body.String())
 	}
 }
 

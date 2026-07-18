@@ -18,12 +18,11 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/contract/httpheader"
-	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	monitoropenapi "graft/server/internal/contract/openapi/monitor"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
-	"graft/server/internal/logger/logsafe"
+	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -407,40 +406,39 @@ func newServerStatusHandler(handler *monitorServerHandler) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
 		params := bindGeneratedMonitorParams(ginCtx)
 		if err := handler.GetMonitorServerStatus(ginCtx.Request.Context(), params); err != nil {
-			var localizer *i18n.Service
-			if handler.ctx != nil {
-				localizer = handler.ctx.I18n
-				if handler.ctx.Logger != nil {
-					logsafe.Error(handler.ctx.Logger, "validate monitor server status params failed",
-						zap.String("module", handler.moduleName),
-						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
-						zap.Error(err),
-					)
-				}
+			reported := err
+			if handler.ctx != nil && handler.ctx.AppLogger != nil {
+				reported = logger.ReportError(ginCtx.Request.Context(), handler.ctx.AppLogger.Named("modules.monitor.server_status"), "validate monitor server status params failed", err,
+					logger.StringField("module", handler.moduleName),
+					logger.StringField(logger.FieldOperation, "validate_server_status_request"),
+				)
 			}
-			httpx.AbortLocalizedError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, handler.localizer(), handler.runtimeLogger(), reported)
 			return
 		}
 		trendRange := parseGeneratedTrendRange(params.TrendRange)
 		payload, buildErr := buildServerStatusResponse(ginCtx.Request.Context(), handler.ctx, handler.instance, trendRange)
 		if buildErr != nil {
-			var localizer *i18n.Service
-			if handler.ctx != nil {
-				localizer = handler.ctx.I18n
-				if handler.ctx.Logger != nil {
-					logsafe.Error(handler.ctx.Logger, "build monitor server status failed",
-						zap.String("module", handler.moduleName),
-						zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
-						zap.Error(buildErr),
-					)
-				}
+			reported := buildErr
+			if handler.ctx != nil && handler.ctx.AppLogger != nil {
+				reported = logger.ReportError(ginCtx.Request.Context(), handler.ctx.AppLogger.Named("modules.monitor.server_status"), "build monitor server status failed", buildErr,
+					logger.StringField("module", handler.moduleName),
+					logger.StringField(logger.FieldOperation, "read_server_status"),
+				)
 			}
-			httpx.AbortLocalizedError(ginCtx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, handler.localizer(), handler.runtimeLogger(), reported)
 			return
 		}
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	}
+}
+
+func (h *monitorServerHandler) runtimeLogger() *zap.Logger {
+	if h == nil || h.ctx == nil {
+		return nil
+	}
+	return h.ctx.Logger
 }
 
 func (h *monitorServerHandler) GetMonitorServerStatus(ctx context.Context, params monitoropenapi.GetMonitorServerStatusParams) error {

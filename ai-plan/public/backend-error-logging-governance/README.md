@@ -10,8 +10,8 @@
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `server/internal/logger/**`
   - `server/internal/httpx/**`
-- Completed so far: shared foundation, Project/Task priority chain, and remaining synchronous administrative HTTP modules are committed.
-- Not started yet: operational synchronous modules, asynchronous recovery/cause integrity, and final governance audit.
+- Completed so far: shared foundation, Project/Task priority chain, administrative routes, and operational synchronous HTTP modules are committed.
+- Not started yet: asynchronous recovery/cause integrity and final governance audit.
 
 ## Recovery Receipt
 
@@ -49,9 +49,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 3 moved auth, user, RBAC, scheduler, announcement, notification, system-config, security, and runtime-target synchronous unknown failures to the shared safe AppError path.
+- Batch 4 moved container, audit, monitor, and access-log explorer synchronous unknown failures to the shared safe AppError path. Realtime ticket/auth failures and dashboard widget failures were reviewed as already-owned expected or semantic error paths.
 - No authority escalation or compatibility exception is active.
-- Next step: `Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)`.
+- Next step: `Batch 5 - asynchronous recovery, cause integrity, and logging governance guard`.
 
 ## Work Intake
 
@@ -60,7 +60,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Migrate operational synchronous HTTP modules, retaining the shared AppError/ReportError authority.
+- Audit asynchronous recovery boundaries, cause wrapping, and the bounded governance guard while retaining the shared AppError/ReportError authority.
 
 ## Validation Targets
 
