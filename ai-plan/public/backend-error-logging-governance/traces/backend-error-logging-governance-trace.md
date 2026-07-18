@@ -26,6 +26,13 @@
 - Task request routes no longer include raw causes in `data.error`; typed safe descriptors retain existing 400, 404, and 409 status behavior while unknown failures remain safe 500 responses.
 - Regression coverage proves one correlated Project business error with no duplicate HTTP fallback and no Task internal-cause response leak. Focused tests, the full server suite, and backend validation passed.
 
+## 2026-07-19 Batch 3 Closeout
+
+- Migrated the remaining administrative synchronous request boundaries without changing their existing local 4xx or i18n contract mappings.
+- Auth/User/Security use `ReportError` where the route still owns sufficient operation semantics; other modules now route unknown failures to `AbortAppError`, which supplies exactly one correlated fallback cause log.
+- Removed ordinary raw route ERROR calls from the migrated paths. Runtime-target retains the injected runtime logger only for the HTTP fallback boundary.
+- Narrowed the next batch to operational synchronous modules; asynchronous recovery and static governance guard work remain separate.
+
 ## Loop Batch State
 
 ```json
@@ -33,15 +40,16 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "Batch 1 - authority, topic bootstrap, and core error/logging foundation",
-    "Batch 2 - Project/Task priority request failure chain"
+    "Batch 2 - Project/Task priority request failure chain",
+    "Batch 3 - remaining synchronous administrative HTTP modules"
   ],
   "pending_batches": [
-    "Batch 3 - remaining synchronous HTTP modules",
-    "Batch 4 - asynchronous recovery, cause integrity, and governance guard",
-    "Batch 5 - full audit, validation, and archive readiness"
+    "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
+    "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
+    "Batch 6 - full audit, validation, and archive readiness"
   ],
-  "current_batch": "Batch 2 - Project/Task priority request failure chain",
-  "next_batch": "Batch 3 - remaining synchronous HTTP modules",
-  "closeout_status": "batch-2-complete"
+  "current_batch": "Batch 3 - remaining synchronous administrative HTTP modules",
+  "next_batch": "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
+  "closeout_status": "batch-3-complete"
 }
 ```

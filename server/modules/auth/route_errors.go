@@ -13,7 +13,6 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	applog "graft/server/internal/logger"
-	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 )
@@ -67,8 +66,13 @@ func resolveAuthRouteAppLogger(ctx *module.Context) applog.AppLogger {
 func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	mapped := r.authFlow.RouteError(err)
 	if mapped.Status == http.StatusInternalServerError {
-		logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
-		logsafe.Error(r.logger, message, logFields...)
+		appFields := []applog.Field{applog.StringField("module", r.moduleName)}
+		for _, field := range fields {
+			appFields = append(appFields, applog.Field{Key: field.Key, Value: zapFieldValue(field)})
+		}
+		reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err, appFields...)
+		httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
+		return
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, mapped.Status, mapped.MessageKey, mapped.Data)
@@ -85,9 +89,8 @@ func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message str
 			Value: zapFieldValue(field),
 		})
 	}
-	r.appLogger().Error(ginCtx.Request.Context(), message, appFields...)
-
-	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+	reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err, appFields...)
+	httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
 }
 
 func zapFieldValue(field zap.Field) any {

@@ -10,8 +10,8 @@
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `server/internal/logger/**`
   - `server/internal/httpx/**`
-- Completed so far: topic bootstrap and Batch 1 authority work are committed.
-- Not started yet: business-module migration and final governance audit.
+- Completed so far: shared foundation, Project/Task priority chain, and remaining synchronous administrative HTTP modules are committed.
+- Not started yet: operational synchronous modules, asynchronous recovery/cause integrity, and final governance audit.
 
 ## Recovery Receipt
 
@@ -42,15 +42,16 @@ Out of scope:
 
 1. Batch 1 - authority, topic bootstrap, and core error/logging foundation
 2. Batch 2 - Project/Task priority request failure chain
-3. Batch 3 - remaining synchronous HTTP modules
-4. Batch 4 - asynchronous recovery, cause integrity, and governance guard
-5. Batch 5 - full audit, validation, and archive readiness
+3. Batch 3 - remaining synchronous administrative HTTP modules
+4. Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)
+5. Batch 5 - asynchronous recovery, cause integrity, and logging governance guard
+6. Batch 6 - full audit, validation, and archive readiness
 
 ## Current Recovery Point
 
-- Batch 1 established the shared foundation and focused regression tests.
+- Batch 3 moved auth, user, RBAC, scheduler, announcement, notification, system-config, security, and runtime-target synchronous unknown failures to the shared safe AppError path.
 - No authority escalation or compatibility exception is active.
-- Next step: `Batch 2 - Project/Task priority request failure chain`
+- Next step: `Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)`.
 
 ## Work Intake
 
@@ -59,8 +60,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Complete and validate the Batch 1 shared foundation.
-- Migrate the Project/Task failure chain in Batch 2.
+- Migrate operational synchronous HTTP modules, retaining the shared AppError/ReportError authority.
 
 ## Validation Targets
 

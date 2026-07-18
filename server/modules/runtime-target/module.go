@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	containerdi "graft/server/internal/container"
 
 	messagecontract "graft/server/internal/contract/message"
@@ -37,6 +38,7 @@ type Module struct {
 	realtimeTickets realtimeauth.Service
 	topicIssuers    realtime.TopicIssuerRegistry
 	collector       *runtimeTargetSummaryCollector
+	runtimeLogger   *zap.Logger
 }
 
 // NewModule 构造 runtime-target 模块实例。
@@ -52,6 +54,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerModuleMetadata(ctx, moduleID); err != nil {
 		return err
 	}
+	m.runtimeLogger = ctx.Logger
 	auth, err := module.ResolveService[moduleapi.AuthService](ctx.Services, (*moduleapi.AuthService)(nil))
 	if err != nil {
 		return err
@@ -275,7 +278,7 @@ func (m *Module) handleList(c *gin.Context) {
 	}
 	page, err := m.repository.ListPage(c.Request.Context(), limit, offset)
 	if err != nil {
-		httpx.AbortLocalizedError(c, nil, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(c, nil, m.runtimeLogger, err)
 		return
 	}
 	mapped := mapRuntimeTargetSummaries(c.Request.Context(), page.Items, runtimeTargetListSummaryConcurrency, func(ctx context.Context, item store.Target) generated.RuntimeTargetSummary {
@@ -333,7 +336,7 @@ func (m *Module) handleRefresh(moduleCtx *module.Context) gin.HandlerFunc {
 		refreshed, err := refreshTarget(c.Request.Context(), m.repository, target.ID)
 		m.publishRefreshAudit(c.Request.Context(), moduleCtx, target, err)
 		if err != nil {
-			httpx.AbortLocalizedError(c, moduleCtx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(c, moduleCtx.I18n, m.runtimeLogger, err)
 			return
 		}
 		m.summaries.invalidate(target.ID)
@@ -344,7 +347,7 @@ func (m *Module) handleRefresh(moduleCtx *module.Context) gin.HandlerFunc {
 func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := discoverLocalDocker(c.Request.Context(), m.repository); err != nil {
-			httpx.AbortLocalizedError(c, moduleCtx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(c, moduleCtx.I18n, m.runtimeLogger, err)
 			return
 		}
 		target, err := m.repository.FindSystemLocalDocker(c.Request.Context())
@@ -353,7 +356,7 @@ func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc 
 			return
 		}
 		if err != nil {
-			httpx.AbortLocalizedError(c, moduleCtx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(c, moduleCtx.I18n, m.runtimeLogger, err)
 			return
 		}
 		m.summaries.invalidate(target.ID)
@@ -397,7 +400,7 @@ func (m *Module) readTarget(c *gin.Context) (store.Target, bool) {
 		return store.Target{}, false
 	}
 	if err != nil {
-		httpx.AbortLocalizedError(c, nil, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(c, nil, m.runtimeLogger, err)
 		return store.Target{}, false
 	}
 	return target, true

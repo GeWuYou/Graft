@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-
 	messagecontract "graft/server/internal/contract/message"
 	notificationopenapi "graft/server/internal/contract/openapi/notification"
 	"graft/server/internal/httpx"
@@ -191,10 +190,7 @@ func (r notificationRouteRuntime) writeServiceError(ginCtx *gin.Context, err err
 	case errors.Is(err, moduleapi.ErrNotificationDeliveryNotFound):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, messagecontract.CommonInvalidArgument.String(), nil)
 	default:
-		if r.ctx.Logger != nil {
-			r.ctx.Logger.Error("notification route failed", zap.String("module", moduleID), zap.Error(err))
-		}
-		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 	}
 }
 

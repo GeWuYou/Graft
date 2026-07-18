@@ -7,10 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	messagecontract "graft/server/internal/contract/message"
 	scheduleropenapi "graft/server/internal/contract/openapi/scheduler"
 	"graft/server/internal/httpx"
-	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	schedulercore "graft/server/internal/scheduler"
@@ -476,10 +474,8 @@ func (r schedulerRouteRuntime) writeRouteError(ginCtx *gin.Context, message stri
 	case errors.Is(err, schedulercore.ErrTaskImmutable), errors.Is(err, schedulercore.ErrTaskValidation):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, schedulercontract.ScheduledTaskInvalidRequest.String(), nil)
 	default:
-		if r.ctx != nil && r.ctx.Logger != nil {
-			logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
-			logsafe.Error(r.ctx.Logger, message, logFields...)
-		}
-		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		_ = message
+		_ = fields
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 	}
 }

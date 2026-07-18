@@ -40,17 +40,18 @@ closeout:
 
 ## Current Recovery Point
 
-- Batches 1 and 2 are complete: the Project lifecycle-to-Task submission path now records one cause-bearing business error and preserves the safe HTTP envelope.
+- Batches 1 through 3 are complete: synchronous administrative routes now preserve their existing expected 4xx mapping while unexpected failures pass through the shared safe AppError boundary.
 - No compatibility bridge or authority escalation is approved.
-- Next step: start Batch 3 - remaining synchronous HTTP modules.
+- Next step: start Batch 4 - operational synchronous HTTP modules.
 
 ## Task Checklist
 
 - [x] Batch 1 - authority, topic bootstrap, and core error/logging foundation
 - [x] Batch 2 - Project/Task priority request failure chain
-- [ ] Batch 3 - remaining synchronous HTTP modules
-- [ ] Batch 4 - asynchronous recovery, cause integrity, and governance guard
-- [ ] Batch 5 - full audit, validation, and archive readiness
+- [x] Batch 3 - remaining synchronous administrative HTTP modules
+- [ ] Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)
+- [ ] Batch 5 - asynchronous recovery, cause integrity, and logging governance guard
+- [ ] Batch 6 - full audit, validation, and archive readiness
 
 ## Acceptance Conditions
 
@@ -66,16 +67,17 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "Batch 1 - authority, topic bootstrap, and core error/logging foundation",
-    "Batch 2 - Project/Task priority request failure chain"
+    "Batch 2 - Project/Task priority request failure chain",
+    "Batch 3 - remaining synchronous administrative HTTP modules"
   ],
   "pending_batches": [
-    "Batch 3 - remaining synchronous HTTP modules",
-    "Batch 4 - asynchronous recovery, cause integrity, and governance guard",
-    "Batch 5 - full audit, validation, and archive readiness"
+    "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
+    "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
+    "Batch 6 - full audit, validation, and archive readiness"
   ],
-  "current_batch": "Batch 2 - Project/Task priority request failure chain",
-  "next_batch": "Batch 3 - remaining synchronous HTTP modules",
-  "closeout_status": "batch-2-complete"
+  "current_batch": "Batch 3 - remaining synchronous administrative HTTP modules",
+  "next_batch": "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
+  "closeout_status": "batch-3-complete"
 }
 ```
 
@@ -101,3 +103,10 @@ closeout:
 - Project routes now delegate unhandled errors to `httpx.AbortAppError`, so the HTTP fallback records only unreported failures.
 - Task routes use typed safe descriptors and no longer serialize `err.Error()` into public response data.
 - Validation: `cd server && go test ./modules/project ./modules/task ./internal/logger ./internal/httpx`, `cd server && go test ./...`, `cd server && go run ./cmd/graft validate backend`, and `git diff --check`.
+
+## Batch 3 Evidence
+
+- Auth and User route owners now use `ReportError` for unexpected failures and pass the reported cause to `AbortAppError`; existing safe auth, validation, and not-found mappings remain silent 4xx responses.
+- RBAC read paths report unexpected failures with operation and resource context; scheduler, announcement, notification, system-config, and runtime-target unknown request failures use `AbortAppError`, so the shared HTTP fallback records their cause exactly once when no semantic AppLogger owner exists yet.
+- Security overview reports each failed aggregate read with stable operation and preset context; Project lifecycle uses `lifecycle_action` rather than the audit-owned `action` field.
+- Validation: focused affected-module tests, `cd server && go test ./...`, `cd server && go run ./cmd/graft validate backend`, `python3 scripts/validate_ai_plan_structure.py`, and `git diff --check`.

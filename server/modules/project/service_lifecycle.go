@@ -253,7 +253,7 @@ func (s *Service) reportLifecycleTaskSubmissionFailure(
 		logger.StringField(logger.FieldOperation, "submit_application_lifecycle_task"),
 		logger.StringField("application_record_id", fmt.Sprintf("%d", aggregate.Application.ApplicationRecordID)),
 		logger.StringField("application_id", aggregate.Application.ApplicationID),
-		logger.StringField("action", string(action)),
+		logger.StringField("lifecycle_action", string(action)),
 		logger.StringField("task_type", "application.compose."+strings.ToLower(string(action))),
 	)
 }
