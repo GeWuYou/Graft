@@ -17,7 +17,6 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
-    expect(sourceText).not.toContain(':pagination="');
     expect(sourceText).not.toContain('filteredImages');
   });
 
@@ -47,5 +46,77 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("throw new Error(event.status || 'Docker image pull failed.')");
     expect(sourceText).toContain('if (!pullCompleted) throw new Error');
     expect(sourceText).toContain("MessagePlugin.success(t('container.images.pull.success'))");
+  });
+
+  it('supports cross-page selection and chunked batch removal', () => {
+    expect(sourceText).toContain("{ colKey: 'row-select', type: 'multiple' as const, width: 48 }");
+    expect(sourceText).toContain(':selected-row-keys="selectedRowKeys"');
+    expect(sourceText).toContain('@select-change="handleSelectChange"');
+    expect(sourceText).toContain('const preserved = selectedRowKeys.value.filter');
+    expect(sourceText).toContain('index += 100');
+    expect(sourceText).toContain('batchRemoveDockerImages');
+  });
+
+  it('uses a compact row menu and presents container references as tags with id tooltips', () => {
+    expect(sourceText).toContain('<table-action-menu');
+    expect(sourceText).toContain('container.images.actions.more');
+    expect(sourceText).toContain('row.container_references');
+    expect(sourceText).toContain(':content="container.id"');
+    expect(sourceText).toContain("t('container.images.unused')");
+  });
+
+  it('loads all unused images and selects them by default in the cleanup dialog', () => {
+    expect(sourceText).toContain('unused: true');
+    expect(sourceText).toContain('cleanupSelectedIds.value = all.map((image) => image.id);');
+    expect(sourceText).toContain('<t-table');
+    expect(sourceText).toContain(':selected-row-keys="cleanupSelectedIds"');
+    expect(sourceText).toContain('@select-change="handleCleanupSelectChange"');
+    expect(sourceText).toContain('cleanupPreviewImages');
+    expect(sourceText).toContain('cleanupPreviewPage');
+    expect(sourceText).toContain('cleanupPreviewPageCount');
+    expect(sourceText).toContain('cleanupPreviewLimit = 8');
+    expect(sourceText).toContain('cleanupSelectedSize');
+    expect(sourceText).not.toContain('cleanupPagination');
+    expect(sourceText).not.toContain('cleanupVisibleImages');
+    expect(sourceText).not.toContain('selectCleanupPage');
+    expect(sourceText).not.toContain('cleanupPreviewExpanded');
+    expect(sourceText).not.toContain('cleanupPreviewExpand');
+    expect(sourceText).toContain("t('container.images.cleanup.warning')");
+    expect(sourceText).toContain("t('container.images.cleanup.removeSelected'");
+    expect(sourceText).toContain('dialog-class-name="docker-images-cleanup-dialog"');
+    expect(sourceText).toContain('<template #footer>');
+  });
+
+  it('presents cleanup as a summary, preview, and confirm flow', () => {
+    expect(sourceText).toContain('docker-images-cleanup-summary');
+    expect(sourceText).toContain("t('container.images.cleanup.candidateCount')");
+    expect(sourceText).toContain("t('container.images.cleanup.releaseSize')");
+    expect(sourceText).toContain('formatBytes(cleanupTotalSize)');
+    expect(sourceText).toContain("t('container.images.cleanup.source')");
+    expect(sourceText).toContain("t('container.images.cleanup.candidateTitle'");
+    expect(sourceText).toContain("t('container.images.cleanup.selectedCount'");
+    expect(sourceText).toContain("t('container.images.cleanup.footerRelease')");
+    expect(sourceText).toContain(':disabled="!cleanupSelectedIds.length"');
+    expect(sourceText).toContain('previousCleanupPage');
+    expect(sourceText).toContain('nextCleanupPage');
+    expect(sourceText).toContain('<arrow-up-icon />');
+    expect(sourceText).toContain('<arrow-down-icon />');
+    expect(sourceText).toContain("t('container.images.cleanup.imageColumn')");
+    expect(sourceText).toContain("t('container.images.cleanup.statusColumn')");
+    expect(sourceText).toContain("t('container.images.cleanup.sizeColumn')");
+    expect(sourceText).toContain("{ colKey: 'row-select', type: 'multiple' as const, width: 48 }");
+    expect(sourceText).toContain('const preserved = cleanupSelectedIds.value.filter');
+    expect(sourceText).not.toContain('<t-checkbox-group v-model="cleanupSelectedIds"');
+    expect(sourceText).not.toContain('docker-images-cleanup-pagination-head');
+    expect(sourceText).not.toContain("t('container.images.cleanup.selectPage')");
+    expect(sourceText).not.toContain("t('container.images.cleanup.invertPage')");
+    expect(sourceText).not.toContain('management-table-pagination');
+  });
+
+  it('reports full, partial, and failed batch removal outcomes', () => {
+    expect(sourceText).toContain("t('container.images.batch.success'");
+    expect(sourceText).toContain("t('container.images.batch.partial'");
+    expect(sourceText).toContain("t('container.images.batch.failed'");
+    expect(sourceText).toContain('successfulIds');
   });
 });

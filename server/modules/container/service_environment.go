@@ -413,6 +413,16 @@ func filterDockerImages(items []DockerImage, keyword string) []DockerImage {
 	return filtered
 }
 
+func filterUnusedDockerImages(items []DockerImage) []DockerImage {
+	filtered := make([]DockerImage, 0, len(items))
+	for _, item := range items {
+		if len(item.ContainerReferences) == 0 {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
 func dockerImageFieldContains(values []string, keyword string) bool {
 	for _, value := range values {
 		if strings.Contains(strings.ToLower(value), keyword) {

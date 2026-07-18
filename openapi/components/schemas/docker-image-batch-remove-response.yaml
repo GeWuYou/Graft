@@ -1,0 +1,14 @@
+type: object
+description: Batch image removal summary with one result item for every requested image ID in request order.
+required: [total, success_count, failed_count, items]
+properties:
+  total: { type: integer, minimum: 0 }
+  success_count: { type: integer, minimum: 0 }
+  failed_count: { type: integer, minimum: 0 }
+  request_id: { type: string }
+  items:
+    type: array
+    minItems: 0
+    items:
+      $ref: ./docker-image-batch-remove-item.yaml
+additionalProperties: false

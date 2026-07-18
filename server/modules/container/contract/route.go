@@ -43,6 +43,8 @@ const (
 	DockerImageTagRoute = "/images/:id/tag"
 	// DockerImageRemoveRoute 是删除镜像的路由片段。
 	DockerImageRemoveRoute = "/images/:id/remove"
+	// DockerImageBatchRemoveRoute 是 Docker 镜像批量删除路由片段。
+	DockerImageBatchRemoveRoute = "/images/batch-remove"
 	// DockerNetworksRoute 是 Docker 网络集合路由片段。
 	DockerNetworksRoute = "/networks"
 	// DockerNetworkRoute 是 Docker 网络详情路由片段。

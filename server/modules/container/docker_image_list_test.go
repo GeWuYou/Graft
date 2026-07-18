@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,7 +10,57 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moby/moby/api/types/container"
 )
+
+type dockerImageBatchTestRuntime struct {
+	fakeRuntime
+	removed []string
+}
+
+func (r *dockerImageBatchTestRuntime) PullDockerImage(context.Context, string, func(DockerImagePullEvent) error) error {
+	return nil
+}
+func (r *dockerImageBatchTestRuntime) TagDockerImage(context.Context, string, string) error {
+	return nil
+}
+
+func (r *dockerImageBatchTestRuntime) RemoveDockerImage(_ context.Context, id string, _ bool) error {
+	r.removed = append(r.removed, id)
+	if id == "bad" {
+		return errors.New("conflict: unable to delete image because it is being used")
+	}
+	return nil
+}
+
+func TestServiceDockerImageBatchRemovePreservesOrderAndPartialFailure(t *testing.T) {
+	runtime := &dockerImageBatchTestRuntime{}
+	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := service.DockerImageBatchRemove(context.Background(), []string{"first", "bad", "last"}, false)
+	if err != nil {
+		t.Fatalf("batch remove: %v", err)
+	}
+	if result.Total != 3 || result.SuccessCount != 2 || result.FailedCount != 1 || result.Items[1].ID != "bad" || result.Items[1].Success {
+		t.Fatalf("unexpected result: %#v", result)
+	}
+	if len(runtime.removed) != 3 || runtime.removed[0] != "first" || runtime.removed[2] != "last" {
+		t.Fatalf("unexpected removal order: %#v", runtime.removed)
+	}
+}
+
+func TestServiceDockerImageBatchRemoveRejectsMoreThanHundredIDs(t *testing.T) {
+	service, err := newRouteTestService(containerServiceOptions{runtime: &dockerImageBatchTestRuntime{}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ids := make([]string, maxContainerBatchActionIDs+1)
+	if _, err := service.DockerImageBatchRemove(context.Background(), ids, false); err == nil {
+		t.Fatal("expected batch size error")
+	}
+}
 
 type dockerImageListTestRuntime struct {
 	fakeRuntime
@@ -121,6 +172,28 @@ func TestNormalizeDockerImageListQueryBounds(t *testing.T) {
 				t.Fatalf("expected invalid query, got %#v", query)
 			}
 		})
+	}
+}
+
+func TestDockerImageReferencesAggregateContainerIDAndName(t *testing.T) {
+	refs := dockerImageReferences([]container.Summary{{ID: "c1", ImageID: "sha256:image", Names: []string{"/web"}}, {ID: "c2", ImageID: "sha256:image", Names: []string{"/worker"}}})
+	if len(refs["sha256:image"]) != 2 || refs["sha256:image"][0].Name != "web" || refs["sha256:image"][1].ID != "c2" {
+		t.Fatalf("unexpected references: %#v", refs)
+	}
+}
+
+func TestServiceDockerImagesFiltersUnusedByReferences(t *testing.T) {
+	runtime := dockerImageListTestRuntime{result: DockerImageListResult{Items: []DockerImage{{ID: "used", ContainerReferences: []DockerImageContainerReference{{ID: "c1", Name: "web"}}}, {ID: "unused"}}}}
+	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := service.DockerImages(context.Background(), DockerImageListQuery{Limit: 20, Unused: true})
+	if err != nil {
+		t.Fatalf("list images: %v", err)
+	}
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].ID != "unused" {
+		t.Fatalf("unexpected unused images: %#v", result)
 	}
 }
 

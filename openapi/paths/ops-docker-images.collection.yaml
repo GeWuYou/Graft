@@ -9,6 +9,7 @@ get:
     - $ref: ../components/parameters/docker-image-list-limit.yaml
     - $ref: ../components/parameters/docker-image-list-offset.yaml
     - $ref: ../components/parameters/docker-image-list-keyword.yaml
+    - $ref: ../components/parameters/docker-image-list-unused.yaml
   security: [{ bearerAuth: [] }]
   responses:
     '200':

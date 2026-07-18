@@ -7429,9 +7429,15 @@ type DashboardWidgetType string
 
 // DockerImage defines model for docker-image.
 type DockerImage struct {
-	Architecture      *string            `json:"architecture,omitempty"`
-	Containers        int64              `json:"containers"`
-	CreatedAt         string             `json:"created_at"`
+	Architecture *string `json:"architecture,omitempty"`
+
+	// ContainerReferences Containers currently referencing this image, represented as sanitized display references.
+	ContainerReferences []DockerImageContainerReference `json:"container_references"`
+	Containers          int64                           `json:"containers"`
+	CreatedAt           string                          `json:"created_at"`
+
+	// Dangling Whether the image has only an untagged placeholder reference.
+	Dangling          bool               `json:"dangling"`
 	Id                string             `json:"id"`
 	Labels            *map[string]string `json:"labels,omitempty"`
 	OperatingSystem   *string            `json:"operating_system,omitempty"`
@@ -7449,6 +7455,37 @@ type DockerImageActionResponse struct {
 
 // DockerImageActionResponseAction defines model for DockerImageActionResponse.Action.
 type DockerImageActionResponseAction string
+
+// DockerImageBatchRemoveItem defines model for docker-image-batch-remove-item.
+type DockerImageBatchRemoveItem struct {
+	ErrorCode  *string `json:"error_code,omitempty"`
+	Id         string  `json:"id"`
+	Message    *string `json:"message,omitempty"`
+	MessageKey *string `json:"message_key,omitempty"`
+	Success    bool    `json:"success"`
+}
+
+// DockerImageBatchRemoveRequest defines model for docker-image-batch-remove-request.
+type DockerImageBatchRemoveRequest struct {
+	// Force Force removal even when a container references an image.
+	Force *bool    `json:"force,omitempty"`
+	Ids   []string `json:"ids"`
+}
+
+// DockerImageBatchRemoveResponse Batch image removal summary with one result item for every requested image ID in request order.
+type DockerImageBatchRemoveResponse struct {
+	FailedCount  int                          `json:"failed_count"`
+	Items        []DockerImageBatchRemoveItem `json:"items"`
+	RequestId    *string                      `json:"request_id,omitempty"`
+	SuccessCount int                          `json:"success_count"`
+	Total        int                          `json:"total"`
+}
+
+// DockerImageContainerReference defines model for docker-image-container-reference.
+type DockerImageContainerReference struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
 
 // DockerImageListResponse defines model for docker-image-list-response.
 type DockerImageListResponse struct {
@@ -8741,6 +8778,28 @@ type EnvelopedDockerImageActionResponse struct {
 	// Code Existing canonical response code.
 	Code string                    `json:"code"`
 	Data DockerImageActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerImageBatchRemoveResponse defines model for enveloped-docker-image-batch-remove-response.
+type EnvelopedDockerImageBatchRemoveResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Batch image removal summary with one result item for every requested image ID in request order.
+	Data DockerImageBatchRemoveResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11273,6 +11332,9 @@ type DockerImageListLimit = int
 // DockerImageListOffset defines model for docker-image-list-offset.
 type DockerImageListOffset = int
 
+// DockerImageListUnused defines model for docker-image-list-unused.
+type DockerImageListUnused = bool
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -12795,6 +12857,19 @@ type GetDockerImagesParams struct {
 	// Keyword Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests.
 	Keyword *DockerImageListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
 
+	// Unused Optional filter that returns only Docker images with no container references.
+	Unused *DockerImageListUnused `form:"unused,omitempty" json:"unused,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerImageBatchRemoveParams defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemoveParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -13570,6 +13645,9 @@ type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody = ContainerShellSessionRequest
+
+// PostDockerImageBatchRemoveJSONRequestBody defines body for PostDockerImageBatchRemove for application/json ContentType.
+type PostDockerImageBatchRemoveJSONRequestBody = DockerImageBatchRemoveRequest
 
 // PostDockerImagePullJSONRequestBody defines body for PostDockerImagePull for application/json ContentType.
 type PostDockerImagePullJSONRequestBody = DockerImagePullRequest

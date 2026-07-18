@@ -226,12 +226,27 @@ function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
   }
   if (
     (current.fullPath === next.fullPath || current.path === next.path || getTabKey(current) === getTabKey(next)) &&
-    current.title
+    current.title &&
+    !isUnlocalizedTabTitle(current)
   ) {
     return current.title;
   }
 
   return next.title;
+}
+
+function isUnlocalizedTabTitle(route: TRouterInfo) {
+  const titleKey = route.meta?.titleKey;
+  return Boolean(titleKey && Object.values(route.title ?? {}).some((title) => title === titleKey));
+}
+
+function localizePersistedTabTitle(route: TRouterInfo) {
+  const titleKey = route.meta?.titleKey;
+  if (!titleKey || !isUnlocalizedTabTitle(route)) {
+    return route;
+  }
+
+  return { ...route, title: localizeRouteTitleKey(titleKey) };
 }
 
 /**
@@ -368,7 +383,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
-      this.tabRouterList = ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters));
+      this.tabRouterList = ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle));
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
@@ -388,7 +403,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () =>
           `tabs debug: healPersistedRoutes before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
-      const nextTabs = this.tabRouters.filter(canKeepRoute);
+      const nextTabs = this.tabRouters.filter(canKeepRoute).map(localizePersistedTabTitle);
 
       this.tabRouterList = ensureNonEmptyTabs(nextTabs, pinnedKeys);
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {

@@ -12,6 +12,9 @@
           <t-button variant="outline" :loading="query.isFetching.value" @click="refresh">
             {{ t('container.images.actions.refresh') }}
           </t-button>
+          <t-button variant="outline" :loading="cleanupLoading" @click="openCleanup">
+            {{ t('container.images.actions.cleanup') }}
+          </t-button>
           <t-button theme="primary" @click="pullDrawerVisible = true">{{
             t('container.images.actions.pull')
           }}</t-button>
@@ -53,7 +56,22 @@
       :empty-description="
         t(submittedKeyword ? 'container.images.filteredEmptyDescription' : 'container.images.emptyDescription')
       "
+      :selected-row-keys="selectedRowKeys"
+      @select-change="handleSelectChange"
     >
+      <template #batch>
+        <div v-if="selectedRowKeys.length" class="docker-images-batch-bar">
+          <span>{{ t('container.images.batch.selected', { count: selectedRowKeys.length }) }}</span>
+          <t-space size="small">
+            <t-button size="small" theme="danger" variant="outline" :loading="batchRemoving" @click="openBatchRemove">
+              {{ t('container.images.batch.remove') }}
+            </t-button>
+            <t-button size="small" variant="text" @click="clearSelection">
+              {{ t('container.images.batch.cancelSelection') }}
+            </t-button>
+          </t-space>
+        </div>
+      </template>
       <template #feedback>
         <t-alert v-if="query.isError.value" theme="error" :message="t('container.images.loadFailed')" />
       </template>
@@ -82,21 +100,24 @@
       >
       <template #size="{ row }">{{ formatBytes(row.size_bytes) }}</template>
       <template #containers="{ row }">
-        <t-tag :theme="row.containers ? 'warning' : 'default'" size="small" variant="light-outline">{{
-          t('container.images.containerCount', { count: row.containers })
-        }}</t-tag>
+        <t-space v-if="row.container_references?.length" size="small" break-line>
+          <t-tooltip v-for="container in row.container_references" :key="container.id" :content="container.id">
+            <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
+          </t-tooltip>
+        </t-space>
+        <t-tag v-else size="small" variant="light-outline">{{ t('container.images.unused') }}</t-tag>
       </template>
       <template #created_at="{ row }">{{ formatLocaleDateTime(row.created_at, locale) }}</template>
       <template #actions="{ row }">
-        <t-space size="small">
-          <t-button size="small" variant="text" @click="openDetail(row)">{{
-            t('container.images.actions.detail')
-          }}</t-button>
-          <t-button size="small" variant="text" @click="openTag(row)">{{ t('container.images.actions.tag') }}</t-button>
-          <t-button size="small" theme="danger" variant="text" @click="openRemove(row)">{{
-            t('container.images.actions.remove')
-          }}</t-button>
-        </t-space>
+        <table-action-menu
+          :actions="[
+            { value: 'detail', label: 'container.images.actions.detail' },
+            { value: 'tag', label: 'container.images.actions.tag' },
+            { value: 'remove', label: 'container.images.actions.remove' },
+          ]"
+          :more-label="t('container.images.actions.more')"
+          @action="handleRowAction($event, row)"
+        />
       </template>
     </management-paged-table>
 
@@ -123,6 +144,18 @@
           <t-descriptions-item :label="t('container.images.fields.createdAt')">{{
             formatLocaleDateTime(selectedImage.created_at, locale)
           }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.images.fields.containers')">
+            <t-space v-if="selectedImage.container_references?.length" size="small" break-line>
+              <t-tooltip
+                v-for="container in selectedImage.container_references"
+                :key="container.id"
+                :content="container.id"
+              >
+                <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
+              </t-tooltip>
+            </t-space>
+            <span v-else>{{ t('container.images.unused') }}</span>
+          </t-descriptions-item>
           <t-descriptions-item :label="t('container.images.fields.platform')"
             >{{ selectedImage.operating_system || '-' }} / {{ selectedImage.architecture || '-' }}</t-descriptions-item
           >
@@ -157,17 +190,170 @@
       v-model:visible="removeDialogVisible"
       theme="danger"
       :header="t('container.images.remove.title')"
-      :confirm-btn="t('container.images.actions.remove')"
-      :confirm-loading="removing"
+      :confirm-btn="removeConfirmButton"
+      :confirm-loading="removing || batchRemoving"
       @confirm="submitRemove"
     >
-      <p>{{ t('container.images.remove.confirm', { image: selectedImage ? shortId(selectedImage.id) : '' }) }}</p>
-      <p v-if="selectedImage?.containers" class="docker-images-risk">
-        {{ t('container.images.remove.inUse', { count: selectedImage.containers }) }}
+      <p v-if="selectedImage">{{ t('container.images.remove.confirm', { image: shortId(selectedImage.id) }) }}</p>
+      <template v-else>
+        <p>{{ t('container.images.batch.confirm', { count: selectedRowKeys.length }) }}</p>
+        <p v-if="selectedBatchReferences.length" class="docker-images-risk">
+          {{ t('container.images.batch.inUse') }}
+        </p>
+        <t-space v-if="selectedBatchReferences.length" size="small" break-line>
+          <t-tooltip v-for="container in selectedBatchReferences" :key="container.id" :content="container.id">
+            <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
+          </t-tooltip>
+        </t-space>
+        <t-checkbox v-if="selectedBatchReferences.length" v-model="forceRemove">
+          {{ t('container.images.remove.force') }}
+        </t-checkbox>
+      </template>
+      <p v-if="selectedImage?.container_references?.length" class="docker-images-risk">
+        {{ t('container.images.remove.inUse') }}
       </p>
-      <t-checkbox v-if="selectedImage?.containers" v-model="forceRemove">{{
+      <t-checkbox v-if="selectedImage?.container_references?.length" v-model="forceRemove">{{
         t('container.images.remove.force')
       }}</t-checkbox>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="cleanupDialogVisible"
+      dialog-class-name="docker-images-cleanup-dialog"
+      :dialog-style="cleanupDialogStyle"
+      :header="false"
+      width="760px"
+      @confirm="submitCleanup"
+    >
+      <div class="docker-images-cleanup">
+        <header class="docker-images-cleanup__header">
+          <div class="docker-images-cleanup__header-icon"><delete-icon /></div>
+          <div>
+            <h2>{{ t('container.images.cleanup.title') }}</h2>
+            <p>{{ t('container.images.cleanup.subtitle') }}</p>
+          </div>
+        </header>
+
+        <t-loading :loading="cleanupLoading">
+          <t-card v-if="cleanupImages.length" class="docker-images-cleanup-summary" :bordered="false">
+            <div class="docker-images-cleanup-summary__stats">
+              <div>
+                <span class="docker-images-cleanup-summary__label">{{
+                  t('container.images.cleanup.candidateCount')
+                }}</span>
+                <strong>{{ cleanupImages.length }}</strong>
+                <span>{{ t('container.images.cleanup.imageUnit') }}</span>
+              </div>
+              <div>
+                <span class="docker-images-cleanup-summary__label">{{
+                  t('container.images.cleanup.releaseSize')
+                }}</span>
+                <strong>{{ formatBytes(cleanupTotalSize) }}</strong>
+              </div>
+              <div>
+                <span class="docker-images-cleanup-summary__label">{{ t('container.images.cleanup.source') }}</span>
+                <strong>{{ t('container.images.cleanup.sourceValue') }}</strong>
+              </div>
+            </div>
+          </t-card>
+
+          <t-alert
+            v-if="cleanupImages.length"
+            class="docker-images-cleanup-warning"
+            theme="warning"
+            :message="t('container.images.cleanup.warning')"
+          />
+
+          <section v-if="cleanupImages.length" class="docker-images-cleanup-preview">
+            <div class="docker-images-cleanup-section-head">
+              <h3>{{ t('container.images.cleanup.candidateTitle', { count: cleanupImages.length }) }}</h3>
+              <t-space size="small">
+                <span>{{ t('container.images.cleanup.selectedCount', { count: cleanupSelectedIds.length }) }}</span>
+                <t-button v-if="cleanupSelectedIds.length" size="small" variant="text" @click="clearCleanupSelection">
+                  {{ t('container.images.cleanup.clearSelection') }}
+                </t-button>
+              </t-space>
+            </div>
+
+            <div class="docker-images-cleanup-preview-body">
+              <t-table
+                class="docker-images-cleanup-table"
+                :columns="cleanupColumns"
+                :data="cleanupPreviewImages"
+                row-key="id"
+                size="small"
+                table-layout="fixed"
+                :selected-row-keys="cleanupSelectedIds"
+                @select-change="handleCleanupSelectChange"
+              >
+                <template #image="{ row }">
+                  <div class="docker-images-cleanup-image">
+                    <image-icon class="docker-images-cleanup-image__icon" />
+                    <span class="docker-images-cleanup-image__name">{{
+                      imageTags(row).join(', ') || shortId(row.id)
+                    }}</span>
+                  </div>
+                </template>
+                <template #status>
+                  <t-tag size="small" variant="light-outline">{{ t('container.images.unused') }}</t-tag>
+                </template>
+                <template #size="{ row }">{{ formatBytes(row.size_bytes) }}</template>
+              </t-table>
+
+              <div v-if="cleanupPreviewPageCount > 1" class="docker-images-cleanup-pager">
+                <t-tooltip :content="t('container.images.cleanup.previousPage')">
+                  <t-button
+                    size="small"
+                    variant="text"
+                    shape="circle"
+                    :disabled="cleanupPreviewPage === 1"
+                    :aria-label="t('container.images.cleanup.previousPage')"
+                    @click="previousCleanupPage"
+                  >
+                    <arrow-up-icon />
+                  </t-button>
+                </t-tooltip>
+                <span>{{ cleanupPreviewPage }} / {{ cleanupPreviewPageCount }}</span>
+                <t-tooltip :content="t('container.images.cleanup.nextPage')">
+                  <t-button
+                    size="small"
+                    variant="text"
+                    shape="circle"
+                    :disabled="cleanupPreviewPage === cleanupPreviewPageCount"
+                    :aria-label="t('container.images.cleanup.nextPage')"
+                    @click="nextCleanupPage"
+                  >
+                    <arrow-down-icon />
+                  </t-button>
+                </t-tooltip>
+              </div>
+            </div>
+          </section>
+        </t-loading>
+
+        <t-empty v-if="!cleanupLoading && !cleanupImages.length" :title="t('container.images.cleanup.empty')" />
+      </div>
+      <template #footer>
+        <div class="docker-images-cleanup-footer">
+          <div>
+            <span>{{ t('container.images.cleanup.footerRelease') }}</span>
+            <strong>{{ formatBytes(cleanupSelectedSize) }}</strong>
+          </div>
+          <t-space size="small">
+            <t-button variant="outline" @click="cleanupDialogVisible = false">
+              {{ t('container.images.cleanup.cancel') }}
+            </t-button>
+            <t-button
+              theme="danger"
+              :disabled="!cleanupSelectedIds.length"
+              :loading="batchRemoving"
+              @click="submitCleanup"
+            >
+              {{ t('container.images.cleanup.removeSelected', { count: cleanupSelectedIds.length }) }}
+            </t-button>
+          </t-space>
+        </div>
+      </template>
     </t-dialog>
 
     <t-drawer
@@ -200,14 +386,19 @@
   </div>
 </template>
 <script setup lang="ts">
-// 镜像页面只管理当前 Docker runtime 的镜像快照；拉取日志是短生命周期 UI 状态，不进入 Query 缓存。
-import { SearchIcon } from 'tdesign-icons-vue-next';
+// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除由服务端统一鉴权并返回逐项结果，拉取日志保持短生命周期 UI 状态。
+import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onUnmounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ManagementPagedTable, ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
+import {
+  ManagementPagedTable,
+  ManagementPageHeader,
+  ManagementToolbar,
+  TableActionMenu,
+} from '@/shared/components/management';
 import {
   formatBytes,
   formatLocaleDateTime,
@@ -217,8 +408,15 @@ import {
   type StructuredLogEntry,
 } from '@/shared/observability';
 
-import { type DockerImageRecord, getDockerImage } from '../../api/container';
-import { type DockerImagePullEvent, pullDockerImage, removeDockerImage, tagDockerImage } from '../../api/image-actions';
+import { type DockerImageRecord, getDockerImage, getDockerImages } from '../../api/container';
+import {
+  batchRemoveDockerImages,
+  type DockerImageBatchResult,
+  type DockerImagePullEvent,
+  pullDockerImage,
+  removeDockerImage,
+  tagDockerImage,
+} from '../../api/image-actions';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
 type DockerImage = DockerImageRecord;
@@ -242,6 +440,16 @@ const pullDrawerVisible = ref(false);
 const tagging = ref(false);
 const removing = ref(false);
 const forceRemove = ref(false);
+const selectedRowKeys = ref<Array<string | number>>([]);
+const selectedImages = ref(new Map<string, DockerImage>());
+const batchRemoving = ref(false);
+const cleanupDialogVisible = ref(false);
+const cleanupLoading = ref(false);
+const cleanupImages = ref<DockerImage[]>([]);
+const cleanupSelectedIds = ref<string[]>([]);
+const cleanupPreviewPage = ref(1);
+const cleanupPreviewLimit = 8;
+const cleanupDialogStyle = { maxHeight: '70vh' };
 const tagForm = reactive({ repository: '', tag: '' });
 const pullReference = ref('');
 const pulling = ref(false);
@@ -318,12 +526,40 @@ const footerSummary = computed(() => {
   return t('container.images.pagination.summary', { start, end, total: total.value });
 });
 const columns: TableProps['columns'] = computed(() => [
+  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'tags', title: t('container.images.fields.tags'), ellipsis: true, minWidth: 260 },
   { colKey: 'id', title: t('container.images.fields.id'), width: 150 },
   { colKey: 'size', title: t('container.images.fields.size'), width: 120 },
-  { colKey: 'containers', title: t('container.images.fields.containers'), width: 120 },
+  { colKey: 'containers', title: t('container.images.fields.containers'), minWidth: 220 },
   { colKey: 'created_at', title: t('container.images.fields.createdAt'), width: 180 },
-  { colKey: 'actions', title: t('container.images.fields.actions'), width: 220, fixed: 'right' as const },
+  { colKey: 'actions', title: t('container.images.fields.actions'), width: 150, fixed: 'right' as const },
+]).value;
+const selectedBatchReferences = computed(() =>
+  selectedRowKeys.value.flatMap((key) => selectedImages.value.get(String(key))?.container_references ?? []),
+);
+const removeConfirmButton = computed(() => ({
+  content: t('container.images.actions.remove'),
+  disabled: !selectedImage.value && !selectedRowKeys.value.length,
+}));
+const cleanupSelectedSize = computed(() => {
+  const selected = new Set(cleanupSelectedIds.value);
+  return cleanupImages.value.reduce((total, image) => (selected.has(image.id) ? total + image.size_bytes : total), 0);
+});
+const cleanupTotalSize = computed(() => cleanupImages.value.reduce((total, image) => total + image.size_bytes, 0));
+const cleanupPreviewPageCount = computed(() =>
+  Math.max(1, Math.ceil(cleanupImages.value.length / cleanupPreviewLimit)),
+);
+const cleanupPreviewImages = computed(() =>
+  cleanupImages.value.slice(
+    (cleanupPreviewPage.value - 1) * cleanupPreviewLimit,
+    cleanupPreviewPage.value * cleanupPreviewLimit,
+  ),
+);
+const cleanupColumns: TableProps['columns'] = computed(() => [
+  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
+  { colKey: 'image', title: t('container.images.cleanup.imageColumn'), ellipsis: true, minWidth: 280 },
+  { colKey: 'status', title: t('container.images.cleanup.statusColumn'), width: 92 },
+  { colKey: 'size', title: t('container.images.cleanup.sizeColumn'), width: 112, align: 'right' as const },
 ]).value;
 
 function imageTags(image: DockerImage) {
@@ -343,6 +579,21 @@ function clearKeyword() {
   keyword.value = '';
   submittedKeyword.value = '';
   pagination.current = 1;
+}
+function handleSelectChange(rowKeys: Array<string | number>) {
+  images.value.forEach((image) => selectedImages.value.set(image.id, image));
+  const currentPageIds = new Set(images.value.map((image) => image.id));
+  const preserved = selectedRowKeys.value.filter((key) => !currentPageIds.has(String(key)));
+  selectedRowKeys.value = [...preserved, ...rowKeys.filter((key) => currentPageIds.has(String(key)))];
+}
+function clearSelection() {
+  selectedRowKeys.value = [];
+  selectedImages.value.clear();
+}
+function handleRowAction(action: string, image: DockerImage) {
+  if (action === 'detail') openDetail(image);
+  if (action === 'tag') openTag(image);
+  if (action === 'remove') openRemove(image);
 }
 async function openDetail(image: DockerImage) {
   selectedImage.value = image;
@@ -385,11 +636,16 @@ function openRemove(image: DockerImage) {
   removeDialogVisible.value = true;
 }
 async function submitRemove() {
-  if (!selectedImage.value || (selectedImage.value.containers > 0 && !forceRemove.value)) return;
+  if (!selectedImage.value) {
+    await submitBatchRemove(selectedRowKeys.value.map(String), forceRemove.value);
+    return;
+  }
+  if (selectedImage.value.container_references?.length && !forceRemove.value) return;
   removing.value = true;
   try {
     await removeDockerImage(selectedImage.value.id, { force: forceRemove.value });
     removeDialogVisible.value = false;
+    forgetSelectedImages([selectedImage.value.id]);
     await refresh();
     MessagePlugin.success(t('container.images.remove.success'));
   } catch {
@@ -397,6 +653,92 @@ async function submitRemove() {
   } finally {
     removing.value = false;
   }
+}
+function openBatchRemove() {
+  if (!selectedRowKeys.value.length) return;
+  forceRemove.value = false;
+  selectedImage.value = null;
+  removeDialogVisible.value = true;
+}
+function forgetSelectedImages(ids: string[]) {
+  const removedIds = new Set(ids);
+  selectedRowKeys.value = selectedRowKeys.value.filter((key) => !removedIds.has(String(key)));
+  ids.forEach((id) => selectedImages.value.delete(id));
+}
+async function removeImageIds(ids: string[], force = false) {
+  const results: DockerImageBatchResult[] = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    results.push(await batchRemoveDockerImages({ ids: ids.slice(index, index + 100), force }));
+  }
+  return results.flatMap((response) => response.items);
+}
+async function submitCleanup() {
+  if (!cleanupSelectedIds.value.length) return;
+  await submitBatchRemove(cleanupSelectedIds.value, false, true);
+}
+async function submitBatchRemove(ids: string[], force: boolean, cleanup = false) {
+  batchRemoving.value = true;
+  try {
+    const items = await removeImageIds(ids, force);
+    const successfulIds = new Set(items.filter((item) => item.success).map((item) => item.id));
+    forgetSelectedImages([...successfulIds]);
+    if (cleanup) {
+      cleanupSelectedIds.value = cleanupSelectedIds.value.filter((id) => !successfulIds.has(id));
+      cleanupImages.value = cleanupImages.value.filter((image) => !successfulIds.has(image.id));
+      cleanupPreviewPage.value = Math.min(cleanupPreviewPage.value, cleanupPreviewPageCount.value);
+    }
+    const failed = items.filter((item) => !item.success);
+    if (!failed.length) MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
+    else if (failed.length < items.length)
+      MessagePlugin.warning(
+        t('container.images.batch.partial', { success: items.length - failed.length, failed: failed.length }),
+      );
+    else MessagePlugin.error(t('container.images.batch.failed'));
+    if (!failed.length || failed.length < items.length) {
+      removeDialogVisible.value = false;
+      cleanupDialogVisible.value = false;
+    }
+    await refresh();
+  } catch {
+    MessagePlugin.error(t('container.images.batch.failed'));
+  } finally {
+    batchRemoving.value = false;
+  }
+}
+async function openCleanup() {
+  cleanupDialogVisible.value = true;
+  cleanupLoading.value = true;
+  cleanupImages.value = [];
+  cleanupSelectedIds.value = [];
+  cleanupPreviewPage.value = 1;
+  try {
+    const firstPage = await getDockerImages({ limit: 100, offset: 0, unused: true });
+    const all = [...firstPage.items];
+    for (let offset = firstPage.items.length; offset < firstPage.total; offset += 100) {
+      const page = await getDockerImages({ limit: 100, offset, unused: true });
+      all.push(...page.items);
+    }
+    cleanupImages.value = all;
+    cleanupSelectedIds.value = all.map((image) => image.id);
+  } catch {
+    MessagePlugin.error(t('container.images.cleanup.loadFailed'));
+  } finally {
+    cleanupLoading.value = false;
+  }
+}
+function clearCleanupSelection() {
+  cleanupSelectedIds.value = [];
+}
+function handleCleanupSelectChange(rowKeys: Array<string | number>) {
+  const currentPageIds = new Set(cleanupPreviewImages.value.map((image) => image.id));
+  const preserved = cleanupSelectedIds.value.filter((id) => !currentPageIds.has(id));
+  cleanupSelectedIds.value = [...preserved, ...rowKeys.filter((key) => currentPageIds.has(String(key))).map(String)];
+}
+function previousCleanupPage() {
+  cleanupPreviewPage.value = Math.max(1, cleanupPreviewPage.value - 1);
+}
+function nextCleanupPage() {
+  cleanupPreviewPage.value = Math.min(cleanupPreviewPageCount.value, cleanupPreviewPage.value + 1);
 }
 async function startPull() {
   if (!pullReference.value.trim() || pulling.value) return;
@@ -495,6 +837,185 @@ onUnmounted(() => {
   color: var(--td-warning-color-7);
 }
 
+.docker-images-batch-bar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-16);
+}
+
+.docker-images-cleanup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+}
+
+.docker-images-cleanup__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+}
+
+.docker-images-cleanup__header h2,
+.docker-images-cleanup__header p,
+.docker-images-cleanup-section-head h3,
+.docker-images-cleanup-section-head span {
+  margin: 0;
+}
+
+.docker-images-cleanup__header h2 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-large);
+}
+
+.docker-images-cleanup__header p {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin-top: var(--graft-density-gap-4);
+}
+
+.docker-images-cleanup__header-icon {
+  align-items: center;
+  background: var(--td-brand-color-1);
+  border-radius: var(--td-radius-medium);
+  color: var(--td-brand-color-7);
+  display: flex;
+  flex: 0 0 40px;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.docker-images-cleanup__header-icon :deep(.t-icon) {
+  font-size: var(--td-font-size-title-large);
+}
+
+.docker-images-cleanup-summary {
+  background: var(--td-brand-color-1);
+  border: 1px solid var(--td-brand-color-3);
+  border-radius: var(--td-radius-medium);
+  color: var(--td-text-color-primary);
+}
+
+.docker-images-cleanup-summary__stats {
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.docker-images-cleanup-summary__stats > div {
+  min-width: 0;
+}
+
+.docker-images-cleanup-summary__label {
+  color: var(--td-text-color-secondary);
+  display: block;
+  font: var(--td-font-body-small);
+  margin-bottom: var(--graft-density-gap-4);
+}
+
+.docker-images-cleanup-summary__stats strong {
+  color: var(--td-brand-color-7);
+  font: var(--td-font-title-large);
+  margin-right: var(--graft-density-gap-4);
+}
+
+.docker-images-cleanup-warning {
+  margin: 0;
+}
+
+.docker-images-cleanup-preview {
+  min-width: 0;
+}
+
+.docker-images-cleanup-section-head,
+.docker-images-cleanup-footer {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+}
+
+.docker-images-cleanup-section-head h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+}
+
+.docker-images-cleanup-section-head span,
+.docker-images-cleanup-footer span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.docker-images-cleanup-preview-body {
+  align-items: center;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: minmax(0, 1fr) 32px;
+}
+
+.docker-images-cleanup-table {
+  min-width: 0;
+}
+
+.docker-images-cleanup-image {
+  align-items: center;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: 18px minmax(0, 1fr);
+  min-width: 0;
+  width: 100%;
+}
+
+.docker-images-cleanup-image__icon {
+  color: var(--td-text-color-secondary);
+}
+
+.docker-images-cleanup-image__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-images-cleanup-pager {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: flex;
+  flex-direction: column;
+  font: var(--td-font-body-small);
+  gap: var(--graft-density-gap-8);
+  justify-content: center;
+}
+
+.docker-images-cleanup-pager :deep(.t-button) {
+  color: var(--td-text-color-secondary);
+}
+
+.docker-images-cleanup-pager :deep(.t-button:not(.t-is-disabled):hover) {
+  color: var(--td-brand-color-7);
+}
+
+.docker-images-cleanup-footer strong {
+  color: var(--td-text-color-primary);
+  display: block;
+  font: var(--td-font-title-medium);
+  margin-top: var(--graft-density-gap-4);
+}
+
+:deep(.docker-images-cleanup-dialog .t-dialog__body) {
+  overflow: hidden;
+}
+
+:deep(.docker-images-cleanup-dialog .t-dialog__body-content) {
+  max-height: calc(70vh - 120px);
+  overflow: auto;
+}
+
+:deep(.docker-images-cleanup-dialog .t-dialog__footer) {
+  padding-top: 0;
+}
+
 .docker-images-pull-log {
   margin-top: var(--graft-density-gap-16);
 }
@@ -502,6 +1023,24 @@ onUnmounted(() => {
 @media (width <= 768px) {
   .docker-images-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .docker-images-cleanup-summary__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-images-cleanup-section-head,
+  .docker-images-cleanup-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .docker-images-cleanup-footer :deep(.t-space) {
+    width: 100%;
+  }
+
+  .docker-images-cleanup-footer :deep(.t-button) {
+    flex: 1;
   }
 }
 </style>

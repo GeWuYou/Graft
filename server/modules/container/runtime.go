@@ -194,11 +194,12 @@ type ListQuery struct {
 	SourceScope     string
 }
 
-// DockerImageListQuery 描述 Docker 镜像列表的分页和关键字筛选条件。
+// DockerImageListQuery 描述 Docker 镜像列表的分页、关键字和未使用状态筛选条件。
 type DockerImageListQuery struct {
 	Limit   int
 	Offset  int
 	Keyword string
+	Unused  bool
 }
 
 // ListResult 是服务层拥有的容器列表响应模型，不直接暴露 Docker SDK 结构。

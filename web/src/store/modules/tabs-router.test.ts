@@ -45,6 +45,39 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
   });
 
+  it('replaces a persisted raw title key when the route now provides a localized title', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': 'container.route.images.title', 'en-US': 'container.route.images.title' },
+      meta: { titleKey: 'container.route.images.title' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': '镜像', 'en-US': 'Images' },
+      meta: { titleKey: 'container.route.images.title' },
+    });
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual({ 'zh-CN': '镜像', 'en-US': 'Images' });
+  });
+
+  it('localizes a persisted raw title key during startup recovery', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': 'container.route.images.title', 'en-US': 'container.route.images.title' },
+      meta: { titleKey: 'container.route.images.title' },
+    });
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual(localizeRouteTitleKey('container.route.images.title'));
+  });
+
   it('clears a tab page snapshot when refreshing a tab', () => {
     const tabsRouterStore = useTabsRouterStore();
 

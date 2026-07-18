@@ -97,6 +97,32 @@ func (s *service) publishDockerImageAudit(ctx context.Context, action containerc
 	}, "publish docker image audit event failed")
 }
 
+func (s *service) publishDockerImageBatchAudit(ctx context.Context, result DockerImageBatchRemoveResult, force bool) {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
+		return
+	}
+	defer detached.cancel()
+	metadata := map[string]any{"batch": true, "requested_total": result.Total, "success_count": result.SuccessCount, "failed_count": result.FailedCount, "force": force, "requested_ids": batchDockerImageIDs(result.Items)}
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, result.RequestID)
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.DockerImageAuditActionRemove.String() + ".batch", ResourceType: containerBatchResourceType, ResourceID: firstNonEmpty(result.RequestID, batchAuditResourceID("docker_image_remove", detached.now)), ResourceName: "docker_image_remove x" + strconv.Itoa(result.Total), StatusCode: batchDockerImageAuditStatus(result), Success: result.FailedCount == 0, Metadata: metadata}, "publish docker image batch audit event failed")
+}
+
+func batchDockerImageIDs(items []DockerImageBatchRemoveItem) []string {
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	return ids
+}
+
+func batchDockerImageAuditStatus(result DockerImageBatchRemoveResult) int {
+	if result.FailedCount > 0 {
+		return http.StatusConflict
+	}
+	return http.StatusOK
+}
+
 func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
 	detached := startDetachedAuditContext(ctx, s)
 	if !detached.ok {

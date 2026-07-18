@@ -2332,6 +2332,66 @@ func (e GetDockerImages500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostDockerImageBatchRemove400JSONResponseBodySuccess.
+const (
+	PostDockerImageBatchRemove400JSONResponseBodySuccessFalse PostDockerImageBatchRemove400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove400JSONResponseBodySuccess enum.
+func (e PostDockerImageBatchRemove400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageBatchRemove400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageBatchRemove401JSONResponseBodySuccess.
+const (
+	PostDockerImageBatchRemove401JSONResponseBodySuccessFalse PostDockerImageBatchRemove401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove401JSONResponseBodySuccess enum.
+func (e PostDockerImageBatchRemove401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageBatchRemove401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageBatchRemove403JSONResponseBodySuccess.
+const (
+	PostDockerImageBatchRemove403JSONResponseBodySuccessFalse PostDockerImageBatchRemove403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove403JSONResponseBodySuccess enum.
+func (e PostDockerImageBatchRemove403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageBatchRemove403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageBatchRemove500JSONResponseBodySuccess.
+const (
+	PostDockerImageBatchRemove500JSONResponseBodySuccessFalse PostDockerImageBatchRemove500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove500JSONResponseBodySuccess enum.
+func (e PostDockerImageBatchRemove500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageBatchRemove500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostDockerImagePull401JSONResponseBodySuccess.
 const (
 	PostDockerImagePull401JSONResponseBodySuccessFalse PostDockerImagePull401JSONResponseBodySuccess = false
@@ -3374,6 +3434,9 @@ type GetDockerImagesParams struct {
 	// Keyword Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests.
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
 
+	// Unused Optional filter that returns only Docker images with no container references.
+	Unused *bool `form:"unused,omitempty" json:"unused,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -3390,6 +3453,35 @@ type GetDockerImages403JSONResponseBodySuccess bool
 
 // GetDockerImages500JSONResponseBodySuccess defines parameters for GetDockerImages.
 type GetDockerImages500JSONResponseBodySuccess bool
+
+// PostDockerImageBatchRemoveJSONBody defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemoveJSONBody struct {
+	// Force Force removal even when a container references an image.
+	Force *bool    `json:"force,omitempty"`
+	Ids   []string `json:"ids"`
+}
+
+// PostDockerImageBatchRemoveParams defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerImageBatchRemove400JSONResponseBodySuccess defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemove400JSONResponseBodySuccess bool
+
+// PostDockerImageBatchRemove401JSONResponseBodySuccess defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemove401JSONResponseBodySuccess bool
+
+// PostDockerImageBatchRemove403JSONResponseBodySuccess defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemove403JSONResponseBodySuccess bool
+
+// PostDockerImageBatchRemove500JSONResponseBodySuccess defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemove500JSONResponseBodySuccess bool
 
 // PostDockerImagePullJSONBody defines parameters for PostDockerImagePull.
 type PostDockerImagePullJSONBody struct {
@@ -3507,6 +3599,9 @@ type PostContainerRemoveJSONRequestBody PostContainerRemoveJSONBody
 
 // PostContainerShellSessionJSONRequestBody defines body for PostContainerShellSession for application/json ContentType.
 type PostContainerShellSessionJSONRequestBody PostContainerShellSessionJSONBody
+
+// PostDockerImageBatchRemoveJSONRequestBody defines body for PostDockerImageBatchRemove for application/json ContentType.
+type PostDockerImageBatchRemoveJSONRequestBody PostDockerImageBatchRemoveJSONBody
 
 // PostDockerImagePullJSONRequestBody defines body for PostDockerImagePull for application/json ContentType.
 type PostDockerImagePullJSONRequestBody PostDockerImagePullJSONBody

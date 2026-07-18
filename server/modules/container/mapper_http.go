@@ -26,9 +26,13 @@ func toContainerListResponse(result ListResult) containergen.ContainerListRespon
 	}
 }
 
-// toDockerImage 将 Docker 镜像领域对象转换为 OpenAPI 镜像响应。
+// toDockerImage 将 Docker 镜像领域对象转换为带引用信息的 OpenAPI 镜像响应。
 func toDockerImage(item DockerImage) containergen.DockerImage {
-	return containergen.DockerImage{Id: item.ID, RepositoryTags: append([]string(nil), item.RepositoryTags...), RepositoryDigests: append([]string(nil), item.RepositoryDigests...), CreatedAt: item.CreatedAt, SizeBytes: item.SizeBytes, Containers: item.Containers, Labels: optionalStringMap(item.Labels), Architecture: optionalString(item.Architecture), OperatingSystem: optionalString(item.OperatingSystem)}
+	refs := make([]containergen.DockerImageContainerReference, 0, len(item.ContainerReferences))
+	for _, ref := range item.ContainerReferences {
+		refs = append(refs, containergen.DockerImageContainerReference{Id: ref.ID, Name: ref.Name})
+	}
+	return containergen.DockerImage{Id: item.ID, RepositoryTags: append([]string(nil), item.RepositoryTags...), RepositoryDigests: append([]string(nil), item.RepositoryDigests...), CreatedAt: item.CreatedAt, SizeBytes: item.SizeBytes, Containers: item.Containers, ContainerReferences: refs, Dangling: item.Dangling, Labels: optionalStringMap(item.Labels), Architecture: optionalString(item.Architecture), OperatingSystem: optionalString(item.OperatingSystem)}
 }
 
 // toDockerImageList 将 Docker 镜像分页结果映射为 canonical OpenAPI 响应。
@@ -49,6 +53,14 @@ func toDockerImageList(result DockerImageListResult, query DockerImageListQuery)
 			Dangling:  result.Summary.Dangling,
 		},
 	}
+}
+
+func toDockerImageBatchRemove(result DockerImageBatchRemoveResult) containergen.DockerImageBatchRemoveResponse {
+	items := make([]containergen.DockerImageBatchRemoveItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, containergen.DockerImageBatchRemoveItem{Id: item.ID, Success: item.Success, ErrorCode: optionalString(item.ErrorCode), MessageKey: optionalString(item.MessageKey), Message: optionalString(item.Message)})
+	}
+	return containergen.DockerImageBatchRemoveResponse{Total: result.Total, SuccessCount: result.SuccessCount, FailedCount: result.FailedCount, RequestId: optionalString(result.RequestID), Items: items}
 }
 
 func toDockerImageAction(result DockerImageActionResult) containergen.DockerImageActionResponse {

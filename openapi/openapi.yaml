@@ -265,6 +265,8 @@ paths:
     $ref: ./paths/ops-docker-images.tag.yaml
   /api/ops/docker/images/{id}/remove:
     $ref: ./paths/ops-docker-images.remove.yaml
+  /api/ops/docker/images/batch-remove:
+    $ref: ./paths/ops-docker-images.batch-remove.yaml
   /api/ops/docker/networks:
     $ref: ./paths/ops-docker-networks.collection.yaml
   /api/ops/docker/networks/{id}:
@@ -873,6 +875,8 @@ components:
       $ref: ./components/schemas/enveloped-container-batch-action-response.yaml
     DockerImage:
       $ref: ./components/schemas/docker-image.yaml
+    DockerImageContainerReference:
+      $ref: ./components/schemas/docker-image-container-reference.yaml
     DockerImageListResponse:
       $ref: ./components/schemas/docker-image-list-response.yaml
     DockerImagePullRequest:
@@ -883,6 +887,12 @@ components:
       $ref: ./components/schemas/docker-image-remove-request.yaml
     DockerImageActionResponse:
       $ref: ./components/schemas/docker-image-action-response.yaml
+    DockerImageBatchRemoveRequest:
+      $ref: ./components/schemas/docker-image-batch-remove-request.yaml
+    DockerImageBatchRemoveItem:
+      $ref: ./components/schemas/docker-image-batch-remove-item.yaml
+    DockerImageBatchRemoveResponse:
+      $ref: ./components/schemas/docker-image-batch-remove-response.yaml
     DockerImagePullEvent:
       $ref: ./components/schemas/docker-image-pull-event.yaml
     DockerNetwork:
@@ -899,6 +909,8 @@ components:
       $ref: ./components/schemas/enveloped-docker-image-list-response.yaml
     EnvelopedDockerImageActionResponse:
       $ref: ./components/schemas/enveloped-docker-image-action-response.yaml
+    EnvelopedDockerImageBatchRemoveResponse:
+      $ref: ./components/schemas/enveloped-docker-image-batch-remove-response.yaml
     EnvelopedDockerNetwork:
       $ref: ./components/schemas/enveloped-docker-network.yaml
     EnvelopedDockerNetworkListResponse:

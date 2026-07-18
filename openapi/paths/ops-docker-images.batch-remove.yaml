@@ -1,0 +1,41 @@
+post:
+  tags: [container]
+  summary: Remove Docker images in batch
+  operationId: postDockerImageBatchRemove
+  description: Removes selected Docker images and returns one result for each requested image, allowing partial success.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/docker-image-batch-remove-request.yaml
+  responses:
+    '200':
+      description: Docker image batch removal result.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-docker-image-batch-remove-response.yaml
+    '400':
+      description: Invalid batch image removal request.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml

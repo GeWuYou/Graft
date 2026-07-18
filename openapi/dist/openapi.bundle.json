@@ -11648,6 +11648,9 @@
           },
           {
             "$ref": "#/components/parameters/docker-image-list-keyword"
+          },
+          {
+            "$ref": "#/components/parameters/docker-image-list-unused"
           }
         ],
         "security": [
@@ -11853,6 +11856,80 @@
           },
           "409": {
             "description": "Image is in use by a container"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/images/batch-remove": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Remove Docker images in batch",
+        "operationId": "postDockerImageBatchRemove",
+        "description": "Removes selected Docker images and returns one result for each requested image, allowing partial success.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-image-batch-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker image batch removal result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image-batch-remove-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch image removal request.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -16778,6 +16855,9 @@
       "DockerImage": {
         "$ref": "#/components/schemas/docker-image"
       },
+      "DockerImageContainerReference": {
+        "$ref": "#/components/schemas/docker-image-container-reference"
+      },
       "DockerImageListResponse": {
         "$ref": "#/components/schemas/docker-image-list-response"
       },
@@ -16792,6 +16872,15 @@
       },
       "DockerImageActionResponse": {
         "$ref": "#/components/schemas/docker-image-action-response"
+      },
+      "DockerImageBatchRemoveRequest": {
+        "$ref": "#/components/schemas/docker-image-batch-remove-request"
+      },
+      "DockerImageBatchRemoveItem": {
+        "$ref": "#/components/schemas/docker-image-batch-remove-item"
+      },
+      "DockerImageBatchRemoveResponse": {
+        "$ref": "#/components/schemas/docker-image-batch-remove-response"
       },
       "DockerImagePullEvent": {
         "$ref": "#/components/schemas/docker-image-pull-event"
@@ -16816,6 +16905,9 @@
       },
       "EnvelopedDockerImageActionResponse": {
         "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+      },
+      "EnvelopedDockerImageBatchRemoveResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-image-batch-remove-response"
       },
       "EnvelopedDockerNetwork": {
         "$ref": "#/components/schemas/enveloped-docker-network"
@@ -25690,6 +25782,22 @@
         },
         "additionalProperties": false
       },
+      "docker-image-container-reference": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "docker-image": {
         "type": "object",
         "required": [
@@ -25698,7 +25806,9 @@
           "repository_digests",
           "created_at",
           "size_bytes",
-          "containers"
+          "containers",
+          "container_references",
+          "dangling"
         ],
         "properties": {
           "id": {
@@ -25726,6 +25836,17 @@
           "containers": {
             "type": "integer",
             "format": "int64"
+          },
+          "container_references": {
+            "type": "array",
+            "description": "Containers currently referencing this image, represented as sanitized display references.",
+            "items": {
+              "$ref": "#/components/schemas/docker-image-container-reference"
+            }
+          },
+          "dangling": {
+            "type": "boolean",
+            "description": "Whether the image has only an untagged placeholder reference."
           },
           "labels": {
             "type": "object",
@@ -25944,6 +26065,108 @@
           }
         },
         "additionalProperties": false
+      },
+      "docker-image-batch-remove-request": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 100,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Force removal even when a container references an image."
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-image-batch-remove-item": {
+        "type": "object",
+        "required": [
+          "id",
+          "success"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "message_key": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-image-batch-remove-response": {
+        "type": "object",
+        "description": "Batch image removal summary with one result item for every requested image ID in request order.",
+        "required": [
+          "total",
+          "success_count",
+          "failed_count",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+              "$ref": "#/components/schemas/docker-image-batch-remove-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-docker-image-batch-remove-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-image-batch-remove-response"
+              }
+            }
+          }
+        ]
       },
       "docker-network": {
         "type": "object",
@@ -32043,6 +32266,16 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        }
+      },
+      "docker-image-list-unused": {
+        "name": "unused",
+        "in": "query",
+        "required": false,
+        "description": "Optional filter that returns only Docker images with no container references.",
+        "schema": {
+          "type": "boolean",
+          "default": false
         }
       },
       "docker-image-id-path": {

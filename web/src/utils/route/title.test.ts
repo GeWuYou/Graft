@@ -17,8 +17,8 @@ describe('localizeRouteTitle', () => {
       'en-US': 'Service Status',
     });
     expect(localizeRouteTitle('', 'container.route.images.title')).toEqual({
-      'zh-CN': '镜像管理',
-      'en-US': 'Image Management',
+      'zh-CN': '镜像',
+      'en-US': 'Images',
     });
   });
 
