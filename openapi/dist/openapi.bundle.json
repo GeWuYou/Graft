@@ -11632,6 +11632,24 @@
         ],
         "summary": "List Docker images",
         "operationId": "getDockerImages",
+        "description": "Returns a stable page of Docker images. The summary describes the complete configured runtime inventory and is independent of the keyword filter.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/docker-image-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/docker-image-list-offset"
+          },
+          {
+            "$ref": "#/components/parameters/docker-image-list-keyword"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -25723,10 +25741,42 @@
           }
         }
       },
+      "docker-image-list-summary": {
+        "type": "object",
+        "required": [
+          "total",
+          "size_bytes",
+          "in_use",
+          "dangling"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "in_use": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dangling": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "docker-image-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "summary"
         ],
         "properties": {
           "items": {
@@ -25734,6 +25784,21 @@
             "items": {
               "$ref": "#/components/schemas/docker-image"
             }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "summary": {
+            "$ref": "#/components/schemas/docker-image-list-summary"
           }
         }
       },
@@ -31930,6 +31995,54 @@
           "type": "integer",
           "format": "int64",
           "minimum": 1
+        }
+      },
+      "docker-image-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "examples": {
+          "defaultWindow": {
+            "summary": "Fetch the default Docker image list window",
+            "value": 20
+          },
+          "maxWindow": {
+            "summary": "Fetch up to the maximum supported window",
+            "value": 100
+          }
+        }
+      },
+      "docker-image-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for Docker images.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "examples": {
+          "firstPage": {
+            "summary": "Start from the first Docker image",
+            "value": 0
+          }
+        }
+      },
+      "docker-image-list-keyword": {
+        "name": "keyword",
+        "in": "query",
+        "required": false,
+        "description": "Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         }
       },
       "docker-image-id-path": {

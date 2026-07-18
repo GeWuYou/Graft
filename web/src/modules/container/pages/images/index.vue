@@ -28,30 +28,44 @@
 
     <management-toolbar>
       <template #filters>
-        <t-input v-model="keyword" class="management-list-search" clearable :placeholder="t('container.images.search')">
+        <t-input
+          v-model="keyword"
+          class="management-list-search"
+          clearable
+          :placeholder="t('container.images.search')"
+          @clear="clearKeyword"
+          @enter="applyKeyword"
+        >
           <template #prefix-icon><search-icon /></template>
         </t-input>
       </template>
     </management-toolbar>
 
-    <t-alert v-if="query.isError.value" theme="error" :message="t('container.images.loadFailed')" />
-    <t-table
-      row-key="id"
+    <management-paged-table
+      v-model:current="pagination.current"
+      v-model:page-size="pagination.pageSize"
       :columns="columns"
-      :data="filteredImages"
+      :rows="images"
       :loading="query.isFetching.value"
-      :pagination="{ pageSize: 20, total: filteredImages.length }"
-      table-layout="fixed"
+      :total="total"
+      :footer-summary="footerSummary"
+      :empty-title="t('container.images.emptyTitle')"
+      :empty-description="
+        t(submittedKeyword ? 'container.images.filteredEmptyDescription' : 'container.images.emptyDescription')
+      "
     >
+      <template #feedback>
+        <t-alert v-if="query.isError.value" theme="error" :message="t('container.images.loadFailed')" />
+      </template>
       <template #empty>
         <t-empty
           :title="t('container.images.emptyTitle')"
           :description="
-            t(keyword.trim() ? 'container.images.filteredEmptyDescription' : 'container.images.emptyDescription')
+            t(submittedKeyword ? 'container.images.filteredEmptyDescription' : 'container.images.emptyDescription')
           "
         >
           <template #action>
-            <t-button v-if="keyword.trim()" variant="outline" @click="clearKeyword">
+            <t-button v-if="submittedKeyword" variant="outline" @click="clearKeyword">
               {{ t('container.images.clearFilter') }}
             </t-button>
           </template>
@@ -84,7 +98,7 @@
           }}</t-button>
         </t-space>
       </template>
-    </t-table>
+    </management-paged-table>
 
     <t-drawer
       v-model:visible="detailDrawerVisible"
@@ -193,7 +207,7 @@ import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onUnmounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
+import { ManagementPagedTable, ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
 import {
   formatBytes,
   formatLocaleDateTime,
@@ -205,13 +219,20 @@ import {
 
 import { type DockerImageRecord, getDockerImage } from '../../api/container';
 import { type DockerImagePullEvent, pullDockerImage, removeDockerImage, tagDockerImage } from '../../api/image-actions';
-import { useDockerImageQuery } from '../../shared/docker-image-queries';
+import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
 type DockerImage = DockerImageRecord;
 
 const { locale, t } = useI18n();
-const query = useDockerImageQuery();
+const pagination = reactive({ current: 1, pageSize: 20 });
 const keyword = ref('');
+const submittedKeyword = ref('');
+const imageQuery = computed<DockerImageQueryState>(() => ({
+  pageSize: pagination.pageSize,
+  offset: (pagination.current - 1) * pagination.pageSize,
+  keyword: submittedKeyword.value,
+}));
+const query = useDockerImageQuery(imageQuery);
 const selectedImage = ref<DockerImage | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
@@ -279,27 +300,23 @@ function pullLogLabel(key: string) {
 }
 
 const images = computed(() => query.data.value?.items ?? []);
-const filteredImages = computed(() => {
-  const normalized = keyword.value.trim().toLowerCase();
-  if (!normalized) return images.value;
-  return images.value.filter((image) =>
-    [image.id, ...image.repository_tags, ...image.repository_digests].some((value) =>
-      value.toLowerCase().includes(normalized),
-    ),
-  );
-});
+const total = computed(() => query.data.value?.total ?? 0);
+const summary = computed(() => query.data.value?.summary);
 const metrics = computed(() => [
-  { label: t('container.images.metrics.total'), value: images.value.length },
+  { label: t('container.images.metrics.total'), value: summary.value ? summary.value.total : '--' },
   {
     label: t('container.images.metrics.size'),
-    value: formatBytes(images.value.reduce((total, image) => total + image.size_bytes, 0)),
+    value: summary.value ? formatBytes(summary.value.size_bytes) : '--',
   },
-  { label: t('container.images.metrics.inUse'), value: images.value.filter((image) => image.containers > 0).length },
-  {
-    label: t('container.images.metrics.dangling'),
-    value: images.value.filter((image) => image.repository_tags.length === 0).length,
-  },
+  { label: t('container.images.metrics.inUse'), value: summary.value ? summary.value.in_use : '--' },
+  { label: t('container.images.metrics.dangling'), value: summary.value ? summary.value.dangling : '--' },
 ]);
+const footerSummary = computed(() => {
+  if (!total.value) return t('container.images.pagination.empty');
+  const start = (pagination.current - 1) * pagination.pageSize + 1;
+  const end = Math.min(pagination.current * pagination.pageSize, total.value);
+  return t('container.images.pagination.summary', { start, end, total: total.value });
+});
 const columns: TableProps['columns'] = computed(() => [
   { colKey: 'tags', title: t('container.images.fields.tags'), ellipsis: true, minWidth: 260 },
   { colKey: 'id', title: t('container.images.fields.id'), width: 150 },
@@ -318,8 +335,14 @@ function shortId(value: string) {
 function refresh() {
   return query.refetch();
 }
+function applyKeyword() {
+  submittedKeyword.value = keyword.value.trim();
+  pagination.current = 1;
+}
 function clearKeyword() {
   keyword.value = '';
+  submittedKeyword.value = '';
+  pagination.current = 1;
 }
 async function openDetail(image: DockerImage) {
   selectedImage.value = image;

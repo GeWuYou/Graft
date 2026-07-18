@@ -11,6 +11,24 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('<log-viewer');
   });
 
+  it('uses the shared server-paged table and summary contract', () => {
+    expect(sourceText).toContain('<management-paged-table');
+    expect(sourceText).toContain('v-model:current="pagination.current"');
+    expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
+    expect(sourceText).toContain(':total="total"');
+    expect(sourceText).toContain('summary.value.size_bytes');
+    expect(sourceText).not.toContain(':pagination="');
+    expect(sourceText).not.toContain('filteredImages');
+  });
+
+  it('resets server pagination when submitting or clearing the keyword', () => {
+    expect(sourceText).toContain('@enter="applyKeyword"');
+    expect(sourceText).toContain('@clear="clearKeyword"');
+    expect(sourceText).toContain('submittedKeyword.value = keyword.value.trim();');
+    expect(sourceText).toContain("submittedKeyword.value = '';");
+    expect(sourceText).toContain('pagination.current = 1;');
+  });
+
   it('renders a TDesign empty state with a keyword reset action', () => {
     expect(sourceText).toContain('<template #empty>');
     expect(sourceText).toContain('<t-empty');

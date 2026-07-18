@@ -20,6 +20,8 @@
   "container.images.emptyDescription": "No images are available in the current Docker runtime.",
   "container.images.filteredEmptyDescription": "No images match the current filter.",
   "container.images.clearFilter": "Clear Filter",
+  "container.images.pagination.empty": "No Images",
+  "container.images.pagination.summary": "{start}-{end} of {total}",
   "container.images.loadFailed": "Image list could not be loaded.",
   "container.images.untagged": "Untagged",
   "container.images.containerCount": "{count} containers",

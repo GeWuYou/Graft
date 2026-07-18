@@ -368,12 +368,26 @@ func (s *service) dockerResources(ctx context.Context) (DockerResourceReader, er
 	return reader, nil
 }
 
-func (s *service) DockerImages(ctx context.Context) ([]DockerImage, error) {
+// DockerImages 从一次 runtime 快照返回过滤后的镜像分页和完整 inventory 摘要。
+func (s *service) DockerImages(ctx context.Context, query DockerImageListQuery) (DockerImageListResult, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return nil, err
+		return DockerImageListResult{}, err
 	}
-	return reader.ListDockerImages(ctx)
+	normalized, err := normalizeDockerImageListQuery(query)
+	if err != nil {
+		return DockerImageListResult{}, err
+	}
+	snapshot, err := reader.ListDockerImages(ctx)
+	if err != nil {
+		return DockerImageListResult{}, err
+	}
+	filtered := filterDockerImages(snapshot.Items, normalized.Keyword)
+	return DockerImageListResult{
+		Items:   pageDockerImages(filtered, normalized.Offset, normalized.Limit),
+		Total:   len(filtered),
+		Summary: snapshot.Summary,
+	}, nil
 }
 
 func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {

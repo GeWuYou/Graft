@@ -2225,7 +2225,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List Docker images */
+    /**
+     * List Docker images
+     * @description Returns a stable page of Docker images. The summary describes the complete configured runtime inventory and is independent of the keyword filter.
+     */
     get: operations['getDockerImages'];
     put?: never;
     post?: never;
@@ -6463,8 +6466,19 @@ export interface components {
       architecture?: string;
       operating_system?: string;
     };
+    'docker-image-list-summary': {
+      total: number;
+      /** Format: int64 */
+      size_bytes: number;
+      in_use: number;
+      dangling: number;
+    };
     'docker-image-list-response': {
       items: components['schemas']['docker-image'][];
+      total: number;
+      limit: number;
+      offset: number;
+      summary: components['schemas']['docker-image-list-summary'];
     };
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
@@ -7948,6 +7962,12 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
+    'docker-image-list-limit': number;
+    /** @description Optional zero-based offset for Docker images. */
+    'docker-image-list-offset': number;
+    /** @description Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests. */
+    'docker-image-list-keyword': string;
     /** @description Docker image ID or repository reference. */
     'docker-image-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
@@ -14327,8 +14347,23 @@ export interface operations {
   };
   getDockerImages: {
     parameters: {
-      query?: never;
-      header?: never;
+      query?: {
+        /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['docker-image-list-limit'];
+        /** @description Optional zero-based offset for Docker images. */
+        offset?: components['parameters']['docker-image-list-offset'];
+        /** @description Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests. */
+        keyword?: components['parameters']['docker-image-list-keyword'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
       path?: never;
       cookie?: never;
     };

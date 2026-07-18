@@ -2,6 +2,13 @@ get:
   tags: [container]
   summary: List Docker images
   operationId: getDockerImages
+  description: Returns a stable page of Docker images. The summary describes the complete configured runtime inventory and is independent of the keyword filter.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/docker-image-list-limit.yaml
+    - $ref: ../components/parameters/docker-image-list-offset.yaml
+    - $ref: ../components/parameters/docker-image-list-keyword.yaml
   security: [{ bearerAuth: [] }]
   responses:
     '200':

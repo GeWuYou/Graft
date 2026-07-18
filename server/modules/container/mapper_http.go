@@ -31,14 +31,24 @@ func toDockerImage(item DockerImage) containergen.DockerImage {
 	return containergen.DockerImage{Id: item.ID, RepositoryTags: append([]string(nil), item.RepositoryTags...), RepositoryDigests: append([]string(nil), item.RepositoryDigests...), CreatedAt: item.CreatedAt, SizeBytes: item.SizeBytes, Containers: item.Containers, Labels: optionalStringMap(item.Labels), Architecture: optionalString(item.Architecture), OperatingSystem: optionalString(item.OperatingSystem)}
 }
 
-// toDockerImageList 将 Docker 镜像列表转换为 OpenAPI 镜像列表响应。
-// 返回包含映射后镜像项的响应。
-func toDockerImageList(items []DockerImage) containergen.DockerImageListResponse {
-	mapped := make([]containergen.DockerImage, 0, len(items))
-	for _, item := range items {
+// toDockerImageList 将 Docker 镜像分页结果映射为 canonical OpenAPI 响应。
+func toDockerImageList(result DockerImageListResult, query DockerImageListQuery) containergen.DockerImageListResponse {
+	mapped := make([]containergen.DockerImage, 0, len(result.Items))
+	for _, item := range result.Items {
 		mapped = append(mapped, toDockerImage(item))
 	}
-	return containergen.DockerImageListResponse{Items: mapped}
+	return containergen.DockerImageListResponse{
+		Items:  mapped,
+		Limit:  query.Limit,
+		Offset: query.Offset,
+		Total:  result.Total,
+		Summary: containergen.DockerImageListSummary{
+			Total:     result.Summary.Total,
+			SizeBytes: result.Summary.SizeBytes,
+			InUse:     result.Summary.InUse,
+			Dangling:  result.Summary.Dangling,
+		},
+	}
 }
 
 func toDockerImageAction(result DockerImageActionResult) containergen.DockerImageActionResponse {

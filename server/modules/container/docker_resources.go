@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
@@ -38,6 +39,22 @@ type DockerImage struct {
 	OperatingSystem   string
 }
 
+// DockerImageListResult 保存一次 Docker 镜像快照及其完整运行时统计。
+// Items 由同一次 ImageList 调用产生，调用方可以在此快照上完成过滤和分页，避免重复访问 Docker daemon。
+type DockerImageListResult struct {
+	Items   []DockerImage
+	Total   int
+	Summary DockerImageListSummary
+}
+
+// DockerImageListSummary 描述完整 Docker runtime inventory，不受列表关键字过滤影响。
+type DockerImageListSummary struct {
+	Total     int
+	SizeBytes int64
+	InUse     int
+	Dangling  int
+}
+
 // DockerNetwork is the sanitized network projection shared by list and detail reads.
 type DockerNetwork struct {
 	ID             string
@@ -66,7 +83,7 @@ type DockerVolume struct {
 
 // DockerResourceReader marks a runtime that can list Docker-native resources.
 type DockerResourceReader interface {
-	ListDockerImages(context.Context) ([]DockerImage, error)
+	ListDockerImages(context.Context) (DockerImageListResult, error)
 	ReadDockerImage(context.Context, string) (DockerImage, error)
 	ListDockerNetworks(context.Context) ([]DockerNetwork, error)
 	ReadDockerNetwork(context.Context, string) (DockerNetwork, error)
@@ -74,23 +91,69 @@ type DockerResourceReader interface {
 	ReadDockerVolume(context.Context, string) (DockerVolume, error)
 }
 
-// ListDockerImages returns sanitized Docker images from the configured runtime.
-func (r *DockerRuntime) ListDockerImages(ctx context.Context) ([]DockerImage, error) {
+// ListDockerImages 从 Docker runtime 读取一次完整镜像快照，并在返回前计算库存摘要和稳定排序。
+func (r *DockerRuntime) ListDockerImages(ctx context.Context) (DockerImageListResult, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
-		return nil, errUnsupportedContainerRuntime
+		return DockerImageListResult{}, errUnsupportedContainerRuntime
 	}
 	readCtx, cancel := context.WithTimeout(ctx, dockerImageReadTimeout)
 	defer cancel()
 	items, err := client.ImageList(readCtx, mobyclient.ImageListOptions{All: true})
 	if err != nil {
-		return nil, mapDockerError(err)
+		return DockerImageListResult{}, mapDockerError(err)
 	}
 	result := make([]DockerImage, 0, len(items))
+	var summary DockerImageListSummary
 	for _, item := range items {
-		result = append(result, dockerImageSummary(item))
+		image := dockerImageSummary(item)
+		result = append(result, image)
+		summary.Total++
+		summary.SizeBytes += maxInt64(item.Size, 0)
+		if item.Containers > 0 {
+			summary.InUse++
+		}
+		if dockerImageIsDangling(item.RepoTags) {
+			summary.Dangling++
+		}
 	}
-	return result, nil
+	sortDockerImages(result)
+	return DockerImageListResult{Items: result, Summary: summary}, nil
+}
+
+func sortDockerImages(items []DockerImage) {
+	sort.SliceStable(items, func(i, j int) bool {
+		left, right := imageCreatedAt(items[i]), imageCreatedAt(items[j])
+		if !left.Equal(right) {
+			return left.After(right)
+		}
+		return items[i].ID < items[j].ID
+	})
+}
+
+func imageCreatedAt(item DockerImage) time.Time {
+	created, err := time.Parse(time.RFC3339, item.CreatedAt)
+	if err != nil {
+		return time.Time{}
+	}
+	return created
+}
+
+func dockerImageIsDangling(tags []string) bool {
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag != "" && tag != "<none>:<none>" {
+			return false
+		}
+	}
+	return true
+}
+
+func maxInt64(value, minimum int64) int64 {
+	if value < minimum {
+		return minimum
+	}
+	return value
 }
 
 // ReadDockerImage returns one sanitized Docker image by ID.

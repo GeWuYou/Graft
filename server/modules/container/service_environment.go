@@ -387,6 +387,52 @@ func filterContainerSummaries(items []Summary, query ListQuery) []Summary {
 	return filtered
 }
 
+func normalizeDockerImageListQuery(query DockerImageListQuery) (DockerImageListQuery, error) {
+	if query.Limit == 0 {
+		query.Limit = defaultContainerListLimit
+	}
+	if query.Limit < 1 || query.Limit > maxContainerListLimit || query.Offset < 0 {
+		return DockerImageListQuery{}, errInvalidListQuery
+	}
+	query.Keyword = strings.TrimSpace(query.Keyword)
+	if len(query.Keyword) > containerListKeywordMaxLength {
+		return DockerImageListQuery{}, errInvalidListQuery
+	}
+	return query, nil
+}
+
+func filterDockerImages(items []DockerImage, keyword string) []DockerImage {
+	keyword = strings.ToLower(strings.TrimSpace(keyword))
+	filtered := make([]DockerImage, 0, len(items))
+	for _, item := range items {
+		if keyword == "" || strings.Contains(strings.ToLower(item.ID), keyword) ||
+			dockerImageFieldContains(item.RepositoryTags, keyword) || dockerImageFieldContains(item.RepositoryDigests, keyword) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func dockerImageFieldContains(values []string, keyword string) bool {
+	for _, value := range values {
+		if strings.Contains(strings.ToLower(value), keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func pageDockerImages(items []DockerImage, offset, limit int) []DockerImage {
+	if offset >= len(items) {
+		return []DockerImage{}
+	}
+	end := offset + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	return items[offset:end]
+}
+
 // summaryMatchesListQuery 确定容器摘要是否与列表查询的所有过滤条件相匹配。
 func summaryMatchesListQuery(item Summary, query ListQuery, keyword string) bool {
 	return summaryMatchesState(item, query.State) &&

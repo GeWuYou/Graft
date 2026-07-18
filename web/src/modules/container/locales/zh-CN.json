@@ -20,6 +20,8 @@
   "container.images.emptyDescription": "当前 Docker 运行目标中暂无镜像。",
   "container.images.filteredEmptyDescription": "没有匹配当前筛选条件的镜像。",
   "container.images.clearFilter": "清除筛选",
+  "container.images.pagination.empty": "暂无镜像",
+  "container.images.pagination.summary": "第 {start}-{end} 条 / 共 {total} 条",
   "container.images.loadFailed": "镜像列表加载失败。",
   "container.images.untagged": "无标签",
   "container.images.containerCount": "{count} 个容器",

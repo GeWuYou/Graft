@@ -146,12 +146,22 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 }
 
 func (r routeRuntime) handleDockerImages(c *gin.Context) {
-	items, err := r.service.DockerImages(c.Request.Context())
+	params, ok := bindGetDockerImagesParams(c, r.ctx)
+	if !ok {
+		return
+	}
+	query := dockerImageListQueryFromParams(params)
+	query, err := normalizeDockerImageListQuery(query)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerImageList(items))
+	result, err := r.service.DockerImages(c.Request.Context(), query)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageList(result, query))
 }
 
 func (r routeRuntime) handleDockerImage(c *gin.Context) {
@@ -632,6 +642,33 @@ func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containe
 		return containeropenapi.GetContainersParams{}, false
 	}
 	return params, true
+}
+
+func bindGetDockerImagesParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetDockerImagesParams, bool) {
+	locale, requestID := commonHeaders(ginCtx)
+	params := containeropenapi.GetDockerImagesParams{XGraftLocale: locale, XRequestId: requestID}
+	limit, ok := queryBoundedInt(ginCtx, ctx, "limit", 1, maxContainerListLimit)
+	if !ok {
+		return containeropenapi.GetDockerImagesParams{}, false
+	}
+	params.Limit = limit
+	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
+	if !ok {
+		return containeropenapi.GetDockerImagesParams{}, false
+	}
+	params.Offset = offset
+	if value := strings.TrimSpace(ginCtx.Query("keyword")); value != "" {
+		if len(value) > containerListKeywordMaxLength {
+			writeInvalidContainerQuery(ginCtx, ctx, "keyword")
+			return containeropenapi.GetDockerImagesParams{}, false
+		}
+		params.Keyword = &value
+	}
+	return params, true
+}
+
+func dockerImageListQueryFromParams(params containeropenapi.GetDockerImagesParams) DockerImageListQuery {
+	return DockerImageListQuery{Limit: intValue(params.Limit), Offset: intValue(params.Offset), Keyword: stringPtrValue(params.Keyword)}
 }
 
 // bindContainerListStateFilters validates and binds optional state, health, deployment type, and runtime target ID filters for container list queries. It returns true if all supplied filters are valid, false otherwise.
