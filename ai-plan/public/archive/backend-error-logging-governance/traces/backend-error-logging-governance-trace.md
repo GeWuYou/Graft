@@ -72,3 +72,7 @@
 - Final production-Go audit repaired the remaining direct internal-error response paths that still discarded causes before the shared HTTP fallback. Shared authorization, App Log Explorer, realtime subscription issuance, and container/project authorization now preserve causes and write one correlated internal error record while retaining the existing safe response envelope.
 - The final search found no remaining handwritten cause-loss wrappers, Access Log ERROR/WARN promotion, raw internal cause serialization, or async panic stack gap in the topic scope. The only direct 500 response sites left are unified panic recovery, which records its panic stack, and OpenAPI rendering, which records through its runtime AppLogger before returning generic text.
 - Full backend entrypoint, full Go tests, Python governance suite, bounded error logging guard, and whitespace checks passed. The topic reached `archive-ready` with no pending batch.
+
+## 2026-07-19 Archive Path Correction
+
+- Final archive review found that the archived README and historical startup prompt still referenced the removed active-topic path. Both now point to `ai-plan/public/archive/backend-error-logging-governance/` and explicitly state that no loop may resume from this historical evidence.

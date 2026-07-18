@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: establish one backend error-reporting authority and migrate server failure paths so operators see the real cause once.
-- Current status: `archive-ready`
+- Current status: `archived`
 - Task class: `server`
 - Intake summary: long-running refactor requiring design alignment, active-topic recovery, and loop execution.
 - Canonical authority:
@@ -59,7 +59,7 @@ Out of scope:
 
 ## Archive Status
 
-- The topic is archive-ready after Batch 6 validation and will move under `ai-plan/public/archive/` with its recovery evidence intact.
+- The topic was archived after Batch 6 validation. Its retained historical evidence lives at `ai-plan/public/archive/backend-error-logging-governance/` and is not an active recovery entry.
 
 ## Validation Targets
 
@@ -69,7 +69,7 @@ cd server && go run ./cmd/graft validate backend
 git diff --check
 ```
 
-## Loop Entry
+## Historical Entry
 
-- Preferred entry: `ai-plan/public/backend-error-logging-governance/startup-prompt.md`
-- Preferred execution mode: `$graft-multi-agent-loop`
+- Historical receipt: `ai-plan/public/archive/backend-error-logging-governance/startup-prompt.md`
+- The topic has no pending batch and must not resume `$graft-multi-agent-loop` execution.

@@ -1,11 +1,13 @@
-Continue backend error logging governance inside the same `topic-completion-loop` unless the caller explicitly changes loop mode.
+# Historical Archive: Backend Error Logging Governance
+
+This topic is archived and has no pending implementation batch. Do not resume its `topic-completion-loop`; use this document only to inspect historical evidence.
 
 Round context:
 
 - governance source: root `AGENTS.md`
 - task class: `server`
-- recovery source: `subtopic`
-- recovery entry: `ai-plan/public/backend-error-logging-governance/README.md`
+- recovery source: `archived subtopic`
+- recovery entry: `ai-plan/public/archive/backend-error-logging-governance/README.md`
 - local execution truth: `server/AGENTS.md` and `ai-plan/AGENTS.md`
 - design authority: `ai-plan/design/domains/audit/日志治理开发规范.md`
 - AI skills: `$graft-multi-agent-loop`, `$graft-multi-agent-task`, `$graft-validation-runner`
@@ -31,18 +33,12 @@ Implementation guardrails:
 - Keep causes out of public response data and do not add compatibility DTOs.
 - Update tracking and trace in every batch.
 
-Current batch plan:
+Historical completion state:
 
-1. Read the tracking file to select the current batch.
-2. Advance exactly one bounded batch and commit it after validation.
+- Batches 1 through 6 are complete.
+- The final archive receipt and validation evidence are in `todos/backend-error-logging-governance-tracking.md` and `traces/backend-error-logging-governance-trace.md` under this archive directory.
 
-Loop instructions:
-
-- Default `loop_mode=topic-completion-loop`.
-- Update batch state after each accepted closeout.
-- Use `Next-session startup prompt:` only for terminal states.
-
-Validation expectations:
+Historical validation:
 
 ```bash
 cd server && go run ./cmd/graft validate backend
