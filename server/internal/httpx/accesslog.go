@@ -16,9 +16,8 @@ import (
 )
 
 const (
-	httpStatusBadRequest          = 400
-	httpStatusInternalServerError = 500
-	accessLogPersistTimeout       = 500 * time.Millisecond
+	httpStatusBadRequest    = 400
+	accessLogPersistTimeout = 500 * time.Millisecond
 )
 
 func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, options AccessLogOptions) gin.HandlerFunc {
@@ -154,12 +153,7 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 }
 
 func logAccess(logger *zap.Logger, status int, fields ...zap.Field) {
-	switch {
-	case status >= httpStatusInternalServerError:
-		logsafe.Error(logger, "http access", fields...)
-	case status >= httpStatusBadRequest:
-		logsafe.Warn(logger, "http access", fields...)
-	case status >= 0:
+	if status >= 0 {
 		logsafe.Info(logger, "http access", fields...)
 	}
 }

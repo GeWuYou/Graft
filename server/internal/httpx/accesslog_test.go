@@ -151,8 +151,8 @@ func TestLogAccessSeverityByStatus(t *testing.T) {
 		level  zapcore.Level
 	}{
 		{name: "success uses info", status: http.StatusOK, level: zapcore.InfoLevel},
-		{name: "client error uses warn", status: http.StatusBadRequest, level: zapcore.WarnLevel},
-		{name: "server error uses error", status: http.StatusInternalServerError, level: zapcore.ErrorLevel},
+		{name: "client error uses info", status: http.StatusBadRequest, level: zapcore.InfoLevel},
+		{name: "server error uses info", status: http.StatusInternalServerError, level: zapcore.InfoLevel},
 	}
 
 	for _, tc := range testCases {
@@ -306,14 +306,14 @@ func TestAccessLogMiddlewareAutoUsesResolvedConsolePolicy(t *testing.T) {
 	}
 }
 
-func TestAccessLogMiddlewareErrorOnlyLogsClientAndServerErrors(t *testing.T) {
+func TestAccessLogMiddlewareErrorOnlySelectsFailuresButLogsFactsAtInfo(t *testing.T) {
 	testCases := []struct {
 		name      string
 		status    int
 		wantLevel zapcore.Level
 	}{
-		{name: "client error", status: http.StatusBadRequest, wantLevel: zapcore.WarnLevel},
-		{name: "server error", status: http.StatusInternalServerError, wantLevel: zapcore.ErrorLevel},
+		{name: "client error", status: http.StatusBadRequest, wantLevel: zapcore.InfoLevel},
+		{name: "server error", status: http.StatusInternalServerError, wantLevel: zapcore.InfoLevel},
 	}
 
 	for _, testCase := range testCases {

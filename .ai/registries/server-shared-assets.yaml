@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: "2026-06-11"
+updated_at: "2026-07-18"
 assets:
   - name: "moduleapi-contracts"
     type: "backend-moduleapi"
@@ -39,11 +39,48 @@ assets:
     validation_commands:
       - "cd server && go run ./cmd/graft validate backend --stage lint"
 
+  - name: "application-error-contract"
+    type: "backend-runtime-helper"
+    path: "server/internal/apperror"
+    owner: "server/core/apperror"
+    purpose: "Typed internal error classification, safe HTTP presentation descriptors, cause preservation, and immutable single-report markers."
+    use_when:
+      - "A server service must preserve an internal cause while exposing stable error code, message key, kind, and safe public data."
+    do_not_use_when:
+      - "Defining module-specific business error codes that belong in the module contract or returning final HTTP text."
+    examples:
+      - "server/internal/apperror/error.go"
+      - "server/internal/logger/report.go"
+    related_assets:
+      - "httpx-runtime"
+      - "app-logger"
+    validation_commands:
+      - "cd server && go test ./internal/apperror ./internal/logger ./internal/httpx"
+
+  - name: "request-context"
+    type: "backend-runtime-helper"
+    path: "server/internal/requestctx"
+    owner: "server/core/requestctx"
+    purpose: "HTTP-neutral request correlation context shared by loggers, runtime code, and transport adapters."
+    use_when:
+      - "A server-internal service needs request, trace, route, or client correlation without depending on HTTP transport helpers."
+    do_not_use_when:
+      - "Defining request headers, Gin middleware, or HTTP response envelopes owned by httpx."
+    examples:
+      - "server/internal/requestctx/requestctx.go"
+      - "server/internal/logger/applog.go"
+    related_assets:
+      - "httpx-runtime"
+      - "app-logger"
+      - "request-correlation-contract"
+    validation_commands:
+      - "cd server && go test ./internal/requestctx ./internal/logger ./internal/httpx"
+
   - name: "app-logger"
     type: "backend-runtime-helper"
     path: "server/internal/logger"
     owner: "server/core/logger"
-    purpose: "Zap logger construction, AppLogger contract, request correlation fields, sanitization, durable App Log storage, and retention runtime."
+    purpose: "Zap logger construction, AppLogger and ReportError contracts, caller attribution, request correlation fields, sanitization, durable App Log storage, and retention runtime."
     use_when:
       - "Writing runtime or module application logs that should inherit request correlation and sanitization."
     do_not_use_when:

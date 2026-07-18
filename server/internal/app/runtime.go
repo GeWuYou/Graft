@@ -98,6 +98,7 @@ type Runtime struct {
 	moduleManager             *module.Manager
 	runtimeMetadata           module.RuntimeMetadata
 	appLogRepository          logger.AppLogRepository
+	canonicalAppLogger        logger.AppLogger
 }
 
 // NewRuntime 使用给定模块构造显式的 MVP 运行时外壳。
@@ -272,6 +273,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		return nil, fmt.Errorf("create cache manager: %w", err)
 	}
 
+	runtimeAppLogger := logger.NewAppLogger(runtimeLogger, logger.WithAppLogRepository(appLogRepo))
 	runtime := &Runtime{
 		config:       cfg,
 		logger:       runtimeLogger,
@@ -284,6 +286,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 				ConsolePolicy: config.ResolveAccessLogConsolePolicy(cfg.App.Env, cfg.HTTPX.AccessLogConsole),
 				SlowThreshold: time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
 			},
+			I18n: localizer,
 		}, accessLogRepo),
 		eventBus:             eventbus.New(runtimeLogger),
 		realtimeHub:          realtime.NewHub(),
@@ -296,6 +299,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		dashboardRegistry:    dashboard.NewRegistry(),
 		moduleManager:        module.NewManager(),
 		appLogRepository:     appLogRepo,
+		canonicalAppLogger:   runtimeAppLogger,
 	}
 	menu.RegisterDomainGroups(runtime.menuRegistry)
 	if err := runtime.preregisterOwnerLocaleResources(); err != nil {
@@ -591,6 +595,7 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 		LifecycleContext:   runCtx,
 		Config:             r.config,
 		Logger:             r.logger,
+		AppLogger:          r.injectedAppLogger(),
 		I18n:               r.i18n,
 		EventBus:           r.eventBus,
 		Realtime:           r.realtimeHub,

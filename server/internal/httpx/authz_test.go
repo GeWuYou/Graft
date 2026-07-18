@@ -261,7 +261,7 @@ func TestRequirePermissionAllowsAuthorizedRequest(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, authService, authorizer, "user.read"))
+	engine.Use(RequestIDMiddleware(), RequirePermission(nil, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		requestAuth, ok := moduleapi.RequestAuthContextFromContext(inner.Request.Context())
 		if !ok || requestAuth.User == nil || requestAuth.User.ID != 7 {
@@ -297,7 +297,7 @@ func TestRequirePermissionInjectsCanonicalRequestAuditContext(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, authService, authorizer, "user.read"))
+	engine.Use(RequestIDMiddleware(), RequirePermission(nil, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		auditCtx, ok := RequestAuditContextFromContext(inner.Request.Context())
 		if !ok {

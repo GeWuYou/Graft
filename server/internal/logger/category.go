@@ -35,8 +35,9 @@ const (
 )
 
 const (
-	categoryFieldKey      = "category"
-	categoryRulePartCount = 2
+	categoryFieldKey         = "category"
+	categoryRulePartCount    = 2
+	categoryLoggerCallerSkip = 2
 )
 
 var registeredCategories = map[LogCategory]struct{}{
@@ -198,7 +199,7 @@ func (l CategoryLogger) write(level zapcore.Level, message string, fields ...zap
 	if l.base == nil {
 		return
 	}
-	if checked := l.base.Check(level, message); checked != nil {
+	if checked := l.base.WithOptions(zap.AddCallerSkip(categoryLoggerCallerSkip)).Check(level, message); checked != nil {
 		checked.Write(fields...)
 	}
 }

@@ -10,6 +10,7 @@
 
 * 根据 `config` 中的日志配置初始化结构化 logger
 * 定义 `AppLogger` 统一契约与应用日志字段基线
+* 通过 `ReportError` 提供 cause-bearing、单次记录的业务错误入口
 * 复用请求上下文中的 `request_id` / `trace_id` 关联信息
 * 对日志字段执行最小必要的脱敏与文本清洗
 * 约束默认字段、日志级别和输出编码
@@ -34,7 +35,7 @@
 
 * 由 `server/internal/app` 在 runtime 装配阶段调用
 * 依赖 `server/internal/config` 提供日志级别和环境信息
-* 通过 `server/internal/httpx` 的请求上下文读取相关关联字段
+* 读取由全局 HTTP middleware 注入请求上下文的关联字段
 * 供 core 与模块通过容器或 `module.Context` 共享使用
 
 ## 维护提示
@@ -73,8 +74,10 @@ registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output di
 
 生产路径约束：
 
-* 所有需要持久化的 App Log 必须从 runtime / module `Context` 注入的 `logger.AppLogger` 获取
-* 模块禁止把 `NewAppLogger(base)` 作为默认生产写法；它只允许用于测试或上下文/服务不可用时的降级 fallback
+* 所有需要持久化的 App Log 必须直接使用 runtime / module `Context` 注入的 `logger.AppLogger`
+* 模块禁止通过 `Context.Services` 再次解析、构造或包装 `AppLogger`；`NewAppLogger(base)` 只允许用于测试和 runtime 装配
+* 系统错误由最了解失败语义的 owner 调用 `ReportError` 一次，并把返回的 reported error 继续向上传播
+* repository / adapter 对可传播失败只使用 `%w` 包装；handler 与 Access Log 不重复解释 cause
 * runtime 只能补充高信号生命周期事件，不应把每个普通 `Info` 都写入 `app_logs`
 
 当前高信号事件包括：
@@ -102,7 +105,7 @@ registry 唯一拥有。`TRACE` 低于 Zap `DEBUG`，且仅为 process-output di
 
 示例：
 
-* 推荐：从 `module.Context.Services` 解析注入的 `logger.AppLogger`，再 `.Named("modules.user.route").Error(ctx, "map user response failed", logger.StringField("module", "user"), logger.ErrorField(err))`
+* 推荐：`logger.ReportError(ctx, moduleCtx.AppLogger.Named("modules.user.service"), "update user failed", err, logger.StringField(logger.FieldOperation, "update_user"))`
 * 例外：`internal/httpx/accesslog.go` 继续直接使用 raw zap 维护 access-log authority
 * 例外：`modules/audit/**` 继续直接使用 raw zap 维护 audit-owned runtime diagnostics
 

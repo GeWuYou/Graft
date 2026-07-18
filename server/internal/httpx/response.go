@@ -3,32 +3,28 @@ package httpx
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
+	"graft/server/internal/apperror"
 	"graft/server/internal/contract/errorcode"
 	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger/logsafe"
+	"graft/server/internal/requestctx"
 )
 
 const localizedErrorMessageKeyContextKey = "httpx.localized_error_message_key"
 const requestIDContextKey = "httpx.request_id"
 const traceIDContextKey = "httpx.trace_id"
 
-type requestAuditContextKey struct{}
-
-// RequestAuditContext describes the canonical request correlation snapshot that
-// should follow one request through context.Context-based module/service calls.
-type RequestAuditContext struct {
-	RequestID string
-	TraceID   string
-	Route     string
-	Method    string
-	ClientIP  string
-	UserAgent string
-}
+// RequestAuditContext 是 core 请求关联契约在 HTTP 边界保留的调用名称。
+// 新增非 HTTP 代码应直接依赖 requestctx。
+type RequestAuditContext = requestctx.AuditContext
 
 // RequestIDHeader 是统一回写给客户端的稳定 request-id 响应头。
 const RequestIDHeader = string(httpheader.RequestID)
@@ -113,9 +109,110 @@ func WriteSuccess[T any](ctx *gin.Context, status int, data T) {
 // RequestIDMiddleware 确保当前请求在进入业务链路前获得稳定 request-id。
 func RequestIDMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		EnsureRequestID(ctx)
+		requestID := EnsureRequestID(ctx)
+		traceID := EnsureTraceID(ctx)
+		if ctx.Request != nil {
+			ctx.Request = ctx.Request.WithContext(WithRequestAuditContext(ctx.Request.Context(), RequestAuditContext{
+				RequestID: requestID,
+				TraceID:   traceID,
+				Route:     currentRequestRoute(ctx),
+				Method:    ctx.Request.Method,
+				ClientIP:  ctx.ClientIP(),
+				UserAgent: ctx.Request.UserAgent(),
+			}))
+		}
 		ctx.Next()
 	}
+}
+
+// WriteAppError 将 typed application error 映射到现有本地化响应 envelope。
+// 未记录的 internal error 会在 HTTP 最后边界补一条 cause 日志，公开响应只使用安全 descriptor。
+func WriteAppError(ctx *gin.Context, service *i18n.Service, runtimeLogger *zap.Logger, err error) {
+	descriptor, ok := apperror.Describe(err)
+	if !ok {
+		descriptor = apperror.Descriptor{
+			Kind:       apperror.KindInternal,
+			Code:       errorcode.CommonInternalError,
+			MessageKey: messagecontract.CommonInternalError,
+		}
+	}
+	descriptor, status := normalizeAppErrorDescriptor(descriptor)
+	if descriptor.Kind == apperror.KindInternal && err != nil && !apperror.IsReported(err) {
+		logUnreportedInternalError(ctx, runtimeLogger, err)
+	}
+	WriteLocalizedErrorCode(ctx, service, status, descriptor.Code.String(), descriptor.MessageKey.String(), descriptor.PublicData)
+}
+
+// AbortAppError 写入 typed application error 响应并中止当前 Gin 调用链。
+func AbortAppError(ctx *gin.Context, service *i18n.Service, runtimeLogger *zap.Logger, err error) {
+	WriteAppError(ctx, service, runtimeLogger, err)
+	ctx.Abort()
+}
+
+func normalizeAppErrorDescriptor(descriptor apperror.Descriptor) (apperror.Descriptor, int) {
+	descriptor.Kind = normalizeAppErrorKind(descriptor.Kind)
+	if descriptor.Code == "" {
+		descriptor.Code = errorcode.FromMessageKey(descriptor.MessageKey)
+	}
+	if descriptor.MessageKey == "" || descriptor.Code == "" {
+		descriptor = internalAppErrorDescriptor()
+	}
+	return descriptor, appErrorStatus(descriptor.Kind)
+}
+
+func normalizeAppErrorKind(kind apperror.Kind) apperror.Kind {
+	switch kind {
+	case apperror.KindInvalidArgument, apperror.KindUnauthenticated, apperror.KindForbidden, apperror.KindNotFound, apperror.KindConflict, apperror.KindInternal:
+		return kind
+	default:
+		return apperror.KindInternal
+	}
+}
+
+func internalAppErrorDescriptor() apperror.Descriptor {
+	return apperror.Descriptor{
+		Kind:       apperror.KindInternal,
+		Code:       errorcode.CommonInternalError,
+		MessageKey: messagecontract.CommonInternalError,
+	}
+}
+
+func appErrorStatus(kind apperror.Kind) int {
+	switch kind {
+	case apperror.KindInvalidArgument:
+		return http.StatusBadRequest
+	case apperror.KindUnauthenticated:
+		return http.StatusUnauthorized
+	case apperror.KindForbidden:
+		return http.StatusForbidden
+	case apperror.KindNotFound:
+		return http.StatusNotFound
+	case apperror.KindConflict:
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func logUnreportedInternalError(ctx *gin.Context, runtimeLogger *zap.Logger, err error) {
+	if runtimeLogger == nil {
+		runtimeLogger = zap.NewNop()
+	}
+	logsafe.Error(runtimeLogger, "unreported internal error",
+		zap.String("request_id", EnsureRequestID(ctx)),
+		zap.String("trace_id", EnsureTraceID(ctx)),
+		zap.String("method", currentRequestMethod(ctx)),
+		zap.String("route", currentRequestRoute(ctx)),
+		zap.String("path", currentRequestPath(ctx)),
+		zap.Error(err),
+	)
+}
+
+func currentRequestMethod(ctx *gin.Context) string {
+	if ctx == nil || ctx.Request == nil {
+		return ""
+	}
+	return ctx.Request.Method
 }
 
 // EnsureRequestID 读取或生成当前请求的稳定 request-id，并统一回写响应头。
@@ -179,18 +276,13 @@ resolveTraceID:
 // WithRequestAuditContext attaches the canonical request audit snapshot to one
 // request-scoped context.
 func WithRequestAuditContext(ctx context.Context, auditCtx RequestAuditContext) context.Context {
-	return context.WithValue(ctx, requestAuditContextKey{}, auditCtx)
+	return requestctx.WithAuditContext(ctx, auditCtx)
 }
 
 // RequestAuditContextFromContext reads the canonical request audit snapshot from
 // one context chain.
 func RequestAuditContextFromContext(ctx context.Context) (RequestAuditContext, bool) {
-	if ctx == nil {
-		return RequestAuditContext{}, false
-	}
-
-	auditCtx, ok := ctx.Value(requestAuditContextKey{}).(RequestAuditContext)
-	return auditCtx, ok
+	return requestctx.AuditContextFromContext(ctx)
 }
 
 // LastErrorMessageKey 返回当前请求最近一次统一错误响应写入的稳定 message key。

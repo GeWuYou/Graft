@@ -18,6 +18,7 @@ import (
 	"graft/server/internal/dashboard"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/permission"
 	"graft/server/internal/realtime"
@@ -181,8 +182,10 @@ type Context struct {
 	LifecycleContext context.Context
 	Config           *config.Config
 	// Logger 提供模块生命周期内统一的结构化日志句柄，模块应复用它记录
-	// 运行状态与诊断信息，而不是各自构造分散的日志实例。
+	// access、audit、security 与基础设施 owner 的底层诊断。
 	Logger *zap.Logger
+	// AppLogger 提供普通应用日志与业务错误的 canonical 入口，并自动继承请求关联字段。
+	AppLogger logger.AppLogger
 	// I18n 提供平台级 locale 解析与消息查找能力，模块应通过它输出稳定的
 	// 本地化错误响应，而不是维护各自独立的文案回退规则。
 	I18n *i18n.Service
@@ -191,7 +194,7 @@ type Context struct {
 	// 模块应只依赖显式 Subscribe / Publish 语义，不应假设存在消息持久化、
 	// 重试队列或异步工作流编排等当前阶段并未提供的行为。
 	EventBus           eventbus.Bus
-	Realtime          realtime.Hub
+	Realtime           realtime.Hub
 	Router             gin.IRouter
 	Services           *container.Container
 	RuntimeMetadata    RuntimeMetadata

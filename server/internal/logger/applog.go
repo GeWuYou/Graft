@@ -11,12 +11,14 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"graft/server/internal/httpx"
+	"graft/server/internal/requestctx"
 )
 
 const (
 	// appLogCorrelationFieldCount is the current fixed correlation field fan-out.
 	appLogCorrelationFieldCount = 4
+	// appLoggerCallerSkip 跳过 AppLogger facade 与 write helper 栈帧。
+	appLoggerCallerSkip = 2
 
 	// FieldApp stores the runtime app name attached by the base zap logger.
 	FieldApp = "app"
@@ -229,15 +231,16 @@ func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message s
 	}
 	sanitizedMessage := sanitizeMessage(message)
 	zapFields := l.zapFields(ctx, fields...)
+	callerLogger := l.base.WithOptions(zap.AddCallerSkip(appLoggerCallerSkip))
 	switch severity {
 	case AppLogSeverityDebug:
-		l.base.Debug(sanitizedMessage, zapFields...)
+		callerLogger.Debug(sanitizedMessage, zapFields...)
 	case AppLogSeverityInfo:
-		l.base.Info(sanitizedMessage, zapFields...)
+		callerLogger.Info(sanitizedMessage, zapFields...)
 	case AppLogSeverityWarn:
-		l.base.Warn(sanitizedMessage, zapFields...)
+		callerLogger.Warn(sanitizedMessage, zapFields...)
 	case AppLogSeverityError:
-		l.base.Error(sanitizedMessage, zapFields...)
+		callerLogger.Error(sanitizedMessage, zapFields...)
 	}
 
 	l.persist(ctx, severity, sanitizedMessage, fields...)
@@ -318,7 +321,7 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 		Message:    message,
 		Fields:     make(map[string]string),
 	}
-	if correlation, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+	if correlation, ok := requestctx.AuditContextFromContext(ctx); ok {
 		record.RequestID = correlation.RequestID
 		record.TraceID = correlation.TraceID
 		record.Route = correlation.Route
@@ -376,7 +379,7 @@ func appendAppLoggerField(existing []Field, field Field) []Field {
 
 func (l appLogger) zapFields(ctx context.Context, fields ...Field) []zap.Field {
 	zapFields := make([]zap.Field, 0, len(fields)+appLogCorrelationFieldCount)
-	if correlation, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+	if correlation, ok := requestctx.AuditContextFromContext(ctx); ok {
 		zapFields = appendCorrelationFields(zapFields, correlation)
 	}
 
@@ -391,7 +394,7 @@ func (l appLogger) zapFields(ctx context.Context, fields ...Field) []zap.Field {
 	return zapFields
 }
 
-func appendCorrelationFields(fields []zap.Field, correlation httpx.RequestAuditContext) []zap.Field {
+func appendCorrelationFields(fields []zap.Field, correlation requestctx.AuditContext) []zap.Field {
 	fields = appendStringField(fields, FieldRequestID, correlation.RequestID)
 	fields = appendStringField(fields, FieldTraceID, correlation.TraceID)
 	fields = appendStringField(fields, FieldRoute, correlation.Route)

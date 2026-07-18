@@ -747,6 +747,9 @@ func TestPrepareModulesAssertsOwnerLocaleResourcesAlreadyRegistered(t *testing.T
 	}
 
 	moduleCtx := runtime.newModuleContext(runCtx)
+	if moduleCtx.AppLogger == nil {
+		t.Fatal("expected module context to receive the canonical AppLogger")
+	}
 	ordered := []module.RuntimeModule{}
 	if _, err := runtime.prepareModules(runCtx, moduleCtx, ordered); err == nil {
 		t.Fatal("expected prepareModules to fail when owner-local locale resources were not pre-registered")

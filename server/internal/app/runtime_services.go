@@ -248,10 +248,15 @@ func (r *Runtime) newAppLogger() logger.AppLogger {
 	if r == nil {
 		return logger.NewAppLogger(nil)
 	}
-	if r.appLogRepository == nil {
-		return logger.NewAppLogger(r.logger)
+	if r.canonicalAppLogger != nil {
+		return r.canonicalAppLogger
 	}
-	return logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+	if r.appLogRepository == nil {
+		r.canonicalAppLogger = logger.NewAppLogger(r.logger)
+		return r.canonicalAppLogger
+	}
+	r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+	return r.canonicalAppLogger
 }
 
 func (r *Runtime) appLogger() logger.AppLogger {

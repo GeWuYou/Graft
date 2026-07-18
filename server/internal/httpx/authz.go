@@ -64,17 +64,6 @@ func RequirePermission(
 ) gin.HandlerFunc {
 	auditPublisher := firstSecurityAuditPublisher(auditPublishers...)
 	return func(ctx *gin.Context) {
-		requestID := EnsureRequestID(ctx)
-		traceID := EnsureTraceID(ctx)
-		ctx.Request = ctx.Request.WithContext(WithRequestAuditContext(ctx.Request.Context(), RequestAuditContext{
-			RequestID: requestID,
-			TraceID:   traceID,
-			Route:     currentRequestAuditPath(ctx),
-			Method:    strings.TrimSpace(ctx.Request.Method),
-			ClientIP:  strings.TrimSpace(ctx.ClientIP()),
-			UserAgent: strings.TrimSpace(ctx.Request.UserAgent()),
-		}))
-
 		if authService == nil {
 			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 			return
