@@ -386,7 +386,7 @@
   </div>
 </template>
 <script setup lang="ts">
-// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，并把传输失败归并为逐项结果以保留已完成块。
+// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，传输失败后通过详情查询对账，只有确认镜像不存在时才清理普通批次选择。
 import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -407,6 +407,7 @@ import {
   LogViewer,
   type StructuredLogEntry,
 } from '@/shared/observability';
+import { isApiRequestError } from '@/utils/request';
 
 import { type DockerImageRecord, getDockerImage, getDockerImages } from '../../api/container';
 import {
@@ -670,18 +671,18 @@ function forgetSelectedImages(ids: string[]) {
 }
 async function removeImageIds(ids: string[], force = false) {
   const results: DockerImageBatchResult['items'] = [];
-  let hasUnknownResponse = false;
+  const unknownResponseIds: string[] = [];
   for (let index = 0; index < ids.length; index += 100) {
     const chunkIds = ids.slice(index, index + 100);
     try {
       const response = await batchRemoveDockerImages({ ids: chunkIds, force });
       results.push(...response.items);
     } catch {
-      hasUnknownResponse = true;
+      unknownResponseIds.push(...chunkIds);
       results.push(...chunkIds.map((id) => ({ id, success: false, error_code: 'client_request_failed' })));
     }
   }
-  return { hasUnknownResponse, items: results };
+  return { items: results, unknownResponseIds };
 }
 async function submitCleanup() {
   if (!cleanupSelectedIds.value.length) return;
@@ -690,7 +691,8 @@ async function submitCleanup() {
 async function submitBatchRemove(ids: string[], force: boolean, cleanup = false) {
   batchRemoving.value = true;
   try {
-    const { hasUnknownResponse, items } = await removeImageIds(ids, force);
+    const { items, unknownResponseIds } = await removeImageIds(ids, force);
+    const hasUnknownResponse = unknownResponseIds.length > 0;
     const successfulIds = new Set(items.filter((item) => item.success).map((item) => item.id));
     forgetSelectedImages([...successfulIds]);
     if (cleanup) {
@@ -698,6 +700,8 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
       cleanupImages.value = cleanupImages.value.filter((image) => !successfulIds.has(image.id));
       cleanupPreviewPage.value = Math.min(cleanupPreviewPage.value, cleanupPreviewPageCount.value);
       if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);
+    } else if (hasUnknownResponse) {
+      await reconcileSelectedImages(unknownResponseIds);
     }
     const failed = items.filter((item) => !item.success);
     if (!failed.length) MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
@@ -754,6 +758,20 @@ async function reconcileCleanupCandidates(confirmedSuccessfulIds: Set<string>) {
   } catch {
     MessagePlugin.error(t('container.images.cleanup.loadFailed'));
   }
+}
+async function reconcileSelectedImages(ids: string[]) {
+  const removedIds: string[] = [];
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        selectedImages.value.set(id, await getDockerImage(id));
+      } catch (error) {
+        if (isApiRequestError(error) && error.status === 404) removedIds.push(id);
+      }
+    }),
+  );
+  selectedImages.value = new Map(selectedImages.value);
+  forgetSelectedImages(removedIds);
 }
 function clearCleanupSelection() {
   cleanupSelectedIds.value = [];

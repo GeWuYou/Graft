@@ -57,8 +57,8 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('batchRemoveDockerImages');
     expect(sourceText).toContain('results.push(...response.items);');
     expect(sourceText).toContain("error_code: 'client_request_failed'");
-    expect(sourceText).toContain('let hasUnknownResponse = false;');
-    expect(sourceText).toContain('return { hasUnknownResponse, items: results };');
+    expect(sourceText).toContain('unknownResponseIds.push(...chunkIds);');
+    expect(sourceText).toContain('return { items: results, unknownResponseIds };');
   });
 
   it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
@@ -67,6 +67,13 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
     expect(sourceText).toContain('if (!cleanup || !hasUnknownResponse) cleanupDialogVisible.value = false;');
     expect(sourceText).toContain("MessagePlugin.error(t('container.images.cleanup.loadFailed'))");
+  });
+
+  it('clears normal-batch selections only when an uncertain deletion is confirmed missing', () => {
+    expect(sourceText).toContain('await reconcileSelectedImages(unknownResponseIds);');
+    expect(sourceText).toContain('selectedImages.value.set(id, await getDockerImage(id));');
+    expect(sourceText).toContain('isApiRequestError(error) && error.status === 404');
+    expect(sourceText).toContain('forgetSelectedImages(removedIds);');
   });
 
   it('keeps translated table columns reactive instead of unwrapping them during setup', () => {
