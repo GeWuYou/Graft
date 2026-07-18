@@ -1,0 +1,9 @@
+type: object
+required: [id, success]
+properties:
+  id: { type: string }
+  success: { type: boolean }
+  error_code: { type: string }
+  message_key: { type: string }
+  message: { type: string }
+additionalProperties: false

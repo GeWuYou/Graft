@@ -1,24 +1,33 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { consolaMocks } = vi.hoisted(() => ({
-  consolaMocks: {
+const { consolaMocks, createConsolaMock } = vi.hoisted(() => {
+  const consolaMocks = {
     debug: vi.fn(),
     error: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     withTag: vi.fn(),
-  },
-}));
+  };
+
+  return {
+    consolaMocks,
+    createConsolaMock: vi.fn(() => consolaMocks),
+  };
+});
 
 consolaMocks.withTag.mockReturnValue(consolaMocks);
 
 vi.mock('consola', () => ({
-  createConsola: () => consolaMocks,
+  createConsola: createConsolaMock,
 }));
 
 import { createConsolaTransport } from './consola';
 
 describe('consola transport', () => {
+  it('delegates level filtering to the application logger', () => {
+    expect(createConsolaMock).toHaveBeenCalledWith({ level: Number.POSITIVE_INFINITY });
+  });
+
   it('renders colored consola output as one compact line with flattened fields', () => {
     createConsolaTransport().log({
       level: 'error',

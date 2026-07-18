@@ -368,12 +368,86 @@ func (s *service) dockerResources(ctx context.Context) (DockerResourceReader, er
 	return reader, nil
 }
 
-func (s *service) DockerImages(ctx context.Context) ([]DockerImage, error) {
+// DockerImages 从一次 runtime 快照返回过滤后的镜像分页和完整 inventory 摘要。
+func (s *service) DockerImages(ctx context.Context, query DockerImageListQuery) (DockerImageListResult, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return nil, err
+		return DockerImageListResult{}, err
 	}
-	return reader.ListDockerImages(ctx)
+	normalized, err := normalizeDockerImageListQuery(query)
+	if err != nil {
+		return DockerImageListResult{}, err
+	}
+	snapshot, err := reader.ListDockerImages(ctx)
+	if err != nil {
+		return DockerImageListResult{}, err
+	}
+	filtered := filterDockerImages(snapshot.Items, normalized.Keyword)
+	if normalized.Unused {
+		filtered = filterUnusedDockerImages(filtered)
+	}
+	return DockerImageListResult{
+		Items:   pageDockerImages(filtered, normalized.Offset, normalized.Limit),
+		Total:   len(filtered),
+		Summary: snapshot.Summary,
+	}, nil
+}
+
+// DockerImageBatchRemoveResult 汇总镜像批量删除结果，并保留请求顺序和逐项失败原因。
+type DockerImageBatchRemoveResult struct {
+	Total        int
+	SuccessCount int
+	FailedCount  int
+	RequestID    string
+	Items        []DockerImageBatchRemoveItem
+}
+
+// DockerImageBatchRemoveItem 表示一个镜像删除请求的脱敏结果。
+type DockerImageBatchRemoveItem struct {
+	ID         string
+	Success    bool
+	ErrorCode  string
+	MessageKey string
+	Message    string
+}
+
+// DockerImageBatchRemove 按请求顺序逐项删除镜像，允许 Docker daemon 返回部分成功。
+func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, force bool) (DockerImageBatchRemoveResult, error) {
+	if len(ids) == 0 || len(ids) > maxContainerBatchActionIDs {
+		return DockerImageBatchRemoveResult{}, errInvalidListQuery
+	}
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return DockerImageBatchRemoveResult{}, err
+	}
+	if !s.dangerousActionsAllowed(ctx) {
+		return DockerImageBatchRemoveResult{}, errDangerousActionsDisabled
+	}
+	result := DockerImageBatchRemoveResult{Total: len(ids), RequestID: requestIDFromContext(ctx), Items: make([]DockerImageBatchRemoveItem, 0, len(ids))}
+	for _, rawID := range ids {
+		id := strings.TrimSpace(rawID)
+		item := DockerImageBatchRemoveItem{ID: id}
+		if err := validateDockerImageReference(id); err != nil {
+			item = dockerImageBatchRemoveFailure(item, err)
+		} else if _, err := s.RemoveDockerImage(ctx, id, force); err != nil {
+			item = dockerImageBatchRemoveFailure(item, err)
+		} else {
+			item.Success = true
+		}
+		if item.Success {
+			result.SuccessCount++
+		} else {
+			result.FailedCount++
+		}
+		result.Items = append(result.Items, item)
+	}
+	s.publishDockerImageBatchAudit(ctx, result, force)
+	return result, nil
+}
+
+func dockerImageBatchRemoveFailure(item DockerImageBatchRemoveItem, err error) DockerImageBatchRemoveItem {
+	key := messageKeyForError(err).String()
+	item.ErrorCode, item.MessageKey, item.Message = key, key, fallbackMessageForError(err)
+	return item
 }
 
 func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
@@ -419,6 +493,9 @@ func (s *service) TagDockerImage(ctx context.Context, id, target string) (Docker
 }
 
 func (s *service) RemoveDockerImage(ctx context.Context, id string, force bool) (DockerImageActionResult, error) {
+	if !s.dangerousActionsAllowed(ctx) {
+		return DockerImageActionResult{ID: id, Action: "remove"}, errDangerousActionsDisabled
+	}
 	writer, err := s.dockerImageWriter(ctx)
 	if err != nil {
 		return DockerImageActionResult{ID: id, Action: "remove"}, err

@@ -236,6 +236,7 @@ func assertDockerImageWriteRoutePermissions(t *testing.T, engine *gin.Engine, au
 		{name: "pull", path: "/api/ops/docker/images/pull", body: `{"reference":"alpine:3.20"}`, permission: containercontract.DockerImagePullPermission.String()},
 		{name: "tag", path: "/api/ops/docker/images/sha256:abc123/tag", body: `{"target":"example/app:stable"}`, permission: containercontract.DockerImageTagPermission.String()},
 		{name: "remove", path: "/api/ops/docker/images/sha256:abc123/remove", body: `{"force":false}`, permission: containercontract.DockerImageRemovePermission.String()},
+		{name: "batch remove", path: "/api/ops/docker/images/batch-remove", body: `{"ids":["sha256:abc123"]}`, permission: containercontract.DockerImageRemovePermission.String()},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {

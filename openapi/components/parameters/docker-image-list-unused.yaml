@@ -1,0 +1,7 @@
+name: unused
+in: query
+required: false
+description: Optional filter that returns only Docker images with no container references.
+schema:
+  type: boolean
+  default: false

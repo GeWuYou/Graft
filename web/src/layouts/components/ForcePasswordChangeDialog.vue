@@ -21,6 +21,14 @@
         </p>
 
         <t-form ref="formRef" :data="formData" :rules="formRules" label-align="top" @submit="handleSubmit">
+          <input
+            class="force-password-change-dialog__username-hint"
+            autocomplete="username"
+            :value="userStore.userInfo.username"
+            name="username"
+            readonly
+            tabindex="-1"
+          />
           <t-form-item :label="t('app.auth.login.forcePasswordChange.newPassword')" name="newPassword">
             <t-input
               v-model="formData.newPassword"
@@ -52,6 +60,7 @@
   </t-dialog>
 </template>
 <script setup lang="ts">
+/** 强制改密弹窗只提交新密码，并使用当前会话用户名满足浏览器密码表单识别语义。 */
 import type { FormInstanceFunctions, FormRule, SubmitContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref } from 'vue';
@@ -162,6 +171,15 @@ const handleSubmit = async (ctx: SubmitContext) => {
 </script>
 <style lang="less" scoped>
 .force-password-change-dialog {
+  &__username-hint {
+    block-size: 1px;
+    clip: rect(0 0 0 0);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
+
   &__description,
   &__hint {
     color: var(--td-text-color-secondary);

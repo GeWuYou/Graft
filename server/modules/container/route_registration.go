@@ -138,6 +138,7 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 	docker.GET(containercontract.DockerImageRoute, requireView, routes.handleDockerImage)
 	docker.POST(containercontract.DockerImageTagRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageTagPermission.String(), publisher), routes.handleDockerImageTag)
 	docker.POST(containercontract.DockerImageRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), routes.handleDockerImageRemove)
+	docker.POST(containercontract.DockerImageBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), routes.handleDockerImageBatchRemove)
 	docker.GET(containercontract.DockerNetworksRoute, requireView, routes.handleDockerNetworks)
 	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
 	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
@@ -146,12 +147,22 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 }
 
 func (r routeRuntime) handleDockerImages(c *gin.Context) {
-	items, err := r.service.DockerImages(c.Request.Context())
+	params, ok := bindGetDockerImagesParams(c, r.ctx)
+	if !ok {
+		return
+	}
+	query := dockerImageListQueryFromParams(params)
+	query, err := normalizeDockerImageListQuery(query)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerImageList(items))
+	result, err := r.service.DockerImages(c.Request.Context(), query)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageList(result, query))
 }
 
 func (r routeRuntime) handleDockerImage(c *gin.Context) {
@@ -228,6 +239,19 @@ func (r routeRuntime) handleDockerImageRemove(c *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, toDockerImageAction(result))
+}
+
+func (r routeRuntime) handleDockerImageBatchRemove(c *gin.Context) {
+	var request containeropenapi.PostDockerImageBatchRemoveJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	result, err := r.service.DockerImageBatchRemove(c.Request.Context(), request.Ids, boolPtrValue(request.Force))
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerImageBatchRemove(result))
 }
 
 func readDockerImageRef(c *gin.Context, r routeRuntime) (string, bool) {
@@ -632,6 +656,41 @@ func bindGetContainersParams(ginCtx *gin.Context, ctx *module.Context) (containe
 		return containeropenapi.GetContainersParams{}, false
 	}
 	return params, true
+}
+
+func bindGetDockerImagesParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetDockerImagesParams, bool) {
+	locale, requestID := commonHeaders(ginCtx)
+	params := containeropenapi.GetDockerImagesParams{XGraftLocale: locale, XRequestId: requestID}
+	limit, ok := queryBoundedInt(ginCtx, ctx, "limit", 1, maxContainerListLimit)
+	if !ok {
+		return containeropenapi.GetDockerImagesParams{}, false
+	}
+	params.Limit = limit
+	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
+	if !ok {
+		return containeropenapi.GetDockerImagesParams{}, false
+	}
+	params.Offset = offset
+	if value := strings.TrimSpace(ginCtx.Query("keyword")); value != "" {
+		if len(value) > containerListKeywordMaxLength {
+			writeInvalidContainerQuery(ginCtx, ctx, "keyword")
+			return containeropenapi.GetDockerImagesParams{}, false
+		}
+		params.Keyword = &value
+	}
+	if value, exists := ginCtx.GetQuery("unused"); exists {
+		unused, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			writeInvalidContainerQuery(ginCtx, ctx, "unused")
+			return containeropenapi.GetDockerImagesParams{}, false
+		}
+		params.Unused = &unused
+	}
+	return params, true
+}
+
+func dockerImageListQueryFromParams(params containeropenapi.GetDockerImagesParams) DockerImageListQuery {
+	return DockerImageListQuery{Limit: intValue(params.Limit), Offset: intValue(params.Offset), Keyword: stringPtrValue(params.Keyword), Unused: boolPtrValue(params.Unused)}
 }
 
 // bindContainerListStateFilters validates and binds optional state, health, deployment type, and runtime target ID filters for container list queries. It returns true if all supplied filters are valid, false otherwise.

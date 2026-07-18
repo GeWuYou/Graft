@@ -1,6 +1,7 @@
 <template>
   <content-viewer-frame
     v-if="viewerMode"
+    v-bind="$attrs"
     class="log-viewer log-viewer--framed"
     :storage-key="viewerStorageKey"
     :fullscreen-label="fullscreenLabel"
@@ -252,7 +253,7 @@
     </template>
   </content-viewer-frame>
 
-  <section v-else class="log-viewer">
+  <section v-else v-bind="$attrs" class="log-viewer">
     <div class="log-viewer__toolbar">
       <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
         <t-button
@@ -619,6 +620,8 @@
 </template>
 <script setup lang="ts">
 /** 负责将结构化日志渲染为可搜索、筛选、复制和受控滚动的日志视图。 */
+defineOptions({ inheritAttrs: false });
+
 import { BrowseIcon, CopyIcon } from 'tdesign-icons-vue-next';
 import type { SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';

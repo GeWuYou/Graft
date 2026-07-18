@@ -1,0 +1,7 @@
+type: object
+required: [total, size_bytes, in_use, dangling]
+properties:
+  total: { type: integer, minimum: 0 }
+  size_bytes: { type: integer, format: int64, minimum: 0 }
+  in_use: { type: integer, minimum: 0 }
+  dangling: { type: integer, minimum: 0 }

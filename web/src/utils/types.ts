@@ -33,7 +33,7 @@ export interface AppRouteMeta {
   navigationTargetPath?: string;
   /** 显式声明供壳层面包屑和标签页使用的本地化导航祖先。 */
   navigationAncestors?: NavigationAncestor[];
-  /** 显式声明作为标签页默认标题的本地化导航路径。 */
+  /** 标签页出现同名项时用于消歧的本地化导航路径，不作为持久化标签状态。 */
   navigationTitle?: LocalizedTitle;
   title?: LocalizedTitle;
   titleKey?: string;
@@ -86,6 +86,8 @@ export interface TRouterInfo {
   fullPath?: string;
   routeIdx?: number;
   title?: LocalizedTitle;
+  /** `route` 标题随实时路由元数据刷新，`runtime` 标题由页面生成并跨同路由更新保留。 */
+  titleSource?: 'route' | 'runtime';
   name?: RouteRecordName | null;
   isHome?: boolean;
   isAlive?: boolean;

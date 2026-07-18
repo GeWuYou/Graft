@@ -11,7 +11,7 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { AUTH_ROUTE_NAME } from '@/modules/auth/contract/routes';
 import { createLogger } from '@/utils/logger';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
-import { localizeRouteTitleKey } from '@/utils/route/title';
+import { hasUnresolvedRouteTitleKey, localizeRouteTitleKey } from '@/utils/route/title';
 import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 import type { TabPageSnapshot, TRouterInfo, TTabRouterType } from '@/utils/types';
 
@@ -204,6 +204,7 @@ function normalizeRouteState(route: TRouterInfo, pinnedKeys = readPinnedTabKeys(
 
   return {
     ...route,
+    titleSource: route.titleSource ?? 'route',
     tabKey,
     fullPath: route.fullPath || route.path,
     isPinned: route.isHome ? false : Boolean(route.isPinned || pinnedKeys.has(tabKey)),
@@ -226,12 +227,28 @@ function resolveNextTabTitle(current: TRouterInfo, next: TRouterInfo) {
   }
   if (
     (current.fullPath === next.fullPath || current.path === next.path || getTabKey(current) === getTabKey(next)) &&
-    current.title
+    current.titleSource === 'runtime' &&
+    current.title &&
+    !hasUnresolvedRouteTitleKey(current.title, next.meta?.titleKey)
   ) {
     return current.title;
   }
 
   return next.title;
+}
+
+function isUnlocalizedTabTitle(route: TRouterInfo) {
+  const titleKey = route.meta?.titleKey;
+  return Boolean(titleKey && Object.values(route.title ?? {}).some((title) => title === titleKey));
+}
+
+function localizePersistedTabTitle(route: TRouterInfo) {
+  const titleKey = route.meta?.titleKey;
+  if (!titleKey || !isUnlocalizedTabTitle(route)) {
+    return route;
+  }
+
+  return { ...route, title: localizeRouteTitleKey(titleKey) };
 }
 
 /**
@@ -368,7 +385,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () => `tabs debug: healPersistedState before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
       this.refreshingTabKey = undefined;
-      this.tabRouterList = ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters));
+      this.tabRouterList = ensureNonEmptyTabs(removeLegacyTabs(this.tabRouters).map(localizePersistedTabTitle));
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
         this.activeTabKey = getTabKey(this.tabRouterList[0]);
       }
@@ -388,7 +405,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         () =>
           `tabs debug: healPersistedRoutes before active=${this.activeTabKey} ${formatTabsSummary(this.tabRouters)}`,
       );
-      const nextTabs = this.tabRouters.filter(canKeepRoute);
+      const nextTabs = this.tabRouters.filter(canKeepRoute).map(localizePersistedTabTitle);
 
       this.tabRouterList = ensureNonEmptyTabs(nextTabs, pinnedKeys);
       if (!this.tabRouterList.some((route) => getTabKey(route) === this.activeTabKey)) {
@@ -458,7 +475,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
       }
 
       this.tabRouterList = this.tabRouterList.map((tab) =>
-        getTabKey(tab) === this.activeTabKey ? { ...tab, title } : tab,
+        getTabKey(tab) === this.activeTabKey ? { ...tab, title, titleSource: 'runtime' } : tab,
       );
     },
     subtractCurrentTabRouter(newRoute: TRouterInfo) {
@@ -553,6 +570,7 @@ export const useTabsRouterStore = defineStore('tabsRouter', {
         ...cloneTab(target),
         tabKey: `${basePath}#copy-${Date.now()}-${duplicateCount}`,
         title: this.createDuplicatedTitle(target.title, duplicateCount),
+        titleSource: 'runtime',
         isPinned: false,
         isDuplicate: true,
         duplicatedFrom: basePath,

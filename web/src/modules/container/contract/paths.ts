@@ -25,6 +25,7 @@ export const CONTAINER_API_PATH = {
   DOCKER_IMAGE_PULL: '/api/ops/docker/images/pull',
   DOCKER_IMAGE_TAG: '/api/ops/docker/images/{id}/tag',
   DOCKER_IMAGE_REMOVE: '/api/ops/docker/images/{id}/remove',
+  DOCKER_IMAGE_BATCH_REMOVE: '/api/ops/docker/images/batch-remove',
   DOCKER_NETWORKS: '/api/ops/docker/networks',
   DOCKER_VOLUMES: '/api/ops/docker/volumes',
   DOCKER_SYSTEM: '/api/ops/docker/system',

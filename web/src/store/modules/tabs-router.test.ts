@@ -45,6 +45,67 @@ describe('useTabsRouterStore', () => {
     expect(tabsRouterStore.tabRouters[1]?.isAlive).toBe(true);
   });
 
+  it('replaces a persisted raw title key when the route now provides a localized title', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': 'container.route.images.title', 'en-US': 'container.route.images.title' },
+      meta: { titleKey: 'container.route.images.title' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': '镜像', 'en-US': 'Images' },
+      meta: { titleKey: 'container.route.images.title' },
+    });
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual({ 'zh-CN': '镜像', 'en-US': 'Images' });
+  });
+
+  it('replaces an unresolved key inside a persisted navigation title', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: {
+        'zh-CN': '基础设施 / Docker / container.route.images.title',
+        'en-US': 'Infrastructure / Docker / container.route.images.title',
+      },
+      meta: { titleKey: 'menu.docker.image.title' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: {
+        'zh-CN': '基础设施 / Docker / 镜像',
+        'en-US': 'Infrastructure / Docker / Images',
+      },
+      meta: { titleKey: 'menu.docker.image.title' },
+    });
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual({
+      'zh-CN': '基础设施 / Docker / 镜像',
+      'en-US': 'Infrastructure / Docker / Images',
+    });
+  });
+
+  it('localizes a persisted raw title key during startup recovery', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': 'container.route.images.title', 'en-US': 'container.route.images.title' },
+      meta: { titleKey: 'container.route.images.title' },
+    });
+    tabsRouterStore.healPersistedState();
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual(localizeRouteTitleKey('container.route.images.title'));
+  });
+
   it('clears a tab page snapshot when refreshing a tab', () => {
     const tabsRouterStore = useTabsRouterStore();
 
@@ -359,7 +420,7 @@ describe('useTabsRouterStore', () => {
     expect(notificationTab?.meta?.tabGroup).not.toBe('audit');
   });
 
-  it('keeps an enriched tab title when the same route is appended again', () => {
+  it('keeps a runtime title when the same route is appended again', () => {
     const tabsRouterStore = useTabsRouterStore();
 
     tabsRouterStore.appendTabRouterList({
@@ -372,16 +433,14 @@ describe('useTabsRouterStore', () => {
       },
       name: 'ContainerDetailIndex',
     });
-    tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
-      tab.tabKey === '/ops/containers/container-1'
-        ? {
-            ...tab,
-            title: {
-              [LOCALE.ZH_CN]: '容器详情 - graft-web',
-              [LOCALE.EN_US]: 'Container Detail - graft-web',
-            },
-          }
-        : tab,
+    tabsRouterStore.setActiveTabKey('/ops/containers/container-1');
+    tabsRouterStore.updateActiveTabTitle(
+      'ContainerDetailIndex',
+      { name: 'ContainerDetailIndex', path: '/ops/containers/container-1' } as never,
+      {
+        [LOCALE.ZH_CN]: '容器详情 - graft-web',
+        [LOCALE.EN_US]: 'Container Detail - graft-web',
+      },
     );
 
     tabsRouterStore.appendTabRouterList({
@@ -400,6 +459,24 @@ describe('useTabsRouterStore', () => {
     expect(detailTab?.title?.[LOCALE.EN_US]).toBe('Container Detail - graft-web');
   });
 
+  it('replaces a persisted route title with current route metadata', () => {
+    const tabsRouterStore = useTabsRouterStore();
+
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': '旧镜像标题', 'en-US': 'Stale image title' },
+    });
+    tabsRouterStore.appendTabRouterList({
+      path: '/infrastructure/images',
+      name: 'DockerImageList',
+      title: { 'zh-CN': '镜像', 'en-US': 'Images' },
+    });
+
+    expect(tabsRouterStore.tabRouters[1]?.title).toEqual({ 'zh-CN': '镜像', 'en-US': 'Images' });
+    expect(tabsRouterStore.tabRouters[1]?.titleSource).toBe('route');
+  });
+
   it('keeps an enriched tab title when the same route path is appended with another query', () => {
     const tabsRouterStore = useTabsRouterStore();
 
@@ -408,11 +485,20 @@ describe('useTabsRouterStore', () => {
       path: '/ops/containers/container-1',
       fullPath: '/ops/containers/container-1?tab=overview',
       title: {
-        [LOCALE.ZH_CN]: '容器详情 - graft-web',
-        [LOCALE.EN_US]: 'Container Detail - graft-web',
+        [LOCALE.ZH_CN]: '容器详情',
+        [LOCALE.EN_US]: 'Container Detail',
       },
       name: 'ContainerDetailIndex',
     });
+    tabsRouterStore.setActiveTabKey('/ops/containers/container-1');
+    tabsRouterStore.updateActiveTabTitle(
+      'ContainerDetailIndex',
+      { name: 'ContainerDetailIndex', path: '/ops/containers/container-1' } as never,
+      {
+        [LOCALE.ZH_CN]: '容器详情 - graft-web',
+        [LOCALE.EN_US]: 'Container Detail - graft-web',
+      },
+    );
 
     tabsRouterStore.appendTabRouterList({
       tabKey: '/ops/containers/container-1',
@@ -710,6 +796,7 @@ describe('useTabsRouterStore', () => {
     expect(
       tabsRouterStore.tabRouters.find((tab) => tab.tabKey === '/ops/projects/1/configuration')?.title?.['en-US'],
     ).toBe('Configuration Workspace - one');
+    expect(tabsRouterStore.tabRouters.find((tab) => tab.tabKey === '/ops/projects/1')?.titleSource).toBe('runtime');
   });
 
   it('ignores title updates from a deactivated page after navigation', () => {

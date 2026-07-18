@@ -1,5 +1,5 @@
 type: object
-required: [id, repository_tags, repository_digests, created_at, size_bytes, containers]
+required: [id, repository_tags, repository_digests, created_at, size_bytes, containers, container_references, dangling]
 properties:
   id: { type: string }
   repository_tags: { type: array, items: { type: string } }
@@ -7,6 +7,12 @@ properties:
   created_at: { type: string }
   size_bytes: { type: integer, format: int64 }
   containers: { type: integer, format: int64 }
+  container_references:
+    type: array
+    description: Containers currently referencing this image, represented as sanitized display references.
+    items:
+      $ref: ./docker-image-container-reference.yaml
+  dangling: { type: boolean, description: Whether the image has only an untagged placeholder reference. }
   labels: { type: object, additionalProperties: { type: string } }
   architecture: { type: string }
   operating_system: { type: string }

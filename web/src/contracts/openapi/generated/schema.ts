@@ -2225,7 +2225,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List Docker images */
+    /**
+     * List Docker images
+     * @description Returns a stable page of Docker images. The summary describes the complete configured runtime inventory and is independent of the keyword filter.
+     */
     get: operations['getDockerImages'];
     put?: never;
     post?: never;
@@ -2297,6 +2300,26 @@ export interface paths {
     put?: never;
     /** Remove a Docker image */
     post: operations['postDockerImageRemove'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/images/batch-remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove Docker images in batch
+     * @description Removes selected Docker images and returns one result for each requested image, allowing partial success.
+     */
+    post: operations['postDockerImageBatchRemove'];
     delete?: never;
     options?: never;
     head?: never;
@@ -3597,11 +3620,15 @@ export interface components {
     EnvelopedContainerActionResponse: components['schemas']['enveloped-container-action-response'];
     EnvelopedContainerBatchActionResponse: components['schemas']['enveloped-container-batch-action-response'];
     DockerImage: components['schemas']['docker-image'];
+    DockerImageContainerReference: components['schemas']['docker-image-container-reference'];
     DockerImageListResponse: components['schemas']['docker-image-list-response'];
     DockerImagePullRequest: components['schemas']['docker-image-pull-request'];
     DockerImageTagRequest: components['schemas']['docker-image-tag-request'];
     DockerImageRemoveRequest: components['schemas']['docker-image-remove-request'];
     DockerImageActionResponse: components['schemas']['docker-image-action-response'];
+    DockerImageBatchRemoveRequest: components['schemas']['docker-image-batch-remove-request'];
+    DockerImageBatchRemoveItem: components['schemas']['docker-image-batch-remove-item'];
+    DockerImageBatchRemoveResponse: components['schemas']['docker-image-batch-remove-response'];
     DockerImagePullEvent: components['schemas']['docker-image-pull-event'];
     DockerNetwork: components['schemas']['docker-network'];
     DockerNetworkListResponse: components['schemas']['docker-network-list-response'];
@@ -3610,6 +3637,7 @@ export interface components {
     EnvelopedDockerImage: components['schemas']['enveloped-docker-image'];
     EnvelopedDockerImageListResponse: components['schemas']['enveloped-docker-image-list-response'];
     EnvelopedDockerImageActionResponse: components['schemas']['enveloped-docker-image-action-response'];
+    EnvelopedDockerImageBatchRemoveResponse: components['schemas']['enveloped-docker-image-batch-remove-response'];
     EnvelopedDockerNetwork: components['schemas']['enveloped-docker-network'];
     EnvelopedDockerNetworkListResponse: components['schemas']['enveloped-docker-network-list-response'];
     EnvelopedDockerVolume: components['schemas']['enveloped-docker-volume'];
@@ -6448,6 +6476,10 @@ export interface components {
        */
       force: boolean;
     };
+    'docker-image-container-reference': {
+      id: string;
+      name: string;
+    };
     'docker-image': {
       id: string;
       repository_tags: string[];
@@ -6457,14 +6489,29 @@ export interface components {
       size_bytes: number;
       /** Format: int64 */
       containers: number;
+      /** @description Containers currently referencing this image, represented as sanitized display references. */
+      container_references: components['schemas']['docker-image-container-reference'][];
+      /** @description Whether the image has only an untagged placeholder reference. */
+      dangling: boolean;
       labels?: {
         [key: string]: string;
       };
       architecture?: string;
       operating_system?: string;
     };
+    'docker-image-list-summary': {
+      total: number;
+      /** Format: int64 */
+      size_bytes: number;
+      in_use: number;
+      dangling: number;
+    };
     'docker-image-list-response': {
       items: components['schemas']['docker-image'][];
+      total: number;
+      limit: number;
+      offset: number;
+      summary: components['schemas']['docker-image-list-summary'];
     };
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
@@ -6502,6 +6549,32 @@ export interface components {
        * @default false
        */
       force: boolean;
+    };
+    'docker-image-batch-remove-request': {
+      ids: string[];
+      /**
+       * @description Force removal even when a container references an image.
+       * @default false
+       */
+      force: boolean;
+    };
+    'docker-image-batch-remove-item': {
+      id: string;
+      success: boolean;
+      error_code?: string;
+      message_key?: string;
+      message?: string;
+    };
+    /** @description Batch image removal summary with one result item for every requested image ID in request order. */
+    'docker-image-batch-remove-response': {
+      total: number;
+      success_count: number;
+      failed_count: number;
+      request_id?: string;
+      items: components['schemas']['docker-image-batch-remove-item'][];
+    };
+    'enveloped-docker-image-batch-remove-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-image-batch-remove-response'];
     };
     'docker-network': {
       id: string;
@@ -7948,6 +8021,14 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
+    'docker-image-list-limit': number;
+    /** @description Optional zero-based offset for Docker images. */
+    'docker-image-list-offset': number;
+    /** @description Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests. */
+    'docker-image-list-keyword': string;
+    /** @description Optional filter that returns only Docker images with no container references. */
+    'docker-image-list-unused': boolean;
     /** @description Docker image ID or repository reference. */
     'docker-image-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
@@ -14327,8 +14408,25 @@ export interface operations {
   };
   getDockerImages: {
     parameters: {
-      query?: never;
-      header?: never;
+      query?: {
+        /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['docker-image-list-limit'];
+        /** @description Optional zero-based offset for Docker images. */
+        offset?: components['parameters']['docker-image-list-offset'];
+        /** @description Optional case-insensitive keyword matched against Docker image id, repository tags, and repository digests. */
+        keyword?: components['parameters']['docker-image-list-keyword'];
+        /** @description Optional filter that returns only Docker images with no container references. */
+        unused?: components['parameters']['docker-image-list-unused'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14507,6 +14605,52 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postDockerImageBatchRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-image-batch-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Docker image batch removal result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image-batch-remove-response'];
+        };
+      };
+      /** @description Invalid batch image removal request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
     };
   };

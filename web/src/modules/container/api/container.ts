@@ -115,9 +115,9 @@ type PostContainerBatchActionsRequest = NonNullable<
 
 export type ContainerListResponse = GetContainersData;
 
-type DockerImagesData = NonNullable<
-  paths['/api/ops/docker/images']['get']['responses'][200]['content']['application/json']['data']
->;
+type DockerImagesOperation = paths['/api/ops/docker/images']['get'];
+export type DockerImageListQuery = NonNullable<DockerImagesOperation['parameters']['query']>;
+type DockerImagesData = NonNullable<DockerImagesOperation['responses'][200]['content']['application/json']['data']>;
 type DockerNetworksData = NonNullable<
   paths['/api/ops/docker/networks']['get']['responses'][200]['content']['application/json']['data']
 >;
@@ -130,8 +130,8 @@ type DockerSystemData = NonNullable<
 
 export type DockerImageRecord = DockerImagesData['items'][number];
 
-export const getDockerImages = () =>
-  request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES }) as Promise<DockerImagesData>;
+export const getDockerImages = (query?: DockerImageListQuery) =>
+  request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES, params: query }) as Promise<DockerImagesData>;
 
 export const getDockerImage = (imageId: string) =>
   request.get<DockerImageRecord>({

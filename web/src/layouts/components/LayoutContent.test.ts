@@ -5,7 +5,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 
-import { LOCALE } from '@/contracts/i18n/locales';
+import { LOCALE, type LocalizedTitle, type SupportedLocale } from '@/contracts/i18n/locales';
+import type { AppRouteMeta } from '@/utils/types';
 
 import LayoutContent from './LayoutContent.vue';
 
@@ -41,6 +42,7 @@ const routerMock = vi.hoisted(() => ({
   push: vi.fn(),
   resolve: vi.fn((target: { path?: string }) => ({
     href: target.path ?? '/',
+    meta: {},
   })),
 }));
 
@@ -59,6 +61,7 @@ const storeState = vi.hoisted(() => ({
       isAlive?: boolean;
       isHome?: boolean;
       isPinned?: boolean;
+      meta?: Partial<AppRouteMeta>;
       name?: string;
       path: string;
       query?: Record<string, string>;
@@ -89,6 +92,8 @@ const storeState = vi.hoisted(() => ({
     togglePinnedTab: vi.fn(),
   },
 }));
+const localeState = reactive<{ value: SupportedLocale }>({ value: LOCALE.ZH_CN });
+const tabsRouterStoreProxy = reactive(storeState.tabsRouterStore);
 
 vi.mock('vue-router', () => ({
   useRoute: () => routeProxy,
@@ -96,15 +101,18 @@ vi.mock('vue-router', () => ({
 }));
 
 vi.mock('@/locales', () => ({
+  i18n: {
+    global: {
+      getLocaleMessage: (locale: SupportedLocale) => ({
+        'container.route.images.title': locale === LOCALE.ZH_CN ? '镜像' : 'Images',
+      }),
+    },
+  },
   t: (key: string) => key,
 }));
 
 vi.mock('@/locales/useLocale', () => ({
-  useLocale: () => ({
-    locale: {
-      value: LOCALE.ZH_CN,
-    },
-  }),
+  useLocale: () => ({ locale: localeState }),
 }));
 
 vi.mock('@/shared/observability/copy', () => ({
@@ -113,7 +121,7 @@ vi.mock('@/shared/observability/copy', () => ({
 
 vi.mock('@/store', async () => ({
   useSettingStore: () => reactive(storeState.settingStore),
-  useTabsRouterStore: () => reactive(storeState.tabsRouterStore),
+  useTabsRouterStore: () => tabsRouterStoreProxy,
 }));
 
 const TDropdownStub = defineComponent({
@@ -253,6 +261,19 @@ function createTab(path: string, name: string, isHome = false) {
   };
 }
 
+function createNavigationTab(
+  path: string,
+  title: LocalizedTitle,
+  navigationTitle: LocalizedTitle,
+  tabTitle: LocalizedTitle,
+) {
+  return {
+    ...createTab(path, path),
+    meta: { navigationTitle, tabTitle },
+    title,
+  };
+}
+
 function mountLayoutContent() {
   return mount(LayoutContent, {
     global: {
@@ -330,6 +351,7 @@ async function clickRefreshItemForTab(wrapper: ReturnType<typeof mountLayoutCont
 
 describe('LayoutContent', () => {
   beforeEach(() => {
+    localeState.value = LOCALE.ZH_CN;
     routeProxy.meta = {};
     routeProxy.matched = [
       {
@@ -347,6 +369,10 @@ describe('LayoutContent', () => {
     routerMock.currentRoute.value = routeProxy;
     routerMock.push.mockClear();
     routerMock.resolve.mockClear();
+    routerMock.resolve.mockImplementation((target: { path?: string }) => ({
+      href: target.path ?? '/',
+      meta: {},
+    }));
     storeState.settingStore.isUseTabsRouter = true;
     storeState.settingStore.showBreadcrumb = true;
     storeState.settingStore.showFooter = true;
@@ -441,6 +467,116 @@ describe('LayoutContent', () => {
 
     expect(wrapper.findAll('[data-testid="tab-panel"]')).toHaveLength(2);
     expect(wrapper.text()).toContain('ContainerDetail');
+  });
+
+  it('derives compact tab labels from route metadata when no open tab shares the menu name', () => {
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      createNavigationTab(
+        '/infrastructure/docker/containers',
+        { 'zh-CN': '基础设施 / Docker / 容器管理', 'en-US': 'Infrastructure / Docker / Containers' },
+        { 'zh-CN': '基础设施 / Docker / 容器管理', 'en-US': 'Infrastructure / Docker / Containers' },
+        { 'zh-CN': '容器管理', 'en-US': 'Containers' },
+      ),
+    ];
+
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.text()).toContain('容器管理');
+    expect(wrapper.text()).not.toContain('基础设施 / Docker / 容器管理');
+  });
+
+  it('uses live route metadata when a persisted navigation title contains an unresolved key', () => {
+    routerMock.resolve.mockImplementation((target: { path?: string }) => ({
+      href: target.path ?? '/',
+      meta:
+        target.path === '/infrastructure/images'
+          ? {
+              navigationTitle: {
+                'zh-CN': '基础设施 / Docker / 镜像',
+                'en-US': 'Infrastructure / Docker / Images',
+              },
+              tabTitle: {
+                'zh-CN': '镜像',
+                'en-US': 'Images',
+              },
+              titleKey: 'menu.docker.image.title',
+            }
+          : {},
+    }));
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      {
+        ...createTab('/infrastructure/images', 'container.route.images.title'),
+        title: {
+          'zh-CN': '基础设施 / Docker / container.route.images.title',
+          'en-US': 'Infrastructure / Docker / container.route.images.title',
+        },
+      },
+    ];
+
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.text()).toContain('镜像');
+    expect(wrapper.text()).not.toContain('container.route.images.title');
+  });
+
+  it('derives navigation paths only for open tabs whose localized menu names collide', async () => {
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      createNavigationTab(
+        '/security/overview',
+        { 'zh-CN': '安全 / 概览', 'en-US': 'Security / Overview' },
+        { 'zh-CN': '安全 / 概览', 'en-US': 'Security / Overview' },
+        { 'zh-CN': '概览', 'en-US': 'Overview' },
+      ),
+      createNavigationTab(
+        '/observability/overview',
+        { 'zh-CN': '可观测性 / 概览', 'en-US': 'Observability / Overview' },
+        { 'zh-CN': '可观测性 / 概览', 'en-US': 'Observability / Overview' },
+        { 'zh-CN': '概览', 'en-US': 'Overview' },
+      ),
+    ];
+
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.text()).toContain('安全 / 概览');
+    expect(wrapper.text()).toContain('可观测性 / 概览');
+
+    localeState.value = LOCALE.EN_US;
+    await nextTick();
+
+    expect(wrapper.text()).toContain('Security / Overview');
+    expect(wrapper.text()).toContain('Observability / Overview');
+
+    tabsRouterStoreProxy.tabRouters = tabsRouterStoreProxy.tabRouters.filter(
+      (tab) => tab.path !== '/security/overview',
+    );
+    await nextTick();
+
+    expect(wrapper.text()).toContain('Overview');
+    expect(wrapper.text()).not.toContain('Observability / Overview');
+  });
+
+  it('prefers live route metadata over a stale persisted route title', () => {
+    routerMock.resolve.mockReturnValueOnce({
+      href: '/infrastructure/images',
+      meta: {
+        tabTitle: { 'zh-CN': '镜像', 'en-US': 'Images' },
+      },
+    });
+    storeState.tabsRouterStore.tabRouters = [
+      createTab('/', 'RootEntry', true),
+      {
+        ...createTab('/infrastructure/images', 'DockerImageList'),
+        title: { 'zh-CN': '旧镜像标题', 'en-US': 'Stale image title' },
+      },
+    ];
+
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.text()).toContain('镜像');
+    expect(wrapper.text()).not.toContain('旧镜像标题');
   });
 
   it('keeps the page main surface from collapsing while route content transitions', () => {

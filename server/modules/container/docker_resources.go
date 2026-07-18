@@ -2,9 +2,11 @@ package container
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
@@ -13,29 +15,52 @@ import (
 
 const dockerImageReadTimeout = 10 * time.Second
 
-// dockerResourceClient is intentionally separate from dockerClient. It keeps
-// existing container-only runtime test doubles independent of read-only
-// Docker resource discovery.
+// dockerResourceClient 与容器操作 runtime 接口分离，使只读 Docker 资源聚合可以独立替换和测试。
 type dockerResourceClient interface {
 	ImageList(context.Context, mobyclient.ImageListOptions) ([]image.Summary, error)
 	ImageInspect(context.Context, string) (image.InspectResponse, error)
+	ContainerList(context.Context, mobyclient.ContainerListOptions) ([]container.Summary, error)
 	NetworkList(context.Context, mobyclient.NetworkListOptions) ([]network.Summary, error)
 	NetworkInspect(context.Context, string, mobyclient.NetworkInspectOptions) (network.Inspect, error)
 	VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error)
 	VolumeInspect(context.Context, string) (volume.Volume, error)
 }
 
-// DockerImage is the sanitized image projection shared by list and detail reads.
+// DockerImage 是列表和详情读取共用的脱敏镜像投影，引用容器来自同一 runtime 快照。
 type DockerImage struct {
-	ID                string
-	RepositoryTags    []string
-	RepositoryDigests []string
-	CreatedAt         string
-	SizeBytes         int64
-	Containers        int64
-	Labels            map[string]string
-	Architecture      string
-	OperatingSystem   string
+	ID                  string
+	RepositoryTags      []string
+	RepositoryDigests   []string
+	CreatedAt           string
+	SizeBytes           int64
+	Containers          int64
+	ContainerReferences []DockerImageContainerReference
+	Dangling            bool
+	Labels              map[string]string
+	Architecture        string
+	OperatingSystem     string
+}
+
+// DockerImageContainerReference 是引用镜像的容器安全展示投影。
+type DockerImageContainerReference struct {
+	ID   string
+	Name string
+}
+
+// DockerImageListResult 保存一次 Docker 镜像快照及其完整运行时统计。
+// Items 由同一次 ImageList 调用产生，调用方可以在此快照上完成过滤和分页，避免重复访问 Docker daemon。
+type DockerImageListResult struct {
+	Items   []DockerImage
+	Total   int
+	Summary DockerImageListSummary
+}
+
+// DockerImageListSummary 描述完整 Docker runtime inventory，不受列表关键字过滤影响。
+type DockerImageListSummary struct {
+	Total     int
+	SizeBytes int64
+	InUse     int
+	Dangling  int
 }
 
 // DockerNetwork is the sanitized network projection shared by list and detail reads.
@@ -66,7 +91,7 @@ type DockerVolume struct {
 
 // DockerResourceReader marks a runtime that can list Docker-native resources.
 type DockerResourceReader interface {
-	ListDockerImages(context.Context) ([]DockerImage, error)
+	ListDockerImages(context.Context) (DockerImageListResult, error)
 	ReadDockerImage(context.Context, string) (DockerImage, error)
 	ListDockerNetworks(context.Context) ([]DockerNetwork, error)
 	ReadDockerNetwork(context.Context, string) (DockerNetwork, error)
@@ -74,26 +99,80 @@ type DockerResourceReader interface {
 	ReadDockerVolume(context.Context, string) (DockerVolume, error)
 }
 
-// ListDockerImages returns sanitized Docker images from the configured runtime.
-func (r *DockerRuntime) ListDockerImages(ctx context.Context) ([]DockerImage, error) {
+// ListDockerImages 从 Docker runtime 读取一次完整镜像快照，并在返回前计算库存摘要和稳定排序。
+func (r *DockerRuntime) ListDockerImages(ctx context.Context) (DockerImageListResult, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
-		return nil, errUnsupportedContainerRuntime
+		return DockerImageListResult{}, errUnsupportedContainerRuntime
 	}
 	readCtx, cancel := context.WithTimeout(ctx, dockerImageReadTimeout)
 	defer cancel()
 	items, err := client.ImageList(readCtx, mobyclient.ImageListOptions{All: true})
 	if err != nil {
-		return nil, mapDockerError(err)
+		return DockerImageListResult{}, mapDockerError(err)
 	}
+	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
+	if err != nil {
+		return DockerImageListResult{}, mapDockerError(err)
+	}
+	references := dockerImageReferences(containers)
 	result := make([]DockerImage, 0, len(items))
+	var summary DockerImageListSummary
 	for _, item := range items {
-		result = append(result, dockerImageSummary(item))
+		image := dockerImageSummary(item)
+		image.ContainerReferences = append([]DockerImageContainerReference(nil), references[image.ID]...)
+		image.Containers = int64(len(image.ContainerReferences))
+		image.Dangling = dockerImageIsDangling(image.RepositoryTags)
+		result = append(result, image)
+		summary.Total++
+		summary.SizeBytes += maxInt64(item.Size, 0)
+		if len(image.ContainerReferences) > 0 {
+			summary.InUse++
+		}
+		if image.Dangling {
+			summary.Dangling++
+		}
 	}
-	return result, nil
+	sortDockerImages(result)
+	return DockerImageListResult{Items: result, Summary: summary}, nil
 }
 
-// ReadDockerImage returns one sanitized Docker image by ID.
+func sortDockerImages(items []DockerImage) {
+	sort.SliceStable(items, func(i, j int) bool {
+		left, right := imageCreatedAt(items[i]), imageCreatedAt(items[j])
+		if !left.Equal(right) {
+			return left.After(right)
+		}
+		return items[i].ID < items[j].ID
+	})
+}
+
+func imageCreatedAt(item DockerImage) time.Time {
+	created, err := time.Parse(time.RFC3339, item.CreatedAt)
+	if err != nil {
+		return time.Time{}
+	}
+	return created
+}
+
+func dockerImageIsDangling(tags []string) bool {
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag != "" && tag != "<none>:<none>" {
+			return false
+		}
+	}
+	return true
+}
+
+func maxInt64(value, minimum int64) int64 {
+	if value < minimum {
+		return minimum
+	}
+	return value
+}
+
+// ReadDockerImage 按镜像 ID 读取脱敏详情，并补充当前引用容器标签。
 func (r *DockerRuntime) ReadDockerImage(ctx context.Context, id string) (DockerImage, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -105,7 +184,31 @@ func (r *DockerRuntime) ReadDockerImage(ctx context.Context, id string) (DockerI
 	if err != nil {
 		return DockerImage{}, mapDockerError(err)
 	}
-	return DockerImage{ID: strings.TrimSpace(item.ID), RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: strings.TrimSpace(item.Created), SizeBytes: item.Size, Labels: cloneLabels(imageLabels(item)), Architecture: strings.TrimSpace(item.Architecture), OperatingSystem: strings.TrimSpace(item.Os)}, nil
+	imageID := strings.TrimSpace(item.ID)
+	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
+	if err != nil {
+		return DockerImage{}, mapDockerError(err)
+	}
+	result := DockerImage{ID: imageID, RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: strings.TrimSpace(item.Created), SizeBytes: item.Size, Labels: cloneLabels(imageLabels(item)), Architecture: strings.TrimSpace(item.Architecture), OperatingSystem: strings.TrimSpace(item.Os), Dangling: dockerImageIsDangling(item.RepoTags)}
+	result.ContainerReferences = dockerImageReferences(containers)[imageID]
+	result.Containers = int64(len(result.ContainerReferences))
+	return result, nil
+}
+
+func dockerImageReferences(items []container.Summary) map[string][]DockerImageContainerReference {
+	result := make(map[string][]DockerImageContainerReference)
+	for _, item := range items {
+		imageID := strings.TrimSpace(item.ImageID)
+		if imageID == "" {
+			continue
+		}
+		name := ""
+		if len(item.Names) > 0 {
+			name = strings.TrimPrefix(strings.TrimSpace(item.Names[0]), "/")
+		}
+		result[imageID] = append(result[imageID], DockerImageContainerReference{ID: strings.TrimSpace(item.ID), Name: name})
+	}
+	return result
 }
 
 // ListDockerNetworks returns sanitized Docker networks from the configured runtime.
@@ -168,9 +271,9 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	return dockerVolume(item), nil
 }
 
-// dockerImageSummary converts a Docker image summary into a sanitized DockerImage projection.
+// dockerImageSummary 将 Docker 镜像概要转换为脱敏的 DockerImage 基础投影。
 func dockerImageSummary(item image.Summary) DockerImage {
-	return DockerImage{ID: strings.TrimSpace(item.ID), RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: time.Unix(item.Created, 0).UTC().Format(time.RFC3339), SizeBytes: item.Size, Containers: item.Containers, Labels: cloneLabels(item.Labels)}
+	return DockerImage{ID: strings.TrimSpace(item.ID), RepositoryTags: append([]string(nil), item.RepoTags...), RepositoryDigests: append([]string(nil), item.RepoDigests...), CreatedAt: time.Unix(item.Created, 0).UTC().Format(time.RFC3339), SizeBytes: item.Size, Containers: item.Containers, Dangling: dockerImageIsDangling(item.RepoTags), Labels: cloneLabels(item.Labels)}
 }
 
 // imageLabels 返回镜像检查结果中的标签；配置为空时返回 nil。

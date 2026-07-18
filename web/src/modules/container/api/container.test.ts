@@ -20,6 +20,7 @@ import {
   getContainerLogs,
   getContainerMountUsage,
   getContainers,
+  getDockerImages,
   postContainerMountUsageRefresh,
   postContainerShellSession,
   removeContainer,
@@ -38,6 +39,18 @@ vi.mock('@/utils/request', () => ({
 describe('container api', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('passes server pagination and keyword parameters to the Docker image list', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValueOnce({ items: [], total: 0, limit: 20, offset: 40, summary: {} } as never);
+
+    await getDockerImages({ limit: 20, offset: 40, keyword: 'graft' });
+
+    expect(requestGet).toHaveBeenCalledWith({
+      params: { limit: 20, offset: 40, keyword: 'graft' },
+      url: CONTAINER_API_PATH.DOCKER_IMAGES,
+    });
   });
 
   it('reads the canonical container collection path', async () => {

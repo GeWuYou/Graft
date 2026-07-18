@@ -1,4 +1,8 @@
 type: object
-required: [items]
+required: [items, total, limit, offset, summary]
 properties:
   items: { type: array, items: { $ref: ./docker-image.yaml } }
+  total: { type: integer, minimum: 0 }
+  limit: { type: integer, minimum: 1 }
+  offset: { type: integer, minimum: 0 }
+  summary: { $ref: ./docker-image-list-summary.yaml }
