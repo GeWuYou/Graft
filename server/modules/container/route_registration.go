@@ -517,7 +517,7 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) b
 	}
 	authorizer, err := resolveAuthorizer(r.ctx)
 	if err != nil {
-		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 		return false
 	}
 	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
@@ -526,6 +526,10 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) b
 		return false
 	}
 	if err := authorizer.Authorize(ginCtx.Request.Context(), requestAuth, permission); err != nil {
+		if !errors.Is(err, moduleapi.ErrPermissionDenied) {
+			httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
+			return false
+		}
 		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
 			"permission": permission,
 		})

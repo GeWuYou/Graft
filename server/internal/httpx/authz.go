@@ -65,7 +65,7 @@ func RequirePermission(
 	auditPublisher := firstSecurityAuditPublisher(auditPublishers...)
 	return func(ctx *gin.Context) {
 		if authService == nil {
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			abortAuthorizationInternalError(ctx, localizer, errors.New("auth service is unavailable"))
 			return
 		}
 
@@ -135,7 +135,7 @@ func authorizeRequest(
 	}
 
 	if authorizer == nil {
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		abortAuthorizationInternalError(ctx, localizer, errors.New("authorizer is unavailable"))
 		return true
 	}
 	if err := authorizer.Authorize(request.ctx, request.requestAuth, code); err != nil {
@@ -157,7 +157,7 @@ func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, err error,
 	case errors.Is(err, moduleapi.ErrInvalidAccessToken):
 		writeInvalidTokenAuditError(ctx, localizer, auditPublisher)
 	default:
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		abortAuthorizationInternalError(ctx, localizer, err)
 	}
 }
 
@@ -168,7 +168,7 @@ func writeCurrentUserError(ctx *gin.Context, localizer *i18n.Service, err error,
 	case errors.Is(err, moduleapi.ErrUnauthenticated):
 		writeMissingTokenAuditError(ctx, localizer, auditPublisher)
 	default:
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		abortAuthorizationInternalError(ctx, localizer, err)
 	}
 }
 
@@ -194,8 +194,13 @@ func writeAuthorizationError(
 	case errors.Is(err, moduleapi.ErrUnauthenticated):
 		writeMissingTokenAuditError(ctx, localizer, auditPublisher)
 	default:
-		AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		abortAuthorizationInternalError(ctx, localizer, err)
 	}
+}
+
+// abortAuthorizationInternalError 保留鉴权基础设施失败的 cause，由 HTTP fallback 记录一次关联错误。
+func abortAuthorizationInternalError(ctx *gin.Context, localizer *i18n.Service, err error) {
+	AbortAppError(ctx, localizer, zap.L(), err)
 }
 
 func writeInvalidTokenAuditError(ctx *gin.Context, localizer *i18n.Service, auditPublisher SecurityAuditPublisher) {

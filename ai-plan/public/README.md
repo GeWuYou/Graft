@@ -15,8 +15,6 @@ Overlay note:
 
 ## Active Topics
 
-- `backend-error-logging-governance`
-  - Recovery entry: `ai-plan/public/backend-error-logging-governance/README.md`
 - `handwritten-comment-governance`
   - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`

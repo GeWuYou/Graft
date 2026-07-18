@@ -960,7 +960,7 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action generated
 		return false
 	}
 	if r.authorizer == nil {
-		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, errors.New("project authorizer is unavailable"))
 		return false
 	}
 	if err := r.authorizer.Authorize(ginCtx.Request.Context(), requestAuth, permission); err != nil {
@@ -972,7 +972,7 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action generated
 		case errors.Is(err, moduleapi.ErrUnauthenticated):
 			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
 		default:
-			httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 		}
 		return false
 	}

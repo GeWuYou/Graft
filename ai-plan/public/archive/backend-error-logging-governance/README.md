@@ -3,15 +3,14 @@
 ## Current Status Summary
 
 - Topic objective: establish one backend error-reporting authority and migrate server failure paths so operators see the real cause once.
-- Current status: `active`
+- Current status: `archive-ready`
 - Task class: `server`
 - Intake summary: long-running refactor requiring design alignment, active-topic recovery, and loop execution.
 - Canonical authority:
   - `ai-plan/design/domains/audit/日志治理开发规范.md`
   - `server/internal/logger/**`
   - `server/internal/httpx/**`
-- Completed so far: shared foundation, Project/Task priority chain, administrative routes, and operational synchronous HTTP modules are committed.
-- Not started yet: asynchronous recovery/cause integrity and final governance audit.
+- Completed: shared foundation, Project/Task priority chain, administrative and operational routes, asynchronous recovery/cause integrity, bounded static governance guard, and final full audit.
 
 ## Recovery Receipt
 
@@ -47,20 +46,20 @@ Out of scope:
 5. Batch 5 - asynchronous recovery, cause integrity, and logging governance guard
 6. Batch 6 - full audit, validation, and archive readiness
 
-## Current Recovery Point
+## Completion Evidence
 
-- Batch 4 moved container, audit, monitor, and access-log explorer synchronous unknown failures to the shared safe AppError path. Realtime ticket/auth failures and dashboard widget failures were reviewed as already-owned expected or semantic error paths.
-- No authority escalation or compatibility exception is active.
-- Next step: `Batch 5 - asynchronous recovery, cause integrity, and logging governance guard`.
+- Batch 6 found and repaired remaining unreported internal HTTP failures in shared authorization, App Log Explorer, realtime subscription issuance, and container/project authorization boundaries.
+- Full handwritten production Go review found no remaining cause-breaking `%v` wrappers, access-log ERROR/WARN promotion, raw `err.Error()` public data exposure, or unowned panic boundary.
+- No authority escalation or compatibility exception is active; no further batch remains in scope.
 
 ## Work Intake
 
 - This topic was created through `Work Intake`.
 - The full `Work Contract` is persisted in the tracking file.
 
-## Pending Batch Direction
+## Archive Status
 
-- Audit asynchronous recovery boundaries, cause wrapping, and the bounded governance guard while retaining the shared AppError/ReportError authority.
+- The topic is archive-ready after Batch 6 validation and will move under `ai-plan/public/archive/` with its recovery evidence intact.
 
 ## Validation Targets
 

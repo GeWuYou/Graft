@@ -126,12 +126,12 @@ func (r routeRuntime) authenticateShellWebSocketRequest(ginCtx *gin.Context) (co
 	})
 
 	if r.userService == nil {
-		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, errors.New("container user service is unavailable"))
 		return nil, moduleapi.RequestAuthContext{}, true
 	}
 	authorizer, err := resolveAuthorizer(r.ctx)
 	if err != nil {
-		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 		return nil, moduleapi.RequestAuthContext{}, true
 	}
 	params := bindGetContainerShellWebSocketParams(ginCtx)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	openapigen "graft/server/internal/contract/openapi/generated"
@@ -106,6 +107,11 @@ func writeSubscriptionError(ctx *gin.Context, localizer *i18n.Service, err error
 	case errors.Is(err, ErrTopicConflict):
 		status = http.StatusConflict
 		messageKey = messagecontract.CommonInternalError.String()
+	}
+
+	if status == http.StatusInternalServerError {
+		httpx.AbortAppError(ctx, localizer, zap.L(), err)
+		return
 	}
 
 	httpx.WriteLocalizedError(ctx, localizer, status, messageKey, map[string]any{

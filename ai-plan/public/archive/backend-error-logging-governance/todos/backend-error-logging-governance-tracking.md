@@ -42,7 +42,7 @@ closeout:
 
 - Batches 1 through 4 are complete: synchronous administrative and operational routes preserve their existing expected 4xx mapping while unexpected failures pass through the shared safe AppError boundary.
 - No compatibility bridge or authority escalation is approved.
-- Batch 5 is complete; next step is Batch 6 full audit, completion validation, and archive-readiness review.
+- Batch 6 is complete; the topic has passed archive-readiness review.
 
 ## Task Checklist
 
@@ -51,7 +51,7 @@ closeout:
 - [x] Batch 3 - remaining synchronous administrative HTTP modules
 - [x] Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)
 - [x] Batch 5 - asynchronous recovery, cause integrity, and logging governance guard
-- [ ] Batch 6 - full audit, validation, and archive readiness
+- [x] Batch 6 - full audit, validation, and archive readiness
 
 ## Acceptance Conditions
 
@@ -72,14 +72,18 @@ closeout:
     "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
     "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard"
   ],
-  "pending_batches": [
-    "Batch 6 - full audit, validation, and archive readiness"
-  ],
-  "current_batch": "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
-  "next_batch": "Batch 6 - full audit, validation, and archive readiness",
-  "closeout_status": "batch-5-complete"
+  "pending_batches": [],
+  "current_batch": "Batch 6 - full audit, validation, and archive readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
+
+## Batch 6 Evidence
+
+- Final audit migrated unreported internal authorization, App Log Explorer, realtime subscription, container shell, and Project batch authorization failures to `AbortAppError`, preserving one correlated fallback cause without exposing it to clients.
+- Regression tests verify unexpected auth and App Log repository failures produce exactly one HTTP fallback record and a safe 500 envelope.
+- Acceptance validation passed: `cd server && go test ./...`, `cd server && go run ./cmd/graft validate backend`, `python3 -m unittest discover -s scripts -p 'test_*.py'`, `python3 scripts/validate_ai_plan_structure.py`, `python3 scripts/validate_shared_asset_registries.py`, `python3 scripts/validate_ai_governance.py`, `python3 scripts/check_error_logging_governance.py`, and `git diff --check`.
 
 ## Batch 5 Evidence
 

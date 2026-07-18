@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	applogopenapi "graft/server/internal/contract/openapi/applog"
@@ -209,7 +210,7 @@ func handleListAppLogs(localizer *i18n.Service, repo AppLogRepository) gin.Handl
 
 		result, err := repo.ListAppLogs(ctx.Request.Context(), query)
 		if err != nil {
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 
@@ -232,7 +233,7 @@ func handleGetAppLogDetail(localizer *i18n.Service, repo AppLogRepository) gin.H
 				})
 				return
 			}
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 
@@ -253,7 +254,7 @@ func handleDeleteAppLog(localizer *i18n.Service, repo AppLogRepository, bus even
 
 		deleted, err := repo.DeleteAppLogByID(ctx.Request.Context(), id)
 		if err != nil {
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 		if !deleted {
@@ -264,7 +265,7 @@ func handleDeleteAppLog(localizer *i18n.Service, repo AppLogRepository, bus even
 		}
 
 		if err := publishAppLogDeleteAudit(ctx, bus, []uint64{id}, 1); err != nil {
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{})
@@ -291,7 +292,7 @@ func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bu
 
 		deleted, err := deleteNormalizedAppLogsByIDs(ctx.Request.Context(), repo, ids)
 		if err != nil {
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 		if deleted != int64(len(ids)) {
@@ -302,7 +303,7 @@ func handleBatchDeleteAppLogs(localizer *i18n.Service, repo AppLogRepository, bu
 		}
 
 		if err := publishAppLogDeleteAudit(ctx, bus, ids, deleted); err != nil {
-			httpx.AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ctx, localizer, zap.L(), err)
 			return
 		}
 		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{})
