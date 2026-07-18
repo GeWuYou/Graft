@@ -42,7 +42,7 @@ closeout:
 
 - Batches 1 through 4 are complete: synchronous administrative and operational routes preserve their existing expected 4xx mapping while unexpected failures pass through the shared safe AppError boundary.
 - No compatibility bridge or authority escalation is approved.
-- Next step: start Batch 5 - asynchronous recovery, cause integrity, and logging governance guard.
+- Batch 5 is complete; next step is Batch 6 full audit, completion validation, and archive-readiness review.
 
 ## Task Checklist
 
@@ -50,7 +50,7 @@ closeout:
 - [x] Batch 2 - Project/Task priority request failure chain
 - [x] Batch 3 - remaining synchronous administrative HTTP modules
 - [x] Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)
-- [ ] Batch 5 - asynchronous recovery, cause integrity, and logging governance guard
+- [x] Batch 5 - asynchronous recovery, cause integrity, and logging governance guard
 - [ ] Batch 6 - full audit, validation, and archive readiness
 
 ## Acceptance Conditions
@@ -69,17 +69,25 @@ closeout:
     "Batch 1 - authority, topic bootstrap, and core error/logging foundation",
     "Batch 2 - Project/Task priority request failure chain",
     "Batch 3 - remaining synchronous administrative HTTP modules",
-    "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)"
+    "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
+    "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard"
   ],
   "pending_batches": [
-    "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
     "Batch 6 - full audit, validation, and archive readiness"
   ],
-  "current_batch": "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
-  "next_batch": "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
-  "closeout_status": "batch-4-complete"
+  "current_batch": "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
+  "next_batch": "Batch 6 - full audit, validation, and archive readiness",
+  "closeout_status": "batch-5-complete"
 }
 ```
+
+## Batch 5 Evidence
+
+- Eventbus and scheduler notifier panic boundaries now retain a panic-site `stacktrace` with event/source or task/run context.
+- Task Runtime receives the canonical module `AppLogger`; executor, cancellation, and worker panics log once with task/stage/executor context before failure state handling continues.
+- Dashboard loader recovery preserves the original panic-site stack and unwraps ordinary loader causes for internal control flow.
+- Propagated error wrappers now use `%w` or `errors.Join`; no handwritten production `fmt.Errorf(... %v, err)` or `errors.New(err.Error())` remains.
+- Added the bounded error-logging guard and regression tests; it intentionally does not claim to prove semantic exactly-once ownership.
 
 ## Batch 1 Evidence
 

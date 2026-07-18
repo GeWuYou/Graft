@@ -82,6 +82,7 @@ var backendReleaseRunner = runValidateRelease
 var buildReleaseInfoSnapshot = buildinfo.Current
 var backendLocaleOwnershipGuardRunner = runValidateServerLocaleOwnership
 var backendLogCategoryGovernanceRunner = runValidateLogCategoryGovernance
+var backendErrorLoggingGovernanceRunner = runValidateErrorLoggingGovernance
 var backendCommandRunner = runBackendCommand
 var backendGitOutputRunner = runBackendGitOutput
 
@@ -262,11 +263,28 @@ func runValidateLogCategoryGovernance(cmd *cobra.Command) error {
 	return nil
 }
 
+// runValidateErrorLoggingGovernance 执行有界静态检查，阻止直接绕过错误日志基线的回归。
+func runValidateErrorLoggingGovernance(cmd *cobra.Command) error {
+	repoRoot, err := resolveRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("resolve repository root for error logging governance guard: %w", err)
+	}
+
+	scriptPath := filepath.Join(repoRoot, "scripts", "check_error_logging_governance.py")
+	if err := backendCommandRunner(cmd, "python3", scriptPath, "--root", repoRoot); err != nil {
+		return fmt.Errorf("run error logging governance guard: %w", err)
+	}
+	return nil
+}
+
 func runBackendLintGuards(cmd *cobra.Command) error {
 	if err := backendLocaleOwnershipGuardRunner(cmd); err != nil {
 		return err
 	}
 	if err := backendLogCategoryGovernanceRunner(cmd); err != nil {
+		return err
+	}
+	if err := backendErrorLoggingGovernanceRunner(cmd); err != nil {
 		return err
 	}
 	return nil

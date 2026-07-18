@@ -355,7 +355,7 @@ func (s *Service) executeLifecycleActionWithAggregate(
 	commandOutput, err := s.runComposeCommand(ctx, aggregate, args)
 	if err != nil {
 		result := blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(commandOutput))})
-		return result, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return result, fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	messageKey := lifecycleMessageKey(action).String()
 	return ActionResult{
@@ -517,13 +517,13 @@ func (s *Service) redeployWithActor(
 	}
 	output, err := s.runComposeCommand(ctx, aggregate, upArgs)
 	if err != nil {
-		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	guards = append(guards, guardDetail("command", strings.Join(upArgs, " ")))
 	if config.Standard.PruneImagesAfterRedeploy {
 		output, err = s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, []string{"image", "prune", "-f"})
 		if err != nil {
-			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 		}
 		guards = append(guards, guardCode("image_prune_completed"))
 	}
@@ -559,7 +559,7 @@ func (s *Service) runRedeployComposeStep(
 	}
 	output, err := s.runComposeCommand(ctx, aggregate, args)
 	if err != nil {
-		return append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	return append(guards, guardCode(successCode)), nil
 }
@@ -925,7 +925,7 @@ func (s *Service) applyDestroyWorkspacePathStep(
 	autoUnregister := request.AutoUnregister
 	if request.DeleteWorkspacePath {
 		if err := deleteManagedWorkspacePath(aggregate.Application.WorkspacePath); err != nil {
-			return nil, false, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			return nil, false, fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 		}
 		guardResults = append(guardResults, guardCode("workspace_path_deleted"))
 		autoUnregister = true
@@ -952,7 +952,7 @@ func (s *Service) applyDestroyImagePruneStep(
 				append(guardResults, guardDetail("image_prune_failed", summarizeCommandOutput(output))),
 			),
 			nil,
-			fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	guardResults = append(guardResults, guardCode("image_prune_completed"))
 	return ActionResult{}, guardResults, nil

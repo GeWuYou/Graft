@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -386,6 +387,7 @@ func (r *CronRuntime) notifyRunFailed(ctx context.Context, run TaskRun) {
 					zap.String("task", run.TaskKey),
 					zap.Uint64("runID", run.ID),
 					zap.Any("panic", recovered),
+					zap.String("stacktrace", string(debug.Stack())),
 				)
 			}
 		}()
@@ -409,6 +411,7 @@ func (r *CronRuntime) notifyRunSucceeded(ctx context.Context, run TaskRun, trigg
 					zap.String("task", run.TaskKey),
 					zap.Uint64("runID", run.ID),
 					zap.Any("panic", recovered),
+					zap.String("stacktrace", string(debug.Stack())),
 				)
 			}
 		}()
@@ -494,7 +497,7 @@ func entriesWithoutKey(entries map[string]cron.EntryID, key string) map[string]c
 
 func (r *CronRuntime) revertTaskDefinition(ctx context.Context, previous TaskDefinition, refreshErr error) error {
 	if _, err := r.tasks.ReplaceTask(ctx, previous); err != nil {
-		return fmt.Errorf("refresh scheduler task %s: %w (rollback failed: %v)", previous.TaskKey, refreshErr, err)
+		return fmt.Errorf("refresh scheduler task %s: %w", previous.TaskKey, errors.Join(refreshErr, fmt.Errorf("rollback task definition: %w", err)))
 	}
 	return refreshErr
 }

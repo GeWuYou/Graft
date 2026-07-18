@@ -306,7 +306,7 @@ func (s *Service) validateTemplateDefinition(kind projectcontract.DeploymentAdap
 		return ComposeTemplateDefinition{}, err
 	}
 	if err = adapter.ValidateDefinition(definition); err != nil {
-		return ComposeTemplateDefinition{}, fmt.Errorf("%w: %v", errProjectInvalidArgument, err)
+		return ComposeTemplateDefinition{}, fmt.Errorf("%w: %w", errProjectInvalidArgument, err)
 	}
 	return s.validateComposeTemplateDefinition(kind, definition)
 }

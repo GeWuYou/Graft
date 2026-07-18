@@ -103,6 +103,13 @@ func TestPublishAggregatesHandlerFailures(t *testing.T) {
 	if logs.Len() != 2 {
 		t.Fatalf("expected two error logs, got %d", logs.Len())
 	}
+	panicLog := logs.All()[1].ContextMap()
+	if panicLog["event"] != "audit.record" || panicLog["source"] != "audit" {
+		t.Fatalf("expected panic event context, got %#v", panicLog)
+	}
+	if stacktrace, ok := panicLog["stacktrace"].(string); !ok || !strings.Contains(stacktrace, "TestPublishAggregatesHandlerFailures") {
+		t.Fatalf("expected captured panic stacktrace, got %#v", panicLog["stacktrace"])
+	}
 }
 
 func assertEventOrder(t *testing.T, got []string, want ...string) {

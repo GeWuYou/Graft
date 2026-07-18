@@ -39,6 +39,13 @@
 - Container and audit regression tests assert that owner reports are marked and do not produce an HTTP duplicate; the access-log explorer regression asserts one fallback error and no internal cause in the response.
 - Realtime ticket/auth and dashboard widget paths were reviewed without change: their visible failures are expected client outcomes or are already reported by the widget-load owner. Async recover boundaries remain reserved for Batch 5.
 
+## 2026-07-19 Batch 5 Closeout
+
+- Eventbus, scheduler notifier goroutines, Task Runtime executor/cancellation/worker paths, and dashboard widget recovery now capture the real panic-site stack instead of recording a later or absent stack. Async logs retain their event, task, stage, executor, run, or widget context while expected cancellation behavior remains unchanged.
+- Task Runtime uses the module-injected AppLogger for its asynchronous panic owner; normal stage completion and persisted state transitions remain unchanged. Dashboard loader errors now retain their internal cause through `Unwrap` while its public widget error remains unchanged.
+- Repaired propagated `%v` and string-rebuild cause-loss paths across handwritten backend production code with `%w` or `errors.Join`. The Batch intentionally left safe user-facing message rendering alone.
+- Added `check_error_logging_governance.py`, wired it into the existing backend lint guard, and registered it as a bounded shared validation helper. Its scope is deliberately static and narrow; runtime tests/review remain authoritative for exact-once semantics.
+
 ## Loop Batch State
 
 ```json
@@ -48,14 +55,14 @@
     "Batch 1 - authority, topic bootstrap, and core error/logging foundation",
     "Batch 2 - Project/Task priority request failure chain",
     "Batch 3 - remaining synchronous administrative HTTP modules",
-    "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)"
+    "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
+    "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard"
   ],
   "pending_batches": [
-    "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
     "Batch 6 - full audit, validation, and archive readiness"
   ],
-  "current_batch": "Batch 4 - operational synchronous HTTP modules (container, audit, monitor, realtime, dashboard, httpx explorer)",
-  "next_batch": "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
-  "closeout_status": "batch-4-complete"
+  "current_batch": "Batch 5 - asynchronous recovery, cause integrity, and logging governance guard",
+  "next_batch": "Batch 6 - full audit, validation, and archive readiness",
+  "closeout_status": "batch-5-complete"
 }
 ```

@@ -481,7 +481,7 @@ func validateValueForDefinition(definition configregistry.Definition, value json
 	}
 	var decoded any
 	if err := json.Unmarshal(value, &decoded); err != nil {
-		return fmt.Errorf("%w: %v", errInvalidConfigValue, err)
+		return fmt.Errorf("%w: %w", errInvalidConfigValue, err)
 	}
 
 	expected := configregistry.InvalidJSONShape(decoded, definition.Type)
@@ -490,7 +490,7 @@ func validateValueForDefinition(definition configregistry.Definition, value json
 	}
 	if len(definition.Schema) > 0 {
 		if err := validateSchemaValue(definition, value); err != nil {
-			return fmt.Errorf("%w: %s %v", errInvalidConfigValue, definition.Key, err)
+			return fmt.Errorf("%w: %s %w", errInvalidConfigValue, definition.Key, err)
 		}
 	}
 	return nil

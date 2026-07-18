@@ -158,7 +158,7 @@ func (r *DockerRuntime) MountUsage(ctx context.Context, ref Ref, mountID string)
 func (r *DockerRuntime) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, error) {
 	since, err := parseLogSince(query.Since)
 	if err != nil {
-		return Logs{}, fmt.Errorf("%w: %v", errInvalidLogQuery, err)
+		return Logs{}, fmt.Errorf("%w: %w", errInvalidLogQuery, err)
 	}
 	reader, err := r.client.ContainerLogs(ctx, ref.Value, mobyclient.ContainerLogsOptions{
 		ShowStdout: query.Stdout,
@@ -207,7 +207,7 @@ func (r *DockerRuntime) StreamLogs(ctx context.Context, ref Ref, query LogQuery,
 	}
 	since, err := parseLogSince(query.Since)
 	if err != nil {
-		return fmt.Errorf("%w: %v", errInvalidLogQuery, err)
+		return fmt.Errorf("%w: %w", errInvalidLogQuery, err)
 	}
 	reader, err := r.client.ContainerLogs(ctx, ref.Value, mobyclient.ContainerLogsOptions{
 		ShowStdout: query.Stdout,

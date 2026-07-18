@@ -304,7 +304,7 @@ func (s *Service) inspectRuntimeCandidateSession(
 ) (importInspectionSession, error) {
 	envFiles, err := discoverEnvFilesForWorkspacePath(candidate.WorkingDirectory)
 	if err != nil {
-		return importInspectionSession{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return importInspectionSession{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
 		WorkspacePath:              candidate.WorkingDirectory,

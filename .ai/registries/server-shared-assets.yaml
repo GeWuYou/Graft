@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: "2026-07-18"
+updated_at: "2026-07-19"
 assets:
   - name: "moduleapi-contracts"
     type: "backend-moduleapi"
@@ -92,6 +92,25 @@ assets:
       - "httpx-runtime"
       - "request-correlation-contract"
     validation_commands:
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+
+  - name: "error-logging-governance-guard"
+    type: "backend-validation-helper"
+    path: "scripts/check_error_logging_governance.py"
+    owner: "server/core/logger"
+    purpose: "Bounded static guard for direct backend error logging regressions; it complements semantic tests and review rather than replacing them."
+    use_when:
+      - "Changing backend error propagation, panic recovery, Access Log severity, or public error-data handling."
+    do_not_use_when:
+      - "Trying to infer exactly-once error ownership or replace focused runtime tests."
+    examples:
+      - "scripts/check_error_logging_governance.py"
+      - "scripts/test_check_error_logging_governance.py"
+    related_assets:
+      - "app-logger"
+      - "httpx-runtime"
+    validation_commands:
+      - "python3 -m unittest scripts/test_check_error_logging_governance.py"
       - "cd server && go run ./cmd/graft validate backend --stage lint"
 
   - name: "config-registry"

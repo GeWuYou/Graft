@@ -111,7 +111,7 @@ func readReusableWorkspace(root string) (reusableWorkspaceResult, error) {
 	collector := reusableWorkspaceCollector{root: rootFS, rootPath: root, entries: make([]ManagedWorkspaceEntry, 0), composeCandidates: make([]string, 0, 1)}
 	err = filepath.WalkDir(root, collector.visit)
 	if err != nil {
-		return reusableWorkspaceResult{}, fmt.Errorf("%w: %v", errors.Join(errProjectInvalidArgument, errProjectWorkspaceUnsafe), err)
+		return reusableWorkspaceResult{}, fmt.Errorf("%w: %w", errors.Join(errProjectInvalidArgument, errProjectWorkspaceUnsafe), err)
 	}
 	sort.Slice(collector.entries, func(i, j int) bool { return collector.entries[i].Path < collector.entries[j].Path })
 	if len(collector.composeCandidates) == 1 {

@@ -181,7 +181,7 @@ func (s *Service) projectFileContent(
 		if os.IsNotExist(err) {
 			return workspaceFileContentResult{}, errProjectFileNotFound
 		}
-		return workspaceFileContentResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFileContentResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	if info.IsDir() {
 		return workspaceFileContentResult{}, errProjectInvalidArgument
@@ -189,7 +189,7 @@ func (s *Service) projectFileContent(
 	// #nosec G304 -- absolutePath 已校验为应用 workspace_path 范围内的路径。
 	content, err := os.ReadFile(absolutePath)
 	if err != nil {
-		return workspaceFileContentResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFileContentResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	state := resolveWorkspaceFileState(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files), content)
 	if !state.Readable {
@@ -232,7 +232,7 @@ func (s *Service) saveProjectFileContent(
 	// #nosec G304 -- absolutePath 已校验为应用 workspace_path 范围内的路径。
 	existingContent, err := os.ReadFile(absolutePath)
 	if err != nil {
-		return workspaceFileSaveResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	state := resolveWorkspaceFileState(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files), existingContent)
 	if !state.Editable {
@@ -240,14 +240,14 @@ func (s *Service) saveProjectFileContent(
 	}
 	fsRoot, err := openManagedRootFS(rootDir)
 	if err != nil {
-		return workspaceFileSaveResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	defer func() {
 		_ = closeManagedRootFS(fsRoot)
 	}()
 	normalized := normalizeTextBlock(request.Content)
 	if err := fsRoot.root.WriteFile(relativePath, []byte(normalized), managedCreateFileMode); err != nil {
-		return workspaceFileSaveResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	return workspaceFileSaveResult{
 		ApplicationRecordID: projectID,
@@ -499,7 +499,7 @@ func buildProjectWorkspaceFileItem(
 	}
 	info, err := entry.Info()
 	if err != nil {
-		return workspaceFileItem{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return workspaceFileItem{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	state, err := resolveWorkspaceTreeItemState(buildContext.RootPath, relativePath, entry, buildContext.TrackedKinds)
 	if err != nil {
@@ -677,7 +677,7 @@ func mapWorkspacePathError(err error) error {
 	if os.IsNotExist(err) {
 		return errProjectFileNotFound
 	}
-	return fmt.Errorf("%w: %v", errProjectImportValidation, err)
+	return fmt.Errorf("%w: %w", errProjectImportValidation, err)
 }
 
 func workspaceParentPath(currentPath string) *string {

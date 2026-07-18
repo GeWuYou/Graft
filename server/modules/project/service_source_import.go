@@ -194,7 +194,7 @@ func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirec
 	}
 	entries, err := os.ReadDir(absolute)
 	if err != nil {
-		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	items := buildImportDirectoryItems(query.Path, entries)
 	sortImportDirectoryItems(items, query.SortBy, query.Order)
@@ -231,7 +231,7 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 	}
 	discovered, err := discoverImportFiles(absolute)
 	if err != nil {
-		return ImportInspectResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return ImportInspectResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	session, err := s.inspectImportRequest(ctx, repository, ImportRequest{
 		WorkspacePath:              absolute,

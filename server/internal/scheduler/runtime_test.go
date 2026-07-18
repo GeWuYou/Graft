@@ -13,6 +13,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/cronx"
 )
@@ -1150,8 +1151,9 @@ func TestRunOnceDoesNotBlockOnFailureNotifier(t *testing.T) {
 }
 
 func TestRunOnceIgnoresFailureNotifierPanic(t *testing.T) {
+	core, logs := observer.New(zap.ErrorLevel)
 	repo := newRunRepositoryRecorder()
-	runtime := New(zap.NewNop(), repo)
+	runtime := New(zap.New(core), repo)
 	runtime.SetTaskRepository(newTaskRepositoryRecorder())
 	runtime.SetRunFailureNotifier(panicRunFailureNotifier{})
 
@@ -1165,6 +1167,20 @@ func TestRunOnceIgnoresFailureNotifierPanic(t *testing.T) {
 
 	if _, err := runtime.RunOnce(context.Background(), "manual-panicking-notifier"); err == nil || err.Error() != "boom" {
 		t.Fatalf("expected handler error, got %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for logs.Len() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if logs.Len() != 1 {
+		t.Fatalf("expected notifier panic log, got %d", logs.Len())
+	}
+	fields := logs.All()[0].ContextMap()
+	if fields["task"] != "manual-panicking-notifier" || fields["runID"] == nil {
+		t.Fatalf("expected scheduler panic context, got %#v", fields)
+	}
+	if stacktrace, ok := fields["stacktrace"].(string); !ok || !strings.Contains(stacktrace, "panicRunFailureNotifier.NotifyRunFailed") {
+		t.Fatalf("expected notifier panic stacktrace, got %#v", fields["stacktrace"])
 	}
 }
 

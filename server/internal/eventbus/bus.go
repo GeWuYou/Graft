@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -124,6 +125,7 @@ func (b *MemoryBus) invokeHandler(ctx context.Context, handler Handler, event Ev
 				zap.String("event", event.Name),
 				zap.String("source", event.Source),
 				zap.Any("panic", recovered),
+				zap.String("stacktrace", string(debug.Stack())),
 			)
 		}
 	}()

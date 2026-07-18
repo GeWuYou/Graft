@@ -25,7 +25,7 @@ func (s *Service) scanDiscoveryCandidates(
 ) ([]DiscoveryCandidateResult, error) {
 	entries, err := os.ReadDir(rootDirectory)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return nil, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	candidates := make([]DiscoveryCandidateResult, 0, projectDiscoveryScanSize)
 	for _, entry := range entries {

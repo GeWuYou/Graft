@@ -3,11 +3,16 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
+
 	"graft/server/internal/config"
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
 )
 
@@ -97,6 +102,7 @@ func TestServiceReturnsErrorWidgetWhenLoaderFails(t *testing.T) {
 func TestServiceRecoversLoaderPanic(t *testing.T) {
 	t.Parallel()
 
+	core, logs := observer.New(zap.ErrorLevel)
 	registry := NewRegistry()
 	mustRegisterWidget(t, registry, WidgetDefinition{
 		ID:        "core.panic",
@@ -108,9 +114,19 @@ func TestServiceRecoversLoaderPanic(t *testing.T) {
 		}),
 	})
 
-	widget := NewService(ServiceOptions{Registry: registry}).Summary(context.Background(), testRequestAuth()).Widgets[0]
+	widget := NewService(ServiceOptions{Registry: registry, Logger: logger.NewAppLogger(zap.New(core))}).Summary(context.Background(), testRequestAuth()).Widgets[0]
 	if widget.Error == nil || widget.Error.Code != errorCodePanic {
 		t.Fatalf("expected panic error, got %#v", widget.Error)
+	}
+	if logs.Len() != 1 {
+		t.Fatalf("expected one panic error log, got %d", logs.Len())
+	}
+	fields := logs.All()[0].ContextMap()
+	if fields["widget_id"] != "core.panic" || fields["panic"] != true {
+		t.Fatalf("expected widget panic context, got %#v", fields)
+	}
+	if stacktrace, ok := fields["stacktrace"].(string); !ok || !strings.Contains(stacktrace, "TestServiceRecoversLoaderPanic") {
+		t.Fatalf("expected recovered panic stacktrace, got %#v", fields["stacktrace"])
 	}
 }
 

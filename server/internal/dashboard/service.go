@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	operationWidgetLoad      = "dashboard_widget_load"
-	errorCodeLoadFailed      = "DASHBOARD_WIDGET_LOAD_FAILED"
-	errorCodePanic           = "DASHBOARD_WIDGET_PANIC"
-	errorCodeTimeout         = "DASHBOARD_WIDGET_TIMEOUT"
-	defaultWidgetActionKey   = "dashboard.actions.details"
+	operationWidgetLoad    = "dashboard_widget_load"
+	errorCodeLoadFailed    = "DASHBOARD_WIDGET_LOAD_FAILED"
+	errorCodePanic         = "DASHBOARD_WIDGET_PANIC"
+	errorCodeTimeout       = "DASHBOARD_WIDGET_TIMEOUT"
+	defaultWidgetActionKey = "dashboard.actions.details"
 )
 
 // ModuleRuntimeSummaryProvider 返回当前模块运行时汇总，供 dashboard 生成系统摘要。
@@ -190,9 +190,10 @@ func invokeLoader(
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			err = widgetLoadError{
-				code:    errorCodePanic,
-				message: fmt.Sprintf("dashboard widget loader panic: %v", recovered),
-				panic:   true,
+				code:       errorCodePanic,
+				message:    fmt.Sprintf("dashboard widget loader panic: %v", recovered),
+				panic:      true,
+				stacktrace: string(debug.Stack()),
 			}
 		}
 	}()
@@ -205,9 +206,9 @@ func invokeLoader(
 	})
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return nil, widgetLoadError{code: errorCodeTimeout, message: err.Error(), timeout: true}
+			return nil, widgetLoadError{code: errorCodeTimeout, message: err.Error(), cause: err, timeout: true}
 		}
-		return nil, widgetLoadError{code: errorCodeLoadFailed, message: err.Error()}
+		return nil, widgetLoadError{code: errorCodeLoadFailed, message: err.Error(), cause: err}
 	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return nil, widgetLoadError{code: errorCodeTimeout, message: context.DeadlineExceeded.Error(), timeout: true}
@@ -520,17 +521,19 @@ func (s *Service) logLoadError(
 		fields = append(fields, logger.Uint64Field("user_id", requestAuth.User.ID))
 	}
 	if loadErr.panic {
-		fields = append(fields, logger.StringField("stack", string(debug.Stack())))
+		fields = append(fields, logger.StringField("stacktrace", loadErr.stacktrace))
 	}
 
 	s.logger.Error(ctx, "dashboard widget load failed", fields...)
 }
 
 type widgetLoadError struct {
-	code    string
-	message string
-	timeout bool
-	panic   bool
+	code       string
+	message    string
+	cause      error
+	timeout    bool
+	panic      bool
+	stacktrace string
 }
 
 func (e widgetLoadError) Error() string {
@@ -538,6 +541,10 @@ func (e widgetLoadError) Error() string {
 		return e.message
 	}
 	return e.code
+}
+
+func (e widgetLoadError) Unwrap() error {
+	return e.cause
 }
 
 func ptr[T any](value T) *T {
