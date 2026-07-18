@@ -678,6 +678,14 @@ func bindGetDockerImagesParams(ginCtx *gin.Context, ctx *module.Context) (contai
 		}
 		params.Keyword = &value
 	}
+	if value, exists := ginCtx.GetQuery("unused"); exists {
+		unused, err := strconv.ParseBool(strings.TrimSpace(value))
+		if err != nil {
+			writeInvalidContainerQuery(ginCtx, ctx, "unused")
+			return containeropenapi.GetDockerImagesParams{}, false
+		}
+		params.Unused = &unused
+	}
 	return params, true
 }
 

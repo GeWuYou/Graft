@@ -225,7 +225,7 @@
       width="760px"
       @confirm="submitCleanup"
     >
-      <div class="docker-images-cleanup">
+      <div class="docker-images-cleanup graft-scrollbar">
         <header class="docker-images-cleanup__header">
           <div class="docker-images-cleanup__header-icon"><delete-icon /></div>
           <div>
@@ -386,7 +386,7 @@
   </div>
 </template>
 <script setup lang="ts">
-// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除由服务端统一鉴权并返回逐项结果，拉取日志保持短生命周期 UI 状态。
+// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，并把传输失败归并为逐项结果以保留已完成块。
 import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -525,7 +525,7 @@ const footerSummary = computed(() => {
   const end = Math.min(pagination.current * pagination.pageSize, total.value);
   return t('container.images.pagination.summary', { start, end, total: total.value });
 });
-const columns: TableProps['columns'] = computed(() => [
+const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'tags', title: t('container.images.fields.tags'), ellipsis: true, minWidth: 260 },
   { colKey: 'id', title: t('container.images.fields.id'), width: 150 },
@@ -533,13 +533,16 @@ const columns: TableProps['columns'] = computed(() => [
   { colKey: 'containers', title: t('container.images.fields.containers'), minWidth: 220 },
   { colKey: 'created_at', title: t('container.images.fields.createdAt'), width: 180 },
   { colKey: 'actions', title: t('container.images.fields.actions'), width: 150, fixed: 'right' as const },
-]).value;
+]);
 const selectedBatchReferences = computed(() =>
   selectedRowKeys.value.flatMap((key) => selectedImages.value.get(String(key))?.container_references ?? []),
 );
 const removeConfirmButton = computed(() => ({
   content: t('container.images.actions.remove'),
-  disabled: !selectedImage.value && !selectedRowKeys.value.length,
+  disabled:
+    (!selectedImage.value && !selectedRowKeys.value.length) ||
+    (!forceRemove.value &&
+      (Boolean(selectedImage.value?.container_references?.length) || Boolean(selectedBatchReferences.value.length))),
 }));
 const cleanupSelectedSize = computed(() => {
   const selected = new Set(cleanupSelectedIds.value);
@@ -555,12 +558,12 @@ const cleanupPreviewImages = computed(() =>
     cleanupPreviewPage.value * cleanupPreviewLimit,
   ),
 );
-const cleanupColumns: TableProps['columns'] = computed(() => [
+const cleanupColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'image', title: t('container.images.cleanup.imageColumn'), ellipsis: true, minWidth: 280 },
   { colKey: 'status', title: t('container.images.cleanup.statusColumn'), width: 92 },
   { colKey: 'size', title: t('container.images.cleanup.sizeColumn'), width: 112, align: 'right' as const },
-]).value;
+]);
 
 function imageTags(image: DockerImage) {
   return image.repository_tags.filter(Boolean);
@@ -666,11 +669,17 @@ function forgetSelectedImages(ids: string[]) {
   ids.forEach((id) => selectedImages.value.delete(id));
 }
 async function removeImageIds(ids: string[], force = false) {
-  const results: DockerImageBatchResult[] = [];
+  const results: DockerImageBatchResult['items'] = [];
   for (let index = 0; index < ids.length; index += 100) {
-    results.push(await batchRemoveDockerImages({ ids: ids.slice(index, index + 100), force }));
+    const chunkIds = ids.slice(index, index + 100);
+    try {
+      const response = await batchRemoveDockerImages({ ids: chunkIds, force });
+      results.push(...response.items);
+    } catch {
+      results.push(...chunkIds.map((id) => ({ id, success: false, error_code: 'client_request_failed' })));
+    }
   }
-  return results.flatMap((response) => response.items);
+  return results;
 }
 async function submitCleanup() {
   if (!cleanupSelectedIds.value.length) return;
@@ -848,6 +857,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+  max-height: calc(70vh - 120px);
+  overflow: auto;
 }
 
 .docker-images-cleanup__header {
@@ -1005,11 +1016,6 @@ onUnmounted(() => {
 
 :deep(.docker-images-cleanup-dialog .t-dialog__body) {
   overflow: hidden;
-}
-
-:deep(.docker-images-cleanup-dialog .t-dialog__body-content) {
-  max-height: calc(70vh - 120px);
-  overflow: auto;
 }
 
 :deep(.docker-images-cleanup-dialog .t-dialog__footer) {

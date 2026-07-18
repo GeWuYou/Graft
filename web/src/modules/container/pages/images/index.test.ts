@@ -55,6 +55,21 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('const preserved = selectedRowKeys.value.filter');
     expect(sourceText).toContain('index += 100');
     expect(sourceText).toContain('batchRemoveDockerImages');
+    expect(sourceText).toContain('results.push(...response.items);');
+    expect(sourceText).toContain("error_code: 'client_request_failed'");
+  });
+
+  it('keeps translated table columns reactive instead of unwrapping them during setup', () => {
+    expect(sourceText).toContain("const columns = computed<TableProps['columns']>");
+    expect(sourceText).toContain("const cleanupColumns = computed<TableProps['columns']>");
+    expect(sourceText).not.toContain(']).value;');
+  });
+
+  it('disables remove confirmation until referenced images are explicitly forced', () => {
+    expect(sourceText).toContain('const removeConfirmButton = computed');
+    expect(sourceText).toContain('!forceRemove.value');
+    expect(sourceText).toContain('selectedImage.value?.container_references?.length');
+    expect(sourceText).toContain('selectedBatchReferences.value.length');
   });
 
   it('uses a compact row menu and presents container references as tags with id tooltips', () => {
@@ -84,6 +99,9 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.cleanup.warning')");
     expect(sourceText).toContain("t('container.images.cleanup.removeSelected'");
     expect(sourceText).toContain('dialog-class-name="docker-images-cleanup-dialog"');
+    expect(sourceText).toContain('docker-images-cleanup graft-scrollbar');
+    expect(sourceText).toContain('max-height: calc(70vh - 120px);');
+    expect(sourceText).toContain('overflow: auto;');
     expect(sourceText).toContain('<template #footer>');
   });
 

@@ -13,7 +13,17 @@ export type DockerImageQueryState = {
 };
 
 export const dockerImageQueryKeys = {
-  list: (query: DockerImageQueryState) => ['container', 'images', query] as const,
+  list: (query: DockerImageQueryState) =>
+    [
+      'container',
+      'images',
+      {
+        keyword: query.keyword,
+        offset: query.offset,
+        pageSize: query.pageSize,
+        ...(query.unused === undefined ? {} : { unused: query.unused }),
+      },
+    ] as const,
 };
 
 export function useDockerImageQuery(query: MaybeRef<DockerImageQueryState>) {

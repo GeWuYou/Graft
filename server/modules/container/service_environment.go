@@ -403,9 +403,12 @@ func normalizeDockerImageListQuery(query DockerImageListQuery) (DockerImageListQ
 
 func filterDockerImages(items []DockerImage, keyword string) []DockerImage {
 	keyword = strings.ToLower(strings.TrimSpace(keyword))
+	if keyword == "" {
+		return items
+	}
 	filtered := make([]DockerImage, 0, len(items))
 	for _, item := range items {
-		if keyword == "" || strings.Contains(strings.ToLower(item.ID), keyword) ||
+		if strings.Contains(strings.ToLower(item.ID), keyword) ||
 			dockerImageFieldContains(item.RepositoryTags, keyword) || dockerImageFieldContains(item.RepositoryDigests, keyword) {
 			filtered = append(filtered, item)
 		}

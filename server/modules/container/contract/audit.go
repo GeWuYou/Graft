@@ -23,6 +23,8 @@ const (
 	DockerImageAuditActionTag AuditAction = "ops.container.image.tag"
 	// DockerImageAuditActionRemove 表示 Docker 镜像删除审计。
 	DockerImageAuditActionRemove AuditAction = "ops.container.image.remove"
+	// DockerImageAuditActionBatchRemove 表示 Docker 镜像批量删除汇总审计。
+	DockerImageAuditActionBatchRemove AuditAction = "ops.container.image.remove.batch"
 	// ContainerAuditActionBatchStart 表示批量启动汇总审计。
 	ContainerAuditActionBatchStart AuditAction = "ops.container.action.batch.start"
 	// ContainerAuditActionBatchStop 表示批量停止汇总审计。

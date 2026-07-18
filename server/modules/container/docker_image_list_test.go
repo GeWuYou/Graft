@@ -11,6 +11,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/moby/moby/api/types/container"
+
+	"graft/server/internal/httpx"
+	"graft/server/internal/moduleapi"
+	containercontract "graft/server/modules/container/contract"
 )
 
 type dockerImageBatchTestRuntime struct {
@@ -35,11 +39,13 @@ func (r *dockerImageBatchTestRuntime) RemoveDockerImage(_ context.Context, id st
 
 func TestServiceDockerImageBatchRemovePreservesOrderAndPartialFailure(t *testing.T) {
 	runtime := &dockerImageBatchTestRuntime{}
-	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true, dangerousActionsEnabled: true})
+	bus, eventsPtr := newAuditCaptureBus(t, 1)
+	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true, dangerousActionsEnabled: true, auditBus: bus})
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	result, err := service.DockerImageBatchRemove(context.Background(), []string{"first", "bad", "last"}, false)
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "req-image-batch"})
+	result, err := service.DockerImageBatchRemove(ctx, []string{"first", "bad", "last"}, false)
 	if err != nil {
 		t.Fatalf("batch remove: %v", err)
 	}
@@ -48,6 +54,25 @@ func TestServiceDockerImageBatchRemovePreservesOrderAndPartialFailure(t *testing
 	}
 	if len(runtime.removed) != 3 || runtime.removed[0] != "first" || runtime.removed[2] != "last" {
 		t.Fatalf("unexpected removal order: %#v", runtime.removed)
+	}
+	assertDockerImageBatchAudit(t, *eventsPtr)
+}
+
+func assertDockerImageBatchAudit(t *testing.T, events []moduleapi.AuditEvent) {
+	t.Helper()
+	if len(events) != 1 {
+		t.Fatalf("expected one batch audit event, got %#v", events)
+	}
+	event := events[0]
+	if event.Action != containercontract.DockerImageAuditActionBatchRemove.String() || event.Success {
+		t.Fatalf("unexpected batch audit event: %#v", event)
+	}
+	items, ok := event.Metadata["items"].([]map[string]any)
+	if !ok || len(items) != 3 {
+		t.Fatalf("expected reconstructable item audit metadata, got %#v", event.Metadata)
+	}
+	if items[0]["id"] != "first" || items[0]["success"] != true || items[1]["id"] != "bad" || items[1]["success"] != false || items[1]["error_code"] == "" {
+		t.Fatalf("unexpected item audit metadata: %#v", items)
 	}
 }
 
@@ -117,6 +142,14 @@ func TestServiceDockerImagesFiltersPagesAndPreservesRuntimeSummary(t *testing.T)
 	}
 }
 
+func TestFilterDockerImagesReturnsInputForEmptyKeyword(t *testing.T) {
+	items := []DockerImage{{ID: "sha256:alpha"}}
+	filtered := filterDockerImages(items, "  ")
+	if len(filtered) != 1 || &filtered[0] != &items[0] {
+		t.Fatalf("expected empty keyword to reuse input slice, got %#v", filtered)
+	}
+}
+
 func TestDockerImageListRouteReturnsPaginationAndSummary(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
@@ -145,6 +178,61 @@ func TestDockerImageListRouteReturnsPaginationAndSummary(t *testing.T) {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("expected %s in response: %s", expected, body)
 		}
+	}
+}
+
+func TestDockerImageListRouteBindsUnusedFilter(t *testing.T) {
+	tests := []struct {
+		name      string
+		query     string
+		wantTotal string
+	}{
+		{name: "absent", wantTotal: `"total":2`},
+		{name: "true", query: "?unused=true", wantTotal: `"total":1`},
+		{name: "false", query: "?unused=false", wantTotal: `"total":2`},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+			service, err := newRouteTestService(containerServiceOptions{
+				runtime: dockerImageListTestRuntime{result: DockerImageListResult{Items: []DockerImage{
+					{ID: "used", ContainerReferences: []DockerImageContainerReference{{ID: "container-1"}}},
+					{ID: "unused"},
+				}}},
+				enabled: true,
+			})
+			if err != nil {
+				t.Fatalf("new service: %v", err)
+			}
+			if err := registerRoutes(ctx, moduleID, service); err != nil {
+				t.Fatalf("register routes: %v", err)
+			}
+
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/docker/images"+testCase.query))
+			if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), testCase.wantTotal) {
+				t.Fatalf("expected 200 with %s, got %d: %s", testCase.wantTotal, response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestDockerImageListRouteRejectsInvalidUnusedFilter(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	service, err := newRouteTestService(containerServiceOptions{runtime: dockerImageListTestRuntime{}, enabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodGet, "/api/ops/docker/images?unused=invalid"))
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "unused") {
+		t.Fatalf("expected invalid unused query response, got %d: %s", response.Code, response.Body.String())
 	}
 }
 
