@@ -76,6 +76,35 @@ class WorktreeManagerGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_worktree_manager_skill(), [])
 
 
+class OpenApiWorktreeGovernanceTests(unittest.TestCase):
+    def test_openapi_worktree_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_openapi_worktree_governance(), [])
+
+    def test_openapi_worktree_governance_rejects_deferred_generated_artifacts(self) -> None:
+        original_read_text = MODULE.read_text
+        targets = (
+            (MODULE.AGENTS, "agents must generate, validate, and commit"),
+            (MODULE.AI_CODE_REVIEW_DOC, "同步生成、验证并提交"),
+            (MODULE.WORKTREE_MANAGER_SKILL, "validate, and commit the affected source"),
+        )
+
+        for target, required_term in targets:
+            with self.subTest(target=target):
+                current_text = original_read_text(target)
+                mutated_text = current_text.replace(required_term, "defer generated artifacts", 1)
+                self.assertNotEqual(current_text, mutated_text)
+
+                def read_mutated(path: MODULE.Path) -> str:
+                    if path == target:
+                        return mutated_text
+                    return original_read_text(path)
+
+                with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+                    findings = MODULE.validate_openapi_worktree_governance()
+
+                self.assertTrue(any(finding.path == target for finding in findings))
+
+
 class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])

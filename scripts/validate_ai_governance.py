@@ -538,6 +538,49 @@ def validate_worktree_manager_skill() -> list[Finding]:
     return findings
 
 
+def validate_openapi_worktree_governance() -> list[Finding]:
+    """Ensure OpenAPI contract work remains complete and verifiable in task branches."""
+    checks = (
+        (
+            AGENTS,
+            (
+                "OpenAPI source and its deterministic generated artifacts",
+                "agents must generate, validate, and commit",
+                "merged canonical OpenAPI source",
+                "`just generate`",
+                "`just openapi-check`",
+            ),
+        ),
+        (
+            AI_CODE_REVIEW_DOC,
+            (
+                "OpenAPI source 与确定性 generated artifacts",
+                "同步生成、验证并提交",
+                "合并后的 canonical OpenAPI source",
+                "`just generate`",
+                "`just openapi-check`",
+            ),
+        ),
+        (
+            WORKTREE_MANAGER_SKILL,
+            (
+                "OpenAPI source and its deterministic generated artifacts",
+                "validate, and commit the affected source",
+                "merged canonical OpenAPI source",
+                "`just generate`",
+                "`just openapi-check`",
+            ),
+        ),
+    )
+    findings: list[Finding] = []
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "OpenAPI worktree governance source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, "OpenAPI worktree governance", terms))
+    return findings
+
+
 def validate_subagent_model_governance() -> list[Finding]:
     """Ensure direct subagent delegation entrypoints carry the model-level guardrail."""
     findings: list[Finding] = []
@@ -871,6 +914,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_ai_plan_governance_skill())
     findings.extend(validate_work_intake_skill())
     findings.extend(validate_worktree_manager_skill())
+    findings.extend(validate_openapi_worktree_governance())
     findings.extend(validate_skill_mcp_guidance())
     findings.extend(validate_sql_migration_governance())
     findings.extend(validate_shared_asset_governance())

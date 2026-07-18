@@ -24,15 +24,15 @@
 以下场景默认属于 agent no-go area，未经明确授权不得直接落地：
 
 - 跨模块重构
-- 跨 `server` / `web` / OpenAPI / shared contract 的连锁改动
+- authority 与范围不清的跨 `server` / `web` / OpenAPI / shared contract 连锁改动
 - 自动生成或自动改写数据库迁移
 - 依赖升级、锁文件批量刷新、工具链版本漂移
 - 大范围 rename wave、目录迁移、批量移动文件
 - 以“统一风格”为名的仓库级格式化或整理 import
 
-Agent 也不得执行最终 merge 或 cherry-pick。普通改动可以在临时工作树中完成验证并提交经过验证的任务分支；开发者在主工作区 review 后负责集成。
+Agent 也不得执行最终 merge 或 cherry-pick。普通改动可以在临时工作树中完成验证并提交经过验证的任务分支；开发者在主工作区 review 后负责集成。若 authority discovery 已将 OpenAPI 变更确定为 bounded cross-boundary slice，则它不因同时触及 `openapi/**`、server generated binding 和 web generated schema 而成为禁区。
 
-Atlas migration、generated code、OpenAPI generated client、lock file 和 snapshot 属于线性资源。对这些线性产物，限制只适用于集成工作区中的最终生成、冲突解决、集成验证和最终提交；Agent 可以在临时工作树中验证普通改动，也可以提交不包含这些最终线性产物的普通改动。开发者在集成工作区串行完成线性产物的最终收口。
+Atlas migration、非 OpenAPI generated code、lock file 和 snapshot 继续属于线性资源。OpenAPI source 与确定性 generated artifacts 则属于同一个 task-owned contract closure：Agent 修改 API contract 时必须在任务分支中同步生成、验证并提交 `openapi/**` source、bundle、server binding、runtime embedded bundle 与 web schema，并执行 `just generate`、`just openapi-check` 及 task class 要求的完成态验证，不能把 freshness drift 留给集成阶段。并行分支发生冲突时，开发者先合并 canonical source，再从合并后的 canonical OpenAPI source 重新生成并复验，而不是手工拼接生成文件。
 
 这些场景如确有必要，必须先形成明确设计、范围、验证与回滚路径，再进入实施。
 

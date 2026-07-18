@@ -70,7 +70,12 @@ checkout do not block relocation.
   validation, checksum generation, tests, builds, and lint remain allowed when they do not target a live database.
 - Runtime services and migration application belong to the developer-owned primary checkout with the necessary user or
   developer approval. Stop every process started for a task before releasing its worktree.
-- Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources. Agents may edit
+- Atlas migrations, non-OpenAPI generated code, lock files, and snapshots remain linear resources. Agents may edit
   their sources, but the developer generates and resolves final artifacts in the integration workspace.
+- OpenAPI source and its deterministic generated artifacts are one task-owned contract closure. Agents must generate,
+  validate, and commit the affected source, bundle, server bindings, runtime embedded bundle, and web schema in the
+  task branch by running `just generate`, `just openapi-check`, and the task class's normal completion validation. If
+  parallel branches conflict, the developer resolves canonical source first. The merged canonical OpenAPI source then
+  drives regeneration and rerun of the OpenAPI checks instead of hand-merging generated files.
 - A one-time repository relocation is a separate, developer-approved migration after every legacy pool slot is clean
   and pushed. Use `relocate --confirm`; it is not a `release` operation.

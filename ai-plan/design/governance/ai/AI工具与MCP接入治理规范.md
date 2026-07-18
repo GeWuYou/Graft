@@ -39,7 +39,9 @@ workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `gr
 `Work Intake` 规则。
 
 `graft-worktree-manager` 是可复用 Agent 工作树的唯一入口：它只派发、检查和回收临时目录，不拥有 startup、validation、
-commit 或最终集成 authority。最终 merge、cherry-pick 和线性资源生成仍由开发者在主工作区完成。
+commit 或最终集成 authority。最终 merge、cherry-pick 和非 OpenAPI 线性资源生成仍由开发者在主工作区完成；OpenAPI
+source 与确定性生成产物必须由拥有该 bounded contract slice 的 Agent 在任务分支内同步生成、验证并提交，集成冲突再由
+开发者基于合并后的 canonical source 重新生成和复验。
 
 仓库根 `Justfile` 属于 optional developer entrypoint / convenience layer：
 

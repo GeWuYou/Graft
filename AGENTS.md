@@ -684,11 +684,19 @@ For push-triggered branch-name hygiene:
 
 Linear resources:
 
-- Atlas migrations, generated code, OpenAPI generated clients, lock files, and snapshots are linear resources
+- Atlas migrations, non-OpenAPI generated code, lock files, and snapshots remain linear resources
 - agents may modify their source inputs within a task branch, but do not finalize generated outputs when parallel work
   could conflict
 - after integration, the developer generates, resolves conflicts, validates, and commits the final linear artifacts in
   the primary checkout
+- OpenAPI source and its deterministic generated artifacts are one task-owned contract closure, not a deferred linear
+  artifact; when a bounded task changes the API contract, agents must generate, validate, and commit the affected
+  `openapi/**` source, bundled spec, server bindings, runtime embedded bundle, and web schema in the same task branch
+- the standard task-branch closure is `just generate` followed by `just openapi-check`, plus the normal completion
+  validation required by the resulting `server`, `web`, or `cross-boundary` task class
+- parallel task branches may each carry OpenAPI source and generated outputs; if integration produces conflicts, the
+  developer resolves the canonical source first, regenerates from the merged canonical OpenAPI source, and reruns the
+  repository OpenAPI checks in the primary checkout instead of hand-merging generated files
 
 For staging and mixed-ownership files:
 
