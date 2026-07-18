@@ -57,6 +57,16 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('batchRemoveDockerImages');
     expect(sourceText).toContain('results.push(...response.items);');
     expect(sourceText).toContain("error_code: 'client_request_failed'");
+    expect(sourceText).toContain('let hasUnknownResponse = false;');
+    expect(sourceText).toContain('return { hasUnknownResponse, items: results };');
+  });
+
+  it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
+    expect(sourceText).toContain('if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);');
+    expect(sourceText).toContain('const candidates = await fetchCleanupCandidates();');
+    expect(sourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
+    expect(sourceText).toContain('if (!cleanup || !hasUnknownResponse) cleanupDialogVisible.value = false;');
+    expect(sourceText).toContain("MessagePlugin.error(t('container.images.cleanup.loadFailed'))");
   });
 
   it('keeps translated table columns reactive instead of unwrapping them during setup', () => {

@@ -670,16 +670,18 @@ function forgetSelectedImages(ids: string[]) {
 }
 async function removeImageIds(ids: string[], force = false) {
   const results: DockerImageBatchResult['items'] = [];
+  let hasUnknownResponse = false;
   for (let index = 0; index < ids.length; index += 100) {
     const chunkIds = ids.slice(index, index + 100);
     try {
       const response = await batchRemoveDockerImages({ ids: chunkIds, force });
       results.push(...response.items);
     } catch {
+      hasUnknownResponse = true;
       results.push(...chunkIds.map((id) => ({ id, success: false, error_code: 'client_request_failed' })));
     }
   }
-  return results;
+  return { hasUnknownResponse, items: results };
 }
 async function submitCleanup() {
   if (!cleanupSelectedIds.value.length) return;
@@ -688,13 +690,14 @@ async function submitCleanup() {
 async function submitBatchRemove(ids: string[], force: boolean, cleanup = false) {
   batchRemoving.value = true;
   try {
-    const items = await removeImageIds(ids, force);
+    const { hasUnknownResponse, items } = await removeImageIds(ids, force);
     const successfulIds = new Set(items.filter((item) => item.success).map((item) => item.id));
     forgetSelectedImages([...successfulIds]);
     if (cleanup) {
       cleanupSelectedIds.value = cleanupSelectedIds.value.filter((id) => !successfulIds.has(id));
       cleanupImages.value = cleanupImages.value.filter((image) => !successfulIds.has(image.id));
       cleanupPreviewPage.value = Math.min(cleanupPreviewPage.value, cleanupPreviewPageCount.value);
+      if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);
     }
     const failed = items.filter((item) => !item.success);
     if (!failed.length) MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
@@ -705,7 +708,7 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
     else MessagePlugin.error(t('container.images.batch.failed'));
     if (!failed.length || failed.length < items.length) {
       removeDialogVisible.value = false;
-      cleanupDialogVisible.value = false;
+      if (!cleanup || !hasUnknownResponse) cleanupDialogVisible.value = false;
     }
     await refresh();
   } catch {
@@ -721,18 +724,35 @@ async function openCleanup() {
   cleanupSelectedIds.value = [];
   cleanupPreviewPage.value = 1;
   try {
-    const firstPage = await getDockerImages({ limit: 100, offset: 0, unused: true });
-    const all = [...firstPage.items];
-    for (let offset = firstPage.items.length; offset < firstPage.total; offset += 100) {
-      const page = await getDockerImages({ limit: 100, offset, unused: true });
-      all.push(...page.items);
-    }
+    const all = await fetchCleanupCandidates();
     cleanupImages.value = all;
     cleanupSelectedIds.value = all.map((image) => image.id);
   } catch {
     MessagePlugin.error(t('container.images.cleanup.loadFailed'));
   } finally {
     cleanupLoading.value = false;
+  }
+}
+async function fetchCleanupCandidates() {
+  const firstPage = await getDockerImages({ limit: 100, offset: 0, unused: true });
+  const all = [...firstPage.items];
+  for (let offset = firstPage.items.length; offset < firstPage.total; offset += 100) {
+    const page = await getDockerImages({ limit: 100, offset, unused: true });
+    all.push(...page.items);
+  }
+  return all;
+}
+async function reconcileCleanupCandidates(confirmedSuccessfulIds: Set<string>) {
+  try {
+    const candidates = await fetchCleanupCandidates();
+    const candidateIds = new Set(candidates.map((image) => image.id));
+    cleanupImages.value = candidates;
+    cleanupSelectedIds.value = cleanupSelectedIds.value.filter(
+      (id) => candidateIds.has(id) && !confirmedSuccessfulIds.has(id),
+    );
+    cleanupPreviewPage.value = Math.min(cleanupPreviewPage.value, cleanupPreviewPageCount.value);
+  } catch {
+    MessagePlugin.error(t('container.images.cleanup.loadFailed'));
   }
 }
 function clearCleanupSelection() {
