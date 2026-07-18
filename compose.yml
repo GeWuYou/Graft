@@ -63,10 +63,14 @@ services:
     restart: "no"
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      mkdir -p /opt/graft/apps
-      chown graft:graft /opt/graft/apps
-      chmod 0750 /opt/graft/apps
+    command:
+      - |
+        set -eux
+        mkdir -p /opt/graft/apps
+        chown 10001:10001 /opt/graft/apps
+        chmod 0750 /opt/graft/apps
+        test "$(stat -c '%u:%g' /opt/graft/apps)" = "10001:10001"
+        test "$(stat -c '%a' /opt/graft/apps)" = "750"
     volumes:
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
 

@@ -455,6 +455,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/graft-apps"
           cat > .env <<EOF
           GRAFT_SERVER_IMAGE=${{ needs.publish-images.outputs.server_image }}
           GRAFT_WEB_IMAGE=${{ needs.publish-images.outputs.web_image }}
@@ -464,6 +465,7 @@ jobs:
           POSTGRES_PASSWORD=graft
           GRAFT_AUTH_JWT_SECRET=ci-compose-smoke-secret
           GRAFT_DOCS_ENABLED=true
+          GRAFT_APPLICATION_ROOT_HOST_PATH=${RUNNER_TEMP}/graft-apps
           EOF
 
       - name: Start compose stack
@@ -516,7 +518,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker compose up -d server web
+          if ! docker compose up -d server web; then
+            docker compose ps -a || true
+            docker compose logs application-root-init || true
+            root_init_id="$(docker compose ps -aq application-root-init || true)"
+            if [[ -n "${root_init_id}" ]]; then
+              docker inspect "${root_init_id}" || true
+            fi
+            exit 1
+          fi
 
       - name: Wait for server and web readiness
         shell: bash
@@ -550,6 +560,11 @@ jobs:
           mkdir -p .tmp
           docker compose ps -a > .tmp/compose-ps.txt 2>&1 || true
           docker compose logs bootstrap > .tmp/compose-bootstrap.log 2>&1 || true
+          docker compose logs application-root-init > .tmp/compose-application-root-init.log 2>&1 || true
+          root_init_id="$(docker compose ps -aq application-root-init || true)"
+          if [[ -n "${root_init_id}" ]]; then
+            docker inspect "${root_init_id}" > .tmp/compose-application-root-init-inspect.json 2>&1 || true
+          fi
           docker compose logs postgres > .tmp/compose-postgres.log 2>&1 || true
           docker compose logs redis > .tmp/compose-redis.log 2>&1 || true
           docker compose logs server > .tmp/compose-server.log 2>&1 || true
@@ -566,6 +581,8 @@ jobs:
             .tmp-compose-index.html
             .tmp/compose-ps.txt
             .tmp/compose-bootstrap.log
+            .tmp/compose-application-root-init.log
+            .tmp/compose-application-root-init-inspect.json
             .tmp/compose-postgres.log
             .tmp/compose-redis.log
             .tmp/compose-server.log
