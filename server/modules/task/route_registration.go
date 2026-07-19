@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"graft/server/internal/apperror"
+	"graft/server/internal/contract/errorcode"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -321,15 +323,28 @@ func taskLogResponses(logs []moduleapi.TaskLogView) []map[string]any {
 }
 
 func (r taskRoutes) writeError(c *gin.Context, status int, err error) {
-	key := messagecontract.CommonInternalError.String()
+	descriptor := apperror.Descriptor{
+		Kind:       apperror.KindInternal,
+		Code:       errorcode.CommonInternalError,
+		MessageKey: messagecontract.CommonInternalError,
+	}
 	switch status {
 	case http.StatusBadRequest:
-		key = messagecontract.CommonInvalidArgument.String()
+		descriptor = apperror.Descriptor{
+			Kind:       apperror.KindInvalidArgument,
+			Code:       errorcode.CommonInvalidArgument,
+			MessageKey: messagecontract.CommonInvalidArgument,
+		}
 	case http.StatusNotFound:
-		key = messagecontract.CommonNotFound.String()
+		descriptor = apperror.Descriptor{
+			Kind:       apperror.KindNotFound,
+			Code:       errorcode.CommonNotFound,
+			MessageKey: messagecontract.CommonNotFound,
+		}
+	case http.StatusConflict:
+		descriptor.Kind = apperror.KindConflict
 	}
-	httpx.WriteLocalizedError(c, r.ctx.I18n, status, key, map[string]any{"error": err.Error()})
-	c.Abort()
+	httpx.AbortAppError(c, r.ctx.I18n, r.ctx.Logger, apperror.Wrap(err, descriptor))
 }
 
 var errTaskInvalidArgument = errors.New("invalid task argument")

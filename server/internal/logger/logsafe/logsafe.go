@@ -10,6 +10,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const callerSkip = 3
+
 // SanitizeText removes CRLF and other control characters from log text while
 // preserving the visible content as a single line.
 func SanitizeText(value string) string {
@@ -77,7 +79,7 @@ func write(logger *zap.Logger, writer logWriter, message string, fields ...zap.F
 		logger = zap.NewNop()
 	}
 
-	writer(logger, SanitizeText(message), SanitizeFields(fields)...)
+	writer(logger.WithOptions(zap.AddCallerSkip(callerSkip)), SanitizeText(message), SanitizeFields(fields)...)
 }
 
 // SanitizeFields rewrites string-like zap fields into sanitized single-line values.

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
@@ -17,7 +16,7 @@ import (
 	monitoropenapi "graft/server/internal/contract/openapi/monitor"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
-	"graft/server/internal/logger/logsafe"
+	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
 	monitorcontract "graft/server/modules/monitor/contract"
 )
@@ -37,8 +36,8 @@ func newRequestPerformanceHandler(handler *monitorServerHandler) gin.HandlerFunc
 		requestRange := parseGeneratedRequestPerformanceRange(params.Range)
 		payload, err := buildRequestPerformanceResponse(ginCtx.Request.Context(), handler.requestPerformanceReader(), requestRange, time.Now().UTC())
 		if err != nil {
-			handler.logRequestPerformanceError(ginCtx, err)
-			httpx.AbortLocalizedError(ginCtx, handler.localizer(), http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := handler.logRequestPerformanceError(ginCtx, err)
+			httpx.AbortAppError(ginCtx, handler.localizer(), handler.runtimeLogger(), reported)
 			return
 		}
 
@@ -202,13 +201,15 @@ func percentage(value int64, total int64) float64 {
 	return float64(value) * requestPerformanceRateScale / float64(total)
 }
 
-func (h *monitorServerHandler) logRequestPerformanceError(ginCtx *gin.Context, err error) {
-	if h == nil || h.ctx == nil || h.ctx.Logger == nil {
-		return
+func (h *monitorServerHandler) logRequestPerformanceError(ginCtx *gin.Context, err error) error {
+	if h == nil || h.ctx == nil {
+		return err
 	}
-	logsafe.Error(h.ctx.Logger, "build monitor request performance failed",
-		zap.String("module", h.moduleName),
-		zap.String("requestId", httpx.EnsureRequestID(ginCtx)),
-		zap.Error(err),
+	if h.ctx.AppLogger == nil {
+		return err
+	}
+	return logger.ReportError(ginCtx.Request.Context(), h.ctx.AppLogger.Named("modules.monitor.request_performance"), "build monitor request performance failed", err,
+		logger.StringField("module", h.moduleName),
+		logger.StringField(logger.FieldOperation, "read_request_performance"),
 	)
 }

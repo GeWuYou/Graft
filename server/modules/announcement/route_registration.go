@@ -9,8 +9,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
 	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	announcementopenapi "graft/server/internal/contract/openapi/announcement"
@@ -352,10 +350,7 @@ func (r announcementRouteRuntime) writeRouteError(ginCtx *gin.Context, err error
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
-	if r.ctx.Logger != nil {
-		r.ctx.Logger.Error("announcement route failed", zap.String("module", moduleID), zap.Error(err))
-	}
-	httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+	httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 }
 
 type announcementGeneratedHandler struct{}

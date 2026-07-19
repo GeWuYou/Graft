@@ -11,12 +11,15 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"graft/server/internal/httpx"
+	"graft/server/internal/logger/logsafe"
+	"graft/server/internal/requestctx"
 )
 
 const (
 	// appLogCorrelationFieldCount is the current fixed correlation field fan-out.
 	appLogCorrelationFieldCount = 4
+	// appLoggerCallerSkip 跳过 AppLogger facade 与 write helper 栈帧。
+	appLoggerCallerSkip = 2
 
 	// FieldApp stores the runtime app name attached by the base zap logger.
 	FieldApp = "app"
@@ -61,6 +64,7 @@ type AppLogger interface {
 	Category(LogCategory) AppLogger
 	Named(string) AppLogger
 	With(...Field) AppLogger
+	AddCallerSkip(int) AppLogger
 	Zap() *zap.Logger
 }
 
@@ -115,9 +119,10 @@ func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 		base = zap.NewNop()
 	}
 
+	categoryBase := base.WithOptions(zap.AddCallerSkip(appLoggerCallerSkip))
 	logger := appLogger{
-		categoryBase: base,
-		base:         base.With(zap.String(categoryFieldKey, string(defaultAppLogCategory))),
+		categoryBase: categoryBase,
+		base:         categoryBase.With(zap.String(categoryFieldKey, string(defaultAppLogCategory))),
 		category:     defaultAppLogCategory,
 		now: func() time.Time {
 			return time.Now().UTC()
@@ -212,6 +217,21 @@ func (l appLogger) With(fields ...Field) AppLogger {
 		sink:         l.sink,
 		now:          l.now,
 		fields:       appendAppLoggerFields(l.fields, fields...),
+		category:     l.category,
+	}
+}
+
+// AddCallerSkip 返回增加调用栈补偿后的 logger，供跨越 logger facade 的 owner 保留真实调用点。
+func (l appLogger) AddCallerSkip(skip int) AppLogger {
+	if skip <= 0 {
+		return l
+	}
+	return appLogger{
+		categoryBase: l.categoryBase.WithOptions(zap.AddCallerSkip(skip)),
+		base:         l.base.WithOptions(zap.AddCallerSkip(skip)),
+		sink:         l.sink,
+		now:          l.now,
+		fields:       l.fields,
 		category:     l.category,
 	}
 }
@@ -318,7 +338,7 @@ func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, me
 		Message:    message,
 		Fields:     make(map[string]string),
 	}
-	if correlation, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+	if correlation, ok := requestctx.AuditContextFromContext(ctx); ok {
 		record.RequestID = correlation.RequestID
 		record.TraceID = correlation.TraceID
 		record.Route = correlation.Route
@@ -376,7 +396,7 @@ func appendAppLoggerField(existing []Field, field Field) []Field {
 
 func (l appLogger) zapFields(ctx context.Context, fields ...Field) []zap.Field {
 	zapFields := make([]zap.Field, 0, len(fields)+appLogCorrelationFieldCount)
-	if correlation, ok := httpx.RequestAuditContextFromContext(ctx); ok {
+	if correlation, ok := requestctx.AuditContextFromContext(ctx); ok {
 		zapFields = appendCorrelationFields(zapFields, correlation)
 	}
 
@@ -388,10 +408,10 @@ func (l appLogger) zapFields(ctx context.Context, fields ...Field) []zap.Field {
 		zapFields = append(zapFields, zap.Any(key, sanitizeFieldValue(key, field.Value)))
 	}
 
-	return zapFields
+	return logsafe.SanitizeFields(zapFields)
 }
 
-func appendCorrelationFields(fields []zap.Field, correlation httpx.RequestAuditContext) []zap.Field {
+func appendCorrelationFields(fields []zap.Field, correlation requestctx.AuditContext) []zap.Field {
 	fields = appendStringField(fields, FieldRequestID, correlation.RequestID)
 	fields = appendStringField(fields, FieldTraceID, correlation.TraceID)
 	fields = appendStringField(fields, FieldRoute, correlation.Route)
@@ -511,25 +531,7 @@ func sanitizeMessage(message string) string {
 }
 
 func sanitizeString(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(value))
-	for _, r := range value {
-		if r == '\n' || r == '\r' || r == '\t' {
-			builder.WriteByte(' ')
-			continue
-		}
-		if unicode.IsControl(r) {
-			continue
-		}
-		builder.WriteRune(r)
-	}
-
-	return strings.Join(strings.Fields(builder.String()), " ")
+	return logsafe.SanitizeText(value)
 }
 
 func isSensitiveKey(key string) bool {

@@ -95,6 +95,9 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	m.service.SetRuntimeReader(runtimeReader)
 	m.service.SetResourceReader(resourceReader)
 	m.service.SetTaskService(taskService)
+	if ctx.AppLogger != nil {
+		m.service.SetAppLogger(ctx.AppLogger.Named("modules.project.lifecycle"))
+	}
 	m.service.SetLogReader(logReader)
 	m.service.SetSystemConfigResolver(configResolver)
 	m.service.SetSavedViewService(savedViews)

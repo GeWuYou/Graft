@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
 	httpheader "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	rbacstore "graft/server/modules/rbac/store"
@@ -109,21 +109,21 @@ func handleListPermissions(
 
 		permissions, err := reader.ListPermissions(ginCtx.Request.Context(), filter)
 		if err != nil {
-			ctx.Logger.Error("list permissions failed",
-				zap.String("module", moduleName),
-				zap.Error(err),
+			reported := reportRBACRouteError(ginCtx.Request.Context(), ctx, "list permissions failed", err,
+				logger.StringField("module", moduleName),
+				logger.StringField(logger.FieldOperation, "list_permissions"),
 			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 
 		payload, mapErr := toPermissionListResponse(permissions)
 		if mapErr != nil {
-			ctx.Logger.Error("map permissions response failed",
-				zap.String("module", moduleName),
-				zap.Error(mapErr),
+			reported := reportRBACRouteError(ginCtx.Request.Context(), ctx, "map permissions response failed", mapErr,
+				logger.StringField("module", moduleName),
+				logger.StringField(logger.FieldOperation, "map_permissions_response"),
 			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 
@@ -387,12 +387,11 @@ func handleStableIDResponse[T any](config stableIDResponseHandlerConfig[T]) gin.
 				return
 			}
 
-			config.ctx.Logger.Error(config.logMessage,
-				zap.String("module", config.moduleName),
-				zap.Uint64("targetId", targetID),
-				zap.Error(err),
+			reported := reportRBACRouteError(ginCtx.Request.Context(), config.ctx, config.logMessage, err,
+				logger.StringField("module", config.moduleName),
+				logger.StringField("target_id", strconv.FormatUint(targetID, 10)),
 			)
-			httpx.AbortLocalizedError(ginCtx, config.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, config.ctx.I18n, config.ctx.Logger, reported)
 			return
 		}
 
@@ -412,11 +411,10 @@ func newManagementListHandler[T any](
 			return
 		}
 		if err != nil {
-			ctx.Logger.Error(logMessage,
-				zap.String("module", moduleName),
-				zap.Error(err),
+			reported := reportRBACRouteError(ginCtx.Request.Context(), ctx, logMessage, err,
+				logger.StringField("module", moduleName),
 			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 

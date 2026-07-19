@@ -181,7 +181,7 @@ func (m *AccessTokenManager) Parse(token string) (*moduleapi.AccessTokenClaims, 
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredAccessToken
 		}
-		return nil, fmt.Errorf("%w: %v", ErrInvalidAccessToken, err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidAccessToken, err)
 	}
 	if !parsed.Valid {
 		return nil, ErrInvalidAccessToken
@@ -258,7 +258,7 @@ func (m *RefreshTokenManager) Parse(token string) (*RefreshTokenSubject, error) 
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrExpiredRefreshToken
 		}
-		return nil, fmt.Errorf("%w: %v", ErrInvalidRefreshToken, err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidRefreshToken, err)
 	}
 	if !parsed.Valid {
 		return nil, ErrInvalidRefreshToken

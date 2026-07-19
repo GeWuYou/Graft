@@ -151,6 +151,38 @@ func TestRunValidateBackendLintStage(t *testing.T) {
 	}
 }
 
+func TestRunBackendLintGuardsIncludesErrorLoggingGovernance(t *testing.T) {
+	originalLocaleOwnershipGuardRunner := backendLocaleOwnershipGuardRunner
+	originalLogCategoryGovernanceRunner := backendLogCategoryGovernanceRunner
+	originalErrorLoggingGovernanceRunner := backendErrorLoggingGovernanceRunner
+	defer func() {
+		backendLocaleOwnershipGuardRunner = originalLocaleOwnershipGuardRunner
+		backendLogCategoryGovernanceRunner = originalLogCategoryGovernanceRunner
+		backendErrorLoggingGovernanceRunner = originalErrorLoggingGovernanceRunner
+	}()
+
+	var calls []string
+	backendLocaleOwnershipGuardRunner = func(_ *cobra.Command) error {
+		calls = append(calls, "locale")
+		return nil
+	}
+	backendLogCategoryGovernanceRunner = func(_ *cobra.Command) error {
+		calls = append(calls, "category")
+		return nil
+	}
+	backendErrorLoggingGovernanceRunner = func(_ *cobra.Command) error {
+		calls = append(calls, "error-logging")
+		return nil
+	}
+
+	if err := runBackendLintGuards(&cobra.Command{}); err != nil {
+		t.Fatalf("run backend lint guards: %v", err)
+	}
+	if got, want := strings.Join(calls, ","), "locale,category,error-logging"; got != want {
+		t.Fatalf("guard order = %q, want %q", got, want)
+	}
+}
+
 func TestRunValidateBackendOpenAPIStage(t *testing.T) {
 	originalOpenAPIRunner := backendOpenAPIRunner
 	originalLintRunner := backendLintRunner

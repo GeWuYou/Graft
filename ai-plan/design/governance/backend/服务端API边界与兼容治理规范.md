@@ -294,6 +294,13 @@ CI 适合做：
 - 过滤/排序参数
 - 模块级公共 response item
 
+错误响应额外遵循：
+
+- 内部 typed error 使用稳定 code、message key 与明确安全的 public data 描述展示语义
+- cause 只保留在服务端 error chain 与原因日志中，不进入 message、data、details 或其它公开字段
+- handler 不把 `err.Error()`、SQL、Docker stderr、路径或依赖响应原文写入统一错误 envelope
+- 未登记的 internal error 由 HTTP 最后边界返回 `COMMON_INTERNAL_ERROR`，并仅在尚未 reported 时补一条原因日志
+
 演进规则：
 
 - 优先做向后兼容的增量变更

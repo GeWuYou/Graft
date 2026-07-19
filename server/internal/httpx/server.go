@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +15,10 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/i18n"
+	"graft/server/internal/logger/logsafe"
+	"graft/server/internal/moduleapi"
 )
 
 const (
@@ -47,6 +53,7 @@ type AccessLogOptions struct {
 // ServerOptions 承载 NewServerWithOptions 使用的可选 HTTP runtime 行为。
 type ServerOptions struct {
 	AccessLog AccessLogOptions
+	I18n      *i18n.Service
 }
 
 // NewServer 创建 MVP 运行时使用的最小 Gin 服务外壳。
@@ -74,8 +81,42 @@ func NewServerWithOptions(logger *zap.Logger, options ServerOptions, repo ...Acc
 		}
 	}
 
-	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger, accessLogRepo, options.AccessLog), gin.Recovery())
+	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger, accessLogRepo, options.AccessLog), newRecoveryMiddleware(logger, options.I18n))
 	return &Server{engine: engine, repo: accessLogRepo}
+}
+
+func newRecoveryMiddleware(runtimeLogger *zap.Logger, localizer *i18n.Service) gin.HandlerFunc {
+	if runtimeLogger == nil {
+		runtimeLogger = zap.NewNop()
+	}
+	return func(ctx *gin.Context) {
+		defer func() {
+			recovered := recover()
+			if recovered == nil {
+				return
+			}
+
+			fields := []zap.Field{
+				zap.String("request_id", EnsureRequestID(ctx)),
+				zap.String("trace_id", EnsureTraceID(ctx)),
+				zap.String("method", currentRequestMethod(ctx)),
+				zap.String("route", currentRequestRoute(ctx)),
+				zap.String("path", currentRequestPath(ctx)),
+				zap.String("panic", fmt.Sprint(recovered)),
+				zap.Strings("stacktrace", strings.Split(strings.TrimSpace(string(debug.Stack())), "\n")),
+			}
+			if requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx.Request.Context()); ok && requestAuth.User != nil {
+				fields = append(fields, zap.Uint64("user_id", requestAuth.User.ID))
+			}
+			logsafe.Error(runtimeLogger, "panic recovered", fields...)
+
+			if !ctx.Writer.Written() {
+				WriteLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			}
+			ctx.Abort()
+		}()
+		ctx.Next()
+	}
 }
 
 // Engine 返回供 core 和模块注册路由使用的根路由。

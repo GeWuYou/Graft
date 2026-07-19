@@ -31,6 +31,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if ctx == nil || ctx.Services == nil || m.runtime == nil {
 		return errors.New("task module register context is unavailable")
 	}
+	m.runtime.SetAppLogger(ctx.AppLogger)
 	if err := m.registerServices(ctx); err != nil {
 		return err
 	}

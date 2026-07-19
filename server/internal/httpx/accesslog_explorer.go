@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/eventbus"
@@ -34,6 +35,7 @@ type accessLogReadGuard struct {
 
 type accessLogExplorerRouteDependencies struct {
 	localizer   *i18n.Service
+	logger      *zap.Logger
 	repo        AccessLogRepository
 	authService moduleapi.AuthService
 	authorizer  moduleapi.Authorizer
@@ -44,6 +46,7 @@ type accessLogExplorerRouteDependencies struct {
 // AccessLogExplorerRegistration 收口 access-log explorer 所需的 core 注册依赖。
 type AccessLogExplorerRegistration struct {
 	I18n               *i18n.Service
+	Logger             *zap.Logger
 	MenuRegistry       *menu.Registry
 	PermissionRegistry *permission.Registry
 	EventBus           eventbus.Bus
@@ -87,15 +90,15 @@ func registerAccessLogExplorerRoutes(router gin.IRouter, dependencies accessLogE
 		return errors.New("access-log explorer dependencies are required")
 	}
 
-	publisher := NewSecurityAuditPublisher(dependencies.bus, nil, accessLogModuleOwner)
+	publisher := NewSecurityAuditPublisher(dependencies.bus, dependencies.logger, accessLogModuleOwner)
 
 	guard := accessLogReadGuard{
-		read: RequirePermission(dependencies.localizer, dependencies.authService, dependencies.authorizer, AccessLogReadPermission, publisher),
+		read: RequirePermissionWithLogger(dependencies.logger, dependencies.localizer, dependencies.authService, dependencies.authorizer, AccessLogReadPermission, publisher),
 	}
 	group := router.Group(accessLogRouteGroup)
-	group.GET("", guard.read, handleListAccessLogs(dependencies.localizer, dependencies.repo))
+	group.GET("", guard.read, handleListAccessLogs(dependencies.logger, dependencies.localizer, dependencies.repo))
 	registerAccessLogSavedViewRoutes(group, dependencies.localizer, guard.read, dependencies.savedViews)
-	group.GET("/:"+accessLogRouteItemParam, guard.read, handleGetAccessLogDetail(dependencies.localizer, dependencies.repo))
+	group.GET("/:"+accessLogRouteItemParam, guard.read, handleGetAccessLogDetail(dependencies.logger, dependencies.localizer, dependencies.repo))
 	return nil
 }
 
@@ -112,6 +115,7 @@ func RegisterAccessLogExplorer(
 	registerAccessLogExplorerMenu(ctx.MenuRegistry)
 	return registerAccessLogExplorerRoutes(router, accessLogExplorerRouteDependencies{
 		localizer:   ctx.I18n,
+		logger:      ctx.Logger,
 		repo:        repo,
 		authService: authService,
 		authorizer:  authorizer,
@@ -122,7 +126,7 @@ func RegisterAccessLogExplorer(
 
 // handleListAccessLogs 创建访问日志列表请求处理器。
 // 请求参数无效时返回 400，查询失败时返回 500，查询成功时返回访问日志列表。
-func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {
+func handleListAccessLogs(logger *zap.Logger, localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		query, invalidField := bindAccessLogListQuery(ctx)
 		if invalidField != "" {
@@ -134,7 +138,7 @@ func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin
 
 		result, err := repo.ListAccessLogs(ctx.Request.Context(), query)
 		if err != nil {
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			AbortAppError(ctx, localizer, logger, err)
 			return
 		}
 
@@ -144,7 +148,7 @@ func handleListAccessLogs(localizer *i18n.Service, repo AccessLogRepository) gin
 
 // handleGetAccessLogDetail 返回一个按 ID 查询访问日志详情的处理器，并将查询结果写回响应。
 // 当路径参数 `id` 无效、记录不存在或查询失败时，返回相应的本地化错误响应。
-func handleGetAccessLogDetail(localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {
+func handleGetAccessLogDetail(logger *zap.Logger, localizer *i18n.Service, repo AccessLogRepository) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		rawID := strings.TrimSpace(ctx.Param(accessLogRouteItemParam))
 		id, err := strconv.ParseUint(rawID, 10, 64)
@@ -163,7 +167,7 @@ func handleGetAccessLogDetail(localizer *i18n.Service, repo AccessLogRepository)
 				})
 				return
 			}
-			AbortLocalizedError(ctx, localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			AbortAppError(ctx, localizer, logger, err)
 			return
 		}
 

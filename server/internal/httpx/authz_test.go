@@ -6,10 +6,14 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
 	"graft/server/internal/eventbus"
@@ -261,7 +265,7 @@ func TestRequirePermissionAllowsAuthorizedRequest(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, authService, authorizer, "user.read"))
+	engine.Use(RequestIDMiddleware(), RequirePermission(nil, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		requestAuth, ok := moduleapi.RequestAuthContextFromContext(inner.Request.Context())
 		if !ok || requestAuth.User == nil || requestAuth.User.ID != 7 {
@@ -297,7 +301,7 @@ func TestRequirePermissionInjectsCanonicalRequestAuditContext(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	ctx, engine := gin.CreateTestContext(recorder)
-	engine.Use(RequirePermission(nil, authService, authorizer, "user.read"))
+	engine.Use(RequestIDMiddleware(), RequirePermission(nil, authService, authorizer, "user.read"))
 	engine.GET("/api/users/:id", func(inner *gin.Context) {
 		auditCtx, ok := RequestAuditContextFromContext(inner.Request.Context())
 		if !ok {
@@ -582,6 +586,41 @@ func TestRequirePermissionFailsClosedWhenAuthorizerMissing(t *testing.T) {
 	}
 	if handled {
 		t.Fatal("expected request to fail closed before reaching handler")
+	}
+}
+
+// TestRequirePermissionLogsUnexpectedAuthFailure 验证未分类的鉴权失败会保留一条关联 HTTP fallback 原因日志。
+func TestRequirePermissionLogsUnexpectedAuthFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	core, observed := observer.New(zapcore.ErrorLevel)
+	logger := zap.New(core)
+
+	cause := errors.New("token verifier unavailable")
+	localizer := newTestLocalizer()
+	authService := testAuthService{
+		parseAccessToken: func(context.Context, string) (*moduleapi.AccessTokenClaims, error) {
+			return nil, cause
+		},
+		currentUser: func(context.Context) (*moduleapi.CurrentUser, error) {
+			t.Fatal("current user should not be called when token parsing fails")
+			return nil, nil
+		},
+	}
+
+	engine := gin.New()
+	engine.Use(RequestIDMiddleware(), RequirePermissionWithLogger(logger, localizer, authService, nil, ""))
+	engine.GET("/api/profile", func(ctx *gin.Context) { ctx.Status(http.StatusOK) })
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, newBearerRequest("/api/profile", "token-1"))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+	if strings.Contains(recorder.Body.String(), cause.Error()) {
+		t.Fatalf("expected internal cause to stay out of response: %s", recorder.Body.String())
+	}
+	if len(observed.All()) != 1 || observed.All()[0].Message != "unreported internal error" {
+		t.Fatalf("expected one HTTP fallback error, got %#v", observed.All())
 	}
 }
 

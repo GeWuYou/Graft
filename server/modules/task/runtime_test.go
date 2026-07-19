@@ -5,11 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
+
 	_ "github.com/mattn/go-sqlite3"
+	"graft/server/internal/logger"
 
 	"graft/server/internal/moduleapi"
 	taskmodel "graft/server/modules/task/model"
@@ -141,6 +146,8 @@ func TestRuntimeListTasksAuthorizesBeforePagination(t *testing.T) {
 func TestRuntimeConvertsExecutorPanicsToFailedStage(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
+	core, logs := observer.New(zap.ErrorLevel)
+	runtime.SetAppLogger(logger.NewAppLogger(zap.New(core)))
 	if err := runtime.RegisterStageExecutor(panickingExecutor{}); err != nil {
 		t.Fatalf("register executor: %v", err)
 	}
@@ -159,6 +166,39 @@ func TestRuntimeConvertsExecutorPanicsToFailedStage(t *testing.T) {
 	}
 	if task.CurrentStageKey == nil || *task.CurrentStageKey != "stage-1" {
 		t.Fatalf("failed task current stage key = %v, want stage-1", task.CurrentStageKey)
+	}
+	if logs.Len() != 1 {
+		t.Fatalf("expected one task panic log, got %d", logs.Len())
+	}
+	fields := logs.All()[0].ContextMap()
+	if fields["task_id"] != uint64(receipt.TaskID) || fields["executor_type"] != string(panickingExecutorType) {
+		t.Fatalf("expected task panic context, got %#v", fields)
+	}
+	if stacktrace, ok := fields["stacktrace"].(string); !ok || !strings.Contains(stacktrace, "panickingExecutor.Execute") {
+		t.Fatalf("expected executor panic stacktrace, got %#v", fields["stacktrace"])
+	}
+}
+
+func TestRuntimeWorkerIterationRecoversAndContinuesAfterPanic(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	runtime.repository = &panicOnceRepository{Repository: repository}
+	executor := &recordingExecutor{}
+	if err := runtime.RegisterStageExecutor(executor); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	if _, err := runtime.Submit(context.Background(), testSubmitInput(1, 1)); err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+
+	if err := runtime.runWorkerIteration(context.Background()); err == nil || !strings.Contains(err.Error(), "task worker panicked") {
+		t.Fatalf("first worker iteration error = %v, want recovered panic", err)
+	}
+	if err := runtime.runWorkerIteration(context.Background()); err != nil {
+		t.Fatalf("second worker iteration: %v", err)
+	}
+	if calls := executor.calls(); calls != 1 {
+		t.Fatalf("executor calls after worker panic = %d, want 1", calls)
 	}
 }
 
@@ -350,6 +390,23 @@ type recordingExecutor struct {
 	mu     sync.Mutex
 	errors []error
 	count  int
+}
+
+type panicOnceRepository struct {
+	taskstore.Repository
+	mu       sync.Mutex
+	panicked bool
+}
+
+func (r *panicOnceRepository) ClaimNextStage(ctx context.Context, now time.Time) (taskstore.StageClaim, bool, error) {
+	r.mu.Lock()
+	if !r.panicked {
+		r.panicked = true
+		r.mu.Unlock()
+		panic("claim next stage")
+	}
+	r.mu.Unlock()
+	return r.Repository.ClaimNextStage(ctx, now)
 }
 
 func (e *recordingExecutor) Type() moduleapi.StageExecutorType { return "test.executor" }

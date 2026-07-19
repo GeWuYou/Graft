@@ -5,10 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
-	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	auditstore "graft/server/modules/audit/store"
 )
@@ -45,8 +44,6 @@ func handleListAuditLogs(
 	moduleName string,
 	reader auditReader,
 ) gin.HandlerFunc {
-	logger := auditRouteLogger(ctx)
-
 	return func(ginCtx *gin.Context) {
 		_, query, invalidField := bindGeneratedAuditListParams(ginCtx)
 		if !ensureAuditListParamsBound(ginCtx, ctx, invalidField) {
@@ -59,7 +56,7 @@ func handleListAuditLogs(
 
 		result, err := reader.List(withAuditRequestLocale(ginCtx, ctx), query)
 		if err != nil {
-			if handleAuditListReadError(ginCtx, ctx, logger, moduleName, err) {
+			if handleAuditListReadError(ginCtx, ctx, moduleName, err) {
 				return
 			}
 			return
@@ -67,11 +64,9 @@ func handleListAuditLogs(
 
 		payload, mapErr := toAuditLogListResponse(result)
 		if mapErr != nil {
-			logger.Error("map audit logs response failed",
-				zap.String("module", moduleName),
-				zap.Error(mapErr),
-			)
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := reportAuditRouteError(ginCtx, ctx, "map audit logs response failed", mapErr,
+				logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "map_audit_log_list_response"))
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 

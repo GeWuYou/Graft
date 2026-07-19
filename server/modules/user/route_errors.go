@@ -3,18 +3,17 @@ package user
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
-	"graft/server/internal/contract/errorcode"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	applog "graft/server/internal/logger"
-	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	authruntime "graft/server/modules/auth"
@@ -103,8 +102,13 @@ func clearRefreshCookieWhen(
 func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	status, messageKey := mapAuthError(err)
 	if status == http.StatusInternalServerError {
-		logFields := append([]zap.Field{zap.String("module", r.moduleName), zap.Error(err)}, fields...)
-		logsafe.Error(r.logger, message, logFields...)
+		appFields := []applog.Field{applog.StringField("module", r.moduleName)}
+		for _, field := range fields {
+			appFields = append(appFields, applog.Field{Key: field.Key, Value: zapFieldValue(field)})
+		}
+		reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err, appFields...)
+		httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
+		return
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, authErrorDetails(err))
@@ -117,11 +121,12 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 		status = http.StatusNotFound
 		messageKey = messagecontract.UserNotFound
 	} else {
-		logsafe.Error(r.logger, message,
-			zap.String("module", r.moduleName),
-			zap.Uint64("userID", userID),
-			zap.Error(err),
+		reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err,
+			applog.StringField("module", r.moduleName),
+			applog.StringField("user_id", strconv.FormatUint(userID, 10)),
 		)
+		httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
+		return
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, nil)
@@ -130,23 +135,17 @@ func (r routeRuntime) writeUserLookupError(ginCtx *gin.Context, userID uint64, m
 func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint64, message string, err error) {
 	status, messageKey, data := mapUserManagementError(err, passwordFieldForUserManagementOperation(message))
 	if shouldLogUserManagementError(status, err) {
-		responseCode := errorCodeFromMessageKey(messageKey)
-		logFields := []zap.Field{
-			zap.String("module", r.moduleName),
-			zap.String("operation", userManagementOperationFromMessage(message)),
-			zap.String("method", ginCtx.Request.Method),
-			zap.String("route", ginCtx.FullPath()),
-			zap.String("response_code", responseCode),
-			zap.String("message_key", messageKey.String()),
-			zap.Uint64("userID", userID),
-			zap.Error(err),
+		appFields := []applog.Field{
+			applog.StringField("module", r.moduleName),
+			applog.StringField(applog.FieldOperation, userManagementOperationFromMessage(message)),
+			applog.StringField("user_id", strconv.FormatUint(userID, 10)),
 		}
 		if field, ok := errorFieldFromDetails(data); ok {
-			logFields = append(logFields, zap.String("field", field))
+			appFields = append(appFields, applog.StringField("field", field))
 		}
-		logsafe.Error(r.logger, message,
-			logFields...,
-		)
+		reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err, appFields...)
+		httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
+		return
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
@@ -155,20 +154,16 @@ func (r routeRuntime) writeUserManagementError(ginCtx *gin.Context, userID uint6
 func (r routeRuntime) writeCreateUserError(ginCtx *gin.Context, message string, err error) {
 	status, messageKey, data := mapUserManagementError(err, "password")
 	if shouldLogUserManagementError(status, err) {
-		responseCode := errorCodeFromMessageKey(messageKey)
-		logFields := []zap.Field{
-			zap.String("module", r.moduleName),
-			zap.String("operation", userManagementOperationFromMessage(message)),
-			zap.String("method", ginCtx.Request.Method),
-			zap.String("route", ginCtx.FullPath()),
-			zap.String("response_code", responseCode),
-			zap.String("message_key", messageKey.String()),
-			zap.Error(err),
+		appFields := []applog.Field{
+			applog.StringField("module", r.moduleName),
+			applog.StringField(applog.FieldOperation, userManagementOperationFromMessage(message)),
 		}
 		if field, ok := errorFieldFromDetails(data); ok {
-			logFields = append(logFields, zap.String("field", field))
+			appFields = append(appFields, applog.StringField("field", field))
 		}
-		logsafe.Error(r.logger, message, logFields...)
+		reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err, appFields...)
+		httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
+		return
 	}
 
 	writeLocalizedContractError(ginCtx, r.localizer, status, messageKey, data)
@@ -185,9 +180,8 @@ func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message str
 			Value: zapFieldValue(field),
 		})
 	}
-	r.appLogger().Error(ginCtx.Request.Context(), message, appFields...)
-
-	writeLocalizedContractError(ginCtx, r.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError, nil)
+	reported := applog.ReportError(ginCtx.Request.Context(), r.appLogger(), message, err, appFields...)
+	httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
 }
 
 // zapFieldValue 将 zap 字段转换为日志所需的底层值，避免错误映射逻辑依赖具体字段实现。
@@ -248,10 +242,6 @@ func passwordFieldForUserManagementOperation(message string) string {
 	}
 
 	return ""
-}
-
-func errorCodeFromMessageKey(key messagecontract.Key) string {
-	return errorcode.FromMessageKey(key).String()
 }
 
 // mapUserManagementError 将用户管理错误映射为 HTTP 状态码、本地化消息键和可选的字段信息。

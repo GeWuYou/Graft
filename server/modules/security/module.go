@@ -7,11 +7,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -149,18 +148,30 @@ func handleOverview(
 		requestCtx := ginCtx.Request.Context()
 		posture, err := rbacPosture.ReadSecurityPosture(requestCtx)
 		if err != nil {
-			ctx.Logger.Error("read security posture failed", zap.Error(err))
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := logger.ReportError(requestCtx, resolveSecurityAppLogger(ctx), "read security posture failed", err,
+				logger.StringField(logger.FieldOperation, "read_security_posture"),
+			)
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 		auditSnapshot, err := auditReader.ReadSecuritySnapshot(requestCtx, preset)
 		if err != nil {
-			ctx.Logger.Error("read security audit snapshot failed", zap.Error(err))
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := logger.ReportError(requestCtx, resolveSecurityAppLogger(ctx), "read security audit snapshot failed", err,
+				logger.StringField(logger.FieldOperation, "read_security_audit_snapshot"),
+				logger.StringField("preset", string(preset)),
+			)
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 		httpx.WriteSuccess(ginCtx, http.StatusOK, overviewResponse{TimePreset: preset, AccessControl: posture, Audit: auditSnapshot})
 	}
+}
+
+func resolveSecurityAppLogger(ctx *module.Context) logger.AppLogger {
+	if ctx == nil || ctx.AppLogger == nil {
+		return nil
+	}
+	return ctx.AppLogger.Named("modules.security.overview")
 }
 
 // parseOverviewPreset 将审计概览时间参数解析为受支持的时间范围。

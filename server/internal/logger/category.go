@@ -35,8 +35,9 @@ const (
 )
 
 const (
-	categoryFieldKey      = "category"
-	categoryRulePartCount = 2
+	categoryFieldKey         = "category"
+	categoryRulePartCount    = 2
+	categoryLoggerCallerSkip = 2
 )
 
 var registeredCategories = map[LogCategory]struct{}{
@@ -139,7 +140,10 @@ func Category(base *zap.Logger, category LogCategory) CategoryLogger {
 	if base == nil || !isRegisteredCategory(category) {
 		return CategoryLogger{base: zap.NewNop(), category: category}
 	}
-	return CategoryLogger{base: base.With(zap.String(categoryFieldKey, string(category))), category: category}
+	return CategoryLogger{
+		base:     base.With(zap.String(categoryFieldKey, string(category))).WithOptions(zap.AddCallerSkip(categoryLoggerCallerSkip)),
+		category: category,
+	}
 }
 
 // WithCategory 是 Category 的低成本别名。

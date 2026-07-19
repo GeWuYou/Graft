@@ -11,7 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"graft/server/internal/apperror"
+	"graft/server/internal/contract/errorcode"
+	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -209,6 +213,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	}
 	if s.taskService == nil {
 		err := errors.New("task service is unavailable")
+		err = s.reportLifecycleTaskSubmissionFailure(ctx, aggregate, action, err)
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
@@ -221,6 +226,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	}
 	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("application.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: applicationTaskOwnerType, ID: aggregate.Application.ApplicationID}, RequestedBy: actor.id, Plan: plan})
 	if err != nil {
+		err = s.reportLifecycleTaskSubmissionFailure(ctx, aggregate, action, err)
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
@@ -229,6 +235,27 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	result := ActionResult{ApplicationRecordID: projectID, Action: action, Result: generated.ApplicationActionResponseResultApplicationActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
 	s.publishApplicationActionAudit(ctx, aggregate, actor, result, nil)
 	return result, nil
+}
+
+// reportLifecycleTaskSubmissionFailure 在 Project 仍掌握应用和动作语义时记录一次任务提交失败。
+func (s *Service) reportLifecycleTaskSubmissionFailure(
+	ctx context.Context,
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
+	err error,
+) error {
+	typedErr := apperror.Wrap(err, apperror.Descriptor{
+		Kind:       apperror.KindInternal,
+		Code:       errorcode.CommonInternalError,
+		MessageKey: messagecontract.CommonInternalError,
+	})
+	return logger.ReportError(ctx, s.appLogger, "submit application lifecycle task failed", typedErr,
+		logger.StringField(logger.FieldOperation, "submit_application_lifecycle_task"),
+		logger.StringField("application_record_id", fmt.Sprintf("%d", aggregate.Application.ApplicationRecordID)),
+		logger.StringField("application_id", aggregate.Application.ApplicationID),
+		logger.StringField("lifecycle_action", string(action)),
+		logger.StringField("task_type", "application.compose."+strings.ToLower(string(action))),
+	)
 }
 
 // lifecycleTaskPlan 为指定生命周期动作创建异步任务计划，实际 Compose 执行由任务运行时负责。
@@ -328,7 +355,7 @@ func (s *Service) executeLifecycleActionWithAggregate(
 	commandOutput, err := s.runComposeCommand(ctx, aggregate, args)
 	if err != nil {
 		result := blockedActionResult(aggregate.Application.ApplicationRecordID, action, []GuardResult{guardDetail("lifecycle_failed", summarizeCommandOutput(commandOutput))})
-		return result, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return result, fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	messageKey := lifecycleMessageKey(action).String()
 	return ActionResult{
@@ -490,13 +517,13 @@ func (s *Service) redeployWithActor(
 	}
 	output, err := s.runComposeCommand(ctx, aggregate, upArgs)
 	if err != nil {
-		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	guards = append(guards, guardDetail("command", strings.Join(upArgs, " ")))
 	if config.Standard.PruneImagesAfterRedeploy {
 		output, err = s.runDockerCommand(ctx, aggregate.Application.WorkspacePath, []string{"image", "prune", "-f"})
 		if err != nil {
-			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			return blockedActionResult(aggregate.Application.ApplicationRecordID, generated.ApplicationActionResponseActionApplicationActionRedeploy, append(guards, guardDetail("image_prune_failed", summarizeCommandOutput(output)))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 		}
 		guards = append(guards, guardCode("image_prune_completed"))
 	}
@@ -532,7 +559,7 @@ func (s *Service) runRedeployComposeStep(
 	}
 	output, err := s.runComposeCommand(ctx, aggregate, args)
 	if err != nil {
-		return append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output))), fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+		return append(guards, guardDetail("lifecycle_failed", summarizeCommandOutput(output))), fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	return append(guards, guardCode(successCode)), nil
 }
@@ -898,7 +925,7 @@ func (s *Service) applyDestroyWorkspacePathStep(
 	autoUnregister := request.AutoUnregister
 	if request.DeleteWorkspacePath {
 		if err := deleteManagedWorkspacePath(aggregate.Application.WorkspacePath); err != nil {
-			return nil, false, fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			return nil, false, fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 		}
 		guardResults = append(guardResults, guardCode("workspace_path_deleted"))
 		autoUnregister = true
@@ -925,7 +952,7 @@ func (s *Service) applyDestroyImagePruneStep(
 				append(guardResults, guardDetail("image_prune_failed", summarizeCommandOutput(output))),
 			),
 			nil,
-			fmt.Errorf("%w: %v", errProjectUnsupportedLifecycle, err)
+			fmt.Errorf("%w: %w", errProjectUnsupportedLifecycle, err)
 	}
 	guardResults = append(guardResults, guardCode("image_prune_completed"))
 	return ActionResult{}, guardResults, nil

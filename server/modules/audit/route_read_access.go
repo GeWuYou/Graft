@@ -8,12 +8,12 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/drilldown"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	auditcontract "graft/server/modules/audit/contract"
@@ -62,7 +62,6 @@ func ensureAuditVisibilityScopeAccess(
 func handleAuditListReadError(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	logger *zap.Logger,
 	moduleName string,
 	err error,
 ) bool {
@@ -72,11 +71,11 @@ func handleAuditListReadError(
 		})
 		return true
 	}
-	logger.Error("list audit logs failed",
-		zap.String("module", moduleName),
-		zap.Error(err),
+	reported := reportAuditRouteError(ginCtx, ctx, "list audit logs failed", err,
+		logger.StringField("module", moduleName),
+		logger.StringField(logger.FieldOperation, "list_audit_logs"),
 	)
-	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+	httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 	return true
 }
 
@@ -357,19 +356,12 @@ func handleAuditReadByID[T any](
 	moduleName string,
 	config auditReadByIDConfig[T],
 ) gin.HandlerFunc {
-	logger := auditRouteLogger(ctx)
-
 	return func(ginCtx *gin.Context) {
 		id, ok := bindAuditReadID(ginCtx, ctx, config)
 		if !ok {
 			return
 		}
-		recordLogger := logger.With(
-			zap.String("module", moduleName),
-			zap.Uint64("id", id),
-		)
-
-		record, ok := readAuditRecordByID(ginCtx, ctx, recordLogger, config, id)
+		record, ok := readAuditRecordByID(ginCtx, ctx, moduleName, config, id)
 		if !ok {
 			return
 		}
@@ -377,7 +369,7 @@ func handleAuditReadByID[T any](
 			return
 		}
 
-		payload, ok := mapAuditReadRecord(ginCtx, ctx, recordLogger, config, record)
+		payload, ok := mapAuditReadRecord(ginCtx, ctx, moduleName, config, record)
 		if !ok {
 			return
 		}
@@ -408,7 +400,7 @@ func bindAuditReadID[T any](
 func readAuditRecordByID[T any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	logger *zap.Logger,
+	moduleName string,
 	config auditReadByIDConfig[T],
 	id uint64,
 ) (T, bool) {
@@ -422,10 +414,9 @@ func readAuditRecordByID[T any](
 		})
 		return record, false
 	}
-	logger.Error(config.readLogMessage,
-		zap.Error(readErr),
-	)
-	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+	reported := reportAuditRouteError(ginCtx, ctx, config.readLogMessage, readErr,
+		logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "read_audit_record"), logger.Uint64Field("audit_record_id", id))
+	httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 	return record, false
 }
 
@@ -447,7 +438,7 @@ func ensureAuditReadRecordAccess[T any](
 func mapAuditReadRecord[T any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	logger *zap.Logger,
+	moduleName string,
 	config auditReadByIDConfig[T],
 	record T,
 ) (any, bool) {
@@ -455,9 +446,16 @@ func mapAuditReadRecord[T any](
 	if mapErr == nil {
 		return payload, true
 	}
-	logger.Error(config.mapLogMessage,
-		zap.Error(mapErr),
-	)
-	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+	reported := reportAuditRouteError(ginCtx, ctx, config.mapLogMessage, mapErr,
+		logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "map_audit_record_response"))
+	httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 	return nil, false
+}
+
+// reportAuditRouteError 在审计 HTTP owner 处记录可排障的系统错误，并保留 HTTP fallback 所需的原始错误链。
+func reportAuditRouteError(ginCtx *gin.Context, ctx *module.Context, message string, err error, fields ...logger.Field) error {
+	if ginCtx == nil || ginCtx.Request == nil || ctx == nil || ctx.AppLogger == nil {
+		return err
+	}
+	return logger.ReportError(ginCtx.Request.Context(), ctx.AppLogger.Named("modules.audit.http"), message, err, fields...)
 }

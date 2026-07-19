@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
+	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
@@ -40,6 +42,7 @@ type Runtime struct {
 	realtimeTickets realtimeauth.Service
 	realtimeHub     realtime.Hub
 	topicIssuers    realtime.TopicIssuerRegistry
+	logger          logger.AppLogger
 }
 
 type runningStage struct {
@@ -58,7 +61,18 @@ func NewRuntime(repository taskstore.Repository) *Runtime {
 		authorizers: make(map[string]moduleapi.TaskOwnerAuthorizer),
 		running:     make(map[uint64]runningStage),
 		wake:        make(chan struct{}, 1),
+		logger:      logger.NewAppLogger(nil),
 	}
+}
+
+// SetAppLogger 绑定模块上下文注入的 AppLogger，使异步 Task 失败沿用同一关联与持久化策略。
+func (r *Runtime) SetAppLogger(appLogger logger.AppLogger) {
+	if r == nil || appLogger == nil {
+		return
+	}
+	r.mu.Lock()
+	r.logger = appLogger.Named("modules.task.runtime")
+	r.mu.Unlock()
 }
 
 // RegisterStageExecutor 在 Boot 前注册一个消费模块所有的阶段执行器；启动后注册会被拒绝，避免 worker 看到不完整执行器集合。
@@ -253,7 +267,7 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, taskID uint64) error {
 	running, exists := r.running[taskID]
 	r.mu.RUnlock()
 	if exists {
-		if err := cancelStage(ctx, running.executor, running.run); err != nil {
+		if err := r.cancelStage(ctx, running.executor, running.run); err != nil {
 			return fmt.Errorf("cancel task stage: %w", err)
 		}
 		running.cancel()
@@ -262,22 +276,39 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, taskID uint64) error {
 	return r.appendEvent(ctx, taskID, taskmodel.EventTypeCancelRequested)
 }
 
-func executeStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			err = fmt.Errorf("stage executor panicked: %v", recovered)
-		}
-	}()
-	return executor.Execute(ctx, run)
+func (r *Runtime) executeStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
+	return r.invokeStage(ctx, executor, run, "task_stage_execute", "stage executor panicked", func() error {
+		return executor.Execute(ctx, run)
+	})
 }
 
-func cancelStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
+func (r *Runtime) cancelStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
+	return r.invokeStage(ctx, executor, run, "task_stage_cancel", "stage executor cancellation panicked", func() error {
+		return executor.Cancel(ctx, run)
+	})
+}
+
+func (r *Runtime) invokeStage(
+	ctx context.Context,
+	executor moduleapi.StageExecutor,
+	run moduleapi.StageRun,
+	operation string,
+	panicMessage string,
+	invoke func() error,
+) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = fmt.Errorf("stage executor cancellation panicked: %v", recovered)
+			err = fmt.Errorf("%s: %v", panicMessage, recovered)
+			r.logger.Error(ctx, panicMessage,
+				logger.StringField(logger.FieldOperation, operation),
+				logger.Uint64Field("task_id", run.TaskID()),
+				logger.Uint64Field("stage_id", run.StageID()),
+				logger.StringField("executor_type", string(executor.Type())),
+				logger.StringField("stacktrace", string(debug.Stack())),
+			)
 		}
 	}()
-	return executor.Cancel(ctx, run)
+	return invoke()
 }
 
 // RetryStage 记录操作员批准的 unknown 或 failed 阶段重试；只有父 Task 处于可恢复状态时仓储才允许回到 pending。
@@ -360,7 +391,7 @@ func (r *Runtime) Stop(ctx context.Context) error {
 		return nil
 	}
 	for _, current := range running {
-		_ = cancelStage(ctx, current.executor, current.run)
+		_ = r.cancelStage(ctx, current.executor, current.run)
 		current.cancel()
 	}
 	cancel()
@@ -379,7 +410,7 @@ func (r *Runtime) worker(ctx context.Context) {
 	ticker := time.NewTicker(r.pollEvery)
 	defer ticker.Stop()
 	for {
-		if err := r.runOne(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		if err := r.runWorkerIteration(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			select {
 			case <-ctx.Done():
 				return
@@ -396,6 +427,20 @@ func (r *Runtime) worker(ctx context.Context) {
 	}
 }
 
+// runWorkerIteration 将单次领取与执行包在可恢复边界内，避免一个未预期 panic 终止整个 worker goroutine。
+func (r *Runtime) runWorkerIteration(ctx context.Context) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			r.logger.Error(ctx, "task worker panicked",
+				logger.StringField(logger.FieldOperation, "task_worker"),
+				logger.StringField("stacktrace", string(debug.Stack())),
+			)
+			err = fmt.Errorf("task worker panicked: %v", recovered)
+		}
+	}()
+	return r.runOne(ctx)
+}
+
 func (r *Runtime) runOne(ctx context.Context) error {
 	claim, found, err := r.repository.ClaimNextStage(ctx, time.Now().UTC())
 	if err != nil || !found {
@@ -409,7 +454,7 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	stageContext, cancel := context.WithCancel(ctx)
 	run := &stageRun{runtime: r, task: claim.Task, stage: claim.Stage}
 	r.addRunning(claim.Task.ID, runningStage{executor: executor, run: run, cancel: cancel})
-	err = executeStage(stageContext, executor, run)
+	err = r.executeStage(stageContext, executor, run)
 	cancel()
 	r.removeRunning(claim.Task.ID)
 	finishErr := r.finishClaim(ctx, claim, err)

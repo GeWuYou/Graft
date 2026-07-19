@@ -476,10 +476,10 @@ func mapTemplateWriteError(err error) error {
 	lower := strings.ToLower(err.Error())
 	if strings.Contains(lower, "application_templates_display_name_live") ||
 		strings.Contains(lower, "application_templates.display_name") {
-		return fmt.Errorf("%w: %v", ErrTemplateNameOccupied, err)
+		return fmt.Errorf("%w: %w", ErrTemplateNameOccupied, err)
 	}
 	if strings.Contains(lower, "unique") || strings.Contains(lower, "duplicate") {
-		return fmt.Errorf("%w: %v", ErrTemplateConflict, err)
+		return fmt.Errorf("%w: %w", ErrTemplateConflict, err)
 	}
 	return err
 }

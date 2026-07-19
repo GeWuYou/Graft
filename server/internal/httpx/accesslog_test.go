@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +137,28 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 	}
 }
 
+func TestHandleListAccessLogsReportsUnexpectedRepositoryFailureOnce(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	core, observed := observer.New(zapcore.ErrorLevel)
+	logger := zap.New(core)
+
+	engine := gin.New()
+	engine.Use(RequestIDMiddleware())
+	engine.GET("/access-log", handleListAccessLogs(logger, nil, &stubAccessLogRepository{listErr: errors.New("database unavailable")}))
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/access-log", nil))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+	if len(observed.All()) != 1 {
+		t.Fatalf("expected one fallback error log, got %#v", observed.All())
+	}
+	if strings.Contains(recorder.Body.String(), "database unavailable") {
+		t.Fatalf("expected repository cause to stay out of response: %s", recorder.Body.String())
+	}
+}
+
 func TestLoadAccessLogRequestAttentionPayloadReturnsRepositoryError(t *testing.T) {
 	expectedErr := errors.New("list access logs failed")
 	_, err := LoadAccessLogRequestAttentionPayload(context.Background(), &stubAccessLogRepository{listErr: expectedErr})
@@ -151,8 +174,8 @@ func TestLogAccessSeverityByStatus(t *testing.T) {
 		level  zapcore.Level
 	}{
 		{name: "success uses info", status: http.StatusOK, level: zapcore.InfoLevel},
-		{name: "client error uses warn", status: http.StatusBadRequest, level: zapcore.WarnLevel},
-		{name: "server error uses error", status: http.StatusInternalServerError, level: zapcore.ErrorLevel},
+		{name: "client error uses info", status: http.StatusBadRequest, level: zapcore.InfoLevel},
+		{name: "server error uses info", status: http.StatusInternalServerError, level: zapcore.InfoLevel},
 	}
 
 	for _, tc := range testCases {
@@ -306,14 +329,14 @@ func TestAccessLogMiddlewareAutoUsesResolvedConsolePolicy(t *testing.T) {
 	}
 }
 
-func TestAccessLogMiddlewareErrorOnlyLogsClientAndServerErrors(t *testing.T) {
+func TestAccessLogMiddlewareErrorOnlySelectsFailuresButLogsFactsAtInfo(t *testing.T) {
 	testCases := []struct {
 		name      string
 		status    int
 		wantLevel zapcore.Level
 	}{
-		{name: "client error", status: http.StatusBadRequest, wantLevel: zapcore.WarnLevel},
-		{name: "server error", status: http.StatusInternalServerError, wantLevel: zapcore.ErrorLevel},
+		{name: "client error", status: http.StatusBadRequest, wantLevel: zapcore.InfoLevel},
+		{name: "server error", status: http.StatusInternalServerError, wantLevel: zapcore.InfoLevel},
 	}
 
 	for _, testCase := range testCases {

@@ -243,7 +243,7 @@ func runDevSupervisorWithAirConfig(cmd *cobra.Command, opts devOptions, withAir 
 	if withAir {
 		if err := supervisor.startAir(runCtx, cmd, configPath); err != nil {
 			if shutdownErr := supervisor.shutdown(cmd); shutdownErr != nil {
-				return fmt.Errorf("%w; cleanup failed: %v", err, shutdownErr)
+				return errors.Join(err, fmt.Errorf("cleanup failed: %w", shutdownErr))
 			}
 			return err
 		}

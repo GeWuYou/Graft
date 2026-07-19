@@ -110,7 +110,7 @@ func (r *CronRuntime) CreateTask(ctx context.Context, command TaskMutation) (Tas
 	}
 	if err := r.refreshDefinitionSchedule(created); err != nil {
 		if rollbackErr := r.tasks.DeleteTask(ctx, created.TaskKey); rollbackErr != nil {
-			return TaskSnapshot{}, fmt.Errorf("refresh scheduler task %s: %w (rollback failed: %v)", created.TaskKey, err, rollbackErr)
+			return TaskSnapshot{}, fmt.Errorf("refresh scheduler task %s: %w", created.TaskKey, errors.Join(err, fmt.Errorf("rollback task definition: %w", rollbackErr)))
 		}
 		return TaskSnapshot{}, err
 	}

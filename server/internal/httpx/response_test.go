@@ -2,15 +2,146 @@ package httpx
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
+	"graft/server/internal/apperror"
 	"graft/server/internal/config"
+	"graft/server/internal/contract/errorcode"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/i18n"
 )
+
+func TestRequestIDMiddlewareAttachesCorrelationBeforeHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	engine.Use(RequestIDMiddleware())
+	engine.GET("/items/:id", func(ctx *gin.Context) {
+		correlation, ok := RequestAuditContextFromContext(ctx.Request.Context())
+		if !ok {
+			t.Fatal("expected correlation context before handler execution")
+		}
+		if correlation.RequestID != "req-1" || correlation.TraceID != "trace-1" {
+			t.Fatalf("expected incoming correlation ids, got %#v", correlation)
+		}
+		if correlation.Route != "/items/:id" || correlation.Method != http.MethodGet {
+			t.Fatalf("expected route and method, got %#v", correlation)
+		}
+		ctx.Status(http.StatusNoContent)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/items/7", nil)
+	request.Header.Set(RequestIDHeader, "req-1")
+	request.Header.Set(traceIDFallbackHeader, "trace-1")
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+}
+
+func TestWriteAppErrorLogsOnlyUnreportedInternalCause(t *testing.T) {
+	testCases := []struct {
+		name       string
+		err        error
+		wantLogs   int
+		wantStatus int
+	}{
+		{
+			name: "expected not found",
+			err: apperror.New(apperror.Descriptor{
+				Kind: apperror.KindNotFound, Code: errorcode.CommonNotFound, MessageKey: messagecontract.CommonNotFound,
+			}),
+			wantStatus: http.StatusNotFound,
+		},
+		{name: "unknown internal", err: errors.New("sql: connection refused"), wantLogs: 1, wantStatus: http.StatusInternalServerError},
+		{name: "reported internal", err: apperror.MarkReported(errors.New("docker unavailable")), wantStatus: http.StatusInternalServerError},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			core, observed := observer.New(zapcore.ErrorLevel)
+			engine := gin.New()
+			engine.Use(RequestIDMiddleware())
+			engine.GET("/failure", func(ctx *gin.Context) {
+				WriteAppError(ctx, nil, zap.New(core), testCase.err)
+			})
+			recorder := httptest.NewRecorder()
+			engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/failure", nil))
+
+			if recorder.Code != testCase.wantStatus {
+				t.Fatalf("expected status %d, got %d", testCase.wantStatus, recorder.Code)
+			}
+			if len(observed.All()) != testCase.wantLogs {
+				t.Fatalf("expected %d fallback logs, got %d", testCase.wantLogs, len(observed.All()))
+			}
+			if testCase.wantStatus == http.StatusInternalServerError && strings.Contains(recorder.Body.String(), testCase.err.Error()) {
+				t.Fatalf("expected internal cause to stay out of response: %s", recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestWriteLocalizedErrorUsesTraceIDWhenRequestAndTraceDiffer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	engine.GET("/failure", func(inner *gin.Context) {
+		WriteLocalizedError(inner, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+	})
+	request := httptest.NewRequest(http.MethodGet, "/failure", nil)
+	request.Header.Set(RequestIDHeader, "request-1")
+	request.Header.Set(traceIDFallbackHeader, "trace-1")
+	ctx.Request = request
+	engine.HandleContext(ctx)
+
+	var payload ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.TraceID != "trace-1" {
+		t.Fatalf("expected trace id in error response, got %#v", payload)
+	}
+	if recorder.Header().Get(RequestIDHeader) != "request-1" {
+		t.Fatalf("expected request id response header, got %q", recorder.Header().Get(RequestIDHeader))
+	}
+}
+
+func TestWriteAppErrorRejectsUnsupportedDescriptorKind(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	err := apperror.New(apperror.Descriptor{
+		Kind:       apperror.Kind("unexpected"),
+		Code:       errorcode.Code("PRIVATE_CODE"),
+		MessageKey: messagecontract.Key("private.detail"),
+		PublicData: map[string]any{"secret": "must not leak"},
+	})
+	engine.GET("/failure", func(inner *gin.Context) {
+		WriteAppError(inner, nil, zap.NewNop(), err)
+	})
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/failure", nil)
+	engine.HandleContext(ctx)
+
+	var payload ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Code != errorcode.CommonInternalError.String() || payload.MessageKey != messagecontract.CommonInternalError.String() {
+		t.Fatalf("expected safe internal descriptor, got %#v", payload)
+	}
+	if payload.Data != nil || strings.Contains(recorder.Body.String(), "must not leak") {
+		t.Fatalf("expected unsupported descriptor data to stay out of response: %s", recorder.Body.String())
+	}
+}
 
 func assertLocalizedErrorEnvelope(t *testing.T, payload ErrorResponse) {
 	t.Helper()

@@ -12,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/eventbus"
 	"graft/server/internal/moduleapi"
@@ -19,6 +21,15 @@ import (
 
 type explorerDeleteRepoRecorder struct {
 	deletedIDs []uint64
+}
+
+type explorerListFailureRepo struct {
+	explorerDeleteRepoRecorder
+	err error
+}
+
+func (r explorerListFailureRepo) ListAppLogs(context.Context, AppLogListQuery) (AppLogListResult, error) {
+	return AppLogListResult{}, r.err
 }
 
 func (r *explorerDeleteRepoRecorder) CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error) {
@@ -72,6 +83,30 @@ func TestBindAppLogListQueryParsesSorters(t *testing.T) {
 	}
 	if query.Sorters[1] != (AppLogSorter{Field: AppLogSortFieldOccurredAt, Order: AppLogSortOrderDesc}) {
 		t.Fatalf("unexpected second sorter: %#v", query.Sorters[1])
+	}
+}
+
+// TestHandleListAppLogsLogsUnexpectedRepositoryFailure 验证 Explorer 不暴露仓储原因，并由统一 HTTP 边界记录一次 fallback。
+func TestHandleListAppLogsLogsUnexpectedRepositoryFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	core, observed := observer.New(zapcore.ErrorLevel)
+	restoreGlobals := zap.ReplaceGlobals(zap.New(core))
+	t.Cleanup(restoreGlobals)
+
+	cause := errors.New("app log storage unavailable")
+	router := gin.New()
+	router.GET("/app-log", handleListAppLogs(nil, &explorerListFailureRepo{err: cause}))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/app-log", nil))
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
+	if strings.Contains(recorder.Body.String(), cause.Error()) {
+		t.Fatalf("expected internal cause to stay out of response: %s", recorder.Body.String())
+	}
+	if len(observed.All()) != 1 || observed.All()[0].Message != "unreported internal error" {
+		t.Fatalf("expected one HTTP fallback error, got %#v", observed.All())
 	}
 }
 

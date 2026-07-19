@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	auditopenapi "graft/server/internal/contract/openapi/audit"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	auditstore "graft/server/modules/audit/store"
@@ -22,20 +22,20 @@ func handleReadAuditVisibilityPolicy(
 	moduleName string,
 	reader auditReader,
 ) gin.HandlerFunc {
-	logger := auditRouteLogger(ctx)
-
 	return func(ginCtx *gin.Context) {
 		result, err := reader.VisibilityPolicy(withAuditRequestLocale(ginCtx, ctx))
 		if err != nil {
-			logger.Error("read audit visibility policy failed", zap.String("module", moduleName), zap.Error(err))
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := reportAuditRouteError(ginCtx, ctx, "read audit visibility policy failed", err,
+				logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "read_audit_visibility_policy"))
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 
 		payload, mapErr := toAuditVisibilityPolicyResponse(result)
 		if mapErr != nil {
-			logger.Error("map audit visibility policy failed", zap.String("module", moduleName), zap.Error(mapErr))
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := reportAuditRouteError(ginCtx, ctx, "map audit visibility policy failed", mapErr,
+				logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "map_audit_visibility_policy_response"))
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 
@@ -49,8 +49,6 @@ func handleUpdateAuditVisibilityDefault(
 	moduleName string,
 	reader auditReader,
 ) gin.HandlerFunc {
-	logger := auditRouteLogger(ctx)
-
 	return func(ginCtx *gin.Context) {
 		var request auditopenapi.PutAuditVisibilityPolicyJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
@@ -68,14 +66,15 @@ func handleUpdateAuditVisibilityDefault(
 			username,
 		)
 		if err != nil {
-			handleAuditVisibilityWriteError(ginCtx, ctx, logger, moduleName, err)
+			handleAuditVisibilityWriteError(ginCtx, ctx, moduleName, err)
 			return
 		}
 
 		payload, mapErr := toAuditVisibilityDefaultResponse(item)
 		if mapErr != nil {
-			logger.Error("map audit visibility default failed", zap.String("module", moduleName), zap.Error(mapErr))
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := reportAuditRouteError(ginCtx, ctx, "map audit visibility default failed", mapErr,
+				logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "map_audit_visibility_default_response"))
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 
@@ -90,8 +89,6 @@ func handleUpsertAuditVisibilityOverride(
 	moduleName string,
 	reader auditReader,
 ) gin.HandlerFunc {
-	logger := auditRouteLogger(ctx)
-
 	return func(ginCtx *gin.Context) {
 		var request auditopenapi.PutAuditVisibilityOverrideJSONRequestBody
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
@@ -120,14 +117,15 @@ func handleUpsertAuditVisibilityOverride(
 			},
 		)
 		if err != nil {
-			handleAuditVisibilityWriteError(ginCtx, ctx, logger, moduleName, err)
+			handleAuditVisibilityWriteError(ginCtx, ctx, moduleName, err)
 			return
 		}
 
 		payload, mapErr := toAuditVisibilityOverrideResponse(item)
 		if mapErr != nil {
-			logger.Error("map audit visibility override failed", zap.String("module", moduleName), zap.Error(mapErr))
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+			reported := reportAuditRouteError(ginCtx, ctx, "map audit visibility override failed", mapErr,
+				logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "map_audit_visibility_override_response"))
+			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
 
@@ -142,8 +140,6 @@ func handleDeleteAuditVisibilityOverride(
 	moduleName string,
 	reader auditReader,
 ) gin.HandlerFunc {
-	logger := auditRouteLogger(ctx)
-
 	return func(ginCtx *gin.Context) {
 		source := strings.TrimSpace(ginCtx.Query("source"))
 		actionKey := strings.TrimSpace(ginCtx.Query("action_key"))
@@ -163,7 +159,7 @@ func handleDeleteAuditVisibilityOverride(
 			auditstore.AuditSource(source),
 			actionKey,
 		); err != nil {
-			handleAuditVisibilityWriteError(ginCtx, ctx, logger, moduleName, err)
+			handleAuditVisibilityWriteError(ginCtx, ctx, moduleName, err)
 			return
 		}
 
@@ -196,7 +192,6 @@ func currentAuditActor(ginCtx *gin.Context) (*uint64, string) {
 func handleAuditVisibilityWriteError(
 	ginCtx *gin.Context,
 	ctx *module.Context,
-	logger *zap.Logger,
 	moduleName string,
 	err error,
 ) {
@@ -205,15 +200,7 @@ func handleAuditVisibilityWriteError(
 		return
 	}
 
-	logger.Error("write audit visibility policy failed", zap.String("module", moduleName), zap.Error(err))
-	httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
-}
-
-// auditRouteLogger 返回审计路由使用的日志器。
-// 当提供了有效的上下文且其中包含日志器时，返回该日志器；否则返回一个空日志器。
-func auditRouteLogger(ctx *module.Context) *zap.Logger {
-	if ctx != nil && ctx.Logger != nil {
-		return ctx.Logger
-	}
-	return zap.NewNop()
+	reported := reportAuditRouteError(ginCtx, ctx, "write audit visibility policy failed", err,
+		logger.StringField("module", moduleName), logger.StringField(logger.FieldOperation, "write_audit_visibility_policy"))
+	httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 }

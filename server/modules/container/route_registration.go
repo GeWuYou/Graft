@@ -16,6 +16,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	containeropenapi "graft/server/internal/contract/openapi/container"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
@@ -516,7 +517,7 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) b
 	}
 	authorizer, err := resolveAuthorizer(r.ctx)
 	if err != nil {
-		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 		return false
 	}
 	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
@@ -525,6 +526,10 @@ func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) b
 		return false
 	}
 	if err := authorizer.Authorize(ginCtx.Request.Context(), requestAuth, permission); err != nil {
+		if !errors.Is(err, moduleapi.ErrPermissionDenied) {
+			httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
+			return false
+		}
 		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusForbidden, messagecontract.AuthForbidden.String(), map[string]any{
 			"permission": permission,
 		})
@@ -587,7 +592,20 @@ func readRef(ginCtx *gin.Context, r routeRuntime) (Ref, bool) {
 }
 
 func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
-	httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, statusForError(err), messageKeyForError(err).String(), nil)
+	status := statusForError(err)
+	if status != http.StatusInternalServerError {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, status, messageKeyForError(err).String(), nil)
+		return
+	}
+
+	reported := err
+	if r.ctx.AppLogger != nil {
+		reported = logger.ReportError(ginCtx.Request.Context(), r.ctx.AppLogger.Named("modules.container.http"), "container request failed", err,
+			logger.StringField("module", moduleID),
+			logger.StringField(logger.FieldOperation, ginCtx.FullPath()),
+		)
+	}
+	httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
 }
 
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {

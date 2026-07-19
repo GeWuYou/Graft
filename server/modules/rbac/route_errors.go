@@ -1,18 +1,27 @@
 package rbac
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	rbacstore "graft/server/modules/rbac/store"
 )
+
+func reportRBACRouteError(ctx context.Context, moduleCtx *module.Context, message string, err error, fields ...logger.Field) error {
+	if moduleCtx == nil || moduleCtx.AppLogger == nil {
+		return err
+	}
+	return logger.ReportError(ctx, moduleCtx.AppLogger.Named("modules.rbac.route"), message, err, fields...)
+}
 
 type rbacManagementErrorMapping struct {
 	status  int
@@ -24,20 +33,17 @@ type rbacManagementErrorMapping struct {
 func writeRBACManagementError(
 	ginCtx *gin.Context,
 	localizer *i18n.Service,
-	logger *zap.Logger,
-	moduleName string,
+	runtimeLogger *zap.Logger,
+	_ string,
 	err error,
 	invalidField string,
 ) {
 	mapping := rbacManagementErrorResponse(err, invalidField)
-	if !mapping.known {
-		logger.Error("rbac management write failed",
-			zap.String("module", moduleName),
-			zap.Error(err),
-		)
+	if mapping.known {
+		writeLocalizedContractError(ginCtx, localizer, mapping.status, mapping.key, mapping.details)
+		return
 	}
-
-	writeLocalizedContractError(ginCtx, localizer, mapping.status, mapping.key, mapping.details)
+	httpx.AbortAppError(ginCtx, localizer, runtimeLogger, err)
 }
 
 func rbacManagementErrorResponse(

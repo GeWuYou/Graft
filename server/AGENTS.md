@@ -654,6 +654,11 @@ shared hotspot 处理规则如下：
 - 显式处理 `error`
 - 包装错误统一使用 `fmt.Errorf("context: %w", err)`
 - 错误上下文必须说明当前操作
+- 一个同步错误只由最了解业务或运行时语义的 owner 记录一次；其它层保留 cause 并返回
+- service / workflow 使用注入的 `AppLogger` 与 `logger.ReportError` 记录系统失败，并返回 reported error
+- handler 使用 `httpx.WriteAppError` / `httpx.AbortAppError` 映射错误，不重复记录 ERROR
+- repository / adapter 对可传播失败默认只 `%w` 包装；只有无法传播的自有失败才在本层记录
+- typed AppError 的 cause 不得进入 HTTP message、data 或其它公开字段
 - 不为了过编译吞错、返回无理由 `nil`、或用空分支掩盖失败路径
 - 除启动期不可恢复的编程错误外，底层逻辑不直接 `panic`
 - handler 不把底层数据库错误直接返回给前端
@@ -671,6 +676,9 @@ shared hotspot 处理规则如下：
 
 - 业务日志统一通过日志模块输出；不要用 `fmt.Println` 或 `log.Println`
 - 请求链路日志应带稳定请求标识
+- Access Log 只记录请求事实且 console severity 固定为 `INFO`，不得因 4xx/5xx 解释错误原因
+- 只有统一 Recovery middleware 为未处理 panic 记录真实 stack；普通返回错误不伪造 stack
+- 预期的 400/401/403/404/409 默认不写 ERROR；安全拒绝继续进入 Security Event authority
 - 不记录 password、token、secret、cookie、authorization header 等敏感值
 - 高频路径不要滥打 `info/debug`
 - 导出类型、函数、常量写 GoDoc，首句以标识符开头

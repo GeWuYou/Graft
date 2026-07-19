@@ -24,7 +24,7 @@ func (s *Service) parseImportRequest(
 		EnvFiles:      request.EnvFiles,
 	})
 	if err != nil {
-		return projectcompose.Result{}, ImportValidationResult{}, fmt.Errorf("%w: %v", errProjectImportValidation, err)
+		return projectcompose.Result{}, ImportValidationResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
 	canonicalName := parseResult.ComposeProjectName
 	canonicalNameSource := parseResult.CanonicalNameSource

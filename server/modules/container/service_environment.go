@@ -368,7 +368,7 @@ func (s *service) normalizeLogQuery(ctx context.Context, query LogQuery) (LogQue
 	}
 	if query.Since != "" {
 		if _, err := parseLogSince(query.Since); err != nil {
-			return LogQuery{}, fmt.Errorf("%w: %v", errInvalidLogQuery, err)
+			return LogQuery{}, fmt.Errorf("%w: %w", errInvalidLogQuery, err)
 		}
 	}
 	return query, nil
