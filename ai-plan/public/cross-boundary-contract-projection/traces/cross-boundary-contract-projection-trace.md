@@ -16,20 +16,27 @@
 - Preserve existing OpenAPI generation; projection follows it and reuses its artifacts.
 - Run generation in authority order and block uncommitted derived output, duplicate semantic ownership, invalid visibility and lifecycle drift.
 
+## 2026-07-19 Batch 1: generator foundation
+
+- Added `server/internal/contract/projection` as a metadata index and renderer, not a new contract authority. `Registry` values reference existing `errorcode.Code`, `message.Key`, `httpheader.Name`, and `auth.Scheme` constants.
+- Added an explicit Go generator with write and `--check` modes. Check mode renders in memory and compares the tracked `web/src/contracts/generated/platform.ts` artifact without writing it.
+- Generated platform error code, message key, HTTP header, and auth-scheme literal objects plus union types. An internal-only header descriptor proves visibility filtering and is absent from web output.
+- Added focused validation for deterministic generation order, duplicate/lifecycle metadata rejection, visibility filtering, and AST verification that registry `Value` fields are existing typed constant selectors rather than copied literals.
+- Updated `just generate` to run OpenAPI bundle before Go bindings, then web OpenAPI types and cross-boundary projection. `just openapi-check` now includes projection freshness; PR CI wiring remains the later `ci-integration` batch.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake"],
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation"],
   "pending_batches": [
-    "generator-foundation",
     "pilot-migration",
     "ci-integration",
     "broader-migration-and-final-archive-readiness"
   ],
-  "current_batch": "batch-0-contract-projection-intake",
-  "next_batch": "generator-foundation",
+  "current_batch": "generator-foundation",
+  "next_batch": "pilot-migration",
   "closeout_status": "committed"
 }
 ```

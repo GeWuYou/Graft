@@ -45,13 +45,13 @@ ADR is not required: this applies the existing authority-first and contract-gove
 ## Current Recovery Point
 
 - Batch 0 established the active topic, repository-wide design and phased roadmap.
-- No implementation authority has moved; generator details must be grounded in existing OpenAPI/codegen before edits.
-- Next action: `generator-foundation`.
+- Batch 1 added the platform contract projection foundation. Its descriptor metadata references existing typed Go constants, filters `visibility=web`, and emits deterministic TypeScript without changing canonical ownership.
+- Next action: `pilot-migration`.
 
 ## Task Checklist
 
 - [x] batch-0-contract-projection-intake
-- [ ] generator-foundation
+- [x] generator-foundation
 - [ ] pilot-migration
 - [ ] ci-integration
 - [ ] broader-migration-and-final-archive-readiness
@@ -68,15 +68,14 @@ ADR is not required: this applies the existing authority-first and contract-gove
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake"],
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation"],
   "pending_batches": [
-    "generator-foundation",
     "pilot-migration",
     "ci-integration",
     "broader-migration-and-final-archive-readiness"
   ],
-  "current_batch": "batch-0-contract-projection-intake",
-  "next_batch": "generator-foundation",
+  "current_batch": "generator-foundation",
+  "next_batch": "pilot-migration",
   "closeout_status": "committed"
 }
 ```
