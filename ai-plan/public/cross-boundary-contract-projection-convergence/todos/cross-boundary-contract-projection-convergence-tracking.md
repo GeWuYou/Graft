@@ -74,13 +74,13 @@ closeout:
     "rbac-user-api-path-migration"
   ],
   "pending_batches": [
-    "audit-monitor-scheduler-system-config-api-path-migration",
+    "scheduled-task-system-config-api-path-migration",
     "security-announcement-app-log-access-log-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "rbac-user-api-path-migration",
-  "next_batch": "audit-monitor-scheduler-system-config-api-path-migration",
+  "current_batch": "audit-monitor-api-path-migration",
+  "next_batch": "scheduled-task-system-config-api-path-migration",
   "closeout_status": "completed"
 }
 ```

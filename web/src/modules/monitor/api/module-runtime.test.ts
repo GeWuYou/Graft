@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { buildModuleRuntimeDetailApiPath, MONITOR_API_PATH } from '../contract/paths';
 import { getModuleRuntimeDetail, getModuleRuntimeSnapshot } from './module-runtime';
 
 vi.mock('@/utils/request', () => ({
@@ -19,7 +19,7 @@ describe('monitor module-runtime api', () => {
     await getModuleRuntimeSnapshot();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: MONITOR_API_PATH.MODULE_RUNTIME,
+      url: OPENAPI_RUNTIME_PATH.getModulesRuntime,
     });
   });
 
@@ -30,8 +30,7 @@ describe('monitor module-runtime api', () => {
     await getModuleRuntimeDetail('audit/log');
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildModuleRuntimeDetailApiPath('audit/log'),
+      url: buildOpenApiRuntimePath('getModulesRuntimeModule', { module_key: 'audit/log' }),
     });
-    expect(buildModuleRuntimeDetailApiPath('audit/log')).toBe('/api/modules/runtime/audit%2Flog');
   });
 });

@@ -1,12 +1,12 @@
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { createLogger } from '@/utils/logger';
 import { request } from '@/utils/request';
 
-import { MONITOR_API_PATH } from '../contract/paths';
 import type { MonitorTrendRange } from '../contract/trend';
 import type { ServerStatusResponse } from '../types/server-status';
 
-type MonitorServerStatusPath = (typeof MONITOR_API_PATH)['SERVER_STATUS'];
+type MonitorServerStatusPath = typeof OPENAPI_RUNTIME_PATH.getMonitorServerStatus;
 type GetMonitorServerStatusOperation = paths[MonitorServerStatusPath]['get'];
 type GetMonitorServerStatusQuery = NonNullable<GetMonitorServerStatusOperation['parameters']['query']>;
 type GetMonitorServerStatusEnvelope = GetMonitorServerStatusOperation['responses'][200]['content']['application/json'];
@@ -77,7 +77,7 @@ export async function getServerStatus(trendRange: MonitorTrendRange) {
   };
 
   const response = (await request.get<GetMonitorServerStatusData>({
-    url: MONITOR_API_PATH.SERVER_STATUS,
+    url: OPENAPI_RUNTIME_PATH.getMonitorServerStatus,
     params,
   })) as ServerStatusResponse;
 
