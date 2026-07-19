@@ -107,28 +107,39 @@ func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) Docker
 	filtered := make([]DockerVolume, 0, len(items))
 	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
 	for _, item := range items {
-		if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
-			continue
+		if dockerVolumeMatchesQuery(item, query, keyword) {
+			filtered = append(filtered, item)
 		}
-		if query.Driver != "" && item.Driver != query.Driver {
-			continue
-		}
-		if query.Scope != "" && item.Scope != query.Scope {
-			continue
-		}
-		if query.Usage == "used" && (item.ReferenceCount == nil || *item.ReferenceCount == 0) {
-			continue
-		}
-		if query.Usage == "unused" && item.ReferenceCount != nil && *item.ReferenceCount > 0 {
-			continue
-		}
-		filtered = append(filtered, item)
 	}
 	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Name < filtered[j].Name })
 	total := len(filtered)
 	start := min(query.Offset, total)
 	end := min(start+query.Limit, total)
 	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset}
+}
+
+func dockerVolumeMatchesQuery(item DockerVolume, query DockerVolumeListQuery, keyword string) bool {
+	if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
+		return false
+	}
+	if query.Driver != "" && item.Driver != query.Driver {
+		return false
+	}
+	if query.Scope != "" && item.Scope != query.Scope {
+		return false
+	}
+	return dockerVolumeUsageMatches(item.ReferenceCount, query.Usage)
+}
+
+func dockerVolumeUsageMatches(referenceCount *int64, usage string) bool {
+	switch usage {
+	case "used":
+		return referenceCount != nil && *referenceCount > 0
+	case "unused":
+		return referenceCount == nil || *referenceCount == 0
+	default:
+		return true
+	}
 }
 
 // DockerResourceReader marks a runtime that can list Docker-native resources.
@@ -313,6 +324,7 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	return dockerVolume(item), nil
 }
 
+// RemoveDockerVolume 删除指定 Docker 数据卷；运行时错误会先映射为模块级错误。
 func (r *DockerRuntime) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {

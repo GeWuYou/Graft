@@ -273,6 +273,7 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerStopPermission.String(),
 		containercontract.ContainerRestartPermission.String(),
 		containercontract.ContainerRemovePermission.String(),
+		containercontract.ContainerVolumeRemovePermission.String(),
 		containercontract.DockerImagePullPermission.String(),
 		containercontract.DockerImageTagPermission.String(),
 		containercontract.DockerImageUntagPermission.String(),
@@ -284,8 +285,8 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 3 {
-		t.Fatalf("expected Docker group and its two management entries, got %#v", items)
+	if len(items) != 4 {
+		t.Fatalf("expected Docker group and its three management entries, got %#v", items)
 	}
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "docker",
@@ -308,6 +309,15 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
 	assertMenuItem(t, items, expectedMenuItem{
+		code:                     "docker.volume.list",
+		title:                    "",
+		titleKey:                 containercontract.DockerVolumeMenuTitle.String(),
+		path:                     containercontract.DockerVolumeMenuPath,
+		icon:                     "database",
+		permission:               containercontract.ContainerViewPermission.String(),
+		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+	})
+	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "container.list",
 		title:                    "",
 		titleKey:                 containercontract.ContainerListMenuTitle.String(),
@@ -324,6 +334,9 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	}
 	if items[2].ParentCode != "docker" || items[2].Kind != menu.NodeKindEntry {
 		t.Fatalf("image management must be a Docker child entry, got %#v", items[2])
+	}
+	if items[3].ParentCode != "docker" || items[3].Kind != menu.NodeKindEntry {
+		t.Fatalf("volume management must be a Docker child entry, got %#v", items[3])
 	}
 }
 
@@ -358,6 +371,9 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 	for _, key := range []string{
 		containercontract.ContainerMenuTitle.String(),
 		containercontract.ContainerListMenuTitle.String(),
+		containercontract.DockerVolumeMenuTitle.String(),
+		containercontract.DockerVolumeNotFound.String(),
+		containercontract.DockerVolumeConflict.String(),
 		containercontract.ContainerMenuSectionTitle.String(),
 		containercontract.ContainerInvalidRef.String(),
 		containercontract.ContainerShellDisabled.String(),

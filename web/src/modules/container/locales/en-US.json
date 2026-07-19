@@ -155,6 +155,9 @@
       "title": "Docker",
       "image": {
         "title": "Images"
+      },
+      "dockerVolume": {
+        "title": "Volumes"
       }
     },
     "container": {

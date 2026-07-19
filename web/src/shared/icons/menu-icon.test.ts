@@ -1,4 +1,5 @@
 import box from '@iconify-icons/lucide/box';
+import database from '@iconify-icons/lucide/database';
 import imageIcon from '@iconify-icons/lucide/image';
 import docker from '@iconify-icons/tabler/brand-docker';
 import { describe, expect, it } from 'vitest';
@@ -16,6 +17,10 @@ describe('resolveMenuIcon', () => {
 
   it('uses the Lucide image icon for image menus', () => {
     expect(resolveMenuIcon('image')).toEqual(imageIcon);
+  });
+
+  it('uses the Lucide database icon for volume menus', () => {
+    expect(resolveMenuIcon('database')).toEqual(database);
   });
 
   it('keeps application and runtime targets semantically distinct', () => {

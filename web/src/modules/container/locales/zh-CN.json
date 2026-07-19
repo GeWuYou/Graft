@@ -155,6 +155,9 @@
       "title": "Docker",
       "image": {
         "title": "镜像"
+      },
+      "dockerVolume": {
+        "title": "数据卷"
       }
     },
     "container": {

@@ -4,19 +4,33 @@ import { containerBootstrapRouteRegistrations, containerGlobalRouteRegistrations
 
 describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
-    expect(containerBootstrapRouteRegistrations).toHaveLength(2);
-    expect(containerBootstrapRouteRegistrations[0]).toMatchObject({
-      menuPath: '/infrastructure/docker/containers',
-      routeName: 'ContainerList',
-    });
-    expect(containerBootstrapRouteRegistrations[1]).toMatchObject({
-      menuPath: '/infrastructure/images',
-      routeName: 'DockerImageList',
-    });
+    expect(containerBootstrapRouteRegistrations).toHaveLength(3);
+    expect(containerBootstrapRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        menuPath: '/infrastructure/docker/containers',
+        routeName: 'ContainerList',
+      }),
+    );
+    expect(containerBootstrapRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        menuPath: '/infrastructure/images',
+        routeName: 'DockerImageList',
+      }),
+    );
+    expect(containerBootstrapRouteRegistrations).toContainEqual(
+      expect.objectContaining({
+        menuPath: '/infrastructure/docker/volumes',
+        routeName: 'DockerVolumeList',
+      }),
+    );
   });
 
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
-    expect(containerBootstrapRouteRegistrations[0]?.meta).toMatchObject({
+    const containerRoute = containerBootstrapRouteRegistrations.find((route) => route.routeName === 'ContainerList');
+    const imageRoute = containerBootstrapRouteRegistrations.find((route) => route.routeName === 'DockerImageList');
+    const volumeRoute = containerBootstrapRouteRegistrations.find((route) => route.routeName === 'DockerVolumeList');
+
+    expect(containerRoute?.meta).toMatchObject({
       tabGroup: 'infrastructure',
       semanticTitle: {
         'zh-CN': '容器管理',
@@ -31,23 +45,29 @@ describe('container bootstrap route registrations', () => {
         'en-US': 'Containers',
       },
     });
-    expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('title');
-    expect(containerBootstrapRouteRegistrations[0]?.meta).not.toHaveProperty('titleKey');
-    expect(containerBootstrapRouteRegistrations[1]?.meta).toMatchObject({
+    expect(containerRoute?.meta).not.toHaveProperty('title');
+    expect(containerRoute?.meta).not.toHaveProperty('titleKey');
+    expect(imageRoute?.meta).toMatchObject({
       tabGroup: 'infrastructure',
     });
-    expect(containerBootstrapRouteRegistrations[1]?.meta?.semanticTitle).toBeDefined();
-    expect(containerBootstrapRouteRegistrations[1]?.meta?.tabTitle).toBeDefined();
-    expect(containerBootstrapRouteRegistrations[1]?.meta?.breadcrumbTitle).toBeDefined();
-    expect(containerBootstrapRouteRegistrations[1]?.meta).not.toHaveProperty('title');
-    expect(containerBootstrapRouteRegistrations[1]?.meta).not.toHaveProperty('titleKey');
+    expect(imageRoute?.meta?.semanticTitle).toBeDefined();
+    expect(imageRoute?.meta?.tabTitle).toBeDefined();
+    expect(imageRoute?.meta?.breadcrumbTitle).toBeDefined();
+    expect(imageRoute?.meta).not.toHaveProperty('title');
+    expect(imageRoute?.meta).not.toHaveProperty('titleKey');
+    expect(volumeRoute?.meta).toMatchObject({
+      tabGroup: 'infrastructure',
+      pageKind: 'list',
+    });
+    expect(volumeRoute?.meta).not.toHaveProperty('title');
+    expect(volumeRoute?.meta).not.toHaveProperty('titleKey');
   });
 
   it('registers the detail page as a menu-hidden global route', () => {
-    expect(containerGlobalRouteRegistrations).toHaveLength(2);
-    expect(containerGlobalRouteRegistrations[1]).toMatchObject({
+    expect(containerGlobalRouteRegistrations).toHaveLength(3);
+    const detailRoute = containerGlobalRouteRegistrations.find((route) => route.routeName === 'ContainerDetail');
+    expect(detailRoute).toMatchObject({
       path: '/infrastructure/docker/containers/:id',
-      pageRouteName: 'ContainerDetailIndex',
       routeName: 'ContainerDetail',
       meta: {
         hidden: false,
@@ -60,7 +80,8 @@ describe('container bootstrap route registrations', () => {
   });
 
   it('registers image management as a visible Docker child menu route', () => {
-    expect(containerBootstrapRouteRegistrations[1]).toMatchObject({
+    const imageRoute = containerBootstrapRouteRegistrations.find((route) => route.routeName === 'DockerImageList');
+    expect(imageRoute).toMatchObject({
       menuPath: '/infrastructure/images',
       routeName: 'DockerImageList',
       meta: {
