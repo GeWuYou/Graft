@@ -447,8 +447,6 @@ def is_definition_context(path: str, line_text: str, value: str) -> bool:
         return True
     if path.startswith("web/src/modules/") and "/contract/permissions." in path:
         return True
-    if path.startswith("web/src/modules/") and "/contract/paths." in path and API_PATH_RE.match(value):
-        return True
     if path.startswith("web/src/api/model/") and "API_CODE" in line_text:
         return True
     if path == "web/src/router/index.ts" and value == "/auth/restricted-session":

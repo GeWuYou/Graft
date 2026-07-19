@@ -73,9 +73,9 @@ class DefinitionContextTests(unittest.TestCase):
             )
         )
 
-    def test_web_module_api_path_contract_is_canonical_definition_context(self) -> None:
-        """Module-owned API path contracts may define canonical API path literals."""
-        self.assertTrue(
+    def test_web_module_api_path_contract_is_not_definition_context(self) -> None:
+        """OpenAPI, not a web module, owns HTTP API path literals."""
+        self.assertFalse(
             MODULE.is_definition_context(
                 "web/src/modules/auth/contract/paths.ts",
                 "  REFRESH: '/api/auth/refresh',",
