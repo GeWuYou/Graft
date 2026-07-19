@@ -31,6 +31,7 @@ const (
 	defaultContainerListLimit     = 20
 	maxContainerListLimit         = 100
 	maxContainerBatchActionIDs    = 100
+	maxDockerVolumeBatchRemoveIDs = 50
 	containerListKeywordMaxLength = 128
 	containerShortIDLength        = 12
 

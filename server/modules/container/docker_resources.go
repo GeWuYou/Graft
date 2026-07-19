@@ -24,6 +24,7 @@ type dockerResourceClient interface {
 	NetworkList(context.Context, mobyclient.NetworkListOptions) ([]network.Summary, error)
 	NetworkInspect(context.Context, string, mobyclient.NetworkInspectOptions) (network.Inspect, error)
 	VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error)
+	VolumeDiskUsage(context.Context) ([]volume.Volume, error)
 	VolumeInspect(context.Context, string) (volume.Volume, error)
 	VolumeRemove(context.Context, string, bool) error
 }
@@ -136,7 +137,7 @@ func dockerVolumeUsageMatches(referenceCount *int64, usage string) bool {
 	case "used":
 		return referenceCount != nil && *referenceCount > 0
 	case "unused":
-		return referenceCount == nil || *referenceCount == 0
+		return referenceCount != nil && *referenceCount == 0
 	default:
 		return true
 	}
@@ -304,14 +305,34 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
+	usage, usageErr := client.VolumeDiskUsage(ctx)
+	usageByName := make(map[string]volume.UsageData, len(usage))
+	if usageErr == nil {
+		for _, item := range usage {
+			if item.UsageData != nil {
+				usageByName[item.Name] = *item.UsageData
+			}
+		}
+	}
 	items := make([]DockerVolume, 0, len(result))
 	for _, item := range result {
-		items = append(items, dockerVolume(item))
+		projected := dockerVolume(item)
+		if data, ok := usageByName[item.Name]; ok {
+			projected.ReferenceCount, projected.SizeBytes = nullableUsage(data.RefCount), nullableUsage(data.Size)
+		}
+		items = append(items, projected)
 	}
 	return items, nil
 }
 
-// ReadDockerVolume returns one sanitized Docker volume by ID.
+func nullableUsage(value int64) *int64 {
+	if value < 0 {
+		return nil
+	}
+	return &value
+}
+
+// ReadDockerVolume returns one sanitized Docker volume by ID and enriches it with runtime usage data when available.
 func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (DockerVolume, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -321,7 +342,22 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	if err != nil {
 		return DockerVolume{}, mapDockerError(err)
 	}
-	return dockerVolume(item), nil
+	projected := dockerVolume(item)
+	if item.UsageData == nil {
+		usage, usageErr := client.VolumeDiskUsage(ctx)
+		if usageErr == nil {
+			for _, usageItem := range usage {
+				if usageItem.Name == item.Name && usageItem.UsageData != nil {
+					item.UsageData = usageItem.UsageData
+					break
+				}
+			}
+		}
+	}
+	if item.UsageData != nil {
+		projected.ReferenceCount, projected.SizeBytes = nullableUsage(item.UsageData.RefCount), nullableUsage(item.UsageData.Size)
+	}
+	return projected, nil
 }
 
 // RemoveDockerVolume 删除指定 Docker 数据卷；运行时错误会先映射为模块级错误。
@@ -369,13 +405,10 @@ func dockerNetwork(item network.Network, containerCount int) DockerNetwork {
 func dockerVolume(item volume.Volume) DockerVolume {
 	var referenceCount, sizeBytes *int64
 	if item.UsageData != nil {
-		referenceCount = dockerInt64Ptr(item.UsageData.RefCount)
-		sizeBytes = dockerInt64Ptr(item.UsageData.Size)
+		referenceCount = nullableUsage(item.UsageData.RefCount)
+		sizeBytes = nullableUsage(item.UsageData.Size)
 	}
 	return DockerVolume{Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes}
 }
-
-// dockerInt64Ptr returns a pointer to the provided integer value.
-func dockerInt64Ptr(value int64) *int64 { return &value }
 
 var _ DockerResourceReader = (*DockerRuntime)(nil)

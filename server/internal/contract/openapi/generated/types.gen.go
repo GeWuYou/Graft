@@ -7673,6 +7673,30 @@ type DockerVolume struct {
 	SizeBytes      *int64             `json:"size_bytes,omitempty"`
 }
 
+// DockerVolumeBatchRemoveItem defines model for docker-volume-batch-remove-item.
+type DockerVolumeBatchRemoveItem struct {
+	ErrorCode  *string `json:"error_code,omitempty"`
+	Message    *string `json:"message,omitempty"`
+	MessageKey *string `json:"message_key,omitempty"`
+	Name       string  `json:"name"`
+	Success    bool    `json:"success"`
+}
+
+// DockerVolumeBatchRemoveRequest defines model for docker-volume-batch-remove-request.
+type DockerVolumeBatchRemoveRequest struct {
+	Force *bool    `json:"force,omitempty"`
+	Names []string `json:"names"`
+}
+
+// DockerVolumeBatchRemoveResponse defines model for docker-volume-batch-remove-response.
+type DockerVolumeBatchRemoveResponse struct {
+	FailedCount  int                           `json:"failed_count"`
+	Items        []DockerVolumeBatchRemoveItem `json:"items"`
+	RequestId    *string                       `json:"request_id,omitempty"`
+	SuccessCount int                           `json:"success_count"`
+	Total        int                           `json:"total"`
+}
+
 // DockerVolumeListResponse defines model for docker-volume-list-response.
 type DockerVolumeListResponse struct {
 	Items  []DockerVolume `json:"items"`
@@ -9014,6 +9038,26 @@ type EnvelopedDockerVolume struct {
 	// Code Existing canonical response code.
 	Code string       `json:"code"`
 	Data DockerVolume `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerVolumeBatchRemoveResponse defines model for enveloped-docker-volume-batch-remove-response.
+type EnvelopedDockerVolumeBatchRemoveResponse struct {
+	// Code Existing canonical response code.
+	Code string                          `json:"code"`
+	Data DockerVolumeBatchRemoveResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -13084,6 +13128,16 @@ type GetDockerVolumesParams struct {
 // GetDockerVolumesParamsUsage defines parameters for GetDockerVolumes.
 type GetDockerVolumesParamsUsage string
 
+// PostDockerVolumeBatchRemoveParams defines parameters for PostDockerVolumeBatchRemove.
+type PostDockerVolumeBatchRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetDockerVolumeParams defines parameters for GetDockerVolume.
 type GetDockerVolumeParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -13886,6 +13940,9 @@ type PostDockerImageTagJSONRequestBody = DockerImageTagRequest
 
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody = DockerImageUntagRequest
+
+// PostDockerVolumeBatchRemoveJSONRequestBody defines body for PostDockerVolumeBatchRemove for application/json ContentType.
+type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest

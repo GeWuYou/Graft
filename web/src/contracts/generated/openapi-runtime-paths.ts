@@ -155,6 +155,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postDockerImageRemove: '/api/ops/docker/images/{id}/remove',
   postDockerImageTag: '/api/ops/docker/images/{id}/tag',
   postDockerImageUntag: '/api/ops/docker/images/{id}/untag',
+  postDockerVolumeBatchRemove: '/api/ops/docker/volumes/batch-remove',
   postDockerVolumeRemove: '/api/ops/docker/volumes/{id}/remove',
   postMyAnnouncementRead: '/api/my/announcements/{id}/read',
   postMyAnnouncementsReadAll: '/api/my/announcements/read-all',

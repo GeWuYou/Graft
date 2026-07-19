@@ -1,0 +1,20 @@
+post:
+  tags: [container]
+  summary: Remove Docker volumes in batch
+  operationId: postDockerVolumeBatchRemove
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security: [{ bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json: { schema: { $ref: ../components/schemas/docker-volume-batch-remove-request.yaml } }
+  responses:
+    '200':
+      description: Docker volume batch removal result.
+      content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-volume-batch-remove-response.yaml } } }
+    '400': { description: Invalid batch volume removal request., content: { application/json: { schema: { $ref: ../components/schemas/error-response.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

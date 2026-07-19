@@ -2397,6 +2397,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/volumes/batch-remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Remove Docker volumes in batch */
+    post: operations['postDockerVolumeBatchRemove'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/volumes/{id}': {
     parameters: {
       query?: never;
@@ -3677,6 +3694,10 @@ export interface components {
     DockerVolumeListResponse: components['schemas']['docker-volume-list-response'];
     DockerVolumeRemoveRequest: components['schemas']['docker-volume-remove-request'];
     DockerVolumeRemoveResponse: components['schemas']['docker-volume-remove-response'];
+    DockerVolumeBatchRemoveRequest: components['schemas']['docker-volume-batch-remove-request'];
+    DockerVolumeBatchRemoveItem: components['schemas']['docker-volume-batch-remove-item'];
+    DockerVolumeBatchRemoveResponse: components['schemas']['docker-volume-batch-remove-response'];
+    EnvelopedDockerVolumeBatchRemoveResponse: components['schemas']['enveloped-docker-volume-batch-remove-response'];
     EnvelopedDockerImage: components['schemas']['enveloped-docker-image'];
     EnvelopedDockerImageListResponse: components['schemas']['enveloped-docker-image-list-response'];
     EnvelopedDockerImageActionResponse: components['schemas']['enveloped-docker-image-action-response'];
@@ -6679,6 +6700,28 @@ export interface components {
     };
     'enveloped-docker-volume-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-volume-list-response'];
+    };
+    'docker-volume-batch-remove-request': {
+      names: string[];
+      /** @default false */
+      force: boolean;
+    };
+    'docker-volume-batch-remove-item': {
+      name: string;
+      success: boolean;
+      error_code?: string | null;
+      message_key?: string | null;
+      message?: string | null;
+    };
+    'docker-volume-batch-remove-response': {
+      total: number;
+      success_count: number;
+      failed_count: number;
+      request_id?: string;
+      items: components['schemas']['docker-volume-batch-remove-item'][];
+    };
+    'enveloped-docker-volume-batch-remove-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume-batch-remove-response'];
     };
     'enveloped-docker-volume': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-volume'];
@@ -14895,6 +14938,50 @@ export interface operations {
       400: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postDockerVolumeBatchRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-volume-batch-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Docker volume batch removal result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-volume-batch-remove-response'];
+        };
+      };
+      /** @description Invalid batch volume removal request. */
+      400: {
+        headers: {
           [name: string]: unknown;
         };
         content: {

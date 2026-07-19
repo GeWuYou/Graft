@@ -21,6 +21,16 @@ func TestListDockerVolumesFiltersSortsAndPages(t *testing.T) {
 	}
 }
 
+func TestDockerVolumeUsageUnknownDoesNotMatchUnused(t *testing.T) {
+	if dockerVolumeUsageMatches(nil, "unused") {
+		t.Fatal("unknown reference count must not match unused")
+	}
+	zero := int64(0)
+	if !dockerVolumeUsageMatches(&zero, "unused") {
+		t.Fatal("zero reference count must match unused")
+	}
+}
+
 func TestMapDockerVolumeErrorPreservesConflict(t *testing.T) {
 	t.Parallel()
 

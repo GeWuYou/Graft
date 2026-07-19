@@ -146,6 +146,7 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
 	docker.GET(containercontract.DockerVolumeRoute, requireView, routes.handleDockerVolume)
 	docker.POST(containercontract.DockerVolumeRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), routes.handleDockerVolumeRemove)
+	docker.POST(containercontract.DockerVolumeBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), routes.handleDockerVolumeBatchRemove)
 	docker.GET(containercontract.DockerSystemRoute, requireView, routes.handleDockerSystem)
 }
 
@@ -349,6 +350,19 @@ func (r routeRuntime) handleDockerVolumeRemove(c *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeRemoveResponse(ref.Value))
+}
+
+func (r routeRuntime) handleDockerVolumeBatchRemove(c *gin.Context) {
+	var request containeropenapi.PostDockerVolumeBatchRemoveJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	result, err := r.service.DockerVolumeBatchRemove(c.Request.Context(), request.Names, boolPtrValue(request.Force))
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeBatchRemove(result))
 }
 
 func (r routeRuntime) handleDockerVolume(c *gin.Context) {

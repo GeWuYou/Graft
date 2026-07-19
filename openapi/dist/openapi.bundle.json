@@ -12148,6 +12148,69 @@
         }
       }
     },
+    "/api/ops/docker/volumes/batch-remove": {
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Remove Docker volumes in batch",
+        "operationId": "postDockerVolumeBatchRemove",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-volume-batch-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker volume batch removal result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-volume-batch-remove-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid batch volume removal request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/docker/volumes/{id}": {
       "get": {
         "tags": [
@@ -17148,6 +17211,18 @@
       },
       "DockerVolumeRemoveResponse": {
         "$ref": "#/components/schemas/docker-volume-remove-response"
+      },
+      "DockerVolumeBatchRemoveRequest": {
+        "$ref": "#/components/schemas/docker-volume-batch-remove-request"
+      },
+      "DockerVolumeBatchRemoveItem": {
+        "$ref": "#/components/schemas/docker-volume-batch-remove-item"
+      },
+      "DockerVolumeBatchRemoveResponse": {
+        "$ref": "#/components/schemas/docker-volume-batch-remove-response"
+      },
+      "EnvelopedDockerVolumeBatchRemoveResponse": {
+        "$ref": "#/components/schemas/enveloped-docker-volume-batch-remove-response"
       },
       "EnvelopedDockerImage": {
         "$ref": "#/components/schemas/enveloped-docker-image"
@@ -26632,6 +26707,108 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/docker-volume-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "docker-volume-batch-remove-request": {
+        "type": "object",
+        "required": [
+          "names"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "force": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-volume-batch-remove-item": {
+        "type": "object",
+        "required": [
+          "name",
+          "success"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-volume-batch-remove-response": {
+        "type": "object",
+        "required": [
+          "total",
+          "success_count",
+          "failed_count",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "success_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/docker-volume-batch-remove-item"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "enveloped-docker-volume-batch-remove-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-volume-batch-remove-response"
               }
             }
           }

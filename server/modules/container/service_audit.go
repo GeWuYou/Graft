@@ -350,6 +350,17 @@ func (s *service) publishDockerVolumeAudit(ctx context.Context, volume DockerVol
 	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.ContainerAuditActionVolumeRemove.String(), ResourceType: "docker_volume", ResourceID: volume.Name, ResourceName: volume.Name, StatusCode: auditStatusCode(err), Success: err == nil, MessageKey: messageKey, Message: message, Metadata: metadata}, "publish Docker volume audit event failed")
 }
 
+func (s *service) publishDockerVolumeBatchAudit(ctx context.Context, result DockerVolumeBatchRemoveResult, force bool) {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
+		return
+	}
+	defer detached.cancel()
+	metadata := map[string]any{"runtime": runtimeNameDocker, "force": force, "total": result.Total, "success_count": result.SuccessCount, "failed_count": result.FailedCount, "items": result.Items}
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.ContainerAuditActionVolumeBatchRemove.String(), ResourceType: containerBatchResourceType, ResourceID: firstNonEmpty(result.RequestID, batchAuditResourceID("docker_volume_remove", detached.now)), ResourceName: "docker_volume_remove", StatusCode: http.StatusOK, Success: result.FailedCount == 0, Metadata: metadata}, "publish Docker volume batch audit event failed")
+}
+
 func detachedAuditContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	auditCtx, cancel := context.WithTimeout(context.Background(), containerAuditPublishTimeout)
 	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {

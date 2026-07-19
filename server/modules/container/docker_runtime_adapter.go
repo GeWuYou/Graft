@@ -98,6 +98,14 @@ func (d dockerClientAdapter) VolumeList(ctx context.Context, options mobyclient.
 	return result.Items, nil
 }
 
+func (d dockerClientAdapter) VolumeDiskUsage(ctx context.Context) ([]volume.Volume, error) {
+	result, err := d.Client.DiskUsage(ctx, mobyclient.DiskUsageOptions{Volumes: true, Verbose: true})
+	if err != nil {
+		return nil, err
+	}
+	return result.Volumes.Items, nil
+}
+
 func (d dockerClientAdapter) VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error) {
 	result, err := d.Client.VolumeInspect(ctx, volumeID, mobyclient.VolumeInspectOptions{})
 	if err != nil {

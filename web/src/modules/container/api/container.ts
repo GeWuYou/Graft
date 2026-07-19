@@ -103,6 +103,12 @@ type PostContainerBatchActionsRequest = NonNullable<
 export type ContainerListResponse = GetContainersData;
 
 type DockerImagesOperation = paths['/api/ops/docker/images']['get'];
+type DockerVolumeBatchRemoveOperation = paths['/api/ops/docker/volumes/batch-remove']['post'];
+export type DockerVolumeBatchRemoveRequest =
+  DockerVolumeBatchRemoveOperation['requestBody']['content']['application/json'];
+export type DockerVolumeBatchRemoveResult = NonNullable<
+  DockerVolumeBatchRemoveOperation['responses'][200]['content']['application/json']['data']
+>;
 export type DockerImageListQuery = NonNullable<DockerImagesOperation['parameters']['query']>;
 type DockerImagesData = NonNullable<DockerImagesOperation['responses'][200]['content']['application/json']['data']>;
 type DockerNetworksData = NonNullable<
@@ -147,6 +153,12 @@ export const getDockerVolume = (id: string) =>
   }) as Promise<DockerVolumeDetail>;
 export const removeDockerVolume = (id: string, options: { force?: boolean } = {}) =>
   request.post({ url: `/api/ops/docker/volumes/${encodeURIComponent(id)}/remove`, data: options });
+export function batchRemoveDockerVolumes(payload: DockerVolumeBatchRemoveRequest) {
+  return request.post<DockerVolumeBatchRemoveResult>({
+    url: OPENAPI_RUNTIME_PATH.postDockerVolumeBatchRemove,
+    data: payload,
+  });
+}
 export const getDockerSystem = () =>
   request.get<DockerSystemData>({ url: OPENAPI_RUNTIME_PATH.getDockerSystem }) as Promise<DockerSystemData>;
 

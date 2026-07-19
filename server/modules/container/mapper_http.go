@@ -110,6 +110,14 @@ func toDockerVolumeRemoveResponse(name string) containergen.DockerVolumeRemoveRe
 	return containergen.DockerVolumeRemoveResponse{Name: name, Action: containergen.DockerVolumeRemoveResponseActionRemove, Result: containergen.DockerVolumeRemoveResponseResultCompleted}
 }
 
+func toDockerVolumeBatchRemove(result DockerVolumeBatchRemoveResult) containergen.DockerVolumeBatchRemoveResponse {
+	items := make([]containergen.DockerVolumeBatchRemoveItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		items = append(items, containergen.DockerVolumeBatchRemoveItem{Name: item.Name, Success: item.Success, ErrorCode: optionalString(item.ErrorCode), MessageKey: optionalString(item.MessageKey), Message: optionalString(item.Message)})
+	}
+	return containergen.DockerVolumeBatchRemoveResponse{Total: result.Total, SuccessCount: result.SuccessCount, FailedCount: result.FailedCount, RequestId: optionalString(result.RequestID), Items: items}
+}
+
 // toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应。
 // toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应，并映射收集时间、Overview、Hotspots 和 Anomalies。
 func toContainerDashboardSummaryResponse(result dashboardSummaryResult) containerDashboardSummaryResponse {

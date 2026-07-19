@@ -155,10 +155,10 @@
       "title": "Docker",
       "image": {
         "title": "Images"
-      },
-      "dockerVolume": {
-        "title": "Volumes"
       }
+    },
+    "dockerVolume": {
+      "title": "Volumes"
     },
     "container": {
       "title": "Containers"
@@ -180,14 +180,10 @@
       "volume": {
         "title": "Volume Management",
         "breadcrumb": "Volume Management"
-      },
-      "volumeDetail": {
-        "title": "Volume Detail",
-        "breadcrumb": "Volume Detail"
       }
     },
     "volume": {
-      "route": { "list": { "title": "Volume Management" }, "detail": { "title": "Volume Detail" } },
+      "route": { "list": { "title": "Volume Management" } },
       "list": {
         "title": "Volume Management",
         "description": "Review and manage volumes in the current Docker runtime.",
@@ -226,6 +222,16 @@
         "nameRequired": "The typed volume name does not match.",
         "removeSuccess": "Volume removed.",
         "removeFailed": "Volume removal failed."
+      },
+      "batch": {
+        "selected": "{count} Volumes Selected",
+        "remove": "Batch Remove",
+        "cancelSelection": "Cancel Selection",
+        "confirmTitle": "Confirm Batch Volume Removal",
+        "confirm": "The selected {count} volumes will be removed.",
+        "success": "{count} volumes removed.",
+        "partial": "{success} volumes removed; {failed} failed.",
+        "failed": "Batch volume removal failed."
       },
       "detail": {
         "title": "Volume Detail",

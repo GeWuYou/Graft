@@ -56,7 +56,8 @@ const (
 	// DockerVolumeRoute 是 Docker 卷详情路由片段。
 	DockerVolumeRoute = "/volumes/:id"
 	// DockerVolumeRemoveRoute 是 Docker 卷删除动作路由片段。
-	DockerVolumeRemoveRoute = "/volumes/:id/remove"
+	DockerVolumeRemoveRoute      = "/volumes/:id/remove"
+	DockerVolumeBatchRemoveRoute = "/volumes/batch-remove"
 	// DockerSystemRoute 是 Docker 系统信息路由片段。
 	DockerSystemRoute = "/system"
 	// ContainerMenuRootPath 是运维侧容器菜单的根路径。

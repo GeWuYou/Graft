@@ -155,10 +155,10 @@
       "title": "Docker",
       "image": {
         "title": "镜像"
-      },
-      "dockerVolume": {
-        "title": "数据卷"
       }
+    },
+    "dockerVolume": {
+      "title": "数据卷"
     },
     "container": {
       "title": "容器"
@@ -180,14 +180,10 @@
       "volume": {
         "title": "数据卷管理",
         "breadcrumb": "数据卷管理"
-      },
-      "volumeDetail": {
-        "title": "数据卷详情",
-        "breadcrumb": "数据卷详情"
       }
     },
     "volume": {
-      "route": { "list": { "title": "数据卷管理" }, "detail": { "title": "数据卷详情" } },
+      "route": { "list": { "title": "数据卷管理" } },
       "list": {
         "title": "数据卷管理",
         "description": "查看和管理当前 Docker 运行时中的数据卷。",
@@ -226,6 +222,16 @@
         "nameRequired": "输入的数据卷名称不匹配。",
         "removeSuccess": "数据卷已删除。",
         "removeFailed": "数据卷删除失败。"
+      },
+      "batch": {
+        "selected": "已选择 {count} 个数据卷",
+        "remove": "批量删除",
+        "cancelSelection": "取消选择",
+        "confirmTitle": "确认批量删除数据卷",
+        "confirm": "将删除已选择的 {count} 个数据卷。",
+        "success": "已删除 {count} 个数据卷。",
+        "partial": "已删除 {success} 个数据卷，{failed} 个删除失败。",
+        "failed": "批量删除数据卷失败。"
       },
       "detail": {
         "title": "数据卷详情",

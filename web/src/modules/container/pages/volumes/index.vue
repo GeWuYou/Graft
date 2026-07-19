@@ -57,10 +57,32 @@
     </management-toolbar>
 
     <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
-    <t-table row-key="name" :data="rows" :columns="columns" :loading="loading" :disable-data-page="true">
-      <template #name="{ row }"
-        ><t-link theme="primary" @click="openDetail(row)">{{ row.name }}</t-link></template
-      >
+    <div v-if="selectedRowKeys.length" class="docker-volume-page__batch-bar">
+      <span>{{ t('container.volume.batch.selected', { count: selectedRowKeys.length }) }}</span>
+      <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
+        {{ t('container.volume.batch.remove') }}
+      </t-button>
+      <t-button size="small" variant="text" @click="clearSelection">
+        {{ t('container.volume.batch.cancelSelection') }}
+      </t-button>
+    </div>
+    <t-table
+      row-key="name"
+      :data="rows"
+      :columns="columns"
+      :loading="loading"
+      :selected-row-keys="selectedRowKeys"
+      :disable-data-page="true"
+      table-layout="fixed"
+      @select-change="handleSelectChange"
+    >
+      <template #name="{ row }">
+        <t-tooltip :content="row.name">
+          <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
+            middleEllipsis(row.name)
+          }}</t-link>
+        </t-tooltip>
+      </template>
       <template #usage="{ row }"
         ><t-tag :theme="usageTheme(row)" variant="light-outline">{{ usageLabel(row) }}</t-tag></template
       >
@@ -78,6 +100,45 @@
         </t-space>
       </template>
     </t-table>
+    <t-drawer
+      v-model:visible="detailDrawerVisible"
+      :header="selectedVolume?.name || t('container.volume.detail.title')"
+      size="520px"
+    >
+      <t-loading :loading="detailLoading">
+        <t-alert v-if="detailError" theme="error" :message="detailError" />
+        <t-descriptions v-else-if="selectedVolume" bordered :column="2">
+          <t-descriptions-item :label="t('container.volume.columns.name')">{{
+            selectedVolume.name
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.columns.driver')">{{
+            selectedVolume.driver
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.columns.scope')">{{
+            selectedVolume.scope
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.columns.usage')">{{
+            usageLabel(selectedVolume)
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.columns.size')">{{
+            formatBytes(selectedVolume.size_bytes, t('container.volume.unavailable'))
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.columns.createdAt')">{{
+            formatTime(selectedVolume.created_at)
+          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.detail.labels')" :span="2">
+            <t-space break-line>
+              <t-tag v-for="(value, key) in selectedVolume.labels || {}" :key="key" variant="light-outline"
+                >{{ key }}={{ value }}</t-tag
+              >
+              <span v-if="!Object.keys(selectedVolume.labels || {}).length">{{
+                t('container.volume.detail.noLabels')
+              }}</span>
+            </t-space>
+          </t-descriptions-item>
+        </t-descriptions>
+      </t-loading>
+    </t-drawer>
     <management-table-pagination :summary="paginationSummary">
       <t-pagination
         v-model:current="pagination.current"
@@ -94,7 +155,6 @@ import type { TableProps } from 'tdesign-vue-next';
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import {
   ManagementPageHeader,
@@ -106,14 +166,19 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
-import { type DockerVolumeListQuery, listDockerVolumes, removeDockerVolume } from '../../api/container';
-import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import {
+  batchRemoveDockerVolumes,
+  type DockerVolumeDetail,
+  type DockerVolumeListQuery,
+  getDockerVolume,
+  listDockerVolumes,
+  removeDockerVolume,
+} from '../../api/container';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
 type UsageFilter = 'all' | 'used' | 'unused';
 const { locale, t } = useI18n();
-const router = useRouter();
 const permissionStore = usePermissionStore();
 const rows = ref<VolumeRow[]>([]);
 const loading = ref(false);
@@ -122,10 +187,16 @@ const filters = reactive({ keyword: '', driver: '', scope: '', usage: 'all' as U
 const applied = ref({ ...filters });
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 });
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VOLUME_REMOVE));
+const selectedRowKeys = ref<string[]>([]);
+const selectedVolume = ref<DockerVolumeDetail | null>(null);
+const detailDrawerVisible = ref(false);
+const detailLoading = ref(false);
+const detailError = ref('');
 const columns: TableProps['columns'] = [
-  { colKey: 'name', title: t('container.volume.columns.name'), ellipsis: true },
-  { colKey: 'driver', title: t('container.volume.columns.driver'), ellipsis: true },
-  { colKey: 'scope', title: t('container.volume.columns.scope'), ellipsis: true },
+  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
+  { colKey: 'name', title: t('container.volume.columns.name'), width: 280 },
+  { colKey: 'driver', title: t('container.volume.columns.driver'), width: 140, ellipsis: true },
+  { colKey: 'scope', title: t('container.volume.columns.scope'), width: 120, ellipsis: true },
   { colKey: 'usage', title: t('container.volume.columns.usage'), width: 130 },
   { colKey: 'size', title: t('container.volume.columns.size'), width: 130 },
   { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
@@ -192,8 +263,77 @@ function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.current = page.current;
   pagination.pageSize = page.pageSize;
 }
-function openDetail(row: VolumeRow) {
-  void router.push({ name: CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.pageRouteName, params: { id: row.name } });
+function middleEllipsis(value: string, maxLength = 42) {
+  if (value.length <= maxLength) return value;
+  const edge = Math.floor((maxLength - 3) / 2);
+  return `${value.slice(0, edge)}...${value.slice(-edge)}`;
+}
+function handleSelectChange(keys: Array<string | number>) {
+  selectedRowKeys.value = keys.map(String);
+}
+function clearSelection() {
+  selectedRowKeys.value = [];
+}
+function handleBatchRemove() {
+  if (!selectedRowKeys.value.length || !canRemove.value) return;
+  let force = false;
+  const selected = new Set(selectedRowKeys.value);
+  const mustForce = rows.value.some(
+    (row) =>
+      selected.has(row.name) &&
+      (row.reference_count === null || row.reference_count === undefined || row.reference_count > 0),
+  );
+  const dialog = DialogPlugin.confirm({
+    header: t('container.volume.batch.confirmTitle'),
+    theme: 'danger',
+    confirmBtn: t('container.volume.batch.remove'),
+    cancelBtn: t('container.volume.actions.cancel'),
+    body: () =>
+      h('div', { class: 'docker-volume-remove-confirm' }, [
+        h('p', t('container.volume.batch.confirm', { count: selectedRowKeys.value.length })),
+        h('div', { class: 'docker-volume-remove-confirm__names' }, selectedRowKeys.value.join(', ')),
+        mustForce
+          ? h('label', { class: 'docker-volume-remove-confirm__force' }, [
+              h('input', {
+                type: 'checkbox',
+                onChange: (event: Event) => (force = (event.target as HTMLInputElement).checked),
+              }),
+              h('span', t('container.volume.actions.force')),
+            ])
+          : null,
+      ]),
+    onConfirm: async () => {
+      if (mustForce && !force) {
+        MessagePlugin.warning(t('container.volume.actions.forceRequired'));
+        return;
+      }
+      try {
+        const response = await batchRemoveDockerVolumes({ names: selectedRowKeys.value, force });
+        const successful = response.items.filter((item) => item.success).map((item) => item.name);
+        const failed = response.items.length - successful.length;
+        selectedRowKeys.value = selectedRowKeys.value.filter((name) => !successful.includes(name));
+        dialog.hide();
+        if (!failed) MessagePlugin.success(t('container.volume.batch.success', { count: successful.length }));
+        else MessagePlugin.warning(t('container.volume.batch.partial', { success: successful.length, failed }));
+        await refresh();
+      } catch (cause) {
+        MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.batch.failed')));
+      }
+    },
+  });
+}
+async function openDetail(row: VolumeRow) {
+  detailDrawerVisible.value = true;
+  detailLoading.value = true;
+  detailError.value = '';
+  try {
+    selectedVolume.value = await getDockerVolume(row.name);
+  } catch (cause) {
+    selectedVolume.value = null;
+    detailError.value = resolveLocalizedErrorMessage(t, cause, t('container.volume.detail.loadFailed'));
+  } finally {
+    detailLoading.value = false;
+  }
 }
 function usageLabel(row: VolumeRow) {
   if (row.reference_count === null || row.reference_count === undefined) return t('container.volume.usage.unknown');
@@ -269,6 +409,20 @@ function confirmRemove(row: VolumeRow) {
 
 .docker-volume-page__alert {
   margin-bottom: var(--td-comp-margin-l);
+}
+
+.docker-volume-page__batch-bar {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-m);
+}
+
+.docker-volume-page__name {
+  display: inline-block;
+  max-width: 252px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .docker-volume-remove-confirm {

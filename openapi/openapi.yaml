@@ -275,6 +275,9 @@ paths:
     $ref: ./paths/ops-docker-networks.detail.yaml
   /api/ops/docker/volumes:
     $ref: ./paths/ops-docker-volumes.collection.yaml
+
+  /api/ops/docker/volumes/batch-remove:
+    $ref: ./paths/ops-docker-volumes.batch-remove.yaml
   /api/ops/docker/volumes/{id}:
     $ref: ./paths/ops-docker-volumes.detail.yaml
   /api/ops/docker/volumes/{id}/remove:
@@ -913,6 +916,14 @@ components:
       $ref: ./components/schemas/docker-volume-remove-request.yaml
     DockerVolumeRemoveResponse:
       $ref: ./components/schemas/docker-volume-remove-response.yaml
+    DockerVolumeBatchRemoveRequest:
+      $ref: ./components/schemas/docker-volume-batch-remove-request.yaml
+    DockerVolumeBatchRemoveItem:
+      $ref: ./components/schemas/docker-volume-batch-remove-item.yaml
+    DockerVolumeBatchRemoveResponse:
+      $ref: ./components/schemas/docker-volume-batch-remove-response.yaml
+    EnvelopedDockerVolumeBatchRemoveResponse:
+      $ref: ./components/schemas/enveloped-docker-volume-batch-remove-response.yaml
     EnvelopedDockerImage:
       $ref: ./components/schemas/enveloped-docker-image.yaml
     EnvelopedDockerImageListResponse:

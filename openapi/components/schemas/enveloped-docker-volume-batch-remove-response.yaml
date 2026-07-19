@@ -1,0 +1,6 @@
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    required: [data]
+    properties:
+      data: { $ref: ./docker-volume-batch-remove-response.yaml }

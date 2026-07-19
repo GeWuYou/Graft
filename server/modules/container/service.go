@@ -413,6 +413,62 @@ type DockerImageBatchRemoveItem struct {
 	Message    string
 }
 
+// DockerVolumeBatchRemoveResult 汇总数据卷批量删除结果，并保留请求顺序和逐项失败原因。
+type DockerVolumeBatchRemoveResult struct {
+	Total, SuccessCount, FailedCount int
+	RequestID                        string
+	Items                            []DockerVolumeBatchRemoveItem
+}
+
+// DockerVolumeBatchRemoveItem 表示一个数据卷删除请求的脱敏结果。
+type DockerVolumeBatchRemoveItem struct {
+	Name                           string
+	Success                        bool
+	ErrorCode, MessageKey, Message string
+}
+
+// DockerVolumeBatchRemove 按请求顺序逐项删除数据卷，允许运行时返回部分成功。
+func (s *service) DockerVolumeBatchRemove(ctx context.Context, names []string, force bool) (DockerVolumeBatchRemoveResult, error) {
+	if len(names) == 0 || len(names) > maxDockerVolumeBatchRemoveIDs {
+		return DockerVolumeBatchRemoveResult{}, errInvalidListQuery
+	}
+	normalizedNames := make([]string, 0, len(names))
+	seenNames := make(map[string]struct{}, len(names))
+	for _, rawName := range names {
+		name := strings.TrimSpace(rawName)
+		if name == "" {
+			return DockerVolumeBatchRemoveResult{}, errInvalidListQuery
+		}
+		if _, exists := seenNames[name]; exists {
+			return DockerVolumeBatchRemoveResult{}, errInvalidListQuery
+		}
+		seenNames[name] = struct{}{}
+		normalizedNames = append(normalizedNames, name)
+	}
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return DockerVolumeBatchRemoveResult{}, err
+	}
+	if !s.dangerousActionsAllowed(ctx) {
+		return DockerVolumeBatchRemoveResult{}, errDangerousActionsDisabled
+	}
+	result := DockerVolumeBatchRemoveResult{Total: len(normalizedNames), RequestID: requestIDFromContext(ctx), Items: make([]DockerVolumeBatchRemoveItem, 0, len(normalizedNames))}
+	for _, name := range normalizedNames {
+		item := DockerVolumeBatchRemoveItem{Name: name}
+		err := s.RemoveDockerVolume(ctx, name, force)
+		if err != nil {
+			item.ErrorCode = messageKeyForError(err).String()
+			item.MessageKey, item.Message = item.ErrorCode, item.ErrorCode
+			result.FailedCount++
+		} else {
+			item.Success = true
+			result.SuccessCount++
+		}
+		result.Items = append(result.Items, item)
+	}
+	s.publishDockerVolumeBatchAudit(ctx, result, force)
+	return result, nil
+}
+
 // DockerImageBatchRemove 按请求顺序逐项删除镜像，允许 Docker daemon 返回部分成功。
 func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, force bool) (DockerImageBatchRemoveResult, error) {
 	if len(ids) == 0 || len(ids) > maxContainerBatchActionIDs {
