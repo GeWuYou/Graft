@@ -1,15 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import { TASK_REALTIME_EVENT, TASK_REALTIME_TOPIC } from '@/contracts/generated/modules/task';
+
 import { buildTaskRealtimeTopicName, parseTaskRealtimeNotification, type TaskRealtimeEventType } from './realtime';
 
 describe('task realtime contract', () => {
   it('builds the canonical task topic and parses its persisted-fact notification', () => {
-    const knownEvent: TaskRealtimeEventType = 'task.log.appended';
+    const knownEvent: TaskRealtimeEventType = TASK_REALTIME_EVENT.LOG_APPENDED;
 
-    expect(buildTaskRealtimeTopicName(42)).toBe('task:42');
+    expect(buildTaskRealtimeTopicName(42)).toBe(`${TASK_REALTIME_TOPIC.PREFIX}42`);
     expect(parseTaskRealtimeNotification(JSON.stringify({ data: { task_id: 42, type: knownEvent } }))).toEqual({
       task_id: 42,
-      type: 'task.log.appended',
+      type: TASK_REALTIME_EVENT.LOG_APPENDED,
     });
   });
 

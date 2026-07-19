@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue';
 
+import { PROJECT_ERROR_CODE } from '@/contracts/generated/modules/project';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import { postApplicationImportExecute, postApplicationImportRuntimeInspect } from '../api/import';
-import { APPLICATION_IMPORT_MESSAGE_KEY } from '../contract/messages';
 import type {
   ApplicationImportInspectResponse,
   ApplicationImportRuntimeCandidate,
@@ -26,7 +26,7 @@ export function isApplicationImportInspectionExpiredError(error: unknown) {
   return (
     Boolean(
       error && typeof error === 'object' && (error as { isApiRequestError?: unknown }).isApiRequestError === true,
-    ) && (error as { messageKey?: unknown }).messageKey === APPLICATION_IMPORT_MESSAGE_KEY.INSPECTION_EXPIRED
+    ) && (error as { messageKey?: unknown }).messageKey === PROJECT_ERROR_CODE.INSPECTION_EXPIRED
   );
 }
 

@@ -66,6 +66,7 @@ import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, resolveComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { RUNTIME_TARGET_REALTIME_TOPIC } from '@/contracts/generated/modules/runtime-target';
 import {
   ManagementPageContent,
   ManagementPageHeader,
@@ -83,7 +84,7 @@ import {
   type RuntimeTargetUsageMetric,
 } from '../../api/runtime-target';
 import { runtimeTargetDetailPath } from '../../contract/paths';
-import { parseRuntimeTargetSummaryPayload, RUNTIME_TARGET_REALTIME_TOPIC } from '../../contract/realtime';
+import { parseRuntimeTargetSummaryPayload } from '../../contract/realtime';
 
 type Change = 'up' | 'down' | 'none';
 type MetricChanges = Record<'cpu' | 'memory' | 'storage', Change>;
@@ -225,7 +226,7 @@ function applyRealtime(itemsUpdate: RuntimeTarget[]) {
 function startRealtime() {
   if (!active.value || realtimeController) return;
   realtimeController = openRealtimeTopicSocket({
-    topic: RUNTIME_TARGET_REALTIME_TOPIC,
+    topic: RUNTIME_TARGET_REALTIME_TOPIC.SUMMARY,
     parseMessage: parseRuntimeTargetSummaryPayload,
     onMessage: (payload) => applyRealtime(payload.items),
   });

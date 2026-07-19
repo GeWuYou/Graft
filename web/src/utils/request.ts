@@ -5,10 +5,10 @@ import { API_CODE, type ApiResponseCode } from '@/contracts/api/codes';
 import type { ApiEnvelope, ApiErrorEnvelope } from '@/contracts/api/envelope';
 import { AUTH_SCHEME, HTTP_HEADER } from '@/contracts/api/headers';
 import { MESSAGE_KEY } from '@/contracts/api/messages';
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { getDefaultLocale, normalizeLocale } from '@/contracts/i18n/locales';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
 import { i18n } from '@/locales';
-import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import type { LoginResponse } from '@/modules/auth/contract/types';
 import type { ApiRequestError, AxiosRequestConfigRetry, RequestOptions } from '@/types/axios';
@@ -45,7 +45,7 @@ type AuthSessionBridge = {
   handleAuthFailure(): void | Promise<void>;
 };
 
-const AUTH_REFRESH_URL = AUTH_API_PATH.REFRESH;
+const AUTH_REFRESH_URL = OPENAPI_RUNTIME_PATH.postAuthRefresh;
 const TOKEN_REFRESH_LEEWAY_MS = 60_000;
 let authSessionBridge: AuthSessionBridge | null = null;
 let inflightRefreshPromise: Promise<LoginResponse> | null = null;

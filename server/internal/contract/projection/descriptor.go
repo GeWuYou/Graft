@@ -22,6 +22,8 @@ const (
 	KindPermissionCode Kind = "permission-code"
 	// KindRealtimeTopic 表示实时订阅主题或主题前缀。
 	KindRealtimeTopic Kind = "realtime-topic"
+	// KindRealtimeEvent 表示实时订阅载荷中的事件类型。
+	KindRealtimeEvent Kind = "realtime-event"
 	// KindDockerImageRemoveErrorCode 表示 Docker 镜像删除结果的业务错误码。
 	KindDockerImageRemoveErrorCode Kind = "docker-image-remove-error-code"
 )
@@ -157,6 +159,7 @@ func validKind(kind Kind) bool {
 		kind == KindMessageKey ||
 		kind == KindPermissionCode ||
 		kind == KindRealtimeTopic ||
+		kind == KindRealtimeEvent ||
 		kind == KindDockerImageRemoveErrorCode
 }
 

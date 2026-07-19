@@ -1,3 +1,1 @@
-export const SECURITY_PERMISSION_CODE = {
-  OVERVIEW_READ: 'security.overview.read',
-} as const;
+export { SECURITY_PERMISSION_CODE } from '@/contracts/generated/modules/security';

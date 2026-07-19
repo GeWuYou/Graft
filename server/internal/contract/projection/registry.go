@@ -5,7 +5,21 @@ import (
 	errorcodecontract "graft/server/internal/contract/errorcode"
 	httpheadercontract "graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	httpx "graft/server/internal/httpx"
+	logger "graft/server/internal/logger"
+	announcementcontract "graft/server/modules/announcement/contract"
+	auditcontract "graft/server/modules/audit/contract"
 	containercontract "graft/server/modules/container/contract"
+	monitorcontract "graft/server/modules/monitor/contract"
+	notificationcontract "graft/server/modules/notification/contract"
+	projectcontract "graft/server/modules/project/contract"
+	rbaccontract "graft/server/modules/rbac/contract"
+	runtimecontract "graft/server/modules/runtime-target/contract"
+	schedulercontract "graft/server/modules/scheduler/contract"
+	securitycontract "graft/server/modules/security/contract"
+	systemconfigcontract "graft/server/modules/system-config/contract"
+	taskcontract "graft/server/modules/task/contract"
+	usercontract "graft/server/modules/user/contract"
 )
 
 // Target 定义一组生成到同一 web 派生产物的 descriptor。
@@ -28,7 +42,43 @@ type Group struct {
 func Targets() []Target {
 	return []Target{
 		{Path: "platform.ts", Entries: Registry()},
+		{Path: "modules/access-log.ts", Groups: permissionGroups("ACCESS_LOG", "AccessLog"), Entries: accessLogRegistry()},
+		{Path: "modules/announcement.ts", Groups: permissionGroups("ANNOUNCEMENT", "Announcement"), Entries: announcementRegistry()},
+		{Path: "modules/app-log.ts", Groups: permissionGroups("APP_LOG", "AppLog"), Entries: appLogRegistry()},
+		{Path: "modules/audit.ts", Groups: permissionGroups("AUDIT", "Audit"), Entries: auditRegistry()},
 		{Path: "modules/container.ts", Groups: containerGroups(), Entries: ContainerRegistry()},
+		{Path: "modules/monitor.ts", Groups: permissionGroups("MONITOR", "Monitor"), Entries: monitorRegistry()},
+		{Path: "modules/notification.ts", Groups: permissionGroups("NOTIFICATION", "Notification"), Entries: notificationRegistry()},
+		{Path: "modules/project.ts", Groups: projectGroups(), Entries: projectRegistry()},
+		{Path: "modules/rbac.ts", Groups: permissionGroups("RBAC", "Rbac"), Entries: rbacRegistry()},
+		{Path: "modules/runtime-target.ts", Groups: realtimeGroups("RUNTIME_TARGET", "RuntimeTarget"), Entries: runtimeTargetRegistry()},
+		{Path: "modules/scheduled-task.ts", Groups: permissionGroups("SCHEDULED_TASK", "ScheduledTask"), Entries: scheduledTaskRegistry()},
+		{Path: "modules/security.ts", Groups: permissionGroups("SECURITY", "Security"), Entries: securityRegistry()},
+		{Path: "modules/system-config.ts", Groups: permissionGroups("SYSTEM_CONFIG", "SystemConfig"), Entries: systemConfigRegistry()},
+		{Path: "modules/task.ts", Groups: taskGroups(), Entries: taskRegistry()},
+		{Path: "modules/user.ts", Groups: permissionGroups("USER", "User"), Entries: userRegistry()},
+	}
+}
+
+func permissionGroups(prefix string, typePrefix string) []Group {
+	return []Group{{Kind: KindPermissionCode, Constant: prefix + "_PERMISSION_CODE", TypeName: typePrefix + "PermissionCode"}}
+}
+
+func realtimeGroups(prefix string, typePrefix string) []Group {
+	return []Group{{Kind: KindRealtimeTopic, Constant: prefix + "_REALTIME_TOPIC", TypeName: typePrefix + "RealtimeTopic"}}
+}
+
+func projectGroups() []Group {
+	return []Group{
+		{Kind: KindErrorCode, Constant: "PROJECT_ERROR_CODE", TypeName: "ProjectErrorCode"},
+		{Kind: KindRealtimeTopic, Constant: "PROJECT_REALTIME_TOPIC", TypeName: "ProjectRealtimeTopic"},
+	}
+}
+
+func taskGroups() []Group {
+	return []Group{
+		{Kind: KindRealtimeTopic, Constant: "TASK_REALTIME_TOPIC", TypeName: "TaskRealtimeTopic"},
+		{Kind: KindRealtimeEvent, Constant: "TASK_REALTIME_EVENT", TypeName: "TaskRealtimeEvent"},
 	}
 }
 
@@ -102,5 +152,124 @@ func ContainerRegistry() []Entry {
 		{ID: "container.docker-image-remove-error.timeout", Name: "DOCKER_TIMEOUT", Kind: KindDockerImageRemoveErrorCode, Owner: "server/modules/container/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: containercontract.DockerTimeout},
 		{ID: "container.docker-image-remove-error.communication", Name: "DOCKER_COMMUNICATION_ERROR", Kind: KindDockerImageRemoveErrorCode, Owner: "server/modules/container/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: containercontract.DockerCommunicationError},
 		{ID: "container.docker-image-remove-error.unknown", Name: "UNKNOWN", Kind: KindDockerImageRemoveErrorCode, Owner: "server/modules/container/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: containercontract.DockerImageRemoveUnknown},
+	}
+}
+
+func accessLogRegistry() []Entry {
+	return []Entry{{ID: "access-log.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/internal/httpx", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: httpx.AccessLogReadPermission}}
+}
+
+//nolint:dupl // 描述符清单必须保留 owner、生命周期和常量引用，不能隐藏为第二份值定义。
+func announcementRegistry() []Entry {
+	return []Entry{
+		{ID: "announcement.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/announcement/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: announcementcontract.AnnouncementReadPermission},
+		{ID: "announcement.permission.create", Name: "CREATE", Kind: KindPermissionCode, Owner: "server/modules/announcement/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: announcementcontract.AnnouncementCreatePermission},
+		{ID: "announcement.permission.update", Name: "UPDATE", Kind: KindPermissionCode, Owner: "server/modules/announcement/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: announcementcontract.AnnouncementUpdatePermission},
+		{ID: "announcement.permission.publish", Name: "PUBLISH", Kind: KindPermissionCode, Owner: "server/modules/announcement/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: announcementcontract.AnnouncementPublishPermission},
+		{ID: "announcement.permission.delete", Name: "DELETE", Kind: KindPermissionCode, Owner: "server/modules/announcement/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: announcementcontract.AnnouncementDeletePermission},
+	}
+}
+
+func appLogRegistry() []Entry {
+	return []Entry{
+		{ID: "app-log.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/internal/logger", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: logger.AppLogReadPermission},
+		{ID: "app-log.permission.delete", Name: "DELETE", Kind: KindPermissionCode, Owner: "server/internal/logger", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: logger.AppLogDeletePermission},
+	}
+}
+
+func auditRegistry() []Entry {
+	return []Entry{
+		{ID: "audit.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/audit/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: auditcontract.AuditReadPermission},
+		{ID: "audit.permission.manage", Name: "MANAGE", Kind: KindPermissionCode, Owner: "server/modules/audit/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: auditcontract.AuditManagePermission},
+	}
+}
+
+func monitorRegistry() []Entry {
+	return []Entry{{ID: "monitor.permission.server-status-read", Name: "SERVER_STATUS_READ", Kind: KindPermissionCode, Owner: "server/modules/monitor/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: monitorcontract.ServerStatusReadPermission}}
+}
+
+func notificationRegistry() []Entry {
+	return []Entry{
+		{ID: "notification.permission.view", Name: "VIEW", Kind: KindPermissionCode, Owner: "server/modules/notification/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: notificationcontract.NotificationViewPermission},
+		{ID: "notification.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/notification/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: notificationcontract.NotificationReadPermission},
+		{ID: "notification.permission.manage", Name: "MANAGE", Kind: KindPermissionCode, Owner: "server/modules/notification/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: notificationcontract.NotificationManagePermission},
+	}
+}
+
+//nolint:dupl // 描述符清单必须保留 owner、生命周期和常量引用，不能隐藏为第二份值定义。
+func projectRegistry() []Entry {
+	return []Entry{
+		{ID: "project.error-code.inspection-expired", Name: "INSPECTION_EXPIRED", Kind: KindErrorCode, Owner: "server/modules/project/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: projectcontract.ApplicationInspectionExpired},
+		{ID: "project.realtime-topic.list-summary", Name: "LIST_SUMMARY", Kind: KindRealtimeTopic, Owner: "server/modules/project/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: projectcontract.ApplicationListSummaryTopic},
+		{ID: "project.realtime-topic.runtime-prefix", Name: "RUNTIME_PREFIX", Kind: KindRealtimeTopic, Owner: "server/modules/project/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: projectcontract.ApplicationRuntimeTopicPrefix},
+		{ID: "project.realtime-topic.lifecycle-config-prefix", Name: "LIFECYCLE_CONFIG_PREFIX", Kind: KindRealtimeTopic, Owner: "server/modules/project/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: projectcontract.ApplicationLifecycleConfigTopicPrefix},
+		{ID: "project.realtime-topic.logs-prefix", Name: "LOGS_PREFIX", Kind: KindRealtimeTopic, Owner: "server/modules/project/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: projectcontract.ApplicationLogsTopicPrefix},
+	}
+}
+
+//nolint:dupl // 描述符清单必须保留 owner、生命周期和常量引用，不能隐藏为第二份值定义。
+func rbacRegistry() []Entry {
+	return []Entry{
+		{ID: "rbac.permission.role-read", Name: "ROLE_READ", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.RoleReadPermission},
+		{ID: "rbac.permission.role-create", Name: "ROLE_CREATE", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.RoleCreatePermission},
+		{ID: "rbac.permission.role-update", Name: "ROLE_UPDATE", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.RoleUpdatePermission},
+		{ID: "rbac.permission.role-status-update", Name: "ROLE_STATUS_UPDATE", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.RoleStatusUpdatePermission},
+		{ID: "rbac.permission.role-delete", Name: "ROLE_DELETE", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.RoleDeletePermission},
+		{ID: "rbac.permission.role-permission-assign", Name: "ROLE_PERMISSION_ASSIGN", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.RolePermissionAssignPermission},
+		{ID: "rbac.permission.permission-read", Name: "PERMISSION_READ", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.PermissionReadPermission},
+		{ID: "rbac.permission.user-role-read", Name: "USER_ROLE_READ", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.UserRoleReadPermission},
+		{ID: "rbac.permission.user-role-assign", Name: "USER_ROLE_ASSIGN", Kind: KindPermissionCode, Owner: "server/modules/rbac/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: rbaccontract.UserRoleAssignPermission},
+	}
+}
+
+func runtimeTargetRegistry() []Entry {
+	return []Entry{{ID: "runtime-target.realtime-topic.summary", Name: "SUMMARY", Kind: KindRealtimeTopic, Owner: "server/modules/runtime-target/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: runtimecontract.SummaryTopic}}
+}
+
+func scheduledTaskRegistry() []Entry {
+	return []Entry{
+		{ID: "scheduled-task.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/scheduler/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: schedulercontract.ScheduledTaskReadPermission},
+		{ID: "scheduled-task.permission.create", Name: "CREATE", Kind: KindPermissionCode, Owner: "server/modules/scheduler/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: schedulercontract.ScheduledTaskCreatePermission},
+		{ID: "scheduled-task.permission.update", Name: "UPDATE", Kind: KindPermissionCode, Owner: "server/modules/scheduler/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: schedulercontract.ScheduledTaskUpdatePermission},
+		{ID: "scheduled-task.permission.delete", Name: "DELETE", Kind: KindPermissionCode, Owner: "server/modules/scheduler/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: schedulercontract.ScheduledTaskDeletePermission},
+		{ID: "scheduled-task.permission.run", Name: "RUN", Kind: KindPermissionCode, Owner: "server/modules/scheduler/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: schedulercontract.ScheduledTaskRunPermission},
+		{ID: "scheduled-task.permission.enable", Name: "ENABLE", Kind: KindPermissionCode, Owner: "server/modules/scheduler/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: schedulercontract.ScheduledTaskEnablePermission},
+	}
+}
+
+func securityRegistry() []Entry {
+	return []Entry{{ID: "security.permission.overview-read", Name: "OVERVIEW_READ", Kind: KindPermissionCode, Owner: "server/modules/security/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: securitycontract.OverviewReadPermission}}
+}
+
+func systemConfigRegistry() []Entry {
+	return []Entry{
+		{ID: "system-config.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/system-config/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: systemconfigcontract.SystemConfigReadPermission},
+		{ID: "system-config.permission.write", Name: "WRITE", Kind: KindPermissionCode, Owner: "server/modules/system-config/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: systemconfigcontract.SystemConfigWritePermission},
+	}
+}
+
+//nolint:dupl // 描述符清单必须保留 owner、生命周期和常量引用，不能隐藏为第二份值定义。
+func taskRegistry() []Entry {
+	return []Entry{
+		{ID: "task.realtime-topic.prefix", Name: "PREFIX", Kind: KindRealtimeTopic, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeTopicPrefix},
+		{ID: "task.realtime-event.created", Name: "CREATED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventCreated},
+		{ID: "task.realtime-event.cancelled", Name: "CANCELLED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventCancelled},
+		{ID: "task.realtime-event.cancel-requested", Name: "CANCEL_REQUESTED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventCancelRequested},
+		{ID: "task.realtime-event.retry-requested", Name: "RETRY_REQUESTED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventRetryRequested},
+		{ID: "task.realtime-event.stage-started", Name: "STAGE_STARTED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventStageStarted},
+		{ID: "task.realtime-event.stage-completed", Name: "STAGE_COMPLETED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventStageCompleted},
+		{ID: "task.realtime-event.stage-failed", Name: "STAGE_FAILED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventStageFailed},
+		{ID: "task.realtime-event.log-appended", Name: "LOG_APPENDED", Kind: KindRealtimeEvent, Owner: "server/modules/task/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: taskcontract.TaskRealtimeEventLogAppended},
+	}
+}
+
+func userRegistry() []Entry {
+	return []Entry{
+		{ID: "user.permission.read", Name: "READ", Kind: KindPermissionCode, Owner: "server/modules/user/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: usercontract.UserReadPermission},
+		{ID: "user.permission.create", Name: "CREATE", Kind: KindPermissionCode, Owner: "server/modules/user/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: usercontract.UserCreatePermission},
+		{ID: "user.permission.update", Name: "UPDATE", Kind: KindPermissionCode, Owner: "server/modules/user/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: usercontract.UserUpdatePermission},
+		{ID: "user.permission.disable", Name: "DISABLE", Kind: KindPermissionCode, Owner: "server/modules/user/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: usercontract.UserDisablePermission},
+		{ID: "user.permission.session-read", Name: "SESSION_READ", Kind: KindPermissionCode, Owner: "server/modules/user/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: usercontract.UserSessionReadPermission},
+		{ID: "user.permission.session-revoke", Name: "SESSION_REVOKE", Kind: KindPermissionCode, Owner: "server/modules/user/contract", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: usercontract.UserSessionRevokePermission},
 	}
 }

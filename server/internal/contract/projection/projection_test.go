@@ -124,9 +124,6 @@ func TestRegistryValuesReferenceExistingConstants(t *testing.T) {
 
 func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {
 	targets := Targets()
-	if len(targets) < 2 {
-		t.Fatalf("expected at least platform and container targets, got %#v", targets)
-	}
 
 	outputs := make(map[string]string, len(targets))
 	for _, target := range targets {
@@ -142,6 +139,26 @@ func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {
 	for _, marker := range []string{"CONTAINER_PERMISSION_CODE", "CONTAINER_REALTIME_TOPIC", "DOCKER_IMAGE_REMOVE_ERROR_CODES"} {
 		if !strings.Contains(outputs["modules/container.ts"], marker) {
 			t.Fatalf("container artifact is missing %q: %s", marker, outputs["modules/container.ts"])
+		}
+	}
+	for path, marker := range map[string]string{
+		"modules/access-log.ts":     "ACCESS_LOG_PERMISSION_CODE",
+		"modules/announcement.ts":   "ANNOUNCEMENT_PERMISSION_CODE",
+		"modules/app-log.ts":        "APP_LOG_PERMISSION_CODE",
+		"modules/audit.ts":          "AUDIT_PERMISSION_CODE",
+		"modules/monitor.ts":        "MONITOR_PERMISSION_CODE",
+		"modules/notification.ts":   "NOTIFICATION_PERMISSION_CODE",
+		"modules/project.ts":        "PROJECT_REALTIME_TOPIC",
+		"modules/rbac.ts":           "RBAC_PERMISSION_CODE",
+		"modules/runtime-target.ts": "RUNTIME_TARGET_REALTIME_TOPIC",
+		"modules/scheduled-task.ts": "SCHEDULED_TASK_PERMISSION_CODE",
+		"modules/security.ts":       "SECURITY_PERMISSION_CODE",
+		"modules/system-config.ts":  "SYSTEM_CONFIG_PERMISSION_CODE",
+		"modules/task.ts":           "TASK_REALTIME_EVENT",
+		"modules/user.ts":           "USER_PERMISSION_CODE",
+	} {
+		if !strings.Contains(outputs[path], marker) {
+			t.Fatalf("module artifact %q is missing %q: %s", path, marker, outputs[path])
 		}
 	}
 }

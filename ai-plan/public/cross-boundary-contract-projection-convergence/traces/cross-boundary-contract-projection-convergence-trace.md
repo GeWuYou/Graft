@@ -31,11 +31,16 @@
 
 - Focused monitor API tests passed; `web/src/modules/audit/**` has no focused API test file.
 
+## 2026-07-19 Non-HTTP Descriptor Coverage And Archive Readiness
+
+- Classified every remaining candidate as a Go contract projection, OpenAPI-generated wire type, or web-private UI contract; the tracking table records each disposition.
+- Added module-scoped generated artifacts for all confirmed permission groups, project error/topic values, the runtime-target summary topic, and task realtime values.
+- Promoted task realtime topic/event strings into `server/modules/task/contract/realtime.go`; emitted values now use those typed constants, correcting the web's stale dotted event union.
+- Repaired two discovered downstream authority drifts: the auth refresh adapter now reads `OPENAPI_RUNTIME_PATH.postAuthRefresh`, and container retains a route-only `contract/paths.ts` with no HTTP path values.
+- `cd server && go run ./cmd/graft validate backend`, projection freshness, web formatting/type checking, the OpenAPI frontend guard, lint/style/hygiene checks, focused affected web tests (42/42), and the production build passed.
+- `cd web && bun run check` reaches its full Vitest stage but remains blocked by the pre-existing locale, permission, and auth-session timeout cluster; a transient i18n fixture-directory error also occurred in that full parallel test run. These failures are outside the changed contract consumers, whose focused tests pass.
+
 ## Loop Batch State
-
-## Final Inventory
-
-- Not archive-ready: auth, container, and dashboard retain HTTP path mirrors; non-HTTP descriptor coverage needs a bounded authority review.
 
 ```json
 {
@@ -53,11 +58,9 @@
     "auth-dashboard-api-path-migration",
     "container-api-path-migration"
   ],
-  "pending_batches": [
-    "non-http-descriptor-coverage-and-archive-readiness"
-  ],
-  "current_batch": "container-api-path-migration",
-  "next_batch": "non-http-descriptor-coverage-and-archive-readiness",
-  "closeout_status": "not-archive-ready"
+  "pending_batches": [],
+  "current_batch": "non-http-descriptor-coverage-and-archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

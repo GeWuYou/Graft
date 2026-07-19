@@ -22,6 +22,7 @@ var defaultRenderGroups = []renderGroup{
 	{kind: KindMessageKey, constant: "MESSAGE_KEY", typeName: "MessageKey"},
 	{kind: KindPermissionCode, constant: "PERMISSION_CODE", typeName: "PermissionCode"},
 	{kind: KindRealtimeTopic, constant: "REALTIME_TOPIC", typeName: "RealtimeTopic"},
+	{kind: KindRealtimeEvent, constant: "REALTIME_EVENT", typeName: "RealtimeEvent"},
 	{kind: KindDockerImageRemoveErrorCode, constant: "DOCKER_IMAGE_REMOVE_ERROR_CODE", typeName: "DockerImageRemoveErrorCode"},
 }
 

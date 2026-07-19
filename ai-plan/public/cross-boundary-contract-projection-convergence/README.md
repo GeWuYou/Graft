@@ -9,8 +9,8 @@
 - Canonical authority:
   - `openapi/**` for HTTP paths, operations, wire schemas, and public wire enums
   - `server/internal/contract/**`, `server/modules/*/contract/**`, descriptors, and `server/internal/moduleapi/**` for non-HTTP cross-boundary values
-- Completed so far: platform and container non-HTTP contract projection, freshness generation, and CI integration.
-- Not started yet: operationId-to-runtime-path projection and the remaining module migrations.
+- Completed: OpenAPI operationId runtime-path projection, all module HTTP path migrations, non-HTTP module descriptor projection, freshness validation, and CI integration.
+- Current status: `archive-ready`; the topic remains in the active index only until its completed-topic archive move is performed.
 
 ## Recovery Receipt
 
@@ -49,8 +49,8 @@ Out of scope:
 ## Current Recovery Point
 
 - The archived `cross-boundary-contract-projection` topic is historical evidence for the completed pilot only.
-- Current batch: `notification-project-runtime-target-task-migration` completed.
-- Next step: migrate the `rbac-user-audit-monitor-scheduler-system-config-migration` API path consumers to the generated operationId runtime-path artifact.
+- Final batch: `non-http-descriptor-coverage-and-archive-readiness` completed.
+- Next step: archive this completed topic under `ai-plan/public/archive/` and remove its active-index entry in the same change.
 
 ## Work Intake
 
@@ -59,8 +59,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Complete the full unmigrated inventory before accepting each module migration batch.
-- Keep module migration batches disjoint and validate both sides for every shared contract change.
+- No implementation batch remains. Preserve the authority split during the completed-topic archive move.
 
 ## Validation Targets
 
