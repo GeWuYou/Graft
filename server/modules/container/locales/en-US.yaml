@@ -31,6 +31,9 @@ ops.container.error.mountUsageUnsupported: Mount usage is not supported for this
 ops.container.error.dangerousActionsDisabled: Dangerous container actions are disabled
 ops.container.error.invalidImageReference: Invalid Docker image reference
 ops.container.error.imageInUse: Docker image is referenced by one or more containers
+ops.container.error.imageReferencedByMultipleTags: Docker image is referenced by multiple tags
+ops.container.error.imageNotFound: Docker image does not exist and may have already been removed
+ops.container.error.dockerCommunication: Unable to connect to Docker
 ops.container.error.imagePullFailed: Docker image pull failed
 ops.container.error.imageTagFailed: Docker image tag operation failed
 ops.container.error.imageRemoveFailed: Docker image remove operation failed

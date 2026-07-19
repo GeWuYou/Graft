@@ -2,7 +2,7 @@ post:
   tags: [container]
   summary: Remove Docker images in batch
   operationId: postDockerImageBatchRemove
-  description: Removes selected Docker images and returns one result for each requested image, allowing partial success.
+  description: Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

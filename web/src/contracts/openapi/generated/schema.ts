@@ -2317,7 +2317,7 @@ export interface paths {
     put?: never;
     /**
      * Remove Docker images in batch
-     * @description Removes selected Docker images and returns one result for each requested image, allowing partial success.
+     * @description Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.
      */
     post: operations['postDockerImageBatchRemove'];
     delete?: never;
@@ -6561,7 +6561,18 @@ export interface components {
     'docker-image-batch-remove-item': {
       id: string;
       success: boolean;
-      error_code?: string;
+      /**
+       * @description Stable Docker image removal failure code. Present only when success is false.
+       * @enum {string}
+       */
+      error_code?:
+        | 'IMAGE_REFERENCED_BY_MULTIPLE_TAGS'
+        | 'IMAGE_IN_USE'
+        | 'IMAGE_NOT_FOUND'
+        | 'DOCKER_RUNTIME_UNAVAILABLE'
+        | 'DOCKER_TIMEOUT'
+        | 'DOCKER_COMMUNICATION_ERROR'
+        | 'UNKNOWN';
       message_key?: string;
       message?: string;
     };

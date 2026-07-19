@@ -7,9 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"os"
 	"strings"
+	"syscall"
 	"unicode"
 
+	cerrdefs "github.com/containerd/errdefs"
 	mobyclient "github.com/moby/moby/client"
 )
 
@@ -19,11 +23,16 @@ const (
 )
 
 var (
-	errInvalidDockerImageReference = errors.New("invalid docker image reference")
-	errDockerImageInUse            = errors.New("docker image is in use")
-	errDockerImagePullFailed       = errors.New("docker image pull failed")
-	errDockerImageTagFailed        = errors.New("docker image tag failed")
-	errDockerImageRemoveFailed     = errors.New("docker image remove failed")
+	errInvalidDockerImageReference   = errors.New("invalid docker image reference")
+	errDockerImageInUse              = errors.New("docker image is in use")
+	errDockerImagePullFailed         = errors.New("docker image pull failed")
+	errDockerImageTagFailed          = errors.New("docker image tag failed")
+	errDockerImageRemoveFailed       = errors.New("docker image remove failed")
+	errDockerImageMultipleTags       = errors.New("docker image is referenced by multiple tags")
+	errDockerImageNotFound           = errors.New("docker image not found")
+	errDockerImageRuntimeUnavailable = errors.New("docker image runtime unavailable")
+	errDockerImageTimeout            = errors.New("docker image remove timeout")
+	errDockerImageCommunication      = errors.New("docker image communication failed")
 )
 
 // DockerImagePullEvent 是发送给 API 消费方的脱敏拉取进度事件。
@@ -126,7 +135,7 @@ func (r *DockerRuntime) TagDockerImage(ctx context.Context, source, target strin
 	return nil
 }
 
-// RemoveDockerImage 删除镜像；除非显式 force，守护进程会拒绝删除被容器引用的镜像。
+// RemoveDockerImage 删除镜像；除非显式 force，守护进程会拒绝删除被容器引用或多标签引用的镜像。
 func (r *DockerRuntime) RemoveDockerImage(ctx context.Context, id string, force bool) error {
 	if err := validateDockerImageReference(id); err != nil {
 		return err
@@ -173,13 +182,50 @@ func mapDockerImageTagError(err error) error {
 }
 
 func mapDockerImageRemoveError(err error) error {
-	if strings.Contains(strings.ToLower(err.Error()), "being used") || strings.Contains(strings.ToLower(err.Error()), "in use") {
-		return fmt.Errorf("%w: %v", errDockerImageInUse, err)
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "image is referenced in multiple repositories"), strings.Contains(message, "image is referenced in multiple tags"):
+		return wrapDockerImageRemoveError(errDockerImageMultipleTags, err)
+	case strings.Contains(message, "being used"), strings.Contains(message, "image is in use"):
+		return wrapDockerImageRemoveError(errDockerImageInUse, err)
+	case cerrdefs.IsNotFound(err), strings.Contains(message, "no such image"), strings.Contains(message, "image not found"):
+		return wrapDockerImageRemoveError(errDockerImageNotFound, err)
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled), dockerImageRemoveNetworkTimeout(err):
+		return wrapDockerImageRemoveError(errDockerImageTimeout, err)
+	case dockerImageRemoveRuntimeUnavailable(err, message):
+		return wrapDockerImageRemoveError(errDockerImageRuntimeUnavailable, err)
+	case dockerImageRemoveCommunicationError(err, message):
+		return wrapDockerImageRemoveError(errDockerImageCommunication, err)
+	default:
+		return wrapDockerImageRemoveError(errDockerImageRemoveFailed, err)
 	}
-	if mapped := mapDockerError(err); mapped != errRuntimeDaemonUnavailable {
-		return fmt.Errorf("%w: %v", mapped, err)
-	}
-	return fmt.Errorf("%w: %v", errDockerImageRemoveFailed, err)
+}
+
+func wrapDockerImageRemoveError(category error, cause error) error {
+	return fmt.Errorf("%w: %v", category, cause)
+}
+
+func dockerImageRemoveNetworkTimeout(err error) bool {
+	var networkError net.Error
+	return errors.As(err, &networkError) && networkError.Timeout()
+}
+
+func dockerImageRemoveRuntimeUnavailable(err error, message string) bool {
+	var errno syscall.Errno
+	return errors.Is(err, os.ErrNotExist) ||
+		(errors.As(err, &errno) && (errno == syscall.ENOENT || errno == syscall.ECONNREFUSED)) ||
+		strings.Contains(message, "cannot connect") ||
+		strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "is the docker daemon running")
+}
+
+func dockerImageRemoveCommunicationError(err error, message string) bool {
+	var networkError net.Error
+	var errno syscall.Errno
+	return (errors.As(err, &networkError) && !networkError.Timeout()) ||
+		(errors.As(err, &errno) && (errno == syscall.ECONNRESET || errno == syscall.EPIPE)) ||
+		strings.Contains(message, "connection reset") ||
+		strings.Contains(message, "broken pipe")
 }
 
 var _ DockerImageWriter = (*DockerRuntime)(nil)

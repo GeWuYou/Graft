@@ -11870,7 +11870,7 @@
         ],
         "summary": "Remove Docker images in batch",
         "operationId": "postDockerImageBatchRemove",
-        "description": "Removes selected Docker images and returns one result for each requested image, allowing partial success.",
+        "description": "Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -26104,7 +26104,17 @@
             "type": "boolean"
           },
           "error_code": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable Docker image removal failure code. Present only when success is false.",
+            "enum": [
+              "IMAGE_REFERENCED_BY_MULTIPLE_TAGS",
+              "IMAGE_IN_USE",
+              "IMAGE_NOT_FOUND",
+              "DOCKER_RUNTIME_UNAVAILABLE",
+              "DOCKER_TIMEOUT",
+              "DOCKER_COMMUNICATION_ERROR",
+              "UNKNOWN"
+            ]
           },
           "message_key": {
             "type": "string"

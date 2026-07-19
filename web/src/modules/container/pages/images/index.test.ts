@@ -56,10 +56,27 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('index += 100');
     expect(sourceText).toContain('batchRemoveDockerImages');
     expect(sourceText).toContain('results.push(...response.items);');
-    expect(sourceText).toContain("error_code: 'client_request_failed'");
+    expect(sourceText).toContain('error_code: DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN');
     expect(sourceText).toContain('unknownResponseIds.push(...chunkIds);');
     expect(sourceText).toContain('let requestError: unknown;');
     expect(sourceText).toContain('return { items: results, unknownResponseIds, requestError };');
+  });
+
+  it('renders every daemon-reported batch failure by stable error code without parsing raw Docker text', () => {
+    expect(sourceText).toContain('DOCKER_IMAGE_REMOVE_ERROR_CODES');
+    expect(sourceText).toContain('normalizeBatchFailureCode(item.error_code)');
+    expect(sourceText).toContain('batchFailureGroups');
+    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).not.toContain('items.slice(0, 5)');
+    expect(sourceText).not.toContain('item.message ||');
+  });
+
+  it('keeps tag-conflict handling normal while preserving explicit force for container references', () => {
+    expect(sourceText).toContain('await submitBatchRemove(selectedRowKeys.value.map(String), forceRemove.value);');
+    expect(sourceText).toContain("t('container.images.batch.riskMultipleTags')");
+    expect(sourceText).toContain("t('container.images.batch.riskContainerReference')");
+    expect(sourceText).toContain("t('container.images.batch.normalRemovalOnly')");
+    expect(sourceText).toContain('selectedBatchReferences');
   });
 
   it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
@@ -76,6 +93,8 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('selectedImages.value.set(id, await getDockerImage(id));');
     expect(sourceText).toContain('isApiRequestError(error) && error.status === 404');
     expect(sourceText).toContain('forgetSelectedImages(removedIds);');
+    expect(sourceText).toContain('if (requestError || hasUnknownResponse)');
+    expect(sourceText).toContain('showUnknownBatchResult();');
   });
 
   it('keeps translated table columns reactive instead of unwrapping them during setup', () => {
@@ -84,7 +103,7 @@ describe('docker image list page', () => {
     expect(sourceText).not.toContain(']).value;');
   });
 
-  it('disables remove confirmation until referenced images are explicitly forced', () => {
+  it('requires explicit force for images referenced by containers', () => {
     expect(sourceText).toContain('const removeConfirmButton = computed');
     expect(sourceText).toContain('!forceRemove.value');
     expect(sourceText).toContain('selectedImage.value?.container_references?.length');
@@ -155,13 +174,13 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.batch.partial'");
     expect(sourceText).toContain("t('container.images.batch.failed'");
     expect(sourceText).toContain('successfulIds');
-    expect(sourceText).toContain('resolveLocalizedErrorMessage(t, requestError');
-    expect(sourceText).toContain('batchFailureDialogVisible.value = true;');
-    expect(sourceText).toContain('@confirm="batchFailureDialogVisible = false"');
+    expect(sourceText).toContain("t('container.images.batch.requestFailed')");
+    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).toContain('@confirm="batchResultDialogVisible = false"');
     expect(sourceText).toContain('closeBatchDialogs();');
     expect(sourceText).toContain('removeDialogVisible.value = false;');
     expect(sourceText).toContain('cleanupDialogVisible.value = false;');
     expect(sourceText).toContain('logBatchRequestError');
-    expect(sourceText).toContain('batchFailureMessage(item)');
+    expect(sourceText).toContain('showUnknownBatchResult();');
   });
 });

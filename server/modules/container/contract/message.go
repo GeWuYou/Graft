@@ -75,6 +75,12 @@ const (
 	DockerImageInvalidReference MessageKey = "ops.container.error.invalidImageReference"
 	// DockerImageInUse identifies image deletion blocked by container references.
 	DockerImageInUse MessageKey = "ops.container.error.imageInUse"
+	// DockerImageReferencedByMultipleTags 标识因多个 Repository:Tag 引用被拒绝的镜像删除。
+	DockerImageReferencedByMultipleTags MessageKey = "ops.container.error.imageReferencedByMultipleTags"
+	// DockerImageNotFound 标识删除时 Docker daemon 未找到指定镜像。
+	DockerImageNotFound MessageKey = "ops.container.error.imageNotFound"
+	// DockerImageCommunicationError 标识 Docker daemon 通信未完成。
+	DockerImageCommunicationError MessageKey = "ops.container.error.dockerCommunication"
 	// DockerImagePullFailed identifies a Docker daemon pull failure without exposing daemon diagnostics.
 	DockerImagePullFailed MessageKey = "ops.container.error.imagePullFailed"
 	// DockerImageTagFailed identifies a Docker daemon tag failure without exposing daemon diagnostics.

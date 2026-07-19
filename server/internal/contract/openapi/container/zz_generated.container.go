@@ -2332,6 +2332,39 @@ func (e GetDockerImages500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode.
+const (
+	DOCKERCOMMUNICATIONERROR      PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "DOCKER_COMMUNICATION_ERROR"
+	DOCKERRUNTIMEUNAVAILABLE      PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "DOCKER_RUNTIME_UNAVAILABLE"
+	DOCKERTIMEOUT                 PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "DOCKER_TIMEOUT"
+	IMAGEINUSE                    PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "IMAGE_IN_USE"
+	IMAGENOTFOUND                 PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "IMAGE_NOT_FOUND"
+	IMAGEREFERENCEDBYMULTIPLETAGS PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
+	UNKNOWN                       PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode = "UNKNOWN"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode enum.
+func (e PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode) Valid() bool {
+	switch e {
+	case DOCKERCOMMUNICATIONERROR:
+		return true
+	case DOCKERRUNTIMEUNAVAILABLE:
+		return true
+	case DOCKERTIMEOUT:
+		return true
+	case IMAGEINUSE:
+		return true
+	case IMAGENOTFOUND:
+		return true
+	case IMAGEREFERENCEDBYMULTIPLETAGS:
+		return true
+	case UNKNOWN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostDockerImageBatchRemove400JSONResponseBodySuccess.
 const (
 	PostDockerImageBatchRemove400JSONResponseBodySuccessFalse PostDockerImageBatchRemove400JSONResponseBodySuccess = false
@@ -3470,6 +3503,9 @@ type PostDockerImageBatchRemoveParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode defines parameters for PostDockerImageBatchRemove.
+type PostDockerImageBatchRemove200JSONResponseBodyDataItemsErrorCode string
 
 // PostDockerImageBatchRemove400JSONResponseBodySuccess defines parameters for PostDockerImageBatchRemove.
 type PostDockerImageBatchRemove400JSONResponseBodySuccess bool

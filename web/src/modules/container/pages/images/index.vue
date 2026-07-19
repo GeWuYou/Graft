@@ -197,17 +197,21 @@
       <p v-if="selectedImage">{{ t('container.images.remove.confirm', { image: shortId(selectedImage.id) }) }}</p>
       <template v-else>
         <p>{{ t('container.images.batch.confirm', { count: selectedRowKeys.length }) }}</p>
-        <p v-if="selectedBatchReferences.length" class="docker-images-risk">
-          {{ t('container.images.batch.inUse') }}
-        </p>
-        <t-space v-if="selectedBatchReferences.length" size="small" break-line>
-          <t-tooltip v-for="container in selectedBatchReferences" :key="container.id" :content="container.id">
-            <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
-          </t-tooltip>
-        </t-space>
-        <t-checkbox v-if="selectedBatchReferences.length" v-model="forceRemove">
-          {{ t('container.images.remove.force') }}
-        </t-checkbox>
+        <p class="docker-images-risk">{{ t('container.images.batch.riskIntro') }}</p>
+        <ul class="docker-images-risk-list">
+          <li>{{ t('container.images.batch.riskMultipleTags') }}</li>
+          <li>{{ t('container.images.batch.riskContainerReference') }}</li>
+        </ul>
+        <p class="docker-images-risk">{{ t('container.images.batch.normalRemovalOnly') }}</p>
+        <template v-if="selectedBatchReferences.length">
+          <p class="docker-images-risk">{{ t('container.images.batch.inUse') }}</p>
+          <t-space size="small" break-line>
+            <t-tooltip v-for="container in selectedBatchReferences" :key="container.id" :content="container.id">
+              <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
+            </t-tooltip>
+          </t-space>
+          <t-checkbox v-model="forceRemove">{{ t('container.images.remove.force') }}</t-checkbox>
+        </template>
       </template>
       <p v-if="selectedImage?.container_references?.length" class="docker-images-risk">
         {{ t('container.images.remove.inUse') }}
@@ -218,23 +222,56 @@
     </t-dialog>
 
     <t-dialog
-      v-model:visible="batchFailureDialogVisible"
-      dialog-class-name="docker-images-failure-dialog"
-      :header="t('container.images.batch.failureDetailTitle')"
+      v-model:visible="batchResultDialogVisible"
+      dialog-class-name="docker-images-result-dialog"
+      :header="t('container.images.batch.resultTitle')"
       width="640px"
       :confirm-btn="t('container.images.batch.confirmDetails')"
       :cancel-btn="null"
-      @confirm="batchFailureDialogVisible = false"
+      @confirm="batchResultDialogVisible = false"
     >
-      <div class="docker-images-failure-list">
-        <div v-for="failure in batchFailureDetails" :key="failure.id" class="docker-images-failure-item">
-          <div class="docker-images-failure-item__header">
-            <t-tag theme="danger" variant="light-outline" size="small">{{ failure.id }}</t-tag>
-            <span class="docker-images-failure-item__name">{{ failure.name }}</span>
+      <template v-if="batchResultUnknown">
+        <p class="docker-images-result__global-message">{{ t('container.images.batch.resultUnknown') }}</p>
+      </template>
+      <template v-else>
+        <div class="docker-images-result-summary">
+          <div>
+            <span>{{ t('container.images.batch.resultSuccess') }}</span
+            ><strong>{{ batchResultSuccessCount }}</strong>
           </div>
-          <p>{{ failure.reason }}</p>
+          <div>
+            <span>{{ t('container.images.batch.resultFailure') }}</span
+            ><strong>{{ batchFailureDetails.length }}</strong>
+          </div>
         </div>
-      </div>
+        <div class="docker-images-failure-list">
+          <section v-for="group in batchFailureGroups" :key="group.code" class="docker-images-failure-group">
+            <header class="docker-images-failure-group__header">
+              <div>
+                <h3>{{ group.title }}</h3>
+                <p>{{ group.description }}</p>
+              </div>
+              <t-tag theme="danger" variant="light-outline">{{ group.items.length }}</t-tag>
+            </header>
+            <div v-for="failure in group.items" :key="failure.id" class="docker-images-failure-item">
+              <div class="docker-images-failure-item__header">
+                <t-tag theme="danger" variant="light-outline" size="small">{{ shortId(failure.id) }}</t-tag>
+                <span class="docker-images-failure-item__name">{{ failure.name }}</span>
+              </div>
+              <t-collapse v-if="failure.tags.length" borderless expand-icon-placement="right">
+                <t-collapse-panel
+                  :value="`tags-${failure.id}`"
+                  :header="t('container.images.batch.tagCount', { count: failure.tags.length })"
+                >
+                  <t-space size="small" break-line>
+                    <t-tag v-for="tag in failure.tags" :key="tag" size="small" variant="light-outline">{{ tag }}</t-tag>
+                  </t-space>
+                </t-collapse-panel>
+              </t-collapse>
+            </div>
+          </section>
+        </div>
+      </template>
     </t-dialog>
 
     <t-dialog
@@ -419,7 +456,6 @@ import {
   ManagementToolbar,
   TableActionMenu,
 } from '@/shared/components/management';
-import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   formatBytes,
   formatLocaleDateTime,
@@ -440,10 +476,17 @@ import {
   removeDockerImage,
   tagDockerImage,
 } from '../../api/image-actions';
+import { DOCKER_IMAGE_REMOVE_ERROR_CODES, type DockerImageRemoveErrorCode } from '../../contract/docker-image-errors';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
 type DockerImage = DockerImageRecord;
-type BatchFailureDetail = { id: string; name: string; reason: string };
+type BatchFailureDetail = { id: string; name: string; tags: string[]; code: DockerImageRemoveErrorCode };
+type BatchFailureGroup = {
+  code: DockerImageRemoveErrorCode;
+  title: string;
+  description: string;
+  items: BatchFailureDetail[];
+};
 
 const { locale, t } = useI18n();
 const logger = createLogger('container.images');
@@ -461,8 +504,10 @@ const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const tagDialogVisible = ref(false);
 const removeDialogVisible = ref(false);
-const batchFailureDialogVisible = ref(false);
+const batchResultDialogVisible = ref(false);
 const batchFailureDetails = ref<BatchFailureDetail[]>([]);
+const batchResultSuccessCount = ref(0);
+const batchResultUnknown = ref(false);
 const pullDrawerVisible = ref(false);
 const tagging = ref(false);
 const removing = ref(false);
@@ -571,6 +616,18 @@ const removeConfirmButton = computed(() => ({
     (!forceRemove.value &&
       (Boolean(selectedImage.value?.container_references?.length) || Boolean(selectedBatchReferences.value.length))),
 }));
+const batchFailureGroups = computed<BatchFailureGroup[]>(() => {
+  const groups = new Map<DockerImageRemoveErrorCode, BatchFailureDetail[]>();
+  batchFailureDetails.value.forEach((item) => {
+    groups.set(item.code, [...(groups.get(item.code) ?? []), item]);
+  });
+  return [...groups].map(([code, items]) => ({
+    code,
+    items,
+    title: t(`container.images.batch.error.${code}.title`),
+    description: t(`container.images.batch.error.${code}.description`),
+  }));
+});
 const cleanupSelectedSize = computed(() => {
   const selected = new Set(cleanupSelectedIds.value);
   return cleanupImages.value.reduce((total, image) => (selected.has(image.id) ? total + image.size_bytes : total), 0);
@@ -711,7 +768,9 @@ async function removeImageIds(ids: string[], force = false) {
         break;
       }
       unknownResponseIds.push(...chunkIds);
-      results.push(...chunkIds.map((id) => ({ id, success: false, error_code: 'client_request_failed' })));
+      results.push(
+        ...chunkIds.map((id) => ({ id, success: false, error_code: DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN })),
+      );
     }
   }
   return { items: results, unknownResponseIds, requestError };
@@ -736,26 +795,22 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
       await reconcileSelectedImages(unknownResponseIds);
     }
     const failed = items.filter((item) => !item.success);
-    const reportedFailures = failed.filter((item) => item.error_code !== 'client_request_failed');
-    if (requestError) {
+    if (requestError || hasUnknownResponse) {
       closeBatchDialogs();
-      MessagePlugin.error(resolveLocalizedErrorMessage(t, requestError, t('container.images.batch.failed')));
+      MessagePlugin.error(t('container.images.batch.requestFailed'));
+      showUnknownBatchResult();
     } else if (!failed.length) {
       MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
     } else if (failed.length < items.length) {
       MessagePlugin.warning(
         t('container.images.batch.partial', { success: items.length - failed.length, failed: failed.length }),
       );
-      if (reportedFailures.length) {
-        closeBatchDialogs();
-        showBatchFailureDetails(reportedFailures);
-      }
-    } else if (reportedFailures.length) {
-      MessagePlugin.error(t('container.images.batch.failed'));
       closeBatchDialogs();
-      showBatchFailureDetails(reportedFailures);
+      showBatchFailureDetails(failed, items.length - failed.length);
     } else {
-      MessagePlugin.warning(t('container.images.batch.unknown'));
+      MessagePlugin.error(t('container.images.batch.failed', { count: failed.length }));
+      closeBatchDialogs();
+      showBatchFailureDetails(failed, 0);
     }
     if (!requestError && !hasUnknownResponse && (!failed.length || failed.length < items.length)) {
       removeDialogVisible.value = false;
@@ -764,7 +819,9 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
     await refresh();
   } catch (error) {
     logBatchRequestError('batch image removal flow failed', error);
-    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.images.batch.failed')));
+    MessagePlugin.error(t('container.images.batch.requestFailed'));
+    closeBatchDialogs();
+    showUnknownBatchResult();
   } finally {
     batchRemoving.value = false;
   }
@@ -775,14 +832,23 @@ function closeBatchDialogs() {
   cleanupDialogVisible.value = false;
 }
 
-function showBatchFailureDetails(items: DockerImageBatchResult['items']) {
-  if (!items.length) return;
-  batchFailureDetails.value = items.slice(0, 5).map((item) => ({
-    id: shortId(item.id),
-    name: imageDisplayName(item.id),
-    reason: batchFailureMessage(item),
-  }));
-  batchFailureDialogVisible.value = true;
+function showBatchFailureDetails(items: DockerImageBatchResult['items'], successCount: number) {
+  batchResultUnknown.value = false;
+  batchResultSuccessCount.value = successCount;
+  batchFailureDetails.value = items.map((item) => {
+    const image =
+      selectedImages.value.get(item.id) ?? cleanupImages.value.find((candidate) => candidate.id === item.id);
+    const tags = image ? imageTags(image) : [];
+    return { id: item.id, name: tags[0] ?? shortId(item.id), tags, code: normalizeBatchFailureCode(item.error_code) };
+  });
+  batchResultDialogVisible.value = true;
+}
+
+function showUnknownBatchResult() {
+  batchResultUnknown.value = true;
+  batchResultSuccessCount.value = 0;
+  batchFailureDetails.value = [];
+  batchResultDialogVisible.value = true;
 }
 
 function logBatchRequestError(message: string, error: unknown) {
@@ -800,17 +866,10 @@ function logBatchRequestError(message: string, error: unknown) {
   logger.error(error instanceof Error ? error : new Error(String(error)), { message });
 }
 
-function imageDisplayName(id: string) {
-  const image = selectedImages.value.get(id) ?? cleanupImages.value.find((candidate) => candidate.id === id);
-  return image ? imageTags(image).join(', ') || shortId(id) : shortId(id);
-}
-
-function batchFailureMessage(item: DockerImageBatchResult['items'][number]) {
-  if (item.message_key) {
-    const translated = t(item.message_key);
-    if (translated !== item.message_key) return translated;
-  }
-  return item.message || t('container.images.batch.unknownReason');
+function normalizeBatchFailureCode(errorCode?: string): DockerImageRemoveErrorCode {
+  return Object.values(DOCKER_IMAGE_REMOVE_ERROR_CODES).includes(errorCode as DockerImageRemoveErrorCode)
+    ? (errorCode as DockerImageRemoveErrorCode)
+    : DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN;
 }
 async function openCleanup() {
   cleanupDialogVisible.value = true;
@@ -975,13 +1034,79 @@ onUnmounted(() => {
   color: var(--td-warning-color-7);
 }
 
+.docker-images-risk-list {
+  color: var(--td-text-color-secondary);
+  margin: 0 0 var(--graft-density-gap-12);
+  padding-left: var(--graft-density-gap-20);
+}
+
+.docker-images-result-summary {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: var(--graft-density-gap-16);
+}
+
+.docker-images-result-summary > div {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-border);
+  padding: var(--graft-density-gap-12);
+}
+
+.docker-images-result-summary span {
+  color: var(--td-text-color-secondary);
+  display: block;
+  font: var(--td-font-body-small);
+}
+
+.docker-images-result-summary strong {
+  color: var(--td-text-color-primary);
+  display: block;
+  font: var(--td-font-title-large);
+  margin-top: var(--graft-density-gap-4);
+}
+
+.docker-images-result__global-message {
+  color: var(--td-text-color-secondary);
+  margin: 0;
+}
+
 .docker-images-failure-list {
   display: flex;
   flex-direction: column;
-  gap: var(--graft-density-gap-8);
+  gap: var(--graft-density-gap-16);
   max-height: min(52vh, 420px);
   overflow: auto;
   padding-right: var(--graft-density-gap-4);
+}
+
+.docker-images-failure-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+}
+
+.docker-images-failure-group__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+}
+
+.docker-images-failure-group__header h3,
+.docker-images-failure-group__header p {
+  margin: 0;
+}
+
+.docker-images-failure-group__header h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+}
+
+.docker-images-failure-group__header p {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin-top: var(--graft-density-gap-4);
 }
 
 .docker-images-failure-item {
@@ -1007,11 +1132,13 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.docker-images-failure-item p {
+.docker-images-failure-item :deep(.t-collapse) {
+  margin-top: var(--graft-density-gap-8);
+}
+
+.docker-images-failure-item :deep(.t-collapse-panel__header) {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
-  margin: var(--graft-density-gap-8) 0 0;
-  overflow-wrap: anywhere;
 }
 
 .docker-images-batch-bar {

@@ -452,8 +452,27 @@ func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, forc
 
 func dockerImageBatchRemoveFailure(item DockerImageBatchRemoveItem, err error) DockerImageBatchRemoveItem {
 	key := messageKeyForError(err).String()
-	item.ErrorCode, item.MessageKey, item.Message = key, key, fallbackMessageForError(err)
+	item.ErrorCode, item.MessageKey, item.Message = dockerImageRemoveErrorCodeFor(err).String(), key, key
 	return item
+}
+
+func dockerImageRemoveErrorCodeFor(err error) containercontract.DockerImageRemoveErrorCode {
+	switch {
+	case errors.Is(err, errDockerImageMultipleTags):
+		return containercontract.DockerImageMultipleTagsError
+	case errors.Is(err, errDockerImageInUse):
+		return containercontract.DockerImageInUseError
+	case errors.Is(err, errDockerImageNotFound):
+		return containercontract.DockerImageNotFoundError
+	case errors.Is(err, errDockerImageRuntimeUnavailable), errors.Is(err, errRuntimeDaemonUnavailable), errors.Is(err, errRuntimeSocketMissing), errors.Is(err, errUnsupportedContainerRuntime):
+		return containercontract.DockerRuntimeUnavailable
+	case errors.Is(err, errDockerImageTimeout), errors.Is(err, errContainerRuntimeTimeout):
+		return containercontract.DockerTimeout
+	case errors.Is(err, errDockerImageCommunication):
+		return containercontract.DockerCommunicationError
+	default:
+		return containercontract.DockerImageRemoveUnknown
+	}
 }
 
 func dockerImageBatchRemoveRejectedResult(ctx context.Context, ids []string, err error) DockerImageBatchRemoveResult {

@@ -17,9 +17,9 @@ func statusForError(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, errRuntimeDisabled), errors.Is(err, errDangerousActionsDisabled), errors.Is(err, errRuntimePermissionDenied), errors.Is(err, errShellDisabled), errors.Is(err, errShellForbidden), errors.Is(err, errShellOriginDenied):
 		return http.StatusForbidden
-	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound):
+	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound), errors.Is(err, errDockerImageNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning), errors.Is(err, errDockerImageInUse):
+	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning), errors.Is(err, errDockerImageMultipleTags), errors.Is(err, errDockerImageInUse):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
@@ -70,7 +70,12 @@ var containerErrorMessageRules = []struct {
 	{err: errMountUsageUnsupported, key: containercontract.ContainerMountUsageUnsupported},
 	{err: errContainerMountNotFound, key: containercontract.ContainerMountNotFound},
 	{err: errInvalidDockerImageReference, key: containercontract.DockerImageInvalidReference},
+	{err: errDockerImageMultipleTags, key: containercontract.DockerImageReferencedByMultipleTags},
 	{err: errDockerImageInUse, key: containercontract.DockerImageInUse},
+	{err: errDockerImageNotFound, key: containercontract.DockerImageNotFound},
+	{err: errDockerImageRuntimeUnavailable, key: containercontract.ContainerRuntimeUnavailable},
+	{err: errDockerImageTimeout, key: containercontract.ContainerTimeout},
+	{err: errDockerImageCommunication, key: containercontract.DockerImageCommunicationError},
 	{err: errDockerImagePullFailed, key: containercontract.DockerImagePullFailed},
 	{err: errDockerImageTagFailed, key: containercontract.DockerImageTagFailed},
 	{err: errDockerImageRemoveFailed, key: containercontract.DockerImageRemoveFailed},

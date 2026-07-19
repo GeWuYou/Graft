@@ -32,7 +32,7 @@ func (r *dockerImageBatchTestRuntime) TagDockerImage(context.Context, string, st
 func (r *dockerImageBatchTestRuntime) RemoveDockerImage(_ context.Context, id string, _ bool) error {
 	r.removed = append(r.removed, id)
 	if id == "bad" {
-		return errors.New("conflict: unable to delete image because it is being used")
+		return mapDockerImageRemoveError(errors.New("conflict: unable to delete image because it is being used"))
 	}
 	return nil
 }
@@ -51,6 +51,9 @@ func TestServiceDockerImageBatchRemovePreservesOrderAndPartialFailure(t *testing
 	}
 	if result.Total != 3 || result.SuccessCount != 2 || result.FailedCount != 1 || result.Items[1].ID != "bad" || result.Items[1].Success {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+	if result.Items[1].ErrorCode != containercontract.DockerImageInUseError.String() || result.Items[1].MessageKey != containercontract.DockerImageInUse.String() {
+		t.Fatalf("expected stable image-in-use result, got %#v", result.Items[1])
 	}
 	if len(runtime.removed) != 3 || runtime.removed[0] != "first" || runtime.removed[2] != "last" {
 		t.Fatalf("unexpected removal order: %#v", runtime.removed)
@@ -107,7 +110,7 @@ func TestServiceDockerImageBatchRemoveDisabledPublishesFailureAudit(t *testing.T
 		t.Fatalf("unexpected batch rejection audit: %#v", events)
 	}
 	items, ok := events[0].Metadata["items"].([]map[string]any)
-	if !ok || len(items) != 2 || items[0]["error_code"] != containercontract.ContainerDangerousActionsDisabled.String() {
+	if !ok || len(items) != 2 || items[0]["error_code"] != containercontract.DockerImageRemoveUnknown.String() || items[0]["message_key"] != containercontract.ContainerDangerousActionsDisabled.String() {
 		t.Fatalf("expected per-item rejection reasons, got %#v", events[0].Metadata)
 	}
 }

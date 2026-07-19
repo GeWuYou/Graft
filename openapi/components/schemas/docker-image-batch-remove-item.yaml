@@ -3,7 +3,17 @@ required: [id, success]
 properties:
   id: { type: string }
   success: { type: boolean }
-  error_code: { type: string }
+  error_code:
+    type: string
+    description: Stable Docker image removal failure code. Present only when success is false.
+    enum:
+      - IMAGE_REFERENCED_BY_MULTIPLE_TAGS
+      - IMAGE_IN_USE
+      - IMAGE_NOT_FOUND
+      - DOCKER_RUNTIME_UNAVAILABLE
+      - DOCKER_TIMEOUT
+      - DOCKER_COMMUNICATION_ERROR
+      - UNKNOWN
   message_key: { type: string }
   message: { type: string }
 additionalProperties: false
