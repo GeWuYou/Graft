@@ -36,6 +36,19 @@ describe('createViteConfig', () => {
     expect(apiProxy && 'ws' in apiProxy ? apiProxy.ws : undefined).toBe(true);
   });
 
+  it('proxies the core health endpoint without changing its root path', () => {
+    process.env.VITE_IS_REQUEST_PROXY = 'true';
+
+    const config = createViteConfig('development');
+    const healthProxy =
+      config.server?.proxy && '/healthz' in config.server.proxy ? config.server.proxy['/healthz'] : undefined;
+
+    expect(typeof healthProxy).toBe('object');
+    expect(healthProxy && 'target' in healthProxy ? healthProxy.target : undefined).toEqual(expect.any(String));
+    expect(healthProxy && 'changeOrigin' in healthProxy ? healthProxy.changeOrigin : undefined).toBe(true);
+    expect(healthProxy && 'ws' in healthProxy ? healthProxy.ws : undefined).not.toBe(true);
+  });
+
   it('splits monaco dependencies into a dedicated vendor chunk', () => {
     const config = createViteConfig('development');
     const manualChunks = config.build?.rollupOptions?.output;

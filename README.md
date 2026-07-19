@@ -327,7 +327,8 @@ bun run dev
 Default development request flow:
 
 - Browser requests go to `http://localhost:3002/api/...`.
-- The Vite dev proxy forwards API calls to `VITE_API_TARGET`.
+- The core health probe is available at `http://localhost:3002/healthz`.
+- The Vite dev proxy forwards `/api` requests, `/healthz`, and `/ws` to `VITE_API_TARGET`.
 
 Notes:
 
