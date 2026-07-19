@@ -251,13 +251,13 @@ func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message s
 	zapFields := l.zapFields(ctx, fields...)
 	switch severity {
 	case AppLogSeverityDebug:
-		l.base.Debug(sanitizedMessage, zapFields...)
+		logsafe.Debug(l.base, sanitizedMessage, zapFields...)
 	case AppLogSeverityInfo:
-		l.base.Info(sanitizedMessage, zapFields...)
+		logsafe.Info(l.base, sanitizedMessage, zapFields...)
 	case AppLogSeverityWarn:
-		l.base.Warn(sanitizedMessage, zapFields...)
+		logsafe.Warn(l.base, sanitizedMessage, zapFields...)
 	case AppLogSeverityError:
-		l.base.Error(sanitizedMessage, zapFields...)
+		logsafe.Error(l.base, sanitizedMessage, zapFields...)
 	}
 
 	l.persist(ctx, severity, sanitizedMessage, fields...)
