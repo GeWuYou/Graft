@@ -77,8 +77,10 @@ var containerMessageKeys = []string{
 	containercontract.DockerImagePullFailed.String(),
 	containercontract.DockerImageTagFailed.String(),
 	containercontract.DockerImageRemoveFailed.String(),
+	containercontract.DockerImageTagNotAssociated.String(),
 	containercontract.DockerImagePullCompleted.String(),
 	containercontract.DockerImageTagCompleted.String(),
+	containercontract.DockerImageUntagCompleted.String(),
 	containercontract.DockerImageRemoveCompleted.String(),
 	containercontract.ContainerAuditShellSessionRequested.String(),
 	containercontract.ContainerAuditShellTicketIssued.String(),
@@ -108,11 +110,10 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 	return nil
 }
 
-// permissionItems 为容器管理操作构建 RBAC 权限项。
-// 返回包含 10 个权限项的切片，对应容器的查看、详情、事件、环境、日志、Shell、启动、停止、重启和删除操作。
+// permissionItems 为容器与镜像管理操作构建 RBAC 权限项。
 // moduleName 用于设置每个权限项的模块标识。
 func permissionItems(moduleName string) []permission.Item {
-	return []permission.Item{
+	items := []permission.Item{
 		{
 			Code:           containercontract.ContainerViewPermission.String(),
 			Name:           "",
@@ -193,6 +194,13 @@ func permissionItems(moduleName string) []permission.Item {
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Module:         moduleName,
 		},
+	}
+	return append(items, dockerImagePermissionItems(moduleName)...)
+}
+
+// dockerImagePermissionItems 返回与 Image ID 和 Repository:Tag 动作对应的最小权限集合。
+func dockerImagePermissionItems(moduleName string) []permission.Item {
+	return []permission.Item{
 		{
 			Code:           containercontract.DockerImagePullPermission.String(),
 			DisplayKey:     "rbac.permissionCatalog.dockerImagePull.display",
@@ -203,6 +211,12 @@ func permissionItems(moduleName string) []permission.Item {
 			Code:           containercontract.DockerImageTagPermission.String(),
 			DisplayKey:     "rbac.permissionCatalog.dockerImageTag.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageTag.description",
+			Module:         moduleName,
+		},
+		{
+			Code:           containercontract.DockerImageUntagPermission.String(),
+			DisplayKey:     "rbac.permissionCatalog.dockerImageUntag.display",
+			DescriptionKey: "rbac.permissionCatalog.dockerImageUntag.description",
 			Module:         moduleName,
 		},
 		{

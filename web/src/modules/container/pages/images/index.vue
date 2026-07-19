@@ -91,7 +91,12 @@
       </template>
       <template #tags="{ row }">
         <t-space size="small" break-line>
-          <t-tag v-for="tag in imageTags(row)" :key="tag" size="small" variant="light-outline">{{ tag }}</t-tag>
+          <t-tag v-for="tag in imageTags(row).slice(0, 2)" :key="tag" size="small" variant="light-outline">{{
+            tag
+          }}</t-tag>
+          <t-tag v-if="imageTags(row).length > 2" size="small" variant="light-outline"
+            >+{{ imageTags(row).length - 2 }}</t-tag
+          >
           <span v-if="!imageTags(row).length" class="docker-images-muted">{{ t('container.images.untagged') }}</span>
         </t-space>
       </template>
@@ -112,6 +117,7 @@
         <table-action-menu
           :actions="[
             { value: 'detail', label: 'container.images.actions.detail' },
+            { value: 'manage-tags', label: 'container.images.actions.manageTags' },
             { value: 'tag', label: 'container.images.actions.tag' },
             { value: 'remove', label: 'container.images.actions.remove' },
           ]"
@@ -132,9 +138,17 @@
           <t-descriptions-item :label="t('container.images.fields.id')"
             ><span class="docker-images-code">{{ selectedImage.id }}</span></t-descriptions-item
           >
-          <t-descriptions-item :label="t('container.images.fields.tags')">{{
-            imageTags(selectedImage).join(', ') || t('container.images.untagged')
-          }}</t-descriptions-item>
+          <t-descriptions-item :label="t('container.images.fields.tags')">
+            <t-space size="small" break-line>
+              <t-tag v-for="tag in imageTags(selectedImage)" :key="tag" size="small" variant="light-outline">{{
+                tag
+              }}</t-tag>
+              <span v-if="!imageTags(selectedImage).length">{{ t('container.images.untagged') }}</span>
+              <t-button size="small" variant="text" @click="openTagManager(selectedImage)">{{
+                t('container.images.actions.manageTags')
+              }}</t-button>
+            </t-space>
+          </t-descriptions-item>
           <t-descriptions-item :label="t('container.images.fields.digests')">{{
             selectedImage.repository_digests.join(', ') || '-'
           }}</t-descriptions-item>
@@ -168,8 +182,27 @@
             <span v-else>-</span>
           </t-descriptions-item>
         </t-descriptions>
+        <t-alert
+          v-if="selectedImage && imageTags(selectedImage).length > 1"
+          class="docker-images-delete-preflight"
+          theme="warning"
+          :message="t('container.images.remove.multipleTagsPreflight', { count: imageTags(selectedImage).length })"
+        >
+          <template #operation>
+            <t-button size="small" variant="text" @click="openTagManager(selectedImage)">{{
+              t('container.images.actions.manageTags')
+            }}</t-button>
+          </template>
+        </t-alert>
       </t-loading>
     </t-drawer>
+
+    <tag-manager-drawer
+      :visible="tagManagerVisible"
+      :image-id="tagManagerImageId"
+      @update:visible="handleTagManagerVisibleChange"
+      @refreshed="handleTagManagerRefreshed"
+    />
 
     <t-dialog
       v-model:visible="tagDialogVisible"
@@ -184,6 +217,16 @@
         /></t-form-item>
         <t-form-item :label="t('container.images.tag.tag')"><t-input v-model="tagForm.tag" /></t-form-item>
       </t-form>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="multiTagFailureDialogVisible"
+      theme="warning"
+      :header="t('container.images.remove.multipleTagsTitle')"
+      :confirm-btn="t('container.images.actions.manageTags')"
+      @confirm="openFailedImageTagManager"
+    >
+      <p>{{ t('container.images.remove.multipleTagsFailed') }}</p>
     </t-dialog>
 
     <t-dialog
@@ -255,8 +298,19 @@
             </header>
             <div v-for="failure in group.items" :key="failure.id" class="docker-images-failure-item">
               <div class="docker-images-failure-item__header">
-                <t-tag theme="danger" variant="light-outline" size="small">{{ shortId(failure.id) }}</t-tag>
-                <span class="docker-images-failure-item__name">{{ failure.name }}</span>
+                <div class="docker-images-failure-item__identity">
+                  <t-tag theme="danger" variant="light-outline" size="small">{{ shortId(failure.id) }}</t-tag>
+                  <span class="docker-images-failure-item__name">{{ failure.name }}</span>
+                </div>
+                <t-button
+                  v-if="failure.code === dockerImageReferencedByMultipleTags"
+                  class="docker-images-failure-item__manage-tags"
+                  size="small"
+                  variant="outline"
+                  @click="openBatchFailureTagManager(failure.id)"
+                >
+                  {{ t('container.images.actions.manageTags') }}
+                </t-button>
               </div>
               <t-collapse v-if="failure.tags.length" borderless expand-icon-placement="right">
                 <t-collapse-panel
@@ -476,6 +530,7 @@ import {
   removeDockerImage,
   tagDockerImage,
 } from '../../api/image-actions';
+import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
 import { DOCKER_IMAGE_REMOVE_ERROR_CODES, type DockerImageRemoveErrorCode } from '../../contract/docker-image-errors';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
@@ -487,6 +542,9 @@ type BatchFailureGroup = {
   description: string;
   items: BatchFailureDetail[];
 };
+
+const dockerImageReferencedByMultipleTags = 'IMAGE_REFERENCED_BY_MULTIPLE_TAGS';
+const dockerImageReferencedByMultipleTagsMessageKey = 'ops.container.error.imageReferencedByMultipleTags';
 
 const { locale, t } = useI18n();
 const logger = createLogger('container.images');
@@ -503,6 +561,11 @@ const selectedImage = ref<DockerImage | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const tagDialogVisible = ref(false);
+const tagManagerVisible = ref(false);
+const tagManagerImageId = ref<string | null>(null);
+const restoreBatchResultAfterTagManager = ref(false);
+const multiTagFailureDialogVisible = ref(false);
+const failedMultiTagImageId = ref<string | null>(null);
 const removeDialogVisible = ref(false);
 const batchResultDialogVisible = ref(false);
 const batchFailureDetails = ref<BatchFailureDetail[]>([]);
@@ -599,7 +662,7 @@ const footerSummary = computed(() => {
 });
 const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'tags', title: t('container.images.fields.tags'), ellipsis: true, minWidth: 260 },
+  { colKey: 'tags', title: t('container.images.fields.name'), ellipsis: true, minWidth: 260 },
   { colKey: 'id', title: t('container.images.fields.id'), width: 150 },
   { colKey: 'size', title: t('container.images.fields.size'), width: 120 },
   { colKey: 'containers', title: t('container.images.fields.containers'), minWidth: 220 },
@@ -679,8 +742,24 @@ function clearSelection() {
 }
 function handleRowAction(action: string, image: DockerImage) {
   if (action === 'detail') openDetail(image);
+  if (action === 'manage-tags') openTagManager(image);
   if (action === 'tag') openTag(image);
   if (action === 'remove') openRemove(image);
+}
+function openTagManager(image: DockerImage) {
+  restoreBatchResultAfterTagManager.value = false;
+  tagManagerImageId.value = image.id;
+  tagManagerVisible.value = true;
+}
+function handleTagManagerVisibleChange(visible: boolean) {
+  tagManagerVisible.value = visible;
+  if (visible || !restoreBatchResultAfterTagManager.value) return;
+  restoreBatchResultAfterTagManager.value = false;
+  batchResultDialogVisible.value = true;
+}
+async function handleTagManagerRefreshed(image: DockerImage | null) {
+  if (image && selectedImage.value?.id === image.id) selectedImage.value = image;
+  await refresh();
 }
 async function openDetail(image: DockerImage) {
   selectedImage.value = image;
@@ -735,7 +814,13 @@ async function submitRemove() {
     forgetSelectedImages([selectedImage.value.id]);
     await refresh();
     MessagePlugin.success(t('container.images.remove.success'));
-  } catch {
+  } catch (error) {
+    if (isMultipleTagFailure(error)) {
+      failedMultiTagImageId.value = selectedImage.value.id;
+      removeDialogVisible.value = false;
+      multiTagFailureDialogVisible.value = true;
+      return;
+    }
     MessagePlugin.error(t('container.images.remove.failed'));
   } finally {
     removing.value = false;
@@ -801,16 +886,16 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
       showUnknownBatchResult();
     } else if (!failed.length) {
       MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
-    } else if (failed.length < items.length) {
-      MessagePlugin.warning(
-        t('container.images.batch.partial', { success: items.length - failed.length, failed: failed.length }),
-      );
+    } else {
+      if (failed.length < items.length) {
+        MessagePlugin.warning(
+          t('container.images.batch.partial', { success: items.length - failed.length, failed: failed.length }),
+        );
+      } else {
+        MessagePlugin.error(t('container.images.batch.failed', { count: failed.length }));
+      }
       closeBatchDialogs();
       showBatchFailureDetails(failed, items.length - failed.length);
-    } else {
-      MessagePlugin.error(t('container.images.batch.failed', { count: failed.length }));
-      closeBatchDialogs();
-      showBatchFailureDetails(failed, 0);
     }
     if (!requestError && !hasUnknownResponse && (!failed.length || failed.length < items.length)) {
       removeDialogVisible.value = false;
@@ -826,7 +911,6 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
     batchRemoving.value = false;
   }
 }
-
 function closeBatchDialogs() {
   removeDialogVisible.value = false;
   cleanupDialogVisible.value = false;
@@ -870,6 +954,23 @@ function normalizeBatchFailureCode(errorCode?: string): DockerImageRemoveErrorCo
   return Object.values(DOCKER_IMAGE_REMOVE_ERROR_CODES).includes(errorCode as DockerImageRemoveErrorCode)
     ? (errorCode as DockerImageRemoveErrorCode)
     : DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN;
+}
+
+function isMultipleTagFailure(error: unknown) {
+  return isApiRequestError(error) && error.messageKey === dockerImageReferencedByMultipleTagsMessageKey;
+}
+function openFailedImageTagManager() {
+  if (!failedMultiTagImageId.value) return;
+  restoreBatchResultAfterTagManager.value = false;
+  tagManagerImageId.value = failedMultiTagImageId.value;
+  tagManagerVisible.value = true;
+  multiTagFailureDialogVisible.value = false;
+}
+function openBatchFailureTagManager(imageId: string) {
+  restoreBatchResultAfterTagManager.value = true;
+  tagManagerImageId.value = imageId;
+  tagManagerVisible.value = true;
+  batchResultDialogVisible.value = false;
 }
 async function openCleanup() {
   cleanupDialogVisible.value = true;
@@ -1120,6 +1221,14 @@ onUnmounted(() => {
   align-items: center;
   display: flex;
   gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.docker-images-failure-item__identity {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
   min-width: 0;
 }
 
@@ -1129,6 +1238,11 @@ onUnmounted(() => {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-images-failure-item__manage-tags {
+  flex: none;
   white-space: nowrap;
 }
 

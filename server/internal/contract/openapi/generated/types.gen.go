@@ -2738,6 +2738,7 @@ func (e DashboardWidgetType) Valid() bool {
 const (
 	DockerImageActionResponseActionRemove DockerImageActionResponseAction = "remove"
 	DockerImageActionResponseActionTag    DockerImageActionResponseAction = "tag"
+	DockerImageActionResponseActionUntag  DockerImageActionResponseAction = "untag"
 )
 
 // Valid indicates whether the value is a known member of the DockerImageActionResponseAction enum.
@@ -2746,6 +2747,41 @@ func (e DockerImageActionResponseAction) Valid() bool {
 	case DockerImageActionResponseActionRemove:
 		return true
 	case DockerImageActionResponseActionTag:
+		return true
+	case DockerImageActionResponseActionUntag:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerImageBatchRemoveItemErrorCode.
+const (
+	DOCKERCOMMUNICATIONERROR      DockerImageBatchRemoveItemErrorCode = "DOCKER_COMMUNICATION_ERROR"
+	DOCKERRUNTIMEUNAVAILABLE      DockerImageBatchRemoveItemErrorCode = "DOCKER_RUNTIME_UNAVAILABLE"
+	DOCKERTIMEOUT                 DockerImageBatchRemoveItemErrorCode = "DOCKER_TIMEOUT"
+	IMAGEINUSE                    DockerImageBatchRemoveItemErrorCode = "IMAGE_IN_USE"
+	IMAGENOTFOUND                 DockerImageBatchRemoveItemErrorCode = "IMAGE_NOT_FOUND"
+	IMAGEREFERENCEDBYMULTIPLETAGS DockerImageBatchRemoveItemErrorCode = "IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
+	UNKNOWN                       DockerImageBatchRemoveItemErrorCode = "UNKNOWN"
+)
+
+// Valid indicates whether the value is a known member of the DockerImageBatchRemoveItemErrorCode enum.
+func (e DockerImageBatchRemoveItemErrorCode) Valid() bool {
+	switch e {
+	case DOCKERCOMMUNICATIONERROR:
+		return true
+	case DOCKERRUNTIMEUNAVAILABLE:
+		return true
+	case DOCKERTIMEOUT:
+		return true
+	case IMAGEINUSE:
+		return true
+	case IMAGENOTFOUND:
+		return true
+	case IMAGEREFERENCEDBYMULTIPLETAGS:
+		return true
+	case UNKNOWN:
 		return true
 	default:
 		return false
@@ -7458,12 +7494,16 @@ type DockerImageActionResponseAction string
 
 // DockerImageBatchRemoveItem defines model for docker-image-batch-remove-item.
 type DockerImageBatchRemoveItem struct {
-	ErrorCode  *string `json:"error_code,omitempty"`
-	Id         string  `json:"id"`
-	Message    *string `json:"message,omitempty"`
-	MessageKey *string `json:"message_key,omitempty"`
-	Success    bool    `json:"success"`
+	// ErrorCode Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
+	ErrorCode  *DockerImageBatchRemoveItemErrorCode `json:"error_code,omitempty"`
+	Id         string                               `json:"id"`
+	Message    *string                              `json:"message,omitempty"`
+	MessageKey *string                              `json:"message_key,omitempty"`
+	Success    bool                                 `json:"success"`
 }
+
+// DockerImageBatchRemoveItemErrorCode Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
+type DockerImageBatchRemoveItemErrorCode string
 
 // DockerImageBatchRemoveRequest defines model for docker-image-batch-remove-request.
 type DockerImageBatchRemoveRequest struct {
@@ -7529,6 +7569,12 @@ type DockerImageRemoveRequest struct {
 type DockerImageTagRequest struct {
 	// Target Complete repository and tag target, for example registry.example.com/team/app:stable.
 	Target string `json:"target"`
+}
+
+// DockerImageUntagRequest defines model for docker-image-untag-request.
+type DockerImageUntagRequest struct {
+	// Reference Complete local Repository:Tag reference to remove from the specified image.
+	Reference string `json:"reference"`
 }
 
 // DockerNetwork defines model for docker-network.
@@ -13657,6 +13703,9 @@ type PostDockerImageRemoveJSONRequestBody = DockerImageRemoveRequest
 
 // PostDockerImageTagJSONRequestBody defines body for PostDockerImageTag for application/json ContentType.
 type PostDockerImageTagJSONRequestBody = DockerImageTagRequest
+
+// PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
+type PostDockerImageUntagJSONRequestBody = DockerImageUntagRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

@@ -531,6 +531,37 @@ func (s *service) TagDockerImage(ctx context.Context, id, target string) (Docker
 	return DockerImageActionResult{ID: id, Action: "tag", MessageKey: containercontract.DockerImageTagCompleted.String()}, nil
 }
 
+// UntagDockerImage 从镜像移除经归属校验的 Repository:Tag 引用，不会强制 daemon 清理镜像。
+func (s *service) UntagDockerImage(ctx context.Context, id, reference string) (DockerImageActionResult, error) {
+	if !s.dangerousActionsAllowed(ctx) {
+		return DockerImageActionResult{ID: id, Action: "untag"}, errDangerousActionsDisabled
+	}
+	image, err := s.DockerImage(ctx, id)
+	if err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
+	if !dockerImageHasRepositoryTag(image, reference) {
+		return DockerImageActionResult{ID: id, Action: "untag"}, errDockerImageTagNotAssociated
+	}
+	writer, err := s.dockerImageWriter(ctx)
+	if err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
+	if err := writer.UntagDockerImage(ctx, reference); err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
+	return DockerImageActionResult{ID: id, Action: "untag", MessageKey: containercontract.DockerImageUntagCompleted.String()}, nil
+}
+
+func dockerImageHasRepositoryTag(image DockerImage, reference string) bool {
+	for _, tag := range image.RepositoryTags {
+		if strings.TrimSpace(tag) == reference {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *service) RemoveDockerImage(ctx context.Context, id string, force bool) (DockerImageActionResult, error) {
 	if !s.dangerousActionsAllowed(ctx) {
 		return DockerImageActionResult{ID: id, Action: "remove"}, errDangerousActionsDisabled

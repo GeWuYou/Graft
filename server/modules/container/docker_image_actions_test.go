@@ -73,3 +73,12 @@ func TestMapDockerImageRemoveErrorUsesStableCategories(t *testing.T) {
 		})
 	}
 }
+
+func TestMapDockerImageRemoveErrorClassifiesMultipleTagReferences(t *testing.T) {
+	t.Parallel()
+
+	err := mapDockerImageRemoveError(errors.New("conflict: unable to delete image - image is referenced in multiple repositories"))
+	if !errors.Is(err, errDockerImageMultipleTags) {
+		t.Fatalf("expected multiple-tag reference error, got %v", err)
+	}
+}

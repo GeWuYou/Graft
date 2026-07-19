@@ -87,10 +87,14 @@ const (
 	DockerImageTagFailed MessageKey = "ops.container.error.imageTagFailed"
 	// DockerImageRemoveFailed identifies a Docker daemon remove failure without exposing daemon diagnostics.
 	DockerImageRemoveFailed MessageKey = "ops.container.error.imageRemoveFailed"
+	// DockerImageTagNotAssociated 表示标签不引用请求的镜像。
+	DockerImageTagNotAssociated MessageKey = "ops.container.error.imageTagNotAssociated"
 	// DockerImagePullCompleted identifies successful image pull completion.
 	DockerImagePullCompleted MessageKey = "ops.container.image.pull.completed"
 	// DockerImageTagCompleted identifies successful image tag completion.
 	DockerImageTagCompleted MessageKey = "ops.container.image.tag.completed"
+	// DockerImageUntagCompleted 表示镜像标签移除已完成。
+	DockerImageUntagCompleted MessageKey = "ops.container.image.untag.completed"
 	// DockerImageRemoveCompleted identifies successful image remove completion.
 	DockerImageRemoveCompleted MessageKey = "ops.container.image.remove.completed"
 	// ContainerAuditShellSessionRequested identifies shell session request audit messages.

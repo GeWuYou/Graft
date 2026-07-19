@@ -401,8 +401,12 @@
         "description": "允许从 Docker 守护进程已配置的仓库拉取镜像。"
       },
       "dockerImageTag": {
-        "display": "为镜像打标签",
-        "description": "允许为本地 Docker 镜像创建新的仓库标签。"
+        "display": "新增镜像标签",
+        "description": "允许为本地 Docker 镜像新增 Repository:Tag 引用。"
+      },
+      "dockerImageUntag": {
+        "display": "移除镜像标签",
+        "description": "允许移除本地 Docker 镜像的 Repository:Tag 引用，不会强制删除镜像。"
       },
       "dockerImageRemove": {
         "display": "删除镜像",

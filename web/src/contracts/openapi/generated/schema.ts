@@ -2289,6 +2289,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/images/{id}/untag': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove a Docker image tag
+     * @description Removes the specified Repository:Tag reference only after the server verifies it currently belongs to the Image ID. This operation never forces image deletion.
+     */
+    post: operations['postDockerImageUntag'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/images/{id}/remove': {
     parameters: {
       query?: never;
@@ -3624,6 +3644,7 @@ export interface components {
     DockerImageListResponse: components['schemas']['docker-image-list-response'];
     DockerImagePullRequest: components['schemas']['docker-image-pull-request'];
     DockerImageTagRequest: components['schemas']['docker-image-tag-request'];
+    DockerImageUntagRequest: components['schemas']['docker-image-untag-request'];
     DockerImageRemoveRequest: components['schemas']['docker-image-remove-request'];
     DockerImageActionResponse: components['schemas']['docker-image-action-response'];
     DockerImageBatchRemoveRequest: components['schemas']['docker-image-batch-remove-request'];
@@ -6537,11 +6558,15 @@ export interface components {
     'docker-image-action-response': {
       id: string;
       /** @enum {string} */
-      action: 'tag' | 'remove';
+      action: 'tag' | 'untag' | 'remove';
       message_key: string;
     };
     'enveloped-docker-image-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-action-response'];
+    };
+    'docker-image-untag-request': {
+      /** @description Complete local Repository:Tag reference to remove from the specified image. */
+      reference: string;
     };
     'docker-image-remove-request': {
       /**
@@ -6562,7 +6587,7 @@ export interface components {
       id: string;
       success: boolean;
       /**
-       * @description Stable Docker image removal failure code. Present only when success is false.
+       * @description Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
        * @enum {string}
        */
       error_code?:
@@ -14560,6 +14585,57 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Image not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postDockerImageUntag: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Docker image ID or repository reference. */
+        id: components['parameters']['docker-image-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-image-untag-request'];
+      };
+    };
+    responses: {
+      /** @description Docker image tag removal result. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-image-action-response'];
+        };
+      };
+      /** @description Invalid image ID or Repository:Tag reference */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Image not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Repository:Tag does not currently reference this image */
+      409: {
         headers: {
           [name: string]: unknown;
         };

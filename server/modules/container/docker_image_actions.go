@@ -33,6 +33,7 @@ var (
 	errDockerImageRuntimeUnavailable = errors.New("docker image runtime unavailable")
 	errDockerImageTimeout            = errors.New("docker image remove timeout")
 	errDockerImageCommunication      = errors.New("docker image communication failed")
+	errDockerImageTagNotAssociated   = errors.New("docker image tag does not reference image")
 )
 
 // DockerImagePullEvent 是发送给 API 消费方的脱敏拉取进度事件。
@@ -55,6 +56,7 @@ type DockerImageActionResult struct {
 type DockerImageWriter interface {
 	PullDockerImage(context.Context, string, func(DockerImagePullEvent) error) error
 	TagDockerImage(context.Context, string, string) error
+	UntagDockerImage(context.Context, string) error
 	RemoveDockerImage(context.Context, string, bool) error
 }
 
@@ -131,6 +133,21 @@ func (r *DockerRuntime) TagDockerImage(ctx context.Context, source, target strin
 	}
 	if _, err := client.ImageTag(ctx, mobyclient.ImageTagOptions{Source: source, Target: target}); err != nil {
 		return mapDockerImageTagError(err)
+	}
+	return nil
+}
+
+// UntagDockerImage 移除一个完整的 Repository:Tag 引用，不会强制删除镜像。
+func (r *DockerRuntime) UntagDockerImage(ctx context.Context, reference string) error {
+	if err := validateDockerImageReference(reference); err != nil {
+		return err
+	}
+	client, ok := r.client.(dockerImageWriterClient)
+	if !ok {
+		return errUnsupportedContainerRuntime
+	}
+	if _, err := client.ImageRemove(ctx, reference, mobyclient.ImageRemoveOptions{Force: false, PruneChildren: false}); err != nil {
+		return mapDockerImageRemoveError(err)
 	}
 	return nil
 }

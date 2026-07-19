@@ -1,0 +1,9 @@
+type: object
+required: [reference]
+properties:
+  reference:
+    type: string
+    minLength: 1
+    maxLength: 512
+    description: Complete local Repository:Tag reference to remove from the specified image.
+additionalProperties: false

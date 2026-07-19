@@ -19,7 +19,7 @@ func statusForError(err error) int {
 		return http.StatusForbidden
 	case errors.Is(err, errContainerNotFound), errors.Is(err, errContainerMountNotFound), errors.Is(err, errDockerImageNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning), errors.Is(err, errDockerImageMultipleTags), errors.Is(err, errDockerImageInUse):
+	case errors.Is(err, errInvalidContainerState), errors.Is(err, errShellTicketExpired), errors.Is(err, errShellTicketUsed), errors.Is(err, errContainerNotRunning), errors.Is(err, errDockerImageMultipleTags), errors.Is(err, errDockerImageInUse), errors.Is(err, errDockerImageTagNotAssociated):
 		return http.StatusConflict
 	default:
 		return http.StatusInternalServerError
@@ -76,6 +76,7 @@ var containerErrorMessageRules = []struct {
 	{err: errDockerImageRuntimeUnavailable, key: containercontract.ContainerRuntimeUnavailable},
 	{err: errDockerImageTimeout, key: containercontract.ContainerTimeout},
 	{err: errDockerImageCommunication, key: containercontract.DockerImageCommunicationError},
+	{err: errDockerImageTagNotAssociated, key: containercontract.DockerImageTagNotAssociated},
 	{err: errDockerImagePullFailed, key: containercontract.DockerImagePullFailed},
 	{err: errDockerImageTagFailed, key: containercontract.DockerImageTagFailed},
 	{err: errDockerImageRemoveFailed, key: containercontract.DockerImageRemoveFailed},

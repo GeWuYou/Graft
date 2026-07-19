@@ -67,8 +67,20 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('normalizeBatchFailureCode(item.error_code)');
     expect(sourceText).toContain('batchFailureGroups');
     expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).toContain('showBatchFailureDetails(failed, items.length - failed.length);');
     expect(sourceText).not.toContain('items.slice(0, 5)');
     expect(sourceText).not.toContain('item.message ||');
+  });
+
+  it('keeps batch results visible and provides one tag-management entry for every multi-tag failure', () => {
+    expect(sourceText).toContain('failure.code === dockerImageReferencedByMultipleTags');
+    expect(sourceText).toContain('@click="openBatchFailureTagManager(failure.id)"');
+    expect(sourceText).toContain('function openBatchFailureTagManager(imageId: string)');
+    expect(sourceText).toContain('restoreBatchResultAfterTagManager.value = true;');
+    expect(sourceText).toContain('@update:visible="handleTagManagerVisibleChange"');
+    expect(sourceText).toContain('function handleTagManagerVisibleChange(visible: boolean)');
+    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).toContain('batchResultDialogVisible.value = false;');
   });
 
   it('keeps tag-conflict handling normal while preserving explicit force for container references', () => {
@@ -116,6 +128,22 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('row.container_references');
     expect(sourceText).toContain(':content="container.id"');
     expect(sourceText).toContain("t('container.images.unused')");
+  });
+
+  it('keeps Image-ID-backed rows recognizable by repository tags and opens one tag manager', () => {
+    expect(sourceText).toContain("title: t('container.images.fields.name')");
+    expect(sourceText).toContain("value: 'manage-tags'");
+    expect(sourceText).toContain('<tag-manager-drawer');
+    expect(sourceText).toContain('@refreshed="handleTagManagerRefreshed"');
+    expect(sourceText).toContain("t('container.images.actions.manageTags')");
+  });
+
+  it('previews a multi-tag Image delete failure without changing the remove request semantics', () => {
+    expect(sourceText).toContain('multipleTagsPreflight');
+    expect(sourceText).toContain('error.messageKey === dockerImageReferencedByMultipleTagsMessageKey');
+    expect(sourceText).toContain('isMultipleTagFailure(error)');
+    expect(sourceText).toContain('openFailedImageTagManager');
+    expect(sourceText).toContain('removeDockerImage(selectedImage.value.id, { force: forceRemove.value })');
   });
 
   it('loads all unused images and selects them by default in the cleanup dialog', () => {

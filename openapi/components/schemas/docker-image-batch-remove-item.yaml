@@ -5,7 +5,7 @@ properties:
   success: { type: boolean }
   error_code:
     type: string
-    description: Stable Docker image removal failure code. Present only when success is false.
+    description: Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.
     enum:
       - IMAGE_REFERENCED_BY_MULTIPLE_TAGS
       - IMAGE_IN_USE
