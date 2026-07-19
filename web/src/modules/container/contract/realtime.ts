@@ -1,15 +1,6 @@
+import { CONTAINER_REALTIME_TOPIC } from '@/contracts/generated/modules/container';
 import type { components } from '@/contracts/openapi/generated/schema';
 import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/realtime';
-
-export const CONTAINER_REALTIME_TOPIC = {
-  DASHBOARD_SUMMARY: 'container.dashboard.summary',
-  EVENTS_PREFIX: 'container.events:',
-  LOGS_PREFIX: 'container.logs:',
-  LIST_STATS: 'container.stats.list',
-  STATS_PREFIX: 'container.stats:',
-} as const;
-
-export type ContainerRealtimeTopicPrefix = (typeof CONTAINER_REALTIME_TOPIC)[keyof typeof CONTAINER_REALTIME_TOPIC];
 
 export function buildContainerStatsTopicName(containerId: string) {
   return `${CONTAINER_REALTIME_TOPIC.STATS_PREFIX}${containerId}`;

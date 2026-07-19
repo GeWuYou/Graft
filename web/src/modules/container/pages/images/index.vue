@@ -565,6 +565,10 @@ import { computed, onUnmounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  DOCKER_IMAGE_REMOVE_ERROR_CODES,
+  type DockerImageRemoveErrorCode,
+} from '@/contracts/generated/modules/container';
+import {
   ManagementPagedTable,
   ManagementPageHeader,
   ManagementToolbar,
@@ -591,7 +595,6 @@ import {
   tagDockerImage,
 } from '../../api/image-actions';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
-import { DOCKER_IMAGE_REMOVE_ERROR_CODES, type DockerImageRemoveErrorCode } from '../../contract/docker-image-errors';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
 type DockerImage = DockerImageRecord;

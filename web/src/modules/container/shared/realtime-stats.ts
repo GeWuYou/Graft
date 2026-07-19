@@ -1,9 +1,7 @@
+import { CONTAINER_REALTIME_TOPIC } from '@/contracts/generated/modules/container';
+
 import type { ContainerDashboardSummaryResponse } from '../contract/dashboard-summary';
-import {
-  buildContainerStatsTopicName,
-  CONTAINER_REALTIME_TOPIC,
-  getContainerDashboardSummaryTopicName,
-} from '../contract/realtime';
+import { buildContainerStatsTopicName, getContainerDashboardSummaryTopicName } from '../contract/realtime';
 import type { ContainerResourceSummary } from '../types/container';
 
 function isObject(value: unknown): value is Record<string, unknown> {

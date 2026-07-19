@@ -77,6 +77,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import type {
   TerminalConnectionState,
   TerminalLifecycleCloseReason,
@@ -92,7 +93,6 @@ import type { ApiRequestError } from '@/types/axios';
 import { isApiRequestError } from '@/utils/request';
 
 import { postContainerShellSession } from '../api/container';
-import { CONTAINER_PERMISSION_CODE } from '../contract/permissions';
 import type { ContainerState } from '../types/container';
 
 type ShellAvailabilityState = 'ready' | 'disabled' | 'forbidden' | 'not-running';

@@ -28,7 +28,7 @@ help:
       '  just compose-up        Start repository Docker Compose services' \
       '  just compose-down      Stop repository Docker Compose services' \
       '  just generate          Run Go generation, OpenAPI bundle, and frontend OpenAPI types' \
-      '  just openapi-check     Validate the root OpenAPI spec and frontend generated types freshness'
+      '  just openapi-check     Validate OpenAPI, generated bindings, web schema, and contract projection freshness'
 
 setup:
     bun install --frozen-lockfile
@@ -143,10 +143,15 @@ compose-down:
     docker compose down
 
 generate:
-    cd server && go generate ./...
     node scripts/openapi-bundle.mjs
+    cd server && go generate ./...
     cd web && bun run openapi:types
+    cd server && go run ./internal/contract/projection/cmd/projectiongen
 
 openapi-check:
     cd server && go run ./cmd/graft validate openapi
     cd web && bun run openapi:types:check
+    cd server && go run ./internal/contract/projection/cmd/projectiongen --check
+
+contract-projection-check:
+    cd server && go run ./internal/contract/projection/cmd/projectiongen --check

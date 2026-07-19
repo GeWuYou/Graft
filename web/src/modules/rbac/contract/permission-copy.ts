@@ -1,5 +1,5 @@
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
-import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import { MONITOR_PERMISSION_CODE } from '@/modules/monitor/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
 
@@ -87,7 +87,7 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
     displayKey: 'rbac.permissionCatalog.containerEvents.display',
     descriptionKey: 'rbac.permissionCatalog.containerEvents.description',
   },
-  ['ops.container.environment']: {
+  [CONTAINER_PERMISSION_CODE.ENVIRONMENT]: {
     displayKey: 'rbac.permissionCatalog.containerEnvironment.display',
     descriptionKey: 'rbac.permissionCatalog.containerEnvironment.description',
   },

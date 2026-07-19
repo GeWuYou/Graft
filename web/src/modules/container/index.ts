@@ -1,8 +1,8 @@
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import type { WebModuleRegistration } from '@/modules/types';
 
 import { getContainerDashboardSummary } from './api/dashboard-summary';
 import { containerBootstrapRouteRegistrations, containerGlobalRouteRegistrations } from './bootstrap-routes';
-import { CONTAINER_PERMISSION_CODE } from './contract/permissions';
 
 export const containerModuleRegistration: WebModuleRegistration = {
   moduleId: 'container',
