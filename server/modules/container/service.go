@@ -457,7 +457,7 @@ func (s *service) DockerVolumeBatchRemove(ctx context.Context, names []string, f
 		err := s.RemoveDockerVolume(ctx, name, force)
 		if err != nil {
 			item.ErrorCode = messageKeyForError(err).String()
-			item.MessageKey, item.Message = item.ErrorCode, item.ErrorCode
+			item.MessageKey, item.Message = item.ErrorCode, fallbackMessageForError(err)
 			result.FailedCount++
 		} else {
 			item.Success = true

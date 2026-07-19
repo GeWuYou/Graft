@@ -152,7 +152,7 @@ export const getDockerVolume = (id: string) =>
     url: buildOpenApiRuntimePath('getDockerVolume', { id }),
   }) as Promise<DockerVolumeDetail>;
 export const removeDockerVolume = (id: string, options: { force?: boolean } = {}) =>
-  request.post({ url: `/api/ops/docker/volumes/${encodeURIComponent(id)}/remove`, data: options });
+  request.post({ url: buildOpenApiRuntimePath('postDockerVolumeRemove', { id }), data: options });
 export function batchRemoveDockerVolumes(payload: DockerVolumeBatchRemoveRequest) {
   return request.post<DockerVolumeBatchRemoveResult>({
     url: OPENAPI_RUNTIME_PATH.postDockerVolumeBatchRemove,

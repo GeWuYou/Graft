@@ -105,6 +105,8 @@ type DockerVolumeListResult struct {
 }
 
 func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) DockerVolumeListResult {
+	query.Offset = max(query.Offset, 0)
+	query.Limit = max(query.Limit, 0)
 	filtered := make([]DockerVolume, 0, len(items))
 	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
 	for _, item := range items {
@@ -115,7 +117,10 @@ func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) Docker
 	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Name < filtered[j].Name })
 	total := len(filtered)
 	start := min(query.Offset, total)
-	end := min(start+query.Limit, total)
+	end := total
+	if query.Limit <= total-start {
+		end = start + query.Limit
+	}
 	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset}
 }
 
@@ -332,7 +337,7 @@ func nullableUsage(value int64) *int64 {
 	return &value
 }
 
-// ReadDockerVolume returns one sanitized Docker volume by ID and enriches it with runtime usage data when available.
+// ReadDockerVolume 读取单个脱敏 Docker 数据卷；详情路径不触发全量 system/df，仅映射 inspect 已提供的用量数据。
 func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (DockerVolume, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -343,17 +348,6 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 		return DockerVolume{}, mapDockerError(err)
 	}
 	projected := dockerVolume(item)
-	if item.UsageData == nil {
-		usage, usageErr := client.VolumeDiskUsage(ctx)
-		if usageErr == nil {
-			for _, usageItem := range usage {
-				if usageItem.Name == item.Name && usageItem.UsageData != nil {
-					item.UsageData = usageItem.UsageData
-					break
-				}
-			}
-		}
-	}
 	if item.UsageData != nil {
 		projected.ReferenceCount, projected.SizeBytes = nullableUsage(item.UsageData.RefCount), nullableUsage(item.UsageData.Size)
 	}

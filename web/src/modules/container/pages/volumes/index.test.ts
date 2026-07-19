@@ -23,4 +23,24 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('function handleBatchRemove()');
     expect(sourceText).toContain('batchRemoveDockerVolumes');
   });
+
+  it('renders a filter-aware TDesign empty state without replacing table slots', () => {
+    expect(sourceText).toContain('<template #empty>');
+    expect(sourceText).toContain('<t-empty');
+    expect(sourceText).toContain('hasActiveFilters');
+    expect(sourceText).toContain('@click="resetFilters"');
+    expect(sourceText).toContain('<template #name="{ row }">');
+    expect(sourceText).toContain('<template #usage="{ row }"');
+    expect(sourceText).toContain('<template #actions="{ row }">');
+  });
+
+  it('uses TDesign controls in removal confirmations and avoids duplicate filter refreshes', () => {
+    expect(sourceText).toContain('Input,');
+    expect(sourceText).toContain('Checkbox,');
+    expect(sourceText).not.toContain("h('input'");
+    expect(sourceText).toContain('defaultValue: typedName');
+    expect(sourceText).toContain('defaultChecked: isChecked()');
+    expect(sourceText).toContain('const previousPage = pagination.current;');
+    expect(sourceText).toContain('if (previousPage === 1) void refresh();');
+  });
 });

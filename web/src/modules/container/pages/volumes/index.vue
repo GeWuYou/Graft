@@ -99,6 +99,15 @@
           }}</t-button>
         </t-space>
       </template>
+      <template #empty>
+        <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
+          <template #action>
+            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
+              {{ t('container.volume.filters.reset') }}
+            </t-button>
+          </template>
+        </t-empty>
+      </template>
     </t-table>
     <t-drawer
       v-model:visible="detailDrawerVisible"
@@ -152,7 +161,7 @@
 </template>
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next';
+import { Checkbox, DialogPlugin, Input, MessagePlugin } from 'tdesign-vue-next';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -187,6 +196,9 @@ const filters = reactive({ keyword: '', driver: '', scope: '', usage: 'all' as U
 const applied = ref({ ...filters });
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 });
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VOLUME_REMOVE));
+const hasActiveFilters = computed(() =>
+  Boolean(applied.value.keyword || applied.value.driver || applied.value.scope || applied.value.usage !== 'all'),
+);
 const selectedRowKeys = ref<string[]>([]);
 const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
@@ -243,6 +255,7 @@ async function refresh() {
   }
 }
 function applyFilters() {
+  const previousPage = pagination.current;
   applied.value = {
     keyword: filters.keyword.trim(),
     driver: filters.driver.trim(),
@@ -250,7 +263,7 @@ function applyFilters() {
     usage: filters.usage,
   };
   pagination.current = 1;
-  if (pagination.current === 1) void refresh();
+  if (previousPage === 1) void refresh();
 }
 function resetFilters() {
   filters.keyword = '';
@@ -274,6 +287,17 @@ function handleSelectChange(keys: Array<string | number>) {
 function clearSelection() {
   selectedRowKeys.value = [];
 }
+function renderForceCheckbox(isChecked: () => boolean, onChange: (checked: boolean) => void) {
+  return h(
+    Checkbox,
+    {
+      class: 'docker-volume-remove-confirm__force',
+      defaultChecked: isChecked(),
+      onChange,
+    },
+    { default: () => t('container.volume.actions.force') },
+  );
+}
 function handleBatchRemove() {
   if (!selectedRowKeys.value.length || !canRemove.value) return;
   let force = false;
@@ -293,13 +317,10 @@ function handleBatchRemove() {
         h('p', t('container.volume.batch.confirm', { count: selectedRowKeys.value.length })),
         h('div', { class: 'docker-volume-remove-confirm__names' }, selectedRowKeys.value.join(', ')),
         mustForce
-          ? h('label', { class: 'docker-volume-remove-confirm__force' }, [
-              h('input', {
-                type: 'checkbox',
-                onChange: (event: Event) => (force = (event.target as HTMLInputElement).checked),
-              }),
-              h('span', t('container.volume.actions.force')),
-            ])
+          ? renderForceCheckbox(
+              () => force,
+              (checked) => (force = checked),
+            )
           : null,
       ]),
     onConfirm: async () => {
@@ -363,23 +384,16 @@ function confirmRemove(row: VolumeRow) {
     body: () =>
       h('div', { class: 'docker-volume-remove-confirm' }, [
         h('p', t('container.volume.actions.confirm', { name: row.name })),
-        h('input', {
-          class: 't-input__inner',
+        h(Input, {
+          defaultValue: typedName,
           placeholder: row.name,
-          onInput: (event: Event) => {
-            typedName = (event.target as HTMLInputElement).value;
-          },
+          onChange: (value: string | number) => (typedName = String(value)),
         }),
         mustForce
-          ? h('label', { class: 'docker-volume-remove-confirm__force' }, [
-              h('input', {
-                type: 'checkbox',
-                onChange: (event: Event) => {
-                  force = (event.target as HTMLInputElement).checked;
-                },
-              }),
-              h('span', t('container.volume.actions.force')),
-            ])
+          ? renderForceCheckbox(
+              () => force,
+              (checked) => (force = checked),
+            )
           : null,
       ]),
     onConfirm: async () => {
