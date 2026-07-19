@@ -76,12 +76,13 @@ closeout:
     "scheduled-task-system-config-api-path-migration"
   ],
   "pending_batches": [
-    "security-announcement-app-log-access-log-migration",
+    "security-announcement-api-path-migration",
+    "app-log-access-log-api-path-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
   "current_batch": "scheduled-task-system-config-api-path-migration",
-  "next_batch": "security-announcement-app-log-access-log-migration",
+  "next_batch": "security-announcement-api-path-migration",
   "closeout_status": "completed"
 }
 ```

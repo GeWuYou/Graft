@@ -1,13 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import {
-  ANNOUNCEMENT_API_PATH,
-  buildAnnouncementArchiveApiPath,
-  buildAnnouncementDetailApiPath,
-  buildAnnouncementPublishApiPath,
-  buildMyAnnouncementReadApiPath,
-} from '../contract/paths';
 import type {
   AnnouncementItem,
   AnnouncementListQuery,
@@ -20,7 +14,7 @@ import type {
   UpdateAnnouncementRequest,
 } from '../types/announcement';
 
-type AnnouncementListPath = (typeof ANNOUNCEMENT_API_PATH)['LIST'];
+type AnnouncementListPath = typeof OPENAPI_RUNTIME_PATH.getAnnouncements;
 type GetAnnouncementsOperation = paths[AnnouncementListPath]['get'];
 type GetAnnouncementsEnvelope = GetAnnouncementsOperation['responses'][200]['content']['application/json'];
 type GetAnnouncementsData = NonNullable<GetAnnouncementsEnvelope['data']>;
@@ -31,7 +25,7 @@ type PostAnnouncementsEnvelope = PostAnnouncementsOperation['responses'][201]['c
 type PostAnnouncementsData = NonNullable<PostAnnouncementsEnvelope['data']>;
 type PostAnnouncementsBody = PostAnnouncementsOperation['requestBody']['content']['application/json'];
 
-type AnnouncementDetailPath = (typeof ANNOUNCEMENT_API_PATH)['DETAIL'];
+type AnnouncementDetailPath = typeof OPENAPI_RUNTIME_PATH.getAnnouncement;
 type GetAnnouncementOperation = paths[AnnouncementDetailPath]['get'];
 type GetAnnouncementEnvelope = GetAnnouncementOperation['responses'][200]['content']['application/json'];
 type GetAnnouncementData = NonNullable<GetAnnouncementEnvelope['data']>;
@@ -46,7 +40,7 @@ type PutAnnouncementBody = PutAnnouncementOperation['requestBody']['content']['a
 type DeleteAnnouncementOperation = paths[AnnouncementDetailPath]['delete'];
 type DeleteAnnouncementPathParams = DeleteAnnouncementOperation['parameters']['path'];
 
-type AnnouncementPublishPath = (typeof ANNOUNCEMENT_API_PATH)['PUBLISH'];
+type AnnouncementPublishPath = typeof OPENAPI_RUNTIME_PATH.postAnnouncementPublish;
 type PostAnnouncementPublishOperation = paths[AnnouncementPublishPath]['post'];
 type PostAnnouncementPublishEnvelope =
   PostAnnouncementPublishOperation['responses'][200]['content']['application/json'];
@@ -56,32 +50,32 @@ type PostAnnouncementPublishBody = NonNullable<
   PostAnnouncementPublishOperation['requestBody']
 >['content']['application/json'];
 
-type AnnouncementArchivePath = (typeof ANNOUNCEMENT_API_PATH)['ARCHIVE'];
+type AnnouncementArchivePath = typeof OPENAPI_RUNTIME_PATH.postAnnouncementArchive;
 type PostAnnouncementArchiveOperation = paths[AnnouncementArchivePath]['post'];
 type PostAnnouncementArchiveEnvelope =
   PostAnnouncementArchiveOperation['responses'][200]['content']['application/json'];
 type PostAnnouncementArchiveData = NonNullable<PostAnnouncementArchiveEnvelope['data']>;
 type PostAnnouncementArchivePathParams = PostAnnouncementArchiveOperation['parameters']['path'];
 
-type MyAnnouncementListPath = (typeof ANNOUNCEMENT_API_PATH)['MY_LIST'];
+type MyAnnouncementListPath = typeof OPENAPI_RUNTIME_PATH.getMyAnnouncements;
 type GetMyAnnouncementsOperation = paths[MyAnnouncementListPath]['get'];
 type GetMyAnnouncementsEnvelope = GetMyAnnouncementsOperation['responses'][200]['content']['application/json'];
 type GetMyAnnouncementsData = NonNullable<GetMyAnnouncementsEnvelope['data']>;
 type GetMyAnnouncementsQuery = NonNullable<GetMyAnnouncementsOperation['parameters']['query']>;
 
-type MyAnnouncementReadPath = (typeof ANNOUNCEMENT_API_PATH)['MY_READ'];
+type MyAnnouncementReadPath = typeof OPENAPI_RUNTIME_PATH.postMyAnnouncementRead;
 type PostMyAnnouncementReadOperation = paths[MyAnnouncementReadPath]['post'];
 type PostMyAnnouncementReadEnvelope = PostMyAnnouncementReadOperation['responses'][200]['content']['application/json'];
 type PostMyAnnouncementReadData = NonNullable<PostMyAnnouncementReadEnvelope['data']>;
 type PostMyAnnouncementReadPathParams = PostMyAnnouncementReadOperation['parameters']['path'];
 
-type MyAnnouncementReadAllPath = (typeof ANNOUNCEMENT_API_PATH)['MY_READ_ALL'];
+type MyAnnouncementReadAllPath = typeof OPENAPI_RUNTIME_PATH.postMyAnnouncementsReadAll;
 type PostMyAnnouncementsReadAllOperation = paths[MyAnnouncementReadAllPath]['post'];
 type PostMyAnnouncementsReadAllEnvelope =
   PostMyAnnouncementsReadAllOperation['responses'][200]['content']['application/json'];
 type PostMyAnnouncementsReadAllData = NonNullable<PostMyAnnouncementsReadAllEnvelope['data']>;
 
-type MyAnnouncementUnreadCountPath = (typeof ANNOUNCEMENT_API_PATH)['MY_UNREAD_COUNT'];
+type MyAnnouncementUnreadCountPath = typeof OPENAPI_RUNTIME_PATH.getMyAnnouncementsUnreadCount;
 type GetMyAnnouncementsUnreadCountOperation = paths[MyAnnouncementUnreadCountPath]['get'];
 type GetMyAnnouncementsUnreadCountEnvelope =
   GetMyAnnouncementsUnreadCountOperation['responses'][200]['content']['application/json'];
@@ -89,21 +83,21 @@ type GetMyAnnouncementsUnreadCountData = NonNullable<GetMyAnnouncementsUnreadCou
 
 export function getAnnouncements(query?: AnnouncementListQuery): Promise<AnnouncementListResponse> {
   return request.get<GetAnnouncementsData>({
-    url: ANNOUNCEMENT_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getAnnouncements,
     params: normalizeAnnouncementListQuery(query),
   });
 }
 
 export function createAnnouncement(payload: CreateAnnouncementRequest): Promise<AnnouncementItem> {
   return request.post<PostAnnouncementsData>({
-    url: ANNOUNCEMENT_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.postAnnouncements,
     data: payload as PostAnnouncementsBody,
   });
 }
 
 export function getAnnouncement(id: GetAnnouncementPathParams['id']): Promise<AnnouncementItem> {
   return request.get<GetAnnouncementData>({
-    url: buildAnnouncementDetailApiPath(id),
+    url: buildOpenApiRuntimePath('getAnnouncement', { id }),
   });
 }
 
@@ -112,7 +106,7 @@ export function updateAnnouncement(
   payload: UpdateAnnouncementRequest,
 ): Promise<AnnouncementItem> {
   return request.put<PutAnnouncementData>({
-    url: buildAnnouncementDetailApiPath(id),
+    url: buildOpenApiRuntimePath('putAnnouncement', { id }),
     data: payload as PutAnnouncementBody,
   });
 }
@@ -122,45 +116,45 @@ export function publishAnnouncement(
   payload?: PublishAnnouncementRequest,
 ): Promise<AnnouncementItem> {
   return request.post<PostAnnouncementPublishData>({
-    url: buildAnnouncementPublishApiPath(id),
+    url: buildOpenApiRuntimePath('postAnnouncementPublish', { id }),
     data: payload as PostAnnouncementPublishBody | undefined,
   });
 }
 
 export function archiveAnnouncement(id: PostAnnouncementArchivePathParams['id']): Promise<AnnouncementItem> {
   return request.post<PostAnnouncementArchiveData>({
-    url: buildAnnouncementArchiveApiPath(id),
+    url: buildOpenApiRuntimePath('postAnnouncementArchive', { id }),
   });
 }
 
 export function getMyAnnouncements(query?: MyAnnouncementListQuery): Promise<AnnouncementListResponse> {
   return request.get<GetMyAnnouncementsData>({
-    url: ANNOUNCEMENT_API_PATH.MY_LIST,
+    url: OPENAPI_RUNTIME_PATH.getMyAnnouncements,
     params: normalizeMyAnnouncementListQuery(query),
   });
 }
 
 export function markAnnouncementRead(id: PostMyAnnouncementReadPathParams['id']): Promise<AnnouncementItem> {
   return request.post<PostMyAnnouncementReadData>({
-    url: buildMyAnnouncementReadApiPath(id),
+    url: buildOpenApiRuntimePath('postMyAnnouncementRead', { id }),
   });
 }
 
 export function markAllAnnouncementsRead(): Promise<AnnouncementReadAllResponse> {
   return request.post<PostMyAnnouncementsReadAllData>({
-    url: ANNOUNCEMENT_API_PATH.MY_READ_ALL,
+    url: OPENAPI_RUNTIME_PATH.postMyAnnouncementsReadAll,
   });
 }
 
 export function getAnnouncementUnreadCount(): Promise<AnnouncementUnreadCountResponse> {
   return request.get<GetMyAnnouncementsUnreadCountData>({
-    url: ANNOUNCEMENT_API_PATH.MY_UNREAD_COUNT,
+    url: OPENAPI_RUNTIME_PATH.getMyAnnouncementsUnreadCount,
   });
 }
 
 export function deleteAnnouncement(id: DeleteAnnouncementPathParams['id']) {
   return request.delete<Record<string, never>>({
-    url: buildAnnouncementDetailApiPath(id),
+    url: buildOpenApiRuntimePath('deleteAnnouncement', { id }),
   });
 }
 
