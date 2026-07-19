@@ -12,12 +12,16 @@ describe('docker image list page', () => {
   });
 
   it('uses the shared server-paged table and summary contract', () => {
+    expect(sourceText).toContain('<management-page-header\n      compact');
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('v-model:current="pagination.current"');
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
     expect(sourceText).not.toContain('filteredImages');
+    expect(sourceText).toContain('docker-images-summary');
+    expect(sourceText).toContain('summary.value.dangling');
+    expect(sourceText).not.toContain('docker-images-metrics');
   });
 
   it('resets server pagination when submitting or clearing the keyword', () => {
@@ -128,6 +132,11 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('row.container_references');
     expect(sourceText).toContain(':content="container.id"');
     expect(sourceText).toContain("t('container.images.unused')");
+    expect(sourceText).toContain("t('container.images.fields.status')");
+    expect(sourceText).toContain("t('container.images.status.used')");
+    expect(sourceText).toContain("t('container.images.status.unused')");
+    expect(sourceText).toContain("t('container.images.status.dangling')");
+    expect(sourceText).toContain('if (image.container_references?.length)');
   });
 
   it('keeps Image-ID-backed rows recognizable by repository tags and opens one tag manager', () => {
@@ -136,6 +145,23 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('<tag-manager-drawer');
     expect(sourceText).toContain('@refreshed="handleTagManagerRefreshed"');
     expect(sourceText).toContain("t('container.images.actions.manageTags')");
+    expect(sourceText).toContain("imageReference(imageTags(row)[0] ?? '').repository");
+    expect(sourceText).not.toContain("{ colKey: 'id'");
+  });
+
+  it('organizes the detail drawer and truncates metadata with full-value tooltips', () => {
+    expect(sourceText).toContain("t('container.images.detail.overview')");
+    expect(sourceText).toContain("t('container.images.detail.basicInfo')");
+    expect(sourceText).toContain("t('container.images.detail.metadata')");
+    expect(sourceText).toContain('middleEllipsis(selectedImage.id)');
+    expect(sourceText).toContain('middleEllipsis(selectedImage.repository_digests.join');
+    expect(sourceText).toContain('t-tooltip :content="selectedImage.id"');
+    expect(sourceText).toContain(
+      "middleEllipsis(imageReference(imageTags(selectedImage)[0] ?? '').repository || '-', 44)",
+    );
+    expect(sourceText).toContain('theme="info"');
+    expect(sourceText).toContain('<template #footer>');
+    expect(sourceText).toContain('@click="openRemove(selectedImage)"');
   });
 
   it('previews a multi-tag Image delete failure without changing the remove request semantics', () => {

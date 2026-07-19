@@ -1,6 +1,7 @@
 <template>
   <div class="docker-images-page" data-page-type="list-form-detail">
     <management-page-header
+      compact
       title-key="container.images.title"
       :title="t('container.images.title')"
       description-key="container.images.description"
@@ -22,11 +23,11 @@
       </template>
     </management-page-header>
 
-    <div class="docker-images-metrics">
-      <t-card v-for="metric in metrics" :key="metric.label" size="small" :bordered="false">
-        <p class="docker-images-metric__label">{{ metric.label }}</p>
-        <strong class="docker-images-metric__value">{{ metric.value }}</strong>
-      </t-card>
+    <div class="docker-images-summary" aria-live="polite">
+      <div v-for="metric in metrics" :key="metric.label" class="docker-images-summary__item">
+        <span>{{ metric.label }}</span>
+        <strong>{{ metric.value }}</strong>
+      </div>
     </div>
 
     <management-toolbar>
@@ -90,19 +91,28 @@
         </t-empty>
       </template>
       <template #tags="{ row }">
-        <t-space size="small" break-line>
-          <t-tag v-for="tag in imageTags(row).slice(0, 2)" :key="tag" size="small" variant="light-outline">{{
-            tag
-          }}</t-tag>
-          <t-tag v-if="imageTags(row).length > 2" size="small" variant="light-outline"
-            >+{{ imageTags(row).length - 2 }}</t-tag
-          >
-          <span v-if="!imageTags(row).length" class="docker-images-muted">{{ t('container.images.untagged') }}</span>
-        </t-space>
+        <div class="docker-images-identity">
+          <t-tooltip :content="imageReference(imageTags(row)[0] ?? '').repository">
+            <strong class="docker-images-identity__repository">{{
+              imageReference(imageTags(row)[0] ?? '').repository || shortId(row.id)
+            }}</strong>
+          </t-tooltip>
+          <t-space size="small" break-line>
+            <t-tooltip v-for="tag in imageTags(row).slice(0, 2)" :key="tag" :content="tag">
+              <t-tag size="small" variant="light-outline">{{ imageReference(tag).tag }}</t-tag>
+            </t-tooltip>
+            <t-tag v-if="imageTags(row).length > 2" size="small" variant="light-outline"
+              >+{{ imageTags(row).length - 2 }}</t-tag
+            >
+            <span v-if="!imageTags(row).length" class="docker-images-muted">{{ t('container.images.untagged') }}</span>
+          </t-space>
+        </div>
       </template>
-      <template #id="{ row }"
-        ><span class="docker-images-code">{{ shortId(row.id) }}</span></template
-      >
+      <template #status="{ row }">
+        <t-tag :theme="imageStatus(row).theme" size="small" variant="light-outline">
+          {{ imageStatus(row).label }}
+        </t-tag>
+      </template>
       <template #size="{ row }">{{ formatBytes(row.size_bytes) }}</template>
       <template #containers="{ row }">
         <t-space v-if="row.container_references?.length" size="small" break-line>
@@ -134,58 +144,98 @@
       placement="right"
     >
       <t-loading :loading="detailLoading">
-        <t-descriptions v-if="selectedImage" bordered :column="1" size="small">
-          <t-descriptions-item :label="t('container.images.fields.id')"
-            ><span class="docker-images-code">{{ selectedImage.id }}</span></t-descriptions-item
-          >
-          <t-descriptions-item :label="t('container.images.fields.tags')">
-            <t-space size="small" break-line>
-              <t-tag v-for="tag in imageTags(selectedImage)" :key="tag" size="small" variant="light-outline">{{
-                tag
-              }}</t-tag>
-              <span v-if="!imageTags(selectedImage).length">{{ t('container.images.untagged') }}</span>
-              <t-button size="small" variant="text" @click="openTagManager(selectedImage)">{{
-                t('container.images.actions.manageTags')
-              }}</t-button>
-            </t-space>
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('container.images.fields.digests')">{{
-            selectedImage.repository_digests.join(', ') || '-'
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.images.fields.size')">{{
-            formatBytes(selectedImage.size_bytes)
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.images.fields.createdAt')">{{
-            formatLocaleDateTime(selectedImage.created_at, locale)
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.images.fields.containers')">
-            <t-space v-if="selectedImage.container_references?.length" size="small" break-line>
-              <t-tooltip
-                v-for="container in selectedImage.container_references"
-                :key="container.id"
-                :content="container.id"
-              >
-                <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
-              </t-tooltip>
-            </t-space>
-            <span v-else>{{ t('container.images.unused') }}</span>
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('container.images.fields.platform')"
-            >{{ selectedImage.operating_system || '-' }} / {{ selectedImage.architecture || '-' }}</t-descriptions-item
-          >
-          <t-descriptions-item :label="t('container.images.fields.labels')">
-            <t-space v-if="Object.keys(selectedImage.labels ?? {}).length" direction="vertical" size="small">
-              <span v-for="(value, key) in selectedImage.labels" :key="key" class="docker-images-code"
-                >{{ key }}={{ value }}</span
-              >
-            </t-space>
-            <span v-else>-</span>
-          </t-descriptions-item>
-        </t-descriptions>
+        <div v-if="selectedImage" class="docker-images-detail">
+          <section class="docker-images-detail__section">
+            <h3>{{ t('container.images.detail.overview') }}</h3>
+            <div class="docker-images-detail__identity">
+              <div>
+                <span class="docker-images-detail__label">{{ t('container.images.fields.repository') }}</span>
+                <t-tooltip
+                  :content="imageReference(imageTags(selectedImage)[0] ?? '').repository || '-'"
+                  placement="top-left"
+                >
+                  <strong>{{
+                    middleEllipsis(imageReference(imageTags(selectedImage)[0] ?? '').repository || '-', 44)
+                  }}</strong>
+                </t-tooltip>
+              </div>
+              <t-tag :theme="imageStatus(selectedImage).theme" size="small" variant="light-outline">
+                {{ imageStatus(selectedImage).label }}
+              </t-tag>
+            </div>
+            <div class="docker-images-detail__value">
+              <span class="docker-images-detail__label">{{ t('container.images.fields.tags') }}</span>
+              <t-space v-if="imageTags(selectedImage).length" size="small" break-line>
+                <t-tooltip v-for="tag in imageTags(selectedImage)" :key="tag" :content="tag">
+                  <t-tag size="small" variant="light-outline">{{ imageReference(tag).tag }}</t-tag>
+                </t-tooltip>
+              </t-space>
+              <span v-else>{{ t('container.images.untagged') }}</span>
+            </div>
+          </section>
+
+          <section class="docker-images-detail__section">
+            <h3>{{ t('container.images.detail.basicInfo') }}</h3>
+            <dl class="docker-images-detail__grid">
+              <div>
+                <dt>{{ t('container.images.fields.size') }}</dt>
+                <dd>{{ formatBytes(selectedImage.size_bytes) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.createdAt') }}</dt>
+                <dd>{{ formatLocaleDateTime(selectedImage.created_at, locale) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.platform') }}</dt>
+                <dd>{{ selectedImage.operating_system || '-' }} / {{ selectedImage.architecture || '-' }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.containers') }}</dt>
+                <dd>{{ selectedImage.container_references?.length || t('container.images.unused') }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="docker-images-detail__section">
+            <h3>{{ t('container.images.detail.metadata') }}</h3>
+            <dl class="docker-images-detail__metadata">
+              <div>
+                <dt>{{ t('container.images.fields.id') }}</dt>
+                <dd>
+                  <t-tooltip :content="selectedImage.id"
+                    ><span class="docker-images-code">{{ middleEllipsis(selectedImage.id) }}</span></t-tooltip
+                  >
+                </dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.digests') }}</dt>
+                <dd v-if="selectedImage.repository_digests.length">
+                  <t-tooltip :content="selectedImage.repository_digests.join(', ')"
+                    ><span class="docker-images-code">{{
+                      middleEllipsis(selectedImage.repository_digests.join(', '), 44)
+                    }}</span></t-tooltip
+                  >
+                </dd>
+                <dd v-else>-</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.labels') }}</dt>
+                <dd v-if="Object.keys(selectedImage.labels ?? {}).length">
+                  <t-space direction="vertical" size="small">
+                    <t-tooltip v-for="(value, key) in selectedImage.labels" :key="key" :content="`${key}=${value}`">
+                      <span class="docker-images-code">{{ middleEllipsis(`${key}=${value}`, 44) }}</span>
+                    </t-tooltip>
+                  </t-space>
+                </dd>
+                <dd v-else>-</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
         <t-alert
           v-if="selectedImage && imageTags(selectedImage).length > 1"
           class="docker-images-delete-preflight"
-          theme="warning"
+          theme="info"
           :message="t('container.images.remove.multipleTagsPreflight', { count: imageTags(selectedImage).length })"
         >
           <template #operation>
@@ -195,6 +245,16 @@
           </template>
         </t-alert>
       </t-loading>
+      <template #footer>
+        <t-space v-if="selectedImage">
+          <t-button variant="outline" @click="openTagManager(selectedImage)">{{
+            t('container.images.actions.manageTags')
+          }}</t-button>
+          <t-button theme="danger" variant="outline" @click="openRemove(selectedImage)">{{
+            t('container.images.actions.remove')
+          }}</t-button>
+        </t-space>
+      </template>
     </t-drawer>
 
     <tag-manager-drawer
@@ -662,10 +722,10 @@ const footerSummary = computed(() => {
 });
 const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'tags', title: t('container.images.fields.name'), ellipsis: true, minWidth: 260 },
-  { colKey: 'id', title: t('container.images.fields.id'), width: 150 },
+  { colKey: 'tags', title: t('container.images.fields.name'), ellipsis: true, minWidth: 280 },
   { colKey: 'size', title: t('container.images.fields.size'), width: 120 },
   { colKey: 'containers', title: t('container.images.fields.containers'), minWidth: 220 },
+  { colKey: 'status', title: t('container.images.fields.status'), width: 110 },
   { colKey: 'created_at', title: t('container.images.fields.createdAt'), width: 180 },
   { colKey: 'actions', title: t('container.images.fields.actions'), width: 150, fixed: 'right' as const },
 ]);
@@ -714,6 +774,24 @@ const cleanupColumns = computed<TableProps['columns']>(() => [
 
 function imageTags(image: DockerImage) {
   return image.repository_tags.filter(Boolean);
+}
+function imageReference(reference: string) {
+  const lastSlash = reference.lastIndexOf('/');
+  const lastColon = reference.lastIndexOf(':');
+  return lastColon > lastSlash
+    ? { repository: reference.slice(0, lastColon), tag: reference.slice(lastColon + 1) }
+    : { repository: reference, tag: '' };
+}
+function imageStatus(image: DockerImage) {
+  if (image.container_references?.length)
+    return { label: t('container.images.status.used'), theme: 'success' as const };
+  if (image.dangling) return { label: t('container.images.status.dangling'), theme: 'warning' as const };
+  return { label: t('container.images.status.unused'), theme: 'default' as const };
+}
+function middleEllipsis(value: string, maxLength = 28) {
+  if (value.length <= maxLength) return value;
+  const sideLength = Math.max(4, Math.floor((maxLength - 3) / 2));
+  return `${value.slice(0, sideLength)}...${value.slice(-sideLength)}`;
 }
 function shortId(value: string) {
   return value.replace(/^sha256:/, '').slice(0, 12);
@@ -1104,10 +1182,28 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.docker-images-metrics {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.docker-images-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-8) var(--graft-density-gap-20);
+  padding: 0 var(--graft-density-gap-4);
+}
+
+.docker-images-summary__item {
+  align-items: baseline;
+  display: inline-flex;
+  gap: var(--graft-density-gap-8);
+}
+
+.docker-images-summary__item span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.docker-images-summary__item strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
 }
 
 .docker-images-muted {
@@ -1115,15 +1211,95 @@ onUnmounted(() => {
   font: var(--td-font-body-small);
 }
 
-.docker-images-metric__label {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  margin: 0 0 var(--graft-density-gap-4);
+.docker-images-identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
 }
 
-.docker-images-metric__value {
+.docker-images-identity__repository {
   color: var(--td-text-color-primary);
-  font: var(--td-font-title-large);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-images-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-16);
+}
+
+.docker-images-detail__section {
+  border-bottom: 1px solid var(--td-component-border);
+  padding-bottom: var(--graft-density-gap-16);
+}
+
+.docker-images-detail__section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.docker-images-detail__section h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: 0 0 var(--graft-density-gap-12);
+}
+
+.docker-images-detail__identity {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+}
+
+.docker-images-detail__identity strong {
+  display: block;
+  font: var(--td-font-title-medium);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-images-detail__label,
+.docker-images-detail__grid dt,
+.docker-images-detail__metadata dt {
+  color: var(--td-text-color-secondary);
+  display: block;
+  font: var(--td-font-body-small);
+  margin-bottom: var(--graft-density-gap-4);
+}
+
+.docker-images-detail__value {
+  margin-top: var(--graft-density-gap-16);
+}
+
+.docker-images-detail__grid,
+.docker-images-detail__metadata {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.docker-images-detail__metadata {
+  grid-template-columns: 1fr;
+}
+
+.docker-images-detail__grid dd,
+.docker-images-detail__metadata dd {
+  color: var(--td-text-color-primary);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.docker-images-detail__metadata dd .t-tooltip,
+.docker-images-detail__metadata dd > .docker-images-code {
+  display: block;
+  max-width: 100%;
 }
 
 .docker-images-code {
@@ -1436,8 +1612,14 @@ onUnmounted(() => {
 }
 
 @media (width <= 768px) {
-  .docker-images-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .docker-images-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--graft-density-gap-8);
+  }
+
+  .docker-images-detail__grid {
+    grid-template-columns: 1fr;
   }
 
   .docker-images-cleanup-summary__stats {
