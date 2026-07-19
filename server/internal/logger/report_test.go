@@ -51,3 +51,17 @@ func TestReportErrorLeavesErrorUnreportedWithoutLogger(t *testing.T) {
 		t.Fatal("expected nil logger to leave error available for fallback reporting")
 	}
 }
+
+func TestFingerprintErrorUsesStableMetadataWithoutCauseText(t *testing.T) {
+	descriptor := apperror.Descriptor{
+		Kind:       apperror.KindInternal,
+		Code:       errorcode.CommonInternalError,
+		MessageKey: messagecontract.CommonInternalError,
+	}
+	first := apperror.Wrap(errors.New("first sensitive detail"), descriptor)
+	second := apperror.Wrap(errors.New("second sensitive detail"), descriptor)
+
+	if got, want := fingerprintError(first), fingerprintError(second); got != want {
+		t.Fatalf("expected stable fingerprint for the same error metadata, got %q and %q", got, want)
+	}
+}

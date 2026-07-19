@@ -42,6 +42,10 @@ func fingerprintError(err error) string {
 	if err == nil {
 		return ""
 	}
-	digest := sha256.Sum256([]byte(err.Error()))
+	metadata := fmt.Sprintf("%T", err)
+	if descriptor, ok := apperror.Describe(err); ok {
+		metadata = fmt.Sprintf("%s|%s|%s|%s", metadata, descriptor.Kind, descriptor.Code.String(), descriptor.MessageKey.String())
+	}
+	digest := sha256.Sum256([]byte(metadata))
 	return hex.EncodeToString(digest[:])
 }
