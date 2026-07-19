@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { CONTAINER_API_PATH } from '../contract/paths';
 import { getContainerDashboardSummary, mapContainerDashboardSummary } from './dashboard-summary';
 
 vi.mock('@/utils/request', () => ({
@@ -34,7 +34,7 @@ describe('container dashboard summary api', () => {
     await getContainerDashboardSummary();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: CONTAINER_API_PATH.DASHBOARD_SUMMARY,
+      url: OPENAPI_RUNTIME_PATH.getContainerDashboardSummary,
     });
   });
 

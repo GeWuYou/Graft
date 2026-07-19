@@ -13,6 +13,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
+	taskcontract "graft/server/modules/task/contract"
 	taskmodel "graft/server/modules/task/model"
 	taskstore "graft/server/modules/task/store"
 )
@@ -149,7 +150,7 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 		return moduleapi.TaskReceipt{}, fmt.Errorf("create task: %w", err)
 	}
 	r.signalWake()
-	r.publishTask(created.ID, "task.created")
+	r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
 }
 
@@ -234,13 +235,13 @@ func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 	if task.Status != moduleapi.TaskStatusRunning {
 		err := r.cancelNonRunningTask(ctx, task)
 		if err == nil {
-			r.publishTask(taskID, "task.cancelled")
+			r.publishTask(taskID, taskcontract.TaskRealtimeEventCancelled)
 		}
 		return err
 	}
 	err = r.cancelRunningTask(ctx, taskID)
 	if err == nil {
-		r.publishTask(taskID, "task.cancel_requested")
+		r.publishTask(taskID, taskcontract.TaskRealtimeEventCancelRequested)
 	}
 	return err
 }
@@ -332,7 +333,7 @@ func (r *Runtime) RetryStage(ctx context.Context, taskID uint64, stageID uint64)
 		return err
 	}
 	r.signalWake()
-	r.publishTask(taskID, "task.retry_requested")
+	r.publishTask(taskID, taskcontract.TaskRealtimeEventRetryRequested)
 	return nil
 }
 
@@ -446,7 +447,7 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	if err != nil || !found {
 		return err
 	}
-	r.publishTask(claim.Task.ID, "task.stage_started")
+	r.publishTask(claim.Task.ID, taskcontract.TaskRealtimeEventStageStarted)
 	executor, ok := r.executorFor(claim.Stage.ExecutorType)
 	if !ok {
 		return r.failClaim(ctx, claim, errorCodeMissingExec, "no executor registered for stage")
@@ -459,9 +460,9 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	r.removeRunning(claim.Task.ID)
 	finishErr := r.finishClaim(ctx, claim, err)
 	if finishErr == nil {
-		eventType := "task.stage_completed"
+		eventType := taskcontract.TaskRealtimeEventStageCompleted
 		if err != nil {
-			eventType = "task.stage_failed"
+			eventType = taskcontract.TaskRealtimeEventStageFailed
 		}
 		r.publishTask(claim.Task.ID, eventType)
 	}
@@ -653,7 +654,7 @@ func (r *stageRun) AppendLog(ctx context.Context, entry moduleapi.TaskLogEntry) 
 	stageID := r.stage.ID
 	_, err = r.runtime.repository.AppendLog(ctx, taskstore.AppendLogInput{TaskID: r.task.ID, StageID: &stageID, Sequence: sequence, Stream: entry.Stream, Level: entry.Level, Line: entry.Line, OccurredAt: time.Now().UTC()})
 	if err == nil {
-		r.runtime.publishTask(r.task.ID, "task.log_appended")
+		r.runtime.publishTask(r.task.ID, taskcontract.TaskRealtimeEventLogAppended)
 	}
 	return err
 }

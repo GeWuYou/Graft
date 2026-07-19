@@ -213,6 +213,9 @@ jobs:
         working-directory: web
         run: bun run openapi:types:check
 
+      - name: Check OpenAPI runtime path projection freshness
+        run: node scripts/openapi-runtime-paths.mjs --check
+
       - name: Check cross-boundary contract projection freshness
         working-directory: server
         run: go run ./internal/contract/projection/cmd/projectiongen --check

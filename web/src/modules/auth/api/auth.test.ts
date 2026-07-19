@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { AUTH_API_PATH } from '../contract/paths';
 import {
   changePassword,
   completeRequiredPasswordChange,
@@ -32,7 +32,7 @@ describe('auth api', () => {
     await login(payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.LOGIN,
+      url: OPENAPI_RUNTIME_PATH.postAuthLogin,
       data: payload,
     });
   });
@@ -44,7 +44,7 @@ describe('auth api', () => {
     await getBootstrap();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.BOOTSTRAP,
+      url: OPENAPI_RUNTIME_PATH.getAuthBootstrap,
     });
   });
 
@@ -55,7 +55,7 @@ describe('auth api', () => {
     await refresh();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.REFRESH,
+      url: OPENAPI_RUNTIME_PATH.postAuthRefresh,
     });
   });
 
@@ -66,7 +66,7 @@ describe('auth api', () => {
     await expect(logout()).resolves.toBeUndefined();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.LOGOUT,
+      url: OPENAPI_RUNTIME_PATH.postAuthLogout,
     });
   });
 
@@ -77,7 +77,7 @@ describe('auth api', () => {
     await listSessions({ limit: 10 });
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.SESSIONS,
+      url: OPENAPI_RUNTIME_PATH.getAuthSessions,
       params: {
         limit: 10,
       },
@@ -91,7 +91,7 @@ describe('auth api', () => {
     await expect(revokeAllSessions()).resolves.toBeUndefined();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.SESSIONS_REVOKE_ALL,
+      url: OPENAPI_RUNTIME_PATH.postAuthSessionsRevokeAll,
     });
   });
 
@@ -102,7 +102,7 @@ describe('auth api', () => {
     await expect(revokeOtherSessions()).resolves.toBeUndefined();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.SESSIONS_REVOKE_OTHERS,
+      url: OPENAPI_RUNTIME_PATH.postAuthSessionsRevokeOthers,
     });
   });
 
@@ -113,7 +113,7 @@ describe('auth api', () => {
     await expect(revokeSession('session/with spaces')).resolves.toBeUndefined();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: '/api/auth/sessions/session%2Fwith%20spaces/revoke',
+      url: buildOpenApiRuntimePath('postAuthSessionRevoke', { sessionID: 'session/with spaces' }),
     });
   });
 
@@ -125,7 +125,7 @@ describe('auth api', () => {
     await expect(changePassword(payload)).resolves.toBeUndefined();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.CHANGE_PASSWORD,
+      url: OPENAPI_RUNTIME_PATH.postAuthChangePassword,
       data: payload,
     });
   });
@@ -138,7 +138,7 @@ describe('auth api', () => {
     await expect(completeRequiredPasswordChange(payload)).resolves.toBeUndefined();
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: AUTH_API_PATH.COMPLETE_REQUIRED_PASSWORD_CHANGE,
+      url: OPENAPI_RUNTIME_PATH.postAuthCompleteRequiredPasswordChange,
       data: payload,
     });
   });

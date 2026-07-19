@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
+
 const requestMocks = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('@/utils/request', () => ({
@@ -19,7 +21,7 @@ describe('getLatestTaskForOwner', () => {
     await expect(getLatestTaskForOwner({ ownerId, ownerType: 'application' })).resolves.toBe(latestTask);
     expect(requestMocks.get).toHaveBeenCalledWith({
       params: { limit: 1, owner_id: ownerId, owner_type: 'application' },
-      url: '/api/tasks',
+      url: OPENAPI_RUNTIME_PATH.listTasks,
     });
   });
 });

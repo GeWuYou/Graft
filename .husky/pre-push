@@ -100,7 +100,7 @@ while IFS= read -r path; do
       ;;
   esac
   case "$path" in
-    openapi/*|server/internal/contract/*|server/modules/*/contract/*|server/internal/moduleapi/*|web/src/contracts/*|web/package.json|Justfile)
+    openapi/*|server/internal/contract/*|server/modules/*/contract/*|server/internal/moduleapi/*|web/src/contracts/*|web/package.json|scripts/openapi-runtime-paths.mjs|Justfile)
       run_contract_freshness=1
       ;;
   esac
@@ -126,6 +126,8 @@ if [ "$run_contract_freshness" -eq 1 ]; then
     set -e
     cd "$repo_root/server"
     go run ./cmd/graft validate openapi
+    cd "$repo_root"
+    node scripts/openapi-runtime-paths.mjs --check
     cd "$repo_root/web"
     bun run openapi:types:check
     cd "$repo_root/server"

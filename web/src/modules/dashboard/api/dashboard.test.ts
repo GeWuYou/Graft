@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { buildDashboardWidgetApiPath, DASHBOARD_API_PATH } from '../contract/paths';
 import { getDashboardSummary, getDashboardWidget } from './dashboard';
 
 vi.mock('@/utils/request', () => ({
@@ -23,7 +23,7 @@ describe('dashboard api', () => {
     await getDashboardSummary();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: DASHBOARD_API_PATH.SUMMARY,
+      url: OPENAPI_RUNTIME_PATH.getDashboardSummary,
     });
   });
 
@@ -34,10 +34,7 @@ describe('dashboard api', () => {
     await getDashboardWidget('audit.recent-events/error');
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildDashboardWidgetApiPath('audit.recent-events/error'),
+      url: buildOpenApiRuntimePath('getDashboardWidget', { widget_id: 'audit.recent-events/error' }),
     });
-    expect(buildDashboardWidgetApiPath('audit.recent-events/error')).toBe(
-      '/api/dashboard/widgets/audit.recent-events%2Ferror',
-    );
   });
 });

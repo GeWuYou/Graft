@@ -1,14 +1,14 @@
+import type { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { components, paths } from '@/contracts/openapi/generated/schema';
 
-import type { APPLICATION_API_PATH } from '../contract/paths';
 import type { ApplicationComposeProjectNameSource, ApplicationImportResponse } from './project';
 
-type ApplicationImportDirectorySourcesPath = (typeof APPLICATION_API_PATH)['IMPORT_DIRECTORY_SOURCES'];
+type ApplicationImportDirectorySourcesPath = typeof OPENAPI_RUNTIME_PATH.getApplicationImportDirectorySources;
 type GetApplicationImportDirectorySourcesOperation = paths[ApplicationImportDirectorySourcesPath]['get'];
 type GetApplicationImportDirectorySourcesEnvelope =
   GetApplicationImportDirectorySourcesOperation['responses'][200]['content']['application/json'];
 
-type ApplicationImportDirectoriesPath = (typeof APPLICATION_API_PATH)['IMPORT_DIRECTORIES'];
+type ApplicationImportDirectoriesPath = typeof OPENAPI_RUNTIME_PATH.getApplicationImportDirectories;
 type GetApplicationImportDirectoriesOperation = paths[ApplicationImportDirectoriesPath]['get'];
 type GetApplicationImportDirectoriesEnvelope =
   GetApplicationImportDirectoriesOperation['responses'][200]['content']['application/json'];
@@ -16,14 +16,14 @@ type GetApplicationImportDirectoriesQuery = NonNullable<
   GetApplicationImportDirectoriesOperation['parameters']['query']
 >;
 
-type ApplicationImportInspectPath = (typeof APPLICATION_API_PATH)['IMPORT_INSPECT'];
+type ApplicationImportInspectPath = typeof OPENAPI_RUNTIME_PATH.postApplicationImportInspect;
 type PostApplicationImportInspectOperation = paths[ApplicationImportInspectPath]['post'];
 type PostApplicationImportInspectEnvelope =
   PostApplicationImportInspectOperation['responses'][200]['content']['application/json'];
 type PostApplicationImportInspectPayload =
   PostApplicationImportInspectOperation['requestBody']['content']['application/json'];
 
-type ApplicationImportRuntimeCandidatesPath = (typeof APPLICATION_API_PATH)['IMPORT_RUNTIME_CANDIDATES'];
+type ApplicationImportRuntimeCandidatesPath = typeof OPENAPI_RUNTIME_PATH.getApplicationImportRuntimeCandidates;
 type GetApplicationImportRuntimeCandidatesOperation = paths[ApplicationImportRuntimeCandidatesPath]['get'];
 type GetApplicationImportRuntimeCandidatesEnvelope =
   GetApplicationImportRuntimeCandidatesOperation['responses'][200]['content']['application/json'];
@@ -31,14 +31,14 @@ type GetApplicationImportRuntimeCandidatesQuery = NonNullable<
   GetApplicationImportRuntimeCandidatesOperation['parameters']['query']
 >;
 
-type ApplicationImportRuntimeInspectPath = (typeof APPLICATION_API_PATH)['IMPORT_RUNTIME_INSPECT'];
+type ApplicationImportRuntimeInspectPath = typeof OPENAPI_RUNTIME_PATH.postApplicationImportRuntimeInspect;
 type PostApplicationImportRuntimeInspectOperation = paths[ApplicationImportRuntimeInspectPath]['post'];
 type PostApplicationImportRuntimeInspectEnvelope =
   PostApplicationImportRuntimeInspectOperation['responses'][200]['content']['application/json'];
 type PostApplicationImportRuntimeInspectPayload =
   PostApplicationImportRuntimeInspectOperation['requestBody']['content']['application/json'];
 
-type ApplicationImportPath = (typeof APPLICATION_API_PATH)['IMPORT'];
+type ApplicationImportPath = typeof OPENAPI_RUNTIME_PATH.postApplicationImport;
 type PostApplicationImportOperation = paths[ApplicationImportPath]['post'];
 type PostApplicationImportEnvelope = PostApplicationImportOperation['responses'][200]['content']['application/json'];
 type PostApplicationImportPayload = PostApplicationImportOperation['requestBody']['content']['application/json'];

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { API_CODE } from '@/contracts/api/codes';
 import { HTTP_HEADER } from '@/contracts/api/headers';
 import { MESSAGE_KEY } from '@/contracts/api/messages';
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { STORAGE_KEY } from '@/contracts/storage/keys';
-import { AUTH_API_PATH } from '@/modules/auth/contract/paths';
 
 type MockConfig = Record<string, any>;
 type MockResponse = {
@@ -187,7 +187,7 @@ describe('request auth handling', () => {
       if (config.url === USERS_API_PATH && !config._authRefreshAttempted) {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
       }
-      if (config.url === AUTH_API_PATH.REFRESH) {
+      if (config.url === OPENAPI_RUNTIME_PATH.postAuthRefresh) {
         return {
           status: 200,
           data: {
@@ -227,7 +227,7 @@ describe('request auth handling', () => {
     expect(callLog).toHaveLength(3);
     expect(callLog[0]?.headers?.[HTTP_HEADER.AUTHORIZATION]).toMatch(/^Bearer /);
     expect(callLog[0]?.headers?.[HTTP_HEADER.LOCALE]).toBe('zh-CN');
-    expect(callLog[1]?.url).toBe(AUTH_API_PATH.REFRESH);
+    expect(callLog[1]?.url).toBe(OPENAPI_RUNTIME_PATH.postAuthRefresh);
     expect(callLog[2]?.url).toBe(USERS_API_PATH);
     expect(callLog[2]?._authRefreshAttempted).toBe(true);
     expect(mockUserStore.applyLoginResponse).toHaveBeenCalledWith(
@@ -474,7 +474,7 @@ describe('request auth handling', () => {
 
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
       expect(callUrls).toEqual([USERS_API_PATH]);
-      expect(callUrls).not.toContain(AUTH_API_PATH.REFRESH);
+      expect(callUrls).not.toContain(OPENAPI_RUNTIME_PATH.postAuthRefresh);
       expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fsecurity%2Fusers%3Ftab%3Dactive%23detail');
     },
   );
@@ -521,7 +521,7 @@ describe('request auth handling', () => {
       if (config.url === USERS_API_PATH) {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
       }
-      if (config.url === AUTH_API_PATH.REFRESH) {
+      if (config.url === OPENAPI_RUNTIME_PATH.postAuthRefresh) {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-refresh');
       }
 
@@ -537,7 +537,7 @@ describe('request auth handling', () => {
       status: 401,
     });
 
-    expect(callUrls).toEqual([USERS_API_PATH, AUTH_API_PATH.REFRESH]);
+    expect(callUrls).toEqual([USERS_API_PATH, OPENAPI_RUNTIME_PATH.postAuthRefresh]);
     expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
     expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fsecurity%2Fusers');
   });
@@ -554,7 +554,7 @@ describe('request auth handling', () => {
       if (config.url === USERS_API_PATH) {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
       }
-      if (config.url === AUTH_API_PATH.REFRESH) {
+      if (config.url === OPENAPI_RUNTIME_PATH.postAuthRefresh) {
         throw createApiError(API_CODE.AUTH_FORBIDDEN, 403, 'forbidden', 'trace-refresh', {
           messageKey: MESSAGE_KEY.AUTH_FORBIDDEN,
         });
@@ -572,7 +572,7 @@ describe('request auth handling', () => {
       messageKey: MESSAGE_KEY.AUTH_FORBIDDEN,
     });
 
-    expect(callUrls).toEqual([USERS_API_PATH, AUTH_API_PATH.REFRESH]);
+    expect(callUrls).toEqual([USERS_API_PATH, OPENAPI_RUNTIME_PATH.postAuthRefresh]);
     expect(mockUserStore.handleAuthFailure).not.toHaveBeenCalled();
     expect(locationReplace).not.toHaveBeenCalled();
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY.USER_SESSION) || '{}')).toMatchObject({
@@ -593,7 +593,7 @@ describe('request auth handling', () => {
         throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired-initial');
       }
 
-      if (config.url === AUTH_API_PATH.REFRESH) {
+      if (config.url === OPENAPI_RUNTIME_PATH.postAuthRefresh) {
         return {
           status: 200,
           data: {
@@ -623,7 +623,7 @@ describe('request auth handling', () => {
       status: 401,
     });
 
-    expect(callUrls).toEqual([USERS_API_PATH, AUTH_API_PATH.REFRESH, USERS_API_PATH]);
+    expect(callUrls).toEqual([USERS_API_PATH, OPENAPI_RUNTIME_PATH.postAuthRefresh, USERS_API_PATH]);
     expect(mockUserStore.handleAuthFailure).not.toHaveBeenCalled();
     expect(locationReplace).not.toHaveBeenCalled();
   });
@@ -647,7 +647,7 @@ describe('request auth handling', () => {
         if (config.url === USERS_API_PATH) {
           throw createApiError(API_CODE.AUTH_TOKEN_EXPIRED, 401, 'expired', 'trace-expired');
         }
-        if (config.url === AUTH_API_PATH.REFRESH) {
+        if (config.url === OPENAPI_RUNTIME_PATH.postAuthRefresh) {
           throw createApiError(code, 401, code, 'trace-refresh');
         }
 
@@ -663,7 +663,7 @@ describe('request auth handling', () => {
         status: 401,
       });
 
-      expect(callUrls).toEqual([USERS_API_PATH, AUTH_API_PATH.REFRESH]);
+      expect(callUrls).toEqual([USERS_API_PATH, OPENAPI_RUNTIME_PATH.postAuthRefresh]);
       expect(mockUserStore.handleAuthFailure).toHaveBeenCalledTimes(1);
       expect(locationReplace).toHaveBeenCalledWith('/login?redirect=%2Fsecurity%2Fusers');
     },

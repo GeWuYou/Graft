@@ -1,20 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import {
-  buildContainerDetailApiPath,
-  buildContainerEventsApiPath,
-  buildContainerLogsApiPath,
-  buildContainerMountUsageApiPath,
-  buildContainerMountUsageRefreshApiPath,
-  buildContainerRemoveApiPath,
-  buildContainerRestartApiPath,
-  buildContainerShellSessionsApiPath,
-  buildContainerStartApiPath,
-  buildContainerStopApiPath,
-  buildDockerImageDetailApiPath,
-  CONTAINER_API_PATH,
-} from '../contract/paths';
 import type {
   ContainerActionResponse,
   ContainerBatchActionRequest,
@@ -34,40 +21,40 @@ import type {
   ContainerShellSessionResponse,
 } from '../types/container';
 
-type ContainerListPath = (typeof CONTAINER_API_PATH)['LIST'];
+type ContainerListPath = typeof OPENAPI_RUNTIME_PATH.getContainers;
 type GetContainersOperation = paths[ContainerListPath]['get'];
 type GetContainersEnvelope = GetContainersOperation['responses'][200]['content']['application/json'];
 type GetContainersData = NonNullable<GetContainersEnvelope['data']>;
 
-type ContainerDetailPath = (typeof CONTAINER_API_PATH)['DETAIL'];
+type ContainerDetailPath = typeof OPENAPI_RUNTIME_PATH.getContainer;
 type GetContainerOperation = paths[ContainerDetailPath]['get'];
 type GetContainerEnvelope = GetContainerOperation['responses'][200]['content']['application/json'];
 type GetContainerData = NonNullable<GetContainerEnvelope['data']>;
 type GetContainerPathParams = GetContainerOperation['parameters']['path'];
 
-type ContainerLogsPath = (typeof CONTAINER_API_PATH)['LOGS'];
+type ContainerLogsPath = typeof OPENAPI_RUNTIME_PATH.getContainerLogs;
 type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 type GetContainerLogsEnvelope = GetContainerLogsOperation['responses'][200]['content']['application/json'];
 type GetContainerLogsData = NonNullable<GetContainerLogsEnvelope['data']>;
 type GetContainerLogsPathParams = GetContainerLogsOperation['parameters']['path'];
 
-type ContainerEventsPath = (typeof CONTAINER_API_PATH)['EVENTS'];
+type ContainerEventsPath = typeof OPENAPI_RUNTIME_PATH.getContainerEvents;
 type GetContainerEventsOperation = paths[ContainerEventsPath]['get'];
 type GetContainerEventsEnvelope = GetContainerEventsOperation['responses'][200]['content']['application/json'];
 type GetContainerEventsData = NonNullable<GetContainerEventsEnvelope['data']>;
 
-type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
+type ContainerMountUsagePath = typeof OPENAPI_RUNTIME_PATH.getContainerMountUsage;
 type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
 type GetContainerMountUsageEnvelope = GetContainerMountUsageOperation['responses'][200]['content']['application/json'];
 type GetContainerMountUsageData = NonNullable<GetContainerMountUsageEnvelope['data']>;
 
-type ContainerMountUsageRefreshPath = (typeof CONTAINER_API_PATH)['MOUNT_USAGE_REFRESH'];
+type ContainerMountUsageRefreshPath = typeof OPENAPI_RUNTIME_PATH.postContainerMountUsageRefresh;
 type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshPath]['post'];
 type PostContainerMountUsageRefreshEnvelope =
   PostContainerMountUsageRefreshOperation['responses'][200]['content']['application/json'];
 type PostContainerMountUsageRefreshData = NonNullable<PostContainerMountUsageRefreshEnvelope['data']>;
 
-type ContainerShellSessionsPath = (typeof CONTAINER_API_PATH)['SHELL_SESSIONS'];
+type ContainerShellSessionsPath = typeof OPENAPI_RUNTIME_PATH.postContainerShellSession;
 type PostContainerShellSessionOperation = paths[ContainerShellSessionsPath]['post'];
 type PostContainerShellSessionEnvelope =
   PostContainerShellSessionOperation['responses'][200]['content']['application/json'];
@@ -77,25 +64,25 @@ type PostContainerShellSessionRequest = NonNullable<
   PostContainerShellSessionOperation['requestBody']
 >['content']['application/json'];
 
-type ContainerStartPath = (typeof CONTAINER_API_PATH)['START'];
+type ContainerStartPath = typeof OPENAPI_RUNTIME_PATH.postContainerStart;
 type PostContainerStartOperation = paths[ContainerStartPath]['post'];
 type PostContainerStartEnvelope = PostContainerStartOperation['responses'][200]['content']['application/json'];
 type PostContainerStartData = NonNullable<PostContainerStartEnvelope['data']>;
 type PostContainerStartPathParams = PostContainerStartOperation['parameters']['path'];
 
-type ContainerStopPath = (typeof CONTAINER_API_PATH)['STOP'];
+type ContainerStopPath = typeof OPENAPI_RUNTIME_PATH.postContainerStop;
 type PostContainerStopOperation = paths[ContainerStopPath]['post'];
 type PostContainerStopEnvelope = PostContainerStopOperation['responses'][200]['content']['application/json'];
 type PostContainerStopData = NonNullable<PostContainerStopEnvelope['data']>;
 type PostContainerStopPathParams = PostContainerStopOperation['parameters']['path'];
 
-type ContainerRestartPath = (typeof CONTAINER_API_PATH)['RESTART'];
+type ContainerRestartPath = typeof OPENAPI_RUNTIME_PATH.postContainerRestart;
 type PostContainerRestartOperation = paths[ContainerRestartPath]['post'];
 type PostContainerRestartEnvelope = PostContainerRestartOperation['responses'][200]['content']['application/json'];
 type PostContainerRestartData = NonNullable<PostContainerRestartEnvelope['data']>;
 type PostContainerRestartPathParams = PostContainerRestartOperation['parameters']['path'];
 
-type ContainerRemovePath = (typeof CONTAINER_API_PATH)['REMOVE'];
+type ContainerRemovePath = typeof OPENAPI_RUNTIME_PATH.postContainerRemove;
 type PostContainerRemoveOperation = paths[ContainerRemovePath]['post'];
 type PostContainerRemoveEnvelope = PostContainerRemoveOperation['responses'][200]['content']['application/json'];
 type PostContainerRemoveData = NonNullable<PostContainerRemoveEnvelope['data']>;
@@ -104,7 +91,7 @@ type PostContainerRemoveRequest = NonNullable<
   PostContainerRemoveOperation['requestBody']
 >['content']['application/json'];
 
-type ContainerBatchActionsPath = (typeof CONTAINER_API_PATH)['BATCH_ACTIONS'];
+type ContainerBatchActionsPath = typeof OPENAPI_RUNTIME_PATH.postContainerBatchActions;
 type PostContainerBatchActionsOperation = paths[ContainerBatchActionsPath]['post'];
 type PostContainerBatchActionsEnvelope =
   PostContainerBatchActionsOperation['responses'][200]['content']['application/json'];
@@ -131,18 +118,21 @@ type DockerSystemData = NonNullable<
 export type DockerImageRecord = DockerImagesData['items'][number];
 
 export const getDockerImages = (query?: DockerImageListQuery) =>
-  request.get<DockerImagesData>({ url: CONTAINER_API_PATH.DOCKER_IMAGES, params: query }) as Promise<DockerImagesData>;
+  request.get<DockerImagesData>({
+    url: OPENAPI_RUNTIME_PATH.getDockerImages,
+    params: query,
+  }) as Promise<DockerImagesData>;
 
 export const getDockerImage = (imageId: string) =>
   request.get<DockerImageRecord>({
-    url: buildDockerImageDetailApiPath(imageId),
+    url: buildOpenApiRuntimePath('getDockerImage', { id: imageId }),
   }) as Promise<DockerImageRecord>;
 export const getDockerNetworks = () =>
-  request.get<DockerNetworksData>({ url: CONTAINER_API_PATH.DOCKER_NETWORKS }) as Promise<DockerNetworksData>;
+  request.get<DockerNetworksData>({ url: OPENAPI_RUNTIME_PATH.getDockerNetworks }) as Promise<DockerNetworksData>;
 export const getDockerVolumes = () =>
-  request.get<DockerVolumesData>({ url: CONTAINER_API_PATH.DOCKER_VOLUMES }) as Promise<DockerVolumesData>;
+  request.get<DockerVolumesData>({ url: OPENAPI_RUNTIME_PATH.getDockerVolumes }) as Promise<DockerVolumesData>;
 export const getDockerSystem = () =>
-  request.get<DockerSystemData>({ url: CONTAINER_API_PATH.DOCKER_SYSTEM }) as Promise<DockerSystemData>;
+  request.get<DockerSystemData>({ url: OPENAPI_RUNTIME_PATH.getDockerSystem }) as Promise<DockerSystemData>;
 
 /**
  * 获取容器列表。
@@ -152,7 +142,7 @@ export const getDockerSystem = () =>
  */
 export function getContainers(query?: ContainerListQueryWithOrchestrator) {
   return request.get<GetContainersData>({
-    url: CONTAINER_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getContainers,
     params: query,
   }) as Promise<ContainerListResponse>;
 }
@@ -165,7 +155,7 @@ export function getContainers(query?: ContainerListQueryWithOrchestrator) {
  */
 export function getContainer(containerId: GetContainerPathParams['id']) {
   return request.get<GetContainerData>({
-    url: buildContainerDetailApiPath(containerId),
+    url: buildOpenApiRuntimePath('getContainer', { id: containerId }),
   }) as Promise<ContainerDetailRecord>;
 }
 
@@ -178,7 +168,7 @@ export function getContainer(containerId: GetContainerPathParams['id']) {
  */
 export function getContainerLogs(containerId: GetContainerLogsPathParams['id'], query: ContainerLogQuery) {
   return request.get<GetContainerLogsData>({
-    url: buildContainerLogsApiPath(containerId),
+    url: buildOpenApiRuntimePath('getContainerLogs', { id: containerId }),
     params: query,
   }) as Promise<ContainerLogResponse>;
 }
@@ -191,7 +181,7 @@ export function getContainerLogs(containerId: GetContainerLogsPathParams['id'], 
  */
 export function getContainerEvents(containerId: ContainerRuntimeEventsPathParams['id']) {
   return request.get<GetContainerEventsData>({
-    url: buildContainerEventsApiPath(containerId),
+    url: buildOpenApiRuntimePath('getContainerEvents', { id: containerId }),
   }) as Promise<ContainerRuntimeEventsResponse>;
 }
 
@@ -203,7 +193,7 @@ export function getContainerEvents(containerId: ContainerRuntimeEventsPathParams
  */
 export function getContainerMountUsage(containerId: ContainerMountUsagePathParams['id']) {
   return request.get<GetContainerMountUsageData>({
-    url: buildContainerMountUsageApiPath(containerId),
+    url: buildOpenApiRuntimePath('getContainerMountUsage', { id: containerId }),
   }) as Promise<ContainerMountUsageListResponse>;
 }
 
@@ -219,7 +209,7 @@ export function postContainerMountUsageRefresh(
   mountId: ContainerMountUsageRefreshPathParams['mountId'],
 ) {
   return request.post<PostContainerMountUsageRefreshData>({
-    url: buildContainerMountUsageRefreshApiPath(containerId, mountId),
+    url: buildOpenApiRuntimePath('postContainerMountUsageRefresh', { id: containerId, mountId }),
   }) as Promise<ContainerMountUsage>;
 }
 
@@ -235,7 +225,7 @@ export function postContainerShellSession(
   body: ContainerShellSessionRequest & PostContainerShellSessionRequest,
 ) {
   return request.post<PostContainerShellSessionData>({
-    url: buildContainerShellSessionsApiPath(containerId),
+    url: buildOpenApiRuntimePath('postContainerShellSession', { id: containerId }),
     data: body,
   }) as Promise<ContainerShellSessionResponse>;
 }
@@ -248,19 +238,19 @@ export function postContainerShellSession(
  */
 export function startContainer(containerId: PostContainerStartPathParams['id']) {
   return request.post<PostContainerStartData>({
-    url: buildContainerStartApiPath(containerId),
+    url: buildOpenApiRuntimePath('postContainerStart', { id: containerId }),
   }) as Promise<ContainerActionResponse>;
 }
 
 export function stopContainer(containerId: PostContainerStopPathParams['id']) {
   return request.post<PostContainerStopData>({
-    url: buildContainerStopApiPath(containerId),
+    url: buildOpenApiRuntimePath('postContainerStop', { id: containerId }),
   }) as Promise<ContainerActionResponse>;
 }
 
 export function restartContainer(containerId: PostContainerRestartPathParams['id']) {
   return request.post<PostContainerRestartData>({
-    url: buildContainerRestartApiPath(containerId),
+    url: buildOpenApiRuntimePath('postContainerRestart', { id: containerId }),
   }) as Promise<ContainerActionResponse>;
 }
 
@@ -269,14 +259,14 @@ export function removeContainer(
   body: ContainerRemoveRequest & PostContainerRemoveRequest,
 ) {
   return request.post<PostContainerRemoveData>({
-    url: buildContainerRemoveApiPath(containerId),
+    url: buildOpenApiRuntimePath('postContainerRemove', { id: containerId }),
     data: body,
   }) as Promise<ContainerActionResponse>;
 }
 
 export function batchContainerActions(body: ContainerBatchActionRequest & PostContainerBatchActionsRequest) {
   return request.post<PostContainerBatchActionsData>({
-    url: CONTAINER_API_PATH.BATCH_ACTIONS,
+    url: OPENAPI_RUNTIME_PATH.postContainerBatchActions,
     data: body,
   }) as Promise<ContainerBatchActionResponse>;
 }

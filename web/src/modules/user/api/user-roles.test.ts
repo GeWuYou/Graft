@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { USER_API_PATH } from '../contract/paths';
 import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from './user-roles';
 
 vi.mock('@/utils/request', () => ({
@@ -20,7 +20,7 @@ describe('user role api', () => {
     await getRoles();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: USER_API_PATH.ROLES,
+      url: OPENAPI_RUNTIME_PATH.getRoles,
     });
   });
 
@@ -31,7 +31,7 @@ describe('user role api', () => {
     await getUserRoleBindings(42);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_ROLES(42),
+      url: buildOpenApiRuntimePath('getUserRoles', { id: 42 }),
     });
   });
 
@@ -42,7 +42,7 @@ describe('user role api', () => {
     await mutateUserRoles(42, 'replace', { role_ids: [1, 3] });
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_ROLE_REPLACE(42),
+      url: buildOpenApiRuntimePath('postUserRolesReplace', { id: 42 }),
       data: { role_ids: [1, 3] },
     });
   });
@@ -54,7 +54,7 @@ describe('user role api', () => {
     await mutateUserRoles(42, 'add', { role_ids: [2] });
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_ROLE_ADD(42),
+      url: buildOpenApiRuntimePath('postUserRolesAdd', { id: 42 }),
       data: { role_ids: [2] },
     });
   });
@@ -66,7 +66,7 @@ describe('user role api', () => {
     await mutateBatchUserRoles('remove', { user_ids: [7, 9], role_ids: [2] });
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.BATCH_USER_ROLE_REMOVE,
+      url: OPENAPI_RUNTIME_PATH.postUsersRolesRemove,
       data: { user_ids: [7, 9], role_ids: [2] },
     });
   });

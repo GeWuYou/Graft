@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { ACCESS_LOG_API_PATH, buildAccessLogSavedViewApiPath } from '../contract/paths';
 import type {
   AccessLogDetailResponse,
   AccessLogListResponse,
@@ -10,17 +10,17 @@ import type {
   AccessLogSavedViewRequest,
 } from '../types/access-log';
 
-type AccessLogListPath = (typeof ACCESS_LOG_API_PATH)['LIST'];
+type AccessLogListPath = typeof OPENAPI_RUNTIME_PATH.getAccessLogs;
 type GetAccessLogsOperation = paths[AccessLogListPath]['get'];
 type GetAccessLogsResponse = GetAccessLogsOperation['responses'][200]['content']['application/json'];
 type GetAccessLogsResponseData = NonNullable<GetAccessLogsResponse['data']>;
 
-type AccessLogDetailPath = (typeof ACCESS_LOG_API_PATH)['DETAIL'];
+type AccessLogDetailPath = typeof OPENAPI_RUNTIME_PATH.getAccessLogDetail;
 type GetAccessLogDetailOperation = paths[AccessLogDetailPath]['get'];
 type GetAccessLogDetailResponse = GetAccessLogDetailOperation['responses'][200]['content']['application/json'];
 type GetAccessLogDetailResponseData = NonNullable<GetAccessLogDetailResponse['data']>;
 
-type AccessLogSavedViewsPath = (typeof ACCESS_LOG_API_PATH)['SAVED_VIEWS'];
+type AccessLogSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getAccessLogSavedViews;
 type GetAccessLogSavedViewsOperation = paths[AccessLogSavedViewsPath]['get'];
 type GetAccessLogSavedViewsResponse = GetAccessLogSavedViewsOperation['responses'][200]['content']['application/json'];
 type GetAccessLogSavedViewsResponseData = NonNullable<GetAccessLogSavedViewsResponse['data']>;
@@ -28,7 +28,7 @@ type PostAccessLogSavedViewOperation = paths[AccessLogSavedViewsPath]['post'];
 type PostAccessLogSavedViewResponse = PostAccessLogSavedViewOperation['responses'][201]['content']['application/json'];
 type PostAccessLogSavedViewResponseData = NonNullable<PostAccessLogSavedViewResponse['data']>;
 
-type AccessLogSavedViewPath = (typeof ACCESS_LOG_API_PATH)['SAVED_VIEW'];
+type AccessLogSavedViewPath = typeof OPENAPI_RUNTIME_PATH.putAccessLogSavedView;
 type PutAccessLogSavedViewOperation = paths[AccessLogSavedViewPath]['put'];
 type PutAccessLogSavedViewResponse = PutAccessLogSavedViewOperation['responses'][200]['content']['application/json'];
 type PutAccessLogSavedViewResponseData = NonNullable<PutAccessLogSavedViewResponse['data']>;
@@ -41,7 +41,7 @@ type PutAccessLogSavedViewResponseData = NonNullable<PutAccessLogSavedViewRespon
  */
 export function getAccessLogs(query: AccessLogQuery) {
   return request.get<GetAccessLogsResponseData>({
-    url: ACCESS_LOG_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getAccessLogs,
     params: query,
   }) as Promise<AccessLogListResponse>;
 }
@@ -54,7 +54,7 @@ export function getAccessLogs(query: AccessLogQuery) {
  */
 export function getAccessLogDetail(id: number) {
   return request.get<GetAccessLogDetailResponseData>({
-    url: ACCESS_LOG_API_PATH.DETAIL.replace('{id}', String(id)),
+    url: buildOpenApiRuntimePath('getAccessLogDetail', { id }),
   }) as Promise<AccessLogDetailResponse>;
 }
 
@@ -64,7 +64,9 @@ export function getAccessLogDetail(id: number) {
  * @returns 已保存的访问日志视图数组
  */
 export async function getAccessLogSavedViews(): Promise<AccessLogSavedView[]> {
-  const data = await request.get<GetAccessLogSavedViewsResponseData>({ url: ACCESS_LOG_API_PATH.SAVED_VIEWS });
+  const data = await request.get<GetAccessLogSavedViewsResponseData>({
+    url: OPENAPI_RUNTIME_PATH.getAccessLogSavedViews,
+  });
   return data.items;
 }
 
@@ -76,7 +78,7 @@ export async function getAccessLogSavedViews(): Promise<AccessLogSavedView[]> {
  */
 export function postAccessLogSavedView(payload: AccessLogSavedViewRequest) {
   return request.post<PostAccessLogSavedViewResponseData>({
-    url: ACCESS_LOG_API_PATH.SAVED_VIEWS,
+    url: OPENAPI_RUNTIME_PATH.postAccessLogSavedView,
     data: payload,
   }) as Promise<AccessLogSavedView>;
 }
@@ -90,7 +92,7 @@ export function postAccessLogSavedView(payload: AccessLogSavedViewRequest) {
  */
 export function putAccessLogSavedView(viewId: number, payload: AccessLogSavedViewRequest) {
   return request.put<PutAccessLogSavedViewResponseData>({
-    url: buildAccessLogSavedViewApiPath(viewId),
+    url: buildOpenApiRuntimePath('putAccessLogSavedView', { viewId }),
     data: payload,
   }) as Promise<AccessLogSavedView>;
 }
@@ -102,5 +104,5 @@ export function putAccessLogSavedView(viewId: number, payload: AccessLogSavedVie
  * @returns 删除请求的响应结果
  */
 export function deleteAccessLogSavedView(viewId: number) {
-  return request.delete({ url: buildAccessLogSavedViewApiPath(viewId) });
+  return request.delete({ url: buildOpenApiRuntimePath('deleteAccessLogSavedView', { viewId }) });
 }

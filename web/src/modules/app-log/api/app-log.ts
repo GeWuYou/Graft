@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { APP_LOG_API_PATH, buildAppLogSavedViewApiPath } from '../contract/paths';
 import type {
   AppLogBatchDeleteRequest,
   AppLogDetailResponse,
@@ -11,24 +11,24 @@ import type {
   AppLogSavedViewRequest,
 } from '../types/app-log';
 
-type AppLogListPath = (typeof APP_LOG_API_PATH)['LIST'];
+type AppLogListPath = typeof OPENAPI_RUNTIME_PATH.getAppLogs;
 type GetAppLogsOperation = paths[AppLogListPath]['get'];
 type GetAppLogsResponse = GetAppLogsOperation['responses'][200]['content']['application/json'];
 type GetAppLogsResponseData = NonNullable<GetAppLogsResponse['data']>;
 
-type AppLogDetailPath = (typeof APP_LOG_API_PATH)['DETAIL'];
+type AppLogDetailPath = typeof OPENAPI_RUNTIME_PATH.getAppLogDetail;
 type GetAppLogDetailOperation = paths[AppLogDetailPath]['get'];
 type GetAppLogDetailResponse = GetAppLogDetailOperation['responses'][200]['content']['application/json'];
 type GetAppLogDetailResponseData = NonNullable<GetAppLogDetailResponse['data']>;
 type DeleteAppLogOperation = paths[AppLogDetailPath]['delete'];
 type DeleteAppLogResponse = DeleteAppLogOperation['responses'][200]['content']['application/json'];
 type DeleteAppLogResponseData = NonNullable<DeleteAppLogResponse['data']>;
-type AppLogBatchDeletePath = (typeof APP_LOG_API_PATH)['BATCH_DELETE'];
+type AppLogBatchDeletePath = typeof OPENAPI_RUNTIME_PATH.postAppLogBatchDelete;
 type PostAppLogBatchDeleteOperation = paths[AppLogBatchDeletePath]['post'];
 type PostAppLogBatchDeleteResponse = PostAppLogBatchDeleteOperation['responses'][200]['content']['application/json'];
 type PostAppLogBatchDeleteResponseData = NonNullable<PostAppLogBatchDeleteResponse['data']>;
 
-type AppLogSavedViewsPath = (typeof APP_LOG_API_PATH)['SAVED_VIEWS'];
+type AppLogSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getAppLogSavedViews;
 type GetAppLogSavedViewsOperation = paths[AppLogSavedViewsPath]['get'];
 type GetAppLogSavedViewsResponse = GetAppLogSavedViewsOperation['responses'][200]['content']['application/json'];
 type GetAppLogSavedViewsResponseData = NonNullable<GetAppLogSavedViewsResponse['data']>;
@@ -36,7 +36,7 @@ type PostAppLogSavedViewOperation = paths[AppLogSavedViewsPath]['post'];
 type PostAppLogSavedViewResponse = PostAppLogSavedViewOperation['responses'][201]['content']['application/json'];
 type PostAppLogSavedViewResponseData = NonNullable<PostAppLogSavedViewResponse['data']>;
 
-type AppLogSavedViewPath = (typeof APP_LOG_API_PATH)['SAVED_VIEW'];
+type AppLogSavedViewPath = typeof OPENAPI_RUNTIME_PATH.putAppLogSavedView;
 type PutAppLogSavedViewOperation = paths[AppLogSavedViewPath]['put'];
 type PutAppLogSavedViewResponse = PutAppLogSavedViewOperation['responses'][200]['content']['application/json'];
 type PutAppLogSavedViewResponseData = NonNullable<PutAppLogSavedViewResponse['data']>;
@@ -49,20 +49,20 @@ type PutAppLogSavedViewResponseData = NonNullable<PutAppLogSavedViewResponse['da
  */
 export function getAppLogs(query: AppLogQuery) {
   return request.get<GetAppLogsResponseData>({
-    url: APP_LOG_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getAppLogs,
     params: query,
   }) as Promise<AppLogListResponse>;
 }
 
 export function getAppLogDetail(id: number) {
   return request.get<GetAppLogDetailResponseData>({
-    url: APP_LOG_API_PATH.DETAIL.replace('{id}', String(id)),
+    url: buildOpenApiRuntimePath('getAppLogDetail', { id }),
   }) as Promise<AppLogDetailResponse>;
 }
 
 export function deleteAppLog(id: number) {
   return request.delete<DeleteAppLogResponseData>({
-    url: APP_LOG_API_PATH.DETAIL.replace('{id}', String(id)),
+    url: buildOpenApiRuntimePath('deleteAppLog', { id }),
   });
 }
 
@@ -73,7 +73,7 @@ export function deleteAppLog(id: number) {
  */
 export function deleteAppLogs(payload: AppLogBatchDeleteRequest) {
   return request.post<PostAppLogBatchDeleteResponseData>({
-    url: APP_LOG_API_PATH.BATCH_DELETE,
+    url: OPENAPI_RUNTIME_PATH.postAppLogBatchDelete,
     data: payload,
   });
 }
@@ -84,7 +84,7 @@ export function deleteAppLogs(payload: AppLogBatchDeleteRequest) {
  * @returns 已保存的应用日志视图数组
  */
 export async function getAppLogSavedViews(): Promise<AppLogSavedView[]> {
-  const data = await request.get<GetAppLogSavedViewsResponseData>({ url: APP_LOG_API_PATH.SAVED_VIEWS });
+  const data = await request.get<GetAppLogSavedViewsResponseData>({ url: OPENAPI_RUNTIME_PATH.getAppLogSavedViews });
   return data.items;
 }
 
@@ -96,7 +96,7 @@ export async function getAppLogSavedViews(): Promise<AppLogSavedView[]> {
  */
 export function postAppLogSavedView(payload: AppLogSavedViewRequest) {
   return request.post<PostAppLogSavedViewResponseData>({
-    url: APP_LOG_API_PATH.SAVED_VIEWS,
+    url: OPENAPI_RUNTIME_PATH.postAppLogSavedView,
     data: payload,
   }) as Promise<AppLogSavedView>;
 }
@@ -110,7 +110,7 @@ export function postAppLogSavedView(payload: AppLogSavedViewRequest) {
  */
 export function putAppLogSavedView(viewId: number, payload: AppLogSavedViewRequest) {
   return request.put<PutAppLogSavedViewResponseData>({
-    url: buildAppLogSavedViewApiPath(viewId),
+    url: buildOpenApiRuntimePath('putAppLogSavedView', { viewId }),
     data: payload,
   }) as Promise<AppLogSavedView>;
 }
@@ -121,5 +121,5 @@ export function putAppLogSavedView(viewId: number, payload: AppLogSavedViewReque
  * @param viewId - 要删除的保存视图标识
  */
 export function deleteAppLogSavedView(viewId: number) {
-  return request.delete({ url: buildAppLogSavedViewApiPath(viewId) });
+  return request.delete({ url: buildOpenApiRuntimePath('deleteAppLogSavedView', { viewId }) });
 }

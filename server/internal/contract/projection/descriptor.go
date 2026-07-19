@@ -22,6 +22,8 @@ const (
 	KindPermissionCode Kind = "permission-code"
 	// KindRealtimeTopic 表示实时订阅主题或主题前缀。
 	KindRealtimeTopic Kind = "realtime-topic"
+	// KindRealtimeEvent 表示实时订阅载荷中的事件类型。
+	KindRealtimeEvent Kind = "realtime-event"
 	// KindDockerImageRemoveErrorCode 表示 Docker 镜像删除结果的业务错误码。
 	KindDockerImageRemoveErrorCode Kind = "docker-image-remove-error-code"
 )
@@ -81,6 +83,18 @@ func Validate(entries []Entry) error {
 			return fmt.Errorf("duplicate contract projection value %q for kind %q", value, entry.Kind)
 		}
 		seenValues[semanticValue] = struct{}{}
+	}
+	for _, entry := range entries {
+		if entry.Lifecycle != LifecycleDeprecated {
+			continue
+		}
+		for _, candidate := range entries {
+			if candidate.ID == entry.Replacement && candidate.Lifecycle == LifecycleActive {
+				goto replacementValid
+			}
+		}
+		return fmt.Errorf("deprecated contract projection descriptor %q requires an active replacement", entry.ID)
+	replacementValid:
 	}
 	return nil
 }
@@ -145,6 +159,7 @@ func validKind(kind Kind) bool {
 		kind == KindMessageKey ||
 		kind == KindPermissionCode ||
 		kind == KindRealtimeTopic ||
+		kind == KindRealtimeEvent ||
 		kind == KindDockerImageRemoveErrorCode
 }
 

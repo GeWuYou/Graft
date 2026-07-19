@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { RBAC_API_PATH } from '../contract/paths';
 import type { RoleListItem, RoleListResponse } from '../contract/role';
 import type { PermissionDetailResponse, PermissionFilters, PermissionListResponse } from '../types/permission';
 import type {
@@ -14,15 +14,15 @@ import type {
   UpdateRoleStatusPayload,
 } from '../types/rbac';
 
-type PermissionsPath = (typeof RBAC_API_PATH)['PERMISSIONS'];
-type RolesPath = (typeof RBAC_API_PATH)['ROLES'];
-type RolePermissionsPath = (typeof RBAC_API_PATH)['ROLE_PERMISSIONS_TEMPLATE'];
-type RolePermissionsReplacePath = (typeof RBAC_API_PATH)['ROLE_PERMISSIONS_REPLACE_TEMPLATE'];
+type PermissionsPath = typeof OPENAPI_RUNTIME_PATH.getPermissions;
+type RolesPath = typeof OPENAPI_RUNTIME_PATH.getRoles;
+type RolePermissionsPath = typeof OPENAPI_RUNTIME_PATH.getRolePermissions;
+type RolePermissionsReplacePath = typeof OPENAPI_RUNTIME_PATH.postRolePermissionsReplace;
 type GetPermissionsOperation = paths[PermissionsPath]['get'];
 type GetRolesOperation = paths[RolesPath]['get'];
 type GetRolePermissionsOperation = paths[RolePermissionsPath]['get'];
 type PostRolesOperation = paths[RolesPath]['post'];
-type PostRoleUpdateOperation = paths[(typeof RBAC_API_PATH)['ROLE_UPDATE_TEMPLATE']]['post'];
+type PostRoleUpdateOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRoleUpdate]['post'];
 type PostRolePermissionsReplaceOperation = paths[RolePermissionsReplacePath]['post'];
 type GetPermissionsEnvelope = GetPermissionsOperation['responses'][200]['content']['application/json'];
 type GetRolesEnvelope = GetRolesOperation['responses'][200]['content']['application/json'];
@@ -37,59 +37,59 @@ type PostRolePermissionsReplaceRequest =
 
 export function getRoles() {
   return request.get<GetRolesData>({
-    url: RBAC_API_PATH.ROLES,
+    url: OPENAPI_RUNTIME_PATH.getRoles,
   }) as Promise<RoleListResponse>;
 }
 
 export function getRoleDetail(roleId: number) {
   return request.get<RoleDetailResponse>({
-    url: RBAC_API_PATH.ROLE_DETAIL(roleId),
+    url: buildOpenApiRuntimePath('getRole', { id: roleId }),
   });
 }
 
 export function getPermissions(filters?: PermissionFilters) {
   return request.get<GetPermissionsData>({
-    url: RBAC_API_PATH.PERMISSIONS,
+    url: OPENAPI_RUNTIME_PATH.getPermissions,
     params: filters,
   }) as Promise<PermissionListResponse>;
 }
 
 export function getPermissionDetail(permissionId: number) {
   return request.get<PermissionDetailResponse>({
-    url: RBAC_API_PATH.PERMISSION_DETAIL(permissionId),
+    url: buildOpenApiRuntimePath('getPermission', { id: permissionId }),
   });
 }
 
 export function getRolePermissionBindings(roleId: number) {
   return request.get<GetRolePermissionsData>({
-    url: RBAC_API_PATH.ROLE_PERMISSIONS(roleId),
+    url: buildOpenApiRuntimePath('getRolePermissions', { id: roleId }),
   }) as Promise<RolePermissionBindingResponse>;
 }
 
 export function createRole(payload: PostRolesRequest & CreateRolePayload) {
   return request.post<RoleListItem>({
-    url: RBAC_API_PATH.ROLES,
+    url: OPENAPI_RUNTIME_PATH.postRoles,
     data: payload,
   });
 }
 
 export function updateRole(roleId: number, payload: PostRoleUpdateRequest & UpdateRolePayload) {
   return request.post<RoleListItem>({
-    url: RBAC_API_PATH.ROLE_UPDATE(roleId),
+    url: buildOpenApiRuntimePath('postRoleUpdate', { id: roleId }),
     data: payload,
   });
 }
 
 export function updateRoleStatus(roleId: number, payload: UpdateRoleStatusPayload) {
   return request.post<RoleDetailResponse>({
-    url: RBAC_API_PATH.ROLE_STATUS(roleId),
+    url: buildOpenApiRuntimePath('postRoleStatus', { id: roleId }),
     data: payload,
   });
 }
 
 export function deleteRole(roleId: number) {
   return request.post<null>({
-    url: RBAC_API_PATH.ROLE_DELETE(roleId),
+    url: buildOpenApiRuntimePath('postRoleDelete', { id: roleId }),
   });
 }
 
@@ -98,21 +98,21 @@ export function replaceRolePermissions(
   payload: PostRolePermissionsReplaceRequest & ReplaceRolePermissionsPayload,
 ) {
   return request.post<null>({
-    url: RBAC_API_PATH.ROLE_PERMISSIONS_REPLACE(roleId),
+    url: buildOpenApiRuntimePath('postRolePermissionsReplace', { id: roleId }),
     data: payload,
   });
 }
 
 export function addRolePermissions(roleId: number, payload: RolePermissionMutationPayload) {
   return request.post<null>({
-    url: RBAC_API_PATH.ROLE_PERMISSIONS_ADD(roleId),
+    url: buildOpenApiRuntimePath('postRolePermissionsAdd', { id: roleId }),
     data: payload,
   });
 }
 
 export function removeRolePermissions(roleId: number, payload: RolePermissionMutationPayload) {
   return request.post<null>({
-    url: RBAC_API_PATH.ROLE_PERMISSIONS_REMOVE(roleId),
+    url: buildOpenApiRuntimePath('postRolePermissionsRemove', { id: roleId }),
     data: payload,
   });
 }

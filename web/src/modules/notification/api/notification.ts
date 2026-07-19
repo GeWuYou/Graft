@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { buildNotificationDeleteApiPath, buildNotificationReadApiPath, NOTIFICATION_API_PATH } from '../contract/paths';
 import type {
   NotificationItem,
   NotificationListQuery,
@@ -11,25 +11,25 @@ import type {
   NotificationUnreadCountResponse,
 } from '../types/notification';
 
-type NotificationListPath = (typeof NOTIFICATION_API_PATH)['LIST'];
+type NotificationListPath = typeof OPENAPI_RUNTIME_PATH.getNotifications;
 type GetNotificationsOperation = paths[NotificationListPath]['get'];
 type GetNotificationsEnvelope = GetNotificationsOperation['responses'][200]['content']['application/json'];
 type GetNotificationsData = NonNullable<GetNotificationsEnvelope['data']>;
 type GetNotificationsQuery = NonNullable<GetNotificationsOperation['parameters']['query']>;
 
-type NotificationUnreadCountPath = (typeof NOTIFICATION_API_PATH)['UNREAD_COUNT'];
+type NotificationUnreadCountPath = typeof OPENAPI_RUNTIME_PATH.getNotificationsUnreadCount;
 type GetNotificationUnreadCountOperation = paths[NotificationUnreadCountPath]['get'];
 type GetNotificationUnreadCountEnvelope =
   GetNotificationUnreadCountOperation['responses'][200]['content']['application/json'];
 type GetNotificationUnreadCountData = NonNullable<GetNotificationUnreadCountEnvelope['data']>;
 
-type NotificationReadPath = (typeof NOTIFICATION_API_PATH)['READ'];
+type NotificationReadPath = typeof OPENAPI_RUNTIME_PATH.postNotificationRead;
 type PostNotificationReadOperation = paths[NotificationReadPath]['post'];
 type PostNotificationReadEnvelope = PostNotificationReadOperation['responses'][200]['content']['application/json'];
 type PostNotificationReadData = NonNullable<PostNotificationReadEnvelope['data']>;
 type PostNotificationReadPathParams = PostNotificationReadOperation['parameters']['path'];
 
-type NotificationReadAllPath = (typeof NOTIFICATION_API_PATH)['READ_ALL'];
+type NotificationReadAllPath = typeof OPENAPI_RUNTIME_PATH.postNotificationsReadAll;
 type PostNotificationsReadAllOperation = paths[NotificationReadAllPath]['post'];
 type PostNotificationsReadAllEnvelope =
   PostNotificationsReadAllOperation['responses'][200]['content']['application/json'];
@@ -38,39 +38,39 @@ type PostNotificationsReadAllBody = NonNullable<
   PostNotificationsReadAllOperation['requestBody']
 >['content']['application/json'];
 
-type NotificationDeletePath = (typeof NOTIFICATION_API_PATH)['DELETE'];
+type NotificationDeletePath = typeof OPENAPI_RUNTIME_PATH.deleteNotification;
 type DeleteNotificationOperation = paths[NotificationDeletePath]['delete'];
 type DeleteNotificationPathParams = DeleteNotificationOperation['parameters']['path'];
 
 export function getNotifications(query?: NotificationListQuery) {
   return request.get<GetNotificationsData>({
-    url: NOTIFICATION_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getNotifications,
     params: normalizeNotificationListQuery(query),
   }) as Promise<NotificationListResponse>;
 }
 
 export function getNotificationUnreadCount() {
   return request.get<GetNotificationUnreadCountData>({
-    url: NOTIFICATION_API_PATH.UNREAD_COUNT,
+    url: OPENAPI_RUNTIME_PATH.getNotificationsUnreadCount,
   }) as Promise<NotificationUnreadCountResponse>;
 }
 
 export function markNotificationRead(deliveryId: PostNotificationReadPathParams['delivery_id']) {
   return request.post<PostNotificationReadData>({
-    url: buildNotificationReadApiPath(deliveryId),
+    url: buildOpenApiRuntimePath('postNotificationRead', { delivery_id: deliveryId }),
   }) as Promise<NotificationItem>;
 }
 
 export function markNotificationsReadAll(payload?: NotificationReadAllRequest) {
   return request.post<PostNotificationsReadAllData>({
-    url: NOTIFICATION_API_PATH.READ_ALL,
+    url: OPENAPI_RUNTIME_PATH.postNotificationsReadAll,
     data: payload as PostNotificationsReadAllBody | undefined,
   }) as Promise<NotificationReadAllResponse>;
 }
 
 export function deleteNotification(deliveryId: DeleteNotificationPathParams['delivery_id']) {
   return request.delete<Record<string, never>>({
-    url: buildNotificationDeleteApiPath(deliveryId),
+    url: buildOpenApiRuntimePath('deleteNotification', { delivery_id: deliveryId }),
   });
 }
 

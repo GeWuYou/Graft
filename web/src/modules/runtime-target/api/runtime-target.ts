@@ -1,12 +1,11 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { components, paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { RUNTIME_TARGET_API_PATH, runtimeTargetDetailApiPath, runtimeTargetRefreshApiPath } from '../contract/paths';
-
-type ListOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['LIST']]['get'];
-type DetailOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DETAIL']]['get'];
-type RefreshOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['REFRESH']]['post'];
-type DiscoverLocalOperation = paths[(typeof RUNTIME_TARGET_API_PATH)['DISCOVER_LOCAL_DOCKER']]['post'];
+type ListOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTargets]['get'];
+type DetailOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRuntimeTarget]['get'];
+type RefreshOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRuntimeTargetRefresh]['post'];
+type DiscoverLocalOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRuntimeTargetsDiscoverLocalDocker]['post'];
 export type RuntimeTarget = NonNullable<
   ListOperation['responses'][200]['content']['application/json']['data']
 >['items'][number];
@@ -34,18 +33,20 @@ export async function listRuntimeTargets(): Promise<RuntimeTarget[]> {
 
 export async function listRuntimeTargetPage(params: { limit: number; offset: number }): Promise<RuntimeTargetPage> {
   return request.get<RuntimeTargetPage>({
-    url: RUNTIME_TARGET_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getRuntimeTargets,
     params,
   });
 }
 export async function discoverLocalDocker(): Promise<RuntimeTargetDiscoverLocal | null> {
-  return request.post<RuntimeTargetDiscoverLocal | null>({ url: RUNTIME_TARGET_API_PATH.DISCOVER_LOCAL_DOCKER });
+  return request.post<RuntimeTargetDiscoverLocal | null>({
+    url: OPENAPI_RUNTIME_PATH.postRuntimeTargetsDiscoverLocalDocker,
+  });
 }
 
 export async function getRuntimeTarget(id: number): Promise<RuntimeTargetDetail> {
-  return request.get<RuntimeTargetDetail>({ url: runtimeTargetDetailApiPath(id) });
+  return request.get<RuntimeTargetDetail>({ url: buildOpenApiRuntimePath('getRuntimeTarget', { id }) });
 }
 
 export async function refreshRuntimeTarget(id: number): Promise<RuntimeTargetRefresh> {
-  return request.post<RuntimeTargetRefresh>({ url: runtimeTargetRefreshApiPath(id) });
+  return request.post<RuntimeTargetRefresh>({ url: buildOpenApiRuntimePath('postRuntimeTargetRefresh', { id }) });
 }

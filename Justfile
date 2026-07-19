@@ -144,12 +144,14 @@ compose-down:
 
 generate:
     node scripts/openapi-bundle.mjs
+    node scripts/openapi-runtime-paths.mjs
     cd server && go generate ./...
     cd web && bun run openapi:types
     cd server && go run ./internal/contract/projection/cmd/projectiongen
 
 openapi-check:
     cd server && go run ./cmd/graft validate openapi
+    node scripts/openapi-runtime-paths.mjs --check
     cd web && bun run openapi:types:check
     cd server && go run ./internal/contract/projection/cmd/projectiongen --check
 

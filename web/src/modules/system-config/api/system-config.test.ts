@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import {
-  buildSystemConfigDetailApiPath,
-  buildSystemConfigResetApiPath,
-  SYSTEM_CONFIG_API_PATH,
-} from '../contract/paths';
 import { getSystemConfig, getSystemConfigs, resetSystemConfig, updateSystemConfig } from './system-config';
 
 vi.mock('@/utils/request', () => ({
@@ -29,7 +25,7 @@ describe('system config api', () => {
     await getSystemConfigs();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: SYSTEM_CONFIG_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.getSystemConfigs,
     });
   });
 
@@ -40,9 +36,8 @@ describe('system config api', () => {
     await getSystemConfig('scheduler/defaults');
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildSystemConfigDetailApiPath('scheduler/defaults'),
+      url: buildOpenApiRuntimePath('getSystemConfig', { key: 'scheduler/defaults' }),
     });
-    expect(buildSystemConfigDetailApiPath('scheduler/defaults')).toBe('/api/system-configs/scheduler%2Fdefaults');
   });
 
   it('puts override values through the canonical detail path', async () => {
@@ -53,7 +48,7 @@ describe('system config api', () => {
     await updateSystemConfig('logging/defaults', payload);
 
     expect(requestPut).toHaveBeenCalledWith({
-      url: buildSystemConfigDetailApiPath('logging/defaults'),
+      url: buildOpenApiRuntimePath('putSystemConfig', { key: 'logging/defaults' }),
       data: payload,
     });
   });
@@ -65,8 +60,7 @@ describe('system config api', () => {
     await resetSystemConfig('logging/defaults');
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: buildSystemConfigResetApiPath('logging/defaults'),
+      url: buildOpenApiRuntimePath('postSystemConfigReset', { key: 'logging/defaults' }),
     });
-    expect(buildSystemConfigResetApiPath('logging/defaults')).toBe('/api/system-configs/logging%2Fdefaults/reset');
   });
 });

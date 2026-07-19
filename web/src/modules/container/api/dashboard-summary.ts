@@ -1,3 +1,4 @@
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
 import type {
@@ -6,7 +7,6 @@ import type {
   ContainerDashboardSummary,
   ContainerDashboardSummaryResponse,
 } from '../contract/dashboard-summary';
-import { CONTAINER_API_PATH } from '../contract/paths';
 
 /**
  * 获取容器仪表盘汇总数据。
@@ -16,7 +16,7 @@ import { CONTAINER_API_PATH } from '../contract/paths';
 export function getContainerDashboardSummary() {
   return request
     .get<ContainerDashboardSummaryResponse>({
-      url: CONTAINER_API_PATH.DASHBOARD_SUMMARY,
+      url: OPENAPI_RUNTIME_PATH.getContainerDashboardSummary,
     })
     .then(mapContainerDashboardSummary);
 }

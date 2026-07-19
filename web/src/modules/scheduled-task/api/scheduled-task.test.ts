@@ -1,17 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import {
-  buildScheduledTaskDetailApiPath,
-  buildScheduledTaskDisableApiPath,
-  buildScheduledTaskEnableApiPath,
-  buildScheduledTaskJobDefinitionDetailApiPath,
-  buildScheduledTaskRunApiPath,
-  buildScheduledTaskRunDetailApiPath,
-  buildScheduledTaskRunsApiPath,
-  SCHEDULED_TASK_API_PATH,
-} from '../contract/paths';
 import {
   createScheduledTask,
   deleteScheduledTask,
@@ -49,7 +40,7 @@ describe('scheduled task api', () => {
     await getScheduledTasks(query);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: SCHEDULED_TASK_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.getScheduledTasks,
       params: query,
     });
   });
@@ -61,7 +52,7 @@ describe('scheduled task api', () => {
     await getScheduledTaskJobDefinitions();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: SCHEDULED_TASK_API_PATH.JOB_DEFINITIONS,
+      url: OPENAPI_RUNTIME_PATH.getScheduledTaskJobDefinitions,
     });
   });
 
@@ -72,11 +63,8 @@ describe('scheduled task api', () => {
     await getScheduledTaskJobDefinition('audit/job');
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildScheduledTaskJobDefinitionDetailApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('getScheduledTaskJobDefinition', { jobKey: 'audit/job' }),
     });
-    expect(buildScheduledTaskJobDefinitionDetailApiPath('audit/job')).toBe(
-      '/api/scheduled-tasks/job-definitions/audit%2Fjob',
-    );
   });
 
   it('encodes scheduled task keys for detail reads', async () => {
@@ -86,9 +74,8 @@ describe('scheduled task api', () => {
     await getScheduledTask('audit/job');
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildScheduledTaskDetailApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('getScheduledTask', { taskKey: 'audit/job' }),
     });
-    expect(buildScheduledTaskDetailApiPath('audit/job')).toBe('/api/scheduled-tasks/audit%2Fjob');
   });
 
   it('posts create payloads to the canonical collection path', async () => {
@@ -106,7 +93,7 @@ describe('scheduled task api', () => {
     await createScheduledTask(payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: SCHEDULED_TASK_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.postScheduledTask,
       data: payload,
     });
   });
@@ -119,7 +106,7 @@ describe('scheduled task api', () => {
     await updateScheduledTask('audit/job', payload);
 
     expect(requestPut).toHaveBeenCalledWith({
-      url: buildScheduledTaskDetailApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('putScheduledTask', { taskKey: 'audit/job' }),
       data: payload,
     });
   });
@@ -131,7 +118,7 @@ describe('scheduled task api', () => {
     await deleteScheduledTask('audit/job');
 
     expect(requestDelete).toHaveBeenCalledWith({
-      url: buildScheduledTaskDetailApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('deleteScheduledTask', { taskKey: 'audit/job' }),
     });
   });
 
@@ -143,10 +130,10 @@ describe('scheduled task api', () => {
     await disableScheduledTask('audit/job');
 
     expect(requestPost).toHaveBeenNthCalledWith(1, {
-      url: buildScheduledTaskEnableApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('postScheduledTaskEnable', { taskKey: 'audit/job' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(2, {
-      url: buildScheduledTaskDisableApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('postScheduledTaskDisable', { taskKey: 'audit/job' }),
     });
   });
 
@@ -158,7 +145,7 @@ describe('scheduled task api', () => {
     await getScheduledTaskRuns('audit/job', query);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildScheduledTaskRunsApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('getScheduledTaskRuns', { taskKey: 'audit/job' }),
       params: query,
     });
   });
@@ -170,9 +157,8 @@ describe('scheduled task api', () => {
     await runScheduledTask('audit/job');
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: buildScheduledTaskRunApiPath('audit/job'),
+      url: buildOpenApiRuntimePath('postScheduledTaskRun', { taskKey: 'audit/job' }),
     });
-    expect(buildScheduledTaskRunApiPath('audit/job')).toBe('/api/scheduled-tasks/audit%2Fjob/run');
   });
 
   it('reads run details through the canonical run detail path', async () => {
@@ -182,7 +168,7 @@ describe('scheduled task api', () => {
     await getScheduledTaskRun(42);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildScheduledTaskRunDetailApiPath(42),
+      url: buildOpenApiRuntimePath('getScheduledTaskRun', { runId: 42 }),
     });
   });
 });

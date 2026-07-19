@@ -1,18 +1,7 @@
+import { TASK_REALTIME_EVENT, TASK_REALTIME_TOPIC } from '@/contracts/generated/modules/task';
 import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/realtime';
 
-const taskRealtimeTopicPrefix = 'task:';
-
-export type TaskRealtimeEventType =
-  | 'task.created'
-  | 'task.started'
-  | 'task.stage.started'
-  | 'task.stage.completed'
-  | 'task.stage.failed'
-  | 'task.log.appended'
-  | 'task.completed'
-  | 'task.failed'
-  | 'task.cancelled'
-  | 'task.updated';
+export type TaskRealtimeEventType = (typeof TASK_REALTIME_EVENT)[keyof typeof TASK_REALTIME_EVENT];
 
 export type TaskRealtimeNotification = Readonly<{
   task_id: number;
@@ -20,7 +9,7 @@ export type TaskRealtimeNotification = Readonly<{
 }>;
 
 export function buildTaskRealtimeTopicName(taskId: number) {
-  return `${taskRealtimeTopicPrefix}${taskId}`;
+  return `${TASK_REALTIME_TOPIC.PREFIX}${taskId}`;
 }
 
 /**

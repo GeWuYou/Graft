@@ -1,12 +1,11 @@
+import type { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { components, paths } from '@/contracts/openapi/generated/schema';
 
-import { DASHBOARD_API_PATH } from '../contract/paths';
-
-type DashboardSummaryPath = (typeof DASHBOARD_API_PATH)['SUMMARY'];
+type DashboardSummaryPath = typeof OPENAPI_RUNTIME_PATH.getDashboardSummary;
 type GetDashboardSummaryOperation = paths[DashboardSummaryPath]['get'];
 type GetDashboardSummaryEnvelope = GetDashboardSummaryOperation['responses'][200]['content']['application/json'];
 
-type DashboardWidgetPath = (typeof DASHBOARD_API_PATH)['WIDGET'];
+type DashboardWidgetPath = typeof OPENAPI_RUNTIME_PATH.getDashboardWidget;
 type GetDashboardWidgetOperation = paths[DashboardWidgetPath]['get'];
 type GetDashboardWidgetEnvelope = GetDashboardWidgetOperation['responses'][200]['content']['application/json'];
 export type GetDashboardWidgetPathParams = GetDashboardWidgetOperation['parameters']['path'];

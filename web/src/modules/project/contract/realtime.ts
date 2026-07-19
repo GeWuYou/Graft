@@ -1,27 +1,21 @@
+import { PROJECT_REALTIME_TOPIC } from '@/contracts/generated/modules/project';
 import type { components } from '@/contracts/openapi/generated/schema';
 import { isRealtimePayloadObject, parseRealtimeEnvelopeData } from '@/shared/realtime';
 
-const APPLICATION_REALTIME_TOPIC = {
-  LIST_SUMMARY: 'application.list.summary',
-  RUNTIME_PREFIX: 'application.runtime:',
-  LIFECYCLE_CONFIG_PREFIX: 'application.lifecycle-config:',
-  LOGS_PREFIX: 'application.logs:',
-} as const;
-
 export function getApplicationListSummaryTopicName(): string {
-  return APPLICATION_REALTIME_TOPIC.LIST_SUMMARY;
+  return PROJECT_REALTIME_TOPIC.LIST_SUMMARY;
 }
 
 export function buildApplicationRuntimeTopicName(applicationId: string): string {
-  return `${APPLICATION_REALTIME_TOPIC.RUNTIME_PREFIX}${applicationId}`;
+  return `${PROJECT_REALTIME_TOPIC.RUNTIME_PREFIX}${applicationId}`;
 }
 
 export function buildApplicationLifecycleConfigTopicName(applicationId: string): string {
-  return `${APPLICATION_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
+  return `${PROJECT_REALTIME_TOPIC.LIFECYCLE_CONFIG_PREFIX}${applicationId}`;
 }
 
 export function buildApplicationLogsTopicName(applicationId: string): string {
-  return `${APPLICATION_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
+  return `${PROJECT_REALTIME_TOPIC.LOGS_PREFIX}${applicationId}`;
 }
 
 type ApplicationDetailResponse = components['schemas']['ApplicationDetailResponse'];

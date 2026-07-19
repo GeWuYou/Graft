@@ -1,12 +1,6 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
-
-import {
-  buildDockerImageRemoveApiPath,
-  buildDockerImageTagApiPath,
-  buildDockerImageUntagApiPath,
-  CONTAINER_API_PATH,
-} from '../contract/paths';
 
 type DockerImagePullOperation = paths['/api/ops/docker/images/pull']['post'];
 type DockerImageTagOperation = paths['/api/ops/docker/images/{id}/tag']['post'];
@@ -46,28 +40,37 @@ export async function pullDockerImage(
       for (const line of lines) emitPullEvent(line, onEvent);
     },
     signal,
-    url: CONTAINER_API_PATH.DOCKER_IMAGE_PULL,
+    url: OPENAPI_RUNTIME_PATH.postDockerImagePull,
   });
   emitPullEvent(pending, onEvent);
 }
 
 export function tagDockerImage(imageId: string, payload: DockerImageTagRequest) {
-  return request.post<DockerImageActionResponse>({ url: buildDockerImageTagApiPath(imageId), data: payload });
+  return request.post<DockerImageActionResponse>({
+    url: buildOpenApiRuntimePath('postDockerImageTag', { id: imageId }),
+    data: payload,
+  });
 }
 
 /** 标签移除固定按完整 Repository:Tag 调用，不能退化成按 Image ID 删除。 */
 export function untagDockerImage(imageId: string, payload: DockerImageUntagRequest) {
-  return request.post<DockerImageActionResponse>({ url: buildDockerImageUntagApiPath(imageId), data: payload });
+  return request.post<DockerImageActionResponse>({
+    url: buildOpenApiRuntimePath('postDockerImageUntag', { id: imageId }),
+    data: payload,
+  });
 }
 
 export function removeDockerImage(imageId: string, payload: DockerImageRemoveRequest) {
-  return request.post<DockerImageActionResponse>({ url: buildDockerImageRemoveApiPath(imageId), data: payload });
+  return request.post<DockerImageActionResponse>({
+    url: buildOpenApiRuntimePath('postDockerImageRemove', { id: imageId }),
+    data: payload,
+  });
 }
 
 /** 批量移除由服务端按请求顺序返回逐项结果；调用方必须处理部分成功而不能只判断请求是否成功。 */
 export function batchRemoveDockerImages(payload: DockerImageBatchRemoveRequest) {
   return request.post<DockerImageBatchResult>({
-    url: CONTAINER_API_PATH.DOCKER_IMAGE_BATCH_REMOVE,
+    url: OPENAPI_RUNTIME_PATH.postDockerImageBatchRemove,
     data: payload,
   });
 }

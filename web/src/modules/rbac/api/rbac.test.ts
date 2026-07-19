@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { RBAC_API_PATH } from '../contract/paths';
 import {
   addRolePermissions,
   createRole,
@@ -33,7 +33,7 @@ describe('rbac api', () => {
     await getPermissions();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.PERMISSIONS,
+      url: OPENAPI_RUNTIME_PATH.getPermissions,
       params: undefined,
     });
   });
@@ -45,7 +45,7 @@ describe('rbac api', () => {
     await getRoles();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLES,
+      url: OPENAPI_RUNTIME_PATH.getRoles,
     });
   });
 
@@ -56,7 +56,7 @@ describe('rbac api', () => {
     await getRolePermissionBindings(42);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_PERMISSIONS(42),
+      url: buildOpenApiRuntimePath('getRolePermissions', { id: 42 }),
     });
   });
 
@@ -67,7 +67,7 @@ describe('rbac api', () => {
     await getRoleDetail(42);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_DETAIL(42),
+      url: buildOpenApiRuntimePath('getRole', { id: 42 }),
     });
   });
 
@@ -78,7 +78,7 @@ describe('rbac api', () => {
     await getPermissionDetail(7);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.PERMISSION_DETAIL(7),
+      url: buildOpenApiRuntimePath('getPermission', { id: 7 }),
     });
   });
 
@@ -90,7 +90,7 @@ describe('rbac api', () => {
     await replaceRolePermissions(42, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_PERMISSIONS_REPLACE(42),
+      url: buildOpenApiRuntimePath('postRolePermissionsReplace', { id: 42 }),
       data: payload,
     });
   });
@@ -103,7 +103,7 @@ describe('rbac api', () => {
     await addRolePermissions(42, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_PERMISSIONS_ADD(42),
+      url: buildOpenApiRuntimePath('postRolePermissionsAdd', { id: 42 }),
       data: payload,
     });
   });
@@ -116,7 +116,7 @@ describe('rbac api', () => {
     await removeRolePermissions(42, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_PERMISSIONS_REMOVE(42),
+      url: buildOpenApiRuntimePath('postRolePermissionsRemove', { id: 42 }),
       data: payload,
     });
   });
@@ -129,7 +129,7 @@ describe('rbac api', () => {
     await updateRoleStatus(42, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_STATUS(42),
+      url: buildOpenApiRuntimePath('postRoleStatus', { id: 42 }),
       data: payload,
     });
   });
@@ -141,7 +141,7 @@ describe('rbac api', () => {
     await deleteRole(42);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_DELETE(42),
+      url: buildOpenApiRuntimePath('postRoleDelete', { id: 42 }),
     });
   });
 
@@ -153,7 +153,7 @@ describe('rbac api', () => {
     await createRole(payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLES,
+      url: OPENAPI_RUNTIME_PATH.postRoles,
       data: payload,
     });
   });
@@ -166,7 +166,7 @@ describe('rbac api', () => {
     await updateRole(42, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: RBAC_API_PATH.ROLE_UPDATE(42),
+      url: buildOpenApiRuntimePath('postRoleUpdate', { id: 42 }),
       data: payload,
     });
   });

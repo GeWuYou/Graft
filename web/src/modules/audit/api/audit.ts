@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { AUDIT_API_PATH, buildAuditSavedViewApiPath } from '../contract/paths';
 import type {
   AuditIncidentResponse,
   AuditLogDetailResponse,
@@ -16,17 +16,17 @@ import type {
   AuditVisibilityPolicyResponse,
 } from '../types/audit';
 
-type AuditLogsPath = (typeof AUDIT_API_PATH)['LOGS'];
+type AuditLogsPath = typeof OPENAPI_RUNTIME_PATH.getAuditLogs;
 type GetAuditLogsOperation = paths[AuditLogsPath]['get'];
 type GetAuditLogsResponse = GetAuditLogsOperation['responses'][200]['content']['application/json'];
 type GetAuditLogsResponseData = NonNullable<GetAuditLogsResponse['data']>;
 
-type AuditLogDetailPath = (typeof AUDIT_API_PATH)['DETAIL'];
+type AuditLogDetailPath = typeof OPENAPI_RUNTIME_PATH.getAuditLogDetail;
 type GetAuditLogDetailOperation = paths[AuditLogDetailPath]['get'];
 type GetAuditLogDetailResponse = GetAuditLogDetailOperation['responses'][200]['content']['application/json'];
 type GetAuditLogDetailResponseData = NonNullable<GetAuditLogDetailResponse['data']>;
 
-type AuditSavedViewsPath = (typeof AUDIT_API_PATH)['SAVED_VIEWS'];
+type AuditSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getAuditLogSavedViews;
 type GetAuditSavedViewsOperation = paths[AuditSavedViewsPath]['get'];
 type GetAuditSavedViewsResponse = GetAuditSavedViewsOperation['responses'][200]['content']['application/json'];
 type GetAuditSavedViewsResponseData = NonNullable<GetAuditSavedViewsResponse['data']>;
@@ -34,19 +34,19 @@ type PostAuditSavedViewOperation = paths[AuditSavedViewsPath]['post'];
 type PostAuditSavedViewResponse = PostAuditSavedViewOperation['responses'][201]['content']['application/json'];
 type PostAuditSavedViewResponseData = NonNullable<PostAuditSavedViewResponse['data']>;
 
-type AuditSavedViewPath = (typeof AUDIT_API_PATH)['SAVED_VIEW'];
+type AuditSavedViewPath = typeof OPENAPI_RUNTIME_PATH.putAuditLogSavedView;
 type PutAuditSavedViewOperation = paths[AuditSavedViewPath]['put'];
 type PutAuditSavedViewResponse = PutAuditSavedViewOperation['responses'][200]['content']['application/json'];
 type PutAuditSavedViewResponseData = NonNullable<PutAuditSavedViewResponse['data']>;
 
-type AuditIncidentPath = (typeof AUDIT_API_PATH)['INCIDENT_DETAIL'];
+type AuditIncidentPath = typeof OPENAPI_RUNTIME_PATH.getAuditIncident;
 type GetAuditIncidentOperation = paths[AuditIncidentPath]['get'];
 type GetAuditIncidentResponse = GetAuditIncidentOperation['responses'][200]['content']['application/json'];
 type GetAuditIncidentResponseData = NonNullable<GetAuditIncidentResponse['data']>;
 
 export function getAuditLogs(query: AuditLogQuery) {
   return request.get<GetAuditLogsResponseData>({
-    url: AUDIT_API_PATH.LOGS,
+    url: OPENAPI_RUNTIME_PATH.getAuditLogs,
     params: query,
   }) as Promise<AuditLogListResponse>;
 }
@@ -59,7 +59,7 @@ export function getAuditLogs(query: AuditLogQuery) {
  */
 export function getAuditLogDetail(id: number) {
   return request.get<GetAuditLogDetailResponseData>({
-    url: AUDIT_API_PATH.DETAIL.replace('{id}', String(id)),
+    url: buildOpenApiRuntimePath('getAuditLogDetail', { id }),
   }) as Promise<AuditLogDetailResponse>;
 }
 
@@ -69,7 +69,7 @@ export function getAuditLogDetail(id: number) {
  * @returns 审计保存视图数组
  */
 export async function getAuditSavedViews(): Promise<AuditSavedView[]> {
-  const data = await request.get<GetAuditSavedViewsResponseData>({ url: AUDIT_API_PATH.SAVED_VIEWS });
+  const data = await request.get<GetAuditSavedViewsResponseData>({ url: OPENAPI_RUNTIME_PATH.getAuditLogSavedViews });
   return data.items;
 }
 
@@ -81,7 +81,7 @@ export async function getAuditSavedViews(): Promise<AuditSavedView[]> {
  */
 export function postAuditSavedView(payload: AuditSavedViewRequest) {
   return request.post<PostAuditSavedViewResponseData>({
-    url: AUDIT_API_PATH.SAVED_VIEWS,
+    url: OPENAPI_RUNTIME_PATH.postAuditLogSavedView,
     data: payload,
   }) as Promise<AuditSavedView>;
 }
@@ -95,7 +95,7 @@ export function postAuditSavedView(payload: AuditSavedViewRequest) {
  */
 export function putAuditSavedView(viewId: number, payload: AuditSavedViewRequest) {
   return request.put<PutAuditSavedViewResponseData>({
-    url: buildAuditSavedViewApiPath(viewId),
+    url: buildOpenApiRuntimePath('putAuditLogSavedView', { viewId }),
     data: payload,
   }) as Promise<AuditSavedView>;
 }
@@ -106,7 +106,7 @@ export function putAuditSavedView(viewId: number, payload: AuditSavedViewRequest
  * @param viewId - 要删除的保存视图 ID
  */
 export function deleteAuditSavedView(viewId: number) {
-  return request.delete({ url: buildAuditSavedViewApiPath(viewId) });
+  return request.delete({ url: buildOpenApiRuntimePath('deleteAuditLogSavedView', { viewId }) });
 }
 
 /**
@@ -117,7 +117,7 @@ export function deleteAuditSavedView(viewId: number) {
  */
 export function getAuditIncident(eventId: number) {
   return request.get<GetAuditIncidentResponseData>({
-    url: AUDIT_API_PATH.INCIDENT_DETAIL.replace('{event_id}', String(eventId)),
+    url: buildOpenApiRuntimePath('getAuditIncident', { event_id: eventId }),
   }) as Promise<AuditIncidentResponse>;
 }
 
@@ -128,7 +128,7 @@ export function getAuditIncident(eventId: number) {
  */
 export function getAuditVisibilityPolicy() {
   return request.get<AuditVisibilityPolicyResponse>({
-    url: AUDIT_API_PATH.VISIBILITY_POLICY,
+    url: OPENAPI_RUNTIME_PATH.getAuditVisibilityPolicy,
   });
 }
 
@@ -140,7 +140,7 @@ export function getAuditVisibilityPolicy() {
  */
 export function updateAuditVisibilityDefault(payload: AuditVisibilityDefaultUpdateRequest) {
   return request.put<AuditVisibilityDefaultResponse>({
-    url: AUDIT_API_PATH.VISIBILITY_POLICY,
+    url: OPENAPI_RUNTIME_PATH.putAuditVisibilityPolicy,
     data: payload,
   });
 }
@@ -153,7 +153,7 @@ export function updateAuditVisibilityDefault(payload: AuditVisibilityDefaultUpda
  */
 export function upsertAuditVisibilityOverride(payload: AuditVisibilityOverrideUpsertRequest) {
   return request.put<AuditVisibilityOverrideResponse>({
-    url: AUDIT_API_PATH.VISIBILITY_OVERRIDES,
+    url: OPENAPI_RUNTIME_PATH.putAuditVisibilityOverride,
     data: payload,
   });
 }
@@ -167,7 +167,7 @@ export function upsertAuditVisibilityOverride(payload: AuditVisibilityOverrideUp
  */
 export function deleteAuditVisibilityOverride(source: string, actionKey: string) {
   return request.delete<Record<string, never>>({
-    url: AUDIT_API_PATH.VISIBILITY_OVERRIDES,
+    url: OPENAPI_RUNTIME_PATH.deleteAuditVisibilityOverride,
     params: {
       source,
       action_key: actionKey,

@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { USER_API_PATH } from '../contract/paths';
 import type {
   BatchUserRoleMutationPayload,
   ReplaceUserRolesPayload,
@@ -10,8 +10,8 @@ import type {
   UserRoleMutation,
 } from '../types/role';
 
-type RolesPath = (typeof USER_API_PATH)['ROLES'];
-type UserRolesPath = (typeof USER_API_PATH)['USER_ROLES_TEMPLATE'];
+type RolesPath = typeof OPENAPI_RUNTIME_PATH.getRoles;
+type UserRolesPath = typeof OPENAPI_RUNTIME_PATH.getUserRoles;
 type GetRolesOperation = paths[RolesPath]['get'];
 type GetUserRolesOperation = paths[UserRolesPath]['get'];
 type GetRolesEnvelope = GetRolesOperation['responses'][200]['content']['application/json'];
@@ -19,33 +19,36 @@ type GetUserRolesEnvelope = GetUserRolesOperation['responses'][200]['content']['
 type GetRolesData = NonNullable<GetRolesEnvelope['data']>;
 type GetUserRolesData = NonNullable<GetUserRolesEnvelope['data']>;
 
-const singleUserRoleMutationPathMap: Record<UserRoleMutation, (userId: number) => string> = {
-  replace: USER_API_PATH.USER_ROLE_REPLACE,
-  add: USER_API_PATH.USER_ROLE_ADD,
-  remove: USER_API_PATH.USER_ROLE_REMOVE,
+const singleUserRoleMutationOperationMap: Record<
+  UserRoleMutation,
+  'postUserRolesReplace' | 'postUserRolesAdd' | 'postUserRolesRemove'
+> = {
+  replace: 'postUserRolesReplace',
+  add: 'postUserRolesAdd',
+  remove: 'postUserRolesRemove',
 };
 
 const batchUserRoleMutationPathMap: Record<UserRoleMutation, string> = {
-  replace: USER_API_PATH.BATCH_USER_ROLE_REPLACE,
-  add: USER_API_PATH.BATCH_USER_ROLE_ADD,
-  remove: USER_API_PATH.BATCH_USER_ROLE_REMOVE,
+  replace: OPENAPI_RUNTIME_PATH.postUsersRolesReplace,
+  add: OPENAPI_RUNTIME_PATH.postUsersRolesAdd,
+  remove: OPENAPI_RUNTIME_PATH.postUsersRolesRemove,
 };
 
 export function getRoles() {
   return request.get<GetRolesData>({
-    url: USER_API_PATH.ROLES,
+    url: OPENAPI_RUNTIME_PATH.getRoles,
   }) as Promise<RoleListResponse>;
 }
 
 export function getUserRoleBindings(userId: number) {
   return request.get<GetUserRolesData>({
-    url: USER_API_PATH.USER_ROLES(userId),
+    url: buildOpenApiRuntimePath('getUserRoles', { id: userId }),
   }) as Promise<UserRoleBindingResponse>;
 }
 
 export function mutateUserRoles(userId: number, operation: UserRoleMutation, payload: ReplaceUserRolesPayload) {
   return request.post<null>({
-    url: singleUserRoleMutationPathMap[operation](userId),
+    url: buildOpenApiRuntimePath(singleUserRoleMutationOperationMap[operation], { id: userId }),
     data: payload,
   });
 }

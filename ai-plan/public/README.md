@@ -29,6 +29,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/saved-query-views/README.md`
 - `tanstack-adoption-followups`
   - Recovery entry: `ai-plan/public/tanstack-adoption-followups/README.md`
+- `cross-boundary-contract-projection-convergence`
+  - Recovery entry: `ai-plan/public/cross-boundary-contract-projection-convergence/README.md`
 
 ## Archive Location
 

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { buildNotificationDeleteApiPath, buildNotificationReadApiPath, NOTIFICATION_API_PATH } from '../contract/paths';
 import {
   deleteNotification,
   getNotifications,
@@ -32,7 +32,7 @@ describe('notification api', () => {
     await getNotifications(query);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: NOTIFICATION_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.getNotifications,
       params: query,
     });
   });
@@ -44,7 +44,7 @@ describe('notification api', () => {
     await getNotifications({ page: 1, page_size: 20, status: 'all' });
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: NOTIFICATION_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.getNotifications,
       params: { page: 1, page_size: 20 },
     });
   });
@@ -56,7 +56,7 @@ describe('notification api', () => {
     await getNotificationUnreadCount();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: NOTIFICATION_API_PATH.UNREAD_COUNT,
+      url: OPENAPI_RUNTIME_PATH.getNotificationsUnreadCount,
     });
   });
 
@@ -67,9 +67,8 @@ describe('notification api', () => {
     await markNotificationRead(42);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: buildNotificationReadApiPath(42),
+      url: buildOpenApiRuntimePath('postNotificationRead', { delivery_id: 42 }),
     });
-    expect(buildNotificationReadApiPath(42)).toBe('/api/notifications/42/read');
   });
 
   it('marks filtered notifications read through the canonical read-all path', async () => {
@@ -80,7 +79,7 @@ describe('notification api', () => {
     await markNotificationsReadAll(payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: NOTIFICATION_API_PATH.READ_ALL,
+      url: OPENAPI_RUNTIME_PATH.postNotificationsReadAll,
       data: payload,
     });
   });
@@ -92,8 +91,7 @@ describe('notification api', () => {
     await deleteNotification(42);
 
     expect(requestDelete).toHaveBeenCalledWith({
-      url: buildNotificationDeleteApiPath(42),
+      url: buildOpenApiRuntimePath('deleteNotification', { delivery_id: 42 }),
     });
-    expect(buildNotificationDeleteApiPath(42)).toBe('/api/notifications/42');
   });
 });

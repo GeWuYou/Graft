@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { MONITOR_API_PATH } from '../contract/paths';
 import { MONITOR_TREND_RANGE } from '../contract/trend';
 import { getServerStatus } from './server-status';
 
@@ -41,7 +41,7 @@ describe('monitor server-status api', () => {
     const response = await getServerStatus(MONITOR_TREND_RANGE.TEN_MINUTES);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: MONITOR_API_PATH.SERVER_STATUS,
+      url: OPENAPI_RUNTIME_PATH.getMonitorServerStatus,
       params: {
         trend_range: MONITOR_TREND_RANGE.TEN_MINUTES,
       },
