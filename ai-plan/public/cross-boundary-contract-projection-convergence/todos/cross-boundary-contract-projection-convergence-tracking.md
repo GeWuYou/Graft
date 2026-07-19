@@ -70,7 +70,8 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "inventory-and-openapi-runtime-path-projection",
-    "notification-project-runtime-target-task-migration"
+    "notification-project-runtime-target-task-migration",
+    "rbac-user-api-path-migration"
   ],
   "pending_batches": [
     "audit-monitor-scheduler-system-config-api-path-migration",

@@ -25,7 +25,7 @@
 ## 2026-07-19 RBAC And User API Path Migration
 
 - Migrated RBAC and user API consumers and focused tests to generated OpenAPI runtime paths; RBAC no longer retains an API-only path contract.
-- Focused Vitest passed for the RBAC and user API clients.
+- Focused Vitest passed for the RBAC and user API clients; the full web completion entrypoint was not rerun for this resumed checkpoint repair.
 
 ## Loop Batch State
 

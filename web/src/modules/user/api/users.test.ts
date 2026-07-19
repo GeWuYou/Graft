@@ -13,15 +13,6 @@ import {
   updateUserStatus,
 } from './users';
 
-const USER_API_PATH = {
-  USERS: OPENAPI_RUNTIME_PATH.getUsers,
-  USER_BY_ID: (id: number) => buildOpenApiRuntimePath('getUserById', { id }),
-  USER_UPDATE: (id: number) => buildOpenApiRuntimePath('postUserUpdate', { id }),
-  USER_STATUS: (id: number) => buildOpenApiRuntimePath('postUserStatus', { id }),
-  USER_RESET_PASSWORD: (id: number) => buildOpenApiRuntimePath('postUserResetPassword', { id }),
-  USER_DELETE: (id: number) => buildOpenApiRuntimePath('postUserDelete', { id }),
-};
-
 vi.mock('@/utils/request', () => ({
   request: {
     get: vi.fn(),
@@ -49,7 +40,7 @@ describe('users api', () => {
     await getUsers();
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: USER_API_PATH.USERS,
+      url: OPENAPI_RUNTIME_PATH.getUsers,
     });
   });
 
@@ -68,7 +59,7 @@ describe('users api', () => {
     await getUserById(1);
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_BY_ID(1),
+      url: buildOpenApiRuntimePath('getUserById', { id: 1 }),
     });
   });
 
@@ -93,7 +84,7 @@ describe('users api', () => {
     await updateUser(1, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_UPDATE(1),
+      url: buildOpenApiRuntimePath('postUserUpdate', { id: 1 }),
       data: payload,
     });
   });
@@ -106,7 +97,7 @@ describe('users api', () => {
     await updateUserStatus(1, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_STATUS(1),
+      url: buildOpenApiRuntimePath('postUserStatus', { id: 1 }),
       data: payload,
     });
   });
@@ -119,7 +110,7 @@ describe('users api', () => {
     await resetUserPassword(1, payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_RESET_PASSWORD(1),
+      url: buildOpenApiRuntimePath('postUserResetPassword', { id: 1 }),
       data: payload,
     });
   });
@@ -131,7 +122,7 @@ describe('users api', () => {
     await deleteUser(1);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USER_DELETE(1),
+      url: buildOpenApiRuntimePath('postUserDelete', { id: 1 }),
     });
   });
 });
