@@ -1,17 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import {
-  buildScheduledTaskActionApiPath,
-  buildScheduledTaskDetailApiPath,
-  buildScheduledTaskDisableApiPath,
-  buildScheduledTaskEnableApiPath,
-  buildScheduledTaskJobDefinitionDetailApiPath,
-  buildScheduledTaskRunApiPath,
-  buildScheduledTaskRunDetailApiPath,
-  buildScheduledTaskRunsApiPath,
-  SCHEDULED_TASK_API_PATH,
-} from '../contract/paths';
 import type {
   CreateScheduledTaskRequest,
   ScheduledTaskActionRequest,
@@ -27,26 +17,26 @@ import type {
   UpdateScheduledTaskRequest,
 } from '../types/scheduled-task';
 
-type ScheduledTaskListPath = (typeof SCHEDULED_TASK_API_PATH)['LIST'];
+type ScheduledTaskListPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTasks;
 type GetScheduledTasksOperation = paths[ScheduledTaskListPath]['get'];
 type GetScheduledTasksEnvelope = GetScheduledTasksOperation['responses'][200]['content']['application/json'];
 type GetScheduledTasksData = NonNullable<GetScheduledTasksEnvelope['data']>;
 type GetScheduledTasksQuery = NonNullable<GetScheduledTasksOperation['parameters']['query']>;
 
-type ScheduledTaskJobDefinitionsPath = (typeof SCHEDULED_TASK_API_PATH)['JOB_DEFINITIONS'];
+type ScheduledTaskJobDefinitionsPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTaskJobDefinitions;
 type GetScheduledTaskJobDefinitionsOperation = paths[ScheduledTaskJobDefinitionsPath]['get'];
 type GetScheduledTaskJobDefinitionsEnvelope =
   GetScheduledTaskJobDefinitionsOperation['responses'][200]['content']['application/json'];
 type GetScheduledTaskJobDefinitionsData = NonNullable<GetScheduledTaskJobDefinitionsEnvelope['data']>;
 
-type ScheduledTaskJobDefinitionDetailPath = (typeof SCHEDULED_TASK_API_PATH)['JOB_DEFINITION_DETAIL'];
+type ScheduledTaskJobDefinitionDetailPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTaskJobDefinition;
 type GetScheduledTaskJobDefinitionOperation = paths[ScheduledTaskJobDefinitionDetailPath]['get'];
 type GetScheduledTaskJobDefinitionEnvelope =
   GetScheduledTaskJobDefinitionOperation['responses'][200]['content']['application/json'];
 type GetScheduledTaskJobDefinitionData = NonNullable<GetScheduledTaskJobDefinitionEnvelope['data']>;
 type GetScheduledTaskJobDefinitionPathParams = GetScheduledTaskJobDefinitionOperation['parameters']['path'];
 
-type ScheduledTaskDetailPath = (typeof SCHEDULED_TASK_API_PATH)['DETAIL'];
+type ScheduledTaskDetailPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTask;
 type GetScheduledTaskOperation = paths[ScheduledTaskDetailPath]['get'];
 type GetScheduledTaskEnvelope = GetScheduledTaskOperation['responses'][200]['content']['application/json'];
 type GetScheduledTaskData = NonNullable<GetScheduledTaskEnvelope['data']>;
@@ -66,40 +56,40 @@ type PutScheduledTaskBody = PutScheduledTaskOperation['requestBody']['content'][
 type DeleteScheduledTaskOperation = paths[ScheduledTaskDetailPath]['delete'];
 type DeleteScheduledTaskPathParams = DeleteScheduledTaskOperation['parameters']['path'];
 
-type ScheduledTaskEnablePath = (typeof SCHEDULED_TASK_API_PATH)['ENABLE'];
+type ScheduledTaskEnablePath = typeof OPENAPI_RUNTIME_PATH.postScheduledTaskEnable;
 type PostScheduledTaskEnableOperation = paths[ScheduledTaskEnablePath]['post'];
 type PostScheduledTaskEnableEnvelope =
   PostScheduledTaskEnableOperation['responses'][200]['content']['application/json'];
 type PostScheduledTaskEnableData = NonNullable<PostScheduledTaskEnableEnvelope['data']>;
 type PostScheduledTaskEnablePathParams = PostScheduledTaskEnableOperation['parameters']['path'];
 
-type ScheduledTaskDisablePath = (typeof SCHEDULED_TASK_API_PATH)['DISABLE'];
+type ScheduledTaskDisablePath = typeof OPENAPI_RUNTIME_PATH.postScheduledTaskDisable;
 type PostScheduledTaskDisableOperation = paths[ScheduledTaskDisablePath]['post'];
 type PostScheduledTaskDisableEnvelope =
   PostScheduledTaskDisableOperation['responses'][200]['content']['application/json'];
 type PostScheduledTaskDisableData = NonNullable<PostScheduledTaskDisableEnvelope['data']>;
 type PostScheduledTaskDisablePathParams = PostScheduledTaskDisableOperation['parameters']['path'];
 
-type ScheduledTaskRunsPath = (typeof SCHEDULED_TASK_API_PATH)['RUNS'];
+type ScheduledTaskRunsPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTaskRuns;
 type GetScheduledTaskRunsOperation = paths[ScheduledTaskRunsPath]['get'];
 type GetScheduledTaskRunsEnvelope = GetScheduledTaskRunsOperation['responses'][200]['content']['application/json'];
 type GetScheduledTaskRunsData = NonNullable<GetScheduledTaskRunsEnvelope['data']>;
 type GetScheduledTaskRunsPathParams = GetScheduledTaskRunsOperation['parameters']['path'];
 type GetScheduledTaskRunsQuery = NonNullable<GetScheduledTaskRunsOperation['parameters']['query']>;
 
-type ScheduledTaskRunDetailPath = (typeof SCHEDULED_TASK_API_PATH)['RUN_DETAIL'];
+type ScheduledTaskRunDetailPath = typeof OPENAPI_RUNTIME_PATH.getScheduledTaskRun;
 type GetScheduledTaskRunOperation = paths[ScheduledTaskRunDetailPath]['get'];
 type GetScheduledTaskRunEnvelope = GetScheduledTaskRunOperation['responses'][200]['content']['application/json'];
 type GetScheduledTaskRunData = NonNullable<GetScheduledTaskRunEnvelope['data']>;
 type GetScheduledTaskRunPathParams = GetScheduledTaskRunOperation['parameters']['path'];
 
-type ScheduledTaskRunPath = (typeof SCHEDULED_TASK_API_PATH)['RUN'];
+type ScheduledTaskRunPath = typeof OPENAPI_RUNTIME_PATH.postScheduledTaskRun;
 type PostScheduledTaskRunOperation = paths[ScheduledTaskRunPath]['post'];
 type PostScheduledTaskRunEnvelope = PostScheduledTaskRunOperation['responses'][200]['content']['application/json'];
 type PostScheduledTaskRunData = NonNullable<PostScheduledTaskRunEnvelope['data']>;
 type PostScheduledTaskRunPathParams = PostScheduledTaskRunOperation['parameters']['path'];
 
-type ScheduledTaskActionPath = (typeof SCHEDULED_TASK_API_PATH)['ACTION'];
+type ScheduledTaskActionPath = typeof OPENAPI_RUNTIME_PATH.postScheduledTaskAction;
 type PostScheduledTaskActionOperation = paths[ScheduledTaskActionPath]['post'];
 type PostScheduledTaskActionEnvelope =
   PostScheduledTaskActionOperation['responses'][200]['content']['application/json'];
@@ -111,32 +101,32 @@ type PostScheduledTaskActionBody = NonNullable<
 
 export function getScheduledTasks(query?: ScheduledTaskListQuery) {
   return request.get<GetScheduledTasksData>({
-    url: SCHEDULED_TASK_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.getScheduledTasks,
     params: query as GetScheduledTasksQuery | undefined,
   }) as Promise<ScheduledTaskListResponse>;
 }
 
 export function getScheduledTaskJobDefinitions() {
   return request.get<GetScheduledTaskJobDefinitionsData>({
-    url: SCHEDULED_TASK_API_PATH.JOB_DEFINITIONS,
+    url: OPENAPI_RUNTIME_PATH.getScheduledTaskJobDefinitions,
   }) as Promise<ScheduledTaskJobDefinitionListResponse>;
 }
 
 export function getScheduledTaskJobDefinition(jobKey: GetScheduledTaskJobDefinitionPathParams['jobKey']) {
   return request.get<GetScheduledTaskJobDefinitionData>({
-    url: buildScheduledTaskJobDefinitionDetailApiPath(jobKey),
+    url: buildOpenApiRuntimePath('getScheduledTaskJobDefinition', { jobKey }),
   }) as Promise<ScheduledTaskJobDefinitionResponse>;
 }
 
 export function getScheduledTask(taskKey: GetScheduledTaskPathParams['taskKey']) {
   return request.get<GetScheduledTaskData>({
-    url: buildScheduledTaskDetailApiPath(taskKey),
+    url: buildOpenApiRuntimePath('getScheduledTask', { taskKey }),
   }) as Promise<ScheduledTaskItem>;
 }
 
 export function createScheduledTask(payload: CreateScheduledTaskRequest) {
   return request.post<PostScheduledTaskData>({
-    url: SCHEDULED_TASK_API_PATH.LIST,
+    url: OPENAPI_RUNTIME_PATH.postScheduledTask,
     data: payload as PostScheduledTaskBody,
   }) as Promise<ScheduledTaskItem>;
 }
@@ -146,26 +136,26 @@ export function updateScheduledTask(
   payload: UpdateScheduledTaskRequest,
 ) {
   return request.put<PutScheduledTaskData>({
-    url: buildScheduledTaskDetailApiPath(taskKey),
+    url: buildOpenApiRuntimePath('putScheduledTask', { taskKey }),
     data: payload as PutScheduledTaskBody,
   }) as Promise<ScheduledTaskItem>;
 }
 
 export function deleteScheduledTask(taskKey: DeleteScheduledTaskPathParams['taskKey']) {
   return request.delete<Record<string, never>>({
-    url: buildScheduledTaskDetailApiPath(taskKey),
+    url: buildOpenApiRuntimePath('deleteScheduledTask', { taskKey }),
   });
 }
 
 export function enableScheduledTask(taskKey: PostScheduledTaskEnablePathParams['taskKey']) {
   return request.post<PostScheduledTaskEnableData>({
-    url: buildScheduledTaskEnableApiPath(taskKey),
+    url: buildOpenApiRuntimePath('postScheduledTaskEnable', { taskKey }),
   }) as Promise<ScheduledTaskItem>;
 }
 
 export function disableScheduledTask(taskKey: PostScheduledTaskDisablePathParams['taskKey']) {
   return request.post<PostScheduledTaskDisableData>({
-    url: buildScheduledTaskDisableApiPath(taskKey),
+    url: buildOpenApiRuntimePath('postScheduledTaskDisable', { taskKey }),
   }) as Promise<ScheduledTaskItem>;
 }
 
@@ -174,20 +164,20 @@ export function getScheduledTaskRuns(
   query?: ScheduledTaskRunListQuery,
 ) {
   return request.get<GetScheduledTaskRunsData>({
-    url: buildScheduledTaskRunsApiPath(taskKey),
+    url: buildOpenApiRuntimePath('getScheduledTaskRuns', { taskKey }),
     params: query as GetScheduledTaskRunsQuery | undefined,
   }) as Promise<ScheduledTaskRunListResponse>;
 }
 
 export function getScheduledTaskRun(runId: GetScheduledTaskRunPathParams['runId']) {
   return request.get<GetScheduledTaskRunData>({
-    url: buildScheduledTaskRunDetailApiPath(runId),
+    url: buildOpenApiRuntimePath('getScheduledTaskRun', { runId }),
   }) as Promise<ScheduledTaskRunItem>;
 }
 
 export function runScheduledTask(taskKey: PostScheduledTaskRunPathParams['taskKey']) {
   return request.post<PostScheduledTaskRunData>({
-    url: buildScheduledTaskRunApiPath(taskKey),
+    url: buildOpenApiRuntimePath('postScheduledTaskRun', { taskKey }),
   }) as Promise<ScheduledTaskRunItem>;
 }
 
@@ -197,7 +187,7 @@ export function executeScheduledTaskAction(
   payload?: ScheduledTaskActionRequest,
 ) {
   return request.post<PostScheduledTaskActionData>({
-    url: buildScheduledTaskActionApiPath(taskKey, actionKey),
+    url: buildOpenApiRuntimePath('postScheduledTaskAction', { taskKey, actionKey }),
     data: payload as PostScheduledTaskActionBody | undefined,
   }) as Promise<ScheduledTaskActionResult>;
 }
