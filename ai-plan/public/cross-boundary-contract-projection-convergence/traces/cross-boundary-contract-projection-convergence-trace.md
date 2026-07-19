@@ -50,13 +50,14 @@
     "app-log-access-log-api-path-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
+    ,"auth-dashboard-api-path-migration"
   ],
   "pending_batches": [
-    "auth-container-dashboard-api-path-migration",
+    "container-api-path-migration",
     "non-http-descriptor-coverage-and-archive-readiness"
   ],
-  "current_batch": "final-convergence-and-archive-readiness",
-  "next_batch": "auth-container-dashboard-api-path-migration",
+  "current_batch": "auth-dashboard-api-path-migration",
+  "next_batch": "container-api-path-migration",
   "closeout_status": "not-archive-ready"
 }
 ```
