@@ -3,8 +3,8 @@
 ## 当前状态摘要
 
 - 目标：以 server 为 canonical authority，建立从现有 Go contract 与 OpenAPI 到 web TypeScript 的统一跨边界契约投影，消除 web 对 error code、message key、permission、enum、capability 和 feature/config key 的手工镜像。
-- 当前状态：`active`；Batch 0 已完成 Work Intake、设计与路线图落盘。
-- 任务分类：`cross-boundary` 实施，当前 Batch 0 为 `docs/automation`。
+- 当前状态：`active`；已完成 Work Intake、生成器基础与平台兼容层 pilot。
+- 任务分类：`cross-boundary` 实施。
 - Canonical authority：`openapi/**` 拥有 HTTP wire contract；`server/internal/contract/**`、`server/modules/*/contract/**`、module descriptor 与 `server/internal/moduleapi/**` 拥有非 HTTP server contract；web 仅为 derived consumer。
 
 ## Recovery Receipt
@@ -33,8 +33,8 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 0 is structurally validated and committed.
-- Next step: implement generator foundation and its smallest authority-aware test surface.
+- Platform pilot 已验证并提交：web API compatibility exports 已改为 generated platform 的薄 re-export，未改变 API wire envelope。
+- Next step: wire the existing projection freshness check into the required CI paths.
 
 ## Work Intake
 
@@ -43,7 +43,5 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- generator foundation
-- pilot migration
 - CI integration
 - broader migration and final archive readiness

@@ -24,19 +24,26 @@
 - Added focused validation for deterministic generation order, duplicate/lifecycle metadata rejection, visibility filtering, and AST verification that registry `Value` fields are existing typed constant selectors rather than copied literals.
 - Updated `just generate` to run OpenAPI bundle before Go bindings, then web OpenAPI types and cross-boundary projection. `just openapi-check` now includes projection freshness; PR CI wiring remains the later `ci-integration` batch.
 
+## 2026-07-19 Batch 2: platform pilot migration
+
+- Expanded the platform projection registry with every value previously hand-written in `web/src/contracts/api/codes.ts`, `messages.ts`, and `headers.ts`. Each descriptor directly references an existing Go typed constant; no canonical literal was copied into the registry.
+- Regenerated `web/src/contracts/generated/platform.ts` and replaced the three API contract files with thin compatibility exports. Existing `API_CODE`, `ApiCode`, `ApiResponseCode`, `MESSAGE_KEY`, `MessageKey`, `AUTH_SCHEME`, and `HTTP_HEADER` import names remain available.
+- `ApiResponseCode` remains `string`, so server-first new response codes remain compatible. Generated literal unions are only static web references.
+- Added focused web coverage that checks compatibility exports are the generated objects and statically rejects projected value literals in the compatibility files.
+- Validation passed: focused Go projection tests, generator freshness check, focused web Vitest suite, web typecheck, web lint, formatting check, and `git diff --check`.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation"],
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration"],
   "pending_batches": [
-    "pilot-migration",
     "ci-integration",
     "broader-migration-and-final-archive-readiness"
   ],
-  "current_batch": "generator-foundation",
-  "next_batch": "pilot-migration",
+  "current_batch": "pilot-migration",
+  "next_batch": "ci-integration",
   "closeout_status": "committed"
 }
 ```
