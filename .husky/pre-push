@@ -92,10 +92,16 @@ sh "$python_runner" "$migration_version_checker" --mode all
 
 changed_files="$(git diff --name-only "$base_ref...HEAD")"
 run_i18n_lint=0
+run_contract_freshness=0
 while IFS= read -r path; do
   case "$path" in
     web/src/*|web/scripts/check-i18n-governance.ts|web/package.json)
       run_i18n_lint=1
+      ;;
+  esac
+  case "$path" in
+    openapi/*|server/internal/contract/*|server/modules/*/contract/*|server/internal/moduleapi/*|web/src/contracts/*|web/package.json|Justfile)
+      run_contract_freshness=1
       ;;
   esac
 done <<EOF
@@ -112,6 +118,20 @@ if printf '%s\n' "$changed_files" | grep -q '^web/'; then
   )
 else
   echo "web hygiene gate: no web/** changes detected; skipping."
+fi
+
+if [ "$run_contract_freshness" -eq 1 ]; then
+  echo "cross-boundary contract changes detected; running canonical freshness checks."
+  (
+    cd "$repo_root/server"
+    go run ./cmd/graft validate openapi
+    cd "$repo_root/web"
+    bun run openapi:types:check
+    cd "$repo_root/server"
+    go run ./internal/contract/projection/cmd/projectiongen --check
+  )
+else
+  echo "cross-boundary contract freshness: no authority or generated-contract changes detected; skipping."
 fi
 
 cd "$repo_root/server"

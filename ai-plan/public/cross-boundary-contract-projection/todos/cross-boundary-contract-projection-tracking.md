@@ -47,14 +47,15 @@ ADR is not required: this applies the existing authority-first and contract-gove
 - Batch 0 established the active topic, repository-wide design and phased roadmap.
 - Batch 1 added the platform contract projection foundation. Its descriptor metadata references existing typed Go constants, filters `visibility=web`, and emits deterministic TypeScript without changing canonical ownership.
 - Batch 2 migrated the platform API compatibility exports. The projection now covers every pre-existing web API error code, message key, auth scheme and HTTP header value through canonical Go typed constants; `ApiResponseCode` remains open `string`.
-- Next action: `ci-integration`.
+- Batch 3 wires the canonical freshness chain into PR validation and conditionally into pre-push for authority or derived-contract changes.
+- Next action: `broader-migration-and-final-archive-readiness`.
 
 ## Task Checklist
 
 - [x] batch-0-contract-projection-intake
 - [x] generator-foundation
 - [x] pilot-migration
-- [ ] ci-integration
+- [x] ci-integration
 - [ ] broader-migration-and-final-archive-readiness
 
 ## Acceptance Conditions
@@ -69,13 +70,12 @@ ADR is not required: this applies the existing authority-first and contract-gove
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration"],
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration", "ci-integration"],
   "pending_batches": [
-    "ci-integration",
     "broader-migration-and-final-archive-readiness"
   ],
-  "current_batch": "pilot-migration",
-  "next_batch": "ci-integration",
+  "current_batch": "ci-integration",
+  "next_batch": "broader-migration-and-final-archive-readiness",
   "closeout_status": "committed"
 }
 ```

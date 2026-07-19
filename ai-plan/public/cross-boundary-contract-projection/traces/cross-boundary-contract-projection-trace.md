@@ -32,18 +32,24 @@
 - Added focused web coverage that checks compatibility exports are the generated objects and statically rejects projected value literals in the compatibility files.
 - Validation passed: focused Go projection tests, generator freshness check, focused web Vitest suite, web typecheck, web lint, formatting check, and `git diff --check`.
 
+## 2026-07-19 Batch 3: CI integration
+
+- Added a blocking PR job for the existing cross-boundary freshness chain: backend OpenAPI validation and generated artifact checks, web OpenAPI schema comparison, then Go-to-TypeScript projection comparison. The job composes existing commands and does not create another generator or scanner.
+- Updated pre-push to run the same chain only when OpenAPI authority, Go cross-boundary contract owners, generated web contracts, or their generation entrypoints change. Pure consumer and unrelated changes keep the existing narrower hook path.
+- Kept `bun run check` unchanged: the explicit PR job remains the ownership point for generated-output freshness, avoiding a redundant schema generation pass in every full web validation.
+- Validation passed: `just openapi-check`, `git diff --check`, the active-topic structure guard, workflow YAML parsing and pre-push shell syntax validation. The existing backend boundary audit remains `PASS_WITH_WARNINGS` for three pre-existing runtime-marker warnings.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration"],
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration", "ci-integration"],
   "pending_batches": [
-    "ci-integration",
     "broader-migration-and-final-archive-readiness"
   ],
-  "current_batch": "pilot-migration",
-  "next_batch": "ci-integration",
+  "current_batch": "ci-integration",
+  "next_batch": "broader-migration-and-final-archive-readiness",
   "closeout_status": "committed"
 }
 ```

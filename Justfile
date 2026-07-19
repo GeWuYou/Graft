@@ -28,7 +28,7 @@ help:
       '  just compose-up        Start repository Docker Compose services' \
       '  just compose-down      Stop repository Docker Compose services' \
       '  just generate          Run Go generation, OpenAPI bundle, and frontend OpenAPI types' \
-      '  just openapi-check     Validate the root OpenAPI spec and frontend generated types freshness'
+      '  just openapi-check     Validate OpenAPI, generated bindings, web schema, and contract projection freshness'
 
 setup:
     bun install --frozen-lockfile
