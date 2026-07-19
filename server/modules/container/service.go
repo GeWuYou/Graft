@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -492,18 +493,22 @@ func dockerImageBatchRemoveRejectedResult(ctx context.Context, ids []string, err
 func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return DockerImage{}, err
+		return DockerImage{}, fmt.Errorf("load Docker image resources: %w", err)
 	}
-	return reader.ReadDockerImage(ctx, id)
+	image, err := reader.ReadDockerImage(ctx, id)
+	if err != nil {
+		return DockerImage{}, fmt.Errorf("read Docker image %q: %w", id, err)
+	}
+	return image, nil
 }
 
 func (s *service) dockerImageWriter(ctx context.Context) (DockerImageWriter, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("require Docker image writer runtime access: %w", err)
 	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve Docker image writer runtime: %w", err)
 	}
 	writer, ok := runtime.(DockerImageWriter)
 	if !ok {
@@ -536,6 +541,9 @@ func (s *service) UntagDockerImage(ctx context.Context, id, reference string) (D
 	if !s.dangerousActionsAllowed(ctx) {
 		return DockerImageActionResult{ID: id, Action: "untag"}, errDangerousActionsDisabled
 	}
+	if err := validateDockerImageReference(reference); err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
 	image, err := s.DockerImage(ctx, id)
 	if err != nil {
 		return DockerImageActionResult{ID: id, Action: "untag"}, err
@@ -548,7 +556,7 @@ func (s *service) UntagDockerImage(ctx context.Context, id, reference string) (D
 		return DockerImageActionResult{ID: id, Action: "untag"}, err
 	}
 	if err := writer.UntagDockerImage(ctx, reference); err != nil {
-		return DockerImageActionResult{ID: id, Action: "untag"}, err
+		return DockerImageActionResult{ID: id, Action: "untag"}, fmt.Errorf("untag Docker image %q: %w", reference, err)
 	}
 	return DockerImageActionResult{ID: id, Action: "untag", MessageKey: containercontract.DockerImageUntagCompleted.String()}, nil
 }

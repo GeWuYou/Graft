@@ -219,7 +219,7 @@ func mapDockerImageRemoveError(err error) error {
 }
 
 func wrapDockerImageRemoveError(category error, cause error) error {
-	return fmt.Errorf("%w: %v", category, cause)
+	return fmt.Errorf("%w: %w", category, cause)
 }
 
 func dockerImageRemoveNetworkTimeout(err error) bool {

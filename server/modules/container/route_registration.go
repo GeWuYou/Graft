@@ -215,13 +215,7 @@ func (r routeRuntime) handleDockerImageTag(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := r.service.TagDockerImage(c.Request.Context(), ref, request.Target)
-	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionTag, ref, request.Target, false, err)
-	if err != nil {
-		r.writeRouteError(c, err)
-		return
-	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerImageAction(result))
+	r.handleDockerImageAction(c, ref, request.Target, containercontract.DockerImageAuditActionTag, r.service.TagDockerImage)
 }
 
 func (r routeRuntime) handleDockerImageUntag(c *gin.Context) {
@@ -237,8 +231,12 @@ func (r routeRuntime) handleDockerImageUntag(c *gin.Context) {
 		r.writeRouteError(c, err)
 		return
 	}
-	result, err := r.service.UntagDockerImage(c.Request.Context(), ref, request.Reference)
-	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionUntag, ref, request.Reference, false, err)
+	r.handleDockerImageAction(c, ref, request.Reference, containercontract.DockerImageAuditActionUntag, r.service.UntagDockerImage)
+}
+
+func (r routeRuntime) handleDockerImageAction(c *gin.Context, ref, target string, auditAction containercontract.AuditAction, action func(context.Context, string, string) (DockerImageActionResult, error)) {
+	result, err := action(c.Request.Context(), ref, target)
+	r.service.publishDockerImageAudit(c.Request.Context(), auditAction, ref, target, false, err)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return

@@ -42,6 +42,19 @@ func TestMapDockerImageRemoveErrorClassifiesImageInUse(t *testing.T) {
 	}
 }
 
+func TestMapDockerImageRemoveErrorPreservesCause(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("daemon detail")
+	err := mapDockerImageRemoveError(fmt.Errorf("image is in use: %w", cause))
+	if !errors.Is(err, errDockerImageInUse) {
+		t.Fatalf("expected image-in-use error, got %v", err)
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("expected mapped error to preserve daemon cause, got %v", err)
+	}
+}
+
 func TestMapDockerImageRemoveErrorUsesStableCategories(t *testing.T) {
 	t.Parallel()
 
