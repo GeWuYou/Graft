@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -36,8 +37,9 @@ describe('platform API contract compatibility exports', () => {
       ...Object.values(GENERATED_AUTH_SCHEME),
       ...Object.values(GENERATED_HTTP_HEADER),
     ];
+    const testDirectory = dirname(fileURLToPath(import.meta.url));
     const compatibilitySources = ['codes.ts', 'messages.ts', 'headers.ts'].map((fileName) =>
-      readFileSync(resolve(process.cwd(), 'src/contracts/api', fileName), 'utf8'),
+      readFileSync(resolve(testDirectory, fileName), 'utf8'),
     );
 
     for (const value of projectedValues) {

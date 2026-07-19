@@ -123,6 +123,7 @@ fi
 if [ "$run_contract_freshness" -eq 1 ]; then
   echo "cross-boundary contract changes detected; running canonical freshness checks."
   (
+    set -e
     cd "$repo_root/server"
     go run ./cmd/graft validate openapi
     cd "$repo_root/web"

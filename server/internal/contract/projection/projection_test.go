@@ -117,13 +117,13 @@ func TestRegistryValuesReferenceExistingConstants(t *testing.T) {
 
 func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {
 	targets := Targets()
-	if len(targets) != 2 {
-		t.Fatalf("expected platform and container targets, got %#v", targets)
+	if len(targets) < 2 {
+		t.Fatalf("expected at least platform and container targets, got %#v", targets)
 	}
 
 	outputs := make(map[string]string, len(targets))
 	for _, target := range targets {
-		rendered, err := RenderTypeScript(target.Entries)
+		rendered, err := RenderTarget(target)
 		if err != nil {
 			t.Fatalf("render target %q: %v", target.Path, err)
 		}
@@ -136,5 +136,24 @@ func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {
 		if !strings.Contains(outputs["modules/container.ts"], marker) {
 			t.Fatalf("container artifact is missing %q: %s", marker, outputs["modules/container.ts"])
 		}
+	}
+}
+
+func TestRenderTargetUsesTargetGroupMetadata(t *testing.T) {
+	target := Target{
+		Path:    "modules/example.ts",
+		Groups:  []Group{{Kind: KindPermissionCode, Constant: "EXAMPLE_PERMISSION_CODE", TypeName: "ExamplePermissionCode"}},
+		Entries: []Entry{{ID: "example.permission.view", Name: "VIEW", Kind: KindPermissionCode, Owner: "example", Lifecycle: LifecycleActive, Visibility: VisibilityWeb, Value: "example.view"}},
+	}
+	rendered, err := RenderTarget(target)
+	if err != nil {
+		t.Fatalf("render target: %v", err)
+	}
+	output := string(rendered)
+	if !strings.Contains(output, "export const EXAMPLE_PERMISSION_CODE") || !strings.Contains(output, "export type ExamplePermissionCode") {
+		t.Fatalf("target metadata was not applied: %s", output)
+	}
+	if strings.Contains(output, "CONTAINER_PERMISSION_CODE") {
+		t.Fatalf("target inherited container-specific export name: %s", output)
 	}
 }

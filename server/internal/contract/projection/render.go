@@ -15,18 +15,34 @@ type renderGroup struct {
 	descriptors []Entry
 }
 
-var renderGroups = []renderGroup{
+var defaultRenderGroups = []renderGroup{
 	{kind: KindAuthScheme, constant: "AUTH_SCHEME", typeName: "AuthScheme"},
 	{kind: KindErrorCode, constant: "ERROR_CODE", typeName: "ErrorCode"},
 	{kind: KindHTTPHeader, constant: "HTTP_HEADER", typeName: "HttpHeader"},
 	{kind: KindMessageKey, constant: "MESSAGE_KEY", typeName: "MessageKey"},
-	{kind: KindPermissionCode, constant: "CONTAINER_PERMISSION_CODE", typeName: "ContainerPermissionCode"},
-	{kind: KindRealtimeTopic, constant: "CONTAINER_REALTIME_TOPIC", typeName: "ContainerRealtimeTopic"},
-	{kind: KindDockerImageRemoveErrorCode, constant: "DOCKER_IMAGE_REMOVE_ERROR_CODES", typeName: "DockerImageRemoveErrorCode"},
+	{kind: KindPermissionCode, constant: "PERMISSION_CODE", typeName: "PermissionCode"},
+	{kind: KindRealtimeTopic, constant: "REALTIME_TOPIC", typeName: "RealtimeTopic"},
+	{kind: KindDockerImageRemoveErrorCode, constant: "DOCKER_IMAGE_REMOVE_ERROR_CODE", typeName: "DockerImageRemoveErrorCode"},
 }
 
 // RenderTypeScript 渲染稳定、可重建的 web contract 派生产物。
 func RenderTypeScript(entries []Entry) ([]byte, error) {
+	return renderTypeScript(entries, defaultRenderGroups)
+}
+
+// RenderTarget 根据 target 自己声明的导出 metadata 渲染 web 派生产物。
+func RenderTarget(target Target) ([]byte, error) {
+	groups := defaultRenderGroups
+	if len(target.Groups) > 0 {
+		groups = make([]renderGroup, len(target.Groups))
+		for index, group := range target.Groups {
+			groups[index] = renderGroup{kind: group.Kind, constant: group.Constant, typeName: group.TypeName}
+		}
+	}
+	return renderTypeScript(target.Entries, groups)
+}
+
+func renderTypeScript(entries []Entry, renderGroups []renderGroup) ([]byte, error) {
 	if err := Validate(entries); err != nil {
 		return nil, err
 	}

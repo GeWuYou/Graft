@@ -13,14 +13,30 @@ import (
 // Path 相对于 web/src/contracts/generated，避免模块值被提升为平台级 authority。
 type Target struct {
 	Path    string
+	Groups  []Group
 	Entries []Entry
+}
+
+// Group 定义一个 target 中按契约 kind 输出的 TypeScript 导出名称。
+type Group struct {
+	Kind     Kind
+	Constant string
+	TypeName string
 }
 
 // Targets 返回所有需要生成的 web contract targets。
 func Targets() []Target {
 	return []Target{
 		{Path: "platform.ts", Entries: Registry()},
-		{Path: "modules/container.ts", Entries: ContainerRegistry()},
+		{Path: "modules/container.ts", Groups: containerGroups(), Entries: ContainerRegistry()},
+	}
+}
+
+func containerGroups() []Group {
+	return []Group{
+		{Kind: KindPermissionCode, Constant: "CONTAINER_PERMISSION_CODE", TypeName: "ContainerPermissionCode"},
+		{Kind: KindRealtimeTopic, Constant: "CONTAINER_REALTIME_TOPIC", TypeName: "ContainerRealtimeTopic"},
+		{Kind: KindDockerImageRemoveErrorCode, Constant: "DOCKER_IMAGE_REMOVE_ERROR_CODES", TypeName: "DockerImageRemoveErrorCode"},
 	}
 }
 

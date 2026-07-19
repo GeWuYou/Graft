@@ -3,7 +3,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -25,7 +24,7 @@ func main() {
 	flag.Parse()
 
 	for _, target := range projection.Targets() {
-		content, err := projection.RenderTypeScript(target.Entries)
+		content, err := projection.RenderTarget(target)
 		if err != nil {
 			failf("render contract projection %s: %v", target.Path, err)
 		}
@@ -53,9 +52,6 @@ func main() {
 
 func failf(format string, args ...any) {
 	err := fmt.Errorf(format, args...)
-	if errors.Is(err, flag.ErrHelp) {
-		return
-	}
 	_, _ = fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
 }
