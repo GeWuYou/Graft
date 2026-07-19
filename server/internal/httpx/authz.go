@@ -40,8 +40,11 @@ type eventBusSecurityAuditPublisher struct {
 }
 
 type requestAuthorization struct {
-	ctx         context.Context
-	requestAuth moduleapi.RequestAuthContext
+	ctx            context.Context
+	requestAuth    moduleapi.RequestAuthContext
+	localizer      *i18n.Service
+	logger         *zap.Logger
+	auditPublisher SecurityAuditPublisher
 }
 
 type securityAuditError struct {
@@ -62,24 +65,44 @@ func RequirePermission(
 	code string,
 	auditPublishers ...SecurityAuditPublisher,
 ) gin.HandlerFunc {
+	return RequirePermissionWithLogger(nil, localizer, authService, authorizer, code, auditPublishers...)
+}
+
+// RequirePermissionWithLogger 以显式 logger 依赖创建鉴权中间件。
+// logger 为空时使用 nop logger，确保缺少认证基础设施时仍能安全返回内部错误。
+func RequirePermissionWithLogger(
+	logger *zap.Logger,
+	localizer *i18n.Service,
+	authService moduleapi.AuthService,
+	authorizer moduleapi.Authorizer,
+	code string,
+	auditPublishers ...SecurityAuditPublisher,
+) gin.HandlerFunc {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	auditPublisher := firstSecurityAuditPublisher(auditPublishers...)
 	return func(ctx *gin.Context) {
 		if authService == nil {
-			abortAuthorizationInternalError(ctx, localizer, errors.New("auth service is unavailable"))
+			abortAuthorizationInternalError(ctx, localizer, logger, errors.New("auth service is unavailable"))
 			return
 		}
 
-		requestAuth, requestCtx, handled := authenticateRequest(ctx, localizer, authService, auditPublisher)
+		requestAuth, requestCtx, handled := authenticateRequest(ctx, localizer, logger, authService, auditPublisher)
 		if handled {
 			return
 		}
 		if authorizeRequest(
-			requestAuthorization{ctx: requestCtx, requestAuth: requestAuth},
+			requestAuthorization{
+				ctx:            requestCtx,
+				requestAuth:    requestAuth,
+				localizer:      localizer,
+				logger:         logger,
+				auditPublisher: auditPublisher,
+			},
 			ctx,
-			localizer,
 			authorizer,
 			code,
-			auditPublisher,
 		) {
 			return
 		}
@@ -92,6 +115,7 @@ func RequirePermission(
 func authenticateRequest(
 	ctx *gin.Context,
 	localizer *i18n.Service,
+	logger *zap.Logger,
 	authService moduleapi.AuthService,
 	auditPublisher SecurityAuditPublisher,
 ) (moduleapi.RequestAuthContext, context.Context, bool) {
@@ -104,7 +128,7 @@ func authenticateRequest(
 
 	claims, err := authService.ParseAccessToken(ctx.Request.Context(), requestToken)
 	if err != nil {
-		writeAccessTokenError(ctx, localizer, err, auditPublisher)
+		writeAccessTokenError(ctx, localizer, logger, err, auditPublisher)
 		return moduleapi.RequestAuthContext{}, nil, true
 	}
 
@@ -112,7 +136,7 @@ func authenticateRequest(
 	requestCtx := moduleapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
 	user, err := authService.CurrentUser(requestCtx)
 	if err != nil {
-		writeCurrentUserError(ctx, localizer, err, auditPublisher)
+		writeCurrentUserError(ctx, localizer, logger, err, auditPublisher)
 		return moduleapi.RequestAuthContext{}, nil, true
 	}
 
@@ -124,10 +148,8 @@ func authenticateRequest(
 func authorizeRequest(
 	request requestAuthorization,
 	ctx *gin.Context,
-	localizer *i18n.Service,
 	authorizer moduleapi.Authorizer,
 	code string,
-	auditPublisher SecurityAuditPublisher,
 ) bool {
 	ctx.Request = ctx.Request.WithContext(request.ctx)
 	if strings.TrimSpace(code) == "" {
@@ -135,18 +157,18 @@ func authorizeRequest(
 	}
 
 	if authorizer == nil {
-		abortAuthorizationInternalError(ctx, localizer, errors.New("authorizer is unavailable"))
+		abortAuthorizationInternalError(ctx, request.localizer, request.logger, errors.New("authorizer is unavailable"))
 		return true
 	}
 	if err := authorizer.Authorize(request.ctx, request.requestAuth, code); err != nil {
-		writeAuthorizationError(ctx, localizer, code, err, auditPublisher)
+		writeAuthorizationError(ctx, request.localizer, request.logger, code, err, request.auditPublisher)
 		return true
 	}
 
 	return false
 }
 
-func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, err error, auditPublisher SecurityAuditPublisher) {
+func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, logger *zap.Logger, err error, auditPublisher SecurityAuditPublisher) {
 	switch {
 	case errors.Is(err, moduleapi.ErrExpiredAccessToken):
 		writeSecurityAuditError(ctx, localizer, auditPublisher, securityAuditError{
@@ -157,24 +179,25 @@ func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, err error,
 	case errors.Is(err, moduleapi.ErrInvalidAccessToken):
 		writeInvalidTokenAuditError(ctx, localizer, auditPublisher)
 	default:
-		abortAuthorizationInternalError(ctx, localizer, err)
+		abortAuthorizationInternalError(ctx, localizer, logger, err)
 	}
 }
 
-func writeCurrentUserError(ctx *gin.Context, localizer *i18n.Service, err error, auditPublisher SecurityAuditPublisher) {
+func writeCurrentUserError(ctx *gin.Context, localizer *i18n.Service, logger *zap.Logger, err error, auditPublisher SecurityAuditPublisher) {
 	switch {
 	case errors.Is(err, moduleapi.ErrInvalidAccessToken):
 		writeInvalidTokenAuditError(ctx, localizer, auditPublisher)
 	case errors.Is(err, moduleapi.ErrUnauthenticated):
 		writeMissingTokenAuditError(ctx, localizer, auditPublisher)
 	default:
-		abortAuthorizationInternalError(ctx, localizer, err)
+		abortAuthorizationInternalError(ctx, localizer, logger, err)
 	}
 }
 
 func writeAuthorizationError(
 	ctx *gin.Context,
 	localizer *i18n.Service,
+	logger *zap.Logger,
 	code string,
 	err error,
 	auditPublisher SecurityAuditPublisher,
@@ -194,13 +217,13 @@ func writeAuthorizationError(
 	case errors.Is(err, moduleapi.ErrUnauthenticated):
 		writeMissingTokenAuditError(ctx, localizer, auditPublisher)
 	default:
-		abortAuthorizationInternalError(ctx, localizer, err)
+		abortAuthorizationInternalError(ctx, localizer, logger, err)
 	}
 }
 
 // abortAuthorizationInternalError 保留鉴权基础设施失败的 cause，由 HTTP fallback 记录一次关联错误。
-func abortAuthorizationInternalError(ctx *gin.Context, localizer *i18n.Service, err error) {
-	AbortAppError(ctx, localizer, zap.L(), err)
+func abortAuthorizationInternalError(ctx *gin.Context, localizer *i18n.Service, logger *zap.Logger, err error) {
+	AbortAppError(ctx, localizer, logger, err)
 }
 
 func writeInvalidTokenAuditError(ctx *gin.Context, localizer *i18n.Service, auditPublisher SecurityAuditPublisher) {

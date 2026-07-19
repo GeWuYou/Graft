@@ -75,6 +75,12 @@ func TestRedeployTaskSubmissionFailureIsReportedOnceAndReturnsSafeResponse(t *te
 	}
 	(routeRuntime{ctx: &module.Context{Logger: baseLogger}}).writeRouteErrorWithAction(ginCtx, err, result)
 
+	assertSafeRedeployResponse(t, recorder, cause)
+	assertLifecycleErrorLog(t, observed.All(), cause)
+}
+
+func assertSafeRedeployResponse(t *testing.T, recorder *httptest.ResponseRecorder, cause error) {
+	t.Helper()
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
 	}
@@ -85,13 +91,15 @@ func TestRedeployTaskSubmissionFailureIsReportedOnceAndReturnsSafeResponse(t *te
 	if payload["code"] != "COMMON_INTERNAL_ERROR" || strings.Contains(recorder.Body.String(), cause.Error()) {
 		t.Fatalf("expected safe internal response, got %s", recorder.Body.String())
 	}
+}
 
-	entries := observed.All()
+func assertLifecycleErrorLog(t *testing.T, entries []observer.LoggedEntry, cause error) {
+	t.Helper()
 	if len(entries) != 1 {
 		t.Fatalf("expected one business error record, got %d", len(entries))
 	}
 	fields := entries[0].ContextMap()
-	if fields[logger.FieldOperation] != "submit_application_lifecycle_task" || fields["application_id"] != "app_01ARZ3NDEKTSV4RRFFQ69G5FAV" || fields[logger.FieldRequestID] != "req-redeploy-1" || fields[logger.FieldTraceID] != "trace-redeploy-1" || fields[logger.FieldError] != cause.Error() {
+	if fields[logger.FieldOperation] != "submit_application_lifecycle_task" || fields["application_id"] != "app_01ARZ3NDEKTSV4RRFFQ69G5FAV" || fields[logger.FieldRequestID] != "req-redeploy-1" || fields[logger.FieldTraceID] != "trace-redeploy-1" || fields["lifecycle_action"] != "redeploy" || fields["error_kind"] != "internal" || fields["error_code"] != "COMMON_INTERNAL_ERROR" || fields["error_type"] == "" || fields["error_fingerprint"] == "" || fields["error_fingerprint"] == cause.Error() || fields[logger.FieldError] == cause.Error() {
 		t.Fatalf("unexpected lifecycle error fields: %#v", fields)
 	}
 }

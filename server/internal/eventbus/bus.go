@@ -119,7 +119,11 @@ func (b *MemoryBus) Publish(ctx context.Context, event Event) error {
 func (b *MemoryBus) invokeHandler(ctx context.Context, handler Handler, event Event) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = fmt.Errorf("event handler panic for %s: %v", event.Name, recovered)
+			if cause, ok := recovered.(error); ok {
+				err = fmt.Errorf("event handler panic for %s: %w", event.Name, cause)
+			} else {
+				err = fmt.Errorf("event handler panic for %s: %v", event.Name, recovered)
+			}
 			b.logger.Error(
 				"event handler panicked",
 				zap.String("event", event.Name),

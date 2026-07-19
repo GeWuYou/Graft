@@ -40,6 +40,29 @@ message := err.Error()
 """
         self.assertEqual(MODULE.scan_source(Path("server/internal/httpx/example.go"), source), [])
 
+    def test_handles_multiline_wrapping_and_format_arguments(self) -> None:
+        source = """\
+return fmt.Errorf(
+    "invalid field %v: %w",
+    field,
+    err,
+)
+return fmt.Errorf(
+    "load: %v",
+    err,
+)
+"""
+        findings = MODULE.scan_source(Path("server/internal/httpx/example.go"), source)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].line, 6)
+
+    def test_ignores_comments_and_string_literals(self) -> None:
+        source = """\
+// gin.Recovery() and fmt.Errorf("load: %v", err) are forbidden in production code.
+message := "accessLogger.Error(\\\"http access\\\")"
+"""
+        self.assertEqual(MODULE.scan_source(Path("server/internal/httpx/example.go"), source), [])
+
     def test_excludes_tests_and_generated_files(self) -> None:
         self.assertFalse(MODULE.is_production_go_path(Path("server/internal/httpx/server_test.go")))
         self.assertFalse(MODULE.is_production_go_path(Path("server/internal/contract/generated/error.go")))

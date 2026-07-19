@@ -18,6 +18,7 @@ import (
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
+	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
@@ -39,6 +40,7 @@ type Module struct {
 	topicIssuers    realtime.TopicIssuerRegistry
 	collector       *runtimeTargetSummaryCollector
 	runtimeLogger   *zap.Logger
+	i18n            *i18n.Service
 }
 
 // NewModule 构造 runtime-target 模块实例。
@@ -55,6 +57,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	m.runtimeLogger = ctx.Logger
+	m.i18n = ctx.I18n
 	auth, err := module.ResolveService[moduleapi.AuthService](ctx.Services, (*moduleapi.AuthService)(nil))
 	if err != nil {
 		return err
@@ -272,13 +275,13 @@ func (m *Module) Shutdown(ctx *module.Context) error {
 }
 
 func (m *Module) handleList(c *gin.Context) {
-	limit, offset, ok := runtimeTargetListWindow(c)
+	limit, offset, ok := runtimeTargetListWindow(c, m.i18n)
 	if !ok {
 		return
 	}
 	page, err := m.repository.ListPage(c.Request.Context(), limit, offset)
 	if err != nil {
-		httpx.AbortAppError(c, nil, m.runtimeLogger, err)
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 		return
 	}
 	mapped := mapRuntimeTargetSummaries(c.Request.Context(), page.Items, runtimeTargetListSummaryConcurrency, func(ctx context.Context, item store.Target) generated.RuntimeTargetSummary {
@@ -366,13 +369,13 @@ func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc 
 }
 
 // runtimeTargetListWindow 解析并校验请求中的分页参数；参数无效时直接返回 bad-request 响应。
-func runtimeTargetListWindow(c *gin.Context) (int, int, bool) {
+func runtimeTargetListWindow(c *gin.Context, localizer *i18n.Service) (int, int, bool) {
 	limit := 10
 	offset := 0
 	if raw := c.Query("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || (parsed != 10 && parsed != 20 && parsed != 50 && parsed != 100) {
-			httpx.AbortLocalizedError(c, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+			httpx.AbortLocalizedError(c, localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 			return 0, 0, false
 		}
 		limit = parsed
@@ -380,7 +383,7 @@ func runtimeTargetListWindow(c *gin.Context) (int, int, bool) {
 	if raw := c.Query("offset"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
 		if err != nil || parsed < 0 {
-			httpx.AbortLocalizedError(c, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+			httpx.AbortLocalizedError(c, localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 			return 0, 0, false
 		}
 		offset = parsed
@@ -391,16 +394,16 @@ func runtimeTargetListWindow(c *gin.Context) (int, int, bool) {
 func (m *Module) readTarget(c *gin.Context) (store.Target, bool) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
-		httpx.AbortLocalizedError(c, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return store.Target{}, false
 	}
 	target, err := m.repository.Get(c.Request.Context(), id)
 	if errors.Is(err, store.ErrNotFound) {
-		httpx.AbortLocalizedError(c, nil, http.StatusNotFound, "common.not_found", nil)
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusNotFound, "common.not_found", nil)
 		return store.Target{}, false
 	}
 	if err != nil {
-		httpx.AbortAppError(c, nil, m.runtimeLogger, err)
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 		return store.Target{}, false
 	}
 	return target, true

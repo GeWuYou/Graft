@@ -17,18 +17,10 @@ import (
 )
 
 func reportRBACRouteError(ctx context.Context, moduleCtx *module.Context, message string, err error, fields ...logger.Field) error {
-	if moduleCtx == nil || moduleCtx.Services == nil {
+	if moduleCtx == nil || moduleCtx.AppLogger == nil {
 		return err
 	}
-	resolved, resolveErr := moduleCtx.Services.Resolve((*logger.AppLogger)(nil))
-	if resolveErr != nil {
-		return err
-	}
-	appLogger, _ := resolved.(logger.AppLogger)
-	if appLogger == nil {
-		return err
-	}
-	return logger.ReportError(ctx, appLogger.Named("modules.rbac.route"), message, err, fields...)
+	return logger.ReportError(ctx, moduleCtx.AppLogger.Named("modules.rbac.route"), message, err, fields...)
 }
 
 type rbacManagementErrorMapping struct {

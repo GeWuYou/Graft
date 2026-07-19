@@ -82,7 +82,8 @@ func WriteLocalizedErrorCode(ctx *gin.Context, service *i18n.Service, status int
 	}
 
 	ctx.Set(localizedErrorMessageKeyContextKey, key)
-	traceID := EnsureRequestID(ctx)
+	EnsureRequestID(ctx)
+	traceID := EnsureTraceID(ctx)
 	ctx.JSON(status, ErrorResponse{
 		Success:    false,
 		Code:       code,
@@ -150,7 +151,12 @@ func AbortAppError(ctx *gin.Context, service *i18n.Service, runtimeLogger *zap.L
 }
 
 func normalizeAppErrorDescriptor(descriptor apperror.Descriptor) (apperror.Descriptor, int) {
-	descriptor.Kind = normalizeAppErrorKind(descriptor.Kind)
+	normalizedKind := normalizeAppErrorKind(descriptor.Kind)
+	if normalizedKind == apperror.KindInternal && descriptor.Kind != apperror.KindInternal {
+		descriptor = internalAppErrorDescriptor()
+	} else {
+		descriptor.Kind = normalizedKind
+	}
 	if descriptor.Code == "" {
 		descriptor.Code = errorcode.FromMessageKey(descriptor.MessageKey)
 	}

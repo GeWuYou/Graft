@@ -13,6 +13,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	notificationopenapi "graft/server/internal/contract/openapi/notification"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 )
@@ -190,7 +191,15 @@ func (r notificationRouteRuntime) writeServiceError(ginCtx *gin.Context, err err
 	case errors.Is(err, moduleapi.ErrNotificationDeliveryNotFound):
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, messagecontract.CommonInvalidArgument.String(), nil)
 	default:
-		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
+		appLogger := r.ctx.AppLogger
+		if appLogger != nil {
+			appLogger = appLogger.Named("modules.notification.route")
+		}
+		reported := logger.ReportError(ginCtx.Request.Context(), appLogger, "notification route failed", err,
+			logger.StringField("module", moduleID),
+			logger.StringField(logger.FieldOperation, ginCtx.FullPath()),
+		)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
 	}
 }
 

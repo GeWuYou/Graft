@@ -90,6 +90,59 @@ func TestWriteAppErrorLogsOnlyUnreportedInternalCause(t *testing.T) {
 	}
 }
 
+func TestWriteLocalizedErrorUsesTraceIDWhenRequestAndTraceDiffer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	engine.GET("/failure", func(inner *gin.Context) {
+		WriteLocalizedError(inner, nil, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+	})
+	request := httptest.NewRequest(http.MethodGet, "/failure", nil)
+	request.Header.Set(RequestIDHeader, "request-1")
+	request.Header.Set(traceIDFallbackHeader, "trace-1")
+	ctx.Request = request
+	engine.HandleContext(ctx)
+
+	var payload ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.TraceID != "trace-1" {
+		t.Fatalf("expected trace id in error response, got %#v", payload)
+	}
+	if recorder.Header().Get(RequestIDHeader) != "request-1" {
+		t.Fatalf("expected request id response header, got %q", recorder.Header().Get(RequestIDHeader))
+	}
+}
+
+func TestWriteAppErrorRejectsUnsupportedDescriptorKind(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, engine := gin.CreateTestContext(recorder)
+	err := apperror.New(apperror.Descriptor{
+		Kind:       apperror.Kind("unexpected"),
+		Code:       errorcode.Code("PRIVATE_CODE"),
+		MessageKey: messagecontract.Key("private.detail"),
+		PublicData: map[string]any{"secret": "must not leak"},
+	})
+	engine.GET("/failure", func(inner *gin.Context) {
+		WriteAppError(inner, nil, zap.NewNop(), err)
+	})
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/failure", nil)
+	engine.HandleContext(ctx)
+
+	var payload ErrorResponse
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Code != errorcode.CommonInternalError.String() || payload.MessageKey != messagecontract.CommonInternalError.String() {
+		t.Fatalf("expected safe internal descriptor, got %#v", payload)
+	}
+	if payload.Data != nil || strings.Contains(recorder.Body.String(), "must not leak") {
+		t.Fatalf("expected unsupported descriptor data to stay out of response: %s", recorder.Body.String())
+	}
+}
+
 func assertLocalizedErrorEnvelope(t *testing.T, payload ErrorResponse) {
 	t.Helper()
 

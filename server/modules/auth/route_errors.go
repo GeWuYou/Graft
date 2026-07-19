@@ -81,7 +81,6 @@ func (r routeRuntime) writeAuthRouteError(ginCtx *gin.Context, message string, e
 func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message string, err error, fields ...zap.Field) {
 	appFields := []applog.Field{
 		applog.StringField("module", r.moduleName),
-		applog.ErrorField(err),
 	}
 	for _, field := range fields {
 		appFields = append(appFields, applog.Field{

@@ -593,8 +593,7 @@ func TestRequirePermissionFailsClosedWhenAuthorizerMissing(t *testing.T) {
 func TestRequirePermissionLogsUnexpectedAuthFailure(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	core, observed := observer.New(zapcore.ErrorLevel)
-	restoreGlobals := zap.ReplaceGlobals(zap.New(core))
-	t.Cleanup(restoreGlobals)
+	logger := zap.New(core)
 
 	cause := errors.New("token verifier unavailable")
 	localizer := newTestLocalizer()
@@ -609,7 +608,7 @@ func TestRequirePermissionLogsUnexpectedAuthFailure(t *testing.T) {
 	}
 
 	engine := gin.New()
-	engine.Use(RequestIDMiddleware(), RequirePermission(localizer, authService, nil, ""))
+	engine.Use(RequestIDMiddleware(), RequirePermissionWithLogger(logger, localizer, authService, nil, ""))
 	engine.GET("/api/profile", func(ctx *gin.Context) { ctx.Status(http.StatusOK) })
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, newBearerRequest("/api/profile", "token-1"))

@@ -68,6 +68,7 @@ func TestPublishAggregatesHandlerFailures(t *testing.T) {
 	bus := New(zap.New(core))
 
 	expectedErr := errors.New("write audit event failed")
+	panicCause := errors.New("panic cause")
 	order := make([]string, 0, 3)
 
 	if err := bus.Subscribe("audit.record", func(_ context.Context, _ Event) error {
@@ -78,7 +79,7 @@ func TestPublishAggregatesHandlerFailures(t *testing.T) {
 	}
 	if err := bus.Subscribe("audit.record", func(_ context.Context, _ Event) error {
 		order = append(order, "second")
-		panic("boom")
+		panic(panicCause)
 	}); err != nil {
 		t.Fatalf("subscribe second handler: %v", err)
 	}
@@ -95,6 +96,9 @@ func TestPublishAggregatesHandlerFailures(t *testing.T) {
 	}
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf("expected aggregated error to include handler failure, got %v", err)
+	}
+	if !errors.Is(err, panicCause) {
+		t.Fatalf("expected aggregated error to preserve panic cause, got %v", err)
 	}
 	if !strings.Contains(err.Error(), "panic") {
 		t.Fatalf("expected aggregated error to include panic recovery details, got %v", err)

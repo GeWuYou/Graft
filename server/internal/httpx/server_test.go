@@ -32,15 +32,16 @@ func TestRecoveryMiddlewareLogsPanicStackAndReturnsSafeEnvelope(t *testing.T) {
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
 	}
+	body := recorder.Body.Bytes()
 	var payload ErrorResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("decode recovery response: %v", err)
 	}
 	if payload.Code != "COMMON_INTERNAL_ERROR" || payload.MessageKey != "common.internal_error" {
 		t.Fatalf("expected common internal error envelope, got %#v", payload)
 	}
-	if strings.Contains(recorder.Body.String(), "runtime secret detail") {
-		t.Fatalf("expected panic detail to stay out of response: %s", recorder.Body.String())
+	if strings.Contains(string(body), "runtime secret detail") {
+		t.Fatalf("expected panic detail to stay out of response: %s", body)
 	}
 
 	entries := observed.All()

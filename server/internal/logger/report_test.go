@@ -37,8 +37,11 @@ func TestReportErrorRecordsOnceAndPreservesCause(t *testing.T) {
 		t.Fatalf("expected one error record, got %d", len(entries))
 	}
 	fields := entries[0].ContextMap()
-	if fields[FieldError] != cause.Error() || fields["error_kind"] != string(apperror.KindInternal) {
+	if fields["error_type"] != "*apperror.Error" || fields["error_kind"] != string(apperror.KindInternal) {
 		t.Fatalf("expected canonical error fields, got %#v", fields)
+	}
+	if fields["error_fingerprint"] == "" || fields[FieldError] == cause.Error() {
+		t.Fatalf("expected non-sensitive error diagnostics, got %#v", fields)
 	}
 }
 

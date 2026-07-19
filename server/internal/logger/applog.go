@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/requestctx"
 )
 
@@ -63,6 +64,7 @@ type AppLogger interface {
 	Category(LogCategory) AppLogger
 	Named(string) AppLogger
 	With(...Field) AppLogger
+	AddCallerSkip(int) AppLogger
 	Zap() *zap.Logger
 }
 
@@ -117,9 +119,10 @@ func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 		base = zap.NewNop()
 	}
 
+	categoryBase := base.WithOptions(zap.AddCallerSkip(appLoggerCallerSkip))
 	logger := appLogger{
-		categoryBase: base,
-		base:         base.With(zap.String(categoryFieldKey, string(defaultAppLogCategory))),
+		categoryBase: categoryBase,
+		base:         categoryBase.With(zap.String(categoryFieldKey, string(defaultAppLogCategory))),
 		category:     defaultAppLogCategory,
 		now: func() time.Time {
 			return time.Now().UTC()
@@ -218,6 +221,21 @@ func (l appLogger) With(fields ...Field) AppLogger {
 	}
 }
 
+// AddCallerSkip 返回增加调用栈补偿后的 logger，供跨越 logger facade 的 owner 保留真实调用点。
+func (l appLogger) AddCallerSkip(skip int) AppLogger {
+	if skip <= 0 {
+		return l
+	}
+	return appLogger{
+		categoryBase: l.categoryBase.WithOptions(zap.AddCallerSkip(skip)),
+		base:         l.base.WithOptions(zap.AddCallerSkip(skip)),
+		sink:         l.sink,
+		now:          l.now,
+		fields:       l.fields,
+		category:     l.category,
+	}
+}
+
 func (l appLogger) Zap() *zap.Logger {
 	return l.base
 }
@@ -231,16 +249,15 @@ func (l appLogger) write(ctx context.Context, severity AppLogSeverity, message s
 	}
 	sanitizedMessage := sanitizeMessage(message)
 	zapFields := l.zapFields(ctx, fields...)
-	callerLogger := l.base.WithOptions(zap.AddCallerSkip(appLoggerCallerSkip))
 	switch severity {
 	case AppLogSeverityDebug:
-		callerLogger.Debug(sanitizedMessage, zapFields...)
+		l.base.Debug(sanitizedMessage, zapFields...)
 	case AppLogSeverityInfo:
-		callerLogger.Info(sanitizedMessage, zapFields...)
+		l.base.Info(sanitizedMessage, zapFields...)
 	case AppLogSeverityWarn:
-		callerLogger.Warn(sanitizedMessage, zapFields...)
+		l.base.Warn(sanitizedMessage, zapFields...)
 	case AppLogSeverityError:
-		callerLogger.Error(sanitizedMessage, zapFields...)
+		l.base.Error(sanitizedMessage, zapFields...)
 	}
 
 	l.persist(ctx, severity, sanitizedMessage, fields...)
@@ -391,7 +408,7 @@ func (l appLogger) zapFields(ctx context.Context, fields ...Field) []zap.Field {
 		zapFields = append(zapFields, zap.Any(key, sanitizeFieldValue(key, field.Value)))
 	}
 
-	return zapFields
+	return logsafe.SanitizeFields(zapFields)
 }
 
 func appendCorrelationFields(fields []zap.Field, correlation requestctx.AuditContext) []zap.Field {
@@ -514,25 +531,7 @@ func sanitizeMessage(message string) string {
 }
 
 func sanitizeString(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(value))
-	for _, r := range value {
-		if r == '\n' || r == '\r' || r == '\t' {
-			builder.WriteByte(' ')
-			continue
-		}
-		if unicode.IsControl(r) {
-			continue
-		}
-		builder.WriteRune(r)
-	}
-
-	return strings.Join(strings.Fields(builder.String()), " ")
+	return logsafe.SanitizeText(value)
 }
 
 func isSensitiveKey(key string) bool {

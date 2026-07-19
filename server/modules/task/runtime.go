@@ -407,18 +407,10 @@ func (r *Runtime) Stop(ctx context.Context) error {
 
 func (r *Runtime) worker(ctx context.Context) {
 	defer r.waitGroup.Done()
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			r.logger.Error(ctx, "task worker panicked",
-				logger.StringField(logger.FieldOperation, "task_worker"),
-				logger.StringField("stacktrace", string(debug.Stack())),
-			)
-		}
-	}()
 	ticker := time.NewTicker(r.pollEvery)
 	defer ticker.Stop()
 	for {
-		if err := r.runOne(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		if err := r.runWorkerIteration(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			select {
 			case <-ctx.Done():
 				return
@@ -433,6 +425,20 @@ func (r *Runtime) worker(ctx context.Context) {
 		case <-ticker.C:
 		}
 	}
+}
+
+// runWorkerIteration 将单次领取与执行包在可恢复边界内，避免一个未预期 panic 终止整个 worker goroutine。
+func (r *Runtime) runWorkerIteration(ctx context.Context) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			r.logger.Error(ctx, "task worker panicked",
+				logger.StringField(logger.FieldOperation, "task_worker"),
+				logger.StringField("stacktrace", string(debug.Stack())),
+			)
+			err = fmt.Errorf("task worker panicked: %v", recovered)
+		}
+	}()
+	return r.runOne(ctx)
 }
 
 func (r *Runtime) runOne(ctx context.Context) error {

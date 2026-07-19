@@ -140,13 +140,11 @@ func TestLoadAccessLogRequestAttentionPayloadQueriesErrorsAndSlowRequests(t *tes
 func TestHandleListAccessLogsReportsUnexpectedRepositoryFailureOnce(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	core, observed := observer.New(zapcore.ErrorLevel)
-	previous := zap.L()
-	zap.ReplaceGlobals(zap.New(core))
-	t.Cleanup(func() { zap.ReplaceGlobals(previous) })
+	logger := zap.New(core)
 
 	engine := gin.New()
 	engine.Use(RequestIDMiddleware())
-	engine.GET("/access-log", handleListAccessLogs(nil, &stubAccessLogRepository{listErr: errors.New("database unavailable")}))
+	engine.GET("/access-log", handleListAccessLogs(logger, nil, &stubAccessLogRepository{listErr: errors.New("database unavailable")}))
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/access-log", nil))
 

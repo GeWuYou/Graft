@@ -168,18 +168,10 @@ func handleOverview(
 }
 
 func resolveSecurityAppLogger(ctx *module.Context) logger.AppLogger {
-	if ctx == nil || ctx.Services == nil {
+	if ctx == nil || ctx.AppLogger == nil {
 		return nil
 	}
-	resolved, err := ctx.Services.Resolve((*logger.AppLogger)(nil))
-	if err != nil {
-		return nil
-	}
-	appLogger, _ := resolved.(logger.AppLogger)
-	if appLogger == nil {
-		return nil
-	}
-	return appLogger.Named("modules.security.overview")
+	return ctx.AppLogger.Named("modules.security.overview")
 }
 
 // parseOverviewPreset 将审计概览时间参数解析为受支持的时间范围。

@@ -179,6 +179,29 @@ func TestRuntimeConvertsExecutorPanicsToFailedStage(t *testing.T) {
 	}
 }
 
+func TestRuntimeWorkerIterationRecoversAndContinuesAfterPanic(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	runtime.repository = &panicOnceRepository{Repository: repository}
+	executor := &recordingExecutor{}
+	if err := runtime.RegisterStageExecutor(executor); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	if _, err := runtime.Submit(context.Background(), testSubmitInput(1, 1)); err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+
+	if err := runtime.runWorkerIteration(context.Background()); err == nil || !strings.Contains(err.Error(), "task worker panicked") {
+		t.Fatalf("first worker iteration error = %v, want recovered panic", err)
+	}
+	if err := runtime.runWorkerIteration(context.Background()); err != nil {
+		t.Fatalf("second worker iteration: %v", err)
+	}
+	if calls := executor.calls(); calls != 1 {
+		t.Fatalf("executor calls after worker panic = %d, want 1", calls)
+	}
+}
+
 func TestRuntimeReturnsErrorWhenExecutorCancellationPanics(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
@@ -367,6 +390,23 @@ type recordingExecutor struct {
 	mu     sync.Mutex
 	errors []error
 	count  int
+}
+
+type panicOnceRepository struct {
+	taskstore.Repository
+	mu       sync.Mutex
+	panicked bool
+}
+
+func (r *panicOnceRepository) ClaimNextStage(ctx context.Context, now time.Time) (taskstore.StageClaim, bool, error) {
+	r.mu.Lock()
+	if !r.panicked {
+		r.panicked = true
+		r.mu.Unlock()
+		panic("claim next stage")
+	}
+	r.mu.Unlock()
+	return r.Repository.ClaimNextStage(ctx, now)
 }
 
 func (e *recordingExecutor) Type() moduleapi.StageExecutorType { return "test.executor" }

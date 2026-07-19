@@ -599,17 +599,13 @@ func (r routeRuntime) writeRouteError(ginCtx *gin.Context, err error) {
 	}
 
 	reported := err
-	if r.ctx != nil {
-		if r.ctx.AppLogger != nil {
-			reported = logger.ReportError(ginCtx.Request.Context(), r.ctx.AppLogger.Named("modules.container.http"), "container request failed", err,
-				logger.StringField("module", moduleID),
-				logger.StringField(logger.FieldOperation, ginCtx.FullPath()),
-			)
-		}
-		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
-		return
+	if r.ctx.AppLogger != nil {
+		reported = logger.ReportError(ginCtx.Request.Context(), r.ctx.AppLogger.Named("modules.container.http"), "container request failed", err,
+			logger.StringField("module", moduleID),
+			logger.StringField(logger.FieldOperation, ginCtx.FullPath()),
+		)
 	}
-	httpx.AbortAppError(ginCtx, nil, nil, reported)
+	httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
 }
 
 func resolveAuthService(ctx *module.Context) (moduleapi.AuthService, error) {

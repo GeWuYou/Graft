@@ -18,6 +18,7 @@ import (
 type HTTPRegistration struct {
 	I18n     *i18n.Service
 	Registry TopicIssuerRegistry
+	Logger   *zap.Logger
 }
 
 // RegisterSubscriptionRoutes 注册用于签发实时主题订阅票据的 HTTP 端点。
@@ -58,7 +59,7 @@ func RegisterSubscriptionRoutes(router gin.IRouter, registration HTTPRegistratio
 
 		response, err := issuer.IssueSubscription(ctx.Request.Context(), BuildSubscriptionRequest(ctx.Request.Context(), topic))
 		if err != nil {
-			writeSubscriptionError(ctx, registration.I18n, err, topic)
+			writeSubscriptionError(ctx, registration, err, topic)
 			return
 		}
 
@@ -90,7 +91,7 @@ func bindSubscriptionRequest(ctx *gin.Context, localizer *i18n.Service, request 
 
 // writeSubscriptionError 将领域错误映射为本地化的 HTTP 错误响应并写回客户端。
 // 它会根据错误类型选择相应的状态码与消息键，并在错误体中包含 topic 字段。
-func writeSubscriptionError(ctx *gin.Context, localizer *i18n.Service, err error, topic string) {
+func writeSubscriptionError(ctx *gin.Context, registration HTTPRegistration, err error, topic string) {
 	status := http.StatusInternalServerError
 	messageKey := messagecontract.CommonInternalError.String()
 
@@ -110,11 +111,11 @@ func writeSubscriptionError(ctx *gin.Context, localizer *i18n.Service, err error
 	}
 
 	if status == http.StatusInternalServerError {
-		httpx.AbortAppError(ctx, localizer, zap.L(), err)
+		httpx.AbortAppError(ctx, registration.I18n, registration.Logger, err)
 		return
 	}
 
-	httpx.WriteLocalizedError(ctx, localizer, status, messageKey, map[string]any{
+	httpx.WriteLocalizedError(ctx, registration.I18n, status, messageKey, map[string]any{
 		"topic": topic,
 	})
 }

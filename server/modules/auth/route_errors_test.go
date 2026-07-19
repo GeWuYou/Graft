@@ -93,7 +93,7 @@ func TestRouteRuntimeUsesResolvedAppLoggerForResponseMappingErrors(t *testing.T)
 	if record.Component != "modules.auth.route" || record.Message != "map bootstrap response" {
 		t.Fatalf("unexpected persisted app log record: %#v", record)
 	}
-	if record.Fields["module"] != moduleID || record.Error != "bad payload" {
-		t.Fatalf("expected module and error fields, got %#v", record)
+	if record.Fields["module"] != moduleID || record.Error != "" || record.Fields["error_type"] == "" || record.Fields["error_fingerprint"] == "" || record.Fields["error_fingerprint"] == "bad payload" {
+		t.Fatalf("expected safe module error diagnostics, got %#v", record)
 	}
 }

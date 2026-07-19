@@ -140,7 +140,10 @@ func Category(base *zap.Logger, category LogCategory) CategoryLogger {
 	if base == nil || !isRegisteredCategory(category) {
 		return CategoryLogger{base: zap.NewNop(), category: category}
 	}
-	return CategoryLogger{base: base.With(zap.String(categoryFieldKey, string(category))), category: category}
+	return CategoryLogger{
+		base:     base.With(zap.String(categoryFieldKey, string(category))).WithOptions(zap.AddCallerSkip(categoryLoggerCallerSkip)),
+		category: category,
+	}
 }
 
 // WithCategory 是 Category 的低成本别名。
@@ -199,7 +202,7 @@ func (l CategoryLogger) write(level zapcore.Level, message string, fields ...zap
 	if l.base == nil {
 		return
 	}
-	if checked := l.base.WithOptions(zap.AddCallerSkip(categoryLoggerCallerSkip)).Check(level, message); checked != nil {
+	if checked := l.base.Check(level, message); checked != nil {
 		checked.Write(fields...)
 	}
 }
