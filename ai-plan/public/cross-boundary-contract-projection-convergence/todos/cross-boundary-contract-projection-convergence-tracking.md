@@ -50,7 +50,8 @@ closeout:
 
 - [x] inventory-and-openapi-runtime-path-projection
 - [x] notification-project-runtime-target-task-migration
-- [ ] rbac-user-audit-monitor-scheduler-system-config-migration
+- [x] rbac-user-api-path-migration
+- [ ] audit-monitor-scheduler-system-config-api-path-migration
 - [ ] security-announcement-app-log-access-log-migration
 - [ ] drift-gate-expansion
 - [ ] final-convergence-and-archive-readiness
@@ -72,13 +73,13 @@ closeout:
     "notification-project-runtime-target-task-migration"
   ],
   "pending_batches": [
-    "rbac-user-audit-monitor-scheduler-system-config-migration",
+    "audit-monitor-scheduler-system-config-api-path-migration",
     "security-announcement-app-log-access-log-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "notification-project-runtime-target-task-migration",
-  "next_batch": "rbac-user-audit-monitor-scheduler-system-config-migration",
+  "current_batch": "rbac-user-api-path-migration",
+  "next_batch": "audit-monitor-scheduler-system-config-api-path-migration",
   "closeout_status": "completed"
 }
 ```

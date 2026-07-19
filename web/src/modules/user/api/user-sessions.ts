@@ -1,11 +1,11 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
-import { USER_API_PATH } from '@/modules/user/contract/paths';
 import type { SessionSummary } from '@/modules/user/types/user';
 import { request } from '@/utils/request';
 
-type UserSessionsTemplatePath = (typeof USER_API_PATH)['USER_SESSIONS_TEMPLATE'];
-type UserSessionsRevokeAllTemplatePath = (typeof USER_API_PATH)['USER_SESSIONS_REVOKE_ALL_TEMPLATE'];
-type UserSessionRevokeTemplatePath = (typeof USER_API_PATH)['USER_SESSION_REVOKE_TEMPLATE'];
+type UserSessionsTemplatePath = typeof OPENAPI_RUNTIME_PATH.getUserSessions;
+type UserSessionsRevokeAllTemplatePath = typeof OPENAPI_RUNTIME_PATH.postUserSessionsRevokeAll;
+type UserSessionRevokeTemplatePath = typeof OPENAPI_RUNTIME_PATH.postUserSessionRevoke;
 type GetUserSessionsOperation = paths[UserSessionsTemplatePath]['get'];
 type PostUserSessionsRevokeAllOperation = paths[UserSessionsRevokeAllTemplatePath]['post'];
 type PostUserSessionRevokeOperation = paths[UserSessionRevokeTemplatePath]['post'];
@@ -26,14 +26,14 @@ export type ListUserSessionsOptions = {
 
 export function listUserSessions(userId: GetUserSessionsPathParams['id'], options: ListUserSessionsOptions = {}) {
   return request.get<SessionSummary[] & GetUserSessionsResponseData>({
-    url: buildUserSessionsPath(userId),
+    url: buildOpenApiRuntimePath('getUserSessions', { id: userId }),
     params: options.limit === undefined ? undefined : { limit: options.limit },
   });
 }
 
 export async function revokeAllUserSessions(userId: GetUserSessionsPathParams['id']): Promise<void> {
   await request.post<PostUserSessionsRevokeAllResponseData>({
-    url: buildUserSessionsRevokeAllPath(userId),
+    url: buildOpenApiRuntimePath('postUserSessionsRevokeAll', { id: userId }),
   });
 }
 
@@ -42,24 +42,6 @@ export async function revokeUserSession(
   sessionID: PostUserSessionRevokePathParams['sessionID'],
 ): Promise<void> {
   await request.post<PostUserSessionRevokeResponseData>({
-    url: buildUserSessionRevokePath(userId, sessionID),
+    url: buildOpenApiRuntimePath('postUserSessionRevoke', { id: userId, sessionID }),
   });
-}
-
-function buildUserSessionsPath(userId: GetUserSessionsPathParams['id']) {
-  return USER_API_PATH.USER_SESSIONS_TEMPLATE.replace('{id}', encodeURIComponent(String(userId)));
-}
-
-function buildUserSessionsRevokeAllPath(userId: GetUserSessionsPathParams['id']) {
-  return USER_API_PATH.USER_SESSIONS_REVOKE_ALL_TEMPLATE.replace('{id}', encodeURIComponent(String(userId)));
-}
-
-function buildUserSessionRevokePath(
-  userId: PostUserSessionRevokePathParams['id'],
-  sessionID: PostUserSessionRevokePathParams['sessionID'],
-) {
-  return USER_API_PATH.USER_SESSION_REVOKE_TEMPLATE.replace('{id}', encodeURIComponent(String(userId))).replace(
-    '{sessionID}',
-    encodeURIComponent(sessionID),
-  );
 }

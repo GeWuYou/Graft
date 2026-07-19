@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { RBAC_API_PATH } from '../contract/paths';
 import {
   addRolePermissions,
   createRole,
@@ -17,6 +17,20 @@ import {
   updateRole,
   updateRoleStatus,
 } from './rbac';
+
+const RBAC_API_PATH = {
+  PERMISSIONS: OPENAPI_RUNTIME_PATH.getPermissions,
+  ROLES: OPENAPI_RUNTIME_PATH.getRoles,
+  ROLE_PERMISSIONS: (id: number) => buildOpenApiRuntimePath('getRolePermissions', { id }),
+  ROLE_DETAIL: (id: number) => buildOpenApiRuntimePath('getRole', { id }),
+  PERMISSION_DETAIL: (id: number) => buildOpenApiRuntimePath('getPermission', { id }),
+  ROLE_PERMISSIONS_REPLACE: (id: number) => buildOpenApiRuntimePath('postRolePermissionsReplace', { id }),
+  ROLE_PERMISSIONS_ADD: (id: number) => buildOpenApiRuntimePath('postRolePermissionsAdd', { id }),
+  ROLE_PERMISSIONS_REMOVE: (id: number) => buildOpenApiRuntimePath('postRolePermissionsRemove', { id }),
+  ROLE_STATUS: (id: number) => buildOpenApiRuntimePath('postRoleStatus', { id }),
+  ROLE_DELETE: (id: number) => buildOpenApiRuntimePath('postRoleDelete', { id }),
+  ROLE_UPDATE: (id: number) => buildOpenApiRuntimePath('postRoleUpdate', { id }),
+};
 
 vi.mock('@/utils/request', () => ({
   request: {

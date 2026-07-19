@@ -22,6 +22,11 @@
 - Focused/scoped web checks passed: focused Vitest, frontend OpenAPI governance, lint, stylelint, hygiene, OpenAPI freshness, and diff checks.
 - The full web completion entrypoint (`cd web && bun run check`) failed only on five pre-existing timeout tests in `src/locales/index.test.ts`, `src/permission.test.ts`, and `src/modules/auth/store/session.test.ts`.
 
+## 2026-07-19 RBAC And User API Path Migration
+
+- Migrated RBAC and user API consumers and focused tests to generated OpenAPI runtime paths; RBAC no longer retains an API-only path contract.
+- Focused Vitest passed for the RBAC and user API clients.
+
 ## Loop Batch State
 
 ```json
@@ -29,16 +34,17 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "inventory-and-openapi-runtime-path-projection",
-    "notification-project-runtime-target-task-migration"
+    "notification-project-runtime-target-task-migration",
+    "rbac-user-api-path-migration"
   ],
   "pending_batches": [
-    "rbac-user-audit-monitor-scheduler-system-config-migration",
+    "audit-monitor-scheduler-system-config-api-path-migration",
     "security-announcement-app-log-access-log-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "notification-project-runtime-target-task-migration",
-  "next_batch": "rbac-user-audit-monitor-scheduler-system-config-migration",
+  "current_batch": "rbac-user-api-path-migration",
+  "next_batch": "audit-monitor-scheduler-system-config-api-path-migration",
   "closeout_status": "completed"
 }
 ```

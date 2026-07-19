@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { USER_API_PATH } from '../contract/paths';
 import { listUserSessions, revokeAllUserSessions, revokeUserSession } from './user-sessions';
 
 vi.mock('@/utils/request', () => ({
@@ -49,9 +49,11 @@ describe('user sessions api', () => {
     });
   });
 
-  it('keeps the module contract templates canonical', () => {
-    expect(USER_API_PATH.USER_SESSIONS_TEMPLATE).toBe('/api/users/{id}/sessions');
-    expect(USER_API_PATH.USER_SESSIONS_REVOKE_ALL_TEMPLATE).toBe('/api/users/{id}/sessions/revoke-all');
-    expect(USER_API_PATH.USER_SESSION_REVOKE_TEMPLATE).toBe('/api/users/{id}/sessions/{sessionID}/revoke');
+  it('builds session paths from generated operation ids', () => {
+    expect(buildOpenApiRuntimePath('getUserSessions', { id: 7 })).toBe('/api/users/7/sessions');
+    expect(buildOpenApiRuntimePath('postUserSessionsRevokeAll', { id: 7 })).toBe('/api/users/7/sessions/revoke-all');
+    expect(buildOpenApiRuntimePath('postUserSessionRevoke', { id: 7, sessionID: 'session-1' })).toBe(
+      '/api/users/7/sessions/session-1/revoke',
+    );
   });
 });

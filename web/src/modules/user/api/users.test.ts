@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { USER_API_PATH } from '../contract/paths';
 import {
   createUser,
   deleteUser,
@@ -12,6 +12,15 @@ import {
   updateUser,
   updateUserStatus,
 } from './users';
+
+const USER_API_PATH = {
+  USERS: OPENAPI_RUNTIME_PATH.getUsers,
+  USER_BY_ID: (id: number) => buildOpenApiRuntimePath('getUserById', { id }),
+  USER_UPDATE: (id: number) => buildOpenApiRuntimePath('postUserUpdate', { id }),
+  USER_STATUS: (id: number) => buildOpenApiRuntimePath('postUserStatus', { id }),
+  USER_RESET_PASSWORD: (id: number) => buildOpenApiRuntimePath('postUserResetPassword', { id }),
+  USER_DELETE: (id: number) => buildOpenApiRuntimePath('postUserDelete', { id }),
+};
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -71,7 +80,7 @@ describe('users api', () => {
     await createUser(payload);
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: USER_API_PATH.USERS,
+      url: OPENAPI_RUNTIME_PATH.postUsers,
       data: payload,
     });
   });

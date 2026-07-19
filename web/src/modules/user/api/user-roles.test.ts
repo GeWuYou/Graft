@@ -1,9 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { USER_API_PATH } from '../contract/paths';
 import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from './user-roles';
+
+const USER_API_PATH = {
+  ROLES: OPENAPI_RUNTIME_PATH.getRoles,
+  USER_ROLES: (id: number) => buildOpenApiRuntimePath('getUserRoles', { id }),
+  USER_ROLE_REPLACE: (id: number) => buildOpenApiRuntimePath('postUserRolesReplace', { id }),
+  USER_ROLE_ADD: (id: number) => buildOpenApiRuntimePath('postUserRolesAdd', { id }),
+  BATCH_USER_ROLE_REMOVE: OPENAPI_RUNTIME_PATH.postUsersRolesRemove,
+};
 
 vi.mock('@/utils/request', () => ({
   request: {

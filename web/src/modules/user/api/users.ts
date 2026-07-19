@@ -1,7 +1,7 @@
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { USER_API_PATH } from '../contract/paths';
 import { USER_STATUS } from '../contract/status';
 import type {
   RawUserListItem,
@@ -11,12 +11,12 @@ import type {
   UserListResponse,
 } from '../types/user';
 
-type UsersPath = (typeof USER_API_PATH)['USERS'];
-type GetUserByIdPath = (typeof USER_API_PATH)['USER_BY_ID_TEMPLATE'];
-type PostUserUpdatePath = (typeof USER_API_PATH)['USER_UPDATE_TEMPLATE'];
-type PostUserStatusPath = (typeof USER_API_PATH)['USER_STATUS_TEMPLATE'];
-type PostUserResetPasswordPath = (typeof USER_API_PATH)['USER_RESET_PASSWORD_TEMPLATE'];
-type PostUserDeletePath = (typeof USER_API_PATH)['USER_DELETE_TEMPLATE'];
+type UsersPath = typeof OPENAPI_RUNTIME_PATH.getUsers;
+type GetUserByIdPath = typeof OPENAPI_RUNTIME_PATH.getUserById;
+type PostUserUpdatePath = typeof OPENAPI_RUNTIME_PATH.postUserUpdate;
+type PostUserStatusPath = typeof OPENAPI_RUNTIME_PATH.postUserStatus;
+type PostUserResetPasswordPath = typeof OPENAPI_RUNTIME_PATH.postUserResetPassword;
+type PostUserDeletePath = typeof OPENAPI_RUNTIME_PATH.postUserDelete;
 type GetUsersOperation = paths[UsersPath]['get'];
 type GetUserByIdOperation = paths[GetUserByIdPath]['get'];
 type PostUsersOperation = paths[UsersPath]['post'];
@@ -50,7 +50,7 @@ function normalizeUserListItem(item: RawUserListItem): UserListItem {
 export function getUsers() {
   return request
     .get<GetUsersResponseData>({
-      url: USER_API_PATH.USERS,
+      url: OPENAPI_RUNTIME_PATH.getUsers,
     })
     .then((response): UserListResponse => ({
       ...response,
@@ -61,7 +61,7 @@ export function getUsers() {
 export function getUserById(userId: number) {
   return request
     .get<GetUserByIdResponseData>({
-      url: USER_API_PATH.USER_BY_ID(userId),
+      url: buildOpenApiRuntimePath('getUserById', { id: userId }),
     })
     .then(normalizeUserListItem);
 }
@@ -69,7 +69,7 @@ export function getUserById(userId: number) {
 export function createUser(payload: PostUsersRequest) {
   return request
     .post<RawUserListItem>({
-      url: USER_API_PATH.USERS,
+      url: OPENAPI_RUNTIME_PATH.postUsers,
       data: payload,
     })
     .then(normalizeUserListItem);
@@ -78,7 +78,7 @@ export function createUser(payload: PostUsersRequest) {
 export function updateUser(userId: number, payload: PostUserUpdateRequest) {
   return request
     .post<RawUserListItem>({
-      url: USER_API_PATH.USER_UPDATE(userId),
+      url: buildOpenApiRuntimePath('postUserUpdate', { id: userId }),
       data: payload,
     })
     .then(normalizeUserListItem);
@@ -87,7 +87,7 @@ export function updateUser(userId: number, payload: PostUserUpdateRequest) {
 export function updateUserStatus(userId: number, payload: UpdateUserStatusPayload) {
   return request
     .post<RawUserListItem>({
-      url: USER_API_PATH.USER_STATUS(userId),
+      url: buildOpenApiRuntimePath('postUserStatus', { id: userId }),
       data: payload satisfies PostUserStatusRequest,
     })
     .then(normalizeUserListItem);
@@ -95,13 +95,13 @@ export function updateUserStatus(userId: number, payload: UpdateUserStatusPayloa
 
 export function resetUserPassword(userId: number, payload: ResetUserPasswordPayload) {
   return request.post<null>({
-    url: USER_API_PATH.USER_RESET_PASSWORD(userId),
+    url: buildOpenApiRuntimePath('postUserResetPassword', { id: userId }),
     data: payload satisfies PostUserResetPasswordRequest,
   });
 }
 
 export function deleteUser(userId: number) {
   return request.post<PostUserDeleteResponseData>({
-    url: USER_API_PATH.USER_DELETE(userId),
+    url: buildOpenApiRuntimePath('postUserDelete', { id: userId }),
   });
 }
