@@ -19,7 +19,8 @@
 - Migrated notification, project, runtime-target, and task API consumers from module-owned HTTP path mirrors to `OPENAPI_RUNTIME_PATH` and `buildOpenApiRuntimePath`.
 - Preserved only web-private route contracts and removed task's API-only path contract.
 - Updated the frontend OpenAPI governance guard to recognize the generated operationId path artifact as a path lookup, not a generated runtime HTTP client; direct runtime clients remain prohibited.
-- Focused Vitest, frontend completion validation, OpenAPI freshness, and diff checks passed.
+- Focused/scoped web checks passed: focused Vitest, frontend OpenAPI governance, lint, stylelint, hygiene, OpenAPI freshness, and diff checks.
+- The full web completion entrypoint (`cd web && bun run check`) failed only on five pre-existing timeout tests in `src/locales/index.test.ts`, `src/permission.test.ts`, and `src/modules/auth/store/session.test.ts`.
 
 ## Loop Batch State
 
