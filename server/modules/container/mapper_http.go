@@ -97,12 +97,17 @@ func toDockerVolume(item DockerVolume) containergen.DockerVolume {
 }
 
 // toDockerVolumeList 将 Docker 卷列表转换为 API 响应。
-func toDockerVolumeList(items []DockerVolume) containergen.DockerVolumeListResponse {
-	mapped := make([]containergen.DockerVolume, 0, len(items))
-	for _, item := range items {
+func toDockerVolumeList(result DockerVolumeListResult) containergen.DockerVolumeListResponse {
+	mapped := make([]containergen.DockerVolume, 0, len(result.Items))
+	for _, item := range result.Items {
 		mapped = append(mapped, toDockerVolume(item))
 	}
-	return containergen.DockerVolumeListResponse{Items: mapped}
+	return containergen.DockerVolumeListResponse{Items: mapped, Total: result.Total, Limit: result.Limit, Offset: result.Offset}
+}
+
+// toDockerVolumeRemoveResponse 将完成的数据卷删除映射为 API 响应。
+func toDockerVolumeRemoveResponse(name string) containergen.DockerVolumeRemoveResponse {
+	return containergen.DockerVolumeRemoveResponse{Name: name, Action: containergen.DockerVolumeRemoveResponseActionRemove, Result: containergen.DockerVolumeRemoveResponseResultCompleted}
 }
 
 // toContainerDashboardSummaryResponse 组装容器仪表盘摘要响应。

@@ -9,6 +9,8 @@ const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
 const imageRouteTitle = localizeRouteTitleKey('container.route.images.title');
 const imageBreadcrumbTitle = localizeRouteTitleKey('container.route.images.breadcrumb');
+const volumeListTitle = localizeRouteTitleKey('container.volume.route.list.title');
+const volumeDetailTitle = localizeRouteTitleKey('container.volume.route.detail.title');
 
 export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
@@ -20,6 +22,17 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
+    },
+  },
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.VOLUMES,
+    loadPage: () => import('./pages/volumes/index.vue'),
+    meta: {
+      tabGroup: 'infrastructure',
+      pageKind: 'list',
+      semanticTitle: volumeListTitle,
+      breadcrumbTitle: volumeListTitle,
+      tabTitle: volumeListTitle,
     },
   },
   {
@@ -37,6 +50,25 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
 ];
 
 export const containerGlobalRouteRegistrations: GlobalRouteRegistration[] = [
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL,
+    navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.VOLUMES.menuPath,
+    loadPage: () => import('./pages/volumes/detail.vue'),
+    meta: {
+      hidden: false,
+      hiddenMenu: true,
+      keepAlive: false,
+      pageKind: 'detail',
+      pageSurface: 'form-detail',
+      semanticTitle: volumeDetailTitle,
+      breadcrumbTitle: volumeDetailTitle,
+      domainTitle: volumeListTitle,
+      tabGroup: 'infrastructure',
+      tabTitle: volumeDetailTitle,
+      title: volumeDetailTitle,
+      titleKey: 'container.volume.route.detail.title',
+    },
+  },
   {
     ...CONTAINER_BOOTSTRAP_ROUTE.RESOURCES,
     navigationParentPath: CONTAINER_BOOTSTRAP_ROUTE.LIST.menuPath,

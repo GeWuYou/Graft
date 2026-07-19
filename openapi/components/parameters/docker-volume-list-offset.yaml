@@ -1,0 +1,7 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for Docker volumes.
+schema:
+  type: integer
+  minimum: 0

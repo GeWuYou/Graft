@@ -19,6 +19,15 @@ export const CONTAINER_BOOTSTRAP_ROUTE = {
     menuPath: CONTAINER_ROUTE_PATH.IMAGES,
     routeName: 'DockerImageList',
   },
+  VOLUMES: {
+    menuPath: CONTAINER_ROUTE_PATH.VOLUMES,
+    routeName: 'DockerVolumeList',
+  },
+  VOLUME_DETAIL: {
+    path: CONTAINER_ROUTE_PATH.VOLUME_DETAIL,
+    pageRouteName: 'DockerVolumeDetailIndex',
+    routeName: 'DockerVolumeDetail',
+  },
 } as const;
 
 export type ContainerBootstrapRouteName =

@@ -40,6 +40,7 @@ audit.visibilityCatalog.container.action.start.description: 容器启动危险�
 audit.visibilityCatalog.container.action.stop.description: 容器停止危险操作事件。
 audit.visibilityCatalog.container.action.restart.description: 容器重启危险操作事件。
 audit.visibilityCatalog.container.action.remove.description: 容器删除危险操作事件。
+audit.visibilityCatalog.container.volume.remove.description: Docker 数据卷删除危险操作事件。
 audit.visibilityCatalog.container.action.batchStart.description: 容器批量启动危险操作事件。
 audit.visibilityCatalog.container.action.batchStop.description: 容器批量停止危险操作事件。
 audit.visibilityCatalog.container.action.batchRestart.description: 容器批量重启危险操作事件。

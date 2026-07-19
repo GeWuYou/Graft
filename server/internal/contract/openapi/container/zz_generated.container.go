@@ -2869,6 +2869,39 @@ func (e GetDockerSystem500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerVolumesParamsUsage.
+const (
+	DockerVolumeListUsageUnused GetDockerVolumesParamsUsage = "unused"
+	DockerVolumeListUsageUsed   GetDockerVolumesParamsUsage = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumesParamsUsage enum.
+func (e GetDockerVolumesParamsUsage) Valid() bool {
+	switch e {
+	case DockerVolumeListUsageUnused:
+		return true
+	case DockerVolumeListUsageUsed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumes400JSONResponseBodySuccess.
+const (
+	GetDockerVolumes400JSONResponseBodySuccessFalse GetDockerVolumes400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumes400JSONResponseBodySuccess enum.
+func (e GetDockerVolumes400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolumes400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerVolumes401JSONResponseBodySuccess.
 const (
 	GetDockerVolumes401JSONResponseBodySuccessFalse GetDockerVolumes401JSONResponseBodySuccess = false
@@ -2914,6 +2947,21 @@ func (e GetDockerVolumes500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerVolume400JSONResponseBodySuccess.
+const (
+	GetDockerVolume400JSONResponseBodySuccessFalse GetDockerVolume400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume400JSONResponseBodySuccess enum.
+func (e GetDockerVolume400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolume400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerVolume401JSONResponseBodySuccess.
 const (
 	GetDockerVolume401JSONResponseBodySuccessFalse GetDockerVolume401JSONResponseBodySuccess = false
@@ -2944,6 +2992,21 @@ func (e GetDockerVolume403JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerVolume404JSONResponseBodySuccess.
+const (
+	GetDockerVolume404JSONResponseBodySuccessFalse GetDockerVolume404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume404JSONResponseBodySuccess enum.
+func (e GetDockerVolume404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolume404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerVolume500JSONResponseBodySuccess.
 const (
 	GetDockerVolume500JSONResponseBodySuccessFalse GetDockerVolume500JSONResponseBodySuccess = false
@@ -2953,6 +3016,126 @@ const (
 func (e GetDockerVolume500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetDockerVolume500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove200JSONResponseBodyDataAction.
+const (
+	DockerVolumeRemoveResponseActionRemove PostDockerVolumeRemove200JSONResponseBodyDataAction = "remove"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove200JSONResponseBodyDataAction enum.
+func (e PostDockerVolumeRemove200JSONResponseBodyDataAction) Valid() bool {
+	switch e {
+	case DockerVolumeRemoveResponseActionRemove:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove200JSONResponseBodyDataResult.
+const (
+	DockerVolumeRemoveResponseResultCompleted PostDockerVolumeRemove200JSONResponseBodyDataResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove200JSONResponseBodyDataResult enum.
+func (e PostDockerVolumeRemove200JSONResponseBodyDataResult) Valid() bool {
+	switch e {
+	case DockerVolumeRemoveResponseResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove400JSONResponseBodySuccess.
+const (
+	PostDockerVolumeRemove400JSONResponseBodySuccessFalse PostDockerVolumeRemove400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove400JSONResponseBodySuccess enum.
+func (e PostDockerVolumeRemove400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeRemove400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove401JSONResponseBodySuccess.
+const (
+	PostDockerVolumeRemove401JSONResponseBodySuccessFalse PostDockerVolumeRemove401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove401JSONResponseBodySuccess enum.
+func (e PostDockerVolumeRemove401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeRemove401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove403JSONResponseBodySuccess.
+const (
+	PostDockerVolumeRemove403JSONResponseBodySuccessFalse PostDockerVolumeRemove403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove403JSONResponseBodySuccess enum.
+func (e PostDockerVolumeRemove403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeRemove403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove404JSONResponseBodySuccess.
+const (
+	PostDockerVolumeRemove404JSONResponseBodySuccessFalse PostDockerVolumeRemove404JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove404JSONResponseBodySuccess enum.
+func (e PostDockerVolumeRemove404JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeRemove404JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove409JSONResponseBodySuccess.
+const (
+	PostDockerVolumeRemove409JSONResponseBodySuccessFalse PostDockerVolumeRemove409JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove409JSONResponseBodySuccess enum.
+func (e PostDockerVolumeRemove409JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeRemove409JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeRemove500JSONResponseBodySuccess.
+const (
+	False PostDockerVolumeRemove500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeRemove500JSONResponseBodySuccess enum.
+func (e PostDockerVolumeRemove500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case False:
 		return true
 	default:
 		return false
@@ -3699,6 +3882,40 @@ type GetDockerSystem403JSONResponseBodySuccess bool
 // GetDockerSystem500JSONResponseBodySuccess defines parameters for GetDockerSystem.
 type GetDockerSystem500JSONResponseBodySuccess bool
 
+// GetDockerVolumesParams defines parameters for GetDockerVolumes.
+type GetDockerVolumesParams struct {
+	// Limit Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for Docker volumes.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Keyword Optional case-insensitive keyword matched against a Docker volume name.
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Driver Optional exact Docker volume driver filter.
+	Driver *string `form:"driver,omitempty" json:"driver,omitempty"`
+
+	// Scope Optional exact Docker volume scope filter.
+	Scope *string `form:"scope,omitempty" json:"scope,omitempty"`
+
+	// Usage Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.
+	Usage *GetDockerVolumesParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerVolumesParamsUsage defines parameters for GetDockerVolumes.
+type GetDockerVolumesParamsUsage string
+
+// GetDockerVolumes400JSONResponseBodySuccess defines parameters for GetDockerVolumes.
+type GetDockerVolumes400JSONResponseBodySuccess bool
+
 // GetDockerVolumes401JSONResponseBodySuccess defines parameters for GetDockerVolumes.
 type GetDockerVolumes401JSONResponseBodySuccess bool
 
@@ -3708,14 +3925,70 @@ type GetDockerVolumes403JSONResponseBodySuccess bool
 // GetDockerVolumes500JSONResponseBodySuccess defines parameters for GetDockerVolumes.
 type GetDockerVolumes500JSONResponseBodySuccess bool
 
+// GetDockerVolumeParams defines parameters for GetDockerVolume.
+type GetDockerVolumeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerVolume400JSONResponseBodySuccess defines parameters for GetDockerVolume.
+type GetDockerVolume400JSONResponseBodySuccess bool
+
 // GetDockerVolume401JSONResponseBodySuccess defines parameters for GetDockerVolume.
 type GetDockerVolume401JSONResponseBodySuccess bool
 
 // GetDockerVolume403JSONResponseBodySuccess defines parameters for GetDockerVolume.
 type GetDockerVolume403JSONResponseBodySuccess bool
 
+// GetDockerVolume404JSONResponseBodySuccess defines parameters for GetDockerVolume.
+type GetDockerVolume404JSONResponseBodySuccess bool
+
 // GetDockerVolume500JSONResponseBodySuccess defines parameters for GetDockerVolume.
 type GetDockerVolume500JSONResponseBodySuccess bool
+
+// PostDockerVolumeRemoveJSONBody defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemoveJSONBody struct {
+	// Force Explicitly force removal when Docker reports the volume is in use.
+	Force bool `json:"force"`
+}
+
+// PostDockerVolumeRemoveParams defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerVolumeRemove200JSONResponseBodyDataAction defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove200JSONResponseBodyDataAction string
+
+// PostDockerVolumeRemove200JSONResponseBodyDataResult defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove200JSONResponseBodyDataResult string
+
+// PostDockerVolumeRemove400JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove400JSONResponseBodySuccess bool
+
+// PostDockerVolumeRemove401JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove401JSONResponseBodySuccess bool
+
+// PostDockerVolumeRemove403JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove403JSONResponseBodySuccess bool
+
+// PostDockerVolumeRemove404JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove404JSONResponseBodySuccess bool
+
+// PostDockerVolumeRemove409JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove409JSONResponseBodySuccess bool
+
+// PostDockerVolumeRemove500JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemove500JSONResponseBodySuccess bool
 
 // PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
 type PostContainerBatchActionsJSONRequestBody PostContainerBatchActionsJSONBody
@@ -3740,3 +4013,6 @@ type PostDockerImageTagJSONRequestBody PostDockerImageTagJSONBody
 
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody PostDockerImageUntagJSONBody
+
+// PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
+type PostDockerVolumeRemoveJSONRequestBody PostDockerVolumeRemoveJSONBody

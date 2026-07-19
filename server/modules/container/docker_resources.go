@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ type dockerResourceClient interface {
 	NetworkInspect(context.Context, string, mobyclient.NetworkInspectOptions) (network.Inspect, error)
 	VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error)
 	VolumeInspect(context.Context, string) (volume.Volume, error)
+	VolumeRemove(context.Context, string, bool) error
 }
 
 // DockerImage 是列表和详情读取共用的脱敏镜像投影，引用容器来自同一 runtime 快照。
@@ -87,6 +89,46 @@ type DockerVolume struct {
 	Labels         map[string]string
 	ReferenceCount *int64
 	SizeBytes      *int64
+}
+
+// DockerVolumeListQuery 描述数据卷列表的受限筛选和分页条件。
+type DockerVolumeListQuery struct {
+	Limit, Offset                 int
+	Keyword, Driver, Scope, Usage string
+}
+
+// DockerVolumeListResult 是数据卷列表的分页投影。
+type DockerVolumeListResult struct {
+	Items                []DockerVolume
+	Total, Limit, Offset int
+}
+
+func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) DockerVolumeListResult {
+	filtered := make([]DockerVolume, 0, len(items))
+	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
+	for _, item := range items {
+		if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
+			continue
+		}
+		if query.Driver != "" && item.Driver != query.Driver {
+			continue
+		}
+		if query.Scope != "" && item.Scope != query.Scope {
+			continue
+		}
+		if query.Usage == "used" && (item.ReferenceCount == nil || *item.ReferenceCount == 0) {
+			continue
+		}
+		if query.Usage == "unused" && item.ReferenceCount != nil && *item.ReferenceCount > 0 {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Name < filtered[j].Name })
+	total := len(filtered)
+	start := min(query.Offset, total)
+	end := min(start+query.Limit, total)
+	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset}
 }
 
 // DockerResourceReader marks a runtime that can list Docker-native resources.
@@ -269,6 +311,28 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 		return DockerVolume{}, mapDockerError(err)
 	}
 	return dockerVolume(item), nil
+}
+
+func (r *DockerRuntime) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
+	client, ok := r.client.(dockerResourceClient)
+	if !ok {
+		return errUnsupportedContainerRuntime
+	}
+	if err := client.VolumeRemove(ctx, id, force); err != nil {
+		return mapDockerVolumeError(err)
+	}
+	return nil
+}
+
+func mapDockerVolumeError(err error) error {
+	mapped := mapDockerError(err)
+	if errors.Is(mapped, errContainerNotFound) {
+		return errDockerVolumeNotFound
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "in use") {
+		return errDockerVolumeConflict
+	}
+	return mapped
 }
 
 // dockerImageSummary 将 Docker 镜像概要转换为脱敏的 DockerImage 基础投影。

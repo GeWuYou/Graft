@@ -2414,6 +2414,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/volumes/{id}/remove': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Remove Docker volume
+     * @description Removes one Docker volume when dangerous actions are enabled. Force removal requires force=true.
+     */
+    post: operations['postDockerVolumeRemove'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/system': {
     parameters: {
       query?: never;
@@ -3655,6 +3675,8 @@ export interface components {
     DockerNetworkListResponse: components['schemas']['docker-network-list-response'];
     DockerVolume: components['schemas']['docker-volume'];
     DockerVolumeListResponse: components['schemas']['docker-volume-list-response'];
+    DockerVolumeRemoveRequest: components['schemas']['docker-volume-remove-request'];
+    DockerVolumeRemoveResponse: components['schemas']['docker-volume-remove-response'];
     EnvelopedDockerImage: components['schemas']['enveloped-docker-image'];
     EnvelopedDockerImageListResponse: components['schemas']['enveloped-docker-image-list-response'];
     EnvelopedDockerImageActionResponse: components['schemas']['enveloped-docker-image-action-response'];
@@ -3663,6 +3685,7 @@ export interface components {
     EnvelopedDockerNetworkListResponse: components['schemas']['enveloped-docker-network-list-response'];
     EnvelopedDockerVolume: components['schemas']['enveloped-docker-volume'];
     EnvelopedDockerVolumeListResponse: components['schemas']['enveloped-docker-volume-list-response'];
+    EnvelopedDockerVolumeRemoveResponse: components['schemas']['enveloped-docker-volume-remove-response'];
     EnvelopedContainerRuntimeInfo: components['schemas']['enveloped-container-runtime-info'];
     ApplicationSourceType: components['schemas']['application-source-type'];
     ApplicationCreationMethodType: components['schemas']['application-creation-method-type'];
@@ -6650,12 +6673,29 @@ export interface components {
     };
     'docker-volume-list-response': {
       items: components['schemas']['docker-volume'][];
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-docker-volume-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-volume-list-response'];
     };
     'enveloped-docker-volume': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-volume'];
+    };
+    'docker-volume-remove-request': {
+      /** @description Explicitly force removal when Docker reports the volume is in use. */
+      force: boolean;
+    };
+    'docker-volume-remove-response': {
+      name: string;
+      /** @enum {string} */
+      action: 'remove';
+      /** @enum {string} */
+      result: 'completed';
+    };
+    'enveloped-docker-volume-remove-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['docker-volume-remove-response'];
     };
     'enveloped-container-runtime-info': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-runtime-info'];
@@ -8067,6 +8107,20 @@ export interface components {
     'docker-image-list-unused': boolean;
     /** @description Docker image ID or repository reference. */
     'docker-image-id-path': string;
+    /** @description Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100. */
+    'docker-volume-list-limit': number;
+    /** @description Optional zero-based offset for Docker volumes. */
+    'docker-volume-list-offset': number;
+    /** @description Optional case-insensitive keyword matched against a Docker volume name. */
+    'docker-volume-list-keyword': string;
+    /** @description Optional exact Docker volume driver filter. */
+    'docker-volume-list-driver': string;
+    /** @description Optional exact Docker volume scope filter. */
+    'docker-volume-list-scope': string;
+    /** @description Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available. */
+    'docker-volume-list-usage': 'used' | 'unused';
+    /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
+    'docker-volume-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
     'application-list-keyword': string;
     /** @description Optional deployment adapter kind. Compose is the only currently supported value. */
@@ -14799,8 +14853,29 @@ export interface operations {
   };
   getDockerVolumes: {
     parameters: {
-      query?: never;
-      header?: never;
+      query?: {
+        /** @description Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['docker-volume-list-limit'];
+        /** @description Optional zero-based offset for Docker volumes. */
+        offset?: components['parameters']['docker-volume-list-offset'];
+        /** @description Optional case-insensitive keyword matched against a Docker volume name. */
+        keyword?: components['parameters']['docker-volume-list-keyword'];
+        /** @description Optional exact Docker volume driver filter. */
+        driver?: components['parameters']['docker-volume-list-driver'];
+        /** @description Optional exact Docker volume scope filter. */
+        scope?: components['parameters']['docker-volume-list-scope'];
+        /** @description Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available. */
+        usage?: components['parameters']['docker-volume-list-usage'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14809,10 +14884,21 @@ export interface operations {
       /** @description Docker volume list. */
       200: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['enveloped-docker-volume-list-response'];
+        };
+      };
+      /** @description Invalid Docker volume list query. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
         };
       };
       401: components['responses']['unauthorized'];
@@ -14823,10 +14909,18 @@ export interface operations {
   getDockerVolume: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
       path: {
-        /** @description Container id or name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters with ops.container.error.invalidContainerRef. */
-        id: components['parameters']['container-id-path'];
+        /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
+        id: components['parameters']['docker-volume-id-path'];
       };
       cookie?: never;
     };
@@ -14835,20 +14929,103 @@ export interface operations {
       /** @description Docker volume. */
       200: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['enveloped-docker-volume'];
         };
       };
-      401: components['responses']['unauthorized'];
-      403: components['responses']['forbidden'];
-      /** @description Volume not found */
-      404: {
+      /** @description Invalid Docker volume reference. */
+      400: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Volume not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postDockerVolumeRemove: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
+        id: components['parameters']['docker-volume-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['docker-volume-remove-request'];
+      };
+    };
+    responses: {
+      /** @description Docker volume removal completed. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-docker-volume-remove-response'];
+        };
+      };
+      /** @description Invalid Docker volume reference or removal request. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Docker volume was not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Docker volume is in use and force was not requested. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
       500: components['responses']['internal-server-error'];
     };

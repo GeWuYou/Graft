@@ -600,12 +600,42 @@ func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetwork, 
 	return reader.ReadDockerNetwork(ctx, id)
 }
 
-func (s *service) DockerVolumes(ctx context.Context) ([]DockerVolume, error) {
+func (s *service) DockerVolumes(ctx context.Context, query DockerVolumeListQuery) (DockerVolumeListResult, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return nil, err
+		return DockerVolumeListResult{}, err
 	}
-	return reader.ListDockerVolumes(ctx)
+	items, err := reader.ListDockerVolumes(ctx)
+	if err != nil {
+		return DockerVolumeListResult{}, err
+	}
+	return listDockerVolumes(items, query), nil
+}
+
+// RemoveDockerVolume 在 Docker 删除前读取数据卷，以保留安全审计所需元数据。
+func (s *service) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
+	if !s.dangerousActionsAllowed(ctx) {
+		return errDangerousActionsDisabled
+	}
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return err
+	}
+	volume, err := reader.ReadDockerVolume(ctx, id)
+	if err != nil {
+		return err
+	}
+	remover, ok := reader.(interface {
+		RemoveDockerVolume(context.Context, string, bool) error
+	})
+	if !ok {
+		return errUnsupportedContainerRuntime
+	}
+	actionCtx, cancel := context.WithTimeout(ctx, containerOperationTTL)
+	defer cancel()
+	err = remover.RemoveDockerVolume(actionCtx, id, force)
+	s.publishDockerVolumeAudit(ctx, volume, force, err)
+	return err
 }
 
 func (s *service) DockerVolume(ctx context.Context, id string) (DockerVolume, error) {

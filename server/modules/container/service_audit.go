@@ -335,6 +335,21 @@ func auditStatusCode(err error) int {
 	return statusForError(err)
 }
 
+func (s *service) publishDockerVolumeAudit(ctx context.Context, volume DockerVolume, force bool, err error) {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
+		return
+	}
+	defer detached.cancel()
+	messageKey, message := auditErrorMessageFields(err)
+	metadata := map[string]any{"name": volume.Name, "driver": volume.Driver, "scope": volume.Scope, "force": force, "result": auditResult(err), "error": messageKey}
+	if volume.ReferenceCount != nil {
+		metadata["reference_count"] = *volume.ReferenceCount
+	}
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.ContainerAuditActionVolumeRemove.String(), ResourceType: "docker_volume", ResourceID: volume.Name, ResourceName: volume.Name, StatusCode: auditStatusCode(err), Success: err == nil, MessageKey: messageKey, Message: message, Metadata: metadata}, "publish Docker volume audit event failed")
+}
+
 func detachedAuditContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	auditCtx, cancel := context.WithTimeout(context.Background(), containerAuditPublishTimeout)
 	if requestAudit, ok := httpx.RequestAuditContextFromContext(ctx); ok {

@@ -173,7 +173,65 @@
       "detail": {
         "title": "Container Detail",
         "breadcrumb": "Container Detail"
+      },
+      "volume": {
+        "title": "Volume Management",
+        "breadcrumb": "Volume Management"
+      },
+      "volumeDetail": {
+        "title": "Volume Detail",
+        "breadcrumb": "Volume Detail"
       }
+    },
+    "volume": {
+      "route": { "list": { "title": "Volume Management" }, "detail": { "title": "Volume Detail" } },
+      "list": {
+        "title": "Volume Management",
+        "description": "Review and manage volumes in the current Docker runtime.",
+        "total": "{count} Volumes",
+        "loadFailed": "Volume list could not be loaded."
+      },
+      "filters": {
+        "keyword": "Search volume name",
+        "driver": "Driver",
+        "scope": "Scope",
+        "usage": "Usage",
+        "allUsage": "All usage",
+        "query": "Query",
+        "reset": "Reset"
+      },
+      "columns": {
+        "name": "Name",
+        "driver": "Driver",
+        "scope": "Scope",
+        "usage": "Reference",
+        "size": "Size",
+        "createdAt": "Created at",
+        "labels": "Labels",
+        "actions": "Actions"
+      },
+      "usage": { "used": "In use ({count})", "unused": "Unused", "unknown": "Reference unknown" },
+      "pagination": { "summary": "{start}-{end} of {total}", "empty": "No records" },
+      "actions": {
+        "detail": "Details",
+        "remove": "Remove",
+        "cancel": "Cancel",
+        "confirmTitle": "Confirm volume removal",
+        "confirm": "Type volume name {name} to confirm removal.",
+        "force": "Force removal (the volume is in use or its reference state is unknown)",
+        "forceRequired": "Confirm force removal.",
+        "nameRequired": "The typed volume name does not match.",
+        "removeSuccess": "Volume removed.",
+        "removeFailed": "Volume removal failed."
+      },
+      "detail": {
+        "title": "Volume Detail",
+        "description": "Review safe Docker volume details.",
+        "loadFailed": "Volume detail could not be loaded.",
+        "labels": "Labels",
+        "noLabels": "No labels"
+      },
+      "unavailable": "Unavailable"
     },
     "list": {
       "eyebrow": "Infrastructure",

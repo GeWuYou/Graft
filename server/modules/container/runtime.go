@@ -108,6 +108,8 @@ var (
 	errRuntimePermissionDenied     = errors.New("container runtime permission denied")
 	errRuntimeDaemonUnavailable    = errors.New("container runtime daemon unavailable")
 	errContainerNotFound           = errors.New("container not found")
+	errDockerVolumeNotFound        = errors.New("docker volume not found")
+	errDockerVolumeConflict        = errors.New("docker volume conflict")
 	errInvalidRef                  = errors.New("invalid container reference")
 	errInvalidListQuery            = errors.New("invalid container list query")
 	errInvalidBatchAction          = errors.New("invalid container batch action")

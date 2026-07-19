@@ -1,0 +1,7 @@
+name: id
+in: path
+required: true
+description: Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters.
+schema:
+  type: string
+  minLength: 1

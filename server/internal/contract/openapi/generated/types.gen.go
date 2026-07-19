@@ -2788,6 +2788,36 @@ func (e DockerImageBatchRemoveItemErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for DockerVolumeRemoveResponseAction.
+const (
+	DockerVolumeRemoveResponseActionRemove DockerVolumeRemoveResponseAction = "remove"
+)
+
+// Valid indicates whether the value is a known member of the DockerVolumeRemoveResponseAction enum.
+func (e DockerVolumeRemoveResponseAction) Valid() bool {
+	switch e {
+	case DockerVolumeRemoveResponseActionRemove:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerVolumeRemoveResponseResult.
+const (
+	DockerVolumeRemoveResponseResultCompleted DockerVolumeRemoveResponseResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the DockerVolumeRemoveResponseResult enum.
+func (e DockerVolumeRemoveResponseResult) Valid() bool {
+	switch e {
+	case DockerVolumeRemoveResponseResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EnvelopedSecurityOverviewResponseSuccess.
 const (
 	True EnvelopedSecurityOverviewResponseSuccess = true
@@ -4228,6 +4258,24 @@ func (e ContainerListState) Valid() bool {
 	}
 }
 
+// Defines values for DockerVolumeListUsage.
+const (
+	DockerVolumeListUsageDockerVolumeListUsageUnused DockerVolumeListUsage = "unused"
+	DockerVolumeListUsageDockerVolumeListUsageUsed   DockerVolumeListUsage = "used"
+)
+
+// Valid indicates whether the value is a known member of the DockerVolumeListUsage enum.
+func (e DockerVolumeListUsage) Valid() bool {
+	switch e {
+	case DockerVolumeListUsageDockerVolumeListUsageUnused:
+		return true
+	case DockerVolumeListUsageDockerVolumeListUsageUsed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrendRangeQuery.
 const (
 	TrendRangeQueryN10m TrendRangeQuery = "10m"
@@ -4783,6 +4831,24 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumesParamsUsage.
+const (
+	GetDockerVolumesParamsUsageDockerVolumeListUsageUnused GetDockerVolumesParamsUsage = "unused"
+	GetDockerVolumesParamsUsageDockerVolumeListUsageUsed   GetDockerVolumesParamsUsage = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumesParamsUsage enum.
+func (e GetDockerVolumesParamsUsage) Valid() bool {
+	switch e {
+	case GetDockerVolumesParamsUsageDockerVolumeListUsageUnused:
+		return true
+	case GetDockerVolumesParamsUsageDockerVolumeListUsageUsed:
 		return true
 	default:
 		return false
@@ -7609,8 +7675,30 @@ type DockerVolume struct {
 
 // DockerVolumeListResponse defines model for docker-volume-list-response.
 type DockerVolumeListResponse struct {
-	Items []DockerVolume `json:"items"`
+	Items  []DockerVolume `json:"items"`
+	Limit  int            `json:"limit"`
+	Offset int            `json:"offset"`
+	Total  int            `json:"total"`
 }
+
+// DockerVolumeRemoveRequest defines model for docker-volume-remove-request.
+type DockerVolumeRemoveRequest struct {
+	// Force Explicitly force removal when Docker reports the volume is in use.
+	Force bool `json:"force"`
+}
+
+// DockerVolumeRemoveResponse defines model for docker-volume-remove-response.
+type DockerVolumeRemoveResponse struct {
+	Action DockerVolumeRemoveResponseAction `json:"action"`
+	Name   string                           `json:"name"`
+	Result DockerVolumeRemoveResponseResult `json:"result"`
+}
+
+// DockerVolumeRemoveResponseAction defines model for DockerVolumeRemoveResponse.Action.
+type DockerVolumeRemoveResponseAction string
+
+// DockerVolumeRemoveResponseResult defines model for DockerVolumeRemoveResponse.Result.
+type DockerVolumeRemoveResponseResult string
 
 // DrilldownScopeProjection defines model for drilldown-scope-projection.
 type DrilldownScopeProjection struct {
@@ -8946,6 +9034,26 @@ type EnvelopedDockerVolumeListResponse struct {
 	// Code Existing canonical response code.
 	Code string                   `json:"code"`
 	Data DockerVolumeListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerVolumeRemoveResponse defines model for enveloped-docker-volume-remove-response.
+type EnvelopedDockerVolumeRemoveResponse struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data DockerVolumeRemoveResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11381,6 +11489,27 @@ type DockerImageListOffset = int
 // DockerImageListUnused defines model for docker-image-list-unused.
 type DockerImageListUnused = bool
 
+// DockerVolumeIdPath defines model for docker-volume-id-path.
+type DockerVolumeIdPath = string
+
+// DockerVolumeListDriver defines model for docker-volume-list-driver.
+type DockerVolumeListDriver = string
+
+// DockerVolumeListKeyword defines model for docker-volume-list-keyword.
+type DockerVolumeListKeyword = string
+
+// DockerVolumeListLimit defines model for docker-volume-list-limit.
+type DockerVolumeListLimit = int
+
+// DockerVolumeListOffset defines model for docker-volume-list-offset.
+type DockerVolumeListOffset = int
+
+// DockerVolumeListScope defines model for docker-volume-list-scope.
+type DockerVolumeListScope = string
+
+// DockerVolumeListUsage defines model for docker-volume-list-usage.
+type DockerVolumeListUsage string
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -12924,6 +13053,57 @@ type PostDockerImageBatchRemoveParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetDockerVolumesParams defines parameters for GetDockerVolumes.
+type GetDockerVolumesParams struct {
+	// Limit Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100.
+	Limit *DockerVolumeListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for Docker volumes.
+	Offset *DockerVolumeListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Keyword Optional case-insensitive keyword matched against a Docker volume name.
+	Keyword *DockerVolumeListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Driver Optional exact Docker volume driver filter.
+	Driver *DockerVolumeListDriver `form:"driver,omitempty" json:"driver,omitempty"`
+
+	// Scope Optional exact Docker volume scope filter.
+	Scope *DockerVolumeListScope `form:"scope,omitempty" json:"scope,omitempty"`
+
+	// Usage Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.
+	Usage *GetDockerVolumesParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerVolumesParamsUsage defines parameters for GetDockerVolumes.
+type GetDockerVolumesParamsUsage string
+
+// GetDockerVolumeParams defines parameters for GetDockerVolume.
+type GetDockerVolumeParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerVolumeRemoveParams defines parameters for PostDockerVolumeRemove.
+type PostDockerVolumeRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPermissionsParams defines parameters for GetPermissions.
 type GetPermissionsParams struct {
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
@@ -13706,6 +13886,9 @@ type PostDockerImageTagJSONRequestBody = DockerImageTagRequest
 
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody = DockerImageUntagRequest
+
+// PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
+type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest
