@@ -1469,6 +1469,7 @@ import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watc
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
@@ -1501,7 +1502,6 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
-import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import {
   buildContainerLogsTopicName,
   isContainerLogsTopicForContainer,

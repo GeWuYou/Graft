@@ -114,3 +114,27 @@ func TestRegistryValuesReferenceExistingConstants(t *testing.T) {
 		t.Fatal("expected registry descriptors with typed value references")
 	}
 }
+
+func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {
+	targets := Targets()
+	if len(targets) != 2 {
+		t.Fatalf("expected platform and container targets, got %#v", targets)
+	}
+
+	outputs := make(map[string]string, len(targets))
+	for _, target := range targets {
+		rendered, err := RenderTypeScript(target.Entries)
+		if err != nil {
+			t.Fatalf("render target %q: %v", target.Path, err)
+		}
+		outputs[target.Path] = string(rendered)
+	}
+	if strings.Contains(outputs["platform.ts"], "CONTAINER_PERMISSION_CODE") {
+		t.Fatalf("module contract leaked into platform artifact: %s", outputs["platform.ts"])
+	}
+	for _, marker := range []string{"CONTAINER_PERMISSION_CODE", "CONTAINER_REALTIME_TOPIC", "DOCKER_IMAGE_REMOVE_ERROR_CODES"} {
+		if !strings.Contains(outputs["modules/container.ts"], marker) {
+			t.Fatalf("container artifact is missing %q: %s", marker, outputs["modules/container.ts"])
+		}
+	}
+}

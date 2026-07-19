@@ -48,7 +48,7 @@ ADR is not required: this applies the existing authority-first and contract-gove
 - Batch 1 added the platform contract projection foundation. Its descriptor metadata references existing typed Go constants, filters `visibility=web`, and emits deterministic TypeScript without changing canonical ownership.
 - Batch 2 migrated the platform API compatibility exports. The projection now covers every pre-existing web API error code, message key, auth scheme and HTTP header value through canonical Go typed constants; `ApiResponseCode` remains open `string`.
 - Batch 3 wires the canonical freshness chain into PR validation and conditionally into pre-push for authority or derived-contract changes.
-- Next action: `broader-migration-and-final-archive-readiness`.
+- Batch 4 migrated container permission, realtime topic and Docker image remove error projections, then completed final archive-readiness verification.
 
 ## Task Checklist
 
@@ -56,7 +56,7 @@ ADR is not required: this applies the existing authority-first and contract-gove
 - [x] generator-foundation
 - [x] pilot-migration
 - [x] ci-integration
-- [ ] broader-migration-and-final-archive-readiness
+- [x] broader-migration-and-final-archive-readiness
 
 ## Acceptance Conditions
 
@@ -70,12 +70,10 @@ ADR is not required: this applies the existing authority-first and contract-gove
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration", "ci-integration"],
-  "pending_batches": [
-    "broader-migration-and-final-archive-readiness"
-  ],
-  "current_batch": "ci-integration",
-  "next_batch": "broader-migration-and-final-archive-readiness",
-  "closeout_status": "committed"
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration", "ci-integration", "broader-migration-and-final-archive-readiness"],
+  "pending_batches": [],
+  "current_batch": "broader-migration-and-final-archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

@@ -13,37 +13,41 @@ import (
 )
 
 const (
-	defaultOutputPath   = "../web/src/contracts/generated/platform.ts"
+	defaultOutputDir    = "../web/src/contracts/generated"
 	outputDirectoryMode = 0o750
 	outputFileMode      = 0o600
 )
 
 // main 从 server 的 canonical Go contract 索引生成或校验 web 派生产物。
 func main() {
-	outputPath := flag.String("output", defaultOutputPath, "path to the generated TypeScript output")
+	outputDir := flag.String("output-dir", defaultOutputDir, "directory for generated TypeScript outputs")
 	check := flag.Bool("check", false, "compare generated content without writing")
 	flag.Parse()
 
-	content, err := projection.RenderTypeScript(projection.Registry())
-	if err != nil {
-		failf("render contract projection: %v", err)
-	}
-	if *check {
-		checkedIn, err := os.ReadFile(*outputPath)
+	for _, target := range projection.Targets() {
+		content, err := projection.RenderTypeScript(target.Entries)
 		if err != nil {
-			failf("read generated contract projection %s: %v", *outputPath, err)
+			failf("render contract projection %s: %v", target.Path, err)
 		}
-		if !bytes.Equal(content, checkedIn) {
-			failf("generated contract projection is stale: run `cd server && go run ./internal/contract/projection/cmd/projectiongen`")
+		outputPath := filepath.Join(*outputDir, target.Path)
+		if *check {
+			// outputPath 仅由固定 generated 根目录和 Targets 返回的仓库内相对路径构成。
+			checkedIn, err := os.ReadFile(outputPath) // #nosec G304
+			if err != nil {
+				failf("read generated contract projection %s: %v", outputPath, err)
+			}
+			if !bytes.Equal(content, checkedIn) {
+				failf("generated contract projection is stale: run `cd server && go run ./internal/contract/projection/cmd/projectiongen`")
+			}
+			continue
 		}
-		return
-	}
 
-	if err := os.MkdirAll(filepath.Dir(*outputPath), outputDirectoryMode); err != nil {
-		failf("create generated contract projection directory: %v", err)
-	}
-	if err := os.WriteFile(*outputPath, content, outputFileMode); err != nil {
-		failf("write generated contract projection: %v", err)
+		if err := os.MkdirAll(filepath.Dir(outputPath), outputDirectoryMode); err != nil {
+			failf("create generated contract projection directory: %v", err)
+		}
+		if err := os.WriteFile(outputPath, content, outputFileMode); err != nil {
+			failf("write generated contract projection: %v", err)
+		}
 	}
 }
 

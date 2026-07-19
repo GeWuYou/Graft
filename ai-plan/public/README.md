@@ -15,8 +15,6 @@ Overlay note:
 
 ## Active Topics
 
-- `cross-boundary-contract-projection`
-  - Recovery entry: `ai-plan/public/cross-boundary-contract-projection/README.md`
 - `handwritten-comment-governance`
   - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`

@@ -39,17 +39,22 @@
 - Kept `bun run check` unchanged: the explicit PR job remains the ownership point for generated-output freshness, avoiding a redundant schema generation pass in every full web validation.
 - Validation passed: `just openapi-check`, `git diff --check`, the active-topic structure guard, workflow YAML parsing and pre-push shell syntax validation. The existing backend boundary audit remains `PASS_WITH_WARNINGS` for three pre-existing runtime-marker warnings.
 
+## 2026-07-19 Batch 4: broader migration and archive readiness
+
+- Extended the projection generator from a platform-only output to explicit generated targets. Each target remains a derived artifact; `platform.ts` does not absorb module values.
+- Added the container target with canonical references to all container permission constants, five realtime topic constants and all Docker image remove error constants. The existing plain-string realtime constants remain their server runtime authority; the projection supports both string and typed-string constants without copying values.
+- Generated `web/src/contracts/generated/modules/container.ts`, replaced all container permission and Docker error hand mirrors, and changed realtime helpers to consume the generated topic object while retaining only parsing and topic-building behavior locally.
+- Final acceptance passed: `graft validate backend`, `bun run check`, `just openapi-check`, focused projection/container tests and `git diff --check`. The backend boundary audit retains three pre-existing runtime-marker warnings and reports no violation.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration", "ci-integration"],
-  "pending_batches": [
-    "broader-migration-and-final-archive-readiness"
-  ],
-  "current_batch": "ci-integration",
-  "next_batch": "broader-migration-and-final-archive-readiness",
-  "closeout_status": "committed"
+  "completed_batches": ["batch-0-contract-projection-intake", "generator-foundation", "pilot-migration", "ci-integration", "broader-migration-and-final-archive-readiness"],
+  "pending_batches": [],
+  "current_batch": "broader-migration-and-final-archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

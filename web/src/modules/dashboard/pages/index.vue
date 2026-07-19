@@ -77,11 +77,11 @@
 import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
 
 import { API_CODE } from '@/contracts/api/codes';
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import type { SupportedLocale } from '@/contracts/i18n/locales';
 import { currentLocale, t } from '@/locales';
 import { containerModuleFacades } from '@/modules/container';
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
-import { CONTAINER_PERMISSION_CODE } from '@/modules/container/contract/permissions';
 import {
   acquireContainerDashboardSummarySubscription,
   clearContainerDashboardSummary,

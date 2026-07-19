@@ -18,6 +18,12 @@ const (
 	KindHTTPHeader Kind = "http-header"
 	// KindMessageKey 表示本地化消息键。
 	KindMessageKey Kind = "message-key"
+	// KindPermissionCode 表示模块权限码。
+	KindPermissionCode Kind = "permission-code"
+	// KindRealtimeTopic 表示实时订阅主题或主题前缀。
+	KindRealtimeTopic Kind = "realtime-topic"
+	// KindDockerImageRemoveErrorCode 表示 Docker 镜像删除结果的业务错误码。
+	KindDockerImageRemoveErrorCode Kind = "docker-image-remove-error-code"
 )
 
 // Lifecycle 描述契约值在兼容演进中的当前状态。
@@ -42,9 +48,9 @@ const (
 	VisibilityInternal Visibility = "internal"
 )
 
-// Entry 是一个已存在 typed Go contract 的导出索引。
+// Entry 是一个已存在 Go contract 的导出索引。
 //
-// Value 只能引用 canonical owner 中已经定义的 typed constant；本结构不承载值字面量。
+// Value 只能引用 canonical owner 中已经定义的常量；本结构不承载值字面量。
 type Entry struct {
 	ID          string
 	Name        string
@@ -53,7 +59,7 @@ type Entry struct {
 	Lifecycle   Lifecycle
 	Visibility  Visibility
 	Replacement string
-	Value       fmt.Stringer
+	Value       any
 }
 
 // Validate 验证 descriptor metadata 的完整性、生命周期约束及同类值的唯一性。
@@ -69,9 +75,10 @@ func Validate(entries []Entry) error {
 		}
 		seenIDs[entry.ID] = struct{}{}
 
-		semanticValue := string(entry.Kind) + "\x00" + entry.Value.String()
+		value, _ := contractValue(entry.Value)
+		semanticValue := string(entry.Kind) + "\x00" + value
 		if _, exists := seenValues[semanticValue]; exists {
-			return fmt.Errorf("duplicate contract projection value %q for kind %q", entry.Value.String(), entry.Kind)
+			return fmt.Errorf("duplicate contract projection value %q for kind %q", value, entry.Kind)
 		}
 		seenValues[semanticValue] = struct{}{}
 	}
@@ -113,14 +120,32 @@ func validateLifecycle(entry Entry) error {
 }
 
 func validateValue(entry Entry) error {
-	if entry.Value == nil || strings.TrimSpace(entry.Value.String()) == "" {
-		return fmt.Errorf("contract projection descriptor %q requires a typed value reference", entry.ID)
+	value, ok := contractValue(entry.Value)
+	if !ok || strings.TrimSpace(value) == "" {
+		return fmt.Errorf("contract projection descriptor %q requires a string or typed-string value reference", entry.ID)
 	}
 	return nil
 }
 
+func contractValue(value any) (string, bool) {
+	switch typed := value.(type) {
+	case fmt.Stringer:
+		return typed.String(), true
+	case string:
+		return typed, true
+	default:
+		return "", false
+	}
+}
+
 func validKind(kind Kind) bool {
-	return kind == KindAuthScheme || kind == KindErrorCode || kind == KindHTTPHeader || kind == KindMessageKey
+	return kind == KindAuthScheme ||
+		kind == KindErrorCode ||
+		kind == KindHTTPHeader ||
+		kind == KindMessageKey ||
+		kind == KindPermissionCode ||
+		kind == KindRealtimeTopic ||
+		kind == KindDockerImageRemoveErrorCode
 }
 
 func validLifecycle(lifecycle Lifecycle) bool {
