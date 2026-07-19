@@ -44,17 +44,19 @@ closeout:
 - The prior platform/container pilot is archived and remains evidence only.
 - Full unmigrated inventory is recorded in `inventory.md`: 17 module API mirrors (193 values) plus all candidate non-HTTP module contract groups.
 - Notification, project, runtime-target, and task now consume generated operationId runtime paths; their retained path contracts are web-private routes only.
-- Current next step: migrate RBAC, user, audit, monitor, scheduler, and system-config API path consumers without adding a second HTTP authority.
+- Final inventory is not archive-ready: auth, container, and dashboard still mirror HTTP API paths, and non-HTTP descriptor coverage remains unverified.
 
 ## Task Checklist
 
 - [x] inventory-and-openapi-runtime-path-projection
 - [x] notification-project-runtime-target-task-migration
 - [x] rbac-user-api-path-migration
-- [ ] audit-monitor-scheduler-system-config-api-path-migration
-- [ ] security-announcement-app-log-access-log-migration
-- [ ] drift-gate-expansion
-- [ ] final-convergence-and-archive-readiness
+- [x] audit-monitor-api-path-migration
+- [x] scheduled-task-system-config-api-path-migration
+- [x] security-announcement-api-path-migration
+- [x] app-log-access-log-api-path-migration
+- [x] drift-gate-expansion
+- [x] final-convergence-and-archive-readiness
 
 ## Acceptance Conditions
 
@@ -75,16 +77,16 @@ closeout:
     "audit-monitor-api-path-migration",
     "scheduled-task-system-config-api-path-migration",
     "security-announcement-api-path-migration",
-    "app-log-access-log-api-path-migration"
-  ],
-  "pending_batches": [
+    "app-log-access-log-api-path-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "scheduled-task-system-config-api-path-migration",
-  "current_batch": "security-announcement-api-path-migration",
-  "current_batch": "app-log-access-log-api-path-migration",
-  "next_batch": "drift-gate-expansion",
-  "closeout_status": "completed"
+  "pending_batches": [
+    "auth-container-dashboard-api-path-migration",
+    "non-http-descriptor-coverage-and-archive-readiness"
+  ],
+  "current_batch": "final-convergence-and-archive-readiness",
+  "next_batch": "auth-container-dashboard-api-path-migration",
+  "closeout_status": "not-archive-ready"
 }
 ```

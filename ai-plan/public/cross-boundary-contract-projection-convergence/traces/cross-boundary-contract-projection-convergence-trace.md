@@ -33,6 +33,10 @@
 
 ## Loop Batch State
 
+## Final Inventory
+
+- Not archive-ready: auth, container, and dashboard retain HTTP path mirrors; non-HTTP descriptor coverage needs a bounded authority review.
+
 ```json
 {
   "loop_mode": "topic-completion-loop",
@@ -43,16 +47,16 @@
     "audit-monitor-api-path-migration",
     "scheduled-task-system-config-api-path-migration",
     "security-announcement-api-path-migration",
-    "app-log-access-log-api-path-migration"
-  ],
-  "pending_batches": [
+    "app-log-access-log-api-path-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "scheduled-task-system-config-api-path-migration",
-  "current_batch": "security-announcement-api-path-migration",
-  "current_batch": "app-log-access-log-api-path-migration",
-  "next_batch": "drift-gate-expansion",
-  "closeout_status": "completed"
+  "pending_batches": [
+    "auth-container-dashboard-api-path-migration",
+    "non-http-descriptor-coverage-and-archive-readiness"
+  ],
+  "current_batch": "final-convergence-and-archive-readiness",
+  "next_batch": "auth-container-dashboard-api-path-migration",
+  "closeout_status": "not-archive-ready"
 }
 ```
