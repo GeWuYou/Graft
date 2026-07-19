@@ -71,7 +71,8 @@ closeout:
   "completed_batches": [
     "inventory-and-openapi-runtime-path-projection",
     "notification-project-runtime-target-task-migration",
-    "rbac-user-api-path-migration"
+    "rbac-user-api-path-migration",
+    "audit-monitor-api-path-migration"
   ],
   "pending_batches": [
     "scheduled-task-system-config-api-path-migration",

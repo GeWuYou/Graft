@@ -27,6 +27,10 @@
 - Migrated RBAC and user API consumers and focused tests to generated OpenAPI runtime paths; RBAC no longer retains an API-only path contract.
 - Focused Vitest passed for the RBAC and user API clients; the full web completion entrypoint was not rerun for this resumed checkpoint repair.
 
+## 2026-07-19 Audit And Monitor API Path Migration
+
+- Focused monitor API tests passed; `web/src/modules/audit/**` has no focused API test file.
+
 ## Loop Batch State
 
 ```json
