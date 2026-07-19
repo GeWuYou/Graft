@@ -68,6 +68,10 @@
   "container.images.batch.success": "{count} Images Removed.",
   "container.images.batch.partial": "Batch removal partially completed: {success} succeeded and {failed} failed.",
   "container.images.batch.failed": "Batch image removal failed.",
+  "container.images.batch.unknown": "The batch removal result is unknown. Image state was refreshed.",
+  "container.images.batch.failureDetailTitle": "Batch Removal Failure Details",
+  "container.images.batch.confirmDetails": "Close",
+  "container.images.batch.unknownReason": "No specific failure reason was returned.",
   "container.images.cleanup.title": "Clean Unused Images",
   "container.images.cleanup.subtitle": "Remove images from the current runtime that are not referenced by any container.",
   "container.images.cleanup.candidateCount": "Removable",
@@ -916,7 +920,9 @@
         "shellDisabled": "Enable ops.container.shell.enabled in System Config before using Shell.",
         "shellForbidden": "Required Permission: ops.container.shell",
         "shellContainerNotRunning": "The current container is not running, so an interactive shell session cannot be opened.",
-        "shellUnsupportedControlMessage": "The terminal control message is not supported."
+        "shellUnsupportedControlMessage": "The terminal control message is not supported.",
+        "imageInUse": "Docker image is referenced by one or more containers",
+        "imageRemoveFailed": "Docker image removal failed"
       }
     }
   }

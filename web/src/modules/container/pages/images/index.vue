@@ -218,6 +218,26 @@
     </t-dialog>
 
     <t-dialog
+      v-model:visible="batchFailureDialogVisible"
+      dialog-class-name="docker-images-failure-dialog"
+      :header="t('container.images.batch.failureDetailTitle')"
+      width="640px"
+      :confirm-btn="t('container.images.batch.confirmDetails')"
+      :cancel-btn="null"
+      @confirm="batchFailureDialogVisible = false"
+    >
+      <div class="docker-images-failure-list">
+        <div v-for="failure in batchFailureDetails" :key="failure.id" class="docker-images-failure-item">
+          <div class="docker-images-failure-item__header">
+            <t-tag theme="danger" variant="light-outline" size="small">{{ failure.id }}</t-tag>
+            <span class="docker-images-failure-item__name">{{ failure.name }}</span>
+          </div>
+          <p>{{ failure.reason }}</p>
+        </div>
+      </div>
+    </t-dialog>
+
+    <t-dialog
       v-model:visible="cleanupDialogVisible"
       dialog-class-name="docker-images-cleanup-dialog"
       :dialog-style="cleanupDialogStyle"
@@ -386,7 +406,7 @@
   </div>
 </template>
 <script setup lang="ts">
-// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，传输失败后通过详情查询对账，只有确认镜像不存在时才清理普通批次选择。
+// 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，结构化拒绝直接展示稳定错误，网络结果未知时才通过详情查询对账。
 import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -399,6 +419,7 @@ import {
   ManagementToolbar,
   TableActionMenu,
 } from '@/shared/components/management';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   formatBytes,
   formatLocaleDateTime,
@@ -407,6 +428,7 @@ import {
   LogViewer,
   type StructuredLogEntry,
 } from '@/shared/observability';
+import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
 import { type DockerImageRecord, getDockerImage, getDockerImages } from '../../api/container';
@@ -421,8 +443,10 @@ import {
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
 type DockerImage = DockerImageRecord;
+type BatchFailureDetail = { id: string; name: string; reason: string };
 
 const { locale, t } = useI18n();
+const logger = createLogger('container.images');
 const pagination = reactive({ current: 1, pageSize: 20 });
 const keyword = ref('');
 const submittedKeyword = ref('');
@@ -437,6 +461,8 @@ const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const tagDialogVisible = ref(false);
 const removeDialogVisible = ref(false);
+const batchFailureDialogVisible = ref(false);
+const batchFailureDetails = ref<BatchFailureDetail[]>([]);
 const pullDrawerVisible = ref(false);
 const tagging = ref(false);
 const removing = ref(false);
@@ -672,17 +698,23 @@ function forgetSelectedImages(ids: string[]) {
 async function removeImageIds(ids: string[], force = false) {
   const results: DockerImageBatchResult['items'] = [];
   const unknownResponseIds: string[] = [];
+  let requestError: unknown;
   for (let index = 0; index < ids.length; index += 100) {
     const chunkIds = ids.slice(index, index + 100);
     try {
       const response = await batchRemoveDockerImages({ ids: chunkIds, force });
       results.push(...response.items);
-    } catch {
+    } catch (error) {
+      logBatchRequestError('batch image removal request failed', error);
+      if (isApiRequestError(error) && error.status > 0) {
+        requestError = error;
+        break;
+      }
       unknownResponseIds.push(...chunkIds);
       results.push(...chunkIds.map((id) => ({ id, success: false, error_code: 'client_request_failed' })));
     }
   }
-  return { items: results, unknownResponseIds };
+  return { items: results, unknownResponseIds, requestError };
 }
 async function submitCleanup() {
   if (!cleanupSelectedIds.value.length) return;
@@ -691,7 +723,7 @@ async function submitCleanup() {
 async function submitBatchRemove(ids: string[], force: boolean, cleanup = false) {
   batchRemoving.value = true;
   try {
-    const { items, unknownResponseIds } = await removeImageIds(ids, force);
+    const { items, unknownResponseIds, requestError } = await removeImageIds(ids, force);
     const hasUnknownResponse = unknownResponseIds.length > 0;
     const successfulIds = new Set(items.filter((item) => item.success).map((item) => item.id));
     forgetSelectedImages([...successfulIds]);
@@ -704,22 +736,81 @@ async function submitBatchRemove(ids: string[], force: boolean, cleanup = false)
       await reconcileSelectedImages(unknownResponseIds);
     }
     const failed = items.filter((item) => !item.success);
-    if (!failed.length) MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
-    else if (failed.length < items.length)
+    const reportedFailures = failed.filter((item) => item.error_code !== 'client_request_failed');
+    if (requestError) {
+      closeBatchDialogs();
+      MessagePlugin.error(resolveLocalizedErrorMessage(t, requestError, t('container.images.batch.failed')));
+    } else if (!failed.length) {
+      MessagePlugin.success(t('container.images.batch.success', { count: items.length }));
+    } else if (failed.length < items.length) {
       MessagePlugin.warning(
         t('container.images.batch.partial', { success: items.length - failed.length, failed: failed.length }),
       );
-    else MessagePlugin.error(t('container.images.batch.failed'));
-    if (!failed.length || failed.length < items.length) {
+      if (reportedFailures.length) {
+        closeBatchDialogs();
+        showBatchFailureDetails(reportedFailures);
+      }
+    } else if (reportedFailures.length) {
+      MessagePlugin.error(t('container.images.batch.failed'));
+      closeBatchDialogs();
+      showBatchFailureDetails(reportedFailures);
+    } else {
+      MessagePlugin.warning(t('container.images.batch.unknown'));
+    }
+    if (!requestError && !hasUnknownResponse && (!failed.length || failed.length < items.length)) {
       removeDialogVisible.value = false;
-      if (!cleanup || !hasUnknownResponse) cleanupDialogVisible.value = false;
+      if (!cleanup) cleanupDialogVisible.value = false;
     }
     await refresh();
-  } catch {
-    MessagePlugin.error(t('container.images.batch.failed'));
+  } catch (error) {
+    logBatchRequestError('batch image removal flow failed', error);
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.images.batch.failed')));
   } finally {
     batchRemoving.value = false;
   }
+}
+
+function closeBatchDialogs() {
+  removeDialogVisible.value = false;
+  cleanupDialogVisible.value = false;
+}
+
+function showBatchFailureDetails(items: DockerImageBatchResult['items']) {
+  if (!items.length) return;
+  batchFailureDetails.value = items.slice(0, 5).map((item) => ({
+    id: shortId(item.id),
+    name: imageDisplayName(item.id),
+    reason: batchFailureMessage(item),
+  }));
+  batchFailureDialogVisible.value = true;
+}
+
+function logBatchRequestError(message: string, error: unknown) {
+  if (isApiRequestError(error)) {
+    logger.error(error, {
+      operation: message,
+      status: error.status,
+      code: error.code,
+      messageKey: error.messageKey,
+      traceId: error.traceId,
+      responseData: error.responseData,
+    });
+    return;
+  }
+  logger.error(error instanceof Error ? error : new Error(String(error)), { message });
+}
+
+function imageDisplayName(id: string) {
+  const image = selectedImages.value.get(id) ?? cleanupImages.value.find((candidate) => candidate.id === id);
+  return image ? imageTags(image).join(', ') || shortId(id) : shortId(id);
+}
+
+function batchFailureMessage(item: DockerImageBatchResult['items'][number]) {
+  if (item.message_key) {
+    const translated = t(item.message_key);
+    if (translated !== item.message_key) return translated;
+  }
+  return item.message || t('container.images.batch.unknownReason');
 }
 async function openCleanup() {
   cleanupDialogVisible.value = true;
@@ -882,6 +973,45 @@ onUnmounted(() => {
 
 .docker-images-risk {
   color: var(--td-warning-color-7);
+}
+
+.docker-images-failure-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  padding-right: var(--graft-density-gap-4);
+}
+
+.docker-images-failure-item {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-component-border);
+  border-radius: var(--td-radius-medium);
+  padding: var(--graft-density-gap-12);
+}
+
+.docker-images-failure-item__header {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.docker-images-failure-item__name {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-images-failure-item p {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: var(--graft-density-gap-8) 0 0;
+  overflow-wrap: anywhere;
 }
 
 .docker-images-batch-bar {

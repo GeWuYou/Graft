@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"unicode"
@@ -173,12 +174,12 @@ func mapDockerImageTagError(err error) error {
 
 func mapDockerImageRemoveError(err error) error {
 	if strings.Contains(strings.ToLower(err.Error()), "being used") || strings.Contains(strings.ToLower(err.Error()), "in use") {
-		return errDockerImageInUse
+		return fmt.Errorf("%w: %v", errDockerImageInUse, err)
 	}
 	if mapped := mapDockerError(err); mapped != errRuntimeDaemonUnavailable {
-		return mapped
+		return fmt.Errorf("%w: %v", mapped, err)
 	}
-	return errDockerImageRemoveFailed
+	return fmt.Errorf("%w: %v", errDockerImageRemoveFailed, err)
 }
 
 var _ DockerImageWriter = (*DockerRuntime)(nil)

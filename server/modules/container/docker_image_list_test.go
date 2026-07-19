@@ -87,6 +87,31 @@ func TestServiceDockerImageBatchRemoveRejectsMoreThanHundredIDs(t *testing.T) {
 	}
 }
 
+func TestServiceDockerImageBatchRemoveDisabledPublishesFailureAudit(t *testing.T) {
+	runtime := &dockerImageBatchTestRuntime{}
+	bus, eventsPtr := newAuditCaptureBus(t, 1)
+	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true, dangerousActionsEnabled: false, auditBus: bus})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "req-image-batch-disabled"})
+	_, err = service.DockerImageBatchRemove(ctx, []string{"first", "second"}, false)
+	if !errors.Is(err, errDangerousActionsDisabled) {
+		t.Fatalf("expected dangerous action guard, got %v", err)
+	}
+	if len(runtime.removed) != 0 {
+		t.Fatalf("expected Docker removal to be skipped, got %#v", runtime.removed)
+	}
+	events := *eventsPtr
+	if len(events) != 1 || events[0].StatusCode != http.StatusForbidden || events[0].Success {
+		t.Fatalf("unexpected batch rejection audit: %#v", events)
+	}
+	items, ok := events[0].Metadata["items"].([]map[string]any)
+	if !ok || len(items) != 2 || items[0]["error_code"] != containercontract.ContainerDangerousActionsDisabled.String() {
+		t.Fatalf("expected per-item rejection reasons, got %#v", events[0].Metadata)
+	}
+}
+
 type dockerImageListTestRuntime struct {
 	fakeRuntime
 	result DockerImageListResult

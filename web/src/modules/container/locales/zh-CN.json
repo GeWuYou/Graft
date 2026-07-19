@@ -68,6 +68,10 @@
   "container.images.batch.success": "已删除 {count} 个镜像。",
   "container.images.batch.partial": "批量删除部分完成：成功 {success} 个，失败 {failed} 个。",
   "container.images.batch.failed": "批量删除镜像失败。",
+  "container.images.batch.unknown": "批量删除结果未知，已重新查询镜像状态。",
+  "container.images.batch.failureDetailTitle": "批量删除失败明细",
+  "container.images.batch.confirmDetails": "关闭",
+  "container.images.batch.unknownReason": "未返回具体失败原因。",
   "container.images.cleanup.title": "清理未使用镜像",
   "container.images.cleanup.subtitle": "将删除当前运行目标中未被任何容器引用的镜像。",
   "container.images.cleanup.candidateCount": "可删除",
@@ -916,7 +920,9 @@
         "shellDisabled": "请在系统配置中开启 ops.container.shell.enabled 后使用。",
         "shellForbidden": "需要权限：ops.container.shell",
         "shellContainerNotRunning": "当前容器未处于运行状态，无法建立交互式 Shell 会话。",
-        "shellUnsupportedControlMessage": "当前终端控制消息不受支持。"
+        "shellUnsupportedControlMessage": "当前终端控制消息不受支持。",
+        "imageInUse": "Docker 镜像正被一个或多个容器引用",
+        "imageRemoveFailed": "Docker 镜像删除失败"
       }
     }
   }

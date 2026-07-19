@@ -58,14 +58,16 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('results.push(...response.items);');
     expect(sourceText).toContain("error_code: 'client_request_failed'");
     expect(sourceText).toContain('unknownResponseIds.push(...chunkIds);');
-    expect(sourceText).toContain('return { items: results, unknownResponseIds };');
+    expect(sourceText).toContain('let requestError: unknown;');
+    expect(sourceText).toContain('return { items: results, unknownResponseIds, requestError };');
   });
 
   it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
     expect(sourceText).toContain('if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);');
     expect(sourceText).toContain('const candidates = await fetchCleanupCandidates();');
     expect(sourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
-    expect(sourceText).toContain('if (!cleanup || !hasUnknownResponse) cleanupDialogVisible.value = false;');
+    expect(sourceText).toContain('if (!requestError && !hasUnknownResponse');
+    expect(sourceText).toContain('if (!cleanup) cleanupDialogVisible.value = false;');
     expect(sourceText).toContain("MessagePlugin.error(t('container.images.cleanup.loadFailed'))");
   });
 
@@ -153,5 +155,13 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.batch.partial'");
     expect(sourceText).toContain("t('container.images.batch.failed'");
     expect(sourceText).toContain('successfulIds');
+    expect(sourceText).toContain('resolveLocalizedErrorMessage(t, requestError');
+    expect(sourceText).toContain('batchFailureDialogVisible.value = true;');
+    expect(sourceText).toContain('@confirm="batchFailureDialogVisible = false"');
+    expect(sourceText).toContain('closeBatchDialogs();');
+    expect(sourceText).toContain('removeDialogVisible.value = false;');
+    expect(sourceText).toContain('cleanupDialogVisible.value = false;');
+    expect(sourceText).toContain('logBatchRequestError');
+    expect(sourceText).toContain('batchFailureMessage(item)');
   });
 });

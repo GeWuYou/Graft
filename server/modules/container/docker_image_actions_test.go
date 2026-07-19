@@ -2,6 +2,7 @@ package container
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -23,8 +24,12 @@ func TestValidateDockerImageReference(t *testing.T) {
 func TestMapDockerImageRemoveErrorClassifiesImageInUse(t *testing.T) {
 	t.Parallel()
 
-	err := mapDockerImageRemoveError(errors.New("conflict: unable to delete image because it is being used by stopped container"))
+	raw := "conflict: unable to delete image because it is being used by stopped container"
+	err := mapDockerImageRemoveError(errors.New(raw))
 	if !errors.Is(err, errDockerImageInUse) {
 		t.Fatalf("expected image-in-use error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), raw) {
+		t.Fatalf("expected mapped error to retain daemon cause, got %v", err)
 	}
 }

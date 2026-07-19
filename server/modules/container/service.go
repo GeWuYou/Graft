@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/eventbus"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
@@ -417,9 +418,13 @@ func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, forc
 		return DockerImageBatchRemoveResult{}, errInvalidListQuery
 	}
 	if err := s.requireRuntimeAccess(ctx); err != nil {
+		result := dockerImageBatchRemoveRejectedResult(ctx, ids, err)
+		s.publishDockerImageBatchAuditWithStatus(ctx, result, force, statusForError(err))
 		return DockerImageBatchRemoveResult{}, err
 	}
 	if !s.dangerousActionsAllowed(ctx) {
+		result := dockerImageBatchRemoveRejectedResult(ctx, ids, errDangerousActionsDisabled)
+		s.publishDockerImageBatchAuditWithStatus(ctx, result, force, statusForError(errDangerousActionsDisabled))
 		return DockerImageBatchRemoveResult{}, errDangerousActionsDisabled
 	}
 	result := DockerImageBatchRemoveResult{Total: len(ids), RequestID: requestIDFromContext(ctx), Items: make([]DockerImageBatchRemoveItem, 0, len(ids))}
@@ -429,6 +434,7 @@ func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, forc
 		if err := validateDockerImageReference(id); err != nil {
 			item = dockerImageBatchRemoveFailure(item, err)
 		} else if _, err := s.RemoveDockerImage(ctx, id, force); err != nil {
+			logsafe.Error(s.logger, "docker image batch removal failed", zap.String("image_id", id), zap.Error(err))
 			item = dockerImageBatchRemoveFailure(item, err)
 		} else {
 			item.Success = true
@@ -448,6 +454,20 @@ func dockerImageBatchRemoveFailure(item DockerImageBatchRemoveItem, err error) D
 	key := messageKeyForError(err).String()
 	item.ErrorCode, item.MessageKey, item.Message = key, key, fallbackMessageForError(err)
 	return item
+}
+
+func dockerImageBatchRemoveRejectedResult(ctx context.Context, ids []string, err error) DockerImageBatchRemoveResult {
+	items := make([]DockerImageBatchRemoveItem, 0, len(ids))
+	for _, rawID := range ids {
+		item := dockerImageBatchRemoveFailure(DockerImageBatchRemoveItem{ID: strings.TrimSpace(rawID)}, err)
+		items = append(items, item)
+	}
+	return DockerImageBatchRemoveResult{
+		Total:       len(items),
+		FailedCount: len(items),
+		RequestID:   requestIDFromContext(ctx),
+		Items:       items,
+	}
 }
 
 func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
