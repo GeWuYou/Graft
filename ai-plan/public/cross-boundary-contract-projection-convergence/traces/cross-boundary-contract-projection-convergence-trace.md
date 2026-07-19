@@ -40,16 +40,16 @@
     "inventory-and-openapi-runtime-path-projection",
     "notification-project-runtime-target-task-migration",
     "rbac-user-api-path-migration",
-    "audit-monitor-api-path-migration"
+    "audit-monitor-api-path-migration",
+    "scheduled-task-system-config-api-path-migration"
   ],
   "pending_batches": [
-    "scheduled-task-system-config-api-path-migration",
     "security-announcement-app-log-access-log-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "audit-monitor-api-path-migration",
-  "next_batch": "scheduled-task-system-config-api-path-migration",
+  "current_batch": "scheduled-task-system-config-api-path-migration",
+  "next_batch": "security-announcement-app-log-access-log-migration",
   "closeout_status": "completed"
 }
 ```
