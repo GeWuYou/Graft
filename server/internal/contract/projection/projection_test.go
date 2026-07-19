@@ -70,6 +70,13 @@ func TestValidateRejectsDuplicateValuesAndInvalidMetadata(t *testing.T) {
 	if err := Validate(entries); err == nil || !strings.Contains(err.Error(), "requires replacement") {
 		t.Fatalf("expected lifecycle validation error, got %v", err)
 	}
+
+	entries = Registry()
+	entries[0].Lifecycle = LifecycleDeprecated
+	entries[0].Replacement = "missing.replacement"
+	if err := Validate(entries); err == nil || !strings.Contains(err.Error(), "active replacement") {
+		t.Fatalf("expected deprecated replacement validation error, got %v", err)
+	}
 }
 
 func TestRegistryValuesReferenceExistingConstants(t *testing.T) {

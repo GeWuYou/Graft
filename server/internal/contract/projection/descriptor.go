@@ -82,6 +82,18 @@ func Validate(entries []Entry) error {
 		}
 		seenValues[semanticValue] = struct{}{}
 	}
+	for _, entry := range entries {
+		if entry.Lifecycle != LifecycleDeprecated {
+			continue
+		}
+		for _, candidate := range entries {
+			if candidate.ID == entry.Replacement && candidate.Lifecycle == LifecycleActive {
+				goto replacementValid
+			}
+		}
+		return fmt.Errorf("deprecated contract projection descriptor %q requires an active replacement", entry.ID)
+	replacementValid:
+	}
 	return nil
 }
 
