@@ -11812,6 +11812,58 @@
         }
       }
     },
+    "/api/ops/docker/images/{id}/untag": {
+      "post": {
+        "operationId": "postDockerImageUntag",
+        "summary": "Remove a Docker image tag",
+        "description": "Removes the specified Repository:Tag reference only after the server verifies it currently belongs to the Image ID. This operation never forces image deletion.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/docker-image-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-image-untag-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker image tag removal result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-image-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid image ID or Repository:Tag reference"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Image not found"
+          },
+          "409": {
+            "description": "Repository:Tag does not currently reference this image"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/docker/images/{id}/remove": {
       "post": {
         "operationId": "postDockerImageRemove",
@@ -11870,7 +11922,7 @@
         ],
         "summary": "Remove Docker images in batch",
         "operationId": "postDockerImageBatchRemove",
-        "description": "Removes selected Docker images and returns one result for each requested image, allowing partial success.",
+        "description": "Removes selected Docker images by Image ID and returns one result for each requested image, allowing partial success. The operation does not remove individual tags or automatically force removal.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -16866,6 +16918,9 @@
       },
       "DockerImageTagRequest": {
         "$ref": "#/components/schemas/docker-image-tag-request"
+      },
+      "DockerImageUntagRequest": {
+        "$ref": "#/components/schemas/docker-image-untag-request"
       },
       "DockerImageRemoveRequest": {
         "$ref": "#/components/schemas/docker-image-remove-request"
@@ -26025,10 +26080,12 @@
             "type": "string",
             "enum": [
               "tag",
+              "untag",
               "remove"
             ],
             "x-enum-varnames": [
               "DockerImageActionResponseActionTag",
+              "DockerImageActionResponseActionUntag",
               "DockerImageActionResponseActionRemove"
             ]
           },
@@ -26054,6 +26111,21 @@
             }
           }
         ]
+      },
+      "docker-image-untag-request": {
+        "type": "object",
+        "required": [
+          "reference"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Complete local Repository:Tag reference to remove from the specified image."
+          }
+        },
+        "additionalProperties": false
       },
       "docker-image-remove-request": {
         "type": "object",
@@ -26104,7 +26176,17 @@
             "type": "boolean"
           },
           "error_code": {
-            "type": "string"
+            "type": "string",
+            "description": "Stable Docker image removal failure code. Present only when success is false. IMAGE_REFERENCED_BY_MULTIPLE_TAGS means Docker refused Image ID deletion because multiple Repository:Tag references remain.",
+            "enum": [
+              "IMAGE_REFERENCED_BY_MULTIPLE_TAGS",
+              "IMAGE_IN_USE",
+              "IMAGE_NOT_FOUND",
+              "DOCKER_RUNTIME_UNAVAILABLE",
+              "DOCKER_TIMEOUT",
+              "DOCKER_COMMUNICATION_ERROR",
+              "UNKNOWN"
+            ]
           },
           "message_key": {
             "type": "string"

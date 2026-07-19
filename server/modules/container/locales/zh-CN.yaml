@@ -31,11 +31,16 @@ ops.container.error.mountUsageUnsupported: 该挂载不支持用量统计
 ops.container.error.dangerousActionsDisabled: 高危容器操作未启用
 ops.container.error.invalidImageReference: 无效的 Docker 镜像引用
 ops.container.error.imageInUse: Docker 镜像正被一个或多个容器引用
+ops.container.error.imageReferencedByMultipleTags: Docker 镜像仍被多个 Repository:Tag 引用
+ops.container.error.imageNotFound: Docker 镜像不存在，可能已被删除
+ops.container.error.dockerCommunication: 无法连接 Docker
 ops.container.error.imagePullFailed: Docker 镜像拉取失败
 ops.container.error.imageTagFailed: Docker 镜像打标签失败
 ops.container.error.imageRemoveFailed: Docker 镜像删除失败
+ops.container.error.imageTagNotAssociated: 该 Docker 镜像标签不引用当前镜像
 ops.container.image.pull.completed: Docker 镜像拉取完成
 ops.container.image.tag.completed: Docker 镜像打标签完成
+ops.container.image.untag.completed: Docker 镜像标签移除完成
 ops.container.image.remove.completed: Docker 镜像删除完成
 ops.container.audit.shellSessionRequested: 已请求容器 Shell 会话
 ops.container.audit.shellTicketIssued: 已签发容器 Shell 会话票据

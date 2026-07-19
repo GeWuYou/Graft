@@ -46,8 +46,10 @@ rbac.permissionCatalog.containerRemove.display: Container Remove
 rbac.permissionCatalog.containerRemove.description: Allows removing containers when dangerous actions are enabled.
 rbac.permissionCatalog.dockerImagePull.display: Pull Images
 rbac.permissionCatalog.dockerImagePull.description: Allows pulling images from registries configured for the Docker daemon.
-rbac.permissionCatalog.dockerImageTag.display: Tag Images
-rbac.permissionCatalog.dockerImageTag.description: Allows creating repository tags for local Docker images.
+rbac.permissionCatalog.dockerImageTag.display: Add Image Tags
+rbac.permissionCatalog.dockerImageTag.description: Allows adding Repository:Tag references to local Docker images.
+rbac.permissionCatalog.dockerImageUntag.display: Remove Image Tags
+rbac.permissionCatalog.dockerImageUntag.description: Allows removing a Repository:Tag reference from a local Docker image without force deletion.
 rbac.permissionCatalog.dockerImageRemove.display: Delete Images
 rbac.permissionCatalog.dockerImageRemove.description: Allows deleting local Docker images; force deletion requires explicit confirmation.
 rbac.permissionCatalog.userRead.display: User Read

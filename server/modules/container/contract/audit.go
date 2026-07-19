@@ -21,6 +21,8 @@ const (
 	DockerImageAuditActionPull AuditAction = "ops.container.image.pull"
 	// DockerImageAuditActionTag 表示 Docker 镜像标签审计。
 	DockerImageAuditActionTag AuditAction = "ops.container.image.tag"
+	// DockerImageAuditActionUntag 表示 Docker 镜像标签移除审计。
+	DockerImageAuditActionUntag AuditAction = "ops.container.image.untag"
 	// DockerImageAuditActionRemove 表示 Docker 镜像删除审计。
 	DockerImageAuditActionRemove AuditAction = "ops.container.image.remove"
 	// DockerImageAuditActionBatchRemove 表示 Docker 镜像批量删除汇总审计。

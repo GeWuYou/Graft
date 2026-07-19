@@ -36,6 +36,8 @@ const (
 	DockerImagePullPermission PermissionCode = "ops.container.image.pull"
 	// DockerImageTagPermission 表示 Docker 镜像标签管理权限，值保持稳定。
 	DockerImageTagPermission PermissionCode = "ops.container.image.tag"
+	// DockerImageUntagPermission 表示 Docker 镜像标签移除权限，值保持稳定。
+	DockerImageUntagPermission PermissionCode = "ops.container.image.untag"
 	// DockerImageRemovePermission 表示 Docker 镜像删除权限，值保持稳定。
 	DockerImageRemovePermission PermissionCode = "ops.container.image.remove"
 )

@@ -38,6 +38,12 @@ func TestPermissionSeedsFromItemsResolvesDockerImagePermissionLocales(t *testing
 			Module:         "container",
 		},
 		{
+			Code:           "ops.container.image.untag",
+			DisplayKey:     "rbac.permissionCatalog.dockerImageUntag.display",
+			DescriptionKey: "rbac.permissionCatalog.dockerImageUntag.description",
+			Module:         "container",
+		},
+		{
 			Code:           "ops.container.image.remove",
 			DisplayKey:     "rbac.permissionCatalog.dockerImageRemove.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageRemove.description",
@@ -53,10 +59,11 @@ func TestPermissionSeedsFromItemsResolvesDockerImagePermissionLocales(t *testing
 		t.Fatalf("expected %d permission seeds, got %d", len(items), len(seeds))
 	}
 
-	wantDisplays := []string{"拉取镜像", "为镜像打标签", "删除镜像"}
+	wantDisplays := []string{"拉取镜像", "新增镜像标签", "移除镜像标签", "删除镜像"}
 	wantDescriptions := []string{
 		"允许从 Docker 守护进程已配置的仓库拉取镜像。",
-		"允许为本地 Docker 镜像创建新的仓库标签。",
+		"允许为本地 Docker 镜像新增 Repository:Tag 引用。",
+		"允许移除本地 Docker 镜像的 Repository:Tag 引用，不会强制删除镜像。",
 		"允许删除本地 Docker 镜像，强制删除需额外确认。",
 	}
 	for index, seed := range seeds {

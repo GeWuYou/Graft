@@ -1,16 +1,23 @@
 import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
-import { buildDockerImageRemoveApiPath, buildDockerImageTagApiPath, CONTAINER_API_PATH } from '../contract/paths';
+import {
+  buildDockerImageRemoveApiPath,
+  buildDockerImageTagApiPath,
+  buildDockerImageUntagApiPath,
+  CONTAINER_API_PATH,
+} from '../contract/paths';
 
 type DockerImagePullOperation = paths['/api/ops/docker/images/pull']['post'];
 type DockerImageTagOperation = paths['/api/ops/docker/images/{id}/tag']['post'];
+type DockerImageUntagOperation = paths['/api/ops/docker/images/{id}/untag']['post'];
 type DockerImageRemoveOperation = paths['/api/ops/docker/images/{id}/remove']['post'];
 type DockerImageBatchRemoveOperation = paths['/api/ops/docker/images/batch-remove']['post'];
 
 export type DockerImagePullRequest = DockerImagePullOperation['requestBody']['content']['application/json'];
 export type DockerImagePullEvent = DockerImagePullOperation['responses'][200]['content']['application/x-ndjson'];
 export type DockerImageTagRequest = DockerImageTagOperation['requestBody']['content']['application/json'];
+export type DockerImageUntagRequest = DockerImageUntagOperation['requestBody']['content']['application/json'];
 export type DockerImageRemoveRequest = NonNullable<
   DockerImageRemoveOperation['requestBody']
 >['content']['application/json'];
@@ -46,6 +53,11 @@ export async function pullDockerImage(
 
 export function tagDockerImage(imageId: string, payload: DockerImageTagRequest) {
   return request.post<DockerImageActionResponse>({ url: buildDockerImageTagApiPath(imageId), data: payload });
+}
+
+/** 标签移除固定按完整 Repository:Tag 调用，不能退化成按 Image ID 删除。 */
+export function untagDockerImage(imageId: string, payload: DockerImageUntagRequest) {
+  return request.post<DockerImageActionResponse>({ url: buildDockerImageUntagApiPath(imageId), data: payload });
 }
 
 export function removeDockerImage(imageId: string, payload: DockerImageRemoveRequest) {

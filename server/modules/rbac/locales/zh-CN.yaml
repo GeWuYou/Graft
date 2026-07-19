@@ -46,8 +46,10 @@ rbac.permissionCatalog.containerRemove.display: 容器删除
 rbac.permissionCatalog.containerRemove.description: 允许在危险操作开启时移除容器。
 rbac.permissionCatalog.dockerImagePull.display: 拉取镜像
 rbac.permissionCatalog.dockerImagePull.description: 允许从 Docker 守护进程已配置的仓库拉取镜像。
-rbac.permissionCatalog.dockerImageTag.display: 为镜像打标签
-rbac.permissionCatalog.dockerImageTag.description: 允许为本地 Docker 镜像创建新的仓库标签。
+rbac.permissionCatalog.dockerImageTag.display: 新增镜像标签
+rbac.permissionCatalog.dockerImageTag.description: 允许为本地 Docker 镜像新增 Repository:Tag 引用。
+rbac.permissionCatalog.dockerImageUntag.display: 移除镜像标签
+rbac.permissionCatalog.dockerImageUntag.description: 允许移除本地 Docker 镜像的 Repository:Tag 引用，不会强制删除镜像。
 rbac.permissionCatalog.dockerImageRemove.display: 删除镜像
 rbac.permissionCatalog.dockerImageRemove.description: 允许删除本地 Docker 镜像，强制删除需额外确认。
 rbac.permissionCatalog.userRead.display: 用户读取

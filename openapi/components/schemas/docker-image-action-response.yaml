@@ -5,9 +5,10 @@ properties:
     type: string
   action:
     type: string
-    enum: [tag, remove]
+    enum: [tag, untag, remove]
     x-enum-varnames:
       - DockerImageActionResponseActionTag
+      - DockerImageActionResponseActionUntag
       - DockerImageActionResponseActionRemove
   message_key:
     type: string

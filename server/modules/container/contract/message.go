@@ -75,16 +75,26 @@ const (
 	DockerImageInvalidReference MessageKey = "ops.container.error.invalidImageReference"
 	// DockerImageInUse identifies image deletion blocked by container references.
 	DockerImageInUse MessageKey = "ops.container.error.imageInUse"
+	// DockerImageReferencedByMultipleTags 标识因多个 Repository:Tag 引用被拒绝的镜像删除。
+	DockerImageReferencedByMultipleTags MessageKey = "ops.container.error.imageReferencedByMultipleTags"
+	// DockerImageNotFound 标识删除时 Docker daemon 未找到指定镜像。
+	DockerImageNotFound MessageKey = "ops.container.error.imageNotFound"
+	// DockerImageCommunicationError 标识 Docker daemon 通信未完成。
+	DockerImageCommunicationError MessageKey = "ops.container.error.dockerCommunication"
 	// DockerImagePullFailed identifies a Docker daemon pull failure without exposing daemon diagnostics.
 	DockerImagePullFailed MessageKey = "ops.container.error.imagePullFailed"
 	// DockerImageTagFailed identifies a Docker daemon tag failure without exposing daemon diagnostics.
 	DockerImageTagFailed MessageKey = "ops.container.error.imageTagFailed"
 	// DockerImageRemoveFailed identifies a Docker daemon remove failure without exposing daemon diagnostics.
 	DockerImageRemoveFailed MessageKey = "ops.container.error.imageRemoveFailed"
+	// DockerImageTagNotAssociated 表示标签不引用请求的镜像。
+	DockerImageTagNotAssociated MessageKey = "ops.container.error.imageTagNotAssociated"
 	// DockerImagePullCompleted identifies successful image pull completion.
 	DockerImagePullCompleted MessageKey = "ops.container.image.pull.completed"
 	// DockerImageTagCompleted identifies successful image tag completion.
 	DockerImageTagCompleted MessageKey = "ops.container.image.tag.completed"
+	// DockerImageUntagCompleted 表示镜像标签移除已完成。
+	DockerImageUntagCompleted MessageKey = "ops.container.image.untag.completed"
 	// DockerImageRemoveCompleted identifies successful image remove completion.
 	DockerImageRemoveCompleted MessageKey = "ops.container.image.remove.completed"
 	// ContainerAuditShellSessionRequested identifies shell session request audit messages.

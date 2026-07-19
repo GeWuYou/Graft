@@ -98,6 +98,10 @@ func (s *service) publishDockerImageAudit(ctx context.Context, action containerc
 }
 
 func (s *service) publishDockerImageBatchAudit(ctx context.Context, result DockerImageBatchRemoveResult, force bool) {
+	s.publishDockerImageBatchAuditWithStatus(ctx, result, force, batchDockerImageAuditStatus(result))
+}
+
+func (s *service) publishDockerImageBatchAuditWithStatus(ctx context.Context, result DockerImageBatchRemoveResult, force bool, statusCode int) {
 	detached := startDetachedAuditContext(ctx, s)
 	if !detached.ok {
 		return
@@ -105,7 +109,7 @@ func (s *service) publishDockerImageBatchAudit(ctx context.Context, result Docke
 	defer detached.cancel()
 	metadata := map[string]any{"batch": true, "requested_total": result.Total, "success_count": result.SuccessCount, "failed_count": result.FailedCount, "force": force, "items": dockerImageBatchAuditItems(result.Items)}
 	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, result.RequestID)
-	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.DockerImageAuditActionBatchRemove.String(), ResourceType: containerBatchResourceType, ResourceID: firstNonEmpty(result.RequestID, batchAuditResourceID("docker_image_remove", detached.now)), ResourceName: "docker_image_remove x" + strconv.Itoa(result.Total), StatusCode: batchDockerImageAuditStatus(result), Success: result.FailedCount == 0, Metadata: metadata}, "publish docker image batch audit event failed")
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: currentAuditOperator(detached.ctx), Action: containercontract.DockerImageAuditActionBatchRemove.String(), ResourceType: containerBatchResourceType, ResourceID: firstNonEmpty(result.RequestID, batchAuditResourceID("docker_image_remove", detached.now)), ResourceName: "docker_image_remove x" + strconv.Itoa(result.Total), StatusCode: statusCode, Success: result.FailedCount == 0, Metadata: metadata}, "publish docker image batch audit event failed")
 }
 
 func dockerImageBatchAuditItems(items []DockerImageBatchRemoveItem) []map[string]any {

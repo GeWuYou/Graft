@@ -22,6 +22,51 @@ type dockerImageBatchTestRuntime struct {
 	removed []string
 }
 
+type dockerImageUntagTestRuntime struct {
+	fakeRuntime
+	image    DockerImage
+	untagged []string
+}
+
+func (r *dockerImageUntagTestRuntime) ListDockerImages(context.Context) (DockerImageListResult, error) {
+	return DockerImageListResult{Items: []DockerImage{r.image}}, nil
+}
+
+func (r *dockerImageUntagTestRuntime) ReadDockerImage(context.Context, string) (DockerImage, error) {
+	return r.image, nil
+}
+
+func (*dockerImageUntagTestRuntime) ListDockerNetworks(context.Context) ([]DockerNetwork, error) {
+	return nil, nil
+}
+
+func (*dockerImageUntagTestRuntime) ReadDockerNetwork(context.Context, string) (DockerNetwork, error) {
+	return DockerNetwork{}, nil
+}
+
+func (*dockerImageUntagTestRuntime) ListDockerVolumes(context.Context) ([]DockerVolume, error) {
+	return nil, nil
+}
+
+func (*dockerImageUntagTestRuntime) ReadDockerVolume(context.Context, string) (DockerVolume, error) {
+	return DockerVolume{}, nil
+}
+
+func (*dockerImageUntagTestRuntime) PullDockerImage(context.Context, string, func(DockerImagePullEvent) error) error {
+	return nil
+}
+
+func (*dockerImageUntagTestRuntime) TagDockerImage(context.Context, string, string) error { return nil }
+
+func (r *dockerImageUntagTestRuntime) UntagDockerImage(_ context.Context, reference string) error {
+	r.untagged = append(r.untagged, reference)
+	return nil
+}
+
+func (*dockerImageUntagTestRuntime) RemoveDockerImage(context.Context, string, bool) error {
+	return nil
+}
+
 func (r *dockerImageBatchTestRuntime) PullDockerImage(context.Context, string, func(DockerImagePullEvent) error) error {
 	return nil
 }
@@ -29,12 +74,32 @@ func (r *dockerImageBatchTestRuntime) TagDockerImage(context.Context, string, st
 	return nil
 }
 
+func (r *dockerImageBatchTestRuntime) UntagDockerImage(context.Context, string) error { return nil }
+
 func (r *dockerImageBatchTestRuntime) RemoveDockerImage(_ context.Context, id string, _ bool) error {
 	r.removed = append(r.removed, id)
 	if id == "bad" {
-		return errors.New("conflict: unable to delete image because it is being used")
+		return mapDockerImageRemoveError(errors.New("conflict: unable to delete image because it is being used"))
+	}
+	if id == "multiple-tags" {
+		return errDockerImageMultipleTags
 	}
 	return nil
+}
+
+func TestServiceDockerImageBatchRemoveExposesMultipleTagDiscriminator(t *testing.T) {
+	service, err := newRouteTestService(containerServiceOptions{runtime: &dockerImageBatchTestRuntime{}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.DockerImageBatchRemove(context.Background(), []string{"multiple-tags"}, false)
+	if err != nil {
+		t.Fatalf("batch remove: %v", err)
+	}
+	if result.FailedCount != 1 || len(result.Items) != 1 || result.Items[0].ErrorCode != containercontract.DockerImageMultipleTagsError.String() || result.Items[0].MessageKey != containercontract.DockerImageReferencedByMultipleTags.String() {
+		t.Fatalf("unexpected multiple-tag failure: %#v", result)
+	}
 }
 
 func TestServiceDockerImageBatchRemovePreservesOrderAndPartialFailure(t *testing.T) {
@@ -51,6 +116,9 @@ func TestServiceDockerImageBatchRemovePreservesOrderAndPartialFailure(t *testing
 	}
 	if result.Total != 3 || result.SuccessCount != 2 || result.FailedCount != 1 || result.Items[1].ID != "bad" || result.Items[1].Success {
 		t.Fatalf("unexpected result: %#v", result)
+	}
+	if result.Items[1].ErrorCode != containercontract.DockerImageInUseError.String() || result.Items[1].MessageKey != containercontract.DockerImageInUse.String() {
+		t.Fatalf("expected stable image-in-use result, got %#v", result.Items[1])
 	}
 	if len(runtime.removed) != 3 || runtime.removed[0] != "first" || runtime.removed[2] != "last" {
 		t.Fatalf("unexpected removal order: %#v", runtime.removed)
@@ -84,6 +152,57 @@ func TestServiceDockerImageBatchRemoveRejectsMoreThanHundredIDs(t *testing.T) {
 	ids := make([]string, maxContainerBatchActionIDs+1)
 	if _, err := service.DockerImageBatchRemove(context.Background(), ids, false); err == nil {
 		t.Fatal("expected batch size error")
+	}
+}
+
+func TestServiceDockerImageBatchRemoveDisabledPublishesFailureAudit(t *testing.T) {
+	runtime := &dockerImageBatchTestRuntime{}
+	bus, eventsPtr := newAuditCaptureBus(t, 1)
+	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true, dangerousActionsEnabled: false, auditBus: bus})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "req-image-batch-disabled"})
+	_, err = service.DockerImageBatchRemove(ctx, []string{"first", "second"}, false)
+	if !errors.Is(err, errDangerousActionsDisabled) {
+		t.Fatalf("expected dangerous action guard, got %v", err)
+	}
+	if len(runtime.removed) != 0 {
+		t.Fatalf("expected Docker removal to be skipped, got %#v", runtime.removed)
+	}
+	events := *eventsPtr
+	if len(events) != 1 || events[0].StatusCode != http.StatusForbidden || events[0].Success {
+		t.Fatalf("unexpected batch rejection audit: %#v", events)
+	}
+	items, ok := events[0].Metadata["items"].([]map[string]any)
+	if !ok || len(items) != 2 || items[0]["error_code"] != containercontract.DockerImageRemoveUnknown.String() || items[0]["message_key"] != containercontract.ContainerDangerousActionsDisabled.String() {
+		t.Fatalf("expected per-item rejection reasons, got %#v", events[0].Metadata)
+	}
+}
+
+func TestServiceUntagDockerImageRequiresCurrentTagOwnership(t *testing.T) {
+	runtime := &dockerImageUntagTestRuntime{image: DockerImage{ID: "sha256:image", RepositoryTags: []string{"example/app:stable"}}}
+	service, err := newRouteTestService(containerServiceOptions{runtime: runtime, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	result, err := service.UntagDockerImage(context.Background(), "sha256:image", "example/app:stable")
+	if err != nil {
+		t.Fatalf("untag image: %v", err)
+	}
+	if result.Action != "untag" || result.ID != "sha256:image" || result.MessageKey != containercontract.DockerImageUntagCompleted.String() {
+		t.Fatalf("unexpected untag result: %#v", result)
+	}
+	if len(runtime.untagged) != 1 || runtime.untagged[0] != "example/app:stable" {
+		t.Fatalf("expected only the Repository:Tag reference to be removed, got %#v", runtime.untagged)
+	}
+
+	if _, err := service.UntagDockerImage(context.Background(), "sha256:image", "other/app:stable"); !errors.Is(err, errDockerImageTagNotAssociated) {
+		t.Fatalf("expected tag ownership error, got %v", err)
+	}
+	if len(runtime.untagged) != 1 {
+		t.Fatalf("unexpected untag call for unrelated reference: %#v", runtime.untagged)
 	}
 }
 

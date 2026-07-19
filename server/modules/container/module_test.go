@@ -275,6 +275,7 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerRemovePermission.String(),
 		containercontract.DockerImagePullPermission.String(),
 		containercontract.DockerImageTagPermission.String(),
+		containercontract.DockerImageUntagPermission.String(),
 		containercontract.DockerImageRemovePermission.String(),
 	}
 }

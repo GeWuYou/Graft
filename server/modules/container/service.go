@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/eventbus"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
@@ -417,9 +419,13 @@ func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, forc
 		return DockerImageBatchRemoveResult{}, errInvalidListQuery
 	}
 	if err := s.requireRuntimeAccess(ctx); err != nil {
+		result := dockerImageBatchRemoveRejectedResult(ctx, ids, err)
+		s.publishDockerImageBatchAuditWithStatus(ctx, result, force, statusForError(err))
 		return DockerImageBatchRemoveResult{}, err
 	}
 	if !s.dangerousActionsAllowed(ctx) {
+		result := dockerImageBatchRemoveRejectedResult(ctx, ids, errDangerousActionsDisabled)
+		s.publishDockerImageBatchAuditWithStatus(ctx, result, force, statusForError(errDangerousActionsDisabled))
 		return DockerImageBatchRemoveResult{}, errDangerousActionsDisabled
 	}
 	result := DockerImageBatchRemoveResult{Total: len(ids), RequestID: requestIDFromContext(ctx), Items: make([]DockerImageBatchRemoveItem, 0, len(ids))}
@@ -429,6 +435,7 @@ func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, forc
 		if err := validateDockerImageReference(id); err != nil {
 			item = dockerImageBatchRemoveFailure(item, err)
 		} else if _, err := s.RemoveDockerImage(ctx, id, force); err != nil {
+			logsafe.Error(s.logger, "docker image batch removal failed", zap.String("image_id", id), zap.Error(err))
 			item = dockerImageBatchRemoveFailure(item, err)
 		} else {
 			item.Success = true
@@ -446,25 +453,62 @@ func (s *service) DockerImageBatchRemove(ctx context.Context, ids []string, forc
 
 func dockerImageBatchRemoveFailure(item DockerImageBatchRemoveItem, err error) DockerImageBatchRemoveItem {
 	key := messageKeyForError(err).String()
-	item.ErrorCode, item.MessageKey, item.Message = key, key, fallbackMessageForError(err)
+	item.ErrorCode, item.MessageKey, item.Message = dockerImageRemoveErrorCodeFor(err).String(), key, key
 	return item
+}
+
+func dockerImageRemoveErrorCodeFor(err error) containercontract.DockerImageRemoveErrorCode {
+	switch {
+	case errors.Is(err, errDockerImageMultipleTags):
+		return containercontract.DockerImageMultipleTagsError
+	case errors.Is(err, errDockerImageInUse):
+		return containercontract.DockerImageInUseError
+	case errors.Is(err, errDockerImageNotFound):
+		return containercontract.DockerImageNotFoundError
+	case errors.Is(err, errDockerImageRuntimeUnavailable), errors.Is(err, errRuntimeDaemonUnavailable), errors.Is(err, errRuntimeSocketMissing), errors.Is(err, errUnsupportedContainerRuntime):
+		return containercontract.DockerRuntimeUnavailable
+	case errors.Is(err, errDockerImageTimeout), errors.Is(err, errContainerRuntimeTimeout):
+		return containercontract.DockerTimeout
+	case errors.Is(err, errDockerImageCommunication):
+		return containercontract.DockerCommunicationError
+	default:
+		return containercontract.DockerImageRemoveUnknown
+	}
+}
+
+func dockerImageBatchRemoveRejectedResult(ctx context.Context, ids []string, err error) DockerImageBatchRemoveResult {
+	items := make([]DockerImageBatchRemoveItem, 0, len(ids))
+	for _, rawID := range ids {
+		item := dockerImageBatchRemoveFailure(DockerImageBatchRemoveItem{ID: strings.TrimSpace(rawID)}, err)
+		items = append(items, item)
+	}
+	return DockerImageBatchRemoveResult{
+		Total:       len(items),
+		FailedCount: len(items),
+		RequestID:   requestIDFromContext(ctx),
+		Items:       items,
+	}
 }
 
 func (s *service) DockerImage(ctx context.Context, id string) (DockerImage, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return DockerImage{}, err
+		return DockerImage{}, fmt.Errorf("load Docker image resources: %w", err)
 	}
-	return reader.ReadDockerImage(ctx, id)
+	image, err := reader.ReadDockerImage(ctx, id)
+	if err != nil {
+		return DockerImage{}, fmt.Errorf("read Docker image %q: %w", id, err)
+	}
+	return image, nil
 }
 
 func (s *service) dockerImageWriter(ctx context.Context) (DockerImageWriter, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("require Docker image writer runtime access: %w", err)
 	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve Docker image writer runtime: %w", err)
 	}
 	writer, ok := runtime.(DockerImageWriter)
 	if !ok {
@@ -490,6 +534,40 @@ func (s *service) TagDockerImage(ctx context.Context, id, target string) (Docker
 		return DockerImageActionResult{ID: id, Action: "tag"}, err
 	}
 	return DockerImageActionResult{ID: id, Action: "tag", MessageKey: containercontract.DockerImageTagCompleted.String()}, nil
+}
+
+// UntagDockerImage 从镜像移除经归属校验的 Repository:Tag 引用，不会强制 daemon 清理镜像。
+func (s *service) UntagDockerImage(ctx context.Context, id, reference string) (DockerImageActionResult, error) {
+	if !s.dangerousActionsAllowed(ctx) {
+		return DockerImageActionResult{ID: id, Action: "untag"}, errDangerousActionsDisabled
+	}
+	if err := validateDockerImageReference(reference); err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
+	image, err := s.DockerImage(ctx, id)
+	if err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
+	if !dockerImageHasRepositoryTag(image, reference) {
+		return DockerImageActionResult{ID: id, Action: "untag"}, errDockerImageTagNotAssociated
+	}
+	writer, err := s.dockerImageWriter(ctx)
+	if err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, err
+	}
+	if err := writer.UntagDockerImage(ctx, reference); err != nil {
+		return DockerImageActionResult{ID: id, Action: "untag"}, fmt.Errorf("untag Docker image %q: %w", reference, err)
+	}
+	return DockerImageActionResult{ID: id, Action: "untag", MessageKey: containercontract.DockerImageUntagCompleted.String()}, nil
+}
+
+func dockerImageHasRepositoryTag(image DockerImage, reference string) bool {
+	for _, tag := range image.RepositoryTags {
+		if strings.TrimSpace(tag) == reference {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *service) RemoveDockerImage(ctx context.Context, id string, force bool) (DockerImageActionResult, error) {

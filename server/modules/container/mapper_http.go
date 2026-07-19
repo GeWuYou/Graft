@@ -58,7 +58,12 @@ func toDockerImageList(result DockerImageListResult, query DockerImageListQuery)
 func toDockerImageBatchRemove(result DockerImageBatchRemoveResult) containergen.DockerImageBatchRemoveResponse {
 	items := make([]containergen.DockerImageBatchRemoveItem, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, containergen.DockerImageBatchRemoveItem{Id: item.ID, Success: item.Success, ErrorCode: optionalString(item.ErrorCode), MessageKey: optionalString(item.MessageKey), Message: optionalString(item.Message)})
+		var errorCode *containergen.DockerImageBatchRemoveItemErrorCode
+		if item.ErrorCode != "" {
+			value := containergen.DockerImageBatchRemoveItemErrorCode(item.ErrorCode)
+			errorCode = &value
+		}
+		items = append(items, containergen.DockerImageBatchRemoveItem{Id: item.ID, Success: item.Success, ErrorCode: errorCode, MessageKey: optionalString(item.MessageKey), Message: optionalString(item.Message)})
 	}
 	return containergen.DockerImageBatchRemoveResponse{Total: result.Total, SuccessCount: result.SuccessCount, FailedCount: result.FailedCount, RequestId: optionalString(result.RequestID), Items: items}
 }

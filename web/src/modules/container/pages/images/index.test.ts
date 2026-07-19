@@ -12,12 +12,16 @@ describe('docker image list page', () => {
   });
 
   it('uses the shared server-paged table and summary contract', () => {
+    expect(sourceText).toContain('<management-page-header\n      compact');
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('v-model:current="pagination.current"');
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
     expect(sourceText).not.toContain('filteredImages');
+    expect(sourceText).toContain('docker-images-summary');
+    expect(sourceText).toContain('summary.value.dangling');
+    expect(sourceText).not.toContain('docker-images-metrics');
   });
 
   it('resets server pagination when submitting or clearing the keyword', () => {
@@ -56,16 +60,47 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('index += 100');
     expect(sourceText).toContain('batchRemoveDockerImages');
     expect(sourceText).toContain('results.push(...response.items);');
-    expect(sourceText).toContain("error_code: 'client_request_failed'");
+    expect(sourceText).toContain('error_code: DOCKER_IMAGE_REMOVE_ERROR_CODES.UNKNOWN');
     expect(sourceText).toContain('unknownResponseIds.push(...chunkIds);');
-    expect(sourceText).toContain('return { items: results, unknownResponseIds };');
+    expect(sourceText).toContain('let requestError: unknown;');
+    expect(sourceText).toContain('return { items: results, unknownResponseIds, requestError };');
+  });
+
+  it('renders every daemon-reported batch failure by stable error code without parsing raw Docker text', () => {
+    expect(sourceText).toContain('DOCKER_IMAGE_REMOVE_ERROR_CODES');
+    expect(sourceText).toContain('normalizeBatchFailureCode(item.error_code)');
+    expect(sourceText).toContain('batchFailureGroups');
+    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).toContain('showBatchFailureDetails(failed, items.length - failed.length);');
+    expect(sourceText).not.toContain('items.slice(0, 5)');
+    expect(sourceText).not.toContain('item.message ||');
+  });
+
+  it('keeps batch results visible and provides one tag-management entry for every multi-tag failure', () => {
+    expect(sourceText).toContain('failure.code === DOCKER_IMAGE_REMOVE_ERROR_CODES.IMAGE_REFERENCED_BY_MULTIPLE_TAGS');
+    expect(sourceText).toContain('@click="openBatchFailureTagManager(failure.id)"');
+    expect(sourceText).toContain('function openBatchFailureTagManager(imageId: string)');
+    expect(sourceText).toContain('restoreBatchResultAfterTagManager.value = true;');
+    expect(sourceText).toContain('@update:visible="handleTagManagerVisibleChange"');
+    expect(sourceText).toContain('function handleTagManagerVisibleChange(visible: boolean)');
+    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).toContain('batchResultDialogVisible.value = false;');
+  });
+
+  it('keeps tag-conflict handling normal while preserving explicit force for container references', () => {
+    expect(sourceText).toContain('await submitBatchRemove(selectedRowKeys.value.map(String), forceRemove.value);');
+    expect(sourceText).toContain("t('container.images.batch.riskMultipleTags')");
+    expect(sourceText).toContain("t('container.images.batch.riskContainerReference')");
+    expect(sourceText).toContain("t('container.images.batch.normalRemovalOnly')");
+    expect(sourceText).toContain('selectedBatchReferences');
   });
 
   it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
     expect(sourceText).toContain('if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);');
     expect(sourceText).toContain('const candidates = await fetchCleanupCandidates();');
     expect(sourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
-    expect(sourceText).toContain('if (!cleanup || !hasUnknownResponse) cleanupDialogVisible.value = false;');
+    expect(sourceText).toContain('if (!requestError && !hasUnknownResponse');
+    expect(sourceText).toContain('if (!cleanup) cleanupDialogVisible.value = false;');
     expect(sourceText).toContain("MessagePlugin.error(t('container.images.cleanup.loadFailed'))");
   });
 
@@ -74,6 +109,8 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('selectedImages.value.set(id, await getDockerImage(id));');
     expect(sourceText).toContain('isApiRequestError(error) && error.status === 404');
     expect(sourceText).toContain('forgetSelectedImages(removedIds);');
+    expect(sourceText).toContain('if (requestError || hasUnknownResponse)');
+    expect(sourceText).toContain('showUnknownBatchResult();');
   });
 
   it('keeps translated table columns reactive instead of unwrapping them during setup', () => {
@@ -82,7 +119,7 @@ describe('docker image list page', () => {
     expect(sourceText).not.toContain(']).value;');
   });
 
-  it('disables remove confirmation until referenced images are explicitly forced', () => {
+  it('requires explicit force for images referenced by containers', () => {
     expect(sourceText).toContain('const removeConfirmButton = computed');
     expect(sourceText).toContain('!forceRemove.value');
     expect(sourceText).toContain('selectedImage.value?.container_references?.length');
@@ -95,6 +132,44 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('row.container_references');
     expect(sourceText).toContain(':content="container.id"');
     expect(sourceText).toContain("t('container.images.unused')");
+    expect(sourceText).toContain("t('container.images.fields.status')");
+    expect(sourceText).toContain("t('container.images.status.used')");
+    expect(sourceText).toContain("t('container.images.status.unused')");
+    expect(sourceText).toContain("t('container.images.status.dangling')");
+    expect(sourceText).toContain('if (image.container_references?.length)');
+  });
+
+  it('keeps Image-ID-backed rows recognizable by repository tags and opens one tag manager', () => {
+    expect(sourceText).toContain("title: t('container.images.fields.name')");
+    expect(sourceText).toContain("value: 'manage-tags'");
+    expect(sourceText).toContain('<tag-manager-drawer');
+    expect(sourceText).toContain('@refreshed="handleTagManagerRefreshed"');
+    expect(sourceText).toContain("t('container.images.actions.manageTags')");
+    expect(sourceText).toContain("imageReference(imageTags(row)[0] ?? '').repository");
+    expect(sourceText).not.toContain("{ colKey: 'id'");
+  });
+
+  it('organizes the detail drawer and truncates metadata with full-value tooltips', () => {
+    expect(sourceText).toContain("t('container.images.detail.overview')");
+    expect(sourceText).toContain("t('container.images.detail.basicInfo')");
+    expect(sourceText).toContain("t('container.images.detail.metadata')");
+    expect(sourceText).toContain('middleEllipsis(selectedImage.id)');
+    expect(sourceText).toContain('middleEllipsis(selectedImage.repository_digests.join');
+    expect(sourceText).toContain('t-tooltip :content="selectedImage.id"');
+    expect(sourceText).toContain(
+      "middleEllipsis(imageReference(imageTags(selectedImage)[0] ?? '').repository || '-', 44)",
+    );
+    expect(sourceText).toContain('theme="info"');
+    expect(sourceText).toContain('<template #footer>');
+    expect(sourceText).toContain('@click="openRemove(selectedImage)"');
+  });
+
+  it('previews a multi-tag Image delete failure without changing the remove request semantics', () => {
+    expect(sourceText).toContain('multipleTagsPreflight');
+    expect(sourceText).toContain('error.messageKey === dockerImageReferencedByMultipleTagsMessageKey');
+    expect(sourceText).toContain('isMultipleTagFailure(error)');
+    expect(sourceText).toContain('openFailedImageTagManager');
+    expect(sourceText).toContain('removeDockerImage(selectedImage.value.id, { force: forceRemove.value })');
   });
 
   it('loads all unused images and selects them by default in the cleanup dialog', () => {
@@ -153,5 +228,13 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.batch.partial'");
     expect(sourceText).toContain("t('container.images.batch.failed'");
     expect(sourceText).toContain('successfulIds');
+    expect(sourceText).toContain("t('container.images.batch.requestFailed')");
+    expect(sourceText).toContain('batchResultDialogVisible.value = true;');
+    expect(sourceText).toContain('@confirm="batchResultDialogVisible = false"');
+    expect(sourceText).toContain('closeBatchDialogs();');
+    expect(sourceText).toContain('removeDialogVisible.value = false;');
+    expect(sourceText).toContain('cleanupDialogVisible.value = false;');
+    expect(sourceText).toContain('logBatchRequestError');
+    expect(sourceText).toContain('showUnknownBatchResult();');
   });
 });

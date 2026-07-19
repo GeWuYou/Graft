@@ -42,6 +42,8 @@ func (pullErrorRuntime) PullDockerImage(_ context.Context, _ string, emit func(D
 
 func (pullErrorRuntime) TagDockerImage(context.Context, string, string) error { return nil }
 
+func (pullErrorRuntime) UntagDockerImage(context.Context, string) error { return nil }
+
 func (pullErrorRuntime) RemoveDockerImage(context.Context, string, bool) error { return nil }
 
 var _ DockerImageWriter = pullErrorRuntime{}
@@ -235,6 +237,7 @@ func assertDockerImageWriteRoutePermissions(t *testing.T, engine *gin.Engine, au
 	}{
 		{name: "pull", path: "/api/ops/docker/images/pull", body: `{"reference":"alpine:3.20"}`, permission: containercontract.DockerImagePullPermission.String()},
 		{name: "tag", path: "/api/ops/docker/images/sha256:abc123/tag", body: `{"target":"example/app:stable"}`, permission: containercontract.DockerImageTagPermission.String()},
+		{name: "untag", path: "/api/ops/docker/images/sha256:abc123/untag", body: `{"reference":"example/app:stable"}`, permission: containercontract.DockerImageUntagPermission.String()},
 		{name: "remove", path: "/api/ops/docker/images/sha256:abc123/remove", body: `{"force":false}`, permission: containercontract.DockerImageRemovePermission.String()},
 		{name: "batch remove", path: "/api/ops/docker/images/batch-remove", body: `{"ids":["sha256:abc123"]}`, permission: containercontract.DockerImageRemovePermission.String()},
 	}

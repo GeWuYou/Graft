@@ -263,6 +263,8 @@ paths:
     $ref: ./paths/ops-docker-images.detail.yaml
   /api/ops/docker/images/{id}/tag:
     $ref: ./paths/ops-docker-images.tag.yaml
+  /api/ops/docker/images/{id}/untag:
+    $ref: ./paths/ops-docker-images.untag.yaml
   /api/ops/docker/images/{id}/remove:
     $ref: ./paths/ops-docker-images.remove.yaml
   /api/ops/docker/images/batch-remove:
@@ -883,6 +885,8 @@ components:
       $ref: ./components/schemas/docker-image-pull-request.yaml
     DockerImageTagRequest:
       $ref: ./components/schemas/docker-image-tag-request.yaml
+    DockerImageUntagRequest:
+      $ref: ./components/schemas/docker-image-untag-request.yaml
     DockerImageRemoveRequest:
       $ref: ./components/schemas/docker-image-remove-request.yaml
     DockerImageActionResponse:

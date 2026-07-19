@@ -41,6 +41,8 @@ const (
 	DockerImagePullRoute = "/images/pull"
 	// DockerImageTagRoute 是为镜像创建标签的路由片段。
 	DockerImageTagRoute = "/images/:id/tag"
+	// DockerImageUntagRoute 是移除指定镜像标签引用的路由片段。
+	DockerImageUntagRoute = "/images/:id/untag"
 	// DockerImageRemoveRoute 是删除镜像的路由片段。
 	DockerImageRemoveRoute = "/images/:id/remove"
 	// DockerImageBatchRemoveRoute 是 Docker 镜像批量删除路由片段。
