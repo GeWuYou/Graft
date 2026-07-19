@@ -6,7 +6,6 @@ describe('TagManagerDrawer', () => {
   it('keeps tag lifecycle operations separate from Image deletion', () => {
     expect(sourceText).toContain('untagDockerImage(image.value.id, { reference: selectedReference.value })');
     expect(sourceText).toContain("t('container.images.untag.lastTagWarning')");
-    expect(sourceText).toContain("t('container.images.untag.lastTagWarning')");
     expect(sourceText).not.toContain('docker run');
     expect(sourceText).not.toContain('force');
   });

@@ -28,25 +28,31 @@ describe('createViteConfig', () => {
 
   it('enables websocket proxying on the canonical api prefix when request proxy is enabled', () => {
     process.env.VITE_IS_REQUEST_PROXY = 'true';
+    try {
+      const config = createViteConfig('development');
+      const apiProxy = config.server?.proxy && '/api' in config.server.proxy ? config.server.proxy['/api'] : undefined;
 
-    const config = createViteConfig('development');
-    const apiProxy = config.server?.proxy && '/api' in config.server.proxy ? config.server.proxy['/api'] : undefined;
-
-    expect(typeof apiProxy).toBe('object');
-    expect(apiProxy && 'ws' in apiProxy ? apiProxy.ws : undefined).toBe(true);
+      expect(typeof apiProxy).toBe('object');
+      expect(apiProxy && 'ws' in apiProxy ? apiProxy.ws : undefined).toBe(true);
+    } finally {
+      delete process.env.VITE_IS_REQUEST_PROXY;
+    }
   });
 
   it('proxies the core health endpoint without changing its root path', () => {
     process.env.VITE_IS_REQUEST_PROXY = 'true';
+    try {
+      const config = createViteConfig('development');
+      const healthProxy =
+        config.server?.proxy && '/healthz' in config.server.proxy ? config.server.proxy['/healthz'] : undefined;
 
-    const config = createViteConfig('development');
-    const healthProxy =
-      config.server?.proxy && '/healthz' in config.server.proxy ? config.server.proxy['/healthz'] : undefined;
-
-    expect(typeof healthProxy).toBe('object');
-    expect(healthProxy && 'target' in healthProxy ? healthProxy.target : undefined).toEqual(expect.any(String));
-    expect(healthProxy && 'changeOrigin' in healthProxy ? healthProxy.changeOrigin : undefined).toBe(true);
-    expect(healthProxy && 'ws' in healthProxy ? healthProxy.ws : undefined).not.toBe(true);
+      expect(typeof healthProxy).toBe('object');
+      expect(healthProxy && 'target' in healthProxy ? healthProxy.target : undefined).toEqual(expect.any(String));
+      expect(healthProxy && 'changeOrigin' in healthProxy ? healthProxy.changeOrigin : undefined).toBe(true);
+      expect(healthProxy && 'ws' in healthProxy ? healthProxy.ws : undefined).not.toBe(true);
+    } finally {
+      delete process.env.VITE_IS_REQUEST_PROXY;
+    }
   });
 
   it('splits monaco dependencies into a dedicated vendor chunk', () => {

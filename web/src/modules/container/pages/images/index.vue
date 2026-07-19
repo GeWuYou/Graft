@@ -363,7 +363,7 @@
                   <span class="docker-images-failure-item__name">{{ failure.name }}</span>
                 </div>
                 <t-button
-                  v-if="failure.code === dockerImageReferencedByMultipleTags"
+                  v-if="failure.code === DOCKER_IMAGE_REMOVE_ERROR_CODES.IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
                   class="docker-images-failure-item__manage-tags"
                   size="small"
                   variant="outline"
@@ -603,7 +603,6 @@ type BatchFailureGroup = {
   items: BatchFailureDetail[];
 };
 
-const dockerImageReferencedByMultipleTags = 'IMAGE_REFERENCED_BY_MULTIPLE_TAGS';
 const dockerImageReferencedByMultipleTagsMessageKey = 'ops.container.error.imageReferencedByMultipleTags';
 
 const { locale, t } = useI18n();

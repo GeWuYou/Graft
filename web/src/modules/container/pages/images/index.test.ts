@@ -77,7 +77,7 @@ describe('docker image list page', () => {
   });
 
   it('keeps batch results visible and provides one tag-management entry for every multi-tag failure', () => {
-    expect(sourceText).toContain('failure.code === dockerImageReferencedByMultipleTags');
+    expect(sourceText).toContain('failure.code === DOCKER_IMAGE_REMOVE_ERROR_CODES.IMAGE_REFERENCED_BY_MULTIPLE_TAGS');
     expect(sourceText).toContain('@click="openBatchFailureTagManager(failure.id)"');
     expect(sourceText).toContain('function openBatchFailureTagManager(imageId: string)');
     expect(sourceText).toContain('restoreBatchResultAfterTagManager.value = true;');
