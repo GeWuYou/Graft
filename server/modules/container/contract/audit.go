@@ -17,6 +17,10 @@ const (
 	ContainerAuditActionRestart AuditAction = "ops.container.action.restart"
 	// ContainerAuditActionRemove 表示单容器移除审计。
 	ContainerAuditActionRemove AuditAction = "ops.container.action.remove"
+	// ContainerAuditActionVolumeRemove 表示 Docker 数据卷删除审计。
+	ContainerAuditActionVolumeRemove AuditAction = "ops.container.volume.remove"
+	// ContainerAuditActionVolumeBatchRemove 表示 Docker 数据卷批量删除汇总审计。
+	ContainerAuditActionVolumeBatchRemove AuditAction = "ops.container.volume.remove.batch"
 	// DockerImageAuditActionPull 表示 Docker 镜像拉取审计。
 	DockerImageAuditActionPull AuditAction = "ops.container.image.pull"
 	// DockerImageAuditActionTag 表示 Docker 镜像标签审计。

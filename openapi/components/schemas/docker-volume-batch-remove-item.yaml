@@ -1,0 +1,9 @@
+type: object
+required: [name, success]
+properties:
+  name: { type: string }
+  success: { type: boolean }
+  error_code: { type: string, nullable: true }
+  message_key: { type: string, nullable: true }
+  message: { type: string, nullable: true }
+additionalProperties: false

@@ -1,4 +1,7 @@
 type: object
-required: [items]
+required: [items, total, limit, offset]
 properties:
   items: { type: array, items: { $ref: ./docker-volume.yaml } }
+  total: { type: integer, minimum: 0 }
+  limit: { type: integer, minimum: 1, maximum: 100 }
+  offset: { type: integer, minimum: 0 }

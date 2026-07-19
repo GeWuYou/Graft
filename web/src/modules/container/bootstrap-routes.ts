@@ -9,6 +9,7 @@ const detailRouteTitle = localizeRouteTitleKey('container.route.detail.title');
 const detailBreadcrumbTitle = localizeRouteTitleKey('container.route.detail.breadcrumb');
 const imageRouteTitle = localizeRouteTitleKey('container.route.images.title');
 const imageBreadcrumbTitle = localizeRouteTitleKey('container.route.images.breadcrumb');
+const volumeListTitle = localizeRouteTitleKey('container.volume.route.list.title');
 
 export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] = [
   {
@@ -20,6 +21,17 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
       semanticTitle: listRouteTitle,
       breadcrumbTitle: listBreadcrumbTitle,
       tabTitle: listRouteTitle,
+    },
+  },
+  {
+    ...CONTAINER_BOOTSTRAP_ROUTE.VOLUMES,
+    loadPage: () => import('./pages/volumes/index.vue'),
+    meta: {
+      tabGroup: 'infrastructure',
+      pageKind: 'list',
+      semanticTitle: volumeListTitle,
+      breadcrumbTitle: volumeListTitle,
+      tabTitle: volumeListTitle,
     },
   },
   {

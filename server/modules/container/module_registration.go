@@ -14,6 +14,7 @@ const (
 	operationsMenuOrderRoot = 50
 	containerMenuOrderList  = 51
 	dockerImageMenuOrder    = 52
+	dockerVolumeMenuOrder   = 53
 )
 
 // registerMessages verifies that all required container module messages are registered for the supported locales.
@@ -43,6 +44,9 @@ var containerMessageKeys = []string{
 	containercontract.ContainerMenuTitle.String(),
 	containercontract.ContainerListMenuTitle.String(),
 	containercontract.DockerImageMenuTitle.String(),
+	containercontract.DockerVolumeMenuTitle.String(),
+	containercontract.DockerVolumeNotFound.String(),
+	containercontract.DockerVolumeConflict.String(),
 	containercontract.ContainerRuntimeDisabled.String(),
 	containercontract.ContainerRuntimeSocketMissing.String(),
 	containercontract.ContainerRuntimePermissionDenied.String(),
@@ -194,6 +198,12 @@ func permissionItems(moduleName string) []permission.Item {
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Module:         moduleName,
 		},
+		{
+			Code:           containercontract.ContainerVolumeRemovePermission.String(),
+			DisplayKey:     "rbac.permissionCatalog.containerVolumeRemove.display",
+			DescriptionKey: "rbac.permissionCatalog.containerVolumeRemove.description",
+			Module:         moduleName,
+		},
 	}
 	return append(items, dockerImagePermissionItems(moduleName)...)
 }
@@ -273,6 +283,18 @@ func registerMenu(registry *menu.Registry, moduleName string) error {
 		Path:                     containercontract.DockerImageMenuPath,
 		Icon:                     "image",
 		Order:                    dockerImageMenuOrder,
+		Permission:               containercontract.ContainerViewPermission.String(),
+		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+		Module:                   moduleName,
+	})
+	registry.Register(menu.Item{
+		Code:                     "docker.volume.list",
+		ParentCode:               "docker",
+		Kind:                     menu.NodeKindEntry,
+		TitleKey:                 containercontract.DockerVolumeMenuTitle.String(),
+		Path:                     containercontract.DockerVolumeMenuPath,
+		Icon:                     "database",
+		Order:                    dockerVolumeMenuOrder,
 		Permission:               containercontract.ContainerViewPermission.String(),
 		VisibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 		Module:                   moduleName,

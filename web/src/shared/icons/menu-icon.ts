@@ -35,6 +35,7 @@ const menuIcons = {
   container: box,
   'cloud-computing': cloudComputing,
   config: settings,
+  database,
   dashboard,
   dependencies: database,
   docker,

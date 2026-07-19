@@ -103,6 +103,12 @@ type PostContainerBatchActionsRequest = NonNullable<
 export type ContainerListResponse = GetContainersData;
 
 type DockerImagesOperation = paths['/api/ops/docker/images']['get'];
+type DockerVolumeBatchRemoveOperation = paths['/api/ops/docker/volumes/batch-remove']['post'];
+export type DockerVolumeBatchRemoveRequest =
+  DockerVolumeBatchRemoveOperation['requestBody']['content']['application/json'];
+export type DockerVolumeBatchRemoveResult = NonNullable<
+  DockerVolumeBatchRemoveOperation['responses'][200]['content']['application/json']['data']
+>;
 export type DockerImageListQuery = NonNullable<DockerImagesOperation['parameters']['query']>;
 type DockerImagesData = NonNullable<DockerImagesOperation['responses'][200]['content']['application/json']['data']>;
 type DockerNetworksData = NonNullable<
@@ -111,6 +117,11 @@ type DockerNetworksData = NonNullable<
 type DockerVolumesData = NonNullable<
   paths['/api/ops/docker/volumes']['get']['responses'][200]['content']['application/json']['data']
 >;
+export type DockerVolumeDetail = NonNullable<
+  paths['/api/ops/docker/volumes/{id}']['get']['responses'][200]['content']['application/json']['data']
+>;
+export type DockerVolumeListQuery = NonNullable<paths['/api/ops/docker/volumes']['get']['parameters']['query']>;
+export type DockerVolumeListResponse = DockerVolumesData;
 type DockerSystemData = NonNullable<
   paths['/api/ops/docker/system']['get']['responses'][200]['content']['application/json']['data']
 >;
@@ -131,6 +142,23 @@ export const getDockerNetworks = () =>
   request.get<DockerNetworksData>({ url: OPENAPI_RUNTIME_PATH.getDockerNetworks }) as Promise<DockerNetworksData>;
 export const getDockerVolumes = () =>
   request.get<DockerVolumesData>({ url: OPENAPI_RUNTIME_PATH.getDockerVolumes }) as Promise<DockerVolumesData>;
+export const listDockerVolumes = (query?: DockerVolumeListQuery) =>
+  request.get<DockerVolumesData>({
+    url: OPENAPI_RUNTIME_PATH.getDockerVolumes,
+    params: query,
+  }) as Promise<DockerVolumesData>;
+export const getDockerVolume = (id: string) =>
+  request.get<DockerVolumeDetail>({
+    url: buildOpenApiRuntimePath('getDockerVolume', { id }),
+  }) as Promise<DockerVolumeDetail>;
+export const removeDockerVolume = (id: string, options: { force?: boolean } = {}) =>
+  request.post({ url: buildOpenApiRuntimePath('postDockerVolumeRemove', { id }), data: options });
+export function batchRemoveDockerVolumes(payload: DockerVolumeBatchRemoveRequest) {
+  return request.post<DockerVolumeBatchRemoveResult>({
+    url: OPENAPI_RUNTIME_PATH.postDockerVolumeBatchRemove,
+    data: payload,
+  });
+}
 export const getDockerSystem = () =>
   request.get<DockerSystemData>({ url: OPENAPI_RUNTIME_PATH.getDockerSystem }) as Promise<DockerSystemData>;
 

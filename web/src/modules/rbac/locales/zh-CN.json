@@ -396,6 +396,10 @@
         "display": "删除容器",
         "description": "允许在启用高危操作后删除容器。"
       },
+      "containerVolumeRemove": {
+        "display": "删除 Docker 数据卷",
+        "description": "允许删除 Docker 数据卷，并在启用时允许强制删除。"
+      },
       "dockerImagePull": {
         "display": "拉取镜像",
         "description": "允许从 Docker 守护进程已配置的仓库拉取镜像。"

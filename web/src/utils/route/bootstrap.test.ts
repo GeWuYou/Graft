@@ -199,6 +199,47 @@ describe('bootstrap navigation graph', () => {
     expect(routes[0]?.name).toBe('ApplicationTemplates');
   });
 
+  it('keeps Docker volume management visible when the backend returns its menu entry', () => {
+    const menus = [
+      {
+        code: 'domain.infrastructure',
+        kind: 'group' as const,
+        order: 20,
+        title: 'Infrastructure',
+        icon: 'infrastructure',
+        permission: '',
+      },
+      {
+        code: 'docker',
+        parent_code: 'domain.infrastructure',
+        kind: 'group' as const,
+        order: 50,
+        title: 'Docker',
+        icon: 'docker',
+        permission: '',
+      },
+      {
+        code: 'docker.volume.list',
+        parent_code: 'docker',
+        kind: 'entry' as const,
+        order: 53,
+        title: 'Volumes',
+        title_key: 'menu.dockerVolume.title',
+        path: '/infrastructure/docker/volumes',
+        icon: 'database',
+        permission: 'ops.container.view',
+      },
+    ];
+
+    const navigation = buildBootstrapNavigationTree(menus);
+    expect(navigation[0]?.children?.[0]?.children?.map((item) => item.path)).toEqual(['docker.volume.list']);
+
+    const routes = transformBootstrapMenusToRoutes(menus);
+    expect(routes).toHaveLength(1);
+    expect(routes[0]?.path).toBe('/infrastructure/docker/volumes');
+    expect(routes[0]?.name).toBe('DockerVolumeList');
+  });
+
   it('keeps bootstrap-owned menu display metadata ahead of registration patches', () => {
     const registration = getBootstrapRouteRegistration('/security/users');
     const originalMeta = registration?.meta;

@@ -40,4 +40,6 @@ const (
 	DockerImageUntagPermission PermissionCode = "ops.container.image.untag"
 	// DockerImageRemovePermission 表示 Docker 镜像删除权限，值保持稳定。
 	DockerImageRemovePermission PermissionCode = "ops.container.image.remove"
+	// ContainerVolumeRemovePermission 表示 Docker 数据卷删除权限，值保持稳定。
+	ContainerVolumeRemovePermission PermissionCode = "ops.container.volume.remove"
 )

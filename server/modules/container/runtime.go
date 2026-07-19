@@ -31,6 +31,7 @@ const (
 	defaultContainerListLimit     = 20
 	maxContainerListLimit         = 100
 	maxContainerBatchActionIDs    = 100
+	maxDockerVolumeBatchRemoveIDs = 50
 	containerListKeywordMaxLength = 128
 	containerShortIDLength        = 12
 
@@ -108,6 +109,8 @@ var (
 	errRuntimePermissionDenied     = errors.New("container runtime permission denied")
 	errRuntimeDaemonUnavailable    = errors.New("container runtime daemon unavailable")
 	errContainerNotFound           = errors.New("container not found")
+	errDockerVolumeNotFound        = errors.New("docker volume not found")
+	errDockerVolumeConflict        = errors.New("docker volume conflict")
 	errInvalidRef                  = errors.New("invalid container reference")
 	errInvalidListQuery            = errors.New("invalid container list query")
 	errInvalidBatchAction          = errors.New("invalid container batch action")

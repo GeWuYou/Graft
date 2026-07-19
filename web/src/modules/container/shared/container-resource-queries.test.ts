@@ -76,7 +76,7 @@ describe('container resource query keys', () => {
         },
       ],
     });
-    getDockerVolumesMock.mockResolvedValue({ items: [] });
+    getDockerVolumesMock.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
 
     const active = ref<DockerResourceTab>('networks');
     const Harness = defineComponent({

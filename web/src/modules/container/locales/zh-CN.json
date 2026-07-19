@@ -157,6 +157,9 @@
         "title": "镜像"
       }
     },
+    "dockerVolume": {
+      "title": "数据卷"
+    },
     "container": {
       "title": "容器"
     },
@@ -173,7 +176,71 @@
       "detail": {
         "title": "容器详情",
         "breadcrumb": "容器详情"
+      },
+      "volume": {
+        "title": "数据卷管理",
+        "breadcrumb": "数据卷管理"
       }
+    },
+    "volume": {
+      "route": { "list": { "title": "数据卷管理" } },
+      "list": {
+        "title": "数据卷管理",
+        "description": "查看和管理当前 Docker 运行时中的数据卷。",
+        "total": "共 {count} 个数据卷",
+        "loadFailed": "数据卷列表加载失败。"
+      },
+      "filters": {
+        "keyword": "搜索数据卷名称",
+        "driver": "驱动",
+        "scope": "范围",
+        "usage": "使用状态",
+        "allUsage": "全部状态",
+        "query": "查询",
+        "reset": "重置"
+      },
+      "columns": {
+        "name": "名称",
+        "driver": "驱动",
+        "scope": "范围",
+        "usage": "引用状态",
+        "size": "大小",
+        "createdAt": "创建时间",
+        "labels": "标签数",
+        "actions": "操作"
+      },
+      "usage": { "used": "使用中 ({count})", "unused": "未使用", "unknown": "引用未知" },
+      "pagination": { "summary": "第 {start}-{end} 条 / 共 {total} 条", "empty": "暂无记录" },
+      "actions": {
+        "detail": "详情",
+        "remove": "删除",
+        "cancel": "取消",
+        "confirmTitle": "确认删除数据卷",
+        "confirm": "请输入数据卷名称 {name} 以确认删除。",
+        "force": "强制删除（数据卷正在使用或引用状态未知）",
+        "forceRequired": "请确认强制删除。",
+        "nameRequired": "输入的数据卷名称不匹配。",
+        "removeSuccess": "数据卷已删除。",
+        "removeFailed": "数据卷删除失败。"
+      },
+      "batch": {
+        "selected": "已选择 {count} 个数据卷",
+        "remove": "批量删除",
+        "cancelSelection": "取消选择",
+        "confirmTitle": "确认批量删除数据卷",
+        "confirm": "将删除已选择的 {count} 个数据卷。",
+        "success": "已删除 {count} 个数据卷。",
+        "partial": "已删除 {success} 个数据卷，{failed} 个删除失败。",
+        "failed": "批量删除数据卷失败。"
+      },
+      "detail": {
+        "title": "数据卷详情",
+        "description": "查看 Docker 数据卷的安全概览信息。",
+        "loadFailed": "数据卷详情加载失败。",
+        "labels": "标签",
+        "noLabels": "无标签"
+      },
+      "unavailable": "不可用"
     },
     "list": {
       "eyebrow": "基础设施",

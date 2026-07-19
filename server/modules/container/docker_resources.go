@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -23,7 +24,9 @@ type dockerResourceClient interface {
 	NetworkList(context.Context, mobyclient.NetworkListOptions) ([]network.Summary, error)
 	NetworkInspect(context.Context, string, mobyclient.NetworkInspectOptions) (network.Inspect, error)
 	VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error)
+	VolumeDiskUsage(context.Context) ([]volume.Volume, error)
 	VolumeInspect(context.Context, string) (volume.Volume, error)
+	VolumeRemove(context.Context, string, bool) error
 }
 
 // DockerImage 是列表和详情读取共用的脱敏镜像投影，引用容器来自同一 runtime 快照。
@@ -87,6 +90,62 @@ type DockerVolume struct {
 	Labels         map[string]string
 	ReferenceCount *int64
 	SizeBytes      *int64
+}
+
+// DockerVolumeListQuery 描述数据卷列表的受限筛选和分页条件。
+type DockerVolumeListQuery struct {
+	Limit, Offset                 int
+	Keyword, Driver, Scope, Usage string
+}
+
+// DockerVolumeListResult 是数据卷列表的分页投影。
+type DockerVolumeListResult struct {
+	Items                []DockerVolume
+	Total, Limit, Offset int
+}
+
+func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) DockerVolumeListResult {
+	query.Offset = max(query.Offset, 0)
+	query.Limit = max(query.Limit, 0)
+	filtered := make([]DockerVolume, 0, len(items))
+	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
+	for _, item := range items {
+		if dockerVolumeMatchesQuery(item, query, keyword) {
+			filtered = append(filtered, item)
+		}
+	}
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Name < filtered[j].Name })
+	total := len(filtered)
+	start := min(query.Offset, total)
+	end := total
+	if query.Limit <= total-start {
+		end = start + query.Limit
+	}
+	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset}
+}
+
+func dockerVolumeMatchesQuery(item DockerVolume, query DockerVolumeListQuery, keyword string) bool {
+	if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
+		return false
+	}
+	if query.Driver != "" && item.Driver != query.Driver {
+		return false
+	}
+	if query.Scope != "" && item.Scope != query.Scope {
+		return false
+	}
+	return dockerVolumeUsageMatches(item.ReferenceCount, query.Usage)
+}
+
+func dockerVolumeUsageMatches(referenceCount *int64, usage string) bool {
+	switch usage {
+	case "used":
+		return referenceCount != nil && *referenceCount > 0
+	case "unused":
+		return referenceCount != nil && *referenceCount == 0
+	default:
+		return true
+	}
 }
 
 // DockerResourceReader marks a runtime that can list Docker-native resources.
@@ -251,14 +310,34 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
+	usage, usageErr := client.VolumeDiskUsage(ctx)
+	usageByName := make(map[string]volume.UsageData, len(usage))
+	if usageErr == nil {
+		for _, item := range usage {
+			if item.UsageData != nil {
+				usageByName[item.Name] = *item.UsageData
+			}
+		}
+	}
 	items := make([]DockerVolume, 0, len(result))
 	for _, item := range result {
-		items = append(items, dockerVolume(item))
+		projected := dockerVolume(item)
+		if data, ok := usageByName[item.Name]; ok {
+			projected.ReferenceCount, projected.SizeBytes = nullableUsage(data.RefCount), nullableUsage(data.Size)
+		}
+		items = append(items, projected)
 	}
 	return items, nil
 }
 
-// ReadDockerVolume returns one sanitized Docker volume by ID.
+func nullableUsage(value int64) *int64 {
+	if value < 0 {
+		return nil
+	}
+	return &value
+}
+
+// ReadDockerVolume 读取单个脱敏 Docker 数据卷；详情路径不触发全量 system/df，仅映射 inspect 已提供的用量数据。
 func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (DockerVolume, error) {
 	client, ok := r.client.(dockerResourceClient)
 	if !ok {
@@ -268,7 +347,34 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	if err != nil {
 		return DockerVolume{}, mapDockerError(err)
 	}
-	return dockerVolume(item), nil
+	projected := dockerVolume(item)
+	if item.UsageData != nil {
+		projected.ReferenceCount, projected.SizeBytes = nullableUsage(item.UsageData.RefCount), nullableUsage(item.UsageData.Size)
+	}
+	return projected, nil
+}
+
+// RemoveDockerVolume 删除指定 Docker 数据卷；运行时错误会先映射为模块级错误。
+func (r *DockerRuntime) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
+	client, ok := r.client.(dockerResourceClient)
+	if !ok {
+		return errUnsupportedContainerRuntime
+	}
+	if err := client.VolumeRemove(ctx, id, force); err != nil {
+		return mapDockerVolumeError(err)
+	}
+	return nil
+}
+
+func mapDockerVolumeError(err error) error {
+	mapped := mapDockerError(err)
+	if errors.Is(mapped, errContainerNotFound) {
+		return errDockerVolumeNotFound
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "in use") {
+		return errDockerVolumeConflict
+	}
+	return mapped
 }
 
 // dockerImageSummary 将 Docker 镜像概要转换为脱敏的 DockerImage 基础投影。
@@ -293,13 +399,10 @@ func dockerNetwork(item network.Network, containerCount int) DockerNetwork {
 func dockerVolume(item volume.Volume) DockerVolume {
 	var referenceCount, sizeBytes *int64
 	if item.UsageData != nil {
-		referenceCount = dockerInt64Ptr(item.UsageData.RefCount)
-		sizeBytes = dockerInt64Ptr(item.UsageData.Size)
+		referenceCount = nullableUsage(item.UsageData.RefCount)
+		sizeBytes = nullableUsage(item.UsageData.Size)
 	}
 	return DockerVolume{Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes}
 }
-
-// dockerInt64Ptr returns a pointer to the provided integer value.
-func dockerInt64Ptr(value int64) *int64 { return &value }
 
 var _ DockerResourceReader = (*DockerRuntime)(nil)

@@ -396,6 +396,10 @@
         "display": "Delete Containers",
         "description": "Allows deleting containers when dangerous actions are enabled."
       },
+      "containerVolumeRemove": {
+        "display": "Remove Docker Volume",
+        "description": "Allows removing Docker volumes, including force removal when enabled."
+      },
       "dockerImagePull": {
         "display": "Pull Images",
         "description": "Allows pulling images from registries configured for the Docker daemon."

@@ -145,6 +145,8 @@ func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService
 	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
 	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
 	docker.GET(containercontract.DockerVolumeRoute, requireView, routes.handleDockerVolume)
+	docker.POST(containercontract.DockerVolumeRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), routes.handleDockerVolumeRemove)
+	docker.POST(containercontract.DockerVolumeBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), routes.handleDockerVolumeBatchRemove)
 	docker.GET(containercontract.DockerSystemRoute, requireView, routes.handleDockerSystem)
 }
 
@@ -320,15 +322,51 @@ func (r routeRuntime) handleDockerNetwork(c *gin.Context) {
 }
 
 func (r routeRuntime) handleDockerVolumes(c *gin.Context) {
-	items, err := r.service.DockerVolumes(c.Request.Context())
+	params, ok := bindGetDockerVolumesParams(c, r.ctx)
+	if !ok {
+		return
+	}
+	query := dockerVolumeListQueryFromParams(params)
+	result, err := r.service.DockerVolumes(c.Request.Context(), query)
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeList(items))
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeList(result))
+}
+
+func (r routeRuntime) handleDockerVolumeRemove(c *gin.Context) {
+	_ = bindPostDockerVolumeRemoveParams(c)
+	ref, ok := readRef(c, r)
+	if !ok {
+		return
+	}
+	var request containeropenapi.PostDockerVolumeRemoveJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	if err := r.service.RemoveDockerVolume(c.Request.Context(), ref.Value, request.Force); err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeRemoveResponse(ref.Value))
+}
+
+func (r routeRuntime) handleDockerVolumeBatchRemove(c *gin.Context) {
+	var request containeropenapi.PostDockerVolumeBatchRemoveJSONRequestBody
+	if !bindRequiredJSON(c, r, &request) {
+		return
+	}
+	result, err := r.service.DockerVolumeBatchRemove(c.Request.Context(), request.Names, boolPtrValue(request.Force))
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeBatchRemove(result))
 }
 
 func (r routeRuntime) handleDockerVolume(c *gin.Context) {
+	_ = bindGetDockerVolumeParams(c)
 	ref, ok := readRef(c, r)
 	if !ok {
 		return
@@ -801,6 +839,64 @@ func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerPa
 	return containeropenapi.GetContainerParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetDockerVolumesParams, bool) {
+	locale, requestID := commonHeaders(ginCtx)
+	params := containeropenapi.GetDockerVolumesParams{XGraftLocale: locale, XRequestId: requestID}
+	limit, ok := queryBoundedInt(ginCtx, ctx, "limit", 1, maxContainerListLimit)
+	if !ok {
+		return containeropenapi.GetDockerVolumesParams{}, false
+	}
+	if limit == nil {
+		defaultLimit := 20
+		limit = &defaultLimit
+	}
+	params.Limit = limit
+	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
+	if !ok {
+		return containeropenapi.GetDockerVolumesParams{}, false
+	}
+	if offset == nil {
+		defaultOffset := 0
+		offset = &defaultOffset
+	}
+	params.Offset = offset
+	if !bindDockerVolumeStringQuery(ginCtx, ctx, "keyword", &params.Keyword) || !bindDockerVolumeStringQuery(ginCtx, ctx, "driver", &params.Driver) || !bindDockerVolumeStringQuery(ginCtx, ctx, "scope", &params.Scope) {
+		return containeropenapi.GetDockerVolumesParams{}, false
+	}
+	if usage := strings.TrimSpace(ginCtx.Query("usage")); usage != "" {
+		value := containeropenapi.GetDockerVolumesParamsUsage(usage)
+		if !value.Valid() {
+			writeInvalidContainerQuery(ginCtx, ctx, "usage")
+			return containeropenapi.GetDockerVolumesParams{}, false
+		}
+		params.Usage = &value
+	}
+	return params, true
+}
+
+func bindDockerVolumeStringQuery(ginCtx *gin.Context, ctx *module.Context, key string, target **string) bool {
+	value := strings.TrimSpace(ginCtx.Query(key))
+	if value == "" {
+		return true
+	}
+	if len(value) > containerListKeywordMaxLength {
+		writeInvalidContainerQuery(ginCtx, ctx, key)
+		return false
+	}
+	*target = &value
+	return true
+}
+
+func bindGetDockerVolumeParams(ginCtx *gin.Context) containeropenapi.GetDockerVolumeParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.GetDockerVolumeParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindPostDockerVolumeRemoveParams(ginCtx *gin.Context) containeropenapi.PostDockerVolumeRemoveParams {
+	locale, requestID := commonHeaders(ginCtx)
+	return containeropenapi.PostDockerVolumeRemoveParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
 // bindGetContainerLogsParams 从请求中提取容器日志查询参数。
 // 它会填充通用请求头以及可选的日志筛选项：tail、since、timestamps、stdout 和 stderr。
 // 返回用于查询容器日志的参数对象。
@@ -941,6 +1037,20 @@ func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery 
 	}
 	if params.RuntimeTargetId != nil {
 		query.RuntimeTargetID = params.RuntimeTargetId
+	}
+	return query
+}
+
+func dockerVolumeListQueryFromParams(params containeropenapi.GetDockerVolumesParams) DockerVolumeListQuery {
+	query := DockerVolumeListQuery{
+		Limit:   intValue(params.Limit),
+		Offset:  intValue(params.Offset),
+		Keyword: stringPtrValue(params.Keyword),
+		Driver:  stringPtrValue(params.Driver),
+		Scope:   stringPtrValue(params.Scope),
+	}
+	if params.Usage != nil {
+		query.Usage = string(*params.Usage)
 	}
 	return query
 }

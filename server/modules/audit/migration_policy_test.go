@@ -50,6 +50,28 @@ func TestContainerDangerousActionPolicyUpgradeSeedExists(t *testing.T) {
 	}
 }
 
+func TestDockerVolumeBatchRemovePolicySeedExists(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile("migrations/202607170005_audit_docker_volume_remove_policy.sql")
+	if err != nil {
+		t.Fatalf("read Docker volume policy migration source: %v", err)
+	}
+	sql := string(content)
+	for _, value := range []string{
+		"domain.container.volume.remove.batch",
+		"ops.container.volume.remove.batch",
+		"Docker volume batch-remove summary events.",
+	} {
+		if !strings.Contains(sql, value) {
+			t.Fatalf("expected Docker volume batch-remove policy seed to contain %q", value)
+		}
+	}
+	if !strings.Contains(sql, `ON CONFLICT ("name") DO UPDATE SET`) {
+		t.Fatal("expected Docker volume policy upgrade migration to upsert by rule name")
+	}
+}
+
 func TestAuditVisibilityPolicySeedDoesNotOverwriteOverrides(t *testing.T) {
 	t.Parallel()
 
