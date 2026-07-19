@@ -79,15 +79,15 @@ closeout:
     "security-announcement-api-path-migration",
     "app-log-access-log-api-path-migration",
     "drift-gate-expansion",
-    "final-convergence-and-archive-readiness"
-    ,"auth-dashboard-api-path-migration"
+    "final-convergence-and-archive-readiness",
+    "auth-dashboard-api-path-migration",
+    "container-api-path-migration"
   ],
   "pending_batches": [
-    "container-api-path-migration",
     "non-http-descriptor-coverage-and-archive-readiness"
   ],
-  "current_batch": "auth-dashboard-api-path-migration",
-  "next_batch": "container-api-path-migration",
+  "current_batch": "container-api-path-migration",
+  "next_batch": "non-http-descriptor-coverage-and-archive-readiness",
   "closeout_status": "not-archive-ready"
 }
 ```

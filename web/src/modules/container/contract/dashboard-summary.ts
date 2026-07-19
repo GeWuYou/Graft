@@ -1,8 +1,7 @@
+import type { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
 
-import { CONTAINER_API_PATH } from './paths';
-
-type ContainerDashboardSummaryPath = (typeof CONTAINER_API_PATH)['DASHBOARD_SUMMARY'];
+type ContainerDashboardSummaryPath = typeof OPENAPI_RUNTIME_PATH.getContainerDashboardSummary;
 type GetContainerDashboardSummaryOperation = paths[ContainerDashboardSummaryPath]['get'];
 type GetContainerDashboardSummaryEnvelope =
   GetContainerDashboardSummaryOperation['responses'][200]['content']['application/json'];

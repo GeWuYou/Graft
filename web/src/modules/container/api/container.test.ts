@@ -1,19 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import {
-  buildContainerDetailApiPath,
-  buildContainerLogsApiPath,
-  buildContainerMountUsageApiPath,
-  buildContainerMountUsageRefreshApiPath,
-  buildContainerRemoveApiPath,
-  buildContainerRestartApiPath,
-  buildContainerShellSessionsApiPath,
-  buildContainerStartApiPath,
-  buildContainerStopApiPath,
-  CONTAINER_API_PATH,
-} from '../contract/paths';
 import {
   batchContainerActions,
   getContainer,
@@ -49,7 +38,7 @@ describe('container api', () => {
 
     expect(requestGet).toHaveBeenCalledWith({
       params: { limit: 20, offset: 40, keyword: 'graft' },
-      url: CONTAINER_API_PATH.DOCKER_IMAGES,
+      url: OPENAPI_RUNTIME_PATH.getDockerImages,
     });
   });
 
@@ -64,12 +53,8 @@ describe('container api', () => {
 
     expect(requestGet).toHaveBeenCalledWith({
       params: { limit: 20, offset: 40, keyword: 'graft', state: 'running', health: 'healthy' },
-      url: CONTAINER_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.getContainers,
     });
-  });
-
-  it('exposes the canonical dashboard summary path', () => {
-    expect(CONTAINER_API_PATH.DASHBOARD_SUMMARY).toBe('/api/ops/containers/dashboard-summary');
   });
 
   it('encodes container ids for detail and logs reads', async () => {
@@ -79,13 +64,11 @@ describe('container api', () => {
     await getContainer('web/api');
     await getContainerLogs('web/api', { tail: 100, stdout: true, stderr: false, timestamps: true });
 
-    expect(buildContainerDetailApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi');
-    expect(buildContainerLogsApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/logs');
     expect(requestGet).toHaveBeenNthCalledWith(1, {
-      url: buildContainerDetailApiPath('web/api'),
+      url: buildOpenApiRuntimePath('getContainer', { id: 'web/api' }),
     });
     expect(requestGet).toHaveBeenNthCalledWith(2, {
-      url: buildContainerLogsApiPath('web/api'),
+      url: buildOpenApiRuntimePath('getContainerLogs', { id: 'web/api' }),
       params: { tail: 100, stdout: true, stderr: false, timestamps: true },
     });
   });
@@ -99,15 +82,11 @@ describe('container api', () => {
     await getContainerMountUsage('web/api');
     await postContainerMountUsageRefresh('web/api', 'mount/source:/data');
 
-    expect(buildContainerMountUsageApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/mounts/usage');
-    expect(buildContainerMountUsageRefreshApiPath('web/api', 'mount/source:/data')).toBe(
-      '/api/ops/containers/web%2Fapi/mounts/mount%2Fsource%3A%2Fdata/usage/refresh',
-    );
     expect(requestGet).toHaveBeenCalledWith({
-      url: buildContainerMountUsageApiPath('web/api'),
+      url: buildOpenApiRuntimePath('getContainerMountUsage', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenCalledWith({
-      url: buildContainerMountUsageRefreshApiPath('web/api', 'mount/source:/data'),
+      url: buildOpenApiRuntimePath('postContainerMountUsageRefresh', { id: 'web/api', mountId: 'mount/source:/data' }),
     });
   });
 
@@ -120,21 +99,17 @@ describe('container api', () => {
     await restartContainer('web/api');
     await removeContainer('web/api', { force: true });
 
-    expect(buildContainerStartApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/start');
-    expect(buildContainerStopApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/stop');
-    expect(buildContainerRestartApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/restart');
-    expect(buildContainerRemoveApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/remove');
     expect(requestPost).toHaveBeenNthCalledWith(1, {
-      url: buildContainerStartApiPath('web/api'),
+      url: buildOpenApiRuntimePath('postContainerStart', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(2, {
-      url: buildContainerStopApiPath('web/api'),
+      url: buildOpenApiRuntimePath('postContainerStop', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(3, {
-      url: buildContainerRestartApiPath('web/api'),
+      url: buildOpenApiRuntimePath('postContainerRestart', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(4, {
-      url: buildContainerRemoveApiPath('web/api'),
+      url: buildOpenApiRuntimePath('postContainerRemove', { id: 'web/api' }),
       data: { force: true },
     });
   });
@@ -152,9 +127,8 @@ describe('container api', () => {
 
     await postContainerShellSession('web/api', { command: 'sh', cols: 120, rows: 32 });
 
-    expect(buildContainerShellSessionsApiPath('web/api')).toBe('/api/ops/containers/web%2Fapi/shell/sessions');
     expect(requestPost).toHaveBeenCalledWith({
-      url: buildContainerShellSessionsApiPath('web/api'),
+      url: buildOpenApiRuntimePath('postContainerShellSession', { id: 'web/api' }),
       data: { command: 'sh', cols: 120, rows: 32 },
     });
   });
@@ -171,7 +145,7 @@ describe('container api', () => {
     await batchContainerActions({ action: 'remove', ids: ['web/api', 'worker'], force: false });
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: CONTAINER_API_PATH.BATCH_ACTIONS,
+      url: OPENAPI_RUNTIME_PATH.postContainerBatchActions,
       data: { action: 'remove', ids: ['web/api', 'worker'], force: false },
     });
   });

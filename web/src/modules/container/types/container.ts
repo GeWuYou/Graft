@@ -1,6 +1,5 @@
+import type { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { components, paths } from '@/contracts/openapi/generated/schema';
-
-import type { CONTAINER_API_PATH } from '../contract/paths';
 
 export type ContainerSummary = components['schemas']['ContainerSummary'];
 export type ContainerDetail = components['schemas']['ContainerDetail'];
@@ -50,19 +49,19 @@ export type ContainerOrchestratorRecommendedAction = string;
 export type ContainerSummaryRecord = ContainerSummary & { orchestrator?: ContainerOrchestratorInfo };
 export type ContainerDetailRecord = ContainerDetail & { orchestrator?: ContainerOrchestratorInfo };
 
-type ContainerListPath = (typeof CONTAINER_API_PATH)['LIST'];
+type ContainerListPath = typeof OPENAPI_RUNTIME_PATH.getContainers;
 type GetContainersOperation = paths[ContainerListPath]['get'];
 
-type ContainerLogsPath = (typeof CONTAINER_API_PATH)['LOGS'];
+type ContainerLogsPath = typeof OPENAPI_RUNTIME_PATH.getContainerLogs;
 type GetContainerLogsOperation = paths[ContainerLogsPath]['get'];
 
-type ContainerEventsPath = (typeof CONTAINER_API_PATH)['EVENTS'];
+type ContainerEventsPath = typeof OPENAPI_RUNTIME_PATH.getContainerEvents;
 type GetContainerEventsOperation = paths[ContainerEventsPath]['get'];
 
-type ContainerMountUsagePath = (typeof CONTAINER_API_PATH)['MOUNTS_USAGE'];
+type ContainerMountUsagePath = typeof OPENAPI_RUNTIME_PATH.getContainerMountUsage;
 type GetContainerMountUsageOperation = paths[ContainerMountUsagePath]['get'];
 
-type ContainerMountUsageRefreshPath = (typeof CONTAINER_API_PATH)['MOUNT_USAGE_REFRESH'];
+type ContainerMountUsageRefreshPath = typeof OPENAPI_RUNTIME_PATH.postContainerMountUsageRefresh;
 type PostContainerMountUsageRefreshOperation = paths[ContainerMountUsageRefreshPath]['post'];
 
 export type ContainerListQuery = NonNullable<GetContainersOperation['parameters']['query']>;
