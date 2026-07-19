@@ -20,6 +20,7 @@ const AXIOS_CREATE_PATTERN = /\baxios\.create\s*\(/;
 const AXIOS_IMPORT_PATTERN = /from\s+['"]axios['"]/;
 const GENERATED_RUNTIME_IMPORT_PATTERN =
   /from\s+['"][^'"]*(?:generated[^'"]*(?:client|runtime)|client[^'"]*generated|runtime[^'"]*generated)[^'"]*['"]/;
+const GENERATED_RUNTIME_PATH_IMPORT_PATTERN = /from\s+['"]@\/contracts\/generated\/openapi-runtime-paths['"]/;
 const REQUEST_IMPORT_PATTERN = /import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]@\/utils\/request['"]/g;
 
 type Finding = {
@@ -136,7 +137,7 @@ function collectFindings() {
         });
       }
 
-      if (GENERATED_RUNTIME_IMPORT_PATTERN.test(source)) {
+      if (GENERATED_RUNTIME_IMPORT_PATTERN.test(source) && !GENERATED_RUNTIME_PATH_IMPORT_PATTERN.test(source)) {
         runtimeBypasses.push({
           file: rel,
           detail: 'imports suspected generated runtime client',

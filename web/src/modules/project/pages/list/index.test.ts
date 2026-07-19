@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, KeepAlive, nextTick, ref } from 'vue';
 
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
+
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import ApplicationListPage from './index.vue';
 
@@ -917,7 +919,7 @@ describe('Application list page', () => {
 
     expect(taskRequestMocks.get).toHaveBeenCalledWith({
       params: { limit: 1, owner_id: applicationID, owner_type: 'application' },
-      url: '/api/tasks',
+      url: OPENAPI_RUNTIME_PATH.listTasks,
     });
     const taskDrawer = wrapper.getComponent({ name: 'TaskDetailDrawer' });
     expect(taskDrawer.props('taskId')).toBe(19);

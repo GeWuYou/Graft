@@ -14,23 +14,30 @@
 - Web UI route, component, storage, query, and view-model contracts remain web-private and are not projection inputs.
 - Generated values cannot grant permissions or capability access; server bootstrap and runtime responses remain the effective authority.
 
+## 2026-07-19 First API Path Consumer Migration
+
+- Migrated notification, project, runtime-target, and task API consumers from module-owned HTTP path mirrors to `OPENAPI_RUNTIME_PATH` and `buildOpenApiRuntimePath`.
+- Preserved only web-private route contracts and removed task's API-only path contract.
+- Updated the frontend OpenAPI governance guard to recognize the generated operationId path artifact as a path lookup, not a generated runtime HTTP client; direct runtime clients remain prohibited.
+- Focused Vitest, frontend completion validation, OpenAPI freshness, and diff checks passed.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "inventory-and-openapi-runtime-path-projection"
+    "inventory-and-openapi-runtime-path-projection",
+    "notification-project-runtime-target-task-migration"
   ],
   "pending_batches": [
-    "notification-project-runtime-target-task-migration",
     "rbac-user-audit-monitor-scheduler-system-config-migration",
     "security-announcement-app-log-access-log-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "inventory-and-openapi-runtime-path-projection",
-  "next_batch": "notification-project-runtime-target-task-migration",
+  "current_batch": "notification-project-runtime-target-task-migration",
+  "next_batch": "rbac-user-audit-monitor-scheduler-system-config-migration",
   "closeout_status": "completed"
 }
 ```

@@ -49,8 +49,8 @@ Out of scope:
 ## Current Recovery Point
 
 - The archived `cross-boundary-contract-projection` topic is historical evidence for the completed pilot only.
-- Current batch: `inventory-and-openapi-runtime-path-projection`.
-- Next step: add the smallest deterministic operationId path projection and migrate the first bounded set of path consumers.
+- Current batch: `notification-project-runtime-target-task-migration` completed.
+- Next step: migrate the `rbac-user-audit-monitor-scheduler-system-config-migration` API path consumers to the generated operationId runtime-path artifact.
 
 ## Work Intake
 

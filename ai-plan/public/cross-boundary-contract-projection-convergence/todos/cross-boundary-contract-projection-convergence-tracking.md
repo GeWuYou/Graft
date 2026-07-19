@@ -43,12 +43,13 @@ closeout:
 
 - The prior platform/container pilot is archived and remains evidence only.
 - Full unmigrated inventory is recorded in `inventory.md`: 17 module API mirrors (193 values) plus all candidate non-HTTP module contract groups.
-- Current next step: implement operationId-to-runtime-path projection without adding a second HTTP authority.
+- Notification, project, runtime-target, and task now consume generated operationId runtime paths; their retained path contracts are web-private routes only.
+- Current next step: migrate RBAC, user, audit, monitor, scheduler, and system-config API path consumers without adding a second HTTP authority.
 
 ## Task Checklist
 
 - [x] inventory-and-openapi-runtime-path-projection
-- [ ] notification-project-runtime-target-task-migration
+- [x] notification-project-runtime-target-task-migration
 - [ ] rbac-user-audit-monitor-scheduler-system-config-migration
 - [ ] security-announcement-app-log-access-log-migration
 - [ ] drift-gate-expansion
@@ -67,17 +68,17 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "inventory-and-openapi-runtime-path-projection"
+    "inventory-and-openapi-runtime-path-projection",
+    "notification-project-runtime-target-task-migration"
   ],
   "pending_batches": [
-    "notification-project-runtime-target-task-migration",
     "rbac-user-audit-monitor-scheduler-system-config-migration",
     "security-announcement-app-log-access-log-migration",
     "drift-gate-expansion",
     "final-convergence-and-archive-readiness"
   ],
-  "current_batch": "inventory-and-openapi-runtime-path-projection",
-  "next_batch": "notification-project-runtime-target-task-migration",
+  "current_batch": "notification-project-runtime-target-task-migration",
+  "next_batch": "rbac-user-audit-monitor-scheduler-system-config-migration",
   "closeout_status": "completed"
 }
 ```

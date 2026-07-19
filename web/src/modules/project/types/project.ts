@@ -1,6 +1,5 @@
+import type { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import type { components, paths } from '@/contracts/openapi/generated/schema';
-
-import type { APPLICATION_API_PATH } from '../contract/paths';
 
 export type ApplicationSourceType = components['schemas']['ApplicationSourceType'];
 export type ApplicationOwnershipMode = components['schemas']['ApplicationOwnershipMode'];
@@ -57,7 +56,7 @@ export type ApplicationTemplateCatalogListResponse =
   components['schemas']['application-template-catalog-list-response'];
 export type ApplicationTemplateCategory = components['schemas']['application-template-category'];
 export type ApplicationTemplateCatalogQuery = NonNullable<
-  paths[(typeof APPLICATION_API_PATH)['TEMPLATES']]['get']['parameters']['query']
+  paths[typeof OPENAPI_RUNTIME_PATH.getApplicationTemplates]['get']['parameters']['query']
 >;
 export type ApplicationTemplateDraftRequest = components['schemas']['application-template-draft-request'];
 export type ApplicationWorkspaceManifestFile = components['schemas']['application-workspace-manifest-file'];
@@ -127,7 +126,7 @@ export type ApplicationListItemWithLifecycle = ApplicationListItem;
 export type ApplicationListResponseWithLifecycle = ApplicationListResponse;
 export type ApplicationDetailResponseWithLifecycle = ApplicationDetailResponse;
 
-type ApplicationListPath = (typeof APPLICATION_API_PATH)['LIST'];
+type ApplicationListPath = typeof OPENAPI_RUNTIME_PATH.getApplications;
 type GetApplicationListOperation = paths[ApplicationListPath]['get'];
 
 export type ApplicationListQuery = NonNullable<GetApplicationListOperation['parameters']['query']>;
@@ -246,7 +245,7 @@ export type ApplicationWorkspaceFileSaveResponse = {
   size_bytes?: number | null;
 };
 
-type ApplicationWorkspaceFileAnnotationPath = (typeof APPLICATION_API_PATH)['FILES_ANNOTATION'];
+type ApplicationWorkspaceFileAnnotationPath = typeof OPENAPI_RUNTIME_PATH.putApplicationFileAnnotation;
 type PutApplicationWorkspaceFileAnnotationOperation = paths[ApplicationWorkspaceFileAnnotationPath]['put'];
 
 export type ApplicationWorkspaceFileAnnotationRequest =

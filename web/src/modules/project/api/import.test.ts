@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { APPLICATION_API_PATH } from '../contract/paths';
 import { getApplicationImportRuntimeCandidates } from './import';
 
 vi.mock('@/utils/request', () => ({
@@ -35,7 +35,7 @@ describe('project import api', () => {
     });
 
     expect(requestGet).toHaveBeenCalledWith({
-      url: APPLICATION_API_PATH.IMPORT_RUNTIME_CANDIDATES,
+      url: OPENAPI_RUNTIME_PATH.getApplicationImportRuntimeCandidates,
       params: {
         keyword: 'demo',
         availability: 'unavailable',

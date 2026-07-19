@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
+
 const requestMocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
 
 vi.mock('@/utils/request', () => ({ request: requestMocks }));
@@ -26,11 +28,11 @@ describe('listRuntimeTargets', () => {
 
     expect(targets).toHaveLength(101);
     expect(requestMocks.get).toHaveBeenNthCalledWith(1, {
-      url: '/api/runtime-targets',
+      url: OPENAPI_RUNTIME_PATH.getRuntimeTargets,
       params: { limit: 100, offset: 0 },
     });
     expect(requestMocks.get).toHaveBeenNthCalledWith(2, {
-      url: '/api/runtime-targets',
+      url: OPENAPI_RUNTIME_PATH.getRuntimeTargets,
       params: { limit: 100, offset: 100 },
     });
   });
@@ -45,8 +47,12 @@ describe('runtime target detail API', () => {
     await refreshRuntimeTarget(7);
     await discoverLocalDocker();
 
-    expect(requestMocks.get).toHaveBeenCalledWith({ url: '/api/runtime-targets/7' });
-    expect(requestMocks.post).toHaveBeenNthCalledWith(1, { url: '/api/runtime-targets/7/refresh' });
-    expect(requestMocks.post).toHaveBeenNthCalledWith(2, { url: '/api/runtime-targets/discover-local-docker' });
+    expect(requestMocks.get).toHaveBeenCalledWith({ url: buildOpenApiRuntimePath('getRuntimeTarget', { id: 7 }) });
+    expect(requestMocks.post).toHaveBeenNthCalledWith(1, {
+      url: buildOpenApiRuntimePath('postRuntimeTargetRefresh', { id: 7 }),
+    });
+    expect(requestMocks.post).toHaveBeenNthCalledWith(2, {
+      url: OPENAPI_RUNTIME_PATH.postRuntimeTargetsDiscoverLocalDocker,
+    });
   });
 });

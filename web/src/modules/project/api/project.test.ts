@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
+
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -31,7 +33,9 @@ describe('application template API client', () => {
     mocks.get.mockResolvedValue(template);
 
     await expect(getApplicationTemplate('tpl_1')).resolves.toBe(template);
-    expect(mocks.get).toHaveBeenCalledWith({ url: '/api/ops/applications/templates/tpl_1' });
+    expect(mocks.get).toHaveBeenCalledWith({
+      url: buildOpenApiRuntimePath('getApplicationTemplate', { templateId: 'tpl_1' }),
+    });
   });
 
   it('uses the clone and withdraw endpoint contracts', async () => {
@@ -41,11 +45,11 @@ describe('application template API client', () => {
     await postApplicationTemplateWithdraw('tpl_1');
 
     expect(mocks.post).toHaveBeenNthCalledWith(1, {
-      url: '/api/ops/applications/templates/tpl_1/clone',
+      url: buildOpenApiRuntimePath('postApplicationTemplateClone', { templateId: 'tpl_1' }),
       data: { display_name: 'Clone' },
     });
     expect(mocks.post).toHaveBeenNthCalledWith(2, {
-      url: '/api/ops/applications/templates/tpl_1/withdraw',
+      url: buildOpenApiRuntimePath('postApplicationTemplateWithdraw', { templateId: 'tpl_1' }),
     });
   });
 
@@ -59,10 +63,14 @@ describe('application template API client', () => {
     await getPublishedApplicationTemplateVersion('tplv_1');
 
     expect(mocks.get).toHaveBeenNthCalledWith(1, {
-      url: '/api/ops/applications/templates',
+      url: OPENAPI_RUNTIME_PATH.getApplicationTemplates,
       params: { deployment_adapter_kind: 'compose', category: 'cache', page: 2 },
     });
-    expect(mocks.get).toHaveBeenNthCalledWith(2, { url: '/api/ops/applications/templates/tpl_1/published' });
-    expect(mocks.get).toHaveBeenNthCalledWith(3, { url: '/api/ops/applications/template-versions/tplv_1' });
+    expect(mocks.get).toHaveBeenNthCalledWith(2, {
+      url: buildOpenApiRuntimePath('getPublishedApplicationTemplate', { templateId: 'tpl_1' }),
+    });
+    expect(mocks.get).toHaveBeenNthCalledWith(3, {
+      url: buildOpenApiRuntimePath('getPublishedApplicationTemplateVersion', { templateVersionId: 'tplv_1' }),
+    });
   });
 });
