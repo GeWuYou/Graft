@@ -33,10 +33,7 @@ export function useDockerNetworkDetailQuery(networkId: MaybeRef<string>) {
   );
 }
 
-/** 创建和删除会改变列表及任一已打开的详情快照。 */
+/** 创建和删除会改变网络列表快照。 */
 export function invalidateDockerNetworkQueries() {
-  return Promise.all([
-    queryClient.invalidateQueries({ queryKey: dockerNetworkQueryKeys.list() }),
-    queryClient.invalidateQueries({ queryKey: ['container', 'resources', 'networks', 'detail'] }),
-  ]);
+  return queryClient.invalidateQueries({ queryKey: dockerNetworkQueryKeys.list() });
 }

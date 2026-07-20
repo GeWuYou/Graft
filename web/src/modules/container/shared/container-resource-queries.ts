@@ -32,7 +32,7 @@ export function useDockerResourceQueries(activeTab: Ref<DockerResourceTab>) {
   const volumes = useQuery(
     {
       queryKey: containerResourceQueryKeys.volumes(),
-      queryFn: getDockerVolumes,
+      queryFn: () => getDockerVolumes(),
       enabled: computed(() => activeTab.value === 'volumes'),
     },
     queryClient,
@@ -40,7 +40,7 @@ export function useDockerResourceQueries(activeTab: Ref<DockerResourceTab>) {
   const system = useQuery(
     {
       queryKey: containerResourceQueryKeys.system(),
-      queryFn: getDockerSystem,
+      queryFn: () => getDockerSystem(),
       enabled: computed(() => activeTab.value === 'system'),
     },
     queryClient,

@@ -88,6 +88,7 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 	return moduleapi.ResolvedAuditIncidentMonitorEvidence{
 		Availability:  moduleapi.MonitorEvidenceAvailable,
 		Summary:       string(anomaly.SummaryKey),
+		SummaryParams: anomaly.SummaryParams,
 		AnomalyKey:    string(anomaly.AnomalyKey),
 		ScopeKind:     string(anomaly.ScopeKind),
 		ScopeRef:      anomaly.ScopeRef,

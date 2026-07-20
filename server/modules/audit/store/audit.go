@@ -476,6 +476,7 @@ const (
 type AuditIncidentMonitorContext struct {
 	State         MonitorContextState
 	Summary       string
+	SummaryParams map[string]string
 	Reason        string
 	AnomalyKey    string
 	ScopeKind     string

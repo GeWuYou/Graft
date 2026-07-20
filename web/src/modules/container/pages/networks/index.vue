@@ -362,7 +362,14 @@
       theme="danger"
       @confirm="submitBatchRemove"
     >
-      <p>{{ t('container.networks.batch.removeDescription', { count: selectedNetworkIds.length }) }}</p>
+      <p>
+        {{
+          t('container.networks.batch.removeDescription', {
+            count: selectedNetworkIds.length,
+            names: selectedNetworkNames,
+          })
+        }}
+      </p>
     </t-dialog>
   </div>
 </template>
@@ -428,6 +435,12 @@ const creating = ref(false);
 const removing = ref(false);
 const batchRemoving = ref(false);
 const selectedNetworkIds = ref<string[]>([]);
+const selectedNetworkNames = computed(() =>
+  selectedNetworkIds.value
+    .map((id) => networks.value.find((network) => network.id === id)?.name)
+    .filter(Boolean)
+    .join(', '),
+);
 const selectedNetwork = ref<DockerNetwork | null>(null);
 const removeConfirmation = ref('');
 const drivers: DockerNetworkDriver[] = ['bridge', 'overlay', 'macvlan', 'ipvlan', 'none'];
@@ -472,14 +485,19 @@ const columnOptions = [
   { label: t('container.networks.fields.flags'), value: 'flags' },
   { label: t('container.networks.fields.containers'), value: 'container_count' },
   { label: t('container.networks.labels'), value: 'labels' },
-  { label: t('container.networks.fields.createdAt'), value: 'created_at' },
 ];
+const defaultColumnKeys = columnOptions.map((item) => item.value);
 const visibleColumnKeys = ref<string[]>(
-  typeof localStorage === 'undefined'
-    ? columnOptions.map((item) => item.value)
-    : (JSON.parse(localStorage.getItem(CONTAINER_NETWORK_COLUMN_STORAGE_KEY) ?? 'null') ??
-        columnOptions.map((item) => item.value)),
+  typeof localStorage === 'undefined' ? defaultColumnKeys : readVisibleColumnKeys(),
 );
+function readVisibleColumnKeys() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CONTAINER_NETWORK_COLUMN_STORAGE_KEY) ?? 'null');
+    return Array.isArray(stored) ? stored.filter((key): key is string => typeof key === 'string') : defaultColumnKeys;
+  } catch {
+    return defaultColumnKeys;
+  }
+}
 watch(visibleColumnKeys, (value) => localStorage.setItem(CONTAINER_NETWORK_COLUMN_STORAGE_KEY, JSON.stringify(value)), {
   deep: true,
 });
@@ -513,14 +531,10 @@ const endpointColumns: TableProps['columns'] = [
   { colKey: 'mac_address', title: 'MAC' },
 ];
 async function fetchCleanupCandidates() {
-  const first = await (
-    getDockerNetworks as unknown as (query: DockerNetworkListQuery) => ReturnType<typeof getDockerNetworks>
-  )({ limit: 100, offset: 0, usage: 'unused' });
+  const first = await getDockerNetworks({ limit: 100, offset: 0, usage: 'unused' });
   const all = [...first.items];
   for (let offset = first.items.length; offset < first.total; offset += 100) {
-    const page = await (
-      getDockerNetworks as unknown as (query: DockerNetworkListQuery) => ReturnType<typeof getDockerNetworks>
-    )({ limit: 100, offset, usage: 'unused' });
+    const page = await getDockerNetworks({ limit: 100, offset, usage: 'unused' });
     all.push(...page.items);
   }
   return all.filter((network) => network.removable !== false);
@@ -554,7 +568,7 @@ function handleCleanupSelectChange(keys: Array<string | number>) {
 }
 
 function driverLabel(driver: string) {
-  return t(`container.networks.drivers.${driver}`);
+  return t(`container.networks.drivers.${driver}`, driver);
 }
 function scopeLabel(scope: string) {
   return t(`container.networks.scopes.${scope}`, scope);

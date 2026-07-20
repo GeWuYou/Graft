@@ -551,7 +551,7 @@
         "cancelSelection": "取消选择",
         "remove": "批量删除",
         "removeTitle": "批量删除 Docker 网络",
-        "removeDescription": "将删除已选择的 {count} 个网络，是否继续？",
+        "removeDescription": "将删除已选择的 {count} 个网络：{names}。是否继续？",
         "removeSuccess": "已成功删除 {count} 个网络。",
         "removePartial": "批量删除部分完成：成功 {succeeded} 个，失败 {failed} 个。",
         "removeFailed": "批量删除失败。"

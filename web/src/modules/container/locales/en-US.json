@@ -551,7 +551,7 @@
         "cancelSelection": "Clear Selection",
         "remove": "Remove Selected",
         "removeTitle": "Remove Docker Networks",
-        "removeDescription": "This will remove {count} selected networks. Continue?",
+        "removeDescription": "This will remove {count} selected networks: {names}. Continue?",
         "removeSuccess": "{count} Networks Removed.",
         "removePartial": "Batch removal partially completed: {succeeded} succeeded, {failed} failed.",
         "removeFailed": "Batch removal failed."

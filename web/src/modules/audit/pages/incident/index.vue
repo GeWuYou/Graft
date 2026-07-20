@@ -67,7 +67,9 @@
                 <t-tag :theme="monitorStateTheme(incident.monitor_context.state)" variant="light-outline">
                   {{ t(`audit.incident.monitorState.${incident.monitor_context.state}`) }}
                 </t-tag>
-                <p class="audit-incident-page__text">{{ incident.monitor_context.summary }}</p>
+                <p class="audit-incident-page__text">
+                  {{ t(incident.monitor_context.summary, incident.monitor_context.summary_params ?? {}) }}
+                </p>
                 <p
                   v-if="incident.monitor_context.reason"
                   class="audit-incident-page__text audit-incident-page__text--subtle"

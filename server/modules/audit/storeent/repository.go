@@ -403,6 +403,7 @@ func (r *repository) resolveIncidentMonitorContext(
 	return auditstore.AuditIncidentMonitorContext{
 		State:         monitorContextStateFromAvailability(resolved.Availability),
 		Summary:       resolved.Summary,
+		SummaryParams: resolved.SummaryParams,
 		Reason:        resolved.Reason,
 		AnomalyKey:    resolved.AnomalyKey,
 		ScopeKind:     resolved.ScopeKind,

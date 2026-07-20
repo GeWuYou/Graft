@@ -32,9 +32,10 @@ export function useDockerCleanup<T extends DockerCleanupItem>(options: {
   );
   const selectedSize = computed(() => {
     const selected = new Set(selectedIds.value);
-    return items.value.some((item) => item.size_bytes === null || item.size_bytes === undefined)
+    const selectedItems = items.value.filter((item) => selected.has(item.id));
+    return selectedItems.some((item) => item.size_bytes === null || item.size_bytes === undefined)
       ? null
-      : items.value.reduce((total, item) => (selected.has(item.id) ? total + (item.size_bytes ?? 0) : total), 0);
+      : selectedItems.reduce((total, item) => total + (item.size_bytes ?? 0), 0);
   });
   const totalSize = computed(() =>
     items.value.some((item) => item.size_bytes === null || item.size_bytes === undefined)

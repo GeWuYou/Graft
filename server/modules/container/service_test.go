@@ -1839,6 +1839,24 @@ func TestServiceCloseStopsCollectorAndClosesRuntimeOnce(t *testing.T) {
 	}
 }
 
+func TestRuntimeLeaseDefersCloseUntilActiveOperationReleases(t *testing.T) {
+	t.Parallel()
+
+	runtime := &countingRuntime{}
+	lease := newRuntimeLease(runtime)
+	release := lease.acquire()
+	if err := lease.Close(); err != nil {
+		t.Fatalf("retire runtime lease: %v", err)
+	}
+	if got := runtime.closeCalls.Load(); got != 0 {
+		t.Fatalf("expected active operation to keep runtime open, got %d close calls", got)
+	}
+	release()
+	if got := runtime.closeCalls.Load(); got != 1 {
+		t.Fatalf("expected runtime to close after final release, got %d close calls", got)
+	}
+}
+
 func TestRuntimeForRequestInitializesOnceUnderConcurrentAccess(t *testing.T) {
 	t.Parallel()
 

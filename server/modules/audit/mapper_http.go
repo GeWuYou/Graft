@@ -173,6 +173,7 @@ func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error)
 		"monitor_context": map[string]any{
 			"state":          string(result.MonitorContext.State),
 			"summary":        result.MonitorContext.Summary,
+			"summary_params": result.MonitorContext.SummaryParams,
 			"reason":         result.MonitorContext.Reason,
 			"anomaly_key":    result.MonitorContext.AnomalyKey,
 			"scope_kind":     result.MonitorContext.ScopeKind,

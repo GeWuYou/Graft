@@ -128,6 +128,9 @@ func (s *service) CreateDockerNetwork(ctx context.Context, command DockerNetwork
 	return writer.CreateDockerNetwork(ctx, command)
 }
 func (s *service) RemoveDockerNetwork(ctx context.Context, id, confirmation string) (DockerNetworkActionResult, error) {
+	if !s.dangerousActionsAllowed(ctx) {
+		return DockerNetworkActionResult{ID: id, Action: "remove"}, errDangerousActionsDisabled
+	}
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
 		return DockerNetworkActionResult{}, err

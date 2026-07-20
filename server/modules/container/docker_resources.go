@@ -402,8 +402,14 @@ func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork
 	}
 	counts := make(map[string]int)
 	for _, item := range containers {
-		for id := range item.NetworkSettings.Networks {
-			counts[strings.TrimSpace(id)]++
+		for id, endpoint := range item.NetworkSettings.Networks {
+			networkID := strings.TrimSpace(id)
+			if endpoint != nil && strings.TrimSpace(endpoint.NetworkID) != "" {
+				networkID = strings.TrimSpace(endpoint.NetworkID)
+			}
+			if networkID != "" {
+				counts[networkID]++
+			}
 		}
 	}
 	for _, item := range items {

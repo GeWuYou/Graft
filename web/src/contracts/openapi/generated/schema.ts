@@ -4387,6 +4387,10 @@ export interface components {
       state: 'available' | 'partial' | 'unavailable';
       /** @description Human-readable summary of the correlated monitor evidence. */
       summary: string;
+      /** @description String-formatted interpolation values for the monitor summary locale key. */
+      summary_params: {
+        [key: string]: string;
+      };
       /** @description Optional explanation when evidence is partial or unavailable. */
       reason?: string;
       /**

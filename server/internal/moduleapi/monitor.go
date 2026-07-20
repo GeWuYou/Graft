@@ -77,6 +77,7 @@ type ResolveAuditIncidentMonitorEvidenceInput struct {
 type ResolvedAuditIncidentMonitorEvidence struct {
 	Availability  MonitorEvidenceAvailability
 	Summary       string
+	SummaryParams map[string]string
 	Reason        string
 	AnomalyKey    string
 	ScopeKind     string

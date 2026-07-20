@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -176,18 +175,18 @@ func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bo
 	return definition.DefaultValue, true
 }
 
-// resolveSystemConfigResolver 从模块上下文的服务中解析系统配置解析器；正式模块装配缺少该依赖时必须显式失败。
+// resolveSystemConfigResolver 从模块上下文的服务中解析系统配置解析器；依赖缺失时返回 nil，由运行时配置读取逻辑回退到静态默认值。
 func resolveSystemConfigResolver(ctx *module.Context) (moduleapi.SystemConfigResolver, error) {
 	if ctx == nil || ctx.Services == nil {
-		return nil, errors.New("system config resolver is unavailable")
+		return nil, nil
 	}
 	resolved, err := ctx.Services.Resolve((*moduleapi.SystemConfigResolver)(nil))
 	if err != nil {
-		return nil, fmt.Errorf("resolve system config resolver: %w", err)
+		return nil, nil
 	}
 	resolver, ok := resolved.(moduleapi.SystemConfigResolver)
 	if !ok {
-		return nil, errors.New("resolved system config service does not implement resolver")
+		return nil, nil
 	}
 	return resolver, nil
 }
@@ -555,12 +554,19 @@ func newContainerRuntime(options containerRuntimeOptions) (Runtime, error) {
 }
 
 func (s *service) runtimeForRequest() (Runtime, error) {
+	return s.runtimeForRequestContext(context.Background())
+}
+
+func (s *service) runtimeForRequestContext(requestContext context.Context) (Runtime, error) {
 	if s == nil {
 		return nil, errRuntimeDisabled
 	}
+	if requestContext == nil {
+		requestContext = context.Background()
+	}
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
-	if !s.runtimeAccessEnabled(context.Background()) {
+	if !s.runtimeAccessEnabled(requestContext) {
 		if s.runtime != nil {
 			_ = s.runtime.Close()
 			s.runtime = nil
@@ -585,8 +591,11 @@ func (s *service) runtimeForRequest() (Runtime, error) {
 		return nil, err
 	}
 	if dockerRuntime, ok := runtime.(*DockerRuntime); ok {
-		ttl, staleWindow := s.effectiveResourceStatsCacheBounds(context.Background())
+		ttl, staleWindow := s.effectiveResourceStatsCacheBounds(requestContext)
 		dockerRuntime.updateResourceStatsCachePolicy(ttl, staleWindow)
+	}
+	if _, ok := runtime.(*DockerRuntime); ok {
+		runtime = newRuntimeLease(runtime)
 	}
 	s.runtime = runtime
 	return runtime, nil
@@ -683,7 +692,7 @@ func (s *service) collectStatsSnapshots(ctx context.Context) ([]StatsSnapshot, e
 	if s == nil || !s.runtimeAccessEnabled(ctx) {
 		return nil, nil
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return nil, err
 	}
