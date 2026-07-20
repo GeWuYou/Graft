@@ -3,6 +3,15 @@ menu.monitor.serviceStatus.title: Service Status
 menu.monitor.dependencies.title: Dependencies
 menu.monitor.requestPerformance.title: Request Performance
 monitor.evidence.auditUnavailable.title: Audit evidence is unavailable
+monitor.serverStatus.anomaly.dependencyDegraded: "{dependency} dependency is degraded."
+monitor.serverStatus.anomaly.dependencyUnknown: "{dependency} dependency status is unknown."
+monitor.serverStatus.anomaly.moduleDependencyMissing: "Module {module} has missing dependencies."
+monitor.serverStatus.anomaly.resourceCpuPressure: "CPU usage reached {percent}% in the current monitor window."
+monitor.serverStatus.anomaly.resourceMemoryPressure: "Server memory usage reached {percent}%."
+monitor.serverStatus.anomaly.resourceDiskPressure: "Disk usage on {path} reached {percent}%."
+monitor.serverStatus.anomaly.runtimeGoroutinePressure: "Goroutine count reached {count}."
+monitor.serverStatus.anomaly.runtimeHeapPressure: "Runtime heap usage reached {bytes} bytes."
+monitor.serverStatus.anomaly.systemLoadPressure: "1-minute load average reached {load} against {cores} CPU cores."
 dashboard.widget.monitorSystemHealth.title: System Health
 dashboard.widget.monitorSystemHealth.description: Current service health, dependency state, and active anomalies.
 dashboard.widget.monitorSystemHealth.database: Database

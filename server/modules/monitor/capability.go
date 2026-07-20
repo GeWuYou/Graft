@@ -38,25 +38,28 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 ) (moduleapi.ResolvedAuditIncidentMonitorEvidence, error) {
 	if c.module == nil || c.ctx == nil {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
-			Availability: moduleapi.MonitorEvidenceCapabilityUnavailable,
-			Summary:      "Monitor capability is unavailable for this incident.",
-			Reason:       "Monitor capability is unavailable.",
+			Availability:  moduleapi.MonitorEvidenceCapabilityUnavailable,
+			Summary:       "audit.incident.monitorSummary.unavailable",
+			SummaryParams: map[string]string{},
+			Reason:        "Monitor capability is unavailable.",
 		}, errors.New("monitor incident evidence capability is unavailable")
 	}
 	if input.IncidentStartedAt.IsZero() || input.IncidentEndedAt.IsZero() {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
-			Availability: moduleapi.MonitorEvidenceCapabilityUnavailable,
-			Summary:      "Monitor capability requires a bounded incident window.",
-			Reason:       "Monitor capability is unavailable.",
+			Availability:  moduleapi.MonitorEvidenceCapabilityUnavailable,
+			Summary:       "audit.incident.monitorSummary.invalidWindow",
+			SummaryParams: map[string]string{},
+			Reason:        "Monitor capability is unavailable.",
 		}, errors.New("incident time window is required")
 	}
 
 	now := time.Now().UTC()
 	if input.IncidentEndedAt.Before(now.Add(-maxTrendRetentionWindow)) {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
-			Availability: moduleapi.MonitorEvidenceExpired,
-			Summary:      "Monitor evidence expired from the bounded short-retention window.",
-			Reason:       "Matching monitor evidence has expired due to short retention.",
+			Availability:  moduleapi.MonitorEvidenceExpired,
+			Summary:       "audit.incident.monitorSummary.expired",
+			SummaryParams: map[string]string{},
+			Reason:        "Matching monitor evidence has expired due to short retention.",
 			EvidenceLinks: []moduleapi.MonitorEvidenceLink{
 				unavailableMonitorEvidenceLink(input.IncidentStartedAt, input.IncidentEndedAt, "Short-retention monitor samples are no longer available for this incident window."),
 			},
@@ -66,18 +69,20 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 	response, err := buildServerStatusResponse(ctx, c.ctx, c.module, monitorcontract.TrendRange1Hour)
 	if err != nil {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
-			Availability: moduleapi.MonitorEvidenceCapabilityUnavailable,
-			Summary:      "Monitor capability could not reconstruct current anomaly context.",
-			Reason:       "Monitor capability is unavailable.",
+			Availability:  moduleapi.MonitorEvidenceCapabilityUnavailable,
+			Summary:       "audit.incident.monitorSummary.resolutionFailed",
+			SummaryParams: map[string]string{},
+			Reason:        "Monitor capability is unavailable.",
 		}, fmt.Errorf("resolve audit incident monitor evidence: %w", err)
 	}
 
 	anomaly, ok := matchIncidentAnomaly(response.Anomalies, input)
 	if !ok {
 		return moduleapi.ResolvedAuditIncidentMonitorEvidence{
-			Availability: moduleapi.MonitorEvidenceNoMatch,
-			Summary:      "No matching monitor-owned anomaly is attached to this audit incident.",
-			Reason:       "No matching anomaly exists for the current bounded incident context.",
+			Availability:  moduleapi.MonitorEvidenceNoMatch,
+			Summary:       "audit.incident.monitorSummary.noMatch",
+			SummaryParams: map[string]string{},
+			Reason:        "No matching anomaly exists for the current bounded incident context.",
 			EvidenceLinks: []moduleapi.MonitorEvidenceLink{
 				unavailableMonitorEvidenceLink(input.IncidentStartedAt, input.IncidentEndedAt, "Monitor owns no matching anomaly for the bounded incident context."),
 			},
@@ -87,7 +92,8 @@ func (c incidentEvidenceCapability) ResolveAuditIncidentMonitorEvidence(
 	observedAt := anomaly.ObservedAt.UTC()
 	return moduleapi.ResolvedAuditIncidentMonitorEvidence{
 		Availability:  moduleapi.MonitorEvidenceAvailable,
-		Summary:       anomaly.Summary,
+		Summary:       string(anomaly.SummaryKey),
+		SummaryParams: anomaly.SummaryParams,
 		AnomalyKey:    string(anomaly.AnomalyKey),
 		ScopeKind:     string(anomaly.ScopeKind),
 		ScopeRef:      anomaly.ScopeRef,

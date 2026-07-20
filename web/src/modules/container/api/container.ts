@@ -114,6 +114,20 @@ type DockerImagesData = NonNullable<DockerImagesOperation['responses'][200]['con
 type DockerNetworksData = NonNullable<
   paths['/api/ops/docker/networks']['get']['responses'][200]['content']['application/json']['data']
 >;
+type DockerNetworkDetail = NonNullable<
+  paths['/api/ops/docker/networks/{id}']['get']['responses'][200]['content']['application/json']['data']
+>;
+type DockerNetworkCreateOperation = paths['/api/ops/docker/networks']['post'];
+type DockerNetworkCreateRequest = NonNullable<
+  DockerNetworkCreateOperation['requestBody']
+>['content']['application/json'];
+type DockerNetworkCreateData = NonNullable<
+  DockerNetworkCreateOperation['responses'][200]['content']['application/json']['data']
+>;
+type DockerNetworkRemoveOperation = paths['/api/ops/docker/networks/{id}']['delete'];
+type DockerNetworkRemoveRequest = NonNullable<
+  DockerNetworkRemoveOperation['requestBody']
+>['content']['application/json'];
 type DockerVolumesData = NonNullable<
   paths['/api/ops/docker/volumes']['get']['responses'][200]['content']['application/json']['data']
 >;
@@ -138,8 +152,20 @@ export const getDockerImage = (imageId: string) =>
   request.get<DockerImageRecord>({
     url: buildOpenApiRuntimePath('getDockerImage', { id: imageId }),
   }) as Promise<DockerImageRecord>;
-export const getDockerNetworks = () =>
-  request.get<DockerNetworksData>({ url: OPENAPI_RUNTIME_PATH.getDockerNetworks }) as Promise<DockerNetworksData>;
+export type DockerNetworkListQuery = NonNullable<
+  paths[typeof OPENAPI_RUNTIME_PATH.getDockerNetworks]['get']['parameters']['query']
+>;
+export const getDockerNetworks = (query?: DockerNetworkListQuery) =>
+  request.get<DockerNetworksData>({
+    url: OPENAPI_RUNTIME_PATH.getDockerNetworks,
+    params: query,
+  }) as Promise<DockerNetworksData>;
+export const getDockerNetwork = (id: string) =>
+  request.get<DockerNetworkDetail>({ url: buildOpenApiRuntimePath('getDockerNetwork', { id }) });
+export const createDockerNetwork = (data: DockerNetworkCreateRequest) =>
+  request.post<DockerNetworkCreateData>({ url: OPENAPI_RUNTIME_PATH.postDockerNetwork, data });
+export const removeDockerNetwork = (id: string, data: DockerNetworkRemoveRequest) =>
+  request.delete({ url: buildOpenApiRuntimePath('deleteDockerNetwork', { id }), data });
 export const getDockerVolumes = () =>
   request.get<DockerVolumesData>({ url: OPENAPI_RUNTIME_PATH.getDockerVolumes }) as Promise<DockerVolumesData>;
 export const listDockerVolumes = (query?: DockerVolumeListQuery) =>

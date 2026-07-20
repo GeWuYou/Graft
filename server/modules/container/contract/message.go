@@ -17,6 +17,8 @@ const (
 	DockerImageMenuTitle MessageKey = "menu.docker.image.title"
 	// DockerVolumeMenuTitle identifies the Docker volume navigation title.
 	DockerVolumeMenuTitle MessageKey = "menu.dockerVolume.title"
+	// DockerNetworkMenuTitle identifies the Docker network navigation title.
+	DockerNetworkMenuTitle MessageKey = "menu.docker.network.title"
 	// ContainerMenuSectionTitle identifies the visual-only runtime sidebar section title.
 	ContainerMenuSectionTitle MessageKey = "menu.section.runtime"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.
@@ -41,6 +43,20 @@ const (
 	ContainerInvalidListQuery MessageKey = "ops.container.error.invalidListQuery"
 	// ContainerInvalidBatchAction identifies invalid batch action request errors.
 	ContainerInvalidBatchAction MessageKey = "ops.container.error.invalidBatchAction"
+	// DockerNetworkInvalidRequest identifies malformed Docker network commands.
+	DockerNetworkInvalidRequest MessageKey = "ops.docker.network.error.invalidRequest"
+	// DockerNetworkNotFound identifies a missing Docker network.
+	DockerNetworkNotFound MessageKey = "ops.docker.network.error.notFound"
+	// DockerNetworkConfirmationMismatch identifies a failed destructive-action confirmation.
+	DockerNetworkConfirmationMismatch MessageKey = "ops.docker.network.error.confirmationMismatch"
+	// DockerNetworkDefaultProtected identifies a protected Docker default network.
+	DockerNetworkDefaultProtected MessageKey = "ops.docker.network.error.defaultProtected"
+	// DockerNetworkInUse identifies a network with attached containers.
+	DockerNetworkInUse MessageKey = "ops.docker.network.error.inUse"
+	// DockerNetworkCreateCompleted identifies a completed Docker network creation.
+	DockerNetworkCreateCompleted MessageKey = "ops.docker.network.action.create.completed"
+	// DockerNetworkRemoveCompleted identifies a completed Docker network removal.
+	DockerNetworkRemoveCompleted MessageKey = "ops.docker.network.action.remove.completed"
 	// ContainerInvalidState identifies invalid action state errors.
 	ContainerInvalidState MessageKey = "ops.container.error.invalidState"
 	// ContainerEventsUnavailable identifies runtime event history read failures.

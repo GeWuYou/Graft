@@ -106,11 +106,12 @@ type serverStatusAnomalyInputs struct {
 }
 
 type metricAnomalySpec struct {
-	key       monitorcontract.AnomalyKey
-	scopeKind string
-	scopeRef  string
-	severity  monitorcontract.Severity
-	summary   string
+	key           monitorcontract.AnomalyKey
+	summaryKey    monitorcontract.MessageKey
+	summaryParams map[string]string
+	scopeKind     string
+	scopeRef      string
+	severity      monitorcontract.Severity
 }
 
 // NewModule 创建 monitor 模块实例。
@@ -168,6 +169,15 @@ func registerMessages(localizer *i18n.Service) error {
 			monitorcontract.ServerStatusDependenciesMenuTitle,
 			monitorcontract.RequestPerformanceMenuTitle,
 			monitorcontract.AuditEvidenceUnavailableTitle,
+			monitorcontract.AnomalyDependencyDegraded,
+			monitorcontract.AnomalyDependencyUnknown,
+			monitorcontract.AnomalyModuleDependencyMissing,
+			monitorcontract.AnomalyResourceCPUPressure,
+			monitorcontract.AnomalyResourceMemoryPressure,
+			monitorcontract.AnomalyResourceDiskPressure,
+			monitorcontract.AnomalyRuntimeGoroutinePressure,
+			monitorcontract.AnomalyRuntimeHeapPressure,
+			monitorcontract.AnomalySystemLoadPressure,
 		} {
 			matches := localizer.RegisteredMessageResources(locale, i18n.MessageKey(key.String()))
 			if len(matches) == 0 {

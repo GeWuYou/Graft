@@ -103,6 +103,13 @@
         "partial": "Partial",
         "unavailable": "Unavailable"
       },
+      "monitorSummary": {
+        "unavailable": "Monitor evidence is unavailable for this incident.",
+        "invalidWindow": "Monitor evidence requires a bounded incident window.",
+        "expired": "Monitor evidence has expired from the short-retention window.",
+        "resolutionFailed": "Monitor evidence could not be resolved for this incident.",
+        "noMatch": "No matching monitor anomaly is attached to this incident."
+      },
       "evidenceState": {
         "available": "Available",
         "empty": "Empty",

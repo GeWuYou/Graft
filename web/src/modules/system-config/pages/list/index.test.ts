@@ -44,16 +44,16 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.groups.ops.container.general.description': '控制容器管理能力的基础开关。',
   'systemConfig.groups.ops.application.create': '应用创建',
   'systemConfig.groups.ops.application.create.description': '管理受管应用创建流程的 authority 和根目录入口。',
-  'systemConfig.groups.ops.project.import': '项目导入',
-  'systemConfig.groups.ops.project.import.description': '管理导入流程允许浏览的根目录与边界。',
-  'systemConfig.groups.ops.project.workspace': '项目工作台',
-  'systemConfig.groups.ops.project.workspace.description': '管理配置工作台的目录过滤与文件浏览默认行为。',
-  'systemConfig.project.ops.application.root_directory.title': '应用根目录',
-  'systemConfig.project.ops.application.root_directory.description':
+  'systemConfig.groups.ops.application.import': '应用导入',
+  'systemConfig.groups.ops.application.import.description': '管理导入流程允许浏览的根目录与边界。',
+  'systemConfig.groups.ops.application.workspace': '应用工作台',
+  'systemConfig.groups.ops.application.workspace.description': '管理配置工作台的目录过滤与文件浏览默认行为。',
+  'systemConfig.application.ops.application.root_directory.title': '应用根目录',
+  'systemConfig.application.ops.application.root_directory.description':
     '受管 Docker Compose 应用创建使用的根目录。留空表示禁用受管创建。',
-  'systemConfig.project.ops.project.import.allowed_roots.title': '导入允许根目录',
-  'systemConfig.project.ops.project.import.allowed_roots.description':
-    '配置项目导入流程允许浏览的根目录 JSON 数组字符串。',
+  'systemConfig.application.ops.application.import.allowed_roots.title': '导入允许根目录',
+  'systemConfig.application.ops.application.import.allowed_roots.description':
+    '配置应用导入流程允许浏览的根目录 JSON 数组字符串。',
   'systemConfig.items.appLogRetentionCleanup.description': '应用日志保留清理任务的默认配置。',
   'systemConfig.items.appLogRetentionCleanup.title': '应用日志保留清理',
   'systemConfig.items.accessLogRetentionCleanup.description': '访问日志保留清理任务的默认配置。',
@@ -217,16 +217,16 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.units.days': '天',
   'systemConfig.units.rows': '行',
   'systemConfig.units.seconds': '秒',
-  'systemConfig.project.ops.project.workspace.hidden_directories.title': '工作台默认隐藏目录',
-  'systemConfig.project.ops.project.workspace.hidden_directories.description':
+  'systemConfig.application.ops.application.workspace.hidden_directories.title': '工作台默认隐藏目录',
+  'systemConfig.application.ops.application.workspace.hidden_directories.description':
     '配置工作台目录树默认隐藏的目录名 JSON 数组字符串，例如 node_modules、.git。',
-  'systemConfig.project.ops.project.workspace.hidden_directories.placeholder':
+  'systemConfig.application.ops.application.workspace.hidden_directories.placeholder':
     '输入目录名后回车，例如 node_modules、.git',
-  'systemConfig.project.ops.project.workspace.file_tooltip_rules.title': '工作台文件默认提示规则',
-  'systemConfig.project.ops.project.workspace.file_tooltip_rules.description':
+  'systemConfig.application.ops.application.workspace.file_tooltip_rules.title': '工作台文件默认提示规则',
+  'systemConfig.application.ops.application.workspace.file_tooltip_rules.description':
     '管理工作台文件名的默认提示规则；按顺序匹配 basename，后面的启用规则会覆盖前面的结果。',
-  'systemConfig.project.ops.project.workspace.directory_tooltip_rules.title': '工作台目录默认提示规则',
-  'systemConfig.project.ops.project.workspace.directory_tooltip_rules.description':
+  'systemConfig.application.ops.application.workspace.directory_tooltip_rules.title': '工作台目录默认提示规则',
+  'systemConfig.application.ops.application.workspace.directory_tooltip_rules.description':
     '管理工作台目录名的默认提示规则；按顺序匹配 basename，后面的启用规则会覆盖前面的结果。',
 }));
 
@@ -769,19 +769,19 @@ describe('system config list page', () => {
     expect(wrapper.find('[data-test-id="schema-switch"]').exists()).toBe(false);
   });
 
-  it('localizes project config groups and renders hidden directories as list tags with a tag-input editor', async () => {
+  it('localizes application config groups and renders hidden directories as list tags with a tag-input editor', async () => {
     apiMocks.getSystemConfigs.mockResolvedValue({
       items: [
         projectConfigItem({
-          key: 'ops.project.import.allowed_roots',
-          group: 'ops.project.import',
-          groupKey: 'systemConfig.groups.ops.project.import',
-          groupLabel: 'Project Import',
-          groupDescriptionKey: 'systemConfig.groups.ops.project.import.description',
+          key: 'ops.application.import.allowed_roots',
+          group: 'ops.application.import',
+          groupKey: 'systemConfig.groups.ops.application.import',
+          groupLabel: 'Application Import',
+          groupDescriptionKey: 'systemConfig.groups.ops.application.import.description',
           groupDescription: 'Import authority roots and bounded directory browsing.',
-          titleKey: 'systemConfig.project.ops.project.import.allowed_roots.title',
+          titleKey: 'systemConfig.application.ops.application.import.allowed_roots.title',
           title: 'Import Allowed Roots',
-          descriptionKey: 'systemConfig.project.ops.project.import.allowed_roots.description',
+          descriptionKey: 'systemConfig.application.ops.application.import.allowed_roots.description',
           description: 'Allowed import roots.',
           configSchema: {
             type: 'string',
@@ -791,15 +791,15 @@ describe('system config list page', () => {
           order: 7101,
         }),
         projectConfigItem({
-          key: 'ops.project.workspace.hidden_directories',
-          group: 'ops.project.workspace',
-          groupKey: 'systemConfig.groups.ops.project.workspace',
-          groupLabel: 'Project Workspace',
-          groupDescriptionKey: 'systemConfig.groups.ops.project.workspace.description',
+          key: 'ops.application.workspace.hidden_directories',
+          group: 'ops.application.workspace',
+          groupKey: 'systemConfig.groups.ops.application.workspace',
+          groupLabel: 'Application Workspace',
+          groupDescriptionKey: 'systemConfig.groups.ops.application.workspace.description',
           groupDescription: 'Configuration workspace file-list defaults and editor browse behavior.',
-          titleKey: 'systemConfig.project.ops.project.workspace.hidden_directories.title',
+          titleKey: 'systemConfig.application.ops.application.workspace.hidden_directories.title',
           title: 'Workspace Hidden Directories',
-          descriptionKey: 'systemConfig.project.ops.project.workspace.hidden_directories.description',
+          descriptionKey: 'systemConfig.application.ops.application.workspace.hidden_directories.description',
           description:
             'JSON array string of directory basenames hidden by default in the project configuration workspace tree.',
           configSchema: {
@@ -808,9 +808,9 @@ describe('system config list page', () => {
             description:
               'JSON array string of directory basenames hidden by default in the project configuration workspace tree.',
             'x-i18n': {
-              titleKey: 'systemConfig.project.ops.project.workspace.hidden_directories.title',
-              descriptionKey: 'systemConfig.project.ops.project.workspace.hidden_directories.description',
-              placeholderKey: 'systemConfig.project.ops.project.workspace.hidden_directories.placeholder',
+              titleKey: 'systemConfig.application.ops.application.workspace.hidden_directories.title',
+              descriptionKey: 'systemConfig.application.ops.application.workspace.hidden_directories.description',
+              placeholderKey: 'systemConfig.application.ops.application.workspace.hidden_directories.placeholder',
             },
             'x-graft': {
               editor: 'string-array-json-list',
@@ -827,9 +827,9 @@ describe('system config list page', () => {
           groupLabel: 'Application Create',
           groupDescriptionKey: 'systemConfig.groups.ops.application.create.description',
           groupDescription: 'Managed application create authority and root workflow.',
-          titleKey: 'systemConfig.project.ops.application.root_directory.title',
+          titleKey: 'systemConfig.application.ops.application.root_directory.title',
           title: 'Application Root Directory',
-          descriptionKey: 'systemConfig.project.ops.application.root_directory.description',
+          descriptionKey: 'systemConfig.application.ops.application.root_directory.description',
           description:
             'Root directory used for managed Docker Compose application creation. Leave empty to disable managed creation.',
           configSchema: {
@@ -846,10 +846,10 @@ describe('system config list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
+    expect(wrapper.text()).toContain('应用创建');
     expect(wrapper.text()).toContain('应用');
-    expect(wrapper.text()).toContain('应用');
-    expect(wrapper.text()).toContain('项目导入');
-    expect(wrapper.text()).toContain('项目工作台');
+    expect(wrapper.text()).toContain('应用导入');
+    expect(wrapper.text()).toContain('应用工作台');
     expect(wrapper.text()).toContain('管理配置工作台的目录过滤与文件浏览默认行为。');
     expect(wrapper.text()).toContain('工作台默认隐藏目录');
     expect(wrapper.text()).toContain('.git');
@@ -892,15 +892,15 @@ describe('system config list page', () => {
     apiMocks.getSystemConfigs.mockResolvedValue({
       items: [
         projectConfigItem({
-          key: 'ops.project.workspace.file_tooltip_rules',
-          group: 'ops.project.workspace',
-          groupKey: 'systemConfig.groups.ops.project.workspace',
-          groupLabel: 'Project Workspace',
-          groupDescriptionKey: 'systemConfig.groups.ops.project.workspace.description',
+          key: 'ops.application.workspace.file_tooltip_rules',
+          group: 'ops.application.workspace',
+          groupKey: 'systemConfig.groups.ops.application.workspace',
+          groupLabel: 'Application Workspace',
+          groupDescriptionKey: 'systemConfig.groups.ops.application.workspace.description',
           groupDescription: 'Configuration workspace file-list defaults and editor browse behavior.',
-          titleKey: 'systemConfig.project.ops.project.workspace.file_tooltip_rules.title',
+          titleKey: 'systemConfig.application.ops.application.workspace.file_tooltip_rules.title',
           title: 'Workspace File Tooltip Rules',
-          descriptionKey: 'systemConfig.project.ops.project.workspace.file_tooltip_rules.description',
+          descriptionKey: 'systemConfig.application.ops.application.workspace.file_tooltip_rules.description',
           description:
             'Configure the JSON array string of default tooltip rules matched in order against file basenames.',
           configSchema: {
@@ -1844,7 +1844,7 @@ function projectConfigItem(input: {
     domain: 'application',
     domain_key: 'systemConfig.domains.application',
     domain_label: 'Application',
-    group: input.group ?? 'ops.project.workspace',
+    group: input.group ?? 'ops.application.workspace',
     group_key: input.groupKey,
     group_label: input.groupLabel,
     group_description_key: input.groupDescriptionKey,
@@ -1853,7 +1853,7 @@ function projectConfigItem(input: {
     title: input.title,
     description_key: input.descriptionKey,
     description: input.description,
-    tags: ['ops', 'project', input.group ?? 'ops.project.workspace'],
+    tags: ['ops', 'application', input.group ?? 'ops.application.workspace'],
     type: 'string',
     config_schema: input.configSchema,
     default_value: input.defaultValue,

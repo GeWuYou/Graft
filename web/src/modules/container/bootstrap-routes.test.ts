@@ -4,7 +4,7 @@ import { containerBootstrapRouteRegistrations, containerGlobalRouteRegistrations
 
 describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
-    expect(containerBootstrapRouteRegistrations).toHaveLength(3);
+    expect(containerBootstrapRouteRegistrations).toHaveLength(4);
     expect(containerBootstrapRouteRegistrations).toContainEqual(
       expect.objectContaining({
         menuPath: '/infrastructure/docker/containers',
@@ -23,6 +23,14 @@ describe('container bootstrap route registrations', () => {
         routeName: 'DockerVolumeList',
       }),
     );
+  });
+
+  it('registers Docker network management as a visible bootstrap route', () => {
+    expect(containerBootstrapRouteRegistrations[1]).toMatchObject({
+      menuPath: '/infrastructure/docker/networks',
+      routeName: 'DockerNetworkList',
+      meta: { pageKind: 'list', pageSurface: 'paged-table', tabGroup: 'infrastructure' },
+    });
   });
 
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {

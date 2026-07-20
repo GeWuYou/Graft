@@ -155,6 +155,9 @@
       "title": "Docker",
       "image": {
         "title": "Images"
+      },
+      "network": {
+        "title": "Networks"
       }
     },
     "dockerVolume": {
@@ -273,6 +276,7 @@
       "title": "Containers",
       "description": "Review Local Container Runtime State, Details, and Truncated Logs.",
       "refresh": "Refresh",
+      "columnSettings": "Column Settings",
       "autoRefreshInterval5Seconds": "Every 5 Sec",
       "retry": "Retry",
       "loadFailed": "Container List Could Not Be Loaded.",
@@ -304,7 +308,6 @@
         "cpuTooltip": "CPU Usage: {percent}",
         "memoryTooltip": "Memory: {usage} / {limit}, {percent}"
       },
-      "columnSettings": "Column Settings",
       "resetColumns": "Reset Columns",
       "compactDensity": "Compact Density",
       "defaultDensity": "Default Density",
@@ -524,6 +527,103 @@
         "serverVersion": "Server Version",
         "operatingSystem": "Operating System",
         "architecture": "Architecture"
+      }
+    },
+    "networks": {
+      "eyebrow": "Infrastructure",
+      "title": "Network Management",
+      "description": "Manage current Docker runtime networks, IPAM configuration, and connected containers.",
+      "refresh": "Refresh",
+      "create": "Create Network",
+      "createTitle": "Create Docker Network",
+      "createSuccess": "Docker network created.",
+      "createFailed": "Docker network could not be created.",
+      "detail": "Details",
+      "detailTitle": "Network Details",
+      "remove": "Remove",
+      "removeTitle": "Remove Docker Network",
+      "removeDescription": "Enter network name {name} to confirm removal.",
+      "removeConfirmationMismatch": "The confirmation name must exactly match the network name.",
+      "removeSuccess": "Docker network removed.",
+      "removeFailed": "Docker network could not be removed.",
+      "batch": {
+        "selected": "{count} Networks Selected",
+        "cancelSelection": "Clear Selection",
+        "remove": "Remove Selected",
+        "removeTitle": "Remove Docker Networks",
+        "removeDescription": "This will remove {count} selected networks: {names}. Continue?",
+        "removeSuccess": "{count} Networks Removed.",
+        "removePartial": "Batch removal partially completed: {succeeded} succeeded, {failed} failed.",
+        "removeFailed": "Batch removal failed."
+      },
+      "cancel": "Cancel",
+      "internal": "Internal",
+      "attachable": "Attachable",
+      "ingress": "Ingress",
+      "noAttributes": "Standard",
+      "labels": "Labels",
+      "ipam": "IPAM Configuration",
+      "connectedContainers": "Connected Containers",
+      "none": "No data",
+      "operation": "Actions",
+      "emptyTitle": "No Networks",
+      "emptyDescription": "The current Docker runtime returned no networks.",
+      "loadFailed": "Network list could not be loaded.",
+      "summary": {
+        "total": "Total {count}",
+        "inUse": "In use {count}",
+        "unused": "Unused {count}",
+        "totalLabel": "Total networks",
+        "inUseLabel": "In use",
+        "unusedLabel": "Unused"
+      },
+      "filters": {
+        "search": "Search network name or ID",
+        "driver": "Driver",
+        "scope": "Scope",
+        "usage": "Usage",
+        "inUse": "In use",
+        "unused": "Unused",
+        "apply": "Search",
+        "reset": "Reset"
+      },
+      "pagination": { "empty": "No Networks", "summary": "Showing {start}-{end} of {total}" },
+      "cleanup": {
+        "action": "Clean Up Unused",
+        "title": "Clean Up Unused Networks",
+        "warning": "Only networks reported as removable are included. Review the candidates before continuing.",
+        "candidateTitle": "Candidates ({count})",
+        "selectedCount": "{count} selected",
+        "removeSelected": "Remove {count}",
+        "empty": "No removable unused networks",
+        "loadFailed": "Unused network candidates could not be loaded.",
+        "previousPage": "Previous page",
+        "nextPage": "Next page"
+      },
+      "drivers": { "bridge": "Bridge", "overlay": "Overlay", "macvlan": "Macvlan", "ipvlan": "IPvlan", "none": "None" },
+      "scopes": { "local": "Local", "swarm": "Swarm", "global": "Global" },
+      "fields": {
+        "name": "Name",
+        "id": "ID",
+        "driver": "Driver",
+        "scope": "Scope",
+        "ipv4": "IPv4",
+        "flags": "Network Capabilities",
+        "containers": "Containers",
+        "createdAt": "Created At"
+      },
+      "form": {
+        "name": "Name",
+        "namePlaceholder": "For example, app-network",
+        "nameRequired": "Enter a network name.",
+        "driver": "Driver",
+        "options": "Options",
+        "labels": "Labels",
+        "labelsHint": "One key=value label per line",
+        "subnet": "IPv4 subnet",
+        "subnetPlaceholder": "For example, 172.28.0.0/16",
+        "gateway": "IPv4 gateway",
+        "gatewayPlaceholder": "For example, 172.28.0.1"
       }
     },
     "detail": {

@@ -8,6 +8,37 @@ import (
 	containercontract "graft/server/modules/container/contract"
 )
 
+func TestToDockerNetworkMapsAttributesLabelsAndCreatedAt(t *testing.T) {
+	t.Parallel()
+
+	mapped := toDockerNetwork(DockerNetwork{
+		ID:             "network-id",
+		Name:           "app-network",
+		Driver:         "bridge",
+		Scope:          "local",
+		CreatedAt:      "2026-07-19T23:19:41Z",
+		Internal:       true,
+		Attachable:     true,
+		Ingress:        false,
+		ContainerCount: 2,
+		Removable:      false,
+		Labels:         map[string]string{"com.example.project": "app", "environment": "prod"},
+	})
+
+	if mapped.Id != "network-id" || mapped.Name != "app-network" || mapped.CreatedAt != "2026-07-19T23:19:41Z" {
+		t.Fatalf("unexpected network identity mapping: %#v", mapped)
+	}
+	if !mapped.Internal || !mapped.Attachable || mapped.Ingress || mapped.ContainerCount != 2 {
+		t.Fatalf("unexpected network attributes mapping: %#v", mapped)
+	}
+	if mapped.Removable == nil || *mapped.Removable {
+		t.Fatalf("expected removable=false, got %#v", mapped.Removable)
+	}
+	if mapped.Labels == nil || (*mapped.Labels)["com.example.project"] != "app" || (*mapped.Labels)["environment"] != "prod" {
+		t.Fatalf("unexpected network labels mapping: %#v", mapped.Labels)
+	}
+}
+
 func TestToDetailMapsHealthcheckAndRuntimeStability(t *testing.T) {
 	t.Parallel()
 

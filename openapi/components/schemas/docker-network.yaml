@@ -10,4 +10,5 @@ properties:
   attachable: { type: boolean }
   ingress: { type: boolean }
   container_count: { type: integer, minimum: 0 }
+  removable: { type: boolean }
   labels: { type: object, additionalProperties: { type: string } }

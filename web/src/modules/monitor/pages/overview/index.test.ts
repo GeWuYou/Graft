@@ -228,6 +228,10 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.metricLoadDescriptionHealthy': 'System load is low',
   'monitor.serverStatus.metricLoadDescriptionWarning': 'System load is elevated',
   'monitor.serverStatus.metricLoadDescriptionCritical': 'System load is high',
+  'monitor.serverStatus.anomaly.resourceCpuPressure': 'CPU usage reached {percent}% in the current monitor window.',
+  'monitor.serverStatus.anomaly.resourceMemoryPressure': 'Server memory usage reached {percent}%.',
+  'monitor.serverStatus.anomaly.resourceDiskPressure': 'Disk usage on {path} reached {percent}%.',
+  'monitor.serverStatus.anomaly.systemLoadPressure': '1-minute load average reached {load} against {cores} CPU cores.',
   'monitor.serverStatus.metricCpuLabel': 'CPU',
   'monitor.serverStatus.metricCpuValue': '{count} cores',
   'monitor.serverStatus.metricCpuMeta': '{count} cores · latest sample',
@@ -700,7 +704,8 @@ function createServerStatusResponse() {
         severity: 'warning',
         status: 'active',
         observed_at: '2026-05-20T09:00:00Z',
-        summary: 'CPU usage reached 84.2% in the current monitor window.',
+        summary_key: 'monitor.serverStatus.anomaly.resourceCpuPressure',
+        summary_params: { percent: '84.2' } as Record<string, string>,
         evidence_links: [
           {
             target_kind: 'audit_incident',
@@ -1005,6 +1010,49 @@ describe('MonitorPage', () => {
     expect(allOverviewText).toContain('Runtime Allocated');
     expect(allOverviewText).toContain('Heap In Use');
     expect(allOverviewText).toContain('Runtime System Memory');
+  });
+
+  it('localizes memory, disk, and load anomaly summaries independently of server final text', async () => {
+    const response = createServerStatusResponse();
+    response.runtime.host_memory_used_percent = 91;
+    response.runtime.disk_usage.used_percent = 88;
+    response.runtime.load_average.one_minute = 9.6;
+    response.runtime.cpu_cores = 8;
+    const baseAnomaly = response.anomalies[0];
+    response.anomalies = [
+      baseAnomaly,
+      {
+        ...baseAnomaly,
+        anomaly_key: 'resource_memory_pressure',
+        scope_ref: 'runtime.host_memory',
+        summary_key: 'monitor.serverStatus.anomaly.resourceMemoryPressure',
+        summary_params: { percent: '91.0' } as Record<string, string>,
+      },
+      {
+        ...baseAnomaly,
+        anomaly_key: 'resource_disk_pressure',
+        scope_ref: 'disk:/',
+        summary_key: 'monitor.serverStatus.anomaly.resourceDiskPressure',
+        summary_params: { path: '/', percent: '88.0' } as Record<string, string>,
+      },
+      {
+        ...baseAnomaly,
+        anomaly_key: 'system_load_pressure',
+        scope_ref: 'runtime.load',
+        summary_key: 'monitor.serverStatus.anomaly.systemLoadPressure',
+        summary_params: { load: '9.60', cores: '8' } as Record<string, string>,
+      },
+    ];
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-card-key="memory"]').text()).toContain('Server memory usage reached 91.0%.');
+    expect(wrapper.find('[data-card-key="disk"]').text()).toContain('Disk usage on / reached 88.0%.');
+    expect(wrapper.find('[data-card-key="load"]').text()).toContain(
+      '1-minute load average reached 9.60 against 8 CPU cores.',
+    );
   });
 
   it('opens the service status, request performance, and dependency pages from overview summaries', async () => {

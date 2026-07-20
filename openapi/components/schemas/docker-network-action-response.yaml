@@ -1,0 +1,12 @@
+type: object
+required: [id, name, action, result, message_key]
+properties:
+  id: { type: string }
+  name: { type: string }
+  action:
+    type: string
+    enum: [create, remove]
+  result:
+    type: string
+    enum: [completed]
+  message_key: { type: string }

@@ -2,11 +2,30 @@ get:
   tags: [container]
   summary: Read Docker network
   operationId: getDockerNetwork
-  parameters: [{ $ref: ../components/parameters/container-id-path.yaml }]
+  parameters: [{ $ref: ../components/parameters/docker-network-id-path.yaml }]
   security: [{ bearerAuth: [] }]
   responses:
-    '200': { description: Docker network., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network.yaml } } } }
+    '200': { description: Docker network., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network-detail.yaml } } } }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '404': { description: Network not found }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
+delete:
+  tags: [container]
+  summary: Remove Docker network
+  operationId: deleteDockerNetwork
+  parameters: [{ $ref: ../components/parameters/docker-network-id-path.yaml }]
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/docker-network-remove-request.yaml }
+  responses:
+    '200': { description: Docker network removed., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network-action-response.yaml } } } }
+    '400': { description: The network confirmation does not match. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Network not found }
+    '409': { description: Default and in-use Docker networks cannot be removed. }
     '500': { $ref: ../components/responses/internal-server-error.yaml }

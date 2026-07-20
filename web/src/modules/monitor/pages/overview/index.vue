@@ -1288,7 +1288,7 @@ function buildMetricCardStatus(
     return {
       tone: 'critical',
       statusLabel: copy.criticalLabel,
-      description: anomaly.summary || copy.criticalDescription,
+      description: localizedAnomalyDescription(anomaly) || copy.criticalDescription,
       tagTheme: metricCardTagTheme('critical'),
     };
   }
@@ -1296,7 +1296,7 @@ function buildMetricCardStatus(
     return {
       tone: 'warning',
       statusLabel: copy.warningLabel,
-      description: anomaly.summary || copy.warningDescription,
+      description: localizedAnomalyDescription(anomaly) || copy.warningDescription,
       tagTheme: metricCardTagTheme('warning'),
     };
   }
@@ -1332,6 +1332,14 @@ function buildMetricCardStatus(
     description: copy.healthyDescription,
     tagTheme: metricCardTagTheme('healthy'),
   };
+}
+
+function localizedAnomalyDescription(anomaly: ServerStatusAnomaly) {
+  if (!anomaly.summary_key) {
+    return '';
+  }
+
+  return t(anomaly.summary_key, anomaly.summary_params ?? {});
 }
 
 function metricUsageTone(percent: number | null): MetricCardTone {

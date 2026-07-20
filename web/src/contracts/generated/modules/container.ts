@@ -10,6 +10,8 @@ export const CONTAINER_PERMISSION_CODE = {
   IMAGE_TAG: 'container.image.tag',
   IMAGE_UNTAG: 'container.image.untag',
   LOGS: 'container.logs',
+  NETWORK_CREATE: 'container.network.create',
+  NETWORK_REMOVE: 'container.network.remove',
   REMOVE: 'container.remove',
   RESTART: 'container.restart',
   SHELL: 'container.shell',

@@ -2788,6 +2788,66 @@ func (e DockerImageBatchRemoveItemErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for DockerNetworkActionResponseAction.
+const (
+	Create DockerNetworkActionResponseAction = "create"
+	Remove DockerNetworkActionResponseAction = "remove"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkActionResponseAction enum.
+func (e DockerNetworkActionResponseAction) Valid() bool {
+	switch e {
+	case Create:
+		return true
+	case Remove:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerNetworkActionResponseResult.
+const (
+	Completed DockerNetworkActionResponseResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkActionResponseResult enum.
+func (e DockerNetworkActionResponseResult) Valid() bool {
+	switch e {
+	case Completed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerNetworkCreateRequestDriver.
+const (
+	Bridge  DockerNetworkCreateRequestDriver = "bridge"
+	Ipvlan  DockerNetworkCreateRequestDriver = "ipvlan"
+	Macvlan DockerNetworkCreateRequestDriver = "macvlan"
+	None    DockerNetworkCreateRequestDriver = "none"
+	Overlay DockerNetworkCreateRequestDriver = "overlay"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkCreateRequestDriver enum.
+func (e DockerNetworkCreateRequestDriver) Valid() bool {
+	switch e {
+	case Bridge:
+		return true
+	case Ipvlan:
+		return true
+	case Macvlan:
+		return true
+	case None:
+		return true
+	case Overlay:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DockerVolumeRemoveResponseAction.
 const (
 	DockerVolumeRemoveResponseActionRemove DockerVolumeRemoveResponseAction = "remove"
@@ -4258,6 +4318,24 @@ func (e ContainerListState) Valid() bool {
 	}
 }
 
+// Defines values for DockerNetworkListUsage.
+const (
+	DockerNetworkListUsageDockerNetworkListUsageUnused DockerNetworkListUsage = "unused"
+	DockerNetworkListUsageDockerNetworkListUsageUsed   DockerNetworkListUsage = "used"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkListUsage enum.
+func (e DockerNetworkListUsage) Valid() bool {
+	switch e {
+	case DockerNetworkListUsageDockerNetworkListUsageUnused:
+		return true
+	case DockerNetworkListUsageDockerNetworkListUsageUsed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DockerVolumeListUsage.
 const (
 	DockerVolumeListUsageDockerVolumeListUsageUnused DockerVolumeListUsage = "unused"
@@ -4831,6 +4909,24 @@ func (e GetContainersParamsDeploymentType) Valid() bool {
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeStandalone:
 		return true
 	case GetContainersParamsDeploymentTypeContainerListDeploymentTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworksParamsUsage.
+const (
+	GetDockerNetworksParamsUsageDockerNetworkListUsageUnused GetDockerNetworksParamsUsage = "unused"
+	GetDockerNetworksParamsUsageDockerNetworkListUsageUsed   GetDockerNetworksParamsUsage = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworksParamsUsage enum.
+func (e GetDockerNetworksParamsUsage) Valid() bool {
+	switch e {
+	case GetDockerNetworksParamsUsageDockerNetworkListUsageUnused:
+		return true
+	case GetDockerNetworksParamsUsageDockerNetworkListUsageUsed:
 		return true
 	default:
 		return false
@@ -7654,12 +7750,96 @@ type DockerNetwork struct {
 	Internal       bool               `json:"internal"`
 	Labels         *map[string]string `json:"labels,omitempty"`
 	Name           string             `json:"name"`
+	Removable      *bool              `json:"removable,omitempty"`
 	Scope          string             `json:"scope"`
+}
+
+// DockerNetworkActionResponse defines model for docker-network-action-response.
+type DockerNetworkActionResponse struct {
+	Action     DockerNetworkActionResponseAction `json:"action"`
+	Id         string                            `json:"id"`
+	MessageKey string                            `json:"message_key"`
+	Name       string                            `json:"name"`
+	Result     DockerNetworkActionResponseResult `json:"result"`
+}
+
+// DockerNetworkActionResponseAction defines model for DockerNetworkActionResponse.Action.
+type DockerNetworkActionResponseAction string
+
+// DockerNetworkActionResponseResult defines model for DockerNetworkActionResponse.Result.
+type DockerNetworkActionResponseResult string
+
+// DockerNetworkContainerEndpoint defines model for docker-network-container-endpoint.
+type DockerNetworkContainerEndpoint struct {
+	EndpointId  *string `json:"endpoint_id,omitempty"`
+	Id          string  `json:"id"`
+	Ipv4Address *string `json:"ipv4_address,omitempty"`
+	Ipv6Address *string `json:"ipv6_address,omitempty"`
+	MacAddress  *string `json:"mac_address,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// DockerNetworkCreateRequest defines model for docker-network-create-request.
+type DockerNetworkCreateRequest struct {
+	Attachable *bool                            `json:"attachable,omitempty"`
+	Driver     DockerNetworkCreateRequestDriver `json:"driver"`
+	Internal   *bool                            `json:"internal,omitempty"`
+	Ipam       *DockerNetworkIpamConfig         `json:"ipam,omitempty"`
+	Labels     *map[string]string               `json:"labels,omitempty"`
+	Name       string                           `json:"name"`
+}
+
+// DockerNetworkCreateRequestDriver defines model for DockerNetworkCreateRequest.Driver.
+type DockerNetworkCreateRequestDriver string
+
+// DockerNetworkDetail defines model for docker-network-detail.
+type DockerNetworkDetail struct {
+	Attachable     bool                              `json:"attachable"`
+	ContainerCount int                               `json:"container_count"`
+	Containers     *[]DockerNetworkContainerEndpoint `json:"containers,omitempty"`
+	CreatedAt      string                            `json:"created_at"`
+	Driver         string                            `json:"driver"`
+	Id             string                            `json:"id"`
+	Ingress        bool                              `json:"ingress"`
+	Internal       bool                              `json:"internal"`
+	Ipam           *DockerNetworkIpam                `json:"ipam,omitempty"`
+	Labels         *map[string]string                `json:"labels,omitempty"`
+	Name           string                            `json:"name"`
+	Removable      *bool                             `json:"removable,omitempty"`
+	Scope          string                            `json:"scope"`
+}
+
+// DockerNetworkIpam defines model for docker-network-ipam.
+type DockerNetworkIpam struct {
+	Config *[]DockerNetworkIpamConfig `json:"config,omitempty"`
+	Driver *string                    `json:"driver,omitempty"`
+}
+
+// DockerNetworkIpamConfig defines model for docker-network-ipam-config.
+type DockerNetworkIpamConfig struct {
+	Gateway *string `json:"gateway,omitempty"`
+	Subnet  *string `json:"subnet,omitempty"`
 }
 
 // DockerNetworkListResponse defines model for docker-network-list-response.
 type DockerNetworkListResponse struct {
-	Items []DockerNetwork `json:"items"`
+	Items   []DockerNetwork          `json:"items"`
+	Limit   int                      `json:"limit"`
+	Offset  int                      `json:"offset"`
+	Summary DockerNetworkListSummary `json:"summary"`
+	Total   int                      `json:"total"`
+}
+
+// DockerNetworkListSummary defines model for docker-network-list-summary.
+type DockerNetworkListSummary struct {
+	InUse  int `json:"in_use"`
+	Total  int `json:"total"`
+	Unused int `json:"unused"`
+}
+
+// DockerNetworkRemoveRequest defines model for docker-network-remove-request.
+type DockerNetworkRemoveRequest struct {
+	ConfirmNetworkName string `json:"confirm_network_name"`
 }
 
 // DockerVolume defines model for docker-volume.
@@ -9011,11 +9191,31 @@ type EnvelopedDockerImageListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedDockerNetwork defines model for enveloped-docker-network.
-type EnvelopedDockerNetwork struct {
+// EnvelopedDockerNetworkActionResponse defines model for enveloped-docker-network-action-response.
+type EnvelopedDockerNetworkActionResponse struct {
 	// Code Existing canonical response code.
-	Code string        `json:"code"`
-	Data DockerNetwork `json:"data"`
+	Code string                      `json:"code"`
+	Data DockerNetworkActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerNetworkDetail defines model for enveloped-docker-network-detail.
+type EnvelopedDockerNetworkDetail struct {
+	// Code Existing canonical response code.
+	Code string              `json:"code"`
+	Data DockerNetworkDetail `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -10868,7 +11068,12 @@ type ServerStatusAnomaly struct {
 	ScopeRef      string                        `json:"scope_ref"`
 	Severity      ServerStatusAnomalySeverity   `json:"severity"`
 	Status        ServerStatusAnomalyStatus     `json:"status"`
-	Summary       string                        `json:"summary"`
+
+	// SummaryKey Stable monitor locale key for rendering the anomaly summary.
+	SummaryKey string `json:"summary_key"`
+
+	// SummaryParams String-formatted interpolation values for summary_key.
+	SummaryParams map[string]string `json:"summary_params"`
 }
 
 // ServerStatusAnomalyAnomalyKey defines model for ServerStatusAnomaly.AnomalyKey.
@@ -11555,6 +11760,27 @@ type DockerImageListOffset = int
 
 // DockerImageListUnused defines model for docker-image-list-unused.
 type DockerImageListUnused = bool
+
+// DockerNetworkIdPath defines model for docker-network-id-path.
+type DockerNetworkIdPath = string
+
+// DockerNetworkListDriver defines model for docker-network-list-driver.
+type DockerNetworkListDriver = string
+
+// DockerNetworkListKeyword defines model for docker-network-list-keyword.
+type DockerNetworkListKeyword = string
+
+// DockerNetworkListLimit defines model for docker-network-list-limit.
+type DockerNetworkListLimit = int
+
+// DockerNetworkListOffset defines model for docker-network-list-offset.
+type DockerNetworkListOffset = int
+
+// DockerNetworkListScope defines model for docker-network-list-scope.
+type DockerNetworkListScope = string
+
+// DockerNetworkListUsage defines model for docker-network-list-usage.
+type DockerNetworkListUsage string
 
 // DockerVolumeIdPath defines model for docker-volume-id-path.
 type DockerVolumeIdPath = string
@@ -13120,6 +13346,37 @@ type PostDockerImageBatchRemoveParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetDockerNetworksParams defines parameters for GetDockerNetworks.
+type GetDockerNetworksParams struct {
+	// Limit Optional maximum number of Docker networks to return. The runtime accepts values from 1 to 100.
+	Limit *DockerNetworkListLimit `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for Docker networks.
+	Offset *DockerNetworkListOffset `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Keyword Optional case-insensitive keyword matched against a Docker network name.
+	Keyword *DockerNetworkListKeyword `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Driver Optional exact Docker network driver filter.
+	Driver *DockerNetworkListDriver `form:"driver,omitempty" json:"driver,omitempty"`
+
+	// Scope Optional exact Docker network scope filter.
+	Scope *DockerNetworkListScope `form:"scope,omitempty" json:"scope,omitempty"`
+
+	// Usage Optional Docker network usage filter.
+	Usage *GetDockerNetworksParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerNetworksParamsUsage defines parameters for GetDockerNetworks.
+type GetDockerNetworksParamsUsage string
+
 // GetDockerVolumesParams defines parameters for GetDockerVolumes.
 type GetDockerVolumesParams struct {
 	// Limit Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100.
@@ -13963,6 +14220,12 @@ type PostDockerImageTagJSONRequestBody = DockerImageTagRequest
 
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody = DockerImageUntagRequest
+
+// PostDockerNetworkJSONRequestBody defines body for PostDockerNetwork for application/json ContentType.
+type PostDockerNetworkJSONRequestBody = DockerNetworkCreateRequest
+
+// DeleteDockerNetworkJSONRequestBody defines body for DeleteDockerNetwork for application/json ContentType.
+type DeleteDockerNetworkJSONRequestBody = DockerNetworkRemoveRequest
 
 // PostDockerVolumeBatchRemoveJSONRequestBody defines body for PostDockerVolumeBatchRemove for application/json ContentType.
 type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest

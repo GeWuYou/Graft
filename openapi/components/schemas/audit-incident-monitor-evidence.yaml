@@ -1,6 +1,6 @@
 type: object
 description: Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation.
-required: [state, summary, evidence_links]
+required: [state, summary, summary_params, evidence_links]
 properties:
   state:
     type: string
@@ -8,7 +8,12 @@ properties:
     description: Availability of correlated monitor evidence for this incident.
   summary:
     type: string
-    description: Human-readable summary of the correlated monitor evidence.
+    description: Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog.
+  summary_params:
+    type: object
+    description: String-formatted interpolation values for the monitor summary locale key.
+    additionalProperties:
+      type: string
   reason:
     type: string
     description: Optional explanation when evidence is partial or unavailable.

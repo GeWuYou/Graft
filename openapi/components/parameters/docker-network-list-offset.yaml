@@ -1,0 +1,5 @@
+name: offset
+in: query
+required: false
+description: Optional zero-based offset for Docker networks.
+schema: { type: integer, minimum: 0 }

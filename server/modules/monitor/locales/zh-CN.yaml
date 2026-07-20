@@ -3,6 +3,15 @@ menu.monitor.serviceStatus.title: 服务状态
 menu.monitor.dependencies.title: 依赖服务
 menu.monitor.requestPerformance.title: 请求性能
 monitor.evidence.auditUnavailable.title: 审计证据不可用
+monitor.serverStatus.anomaly.dependencyDegraded: "{dependency} 依赖服务已降级。"
+monitor.serverStatus.anomaly.dependencyUnknown: "{dependency} 依赖服务状态未知。"
+monitor.serverStatus.anomaly.moduleDependencyMissing: "模块 {module} 缺少必需依赖。"
+monitor.serverStatus.anomaly.resourceCpuPressure: "当前监控窗口内 CPU 使用率达到 {percent}%。"
+monitor.serverStatus.anomaly.resourceMemoryPressure: "服务器内存使用率达到 {percent}%。"
+monitor.serverStatus.anomaly.resourceDiskPressure: "挂载路径 {path} 的磁盘使用率达到 {percent}%。"
+monitor.serverStatus.anomaly.runtimeGoroutinePressure: "Goroutine 数量达到 {count}。"
+monitor.serverStatus.anomaly.runtimeHeapPressure: "运行时堆内存使用量达到 {bytes} 字节。"
+monitor.serverStatus.anomaly.systemLoadPressure: "1 分钟负载均值达到 {load}，对应 {cores} 个 CPU 核心。"
 dashboard.widget.monitorSystemHealth.title: 系统健康
 dashboard.widget.monitorSystemHealth.description: 当前服务健康度、依赖状态和活跃异常。
 dashboard.widget.monitorSystemHealth.database: 数据库

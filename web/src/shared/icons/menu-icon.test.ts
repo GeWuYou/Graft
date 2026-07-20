@@ -57,6 +57,7 @@ describe('resolveMenuIcon', () => {
       'container-workload',
       'image-artifact',
       'persistent-volume',
+      'network-resource',
       'observability-overview',
       'service-health',
       'dependency-health',

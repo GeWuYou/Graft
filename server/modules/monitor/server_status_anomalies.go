@@ -35,26 +35,28 @@ func buildDependencyAnomalies(
 		switch dependency.Status {
 		case statusDegraded:
 			anomalies = append(anomalies, generated.ServerStatusAnomaly{
-				AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(monitorcontract.DependencyStatusDegraded),
-				ScopeKind:  generated.ServerStatusAnomalyScopeKind(scopeKindDependency),
-				ScopeRef:   scopeRef,
-				Severity:   generated.ServerStatusAnomalySeverity(monitorcontract.SeverityCritical),
-				Status:     generated.ServerStatusAnomalyStatus(anomalyStatusActive),
-				ObservedAt: observedAt,
-				Summary:    dependency.Detail,
+				AnomalyKey:    generated.ServerStatusAnomalyAnomalyKey(monitorcontract.DependencyStatusDegraded),
+				ScopeKind:     generated.ServerStatusAnomalyScopeKind(scopeKindDependency),
+				ScopeRef:      scopeRef,
+				Severity:      generated.ServerStatusAnomalySeverity(monitorcontract.SeverityCritical),
+				Status:        generated.ServerStatusAnomalyStatus(anomalyStatusActive),
+				ObservedAt:    observedAt,
+				SummaryKey:    string(monitorcontract.AnomalyDependencyDegraded),
+				SummaryParams: map[string]string{"dependency": scopeRef},
 				EvidenceLinks: []generated.EvidenceLink{
 					unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this dependency health issue."),
 				},
 			})
 		case statusUnknown:
 			anomalies = append(anomalies, generated.ServerStatusAnomaly{
-				AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(monitorcontract.DependencyStatusUnknown),
-				ScopeKind:  generated.ServerStatusAnomalyScopeKind(scopeKindDependency),
-				ScopeRef:   scopeRef,
-				Severity:   generated.ServerStatusAnomalySeverity(monitorcontract.SeverityWarning),
-				Status:     generated.ServerStatusAnomalyStatus(anomalyStatusActive),
-				ObservedAt: observedAt,
-				Summary:    dependency.Detail,
+				AnomalyKey:    generated.ServerStatusAnomalyAnomalyKey(monitorcontract.DependencyStatusUnknown),
+				ScopeKind:     generated.ServerStatusAnomalyScopeKind(scopeKindDependency),
+				ScopeRef:      scopeRef,
+				Severity:      generated.ServerStatusAnomalySeverity(monitorcontract.SeverityWarning),
+				Status:        generated.ServerStatusAnomalyStatus(anomalyStatusActive),
+				ObservedAt:    observedAt,
+				SummaryKey:    string(monitorcontract.AnomalyDependencyUnknown),
+				SummaryParams: map[string]string{"dependency": scopeRef},
 				EvidenceLinks: []generated.EvidenceLink{
 					unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this dependency observability gap."),
 				},
@@ -79,13 +81,14 @@ func buildModuleDependencyAnomalies(
 			continue
 		}
 		anomalies = append(anomalies, generated.ServerStatusAnomaly{
-			AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(monitorcontract.ModuleDependencyMissing),
-			ScopeKind:  generated.ServerStatusAnomalyScopeKind(scopeKindModule),
-			ScopeRef:   item.Name,
-			Severity:   generated.ServerStatusAnomalySeverity(monitorcontract.SeverityCritical),
-			Status:     generated.ServerStatusAnomalyStatus(anomalyStatusActive),
-			ObservedAt: observedAt,
-			Summary:    item.StatusDetail,
+			AnomalyKey:    generated.ServerStatusAnomalyAnomalyKey(monitorcontract.ModuleDependencyMissing),
+			ScopeKind:     generated.ServerStatusAnomalyScopeKind(scopeKindModule),
+			ScopeRef:      item.Name,
+			Severity:      generated.ServerStatusAnomalySeverity(monitorcontract.SeverityCritical),
+			Status:        generated.ServerStatusAnomalyStatus(anomalyStatusActive),
+			ObservedAt:    observedAt,
+			SummaryKey:    string(monitorcontract.AnomalyModuleDependencyMissing),
+			SummaryParams: map[string]string{"module": item.Name},
 			EvidenceLinks: []generated.EvidenceLink{
 				unavailableEvidenceLink(windowStart, observedAt, "Audit evidence is not available for this module dependency issue."),
 			},
@@ -137,11 +140,12 @@ func buildCPUAnomaly(observedAt time.Time, windowStart time.Time, trend generate
 		observedAt,
 		windowStart,
 		metricAnomalySpec{
-			key:       monitorcontract.ResourceCPUPressure,
-			scopeKind: scopeKindResource,
-			scopeRef:  "runtime.cpu",
-			severity:  severity,
-			summary:   fmt.Sprintf("CPU usage reached %.1f%% in the current monitor window.", cpuPercent),
+			key:           monitorcontract.ResourceCPUPressure,
+			summaryKey:    monitorcontract.AnomalyResourceCPUPressure,
+			summaryParams: map[string]string{"percent": fmt.Sprintf("%.1f", cpuPercent)},
+			scopeKind:     scopeKindResource,
+			scopeRef:      "runtime.cpu",
+			severity:      severity,
 		},
 	), true
 }
@@ -159,11 +163,12 @@ func buildMemoryAnomaly(
 		observedAt,
 		windowStart,
 		metricAnomalySpec{
-			key:       monitorcontract.ResourceMemoryPressure,
-			scopeKind: scopeKindResource,
-			scopeRef:  "runtime.host_memory",
-			severity:  severity,
-			summary:   fmt.Sprintf("Server memory usage reached %.1f%%.", float64(runtimeSnapshot.HostMemoryUsedPercent)),
+			key:           monitorcontract.ResourceMemoryPressure,
+			summaryKey:    monitorcontract.AnomalyResourceMemoryPressure,
+			summaryParams: map[string]string{"percent": fmt.Sprintf("%.1f", float64(runtimeSnapshot.HostMemoryUsedPercent))},
+			scopeKind:     scopeKindResource,
+			scopeRef:      "runtime.host_memory",
+			severity:      severity,
 		},
 	), true
 }
@@ -184,11 +189,12 @@ func buildDiskAnomaly(
 		observedAt,
 		windowStart,
 		metricAnomalySpec{
-			key:       monitorcontract.ResourceDiskPressure,
-			scopeKind: scopeKindResource,
-			scopeRef:  fmt.Sprintf("disk:%s", runtimeSnapshot.DiskUsage.Path),
-			severity:  severity,
-			summary:   fmt.Sprintf("Disk usage on %s reached %.1f%%.", runtimeSnapshot.DiskUsage.Path, float64(runtimeSnapshot.DiskUsage.UsedPercent)),
+			key:           monitorcontract.ResourceDiskPressure,
+			summaryKey:    monitorcontract.AnomalyResourceDiskPressure,
+			summaryParams: map[string]string{"path": runtimeSnapshot.DiskUsage.Path, "percent": fmt.Sprintf("%.1f", float64(runtimeSnapshot.DiskUsage.UsedPercent))},
+			scopeKind:     scopeKindResource,
+			scopeRef:      fmt.Sprintf("disk:%s", runtimeSnapshot.DiskUsage.Path),
+			severity:      severity,
 		},
 	), true
 }
@@ -210,11 +216,12 @@ func buildLoadAnomaly(
 		observedAt,
 		windowStart,
 		metricAnomalySpec{
-			key:       monitorcontract.SystemLoadPressure,
-			scopeKind: scopeKindRuntime,
-			scopeRef:  "runtime.load",
-			severity:  severity,
-			summary:   fmt.Sprintf("1-minute load average reached %.2f against %d CPU cores.", float64(runtimeSnapshot.LoadAverage.OneMinute), runtimeSnapshot.CpuCores),
+			key:           monitorcontract.SystemLoadPressure,
+			summaryKey:    monitorcontract.AnomalySystemLoadPressure,
+			summaryParams: map[string]string{"load": fmt.Sprintf("%.2f", float64(runtimeSnapshot.LoadAverage.OneMinute)), "cores": fmt.Sprintf("%d", runtimeSnapshot.CpuCores)},
+			scopeKind:     scopeKindRuntime,
+			scopeRef:      "runtime.load",
+			severity:      severity,
 		},
 	), true
 }
@@ -232,11 +239,12 @@ func buildGoroutineAnomaly(
 		observedAt,
 		windowStart,
 		metricAnomalySpec{
-			key:       monitorcontract.RuntimeGoroutinePressure,
-			scopeKind: scopeKindRuntime,
-			scopeRef:  "runtime.goroutines",
-			severity:  severity,
-			summary:   fmt.Sprintf("Goroutine count reached %d.", runtimeSnapshot.Goroutines),
+			key:           monitorcontract.RuntimeGoroutinePressure,
+			summaryKey:    monitorcontract.AnomalyRuntimeGoroutinePressure,
+			summaryParams: map[string]string{"count": fmt.Sprintf("%d", runtimeSnapshot.Goroutines)},
+			scopeKind:     scopeKindRuntime,
+			scopeRef:      "runtime.goroutines",
+			severity:      severity,
 		},
 	), true
 }
@@ -254,11 +262,12 @@ func buildHeapAnomaly(
 		observedAt,
 		windowStart,
 		metricAnomalySpec{
-			key:       monitorcontract.RuntimeHeapPressure,
-			scopeKind: scopeKindRuntime,
-			scopeRef:  "runtime.heap_in_use",
-			severity:  severity,
-			summary:   fmt.Sprintf("Runtime heap usage reached %d bytes.", runtimeSnapshot.RuntimeHeapInUseBytes),
+			key:           monitorcontract.RuntimeHeapPressure,
+			summaryKey:    monitorcontract.AnomalyRuntimeHeapPressure,
+			summaryParams: map[string]string{"bytes": fmt.Sprintf("%d", runtimeSnapshot.RuntimeHeapInUseBytes)},
+			scopeKind:     scopeKindRuntime,
+			scopeRef:      "runtime.heap_in_use",
+			severity:      severity,
 		},
 	), true
 }
@@ -269,13 +278,14 @@ func newMetricAnomaly(
 	spec metricAnomalySpec,
 ) generated.ServerStatusAnomaly {
 	return generated.ServerStatusAnomaly{
-		AnomalyKey: generated.ServerStatusAnomalyAnomalyKey(spec.key),
-		ScopeKind:  generated.ServerStatusAnomalyScopeKind(spec.scopeKind),
-		ScopeRef:   spec.scopeRef,
-		Severity:   generated.ServerStatusAnomalySeverity(spec.severity),
-		Status:     generated.ServerStatusAnomalyStatus(anomalyStatusActive),
-		ObservedAt: observedAt,
-		Summary:    spec.summary,
+		AnomalyKey:    generated.ServerStatusAnomalyAnomalyKey(spec.key),
+		ScopeKind:     generated.ServerStatusAnomalyScopeKind(spec.scopeKind),
+		ScopeRef:      spec.scopeRef,
+		Severity:      generated.ServerStatusAnomalySeverity(spec.severity),
+		Status:        generated.ServerStatusAnomalyStatus(anomalyStatusActive),
+		ObservedAt:    observedAt,
+		SummaryKey:    string(spec.summaryKey),
+		SummaryParams: spec.summaryParams,
 		EvidenceLinks: []generated.EvidenceLink{
 			availableEvidenceLink(windowStart, observedAt, "Review related audit activity", "Check audit records from the same bounded monitor window."),
 		},

@@ -140,6 +140,31 @@ func TestContainerRegistryIncludesVolumeRemovePermission(t *testing.T) {
 	t.Fatal("container registry is missing volume remove permission")
 }
 
+func TestContainerRegistryIncludesNetworkPermissions(t *testing.T) {
+	want := map[string]struct {
+		name  string
+		value string
+	}{
+		"container.permission.network-create": {name: "NETWORK_CREATE", value: string(containercontract.DockerNetworkCreatePermission)},
+		"container.permission.network-remove": {name: "NETWORK_REMOVE", value: string(containercontract.DockerNetworkRemovePermission)},
+	}
+
+	for _, entry := range ContainerRegistry() {
+		expected, ok := want[entry.ID]
+		if !ok {
+			continue
+		}
+		value, ok := entry.Value.(containercontract.PermissionCode)
+		if !ok || entry.Kind != KindPermissionCode || entry.Name != expected.name || entry.Owner != "server/modules/container/contract" || string(value) != expected.value {
+			t.Fatalf("unexpected network permission projection metadata: %+v", entry)
+		}
+		delete(want, entry.ID)
+	}
+	if len(want) != 0 {
+		t.Fatalf("container registry is missing network permissions: %v", want)
+	}
+}
+
 func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {
 	targets := Targets()
 

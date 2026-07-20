@@ -15,6 +15,10 @@ export const CONTAINER_BOOTSTRAP_ROUTE = {
     pageRouteName: 'DockerResourcesIndex',
     routeName: 'DockerResources',
   },
+  NETWORKS: {
+    menuPath: CONTAINER_ROUTE_PATH.NETWORKS,
+    routeName: 'DockerNetworkList',
+  },
   IMAGES: {
     menuPath: CONTAINER_ROUTE_PATH.IMAGES,
     routeName: 'DockerImageList',

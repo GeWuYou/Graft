@@ -25,6 +25,10 @@ rbac.permissionCatalog.systemConfigRead.description: 允许读取已注册的系
 rbac.permissionCatalog.systemConfigWrite.display: 系统配置更新
 rbac.permissionCatalog.systemConfigWrite.description: 允许写入和重置用户配置覆盖值。
 rbac.permissionCatalog.containerView.display: 容器查看
+rbac.permissionCatalog.dockerNetworkCreate.display: Docker 网络创建
+rbac.permissionCatalog.dockerNetworkCreate.description: 允许创建 Docker 网络。
+rbac.permissionCatalog.dockerNetworkRemove.display: Docker 网络删除
+rbac.permissionCatalog.dockerNetworkRemove.description: 允许删除 Docker 网络。
 rbac.permissionCatalog.containerView.description: 允许读取容器列表。
 rbac.permissionCatalog.containerDetail.display: 容器详情查看
 rbac.permissionCatalog.containerDetail.description: 允许读取容器详情。

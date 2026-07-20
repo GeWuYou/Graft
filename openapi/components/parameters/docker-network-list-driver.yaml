@@ -1,0 +1,5 @@
+name: driver
+in: query
+required: false
+description: Optional exact Docker network driver filter.
+schema: { type: string, minLength: 1, maxLength: 128 }

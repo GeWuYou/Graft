@@ -46,6 +46,7 @@ const menuIcons = {
   'container-workload': container,
   'image-artifact': imageIcon,
   'persistent-volume': hardDrive,
+  'network-resource': network,
   'observability-overview': activity,
   'service-health': heartPulse,
   'dependency-health': route,

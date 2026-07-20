@@ -1,0 +1,5 @@
+name: keyword
+in: query
+required: false
+description: Optional case-insensitive keyword matched against a Docker network name.
+schema: { type: string, minLength: 1, maxLength: 128 }

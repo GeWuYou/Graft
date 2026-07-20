@@ -90,7 +90,10 @@ type containerServiceOptions struct {
 // newContainerService 根据模块上下文解析配置、运行时、实时订阅和鉴权依赖；运行时目标读取器属于可选能力，解析失败不阻止服务创建。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
-	systemConfig := resolveSystemConfigResolver(ctx)
+	systemConfig, err := resolveSystemConfigResolver(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve container system config: %w", err)
+	}
 	runtime := Runtime(disabledRuntime{})
 	allowedOrigins := []string{}
 	if ctx != nil && ctx.Config != nil {
@@ -98,19 +101,19 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 	}
 	realtimeTickets, err := resolveRealtimeTicketService(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve container realtime ticket service: %w", err)
 	}
 	realtimeHub, err := resolveRealtimeHub(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve container realtime hub: %w", err)
 	}
 	topicIssuers, err := resolveRealtimeTopicIssuerRegistry(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve container topic issuer registry: %w", err)
 	}
 	authorizer, err := resolveAuthorizer(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve container authorizer: %w", err)
 	}
 	runtimeTargets, _ := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
 	return newService(containerServiceOptions{
@@ -164,8 +167,12 @@ func newService(options containerServiceOptions) (*service, error) {
 	if mountUsageCache == nil {
 		mountUsageCache = newMountUsageCache(containerMountUsageCacheTTL)
 	}
+	runtime := options.runtime
+	if _, ok := runtime.(*DockerRuntime); ok {
+		runtime = newRuntimeLease(runtime)
+	}
 	return &service{
-		runtime:                 options.runtime,
+		runtime:                 runtime,
 		runtimeOptions:          runtimeOptions,
 		runtimeFactory:          runtimeFactory,
 		auditBus:                options.auditBus,
@@ -302,7 +309,7 @@ func (s *service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	} else if normalized.RuntimeTargetID != nil {
 		return ListResult{}, errInvalidListQuery
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return ListResult{}, err
 	}
@@ -332,7 +339,7 @@ func (s *service) DashboardSummary(ctx context.Context, _ dashboardSummaryQuery)
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return dashboardSummaryResult{}, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return dashboardSummaryResult{}, err
 	}
@@ -348,7 +355,7 @@ func (s *service) DockerSystem(ctx context.Context) (RuntimeInfo, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return RuntimeInfo{}, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return RuntimeInfo{}, err
 	}
@@ -359,7 +366,7 @@ func (s *service) dockerResources(ctx context.Context) (DockerResourceReader, er
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return nil, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +569,7 @@ func (s *service) dockerImageWriter(ctx context.Context) (DockerImageWriter, err
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return nil, fmt.Errorf("require Docker image writer runtime access: %w", err)
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Docker image writer runtime: %w", err)
 	}
@@ -648,6 +655,19 @@ func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 	return reader.ListDockerNetworks(ctx)
 }
 
+// DockerNetworksPage 返回按查询条件筛选并分页的 Docker 网络列表。
+func (s *service) DockerNetworksPage(ctx context.Context, query DockerNetworkListQuery) (DockerNetworkListResult, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerNetworkListResult{}, fmt.Errorf("resolve docker resources: %w", err)
+	}
+	items, err := reader.ListDockerNetworks(ctx)
+	if err != nil {
+		return DockerNetworkListResult{}, fmt.Errorf("list docker networks: %w", err)
+	}
+	return listDockerNetworks(items, query), nil
+}
+
 func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetwork, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
@@ -706,7 +726,7 @@ func (s *service) Detail(ctx context.Context, ref Ref) (Detail, error) {
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return Detail{}, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return Detail{}, err
 	}
@@ -743,7 +763,7 @@ func (s *service) MountUsageList(ctx context.Context, ref Ref) ([]MountUsage, er
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return nil, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -780,7 +800,7 @@ func (s *service) RefreshMountUsage(ctx context.Context, ref Ref, mountID string
 		return MountUsage{}, errInvalidRef
 	}
 	cacheKey := mountUsageCacheKey(ref, mountID)
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return MountUsage{}, err
 	}
@@ -804,7 +824,7 @@ func (s *service) Logs(ctx context.Context, ref Ref, query LogQuery) (Logs, erro
 	if err != nil {
 		return Logs{}, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return Logs{}, err
 	}
@@ -901,7 +921,7 @@ func (s *service) runAction(
 	if err := s.requireRuntimeAccess(ctx); err != nil {
 		return ActionResult{}, err
 	}
-	runtime, err := s.runtimeForRequest()
+	runtime, err := s.runtimeForRequestContext(ctx)
 	if err != nil {
 		return ActionResult{}, err
 	}
