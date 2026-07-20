@@ -6,21 +6,6 @@
         description-key="project.list.description"
         :source="{ labelKey: 'project.list.eyebrow', fallback: t('project.list.eyebrow') }"
       >
-        <template #meta>
-          <div class="project-header-summary">
-            <span class="project-header-summary__total" data-testid="project-status-summary-total">
-              {{ t('project.list.projectCount', { count: summaryTotalCount }) }}
-            </span>
-            <t-tooltip v-for="item in headerStatusSummaryItems" :key="item.key" :content="item.tooltip" placement="top">
-              <span
-                :class="['application-header-summary__status', `project-header-summary__status--${item.key}`]"
-                :data-testid="`project-status-summary-${item.key}`"
-              >
-                {{ item.icon }}{{ item.count }}
-              </span>
-            </t-tooltip>
-          </div>
-        </template>
         <template #actions>
           <t-space size="small" break-line>
             <project-list-entry-actions
@@ -33,6 +18,13 @@
           </t-space>
         </template>
       </management-page-header>
+
+      <management-statistics-bar
+        :items="[
+          { label: t('project.list.projectCount', { count: '' }).trim(), value: summaryTotalCount },
+          ...headerStatusSummaryItems.map((item) => ({ label: item.key, marker: item.icon, value: item.count })),
+        ]"
+      />
 
       <advanced-query-filter-builder
         active-preset="all"
@@ -413,6 +405,7 @@ import {
   ManagementPageContent,
   ManagementPagedTable,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';

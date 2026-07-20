@@ -16,13 +16,11 @@
           >
             <template #icon><search-icon /></template>{{ t('runtimeTarget.list.discoverLocalDocker') }}
           </t-button>
-          <t-button theme="primary" variant="outline" :loading="loading" @click="load">
-            <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
-          </t-button>
         </template>
       </management-page-header>
+      <management-statistics-bar :items="statistics" :label="t('runtimeTarget.list.summary', { count: total })" />
       <t-alert v-if="errorMessage" theme="error" :message="errorMessage" class="runtime-target-feedback" />
-      <management-table-card :description="t('runtimeTarget.list.summary', { count: total })">
+      <management-table-card>
         <template #toolbar>
           <t-button theme="default" variant="text" :loading="loading" @click="load">
             <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
@@ -70,6 +68,7 @@ import { RUNTIME_TARGET_REALTIME_TOPIC } from '@/contracts/generated/modules/run
 import {
   ManagementPageContent,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
 } from '@/shared/components/management';
@@ -96,6 +95,19 @@ const items = ref<RuntimeTarget[]>([]);
 const total = ref(0);
 const pagination = reactive({ current: 1, pageSize: 10 });
 const changes = ref<Record<number, MetricChanges>>({});
+const statistics = computed(() => [
+  { label: t('runtimeTarget.list.summary', { count: '' }).trim(), value: total.value },
+  {
+    label: t('runtimeTarget.status.healthy'),
+    marker: '🟢',
+    value: items.value.filter((item) => item.health.status === 'healthy').length,
+  },
+  {
+    label: t('runtimeTarget.status.unavailable'),
+    marker: '🔴',
+    value: items.value.filter((item) => item.health.status !== 'healthy').length,
+  },
+]);
 const active = ref(false);
 let realtimeController: RealtimeTopicSocketController | null = null;
 const changeTimers = new Map<number, number>();

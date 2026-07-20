@@ -20,6 +20,10 @@
         </template>
       </management-page-header>
 
+      <management-statistics-bar
+        :items="[{ label: t('announcement.management.summary', { count: '' }).trim(), value: total }]"
+      />
+
       <management-toolbar>
         <template #filters>
           <t-input
@@ -514,6 +518,7 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
   ManagementToolbar,

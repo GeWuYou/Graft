@@ -7,17 +7,30 @@
         :source="{ labelKey: 'announcement.route.user.title', fallback: t('announcement.route.user.title') }"
       >
         <template #actions>
-          <t-checkbox v-model="filters.unreadOnly" class="announcement-user-page__unread-filter">
-            {{ t('announcement.user.unreadOnly') }}
-          </t-checkbox>
-          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAnnouncements">
-            {{ t('announcement.user.refresh') }}
-          </t-button>
           <t-button theme="primary" :disabled="!canMarkAllRead" :loading="markingAllRead" @click="markAllRead">
             {{ t('announcement.user.markAllRead') }}
           </t-button>
         </template>
       </management-page-header>
+
+      <management-statistics-bar
+        :items="[
+          { label: t('announcement.user.summary', { count: '' }).trim(), value: total },
+          { label: t('announcement.user.unreadSummary', { count: '' }).trim(), marker: '🟠', value: unreadCount },
+        ]"
+      />
+      <management-toolbar>
+        <template #filters>
+          <t-checkbox v-model="filters.unreadOnly" class="announcement-user-page__unread-filter">
+            {{ t('announcement.user.unreadOnly') }}
+          </t-checkbox>
+        </template>
+        <template #actions>
+          <t-button theme="default" variant="outline" :loading="loading" @click="fetchAnnouncements">
+            {{ t('announcement.user.refresh') }}
+          </t-button>
+        </template>
+      </management-toolbar>
 
       <t-card class="announcement-user-page__surface" size="small" :bordered="true">
         <template #header>
@@ -149,7 +162,9 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementTablePagination,
+  ManagementToolbar,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
