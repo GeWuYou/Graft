@@ -187,7 +187,7 @@ describe('bootstrap navigation graph', () => {
         title: 'Templates',
         path: '/applications/templates',
         icon: 'application-template',
-        permission: 'ops.application.template.manage',
+        permission: 'application.template.manage',
       },
     ];
 
@@ -227,7 +227,7 @@ describe('bootstrap navigation graph', () => {
         title_key: 'menu.dockerVolume.title',
         path: '/infrastructure/docker/volumes',
         icon: 'persistent-volume',
-        permission: 'ops.container.view',
+        permission: 'container.view',
       },
     ];
 

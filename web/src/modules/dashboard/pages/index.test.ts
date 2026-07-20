@@ -652,7 +652,7 @@ describe('DashboardHomePage', () => {
     containerDashboardApiMocks.getContainerDashboardSummary.mockResolvedValue(containerDashboardSummaryResponse());
     usePermissionStore().routers = buildSidebarRoutes();
     usePermissionStore().setBootstrapSnapshot({
-      permissions: ['ops.container.view'],
+      permissions: ['container.view'],
       menus: [],
       user: null,
     } as never);

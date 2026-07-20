@@ -2,20 +2,20 @@
 // Source: server/internal/contract/projection.Targets.
 
 export const CONTAINER_PERMISSION_CODE = {
-  DETAIL: 'ops.container.detail',
-  ENVIRONMENT: 'ops.container.environment',
-  EVENTS: 'ops.container.events',
-  IMAGE_PULL: 'ops.container.image.pull',
-  IMAGE_REMOVE: 'ops.container.image.remove',
-  IMAGE_TAG: 'ops.container.image.tag',
-  IMAGE_UNTAG: 'ops.container.image.untag',
-  LOGS: 'ops.container.logs',
-  REMOVE: 'ops.container.remove',
-  RESTART: 'ops.container.restart',
-  SHELL: 'ops.container.shell',
-  START: 'ops.container.start',
-  STOP: 'ops.container.stop',
-  VIEW: 'ops.container.view',
+  DETAIL: 'container.detail',
+  ENVIRONMENT: 'container.environment',
+  EVENTS: 'container.events',
+  IMAGE_PULL: 'container.image.pull',
+  IMAGE_REMOVE: 'container.image.remove',
+  IMAGE_TAG: 'container.image.tag',
+  IMAGE_UNTAG: 'container.image.untag',
+  LOGS: 'container.logs',
+  REMOVE: 'container.remove',
+  RESTART: 'container.restart',
+  SHELL: 'container.shell',
+  START: 'container.start',
+  STOP: 'container.stop',
+  VIEW: 'container.view',
 } as const;
 
 export type ContainerPermissionCode = (typeof CONTAINER_PERMISSION_CODE)[keyof typeof CONTAINER_PERMISSION_CODE];

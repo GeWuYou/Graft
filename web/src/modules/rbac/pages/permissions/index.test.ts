@@ -380,7 +380,7 @@ describe('PermissionPage', () => {
       items: [
         {
           id: 1,
-          code: 'ops.application.import',
+          code: 'application.import',
           display: 'rbac.permissionCatalog.applicationImport.display',
           description: 'rbac.permissionCatalog.applicationImport.description',
           module: 'application',

@@ -1217,7 +1217,7 @@ describe('RolePage', () => {
       items: [
         {
           id: 10,
-          code: 'ops.container.events',
+          code: 'container.events',
           display: 'rbac.permissionCatalog.containerEvents.display',
           description: 'rbac.permissionCatalog.containerEvents.description',
           module: 'container',

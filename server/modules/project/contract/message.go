@@ -147,27 +147,27 @@ const (
 
 const (
 	// ApplicationViewPermission 允许读取应用注册表及只读详情。
-	ApplicationViewPermission PermissionCode = "ops.application.view"
+	ApplicationViewPermission PermissionCode = "application.view"
 	// ApplicationImportPermission 允许校验并注册导入应用。
-	ApplicationImportPermission PermissionCode = "ops.application.import"
+	ApplicationImportPermission PermissionCode = "application.import"
 	// ApplicationRefreshPermission 允许刷新应用静态配置投影。
-	ApplicationRefreshPermission PermissionCode = "ops.application.refresh"
+	ApplicationRefreshPermission PermissionCode = "application.refresh"
 	// ApplicationLifecyclePermission 允许执行应用生命周期动作。
-	ApplicationLifecyclePermission PermissionCode = "ops.application.lifecycle"
+	ApplicationLifecyclePermission PermissionCode = "application.lifecycle"
 	// ApplicationDestroyPermission 允许注销或销毁应用。
-	ApplicationDestroyPermission PermissionCode = "ops.application.destroy"
+	ApplicationDestroyPermission PermissionCode = "application.destroy"
 	// ApplicationCreatePermission 允许校验并执行受管应用创建。
-	ApplicationCreatePermission PermissionCode = "ops.application.create"
+	ApplicationCreatePermission PermissionCode = "application.create"
 	// ApplicationCreationMethodViewPermission 允许读取应用创建方式目录。
-	ApplicationCreationMethodViewPermission PermissionCode = "ops.application.creation-method.view"
+	ApplicationCreationMethodViewPermission PermissionCode = "application.creation-method.view"
 	// ApplicationDiscoveryViewPermission 允许执行有界目录扫描并查看发现候选。
-	ApplicationDiscoveryViewPermission PermissionCode = "ops.application.discovery.view"
+	ApplicationDiscoveryViewPermission PermissionCode = "application.discovery.view"
 	// ApplicationTemplateManagePermission 允许维护 Application 模板草稿与归档状态。
-	ApplicationTemplateManagePermission PermissionCode = "ops.application.template.manage"
+	ApplicationTemplateManagePermission PermissionCode = "application.template.manage"
 	// ApplicationTemplatePublishPermission 允许发布不可变 Application 模板版本。
-	ApplicationTemplatePublishPermission PermissionCode = "ops.application.template.publish"
+	ApplicationTemplatePublishPermission PermissionCode = "application.template.publish"
 	// ApplicationDeployPermission 允许比较、校验并部署受管应用配置。
-	ApplicationDeployPermission PermissionCode = "ops.application.deploy"
+	ApplicationDeployPermission PermissionCode = "application.deploy"
 )
 
 const (
