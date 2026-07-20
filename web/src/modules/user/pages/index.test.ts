@@ -747,8 +747,9 @@ describe('UserPage', () => {
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(wrapper.text()).toContain('Alice');
     expect(wrapper.text()).not.toContain('user.userList.assignRoles');
-    expect(wrapper.text()).not.toContain('user.userList.stats.totalUsers');
-    expect(wrapper.text()).not.toContain('user.userList.stats.recentCreated');
+    expect(wrapper.find('.management-statistics-bar').text()).toContain('user.userList.statistics.total');
+    expect(wrapper.find('.management-statistics-bar').text()).toContain('🟢');
+    expect(wrapper.find('[data-testid="user-detail"]').exists()).toBe(true);
   });
 
   it('disables the drawer default footer for user role assignment', async () => {
@@ -760,7 +761,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="drawer"]').attributes('data-footer')).toBe('false');
@@ -774,7 +775,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
     updateRoleSelection(wrapper, [1, 2]);
     await flushPromises();
@@ -1015,12 +1016,12 @@ describe('UserPage', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('user.userList.protectedDefaultAdmin.badge');
-    expect(wrapper.get('[data-testid="user-manage-roles"]').text()).toContain('user.userList.viewRoles');
-    expect(wrapper.get('[data-testid="user-manage-roles"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.get('[data-testid="dropdown-option-manage-roles"]').text()).toContain('user.userList.viewRoles');
+    expect(wrapper.get('[data-testid="dropdown-option-manage-roles"]').attributes('disabled')).toBeUndefined();
     expect(wrapper.get('[data-testid="dropdown-option-toggle-status"]').attributes('disabled')).toBeDefined();
     expect(wrapper.get('[data-testid="dropdown-option-delete"]').attributes('disabled')).toBeDefined();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
 
     expect(roleApiMocks.getUserRoleBindings).toHaveBeenCalledWith(1);
@@ -1125,7 +1126,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
 
     expect(roleApiMocks.getUserRoleBindings).toHaveBeenCalledWith(7);
@@ -1144,7 +1145,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
     updateRoleSelection(wrapper, [1]);
     await flushPromises();
@@ -1178,7 +1179,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
     await setRoleMutationMode(wrapper, 'add');
     updateRoleSelection(wrapper, [2]);
@@ -1218,7 +1219,7 @@ describe('UserPage', () => {
     const wrapper = mountUserPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="user-manage-roles"]').trigger('click');
+    await wrapper.get('[data-testid="dropdown-option-manage-roles"]').trigger('click');
     await flushPromises();
     await setRoleMutationMode(wrapper, 'remove');
     updateRoleSelection(wrapper, [2]);

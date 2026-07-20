@@ -18,6 +18,8 @@
         </template>
       </management-page-header>
 
+      <management-statistics-bar :items="userStatistics" :label="t('user.userList.statistics.label')" />
+
       <management-toolbar>
         <template #filters>
           <t-input
@@ -51,12 +53,8 @@
         <template #head>
           <div class="table-head">
             <div>
-              <p class="table-head__summary">{{ t('user.userList.summary', { count: filteredUsers.length }) }}</p>
               <p class="table-head__description">{{ t('user.userList.tableHint') }}</p>
             </div>
-            <t-button v-if="hasActiveFilters" theme="default" variant="text" @click="resetFilters">
-              {{ t('user.userList.toolbar.clearFilters') }}
-            </t-button>
           </div>
         </template>
         <template #toolbar>
@@ -537,6 +535,7 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
   ManagementToolbar,
@@ -834,6 +833,27 @@ const filteredUsers = computed(() => {
 
     return true;
   });
+});
+
+const userStatistics = computed(() => {
+  const enabled = users.value.filter((user) => normalizeUserStatus(user.status) === USER_STATUS.ENABLED).length;
+
+  return [
+    {
+      label: t('user.userList.statistics.total'),
+      value: users.value.length,
+    },
+    {
+      label: t('user.userList.status.enabled'),
+      marker: '🟢',
+      value: enabled,
+    },
+    {
+      label: t('user.userList.status.disabled'),
+      marker: '🟠',
+      value: users.value.length - enabled,
+    },
+  ];
 });
 
 const pagedUsers = computed(() => {
@@ -1235,6 +1255,13 @@ function userRowActions(user: UserRow) {
     [];
   const protectedDefaultAdmin = isProtectedDefaultAdminUser(user);
 
+  actions.push({
+    fallbackLabel: t('components.commonTable.detail'),
+    label: t('components.commonTable.detail'),
+    testId: 'user-detail',
+    value: 'detail',
+  });
+
   if (canManageUserRoles()) {
     actions.push({
       label: protectedDefaultAdmin ? t('user.userList.viewRoles') : t('user.userList.assignRoles'),
@@ -1242,13 +1269,6 @@ function userRowActions(user: UserRow) {
       value: 'manage-roles',
     });
   }
-
-  actions.push({
-    fallbackLabel: t('components.commonTable.detail'),
-    label: t('components.commonTable.detail'),
-    testId: 'user-detail',
-    value: 'detail',
-  });
 
   if (permissionStore.hasPermission(auditPermissionCodes.READ)) {
     actions.push({
