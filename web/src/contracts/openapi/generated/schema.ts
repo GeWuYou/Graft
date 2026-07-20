@@ -6986,6 +6986,14 @@ export interface components {
       total: number;
       limit: number;
       offset: number;
+      summary: {
+        /** Format: int64 */
+        total: number;
+        /** Format: int64 */
+        healthy: number;
+        /** Format: int64 */
+        unavailable: number;
+      };
     };
     'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-list-response'];

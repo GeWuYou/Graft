@@ -93,19 +93,20 @@ const discovering = ref(false);
 const errorMessage = ref('');
 const items = ref<RuntimeTarget[]>([]);
 const total = ref(0);
+const summary = ref({ total: 0, healthy: 0, unavailable: 0 });
 const pagination = reactive({ current: 1, pageSize: 10 });
 const changes = ref<Record<number, MetricChanges>>({});
 const statistics = computed(() => [
-  { label: t('runtimeTarget.list.summary', { count: '' }).trim(), value: total.value },
+  { label: t('runtimeTarget.list.summary', { count: '' }).trim(), value: summary.value.total },
   {
     label: t('runtimeTarget.status.healthy'),
     marker: '🟢',
-    value: items.value.filter((item) => item.health.status === 'healthy').length,
+    value: summary.value.healthy,
   },
   {
     label: t('runtimeTarget.status.unavailable'),
     marker: '🔴',
-    value: items.value.filter((item) => item.health.status !== 'healthy').length,
+    value: summary.value.unavailable,
   },
 ]);
 const active = ref(false);
@@ -257,6 +258,7 @@ async function load() {
     });
     items.value = page.items;
     total.value = page.total;
+    summary.value = page.summary;
     startRealtime();
   } catch {
     errorMessage.value = t('runtimeTarget.list.loadError');

@@ -630,10 +630,10 @@ describe('Application list page', () => {
     expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(1);
     const statistics = wrapper.get('.management-statistics-bar').text();
     expect(statistics).toContain('Total4');
-    expect(statistics).toContain('🟢running1');
-    expect(statistics).toContain('🟡degraded1');
-    expect(statistics).toContain('🟠transitioning1');
-    expect(statistics).toContain('⚪unknown1');
+    expect(statistics).toContain('🟢Running1');
+    expect(statistics).toContain('🟡Degraded1');
+    expect(statistics).toContain('🟠Transitioning1');
+    expect(statistics).toContain('⚪Unknown1');
     expect(statistics).not.toContain('stopped');
   });
 

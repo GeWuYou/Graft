@@ -22,7 +22,11 @@
       <management-statistics-bar
         :items="[
           { label: t('project.list.projectCount', { count: '' }).trim(), value: summaryTotalCount },
-          ...headerStatusSummaryItems.map((item) => ({ label: item.key, marker: item.icon, value: item.count })),
+          ...headerStatusSummaryItems.map((item) => ({
+            label: runtimeStatusLabel(item.key),
+            marker: item.icon,
+            value: item.count,
+          })),
         ]"
       />
 

@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"testing"
+	"time"
 
 	dockertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
@@ -123,8 +124,11 @@ func assertError(message string) error { return volumeTestError(message) }
 
 type volumeDetailDockerClient struct {
 	countingDockerClient
-	volume              volume.Volume
-	volumeDiskUsageCall int
+	volume               volume.Volume
+	volumeDiskUsageCall  int
+	volumeDiskUsageCtx   context.Context
+	containerListOptions mobyclient.ContainerListOptions
+	containerListErr     error
 }
 
 func (c *volumeDetailDockerClient) ImageList(context.Context, mobyclient.ImageListOptions) ([]image.Summary, error) {
@@ -147,8 +151,9 @@ func (c *volumeDetailDockerClient) VolumeList(context.Context, mobyclient.Volume
 	return nil, nil
 }
 
-func (c *volumeDetailDockerClient) VolumeDiskUsage(context.Context) ([]volume.Volume, error) {
+func (c *volumeDetailDockerClient) VolumeDiskUsage(ctx context.Context) ([]volume.Volume, error) {
 	c.volumeDiskUsageCall++
+	c.volumeDiskUsageCtx = ctx
 	return nil, nil
 }
 
@@ -158,6 +163,32 @@ func (c *volumeDetailDockerClient) VolumeInspect(context.Context, string) (volum
 
 func (c *volumeDetailDockerClient) VolumeRemove(context.Context, string, bool) error {
 	return nil
+}
+
+func (c *volumeDetailDockerClient) ContainerList(_ context.Context, options mobyclient.ContainerListOptions) ([]dockertypes.Summary, error) {
+	c.containerListOptions = options
+	return nil, c.containerListErr
+}
+
+func TestListDockerVolumesUsesShortLivedUsageContext(t *testing.T) {
+	t.Parallel()
+
+	client := &volumeDetailDockerClient{}
+	runtime := &DockerRuntime{client: client}
+
+	if _, err := runtime.ListDockerVolumes(context.Background()); err != nil {
+		t.Fatalf("list volumes: %v", err)
+	}
+	deadline, ok := client.volumeDiskUsageCtx.Deadline()
+	if !ok {
+		t.Fatal("expected volume usage context to have a deadline")
+	}
+	if remaining := time.Until(deadline); remaining <= 0 || remaining > dockerVolumeUsageTimeout {
+		t.Fatalf("expected usage deadline within %s, got %s", dockerVolumeUsageTimeout, remaining)
+	}
+	if client.volumeDiskUsageCtx.Err() != context.Canceled {
+		t.Fatalf("expected usage context to be canceled after the call, got %v", client.volumeDiskUsageCtx.Err())
+	}
 }
 
 func TestReadDockerVolumeDoesNotCalculateGlobalUsage(t *testing.T) {
@@ -180,5 +211,33 @@ func TestReadDockerVolumeDoesNotCalculateGlobalUsage(t *testing.T) {
 	}
 	if result.ReferenceCount == nil || *result.ReferenceCount != refCount || result.SizeBytes == nil || *result.SizeBytes != size {
 		t.Fatalf("expected inspect usage mapping to be preserved, got %#v", result)
+	}
+	if got := client.containerListOptions.Filters["volume"]["data"]; !got {
+		t.Fatalf("expected container query to filter volume name, got %#v", client.containerListOptions)
+	}
+}
+
+func TestReadDockerVolumeReturnsUnknownReferencesWhenContainerListFails(t *testing.T) {
+	t.Parallel()
+
+	refCount, size := int64(2), int64(4096)
+	client := &volumeDetailDockerClient{
+		volume: volume.Volume{
+			Name:      "data",
+			UsageData: &volume.UsageData{RefCount: refCount, Size: size},
+		},
+		containerListErr: assertError("container list unavailable"),
+	}
+	runtime := &DockerRuntime{client: client}
+
+	result, err := runtime.ReadDockerVolume(context.Background(), "data")
+	if err != nil {
+		t.Fatalf("read volume: %v", err)
+	}
+	if result.Name != "data" || result.ReferenceCount == nil || *result.ReferenceCount != refCount || result.SizeBytes == nil || *result.SizeBytes != size {
+		t.Fatalf("expected core volume projection to survive reference failure, got %#v", result)
+	}
+	if result.ContainerReferences != nil {
+		t.Fatalf("expected references to remain unknown, got %#v", result.ContainerReferences)
 	}
 }

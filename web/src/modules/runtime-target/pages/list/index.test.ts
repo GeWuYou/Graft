@@ -109,6 +109,7 @@ describe('RuntimeTargetListPage', () => {
       total: 21,
       limit: 10,
       offset: 0,
+      summary: { total: 21, healthy: 18, unavailable: 3 },
     });
 
     const wrapper = mountPage();
@@ -120,7 +121,13 @@ describe('RuntimeTargetListPage', () => {
   });
 
   it('scans Local Docker and reloads the first page', async () => {
-    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 10,
+      offset: 0,
+      summary: { total: 0, healthy: 0, unavailable: 0 },
+    });
     apiMocks.discoverLocalDocker.mockResolvedValue(null);
     const wrapper = mountPage();
     await flushPromises();
@@ -139,6 +146,7 @@ describe('RuntimeTargetListPage', () => {
       total: 1,
       limit: 10,
       offset: 0,
+      summary: { total: 1, healthy: 1, unavailable: 0 },
     });
     const wrapper = mountPage();
     await flushPromises();
@@ -156,7 +164,13 @@ describe('RuntimeTargetListPage', () => {
   });
 
   it('subscribes while the initial page is empty and fills it from a realtime snapshot', async () => {
-    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [], total: 0, limit: 10, offset: 0 });
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 10,
+      offset: 0,
+      summary: { total: 0, healthy: 0, unavailable: 0 },
+    });
     const wrapper = mountPage();
     await flushPromises();
 
@@ -171,7 +185,13 @@ describe('RuntimeTargetListPage', () => {
   });
 
   it('reconciles a realtime snapshot to the current page window', async () => {
-    apiMocks.listRuntimeTargetPage.mockResolvedValue({ items: [target(11)], total: 11, limit: 10, offset: 10 });
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(11)],
+      total: 11,
+      limit: 10,
+      offset: 10,
+      summary: { total: 11, healthy: 11, unavailable: 0 },
+    });
     const wrapper = mountPage();
     await flushPromises();
 

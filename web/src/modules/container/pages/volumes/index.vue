@@ -366,7 +366,7 @@ const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
         : formatBytes(volumeSummary.value.size_bytes, t('container.volume.unavailable')),
   },
 ]);
-const columns: TableProps['columns'] = [
+const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), width: 280 },
   { colKey: 'driver', title: t('container.volume.columns.driver'), width: 140, ellipsis: true },
@@ -376,7 +376,7 @@ const columns: TableProps['columns'] = [
   { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
   { colKey: 'labels', title: t('container.volume.columns.labels'), width: 100 },
   { colKey: 'actions', title: t('container.volume.columns.actions'), width: 150, fixed: 'right' },
-];
+]);
 const cleanup = useDockerCleanup<CleanupVolume>({
   fetchCandidates: fetchCleanupCandidates,
   execute: removeCleanupVolumes,
@@ -497,8 +497,9 @@ async function submitCleanup() {
 async function fetchCleanupCandidates(): Promise<CleanupVolume[]> {
   const firstPage = await listDockerVolumes({ limit: 100, offset: 0, usage: 'unused' });
   const all = [...firstPage.items];
-  for (let offset = firstPage.items.length; offset < firstPage.total; offset += 100) {
-    const page = await listDockerVolumes({ limit: 100, offset, usage: 'unused' });
+  while (all.length < firstPage.total) {
+    const page = await listDockerVolumes({ limit: 100, offset: all.length, usage: 'unused' });
+    if (!page.items.length) break;
     all.push(...page.items);
   }
   return all.map((row) => ({ ...row, id: row.name, size_bytes: row.size_bytes ?? 0 }));
@@ -520,6 +521,7 @@ async function removeCleanupVolumes(ids: string[]): Promise<CleanupBatchOutcome>
     } catch (cause) {
       requestError = cause;
       items.push(...chunk.map((id) => ({ id, success: false, error_code: 'UNKNOWN' })));
+      break;
     }
   }
   return { items, unknownResponseIds: [], requestError };

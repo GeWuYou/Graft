@@ -14,6 +14,7 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('table-layout="fixed"');
     expect(sourceText).toContain('middleEllipsis(row.name, 31)');
     expect(sourceText).toContain(':content="row.name"');
+    expect(sourceText).toContain("const columns = computed<TableProps['columns']>(() => [");
     expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), width: 280 }");
   });
 
@@ -27,12 +28,16 @@ describe('docker volume list page', () => {
 
   it('cleans unused volumes with paged candidates and cross-page selection', () => {
     expect(sourceText).toContain("listDockerVolumes({ limit: 100, offset: 0, usage: 'unused' })");
-    expect(sourceText).toContain('for (let offset = firstPage.items.length; offset < firstPage.total; offset += 100)');
+    expect(sourceText).toContain('while (all.length < firstPage.total)');
+    expect(sourceText).toContain('offset: all.length');
+    expect(sourceText).toContain('if (!page.items.length) break;');
     expect(sourceText).toContain('await cleanup.open();');
     expect(sourceText).toContain('cleanup.select');
     expect(sourceText).toContain('cleanup.totalSize.value');
     expect(sourceText).toContain('for (let index = 0; index < ids.length; index += 50)');
     expect(sourceText).toContain('batchRemoveDockerVolumes({ names: chunk, force: false })');
+    expect(sourceText).toContain('requestError = cause;');
+    expect(sourceText).toContain('break;');
     expect(sourceText).toContain('cleanup.partial');
   });
 

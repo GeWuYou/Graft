@@ -41,8 +41,16 @@ type Target struct {
 
 // Page 表示一个稳定的运行时目标分页窗口；Total 与 Items 使用同一份未软删除数据集计算。
 type Page struct {
-	Items []Target
-	Total int64
+	Items   []Target
+	Total   int64
+	Summary Summary
+}
+
+// Summary 是未软删除运行时目标的全量健康聚合，不受当前分页窗口影响。
+type Summary struct {
+	Total       int64
+	Healthy     int64
+	Unavailable int64
 }
 
 // List 返回全部未软删除的运行时目标，并按 provider、显示名称和 ID 排序以保证跨请求顺序稳定。
@@ -62,8 +70,8 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	if r == nil || r.db == nil {
 		return Page{Items: []Target{}}, nil
 	}
-	var total int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM runtime_targets WHERE deleted_at = 0`).Scan(&total); err != nil {
+	var summary Summary
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE availability = true), COUNT(*) FILTER (WHERE availability = false) FROM runtime_targets WHERE deleted_at = 0`).Scan(&summary.Total, &summary.Healthy, &summary.Unavailable); err != nil {
 		return Page{}, err
 	}
 	rows, err := r.db.QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id LIMIT $1 OFFSET $2`, limit, offset)
@@ -74,7 +82,7 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	if err != nil {
 		return Page{}, err
 	}
-	return Page{Items: items, Total: total}, nil
+	return Page{Items: items, Total: summary.Total, Summary: summary}, nil
 }
 
 // scanTargets 读取 runtime-target 列表投影，并始终关闭结果集以释放数据库资源。

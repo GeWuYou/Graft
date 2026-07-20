@@ -365,11 +365,11 @@ const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
 const errorCount = computed(() => listSummary.value?.error ?? 0);
 const unhealthyCount = computed(() => listSummary.value?.unhealthy ?? 0);
 const containerStatistics = computed<ManagementStatisticItem[]>(() => [
-  { label: t('container.list.totalCount', { count: '' }), value: totalCount.value },
-  { label: t('container.list.runningCount', { count: '' }), marker: '🟢', value: runningCount.value },
-  { label: t('container.list.stoppedCount', { count: '' }), marker: '🟠', value: stoppedCount.value },
-  { label: t('container.list.errorCount', { count: '' }), marker: '🔴', value: errorCount.value },
-  { label: t('container.list.unhealthyCount', { count: '' }), marker: '🔴', value: unhealthyCount.value },
+  { label: t('container.list.totalLabel'), value: totalCount.value },
+  { label: t('container.list.runningLabel'), marker: '🟢', value: runningCount.value },
+  { label: t('container.list.stoppedLabel'), marker: '🟠', value: stoppedCount.value },
+  { label: t('container.list.errorLabel'), marker: '🔴', value: errorCount.value },
+  { label: t('container.list.unhealthyLabel'), marker: '🔴', value: unhealthyCount.value },
 ]);
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),

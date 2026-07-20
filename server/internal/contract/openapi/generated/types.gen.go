@@ -10485,10 +10485,15 @@ type RuntimeTargetImageMetric struct {
 
 // RuntimeTargetListResponse defines model for runtime-target-list-response.
 type RuntimeTargetListResponse struct {
-	Items  []RuntimeTargetSummary `json:"items"`
-	Limit  int                    `json:"limit"`
-	Offset int                    `json:"offset"`
-	Total  int64                  `json:"total"`
+	Items   []RuntimeTargetSummary `json:"items"`
+	Limit   int                    `json:"limit"`
+	Offset  int                    `json:"offset"`
+	Summary struct {
+		Healthy     int64 `json:"healthy"`
+		Total       int64 `json:"total"`
+		Unavailable int64 `json:"unavailable"`
+	} `json:"summary"`
+	Total int64 `json:"total"`
 }
 
 // RuntimeTargetSummary defines model for runtime-target-summary.

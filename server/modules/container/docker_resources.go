@@ -16,6 +16,7 @@ import (
 )
 
 const dockerImageReadTimeout = 10 * time.Second
+const dockerVolumeUsageTimeout = 3 * time.Second
 
 // dockerResourceClient 与容器操作 runtime 接口分离，使只读 Docker 资源聚合可以独立替换和测试。
 type dockerResourceClient interface {
@@ -355,7 +356,9 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
-	usage, usageErr := client.VolumeDiskUsage(readCtx)
+	usageCtx, usageCancel := context.WithTimeout(ctx, dockerVolumeUsageTimeout)
+	usage, usageErr := client.VolumeDiskUsage(usageCtx)
+	usageCancel()
 	usageByName := make(map[string]volume.UsageData, len(usage))
 	if usageErr == nil {
 		for _, item := range usage {
@@ -404,11 +407,14 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	if item.UsageData != nil {
 		projected.ReferenceCount, projected.SizeBytes = nullableUsage(item.UsageData.RefCount), nullableUsage(item.UsageData.Size)
 	}
-	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
-	if err != nil {
-		return DockerVolume{}, mapDockerError(err)
+	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{
+		All:     true,
+		Filters: make(mobyclient.Filters).Add("volume", projected.Name),
+	})
+	if err == nil {
+		projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), dockerVolumeReferences(containers)[projected.Name]...)
 	}
-	projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), dockerVolumeReferences(containers)[projected.Name]...)
+	// 引用查询是详情的附加信息；Docker 查询失败时保留核心 volume 投影，并以 nil 表示引用未知。
 	return projected, nil
 }
 
