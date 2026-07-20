@@ -72,7 +72,11 @@
         </management-batch-bar>
       </template>
       <template #feedback>
-        <t-alert v-if="query.isError.value" theme="error" :message="t('container.images.loadFailed')" />
+        <t-alert
+          v-if="query.isError.value"
+          theme="error"
+          :message="resolveLocalizedErrorMessage(t, query.error.value, t('container.images.loadFailed'))"
+        />
       </template>
       <template #empty>
         <t-empty
@@ -575,6 +579,7 @@ import {
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   formatBytes,
   formatLocaleDateTime,

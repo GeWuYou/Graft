@@ -67,6 +67,13 @@
       </template>
     </management-toolbar>
 
+    <t-alert
+      v-if="networkQuery.isError.value"
+      class="docker-network-page__alert"
+      theme="error"
+      :message="resolveLocalizedErrorMessage(t, networkQuery.error.value, t('container.networks.loadFailed'))"
+    />
+
     <management-paged-table
       v-model:current="pagination.current"
       v-model:page-size="pagination.pageSize"
@@ -478,13 +485,13 @@ watch(visibleColumnKeys, (value) => localStorage.setItem(CONTAINER_NETWORK_COLUM
 });
 const allColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'name', title: t('container.networks.fields.name'), ellipsis: true },
-  { colKey: 'driver', title: t('container.networks.fields.driver') },
-  { colKey: 'scope', title: t('container.networks.fields.scope') },
+  { colKey: 'name', title: t('container.networks.fields.name'), width: 360, ellipsis: true },
+  { colKey: 'driver', title: t('container.networks.fields.driver'), width: 120, ellipsis: true },
+  { colKey: 'scope', title: t('container.networks.fields.scope'), width: 120, ellipsis: true },
   { colKey: 'flags', title: t('container.networks.fields.flags'), width: 180 },
   { colKey: 'container_count', title: t('container.networks.fields.containers'), width: 100 },
-  { colKey: 'labels', title: t('container.networks.labels'), width: 100 },
-  { colKey: 'created_at', title: t('container.networks.fields.createdAt'), ellipsis: true },
+  { colKey: 'labels', title: t('container.networks.labels'), width: 500 },
+  { colKey: 'created_at', title: t('container.networks.fields.createdAt'), width: 180, ellipsis: true },
   { colKey: 'operation', title: t('container.networks.operation'), width: 150, fixed: 'right' as const },
 ]);
 const columns = computed<TableProps['columns']>(() =>

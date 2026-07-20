@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -175,20 +176,20 @@ func containerDefaultValue(ctx *module.Context, key string) (json.RawMessage, bo
 	return definition.DefaultValue, true
 }
 
-// resolveSystemConfigResolver 从模块上下文的服务中解析系统配置解析器；服务不可用或解析结果无效时返回 nil。
-func resolveSystemConfigResolver(ctx *module.Context) moduleapi.SystemConfigResolver {
+// resolveSystemConfigResolver 从模块上下文的服务中解析系统配置解析器；正式模块装配缺少该依赖时必须显式失败。
+func resolveSystemConfigResolver(ctx *module.Context) (moduleapi.SystemConfigResolver, error) {
 	if ctx == nil || ctx.Services == nil {
-		return nil
+		return nil, errors.New("system config resolver is unavailable")
 	}
 	resolved, err := ctx.Services.Resolve((*moduleapi.SystemConfigResolver)(nil))
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("resolve system config resolver: %w", err)
 	}
 	resolver, ok := resolved.(moduleapi.SystemConfigResolver)
 	if !ok {
-		return nil
+		return nil, errors.New("resolved system config service does not implement resolver")
 	}
-	return resolver
+	return resolver, nil
 }
 
 // resolveStringConfigValue 按键读取并裁剪字符串配置值；读取失败或结果为空时返回裁剪后的 fallback。
@@ -559,6 +560,13 @@ func (s *service) runtimeForRequest() (Runtime, error) {
 	}
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
+	if !s.runtimeAccessEnabled(context.Background()) {
+		if s.runtime != nil {
+			_ = s.runtime.Close()
+			s.runtime = nil
+		}
+		return nil, errRuntimeDisabled
+	}
 	if s.runtime != nil {
 		if _, disabled := s.runtime.(disabledRuntime); !disabled {
 			return s.runtime, nil

@@ -560,7 +560,7 @@
       "internal": "Internal",
       "attachable": "Attachable",
       "ingress": "Ingress",
-      "noAttributes": "No special attributes",
+      "noAttributes": "Standard",
       "labels": "Labels",
       "ipam": "IPAM Configuration",
       "connectedContainers": "Connected Containers",
@@ -568,6 +568,7 @@
       "operation": "Actions",
       "emptyTitle": "No Networks",
       "emptyDescription": "The current Docker runtime returned no networks.",
+      "loadFailed": "Network list could not be loaded.",
       "summary": {
         "total": "Total {count}",
         "inUse": "In use {count}",
@@ -607,7 +608,7 @@
         "driver": "Driver",
         "scope": "Scope",
         "ipv4": "IPv4",
-        "flags": "Flags",
+        "flags": "Network Capabilities",
         "containers": "Containers",
         "createdAt": "Created At"
       },

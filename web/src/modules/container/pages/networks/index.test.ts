@@ -50,4 +50,12 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('`${key}=${value}`');
     expect(sourceText).toContain('<t-tooltip');
   });
+
+  it('keeps compact metadata columns while reserving room for labels', () => {
+    expect(sourceText).toContain("{ colKey: 'name', title: t('container.networks.fields.name'), width: 360");
+    expect(sourceText).toContain("{ colKey: 'driver', title: t('container.networks.fields.driver'), width: 120");
+    expect(sourceText).toContain("{ colKey: 'scope', title: t('container.networks.fields.scope'), width: 120");
+    expect(sourceText).toContain("{ colKey: 'labels', title: t('container.networks.labels'), width: 500 }");
+    expect(sourceText).toContain("{ colKey: 'created_at', title: t('container.networks.fields.createdAt'), width: 180");
+  });
 });

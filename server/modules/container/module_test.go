@@ -194,6 +194,11 @@ func newTestContext() *module.Context {
 	}); err != nil {
 		panic(fmt.Sprintf("register authorizer: %v", err))
 	}
+	if err := services.RegisterSingleton((*moduleapi.SystemConfigResolver)(nil), func(containerdi.Resolver) (any, error) {
+		return serviceTestSystemConfig{}, nil
+	}); err != nil {
+		panic(fmt.Sprintf("register system config resolver: %v", err))
+	}
 	return &module.Context{
 		I18n:               localizer,
 		MenuRegistry:       menu.NewRegistry(),

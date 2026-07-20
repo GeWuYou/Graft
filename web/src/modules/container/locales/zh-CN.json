@@ -560,7 +560,7 @@
       "internal": "内部网络",
       "attachable": "可附加",
       "ingress": "入口网络",
-      "noAttributes": "无特殊属性",
+      "noAttributes": "普通",
       "labels": "标签",
       "ipam": "IPAM 配置",
       "connectedContainers": "已连接容器",
@@ -568,6 +568,7 @@
       "operation": "操作",
       "emptyTitle": "暂无网络",
       "emptyDescription": "当前 Docker 运行时未返回网络。",
+      "loadFailed": "网络列表加载失败。",
       "summary": {
         "total": "总数 {count}",
         "inUse": "使用中 {count}",
@@ -607,7 +608,7 @@
         "driver": "驱动",
         "scope": "范围",
         "ipv4": "IPv4",
-        "flags": "属性",
+        "flags": "网络能力",
         "containers": "容器数",
         "createdAt": "创建时间"
       },

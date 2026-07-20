@@ -90,7 +90,10 @@ type containerServiceOptions struct {
 // newContainerService 根据模块上下文解析配置、运行时、实时订阅和鉴权依赖；运行时目标读取器属于可选能力，解析失败不阻止服务创建。
 func newContainerService(ctx *module.Context, moduleName string) (*service, error) {
 	options := containerOptionsFromConfig(ctx)
-	systemConfig := resolveSystemConfigResolver(ctx)
+	systemConfig, err := resolveSystemConfigResolver(ctx)
+	if err != nil {
+		return nil, err
+	}
 	runtime := Runtime(disabledRuntime{})
 	allowedOrigins := []string{}
 	if ctx != nil && ctx.Config != nil {
