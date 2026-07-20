@@ -4385,7 +4385,7 @@ export interface components {
        * @enum {string}
        */
       state: 'available' | 'partial' | 'unavailable';
-      /** @description Human-readable summary of the correlated monitor evidence. */
+      /** @description Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog. */
       summary: string;
       /** @description String-formatted interpolation values for the monitor summary locale key. */
       summary_params: {
