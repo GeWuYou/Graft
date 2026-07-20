@@ -435,9 +435,10 @@ const creating = ref(false);
 const removing = ref(false);
 const batchRemoving = ref(false);
 const selectedNetworkIds = ref<string[]>([]);
+const selectedNetworkNamesByID = ref<Record<string, string>>({});
 const selectedNetworkNames = computed(() =>
   selectedNetworkIds.value
-    .map((id) => networks.value.find((network) => network.id === id)?.name)
+    .map((id) => selectedNetworkNamesByID.value[id])
     .filter(Boolean)
     .join(', '),
 );
@@ -596,6 +597,7 @@ function openRemoveDialog(network: DockerNetwork) {
 }
 function clearSelection() {
   selectedNetworkIds.value = [];
+  selectedNetworkNamesByID.value = {};
 }
 function openBatchRemoveDialog() {
   if (canRemove.value && selectedNetworkIds.value.length) batchRemoveDialogVisible.value = true;
@@ -606,6 +608,15 @@ function handlePageChange(pageInfo: { current: number; pageSize: number }) {
 }
 function handleSelectChange(keys: Array<string | number>) {
   selectedNetworkIds.value = keys.map(String);
+  const selectedIDs = new Set(selectedNetworkIds.value);
+  const names = { ...selectedNetworkNamesByID.value };
+  for (const network of networks.value) {
+    if (selectedIDs.has(network.id)) names[network.id] = network.name;
+  }
+  for (const id of Object.keys(names)) {
+    if (!selectedIDs.has(id)) delete names[id];
+  }
+  selectedNetworkNamesByID.value = names;
 }
 function applyFilters() {
   appliedFilters.value = {
@@ -685,10 +696,7 @@ async function submitBatchRemove() {
   const ids = [...selectedNetworkIds.value];
   batchRemoving.value = true;
   const results = await Promise.allSettled(
-    ids.map((id) => {
-      const network = networks.value.find((item) => item.id === id);
-      return removeDockerNetwork(id, { confirm_network_name: network?.name ?? '' });
-    }),
+    ids.map((id) => removeDockerNetwork(id, { confirm_network_name: selectedNetworkNamesByID.value[id] ?? '' })),
   );
   const succeeded = results.filter((result) => result.status === 'fulfilled').length;
   const failed = results.length - succeeded;

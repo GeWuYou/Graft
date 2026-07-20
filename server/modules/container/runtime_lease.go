@@ -7,7 +7,7 @@ import (
 	"graft/server/modules/container/terminal"
 )
 
-// runtimeLease defers closing a shared runtime until all operations using it have returned.
+// runtimeLease 延迟关闭共享运行时，并在退休后拒绝新操作，避免调用方使用已关闭的客户端。
 type runtimeLease struct {
 	runtime Runtime
 	mu      sync.Mutex
@@ -20,11 +20,15 @@ func newRuntimeLease(runtime Runtime) *runtimeLease {
 	return &runtimeLease{runtime: runtime}
 }
 
-func (l *runtimeLease) acquire() func() {
+func (l *runtimeLease) acquire() (func(), error) {
 	l.mu.Lock()
+	if l.retired || l.closed {
+		l.mu.Unlock()
+		return nil, errRuntimeDisabled
+	}
 	l.refs++
 	l.mu.Unlock()
-	return l.release
+	return l.release, nil
 }
 
 func (l *runtimeLease) release() {
@@ -55,42 +59,66 @@ func (l *runtimeLease) retire() error {
 }
 
 func (l *runtimeLease) Info(ctx context.Context) (RuntimeInfo, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return RuntimeInfo{}, err
+	}
 	defer done()
 	return l.runtime.Info(ctx)
 }
 func (l *runtimeLease) List(ctx context.Context, q ListQuery) ([]Summary, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return nil, err
+	}
 	defer done()
 	return l.runtime.List(ctx, q)
 }
 func (l *runtimeLease) Detail(ctx context.Context, ref Ref) (Detail, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return Detail{}, err
+	}
 	defer done()
 	return l.runtime.Detail(ctx, ref)
 }
 func (l *runtimeLease) Mounts(ctx context.Context, ref Ref) ([]Mount, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return nil, err
+	}
 	defer done()
 	return l.runtime.Mounts(ctx, ref)
 }
 func (l *runtimeLease) MountUsage(ctx context.Context, ref Ref, id string) (MountUsage, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return MountUsage{}, err
+	}
 	defer done()
 	return l.runtime.MountUsage(ctx, ref, id)
 }
 func (l *runtimeLease) Logs(ctx context.Context, ref Ref, q LogQuery) (Logs, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return Logs{}, err
+	}
 	defer done()
 	return l.runtime.Logs(ctx, ref, q)
 }
 func (l *runtimeLease) StreamLogs(ctx context.Context, ref Ref, q LogQuery, emit func(LogChunk) error) error {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
 	defer done()
 	return l.runtime.StreamLogs(ctx, ref, q, emit)
 }
 func (l *runtimeLease) Shell(ctx context.Context, ref Ref, command string) (terminal.Session, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return nil, err
+	}
 	session, err := l.runtime.Shell(ctx, ref, command)
 	if err != nil {
 		done()
@@ -99,22 +127,34 @@ func (l *runtimeLease) Shell(ctx context.Context, ref Ref, command string) (term
 	return &leasedSession{Session: session, release: done}, nil
 }
 func (l *runtimeLease) Start(ctx context.Context, ref Ref) (ActionResult, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return ActionResult{}, err
+	}
 	defer done()
 	return l.runtime.Start(ctx, ref)
 }
 func (l *runtimeLease) Stop(ctx context.Context, ref Ref) (ActionResult, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return ActionResult{}, err
+	}
 	defer done()
 	return l.runtime.Stop(ctx, ref)
 }
 func (l *runtimeLease) Restart(ctx context.Context, ref Ref) (ActionResult, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return ActionResult{}, err
+	}
 	defer done()
 	return l.runtime.Restart(ctx, ref)
 }
 func (l *runtimeLease) Remove(ctx context.Context, ref Ref, opts RemoveOptions) (ActionResult, error) {
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return ActionResult{}, err
+	}
 	defer done()
 	return l.runtime.Remove(ctx, ref, opts)
 }
@@ -125,7 +165,10 @@ func (l *runtimeLease) CollectStatsSnapshots(ctx context.Context) ([]StatsSnapsh
 	if !ok {
 		return nil, nil
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return nil, err
+	}
 	defer done()
 	return runtime.CollectStatsSnapshots(ctx)
 }
@@ -135,7 +178,10 @@ func (l *runtimeLease) StreamRuntimeEvents(ctx context.Context, emit func(Runtim
 	if !ok {
 		return nil
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
 	defer done()
 	return runtime.StreamRuntimeEvents(ctx, emit)
 }
@@ -145,7 +191,10 @@ func (l *runtimeLease) ListDockerImages(ctx context.Context) (DockerImageListRes
 	if !ok {
 		return DockerImageListResult{}, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return DockerImageListResult{}, err
+	}
 	defer done()
 	return r.ListDockerImages(ctx)
 }
@@ -154,7 +203,10 @@ func (l *runtimeLease) ReadDockerImage(ctx context.Context, id string) (DockerIm
 	if !ok {
 		return DockerImage{}, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return DockerImage{}, err
+	}
 	defer done()
 	return r.ReadDockerImage(ctx, id)
 }
@@ -163,7 +215,10 @@ func (l *runtimeLease) ListDockerNetworks(ctx context.Context) ([]DockerNetwork,
 	if !ok {
 		return nil, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return nil, err
+	}
 	defer done()
 	return r.ListDockerNetworks(ctx)
 }
@@ -172,7 +227,10 @@ func (l *runtimeLease) ReadDockerNetwork(ctx context.Context, id string) (Docker
 	if !ok {
 		return DockerNetwork{}, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return DockerNetwork{}, err
+	}
 	defer done()
 	return r.ReadDockerNetwork(ctx, id)
 }
@@ -183,7 +241,10 @@ func (l *runtimeLease) CreateDockerNetwork(ctx context.Context, command DockerNe
 	if !ok {
 		return DockerNetworkActionResult{}, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return DockerNetworkActionResult{}, err
+	}
 	defer done()
 	return r.CreateDockerNetwork(ctx, command)
 }
@@ -194,7 +255,10 @@ func (l *runtimeLease) RemoveDockerNetwork(ctx context.Context, id, confirmation
 	if !ok {
 		return DockerNetworkActionResult{}, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return DockerNetworkActionResult{}, err
+	}
 	defer done()
 	return r.RemoveDockerNetwork(ctx, id, confirmation)
 }
@@ -203,7 +267,10 @@ func (l *runtimeLease) ListDockerVolumes(ctx context.Context) ([]DockerVolume, e
 	if !ok {
 		return nil, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return nil, err
+	}
 	defer done()
 	return r.ListDockerVolumes(ctx)
 }
@@ -212,7 +279,10 @@ func (l *runtimeLease) ReadDockerVolume(ctx context.Context, id string) (DockerV
 	if !ok {
 		return DockerVolume{}, errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return DockerVolume{}, err
+	}
 	defer done()
 	return r.ReadDockerVolume(ctx, id)
 }
@@ -221,7 +291,10 @@ func (l *runtimeLease) PullDockerImage(ctx context.Context, ref string, emit fun
 	if !ok {
 		return errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
 	defer done()
 	return r.PullDockerImage(ctx, ref, emit)
 }
@@ -230,7 +303,10 @@ func (l *runtimeLease) TagDockerImage(ctx context.Context, source, target string
 	if !ok {
 		return errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
 	defer done()
 	return r.TagDockerImage(ctx, source, target)
 }
@@ -239,7 +315,10 @@ func (l *runtimeLease) UntagDockerImage(ctx context.Context, ref string) error {
 	if !ok {
 		return errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
 	defer done()
 	return r.UntagDockerImage(ctx, ref)
 }
@@ -248,7 +327,10 @@ func (l *runtimeLease) RemoveDockerImage(ctx context.Context, id string, force b
 	if !ok {
 		return errUnsupportedContainerRuntime
 	}
-	done := l.acquire()
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
 	defer done()
 	return r.RemoveDockerImage(ctx, id, force)
 }

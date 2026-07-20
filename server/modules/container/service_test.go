@@ -1844,7 +1844,10 @@ func TestRuntimeLeaseDefersCloseUntilActiveOperationReleases(t *testing.T) {
 
 	runtime := &countingRuntime{}
 	lease := newRuntimeLease(runtime)
-	release := lease.acquire()
+	release, err := lease.acquire()
+	if err != nil {
+		t.Fatalf("acquire runtime lease: %v", err)
+	}
 	if err := lease.Close(); err != nil {
 		t.Fatalf("retire runtime lease: %v", err)
 	}
@@ -1854,6 +1857,22 @@ func TestRuntimeLeaseDefersCloseUntilActiveOperationReleases(t *testing.T) {
 	release()
 	if got := runtime.closeCalls.Load(); got != 1 {
 		t.Fatalf("expected runtime to close after final release, got %d close calls", got)
+	}
+}
+
+func TestRuntimeLeaseRejectsOperationsAfterRetirement(t *testing.T) {
+	t.Parallel()
+
+	runtime := &countingRuntime{}
+	lease := newRuntimeLease(runtime)
+	if err := lease.Close(); err != nil {
+		t.Fatalf("retire runtime lease: %v", err)
+	}
+	if _, err := lease.Info(context.Background()); !errors.Is(err, errRuntimeDisabled) {
+		t.Fatalf("expected retired lease to reject operations, got %v", err)
+	}
+	if got := runtime.closeCalls.Load(); got != 1 {
+		t.Fatalf("expected retired lease to close runtime once, got %d close calls", got)
 	}
 }
 
