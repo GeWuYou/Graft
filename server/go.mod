@@ -38,10 +38,10 @@ require golang.org/x/text v0.40.0
 require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.47
+	github.com/mattn/go-sqlite3 v1.14.48
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0
-	github.com/oapi-codegen/runtime v1.1.2
+	github.com/oapi-codegen/runtime v1.6.0
 	github.com/robfig/cron/v3 v3.0.1
 )
 
