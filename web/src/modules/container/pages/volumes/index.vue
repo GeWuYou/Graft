@@ -201,8 +201,14 @@
           @action="handleVolumeRowAction($event, row)"
         />
       </template>
-      <template v-if="hasActiveFilters" #empty-action>
-        <t-button variant="outline" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
+      <template #empty>
+        <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
+          <template #action>
+            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
+              {{ t('container.volume.filters.reset') }}
+            </t-button>
+          </template>
+        </t-empty>
       </template>
     </management-paged-table>
     <t-drawer

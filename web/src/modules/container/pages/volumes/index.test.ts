@@ -43,9 +43,10 @@ describe('docker volume list page', () => {
     expect(sourceText).not.toContain('text-overflow: ellipsis;');
   });
 
-  it('uses the shared paged table with a filter-aware empty action', () => {
+  it('uses the shared paged table with an explicit filter-aware empty state', () => {
     expect(sourceText).toContain('<management-paged-table');
-    expect(sourceText).toContain('<template v-if="hasActiveFilters" #empty-action>');
+    expect(sourceText).toContain('<template #empty>');
+    expect(sourceText).toContain('<t-empty');
     expect(sourceText).toContain('hasActiveFilters');
     expect(sourceText).toContain('@click="resetFilters"');
     expect(sourceText).toContain('<template #name="{ row }">');
