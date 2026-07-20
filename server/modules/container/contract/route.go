@@ -51,6 +51,8 @@ const (
 	DockerNetworksRoute = "/networks"
 	// DockerNetworkRoute 是 Docker 网络详情路由片段。
 	DockerNetworkRoute = "/networks/:id"
+	// DockerNetworkMenuPath 是 Docker 网络管理菜单路径。
+	DockerNetworkMenuPath = "/infrastructure/docker/networks"
 	// DockerVolumesRoute 是 Docker 卷集合路由片段。
 	DockerVolumesRoute = "/volumes"
 	// DockerVolumeRoute 是 Docker 卷详情路由片段。

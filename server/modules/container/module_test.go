@@ -274,6 +274,8 @@ func expectedPermissionCodes() []string {
 		containercontract.ContainerRestartPermission.String(),
 		containercontract.ContainerRemovePermission.String(),
 		containercontract.ContainerVolumeRemovePermission.String(),
+		containercontract.DockerNetworkCreatePermission.String(),
+		containercontract.DockerNetworkRemovePermission.String(),
 		containercontract.DockerImagePullPermission.String(),
 		containercontract.DockerImageTagPermission.String(),
 		containercontract.DockerImageUntagPermission.String(),
@@ -285,9 +287,17 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	t.Helper()
 
 	items := registry.Items()
-	if len(items) != 4 {
-		t.Fatalf("expected Docker group and its three management entries, got %#v", items)
+	if len(items) != 5 {
+		t.Fatalf("expected Docker group and its four management entries, got %#v", items)
 	}
+	assertMenuItem(t, items, expectedMenuItem{
+		code:                     "docker.network.list",
+		titleKey:                 containercontract.DockerNetworkMenuTitle.String(),
+		path:                     containercontract.DockerNetworkMenuPath,
+		icon:                     "network-resource",
+		permission:               containercontract.ContainerViewPermission.String(),
+		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
+	})
 	assertMenuItem(t, items, expectedMenuItem{
 		code:                     "docker",
 		title:                    "",
@@ -335,8 +345,8 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 	if items[2].ParentCode != "docker" || items[2].Kind != menu.NodeKindEntry {
 		t.Fatalf("image management must be a Docker child entry, got %#v", items[2])
 	}
-	if items[3].ParentCode != "docker" || items[3].Kind != menu.NodeKindEntry {
-		t.Fatalf("volume management must be a Docker child entry, got %#v", items[3])
+	if items[3].ParentCode != "docker" || items[3].Kind != menu.NodeKindEntry || items[4].ParentCode != "docker" || items[4].Kind != menu.NodeKindEntry {
+		t.Fatalf("Docker management entries must be Docker child entries, got %#v", items)
 	}
 }
 

@@ -155,6 +155,9 @@
       "title": "Docker",
       "image": {
         "title": "镜像"
+      },
+      "network": {
+        "title": "网络"
       }
     },
     "dockerVolume": {
@@ -543,6 +546,16 @@
       "removeConfirmationMismatch": "确认名称必须与网络名称完全一致。",
       "removeSuccess": "Docker 网络已删除。",
       "removeFailed": "删除 Docker 网络失败。",
+      "batch": {
+        "selected": "已选择 {count} 个网络",
+        "cancelSelection": "取消选择",
+        "remove": "批量删除",
+        "removeTitle": "批量删除 Docker 网络",
+        "removeDescription": "将删除已选择的 {count} 个网络，是否继续？",
+        "removeSuccess": "已成功删除 {count} 个网络。",
+        "removePartial": "批量删除部分完成：成功 {succeeded} 个，失败 {failed} 个。",
+        "removeFailed": "批量删除失败。"
+      },
       "cancel": "取消",
       "internal": "内部网络",
       "attachable": "可附加",

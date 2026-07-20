@@ -52,12 +52,35 @@
       </template>
     </management-toolbar>
 
+    <management-batch-bar
+      v-if="selectedNetworkIds.length"
+      class="docker-network-page__batch"
+      :selected-label="t('container.networks.batch.selected', { count: selectedNetworkIds.length })"
+      :clear-label="t('container.networks.batch.cancelSelection')"
+      clear-test-id="network-batch-clear"
+      @clear="clearSelection"
+    >
+      <t-button
+        data-testid="network-batch-remove"
+        size="small"
+        theme="danger"
+        variant="outline"
+        :disabled="!canRemove || batchRemoving"
+        :loading="batchRemoving"
+        @click="openBatchRemoveDialog"
+      >
+        {{ t('container.networks.batch.remove') }}
+      </t-button>
+    </management-batch-bar>
+
     <t-table
+      v-model:selected-row-keys="selectedNetworkIds"
       row-key="id"
       :data="filteredNetworks"
       :columns="columns"
       :loading="networkQuery.isFetching.value"
-      :pagination="{ pageSize: 20, total: filteredNetworks.length }"
+      :pagination="paginationConfig"
+      @page-change="handlePageChange"
     >
       <template #name="{ row }">
         <t-button variant="text" @click="openDetail(row.id)">{{ row.name }}</t-button>
@@ -230,6 +253,17 @@
       <p>{{ t('container.networks.removeDescription', { name: selectedNetwork?.name ?? '' }) }}</p>
       <t-input v-model="removeConfirmation" :placeholder="selectedNetwork?.name" />
     </t-dialog>
+
+    <t-dialog
+      v-model:visible="batchRemoveDialogVisible"
+      :header="t('container.networks.batch.removeTitle')"
+      :confirm-btn="t('container.networks.batch.remove')"
+      :confirm-loading="batchRemoving"
+      theme="danger"
+      @confirm="submitBatchRemove"
+    >
+      <p>{{ t('container.networks.batch.removeDescription', { count: selectedNetworkIds.length }) }}</p>
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -239,12 +273,12 @@ import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
+import { ManagementBatchBar, ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore } from '@/store';
 
 import { createDockerNetwork, removeDockerNetwork } from '../../api/container';
-import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import {
   invalidateDockerNetworkQueries,
   useDockerNetworkDetailQuery,
@@ -263,8 +297,11 @@ const detailQuery = useDockerNetworkDetailQuery(selectedNetworkId);
 const createDrawerVisible = ref(false);
 const detailDrawerVisible = ref(false);
 const removeDialogVisible = ref(false);
+const batchRemoveDialogVisible = ref(false);
 const creating = ref(false);
 const removing = ref(false);
+const batchRemoving = ref(false);
+const selectedNetworkIds = ref<string[]>([]);
 const selectedNetwork = ref<DockerNetwork | null>(null);
 const removeConfirmation = ref('');
 const drivers: DockerNetworkDriver[] = ['bridge', 'overlay', 'macvlan', 'ipvlan', 'none'];
@@ -293,7 +330,10 @@ const inUseCount = computed(() => networks.value.filter((network) => network.con
 const unusedCount = computed(() => networks.value.length - inUseCount.value);
 const canCreate = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.NETWORK_CREATE));
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.NETWORK_REMOVE));
+const pagination = reactive({ current: 1, pageSize: 20, total: 0 });
+const paginationConfig = computed(() => ({ ...pagination, total: filteredNetworks.value.length }));
 const columns: TableProps['columns'] = [
+  { colKey: 'row-select', type: 'multiple', width: 48 },
   { colKey: 'name', title: t('container.networks.fields.name'), ellipsis: true },
   { colKey: 'driver', title: t('container.networks.fields.driver') },
   { colKey: 'scope', title: t('container.networks.fields.scope') },
@@ -336,6 +376,16 @@ function openRemoveDialog(network: DockerNetwork) {
   selectedNetwork.value = network;
   removeConfirmation.value = '';
   removeDialogVisible.value = true;
+}
+function clearSelection() {
+  selectedNetworkIds.value = [];
+}
+function openBatchRemoveDialog() {
+  if (canRemove.value && selectedNetworkIds.value.length) batchRemoveDialogVisible.value = true;
+}
+function handlePageChange(pageInfo: { current: number; pageSize: number }) {
+  pagination.current = pageInfo.current;
+  pagination.pageSize = pageInfo.pageSize;
 }
 function parseLabels(source: string) {
   const labels = Object.fromEntries(
@@ -397,10 +447,34 @@ async function submitRemove() {
     removing.value = false;
   }
 }
+async function submitBatchRemove() {
+  if (!canRemove.value || !selectedNetworkIds.value.length) return;
+  const ids = [...selectedNetworkIds.value];
+  batchRemoving.value = true;
+  const results = await Promise.allSettled(
+    ids.map((id) => {
+      const network = networks.value.find((item) => item.id === id);
+      return removeDockerNetwork(id, { confirm_network_name: network?.name ?? '' });
+    }),
+  );
+  const succeeded = results.filter((result) => result.status === 'fulfilled').length;
+  const failed = results.length - succeeded;
+  clearSelection();
+  await invalidateDockerNetworkQueries();
+  batchRemoveDialogVisible.value = false;
+  if (failed === 0) MessagePlugin.success(t('container.networks.batch.removeSuccess', { count: succeeded }));
+  else if (succeeded > 0) MessagePlugin.warning(t('container.networks.batch.removePartial', { succeeded, failed }));
+  else MessagePlugin.error(t('container.networks.batch.removeFailed'));
+  batchRemoving.value = false;
+}
 </script>
 <style scoped>
 .docker-network-page__toolbar {
   margin-bottom: var(--td-comp-margin-l);
+}
+
+.docker-network-page__batch {
+  margin-bottom: var(--td-comp-margin-m);
 }
 
 .docker-network-page__section {

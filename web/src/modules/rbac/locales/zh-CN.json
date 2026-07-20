@@ -368,6 +368,14 @@
         "display": "查看容器详情",
         "description": "允许读取容器详情快照。"
       },
+      "dockerNetworkCreate": {
+        "display": "创建 Docker 网络",
+        "description": "允许创建 Docker 网络。"
+      },
+      "dockerNetworkRemove": {
+        "display": "删除 Docker 网络",
+        "description": "允许删除 Docker 网络。"
+      },
       "containerEvents": {
         "display": "容器事件读取",
         "description": "允许读取有界容器运行时事件历史与实时事件流。"

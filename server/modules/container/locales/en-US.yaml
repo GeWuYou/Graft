@@ -1,5 +1,6 @@
 menu.docker.title: Docker
 menu.container.title: Containers
+menu.docker.network.title: Networks
 menu.docker.image.title: Images
 menu.section.runtime: Runtime
 ops.container.error.runtimeDisabled: Container runtime access is not enabled

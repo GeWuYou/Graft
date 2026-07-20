@@ -32,6 +32,10 @@ const (
 	ContainerRestartPermission PermissionCode = "container.restart"
 	// ContainerRemovePermission 表示容器移除权限，值保持稳定。
 	ContainerRemovePermission PermissionCode = "container.remove"
+	// DockerNetworkCreatePermission 表示创建 Docker 网络的权限，值保持稳定。
+	DockerNetworkCreatePermission PermissionCode = "container.network.create"
+	// DockerNetworkRemovePermission 表示删除 Docker 网络的权限，值保持稳定。
+	DockerNetworkRemovePermission PermissionCode = "container.network.remove"
 	// DockerImagePullPermission 表示 Docker 镜像拉取权限，值保持稳定。
 	DockerImagePullPermission PermissionCode = "container.image.pull"
 	// DockerImageTagPermission 表示 Docker 镜像标签管理权限，值保持稳定。

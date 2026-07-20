@@ -155,6 +155,9 @@
       "title": "Docker",
       "image": {
         "title": "Images"
+      },
+      "network": {
+        "title": "Networks"
       }
     },
     "dockerVolume": {
@@ -543,6 +546,16 @@
       "removeConfirmationMismatch": "The confirmation name must exactly match the network name.",
       "removeSuccess": "Docker network removed.",
       "removeFailed": "Docker network could not be removed.",
+      "batch": {
+        "selected": "{count} Networks Selected",
+        "cancelSelection": "Clear Selection",
+        "remove": "Remove Selected",
+        "removeTitle": "Remove Docker Networks",
+        "removeDescription": "This will remove {count} selected networks. Continue?",
+        "removeSuccess": "{count} Networks Removed.",
+        "removePartial": "Batch removal partially completed: {succeeded} succeeded, {failed} failed.",
+        "removeFailed": "Batch removal failed."
+      },
       "cancel": "Cancel",
       "internal": "Internal",
       "attachable": "Attachable",

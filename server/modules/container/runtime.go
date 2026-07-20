@@ -109,7 +109,6 @@ var (
 	errRuntimePermissionDenied       = errors.New("container runtime permission denied")
 	errRuntimeDaemonUnavailable      = errors.New("container runtime daemon unavailable")
 	errContainerNotFound             = errors.New("container not found")
-	errDockerNetworkNotFound         = errors.New("docker network not found")
 	errInvalidDockerNetworkRequest   = errors.New("invalid docker network request")
 	errDockerNetworkConfirmMismatch  = errors.New("docker network confirmation mismatch")
 	errDockerNetworkDefaultProtected = errors.New("docker default network is protected")

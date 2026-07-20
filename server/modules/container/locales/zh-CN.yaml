@@ -1,5 +1,6 @@
 menu.docker.title: Docker
 menu.container.title: 容器
+menu.docker.network.title: 网络
 menu.docker.image.title: 镜像
 menu.section.runtime: 运行时
 ops.container.error.runtimeDisabled: 容器运行时访问未启用

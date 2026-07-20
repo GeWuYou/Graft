@@ -368,6 +368,14 @@
         "display": "View Container Details",
         "description": "Allows reading container detail snapshots."
       },
+      "dockerNetworkCreate": {
+        "display": "Create Docker Networks",
+        "description": "Allows creating Docker networks."
+      },
+      "dockerNetworkRemove": {
+        "display": "Remove Docker Networks",
+        "description": "Allows removing Docker networks."
+      },
       "containerEvents": {
         "display": "Container Event Read",
         "description": "Allows reading bounded container runtime event history and live event streams."

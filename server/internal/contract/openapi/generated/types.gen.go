@@ -2788,6 +2788,66 @@ func (e DockerImageBatchRemoveItemErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for DockerNetworkActionResponseAction.
+const (
+	Create DockerNetworkActionResponseAction = "create"
+	Remove DockerNetworkActionResponseAction = "remove"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkActionResponseAction enum.
+func (e DockerNetworkActionResponseAction) Valid() bool {
+	switch e {
+	case Create:
+		return true
+	case Remove:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerNetworkActionResponseResult.
+const (
+	Completed DockerNetworkActionResponseResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkActionResponseResult enum.
+func (e DockerNetworkActionResponseResult) Valid() bool {
+	switch e {
+	case Completed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerNetworkCreateRequestDriver.
+const (
+	Bridge  DockerNetworkCreateRequestDriver = "bridge"
+	Ipvlan  DockerNetworkCreateRequestDriver = "ipvlan"
+	Macvlan DockerNetworkCreateRequestDriver = "macvlan"
+	None    DockerNetworkCreateRequestDriver = "none"
+	Overlay DockerNetworkCreateRequestDriver = "overlay"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkCreateRequestDriver enum.
+func (e DockerNetworkCreateRequestDriver) Valid() bool {
+	switch e {
+	case Bridge:
+		return true
+	case Ipvlan:
+		return true
+	case Macvlan:
+		return true
+	case None:
+		return true
+	case Overlay:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DockerVolumeRemoveResponseAction.
 const (
 	DockerVolumeRemoveResponseActionRemove DockerVolumeRemoveResponseAction = "remove"
@@ -11647,6 +11707,9 @@ type DockerImageListOffset = int
 // DockerImageListUnused defines model for docker-image-list-unused.
 type DockerImageListUnused = bool
 
+// DockerNetworkIdPath defines model for docker-network-id-path.
+type DockerNetworkIdPath = string
+
 // DockerVolumeIdPath defines model for docker-volume-id-path.
 type DockerVolumeIdPath = string
 
@@ -14054,6 +14117,12 @@ type PostDockerImageTagJSONRequestBody = DockerImageTagRequest
 
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody = DockerImageUntagRequest
+
+// PostDockerNetworkJSONRequestBody defines body for PostDockerNetwork for application/json ContentType.
+type PostDockerNetworkJSONRequestBody = DockerNetworkCreateRequest
+
+// DeleteDockerNetworkJSONRequestBody defines body for DeleteDockerNetwork for application/json ContentType.
+type DeleteDockerNetworkJSONRequestBody = DockerNetworkRemoveRequest
 
 // PostDockerVolumeBatchRemoveJSONRequestBody defines body for PostDockerVolumeBatchRemove for application/json ContentType.
 type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest

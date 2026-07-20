@@ -6,7 +6,18 @@ import (
 
 	containergen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
+	containercontract "graft/server/modules/container/contract"
 )
+
+func toDockerNetworkAction(result DockerNetworkActionResult) containergen.DockerNetworkActionResponse {
+	action := containergen.DockerNetworkActionResponseAction("create")
+	messageKey := containercontract.DockerNetworkCreateCompleted
+	if result.Action == "remove" {
+		action = containergen.DockerNetworkActionResponseAction("remove")
+		messageKey = containercontract.DockerNetworkRemoveCompleted
+	}
+	return containergen.DockerNetworkActionResponse{Id: result.ID, Name: result.Name, Action: action, Result: containergen.DockerNetworkActionResponseResult("completed"), MessageKey: messageKey.String()}
+}
 
 // toContainerListResponse 将容器列表结果转换为 OpenAPI 容器列表响应。
 //

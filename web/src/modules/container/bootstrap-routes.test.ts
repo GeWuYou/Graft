@@ -4,7 +4,7 @@ import { containerBootstrapRouteRegistrations, containerGlobalRouteRegistrations
 
 describe('container bootstrap route registrations', () => {
   it('uses the canonical container management route identity', () => {
-    expect(containerBootstrapRouteRegistrations).toHaveLength(3);
+    expect(containerBootstrapRouteRegistrations).toHaveLength(4);
     expect(containerBootstrapRouteRegistrations).toContainEqual(
       expect.objectContaining({
         menuPath: '/infrastructure/docker/containers',

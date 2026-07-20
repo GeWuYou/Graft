@@ -17,6 +17,8 @@ const (
 	DockerImageMenuTitle MessageKey = "menu.docker.image.title"
 	// DockerVolumeMenuTitle identifies the Docker volume navigation title.
 	DockerVolumeMenuTitle MessageKey = "menu.dockerVolume.title"
+	// DockerNetworkMenuTitle identifies the Docker network navigation title.
+	DockerNetworkMenuTitle MessageKey = "menu.docker.network.title"
 	// ContainerMenuSectionTitle identifies the visual-only runtime sidebar section title.
 	ContainerMenuSectionTitle MessageKey = "menu.section.runtime"
 	// ContainerRuntimeDisabled identifies disabled runtime errors.

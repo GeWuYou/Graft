@@ -8226,6 +8226,8 @@ export interface components {
     'docker-image-list-unused': boolean;
     /** @description Docker image ID or repository reference. */
     'docker-image-id-path': string;
+    /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
+    'docker-network-id-path': string;
     /** @description Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100. */
     'docker-volume-list-limit': number;
     /** @description Optional zero-based offset for Docker volumes. */

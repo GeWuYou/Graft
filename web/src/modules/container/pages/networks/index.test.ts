@@ -19,4 +19,14 @@ describe('Docker network management page', () => {
     expect(sourceText).not.toContain('window.confirm');
     expect(sourceText).not.toContain('window.alert');
   });
+
+  it('supports permission-gated batch removal with pagination and partial results', () => {
+    expect(sourceText).toContain('v-model:selected-row-keys="selectedNetworkIds"');
+    expect(sourceText).toContain('<management-batch-bar');
+    expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_REMOVE');
+    expect(sourceText).toContain('Promise.allSettled');
+    expect(sourceText).toContain('container.networks.batch.removePartial');
+    expect(sourceText).toContain('invalidateDockerNetworkQueries()');
+    expect(sourceText).toContain(':pagination="paginationConfig"');
+  });
 });

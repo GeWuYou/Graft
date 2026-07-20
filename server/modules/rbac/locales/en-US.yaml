@@ -25,6 +25,10 @@ rbac.permissionCatalog.systemConfigRead.description: Allows reading registered s
 rbac.permissionCatalog.systemConfigWrite.display: System Configuration Update
 rbac.permissionCatalog.systemConfigWrite.description: Allows writing and resetting user configuration overrides.
 rbac.permissionCatalog.containerView.display: Container View
+rbac.permissionCatalog.dockerNetworkCreate.display: Docker Network Creation
+rbac.permissionCatalog.dockerNetworkCreate.description: Allows creating Docker networks.
+rbac.permissionCatalog.dockerNetworkRemove.display: Docker Network Removal
+rbac.permissionCatalog.dockerNetworkRemove.description: Allows removing Docker networks.
 rbac.permissionCatalog.containerView.description: Allows reading the container list.
 rbac.permissionCatalog.containerDetail.display: Container Detail View
 rbac.permissionCatalog.containerDetail.description: Allows reading container details.
