@@ -400,8 +400,18 @@ func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
+	counts := dockerNetworkContainerCounts(containers)
+	for _, item := range items {
+		projected := dockerNetwork(item.Network, counts[strings.TrimSpace(item.ID)])
+		projected.Removable = !isDockerDefaultNetwork(projected.Name) && projected.ContainerCount == 0
+		result = append(result, projected)
+	}
+	return result, nil
+}
+
+func dockerNetworkContainerCounts(items []container.Summary) map[string]int {
 	counts := make(map[string]int)
-	for _, item := range containers {
+	for _, item := range items {
 		for id, endpoint := range item.NetworkSettings.Networks {
 			networkID := strings.TrimSpace(id)
 			if endpoint != nil && strings.TrimSpace(endpoint.NetworkID) != "" {
@@ -412,12 +422,7 @@ func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork
 			}
 		}
 	}
-	for _, item := range items {
-		projected := dockerNetwork(item.Network, counts[strings.TrimSpace(item.ID)])
-		projected.Removable = !isDockerDefaultNetwork(projected.Name) && projected.ContainerCount == 0
-		result = append(result, projected)
-	}
-	return result, nil
+	return counts
 }
 
 // ListDockerNetworksPage 读取网络与容器的一致快照，供服务端分页列表使用。
