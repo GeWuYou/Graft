@@ -56,24 +56,24 @@
           />
         </template>
         <template #batch>
-          <div v-if="selectedRowKeys.length > 0" class="app-log-batch-bar">
-            <span>{{ t('appLog.batch.selected', { count: selectedRowKeys.length }) }}</span>
-            <div class="app-log-batch-bar__actions">
-              <t-button
-                v-permission="permissionCodes.DELETE"
-                size="small"
-                theme="danger"
-                variant="outline"
-                :loading="deleting"
-                @click="confirmBatchDelete"
-              >
-                {{ t('appLog.actions.batchDelete') }}
-              </t-button>
-              <t-button size="small" theme="default" variant="text" @click="selectedRowKeys = []">
-                {{ t('appLog.batch.cancelSelection') }}
-              </t-button>
-            </div>
-          </div>
+          <management-batch-bar
+            v-if="selectedRowKeys.length > 0"
+            :selected-label="t('appLog.batch.selected', { count: selectedRowKeys.length })"
+            :clear-label="t('appLog.batch.cancelSelection')"
+            clear-test-id="app-log-batch-clear"
+            @clear="selectedRowKeys = []"
+          >
+            <t-button
+              v-permission="permissionCodes.DELETE"
+              size="small"
+              theme="danger"
+              variant="outline"
+              :loading="deleting"
+              @click="confirmBatchDelete"
+            >
+              {{ t('appLog.actions.batchDelete') }}
+            </t-button>
+          </management-batch-bar>
         </template>
       </app-log-table>
     </template>
@@ -99,7 +99,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { TableViewToolbar } from '@/shared/components/management';
+import { ManagementBatchBar, TableViewToolbar } from '@/shared/components/management';
 import {
   AdvancedQueryColumnDrawer,
   AdvancedQueryListPage,
@@ -668,20 +668,3 @@ onMounted(() => {
   void appLogSavedViews.load();
 });
 </script>
-<style scoped lang="less">
-.app-log-batch-bar {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-  justify-content: space-between;
-  width: 100%;
-}
-
-.app-log-batch-bar__actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
-  justify-content: flex-end;
-}
-</style>

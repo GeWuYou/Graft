@@ -1540,15 +1540,15 @@ describe('Application detail service tab', () => {
     expect(dialogInstance.destroy).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the service batch selection bar with dedicated action alignment wrappers', async () => {
+  it('renders the service batch selection bar through the shared batch component', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.find('.project-service-batch-bar').exists()).toBe(true);
-    expect(wrapper.find('.project-service-batch-bar__actions').exists()).toBe(true);
+    expect(wrapper.find('.management-batch-bar').exists()).toBe(true);
+    expect(wrapper.find('.management-batch-bar__actions').exists()).toBe(true);
   });
 
   it('prefers the first running member when opening service detail', async () => {

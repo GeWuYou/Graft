@@ -1,3 +1,4 @@
+export { default as ManagementBatchBar } from './ManagementBatchBar.vue';
 export { default as ManagementEmptyState } from './ManagementEmptyState.vue';
 export { default as ManagementPageContent } from './ManagementPageContent.vue';
 export { default as ManagementPagedTable } from './ManagementPagedTable.vue';

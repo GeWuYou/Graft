@@ -116,100 +116,91 @@
           </div>
         </template>
         <template v-if="selectedRows.length > 0" #batch>
-          <div class="project-batch-bar">
-            <span data-testid="project-batch-selected">
-              {{ t('project.list.batch.selected', { count: selectedRows.length }) }}
-            </span>
-            <div class="project-batch-bar__actions">
-              <t-tooltip :content="batchActionHint('start')" placement="top">
-                <t-button
-                  data-testid="project-batch-start"
-                  size="small"
-                  theme="primary"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('start')"
-                  :loading="batchActionLoading === 'start'"
-                  @click="confirmBatchAction('start')"
-                >
-                  {{ t('project.list.batch.start') }}
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="batchActionHint('stop')" placement="top">
-                <t-button
-                  data-testid="project-batch-stop"
-                  size="small"
-                  theme="warning"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('stop')"
-                  :loading="batchActionLoading === 'stop'"
-                  @click="confirmBatchAction('stop')"
-                >
-                  {{ t('project.list.batch.stop') }}
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="batchActionHint('restart')" placement="top">
-                <t-button
-                  data-testid="project-batch-restart"
-                  size="small"
-                  theme="warning"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('restart')"
-                  :loading="batchActionLoading === 'restart'"
-                  @click="confirmBatchAction('restart')"
-                >
-                  {{ t('project.list.batch.restart') }}
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="batchActionHint('unregister')" placement="top">
-                <t-button
-                  data-testid="project-batch-unregister"
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('unregister')"
-                  :loading="batchActionLoading === 'unregister'"
-                  @click="confirmBatchAction('unregister')"
-                >
-                  {{ t('project.list.batch.unregister') }}
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="batchActionHint('redeploy')" placement="top">
-                <t-button
-                  data-testid="project-batch-redeploy"
-                  size="small"
-                  theme="default"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('redeploy')"
-                  :loading="batchActionLoading === 'redeploy'"
-                  @click="confirmBatchAction('redeploy')"
-                >
-                  {{ t('project.list.batch.redeploy') }}
-                </t-button>
-              </t-tooltip>
-              <t-tooltip :content="batchActionHint('destroy')" placement="top">
-                <t-button
-                  data-testid="project-batch-destroy"
-                  size="small"
-                  theme="danger"
-                  variant="outline"
-                  :disabled="isBatchActionDisabled('destroy')"
-                  :loading="batchActionLoading === 'destroy'"
-                  @click="confirmBatchAction('destroy')"
-                >
-                  {{ t('project.list.batch.destroy') }}
-                </t-button>
-              </t-tooltip>
+          <management-batch-bar
+            :selected-label="t('project.list.batch.selected', { count: selectedRows.length })"
+            :clear-label="t('project.list.batch.cancelSelection')"
+            clear-test-id="project-batch-clear"
+            @clear="clearSelection"
+          >
+            <t-tooltip :content="batchActionHint('start')" placement="top">
               <t-button
-                data-testid="project-batch-clear"
+                data-testid="project-batch-start"
+                size="small"
+                theme="primary"
+                variant="outline"
+                :disabled="isBatchActionDisabled('start')"
+                :loading="batchActionLoading === 'start'"
+                @click="confirmBatchAction('start')"
+              >
+                {{ t('project.list.batch.start') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('stop')" placement="top">
+              <t-button
+                data-testid="project-batch-stop"
+                size="small"
+                theme="warning"
+                variant="outline"
+                :disabled="isBatchActionDisabled('stop')"
+                :loading="batchActionLoading === 'stop'"
+                @click="confirmBatchAction('stop')"
+              >
+                {{ t('project.list.batch.stop') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('restart')" placement="top">
+              <t-button
+                data-testid="project-batch-restart"
+                size="small"
+                theme="warning"
+                variant="outline"
+                :disabled="isBatchActionDisabled('restart')"
+                :loading="batchActionLoading === 'restart'"
+                @click="confirmBatchAction('restart')"
+              >
+                {{ t('project.list.batch.restart') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('unregister')" placement="top">
+              <t-button
+                data-testid="project-batch-unregister"
                 size="small"
                 theme="default"
-                variant="text"
-                @click="clearSelection"
+                variant="outline"
+                :disabled="isBatchActionDisabled('unregister')"
+                :loading="batchActionLoading === 'unregister'"
+                @click="confirmBatchAction('unregister')"
               >
-                {{ t('project.list.batch.cancelSelection') }}
+                {{ t('project.list.batch.unregister') }}
               </t-button>
-            </div>
-          </div>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('redeploy')" placement="top">
+              <t-button
+                data-testid="project-batch-redeploy"
+                size="small"
+                theme="default"
+                variant="outline"
+                :disabled="isBatchActionDisabled('redeploy')"
+                :loading="batchActionLoading === 'redeploy'"
+                @click="confirmBatchAction('redeploy')"
+              >
+                {{ t('project.list.batch.redeploy') }}
+              </t-button>
+            </t-tooltip>
+            <t-tooltip :content="batchActionHint('destroy')" placement="top">
+              <t-button
+                data-testid="project-batch-destroy"
+                size="small"
+                theme="danger"
+                variant="outline"
+                :disabled="isBatchActionDisabled('destroy')"
+                :loading="batchActionLoading === 'destroy'"
+                @click="confirmBatchAction('destroy')"
+              >
+                {{ t('project.list.batch.destroy') }}
+              </t-button>
+            </t-tooltip>
+          </management-batch-bar>
         </template>
         <template #feedback>
           <management-empty-state
@@ -404,6 +395,7 @@ import { getLatestTaskForOwner } from '@/modules/task/contract/latest-task';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import {
+  ManagementBatchBar,
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPagedTable,
@@ -2059,13 +2051,7 @@ async function handleRowAction(action: string, row: ApplicationListItemWithLifec
 .project-resource-badges,
 .project-refresh,
 .project-identity,
-.project-header-summary,
-.project-batch-bar,
-.project-batch-bar__actions {
-  display: flex;
-}
-
-.project-page {
+.project-header-summary {
   flex-direction: column;
   gap: var(--graft-density-gap-16);
 }
@@ -2082,24 +2068,6 @@ async function handleRowAction(action: string, row: ApplicationListItemWithLifec
   align-items: center;
   gap: var(--graft-density-gap-16);
   justify-content: space-between;
-}
-
-.project-batch-bar {
-  align-items: center;
-  gap: var(--graft-density-gap-12);
-  justify-content: space-between;
-  padding: var(--graft-density-gap-8) 0;
-  width: 100%;
-}
-
-.project-batch-bar__actions {
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
-}
-
-.project-batch-bar > span {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
 }
 
 .project-table-head__summary,

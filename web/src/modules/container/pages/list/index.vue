@@ -114,72 +114,66 @@
         </div>
       </template>
       <template #batch>
-        <div v-if="selectedRowKeys.length > 0" class="container-batch-bar">
-          <span>{{ t('container.list.batch.selected', { count: selectedRowKeys.length }) }}</span>
-          <div class="container-batch-bar__actions">
-            <t-tooltip :content="batchActionHint('start')" placement="top">
-              <t-button
-                data-testid="container-batch-start"
-                size="small"
-                theme="primary"
-                variant="outline"
-                :disabled="isBatchActionDisabled('start')"
-                :loading="batchActionLoading === 'start'"
-                @click="confirmBatchAction('start')"
-              >
-                {{ t('container.list.batch.start') }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="batchActionHint('stop')" placement="top">
-              <t-button
-                data-testid="container-batch-stop"
-                size="small"
-                theme="warning"
-                variant="outline"
-                :disabled="isBatchActionDisabled('stop')"
-                :loading="batchActionLoading === 'stop'"
-                @click="confirmBatchAction('stop')"
-              >
-                {{ t('container.list.batch.stop') }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="batchActionHint('restart')" placement="top">
-              <t-button
-                data-testid="container-batch-restart"
-                size="small"
-                theme="warning"
-                variant="outline"
-                :disabled="isBatchActionDisabled('restart')"
-                :loading="batchActionLoading === 'restart'"
-                @click="confirmBatchAction('restart')"
-              >
-                {{ t('container.list.batch.restart') }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="batchActionHint('remove')" placement="top">
-              <t-button
-                data-testid="container-batch-remove"
-                size="small"
-                theme="danger"
-                variant="outline"
-                :disabled="isBatchActionDisabled('remove')"
-                :loading="batchActionLoading === 'remove'"
-                @click="confirmBatchAction('remove')"
-              >
-                {{ t('container.list.batch.remove') }}
-              </t-button>
-            </t-tooltip>
+        <management-batch-bar
+          v-if="selectedRowKeys.length > 0"
+          :selected-label="t('container.list.batch.selected', { count: selectedRowKeys.length })"
+          :clear-label="t('container.list.batch.cancelSelection')"
+          clear-test-id="container-batch-clear"
+          @clear="clearSelection"
+        >
+          <t-tooltip :content="batchActionHint('start')" placement="top">
             <t-button
-              data-testid="container-batch-clear"
+              data-testid="container-batch-start"
               size="small"
-              theme="default"
-              variant="text"
-              @click="clearSelection"
+              theme="primary"
+              variant="outline"
+              :disabled="isBatchActionDisabled('start')"
+              :loading="batchActionLoading === 'start'"
+              @click="confirmBatchAction('start')"
             >
-              {{ t('container.list.batch.cancelSelection') }}
+              {{ t('container.list.batch.start') }}
             </t-button>
-          </div>
-        </div>
+          </t-tooltip>
+          <t-tooltip :content="batchActionHint('stop')" placement="top">
+            <t-button
+              data-testid="container-batch-stop"
+              size="small"
+              theme="warning"
+              variant="outline"
+              :disabled="isBatchActionDisabled('stop')"
+              :loading="batchActionLoading === 'stop'"
+              @click="confirmBatchAction('stop')"
+            >
+              {{ t('container.list.batch.stop') }}
+            </t-button>
+          </t-tooltip>
+          <t-tooltip :content="batchActionHint('restart')" placement="top">
+            <t-button
+              data-testid="container-batch-restart"
+              size="small"
+              theme="warning"
+              variant="outline"
+              :disabled="isBatchActionDisabled('restart')"
+              :loading="batchActionLoading === 'restart'"
+              @click="confirmBatchAction('restart')"
+            >
+              {{ t('container.list.batch.restart') }}
+            </t-button>
+          </t-tooltip>
+          <t-tooltip :content="batchActionHint('remove')" placement="top">
+            <t-button
+              data-testid="container-batch-remove"
+              size="small"
+              theme="danger"
+              variant="outline"
+              :disabled="isBatchActionDisabled('remove')"
+              :loading="batchActionLoading === 'remove'"
+              @click="confirmBatchAction('remove')"
+            >
+              {{ t('container.list.batch.remove') }}
+            </t-button>
+          </t-tooltip>
+        </management-batch-bar>
       </template>
       <template #feedback>
         <t-alert v-if="listError.title" class="container-alert" theme="error" :title="listError.title">
@@ -227,6 +221,7 @@ import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
 import { resolveComposeApplicationReferences } from '@/modules/project/contract/compose-context-references';
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import {
+  ManagementBatchBar,
   ManagementPageHeader,
   type ManagementStatisticItem,
   ManagementStatisticsBar,
@@ -1408,26 +1403,12 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 
 .container-port-list,
 .container-actions,
-.container-batch-bar,
-.container-batch-bar__actions,
 .container-remove-confirm__force {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-6);
 }
 
-.container-batch-bar {
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.container-batch-bar > span {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-}
-
-.container-batch-bar__actions,
 .container-remove-confirm__force {
   align-items: center;
 }
