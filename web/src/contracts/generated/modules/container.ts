@@ -16,6 +16,7 @@ export const CONTAINER_PERMISSION_CODE = {
   START: 'container.start',
   STOP: 'container.stop',
   VIEW: 'container.view',
+  VOLUME_REMOVE: 'container.volume.remove',
 } as const;
 
 export type ContainerPermissionCode = (typeof CONTAINER_PERMISSION_CODE)[keyof typeof CONTAINER_PERMISSION_CODE];

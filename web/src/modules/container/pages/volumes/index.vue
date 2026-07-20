@@ -307,6 +307,7 @@ import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import {
   ManagementPagedTable,
   ManagementPageHeader,
@@ -329,7 +330,6 @@ import {
   removeDockerVolume,
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
