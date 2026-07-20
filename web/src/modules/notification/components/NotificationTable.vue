@@ -4,6 +4,13 @@
     :title="t('notification.table.title')"
     :description="t('notification.table.summary', { count: total })"
   >
+    <template #toolbar>
+      <table-view-toolbar
+        :refresh-label="t('notification.action.refresh')"
+        :refresh-loading="loading"
+        @refresh="$emit('refresh')"
+      />
+    </template>
     <div ref="tableHostRef" class="notification-table-card__table-host">
       <t-table
         row-key="delivery_id"
@@ -52,14 +59,7 @@
         </template>
 
         <template #operation="{ row }">
-          <t-space size="small">
-            <t-button size="small" theme="primary" variant="text" @click="$emit('detail', notificationRow(row))">
-              {{ t('notification.action.detail') }}
-            </t-button>
-            <t-button size="small" theme="danger" variant="text" @click="$emit('delete', notificationRow(row))">
-              {{ t('notification.action.delete') }}
-            </t-button>
-          </t-space>
+          <table-action-menu :actions="rowActions(row)" @action="handleRowAction($event, notificationRow(row))" />
         </template>
 
         <template #empty>
@@ -93,12 +93,15 @@ import {
   ManagementTableCard,
   ManagementTablePagination,
   resolveTableWidthPolicy,
+  TableActionMenu,
+  TableViewToolbar,
   useTableHostWidth,
 } from '@/shared/components/management';
 
 import { notificationSeverityTheme, notificationStatusTheme, presentNotification } from '../shared/presentation';
 import type { NotificationItem } from '../types/notification';
 
+// 通知表仅负责列表呈现和行操作分层，筛选、分页状态及详情跳转仍由父页面保持 route-query authority。
 defineProps<{
   current: number;
   emptyDescription: string;
@@ -113,6 +116,7 @@ const emit = defineEmits<{
   (e: 'delete', row: NotificationItem): void;
   (e: 'detail', row: NotificationItem): void;
   (e: 'page-change', page: { current: number; pageSize: number }): void;
+  (e: 'refresh'): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -157,6 +161,22 @@ function handlePageChange(pageInfo: PageInfo) {
     current: pageInfo.current,
     pageSize: pageInfo.pageSize,
   });
+}
+
+function rowActions(_row: unknown) {
+  return [
+    { label: t('notification.action.detail'), value: 'detail' },
+    { label: t('notification.action.delete'), value: 'delete' },
+  ];
+}
+
+function handleRowAction(action: string, row: NotificationItem) {
+  if (action === 'detail') {
+    emit('detail', row);
+    return;
+  }
+
+  if (action === 'delete') emit('delete', row);
 }
 </script>
 <style scoped lang="less">

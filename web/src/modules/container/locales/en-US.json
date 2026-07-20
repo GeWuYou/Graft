@@ -190,6 +190,13 @@
         "total": "{count} Volumes",
         "loadFailed": "Volume list could not be loaded."
       },
+      "metrics": {
+        "total": "Total volumes",
+        "inUse": "In use",
+        "unused": "Unused",
+        "size": "Total size",
+        "referenceUnknown": "Reference state is unavailable for {count} volumes."
+      },
       "filters": {
         "keyword": "Search volume name",
         "driver": "Driver",
@@ -203,7 +210,8 @@
         "name": "Name",
         "driver": "Driver",
         "scope": "Scope",
-        "usage": "Reference",
+        "usage": "Reference status",
+        "references": "References",
         "size": "Size",
         "createdAt": "Created at",
         "labels": "Labels",
@@ -213,6 +221,7 @@
       "pagination": { "summary": "{start}-{end} of {total}", "empty": "No records" },
       "actions": {
         "detail": "Details",
+        "cleanup": "Clean Unused Volumes",
         "remove": "Remove",
         "cancel": "Cancel",
         "confirmTitle": "Confirm volume removal",
@@ -233,12 +242,29 @@
         "partial": "{success} volumes removed; {failed} failed.",
         "failed": "Batch volume removal failed."
       },
+      "cleanup": {
+        "title": "Clean Unused Volumes",
+        "candidateCount": "Removal candidates: {count} volumes, estimated release",
+        "selectedCount": "{count} Volumes Selected",
+        "warning": "Removal cannot be undone. Only volumes with zero references are candidates.",
+        "previousPage": "Previous page",
+        "nextPage": "Next page",
+        "empty": "No Unused Volumes",
+        "loadFailed": "Unused volumes could not be loaded.",
+        "clearSelection": "Clear Selection",
+        "cancel": "Cancel",
+        "removeSelected": "Remove {count} Volumes",
+        "success": "{count} volumes removed.",
+        "partial": "{success} volumes removed; {failed} failed.",
+        "failed": "Unused volume cleanup failed."
+      },
       "detail": {
         "title": "Volume Detail",
         "description": "Review safe Docker volume details.",
         "loadFailed": "Volume detail could not be loaded.",
         "labels": "Labels",
-        "noLabels": "No labels"
+        "noLabels": "No labels",
+        "references": "Referencing containers"
       },
       "unavailable": "Unavailable"
     },
@@ -258,10 +284,15 @@
       "runtimeVersion": "Version",
       "runtimeContainers": "{running}/{total} Running",
       "totalCount": "Total {count}",
+      "totalLabel": "Total ",
       "runningCount": "Running {count}",
+      "runningLabel": "Running ",
       "stoppedCount": "Stopped {count}",
+      "stoppedLabel": "Stopped ",
       "errorCount": "Attention {count}",
+      "errorLabel": "Attention ",
       "unhealthyCount": "Unhealthy {count}",
+      "unhealthyLabel": "Unhealthy ",
       "readOnlyMode": "Read-only Mode",
       "actionModeEnabled": "Actions Enabled",
       "tableSummary": "{count} Containers",

@@ -134,7 +134,7 @@ func registerAppLogExplorerMenu(registry *menu.Registry) {
 		Kind:       menu.NodeKindEntry,
 		TitleKey:   "menu.appLog.title",
 		Path:       appLogMenuListPath,
-		Icon:       "file-search",
+		Icon:       "application-log",
 		Order:      appLogMenuListOrder,
 		Permission: AppLogReadPermission,
 		Module:     appLogModuleOwner,

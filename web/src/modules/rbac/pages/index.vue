@@ -953,7 +953,13 @@ const roleRowMoreOptions = (role: RoleStatusCompat) => {
 };
 
 function roleRowActions(role: RoleListItem) {
-  const actions: Array<{ disabled?: boolean; label: string; testId?: string; value: string }> = [];
+  const actions: Array<{ disabled?: boolean; label: string; testId?: string; value: string }> = [
+    {
+      label: t('rbac.roleList.detail'),
+      testId: 'role-detail',
+      value: 'detail',
+    },
+  ];
 
   if (role.builtin) {
     if (canReadPermissions.value) {
@@ -983,20 +989,15 @@ function roleRowActions(role: RoleListItem) {
 
   return [
     ...actions,
-    ...roleRowMoreOptions(role).map((option) => ({
-      disabled: option.disabled,
-      fallbackLabel: option.fallbackLabel,
-      label: option.content,
-      testId:
-        option.value === 'detail'
-          ? 'role-detail'
-          : option.value === 'edit'
-            ? 'role-edit'
-            : option.value === 'copy-role'
-              ? 'role-copy'
-              : undefined,
-      value: option.value,
-    })),
+    ...roleRowMoreOptions(role)
+      .filter((option) => option.value !== 'detail')
+      .map((option) => ({
+        disabled: option.disabled,
+        fallbackLabel: option.fallbackLabel,
+        label: option.content,
+        testId: option.value === 'edit' ? 'role-edit' : option.value === 'copy-role' ? 'role-copy' : undefined,
+        value: option.value,
+      })),
   ];
 }
 
@@ -1261,11 +1262,11 @@ function normalizeRolePermissionIDs(rawPermissionIDs: number[]) {
 }
 
 function localizedPermissionDisplay(permission: PermissionListItem) {
-  return localizePermissionDisplay(t, permission);
+  return localizePermissionDisplay(t, permission, locale.value);
 }
 
 function localizedPermissionDescription(permission: PermissionListItem) {
-  return localizePermissionDescription(t, permission, 'rbac.roleList.permissionDialog.emptyDescription');
+  return localizePermissionDescription(t, permission, 'rbac.roleList.permissionDialog.emptyDescription', locale.value);
 }
 
 function openCreateDrawer() {

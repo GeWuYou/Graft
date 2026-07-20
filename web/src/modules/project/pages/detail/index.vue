@@ -307,49 +307,46 @@
                   </t-button>
                 </template>
                 <template v-if="selectedServiceRows.length > 0" #batch>
-                  <div class="project-service-batch-bar">
-                    <span>{{
-                      t('project.detail.services.batch.selected', { count: selectedServiceRows.length })
-                    }}</span>
-                    <div class="project-service-batch-bar__actions">
-                      <t-button
-                        data-testid="project-service-batch-start"
-                        size="small"
-                        theme="primary"
-                        variant="outline"
-                        :disabled="isServiceBatchActionDisabled('start')"
-                        :loading="serviceBatchActionLoading === 'start'"
-                        @click="confirmServiceBatchAction('start')"
-                      >
-                        {{ t('project.detail.services.batch.start') }}
-                      </t-button>
-                      <t-button
-                        data-testid="project-service-batch-stop"
-                        size="small"
-                        theme="warning"
-                        variant="outline"
-                        :disabled="isServiceBatchActionDisabled('stop')"
-                        :loading="serviceBatchActionLoading === 'stop'"
-                        @click="confirmServiceBatchAction('stop')"
-                      >
-                        {{ t('project.detail.services.batch.stop') }}
-                      </t-button>
-                      <t-button
-                        data-testid="project-service-batch-restart"
-                        size="small"
-                        theme="warning"
-                        variant="outline"
-                        :disabled="isServiceBatchActionDisabled('restart')"
-                        :loading="serviceBatchActionLoading === 'restart'"
-                        @click="confirmServiceBatchAction('restart')"
-                      >
-                        {{ t('project.detail.services.batch.restart') }}
-                      </t-button>
-                      <t-button size="small" theme="default" variant="text" @click="clearSelectedServices">
-                        {{ t('project.detail.services.batch.cancelSelection') }}
-                      </t-button>
-                    </div>
-                  </div>
+                  <management-batch-bar
+                    :selected-label="t('project.detail.services.batch.selected', { count: selectedServiceRows.length })"
+                    :clear-label="t('project.detail.services.batch.cancelSelection')"
+                    clear-test-id="project-service-batch-clear"
+                    @clear="clearSelectedServices"
+                  >
+                    <t-button
+                      data-testid="project-service-batch-start"
+                      size="small"
+                      theme="primary"
+                      variant="outline"
+                      :disabled="isServiceBatchActionDisabled('start')"
+                      :loading="serviceBatchActionLoading === 'start'"
+                      @click="confirmServiceBatchAction('start')"
+                    >
+                      {{ t('project.detail.services.batch.start') }}
+                    </t-button>
+                    <t-button
+                      data-testid="project-service-batch-stop"
+                      size="small"
+                      theme="warning"
+                      variant="outline"
+                      :disabled="isServiceBatchActionDisabled('stop')"
+                      :loading="serviceBatchActionLoading === 'stop'"
+                      @click="confirmServiceBatchAction('stop')"
+                    >
+                      {{ t('project.detail.services.batch.stop') }}
+                    </t-button>
+                    <t-button
+                      data-testid="project-service-batch-restart"
+                      size="small"
+                      theme="warning"
+                      variant="outline"
+                      :disabled="isServiceBatchActionDisabled('restart')"
+                      :loading="serviceBatchActionLoading === 'restart'"
+                      @click="confirmServiceBatchAction('restart')"
+                    >
+                      {{ t('project.detail.services.batch.restart') }}
+                    </t-button>
+                  </management-batch-bar>
                 </template>
 
                 <template #name="{ row }">
@@ -789,6 +786,7 @@ import {
   createMainTextColumn,
   createStatusColumn,
   createTextColumn,
+  ManagementBatchBar,
   ManagementPagedTable,
   ManagementPageHeader,
   TableActionMenu,
@@ -2633,24 +2631,6 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 .project-overview-hero__body,
 .project-service-card__head,
 .project-service-card__tags,
-.project-service-batch-bar,
-.project-service-batch-bar__actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
-}
-
-.project-service-batch-bar {
-  justify-content: space-between;
-  width: 100%;
-}
-
-.project-service-batch-bar > span {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-}
-
 .project-overview-hero {
   border-color: color-mix(in srgb, var(--td-brand-color-6) 28%, var(--td-border-level-1-color));
 }

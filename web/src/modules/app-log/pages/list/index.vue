@@ -31,8 +31,10 @@
       <app-log-table
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
-        :empty-description="t('appLog.page.emptyDescription')"
+        :empty-description="emptyDescription"
+        :empty-title="emptyTitle"
         :footer-summary="footerSummary"
+        :filtered-empty="hasActiveFilters && rows.length === 0"
         :loading="loading"
         :rows="rows"
         :selected-row-keys="selectedRowKeys"
@@ -40,6 +42,7 @@
         :visible-column-keys="visibleColumnKeys"
         @delete="confirmDeleteOne"
         @detail="openDetail"
+        @clear-filters="resetFilters"
         @page-change="fetchAppLogs"
         @select-change="handleSelectChange"
       >
@@ -52,25 +55,24 @@
             @refresh="fetchAppLogs"
           />
         </template>
-        <template #batch>
-          <div v-if="selectedRowKeys.length > 0" class="app-log-batch-bar">
-            <span>{{ t('appLog.batch.selected', { count: selectedRowKeys.length }) }}</span>
-            <div class="app-log-batch-bar__actions">
-              <t-button
-                v-permission="permissionCodes.DELETE"
-                size="small"
-                theme="danger"
-                variant="outline"
-                :loading="deleting"
-                @click="confirmBatchDelete"
-              >
-                {{ t('appLog.actions.batchDelete') }}
-              </t-button>
-              <t-button size="small" theme="default" variant="text" @click="selectedRowKeys = []">
-                {{ t('appLog.batch.cancelSelection') }}
-              </t-button>
-            </div>
-          </div>
+        <template v-if="selectedRowKeys.length > 0" #batch>
+          <management-batch-bar
+            :selected-label="t('appLog.batch.selected', { count: selectedRowKeys.length })"
+            :clear-label="t('appLog.batch.cancelSelection')"
+            clear-test-id="app-log-batch-clear"
+            @clear="selectedRowKeys = []"
+          >
+            <t-button
+              v-permission="permissionCodes.DELETE"
+              size="small"
+              theme="danger"
+              variant="outline"
+              :loading="deleting"
+              @click="confirmBatchDelete"
+            >
+              {{ t('appLog.actions.batchDelete') }}
+            </t-button>
+          </management-batch-bar>
         </template>
       </app-log-table>
     </template>
@@ -96,7 +98,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
-import { TableViewToolbar } from '@/shared/components/management';
+import { ManagementBatchBar, TableViewToolbar } from '@/shared/components/management';
 import {
   AdvancedQueryColumnDrawer,
   AdvancedQueryListPage,
@@ -234,6 +236,25 @@ const columnViewPresets = computed(() => [
   { value: 'technical', label: t('appLog.columnViews.technical'), keys: TECHNICAL_VISIBLE_COLUMNS },
 ]);
 const footerSummary = computed(() => t('appLog.page.footerTotal', { count: total.value }));
+const hasActiveFilters = computed(() =>
+  Boolean(
+    filters.value.keyword ||
+    filters.value.occurredRange.length ||
+    filters.value.severity ||
+    filters.value.category ||
+    filters.value.component ||
+    filters.value.operation ||
+    filters.value.requestId ||
+    filters.value.message ||
+    filters.value.error,
+  ),
+);
+const emptyTitle = computed(() =>
+  hasActiveFilters.value ? t('appLog.page.emptyFilteredTitle') : t('appLog.page.emptyTitle'),
+);
+const emptyDescription = computed(() =>
+  hasActiveFilters.value ? t('appLog.page.emptyFilteredDescription') : t('appLog.page.emptyDescription'),
+);
 const reportDetailLoadError = createLogDetailErrorReporter({
   fallbackMessage: () => t('appLog.page.loadFailed'),
   resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),
@@ -646,20 +667,3 @@ onMounted(() => {
   void appLogSavedViews.load();
 });
 </script>
-<style scoped lang="less">
-.app-log-batch-bar {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-  justify-content: space-between;
-  width: 100%;
-}
-
-.app-log-batch-bar__actions {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8);
-  justify-content: flex-end;
-}
-</style>

@@ -356,6 +356,10 @@
         "display": "Audit Policy Manage",
         "description": "Allows managing audit visibility defaults and per-event overrides."
       },
+      "securityOverviewRead": {
+        "display": "Read Security Overview",
+        "description": "Allows reading the aggregate security overview across access control and audit signals."
+      },
       "containerView": {
         "display": "View Containers",
         "description": "Allows viewing the container management list."
@@ -441,6 +445,10 @@
         "description": "View managed root settings and create managed Compose applications."
       },
       "applicationCreationMethodView": {
+        "display": "View Application Creation Methods",
+        "description": "View supported Compose application creation methods and their availability."
+      },
+      "projectCreationMethodView": {
         "display": "View Application Creation Methods",
         "description": "View supported Compose application creation methods and their availability."
       },

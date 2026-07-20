@@ -1,5 +1,6 @@
 <template>
   <advanced-query-list-page
+    page-type="log-audit"
     root-class="audit-page"
     title-key="audit.logList.title"
     description-key="audit.logList.description"

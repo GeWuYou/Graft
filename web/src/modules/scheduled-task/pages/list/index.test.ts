@@ -755,6 +755,15 @@ const ManagementTableCardStub = defineComponent({
   },
 });
 
+const ManagementStatisticsBarStub = defineComponent({
+  name: 'ManagementStatisticsBar',
+  props: ['items', 'label'],
+  setup(props) {
+    return () =>
+      h('section', { 'data-testid': 'statistics-bar', 'aria-label': props.label }, JSON.stringify(props.items));
+  },
+});
+
 const TableViewToolbarStub = defineComponent({
   name: 'TableViewToolbar',
   props: ['columnSettingsLabel', 'refreshLabel'],
@@ -846,6 +855,7 @@ function mountPage() {
         ManagementTableCard: ManagementTableCardStub,
         ManagementTablePagination: PassthroughStub,
         ManagementToolbar: PassthroughStub,
+        ManagementStatisticsBar: ManagementStatisticsBarStub,
         TableViewToolbar: TableViewToolbarStub,
       },
     },
@@ -983,6 +993,17 @@ describe('ScheduledTaskListPage', () => {
     await flushPromises();
 
     expect(apiMocks.getScheduledTasks).toHaveBeenLastCalledWith({ limit: 20, offset: 0 });
+  });
+
+  it('renders scheduled task metrics as one inline statistics bar instead of metric cards', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const statistics = wrapper.find('[data-testid="statistics-bar"]');
+    expect(statistics.exists()).toBe(true);
+    expect(statistics.text()).toContain('任务总数');
+    expect(statistics.text()).toContain('🟢');
+    expect(wrapper.findAll('.scheduled-task-metric-card')).toHaveLength(0);
   });
 
   it('keeps high-frequency actions visible and folds management actions into more menu', async () => {

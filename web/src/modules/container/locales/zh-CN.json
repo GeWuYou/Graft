@@ -190,6 +190,13 @@
         "total": "共 {count} 个数据卷",
         "loadFailed": "数据卷列表加载失败。"
       },
+      "metrics": {
+        "total": "数据卷总数",
+        "inUse": "已引用",
+        "unused": "未引用",
+        "size": "总占用空间",
+        "referenceUnknown": "有 {count} 个数据卷的引用状态暂不可确定。"
+      },
       "filters": {
         "keyword": "搜索数据卷名称",
         "driver": "驱动",
@@ -204,6 +211,7 @@
         "driver": "驱动",
         "scope": "范围",
         "usage": "引用状态",
+        "references": "引用",
         "size": "大小",
         "createdAt": "创建时间",
         "labels": "标签数",
@@ -213,6 +221,7 @@
       "pagination": { "summary": "第 {start}-{end} 条 / 共 {total} 条", "empty": "暂无记录" },
       "actions": {
         "detail": "详情",
+        "cleanup": "清理未使用数据卷",
         "remove": "删除",
         "cancel": "取消",
         "confirmTitle": "确认删除数据卷",
@@ -233,12 +242,29 @@
         "partial": "已删除 {success} 个数据卷，{failed} 个删除失败。",
         "failed": "批量删除数据卷失败。"
       },
+      "cleanup": {
+        "title": "清理未使用数据卷",
+        "candidateCount": "删除候选：{count} 个数据卷，预计释放",
+        "selectedCount": "已选择 {count} 个数据卷",
+        "warning": "删除后不可恢复。仅引用数为 0 的数据卷会进入候选列表。",
+        "previousPage": "上一页",
+        "nextPage": "下一页",
+        "empty": "没有未使用数据卷",
+        "loadFailed": "未使用数据卷加载失败。",
+        "clearSelection": "清空选择",
+        "cancel": "取消",
+        "removeSelected": "删除 {count} 个数据卷",
+        "success": "已删除 {count} 个数据卷。",
+        "partial": "已删除 {success} 个数据卷，{failed} 个删除失败。",
+        "failed": "清理未使用数据卷失败。"
+      },
       "detail": {
         "title": "数据卷详情",
         "description": "查看 Docker 数据卷的安全概览信息。",
         "loadFailed": "数据卷详情加载失败。",
         "labels": "标签",
-        "noLabels": "无标签"
+        "noLabels": "无标签",
+        "references": "引用容器"
       },
       "unavailable": "不可用"
     },
@@ -258,10 +284,15 @@
       "runtimeVersion": "版本",
       "runtimeContainers": "{running}/{total} 运行中",
       "totalCount": "总数 {count}",
+      "totalLabel": "总数 ",
       "runningCount": "运行中 {count}",
+      "runningLabel": "运行中 ",
       "stoppedCount": "已停止 {count}",
+      "stoppedLabel": "已停止 ",
       "errorCount": "异常 {count}",
+      "errorLabel": "异常 ",
       "unhealthyCount": "不健康 {count}",
+      "unhealthyLabel": "不健康 ",
       "readOnlyMode": "只读模式",
       "actionModeEnabled": "操作已启用",
       "tableSummary": "共 {count} 个容器",

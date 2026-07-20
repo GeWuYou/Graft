@@ -211,6 +211,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.emptyFilteredDescription': '没有符合筛选条件的容器。',
   'container.list.emptyTitle': '暂无容器',
   'container.list.errorCount': '异常 {count}',
+  'container.list.errorLabel': '异常 ',
   'container.list.eyebrow': '基础设施',
   'container.list.fields.apiVersion': 'API 版本',
   'container.list.fields.architecture': '架构',
@@ -273,6 +274,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.runtimeLabel': '运行时',
   'container.list.runtimeUnavailable': '运行时不可用',
   'container.list.runningCount': '运行中 {count}',
+  'container.list.runningLabel': '运行中 ',
   'container.list.stats.unavailable': 'N/A',
   'container.list.stats.unavailableReasonFallback': '资源统计暂不可用',
   'container.list.stats.cpuTooltip': 'CPU 使用率：{percent}',
@@ -304,10 +306,13 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.health.none': '无健康检查',
   'container.list.health.unavailable': '健康未知',
   'container.list.stoppedCount': '已停止 {count}',
+  'container.list.stoppedLabel': '已停止 ',
   'container.list.tableHint': '数据来自当前配置的容器运行时。',
   'container.list.tableSummary': '共 {count} 个容器',
   'container.list.title': '容器管理',
   'container.list.totalCount': '总数 {count}',
+  'container.list.totalLabel': '总数 ',
+  'container.list.unhealthyLabel': '不健康 ',
   'ops.container.error.runtimeDisabled': '容器运行时访问未启用',
   'ops.container.error.runtimeUnavailable': '容器运行时连接不可用',
   'ops.container.action.start.completed': '容器启动操作已完成',
@@ -639,7 +644,6 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('容器管理');
     expect(wrapper.text()).toContain('总数 25');
     expect(wrapper.text()).toContain('不健康 0');
-    expect(wrapper.text()).toContain('操作已启用');
     expect(wrapper.text()).toContain('graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('Compose 应用');
@@ -1494,7 +1498,6 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('操作已启用');
     expect(wrapper.findAll('[data-testid="container-action-start"]').length).toBeGreaterThan(0);
     expect(wrapper.find('[data-testid="container-action-stop"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="container-action-restart"]').exists()).toBe(true);

@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TableActionMenu } from '@/shared/components/management';
+
 import ApplicationTemplateListIndex from './index.vue';
 
 const mocks = vi.hoisted(() => ({
@@ -125,11 +127,8 @@ describe('ApplicationTemplateListIndex', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('project.templates.edit');
-    expect(wrapper.text()).toContain('project.templates.publish');
-    expect(wrapper.text()).toContain('project.templates.clone');
-    expect(wrapper.text()).toContain('project.templates.archive');
-    expect(wrapper.text()).toContain('project.templates.delete');
+    const actions = wrapper.findComponent(TableActionMenu).props('actions') as Array<{ value: string }>;
+    expect(actions.map((action) => action.value)).toEqual(['detail', 'publish', 'clone', 'archive', 'delete']);
     expect(wrapper.text()).not.toContain('project.templates.importLegacy');
   });
 
@@ -166,9 +165,8 @@ describe('ApplicationTemplateListIndex', () => {
     const publishedWrapper = mountPage();
     await flushPromises();
 
-    expect(publishedWrapper.text()).toContain('project.templates.withdraw');
-    expect(publishedWrapper.text()).not.toContain('project.templates.edit');
-    expect(publishedWrapper.text()).not.toContain('project.templates.publish');
+    const publishedActions = publishedWrapper.findComponent(TableActionMenu).props('actions') as Array<{ value: string }>;
+    expect(publishedActions.map((action) => action.value)).toEqual(['detail', 'clone', 'withdraw', 'archive', 'delete']);
 
     mocks.getApplicationManagedTemplates.mockResolvedValue({
       items: [
@@ -192,9 +190,9 @@ describe('ApplicationTemplateListIndex', () => {
     const archivedWrapper = mountPage();
     await flushPromises();
 
-    expect(archivedWrapper.text()).toContain('project.templates.clone');
-    expect(archivedWrapper.text()).toContain('project.templates.delete');
-    expect(archivedWrapper.text()).not.toContain('project.templates.archive');
-    expect(archivedWrapper.text()).not.toContain('project.templates.withdraw');
+    const archivedActions = archivedWrapper.findComponent(TableActionMenu).props('actions') as Array<{
+      value: string;
+    }>;
+    expect(archivedActions.map((action) => action.value)).toEqual(['detail', 'clone', 'delete']);
   });
 });

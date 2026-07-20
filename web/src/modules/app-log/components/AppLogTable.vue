@@ -13,6 +13,11 @@
     <template v-if="$slots.batch" #batch>
       <slot name="batch" />
     </template>
+    <template v-if="filteredEmpty" #empty-action>
+      <t-button size="small" theme="default" variant="outline" @click="$emit('clear-filters')">
+        {{ t('appLog.actions.reset') }}
+      </t-button>
+    </template>
     <template #occurred_at="{ row }">
       <span>{{ formatCompactDateTime(appLogRow(row).occurred_at, locale) }}</span>
     </template>
@@ -100,7 +105,9 @@ type AppLogRowAction = {
 
 const props = defineProps<{
   emptyDescription: string;
+  emptyTitle?: string;
   footerSummary: string;
+  filteredEmpty?: boolean;
   loading?: boolean;
   rows: AppLogItem[];
   selectedRowKeys?: Array<string | number>;
@@ -114,6 +121,7 @@ const permissionStore = usePermissionStore();
 const emit = defineEmits<{
   (e: 'page-change'): void;
   (e: 'detail', row: AppLogItem): void;
+  (e: 'clear-filters'): void;
   (e: 'delete', row: AppLogItem): void;
   (e: 'select-change', rowKeys: Array<string | number>): void;
 }>();
@@ -169,7 +177,7 @@ const pagedTableProps = computed(() => ({
   cellSlotNames,
   columns: columns.value,
   emptyDescription: props.emptyDescription,
-  emptyTitle: t('appLog.page.emptyTitle'),
+  emptyTitle: props.emptyTitle ?? t('appLog.page.emptyTitle'),
   footerSummary: props.footerSummary,
   headLabel: 'app-log-table-head',
   loading: props.loading,

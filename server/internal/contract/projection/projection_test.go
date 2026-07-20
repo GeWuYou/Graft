@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	containercontract "graft/server/modules/container/contract"
 )
 
 func TestRenderTypeScriptIsDeterministicAndFiltersInternalValues(t *testing.T) {
@@ -120,6 +122,22 @@ func TestRegistryValuesReferenceExistingConstants(t *testing.T) {
 	if valueFields == 0 {
 		t.Fatal("expected registry descriptors with typed value references")
 	}
+}
+
+func TestContainerRegistryIncludesVolumeRemovePermission(t *testing.T) {
+	for _, entry := range ContainerRegistry() {
+		if entry.ID != "container.permission.volume-remove" {
+			continue
+		}
+		if entry.Kind != KindPermissionCode || entry.Name != "VOLUME_REMOVE" || entry.Owner != "server/modules/container/contract" {
+			t.Fatalf("unexpected volume remove projection metadata: %+v", entry)
+		}
+		if entry.Value != containercontract.ContainerVolumeRemovePermission {
+			t.Fatalf("volume remove projection does not reference canonical permission: %q", entry.Value)
+		}
+		return
+	}
+	t.Fatal("container registry is missing volume remove permission")
 }
 
 func TestTargetsKeepModuleContractsOutOfPlatformArtifact(t *testing.T) {

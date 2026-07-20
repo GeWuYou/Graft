@@ -6,33 +6,12 @@
       description-key="container.list.description"
       :description="t('container.list.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
-    >
-      <template #meta>
-        <t-space break-line size="small">
-          <t-tag :theme="runtimeStatusTheme" variant="light-outline">
-            {{ t('container.list.runtimeLabel') }}: {{ runtimeSummary }}
-          </t-tag>
-          <t-tag theme="default" variant="light-outline">
-            {{ t('container.list.totalCount', { count: totalCount }) }}
-          </t-tag>
-          <t-tag theme="success" variant="light-outline">
-            {{ t('container.list.runningCount', { count: runningCount }) }}
-          </t-tag>
-          <t-tag theme="warning" variant="light-outline">
-            {{ t('container.list.stoppedCount', { count: stoppedCount }) }}
-          </t-tag>
-          <t-tag theme="danger" variant="light-outline">
-            {{ t('container.list.errorCount', { count: errorCount }) }}
-          </t-tag>
-          <t-tag theme="danger" variant="light-outline">
-            {{ t('container.list.unhealthyCount', { count: unhealthyCount }) }}
-          </t-tag>
-          <t-tag :theme="readOnlyMode ? 'warning' : 'default'" variant="light-outline">
-            {{ readOnlyModeStatus }}
-          </t-tag>
-        </t-space>
-      </template>
-    </management-page-header>
+    />
+
+    <management-statistics-bar
+      :items="containerStatistics"
+      :label="t('container.list.tableSummary', { count: listTotal })"
+    />
 
     <management-toolbar class="container-toolbar">
       <template #filters>
@@ -134,73 +113,66 @@
           />
         </div>
       </template>
-      <template #batch>
-        <div v-if="selectedRowKeys.length > 0" class="container-batch-bar">
-          <span>{{ t('container.list.batch.selected', { count: selectedRowKeys.length }) }}</span>
-          <div class="container-batch-bar__actions">
-            <t-tooltip :content="batchActionHint('start')" placement="top">
-              <t-button
-                data-testid="container-batch-start"
-                size="small"
-                theme="primary"
-                variant="outline"
-                :disabled="isBatchActionDisabled('start')"
-                :loading="batchActionLoading === 'start'"
-                @click="confirmBatchAction('start')"
-              >
-                {{ t('container.list.batch.start') }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="batchActionHint('stop')" placement="top">
-              <t-button
-                data-testid="container-batch-stop"
-                size="small"
-                theme="warning"
-                variant="outline"
-                :disabled="isBatchActionDisabled('stop')"
-                :loading="batchActionLoading === 'stop'"
-                @click="confirmBatchAction('stop')"
-              >
-                {{ t('container.list.batch.stop') }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="batchActionHint('restart')" placement="top">
-              <t-button
-                data-testid="container-batch-restart"
-                size="small"
-                theme="warning"
-                variant="outline"
-                :disabled="isBatchActionDisabled('restart')"
-                :loading="batchActionLoading === 'restart'"
-                @click="confirmBatchAction('restart')"
-              >
-                {{ t('container.list.batch.restart') }}
-              </t-button>
-            </t-tooltip>
-            <t-tooltip :content="batchActionHint('remove')" placement="top">
-              <t-button
-                data-testid="container-batch-remove"
-                size="small"
-                theme="danger"
-                variant="outline"
-                :disabled="isBatchActionDisabled('remove')"
-                :loading="batchActionLoading === 'remove'"
-                @click="confirmBatchAction('remove')"
-              >
-                {{ t('container.list.batch.remove') }}
-              </t-button>
-            </t-tooltip>
+      <template v-if="selectedRowKeys.length > 0" #batch>
+        <management-batch-bar
+          :selected-label="t('container.list.batch.selected', { count: selectedRowKeys.length })"
+          :clear-label="t('container.list.batch.cancelSelection')"
+          clear-test-id="container-batch-clear"
+          @clear="clearSelection"
+        >
+          <t-tooltip :content="batchActionHint('start')" placement="top">
             <t-button
-              data-testid="container-batch-clear"
+              data-testid="container-batch-start"
               size="small"
-              theme="default"
-              variant="text"
-              @click="clearSelection"
+              theme="primary"
+              variant="outline"
+              :disabled="isBatchActionDisabled('start')"
+              :loading="batchActionLoading === 'start'"
+              @click="confirmBatchAction('start')"
             >
-              {{ t('container.list.batch.cancelSelection') }}
+              {{ t('container.list.batch.start') }}
             </t-button>
-          </div>
-        </div>
+          </t-tooltip>
+          <t-tooltip :content="batchActionHint('stop')" placement="top">
+            <t-button
+              data-testid="container-batch-stop"
+              size="small"
+              theme="warning"
+              variant="outline"
+              :disabled="isBatchActionDisabled('stop')"
+              :loading="batchActionLoading === 'stop'"
+              @click="confirmBatchAction('stop')"
+            >
+              {{ t('container.list.batch.stop') }}
+            </t-button>
+          </t-tooltip>
+          <t-tooltip :content="batchActionHint('restart')" placement="top">
+            <t-button
+              data-testid="container-batch-restart"
+              size="small"
+              theme="warning"
+              variant="outline"
+              :disabled="isBatchActionDisabled('restart')"
+              :loading="batchActionLoading === 'restart'"
+              @click="confirmBatchAction('restart')"
+            >
+              {{ t('container.list.batch.restart') }}
+            </t-button>
+          </t-tooltip>
+          <t-tooltip :content="batchActionHint('remove')" placement="top">
+            <t-button
+              data-testid="container-batch-remove"
+              size="small"
+              theme="danger"
+              variant="outline"
+              :disabled="isBatchActionDisabled('remove')"
+              :loading="batchActionLoading === 'remove'"
+              @click="confirmBatchAction('remove')"
+            >
+              {{ t('container.list.batch.remove') }}
+            </t-button>
+          </t-tooltip>
+        </management-batch-bar>
       </template>
       <template #feedback>
         <t-alert v-if="listError.title" class="container-alert" theme="error" :title="listError.title">
@@ -247,7 +219,14 @@ import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
 import { resolveComposeApplicationReferences } from '@/modules/project/contract/compose-context-references';
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
-import { ManagementPageHeader, ManagementToolbar, TableViewToolbar } from '@/shared/components/management';
+import {
+  ManagementBatchBar,
+  ManagementPageHeader,
+  type ManagementStatisticItem,
+  ManagementStatisticsBar,
+  ManagementToolbar,
+  TableViewToolbar,
+} from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore, useTabsRouterStore } from '@/store';
@@ -289,7 +268,6 @@ import type {
   ContainerFilters,
   ContainerListQueryWithOrchestrator,
   ContainerListSummary,
-  ContainerRuntimeInfo,
   ContainerState,
   ContainerSummaryRecord,
 } from '../../types/container';
@@ -331,7 +309,6 @@ type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 
 const tableLoading = ref(false);
 const refreshing = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
-const runtime = ref<ContainerRuntimeInfo | null>(null);
 const listSummary = ref<ContainerListSummary | null>(null);
 const listTotal = ref(0);
 const runtimeTargets = ref<RuntimeTarget[]>([]);
@@ -381,26 +358,13 @@ const runningCount = computed(() => listSummary.value?.running ?? 0);
 const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
 const errorCount = computed(() => listSummary.value?.error ?? 0);
 const unhealthyCount = computed(() => listSummary.value?.unhealthy ?? 0);
-const readOnlyMode = computed(() => {
-  if (!rows.value.length) {
-    return true;
-  }
-
-  return rows.value.every((row) => !canRunAnyDangerousAction(row));
-});
-const readOnlyModeStatus = computed(() =>
-  readOnlyMode.value ? t('container.list.readOnlyMode') : t('container.list.actionModeEnabled'),
-);
-const runtimeStatusTheme = computed(() => {
-  if (runtime.value?.status === 'enabled') return 'success';
-  if (runtime.value?.status === 'disabled') return 'warning';
-  return 'danger';
-});
-const runtimeSummary = computed(() => {
-  if (!runtime.value) return t('container.list.runtimeUnavailable');
-  const version = runtime.value.server_version || runtime.value.api_version || '';
-  return version ? `${runtime.value.runtime} / ${version}` : runtime.value.runtime;
-});
+const containerStatistics = computed<ManagementStatisticItem[]>(() => [
+  { label: t('container.list.totalLabel'), value: totalCount.value },
+  { label: t('container.list.runningLabel'), marker: '🟢', value: runningCount.value },
+  { label: t('container.list.stoppedLabel'), marker: '🟠', value: stoppedCount.value },
+  { label: t('container.list.errorLabel'), marker: '🔴', value: errorCount.value },
+  { label: t('container.list.unhealthyLabel'), marker: '🔴', value: unhealthyCount.value },
+]);
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
 );
@@ -507,7 +471,6 @@ async function refreshContainers() {
     } else {
       releaseListRealtimeSubscription();
     }
-    runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
     syncSelectedRowsFromCurrentPage();
@@ -517,7 +480,6 @@ async function refreshContainers() {
     }
     releaseListRealtimeSubscription();
     clearContainerListMetadata();
-    runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
     listError.value = resolveListError(error);
@@ -1327,12 +1289,6 @@ function canRunDangerousAction(row: ContainerSummaryRecord, action: DangerousCon
   return Boolean(row.can_remove);
 }
 
-function canRunAnyDangerousAction(row: ContainerSummaryRecord) {
-  return (['start', 'stop', 'restart', 'remove'] as DangerousContainerAction[]).some((action) =>
-    canRunDangerousAction(row, action),
-  );
-}
-
 function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousContainerAction) {
   return !isDangerousActionDisabled(row, action) && (row.deployment?.batch_action_allowed ?? true);
 }
@@ -1446,26 +1402,12 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 
 .container-port-list,
 .container-actions,
-.container-batch-bar,
-.container-batch-bar__actions,
 .container-remove-confirm__force {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-6);
 }
 
-.container-batch-bar {
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.container-batch-bar > span {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-}
-
-.container-batch-bar__actions,
 .container-remove-confirm__force {
   align-items: center;
 }

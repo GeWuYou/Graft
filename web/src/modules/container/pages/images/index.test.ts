@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import cleanupSourceText from '../../shared/cleanup/use-docker-cleanup.ts?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker image list page', () => {
@@ -19,7 +20,9 @@ describe('docker image list page', () => {
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
     expect(sourceText).not.toContain('filteredImages');
-    expect(sourceText).toContain('docker-images-summary');
+    expect(sourceText).toContain('<management-statistics-bar');
+    expect(sourceText).toContain('<table-view-toolbar');
+    expect(sourceText).not.toContain('docker-images-summary');
     expect(sourceText).toContain('summary.value.dangling');
     expect(sourceText).not.toContain('docker-images-metrics');
   });
@@ -97,8 +100,8 @@ describe('docker image list page', () => {
 
   it('reloads cleanup candidates after an unknown chunk response without retrying deletion', () => {
     expect(sourceText).toContain('if (hasUnknownResponse) await reconcileCleanupCandidates(successfulIds);');
-    expect(sourceText).toContain('const candidates = await fetchCleanupCandidates();');
-    expect(sourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
+    expect(sourceText).toContain('await cleanup.reconcile(confirmedSuccessfulIds);');
+    expect(cleanupSourceText).toContain('candidateIds.has(id) && !confirmedSuccessfulIds.has(id)');
     expect(sourceText).toContain('if (!requestError && !hasUnknownResponse');
     expect(sourceText).toContain('if (!cleanup) cleanupDialogVisible.value = false;');
     expect(sourceText).toContain("MessagePlugin.error(t('container.images.cleanup.loadFailed'))");
@@ -174,15 +177,15 @@ describe('docker image list page', () => {
 
   it('loads all unused images and selects them by default in the cleanup dialog', () => {
     expect(sourceText).toContain('unused: true');
-    expect(sourceText).toContain('cleanupSelectedIds.value = all.map((image) => image.id);');
+    expect(cleanupSourceText).toContain('selectedIds.value = items.value.map((item) => item.id);');
     expect(sourceText).toContain('<t-table');
     expect(sourceText).toContain(':selected-row-keys="cleanupSelectedIds"');
     expect(sourceText).toContain('@select-change="handleCleanupSelectChange"');
     expect(sourceText).toContain('cleanupPreviewImages');
     expect(sourceText).toContain('cleanupPreviewPage');
     expect(sourceText).toContain('cleanupPreviewPageCount');
-    expect(sourceText).toContain('cleanupPreviewLimit = 8');
-    expect(sourceText).toContain('cleanupSelectedSize');
+    expect(cleanupSourceText).toContain('const pageSize = options.pageSize ?? 8;');
+    expect(sourceText).toContain('const cleanupSelectedSize = cleanup.selectedSize;');
     expect(sourceText).not.toContain('cleanupPagination');
     expect(sourceText).not.toContain('cleanupVisibleImages');
     expect(sourceText).not.toContain('selectCleanupPage');
@@ -215,7 +218,7 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.cleanup.statusColumn')");
     expect(sourceText).toContain("t('container.images.cleanup.sizeColumn')");
     expect(sourceText).toContain("{ colKey: 'row-select', type: 'multiple' as const, width: 48 }");
-    expect(sourceText).toContain('const preserved = cleanupSelectedIds.value.filter');
+    expect(cleanupSourceText).toContain('const preserved = selectedIds.value.filter');
     expect(sourceText).not.toContain('<t-checkbox-group v-model="cleanupSelectedIds"');
     expect(sourceText).not.toContain('docker-images-cleanup-pagination-head');
     expect(sourceText).not.toContain("t('container.images.cleanup.selectPage')");

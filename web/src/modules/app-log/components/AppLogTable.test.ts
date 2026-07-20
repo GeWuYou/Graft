@@ -21,6 +21,7 @@ const AdvancedQueryPagedTableStub = defineComponent({
       h('section', { 'data-testid': 'paged-table' }, [
         h('div', { 'data-testid': 'table-toolbar' }, slots.toolbar?.()),
         h('div', { 'data-testid': 'table-batch' }, slots.batch?.()),
+        h('div', { 'data-testid': 'empty-action' }, slots['empty-action']?.()),
         h(
           'div',
           { 'data-testid': 'table-columns' },
@@ -28,6 +29,9 @@ const AdvancedQueryPagedTableStub = defineComponent({
         ),
         h('button', { 'data-testid': 'row-click', onClick: () => emit('row-click', appLogRow()) }, 'open'),
         h('button', { 'data-testid': 'select-change', onClick: () => emit('select-change', [1]) }, 'select'),
+        ...(props.rows ?? []).map((row: AppLogItem) =>
+          h('output', { 'data-testid': `forwarded-row-${row.id}` }, row.message),
+        ),
         h(
           'div',
           { 'data-testid': 'actions-slot' },
@@ -55,6 +59,7 @@ const translations: Record<string, string> = {
   'appLog.actions.delete': '删除',
   'appLog.actions.detail': '详情',
   'appLog.actions.more': '更多',
+  'appLog.actions.reset': '重置',
   'appLog.page.emptyTitle': '暂无应用日志',
 };
 
@@ -163,12 +168,47 @@ describe('AppLogTable', () => {
     const columnText = wrapper.get('[data-testid="table-columns"]').text();
     expect(columnText).toContain('row-select');
     expect(columnText).toContain('actions');
+    expect(wrapper.get('[data-testid="forwarded-row-1"]').text()).toBe('dashboard widget loaded');
 
     await wrapper.get('[data-testid="row-click"]').trigger('click');
     await wrapper.get('[data-testid="select-change"]').trigger('click');
 
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1, operation: 'dashboard_widget_load' });
     expect(wrapper.emitted('select-change')?.[0]?.[0]).toEqual([1]);
+  });
+
+  it('provides a reset recovery action only for filtered empty results', async () => {
+    const wrapper = shallowMount(AppLogTable, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          AdvancedQueryPagedTable: AdvancedQueryPagedTableStub,
+          TButton: defineComponent({
+            emits: ['click'],
+            setup(_props, { emit, slots }) {
+              return () =>
+                h('button', { 'data-testid': 'clear-filters', onClick: () => emit('click') }, slots.default?.());
+            },
+          }),
+          TableActionMenu: TableActionMenuStub,
+          TTag: TTagStub,
+        },
+      },
+      props: {
+        current: 1,
+        emptyDescription: '请重置筛选条件后重试。',
+        emptyTitle: '没有匹配的应用日志',
+        filteredEmpty: true,
+        footerSummary: '共 0 条',
+        pageSize: 20,
+        rows: [],
+        total: 0,
+      },
+    });
+
+    expect(wrapper.get('[data-testid="empty-action"]').text()).toBe('重置');
+    await wrapper.get('[data-testid="clear-filters"]').trigger('click');
+    expect(wrapper.emitted('clear-filters')).toHaveLength(1);
   });
 
   it('emits detail and delete operations from the action menu without a raw JSON row action', async () => {

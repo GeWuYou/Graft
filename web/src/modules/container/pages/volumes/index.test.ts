@@ -3,16 +3,18 @@ import { describe, expect, it } from 'vitest';
 import sourceText from './index.vue?raw';
 
 describe('docker volume list page', () => {
-  it('keeps detail content in a list drawer and removes the route-driven detail flow', () => {
+  it('keeps volume detail content in a drawer while allowing reference navigation', () => {
     expect(sourceText).toContain('<t-drawer');
     expect(sourceText).toContain('getDockerVolume');
-    expect(sourceText).not.toContain('useRouter');
+    expect(sourceText).toContain('useRouter');
+    expect(sourceText).toContain("query: { tab: 'storage' }");
   });
 
   it('keeps long names bounded and exposes the complete name through a tooltip', () => {
     expect(sourceText).toContain('table-layout="fixed"');
-    expect(sourceText).toContain('middleEllipsis(row.name)');
+    expect(sourceText).toContain('middleEllipsis(row.name, 31)');
     expect(sourceText).toContain(':content="row.name"');
+    expect(sourceText).toContain("const columns = computed<TableProps['columns']>(() => [");
     expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), width: 280 }");
   });
 
@@ -24,14 +26,57 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('batchRemoveDockerVolumes');
   });
 
-  it('renders a filter-aware TDesign empty state without replacing table slots', () => {
+  it('cleans unused volumes with paged candidates and cross-page selection', () => {
+    expect(sourceText).toContain("listDockerVolumes({ limit: 100, offset: 0, usage: 'unused' })");
+    expect(sourceText).toContain('while (all.length < firstPage.total)');
+    expect(sourceText).toContain('offset: all.length');
+    expect(sourceText).toContain('if (!page.items.length) break;');
+    expect(sourceText).toContain('await cleanup.open();');
+    expect(sourceText).toContain('cleanup.select');
+    expect(sourceText).toContain('cleanup.totalSize.value');
+    expect(sourceText).toContain('for (let index = 0; index < ids.length; index += 50)');
+    expect(sourceText).toContain('batchRemoveDockerVolumes({ names: chunk, force: false })');
+    expect(sourceText).toContain('requestError = cause;');
+    expect(sourceText).toContain('break;');
+    expect(sourceText).toContain('cleanup.partial');
+  });
+
+  it('does not append CSS ellipsis to the already middle-ellipsized name', () => {
+    expect(sourceText).toContain('middleEllipsis(row.name, 31)');
+    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 }");
+    expect(sourceText).toContain('function middleEllipsis(value: string, maxLength = 31)');
+    expect(sourceText).not.toContain("title: t('container.volume.columns.name'), ellipsis: true");
+    expect(sourceText).not.toContain('text-overflow: ellipsis;');
+  });
+
+  it('uses the shared paged table with an explicit filter-aware empty state', () => {
+    expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('<template #empty>');
     expect(sourceText).toContain('<t-empty');
     expect(sourceText).toContain('hasActiveFilters');
     expect(sourceText).toContain('@click="resetFilters"');
     expect(sourceText).toContain('<template #name="{ row }">');
-    expect(sourceText).toContain('<template #usage="{ row }"');
+    expect(sourceText).toContain('<template #references="{ row }">');
     expect(sourceText).toContain('<template #actions="{ row }">');
+    expect(sourceText).toContain('<table-action-menu');
+  });
+
+  it('uses the full runtime summary for four aligned statistics', () => {
+    expect(sourceText).toContain('<management-statistics-bar');
+    expect(sourceText).toContain("t('container.volume.metrics.total')");
+    expect(sourceText).toContain("t('container.volume.metrics.inUse')");
+    expect(sourceText).toContain("t('container.volume.metrics.unused')");
+    expect(sourceText).toContain("t('container.volume.metrics.size')");
+    expect(sourceText).toContain('volumeSummary.value?.size_bytes === null');
+    expect(sourceText).toContain('response.summary');
+  });
+
+  it('shows sanitized container references in the table and detail drawer', () => {
+    expect(sourceText).toContain('row.container_references.slice(0, 2)');
+    expect(sourceText).toContain('selectedVolume.container_references');
+    expect(sourceText).toContain('openContainerReference(reference.id)');
+    expect(sourceText).toContain("t('container.volume.detail.references')");
+    expect(sourceText).toContain("t('container.volume.metrics.referenceUnknown'");
   });
 
   it('uses TDesign controls in removal confirmations and avoids duplicate filter refreshes', () => {
@@ -42,5 +87,15 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('defaultChecked: isChecked()');
     expect(sourceText).toContain('const previousPage = pagination.current;');
     expect(sourceText).toContain('if (previousPage === 1) void refresh();');
+  });
+
+  it('consumes the canonical generated permission contract for dangerous actions', () => {
+    expect(sourceText).toContain("from '@/contracts/generated/modules/container'");
+    expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.VOLUME_REMOVE');
+    expect(sourceText).not.toContain("from '../../contract/permissions'");
+    expect(sourceText).not.toContain('ops.container.volume.remove');
+    expect(sourceText).toContain('v-if="canRemove"');
+    expect(sourceText).toContain('...(canRemove.value');
+    expect(sourceText).toContain('if (!canRemove.value) return;');
   });
 });

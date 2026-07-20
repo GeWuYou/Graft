@@ -193,6 +193,7 @@ web/src/
   不得依赖后端 hidden menu 撑路由，也不得在壳层写死模块页面组件
 - 壳层只消费模块注册结果，不直接维护“页面 path -> 模块页面组件”的第二套长期白名单
 - 新增或调整菜单时，默认评估“该菜单是否应出现在当前可见导航中”，不要再评估“是否需要额外注册首页快捷入口”
+- 菜单图标必须遵循 `ai-plan/design/architecture/导航与资源路由信息架构规范.md` 的“菜单图标语义门”：web 只维护统一 resolver，不得在页面、模块或布局中为上游菜单图标增加局部映射；新增服务端图标语义键必须同步 resolver 和覆盖测试。
 - 首页 widget area 与快捷入口不是同一 authority：模块若需要在首页展示摘要卡片、状态块或其它 dashboard 组件，仍需
   单独评估 dashboard widget/component contribution
 - 新增模块时，默认按 `pages`、`components`、`api`、`contract`、`types`、`locales` 组织

@@ -15,15 +15,12 @@
         </template>
       </management-page-header>
 
-      <t-card bordered class="application-template-list__filters">
-        <t-space break-line>
+      <management-toolbar>
+        <template #filters>
           <t-input v-model="keyword" clearable :placeholder="t('project.templates.searchPlaceholder')" />
           <t-select v-model="status" :options="statusOptions" :placeholder="t('project.templates.status')" clearable />
-          <t-button variant="outline" :loading="loading" @click="loadTemplates">{{
-            t('project.templates.refresh')
-          }}</t-button>
-        </t-space>
-      </t-card>
+        </template>
+      </management-toolbar>
 
       <t-alert v-if="errorMessage" theme="error" :message="errorMessage" class="application-template-list__feedback">
         <template #operation
@@ -33,8 +30,11 @@
         >
       </t-alert>
 
-      <t-table
-        v-else
+      <management-table-card v-else>
+        <template #toolbar>
+          <table-view-toolbar :refresh-label="t('project.templates.refresh')" :refresh-loading="loading" @refresh="loadTemplates" />
+        </template>
+        <t-table
         row-key="template_id"
         :data="filteredTemplates"
         :columns="columns"
@@ -59,31 +59,13 @@
           t('project.templates.versionValue', { version: row.version.version_number })
         }}</template>
         <template #operation="{ row }">
-          <t-space size="small" class="application-template-list__actions">
-            <t-button variant="text" theme="primary" @click="openTemplate(row)">{{
-              isDraft(row) ? t('project.templates.edit') : t('project.templates.open')
-            }}</t-button>
-            <t-button v-if="isDraft(row)" variant="text" theme="success" @click="publishTemplate(row)">{{
-              t('project.templates.publish')
-            }}</t-button>
-            <t-button variant="text" @click="openCloneDialog(row)">{{
-              t('project.templates.clone')
-            }}</t-button>
-            <t-button v-if="isPublished(row)" variant="text" theme="warning" @click="withdrawTemplate(row)">{{
-              t('project.templates.withdraw')
-            }}</t-button>
-            <t-button v-if="!isArchived(row)" variant="text" theme="warning" @click="archiveTemplate(row)">{{
-              t('project.templates.archive')
-            }}</t-button>
-            <t-button variant="text" theme="danger" @click="openDeleteDialog(row)">{{
-              t('project.templates.delete')
-            }}</t-button>
-          </t-space>
+          <table-action-menu :actions="templateActions(row)" @action="handleTemplateAction($event, row)" />
         </template>
         <template #empty
           ><t-empty :title="t('project.templates.emptyTitle')" :description="t('project.templates.emptyDescription')"
         /></template>
 		</t-table>
+      </management-table-card>
 	  </management-page-content>
 
 	  <t-dialog
@@ -117,7 +99,14 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import {
+  ManagementPageContent,
+  ManagementPageHeader,
+  ManagementTableCard,
+  ManagementToolbar,
+  TableActionMenu,
+  TableViewToolbar,
+} from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import {
@@ -170,8 +159,28 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'adapter', title: t('project.templates.adapter'), width: 150 },
   { colKey: 'status', title: t('project.templates.status'), width: 150 },
   { colKey: 'version', title: t('project.templates.version'), width: 110 },
-  { colKey: 'operation', title: t('project.templates.operation'), width: 420, fixed: 'right' },
+  { colKey: 'operation', title: t('project.templates.operation'), width: 152, fixed: 'right' },
 ]);
+
+function templateActions(template: ApplicationTemplate) {
+  return [
+    { value: 'detail', label: isDraft(template) ? t('project.templates.edit') : t('project.templates.open') },
+    ...(isDraft(template) ? [{ value: 'publish', label: t('project.templates.publish') }] : []),
+    { value: 'clone', label: t('project.templates.clone') },
+    ...(isPublished(template) ? [{ value: 'withdraw', label: t('project.templates.withdraw') }] : []),
+    ...(!isArchived(template) ? [{ value: 'archive', label: t('project.templates.archive') }] : []),
+    { value: 'delete', label: t('project.templates.delete') },
+  ];
+}
+
+function handleTemplateAction(action: string, template: ApplicationTemplate) {
+  if (action === 'detail') openTemplate(template);
+  else if (action === 'publish') void publishTemplate(template);
+  else if (action === 'clone') openCloneDialog(template);
+  else if (action === 'withdraw') void withdrawTemplate(template);
+  else if (action === 'archive') void archiveTemplate(template);
+  else if (action === 'delete') openDeleteDialog(template);
+}
 
 onMounted(() => void loadTemplates());
 
@@ -304,7 +313,6 @@ function statusTheme(template: ApplicationTemplate) {
 }
 </script>
 <style scoped>
-.application-template-list__filters,
 .application-template-list__feedback,
 .application-template-list__table {
   margin-top: var(--graft-density-gap-16);
@@ -329,7 +337,4 @@ function statusTheme(template: ApplicationTemplate) {
   white-space: nowrap;
 }
 
-.application-template-list__actions {
-  flex-wrap: wrap;
-}
 </style>

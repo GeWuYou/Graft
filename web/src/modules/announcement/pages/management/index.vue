@@ -20,6 +20,10 @@
         </template>
       </management-page-header>
 
+      <management-statistics-bar
+        :items="[{ label: t('announcement.management.summary', { count: '' }).trim(), value: total }]"
+      />
+
       <management-toolbar>
         <template #filters>
           <t-input
@@ -69,19 +73,6 @@
       </management-toolbar>
 
       <management-table-card>
-        <template #head>
-          <div class="announcement-table-summary">
-            <div>
-              <p class="announcement-table-summary__count">
-                {{ t('announcement.management.summary', { count: total }) }}
-              </p>
-              <p class="announcement-table-summary__hint">{{ t('announcement.management.tableHint') }}</p>
-            </div>
-            <t-button v-if="hasActiveFilters" theme="default" variant="text" @click="resetFilters">
-              {{ t('announcement.management.reset') }}
-            </t-button>
-          </div>
-        </template>
         <template #toolbar>
           <table-view-toolbar
             :column-settings-label="t('announcement.management.columnSettings')"
@@ -514,6 +505,7 @@ import {
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
   ManagementToolbar,
@@ -631,22 +623,38 @@ const statusValues: AnnouncementStatus[] = ['draft', 'published', 'archived'];
 const levelValues: AnnouncementLevel[] = ['info', 'warning', 'success', 'error'];
 const deliveryModeValues: AnnouncementDeliveryMode[] = ['silent', 'popup'];
 
+const statusLabelKeys: Record<AnnouncementStatus, string> = {
+  draft: 'announcement.status.draft',
+  published: 'announcement.status.published',
+  archived: 'announcement.status.archived',
+};
+const levelLabelKeys: Record<AnnouncementLevel, string> = {
+  info: 'announcement.level.info',
+  warning: 'announcement.level.warning',
+  success: 'announcement.level.success',
+  error: 'announcement.level.error',
+};
+const deliveryModeLabelKeys: Record<AnnouncementDeliveryMode, string> = {
+  silent: 'announcement.deliveryMode.silent',
+  popup: 'announcement.deliveryMode.popup',
+};
+
 const statusFilterOptions = computed(() =>
   statusValues.map((value) => ({
-    label: t(`announcement.status.${value}`),
+    label: t(statusLabelKeys[value]),
     value,
   })),
 );
 const levelOptions = computed(() =>
   levelValues.map((value) => ({
-    label: t(`announcement.level.${value}`),
+    label: t(levelLabelKeys[value]),
     value,
   })),
 );
 const levelFilterOptions = levelOptions;
 const deliveryModeOptions = computed(() =>
   deliveryModeValues.map((value) => ({
-    label: t(`announcement.deliveryMode.${value}`),
+    label: t(deliveryModeLabelKeys[value]),
     value,
   })),
 );
@@ -1282,30 +1290,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
   width: 176px;
 }
 
-.announcement-table-summary {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-12);
-  justify-content: space-between;
-  width: 100%;
-}
-
-.announcement-table-summary > div {
-  min-width: 0;
-}
-
-.announcement-table-summary__count {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-medium);
-  margin: 0;
-}
-
-.announcement-table-summary__hint {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  margin: var(--graft-density-gap-6) 0 0;
-}
-
 .announcement-title-cell {
   display: flex;
   flex-direction: column;
@@ -1525,12 +1509,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 
   .toolbar__select {
     width: 100%;
-  }
-
-  .announcement-table-summary {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--graft-density-gap-10);
   }
 
   .announcement-management-page__header-actions {

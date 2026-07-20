@@ -287,7 +287,17 @@ func (m *Module) handleList(c *gin.Context) {
 	mapped := mapRuntimeTargetSummaries(c.Request.Context(), page.Items, runtimeTargetListSummaryConcurrency, func(ctx context.Context, item store.Target) generated.RuntimeTargetSummary {
 		return m.toHTTPSummary(ctx, item)
 	})
-	httpx.WriteSuccess(c, http.StatusOK, generated.RuntimeTargetListResponse{Items: mapped, Total: page.Total, Limit: limit, Offset: offset})
+	httpx.WriteSuccess(c, http.StatusOK, generated.RuntimeTargetListResponse{
+		Items:  mapped,
+		Total:  page.Total,
+		Limit:  limit,
+		Offset: offset,
+		Summary: struct {
+			Healthy     int64 `json:"healthy"`
+			Total       int64 `json:"total"`
+			Unavailable int64 `json:"unavailable"`
+		}{Total: page.Summary.Total, Healthy: page.Summary.Healthy, Unavailable: page.Summary.Unavailable},
+	})
 }
 
 func mapRuntimeTargetSummaries(ctx context.Context, items []store.Target, concurrency int, mapItem func(context.Context, store.Target) generated.RuntimeTargetSummary) []generated.RuntimeTargetSummary {

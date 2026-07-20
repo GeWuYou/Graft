@@ -1,5 +1,6 @@
 <template>
   <advanced-query-list-page
+    page-type="log-audit"
     title-key="accessLog.page.title"
     :title="t('accessLog.page.title')"
     description-key="accessLog.page.description"

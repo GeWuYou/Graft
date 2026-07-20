@@ -418,10 +418,16 @@ var permissions = []permissionRegistration{
     expect(result.status).toBe(1);
     expect(result.stdout).toContain('no-missing-rbac-permission-catalog-web-locale');
     expect(result.stdout).toContain(
-      'RBAC permission locale key rbac.permissionCatalog.projectImport.display is missing from web RBAC locale catalogs',
+      'RBAC permission locale key rbac.permissionCatalog.projectImport.display is missing from the zh-CN web RBAC locale catalog',
     );
     expect(result.stdout).toContain(
-      'RBAC permission locale key rbac.permissionCatalog.projectImport.description is missing from web RBAC locale catalogs',
+      'RBAC permission locale key rbac.permissionCatalog.projectImport.display is missing from the en-US web RBAC locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.projectImport.description is missing from the zh-CN web RBAC locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.projectImport.description is missing from the en-US web RBAC locale catalog',
     );
     expect(result.stderr).toBe('');
   });
@@ -523,12 +529,95 @@ var permissions = []permissionRegistration{
 
     expect(result.status).toBe(1);
     expect(result.stdout).toContain(
-      'RBAC permission locale key rbac.permissionCatalog.routeScoped.display is missing from web RBAC locale catalogs',
+      'RBAC permission locale key rbac.permissionCatalog.routeScoped.display is missing from the zh-CN web RBAC locale catalog',
     );
     expect(result.stdout).toContain(
-      'RBAC permission locale key rbac.permissionCatalog.routeScoped.description is missing from web RBAC locale catalogs',
+      'RBAC permission locale key rbac.permissionCatalog.routeScoped.display is missing from the en-US web RBAC locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.routeScoped.description is missing from the zh-CN web RBAC locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.routeScoped.description is missing from the en-US web RBAC locale catalog',
     );
     expect(result.stderr).toBe('');
+  });
+
+  it('blocks a permission locale key missing from only one web locale', async () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    mkdirSync(join(root, 'src/modules/rbac/locales'), { recursive: true });
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/en-US.json'),
+      JSON.stringify({ rbac: { permissionCatalog: { partial: { display: 'Partial Permission' } } } }),
+    );
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/zh-CN.json'),
+      JSON.stringify({ rbac: { permissionCatalog: {} } }),
+    );
+    writeServerModule(
+      root,
+      'permission_registration.go',
+      `
+package demo
+
+type permissionRegistration struct {
+  DisplayKey string
+  DescriptionKey string
+}
+
+var permissions = []permissionRegistration{{
+  DisplayKey: "rbac.permissionCatalog.partial.display",
+  DescriptionKey: "rbac.permissionCatalog.partial.description",
+}}
+`,
+    );
+
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.partial.display is missing from the zh-CN web RBAC locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.partial.description is missing from the zh-CN web RBAC locale catalog',
+    );
+    expect(result.stdout).not.toContain(
+      'RBAC permission locale key rbac.permissionCatalog.partial.display is missing from the en-US web RBAC locale catalog',
+    );
+  });
+
+  it('scans RBAC migration SQL for permission locale keys', async () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    mkdirSync(join(root, 'src/modules/rbac/locales'), { recursive: true });
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/en-US.json'),
+      JSON.stringify({ rbac: { permissionCatalog: { migrated: { display: 'Migrated Permission' } } } }),
+    );
+    writeFileSync(
+      join(root, 'src/modules/rbac/locales/zh-CN.json'),
+      JSON.stringify({ rbac: { permissionCatalog: { migrated: { display: '迁移权限' } } } }),
+    );
+    mkdirSync(join(root, '../server/modules/rbac/migrations'), { recursive: true });
+    writeFileSync(
+      join(root, '../server/modules/rbac/migrations/202607200001_permission.sql'),
+      "UPDATE permissions SET code = 'ops.application.migrated', display_key = 'rbac.permissionCatalog.migrated.display', description_key = 'rbac.permissionCatalog.migrated.description';",
+    );
+
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.migrated.description is missing from the zh-CN web RBAC locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'RBAC permission locale key rbac.permissionCatalog.migrated.description is missing from the en-US web RBAC locale catalog',
+    );
   });
 });
 

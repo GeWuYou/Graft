@@ -295,7 +295,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		sectionKey:               menu.RuntimeSectionKey,
 		sectionTitleKey:          containercontract.ContainerMenuSectionTitle.String(),
 		path:                     "",
-		icon:                     "docker",
+		icon:                     "docker-provider",
 		permission:               "",
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
@@ -304,7 +304,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		title:                    "",
 		titleKey:                 containercontract.DockerImageMenuTitle.String(),
 		path:                     containercontract.DockerImageMenuPath,
-		icon:                     "image",
+		icon:                     "image-artifact",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
@@ -313,7 +313,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		title:                    "",
 		titleKey:                 containercontract.DockerVolumeMenuTitle.String(),
 		path:                     containercontract.DockerVolumeMenuPath,
-		icon:                     "database",
+		icon:                     "persistent-volume",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
@@ -322,7 +322,7 @@ func assertMenu(t *testing.T, registry *menu.Registry) {
 		title:                    "",
 		titleKey:                 containercontract.ContainerListMenuTitle.String(),
 		path:                     "/infrastructure/docker/containers",
-		icon:                     "container",
+		icon:                     "container-workload",
 		permission:               containercontract.ContainerViewPermission.String(),
 		visibleWhenConfigEnabled: containercontract.ContainerRuntimeEnabledConfig.String(),
 	})
