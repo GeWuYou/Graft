@@ -9,6 +9,7 @@ import (
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
 	mobyclient "github.com/moby/moby/client"
@@ -50,6 +51,12 @@ type DockerImageContainerReference struct {
 	Name string
 }
 
+// DockerVolumeContainerReference 是引用数据卷的容器安全展示投影。
+type DockerVolumeContainerReference struct {
+	ID   string
+	Name string
+}
+
 // DockerImageListResult 保存一次 Docker 镜像快照及其完整运行时统计。
 // Items 由同一次 ImageList 调用产生，调用方可以在此快照上完成过滤和分页，避免重复访问 Docker daemon。
 type DockerImageListResult struct {
@@ -83,13 +90,14 @@ type DockerNetwork struct {
 // DockerVolume is the sanitized volume projection shared by list and detail reads.
 // Host mount paths and driver-specific status are intentionally omitted.
 type DockerVolume struct {
-	Name           string
-	Driver         string
-	Scope          string
-	CreatedAt      string
-	Labels         map[string]string
-	ReferenceCount *int64
-	SizeBytes      *int64
+	Name                string
+	Driver              string
+	Scope               string
+	CreatedAt           string
+	Labels              map[string]string
+	ReferenceCount      *int64
+	SizeBytes           *int64
+	ContainerReferences []DockerVolumeContainerReference
 }
 
 // DockerVolumeListQuery 描述数据卷列表的受限筛选和分页条件。
@@ -102,6 +110,16 @@ type DockerVolumeListQuery struct {
 type DockerVolumeListResult struct {
 	Items                []DockerVolume
 	Total, Limit, Offset int
+	Summary              DockerVolumeListSummary
+}
+
+// DockerVolumeListSummary 描述完整 Docker runtime 数据卷快照的统计结果。
+type DockerVolumeListSummary struct {
+	Total            int
+	InUse            int
+	Unused           int
+	ReferenceUnknown int
+	SizeBytes        *int64
 }
 
 func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) DockerVolumeListResult {
@@ -121,7 +139,32 @@ func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) Docker
 	if query.Limit <= total-start {
 		end = start + query.Limit
 	}
-	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset}
+	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset, Summary: summarizeDockerVolumes(items)}
+}
+
+func summarizeDockerVolumes(items []DockerVolume) DockerVolumeListSummary {
+	summary := DockerVolumeListSummary{Total: len(items)}
+	var totalSize int64
+	sizeAvailable := true
+	for _, item := range items {
+		switch {
+		case item.ReferenceCount == nil:
+			summary.ReferenceUnknown++
+		case *item.ReferenceCount > 0:
+			summary.InUse++
+		default:
+			summary.Unused++
+		}
+		if item.SizeBytes == nil {
+			sizeAvailable = false
+			continue
+		}
+		totalSize += *item.SizeBytes
+	}
+	if sizeAvailable {
+		summary.SizeBytes = &totalSize
+	}
+	return summary
 }
 
 func dockerVolumeMatchesQuery(item DockerVolume, query DockerVolumeListQuery, keyword string) bool {
@@ -306,11 +349,13 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 	if !ok {
 		return nil, errUnsupportedContainerRuntime
 	}
-	result, err := client.VolumeList(ctx, mobyclient.VolumeListOptions{})
+	readCtx, cancel := context.WithTimeout(ctx, dockerImageReadTimeout)
+	defer cancel()
+	result, err := client.VolumeList(readCtx, mobyclient.VolumeListOptions{})
 	if err != nil {
 		return nil, mapDockerError(err)
 	}
-	usage, usageErr := client.VolumeDiskUsage(ctx)
+	usage, usageErr := client.VolumeDiskUsage(readCtx)
 	usageByName := make(map[string]volume.UsageData, len(usage))
 	if usageErr == nil {
 		for _, item := range usage {
@@ -319,12 +364,18 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 			}
 		}
 	}
+	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
+	if err != nil {
+		return nil, mapDockerError(err)
+	}
+	references := dockerVolumeReferences(containers)
 	items := make([]DockerVolume, 0, len(result))
 	for _, item := range result {
 		projected := dockerVolume(item)
 		if data, ok := usageByName[item.Name]; ok {
 			projected.ReferenceCount, projected.SizeBytes = nullableUsage(data.RefCount), nullableUsage(data.Size)
 		}
+		projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), references[projected.Name]...)
 		items = append(items, projected)
 	}
 	return items, nil
@@ -343,7 +394,9 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	if !ok {
 		return DockerVolume{}, errUnsupportedContainerRuntime
 	}
-	item, err := client.VolumeInspect(ctx, id)
+	readCtx, cancel := context.WithTimeout(ctx, dockerImageReadTimeout)
+	defer cancel()
+	item, err := client.VolumeInspect(readCtx, id)
 	if err != nil {
 		return DockerVolume{}, mapDockerError(err)
 	}
@@ -351,7 +404,67 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	if item.UsageData != nil {
 		projected.ReferenceCount, projected.SizeBytes = nullableUsage(item.UsageData.RefCount), nullableUsage(item.UsageData.Size)
 	}
+	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
+	if err != nil {
+		return DockerVolume{}, mapDockerError(err)
+	}
+	projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), dockerVolumeReferences(containers)[projected.Name]...)
 	return projected, nil
+}
+
+func dockerVolumeReferences(items []container.Summary) map[string][]DockerVolumeContainerReference {
+	byVolume := make(map[string]map[string]DockerVolumeContainerReference)
+	for _, item := range items {
+		reference, ok := dockerContainerReference(item)
+		if !ok {
+			continue
+		}
+		for _, itemMount := range item.Mounts {
+			volumeName, ok := dockerVolumeMountName(itemMount)
+			if !ok {
+				continue
+			}
+			if byVolume[volumeName] == nil {
+				byVolume[volumeName] = make(map[string]DockerVolumeContainerReference)
+			}
+			byVolume[volumeName][reference.ID] = reference
+		}
+	}
+	result := make(map[string][]DockerVolumeContainerReference, len(byVolume))
+	for volumeName, references := range byVolume {
+		items := make([]DockerVolumeContainerReference, 0, len(references))
+		for _, reference := range references {
+			items = append(items, reference)
+		}
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].Name != items[j].Name {
+				return items[i].Name < items[j].Name
+			}
+			return items[i].ID < items[j].ID
+		})
+		result[volumeName] = items
+	}
+	return result
+}
+
+func dockerContainerReference(item container.Summary) (DockerVolumeContainerReference, bool) {
+	id := strings.TrimSpace(item.ID)
+	if id == "" {
+		return DockerVolumeContainerReference{}, false
+	}
+	name := ""
+	if len(item.Names) > 0 {
+		name = strings.TrimPrefix(strings.TrimSpace(item.Names[0]), "/")
+	}
+	return DockerVolumeContainerReference{ID: id, Name: name}, true
+}
+
+func dockerVolumeMountName(itemMount container.MountPoint) (string, bool) {
+	if itemMount.Type != mount.TypeVolume {
+		return "", false
+	}
+	name := strings.TrimSpace(itemMount.Name)
+	return name, name != ""
 }
 
 // RemoveDockerVolume 删除指定 Docker 数据卷；运行时错误会先映射为模块级错误。

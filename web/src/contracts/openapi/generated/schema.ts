@@ -6679,6 +6679,10 @@ export interface components {
     'enveloped-docker-network': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-network'];
     };
+    'docker-volume-container-reference': {
+      id: string;
+      name: string;
+    };
     'docker-volume': {
       name: string;
       driver: string;
@@ -6691,12 +6695,23 @@ export interface components {
       reference_count?: number | null;
       /** Format: int64 */
       size_bytes?: number | null;
+      /** @description Containers currently referencing this volume, represented as sanitized display references. */
+      container_references: components['schemas']['docker-volume-container-reference'][];
+    };
+    'docker-volume-list-summary': {
+      total: number;
+      in_use: number;
+      unused: number;
+      reference_unknown: number;
+      /** Format: int64 */
+      size_bytes?: number | null;
     };
     'docker-volume-list-response': {
       items: components['schemas']['docker-volume'][];
       total: number;
       limit: number;
       offset: number;
+      summary: components['schemas']['docker-volume-list-summary'];
     };
     'enveloped-docker-volume-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-volume-list-response'];

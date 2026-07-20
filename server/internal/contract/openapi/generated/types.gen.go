@@ -7664,13 +7664,15 @@ type DockerNetworkListResponse struct {
 
 // DockerVolume defines model for docker-volume.
 type DockerVolume struct {
-	CreatedAt      string             `json:"created_at"`
-	Driver         string             `json:"driver"`
-	Labels         *map[string]string `json:"labels,omitempty"`
-	Name           string             `json:"name"`
-	ReferenceCount *int64             `json:"reference_count,omitempty"`
-	Scope          string             `json:"scope"`
-	SizeBytes      *int64             `json:"size_bytes,omitempty"`
+	// ContainerReferences Containers currently referencing this volume, represented as sanitized display references.
+	ContainerReferences []DockerVolumeContainerReference `json:"container_references"`
+	CreatedAt           string                           `json:"created_at"`
+	Driver              string                           `json:"driver"`
+	Labels              *map[string]string               `json:"labels,omitempty"`
+	Name                string                           `json:"name"`
+	ReferenceCount      *int64                           `json:"reference_count,omitempty"`
+	Scope               string                           `json:"scope"`
+	SizeBytes           *int64                           `json:"size_bytes,omitempty"`
 }
 
 // DockerVolumeBatchRemoveItem defines model for docker-volume-batch-remove-item.
@@ -7697,12 +7699,28 @@ type DockerVolumeBatchRemoveResponse struct {
 	Total        int                           `json:"total"`
 }
 
+// DockerVolumeContainerReference defines model for docker-volume-container-reference.
+type DockerVolumeContainerReference struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // DockerVolumeListResponse defines model for docker-volume-list-response.
 type DockerVolumeListResponse struct {
-	Items  []DockerVolume `json:"items"`
-	Limit  int            `json:"limit"`
-	Offset int            `json:"offset"`
-	Total  int            `json:"total"`
+	Items   []DockerVolume          `json:"items"`
+	Limit   int                     `json:"limit"`
+	Offset  int                     `json:"offset"`
+	Summary DockerVolumeListSummary `json:"summary"`
+	Total   int                     `json:"total"`
+}
+
+// DockerVolumeListSummary defines model for docker-volume-list-summary.
+type DockerVolumeListSummary struct {
+	InUse            int    `json:"in_use"`
+	ReferenceUnknown int    `json:"reference_unknown"`
+	SizeBytes        *int64 `json:"size_bytes,omitempty"`
+	Total            int    `json:"total"`
+	Unused           int    `json:"unused"`
 }
 
 // DockerVolumeRemoveRequest defines model for docker-volume-remove-request.

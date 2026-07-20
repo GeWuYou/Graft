@@ -190,6 +190,13 @@
         "total": "{count} Volumes",
         "loadFailed": "Volume list could not be loaded."
       },
+      "metrics": {
+        "total": "Total volumes",
+        "inUse": "In use",
+        "unused": "Unused",
+        "size": "Total size",
+        "referenceUnknown": "Reference state is unavailable for {count} volumes."
+      },
       "filters": {
         "keyword": "Search volume name",
         "driver": "Driver",
@@ -203,7 +210,8 @@
         "name": "Name",
         "driver": "Driver",
         "scope": "Scope",
-        "usage": "Reference",
+        "usage": "Reference status",
+        "references": "References",
         "size": "Size",
         "createdAt": "Created at",
         "labels": "Labels",
@@ -255,7 +263,8 @@
         "description": "Review safe Docker volume details.",
         "loadFailed": "Volume detail could not be loaded.",
         "labels": "Labels",
-        "noLabels": "No labels"
+        "noLabels": "No labels",
+        "references": "Referencing containers"
       },
       "unavailable": "Unavailable"
     },

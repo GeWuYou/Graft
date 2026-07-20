@@ -14,7 +14,8 @@
 
     <management-statistics-bar
       :items="volumeStatistics"
-      :label="t('container.volume.list.total', { count: pagination.total })"
+      :label="t('container.volume.list.total', { count: volumeSummary?.total ?? 0 })"
+      aria-live="polite"
     />
 
     <management-toolbar>
@@ -180,6 +181,12 @@
     >
       <template #feedback>
         <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
+        <t-alert
+          v-else-if="volumeSummary?.reference_unknown"
+          class="docker-volume-page__alert"
+          theme="warning"
+          :message="t('container.volume.metrics.referenceUnknown', { count: volumeSummary.reference_unknown })"
+        />
       </template>
       <template #name="{ row }">
         <t-tooltip :content="row.name">
@@ -188,9 +195,29 @@
           }}</t-link>
         </t-tooltip>
       </template>
-      <template #usage="{ row }"
-        ><t-tag :theme="usageTheme(row)" variant="light-outline">{{ usageLabel(row) }}</t-tag></template
-      >
+      <template #references="{ row }">
+        <t-space v-if="row.container_references?.length" size="small" break-line>
+          <t-link
+            v-for="reference in row.container_references.slice(0, 2)"
+            :key="reference.id"
+            theme="primary"
+            @click="openContainerReference(reference.id)"
+          >
+            <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
+          </t-link>
+          <t-tag v-if="row.container_references.length > 2" size="small" variant="light-outline">
+            +{{ row.container_references.length - 2 }}
+          </t-tag>
+        </t-space>
+        <t-tag
+          v-else-if="row.reference_count === null || row.reference_count === undefined"
+          theme="warning"
+          variant="light-outline"
+        >
+          {{ t('container.volume.usage.unknown') }}
+        </t-tag>
+        <t-tag v-else size="small" variant="light-outline">{{ t('container.volume.usage.unused') }}</t-tag>
+      </template>
       <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
       <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
       <template #labels="{ row }">{{ Object.keys(row.labels || {}).length }}</template>
@@ -247,6 +274,26 @@
               }}</span>
             </t-space>
           </t-descriptions-item>
+          <t-descriptions-item :label="t('container.volume.detail.references')" :span="2">
+            <t-space v-if="selectedVolume.container_references?.length" size="small" break-line>
+              <t-link
+                v-for="reference in selectedVolume.container_references"
+                :key="reference.id"
+                theme="primary"
+                @click="openContainerReference(reference.id)"
+              >
+                <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
+              </t-link>
+            </t-space>
+            <t-tag
+              v-else-if="selectedVolume.reference_count === null || selectedVolume.reference_count === undefined"
+              theme="warning"
+              variant="light-outline"
+            >
+              {{ t('container.volume.usage.unknown') }}
+            </t-tag>
+            <span v-else>{{ t('container.volume.usage.unused') }}</span>
+          </t-descriptions-item>
         </t-descriptions>
       </t-loading>
     </t-drawer>
@@ -258,6 +305,7 @@ import type { TableProps } from 'tdesign-vue-next';
 import { Checkbox, DialogPlugin, Input, MessagePlugin } from 'tdesign-vue-next';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import {
   ManagementPagedTable,
@@ -280,6 +328,7 @@ import {
   listDockerVolumes,
   removeDockerVolume,
 } from '../../api/container';
+import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 
@@ -287,6 +336,7 @@ type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
 type CleanupVolume = Omit<VolumeRow, 'size_bytes'> & { id: string; size_bytes: number };
 type UsageFilter = 'all' | 'used' | 'unused';
 const { locale, t } = useI18n();
+const router = useRouter();
 const permissionStore = usePermissionStore();
 const rows = ref<VolumeRow[]>([]);
 const loading = ref(false);
@@ -303,15 +353,25 @@ const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref('');
+const volumeSummary = ref<Awaited<ReturnType<typeof listDockerVolumes>>['summary'] | null>(null);
 const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
-  { label: t('container.volume.list.total', { count: '' }), value: pagination.total },
+  { label: t('container.volume.metrics.total'), value: volumeSummary.value?.total ?? '--' },
+  { label: t('container.volume.metrics.inUse'), value: volumeSummary.value?.in_use ?? '--' },
+  { label: t('container.volume.metrics.unused'), value: volumeSummary.value?.unused ?? '--' },
+  {
+    label: t('container.volume.metrics.size'),
+    value:
+      volumeSummary.value?.size_bytes === null || volumeSummary.value?.size_bytes === undefined
+        ? t('container.volume.unavailable')
+        : formatBytes(volumeSummary.value.size_bytes, t('container.volume.unavailable')),
+  },
 ]);
 const columns: TableProps['columns'] = [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), width: 280 },
   { colKey: 'driver', title: t('container.volume.columns.driver'), width: 140, ellipsis: true },
   { colKey: 'scope', title: t('container.volume.columns.scope'), width: 120, ellipsis: true },
-  { colKey: 'usage', title: t('container.volume.columns.usage'), width: 130 },
+  { colKey: 'references', title: t('container.volume.columns.references'), minWidth: 220 },
   { colKey: 'size', title: t('container.volume.columns.size'), width: 130 },
   { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
   { colKey: 'labels', title: t('container.volume.columns.labels'), width: 100 },
@@ -358,9 +418,11 @@ async function refresh() {
     rows.value = response.items;
     pagination.total = response.total;
     pagination.pageSize = response.limit;
+    volumeSummary.value = response.summary;
   } catch (cause) {
     rows.value = [];
     pagination.total = 0;
+    volumeSummary.value = null;
     error.value = resolveLocalizedErrorMessage(t, cause, t('container.volume.list.loadFailed'));
   } finally {
     loading.value = false;
@@ -555,12 +617,12 @@ function usageLabel(row: VolumeRow) {
     ? t('container.volume.usage.used', { count: row.reference_count })
     : t('container.volume.usage.unused');
 }
-function usageTheme(row: VolumeRow) {
-  return row.reference_count === null || row.reference_count === undefined
-    ? 'warning'
-    : row.reference_count > 0
-      ? 'primary'
-      : 'default';
+function openContainerReference(containerId: string) {
+  void router.push({
+    name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
+    params: { id: containerId },
+    query: { tab: 'storage' },
+  });
 }
 function formatTime(value?: string) {
   return value ? formatLocaleDateTime(value, locale) : t('container.volume.unavailable');

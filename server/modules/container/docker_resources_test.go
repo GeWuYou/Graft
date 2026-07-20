@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
+	dockertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/api/types/volume"
 	mobyclient "github.com/moby/moby/client"
@@ -59,6 +61,49 @@ func TestDockerVolumeUsageUnknownDoesNotMatchUnused(t *testing.T) {
 	zero := int64(0)
 	if !dockerVolumeUsageMatches(&zero, "unused") {
 		t.Fatal("zero reference count must match unused")
+	}
+}
+
+func TestDockerVolumeReferencesDeduplicateMountsAndIgnoreNonVolumes(t *testing.T) {
+	t.Parallel()
+
+	refs := dockerVolumeReferences([]dockertypes.Summary{
+		{
+			ID:    "container-b",
+			Names: []string{"/worker"},
+			Mounts: []dockertypes.MountPoint{
+				{Type: mount.TypeVolume, Name: "data"},
+				{Type: mount.TypeVolume, Name: "data"},
+				{Type: mount.TypeBind, Name: "host-path"},
+			},
+		},
+		{ID: "container-a", Names: []string{"/api"}, Mounts: []dockertypes.MountPoint{{Type: mount.TypeVolume, Name: "data"}}},
+	})
+
+	data := refs["data"]
+	if len(data) != 2 || data[0].Name != "api" || data[1].Name != "worker" {
+		t.Fatalf("unexpected volume references: %#v", data)
+	}
+	if _, ok := refs["host-path"]; ok {
+		t.Fatal("bind mount must not be reported as a Docker volume reference")
+	}
+}
+
+func TestListDockerVolumesSummaryUsesFullSnapshotBeforeFilters(t *testing.T) {
+	t.Parallel()
+
+	used, unused, size := int64(1), int64(0), int64(1024)
+	result := listDockerVolumes([]DockerVolume{
+		{Name: "used", ReferenceCount: &used, SizeBytes: &size},
+		{Name: "unused", ReferenceCount: &unused, SizeBytes: &size},
+		{Name: "unknown", SizeBytes: nil},
+	}, DockerVolumeListQuery{Usage: "used", Limit: 20})
+
+	if result.Total != 1 || result.Summary.Total != 3 || result.Summary.InUse != 1 || result.Summary.Unused != 1 || result.Summary.ReferenceUnknown != 1 {
+		t.Fatalf("unexpected filtered result or full summary: %#v", result)
+	}
+	if result.Summary.SizeBytes != nil {
+		t.Fatalf("expected incomplete size summary to be unavailable, got %v", *result.Summary.SizeBytes)
 	}
 }
 

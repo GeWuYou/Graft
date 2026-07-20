@@ -190,6 +190,13 @@
         "total": "共 {count} 个数据卷",
         "loadFailed": "数据卷列表加载失败。"
       },
+      "metrics": {
+        "total": "数据卷总数",
+        "inUse": "已引用",
+        "unused": "未引用",
+        "size": "总占用空间",
+        "referenceUnknown": "有 {count} 个数据卷的引用状态暂不可确定。"
+      },
       "filters": {
         "keyword": "搜索数据卷名称",
         "driver": "驱动",
@@ -204,6 +211,7 @@
         "driver": "驱动",
         "scope": "范围",
         "usage": "引用状态",
+        "references": "引用",
         "size": "大小",
         "createdAt": "创建时间",
         "labels": "标签数",
@@ -255,7 +263,8 @@
         "description": "查看 Docker 数据卷的安全概览信息。",
         "loadFailed": "数据卷详情加载失败。",
         "labels": "标签",
-        "noLabels": "无标签"
+        "noLabels": "无标签",
+        "references": "引用容器"
       },
       "unavailable": "不可用"
     },

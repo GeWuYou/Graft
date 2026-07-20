@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import sourceText from './index.vue?raw';
 
 describe('docker volume list page', () => {
-  it('keeps detail content in a list drawer and removes the route-driven detail flow', () => {
+  it('keeps volume detail content in a drawer while allowing reference navigation', () => {
     expect(sourceText).toContain('<t-drawer');
     expect(sourceText).toContain('getDockerVolume');
-    expect(sourceText).not.toContain('useRouter');
+    expect(sourceText).toContain('useRouter');
+    expect(sourceText).toContain("query: { tab: 'storage' }");
   });
 
   it('keeps long names bounded and exposes the complete name through a tooltip', () => {
@@ -50,9 +51,27 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('hasActiveFilters');
     expect(sourceText).toContain('@click="resetFilters"');
     expect(sourceText).toContain('<template #name="{ row }">');
-    expect(sourceText).toContain('<template #usage="{ row }"');
+    expect(sourceText).toContain('<template #references="{ row }">');
     expect(sourceText).toContain('<template #actions="{ row }">');
     expect(sourceText).toContain('<table-action-menu');
+  });
+
+  it('uses the full runtime summary for four aligned statistics', () => {
+    expect(sourceText).toContain('<management-statistics-bar');
+    expect(sourceText).toContain("t('container.volume.metrics.total')");
+    expect(sourceText).toContain("t('container.volume.metrics.inUse')");
+    expect(sourceText).toContain("t('container.volume.metrics.unused')");
+    expect(sourceText).toContain("t('container.volume.metrics.size')");
+    expect(sourceText).toContain('volumeSummary.value?.size_bytes === null');
+    expect(sourceText).toContain('response.summary');
+  });
+
+  it('shows sanitized container references in the table and detail drawer', () => {
+    expect(sourceText).toContain('row.container_references.slice(0, 2)');
+    expect(sourceText).toContain('selectedVolume.container_references');
+    expect(sourceText).toContain('openContainerReference(reference.id)');
+    expect(sourceText).toContain("t('container.volume.detail.references')");
+    expect(sourceText).toContain("t('container.volume.metrics.referenceUnknown'");
   });
 
   it('uses TDesign controls in removal confirmations and avoids duplicate filter refreshes', () => {
