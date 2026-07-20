@@ -639,7 +639,6 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('容器管理');
     expect(wrapper.text()).toContain('总数 25');
     expect(wrapper.text()).toContain('不健康 0');
-    expect(wrapper.text()).toContain('操作已启用');
     expect(wrapper.text()).toContain('graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('Compose 应用');
@@ -1494,7 +1493,6 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('操作已启用');
     expect(wrapper.findAll('[data-testid="container-action-start"]').length).toBeGreaterThan(0);
     expect(wrapper.find('[data-testid="container-action-stop"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="container-action-restart"]').exists()).toBe(true);

@@ -6,33 +6,12 @@
       description-key="container.list.description"
       :description="t('container.list.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
-    >
-      <template #meta>
-        <t-space break-line size="small">
-          <t-tag :theme="runtimeStatusTheme" variant="light-outline">
-            {{ t('container.list.runtimeLabel') }}: {{ runtimeSummary }}
-          </t-tag>
-          <t-tag theme="default" variant="light-outline">
-            {{ t('container.list.totalCount', { count: totalCount }) }}
-          </t-tag>
-          <t-tag theme="success" variant="light-outline">
-            {{ t('container.list.runningCount', { count: runningCount }) }}
-          </t-tag>
-          <t-tag theme="warning" variant="light-outline">
-            {{ t('container.list.stoppedCount', { count: stoppedCount }) }}
-          </t-tag>
-          <t-tag theme="danger" variant="light-outline">
-            {{ t('container.list.errorCount', { count: errorCount }) }}
-          </t-tag>
-          <t-tag theme="danger" variant="light-outline">
-            {{ t('container.list.unhealthyCount', { count: unhealthyCount }) }}
-          </t-tag>
-          <t-tag :theme="readOnlyMode ? 'warning' : 'default'" variant="light-outline">
-            {{ readOnlyModeStatus }}
-          </t-tag>
-        </t-space>
-      </template>
-    </management-page-header>
+    />
+
+    <management-statistics-bar
+      :items="containerStatistics"
+      :label="t('container.list.tableSummary', { count: listTotal })"
+    />
 
     <management-toolbar class="container-toolbar">
       <template #filters>
@@ -247,7 +226,13 @@ import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
 import { resolveComposeApplicationReferences } from '@/modules/project/contract/compose-context-references';
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
-import { ManagementPageHeader, ManagementToolbar, TableViewToolbar } from '@/shared/components/management';
+import {
+  ManagementPageHeader,
+  type ManagementStatisticItem,
+  ManagementStatisticsBar,
+  ManagementToolbar,
+  TableViewToolbar,
+} from '@/shared/components/management';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore, useTabsRouterStore } from '@/store';
@@ -289,7 +274,6 @@ import type {
   ContainerFilters,
   ContainerListQueryWithOrchestrator,
   ContainerListSummary,
-  ContainerRuntimeInfo,
   ContainerState,
   ContainerSummaryRecord,
 } from '../../types/container';
@@ -331,7 +315,6 @@ type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 
 const tableLoading = ref(false);
 const refreshing = ref(false);
 const listError = ref<ListErrorState>({ title: '', hint: '' });
-const runtime = ref<ContainerRuntimeInfo | null>(null);
 const listSummary = ref<ContainerListSummary | null>(null);
 const listTotal = ref(0);
 const runtimeTargets = ref<RuntimeTarget[]>([]);
@@ -381,26 +364,13 @@ const runningCount = computed(() => listSummary.value?.running ?? 0);
 const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
 const errorCount = computed(() => listSummary.value?.error ?? 0);
 const unhealthyCount = computed(() => listSummary.value?.unhealthy ?? 0);
-const readOnlyMode = computed(() => {
-  if (!rows.value.length) {
-    return true;
-  }
-
-  return rows.value.every((row) => !canRunAnyDangerousAction(row));
-});
-const readOnlyModeStatus = computed(() =>
-  readOnlyMode.value ? t('container.list.readOnlyMode') : t('container.list.actionModeEnabled'),
-);
-const runtimeStatusTheme = computed(() => {
-  if (runtime.value?.status === 'enabled') return 'success';
-  if (runtime.value?.status === 'disabled') return 'warning';
-  return 'danger';
-});
-const runtimeSummary = computed(() => {
-  if (!runtime.value) return t('container.list.runtimeUnavailable');
-  const version = runtime.value.server_version || runtime.value.api_version || '';
-  return version ? `${runtime.value.runtime} / ${version}` : runtime.value.runtime;
-});
+const containerStatistics = computed<ManagementStatisticItem[]>(() => [
+  { label: t('container.list.totalCount', { count: '' }), value: totalCount.value },
+  { label: t('container.list.runningCount', { count: '' }), marker: '🟢', value: runningCount.value },
+  { label: t('container.list.stoppedCount', { count: '' }), marker: '🟠', value: stoppedCount.value },
+  { label: t('container.list.errorCount', { count: '' }), marker: '🔴', value: errorCount.value },
+  { label: t('container.list.unhealthyCount', { count: '' }), marker: '🔴', value: unhealthyCount.value },
+]);
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
 );
@@ -507,7 +477,6 @@ async function refreshContainers() {
     } else {
       releaseListRealtimeSubscription();
     }
-    runtime.value = payload.runtime;
     listSummary.value = payload.summary;
     listTotal.value = payload.total;
     syncSelectedRowsFromCurrentPage();
@@ -517,7 +486,6 @@ async function refreshContainers() {
     }
     releaseListRealtimeSubscription();
     clearContainerListMetadata();
-    runtime.value = null;
     listSummary.value = null;
     listTotal.value = 0;
     listError.value = resolveListError(error);
@@ -1325,12 +1293,6 @@ function canRunDangerousAction(row: ContainerSummaryRecord, action: DangerousCon
   if (action === 'stop') return Boolean(row.can_stop);
   if (action === 'restart') return Boolean(row.can_restart);
   return Boolean(row.can_remove);
-}
-
-function canRunAnyDangerousAction(row: ContainerSummaryRecord) {
-  return (['start', 'stop', 'restart', 'remove'] as DangerousContainerAction[]).some((action) =>
-    canRunDangerousAction(row, action),
-  );
 }
 
 function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousContainerAction) {

@@ -5,12 +5,17 @@
       :description="t('container.volume.list.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
-      <template #meta>
-        <t-tag theme="default" variant="light-outline">{{
-          t('container.volume.list.total', { count: pagination.total })
-        }}</t-tag>
+      <template #actions>
+        <t-button v-if="canRemove" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
+          {{ t('container.volume.actions.cleanup') }}
+        </t-button>
       </template>
     </management-page-header>
+
+    <management-statistics-bar
+      :items="volumeStatistics"
+      :label="t('container.volume.list.total', { count: pagination.total })"
+    />
 
     <management-toolbar>
       <template #filters>
@@ -47,10 +52,21 @@
         <t-button theme="primary" @click="applyFilters">{{ t('container.volume.filters.query') }}</t-button>
         <t-button variant="text" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
       </template>
+    </management-toolbar>
+
+    <management-toolbar>
+      <template #filters>
+        <div v-if="selectedRowKeys.length" class="docker-volume-page__batch-bar">
+          <span>{{ t('container.volume.batch.selected', { count: selectedRowKeys.length }) }}</span>
+          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
+            {{ t('container.volume.batch.remove') }}
+          </t-button>
+          <t-button size="small" variant="text" @click="clearSelection">
+            {{ t('container.volume.batch.cancelSelection') }}
+          </t-button>
+        </div>
+      </template>
       <template #actions>
-        <t-button v-if="canRemove" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
-          {{ t('container.volume.actions.cleanup') }}
-        </t-button>
         <table-view-toolbar
           :refresh-label="t('container.list.refresh')"
           :refresh-loading="loading"
@@ -145,26 +161,26 @@
       </template>
     </t-dialog>
 
-    <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
-    <div v-if="selectedRowKeys.length" class="docker-volume-page__batch-bar">
-      <span>{{ t('container.volume.batch.selected', { count: selectedRowKeys.length }) }}</span>
-      <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
-        {{ t('container.volume.batch.remove') }}
-      </t-button>
-      <t-button size="small" variant="text" @click="clearSelection">
-        {{ t('container.volume.batch.cancelSelection') }}
-      </t-button>
-    </div>
-    <t-table
-      row-key="name"
-      :data="rows"
+    <management-paged-table
+      v-model:current="pagination.current"
+      v-model:page-size="pagination.pageSize"
       :columns="columns"
+      :empty-description="
+        hasActiveFilters ? t('container.volume.filters.reset') : t('container.volume.list.description')
+      "
+      :empty-title="t('container.volume.pagination.empty')"
+      :footer-summary="paginationSummary"
       :loading="loading"
+      row-key="name"
+      :rows="rows"
       :selected-row-keys="selectedRowKeys"
-      :disable-data-page="true"
-      table-layout="fixed"
+      :total="pagination.total"
+      @page-change="handlePageChange"
       @select-change="handleSelectChange"
     >
+      <template #feedback>
+        <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
+      </template>
       <template #name="{ row }">
         <t-tooltip :content="row.name">
           <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
@@ -179,25 +195,16 @@
       <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
       <template #labels="{ row }">{{ Object.keys(row.labels || {}).length }}</template>
       <template #actions="{ row }">
-        <t-space size="small">
-          <t-button variant="text" size="small" @click="openDetail(row)">{{
-            t('container.volume.actions.detail')
-          }}</t-button>
-          <t-button v-if="canRemove" theme="danger" variant="text" size="small" @click="confirmRemove(row)">{{
-            t('container.volume.actions.remove')
-          }}</t-button>
-        </t-space>
+        <table-action-menu
+          :actions="volumeRowActions(row)"
+          :more-label="t('container.list.actions.more')"
+          @action="handleVolumeRowAction($event, row)"
+        />
       </template>
-      <template #empty>
-        <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
-          <template #action>
-            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
-              {{ t('container.volume.filters.reset') }}
-            </t-button>
-          </template>
-        </t-empty>
+      <template v-if="hasActiveFilters" #empty-action>
+        <t-button variant="outline" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
       </template>
-    </t-table>
+    </management-paged-table>
     <t-drawer
       v-model:visible="detailDrawerVisible"
       :header="selectedVolume?.name || t('container.volume.detail.title')"
@@ -237,15 +244,6 @@
         </t-descriptions>
       </t-loading>
     </t-drawer>
-    <management-table-pagination :summary="paginationSummary">
-      <t-pagination
-        v-model:current="pagination.current"
-        v-model:page-size="pagination.pageSize"
-        :total="pagination.total"
-        show-page-size
-        @change="handlePageChange"
-      />
-    </management-table-pagination>
   </div>
 </template>
 <script setup lang="ts">
@@ -256,9 +254,12 @@ import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  ManagementPagedTable,
   ManagementPageHeader,
-  ManagementTablePagination,
+  type ManagementStatisticItem,
+  ManagementStatisticsBar,
   ManagementToolbar,
+  TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -296,6 +297,9 @@ const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref('');
+const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
+  { label: t('container.volume.list.total', { count: '' }), value: pagination.total },
+]);
 const columns: TableProps['columns'] = [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), width: 280 },
@@ -377,6 +381,31 @@ function resetFilters() {
 function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.current = page.current;
   pagination.pageSize = page.pageSize;
+}
+function volumeRowActions(_row: VolumeRow) {
+  return [
+    {
+      fallbackLabel: t('container.volume.actions.detail'),
+      label: 'container.volume.actions.detail',
+      value: 'detail',
+    },
+    ...(canRemove.value
+      ? [
+          {
+            fallbackLabel: t('container.volume.actions.remove'),
+            label: 'container.volume.actions.remove',
+            value: 'remove',
+          },
+        ]
+      : []),
+  ];
+}
+function handleVolumeRowAction(action: string, row: VolumeRow) {
+  if (action === 'detail') {
+    void openDetail(row);
+    return;
+  }
+  if (action === 'remove') confirmRemove(row);
 }
 function middleEllipsis(value: string, maxLength = 31) {
   if (value.length <= maxLength) return value;
@@ -576,7 +605,7 @@ function confirmRemove(row: VolumeRow) {
 <style scoped lang="less">
 .docker-volume-page {
   display: grid;
-  gap: var(--td-comp-margin-xl);
+  gap: var(--graft-density-gap-16);
 }
 
 .docker-volume-page__alert {

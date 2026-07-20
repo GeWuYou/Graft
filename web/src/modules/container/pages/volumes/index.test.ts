@@ -43,14 +43,15 @@ describe('docker volume list page', () => {
     expect(sourceText).not.toContain('text-overflow: ellipsis;');
   });
 
-  it('renders a filter-aware TDesign empty state without replacing table slots', () => {
-    expect(sourceText).toContain('<template #empty>');
-    expect(sourceText).toContain('<t-empty');
+  it('uses the shared paged table with a filter-aware empty action', () => {
+    expect(sourceText).toContain('<management-paged-table');
+    expect(sourceText).toContain('<template v-if="hasActiveFilters" #empty-action>');
     expect(sourceText).toContain('hasActiveFilters');
     expect(sourceText).toContain('@click="resetFilters"');
     expect(sourceText).toContain('<template #name="{ row }">');
     expect(sourceText).toContain('<template #usage="{ row }"');
     expect(sourceText).toContain('<template #actions="{ row }">');
+    expect(sourceText).toContain('<table-action-menu');
   });
 
   it('uses TDesign controls in removal confirmations and avoids duplicate filter refreshes', () => {
