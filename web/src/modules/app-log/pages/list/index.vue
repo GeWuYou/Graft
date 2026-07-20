@@ -31,8 +31,10 @@
       <app-log-table
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
-        :empty-description="t('appLog.page.emptyDescription')"
+        :empty-description="emptyDescription"
+        :empty-title="emptyTitle"
         :footer-summary="footerSummary"
+        :filtered-empty="hasActiveFilters && rows.length === 0"
         :loading="loading"
         :rows="rows"
         :selected-row-keys="selectedRowKeys"
@@ -40,6 +42,7 @@
         :visible-column-keys="visibleColumnKeys"
         @delete="confirmDeleteOne"
         @detail="openDetail"
+        @clear-filters="resetFilters"
         @page-change="fetchAppLogs"
         @select-change="handleSelectChange"
       >
@@ -234,6 +237,25 @@ const columnViewPresets = computed(() => [
   { value: 'technical', label: t('appLog.columnViews.technical'), keys: TECHNICAL_VISIBLE_COLUMNS },
 ]);
 const footerSummary = computed(() => t('appLog.page.footerTotal', { count: total.value }));
+const hasActiveFilters = computed(() =>
+  Boolean(
+    filters.value.keyword ||
+    filters.value.occurredRange.length ||
+    filters.value.severity ||
+    filters.value.category ||
+    filters.value.component ||
+    filters.value.operation ||
+    filters.value.requestId ||
+    filters.value.message ||
+    filters.value.error,
+  ),
+);
+const emptyTitle = computed(() =>
+  hasActiveFilters.value ? t('appLog.page.emptyFilteredTitle') : t('appLog.page.emptyTitle'),
+);
+const emptyDescription = computed(() =>
+  hasActiveFilters.value ? t('appLog.page.emptyFilteredDescription') : t('appLog.page.emptyDescription'),
+);
 const reportDetailLoadError = createLogDetailErrorReporter({
   fallbackMessage: () => t('appLog.page.loadFailed'),
   resolveMessage: (cause, fallback) => resolveAppLogErrorMessage(t, cause, fallback),

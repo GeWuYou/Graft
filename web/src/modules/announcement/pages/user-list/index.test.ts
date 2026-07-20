@@ -91,12 +91,23 @@ vi.mock('@/shared/components/management', () => ({
       return () => h('header', [slots.default?.(), slots.actions?.()]);
     },
   }),
+  ManagementStatisticsBar: defineComponent({
+    props: { items: { type: Array, default: () => [] } },
+    setup(props) {
+      return () => h('div', { class: 'management-statistics-bar' }, JSON.stringify(props.items));
+    },
+  }),
   ManagementTablePagination: defineComponent({
     props: {
       summary: { type: String, default: '' },
     },
     setup(props, { slots }) {
       return () => h('footer', [props.summary, slots.default?.()]);
+    },
+  }),
+  ManagementToolbar: defineComponent({
+    setup(_, { slots }) {
+      return () => h('section', [slots.filters?.(), slots.actions?.()]);
     },
   }),
   formatCompactDateTime: (value: string) => value,

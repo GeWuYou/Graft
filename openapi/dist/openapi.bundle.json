@@ -26625,13 +26625,30 @@
           }
         ]
       },
+      "docker-volume-container-reference": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "docker-volume": {
         "type": "object",
         "required": [
           "name",
           "driver",
           "scope",
-          "created_at"
+          "created_at",
+          "container_references"
         ],
         "properties": {
           "name": {
@@ -26661,6 +26678,46 @@
             "type": "integer",
             "format": "int64",
             "nullable": true
+          },
+          "container_references": {
+            "type": "array",
+            "description": "Containers currently referencing this volume, represented as sanitized display references.",
+            "items": {
+              "$ref": "#/components/schemas/docker-volume-container-reference"
+            }
+          }
+        }
+      },
+      "docker-volume-list-summary": {
+        "type": "object",
+        "required": [
+          "total",
+          "in_use",
+          "unused",
+          "reference_unknown"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "in_use": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unused": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reference_unknown": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true
           }
         }
       },
@@ -26670,7 +26727,8 @@
           "items",
           "total",
           "limit",
-          "offset"
+          "offset",
+          "summary"
         ],
         "properties": {
           "items": {
@@ -26691,6 +26749,9 @@
           "offset": {
             "type": "integer",
             "minimum": 0
+          },
+          "summary": {
+            "$ref": "#/components/schemas/docker-volume-list-summary"
           }
         }
       },

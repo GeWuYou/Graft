@@ -1,5 +1,5 @@
 type: object
-required: [items, total, limit, offset]
+required: [items, total, limit, offset, summary]
 properties:
   items:
     type: array
@@ -15,3 +15,19 @@ properties:
   offset:
     type: integer
     minimum: 0
+  summary:
+    type: object
+    required: [total, healthy, unavailable]
+    properties:
+      total:
+        type: integer
+        format: int64
+        minimum: 0
+      healthy:
+        type: integer
+        format: int64
+        minimum: 0
+      unavailable:
+        type: integer
+        format: int64
+        minimum: 0

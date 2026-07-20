@@ -19,6 +19,9 @@ func TestSQLRepositoryListReturnsEveryLiveTargetWhileListPageRemainsBounded(t *t
 	if _, err := db.Exec(`INSERT INTO runtime_targets (provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 1)`, "docker", "Deleted target", "unix:///var/run/docker.sock", "unix_socket", `["containers"]`, false, ""); err != nil {
 		t.Fatalf("insert deleted runtime target: %v", err)
 	}
+	if _, err := db.Exec(`UPDATE runtime_targets SET availability = false WHERE id = 1`); err != nil {
+		t.Fatalf("mark runtime target unavailable: %v", err)
+	}
 
 	repository := NewSQLRepository(db)
 	items, err := repository.List(context.Background())
@@ -38,6 +41,9 @@ func TestSQLRepositoryListReturnsEveryLiveTargetWhileListPageRemainsBounded(t *t
 	}
 	if len(page.Items) != 10 {
 		t.Fatalf("ListPage returned %d targets, want 10", len(page.Items))
+	}
+	if page.Summary != (Summary{Total: 101, Healthy: 100, Unavailable: 1}) {
+		t.Fatalf("ListPage summary = %+v, want total=101 healthy=100 unavailable=1", page.Summary)
 	}
 }
 

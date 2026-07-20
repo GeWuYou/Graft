@@ -199,9 +199,20 @@ const dropdownStub = defineComponent({
         {
           'data-testid': 'dropdown',
           'data-options': JSON.stringify(props.options),
-          onClick: () => emit('click', { value: 'noop' }),
         },
-        slots.default?.(),
+        [
+          slots.default?.(),
+          ...(props.options as Array<{ content?: string; testId?: string; value?: string }>).map((option) =>
+            h(
+              'button',
+              {
+                'data-testid': option.testId,
+                onClick: () => emit('click', { value: option.value }),
+              },
+              option.content,
+            ),
+          ),
+        ],
       );
   },
 });
@@ -1486,7 +1497,7 @@ describe('RolePage', () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="dropdown"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="role-edit"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="role-edit"]').exists()).toBe(true);
     expect(wrapper.text()).not.toContain('rbac.roleList.moreActions.delete');
   });
 

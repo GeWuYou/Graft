@@ -1,5 +1,5 @@
 type: object
-required: [name, driver, scope, created_at]
+required: [name, driver, scope, created_at, container_references]
 properties:
   name: { type: string }
   driver: { type: string }
@@ -8,3 +8,8 @@ properties:
   labels: { type: object, additionalProperties: { type: string } }
   reference_count: { type: integer, format: int64, nullable: true }
   size_bytes: { type: integer, format: int64, nullable: true }
+  container_references:
+    type: array
+    description: Containers currently referencing this volume, represented as sanitized display references.
+    items:
+      $ref: ./docker-volume-container-reference.yaml

@@ -38,6 +38,10 @@
       "batchRoleUpdateFailed": "Failed to update selected user roles",
       "emptyTitle": "No user data",
       "footerTotal": "{count} users total",
+      "statistics": {
+        "label": "User Status Statistics",
+        "total": "Total"
+      },
       "batch": {
         "selected": "{count} selected",
         "enable": "Batch Enable",

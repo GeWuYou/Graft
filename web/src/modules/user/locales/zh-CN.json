@@ -38,6 +38,10 @@
       "batchRoleUpdateFailed": "批量用户角色更新失败",
       "emptyTitle": "暂无用户数据",
       "footerTotal": "共 {count} 位用户",
+      "statistics": {
+        "label": "用户状态统计",
+        "total": "总数"
+      },
       "batch": {
         "selected": "已选择 {count} 项",
         "enable": "批量启用",

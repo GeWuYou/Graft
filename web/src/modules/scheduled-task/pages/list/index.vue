@@ -22,19 +22,7 @@
       </t-button>
     </template>
     <template #feedback-extra>
-      <section class="scheduled-task-metrics" :aria-label="t('scheduledTask.list.metricsAriaLabel')">
-        <t-card
-          v-for="metric in overviewMetrics"
-          :key="metric.key"
-          class="scheduled-task-metric-card"
-          size="small"
-          :bordered="true"
-        >
-          <p>{{ metric.label }}</p>
-          <strong>{{ metric.value }}</strong>
-          <span>{{ metric.description }}</span>
-        </t-card>
-      </section>
+      <management-statistics-bar :items="overviewMetrics" :label="t('scheduledTask.list.metricsAriaLabel')" />
     </template>
     <template #filters>
       <management-toolbar>
@@ -1090,6 +1078,7 @@ import { requestNotificationHeaderRefresh } from '@/modules/notification/contrac
 import { readErrorField } from '@/modules/shared/error-field';
 import {
   buildVisibleColumns,
+  ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
   ManagementToolbar,
@@ -1393,28 +1382,24 @@ const recentRunSummary = computed<RunSummary>(() => {
 
 const overviewMetrics = computed(() => [
   {
-    key: 'total',
     label: t('scheduledTask.list.metric.total'),
+    marker: '🔵',
     value: tasks.value.length,
-    description: t('scheduledTask.list.metric.totalDescription'),
   },
   {
-    key: 'enabled',
     label: t('scheduledTask.list.metric.enabled'),
+    marker: '🟢',
     value: tasks.value.filter((task) => task.enabled).length,
-    description: t('scheduledTask.list.metric.enabledDescription'),
   },
   {
-    key: 'runs24h',
     label: t('scheduledTask.list.metric.runs24h'),
+    marker: '🔵',
     value: recentRunSummary.value.runs24h,
-    description: t('scheduledTask.list.metric.runs24hDescription'),
   },
   {
-    key: 'failures24h',
     label: t('scheduledTask.list.metric.failures24h'),
+    marker: '🔴',
     value: recentRunSummary.value.failures24h,
-    description: t('scheduledTask.list.metric.failures24hDescription'),
   },
 ]);
 
@@ -3081,8 +3066,6 @@ function formatDuration(value?: number | null) {
 
 .scheduled-task-page__title-block p,
 .scheduled-task-table-head p,
-.scheduled-task-metric-card p,
-.scheduled-task-metric-card span,
 .scheduled-task-muted,
 .scheduled-task-schedule__next-run,
 .scheduled-task-identity__key,
@@ -3093,30 +3076,8 @@ function formatDuration(value?: number | null) {
 
 .scheduled-task-page__title-block p,
 .scheduled-task-table-head p,
-.scheduled-task-metric-card p,
 .scheduled-task-form-hint {
   margin: var(--graft-density-gap-4) 0 0;
-}
-
-.scheduled-task-metrics {
-  display: grid;
-  gap: var(--graft-density-gap-12);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.scheduled-task-metric-card {
-  min-width: 0;
-}
-
-.scheduled-task-metric-card :deep(.t-card__body) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-4);
-}
-
-.scheduled-task-metric-card strong {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-headline-small);
 }
 
 .scheduled-task-table-card :deep(.t-card__body) {
@@ -3585,7 +3546,6 @@ function formatDuration(value?: number | null) {
     flex-direction: column;
   }
 
-  .scheduled-task-metrics,
   .scheduled-task-detail-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3602,7 +3562,6 @@ function formatDuration(value?: number | null) {
 }
 
 @media (width <= 520px) {
-  .scheduled-task-metrics,
   .scheduled-task-detail-summary {
     grid-template-columns: 1fr;
   }

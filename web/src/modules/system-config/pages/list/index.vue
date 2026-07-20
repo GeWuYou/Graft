@@ -10,14 +10,16 @@
       :title-fallback="t('systemConfig.list.title')"
       description-key="systemConfig.list.description"
       :description-fallback="t('systemConfig.list.description')"
-    >
+    />
+
+    <management-toolbar>
       <template #actions>
-        <t-button theme="primary" :loading="loading" @click="refreshConfigs">
+        <t-button theme="default" variant="outline" :loading="loading" @click="refreshConfigs">
           <template #icon><refresh-icon /></template>
           {{ t('systemConfig.list.refresh') }}
         </t-button>
       </template>
-    </page-header>
+    </management-toolbar>
 
     <t-alert
       v-if="errorMessage"
@@ -397,7 +399,7 @@ import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { formatCompactDateTime } from '@/shared/components/management';
+import { formatCompactDateTime, ManagementToolbar } from '@/shared/components/management';
 import { PageHeader } from '@/shared/components/page';
 import { copyText } from '@/shared/observability';
 import {

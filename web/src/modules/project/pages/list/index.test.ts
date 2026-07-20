@@ -623,17 +623,18 @@ describe('Application list page', () => {
     });
   });
 
-  it('renders only non-zero runtime summary badges in the header', async () => {
+  it('renders runtime summary in the statistics bar instead of the header', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(1);
-    expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 4');
-    expect(wrapper.find('[data-testid="project-status-summary-running"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-status-summary-degraded"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-status-summary-transitioning"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-status-summary-unknown"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="project-status-summary-stopped"]').exists()).toBe(false);
+    const statistics = wrapper.get('.management-statistics-bar').text();
+    expect(statistics).toContain('Total4');
+    expect(statistics).toContain('🟢Running1');
+    expect(statistics).toContain('🟡Degraded1');
+    expect(statistics).toContain('🟠Transitioning1');
+    expect(statistics).toContain('⚪Unknown1');
+    expect(statistics).not.toContain('stopped');
   });
 
   it('uses response total for total-like summary copy instead of current page length', async () => {
@@ -647,7 +648,7 @@ describe('Application list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(wrapper.get('[data-testid="project-status-summary-total"]').text()).toBe('Total 42');
+    expect(wrapper.get('.management-statistics-bar').text()).toContain('Total42');
     expect(wrapper.get('[data-testid="project-table-summary"]').text()).toBe('Total 42');
   });
 
