@@ -213,6 +213,7 @@
       "pagination": { "summary": "{start}-{end} of {total}", "empty": "No records" },
       "actions": {
         "detail": "Details",
+        "cleanup": "Clean Unused Volumes",
         "remove": "Remove",
         "cancel": "Cancel",
         "confirmTitle": "Confirm volume removal",
@@ -232,6 +233,22 @@
         "success": "{count} volumes removed.",
         "partial": "{success} volumes removed; {failed} failed.",
         "failed": "Batch volume removal failed."
+      },
+      "cleanup": {
+        "title": "Clean Unused Volumes",
+        "candidateCount": "Removal candidates: {count} volumes, estimated release",
+        "selectedCount": "{count} Volumes Selected",
+        "warning": "Removal cannot be undone. Only volumes with zero references are candidates.",
+        "previousPage": "Previous page",
+        "nextPage": "Next page",
+        "empty": "No Unused Volumes",
+        "loadFailed": "Unused volumes could not be loaded.",
+        "clearSelection": "Clear Selection",
+        "cancel": "Cancel",
+        "removeSelected": "Remove {count} Volumes",
+        "success": "{count} volumes removed.",
+        "partial": "{success} volumes removed; {failed} failed.",
+        "failed": "Unused volume cleanup failed."
       },
       "detail": {
         "title": "Volume Detail",

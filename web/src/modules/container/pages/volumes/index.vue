@@ -48,6 +48,9 @@
         <t-button variant="text" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
       </template>
       <template #actions>
+        <t-button v-if="canRemove" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
+          {{ t('container.volume.actions.cleanup') }}
+        </t-button>
         <table-view-toolbar
           :refresh-label="t('container.list.refresh')"
           :refresh-loading="loading"
@@ -55,6 +58,92 @@
         />
       </template>
     </management-toolbar>
+
+    <t-dialog
+      v-model:visible="cleanup.visible.value"
+      :header="t('container.volume.cleanup.title')"
+      width="760px"
+      @confirm="submitCleanup"
+    >
+      <t-loading :loading="cleanup.loading.value">
+        <t-card v-if="cleanup.items.value.length" :bordered="false">
+          <div class="docker-volume-cleanup-summary">
+            <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
+            <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.unavailable')) }}</strong>
+          </div>
+        </t-card>
+        <t-alert
+          v-if="cleanup.items.value.length"
+          class="docker-volume-cleanup-warning"
+          theme="warning"
+          :message="t('container.volume.cleanup.warning')"
+        />
+        <section v-if="cleanup.items.value.length" class="docker-volume-cleanup-preview">
+          <div class="docker-volume-cleanup-section-head">
+            <strong>{{
+              t('container.volume.cleanup.selectedCount', { count: cleanup.selectedIds.value.length })
+            }}</strong>
+            <t-button
+              v-if="cleanup.selectedIds.value.length"
+              size="small"
+              variant="text"
+              @click="cleanup.clearSelection"
+            >
+              {{ t('container.volume.cleanup.clearSelection') }}
+            </t-button>
+          </div>
+          <t-table
+            :columns="cleanupColumns"
+            :data="cleanup.previewItems.value"
+            row-key="name"
+            size="small"
+            table-layout="fixed"
+            :selected-row-keys="cleanup.selectedIds.value"
+            @select-change="cleanup.select"
+          >
+            <template #name="{ row }">
+              <t-tooltip :content="row.name"
+                ><span>{{ middleEllipsis(row.name, 31) }}</span></t-tooltip
+              >
+            </template>
+            <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
+          </t-table>
+          <div v-if="cleanup.pageCount.value > 1" class="docker-volume-cleanup-pager">
+            <t-button
+              size="small"
+              variant="text"
+              :disabled="cleanup.previewPage.value === 1"
+              @click="cleanup.previousPage"
+            >
+              {{ t('container.volume.cleanup.previousPage') }}
+            </t-button>
+            <span>{{ cleanup.previewPage.value }} / {{ cleanup.pageCount.value }}</span>
+            <t-button
+              size="small"
+              variant="text"
+              :disabled="cleanup.previewPage.value === cleanup.pageCount.value"
+              @click="cleanup.nextPage"
+            >
+              {{ t('container.volume.cleanup.nextPage') }}
+            </t-button>
+          </div>
+        </section>
+      </t-loading>
+      <t-empty
+        v-if="!cleanup.loading.value && !cleanup.items.value.length"
+        :title="t('container.volume.cleanup.empty')"
+      />
+      <template #footer>
+        <t-space>
+          <t-button variant="outline" @click="cleanup.visible.value = false">{{
+            t('container.volume.cleanup.cancel')
+          }}</t-button>
+          <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="submitCleanup">
+            {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
+          </t-button>
+        </t-space>
+      </template>
+    </t-dialog>
 
     <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
     <div v-if="selectedRowKeys.length" class="docker-volume-page__batch-bar">
@@ -79,7 +168,7 @@
       <template #name="{ row }">
         <t-tooltip :content="row.name">
           <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
-            middleEllipsis(row.name)
+            middleEllipsis(row.name, 31)
           }}</t-link>
         </t-tooltip>
       </template>
@@ -160,6 +249,7 @@
   </div>
 </template>
 <script setup lang="ts">
+// 数据卷页负责 Docker 数据卷查询与操作，清理流程通过现有批量删除契约执行未使用候选。
 import type { TableProps } from 'tdesign-vue-next';
 import { Checkbox, DialogPlugin, Input, MessagePlugin } from 'tdesign-vue-next';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
@@ -184,8 +274,10 @@ import {
   removeDockerVolume,
 } from '../../api/container';
 import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
+import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
+type CleanupVolume = Omit<VolumeRow, 'size_bytes'> & { id: string; size_bytes: number };
 type UsageFilter = 'all' | 'used' | 'unused';
 const { locale, t } = useI18n();
 const permissionStore = usePermissionStore();
@@ -215,6 +307,16 @@ const columns: TableProps['columns'] = [
   { colKey: 'labels', title: t('container.volume.columns.labels'), width: 100 },
   { colKey: 'actions', title: t('container.volume.columns.actions'), width: 150, fixed: 'right' },
 ];
+const cleanup = useDockerCleanup<CleanupVolume>({
+  fetchCandidates: fetchCleanupCandidates,
+  execute: removeCleanupVolumes,
+  onOutcome: handleCleanupOutcome,
+});
+const cleanupColumns = computed<TableProps['columns']>(() => [
+  { colKey: 'row-select', type: 'multiple' as const, width: 48 },
+  { colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 },
+  { colKey: 'size', title: t('container.volume.columns.size'), width: 140, align: 'right' as const },
+]);
 const paginationSummary = computed(() => {
   if (!pagination.total || !rows.value.length) return t('container.volume.pagination.empty');
   return t('container.volume.pagination.summary', {
@@ -276,13 +378,69 @@ function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.current = page.current;
   pagination.pageSize = page.pageSize;
 }
-function middleEllipsis(value: string, maxLength = 42) {
+function middleEllipsis(value: string, maxLength = 31) {
   if (value.length <= maxLength) return value;
   const edge = Math.floor((maxLength - 3) / 2);
   return `${value.slice(0, edge)}...${value.slice(-edge)}`;
 }
 function handleSelectChange(keys: Array<string | number>) {
   selectedRowKeys.value = keys.map(String);
+}
+async function openCleanup() {
+  try {
+    await cleanup.open();
+  } catch (cause) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.cleanup.loadFailed')));
+  }
+}
+async function submitCleanup() {
+  if (!canRemove.value) return;
+  await cleanup.submit();
+}
+async function fetchCleanupCandidates(): Promise<CleanupVolume[]> {
+  const firstPage = await listDockerVolumes({ limit: 100, offset: 0, usage: 'unused' });
+  const all = [...firstPage.items];
+  for (let offset = firstPage.items.length; offset < firstPage.total; offset += 100) {
+    const page = await listDockerVolumes({ limit: 100, offset, usage: 'unused' });
+    all.push(...page.items);
+  }
+  return all.map((row) => ({ ...row, id: row.name, size_bytes: row.size_bytes ?? 0 }));
+}
+async function removeCleanupVolumes(ids: string[]): Promise<CleanupBatchOutcome> {
+  const items: CleanupBatchOutcome['items'] = [];
+  let requestError: unknown;
+  for (let index = 0; index < ids.length; index += 50) {
+    const chunk = ids.slice(index, index + 50);
+    try {
+      const response = await batchRemoveDockerVolumes({ names: chunk, force: false });
+      items.push(
+        ...response.items.map((item) => ({
+          id: item.name,
+          success: item.success,
+          error_code: item.error_code ?? undefined,
+        })),
+      );
+    } catch (cause) {
+      requestError = cause;
+      items.push(...chunk.map((id) => ({ id, success: false, error_code: 'UNKNOWN' })));
+    }
+  }
+  return { items, unknownResponseIds: [], requestError };
+}
+async function handleCleanupOutcome(outcome: CleanupBatchOutcome) {
+  const successCount = outcome.items.filter((item) => item.success).length;
+  const failedCount = outcome.items.length - successCount;
+  if (outcome.requestError) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, outcome.requestError, t('container.volume.cleanup.failed')));
+  } else if (!failedCount) {
+    MessagePlugin.success(t('container.volume.cleanup.success', { count: successCount }));
+    cleanup.visible.value = false;
+  } else if (successCount) {
+    MessagePlugin.warning(t('container.volume.cleanup.partial', { success: successCount, failed: failedCount }));
+  } else {
+    MessagePlugin.error(t('container.volume.cleanup.failed'));
+  }
+  await refresh();
 }
 function clearSelection() {
   selectedRowKeys.value = [];
@@ -435,8 +593,26 @@ function confirmRemove(row: VolumeRow) {
   display: inline-block;
   max-width: 252px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.docker-volume-cleanup-summary,
+.docker-volume-cleanup-section-head,
+.docker-volume-cleanup-pager {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.docker-volume-cleanup-warning,
+.docker-volume-cleanup-preview {
+  margin-top: var(--td-comp-margin-l);
+}
+
+.docker-volume-cleanup-pager {
+  gap: var(--td-comp-margin-m);
+  justify-content: center;
+  margin-top: var(--td-comp-margin-m);
 }
 
 .docker-volume-remove-confirm {

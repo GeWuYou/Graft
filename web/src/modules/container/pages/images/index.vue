@@ -595,6 +595,7 @@ import {
   tagDockerImage,
 } from '../../api/image-actions';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
+import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
 type DockerImage = DockerImageRecord;
@@ -640,12 +641,6 @@ const forceRemove = ref(false);
 const selectedRowKeys = ref<Array<string | number>>([]);
 const selectedImages = ref(new Map<string, DockerImage>());
 const batchRemoving = ref(false);
-const cleanupDialogVisible = ref(false);
-const cleanupLoading = ref(false);
-const cleanupImages = ref<DockerImage[]>([]);
-const cleanupSelectedIds = ref<string[]>([]);
-const cleanupPreviewPage = ref(1);
-const cleanupPreviewLimit = 8;
 const cleanupDialogStyle = { maxHeight: '70vh' };
 const tagForm = reactive({ repository: '', tag: '' });
 const pullReference = ref('');
@@ -655,6 +650,15 @@ const pullLogVersion = ref(0);
 let pullController: AbortController | null = null;
 const pullLogBuffer = new LogRingBuffer<StructuredLogEntry>(1000);
 const pullLogBatcher = new LogBatchBuffer<StructuredLogEntry>({ onFlush: commitPullLog });
+const cleanup = useDockerCleanup<DockerImage>({
+  fetchCandidates: fetchCleanupCandidates,
+  execute: (ids) => removeImageIds(ids, false),
+});
+const cleanupDialogVisible = cleanup.visible;
+const cleanupLoading = cleanup.loading;
+const cleanupImages = cleanup.items;
+const cleanupSelectedIds = cleanup.selectedIds;
+const cleanupPreviewPage = cleanup.previewPage;
 const tagTarget = computed(() => {
   const repository = tagForm.repository.trim();
   const tag = tagForm.tag.trim();
@@ -753,20 +757,10 @@ const batchFailureGroups = computed<BatchFailureGroup[]>(() => {
     description: t(`container.images.batch.error.${code}.description`),
   }));
 });
-const cleanupSelectedSize = computed(() => {
-  const selected = new Set(cleanupSelectedIds.value);
-  return cleanupImages.value.reduce((total, image) => (selected.has(image.id) ? total + image.size_bytes : total), 0);
-});
-const cleanupTotalSize = computed(() => cleanupImages.value.reduce((total, image) => total + image.size_bytes, 0));
-const cleanupPreviewPageCount = computed(() =>
-  Math.max(1, Math.ceil(cleanupImages.value.length / cleanupPreviewLimit)),
-);
-const cleanupPreviewImages = computed(() =>
-  cleanupImages.value.slice(
-    (cleanupPreviewPage.value - 1) * cleanupPreviewLimit,
-    cleanupPreviewPage.value * cleanupPreviewLimit,
-  ),
-);
+const cleanupSelectedSize = cleanup.selectedSize;
+const cleanupTotalSize = cleanup.totalSize;
+const cleanupPreviewPageCount = cleanup.pageCount;
+const cleanupPreviewImages = cleanup.previewItems;
 const cleanupColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'image', title: t('container.images.cleanup.imageColumn'), ellipsis: true, minWidth: 280 },
@@ -1053,19 +1047,10 @@ function openBatchFailureTagManager(imageId: string) {
   batchResultDialogVisible.value = false;
 }
 async function openCleanup() {
-  cleanupDialogVisible.value = true;
-  cleanupLoading.value = true;
-  cleanupImages.value = [];
-  cleanupSelectedIds.value = [];
-  cleanupPreviewPage.value = 1;
   try {
-    const all = await fetchCleanupCandidates();
-    cleanupImages.value = all;
-    cleanupSelectedIds.value = all.map((image) => image.id);
+    await cleanup.open();
   } catch {
     MessagePlugin.error(t('container.images.cleanup.loadFailed'));
-  } finally {
-    cleanupLoading.value = false;
   }
 }
 async function fetchCleanupCandidates() {
@@ -1079,13 +1064,7 @@ async function fetchCleanupCandidates() {
 }
 async function reconcileCleanupCandidates(confirmedSuccessfulIds: Set<string>) {
   try {
-    const candidates = await fetchCleanupCandidates();
-    const candidateIds = new Set(candidates.map((image) => image.id));
-    cleanupImages.value = candidates;
-    cleanupSelectedIds.value = cleanupSelectedIds.value.filter(
-      (id) => candidateIds.has(id) && !confirmedSuccessfulIds.has(id),
-    );
-    cleanupPreviewPage.value = Math.min(cleanupPreviewPage.value, cleanupPreviewPageCount.value);
+    await cleanup.reconcile(confirmedSuccessfulIds);
   } catch {
     MessagePlugin.error(t('container.images.cleanup.loadFailed'));
   }
@@ -1105,18 +1084,16 @@ async function reconcileSelectedImages(ids: string[]) {
   forgetSelectedImages(removedIds);
 }
 function clearCleanupSelection() {
-  cleanupSelectedIds.value = [];
+  cleanup.clearSelection();
 }
 function handleCleanupSelectChange(rowKeys: Array<string | number>) {
-  const currentPageIds = new Set(cleanupPreviewImages.value.map((image) => image.id));
-  const preserved = cleanupSelectedIds.value.filter((id) => !currentPageIds.has(id));
-  cleanupSelectedIds.value = [...preserved, ...rowKeys.filter((key) => currentPageIds.has(String(key))).map(String)];
+  cleanup.select(rowKeys);
 }
 function previousCleanupPage() {
-  cleanupPreviewPage.value = Math.max(1, cleanupPreviewPage.value - 1);
+  cleanup.previousPage();
 }
 function nextCleanupPage() {
-  cleanupPreviewPage.value = Math.min(cleanupPreviewPageCount.value, cleanupPreviewPage.value + 1);
+  cleanup.nextPage();
 }
 async function startPull() {
   if (!pullReference.value.trim() || pulling.value) return;
