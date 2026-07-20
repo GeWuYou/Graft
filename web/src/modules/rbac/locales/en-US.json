@@ -448,6 +448,10 @@
         "display": "View Application Creation Methods",
         "description": "View supported Compose application creation methods and their availability."
       },
+      "projectCreationMethodView": {
+        "display": "View Application Creation Methods",
+        "description": "View supported Compose application creation methods and their availability."
+      },
       "applicationDiscoveryView": {
         "display": "View Application Discovery Candidates",
         "description": "Preview discovered local Compose directories without registering an application."

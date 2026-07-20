@@ -58,7 +58,7 @@ export const noMissingRbacPermissionCatalogWebLocaleRule: I18nGovernanceRule = {
     }
 
     for (const file of collectRbacMigrationSources(context.repositoryDir)) {
-      if (!file.source.includes('ops.application.')) continue;
+      if (!file.source.includes(PERMISSION_KEY_PREFIX)) continue;
       for (const match of file.source.matchAll(PERMISSION_SQL_KEY_PATTERN)) {
         const key = match[1]?.trim();
         if (key) requiredKeys.add(key);

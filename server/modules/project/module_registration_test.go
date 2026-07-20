@@ -11,6 +11,9 @@ func TestPermissionItemsDeclareLocalizedMetadata(t *testing.T) {
 		if item.Code == "" {
 			t.Fatal("permission code must not be empty")
 		}
+		if strings.HasPrefix(item.Code, "ops.") {
+			t.Fatalf("permission %s retains the legacy ops prefix", item.Code)
+		}
 		if !strings.HasPrefix(item.DisplayKey, "rbac.permissionCatalog.") {
 			t.Fatalf("permission %s has invalid display key %q", item.Code, item.DisplayKey)
 		}

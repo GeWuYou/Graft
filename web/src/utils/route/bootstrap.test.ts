@@ -10,7 +10,7 @@ import {
 
 const graph = [
   {
-    code: 'domain.security',
+    code: 'security-domain',
     kind: 'group' as const,
     order: 60,
     title_key: 'menu.domain.security',
@@ -41,7 +41,7 @@ const graph = [
     permission: 'role.read',
   },
   {
-    code: 'domain.build',
+    code: 'build-domain',
     kind: 'group' as const,
     order: 30,
     title_key: 'menu.domain.build',

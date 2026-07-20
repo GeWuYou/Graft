@@ -1205,11 +1205,17 @@ function awaitPendingRowRuntimeChange(rowId: string) {
   if (!pending) return;
   pendingTaskObservers.get(rowId)?.stop();
   pendingTaskObservers.delete(rowId);
-  markPendingRowActionAwaitingChange(rowId);
+  const deadlineAt = Date.now() + 15_000;
   pendingRowActions.value = {
     ...pendingRowActions.value,
-    [rowId]: { ...pendingRowActions.value[rowId], taskId: undefined },
+    [rowId]: {
+      ...pendingRowActions.value[rowId],
+      awaitingVisibleChange: true,
+      deadlineAt,
+      taskId: undefined,
+    },
   };
+  schedulePendingRowActionTimeout(rowId, deadlineAt);
 }
 
 function markPendingRowActionsAwaitingChange(rowIds: string[]) {

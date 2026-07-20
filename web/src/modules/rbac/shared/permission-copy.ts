@@ -82,7 +82,5 @@ export function localizedPermissionDescription(
     return t(emptyDescriptionKey);
   }
 
-  return locale === 'zh-CN' || !containsCjk(permission.description)
-    ? permission.description?.trim() || t(emptyDescriptionKey)
-    : t(emptyDescriptionKey);
+  return permission.description?.trim() || t(emptyDescriptionKey);
 }

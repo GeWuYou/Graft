@@ -448,6 +448,10 @@
         "display": "查看应用创建方式",
         "description": "查看当前支持的 Compose 应用创建方式及其可用性。"
       },
+      "projectCreationMethodView": {
+        "display": "查看应用创建方式",
+        "description": "查看当前支持的 Compose 应用创建方式及其可用性。"
+      },
       "applicationDiscoveryView": {
         "display": "查看应用发现候选项",
         "description": "预览本机发现到的 Compose 目录，不直接注册应用。"
