@@ -50,6 +50,7 @@
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import type { PageHeaderSource } from '@/shared/components/page';
 
+// 高级查询页只编排列表外层与错误反馈；筛选、表格工具和服务端查询仍由业务页面通过具名槽拥有。
 withDefaults(
   defineProps<{
     description?: string;
@@ -75,7 +76,7 @@ withDefaults(
     loading: false,
     pageType: 'query-builder-list-detail',
     rootClass: '',
-    showHeaderReload: true,
+    showHeaderReload: false,
     source: undefined,
     title: '',
     titleKey: '',

@@ -47,6 +47,7 @@
         @delete="deleteRow"
         @detail="openDetail"
         @page-change="handlePageChange"
+        @refresh="notificationsQuery.refetch"
       />
     </template>
 

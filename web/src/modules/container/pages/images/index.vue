@@ -10,9 +10,6 @@
     >
       <template #actions>
         <t-space>
-          <t-button variant="outline" :loading="query.isFetching.value" @click="refresh">
-            {{ t('container.images.actions.refresh') }}
-          </t-button>
           <t-button variant="outline" :loading="cleanupLoading" @click="openCleanup">
             {{ t('container.images.actions.cleanup') }}
           </t-button>
@@ -23,12 +20,7 @@
       </template>
     </management-page-header>
 
-    <div class="docker-images-summary" aria-live="polite">
-      <div v-for="metric in metrics" :key="metric.label" class="docker-images-summary__item">
-        <span>{{ metric.label }}</span>
-        <strong>{{ metric.value }}</strong>
-      </div>
-    </div>
+    <management-statistics-bar :items="metrics" aria-live="polite" />
 
     <management-toolbar>
       <template #filters>
@@ -60,6 +52,13 @@
       :selected-row-keys="selectedRowKeys"
       @select-change="handleSelectChange"
     >
+      <template #toolbar>
+        <table-view-toolbar
+          :refresh-label="t('container.images.actions.refresh')"
+          :refresh-loading="query.isFetching.value"
+          @refresh="refresh"
+        />
+      </template>
       <template #batch>
         <div v-if="selectedRowKeys.length" class="docker-images-batch-bar">
           <span>{{ t('container.images.batch.selected', { count: selectedRowKeys.length }) }}</span>
@@ -571,8 +570,10 @@ import {
 import {
   ManagementPagedTable,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementToolbar,
   TableActionMenu,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import {
   formatBytes,
@@ -1161,30 +1162,6 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.docker-images-summary {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-8) var(--graft-density-gap-20);
-  padding: 0 var(--graft-density-gap-4);
-}
-
-.docker-images-summary__item {
-  align-items: baseline;
-  display: inline-flex;
-  gap: var(--graft-density-gap-8);
-}
-
-.docker-images-summary__item span {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.docker-images-summary__item strong {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-medium);
-}
-
 .docker-images-muted {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
@@ -1591,12 +1568,6 @@ onUnmounted(() => {
 }
 
 @media (width <= 768px) {
-  .docker-images-summary {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--graft-density-gap-8);
-  }
-
   .docker-images-detail__grid {
     grid-template-columns: 1fr;
   }

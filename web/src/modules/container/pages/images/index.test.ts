@@ -20,7 +20,9 @@ describe('docker image list page', () => {
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
     expect(sourceText).not.toContain('filteredImages');
-    expect(sourceText).toContain('docker-images-summary');
+    expect(sourceText).toContain('<management-statistics-bar');
+    expect(sourceText).toContain('<table-view-toolbar');
+    expect(sourceText).not.toContain('docker-images-summary');
     expect(sourceText).toContain('summary.value.dangling');
     expect(sourceText).not.toContain('docker-images-metrics');
   });
