@@ -59,9 +59,8 @@
           @refresh="refresh"
         />
       </template>
-      <template #batch>
+      <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
-          v-if="selectedRowKeys.length"
           :selected-label="t('container.images.batch.selected', { count: selectedRowKeys.length })"
           :clear-label="t('container.images.batch.cancelSelection')"
           clear-test-id="docker-images-batch-clear"

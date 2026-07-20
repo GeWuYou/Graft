@@ -68,9 +68,8 @@
           />
         </template>
 
-        <template #batch>
+        <template v-if="selectedRowKeys.length > 0" #batch>
           <management-batch-bar
-            v-if="selectedRowKeys.length > 0"
             :selected-label="t('user.userList.batch.selected', { count: selectedRowKeys.length })"
             :clear-label="t('user.userList.batch.cancelSelection')"
             clear-test-id="user-batch-clear"

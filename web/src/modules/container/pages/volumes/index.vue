@@ -82,9 +82,8 @@
       @page-change="handlePageChange"
       @select-change="handleSelectChange"
     >
-      <template #batch>
+      <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
-          v-if="selectedRowKeys.length"
           :selected-label="t('container.volume.batch.selected', { count: selectedRowKeys.length })"
           :clear-label="t('container.volume.batch.cancelSelection')"
           clear-test-id="docker-volume-batch-clear"
@@ -95,92 +94,6 @@
           </t-button>
         </management-batch-bar>
       </template>
-
-      <t-dialog
-        v-model:visible="cleanup.visible.value"
-        :header="t('container.volume.cleanup.title')"
-        width="760px"
-        @confirm="submitCleanup"
-      >
-        <t-loading :loading="cleanup.loading.value">
-          <t-card v-if="cleanup.items.value.length" :bordered="false">
-            <div class="docker-volume-cleanup-summary">
-              <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
-              <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.unavailable')) }}</strong>
-            </div>
-          </t-card>
-          <t-alert
-            v-if="cleanup.items.value.length"
-            class="docker-volume-cleanup-warning"
-            theme="warning"
-            :message="t('container.volume.cleanup.warning')"
-          />
-          <section v-if="cleanup.items.value.length" class="docker-volume-cleanup-preview">
-            <div class="docker-volume-cleanup-section-head">
-              <strong>{{
-                t('container.volume.cleanup.selectedCount', { count: cleanup.selectedIds.value.length })
-              }}</strong>
-              <t-button
-                v-if="cleanup.selectedIds.value.length"
-                size="small"
-                variant="text"
-                @click="cleanup.clearSelection"
-              >
-                {{ t('container.volume.cleanup.clearSelection') }}
-              </t-button>
-            </div>
-            <t-table
-              :columns="cleanupColumns"
-              :data="cleanup.previewItems.value"
-              row-key="name"
-              size="small"
-              table-layout="fixed"
-              :selected-row-keys="cleanup.selectedIds.value"
-              @select-change="cleanup.select"
-            >
-              <template #name="{ row }">
-                <t-tooltip :content="row.name"
-                  ><span>{{ middleEllipsis(row.name, 31) }}</span></t-tooltip
-                >
-              </template>
-              <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
-            </t-table>
-            <div v-if="cleanup.pageCount.value > 1" class="docker-volume-cleanup-pager">
-              <t-button
-                size="small"
-                variant="text"
-                :disabled="cleanup.previewPage.value === 1"
-                @click="cleanup.previousPage"
-              >
-                {{ t('container.volume.cleanup.previousPage') }}
-              </t-button>
-              <span>{{ cleanup.previewPage.value }} / {{ cleanup.pageCount.value }}</span>
-              <t-button
-                size="small"
-                variant="text"
-                :disabled="cleanup.previewPage.value === cleanup.pageCount.value"
-                @click="cleanup.nextPage"
-              >
-                {{ t('container.volume.cleanup.nextPage') }}
-              </t-button>
-            </div>
-          </section>
-        </t-loading>
-        <t-empty
-          v-if="!cleanup.loading.value && !cleanup.items.value.length"
-          :title="t('container.volume.cleanup.empty')"
-        />
-        <template #footer>
-          <t-space>
-            <t-button variant="outline" @click="cleanup.visible.value = false">{{
-              t('container.volume.cleanup.cancel')
-            }}</t-button>
-            <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="submitCleanup">
-              {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
-            </t-button>
-          </t-space>
-        </template>
-      </t-dialog>
 
       <template #feedback>
         <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
@@ -241,6 +154,91 @@
         </t-empty>
       </template>
     </management-paged-table>
+    <t-dialog
+      v-model:visible="cleanup.visible.value"
+      :header="t('container.volume.cleanup.title')"
+      width="760px"
+      @confirm="submitCleanup"
+    >
+      <t-loading :loading="cleanup.loading.value">
+        <t-card v-if="cleanup.items.value.length" :bordered="false">
+          <div class="docker-volume-cleanup-summary">
+            <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
+            <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.unavailable')) }}</strong>
+          </div>
+        </t-card>
+        <t-alert
+          v-if="cleanup.items.value.length"
+          class="docker-volume-cleanup-warning"
+          theme="warning"
+          :message="t('container.volume.cleanup.warning')"
+        />
+        <section v-if="cleanup.items.value.length" class="docker-volume-cleanup-preview">
+          <div class="docker-volume-cleanup-section-head">
+            <strong>{{
+              t('container.volume.cleanup.selectedCount', { count: cleanup.selectedIds.value.length })
+            }}</strong>
+            <t-button
+              v-if="cleanup.selectedIds.value.length"
+              size="small"
+              variant="text"
+              @click="cleanup.clearSelection"
+            >
+              {{ t('container.volume.cleanup.clearSelection') }}
+            </t-button>
+          </div>
+          <t-table
+            :columns="cleanupColumns"
+            :data="cleanup.previewItems.value"
+            row-key="name"
+            size="small"
+            table-layout="fixed"
+            :selected-row-keys="cleanup.selectedIds.value"
+            @select-change="cleanup.select"
+          >
+            <template #name="{ row }">
+              <t-tooltip :content="row.name"
+                ><span>{{ middleEllipsis(row.name, 31) }}</span></t-tooltip
+              >
+            </template>
+            <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
+          </t-table>
+          <div v-if="cleanup.pageCount.value > 1" class="docker-volume-cleanup-pager">
+            <t-button
+              size="small"
+              variant="text"
+              :disabled="cleanup.previewPage.value === 1"
+              @click="cleanup.previousPage"
+            >
+              {{ t('container.volume.cleanup.previousPage') }}
+            </t-button>
+            <span>{{ cleanup.previewPage.value }} / {{ cleanup.pageCount.value }}</span>
+            <t-button
+              size="small"
+              variant="text"
+              :disabled="cleanup.previewPage.value === cleanup.pageCount.value"
+              @click="cleanup.nextPage"
+            >
+              {{ t('container.volume.cleanup.nextPage') }}
+            </t-button>
+          </div>
+        </section>
+      </t-loading>
+      <t-empty
+        v-if="!cleanup.loading.value && !cleanup.items.value.length"
+        :title="t('container.volume.cleanup.empty')"
+      />
+      <template #footer>
+        <t-space>
+          <t-button variant="outline" @click="cleanup.visible.value = false">{{
+            t('container.volume.cleanup.cancel')
+          }}</t-button>
+          <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="submitCleanup">
+            {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
+          </t-button>
+        </t-space>
+      </template>
+    </t-dialog>
     <t-drawer
       v-model:visible="detailDrawerVisible"
       :header="selectedVolume?.name || t('container.volume.detail.title')"

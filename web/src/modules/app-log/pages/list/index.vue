@@ -55,9 +55,8 @@
             @refresh="fetchAppLogs"
           />
         </template>
-        <template #batch>
+        <template v-if="selectedRowKeys.length > 0" #batch>
           <management-batch-bar
-            v-if="selectedRowKeys.length > 0"
             :selected-label="t('appLog.batch.selected', { count: selectedRowKeys.length })"
             :clear-label="t('appLog.batch.cancelSelection')"
             clear-test-id="app-log-batch-clear"
