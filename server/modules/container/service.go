@@ -648,6 +648,26 @@ func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 	return reader.ListDockerNetworks(ctx)
 }
 
+// DockerNetworksPage 返回按查询条件筛选并分页的 Docker 网络列表。
+func (s *service) DockerNetworksPage(ctx context.Context, query DockerNetworkListQuery) (DockerNetworkListResult, error) {
+	reader, err := s.dockerResources(ctx)
+	if err != nil {
+		return DockerNetworkListResult{}, err
+	}
+	if pageReader, ok := reader.(dockerNetworkListReader); ok {
+		items, err := pageReader.ListDockerNetworksPage(ctx)
+		if err != nil {
+			return DockerNetworkListResult{}, err
+		}
+		return listDockerNetworks(items, query), nil
+	}
+	items, err := reader.ListDockerNetworks(ctx)
+	if err != nil {
+		return DockerNetworkListResult{}, err
+	}
+	return listDockerNetworks(items, query), nil
+}
+
 func (s *service) DockerNetwork(ctx context.Context, id string) (DockerNetwork, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {

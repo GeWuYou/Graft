@@ -29,7 +29,7 @@ describe('container bootstrap route registrations', () => {
     expect(containerBootstrapRouteRegistrations[1]).toMatchObject({
       menuPath: '/infrastructure/docker/networks',
       routeName: 'DockerNetworkList',
-      meta: { pageKind: 'list', tabGroup: 'infrastructure' },
+      meta: { pageKind: 'list', pageSurface: 'paged-table', tabGroup: 'infrastructure' },
     });
   });
 

@@ -303,7 +303,11 @@ func writeDockerImagePullEvent(c *gin.Context, event DockerImagePullEvent) error
 }
 
 func (r routeRuntime) handleDockerNetworks(c *gin.Context) {
-	items, err := r.service.DockerNetworks(c.Request.Context())
+	params, ok := bindGetDockerNetworksParams(c, r.ctx)
+	if !ok {
+		return
+	}
+	items, err := r.service.DockerNetworksPage(c.Request.Context(), dockerNetworkListQueryFromParams(params))
 	if err != nil {
 		r.writeRouteError(c, err)
 		return
@@ -1097,6 +1101,55 @@ func dockerVolumeListQueryFromParams(params containeropenapi.GetDockerVolumesPar
 		query.Usage = string(*params.Usage)
 	}
 	return query
+}
+
+func dockerNetworkListQueryFromParams(params containeropenapi.GetDockerNetworksParams) DockerNetworkListQuery {
+	query := DockerNetworkListQuery{Limit: intValue(params.Limit), Offset: intValue(params.Offset), Keyword: stringPtrValue(params.Keyword), Driver: stringPtrValue(params.Driver), Scope: stringPtrValue(params.Scope)}
+	if params.Usage != nil {
+		query.Usage = string(*params.Usage)
+	}
+	return query
+}
+
+//nolint:cyclop // 网络查询参数需在单一 HTTP 边界完成校验与绑定。
+func bindGetDockerNetworksParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetDockerNetworksParams, bool) {
+	locale, requestID := commonHeaders(ginCtx)
+	params := containeropenapi.GetDockerNetworksParams{XGraftLocale: locale, XRequestId: requestID}
+	limit, ok := queryBoundedInt(ginCtx, ctx, "limit", 1, maxContainerListLimit)
+	if !ok {
+		return params, false
+	}
+	params.Limit = limit
+	offset, ok := queryBoundedInt(ginCtx, ctx, "offset", 0, 0)
+	if !ok {
+		return params, false
+	}
+	params.Offset = offset
+	for _, field := range []string{"keyword", "driver", "scope"} {
+		if value := strings.TrimSpace(ginCtx.Query(field)); value != "" {
+			if len(value) > containerListKeywordMaxLength {
+				writeInvalidContainerQuery(ginCtx, ctx, field)
+				return params, false
+			}
+			switch field {
+			case "keyword":
+				params.Keyword = &value
+			case "driver":
+				params.Driver = &value
+			case "scope":
+				params.Scope = &value
+			}
+		}
+	}
+	if value := strings.TrimSpace(ginCtx.Query("usage")); value != "" {
+		if value != "used" && value != "unused" {
+			writeInvalidContainerQuery(ginCtx, ctx, "usage")
+			return params, false
+		}
+		usage := containeropenapi.GetDockerNetworksParamsUsage(value)
+		params.Usage = &usage
+	}
+	return params, true
 }
 
 func queryBool(ginCtx *gin.Context, key string) (bool, bool) {

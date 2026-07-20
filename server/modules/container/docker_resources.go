@@ -85,7 +85,74 @@ type DockerNetwork struct {
 	Attachable     bool
 	Ingress        bool
 	ContainerCount int
+	Removable      bool
 	Labels         map[string]string
+}
+
+// DockerNetworkListQuery 描述 Docker 网络列表的筛选和分页条件。
+type DockerNetworkListQuery struct {
+	Limit, Offset                 int
+	Keyword, Driver, Scope, Usage string
+}
+
+// DockerNetworkListResult 是 Docker 网络列表的分页投影，摘要始终基于完整快照。
+type DockerNetworkListResult struct {
+	Items                []DockerNetwork
+	Total, Limit, Offset int
+	Summary              DockerNetworkListSummary
+}
+
+// DockerNetworkListSummary 描述完整 Docker 网络快照的使用统计。
+type DockerNetworkListSummary struct{ Total, InUse, Unused int }
+
+func listDockerNetworks(items []DockerNetwork, query DockerNetworkListQuery) DockerNetworkListResult {
+	query.Offset, query.Limit = max(query.Offset, 0), max(query.Limit, 0)
+	filtered := make([]DockerNetwork, 0, len(items))
+	for _, item := range items {
+		if !dockerNetworkMatches(item, query) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Name < filtered[j].Name })
+	start := min(query.Offset, len(filtered))
+	end := len(filtered)
+	if query.Limit <= end-start {
+		end = start + query.Limit
+	}
+	return DockerNetworkListResult{Items: filtered[start:end], Total: len(filtered), Limit: query.Limit, Offset: query.Offset, Summary: summarizeDockerNetworks(items)}
+}
+
+func dockerNetworkMatches(item DockerNetwork, query DockerNetworkListQuery) bool {
+	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
+	if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
+		return false
+	}
+	if query.Driver != "" && item.Driver != query.Driver {
+		return false
+	}
+	if query.Scope != "" && item.Scope != query.Scope {
+		return false
+	}
+	if query.Usage == "used" {
+		return item.ContainerCount > 0
+	}
+	if query.Usage == "unused" {
+		return item.ContainerCount == 0
+	}
+	return true
+}
+
+func summarizeDockerNetworks(items []DockerNetwork) DockerNetworkListSummary {
+	summary := DockerNetworkListSummary{Total: len(items)}
+	for _, item := range items {
+		if item.ContainerCount > 0 {
+			summary.InUse++
+		} else {
+			summary.Unused++
+		}
+	}
+	return summary
 }
 
 // DockerVolume is the sanitized volume projection shared by list and detail reads.
@@ -200,6 +267,10 @@ type DockerResourceReader interface {
 	ReadDockerNetwork(context.Context, string) (DockerNetwork, error)
 	ListDockerVolumes(context.Context) ([]DockerVolume, error)
 	ReadDockerVolume(context.Context, string) (DockerVolume, error)
+}
+
+type dockerNetworkListReader interface {
+	ListDockerNetworksPage(context.Context) ([]DockerNetwork, error)
 }
 
 // ListDockerImages 从 Docker runtime 读取一次完整镜像快照，并在返回前计算库存摘要和稳定排序。
@@ -325,10 +396,27 @@ func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork
 		return nil, mapDockerError(err)
 	}
 	result := make([]DockerNetwork, 0, len(items))
+	containers, err := client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
+	if err != nil {
+		return nil, mapDockerError(err)
+	}
+	counts := make(map[string]int)
+	for _, item := range containers {
+		for id := range item.NetworkSettings.Networks {
+			counts[strings.TrimSpace(id)]++
+		}
+	}
 	for _, item := range items {
-		result = append(result, dockerNetwork(item.Network, 0))
+		projected := dockerNetwork(item.Network, counts[strings.TrimSpace(item.ID)])
+		projected.Removable = !isDockerDefaultNetwork(projected.Name) && projected.ContainerCount == 0
+		result = append(result, projected)
 	}
 	return result, nil
+}
+
+// ListDockerNetworksPage 读取网络与容器的一致快照，供服务端分页列表使用。
+func (r *DockerRuntime) ListDockerNetworksPage(ctx context.Context) ([]DockerNetwork, error) {
+	return r.ListDockerNetworks(ctx)
 }
 
 // ReadDockerNetwork returns one sanitized Docker network by ID.
@@ -511,7 +599,7 @@ func imageLabels(item image.InspectResponse) map[string]string {
 
 // dockerNetwork converts Docker network data into a normalized DockerNetwork value.
 func dockerNetwork(item network.Network, containerCount int) DockerNetwork {
-	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Labels: cloneLabels(item.Labels)}
+	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Removable: !isDockerDefaultNetwork(strings.TrimSpace(item.Name)) && containerCount == 0, Labels: cloneLabels(item.Labels)}
 }
 
 // dockerVolume converts a Docker volume into a normalized DockerVolume projection, preserving usage metrics when available.

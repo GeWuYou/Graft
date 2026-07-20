@@ -37,7 +37,13 @@ describe('container resource query keys', () => {
   });
 
   it('does not use page-local snapshots as a second cache', () => {
-    queryClient.setQueryData(containerResourceQueryKeys.networks(), { items: [{ id: 'network-1' }] });
+    queryClient.setQueryData(containerResourceQueryKeys.networks(), {
+      items: [{ id: 'network-1' }],
+      total: 1,
+      limit: 20,
+      offset: 0,
+      summary: { total: 1, in_use: 0, unused: 1 },
+    });
 
     const active = ref<DockerResourceTab>('networks');
     const Harness = defineComponent({
@@ -52,7 +58,9 @@ describe('container resource query keys', () => {
       },
     });
 
-    expect(queryClient.getQueryData(containerResourceQueryKeys.networks())).toEqual({ items: [{ id: 'network-1' }] });
+    expect(queryClient.getQueryData(containerResourceQueryKeys.networks())).toMatchObject({
+      items: [{ id: 'network-1' }],
+    });
     expect(getDockerNetworksMock).not.toHaveBeenCalled();
     expect(getDockerVolumesMock).not.toHaveBeenCalled();
     expect(getDockerSystemMock).not.toHaveBeenCalled();
@@ -75,6 +83,10 @@ describe('container resource query keys', () => {
           container_count: 0,
         },
       ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+      summary: { total: 1, in_use: 0, unused: 1 },
     });
     getDockerVolumesMock.mockResolvedValue({
       items: [],

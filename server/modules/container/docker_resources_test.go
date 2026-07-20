@@ -32,6 +32,21 @@ func TestListDockerVolumesFiltersSortsAndPages(t *testing.T) {
 	}
 }
 
+func TestListDockerNetworksFiltersPagesAndSummarizesSnapshot(t *testing.T) {
+	items := []DockerNetwork{
+		{Name: "zeta", Driver: "bridge", Scope: "local", ContainerCount: 1, Removable: false},
+		{Name: "alpha", Driver: "bridge", Scope: "local", ContainerCount: 0, Removable: true},
+		{Name: "other", Driver: "overlay", Scope: "swarm", ContainerCount: 0, Removable: true},
+	}
+	result := listDockerNetworks(items, DockerNetworkListQuery{Driver: "bridge", Usage: "unused", Limit: 1})
+	if result.Total != 1 || len(result.Items) != 1 || result.Items[0].Name != "alpha" {
+		t.Fatalf("unexpected network page %#v", result)
+	}
+	if result.Summary != (DockerNetworkListSummary{Total: 3, InUse: 1, Unused: 2}) {
+		t.Fatalf("unexpected network summary %#v", result.Summary)
+	}
+}
+
 func TestListDockerVolumesNormalizesNegativePagination(t *testing.T) {
 	t.Parallel()
 

@@ -276,6 +276,7 @@
       "title": "容器管理",
       "description": "查看本机容器运行时中的容器状态、详情和有界日志。",
       "refresh": "刷新",
+      "columnSettings": "列设置",
       "autoRefreshInterval5Seconds": "每 5 秒",
       "retry": "重试",
       "loadFailed": "容器列表加载失败。",
@@ -307,7 +308,6 @@
         "cpuTooltip": "CPU 使用率：{percent}",
         "memoryTooltip": "内存：{usage} / {limit}，{percent}"
       },
-      "columnSettings": "列设置",
       "resetColumns": "恢复默认列",
       "compactDensity": "紧凑密度",
       "defaultDensity": "默认密度",
@@ -560,6 +560,7 @@
       "internal": "内部网络",
       "attachable": "可附加",
       "ingress": "入口网络",
+      "noAttributes": "无特殊属性",
       "labels": "标签",
       "ipam": "IPAM 配置",
       "connectedContainers": "已连接容器",
@@ -567,14 +568,36 @@
       "operation": "操作",
       "emptyTitle": "暂无网络",
       "emptyDescription": "当前 Docker 运行时未返回网络。",
-      "summary": { "total": "总数 {count}", "inUse": "使用中 {count}", "unused": "未使用 {count}" },
+      "summary": {
+        "total": "总数 {count}",
+        "inUse": "使用中 {count}",
+        "unused": "未使用 {count}",
+        "totalLabel": "网络总数",
+        "inUseLabel": "使用中",
+        "unusedLabel": "未使用"
+      },
       "filters": {
         "search": "搜索网络名称或 ID",
         "driver": "驱动",
         "scope": "范围",
         "usage": "使用状态",
         "inUse": "使用中",
-        "unused": "未使用"
+        "unused": "未使用",
+        "apply": "查询",
+        "reset": "重置"
+      },
+      "pagination": { "empty": "暂无网络", "summary": "显示第 {start}-{end} 条，共 {total} 条" },
+      "cleanup": {
+        "action": "清理未使用网络",
+        "title": "清理未使用网络",
+        "warning": "仅展示服务端标记为可删除的网络，请确认候选后继续。",
+        "candidateTitle": "候选网络（{count}）",
+        "selectedCount": "已选择 {count} 个",
+        "removeSelected": "删除 {count} 个",
+        "empty": "暂无可删除的未使用网络",
+        "loadFailed": "加载未使用网络候选失败。",
+        "previousPage": "上一页",
+        "nextPage": "下一页"
       },
       "drivers": { "bridge": "Bridge", "overlay": "Overlay", "macvlan": "Macvlan", "ipvlan": "IPvlan", "none": "None" },
       "scopes": { "local": "本地", "swarm": "Swarm", "global": "全局" },

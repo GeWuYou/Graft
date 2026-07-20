@@ -24,7 +24,7 @@ export function useDockerResourceQueries(activeTab: Ref<DockerResourceTab>) {
   const networks = useQuery(
     {
       queryKey: containerResourceQueryKeys.networks(),
-      queryFn: getDockerNetworks,
+      queryFn: () => getDockerNetworks(),
       enabled: computed(() => activeTab.value === 'networks'),
     },
     queryClient,

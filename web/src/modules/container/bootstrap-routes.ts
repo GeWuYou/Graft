@@ -30,7 +30,7 @@ export const containerBootstrapRouteRegistrations: BootstrapRouteRegistration[] 
     meta: {
       tabGroup: 'infrastructure',
       pageKind: 'list',
-      pageSurface: 'form-detail',
+      pageSurface: 'paged-table',
       semanticTitle: networkListTitle,
       breadcrumbTitle: networkListTitle,
       tabTitle: networkListTitle,

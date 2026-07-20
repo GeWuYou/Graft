@@ -6668,12 +6668,22 @@ export interface components {
       attachable: boolean;
       ingress: boolean;
       container_count: number;
+      removable?: boolean;
       labels?: {
         [key: string]: string;
       };
     };
+    'docker-network-list-summary': {
+      total: number;
+      in_use: number;
+      unused: number;
+    };
     'docker-network-list-response': {
       items: components['schemas']['docker-network'][];
+      total: number;
+      limit: number;
+      offset: number;
+      summary: components['schemas']['docker-network-list-summary'];
     };
     'enveloped-docker-network-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-network-list-response'];
@@ -8226,6 +8236,18 @@ export interface components {
     'docker-image-list-unused': boolean;
     /** @description Docker image ID or repository reference. */
     'docker-image-id-path': string;
+    /** @description Optional maximum number of Docker networks to return. The runtime accepts values from 1 to 100. */
+    'docker-network-list-limit': number;
+    /** @description Optional zero-based offset for Docker networks. */
+    'docker-network-list-offset': number;
+    /** @description Optional case-insensitive keyword matched against a Docker network name. */
+    'docker-network-list-keyword': string;
+    /** @description Optional exact Docker network driver filter. */
+    'docker-network-list-driver': string;
+    /** @description Optional exact Docker network scope filter. */
+    'docker-network-list-scope': string;
+    /** @description Optional Docker network usage filter. */
+    'docker-network-list-usage': 'used' | 'unused';
     /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
     'docker-network-id-path': string;
     /** @description Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100. */
@@ -14918,8 +14940,29 @@ export interface operations {
   };
   getDockerNetworks: {
     parameters: {
-      query?: never;
-      header?: never;
+      query?: {
+        /** @description Optional maximum number of Docker networks to return. The runtime accepts values from 1 to 100. */
+        limit?: components['parameters']['docker-network-list-limit'];
+        /** @description Optional zero-based offset for Docker networks. */
+        offset?: components['parameters']['docker-network-list-offset'];
+        /** @description Optional case-insensitive keyword matched against a Docker network name. */
+        keyword?: components['parameters']['docker-network-list-keyword'];
+        /** @description Optional exact Docker network driver filter. */
+        driver?: components['parameters']['docker-network-list-driver'];
+        /** @description Optional exact Docker network scope filter. */
+        scope?: components['parameters']['docker-network-list-scope'];
+        /** @description Optional Docker network usage filter. */
+        usage?: components['parameters']['docker-network-list-usage'];
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
       path?: never;
       cookie?: never;
     };
@@ -14932,6 +14975,15 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-docker-network-list-response'];
+        };
+      };
+      /** @description Invalid Docker network list query. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
         };
       };
       401: components['responses']['unauthorized'];

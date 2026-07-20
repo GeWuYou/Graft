@@ -1,0 +1,8 @@
+name: usage
+in: query
+required: false
+description: Optional Docker network usage filter.
+schema:
+  type: string
+  enum: [used, unused]
+  x-enum-varnames: [DockerNetworkListUsageUsed, DockerNetworkListUsageUnused]

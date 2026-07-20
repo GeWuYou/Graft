@@ -89,17 +89,17 @@ func toDockerImageAction(result DockerImageActionResult) containergen.DockerImag
 
 // toDockerNetwork 将 Docker 网络领域对象转换为 OpenAPI 网络响应。
 func toDockerNetwork(item DockerNetwork) containergen.DockerNetwork {
-	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Labels: optionalStringMap(item.Labels)}
+	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Removable: &item.Removable, Labels: optionalStringMap(item.Labels)}
 }
 
 // toDockerNetworkList 将 Docker 网络列表映射为 API 响应。
 // 返回包含映射后网络项的 Docker 网络列表响应。
-func toDockerNetworkList(items []DockerNetwork) containergen.DockerNetworkListResponse {
-	mapped := make([]containergen.DockerNetwork, 0, len(items))
-	for _, item := range items {
+func toDockerNetworkList(result DockerNetworkListResult) containergen.DockerNetworkListResponse {
+	mapped := make([]containergen.DockerNetwork, 0, len(result.Items))
+	for _, item := range result.Items {
 		mapped = append(mapped, toDockerNetwork(item))
 	}
-	return containergen.DockerNetworkListResponse{Items: mapped}
+	return containergen.DockerNetworkListResponse{Items: mapped, Total: result.Total, Limit: result.Limit, Offset: result.Offset, Summary: containergen.DockerNetworkListSummary{Total: result.Summary.Total, InUse: result.Summary.InUse, Unused: result.Summary.Unused}}
 }
 
 // toDockerVolume converts a Docker volume into its API response representation.

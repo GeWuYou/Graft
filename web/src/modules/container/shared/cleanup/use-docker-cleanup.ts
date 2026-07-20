@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 
-export type DockerCleanupItem = { id: string; size_bytes: number };
+export type DockerCleanupItem = { id: string; size_bytes?: number | null };
 export type CleanupBatchItem = { id: string; success: boolean; error_code?: string };
 export type CleanupBatchOutcome = {
   items: CleanupBatchItem[];
@@ -32,9 +32,15 @@ export function useDockerCleanup<T extends DockerCleanupItem>(options: {
   );
   const selectedSize = computed(() => {
     const selected = new Set(selectedIds.value);
-    return items.value.reduce((total, item) => (selected.has(item.id) ? total + item.size_bytes : total), 0);
+    return items.value.some((item) => item.size_bytes === null || item.size_bytes === undefined)
+      ? null
+      : items.value.reduce((total, item) => (selected.has(item.id) ? total + (item.size_bytes ?? 0) : total), 0);
   });
-  const totalSize = computed(() => items.value.reduce((total, item) => total + item.size_bytes, 0));
+  const totalSize = computed(() =>
+    items.value.some((item) => item.size_bytes === null || item.size_bytes === undefined)
+      ? null
+      : items.value.reduce((total, item) => total + (item.size_bytes ?? 0), 0),
+  );
 
   async function open() {
     visible.value = true;

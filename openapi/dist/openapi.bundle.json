@@ -11996,6 +11996,32 @@
         ],
         "summary": "List Docker networks",
         "operationId": "getDockerNetworks",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-limit"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-offset"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-keyword"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-driver"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-scope"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-usage"
+          }
+        ],
         "security": [
           {
             "bearerAuth": []
@@ -12008,6 +12034,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-docker-network-list-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Docker network list query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -26673,6 +26709,9 @@
             "type": "integer",
             "minimum": 0
           },
+          "removable": {
+            "type": "boolean"
+          },
           "labels": {
             "type": "object",
             "additionalProperties": {
@@ -26681,10 +26720,36 @@
           }
         }
       },
+      "docker-network-list-summary": {
+        "type": "object",
+        "required": [
+          "total",
+          "in_use",
+          "unused"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "in_use": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unused": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "docker-network-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "summary"
         ],
         "properties": {
           "items": {
@@ -26692,6 +26757,22 @@
             "items": {
               "$ref": "#/components/schemas/docker-network"
             }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "summary": {
+            "$ref": "#/components/schemas/docker-network-list-summary"
           }
         }
       },
@@ -33214,6 +33295,77 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 512
+        }
+      },
+      "docker-network-list-limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "Optional maximum number of Docker networks to return. The runtime accepts values from 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "docker-network-list-offset": {
+        "name": "offset",
+        "in": "query",
+        "required": false,
+        "description": "Optional zero-based offset for Docker networks.",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "docker-network-list-keyword": {
+        "name": "keyword",
+        "in": "query",
+        "required": false,
+        "description": "Optional case-insensitive keyword matched against a Docker network name.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "docker-network-list-driver": {
+        "name": "driver",
+        "in": "query",
+        "required": false,
+        "description": "Optional exact Docker network driver filter.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "docker-network-list-scope": {
+        "name": "scope",
+        "in": "query",
+        "required": false,
+        "description": "Optional exact Docker network scope filter.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "docker-network-list-usage": {
+        "name": "usage",
+        "in": "query",
+        "required": false,
+        "description": "Optional Docker network usage filter.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "used",
+            "unused"
+          ],
+          "x-enum-varnames": [
+            "DockerNetworkListUsageUsed",
+            "DockerNetworkListUsageUnused"
+          ]
         }
       },
       "docker-network-id-path": {

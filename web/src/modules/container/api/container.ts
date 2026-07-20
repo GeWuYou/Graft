@@ -152,8 +152,14 @@ export const getDockerImage = (imageId: string) =>
   request.get<DockerImageRecord>({
     url: buildOpenApiRuntimePath('getDockerImage', { id: imageId }),
   }) as Promise<DockerImageRecord>;
-export const getDockerNetworks = () =>
-  request.get<DockerNetworksData>({ url: OPENAPI_RUNTIME_PATH.getDockerNetworks }) as Promise<DockerNetworksData>;
+export type DockerNetworkListQuery = NonNullable<
+  paths[typeof OPENAPI_RUNTIME_PATH.getDockerNetworks]['get']['parameters']['query']
+>;
+export const getDockerNetworks = (query?: DockerNetworkListQuery) =>
+  request.get<DockerNetworksData>({
+    url: OPENAPI_RUNTIME_PATH.getDockerNetworks,
+    params: query,
+  }) as Promise<DockerNetworksData>;
 export const getDockerNetwork = (id: string) =>
   request.get<DockerNetworkDetail>({ url: buildOpenApiRuntimePath('getDockerNetwork', { id }) });
 export const createDockerNetwork = (data: DockerNetworkCreateRequest) =>

@@ -3,7 +3,7 @@ import { computed, type MaybeRef, toValue } from 'vue';
 
 import { queryClient } from '@/shared/query';
 
-import { getDockerNetwork, getDockerNetworks } from '../api/container';
+import { type DockerNetworkListQuery, getDockerNetwork, getDockerNetworks } from '../api/container';
 import { containerResourceQueryKeys } from './container-resource-queries';
 
 const dockerNetworkQueryKeys = {
@@ -12,8 +12,14 @@ const dockerNetworkQueryKeys = {
 };
 
 /** 网络详情独立缓存，列表仍复用 Docker 资源页的网络快照。 */
-export function useDockerNetworkListQuery() {
-  return useQuery({ queryKey: dockerNetworkQueryKeys.list(), queryFn: getDockerNetworks }, queryClient);
+export function useDockerNetworkListQuery(query: MaybeRef<DockerNetworkListQuery>) {
+  return useQuery(
+    {
+      queryKey: computed(() => [...dockerNetworkQueryKeys.list(), toValue(query)]),
+      queryFn: () => getDockerNetworks(toValue(query)),
+    },
+    queryClient,
+  );
 }
 
 export function useDockerNetworkDetailQuery(networkId: MaybeRef<string>) {

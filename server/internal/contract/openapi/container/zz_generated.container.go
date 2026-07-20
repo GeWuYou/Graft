@@ -2713,6 +2713,39 @@ func (e PostDockerImageUntag500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerNetworksParamsUsage.
+const (
+	DockerNetworkListUsageUnused GetDockerNetworksParamsUsage = "unused"
+	DockerNetworkListUsageUsed   GetDockerNetworksParamsUsage = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworksParamsUsage enum.
+func (e GetDockerNetworksParamsUsage) Valid() bool {
+	switch e {
+	case DockerNetworkListUsageUnused:
+		return true
+	case DockerNetworkListUsageUsed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworks400JSONResponseBodySuccess.
+const (
+	GetDockerNetworks400JSONResponseBodySuccessFalse GetDockerNetworks400JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks400JSONResponseBodySuccess enum.
+func (e GetDockerNetworks400JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetworks400JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerNetworks401JSONResponseBodySuccess.
 const (
 	GetDockerNetworks401JSONResponseBodySuccessFalse GetDockerNetworks401JSONResponseBodySuccess = false
@@ -3189,13 +3222,13 @@ func (e PostDockerVolumeRemove409JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostDockerVolumeRemove500JSONResponseBodySuccess.
 const (
-	False PostDockerVolumeRemove500JSONResponseBodySuccess = false
+	PostDockerVolumeRemove500JSONResponseBodySuccessFalse PostDockerVolumeRemove500JSONResponseBodySuccess = false
 )
 
 // Valid indicates whether the value is a known member of the PostDockerVolumeRemove500JSONResponseBodySuccess enum.
 func (e PostDockerVolumeRemove500JSONResponseBodySuccess) Valid() bool {
 	switch e {
-	case False:
+	case PostDockerVolumeRemove500JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -3911,6 +3944,40 @@ type PostDockerImageUntag403JSONResponseBodySuccess bool
 
 // PostDockerImageUntag500JSONResponseBodySuccess defines parameters for PostDockerImageUntag.
 type PostDockerImageUntag500JSONResponseBodySuccess bool
+
+// GetDockerNetworksParams defines parameters for GetDockerNetworks.
+type GetDockerNetworksParams struct {
+	// Limit Optional maximum number of Docker networks to return. The runtime accepts values from 1 to 100.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Optional zero-based offset for Docker networks.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Keyword Optional case-insensitive keyword matched against a Docker network name.
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+
+	// Driver Optional exact Docker network driver filter.
+	Driver *string `form:"driver,omitempty" json:"driver,omitempty"`
+
+	// Scope Optional exact Docker network scope filter.
+	Scope *string `form:"scope,omitempty" json:"scope,omitempty"`
+
+	// Usage Optional Docker network usage filter.
+	Usage *GetDockerNetworksParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerNetworksParamsUsage defines parameters for GetDockerNetworks.
+type GetDockerNetworksParamsUsage string
+
+// GetDockerNetworks400JSONResponseBodySuccess defines parameters for GetDockerNetworks.
+type GetDockerNetworks400JSONResponseBodySuccess bool
 
 // GetDockerNetworks401JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks401JSONResponseBodySuccess bool

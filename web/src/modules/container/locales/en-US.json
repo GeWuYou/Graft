@@ -276,6 +276,7 @@
       "title": "Containers",
       "description": "Review Local Container Runtime State, Details, and Truncated Logs.",
       "refresh": "Refresh",
+      "columnSettings": "Column Settings",
       "autoRefreshInterval5Seconds": "Every 5 Sec",
       "retry": "Retry",
       "loadFailed": "Container List Could Not Be Loaded.",
@@ -307,7 +308,6 @@
         "cpuTooltip": "CPU Usage: {percent}",
         "memoryTooltip": "Memory: {usage} / {limit}, {percent}"
       },
-      "columnSettings": "Column Settings",
       "resetColumns": "Reset Columns",
       "compactDensity": "Compact Density",
       "defaultDensity": "Default Density",
@@ -560,6 +560,7 @@
       "internal": "Internal",
       "attachable": "Attachable",
       "ingress": "Ingress",
+      "noAttributes": "No special attributes",
       "labels": "Labels",
       "ipam": "IPAM Configuration",
       "connectedContainers": "Connected Containers",
@@ -567,14 +568,36 @@
       "operation": "Actions",
       "emptyTitle": "No Networks",
       "emptyDescription": "The current Docker runtime returned no networks.",
-      "summary": { "total": "Total {count}", "inUse": "In use {count}", "unused": "Unused {count}" },
+      "summary": {
+        "total": "Total {count}",
+        "inUse": "In use {count}",
+        "unused": "Unused {count}",
+        "totalLabel": "Total networks",
+        "inUseLabel": "In use",
+        "unusedLabel": "Unused"
+      },
       "filters": {
         "search": "Search network name or ID",
         "driver": "Driver",
         "scope": "Scope",
         "usage": "Usage",
         "inUse": "In use",
-        "unused": "Unused"
+        "unused": "Unused",
+        "apply": "Search",
+        "reset": "Reset"
+      },
+      "pagination": { "empty": "No Networks", "summary": "Showing {start}-{end} of {total}" },
+      "cleanup": {
+        "action": "Clean Up Unused",
+        "title": "Clean Up Unused Networks",
+        "warning": "Only networks reported as removable are included. Review the candidates before continuing.",
+        "candidateTitle": "Candidates ({count})",
+        "selectedCount": "{count} selected",
+        "removeSelected": "Remove {count}",
+        "empty": "No removable unused networks",
+        "loadFailed": "Unused network candidates could not be loaded.",
+        "previousPage": "Previous page",
+        "nextPage": "Next page"
       },
       "drivers": { "bridge": "Bridge", "overlay": "Overlay", "macvlan": "Macvlan", "ipvlan": "IPvlan", "none": "None" },
       "scopes": { "local": "Local", "swarm": "Swarm", "global": "Global" },
