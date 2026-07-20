@@ -1,69 +1,68 @@
 import activity from '@iconify-icons/lucide/activity';
 import roles from '@iconify-icons/lucide/badge-check';
 import bell from '@iconify-icons/lucide/bell';
-import box from '@iconify-icons/lucide/box';
+import boxes from '@iconify-icons/lucide/boxes';
 import scheduledTasks from '@iconify-icons/lucide/calendar-clock';
 import clock from '@iconify-icons/lucide/clock';
-import database from '@iconify-icons/lucide/database';
+import container from '@iconify-icons/lucide/container';
 import fileSearch from '@iconify-icons/lucide/file-search';
 import folder from '@iconify-icons/lucide/folder';
+import gauge from '@iconify-icons/lucide/gauge';
+import hammer from '@iconify-icons/lucide/hammer';
+import hardDrive from '@iconify-icons/lucide/hard-drive';
+import heartPulse from '@iconify-icons/lucide/heart-pulse';
 import history from '@iconify-icons/lucide/history';
 import imageIcon from '@iconify-icons/lucide/image';
-import keyRound from '@iconify-icons/lucide/key-round';
-import dashboard from '@iconify-icons/lucide/layout-dashboard';
-import lock from '@iconify-icons/lucide/lock';
+import layers from '@iconify-icons/lucide/layers';
+import library from '@iconify-icons/lucide/library';
+import listTree from '@iconify-icons/lucide/list-tree';
+import megaphone from '@iconify-icons/lucide/megaphone';
+import network from '@iconify-icons/lucide/network';
 import application from '@iconify-icons/lucide/package';
+import route from '@iconify-icons/lucide/route';
 import search from '@iconify-icons/lucide/search';
-import server from '@iconify-icons/lucide/server';
+import serverCog from '@iconify-icons/lucide/server-cog';
 import settings from '@iconify-icons/lucide/settings';
 import shield from '@iconify-icons/lucide/shield';
-import shieldCheck from '@iconify-icons/lucide/shield-check';
-import terminal from '@iconify-icons/lucide/terminal';
+import slidersHorizontal from '@iconify-icons/lucide/sliders-horizontal';
+import target from '@iconify-icons/lucide/target';
 import users from '@iconify-icons/lucide/users';
 import workflow from '@iconify-icons/lucide/workflow';
 import docker from '@iconify-icons/tabler/brand-docker';
-import cloudComputing from '@iconify-icons/tabler/cloud-computing';
 
+// 服务端菜单声明拥有语义键 authority；此处只负责把已审查的语义键映射到静态资源。
 const menuIcons = {
-  application,
-  'app-log': fileSearch,
+  'application-domain': boxes,
+  'application-portfolio': application,
+  'application-template': layers,
+  'infrastructure-domain': network,
+  'build-domain': hammer,
+  'resources-domain': library,
+  'observability-domain': activity,
+  'security-domain': shield,
+  'platform-domain': slidersHorizontal,
+  'runtime-target': target,
+  'docker-provider': docker,
+  'container-workload': container,
+  'image-artifact': imageIcon,
+  'persistent-volume': hardDrive,
+  'observability-overview': activity,
+  'service-health': heartPulse,
+  'dependency-health': route,
+  'request-performance': gauge,
   'access-log': search,
-  activity,
-  announcements: bell,
-  audit: history,
-  build: terminal,
-  container: box,
-  'cloud-computing': cloudComputing,
-  config: settings,
-  database,
-  dashboard,
-  dependencies: database,
-  docker,
-  infrastructure: server,
-  'module-runtime': workflow,
+  'application-log': fileSearch,
+  'module-health': serverCog,
+  'security-posture': shield,
+  'user-identity': users,
+  'role-groups': roles,
+  'access-policy': listTree,
+  'audit-trail': history,
+  'scheduled-automation': scheduledTasks,
+  'platform-configuration': settings,
+  'announcement-publishing': megaphone,
   notification: bell,
-  observability: activity,
-  permissions: keyRound,
-  platform: settings,
-  resources: database,
-  roles,
-  'runtime-overview': activity,
-  'runtime-target': server,
-  'scheduled-tasks': scheduledTasks,
-  security: shieldCheck,
-  'security-overview': shieldCheck,
-  folder,
-  history,
-  image: imageIcon,
-  lock,
-  server,
-  setting: settings,
-  secured: shield,
-  search,
-  'file-search': fileSearch,
   time: clock,
-  usergroup: users,
-  users,
   workflow,
 } as const;
 
@@ -73,7 +72,7 @@ export type MenuIconKey = keyof typeof menuIcons;
  * 将服务器提供的菜单图标标识符解析为已静态打包的图标数据。
  *
  * @param key - 菜单图标标识符
- * @returns 对应的图标数据；标识符缺失或未匹配时返回文件夹图标
+ * @returns 对应的图标数据；标识符缺失或未匹配时返回稳定的异常保护图形
  */
 export function resolveMenuIcon(key?: string) {
   if (key && key in menuIcons) {

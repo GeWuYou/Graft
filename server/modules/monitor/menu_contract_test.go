@@ -23,7 +23,7 @@ func TestRegisterMonitorMenuIncludesObservabilityEntries(t *testing.T) {
 		code:       "monitor.server-status.overview",
 		titleKey:   monitorcontract.ServerStatusOverviewMenuTitle.String(),
 		path:       monitorcontract.ServerStatusOverviewMenuPath,
-		icon:       "dashboard",
+		icon:       "observability-overview",
 		order:      101,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
@@ -33,7 +33,7 @@ func TestRegisterMonitorMenuIncludesObservabilityEntries(t *testing.T) {
 		code:       "monitor.server-status.runtime",
 		titleKey:   monitorcontract.ServerStatusServiceStatusMenuTitle.String(),
 		path:       monitorcontract.ServerStatusServiceStatusMenuPath,
-		icon:       "runtime-overview",
+		icon:       "service-health",
 		order:      102,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
@@ -43,7 +43,7 @@ func TestRegisterMonitorMenuIncludesObservabilityEntries(t *testing.T) {
 		code:       "monitor.server-status.dependencies",
 		titleKey:   monitorcontract.ServerStatusDependenciesMenuTitle.String(),
 		path:       monitorcontract.ServerStatusDependenciesMenuPath,
-		icon:       "dependencies",
+		icon:       "dependency-health",
 		order:      103,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})
@@ -53,7 +53,7 @@ func TestRegisterMonitorMenuIncludesObservabilityEntries(t *testing.T) {
 		code:       "monitor.request-performance",
 		titleKey:   monitorcontract.RequestPerformanceMenuTitle.String(),
 		path:       monitorcontract.RequestPerformanceMenuPath,
-		icon:       "chart-line",
+		icon:       "request-performance",
 		order:      104,
 		permission: monitorcontract.ServerStatusReadPermission.String(),
 	})

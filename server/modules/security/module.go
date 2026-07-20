@@ -98,7 +98,7 @@ func registerMenu(registry *menu.Registry) {
 		Title:      "Security Overview",
 		TitleKey:   securitycontract.OverviewMenuTitle.String(),
 		Path:       securitycontract.OverviewMenuPath,
-		Icon:       "security-overview",
+		Icon:       "security-posture",
 		Order:      securityMenuOrderOverview,
 		Permission: securitycontract.OverviewReadPermission.String(),
 		Module:     moduleID,

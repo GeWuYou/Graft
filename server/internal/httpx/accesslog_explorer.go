@@ -77,7 +77,7 @@ func registerAccessLogExplorerMenu(registry *menu.Registry) {
 		Kind:       menu.NodeKindEntry,
 		TitleKey:   "menu.accessLog.title",
 		Path:       accessLogMenuListPath,
-		Icon:       "search",
+		Icon:       "access-log",
 		Order:      accessLogMenuListOrder,
 		Permission: AccessLogReadPermission,
 		Module:     accessLogModuleOwner,

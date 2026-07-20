@@ -95,7 +95,7 @@ func registerAnnouncementMenu(registry *menu.Registry, moduleName string) error 
 		Title:      "",
 		TitleKey:   announcementcontract.AnnouncementMenuTitle.String(),
 		Path:       announcementcontract.AnnouncementMenuPath,
-		Icon:       "announcements",
+		Icon:       "announcement-publishing",
 		Order:      announcementMenuOrder,
 		Permission: announcementcontract.AnnouncementReadPermission.String(),
 		Module:     moduleName,
