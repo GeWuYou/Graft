@@ -5541,7 +5541,10 @@
                             "severity": "warning",
                             "status": "active",
                             "observed_at": "2026-05-24T08:05:00Z",
-                            "summary": "CPU usage is elevated for the current monitor window.",
+                            "summary_key": "monitor.serverStatus.anomaly.resourceCpuPressure",
+                            "summary_params": {
+                              "percent": "84.2"
+                            },
                             "evidence_links": [
                               {
                                 "target_kind": "audit_context",
@@ -20781,7 +20784,8 @@
           "severity",
           "status",
           "observed_at",
-          "summary",
+          "summary_key",
+          "summary_params",
           "evidence_links"
         ],
         "properties": {
@@ -20828,8 +20832,16 @@
             "type": "string",
             "format": "date-time"
           },
-          "summary": {
-            "type": "string"
+          "summary_key": {
+            "type": "string",
+            "description": "Stable monitor locale key for rendering the anomaly summary."
+          },
+          "summary_params": {
+            "type": "object",
+            "description": "String-formatted interpolation values for summary_key.",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "evidence_links": {
             "type": "array",

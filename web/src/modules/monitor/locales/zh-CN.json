@@ -115,6 +115,17 @@
       "metricLoadDescriptionHealthy": "系统负载较低",
       "metricLoadDescriptionWarning": "系统负载略高",
       "metricLoadDescriptionCritical": "系统负载过高",
+      "anomaly": {
+        "dependencyDegraded": "{dependency} 依赖服务已降级。",
+        "dependencyUnknown": "{dependency} 依赖服务状态未知。",
+        "moduleDependencyMissing": "模块 {module} 缺少必需依赖。",
+        "resourceCpuPressure": "当前监控窗口内 CPU 使用率达到 {percent}%。",
+        "resourceMemoryPressure": "服务器内存使用率达到 {percent}%。",
+        "resourceDiskPressure": "挂载路径 {path} 的磁盘使用率达到 {percent}%。",
+        "runtimeGoroutinePressure": "Goroutine 数量达到 {count}。",
+        "runtimeHeapPressure": "运行时堆内存使用量达到 {bytes} 字节。",
+        "systemLoadPressure": "1 分钟负载均值达到 {load}，对应 {cores} 个 CPU 核心。"
+      },
       "metricCpuLabel": "CPU",
       "metricCpuValue": "{count} 核",
       "metricCpuMeta": "{count} 核 · 最新采样",

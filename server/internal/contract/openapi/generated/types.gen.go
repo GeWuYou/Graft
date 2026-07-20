@@ -11068,7 +11068,12 @@ type ServerStatusAnomaly struct {
 	ScopeRef      string                        `json:"scope_ref"`
 	Severity      ServerStatusAnomalySeverity   `json:"severity"`
 	Status        ServerStatusAnomalyStatus     `json:"status"`
-	Summary       string                        `json:"summary"`
+
+	// SummaryKey Stable monitor locale key for rendering the anomaly summary.
+	SummaryKey string `json:"summary_key"`
+
+	// SummaryParams String-formatted interpolation values for summary_key.
+	SummaryParams map[string]string `json:"summary_params"`
 }
 
 // ServerStatusAnomalyAnomalyKey defines model for ServerStatusAnomaly.AnomalyKey.

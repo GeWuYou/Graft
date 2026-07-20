@@ -4919,7 +4919,12 @@ export interface components {
       status: 'active';
       /** Format: date-time */
       observed_at: string;
-      summary: string;
+      /** @description Stable monitor locale key for rendering the anomaly summary. */
+      summary_key: string;
+      /** @description String-formatted interpolation values for summary_key. */
+      summary_params: {
+        [key: string]: string;
+      };
       evidence_links: components['schemas']['evidence-link'][];
     };
     'server-status-response': {

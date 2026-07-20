@@ -1,5 +1,5 @@
 type: object
-required: [anomaly_key, scope_kind, scope_ref, severity, status, observed_at, summary, evidence_links]
+required: [anomaly_key, scope_kind, scope_ref, severity, status, observed_at, summary_key, summary_params, evidence_links]
 properties:
   anomaly_key:
     type: string
@@ -27,8 +27,14 @@ properties:
   observed_at:
     type: string
     format: date-time
-  summary:
+  summary_key:
     type: string
+    description: Stable monitor locale key for rendering the anomaly summary.
+  summary_params:
+    type: object
+    description: String-formatted interpolation values for summary_key.
+    additionalProperties:
+      type: string
   evidence_links:
     type: array
     items:

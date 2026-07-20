@@ -129,7 +129,9 @@ get:
                       severity: warning
                       status: active
                       observed_at: '2026-05-24T08:05:00Z'
-                      summary: CPU usage is elevated for the current monitor window.
+                      summary_key: monitor.serverStatus.anomaly.resourceCpuPressure
+                      summary_params:
+                        percent: '84.2'
                       evidence_links:
                         - target_kind: audit_context
                           link_state: available
