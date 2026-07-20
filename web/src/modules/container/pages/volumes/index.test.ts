@@ -88,4 +88,14 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('const previousPage = pagination.current;');
     expect(sourceText).toContain('if (previousPage === 1) void refresh();');
   });
+
+  it('consumes the canonical generated permission contract for dangerous actions', () => {
+    expect(sourceText).toContain("from '@/contracts/generated/modules/container'");
+    expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.VOLUME_REMOVE');
+    expect(sourceText).not.toContain("from '../../contract/permissions'");
+    expect(sourceText).not.toContain('ops.container.volume.remove');
+    expect(sourceText).toContain('v-if="canRemove"');
+    expect(sourceText).toContain('...(canRemove.value');
+    expect(sourceText).toContain('if (!canRemove.value) return;');
+  });
 });

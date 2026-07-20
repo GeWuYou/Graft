@@ -59,18 +59,17 @@
           @refresh="refresh"
         />
       </template>
-      <template #batch>
-        <div v-if="selectedRowKeys.length" class="docker-images-batch-bar">
-          <span>{{ t('container.images.batch.selected', { count: selectedRowKeys.length }) }}</span>
-          <t-space size="small">
-            <t-button size="small" theme="danger" variant="outline" :loading="batchRemoving" @click="openBatchRemove">
-              {{ t('container.images.batch.remove') }}
-            </t-button>
-            <t-button size="small" variant="text" @click="clearSelection">
-              {{ t('container.images.batch.cancelSelection') }}
-            </t-button>
-          </t-space>
-        </div>
+      <template v-if="selectedRowKeys.length" #batch>
+        <management-batch-bar
+          :selected-label="t('container.images.batch.selected', { count: selectedRowKeys.length })"
+          :clear-label="t('container.images.batch.cancelSelection')"
+          clear-test-id="docker-images-batch-clear"
+          @clear="clearSelection"
+        >
+          <t-button size="small" theme="danger" variant="outline" :loading="batchRemoving" @click="openBatchRemove">
+            {{ t('container.images.batch.remove') }}
+          </t-button>
+        </management-batch-bar>
       </template>
       <template #feedback>
         <t-alert v-if="query.isError.value" theme="error" :message="t('container.images.loadFailed')" />
@@ -568,6 +567,7 @@ import {
   type DockerImageRemoveErrorCode,
 } from '@/contracts/generated/modules/container';
 import {
+  ManagementBatchBar,
   ManagementPagedTable,
   ManagementPageHeader,
   ManagementStatisticsBar,
@@ -1385,13 +1385,6 @@ onUnmounted(() => {
 .docker-images-failure-item :deep(.t-collapse-panel__header) {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
-}
-
-.docker-images-batch-bar {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  padding: var(--graft-density-gap-8) var(--graft-density-gap-16);
 }
 
 .docker-images-cleanup {

@@ -68,28 +68,27 @@
           />
         </template>
 
-        <template #batch>
-          <div v-if="selectedRowKeys.length > 0" class="batch-bar">
-            <span>{{ t('user.userList.batch.selected', { count: selectedRowKeys.length }) }}</span>
-            <div class="batch-bar__actions">
-              <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.enable') }}</t-button>
-              <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.disable') }}</t-button>
-              <t-button
-                v-permission="{ allOf: userRoleManagePermissionCodes }"
-                size="small"
-                theme="primary"
-                variant="outline"
-                data-testid="user-batch-manage-roles"
-                :disabled="selectedBatchUsersContainProtectedDefaultAdmin"
-                @click="openBatchUserRoleDrawer"
-              >
-                {{ t('user.userList.batch.assignRoles') }}
-              </t-button>
-              <t-button size="small" theme="default" variant="text" @click="selectedRowKeys = []">
-                {{ t('user.userList.batch.cancelSelection') }}
-              </t-button>
-            </div>
-          </div>
+        <template v-if="selectedRowKeys.length > 0" #batch>
+          <management-batch-bar
+            :selected-label="t('user.userList.batch.selected', { count: selectedRowKeys.length })"
+            :clear-label="t('user.userList.batch.cancelSelection')"
+            clear-test-id="user-batch-clear"
+            @clear="selectedRowKeys = []"
+          >
+            <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.enable') }}</t-button>
+            <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.disable') }}</t-button>
+            <t-button
+              v-permission="{ allOf: userRoleManagePermissionCodes }"
+              size="small"
+              theme="primary"
+              variant="outline"
+              data-testid="user-batch-manage-roles"
+              :disabled="selectedBatchUsersContainProtectedDefaultAdmin"
+              @click="openBatchUserRoleDrawer"
+            >
+              {{ t('user.userList.batch.assignRoles') }}
+            </t-button>
+          </management-batch-bar>
         </template>
 
         <management-empty-state
@@ -532,6 +531,7 @@ import {
   createTextColumn,
   createTimeColumn,
   formatCompactDateTime,
+  ManagementBatchBar,
   ManagementEmptyState,
   ManagementPageContent,
   ManagementPageHeader,

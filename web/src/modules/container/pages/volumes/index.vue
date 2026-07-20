@@ -56,17 +56,6 @@
     </management-toolbar>
 
     <management-toolbar>
-      <template #filters>
-        <div v-if="selectedRowKeys.length" class="docker-volume-page__batch-bar">
-          <span>{{ t('container.volume.batch.selected', { count: selectedRowKeys.length }) }}</span>
-          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
-            {{ t('container.volume.batch.remove') }}
-          </t-button>
-          <t-button size="small" variant="text" @click="clearSelection">
-            {{ t('container.volume.batch.cancelSelection') }}
-          </t-button>
-        </div>
-      </template>
       <template #actions>
         <table-view-toolbar
           :refresh-label="t('container.list.refresh')"
@@ -76,6 +65,95 @@
       </template>
     </management-toolbar>
 
+    <management-paged-table
+      v-model:current="pagination.current"
+      v-model:page-size="pagination.pageSize"
+      :columns="columns"
+      :empty-description="
+        hasActiveFilters ? t('container.volume.filters.reset') : t('container.volume.list.description')
+      "
+      :empty-title="t('container.volume.pagination.empty')"
+      :footer-summary="paginationSummary"
+      :loading="loading"
+      row-key="name"
+      :rows="rows"
+      :selected-row-keys="selectedRowKeys"
+      :total="pagination.total"
+      @page-change="handlePageChange"
+      @select-change="handleSelectChange"
+    >
+      <template v-if="selectedRowKeys.length" #batch>
+        <management-batch-bar
+          :selected-label="t('container.volume.batch.selected', { count: selectedRowKeys.length })"
+          :clear-label="t('container.volume.batch.cancelSelection')"
+          clear-test-id="docker-volume-batch-clear"
+          @clear="clearSelection"
+        >
+          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
+            {{ t('container.volume.batch.remove') }}
+          </t-button>
+        </management-batch-bar>
+      </template>
+
+      <template #feedback>
+        <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
+        <t-alert
+          v-else-if="volumeSummary?.reference_unknown"
+          class="docker-volume-page__alert"
+          theme="warning"
+          :message="t('container.volume.metrics.referenceUnknown', { count: volumeSummary.reference_unknown })"
+        />
+      </template>
+      <template #name="{ row }">
+        <t-tooltip :content="row.name">
+          <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
+            middleEllipsis(row.name, 31)
+          }}</t-link>
+        </t-tooltip>
+      </template>
+      <template #references="{ row }">
+        <t-space v-if="row.container_references?.length" size="small" break-line>
+          <t-link
+            v-for="reference in row.container_references.slice(0, 2)"
+            :key="reference.id"
+            theme="primary"
+            @click="openContainerReference(reference.id)"
+          >
+            <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
+          </t-link>
+          <t-tag v-if="row.container_references.length > 2" size="small" variant="light-outline">
+            +{{ row.container_references.length - 2 }}
+          </t-tag>
+        </t-space>
+        <t-tag
+          v-else-if="row.reference_count === null || row.reference_count === undefined"
+          theme="warning"
+          variant="light-outline"
+        >
+          {{ t('container.volume.usage.unknown') }}
+        </t-tag>
+        <t-tag v-else size="small" variant="light-outline">{{ t('container.volume.usage.unused') }}</t-tag>
+      </template>
+      <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
+      <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
+      <template #labels="{ row }">{{ Object.keys(row.labels || {}).length }}</template>
+      <template #actions="{ row }">
+        <table-action-menu
+          :actions="volumeRowActions(row)"
+          :more-label="t('container.list.actions.more')"
+          @action="handleVolumeRowAction($event, row)"
+        />
+      </template>
+      <template #empty>
+        <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
+          <template #action>
+            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
+              {{ t('container.volume.filters.reset') }}
+            </t-button>
+          </template>
+        </t-empty>
+      </template>
+    </management-paged-table>
     <t-dialog
       v-model:visible="cleanup.visible.value"
       :header="t('container.volume.cleanup.title')"
@@ -161,83 +239,6 @@
         </t-space>
       </template>
     </t-dialog>
-
-    <management-paged-table
-      v-model:current="pagination.current"
-      v-model:page-size="pagination.pageSize"
-      :columns="columns"
-      :empty-description="
-        hasActiveFilters ? t('container.volume.filters.reset') : t('container.volume.list.description')
-      "
-      :empty-title="t('container.volume.pagination.empty')"
-      :footer-summary="paginationSummary"
-      :loading="loading"
-      row-key="name"
-      :rows="rows"
-      :selected-row-keys="selectedRowKeys"
-      :total="pagination.total"
-      @page-change="handlePageChange"
-      @select-change="handleSelectChange"
-    >
-      <template #feedback>
-        <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
-        <t-alert
-          v-else-if="volumeSummary?.reference_unknown"
-          class="docker-volume-page__alert"
-          theme="warning"
-          :message="t('container.volume.metrics.referenceUnknown', { count: volumeSummary.reference_unknown })"
-        />
-      </template>
-      <template #name="{ row }">
-        <t-tooltip :content="row.name">
-          <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
-            middleEllipsis(row.name, 31)
-          }}</t-link>
-        </t-tooltip>
-      </template>
-      <template #references="{ row }">
-        <t-space v-if="row.container_references?.length" size="small" break-line>
-          <t-link
-            v-for="reference in row.container_references.slice(0, 2)"
-            :key="reference.id"
-            theme="primary"
-            @click="openContainerReference(reference.id)"
-          >
-            <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
-          </t-link>
-          <t-tag v-if="row.container_references.length > 2" size="small" variant="light-outline">
-            +{{ row.container_references.length - 2 }}
-          </t-tag>
-        </t-space>
-        <t-tag
-          v-else-if="row.reference_count === null || row.reference_count === undefined"
-          theme="warning"
-          variant="light-outline"
-        >
-          {{ t('container.volume.usage.unknown') }}
-        </t-tag>
-        <t-tag v-else size="small" variant="light-outline">{{ t('container.volume.usage.unused') }}</t-tag>
-      </template>
-      <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
-      <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
-      <template #labels="{ row }">{{ Object.keys(row.labels || {}).length }}</template>
-      <template #actions="{ row }">
-        <table-action-menu
-          :actions="volumeRowActions(row)"
-          :more-label="t('container.list.actions.more')"
-          @action="handleVolumeRowAction($event, row)"
-        />
-      </template>
-      <template #empty>
-        <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
-          <template #action>
-            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
-              {{ t('container.volume.filters.reset') }}
-            </t-button>
-          </template>
-        </t-empty>
-      </template>
-    </management-paged-table>
     <t-drawer
       v-model:visible="detailDrawerVisible"
       :header="selectedVolume?.name || t('container.volume.detail.title')"
@@ -307,7 +308,9 @@ import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
 import {
+  ManagementBatchBar,
   ManagementPagedTable,
   ManagementPageHeader,
   type ManagementStatisticItem,
@@ -329,7 +332,6 @@ import {
   removeDockerVolume,
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { CONTAINER_PERMISSION_CODE } from '../../contract/permissions';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
@@ -680,12 +682,6 @@ function confirmRemove(row: VolumeRow) {
 
 .docker-volume-page__alert {
   margin-bottom: var(--td-comp-margin-l);
-}
-
-.docker-volume-page__batch-bar {
-  align-items: center;
-  display: flex;
-  gap: var(--td-comp-margin-m);
 }
 
 .docker-volume-page__name {
