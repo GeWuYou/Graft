@@ -10,12 +10,12 @@ import {
 
 const graph = [
   {
-    code: 'security-domain',
+    code: 'domain.security',
     kind: 'group' as const,
     order: 60,
     title_key: 'menu.domain.security',
     title: 'Security',
-    icon: 'secured',
+    icon: 'security-domain',
     permission: '',
   },
   {
@@ -26,7 +26,7 @@ const graph = [
     title_key: 'menu.user_list.title',
     title: 'Users',
     path: '/security/users',
-    icon: 'usergroup',
+    icon: 'user-identity',
     permission: 'user.read',
   },
   {
@@ -37,16 +37,16 @@ const graph = [
     title_key: 'menu.role_list.title',
     title: 'Roles',
     path: '/security/roles',
-    icon: 'secured',
+    icon: 'access-policy',
     permission: 'role.read',
   },
   {
-    code: 'build-domain',
+    code: 'domain.build',
     kind: 'group' as const,
     order: 30,
     title_key: 'menu.domain.build',
     title: 'Build',
-    icon: 'tools',
+    icon: 'build-domain',
     permission: '',
   },
 ] as const;
@@ -260,7 +260,7 @@ describe('bootstrap navigation graph', () => {
       expect(route?.meta).toMatchObject({
         title: { 'en-US': 'Users' },
         titleKey: 'menu.user_list.title',
-        icon: 'usergroup',
+        icon: 'user-identity',
         orderNo: 1,
       });
     } finally {
