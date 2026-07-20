@@ -109,12 +109,23 @@ vi.mock('../../components/AppLogDetailDrawer.vue', () => ({ default: defineCompo
 vi.mock('../../components/AppLogFilters.vue', () => ({ default: defineComponent({ setup: () => () => null }) }));
 vi.mock('../../components/AppLogTable.vue', () => ({
   default: defineComponent({
-    props: { rows: { type: Array, default: () => [] }, total: { type: Number, default: 0 } },
-    setup(props, { slots }) {
+    props: {
+      emptyDescription: { type: String, default: '' },
+      emptyTitle: { type: String, default: '' },
+      filteredEmpty: { type: Boolean, default: false },
+      rows: { type: Array, default: () => [] },
+      total: { type: Number, default: 0 },
+    },
+    emits: ['clear-filters'],
+    setup(props, { emit, slots }) {
       return () =>
         h('section', [
           h('output', { 'data-testid': 'rows' }, JSON.stringify(props.rows)),
           h('output', { 'data-testid': 'total' }, String(props.total)),
+          h('output', { 'data-testid': 'empty-title' }, props.emptyTitle),
+          h('output', { 'data-testid': 'empty-description' }, props.emptyDescription),
+          h('output', { 'data-testid': 'filtered-empty' }, String(props.filteredEmpty)),
+          h('button', { 'data-testid': 'clear-filters', onClick: () => emit('clear-filters') }, 'clear'),
           slots.toolbar?.(),
         ]);
     },
@@ -202,5 +213,22 @@ describe('AppLogListIndex', () => {
     await flushPromises();
 
     expect(mocks.getAppLogs).toHaveBeenCalledWith(expect.objectContaining({ category: 'future.category' }));
+  });
+
+  it('keeps the result surface and supplies reset recovery for filtered empty responses', async () => {
+    routeState.query = { category: 'future.category' };
+    mocks.getAppLogs.mockResolvedValue(response([]));
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="rows"]').text()).toBe('[]');
+    expect(wrapper.get('[data-testid="filtered-empty"]').text()).toBe('true');
+    expect(wrapper.get('[data-testid="empty-title"]').text()).toBe('appLog.page.emptyFilteredTitle');
+
+    await wrapper.get('[data-testid="clear-filters"]').trigger('click');
+    await flushPromises();
+
+    expect(mocks.getAppLogs).toHaveBeenLastCalledWith(expect.not.objectContaining({ category: 'future.category' }));
   });
 });
