@@ -356,6 +356,10 @@
         "display": "审计策略管理",
         "description": "允许管理审计可见性默认策略和单事件覆盖策略。"
       },
+      "securityOverviewRead": {
+        "display": "读取安全概览",
+        "description": "允许读取聚合后的安全概览以及访问控制和审计信号。"
+      },
       "containerView": {
         "display": "查看容器",
         "description": "允许查看容器管理列表。"

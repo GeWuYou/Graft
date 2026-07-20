@@ -1262,11 +1262,11 @@ function normalizeRolePermissionIDs(rawPermissionIDs: number[]) {
 }
 
 function localizedPermissionDisplay(permission: PermissionListItem) {
-  return localizePermissionDisplay(t, permission);
+  return localizePermissionDisplay(t, permission, locale.value);
 }
 
 function localizedPermissionDescription(permission: PermissionListItem) {
-  return localizePermissionDescription(t, permission, 'rbac.roleList.permissionDialog.emptyDescription');
+  return localizePermissionDescription(t, permission, 'rbac.roleList.permissionDialog.emptyDescription', locale.value);
 }
 
 function openCreateDrawer() {
