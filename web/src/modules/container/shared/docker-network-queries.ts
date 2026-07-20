@@ -25,7 +25,7 @@ export function useDockerNetworkListQuery(query: MaybeRef<DockerNetworkListQuery
 export function useDockerNetworkDetailQuery(networkId: MaybeRef<string>) {
   return useQuery(
     {
-      queryKey: computed(() => dockerNetworkQueryKeys.detail(toValue(networkId))),
+      queryKey: computed(() => dockerNetworkQueryKeys.detail(toValue(networkId) || '')),
       queryFn: ({ queryKey }) => getDockerNetwork(queryKey[4]),
       enabled: computed(() => Boolean(toValue(networkId))),
     },

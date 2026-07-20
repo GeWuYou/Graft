@@ -373,7 +373,8 @@ func (r *repository) resolveIncidentMonitorContext(
 	if r == nil || r.monitorEvidence == nil {
 		return auditstore.AuditIncidentMonitorContext{
 			State:         auditstore.MonitorContextStateUnavailable,
-			Summary:       "Monitor capability is unavailable for this audit incident.",
+			Summary:       "audit.incident.monitorSummary.unavailable",
+			SummaryParams: map[string]string{},
 			Reason:        "Monitor module capability is unavailable.",
 			EvidenceLinks: buildIncidentMonitorEvidenceLinks(seed, relatedEvents),
 		}
@@ -394,7 +395,8 @@ func (r *repository) resolveIncidentMonitorContext(
 	if err != nil {
 		return auditstore.AuditIncidentMonitorContext{
 			State:         auditstore.MonitorContextStateUnavailable,
-			Summary:       "Monitor capability could not resolve incident evidence.",
+			Summary:       "audit.incident.monitorSummary.resolutionFailed",
+			SummaryParams: map[string]string{},
 			Reason:        "Monitor capability is unavailable.",
 			EvidenceLinks: buildIncidentMonitorEvidenceLinks(seed, relatedEvents),
 		}

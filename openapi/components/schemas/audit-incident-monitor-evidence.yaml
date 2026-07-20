@@ -8,7 +8,7 @@ properties:
     description: Availability of correlated monitor evidence for this incident.
   summary:
     type: string
-    description: Human-readable summary of the correlated monitor evidence.
+    description: Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog.
   summary_params:
     type: object
     description: String-formatted interpolation values for the monitor summary locale key.

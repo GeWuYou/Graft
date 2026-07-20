@@ -154,6 +154,10 @@ func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
+	summaryParams := result.MonitorContext.SummaryParams
+	if summaryParams == nil {
+		summaryParams = map[string]string{}
+	}
 
 	return map[string]any{
 		"seed_event": seedEvent,
@@ -173,7 +177,7 @@ func toAuditIncidentResponse(result auditIncidentResult) (map[string]any, error)
 		"monitor_context": map[string]any{
 			"state":          string(result.MonitorContext.State),
 			"summary":        result.MonitorContext.Summary,
-			"summary_params": result.MonitorContext.SummaryParams,
+			"summary_params": summaryParams,
 			"reason":         result.MonitorContext.Reason,
 			"anomaly_key":    result.MonitorContext.AnomalyKey,
 			"scope_kind":     result.MonitorContext.ScopeKind,

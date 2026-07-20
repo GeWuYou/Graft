@@ -659,18 +659,11 @@ func (s *service) DockerNetworks(ctx context.Context) ([]DockerNetwork, error) {
 func (s *service) DockerNetworksPage(ctx context.Context, query DockerNetworkListQuery) (DockerNetworkListResult, error) {
 	reader, err := s.dockerResources(ctx)
 	if err != nil {
-		return DockerNetworkListResult{}, err
-	}
-	if pageReader, ok := reader.(dockerNetworkListReader); ok {
-		items, err := pageReader.ListDockerNetworksPage(ctx)
-		if err != nil {
-			return DockerNetworkListResult{}, err
-		}
-		return listDockerNetworks(items, query), nil
+		return DockerNetworkListResult{}, fmt.Errorf("resolve docker resources: %w", err)
 	}
 	items, err := reader.ListDockerNetworks(ctx)
 	if err != nil {
-		return DockerNetworkListResult{}, err
+		return DockerNetworkListResult{}, fmt.Errorf("list docker networks: %w", err)
 	}
 	return listDockerNetworks(items, query), nil
 }

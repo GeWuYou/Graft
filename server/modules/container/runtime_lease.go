@@ -176,6 +176,28 @@ func (l *runtimeLease) ReadDockerNetwork(ctx context.Context, id string) (Docker
 	defer done()
 	return r.ReadDockerNetwork(ctx, id)
 }
+func (l *runtimeLease) CreateDockerNetwork(ctx context.Context, command DockerNetworkCreateCommand) (DockerNetworkActionResult, error) {
+	r, ok := l.runtime.(interface {
+		CreateDockerNetwork(context.Context, DockerNetworkCreateCommand) (DockerNetworkActionResult, error)
+	})
+	if !ok {
+		return DockerNetworkActionResult{}, errUnsupportedContainerRuntime
+	}
+	done := l.acquire()
+	defer done()
+	return r.CreateDockerNetwork(ctx, command)
+}
+func (l *runtimeLease) RemoveDockerNetwork(ctx context.Context, id, confirmation string) (DockerNetworkActionResult, error) {
+	r, ok := l.runtime.(interface {
+		RemoveDockerNetwork(context.Context, string, string) (DockerNetworkActionResult, error)
+	})
+	if !ok {
+		return DockerNetworkActionResult{}, errUnsupportedContainerRuntime
+	}
+	done := l.acquire()
+	defer done()
+	return r.RemoveDockerNetwork(ctx, id, confirmation)
+}
 func (l *runtimeLease) ListDockerVolumes(ctx context.Context) ([]DockerVolume, error) {
 	r, ok := l.runtime.(DockerResourceReader)
 	if !ok {

@@ -103,6 +103,13 @@
         "partial": "部分可用",
         "unavailable": "不可用"
       },
+      "monitorSummary": {
+        "unavailable": "此事件的监控证据不可用。",
+        "invalidWindow": "监控证据需要一个有界的事件时间窗口。",
+        "expired": "监控证据已超出短期保留窗口。",
+        "resolutionFailed": "无法为此事件解析监控证据。",
+        "noMatch": "没有与此事件匹配的监控异常。"
+      },
       "evidenceState": {
         "available": "可用",
         "empty": "空结果",

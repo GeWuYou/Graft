@@ -269,10 +269,6 @@ type DockerResourceReader interface {
 	ReadDockerVolume(context.Context, string) (DockerVolume, error)
 }
 
-type dockerNetworkListReader interface {
-	ListDockerNetworksPage(context.Context) ([]DockerNetwork, error)
-}
-
 // ListDockerImages 从 Docker runtime 读取一次完整镜像快照，并在返回前计算库存摘要和稳定排序。
 func (r *DockerRuntime) ListDockerImages(ctx context.Context) (DockerImageListResult, error) {
 	client, ok := r.client.(dockerResourceClient)
@@ -423,11 +419,6 @@ func dockerNetworkContainerCounts(items []container.Summary) map[string]int {
 		}
 	}
 	return counts
-}
-
-// ListDockerNetworksPage 读取网络与容器的一致快照，供服务端分页列表使用。
-func (r *DockerRuntime) ListDockerNetworksPage(ctx context.Context) ([]DockerNetwork, error) {
-	return r.ListDockerNetworks(ctx)
 }
 
 // ReadDockerNetwork returns one sanitized Docker network by ID.
