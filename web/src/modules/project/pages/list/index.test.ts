@@ -630,10 +630,14 @@ describe('Application list page', () => {
     expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(1);
     const statistics = wrapper.get('.management-statistics-bar').text();
     expect(statistics).toContain('Total4');
-    expect(statistics).toContain('🟢Running1');
-    expect(statistics).toContain('🟡Degraded1');
-    expect(statistics).toContain('🟠Transitioning1');
-    expect(statistics).toContain('⚪Unknown1');
+    expect(statistics).toContain('Running1');
+    expect(statistics).toContain('Degraded1');
+    expect(statistics).toContain('Transitioning1');
+    expect(statistics).toContain('Unknown1');
+    expect(statistics).not.toContain('🟢🟢');
+    expect(statistics).not.toContain('🟡🟡');
+    expect(statistics).not.toContain('🟠🟠');
+    expect(statistics).not.toContain('⚪⚪');
     expect(statistics).not.toContain('stopped');
   });
 
@@ -1003,6 +1007,68 @@ describe('Application list page', () => {
     expect(projectApiMocks.postApplicationRestart).toHaveBeenCalledWith('1');
     expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(2);
     expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps the spinner after a successful task until the runtime snapshot confirms the new status', async () => {
+    let resolveStatusRefresh!: (value: { items: unknown[]; limit: number; offset: number; total: number }) => void;
+    projectApiMocks.postApplicationStop.mockResolvedValueOnce({ task_id: 7, status: 'pending' });
+    taskRequestMocks.get.mockResolvedValue({ id: 7, status: 'success' });
+    projectApiMocks.getApplications
+      .mockResolvedValueOnce({
+        items: [buildApplicationRow({ runtime_status: 'running' })],
+        limit: 20,
+        offset: 0,
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        items: [buildApplicationRow({ runtime_status: 'running' })],
+        limit: 20,
+        offset: 0,
+        total: 1,
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveStatusRefresh = resolve;
+        }),
+      );
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="row-action-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(projectApiMocks.postApplicationStop).toHaveBeenCalledWith('1');
+    expect(projectApiMocks.getApplications).toHaveBeenCalledTimes(3);
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(true);
+
+    resolveStatusRefresh({
+      items: [buildApplicationRow({ runtime_status: 'stopped' })],
+      limit: 20,
+      offset: 0,
+      total: 1,
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="project-runtime-status-1"]').text()).toBe('Stopped');
+    wrapper.unmount();
+  });
+
+  it('clears the spinner when the lifecycle task fails and keeps its task details available', async () => {
+    projectApiMocks.postApplicationStop.mockResolvedValueOnce({ task_id: 8, status: 'pending' });
+    taskRequestMocks.get.mockResolvedValue({ id: 8, status: 'failed' });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="row-action-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-runtime-status-loading-1"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="row-action-stop"]').exists()).toBe(true);
+    expect(wrapper.getComponent({ name: 'TaskDetailDrawer' }).props('taskId')).toBe(8);
     wrapper.unmount();
   });
 
