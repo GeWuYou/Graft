@@ -2758,6 +2758,189 @@ func (e GetDockerNetworks500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostDockerNetworkJSONBodyDriver.
+const (
+	Bridge  PostDockerNetworkJSONBodyDriver = "bridge"
+	Ipvlan  PostDockerNetworkJSONBodyDriver = "ipvlan"
+	Macvlan PostDockerNetworkJSONBodyDriver = "macvlan"
+	None    PostDockerNetworkJSONBodyDriver = "none"
+	Overlay PostDockerNetworkJSONBodyDriver = "overlay"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetworkJSONBodyDriver enum.
+func (e PostDockerNetworkJSONBodyDriver) Valid() bool {
+	switch e {
+	case Bridge:
+		return true
+	case Ipvlan:
+		return true
+	case Macvlan:
+		return true
+	case None:
+		return true
+	case Overlay:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork200JSONResponseBodyDataAction.
+const (
+	PostDockerNetwork200JSONResponseBodyDataActionCreate PostDockerNetwork200JSONResponseBodyDataAction = "create"
+	PostDockerNetwork200JSONResponseBodyDataActionRemove PostDockerNetwork200JSONResponseBodyDataAction = "remove"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork200JSONResponseBodyDataAction enum.
+func (e PostDockerNetwork200JSONResponseBodyDataAction) Valid() bool {
+	switch e {
+	case PostDockerNetwork200JSONResponseBodyDataActionCreate:
+		return true
+	case PostDockerNetwork200JSONResponseBodyDataActionRemove:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork200JSONResponseBodyDataResult.
+const (
+	PostDockerNetwork200JSONResponseBodyDataResultCompleted PostDockerNetwork200JSONResponseBodyDataResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork200JSONResponseBodyDataResult enum.
+func (e PostDockerNetwork200JSONResponseBodyDataResult) Valid() bool {
+	switch e {
+	case PostDockerNetwork200JSONResponseBodyDataResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork401JSONResponseBodySuccess.
+const (
+	PostDockerNetwork401JSONResponseBodySuccessFalse PostDockerNetwork401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork401JSONResponseBodySuccess enum.
+func (e PostDockerNetwork401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork403JSONResponseBodySuccess.
+const (
+	PostDockerNetwork403JSONResponseBodySuccessFalse PostDockerNetwork403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork403JSONResponseBodySuccess enum.
+func (e PostDockerNetwork403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork500JSONResponseBodySuccess.
+const (
+	PostDockerNetwork500JSONResponseBodySuccessFalse PostDockerNetwork500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork500JSONResponseBodySuccess enum.
+func (e PostDockerNetwork500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork200JSONResponseBodyDataAction.
+const (
+	DeleteDockerNetwork200JSONResponseBodyDataActionCreate DeleteDockerNetwork200JSONResponseBodyDataAction = "create"
+	DeleteDockerNetwork200JSONResponseBodyDataActionRemove DeleteDockerNetwork200JSONResponseBodyDataAction = "remove"
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork200JSONResponseBodyDataAction enum.
+func (e DeleteDockerNetwork200JSONResponseBodyDataAction) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork200JSONResponseBodyDataActionCreate:
+		return true
+	case DeleteDockerNetwork200JSONResponseBodyDataActionRemove:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork200JSONResponseBodyDataResult.
+const (
+	DeleteDockerNetwork200JSONResponseBodyDataResultCompleted DeleteDockerNetwork200JSONResponseBodyDataResult = "completed"
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork200JSONResponseBodyDataResult enum.
+func (e DeleteDockerNetwork200JSONResponseBodyDataResult) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork200JSONResponseBodyDataResultCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork401JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork401JSONResponseBodySuccessFalse DeleteDockerNetwork401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork401JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork403JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork403JSONResponseBodySuccessFalse DeleteDockerNetwork403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork403JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork500JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork500JSONResponseBodySuccessFalse DeleteDockerNetwork500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork500JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerNetwork401JSONResponseBodySuccess.
 const (
 	GetDockerNetwork401JSONResponseBodySuccessFalse GetDockerNetwork401JSONResponseBodySuccess = false
@@ -3920,6 +4103,57 @@ type GetDockerNetworks403JSONResponseBodySuccess bool
 
 // GetDockerNetworks500JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks500JSONResponseBodySuccess bool
+
+// PostDockerNetworkJSONBody defines parameters for PostDockerNetwork.
+type PostDockerNetworkJSONBody struct {
+	Attachable *bool                           `json:"attachable,omitempty"`
+	Driver     PostDockerNetworkJSONBodyDriver `json:"driver"`
+	Internal   *bool                           `json:"internal,omitempty"`
+	Ipam       *struct {
+		Gateway *string `json:"gateway,omitempty"`
+		Subnet  *string `json:"subnet,omitempty"`
+	} `json:"ipam,omitempty"`
+	Labels *map[string]string `json:"labels,omitempty"`
+	Name   string             `json:"name"`
+}
+
+// PostDockerNetworkJSONBodyDriver defines parameters for PostDockerNetwork.
+type PostDockerNetworkJSONBodyDriver string
+
+// PostDockerNetwork200JSONResponseBodyDataAction defines parameters for PostDockerNetwork.
+type PostDockerNetwork200JSONResponseBodyDataAction string
+
+// PostDockerNetwork200JSONResponseBodyDataResult defines parameters for PostDockerNetwork.
+type PostDockerNetwork200JSONResponseBodyDataResult string
+
+// PostDockerNetwork401JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork401JSONResponseBodySuccess bool
+
+// PostDockerNetwork403JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork403JSONResponseBodySuccess bool
+
+// PostDockerNetwork500JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork500JSONResponseBodySuccess bool
+
+// DeleteDockerNetworkJSONBody defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetworkJSONBody struct {
+	ConfirmNetworkName string `json:"confirm_network_name"`
+}
+
+// DeleteDockerNetwork200JSONResponseBodyDataAction defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork200JSONResponseBodyDataAction string
+
+// DeleteDockerNetwork200JSONResponseBodyDataResult defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork200JSONResponseBodyDataResult string
+
+// DeleteDockerNetwork401JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork401JSONResponseBodySuccess bool
+
+// DeleteDockerNetwork403JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork403JSONResponseBodySuccess bool
+
+// DeleteDockerNetwork500JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork500JSONResponseBodySuccess bool
 
 // GetDockerNetwork401JSONResponseBodySuccess defines parameters for GetDockerNetwork.
 type GetDockerNetwork401JSONResponseBodySuccess bool

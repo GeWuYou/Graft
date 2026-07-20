@@ -11,6 +11,13 @@ ops.container.error.containerMountNotFound: Container mount not found
 ops.container.error.invalidContainerRef: Invalid container reference
 ops.container.error.invalidListQuery: Invalid container list query parameter
 ops.container.error.invalidBatchAction: Invalid container batch action request
+ops.docker.network.error.invalidRequest: Invalid Docker network request
+ops.docker.network.error.notFound: Docker network not found
+ops.docker.network.error.confirmationMismatch: Docker network name confirmation does not match
+ops.docker.network.error.defaultProtected: Docker default networks cannot be removed
+ops.docker.network.error.inUse: Docker network has attached containers and cannot be removed
+ops.docker.network.action.create.completed: Docker network created
+ops.docker.network.action.remove.completed: Docker network removed
 ops.container.error.invalidState: The container state does not allow this action
 ops.container.error.eventsUnavailable: Container runtime events are currently unavailable
 ops.container.error.logsTooLarge: Requested log tail exceeds the configured limit

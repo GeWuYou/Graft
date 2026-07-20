@@ -12022,6 +12022,55 @@
             "$ref": "#/components/responses/internal-server-error"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Create Docker network",
+        "operationId": "postDockerNetwork",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-network-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker network created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-network-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Docker network configuration."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Docker network name already exists."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
       }
     },
     "/api/ops/docker/networks/{id}": {
@@ -12033,7 +12082,7 @@
         "operationId": "getDockerNetwork",
         "parameters": [
           {
-            "$ref": "#/components/parameters/container-id-path"
+            "$ref": "#/components/parameters/docker-network-id-path"
           }
         ],
         "security": [
@@ -12047,7 +12096,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-docker-network"
+                  "$ref": "#/components/schemas/enveloped-docker-network-detail"
                 }
               }
             }
@@ -12060,6 +12109,63 @@
           },
           "404": {
             "description": "Network not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Remove Docker network",
+        "operationId": "deleteDockerNetwork",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/docker-network-id-path"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/docker-network-remove-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Docker network removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-docker-network-action-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The network confirmation does not match."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Network not found"
+          },
+          "409": {
+            "description": "Default and in-use Docker networks cannot be removed."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -26607,7 +26713,93 @@
           }
         ]
       },
-      "enveloped-docker-network": {
+      "docker-network-ipam-config": {
+        "type": "object",
+        "properties": {
+          "subnet": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          }
+        }
+      },
+      "docker-network-create-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "driver"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "driver": {
+            "type": "string",
+            "enum": [
+              "bridge",
+              "overlay",
+              "macvlan",
+              "ipvlan",
+              "none"
+            ]
+          },
+          "internal": {
+            "type": "boolean",
+            "default": false
+          },
+          "attachable": {
+            "type": "boolean",
+            "default": false
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "ipam": {
+            "$ref": "#/components/schemas/docker-network-ipam-config"
+          }
+        }
+      },
+      "docker-network-action-response": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "action",
+          "result",
+          "message_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "remove"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "completed"
+            ]
+          },
+          "message_key": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-docker-network-action-response": {
         "allOf": [
           {
             "$ref": "#/components/schemas/api-envelope"
@@ -26619,7 +26811,7 @@
             ],
             "properties": {
               "data": {
-                "$ref": "#/components/schemas/docker-network"
+                "$ref": "#/components/schemas/docker-network-action-response"
               }
             }
           }
@@ -32157,6 +32349,24 @@
             "example": 0
           }
         }
+      },
+      "enveloped-docker-network": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/docker-network"
+              }
+            }
+          }
+        ]
       },
       "application-workspace-manifest-file": {
         "type": "object",

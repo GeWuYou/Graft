@@ -7657,9 +7657,80 @@ type DockerNetwork struct {
 	Scope          string             `json:"scope"`
 }
 
+// DockerNetworkActionResponse defines model for docker-network-action-response.
+type DockerNetworkActionResponse struct {
+	Action     DockerNetworkActionResponseAction `json:"action"`
+	Id         string                            `json:"id"`
+	MessageKey string                            `json:"message_key"`
+	Name       string                            `json:"name"`
+	Result     DockerNetworkActionResponseResult `json:"result"`
+}
+
+// DockerNetworkActionResponseAction defines model for DockerNetworkActionResponse.Action.
+type DockerNetworkActionResponseAction string
+
+// DockerNetworkActionResponseResult defines model for DockerNetworkActionResponse.Result.
+type DockerNetworkActionResponseResult string
+
+// DockerNetworkContainerEndpoint defines model for docker-network-container-endpoint.
+type DockerNetworkContainerEndpoint struct {
+	EndpointId  *string `json:"endpoint_id,omitempty"`
+	Id          string  `json:"id"`
+	Ipv4Address *string `json:"ipv4_address,omitempty"`
+	Ipv6Address *string `json:"ipv6_address,omitempty"`
+	MacAddress  *string `json:"mac_address,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// DockerNetworkCreateRequest defines model for docker-network-create-request.
+type DockerNetworkCreateRequest struct {
+	Attachable *bool                            `json:"attachable,omitempty"`
+	Driver     DockerNetworkCreateRequestDriver `json:"driver"`
+	Internal   *bool                            `json:"internal,omitempty"`
+	Ipam       *DockerNetworkIpamConfig         `json:"ipam,omitempty"`
+	Labels     *map[string]string               `json:"labels,omitempty"`
+	Name       string                           `json:"name"`
+}
+
+// DockerNetworkCreateRequestDriver defines model for DockerNetworkCreateRequest.Driver.
+type DockerNetworkCreateRequestDriver string
+
+// DockerNetworkDetail defines model for docker-network-detail.
+type DockerNetworkDetail struct {
+	Attachable     bool                              `json:"attachable"`
+	ContainerCount int                               `json:"container_count"`
+	Containers     *[]DockerNetworkContainerEndpoint `json:"containers,omitempty"`
+	CreatedAt      string                            `json:"created_at"`
+	Driver         string                            `json:"driver"`
+	Id             string                            `json:"id"`
+	Ingress        bool                              `json:"ingress"`
+	Internal       bool                              `json:"internal"`
+	Ipam           *DockerNetworkIpam                `json:"ipam,omitempty"`
+	Labels         *map[string]string                `json:"labels,omitempty"`
+	Name           string                            `json:"name"`
+	Scope          string                            `json:"scope"`
+}
+
+// DockerNetworkIpam defines model for docker-network-ipam.
+type DockerNetworkIpam struct {
+	Config *[]DockerNetworkIpamConfig `json:"config,omitempty"`
+	Driver *string                    `json:"driver,omitempty"`
+}
+
+// DockerNetworkIpamConfig defines model for docker-network-ipam-config.
+type DockerNetworkIpamConfig struct {
+	Gateway *string `json:"gateway,omitempty"`
+	Subnet  *string `json:"subnet,omitempty"`
+}
+
 // DockerNetworkListResponse defines model for docker-network-list-response.
 type DockerNetworkListResponse struct {
 	Items []DockerNetwork `json:"items"`
+}
+
+// DockerNetworkRemoveRequest defines model for docker-network-remove-request.
+type DockerNetworkRemoveRequest struct {
+	ConfirmNetworkName string `json:"confirm_network_name"`
 }
 
 // DockerVolume defines model for docker-volume.
@@ -9011,11 +9082,31 @@ type EnvelopedDockerImageListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedDockerNetwork defines model for enveloped-docker-network.
-type EnvelopedDockerNetwork struct {
+// EnvelopedDockerNetworkActionResponse defines model for enveloped-docker-network-action-response.
+type EnvelopedDockerNetworkActionResponse struct {
 	// Code Existing canonical response code.
-	Code string        `json:"code"`
-	Data DockerNetwork `json:"data"`
+	Code string                      `json:"code"`
+	Data DockerNetworkActionResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedDockerNetworkDetail defines model for enveloped-docker-network-detail.
+type EnvelopedDockerNetworkDetail struct {
+	// Code Existing canonical response code.
+	Code string              `json:"code"`
+	Data DockerNetworkDetail `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`

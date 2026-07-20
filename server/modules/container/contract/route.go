@@ -31,7 +31,7 @@ const (
 	ContainerRemoveRoute = "/:id/remove"
 	// ContainerBatchActionsRoute 是容器批量动作的路由片段。
 	ContainerBatchActionsRoute = "/batch-actions"
-	// DockerAPIGroup 是只读 Docker 原生资源 API 的根路由组。
+	// DockerAPIGroup 是 Docker 原生资源 API 的根路由组。
 	DockerAPIGroup = "/ops/docker"
 	// DockerImagesRoute 是 Docker 镜像集合路由片段。
 	DockerImagesRoute = "/images"

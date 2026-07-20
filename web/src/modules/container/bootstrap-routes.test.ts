@@ -25,6 +25,14 @@ describe('container bootstrap route registrations', () => {
     );
   });
 
+  it('registers Docker network management as a visible bootstrap route', () => {
+    expect(containerBootstrapRouteRegistrations[1]).toMatchObject({
+      menuPath: '/infrastructure/docker/networks',
+      routeName: 'DockerNetworkList',
+      meta: { pageKind: 'list', tabGroup: 'infrastructure' },
+    });
+  });
+
   it('keeps menu title ownership with the bootstrap menu while deriving tab and breadcrumb titles locally', () => {
     const containerRoute = containerBootstrapRouteRegistrations.find((route) => route.routeName === 'ContainerList');
     const imageRoute = containerBootstrapRouteRegistrations.find((route) => route.routeName === 'DockerImageList');

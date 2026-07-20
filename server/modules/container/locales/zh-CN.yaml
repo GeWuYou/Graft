@@ -11,6 +11,13 @@ ops.container.error.containerMountNotFound: 容器挂载不存在
 ops.container.error.invalidContainerRef: 容器标识不合法
 ops.container.error.invalidListQuery: 容器列表查询参数不合法
 ops.container.error.invalidBatchAction: 批量容器操作请求不合法
+ops.docker.network.error.invalidRequest: Docker 网络请求不合法
+ops.docker.network.error.notFound: Docker 网络不存在
+ops.docker.network.error.confirmationMismatch: Docker 网络名称确认不匹配
+ops.docker.network.error.defaultProtected: Docker 默认网络不能删除
+ops.docker.network.error.inUse: Docker 网络仍有连接容器，不能删除
+ops.docker.network.action.create.completed: Docker 网络已创建
+ops.docker.network.action.remove.completed: Docker 网络已删除
 ops.container.error.invalidState: 容器当前状态不允许执行该操作
 ops.container.error.eventsUnavailable: 当前暂无法读取容器运行时事件
 ops.container.error.logsTooLarge: 日志读取数量超过限制

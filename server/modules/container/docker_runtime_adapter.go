@@ -90,6 +90,15 @@ func (d dockerClientAdapter) NetworkInspect(ctx context.Context, networkID strin
 	return result.Network, nil
 }
 
+func (d dockerClientAdapter) NetworkCreate(ctx context.Context, name string, options mobyclient.NetworkCreateOptions) (mobyclient.NetworkCreateResult, error) {
+	return d.Client.NetworkCreate(ctx, name, options)
+}
+
+func (d dockerClientAdapter) NetworkRemove(ctx context.Context, networkID string) error {
+	_, err := d.Client.NetworkRemove(ctx, networkID, mobyclient.NetworkRemoveOptions{})
+	return err
+}
+
 func (d dockerClientAdapter) VolumeList(ctx context.Context, options mobyclient.VolumeListOptions) ([]volume.Volume, error) {
 	result, err := d.Client.VolumeList(ctx, options)
 	if err != nil {

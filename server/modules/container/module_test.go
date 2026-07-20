@@ -379,6 +379,7 @@ func assertModuleMessages(t *testing.T, localizer *i18n.Service) {
 		containercontract.ContainerShellDisabled.String(),
 		containercontract.ContainerShellInvalidSize.String(),
 		containercontract.ContainerDangerousActionsDisabled.String(),
+		containercontract.DockerNetworkConfirmationMismatch.String(),
 		containercontract.ContainerAuditShellSessionStarted.String(),
 		containercontract.ContainerActionRemoveCompleted.String(),
 		containercontract.ContainerBatchActionPartial.String(),

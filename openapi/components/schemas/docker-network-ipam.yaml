@@ -1,0 +1,6 @@
+type: object
+properties:
+  driver: { type: string }
+  config:
+    type: array
+    items: { $ref: ./docker-network-ipam-config.yaml }

@@ -8,3 +8,20 @@ get:
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }
+post:
+  tags: [container]
+  summary: Create Docker network
+  operationId: postDockerNetwork
+  security: [{ bearerAuth: [] }]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/docker-network-create-request.yaml }
+  responses:
+    '200': { description: Docker network created., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-network-action-response.yaml } } } }
+    '400': { description: Invalid Docker network configuration. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Docker network name already exists. }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
