@@ -48,6 +48,9 @@ Fail-closed rule for this skill:
    - locate the PR for the current branch through the GitHub PR API
    - fetch PR metadata, issue comments, reviews, and review comments through the GitHub API
    - extract CodeRabbit summary blocks and actionable-comment rollups when present
+   - extract every CodeRabbit pre-merge summary check row, including `Failed`, `Warning`, `Inconclusive`, and
+     `Passed` status rows; warning and inconclusive rows are review signals that must be verified and dispositioned,
+     not silently omitted because the UI says addressing warnings is optional
    - parse the latest CodeRabbit grouped review body across the PR, even when the newest head-commit CodeRabbit review is
      an empty approval or prompt-only follow-up; folded sections such as `Duplicate comments (N)`, `Major comments (N)`,
      `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)` must still be inventoried
@@ -71,6 +74,9 @@ Fail-closed rule for this skill:
    - include GitHub Advanced Security suggestions from review threads and the helper's `github_advanced_security`
      section
    - include actionable warning comments from GitHub Actions or MegaLinter when present
+   - include CodeRabbit summary check signals such as docstring-coverage warnings, title-check inconclusive rows,
+     and other resolution text shown in the pre-merge checks block; preserve the check name, status, explanation,
+     resolution, and source commit
    - do not stop after “high priority”, “open threads”, or one section looks sufficient; the run is incomplete until all
      surfaced findings from the latest PR state are classified
    - do not begin fixing “obvious” findings before this inventory exists
@@ -79,6 +85,9 @@ Fail-closed rule for this skill:
    - prefer the script's `local_repro_command`
    - if the command is empty, use the linked failed step and workflow job name to reproduce the smallest matching validation locally
    - do not treat a failed check as understood merely because the GitHub UI shows a red status
+   - apply the same verification to CodeRabbit `Warning` and `Inconclusive` summary rows; determine whether each
+     row is actionable, stale, noise, or blocked by missing policy/context before deciding whether to change code,
+     metadata, or the PR title
 8. Classify each verified finding before deciding the next action:
    - `actionable-local`
      - the finding still applies and fits one safe local slice
@@ -216,6 +225,8 @@ The script should produce:
 - GitHub Advanced Security status, including `github-advanced-security[bot]` review threads, code-scanning or CodeQL
   check-runs, failed annotations, and a focused `github_advanced_security` JSON section
 - Pre-merge failed checks, if present
+- Complete CodeRabbit pre-merge check inventory, including warning and inconclusive rows with their explanations and
+  resolutions; each row must receive a final disposition or an explicit execution blocker
 - Latest MegaLinter status and any detailed issues posted by `github-actions[bot]`
 - Test summary, including failed-test signals when present
 - Detailed failed-test rows from GitHub Test Reporter or CTRF comments when available
@@ -239,6 +250,9 @@ The script should produce:
 - If the current branch has no matching public PR, report that clearly instead of guessing.
 - If GitHub access fails because of local proxy configuration, rerun the fetch with proxy variables removed.
 - If live check-runs are visible but job logs return `403`, keep the failed step, annotations, and repro command as the root-cause surface; warn, but do not treat the whole failed-check extraction as broken.
+- Treat CodeRabbit pre-merge `Warning` and `Inconclusive` rows as mandatory inventory. Verify docstring coverage,
+  title checks, and similar summary signals against repository policy and the current head; do not dismiss them only
+  because CodeRabbit labels warnings optional or because no inline review thread exists.
 - Prefer GitHub API results over PR HTML. The PR HTML page is a fallback/debugging source, not the primary source of truth.
 - If the summary block and the latest head review threads disagree, trust the latest unresolved head-review threads and treat older summary findings as stale until re-verified locally.
 - If the latest review body contains folded sections, those sections are still in scope even when `open_threads` looks short;
