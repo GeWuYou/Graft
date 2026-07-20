@@ -26,25 +26,25 @@ func TestPermissionSeedsFromItemsResolvesDockerImagePermissionLocales(t *testing
 
 	items := []permission.Item{
 		{
-			Code:           "ops.container.image.pull",
+			Code:           "container.image.pull",
 			DisplayKey:     "rbac.permissionCatalog.dockerImagePull.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImagePull.description",
 			Module:         "container",
 		},
 		{
-			Code:           "ops.container.image.tag",
+			Code:           "container.image.tag",
 			DisplayKey:     "rbac.permissionCatalog.dockerImageTag.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageTag.description",
 			Module:         "container",
 		},
 		{
-			Code:           "ops.container.image.untag",
+			Code:           "container.image.untag",
 			DisplayKey:     "rbac.permissionCatalog.dockerImageUntag.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageUntag.description",
 			Module:         "container",
 		},
 		{
-			Code:           "ops.container.image.remove",
+			Code:           "container.image.remove",
 			DisplayKey:     "rbac.permissionCatalog.dockerImageRemove.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageRemove.description",
 			Module:         "container",

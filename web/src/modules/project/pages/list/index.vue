@@ -24,7 +24,6 @@
           { label: t('project.list.projectCount', { count: '' }).trim(), value: summaryTotalCount },
           ...headerStatusSummaryItems.map((item) => ({
             label: runtimeStatusLabel(item.key),
-            marker: item.icon,
             value: item.count,
           })),
         ]"
@@ -761,15 +760,7 @@ const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() 
   return counts;
 });
 const headerStatusSummaryItems = computed(() =>
-  (
-    [
-      { key: 'running', icon: '🟢', tooltip: t('project.list.statusTooltip.runtimeRunning') },
-      { key: 'degraded', icon: '🟡', tooltip: t('project.list.statusTooltip.runtimeDegraded') },
-      { key: 'stopped', icon: '⚫', tooltip: t('project.list.statusTooltip.runtimeStopped') },
-      { key: 'transitioning', icon: '🟠', tooltip: t('project.list.statusTooltip.runtimeTransitioning') },
-      { key: 'unknown', icon: '⚪', tooltip: t('project.list.statusTooltip.runtimeUnknown') },
-    ] as const
-  )
+  ([{ key: 'running' }, { key: 'degraded' }, { key: 'stopped' }, { key: 'transitioning' }, { key: 'unknown' }] as const)
     .filter((item) => projectStatusCounts.value[item.key] > 0)
     .map((item) => ({
       ...item,
@@ -1185,7 +1176,13 @@ function observePendingTask(rowId: string, taskId: number) {
   const observer = observeTask(taskId, {
     onError: (error) => logger.warn('task status observation failed', { error, rowId, taskId }),
     onTask: (task) => {
-      if (isTerminalTaskStatus(task.status)) clearPendingRowAction(rowId);
+      if (!isTerminalTaskStatus(task.status)) return;
+      if (task.status === 'success') {
+        awaitPendingRowRuntimeChange(rowId);
+        void fetchApplications();
+        return;
+      }
+      clearPendingRowAction(rowId);
     },
   });
   pendingTaskObservers.set(rowId, observer);
@@ -1200,6 +1197,25 @@ function markPendingRowActionTask(rowId: string, taskId: number) {
     [rowId]: { ...pending, awaitingVisibleChange: false, deadlineAt: null, taskId },
   };
   observePendingTask(rowId, taskId);
+}
+
+// 任务完成与运行快照更新是两个独立事件；成功后等待列表确认，避免先显示操作前状态。
+function awaitPendingRowRuntimeChange(rowId: string) {
+  const pending = pendingRowActions.value[rowId];
+  if (!pending) return;
+  pendingTaskObservers.get(rowId)?.stop();
+  pendingTaskObservers.delete(rowId);
+  const deadlineAt = Date.now() + 15_000;
+  pendingRowActions.value = {
+    ...pendingRowActions.value,
+    [rowId]: {
+      ...pendingRowActions.value[rowId],
+      awaitingVisibleChange: true,
+      deadlineAt,
+      taskId: undefined,
+    },
+  };
+  schedulePendingRowActionTimeout(rowId, deadlineAt);
 }
 
 function markPendingRowActionsAwaitingChange(rowIds: string[]) {

@@ -122,11 +122,17 @@ describe('MenuContent', () => {
     const wrapper = mount(MenuContent, {
       props: {
         navData: [
-          { path: '/applications', meta: { icon: 'application', title: { 'en-US': 'Applications', 'zh-CN': '应用' } } },
+          {
+            path: '/applications',
+            meta: {
+              icon: 'application-portfolio',
+              title: { 'en-US': 'Applications', 'zh-CN': '应用' },
+            },
+          },
           { path: '/targets', meta: { icon: 'runtime-target', title: { 'en-US': 'Targets', 'zh-CN': '目标' } } },
           {
             path: '/infrastructure/docker/containers',
-            meta: { icon: 'docker', title: { 'en-US': 'Docker', 'zh-CN': 'Docker' } },
+            meta: { icon: 'docker-provider', title: { 'en-US': 'Docker', 'zh-CN': 'Docker' } },
           },
         ],
       },

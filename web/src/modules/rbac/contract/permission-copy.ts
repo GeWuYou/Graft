@@ -1,4 +1,5 @@
 import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
+import { SECURITY_PERMISSION_CODE } from '@/contracts/generated/modules/security';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { MONITOR_PERMISSION_CODE } from '@/modules/monitor/contract/permissions';
 import { USER_PERMISSION_CODE } from '@/modules/user/contract/permissions';
@@ -83,6 +84,10 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
     displayKey: 'rbac.permissionCatalog.auditManage.display',
     descriptionKey: 'rbac.permissionCatalog.auditManage.description',
   },
+  [SECURITY_PERMISSION_CODE.OVERVIEW_READ]: {
+    displayKey: 'rbac.permissionCatalog.securityOverviewRead.display',
+    descriptionKey: 'rbac.permissionCatalog.securityOverviewRead.description',
+  },
   [CONTAINER_PERMISSION_CODE.EVENTS]: {
     displayKey: 'rbac.permissionCatalog.containerEvents.display',
     descriptionKey: 'rbac.permissionCatalog.containerEvents.description',
@@ -91,40 +96,48 @@ export const PERMISSION_COPY_BY_CODE: Record<string, PermissionCopyEntry> = {
     displayKey: 'rbac.permissionCatalog.containerEnvironment.display',
     descriptionKey: 'rbac.permissionCatalog.containerEnvironment.description',
   },
-  ['ops.application.view']: {
+  ['application.view']: {
     displayKey: 'rbac.permissionCatalog.applicationView.display',
     descriptionKey: 'rbac.permissionCatalog.applicationView.description',
   },
-  ['ops.application.import']: {
+  ['application.import']: {
     displayKey: 'rbac.permissionCatalog.applicationImport.display',
     descriptionKey: 'rbac.permissionCatalog.applicationImport.description',
   },
-  ['ops.application.refresh']: {
+  ['application.refresh']: {
     displayKey: 'rbac.permissionCatalog.applicationRefresh.display',
     descriptionKey: 'rbac.permissionCatalog.applicationRefresh.description',
   },
-  ['ops.application.lifecycle']: {
+  ['application.lifecycle']: {
     displayKey: 'rbac.permissionCatalog.applicationLifecycle.display',
     descriptionKey: 'rbac.permissionCatalog.applicationLifecycle.description',
   },
-  ['ops.application.destroy']: {
+  ['application.destroy']: {
     displayKey: 'rbac.permissionCatalog.applicationDestroy.display',
     descriptionKey: 'rbac.permissionCatalog.applicationDestroy.description',
   },
-  ['ops.application.create']: {
+  ['application.create']: {
     displayKey: 'rbac.permissionCatalog.applicationCreate.display',
     descriptionKey: 'rbac.permissionCatalog.applicationCreate.description',
   },
-  ['ops.application.creation-method.view']: {
+  ['application.creation-method.view']: {
     displayKey: 'rbac.permissionCatalog.applicationCreationMethodView.display',
     descriptionKey: 'rbac.permissionCatalog.applicationCreationMethodView.description',
   },
-  ['ops.application.discovery.view']: {
+  ['application.discovery.view']: {
     displayKey: 'rbac.permissionCatalog.applicationDiscoveryView.display',
     descriptionKey: 'rbac.permissionCatalog.applicationDiscoveryView.description',
   },
-  ['ops.application.deploy']: {
+  ['application.deploy']: {
     displayKey: 'rbac.permissionCatalog.applicationDeploy.display',
     descriptionKey: 'rbac.permissionCatalog.applicationDeploy.description',
+  },
+  ['application.template.manage']: {
+    displayKey: 'rbac.permissionCatalog.applicationTemplateManage.display',
+    descriptionKey: 'rbac.permissionCatalog.applicationTemplateManage.description',
+  },
+  ['application.template.publish']: {
+    displayKey: 'rbac.permissionCatalog.applicationTemplatePublish.display',
+    descriptionKey: 'rbac.permissionCatalog.applicationTemplatePublish.description',
   },
 };

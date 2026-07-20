@@ -415,11 +415,11 @@ function resetFilters() {
 }
 
 function localizedPermissionDisplay(permission: PermissionListItem) {
-  return localizePermissionDisplay(t, permission);
+  return localizePermissionDisplay(t, permission, locale.value);
 }
 
 function localizedPermissionDescription(permission: PermissionListItem) {
-  return localizePermissionDescription(t, permission, 'rbac.permissionList.emptyDescription');
+  return localizePermissionDescription(t, permission, 'rbac.permissionList.emptyDescription', locale.value);
 }
 
 async function loadPermissionDetail(permissionId: number) {

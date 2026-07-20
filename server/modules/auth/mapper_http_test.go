@@ -15,7 +15,7 @@ func TestToBootstrapResponsePreservesMenuSectionMetadata(t *testing.T) {
 			Title:           "Docker",
 			SectionKey:      "runtime",
 			SectionTitleKey: "menu.section.runtime",
-			Icon:            "docker",
+			Icon:            "docker-provider",
 		}},
 	})
 	if err != nil {

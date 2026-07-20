@@ -15,7 +15,7 @@ const graph = [
     order: 60,
     title_key: 'menu.domain.security',
     title: 'Security',
-    icon: 'secured',
+    icon: 'security-domain',
     permission: '',
   },
   {
@@ -26,7 +26,7 @@ const graph = [
     title_key: 'menu.user_list.title',
     title: 'Users',
     path: '/security/users',
-    icon: 'usergroup',
+    icon: 'user-identity',
     permission: 'user.read',
   },
   {
@@ -37,7 +37,7 @@ const graph = [
     title_key: 'menu.role_list.title',
     title: 'Roles',
     path: '/security/roles',
-    icon: 'secured',
+    icon: 'access-policy',
     permission: 'role.read',
   },
   {
@@ -46,7 +46,7 @@ const graph = [
     order: 30,
     title_key: 'menu.domain.build',
     title: 'Build',
-    icon: 'tools',
+    icon: 'build-domain',
     permission: '',
   },
 ] as const;
@@ -59,7 +59,7 @@ describe('bootstrap navigation graph', () => {
         kind: 'group',
         order: 20,
         title: 'Infrastructure',
-        icon: 'infrastructure',
+        icon: 'infrastructure-domain',
         permission: '',
       },
       {
@@ -71,7 +71,7 @@ describe('bootstrap navigation graph', () => {
         title_key: 'menu.docker.title',
         section_key: 'runtime',
         section_title_key: 'menu.section.runtime',
-        icon: 'docker',
+        icon: 'docker-provider',
         permission: '',
       },
       {
@@ -82,7 +82,7 @@ describe('bootstrap navigation graph', () => {
         title: 'Containers',
         title_key: 'menu.container.title',
         path: '/infrastructure/docker/containers',
-        icon: 'container',
+        icon: 'container-workload',
         permission: 'container.view',
       },
       {
@@ -93,7 +93,7 @@ describe('bootstrap navigation graph', () => {
         title: 'Images',
         title_key: 'menu.docker.image.title',
         path: '/infrastructure/images',
-        icon: 'image',
+        icon: 'image-artifact',
         permission: 'container.view',
       },
     ]);
@@ -109,7 +109,7 @@ describe('bootstrap navigation graph', () => {
         kind: 'group',
         order: 20,
         title: 'Infrastructure',
-        icon: 'infrastructure',
+        icon: 'infrastructure-domain',
         permission: '',
       },
       {
@@ -118,7 +118,7 @@ describe('bootstrap navigation graph', () => {
         kind: 'group',
         order: 50,
         title: 'Docker',
-        icon: 'docker',
+        icon: 'docker-provider',
         permission: '',
       },
       {
@@ -128,7 +128,7 @@ describe('bootstrap navigation graph', () => {
         order: 51,
         title: 'Containers',
         path: '/infrastructure/docker/containers',
-        icon: 'container',
+        icon: 'container-workload',
         permission: 'container.view',
       },
       {
@@ -139,7 +139,7 @@ describe('bootstrap navigation graph', () => {
         title: 'Images',
         title_key: 'menu.docker.image.title',
         path: '/infrastructure/images',
-        icon: 'image',
+        icon: 'image-artifact',
         permission: 'container.view',
       },
     ]);
@@ -176,7 +176,7 @@ describe('bootstrap navigation graph', () => {
         kind: 'group' as const,
         order: 10,
         title: 'Application',
-        icon: 'application',
+        icon: 'application-domain',
         permission: '',
       },
       {
@@ -186,8 +186,8 @@ describe('bootstrap navigation graph', () => {
         order: 53,
         title: 'Templates',
         path: '/applications/templates',
-        icon: 'application',
-        permission: 'ops.application.template.manage',
+        icon: 'application-template',
+        permission: 'application.template.manage',
       },
     ];
 
@@ -206,7 +206,7 @@ describe('bootstrap navigation graph', () => {
         kind: 'group' as const,
         order: 20,
         title: 'Infrastructure',
-        icon: 'infrastructure',
+        icon: 'infrastructure-domain',
         permission: '',
       },
       {
@@ -215,7 +215,7 @@ describe('bootstrap navigation graph', () => {
         kind: 'group' as const,
         order: 50,
         title: 'Docker',
-        icon: 'docker',
+        icon: 'docker-provider',
         permission: '',
       },
       {
@@ -226,8 +226,8 @@ describe('bootstrap navigation graph', () => {
         title: 'Volumes',
         title_key: 'menu.dockerVolume.title',
         path: '/infrastructure/docker/volumes',
-        icon: 'database',
-        permission: 'ops.container.view',
+        icon: 'persistent-volume',
+        permission: 'container.view',
       },
     ];
 
@@ -260,7 +260,7 @@ describe('bootstrap navigation graph', () => {
       expect(route?.meta).toMatchObject({
         title: { 'en-US': 'Users' },
         titleKey: 'menu.user_list.title',
-        icon: 'usergroup',
+        icon: 'user-identity',
         orderNo: 1,
       });
     } finally {

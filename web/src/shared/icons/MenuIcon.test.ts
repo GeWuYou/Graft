@@ -6,7 +6,7 @@ import MenuIcon from './MenuIcon.vue';
 
 describe('MenuIcon', () => {
   it('renders static Iconify SVG data', async () => {
-    const wrapper = mount(MenuIcon, { props: { iconKey: 'docker' } });
+    const wrapper = mount(MenuIcon, { props: { iconKey: 'docker-provider' } });
 
     await nextTick();
 

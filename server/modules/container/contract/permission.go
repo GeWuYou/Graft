@@ -13,33 +13,33 @@ func (c PermissionCode) String() string {
 
 const (
 	// ContainerViewPermission 表示容器列表访问权限，值保持稳定。
-	ContainerViewPermission PermissionCode = "ops.container.view"
+	ContainerViewPermission PermissionCode = "container.view"
 	// ContainerDetailPermission 表示容器详情访问权限，值保持稳定。
-	ContainerDetailPermission PermissionCode = "ops.container.detail"
+	ContainerDetailPermission PermissionCode = "container.detail"
 	// ContainerEventsPermission 表示容器运行时事件访问权限，值保持稳定。
-	ContainerEventsPermission PermissionCode = "ops.container.events"
+	ContainerEventsPermission PermissionCode = "container.events"
 	// ContainerEnvironmentPermission 表示容器环境变量值访问权限，值保持稳定。
-	ContainerEnvironmentPermission PermissionCode = "ops.container.environment"
+	ContainerEnvironmentPermission PermissionCode = "container.environment"
 	// ContainerLogsPermission 表示容器日志访问权限，值保持稳定。
-	ContainerLogsPermission PermissionCode = "ops.container.logs"
+	ContainerLogsPermission PermissionCode = "container.logs"
 	// ContainerShellPermission 表示交互式 Shell 会话访问权限，值保持稳定。
-	ContainerShellPermission PermissionCode = "ops.container.shell"
+	ContainerShellPermission PermissionCode = "container.shell"
 	// ContainerStartPermission 表示容器启动权限，值保持稳定。
-	ContainerStartPermission PermissionCode = "ops.container.start"
+	ContainerStartPermission PermissionCode = "container.start"
 	// ContainerStopPermission 表示容器停止权限，值保持稳定。
-	ContainerStopPermission PermissionCode = "ops.container.stop"
+	ContainerStopPermission PermissionCode = "container.stop"
 	// ContainerRestartPermission 表示容器重启权限，值保持稳定。
-	ContainerRestartPermission PermissionCode = "ops.container.restart"
+	ContainerRestartPermission PermissionCode = "container.restart"
 	// ContainerRemovePermission 表示容器移除权限，值保持稳定。
-	ContainerRemovePermission PermissionCode = "ops.container.remove"
+	ContainerRemovePermission PermissionCode = "container.remove"
 	// DockerImagePullPermission 表示 Docker 镜像拉取权限，值保持稳定。
-	DockerImagePullPermission PermissionCode = "ops.container.image.pull"
+	DockerImagePullPermission PermissionCode = "container.image.pull"
 	// DockerImageTagPermission 表示 Docker 镜像标签管理权限，值保持稳定。
-	DockerImageTagPermission PermissionCode = "ops.container.image.tag"
+	DockerImageTagPermission PermissionCode = "container.image.tag"
 	// DockerImageUntagPermission 表示 Docker 镜像标签移除权限，值保持稳定。
-	DockerImageUntagPermission PermissionCode = "ops.container.image.untag"
+	DockerImageUntagPermission PermissionCode = "container.image.untag"
 	// DockerImageRemovePermission 表示 Docker 镜像删除权限，值保持稳定。
-	DockerImageRemovePermission PermissionCode = "ops.container.image.remove"
+	DockerImageRemovePermission PermissionCode = "container.image.remove"
 	// ContainerVolumeRemovePermission 表示 Docker 数据卷删除权限，值保持稳定。
-	ContainerVolumeRemovePermission PermissionCode = "ops.container.volume.remove"
+	ContainerVolumeRemovePermission PermissionCode = "container.volume.remove"
 )
