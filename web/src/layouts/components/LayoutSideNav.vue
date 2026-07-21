@@ -1,15 +1,17 @@
 <template>
   <responsive-sidebar v-if="settingStore.showSidebar">
-    <l-side-nav
-      :show-logo="settingStore.showSidebarLogo"
-      :layout="settingStore.layout"
-      :is-fixed="settingStore.isSidebarFixed"
-      :menu="sideMenu"
-      :theme="settingStore.displaySideMode"
-      :is-compact="widthCompact"
-      :render-compact="renderCompact"
-      :motion-phase="motionPhase"
-    />
+    <template #default="{ variant }">
+      <l-side-nav
+        :show-logo="settingStore.showSidebarLogo"
+        :layout="settingStore.layout"
+        :is-fixed="settingStore.isSidebarFixed"
+        :menu="sideMenu"
+        :theme="settingStore.displaySideMode"
+        :is-compact="widthCompact || variant.density === 'compact'"
+        :render-compact="variant.density === 'compact' || renderCompact"
+        :motion-phase="motionPhase"
+      />
+    </template>
   </responsive-sidebar>
 </template>
 <script setup lang="ts">

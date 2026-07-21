@@ -202,12 +202,22 @@ const componentStubs = {
       columns: { type: Array, default: () => [] },
       data: { type: Array, default: () => [] },
     },
-    setup(props, { slots }) {
+    emits: ['row-click'],
+    setup(props, { emit, slots }) {
       return () =>
-        h('table', { 'data-row-count': props.data.length, 'data-column-count': props.columns.length }, [
-          slots.title?.({ row: props.data[0] }),
-          slots.default?.(),
-        ]);
+        h(
+          'table',
+          {
+            'data-row-count': props.data.length,
+            'data-column-count': props.columns.length,
+            onClick: (event: MouseEvent) => {
+              if (props.data.length) {
+                emit('row-click', { row: props.data[0], index: 0, e: event });
+              }
+            },
+          },
+          [props.data.length ? slots.title?.({ row: props.data[0] }) : null, slots.default?.()],
+        );
     },
   }),
   't-tooltip': defineComponent({
@@ -287,6 +297,21 @@ describe('UserAnnouncementPage', () => {
 
     expect(api.markAnnouncementRead).toHaveBeenCalledWith(7);
     expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
+  });
+
+  it('opens the read panel from a table row', async () => {
+    const wrapper = mount(UserAnnouncementPage, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    await wrapper.get('table').trigger('click');
+
+    expect(wrapper.get('[data-testid="read-panel"]').attributes('data-title')).toBe('announcement.test.title');
   });
 
   it('toggles unread-only list query through page filters', async () => {

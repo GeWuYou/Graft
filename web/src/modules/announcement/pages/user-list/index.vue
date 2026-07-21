@@ -122,7 +122,14 @@
                 </t-list-item>
               </t-list>
             </template>
-            <t-table row-key="id" :data="presentedRows" :columns="columns" :loading="loading" table-layout="fixed">
+            <t-table
+              row-key="id"
+              :data="presentedRows"
+              :columns="columns"
+              :loading="loading"
+              table-layout="fixed"
+              @row-click="({ row }) => openReadPanel(row as AnnouncementViewModel)"
+            >
               <template #title="{ row }"
                 ><strong>{{ row.title }}</strong>
                 <div>{{ row.summary }}</div></template
@@ -142,7 +149,7 @@
                   variant="text"
                   size="small"
                   :loading="markingReadId === row.id"
-                  @click="markRead(row.id)"
+                  @click.stop="markRead(row.id)"
                 >
                   {{ t('announcement.user.markRead') }}
                 </t-button>
@@ -242,7 +249,7 @@ const listError = computed(() => {
 const presentedRows = computed<AnnouncementViewModel[]>(() =>
   (announcementListQuery.data.value?.items ?? []).map((item) => presentAnnouncement(item, t, locale.value)),
 );
-const columns = [
+const columns = computed(() => [
   { colKey: 'title', title: t('announcement.user.title'), width: 320 },
   { colKey: 'levelLabel', title: t('announcement.user.level'), width: 120 },
   { colKey: 'publishAtLabel', title: t('announcement.user.publishAt'), width: 180 },
@@ -250,7 +257,7 @@ const columns = [
   { colKey: 'readAtLabel', title: t('announcement.user.readAt'), width: 180 },
   { colKey: 'unreadLabel', title: t('announcement.user.unreadSummary'), width: 140 },
   { colKey: 'operation', title: t('announcement.user.markRead'), width: 140 },
-];
+]);
 const total = computed(() => announcementListQuery.data.value?.total ?? 0);
 const unreadCount = computed(() => unreadCountQuery.data.value?.count ?? 0);
 const canMarkAllRead = computed(() => unreadCount.value > 0 && !markingAllRead.value);

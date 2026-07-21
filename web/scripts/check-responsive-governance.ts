@@ -6,14 +6,6 @@ const ROOT_DIR = fileURLToPath(new URL('..', import.meta.url));
 const MANIFEST_PATH = join(ROOT_DIR, 'docs/responsive/manifest.json');
 const BUSINESS_DIRS = [join(ROOT_DIR, 'src/app'), join(ROOT_DIR, 'src/modules')];
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.vue']);
-const FORBIDDEN_PATTERNS = [
-  'window.innerWidth',
-  'document.body.clientWidth',
-  'screen.width',
-  'matchMedia',
-  'useMediaQuery',
-  'isMobile',
-];
 
 type ManifestProfile = { components: string[]; kind: string; path: string; status: string };
 type ManifestException = { cleanupPhase: string; path: string; reason: string; replacement: string };
@@ -26,7 +18,7 @@ type ManifestDebt = {
   replacement: string;
 };
 type ResponsiveManifest = {
-  defaults: { pageEntry: string; requiredWidths: number[] };
+  defaults: { forbiddenBusinessApis: string[]; pageEntry: string; requiredWidths: number[] };
   debt: ManifestDebt[];
   exceptions: ManifestException[];
   profiles: ManifestProfile[];
@@ -60,12 +52,12 @@ function validateManifest(manifest: ResponsiveManifest): string[] {
   return findings;
 }
 
-function validateBusinessSource(): string[] {
+function validateBusinessSource(forbiddenBusinessApis: string[]): string[] {
   const findings: string[] = [];
   for (const file of BUSINESS_DIRS.flatMap(walk)) {
     const source = readFileSync(file, 'utf8');
     const path = relative(ROOT_DIR, file).replaceAll('\\', '/');
-    for (const token of FORBIDDEN_PATTERNS)
+    for (const token of forbiddenBusinessApis)
       if (source.includes(token)) findings.push(`${path}: forbidden responsive device API ${token}`);
   }
   return findings;
@@ -73,10 +65,8 @@ function validateBusinessSource(): string[] {
 
 export function runResponsiveGovernanceAudit(): string[] {
   if (!existsSync(MANIFEST_PATH)) return ['missing docs/responsive/manifest.json'];
-  return [
-    ...validateManifest(JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as ResponsiveManifest),
-    ...validateBusinessSource(),
-  ];
+  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as ResponsiveManifest;
+  return [...validateManifest(manifest), ...validateBusinessSource(manifest.defaults.forbiddenBusinessApis)];
 }
 
 const findings = runResponsiveGovernanceAudit();

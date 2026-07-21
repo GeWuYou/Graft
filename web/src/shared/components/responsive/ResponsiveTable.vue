@@ -11,7 +11,7 @@
     >
       <slot name="cards" :variant="variant" />
     </div>
-    <div v-else class="responsive-table__scroll"><slot :variant="variant" /></div>
+    <div v-else class="responsive-table__scroll graft-scrollbar"><slot :variant="variant" /></div>
   </section>
 </template>
 <script setup lang="ts">

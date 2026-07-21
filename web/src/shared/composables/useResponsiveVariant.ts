@@ -1,4 +1,4 @@
-import { computed, type ComputedRef, type MaybeRefOrGetter } from 'vue';
+import { computed, type ComputedRef, type MaybeRefOrGetter, toValue } from 'vue';
 
 import { resolveResponsiveVariant, type ResponsiveVariant, type ResponsiveVariantOptions } from '@/shared/responsive';
 
@@ -9,9 +9,9 @@ import { useContainerSize } from './useContainerSize';
  */
 export function useResponsiveVariant(
   target: MaybeRefOrGetter<HTMLElement | null | undefined>,
-  options: ResponsiveVariantOptions = {},
+  options: MaybeRefOrGetter<ResponsiveVariantOptions> = {},
 ): ComputedRef<ResponsiveVariant> {
   const size = useContainerSize(target);
 
-  return computed(() => resolveResponsiveVariant(size.value.width, options));
+  return computed(() => resolveResponsiveVariant(size.value.width, toValue(options)));
 }

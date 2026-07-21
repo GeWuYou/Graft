@@ -2,7 +2,7 @@
   <form
     ref="container"
     :class="['responsive-form', `responsive-form--${variant.density}`]"
-    @submit="emit('submit', $event)"
+    @submit.prevent="emit('submit', $event)"
   >
     <div class="responsive-form__fields"><slot :variant="variant" /></div>
     <footer v-if="$slots.actions" class="responsive-form__actions"><slot name="actions" :variant="variant" /></footer>
