@@ -1,0 +1,21 @@
+type: object
+required: [read_bytes_per_second, write_bytes_per_second, read_iops, write_iops, read_average_latency_ms, write_average_latency_ms]
+properties:
+  read_bytes_per_second:
+    type: number
+    nullable: true
+  write_bytes_per_second:
+    type: number
+    nullable: true
+  read_iops:
+    type: number
+    nullable: true
+  write_iops:
+    type: number
+    nullable: true
+  read_average_latency_ms:
+    type: number
+    nullable: true
+  write_average_latency_ms:
+    type: number
+    nullable: true

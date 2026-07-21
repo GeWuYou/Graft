@@ -66,6 +66,101 @@ func TestBuildServerStatusResponseIncludesCurrentSliceFields(t *testing.T) {
 	assertCurrentSliceTrendSnapshot(t, response)
 	assertCurrentSliceSummary(t, response)
 	assertCurrentSliceModuleSummaries(t, response.Modules)
+	if response.HostObservability.Network.SentBytesPerSecond != nil && *response.HostObservability.Network.SentBytesPerSecond < 0 {
+		t.Fatalf("expected host observability rate to be non-negative, got %v", *response.HostObservability.Network.SentBytesPerSecond)
+	}
+}
+
+func TestHostObservationRatesUseCounterDeltas(t *testing.T) {
+	t.Parallel()
+
+	network := buildNetworkObservability(
+		networkCounters{bytesSent: 100, bytesRecv: 200, packetsSent: 10, packetsRecv: 20},
+		networkCounters{bytesSent: 160, bytesRecv: 260, packetsSent: 16, packetsRecv: 28},
+		2*time.Second,
+	)
+	if network.SentBytesPerSecond == nil || *network.SentBytesPerSecond != 30 {
+		t.Fatalf("expected sent byte rate 30, got %#v", network.SentBytesPerSecond)
+	}
+	if network.ReceivedPacketsPerSecond == nil || *network.ReceivedPacketsPerSecond != 4 {
+		t.Fatalf("expected received packet rate 4, got %#v", network.ReceivedPacketsPerSecond)
+	}
+
+	diskIO := buildDiskIOObservability(
+		diskIOCounters{readBytes: 100, writeBytes: 200, readCount: 10, writeCount: 20, readTimeMs: 30, writeTimeMs: 40},
+		diskIOCounters{readBytes: 300, writeBytes: 260, readCount: 20, writeCount: 24, readTimeMs: 80, writeTimeMs: 60},
+		2*time.Second,
+	)
+	if diskIO.ReadIops == nil || *diskIO.ReadIops != 5 {
+		t.Fatalf("expected read IOPS 5, got %#v", diskIO.ReadIops)
+	}
+	if diskIO.ReadAverageLatencyMs == nil || *diskIO.ReadAverageLatencyMs != 5 {
+		t.Fatalf("expected read average latency 5ms, got %#v", diskIO.ReadAverageLatencyMs)
+	}
+}
+
+func TestHostObservationRatesLeaveUnavailableCountersNil(t *testing.T) {
+	t.Parallel()
+
+	network := buildNetworkObservability(
+		networkCounters{bytesSent: 100},
+		networkCounters{bytesSent: 90},
+		time.Second,
+	)
+	if network.SentBytesPerSecond != nil {
+		t.Fatalf("expected counter reset to be unavailable, got %v", *network.SentBytesPerSecond)
+	}
+
+	diskIO := buildDiskIOObservability(
+		diskIOCounters{readCount: 4, readTimeMs: 10},
+		diskIOCounters{readCount: 4, readTimeMs: 10},
+		time.Second,
+	)
+	if diskIO.ReadAverageLatencyMs != nil {
+		t.Fatalf("expected no completed I/O to leave latency unavailable, got %v", *diskIO.ReadAverageLatencyMs)
+	}
+	if counterRate(10, 20, 0) != nil {
+		t.Fatal("expected invalid elapsed duration to leave rate unavailable")
+	}
+}
+
+func TestTrendPointPreservesHostObservationRates(t *testing.T) {
+	t.Parallel()
+
+	trendStore := &monitorTrendStoreStub{}
+	observedAt := time.Now().UTC().Truncate(time.Second)
+	rate := float32(12.5)
+	point := generated.ServerStatusTrendPoint{
+		ObservedAt:                      observedAt,
+		CpuPercent:                      1,
+		HostMemoryUsedPercent:           2,
+		LoadAverageOneMinute:            3,
+		LoadAverageFiveMinutes:          4,
+		LoadAverageFifteenMinutes:       5,
+		Goroutines:                      6,
+		RuntimeAllocBytes:               7,
+		RuntimeHeapInUseBytes:           8,
+		RuntimeSysBytes:                 9,
+		NetworkSentBytesPerSecond:       &rate,
+		DiskWriteBytesPerSecond:         &rate,
+		NetworkReceivedPacketsPerSecond: &rate,
+	}
+	if err := storeTrendPoint(context.Background(), trendStore, "host-observation", observedAt, point); err != nil {
+		t.Fatalf("store trend point: %v", err)
+	}
+	if len(trendStore.appended) != 1 {
+		t.Fatalf("expected one stored trend point, got %d", len(trendStore.appended))
+	}
+	trendStore.rangeSamplesByKey = map[string][]statex.TimeSeriesSample{
+		"host-observation": {trendStore.appended[0].sample},
+	}
+	points, err := loadTrendPoints(context.Background(), trendStore, "host-observation", observedAt.Add(time.Second), time.Minute)
+	if err != nil {
+		t.Fatalf("load trend points: %v", err)
+	}
+	if len(points) != 1 || points[0].DiskWriteBytesPerSecond == nil || *points[0].DiskWriteBytesPerSecond != rate {
+		t.Fatalf("expected persisted host observation trend fields, got %#v", points)
+	}
 }
 
 func TestRegisterMonitorDashboardWidgetRegistersSystemHealthInsight(t *testing.T) {

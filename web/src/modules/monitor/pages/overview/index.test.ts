@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
+import type { ServerStatusResponse } from '../../types/server-status';
 import DependenciesPage from '../dependencies/index.vue';
 import RuntimePage from '../runtime/index.vue';
 import MonitorPage from './index.vue';
@@ -205,6 +206,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.trendGroupResourceUsage': 'Resource Usage',
   'monitor.serverStatus.trendGroupSystemLoad': 'System Load',
   'monitor.serverStatus.trendGroupGoRuntime': 'Go Runtime',
+  'monitor.serverStatus.trendGroupNetwork': 'Network',
+  'monitor.serverStatus.trendGroupDiskIo': 'Disk I/O',
   'monitor.serverStatus.trendGroupResourceUsageInfo':
     'CPU and server memory share a 0-100% scale for quick pressure checks.',
   'monitor.serverStatus.trendGroupSystemLoadInfo':
@@ -322,6 +325,24 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.serverStatus.chartGoroutines': 'Goroutines',
   'monitor.serverStatus.chartGoroutinesShort': 'Goroutines',
   'monitor.serverStatus.chartGoroutinesDescription': 'Observe goroutine count changes.',
+  'monitor.serverStatus.chartNetworkSend': 'Network Send Throughput',
+  'monitor.serverStatus.chartNetworkReceive': 'Network Receive Throughput',
+  'monitor.serverStatus.chartNetworkSendPackets': 'Network Send Packet Rate',
+  'monitor.serverStatus.chartNetworkReceivePackets': 'Network Receive Packet Rate',
+  'monitor.serverStatus.chartDiskRead': 'Disk Read Throughput',
+  'monitor.serverStatus.chartDiskWrite': 'Disk Write Throughput',
+  'monitor.serverStatus.chartDiskReadIops': 'Disk Read IOPS',
+  'monitor.serverStatus.chartDiskWriteIops': 'Disk Write IOPS',
+  'monitor.serverStatus.chartDiskReadLatency': 'Disk Read Average Latency',
+  'monitor.serverStatus.chartDiskWriteLatency': 'Disk Write Average Latency',
+  'monitor.serverStatus.hostObservabilityTitle': 'Host Observability',
+  'monitor.serverStatus.hostNetworkTitle': 'Network',
+  'monitor.serverStatus.hostDiskIoTitle': 'Disk I/O',
+  'monitor.serverStatus.hostTcpProcessTitle': 'TCP and Process',
+  'monitor.serverStatus.hostNetworkSendThroughput': 'Send Throughput',
+  'monitor.serverStatus.hostDiskReadIops': 'Read IOPS',
+  'monitor.serverStatus.hostTcpEstablished': 'ESTABLISHED',
+  'monitor.serverStatus.hostProcessRss': 'Process RSS',
   'monitor.serverStatus.chartLoadAxis': 'Load',
   'monitor.serverStatus.statusHealthy': 'Healthy',
   'monitor.serverStatus.statusDegraded': 'Degraded',
@@ -575,12 +596,17 @@ const tableStub = defineComponent({
   },
 });
 
-function createServerStatusResponse() {
+function createServerStatusResponse(): ServerStatusResponse {
   return {
     status: 'degraded',
     observed_at: '2026-05-20T09:00:00Z',
     server: {
-      version: 'dev',
+      build: {
+        version: 'dev',
+        git_commit: 'abc1234',
+        build_time_utc: '2026-05-20T08:00:00Z',
+        git_tree_state: 'clean',
+      },
       started_at: '2026-05-20T08:00:00Z',
       uptime_seconds: 3661,
       go_version: 'go1.26.0',
@@ -614,6 +640,31 @@ function createServerStatusResponse() {
       runtime_heap_in_use_bytes: 52428800,
       runtime_sys_bytes: 157286400,
       runtime_gc_cycles: 12,
+      runtime_last_gc_at: '2026-05-20T08:59:59Z',
+      runtime_last_gc_pause_ns: 245760,
+      runtime_gc_pause_total_ns: 4915200,
+      runtime_next_gc_bytes: 201326592,
+      runtime_heap_objects: 18432,
+      runtime_heap_released_bytes: 8388608,
+      runtime_stack_in_use_bytes: 1048576,
+    },
+    host_observability: {
+      network: {
+        sent_bytes_per_second: 131072,
+        received_bytes_per_second: 262144,
+        sent_packets_per_second: 42,
+        received_packets_per_second: 61,
+      },
+      disk_io: {
+        read_bytes_per_second: 524288,
+        write_bytes_per_second: 262144,
+        read_iops: 17,
+        write_iops: 9,
+        read_average_latency_ms: 1.25,
+        write_average_latency_ms: 2.5,
+      },
+      tcp: { total: 44, established: 18, time_wait: 21, close_wait: 1 },
+      process: { rss_bytes: 73400320, open_file_descriptors: 64, os_threads: 12 },
     },
     dependencies: {
       database: {
@@ -665,6 +716,16 @@ function createServerStatusResponse() {
           runtime_alloc_bytes: 100663296,
           runtime_heap_in_use_bytes: 50331648,
           runtime_sys_bytes: 150994944,
+          network_sent_bytes_per_second: 98304,
+          network_received_bytes_per_second: 229376,
+          network_sent_packets_per_second: 36,
+          network_received_packets_per_second: 54,
+          disk_read_bytes_per_second: 458752,
+          disk_write_bytes_per_second: 229376,
+          disk_read_iops: 14,
+          disk_write_iops: 7,
+          disk_read_average_latency_ms: 1.1,
+          disk_write_average_latency_ms: 2.2,
         },
         {
           observed_at: '2026-05-20T09:00:00Z',
@@ -677,6 +738,16 @@ function createServerStatusResponse() {
           runtime_alloc_bytes: 104857600,
           runtime_heap_in_use_bytes: 52428800,
           runtime_sys_bytes: 157286400,
+          network_sent_bytes_per_second: 131072,
+          network_received_bytes_per_second: 262144,
+          network_sent_packets_per_second: 42,
+          network_received_packets_per_second: 61,
+          disk_read_bytes_per_second: 524288,
+          disk_write_bytes_per_second: 262144,
+          disk_read_iops: 17,
+          disk_write_iops: 9,
+          disk_read_average_latency_ms: 1.25,
+          disk_write_average_latency_ms: 2.5,
         },
       ],
     },
@@ -723,7 +794,7 @@ function createServerStatusResponse() {
         ],
       },
     ],
-  };
+  } as ServerStatusResponse;
 }
 
 const mountedWrappers: VueWrapper[] = [];
@@ -1006,7 +1077,9 @@ describe('MonitorPage', () => {
     expect(legendItems.some((item) => item.text().includes('Server memory'))).toBe(true);
 
     const allOverviewText = wrapper.text();
-    expect(allOverviewText).toContain('7 metrics grouped as Resource Usage / System Load / Go Runtime.');
+    expect(allOverviewText).toContain(
+      '17 metrics grouped as Resource Usage / System Load / Go Runtime / Network / Disk I/O.',
+    );
     expect(allOverviewText).toContain('Runtime Allocated');
     expect(allOverviewText).toContain('Heap In Use');
     expect(allOverviewText).toContain('Runtime System Memory');
@@ -1053,6 +1126,27 @@ describe('MonitorPage', () => {
     expect(wrapper.find('[data-card-key="load"]').text()).toContain(
       '1-minute load average reached 9.60 against 8 CPU cores.',
     );
+  });
+
+  it('renders host observability alongside existing overview content and localizes unavailable values', async () => {
+    const response = createServerStatusResponse();
+    response.host_observability.network.sent_bytes_per_second = null;
+    response.host_observability.disk_io.read_iops = null;
+    response.host_observability.tcp.established = null;
+    response.host_observability.process.rss_bytes = null;
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountMonitorPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('.server-status-summary-card')).toHaveLength(4);
+    expect(wrapper.text()).toContain('Request performance');
+    expect(wrapper.findAll('.dependency-health-card')).toHaveLength(2);
+    expect(wrapper.find('[data-host-observability-group="network"]').text()).toContain('No data');
+    expect(wrapper.find('[data-host-observability-group="diskIo"]').text()).toContain('No data');
+    expect(wrapper.find('[data-host-observability-group="tcpProcess"]').text()).toContain('No data');
+    expect(wrapper.find('[data-host-observability-group="network"]').text()).toContain('256 KB/s');
+    expect(wrapper.find('[data-host-observability-group="tcpProcess"]').text()).toContain('44');
   });
 
   it('opens the service status, request performance, and dependency pages from overview summaries', async () => {
@@ -1199,8 +1293,8 @@ describe('MonitorPage', () => {
     wrapper.findAllComponents(radioGroupStub)[0]?.vm.$emit('update:modelValue', 'focus');
     await nextTick();
     const focusOptions = wrapper.findAll('[data-trend-focus-select="true"] option');
-    expect(focusOptions).toHaveLength(7);
-    expect(focusOptions.map((option) => option.text())).toEqual([
+    expect(focusOptions).toHaveLength(17);
+    expect(focusOptions.map((option) => option.text()).slice(0, 7)).toEqual([
       'Resource Usage / CPU usage',
       'Resource Usage / Server memory used',
       'System Load / 1m load average',
@@ -1242,8 +1336,8 @@ describe('MonitorPage', () => {
     await flushPromises();
 
     const cards = wrapper.findAll('[data-trend-small-card]');
-    expect(cards).toHaveLength(7);
-    expect(cards.map((card) => card.attributes('data-trend-small-card'))).toEqual([
+    expect(cards).toHaveLength(17);
+    expect(cards.map((card) => card.attributes('data-trend-small-card')).slice(0, 7)).toEqual([
       'cpu',
       'hostMemory',
       'load',
@@ -1257,8 +1351,10 @@ describe('MonitorPage', () => {
     expect(cards[2]?.text()).toContain('Reference: 8 cores');
     expect(cards[3]?.text()).toContain('Runtime alloc');
     expect(cards[6]?.text()).toContain('Goroutines');
+    expect(cards[7]?.text()).toContain('Network Send Throughput');
+    expect(cards[11]?.text()).toContain('Disk Read Throughput');
 
-    const multiOptions = chartMocks.setOption.mock.calls.slice(-7).map((call) => call[0]) as Array<{
+    const multiOptions = chartMocks.setOption.mock.calls.slice(-17).map((call) => call[0]) as Array<{
       series: Array<{ name: string; data: number[] }>;
       yAxis: Array<{ name?: string; axisLabel?: { formatter?: (value: number) => string } }>;
       tooltip?: {
@@ -1268,7 +1364,7 @@ describe('MonitorPage', () => {
       };
     }>;
 
-    expect(multiOptions).toHaveLength(7);
+    expect(multiOptions).toHaveLength(17);
     expect(multiOptions[0]?.series[0]?.name).toBe('CPU usage');
     expect(multiOptions[0]?.yAxis[0]?.name).toBe('%');
     expect(multiOptions[0]?.yAxis[0]?.axisLabel?.formatter?.(21.2)).toBe('21.2%');
@@ -1285,6 +1381,10 @@ describe('MonitorPage', () => {
     expect(multiOptions[3]?.yAxis[0]?.axisLabel?.formatter?.(100)).toBe('100 MB');
     expect(multiOptions[6]?.series[0]?.name).toBe('Goroutines');
     expect(multiOptions[6]?.yAxis[0]?.axisLabel?.formatter?.(32)).toBe('32');
+    expect(multiOptions[7]?.series[0]?.name).toBe('Network Send Throughput');
+    expect(multiOptions[7]?.yAxis[0]?.axisLabel?.formatter?.(128 * 1024)).toBe('128 KB/s');
+    expect(multiOptions[11]?.series[0]?.name).toBe('Disk Read Throughput');
+    expect(multiOptions[11]?.yAxis[0]?.axisLabel?.formatter?.(512 * 1024)).toBe('512 KB/s');
   });
 
   it('keeps CPU and memory trend colors distinct when the brand theme switches to green', async () => {
@@ -1322,7 +1422,7 @@ describe('MonitorPage', () => {
     await nextTick();
 
     expect(wrapper.find('[data-trend-mode-panel="multi"]').exists()).toBe(true);
-    expect(wrapper.findAll('[data-trend-small-card]')).toHaveLength(7);
+    expect(wrapper.findAll('[data-trend-small-card]')).toHaveLength(17);
   });
 
   it('resizes trend charts when the container observer reports a layout change', async () => {

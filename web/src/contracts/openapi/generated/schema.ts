@@ -3503,6 +3503,11 @@ export interface components {
     ServerStatusServer: components['schemas']['server-status-server'];
     ServerStatusLoadAverage: components['schemas']['server-status-load-average'];
     ServerStatusDiskUsage: components['schemas']['server-status-disk-usage'];
+    ServerStatusHostNetwork: components['schemas']['server-status-host-network'];
+    ServerStatusHostDiskIo: components['schemas']['server-status-host-disk-io'];
+    ServerStatusHostTcp: components['schemas']['server-status-host-tcp'];
+    ServerStatusHostProcess: components['schemas']['server-status-host-process'];
+    ServerStatusHostObservability: components['schemas']['server-status-host-observability'];
     ServerStatusRuntime: components['schemas']['server-status-runtime'];
     ServerStatusDependencies: components['schemas']['server-status-dependencies'];
     ServerStatusSummary: components['schemas']['server-status-summary'];
@@ -4703,6 +4708,44 @@ export interface components {
        */
       runtime_stack_in_use_bytes: number;
     };
+    'server-status-host-network': {
+      sent_bytes_per_second: number | null;
+      received_bytes_per_second: number | null;
+      sent_packets_per_second: number | null;
+      received_packets_per_second: number | null;
+    };
+    'server-status-host-disk-io': {
+      read_bytes_per_second: number | null;
+      write_bytes_per_second: number | null;
+      read_iops: number | null;
+      write_iops: number | null;
+      read_average_latency_ms: number | null;
+      write_average_latency_ms: number | null;
+    };
+    'server-status-host-tcp': {
+      /** Format: int64 */
+      total: number | null;
+      /** Format: int64 */
+      established: number | null;
+      /** Format: int64 */
+      time_wait: number | null;
+      /** Format: int64 */
+      close_wait: number | null;
+    };
+    'server-status-host-process': {
+      /** Format: int64 */
+      rss_bytes: number | null;
+      /** Format: int64 */
+      open_file_descriptors: number | null;
+      /** Format: int64 */
+      os_threads: number | null;
+    };
+    'server-status-host-observability': {
+      network: components['schemas']['server-status-host-network'];
+      disk_io: components['schemas']['server-status-host-disk-io'];
+      tcp: components['schemas']['server-status-host-tcp'];
+      process: components['schemas']['server-status-host-process'];
+    };
     /**
      * @example {
      *       "capacity": 25,
@@ -4856,6 +4899,16 @@ export interface components {
       runtime_heap_in_use_bytes: number;
       /** Format: int64 */
       runtime_sys_bytes: number;
+      network_sent_bytes_per_second?: number | null;
+      network_received_bytes_per_second?: number | null;
+      network_sent_packets_per_second?: number | null;
+      network_received_packets_per_second?: number | null;
+      disk_read_bytes_per_second?: number | null;
+      disk_write_bytes_per_second?: number | null;
+      disk_read_iops?: number | null;
+      disk_write_iops?: number | null;
+      disk_read_average_latency_ms?: number | null;
+      disk_write_average_latency_ms?: number | null;
     };
     /**
      * @example {
@@ -4941,6 +4994,7 @@ export interface components {
       observed_at: string;
       server: components['schemas']['server-status-server'];
       runtime: components['schemas']['server-status-runtime'];
+      host_observability: components['schemas']['server-status-host-observability'];
       dependencies: components['schemas']['server-status-dependencies'];
       summary: components['schemas']['server-status-summary'];
       trend: components['schemas']['server-status-trend'];

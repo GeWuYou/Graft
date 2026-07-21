@@ -84,6 +84,8 @@ type Module struct {
 	trendStore               statex.TimeSeriesStore
 	redisHealth              redisx.HealthReporter
 	requestPerformanceReader moduleapi.RequestPerformanceReader
+	hostObservabilityMu     sync.Mutex
+	hostObservationCounters *hostObservationCounters
 
 	samplerMu     sync.Mutex
 	samplerCancel context.CancelFunc

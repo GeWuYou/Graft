@@ -344,6 +344,25 @@
         <t-empty v-else :description="t('monitor.serverStatus.empty')" />
       </section-card>
     </div>
+
+    <section-card class="host-observability-section" :title="t('monitor.serverStatus.hostObservabilityTitle')">
+      <div class="host-observability-section__groups">
+        <article
+          v-for="group in hostObservabilityGroups"
+          :key="group.key"
+          class="host-observability-group"
+          :data-host-observability-group="group.key"
+        >
+          <h3 class="host-observability-group__title">{{ group.title }}</h3>
+          <div class="host-observability-group__metrics">
+            <div v-for="metric in group.metrics" :key="metric.key" class="host-observability-metric">
+              <span class="host-observability-metric__label">{{ metric.label }}</span>
+              <strong class="host-observability-metric__value">{{ metric.value }}</strong>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section-card>
   </server-status-page-shell>
 </template>
 <script setup lang="ts">
@@ -403,10 +422,27 @@ type MetricUsageStatus = 'healthy' | 'warning' | 'danger' | 'unknown';
 type MetricUsageKind = 'percent' | 'loadPressure';
 type TrendRange = MonitorTrendRange;
 type TrendMode = 'overview' | 'multi' | 'focus';
-type FocusMetric = 'cpu' | 'hostMemory' | 'load' | 'runtimeAlloc' | 'runtimeHeap' | 'runtimeSys' | 'goroutines';
-type TrendMetricGroup = 'resourceUsage' | 'systemLoad' | 'goRuntime';
-type TrendMetricUnit = '%' | 'load' | 'MB' | 'count';
-type TrendMetricAxis = 'percent' | 'load' | 'bytes' | 'count';
+type FocusMetric =
+  | 'cpu'
+  | 'hostMemory'
+  | 'load'
+  | 'runtimeAlloc'
+  | 'runtimeHeap'
+  | 'runtimeSys'
+  | 'goroutines'
+  | 'networkSend'
+  | 'networkReceive'
+  | 'networkSendPackets'
+  | 'networkReceivePackets'
+  | 'diskRead'
+  | 'diskWrite'
+  | 'diskReadIops'
+  | 'diskWriteIops'
+  | 'diskReadLatency'
+  | 'diskWriteLatency';
+type TrendMetricGroup = 'resourceUsage' | 'systemLoad' | 'goRuntime' | 'network' | 'diskIo';
+type TrendMetricUnit = '%' | 'load' | 'MB' | 'count' | 'B/s' | 'pps' | 'IOPS' | 'ms';
+type TrendMetricAxis = 'percent' | 'load' | 'bytes' | 'count' | 'bytesPerSecond' | 'rate' | 'latency';
 type TrendChartKey =
   | 'overviewUsage'
   | 'overviewLoad'
@@ -417,6 +453,16 @@ type TrendChartKey =
   | 'multi-runtimeHeap'
   | 'multi-runtimeSys'
   | 'multi-goroutines'
+  | 'multi-networkSend'
+  | 'multi-networkReceive'
+  | 'multi-networkSendPackets'
+  | 'multi-networkReceivePackets'
+  | 'multi-diskRead'
+  | 'multi-diskWrite'
+  | 'multi-diskReadIops'
+  | 'multi-diskWriteIops'
+  | 'multi-diskReadLatency'
+  | 'multi-diskWriteLatency'
   | 'focus';
 interface MetricCard {
   key: string;
@@ -457,8 +503,14 @@ interface TrendMetricDefinition {
   chartKey: TrendChartKey;
   infoText?: string;
   helperText?: string;
-  values: number[];
+  values: Array<number | null>;
   currentValue: string;
+}
+
+interface HostObservabilityGroup {
+  key: 'network' | 'diskIo' | 'tcpProcess';
+  title: string;
+  metrics: Array<{ key: string; label: string; value: string }>;
 }
 
 interface TrendOverviewSection {
@@ -543,6 +595,10 @@ function trendGroupInfoText(group: TrendMetricGroup) {
       return t('monitor.serverStatus.trendGroupResourceUsageInfo');
     case 'systemLoad':
       return t('monitor.serverStatus.trendGroupSystemLoadInfo');
+    case 'network':
+      return t('monitor.serverStatus.trendGroupNetworkInfo');
+    case 'diskIo':
+      return t('monitor.serverStatus.trendGroupDiskIoInfo');
     default:
       return undefined;
   }
@@ -684,6 +740,198 @@ const trendMetricConfigs = computed<TrendMetricDefinition[]>(() => {
       currentValue: formatCountValue(serverStatus.value?.runtime.goroutines ?? null),
       values: points.map((point) => point.goroutines),
     },
+    {
+      key: 'networkSend',
+      label: t('monitor.serverStatus.chartNetworkSend'),
+      shortLabel: t('monitor.serverStatus.chartNetworkSendShort'),
+      unit: 'B/s',
+      group: 'network',
+      groupLabel: t('monitor.serverStatus.trendGroupNetwork'),
+      color: () => readMetricThemeColor('--graft-monitor-cpu-color'),
+      axis: 'bytesPerSecond',
+      description: t('monitor.serverStatus.chartNetworkSendDescription'),
+      formatter: formatBytesPerSecond,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-networkSend',
+      infoText: trendGroupInfoText('network'),
+      currentValue: formatBytesPerSecond(serverStatus.value?.host_observability.network.sent_bytes_per_second ?? null),
+      values: points.map((point) => point.network_sent_bytes_per_second ?? null),
+    },
+    {
+      key: 'networkReceive',
+      label: t('monitor.serverStatus.chartNetworkReceive'),
+      shortLabel: t('monitor.serverStatus.chartNetworkReceiveShort'),
+      unit: 'B/s',
+      group: 'network',
+      groupLabel: t('monitor.serverStatus.trendGroupNetwork'),
+      color: () => readMetricThemeColor('--graft-monitor-memory-color'),
+      axis: 'bytesPerSecond',
+      description: t('monitor.serverStatus.chartNetworkReceiveDescription'),
+      formatter: formatBytesPerSecond,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-networkReceive',
+      infoText: trendGroupInfoText('network'),
+      currentValue: formatBytesPerSecond(
+        serverStatus.value?.host_observability.network.received_bytes_per_second ?? null,
+      ),
+      values: points.map((point) => point.network_received_bytes_per_second ?? null),
+    },
+    {
+      key: 'networkSendPackets',
+      label: t('monitor.serverStatus.chartNetworkSendPackets'),
+      shortLabel: t('monitor.serverStatus.chartNetworkSendPacketsShort'),
+      unit: 'pps',
+      group: 'network',
+      groupLabel: t('monitor.serverStatus.trendGroupNetwork'),
+      color: () => readMetricThemeColor('--graft-monitor-runtime-alloc-color'),
+      axis: 'rate',
+      description: t('monitor.serverStatus.chartNetworkSendPacketsDescription'),
+      formatter: formatRate,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-networkSendPackets',
+      infoText: trendGroupInfoText('network'),
+      currentValue: formatRate(serverStatus.value?.host_observability.network.sent_packets_per_second ?? null),
+      values: points.map((point) => point.network_sent_packets_per_second ?? null),
+    },
+    {
+      key: 'networkReceivePackets',
+      label: t('monitor.serverStatus.chartNetworkReceivePackets'),
+      shortLabel: t('monitor.serverStatus.chartNetworkReceivePacketsShort'),
+      unit: 'pps',
+      group: 'network',
+      groupLabel: t('monitor.serverStatus.trendGroupNetwork'),
+      color: () => readMetricThemeColor('--graft-monitor-runtime-heap-color'),
+      axis: 'rate',
+      description: t('monitor.serverStatus.chartNetworkReceivePacketsDescription'),
+      formatter: formatRate,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-networkReceivePackets',
+      infoText: trendGroupInfoText('network'),
+      currentValue: formatRate(serverStatus.value?.host_observability.network.received_packets_per_second ?? null),
+      values: points.map((point) => point.network_received_packets_per_second ?? null),
+    },
+    {
+      key: 'diskRead',
+      label: t('monitor.serverStatus.chartDiskRead'),
+      shortLabel: t('monitor.serverStatus.chartDiskReadShort'),
+      unit: 'B/s',
+      group: 'diskIo',
+      groupLabel: t('monitor.serverStatus.trendGroupDiskIo'),
+      color: () => readMetricThemeColor('--graft-monitor-load-color'),
+      axis: 'bytesPerSecond',
+      description: t('monitor.serverStatus.chartDiskReadDescription'),
+      formatter: formatBytesPerSecond,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-diskRead',
+      infoText: trendGroupInfoText('diskIo'),
+      currentValue: formatBytesPerSecond(serverStatus.value?.host_observability.disk_io.read_bytes_per_second ?? null),
+      values: points.map((point) => point.disk_read_bytes_per_second ?? null),
+    },
+    {
+      key: 'diskWrite',
+      label: t('monitor.serverStatus.chartDiskWrite'),
+      shortLabel: t('monitor.serverStatus.chartDiskWriteShort'),
+      unit: 'B/s',
+      group: 'diskIo',
+      groupLabel: t('monitor.serverStatus.trendGroupDiskIo'),
+      color: () => readMetricThemeColor('--graft-monitor-runtime-sys-color'),
+      axis: 'bytesPerSecond',
+      description: t('monitor.serverStatus.chartDiskWriteDescription'),
+      formatter: formatBytesPerSecond,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-diskWrite',
+      infoText: trendGroupInfoText('diskIo'),
+      currentValue: formatBytesPerSecond(serverStatus.value?.host_observability.disk_io.write_bytes_per_second ?? null),
+      values: points.map((point) => point.disk_write_bytes_per_second ?? null),
+    },
+    {
+      key: 'diskReadIops',
+      label: t('monitor.serverStatus.chartDiskReadIops'),
+      shortLabel: t('monitor.serverStatus.chartDiskReadIopsShort'),
+      unit: 'IOPS',
+      group: 'diskIo',
+      groupLabel: t('monitor.serverStatus.trendGroupDiskIo'),
+      color: () => readMetricThemeColor('--graft-monitor-goroutines-color'),
+      axis: 'rate',
+      description: t('monitor.serverStatus.chartDiskReadIopsDescription'),
+      formatter: formatRate,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-diskReadIops',
+      infoText: trendGroupInfoText('diskIo'),
+      currentValue: formatRate(serverStatus.value?.host_observability.disk_io.read_iops ?? null),
+      values: points.map((point) => point.disk_read_iops ?? null),
+    },
+    {
+      key: 'diskWriteIops',
+      label: t('monitor.serverStatus.chartDiskWriteIops'),
+      shortLabel: t('monitor.serverStatus.chartDiskWriteIopsShort'),
+      unit: 'IOPS',
+      group: 'diskIo',
+      groupLabel: t('monitor.serverStatus.trendGroupDiskIo'),
+      color: () => readMetricThemeColor('--td-warning-color-5'),
+      axis: 'rate',
+      description: t('monitor.serverStatus.chartDiskWriteIopsDescription'),
+      formatter: formatRate,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-diskWriteIops',
+      infoText: trendGroupInfoText('diskIo'),
+      currentValue: formatRate(serverStatus.value?.host_observability.disk_io.write_iops ?? null),
+      values: points.map((point) => point.disk_write_iops ?? null),
+    },
+    {
+      key: 'diskReadLatency',
+      label: t('monitor.serverStatus.chartDiskReadLatency'),
+      shortLabel: t('monitor.serverStatus.chartDiskReadLatencyShort'),
+      unit: 'ms',
+      group: 'diskIo',
+      groupLabel: t('monitor.serverStatus.trendGroupDiskIo'),
+      color: () => readMetricThemeColor('--td-success-color-5'),
+      axis: 'latency',
+      description: t('monitor.serverStatus.chartDiskReadLatencyDescription'),
+      formatter: formatLatencyValue,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-diskReadLatency',
+      infoText: trendGroupInfoText('diskIo'),
+      currentValue: formatLatencyValue(serverStatus.value?.host_observability.disk_io.read_average_latency_ms ?? null),
+      values: points.map((point) => point.disk_read_average_latency_ms ?? null),
+    },
+    {
+      key: 'diskWriteLatency',
+      label: t('monitor.serverStatus.chartDiskWriteLatency'),
+      shortLabel: t('monitor.serverStatus.chartDiskWriteLatencyShort'),
+      unit: 'ms',
+      group: 'diskIo',
+      groupLabel: t('monitor.serverStatus.trendGroupDiskIo'),
+      color: () => readMetricThemeColor('--td-error-color-5'),
+      axis: 'latency',
+      description: t('monitor.serverStatus.chartDiskWriteLatencyDescription'),
+      formatter: formatLatencyValue,
+      visibleInOverview: false,
+      visibleInSmallMultiples: true,
+      visibleInFocus: true,
+      chartKey: 'multi-diskWriteLatency',
+      infoText: trendGroupInfoText('diskIo'),
+      currentValue: formatLatencyValue(serverStatus.value?.host_observability.disk_io.write_average_latency_ms ?? null),
+      values: points.map((point) => point.disk_write_average_latency_ms ?? null),
+    },
   ];
 });
 
@@ -707,6 +955,8 @@ const trendGroupSummaryLabel = computed(() =>
     t('monitor.serverStatus.trendGroupResourceUsage'),
     t('monitor.serverStatus.trendGroupSystemLoad'),
     t('monitor.serverStatus.trendGroupGoRuntime'),
+    t('monitor.serverStatus.trendGroupNetwork'),
+    t('monitor.serverStatus.trendGroupDiskIo'),
   ].join(' / '),
 );
 const overviewTrendSections = computed<TrendOverviewSection[]>(() => [
@@ -737,6 +987,115 @@ const runtimeSummaryMetrics = computed(() =>
     .slice(0, 4)
     .map((metric) => ({ ...metric, shortLabel: serviceSummaryMetricLabel(metric.key) })),
 );
+const hostObservabilityGroups = computed<HostObservabilityGroup[]>(() => {
+  const host = serverStatus.value?.host_observability;
+
+  return [
+    {
+      key: 'network',
+      title: t('monitor.serverStatus.hostNetworkTitle'),
+      metrics: [
+        {
+          key: 'send-throughput',
+          label: t('monitor.serverStatus.hostNetworkSendThroughput'),
+          value: formatHostMetric(host?.network.sent_bytes_per_second ?? null, formatBytesPerSecond),
+        },
+        {
+          key: 'receive-throughput',
+          label: t('monitor.serverStatus.hostNetworkReceiveThroughput'),
+          value: formatHostMetric(host?.network.received_bytes_per_second ?? null, formatBytesPerSecond),
+        },
+        {
+          key: 'send-packet-rate',
+          label: t('monitor.serverStatus.hostNetworkSendPacketRate'),
+          value: formatHostMetric(host?.network.sent_packets_per_second ?? null, formatPacketRate),
+        },
+        {
+          key: 'receive-packet-rate',
+          label: t('monitor.serverStatus.hostNetworkReceivePacketRate'),
+          value: formatHostMetric(host?.network.received_packets_per_second ?? null, formatPacketRate),
+        },
+      ],
+    },
+    {
+      key: 'diskIo',
+      title: t('monitor.serverStatus.hostDiskIoTitle'),
+      metrics: [
+        {
+          key: 'read-throughput',
+          label: t('monitor.serverStatus.hostDiskReadThroughput'),
+          value: formatHostMetric(host?.disk_io.read_bytes_per_second ?? null, formatBytesPerSecond),
+        },
+        {
+          key: 'write-throughput',
+          label: t('monitor.serverStatus.hostDiskWriteThroughput'),
+          value: formatHostMetric(host?.disk_io.write_bytes_per_second ?? null, formatBytesPerSecond),
+        },
+        {
+          key: 'read-iops',
+          label: t('monitor.serverStatus.hostDiskReadIops'),
+          value: formatHostMetric(host?.disk_io.read_iops ?? null, formatRate),
+        },
+        {
+          key: 'write-iops',
+          label: t('monitor.serverStatus.hostDiskWriteIops'),
+          value: formatHostMetric(host?.disk_io.write_iops ?? null, formatRate),
+        },
+        {
+          key: 'read-latency',
+          label: t('monitor.serverStatus.hostDiskReadLatency'),
+          value: formatHostMetric(host?.disk_io.read_average_latency_ms ?? null, formatLatencyValue),
+        },
+        {
+          key: 'write-latency',
+          label: t('monitor.serverStatus.hostDiskWriteLatency'),
+          value: formatHostMetric(host?.disk_io.write_average_latency_ms ?? null, formatLatencyValue),
+        },
+      ],
+    },
+    {
+      key: 'tcpProcess',
+      title: t('monitor.serverStatus.hostTcpProcessTitle'),
+      metrics: [
+        {
+          key: 'tcp-total',
+          label: t('monitor.serverStatus.hostTcpTotal'),
+          value: formatHostMetric(host?.tcp.total ?? null, formatCountValue),
+        },
+        {
+          key: 'tcp-established',
+          label: t('monitor.serverStatus.hostTcpEstablished'),
+          value: formatHostMetric(host?.tcp.established ?? null, formatCountValue),
+        },
+        {
+          key: 'tcp-time-wait',
+          label: t('monitor.serverStatus.hostTcpTimeWait'),
+          value: formatHostMetric(host?.tcp.time_wait ?? null, formatCountValue),
+        },
+        {
+          key: 'tcp-close-wait',
+          label: t('monitor.serverStatus.hostTcpCloseWait'),
+          value: formatHostMetric(host?.tcp.close_wait ?? null, formatCountValue),
+        },
+        {
+          key: 'rss',
+          label: t('monitor.serverStatus.hostProcessRss'),
+          value: formatHostMetric(host?.process.rss_bytes ?? null, formatBytes),
+        },
+        {
+          key: 'file-descriptors',
+          label: t('monitor.serverStatus.hostProcessFileDescriptors'),
+          value: formatHostMetric(host?.process.open_file_descriptors ?? null, formatCountValue),
+        },
+        {
+          key: 'threads',
+          label: t('monitor.serverStatus.hostProcessThreads'),
+          value: formatHostMetric(host?.process.os_threads ?? null, formatCountValue),
+        },
+      ],
+    },
+  ];
+});
 const smallMultipleMetrics = computed(() =>
   trendMetricConfigs.value.filter((metric) => metric.visibleInSmallMultiples),
 );
@@ -1654,7 +2013,7 @@ function buildTooltip(chartColors: TChartColor, metrics: TrendMetricDefinition[]
     textStyle: {
       color: chartColors.textColor,
     },
-    formatter: (params: Array<{ axisValueLabel: string; seriesName: string; color: string; data: number }>) => {
+    formatter: (params: Array<{ axisValueLabel: string; seriesName: string; color: string; data: number | null }>) => {
       const rows = params
         .map((param) => {
           const metric = metricMap.get(param.seriesName);
@@ -1662,14 +2021,7 @@ function buildTooltip(chartColors: TChartColor, metrics: TrendMetricDefinition[]
             return '';
           }
 
-          const valueLabel =
-            metric.axis === 'bytes'
-              ? `${param.data.toFixed(1)} MB`
-              : metric.axis === 'count'
-                ? formatCountValue(param.data)
-                : metric.axis === 'percent'
-                  ? formatPercentPrecise(param.data)
-                  : formatLoadAverage(param.data);
+          const valueLabel = formatTrendValue(metric, param.data);
 
           return [
             `<div style="display:flex;align-items:center;justify-content:space-between;gap: var(--graft-density-gap-16);">`,
@@ -1717,6 +2069,12 @@ function buildSingleAxis(metric: TrendMetricDefinition, chartColors: TChartColor
       return buildYAxis(metric.unit, 'bytes', chartColors);
     case 'count':
       return buildYAxis(metric.unit, 'count', chartColors);
+    case 'bytesPerSecond':
+      return buildYAxis(metric.unit, 'bytesPerSecond', chartColors);
+    case 'rate':
+      return buildYAxis(metric.unit, 'rate', chartColors);
+    case 'latency':
+      return buildYAxis(metric.unit, 'latency', chartColors);
     default:
       return buildYAxis(metric.unit, 'count', chartColors);
   }
@@ -1724,7 +2082,7 @@ function buildSingleAxis(metric: TrendMetricDefinition, chartColors: TChartColor
 
 function buildYAxis(
   name: string,
-  axisType: 'percent' | 'load' | 'bytes' | 'count',
+  axisType: TrendMetricAxis,
   chartColors: TChartColor,
   bounds?: { min?: number; max?: number },
 ) {
@@ -1787,13 +2145,26 @@ function buildSeries(
             data: [{ yAxis: options.markLineValue }],
           }
         : undefined,
-    data: metric.values.map((value) =>
-      Number(metric.axis === 'bytes' ? (value / 1024 / 1024).toFixed(2) : (value.toFixed?.(2) ?? value)),
-    ),
+    data: metric.values.map((value) => formatTrendDataValue(metric.axis, value)),
   };
 }
 
-function formatAxisValue(value: number, axisType: 'percent' | 'load' | 'bytes' | 'count') {
+function formatTrendDataValue(axis: TrendMetricAxis, value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Number(axis === 'bytes' ? (value / 1024 / 1024).toFixed(2) : value.toFixed(2));
+}
+
+function formatTrendValue(metric: TrendMetricDefinition, value: number | null) {
+  if (metric.axis === 'bytes') {
+    return value === null ? '--' : `${value.toFixed(1)} MB`;
+  }
+  return metric.formatter(value);
+}
+
+function formatAxisValue(value: number, axisType: TrendMetricAxis) {
   switch (axisType) {
     case 'percent':
       return `${value}%`;
@@ -1801,6 +2172,12 @@ function formatAxisValue(value: number, axisType: 'percent' | 'load' | 'bytes' |
       return value.toFixed(1);
     case 'bytes':
       return `${value} MB`;
+    case 'bytesPerSecond':
+      return formatBytesPerSecond(value);
+    case 'rate':
+      return formatRate(value);
+    case 'latency':
+      return formatLatencyValue(value);
     default:
       return `${value}`;
   }
@@ -1834,7 +2211,10 @@ function formatChartTimestamp(value: string) {
 }
 
 function formatBytes(bytes: number | null) {
-  if (bytes === null || Number.isNaN(bytes) || bytes === 0) {
+  if (bytes === null || Number.isNaN(bytes)) {
+    return '--';
+  }
+  if (bytes === 0) {
     return '0 B';
   }
 
@@ -1848,6 +2228,37 @@ function formatBytes(bytes: number | null) {
 
   const decimals = unitIndex >= 3 ? 1 : value >= 10 || unitIndex === 0 ? 0 : 1;
   return `${value.toFixed(decimals)} ${units[unitIndex]}`;
+}
+
+function formatBytesPerSecond(value: number | null) {
+  const formatted = formatBytes(value);
+  return formatted === '--' ? formatted : `${formatted}/s`;
+}
+
+function formatRate(value: number | null) {
+  if (value === null || Number.isNaN(value)) {
+    return '--';
+  }
+  return value.toFixed(value >= 10 ? 0 : 1);
+}
+
+function formatPacketRate(value: number | null) {
+  const formatted = formatRate(value);
+  return formatted === '--' ? formatted : `${formatted} pps`;
+}
+
+function formatHostMetric(value: number | null, formatter: (metricValue: number | null) => string) {
+  if (value === null || Number.isNaN(value)) {
+    return t('monitor.serverStatus.metricUsageNoData');
+  }
+  return formatter(value);
+}
+
+function formatLatencyValue(value: number | null) {
+  if (value === null || Number.isNaN(value)) {
+    return '--';
+  }
+  return `${value.toFixed(value >= 10 ? 0 : 2)} ms`;
 }
 
 watch(

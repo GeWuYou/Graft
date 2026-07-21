@@ -11247,6 +11247,47 @@ type ServerStatusDiskUsage struct {
 	UsedPercent float32 `json:"used_percent"`
 }
 
+// ServerStatusHostDiskIo defines model for server-status-host-disk-io.
+type ServerStatusHostDiskIo struct {
+	ReadAverageLatencyMs  *float32 `json:"read_average_latency_ms"`
+	ReadBytesPerSecond    *float32 `json:"read_bytes_per_second"`
+	ReadIops              *float32 `json:"read_iops"`
+	WriteAverageLatencyMs *float32 `json:"write_average_latency_ms"`
+	WriteBytesPerSecond   *float32 `json:"write_bytes_per_second"`
+	WriteIops             *float32 `json:"write_iops"`
+}
+
+// ServerStatusHostNetwork defines model for server-status-host-network.
+type ServerStatusHostNetwork struct {
+	ReceivedBytesPerSecond   *float32 `json:"received_bytes_per_second"`
+	ReceivedPacketsPerSecond *float32 `json:"received_packets_per_second"`
+	SentBytesPerSecond       *float32 `json:"sent_bytes_per_second"`
+	SentPacketsPerSecond     *float32 `json:"sent_packets_per_second"`
+}
+
+// ServerStatusHostObservability defines model for server-status-host-observability.
+type ServerStatusHostObservability struct {
+	DiskIo  ServerStatusHostDiskIo  `json:"disk_io"`
+	Network ServerStatusHostNetwork `json:"network"`
+	Process ServerStatusHostProcess `json:"process"`
+	Tcp     ServerStatusHostTcp     `json:"tcp"`
+}
+
+// ServerStatusHostProcess defines model for server-status-host-process.
+type ServerStatusHostProcess struct {
+	OpenFileDescriptors *int64 `json:"open_file_descriptors"`
+	OsThreads           *int64 `json:"os_threads"`
+	RssBytes            *int64 `json:"rss_bytes"`
+}
+
+// ServerStatusHostTcp defines model for server-status-host-tcp.
+type ServerStatusHostTcp struct {
+	CloseWait   *int64 `json:"close_wait"`
+	Established *int64 `json:"established"`
+	TimeWait    *int64 `json:"time_wait"`
+	Total       *int64 `json:"total"`
+}
+
 // ServerStatusLoadAverage defines model for server-status-load-average.
 type ServerStatusLoadAverage struct {
 	FifteenMinutes float32 `json:"fifteen_minutes"`
@@ -11265,15 +11306,16 @@ type ServerStatusModule struct {
 
 // ServerStatusResponse defines model for server-status-response.
 type ServerStatusResponse struct {
-	Anomalies    []ServerStatusAnomaly    `json:"anomalies"`
-	Dependencies ServerStatusDependencies `json:"dependencies"`
-	Modules      []ServerStatusModule     `json:"modules"`
-	ObservedAt   time.Time                `json:"observed_at"`
-	Runtime      ServerStatusRuntime      `json:"runtime"`
-	Server       ServerStatusServer       `json:"server"`
-	Status       string                   `json:"status"`
-	Summary      ServerStatusSummary      `json:"summary"`
-	Trend        ServerStatusTrend        `json:"trend"`
+	Anomalies         []ServerStatusAnomaly         `json:"anomalies"`
+	Dependencies      ServerStatusDependencies      `json:"dependencies"`
+	HostObservability ServerStatusHostObservability `json:"host_observability"`
+	Modules           []ServerStatusModule          `json:"modules"`
+	ObservedAt        time.Time                     `json:"observed_at"`
+	Runtime           ServerStatusRuntime           `json:"runtime"`
+	Server            ServerStatusServer            `json:"server"`
+	Status            string                        `json:"status"`
+	Summary           ServerStatusSummary           `json:"summary"`
+	Trend             ServerStatusTrend             `json:"trend"`
 }
 
 // ServerStatusRuntime defines model for server-status-runtime.
@@ -11363,16 +11405,26 @@ type ServerStatusTrendRange string
 // ServerStatusTrendPoint defines model for server-status-trend-point.
 type ServerStatusTrendPoint struct {
 	// CpuPercent Host total CPU utilization percent.
-	CpuPercent                float32   `json:"cpu_percent"`
-	Goroutines                int       `json:"goroutines"`
-	HostMemoryUsedPercent     float32   `json:"host_memory_used_percent"`
-	LoadAverageFifteenMinutes float32   `json:"load_average_fifteen_minutes"`
-	LoadAverageFiveMinutes    float32   `json:"load_average_five_minutes"`
-	LoadAverageOneMinute      float32   `json:"load_average_one_minute"`
-	ObservedAt                time.Time `json:"observed_at"`
-	RuntimeAllocBytes         int64     `json:"runtime_alloc_bytes"`
-	RuntimeHeapInUseBytes     int64     `json:"runtime_heap_in_use_bytes"`
-	RuntimeSysBytes           int64     `json:"runtime_sys_bytes"`
+	CpuPercent                      float32   `json:"cpu_percent"`
+	DiskReadAverageLatencyMs        *float32  `json:"disk_read_average_latency_ms,omitempty"`
+	DiskReadBytesPerSecond          *float32  `json:"disk_read_bytes_per_second,omitempty"`
+	DiskReadIops                    *float32  `json:"disk_read_iops,omitempty"`
+	DiskWriteAverageLatencyMs       *float32  `json:"disk_write_average_latency_ms,omitempty"`
+	DiskWriteBytesPerSecond         *float32  `json:"disk_write_bytes_per_second,omitempty"`
+	DiskWriteIops                   *float32  `json:"disk_write_iops,omitempty"`
+	Goroutines                      int       `json:"goroutines"`
+	HostMemoryUsedPercent           float32   `json:"host_memory_used_percent"`
+	LoadAverageFifteenMinutes       float32   `json:"load_average_fifteen_minutes"`
+	LoadAverageFiveMinutes          float32   `json:"load_average_five_minutes"`
+	LoadAverageOneMinute            float32   `json:"load_average_one_minute"`
+	NetworkReceivedBytesPerSecond   *float32  `json:"network_received_bytes_per_second,omitempty"`
+	NetworkReceivedPacketsPerSecond *float32  `json:"network_received_packets_per_second,omitempty"`
+	NetworkSentBytesPerSecond       *float32  `json:"network_sent_bytes_per_second,omitempty"`
+	NetworkSentPacketsPerSecond     *float32  `json:"network_sent_packets_per_second,omitempty"`
+	ObservedAt                      time.Time `json:"observed_at"`
+	RuntimeAllocBytes               int64     `json:"runtime_alloc_bytes"`
+	RuntimeHeapInUseBytes           int64     `json:"runtime_heap_in_use_bytes"`
+	RuntimeSysBytes                 int64     `json:"runtime_sys_bytes"`
 }
 
 // SessionSummary defines model for session-summary.

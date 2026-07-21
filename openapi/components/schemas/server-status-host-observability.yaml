@@ -1,0 +1,11 @@
+type: object
+required: [network, disk_io, tcp, process]
+properties:
+  network:
+    $ref: ./server-status-host-network.yaml
+  disk_io:
+    $ref: ./server-status-host-disk-io.yaml
+  tcp:
+    $ref: ./server-status-host-tcp.yaml
+  process:
+    $ref: ./server-status-host-process.yaml

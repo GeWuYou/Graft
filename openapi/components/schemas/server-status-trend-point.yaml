@@ -38,6 +38,36 @@ properties:
   runtime_sys_bytes:
     type: integer
     format: int64
+  network_sent_bytes_per_second:
+    type: number
+    nullable: true
+  network_received_bytes_per_second:
+    type: number
+    nullable: true
+  network_sent_packets_per_second:
+    type: number
+    nullable: true
+  network_received_packets_per_second:
+    type: number
+    nullable: true
+  disk_read_bytes_per_second:
+    type: number
+    nullable: true
+  disk_write_bytes_per_second:
+    type: number
+    nullable: true
+  disk_read_iops:
+    type: number
+    nullable: true
+  disk_write_iops:
+    type: number
+    nullable: true
+  disk_read_average_latency_ms:
+    type: number
+    nullable: true
+  disk_write_average_latency_ms:
+    type: number
+    nullable: true
 example:
   observed_at: '2026-05-24T08:05:00Z'
   cpu_percent: 21.8

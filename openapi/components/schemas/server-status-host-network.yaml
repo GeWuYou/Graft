@@ -1,0 +1,15 @@
+type: object
+required: [sent_bytes_per_second, received_bytes_per_second, sent_packets_per_second, received_packets_per_second]
+properties:
+  sent_bytes_per_second:
+    type: number
+    nullable: true
+  received_bytes_per_second:
+    type: number
+    nullable: true
+  sent_packets_per_second:
+    type: number
+    nullable: true
+  received_packets_per_second:
+    type: number
+    nullable: true
