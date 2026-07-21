@@ -1,4 +1,3 @@
-export { RESPONSIVE_CONTAINER_THRESHOLDS, type ResponsiveContainerThreshold } from './breakpoints';
 export {
   EMPTY_RESPONSIVE_CONTAINER_SIZE,
   normalizeResponsiveContainerSize,

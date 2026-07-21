@@ -38,3 +38,24 @@
   "closeout_status": "completed"
 }
 ```
+
+## 2026-07-21 B3-responsive-primitives
+
+- 新增 `ResponsivePage`、`ResponsiveHeader`、`ResponsiveToolbar`、`ResponsiveContent`、`ResponsiveEmpty` 与 `ResponsiveDialog`。它们是无业务语义的 shared 组件，只消费 slots、layout/tone/purpose/size 等语义输入，不暴露 device 或像素宽度接口。
+- primitives 通过 `useResponsiveVariant` 或 `useContainerSize` 实际消费 B2 容器基础设施；Dialog policy 以 `purpose`、`size` 和容器宽度在 `dialog`、`drawer`、`sheet`、`fullscreen` 间解析。workspace 在紧凑容器保持 readonly。
+- 沿用 Management/PageHeader 的 composition-first 结构，但没有迁移或改写其查询、分页、选择、i18n、TDesign action 或业务数据语义。新增组件不改变 TDesign usage，因此 TDesign MCP preflight 不适用。
+- 删除 B2 Knip public API temporary exemption；`bun run deadcode:check` 通过。受控 Exception 与 Responsive Debt 记录落在 `governance-records.md`，不进入 runtime bundle。
+- 下一轮 B4 应先处理 shell integration，再按 shared strategy 推进 ResponsiveTable、ResponsiveForm、ResponsiveCardList、治理脚本/manifest 和页面迁移；不得扩散业务设备判断。
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": ["B1-docs-bootstrap", "B2-foundation-runtime", "B3-responsive-primitives"],
+  "pending_batches": ["B4-page-migration-and-governance-gate"],
+  "current_batch": "B3-responsive-primitives",
+  "next_batch": "B4-page-migration-and-governance-gate",
+  "closeout_status": "completed"
+}
+```

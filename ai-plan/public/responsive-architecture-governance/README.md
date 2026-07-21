@@ -11,8 +11,8 @@
   - `ai-plan/roadmap/Graft响应式架构迁移路线.md`
   - `web/AGENTS.md`
   - `web/src/shared/**` 与 `web/src/style/**`
-- Completed so far: B1 已建立规范、开发者 Manifest 与主题恢复材料。
-- Not started yet: shared 响应式运行时基础设施、公共组件和页面迁移。
+- Completed so far: B1 已建立规范、开发者 Manifest 与主题恢复材料；B2 已建立 shared 容器/variant 基础设施；B3 已建立首批 shared Responsive primitives 与过渡治理记录。
+- Not started yet: shell integration、ResponsiveTable/Form/CardList、页面迁移与 CI 治理门禁。
 
 ## Recovery Receipt
 
@@ -49,9 +49,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- B1 正在收尾：文档与主题材料待校验、scoped commit。
-- 风险：公共组件 API 必须从既有管理页模式收敛，不能平行重写 UI。
-- Next step: `B2-foundation-runtime`。
+- B3 已收尾：首批无业务语义 primitives 实际消费 B2 container/variant API，且删除了 Knip temporary exemption。
+- 风险：B4 必须从 shell 与现有管理组件逐批接入，不能用业务状态、查询或分页语义替换 shared layout contract。
+- Next step: `B4-page-migration-and-governance-gate`。
 
 ## Work Intake
 

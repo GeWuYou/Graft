@@ -14,12 +14,6 @@ const config: KnipConfig = {
     // pre-commit 直接通过 node_modules/.bin/lint-staged 调用，Knip 无法从 shell hook 静态追踪到该依赖。
     'lint-staged',
   ],
-  ignoreIssues: {
-    // B2 先建立 shared 响应式公共 API；B3 的 Responsive primitives 首次消费后必须删除此豁免。
-    'src/shared/composables/useContainerSize.ts': ['exports'],
-    'src/shared/composables/useResponsiveVariant.ts': ['exports'],
-    'src/shared/responsive/**': ['exports'],
-  },
 };
 
 export default config;
