@@ -83,7 +83,7 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 			AppEnv:        resolveAppEnv(moduleCtx),
 		},
 		Runtime:           runtimeSnapshot,
-		HostObservability: instance.collectHostObservability(ctx),
+		HostObservability: instance.currentHostObservability(ctx),
 		Dependencies: generated.ServerStatusDependencies{
 			Database: databaseStatus,
 			Redis:    redisStatus,

@@ -87,8 +87,8 @@ func TestHostObservationRatesUseCounterDeltas(t *testing.T) {
 	}
 
 	diskIO := buildDiskIOObservability(
-		diskIOCounters{readBytes: 100, writeBytes: 200, readCount: 10, writeCount: 20, readTimeMs: 30, writeTimeMs: 40},
-		diskIOCounters{readBytes: 300, writeBytes: 260, readCount: 20, writeCount: 24, readTimeMs: 80, writeTimeMs: 60},
+		diskIOCounters{drives: map[string]diskIOCounter{"sda": {readBytes: 100, writeBytes: 200, readCount: 10, writeCount: 20, readTimeMs: 30, writeTimeMs: 40}}},
+		diskIOCounters{drives: map[string]diskIOCounter{"sda": {readBytes: 300, writeBytes: 260, readCount: 20, writeCount: 24, readTimeMs: 80, writeTimeMs: 60}}},
 		2*time.Second,
 	)
 	if diskIO.ReadIops == nil || *diskIO.ReadIops != 5 {
@@ -112,8 +112,8 @@ func TestHostObservationRatesLeaveUnavailableCountersNil(t *testing.T) {
 	}
 
 	diskIO := buildDiskIOObservability(
-		diskIOCounters{readCount: 4, readTimeMs: 10},
-		diskIOCounters{readCount: 4, readTimeMs: 10},
+		diskIOCounters{drives: map[string]diskIOCounter{"sda": {readCount: 4, readTimeMs: 10}}},
+		diskIOCounters{drives: map[string]diskIOCounter{"sda": {readCount: 4, readTimeMs: 10}}},
 		time.Second,
 	)
 	if diskIO.ReadAverageLatencyMs != nil {
@@ -121,6 +121,55 @@ func TestHostObservationRatesLeaveUnavailableCountersNil(t *testing.T) {
 	}
 	if counterRate(10, 20, 0) != nil {
 		t.Fatal("expected invalid elapsed duration to leave rate unavailable")
+	}
+}
+
+func TestDiskIOObservabilityIgnoresDeviceChurn(t *testing.T) {
+	t.Parallel()
+
+	previous := diskIOCounters{drives: map[string]diskIOCounter{
+		"sda":     {readBytes: 100, readCount: 10, readTimeMs: 30},
+		"removed": {readBytes: 9000, readCount: 900, readTimeMs: 2700},
+	}}
+	current := diskIOCounters{drives: map[string]diskIOCounter{
+		"sda": {readBytes: 160, readCount: 16, readTimeMs: 48},
+		"new": {readBytes: 12000, readCount: 1200, readTimeMs: 3600},
+	}}
+
+	diskIO := buildDiskIOObservability(previous, current, 2*time.Second)
+	if diskIO.ReadBytesPerSecond == nil || *diskIO.ReadBytesPerSecond != 30 {
+		t.Fatalf("expected only the stable device to contribute 30 B/s, got %#v", diskIO.ReadBytesPerSecond)
+	}
+	if diskIO.ReadIops == nil || *diskIO.ReadIops != 3 {
+		t.Fatalf("expected only the stable device to contribute 3 IOPS, got %#v", diskIO.ReadIops)
+	}
+	if diskIO.ReadAverageLatencyMs == nil || *diskIO.ReadAverageLatencyMs != 3 {
+		t.Fatalf("expected stable device latency 3ms, got %#v", diskIO.ReadAverageLatencyMs)
+	}
+}
+
+func TestHostObservationRequestsUseLatestSamplerRate(t *testing.T) {
+	t.Parallel()
+
+	moduleInstance := &Module{}
+	firstObservedAt := time.Date(2026, time.July, 21, 0, 0, 0, 0, time.UTC)
+	moduleInstance.sampleHostRateObservability(
+		networkCounters{bytesSent: 100}, true,
+		diskIOCounters{drives: map[string]diskIOCounter{"sda": {readBytes: 100}}}, true,
+		firstObservedAt,
+	)
+	sampledNetwork, sampledDiskIO := moduleInstance.sampleHostRateObservability(
+		networkCounters{bytesSent: 160}, true,
+		diskIOCounters{drives: map[string]diskIOCounter{"sda": {readBytes: 160}}}, true,
+		firstObservedAt.Add(5*time.Second),
+	)
+
+	response := moduleInstance.currentHostObservability(context.Background())
+	if response.Network.SentBytesPerSecond != sampledNetwork.SentBytesPerSecond || response.DiskIo.ReadBytesPerSecond != sampledDiskIO.ReadBytesPerSecond {
+		t.Fatal("expected requests to return the latest sampler rates without advancing the counter baseline")
+	}
+	if !moduleInstance.hostObservationCounters.networkObservedAt.Equal(firstObservedAt.Add(5 * time.Second)) {
+		t.Fatalf("expected request read to preserve sampler baseline, got %s", moduleInstance.hostObservationCounters.networkObservedAt)
 	}
 }
 

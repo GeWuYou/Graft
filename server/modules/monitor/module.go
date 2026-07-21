@@ -84,8 +84,8 @@ type Module struct {
 	trendStore               statex.TimeSeriesStore
 	redisHealth              redisx.HealthReporter
 	requestPerformanceReader moduleapi.RequestPerformanceReader
-	hostObservabilityMu     sync.Mutex
-	hostObservationCounters *hostObservationCounters
+	hostObservabilityMu      sync.Mutex
+	hostObservationCounters  *hostObservationCounters
 
 	samplerMu     sync.Mutex
 	samplerCancel context.CancelFunc
@@ -142,7 +142,7 @@ func (p *Module) Register(ctx *module.Context) error {
 	return nil
 }
 
-// Boot 记录首次稳定启动时间，并在趋势存储可用时启动由生命周期上下文约束的趋势采样器。
+// Boot 记录首次稳定启动时间，并启动由生命周期上下文约束的主机采样器；趋势存储可用时同步持久化趋势点。
 func (p *Module) Boot(ctx *module.Context) error {
 	p.startedAtUnixNs.CompareAndSwap(0, time.Now().UTC().UnixNano())
 	if ctx != nil {

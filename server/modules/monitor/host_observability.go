@@ -15,10 +15,12 @@ import (
 )
 
 type hostObservationCounters struct {
-	networkObservedAt time.Time
-	diskIOObservedAt  time.Time
-	network           networkCounters
-	diskIO            diskIOCounters
+	networkObservedAt    time.Time
+	diskIOObservedAt     time.Time
+	network              networkCounters
+	diskIO               diskIOCounters
+	networkObservability generated.ServerStatusHostNetwork
+	diskIOObservability  generated.ServerStatusHostDiskIo
 }
 
 type networkCounters struct {
@@ -29,6 +31,10 @@ type networkCounters struct {
 }
 
 type diskIOCounters struct {
+	drives map[string]diskIOCounter
+}
+
+type diskIOCounter struct {
 	readBytes   uint64
 	writeBytes  uint64
 	readCount   uint64
@@ -37,8 +43,18 @@ type diskIOCounters struct {
 	writeTimeMs uint64
 }
 
-// collectHostObservability 收集补充的主机与当前进程观测值；无法取得的值保持 nil，避免将采集失败伪装为零。
-func (p *Module) collectHostObservability(ctx context.Context) generated.ServerStatusHostObservability {
+type hostObservationSample struct {
+	network              networkCounters
+	networkAvailable     bool
+	diskIO               diskIOCounters
+	diskIOAvailable      bool
+	networkObservability generated.ServerStatusHostNetwork
+	diskIOObservability  generated.ServerStatusHostDiskIo
+	observedAt           time.Time
+}
+
+// sampleHostObservability 由固定间隔采样器推进主机计数器基线，避免请求频率改变趋势的统计区间。
+func (p *Module) sampleHostObservability(ctx context.Context) generated.ServerStatusHostObservability {
 	result := generated.ServerStatusHostObservability{
 		Network: generated.ServerStatusHostNetwork{},
 		DiskIo:  generated.ServerStatusHostDiskIo{},
@@ -51,15 +67,31 @@ func (p *Module) collectHostObservability(ctx context.Context) generated.ServerS
 	if p == nil {
 		return result
 	}
-	result.Network, result.DiskIo = p.collectHostRateObservability(network, networkAvailable, diskIO, diskAvailable)
+	result.Network, result.DiskIo = p.sampleHostRateObservability(network, networkAvailable, diskIO, diskAvailable, time.Now().UTC())
 	return result
 }
 
-func (p *Module) collectHostRateObservability(
+// currentHostObservability 组合请求时的瞬时 TCP/进程指标和最近一次固定间隔采样得到的速率指标。
+func (p *Module) currentHostObservability(ctx context.Context) generated.ServerStatusHostObservability {
+	result := generated.ServerStatusHostObservability{
+		Network: generated.ServerStatusHostNetwork{},
+		DiskIo:  generated.ServerStatusHostDiskIo{},
+		Tcp:     collectTCPObservability(ctx),
+		Process: collectProcessObservability(ctx),
+	}
+	if p == nil {
+		return result
+	}
+	result.Network, result.DiskIo = p.latestHostRateObservability()
+	return result
+}
+
+func (p *Module) sampleHostRateObservability(
 	network networkCounters,
 	networkAvailable bool,
 	diskIO diskIOCounters,
 	diskAvailable bool,
+	now time.Time,
 ) (generated.ServerStatusHostNetwork, generated.ServerStatusHostDiskIo) {
 	resultNetwork := generated.ServerStatusHostNetwork{}
 	resultDiskIO := generated.ServerStatusHostDiskIo{}
@@ -70,13 +102,30 @@ func (p *Module) collectHostRateObservability(
 	p.hostObservabilityMu.Lock()
 	defer p.hostObservabilityMu.Unlock()
 
-	now := time.Now().UTC()
 	previous := p.hostObservationCounters
 	resultNetwork = networkRateObservability(previous, network, networkAvailable, now)
 	resultDiskIO = diskIORateObservability(previous, diskIO, diskAvailable, now)
-	p.hostObservationCounters = nextHostObservationCounters(previous, network, networkAvailable, diskIO, diskAvailable, now)
+	p.hostObservationCounters = nextHostObservationCounters(previous, hostObservationSample{
+		network:              network,
+		networkAvailable:     networkAvailable,
+		diskIO:               diskIO,
+		diskIOAvailable:      diskAvailable,
+		networkObservability: resultNetwork,
+		diskIOObservability:  resultDiskIO,
+		observedAt:           now,
+	})
 
 	return resultNetwork, resultDiskIO
+}
+
+func (p *Module) latestHostRateObservability() (generated.ServerStatusHostNetwork, generated.ServerStatusHostDiskIo) {
+	p.hostObservabilityMu.Lock()
+	defer p.hostObservabilityMu.Unlock()
+
+	if p.hostObservationCounters == nil {
+		return generated.ServerStatusHostNetwork{}, generated.ServerStatusHostDiskIo{}
+	}
+	return p.hostObservationCounters.networkObservability, p.hostObservationCounters.diskIOObservability
 }
 
 func networkRateObservability(
@@ -105,24 +154,22 @@ func diskIORateObservability(
 
 func nextHostObservationCounters(
 	previous *hostObservationCounters,
-	network networkCounters,
-	networkAvailable bool,
-	diskIO diskIOCounters,
-	diskAvailable bool,
-	now time.Time,
+	sample hostObservationSample,
 ) *hostObservationCounters {
 	// 每类计数器只在自身采集成功后才推进基线，避免失败样本污染下一次增量。
 	next := hostObservationCounters{}
 	if previous != nil {
 		next = *previous
 	}
-	if networkAvailable {
-		next.network = network
-		next.networkObservedAt = now
+	if sample.networkAvailable {
+		next.network = sample.network
+		next.networkObservedAt = sample.observedAt
+		next.networkObservability = sample.networkObservability
 	}
-	if diskAvailable {
-		next.diskIO = diskIO
-		next.diskIOObservedAt = now
+	if sample.diskIOAvailable {
+		next.diskIO = sample.diskIO
+		next.diskIOObservedAt = sample.observedAt
+		next.diskIOObservability = sample.diskIOObservability
 	}
 	return &next
 }
@@ -153,14 +200,12 @@ func collectDiskIOCounters(ctx context.Context) (diskIOCounters, bool) {
 	if err != nil {
 		return diskIOCounters{}, false
 	}
-	var result diskIOCounters
-	for _, item := range drives {
-		result.readBytes += item.ReadBytes
-		result.writeBytes += item.WriteBytes
-		result.readCount += item.ReadCount
-		result.writeCount += item.WriteCount
-		result.readTimeMs += item.ReadTime
-		result.writeTimeMs += item.WriteTime
+	result := diskIOCounters{drives: make(map[string]diskIOCounter, len(drives))}
+	for name, item := range drives {
+		result.drives[name] = diskIOCounter{
+			readBytes: item.ReadBytes, writeBytes: item.WriteBytes, readCount: item.ReadCount,
+			writeCount: item.WriteCount, readTimeMs: item.ReadTime, writeTimeMs: item.WriteTime,
+		}
 	}
 	return result, true
 }
@@ -175,16 +220,45 @@ func buildNetworkObservability(previous networkCounters, current networkCounters
 }
 
 func buildDiskIOObservability(previous diskIOCounters, current diskIOCounters, elapsed time.Duration) generated.ServerStatusHostDiskIo {
-	readCount := counterDelta(previous.readCount, current.readCount)
-	writeCount := counterDelta(previous.writeCount, current.writeCount)
-	return generated.ServerStatusHostDiskIo{
-		ReadBytesPerSecond:    counterRate(previous.readBytes, current.readBytes, elapsed),
-		WriteBytesPerSecond:   counterRate(previous.writeBytes, current.writeBytes, elapsed),
-		ReadIops:              counterRate(previous.readCount, current.readCount, elapsed),
-		WriteIops:             counterRate(previous.writeCount, current.writeCount, elapsed),
-		ReadAverageLatencyMs:  averageLatencyMilliseconds(counterDelta(previous.readTimeMs, current.readTimeMs), readCount),
-		WriteAverageLatencyMs: averageLatencyMilliseconds(counterDelta(previous.writeTimeMs, current.writeTimeMs), writeCount),
+	previousTotals, currentTotals, comparable := comparableDiskIOCounters(previous, current)
+	if !comparable {
+		return generated.ServerStatusHostDiskIo{}
 	}
+	readCount := counterDelta(previousTotals.readCount, currentTotals.readCount)
+	writeCount := counterDelta(previousTotals.writeCount, currentTotals.writeCount)
+	return generated.ServerStatusHostDiskIo{
+		ReadBytesPerSecond:    counterRate(previousTotals.readBytes, currentTotals.readBytes, elapsed),
+		WriteBytesPerSecond:   counterRate(previousTotals.writeBytes, currentTotals.writeBytes, elapsed),
+		ReadIops:              counterRate(previousTotals.readCount, currentTotals.readCount, elapsed),
+		WriteIops:             counterRate(previousTotals.writeCount, currentTotals.writeCount, elapsed),
+		ReadAverageLatencyMs:  averageLatencyMilliseconds(counterDelta(previousTotals.readTimeMs, currentTotals.readTimeMs), readCount),
+		WriteAverageLatencyMs: averageLatencyMilliseconds(counterDelta(previousTotals.writeTimeMs, currentTotals.writeTimeMs), writeCount),
+	}
+}
+
+func comparableDiskIOCounters(previous diskIOCounters, current diskIOCounters) (diskIOCounter, diskIOCounter, bool) {
+	var previousTotals, currentTotals diskIOCounter
+	comparable := false
+	for name, currentDrive := range current.drives {
+		previousDrive, ok := previous.drives[name]
+		if !ok {
+			continue
+		}
+		comparable = true
+		previousTotals.readBytes += previousDrive.readBytes
+		previousTotals.writeBytes += previousDrive.writeBytes
+		previousTotals.readCount += previousDrive.readCount
+		previousTotals.writeCount += previousDrive.writeCount
+		previousTotals.readTimeMs += previousDrive.readTimeMs
+		previousTotals.writeTimeMs += previousDrive.writeTimeMs
+		currentTotals.readBytes += currentDrive.readBytes
+		currentTotals.writeBytes += currentDrive.writeBytes
+		currentTotals.readCount += currentDrive.readCount
+		currentTotals.writeCount += currentDrive.writeCount
+		currentTotals.readTimeMs += currentDrive.readTimeMs
+		currentTotals.writeTimeMs += currentDrive.writeTimeMs
+	}
+	return previousTotals, currentTotals, comparable
 }
 
 func counterDelta(previous uint64, current uint64) *uint64 {

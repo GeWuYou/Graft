@@ -74,7 +74,7 @@ func resolveTrendStore(moduleCtx *module.Context, instance *Module) statex.TimeS
 }
 
 func (p *Module) startTrendSampler(ctx *module.Context) {
-	if p == nil || ctx == nil || p.trendStore == nil || ctx.LifecycleContext == nil {
+	if p == nil || ctx == nil || ctx.LifecycleContext == nil {
 		return
 	}
 
@@ -152,16 +152,15 @@ func (p *Module) recordTrendSample(
 	storageKey string,
 	previousCPUTimes **cpu.TimesStat,
 ) {
+	hostObservability := p.sampleHostObservability(ctx)
 	if trendStore == nil {
 		return
 	}
-
 	runtimeSnapshot, err := collectRuntimeSnapshot(ctx)
 	if err != nil {
 		logTrendWarning(p, nil, "collect monitor runtime snapshot failed", err)
 		return
 	}
-	hostObservability := p.collectHostObservability(ctx)
 	cpuPercent, err := toGeneratedFloat32(collectCPUPercent(ctx, previousCPUTimes, p, storageKey), "cpu percent")
 	if err != nil {
 		logTrendWarning(p, nil, "convert monitor cpu sample failed", err)
