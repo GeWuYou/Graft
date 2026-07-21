@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
 import sourceText from './index.vue?raw';
 
 describe('Docker network management page', () => {
@@ -58,11 +59,12 @@ describe('Docker network management page', () => {
     expect(sourceText).not.toContain(
       't-tag size="small" variant="light-outline">{{ sourceLabel(row.context.source) }}</t-tag>',
     );
-    expect(sourceText).toContain('row.container_references.slice(0, 2)');
-    expect(sourceText).toContain('row.container_references.slice(2)');
-    expect(sourceText).toContain('<t-popup');
-    expect(sourceText).toContain('trigger="hover"');
-    expect(sourceText).toContain('docker-network-page__container-badge');
+    expect(sourceText).toContain('<container-reference-list');
+    expect(referenceListText).toContain('references.slice(0, 2)');
+    expect(referenceListText).toContain('references.slice(2)');
+    expect(referenceListText).toContain('<t-popup');
+    expect(referenceListText).toContain('trigger="hover"');
+    expect(referenceListText).toContain('container-reference-list__badge');
     expect(sourceText).toContain('openContainerReference(reference.id)');
     expect(sourceText).not.toContain("colKey: 'labels'");
   });

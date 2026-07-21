@@ -129,54 +129,11 @@
       </template>
       <template #containers="{ row }">
         <div v-if="row.container_references.length" class="docker-network-page__container-list">
-          <t-tooltip
-            v-for="reference in row.container_references.slice(0, 2)"
-            :key="reference.id"
-            :content="containerReferenceTooltip(reference)"
-            placement="top"
-          >
-            <t-tag
-              class="docker-network-page__container-badge"
-              size="small"
-              variant="light-outline"
-              @click="openContainerReference(reference.id)"
-            >
-              {{ reference.name || reference.id }}
-            </t-tag>
-          </t-tooltip>
-          <t-popup v-if="row.container_references.length > 2" :delay="[120, 160]" placement="top-left" trigger="hover">
-            <t-tag
-              class="docker-network-page__container-badge docker-network-page__container-badge--overflow"
-              size="small"
-              variant="light-outline"
-            >
-              +{{ row.container_references.length - 2 }}
-            </t-tag>
-            <template #content>
-              <div class="docker-network-page__container-overflow">
-                <span class="docker-network-page__container-overflow-title">
-                  {{ t('container.networks.connectedContainers') }}
-                </span>
-                <div class="docker-network-page__container-list">
-                  <t-tooltip
-                    v-for="reference in row.container_references.slice(2)"
-                    :key="reference.id"
-                    :content="containerReferenceTooltip(reference)"
-                    placement="top"
-                  >
-                    <t-tag
-                      class="docker-network-page__container-badge"
-                      size="small"
-                      variant="light-outline"
-                      @click="openContainerReference(reference.id)"
-                    >
-                      {{ reference.name || reference.id }}
-                    </t-tag>
-                  </t-tooltip>
-                </div>
-              </div>
-            </template>
-          </t-popup>
+          <container-reference-list
+            :references="row.container_references"
+            :title="t('container.networks.connectedContainers')"
+            @open="openContainerReference"
+          />
         </div>
         <span v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</span>
       </template>
@@ -467,6 +424,7 @@ import DockerResourceContextCard from '../../components/DockerResourceContextCar
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
+import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
 import {
   invalidateDockerNetworkQueries,
   useDockerNetworkDetailQuery,
@@ -475,7 +433,7 @@ import {
 import {
   getDockerResourceRelationEmptyLabel,
   getDockerResourceRelationshipPresentation,
-  getDockerResourceSourceLabel,
+  getDockerResourceSourceDescription,
 } from '../../shared/resource-presentation';
 import type { DockerNetwork, DockerNetworkCreateRequest, DockerNetworkDriver } from '../../types/docker-network';
 
@@ -618,15 +576,8 @@ function driverLabel(driver: string) {
 function scopeLabel(scope: string) {
   return t(`container.networks.scopes.${scope}`, scope);
 }
-function sourceLabel(source: DockerResourceSource) {
-  return getDockerResourceSourceLabel(t, source);
-}
 function sourceDescription(network: DockerNetwork) {
-  const contextDetail =
-    network.context.compose_project || network.context.compose_resource || network.context.managed_by || '';
-  return contextDetail
-    ? `${sourceLabel(network.context.source)} · ${contextDetail}`
-    : sourceLabel(network.context.source);
+  return getDockerResourceSourceDescription(t, network.context);
 }
 function networkHint(network: DockerNetwork) {
   return [
@@ -635,9 +586,6 @@ function networkHint(network: DockerNetwork) {
   ]
     .filter(Boolean)
     .join(' · ');
-}
-function containerReferenceTooltip(reference: DockerNetwork['container_references'][number]) {
-  return reference.name ? `${reference.name} (${reference.id})` : reference.id;
 }
 const relationshipPresentation = (status: DockerNetwork['relationship_status']) =>
   getDockerResourceRelationshipPresentation(t, status);
@@ -859,6 +807,20 @@ async function submitBatchRemove() {
 
 .docker-network-page__container-badge--overflow {
   color: var(--td-text-color-secondary);
+}
+
+.docker-network-page__container-overflow-trigger {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0;
+}
+
+.docker-network-page__container-overflow-trigger:focus-visible,
+.docker-network-page__container-badge:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
 }
 
 .docker-network-page__container-overflow {

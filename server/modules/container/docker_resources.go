@@ -106,9 +106,6 @@ const (
 	dockerResourceSourceCompose       DockerResourceSource = "compose"
 	dockerResourceSourceDockerDefault DockerResourceSource = "docker_default"
 	dockerResourceSourceDocker        DockerResourceSource = "docker"
-	dockerResourceSourceManaged       DockerResourceSource = "managed"
-	dockerResourceSourceImported      DockerResourceSource = "imported"
-	dockerResourceSourceUnknown       DockerResourceSource = "unknown"
 )
 
 // DockerResourceRelationshipStatus 表示当前关系快照的可用性和使用状态。
@@ -189,9 +186,10 @@ func dockerNetworkMatches(item DockerNetwork, query DockerNetworkListQuery) bool
 func summarizeDockerNetworks(items []DockerNetwork) DockerNetworkListSummary {
 	summary := DockerNetworkListSummary{Total: len(items)}
 	for _, item := range items {
-		if item.ContainerCount > 0 {
+		switch dockerNetworkRelationshipStatus(item) {
+		case dockerResourceRelationshipStatusUsed:
 			summary.InUse++
-		} else {
+		case dockerResourceRelationshipStatusUnused:
 			summary.Unused++
 		}
 	}
@@ -530,17 +528,11 @@ func dockerNetworkContainerReferences(items []container.Summary) map[string][]Do
 		if !ok {
 			continue
 		}
+		if item.NetworkSettings == nil {
+			continue
+		}
 		for id, endpoint := range item.NetworkSettings.Networks {
-			networkID := strings.TrimSpace(id)
-			if endpoint != nil && strings.TrimSpace(endpoint.NetworkID) != "" {
-				networkID = strings.TrimSpace(endpoint.NetworkID)
-			}
-			if networkID != "" {
-				if byNetwork[networkID] == nil {
-					byNetwork[networkID] = make(map[string]DockerNetworkContainerReference)
-				}
-				byNetwork[networkID][reference.ID] = reference
-			}
+			addDockerNetworkReference(byNetwork, dockerNetworkReferenceID(id, endpoint), reference)
 		}
 	}
 	result := make(map[string][]DockerNetworkContainerReference, len(byNetwork))
@@ -548,6 +540,24 @@ func dockerNetworkContainerReferences(items []container.Summary) map[string][]Do
 		result[networkID] = sortedDockerContainerReferences(references)
 	}
 	return result
+}
+
+func dockerNetworkReferenceID(id string, endpoint *network.EndpointSettings) string {
+	networkID := strings.TrimSpace(id)
+	if endpoint != nil && strings.TrimSpace(endpoint.NetworkID) != "" {
+		networkID = strings.TrimSpace(endpoint.NetworkID)
+	}
+	return networkID
+}
+
+func addDockerNetworkReference(byNetwork map[string]map[string]DockerNetworkContainerReference, networkID string, reference DockerNetworkContainerReference) {
+	if networkID == "" {
+		return
+	}
+	if byNetwork[networkID] == nil {
+		byNetwork[networkID] = make(map[string]DockerNetworkContainerReference)
+	}
+	byNetwork[networkID][reference.ID] = reference
 }
 
 // ReadDockerNetwork returns one sanitized Docker network by ID.
@@ -610,7 +620,9 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 		}
 		if containersErr == nil {
 			projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), references[projected.Name]...)
-			projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
+			if projected.ReferenceCount == nil {
+				projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
+			}
 		} else {
 			projected.RelationshipStatus = dockerResourceRelationshipStatusException
 		}
@@ -648,7 +660,9 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 	})
 	if err == nil {
 		projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), dockerVolumeReferences(containers)[projected.Name]...)
-		projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
+		if projected.ReferenceCount == nil {
+			projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
+		}
 	} else {
 		projected.RelationshipStatus = dockerResourceRelationshipStatusException
 	}
@@ -791,19 +805,19 @@ func dockerVolume(item volume.Volume) DockerVolume {
 }
 
 func dockerResourceContext(labels map[string]string, resourceName, composeResourceLabel string, defaultDockerResource bool) DockerResourceContext {
-	context := DockerResourceContext{Runtime: runtimeNameDocker, Source: dockerResourceSourceDocker}
+	resourceContext := DockerResourceContext{Runtime: runtimeNameDocker, Source: dockerResourceSourceDocker}
 	if defaultDockerResource {
-		context.Source = dockerResourceSourceDockerDefault
-		return context
+		resourceContext.Source = dockerResourceSourceDockerDefault
+		return resourceContext
 	}
 	project := strings.TrimSpace(labels[composeProjectLabel])
 	if project == "" {
-		return context
+		return resourceContext
 	}
-	context.Source = dockerResourceSourceCompose
-	context.ComposeProject = project
-	context.ComposeResource = firstNonEmpty(strings.TrimSpace(labels[composeResourceLabel]), resourceName)
-	return context
+	resourceContext.Source = dockerResourceSourceCompose
+	resourceContext.ComposeProject = project
+	resourceContext.ComposeResource = firstNonEmpty(strings.TrimSpace(labels[composeResourceLabel]), resourceName)
+	return resourceContext
 }
 
 var _ DockerResourceReader = (*DockerRuntime)(nil)

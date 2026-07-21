@@ -47,6 +47,21 @@ func TestListDockerNetworksFiltersPagesAndSummarizesSnapshot(t *testing.T) {
 	}
 }
 
+func TestSummarizeDockerNetworksDoesNotCountUnknownAsUnused(t *testing.T) {
+	t.Parallel()
+
+	items := []DockerNetwork{
+		{RelationshipStatus: dockerResourceRelationshipStatusUsed},
+		{RelationshipStatus: dockerResourceRelationshipStatusUnused},
+		{RelationshipStatus: dockerResourceRelationshipStatusUnknown},
+		{RelationshipStatus: dockerResourceRelationshipStatusException},
+	}
+
+	if got := summarizeDockerNetworks(items); got != (DockerNetworkListSummary{Total: 4, InUse: 1, Unused: 1}) {
+		t.Fatalf("unknown network relationship must not be counted as unused: %#v", got)
+	}
+}
+
 func TestListDockerVolumesNormalizesNegativePagination(t *testing.T) {
 	t.Parallel()
 
@@ -177,6 +192,15 @@ func TestDockerNetworkReferencesDeduplicateAndUseNetworkID(t *testing.T) {
 	}
 	if other := references["network-other"]; len(other) != 1 || other[0].ID != "container-a" {
 		t.Fatalf("unexpected secondary network references: %#v", other)
+	}
+}
+
+func TestDockerNetworkReferencesIgnoreContainersWithoutNetworkSettings(t *testing.T) {
+	t.Parallel()
+
+	references := dockerNetworkContainerReferences([]dockertypes.Summary{{ID: "container-a"}})
+	if len(references) != 0 {
+		t.Fatalf("expected nil network settings to produce no references, got %#v", references)
 	}
 }
 
@@ -344,5 +368,24 @@ func TestReadDockerVolumeReturnsUnknownReferencesWhenContainerListFails(t *testi
 	}
 	if result.RelationshipStatus != dockerResourceRelationshipStatusException {
 		t.Fatalf("expected relationship exception status, got %#v", result.RelationshipStatus)
+	}
+}
+
+func TestReadDockerVolumeKeepsKnownRefCountWhenContainerListDisagrees(t *testing.T) {
+	t.Parallel()
+
+	refCount := int64(1)
+	client := &volumeDetailDockerClient{volume: volume.Volume{
+		Name:      "data",
+		UsageData: &volume.UsageData{RefCount: refCount, Size: 4096},
+	}}
+	runtime := &DockerRuntime{client: client}
+
+	result, err := runtime.ReadDockerVolume(context.Background(), "data")
+	if err != nil {
+		t.Fatalf("read volume: %v", err)
+	}
+	if result.RelationshipStatus != dockerResourceRelationshipStatusUsed {
+		t.Fatalf("expected known Docker refcount to preserve used status, got %#v", result)
 	}
 }

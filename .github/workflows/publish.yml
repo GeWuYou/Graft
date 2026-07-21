@@ -72,7 +72,7 @@ jobs:
           bun-version: 1.3.13
 
       - name: Restore Bun package cache
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb
+        uses: actions/cache/restore@9255dc7a253b0ccc959486e2bca901246202afeb
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
@@ -314,10 +314,10 @@ jobs:
           mkdir -p image-assets
           cat > "image-assets/graft-container-images-${RELEASE_REF_NAME}.txt" <<EOF
           server_image=${{ steps.image_vars.outputs.server_image }}
-          server_tag=${{ github.ref_name }}
+          server_tag=${RELEASE_REF_NAME}
           server_digest=${{ steps.server_build.outputs.digest }}
           web_image=${{ steps.image_vars.outputs.web_image }}
-          web_tag=${{ github.ref_name }}
+          web_tag=${RELEASE_REF_NAME}
           web_digest=${{ steps.web_build.outputs.digest }}
           EOF
 
@@ -456,11 +456,13 @@ jobs:
 
       - name: Write bubble smoke summary
         if: always()
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
         run: |
           {
             echo "## Bubble Smoke Gate"
             echo
-            echo "- Tag: \`${{ github.ref_name }}\`"
+            echo "- Tag: \`${RELEASE_REF_NAME}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
             echo "- Probe URL: \`${{ steps.bubble_smoke.outputs.probe_url || 'http://127.0.0.1:18080/healthz' }}\`"
             echo "- Result: \`${{ steps.bubble_smoke.outputs.result || 'failed' }}\`"
@@ -495,13 +497,15 @@ jobs:
 
       - name: Write compose environment
         shell: bash
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           mkdir -p "${RUNNER_TEMP}/graft-apps"
           cat > .env <<EOF
           GRAFT_SERVER_IMAGE=${{ needs.publish-images.outputs.server_image }}
           GRAFT_WEB_IMAGE=${{ needs.publish-images.outputs.web_image }}
-          GRAFT_IMAGE_TAG=${{ github.ref_name }}
+          GRAFT_IMAGE_TAG=${RELEASE_REF_NAME}
           POSTGRES_DB=graft
           POSTGRES_USER=graft
           POSTGRES_PASSWORD=graft
@@ -634,11 +638,13 @@ jobs:
       - name: Write compose smoke summary
         if: always()
         shell: bash
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
         run: |
           {
             echo "## Compose Smoke Gate"
             echo
-            echo "- Tag: \`${{ github.ref_name }}\`"
+            echo "- Tag: \`${RELEASE_REF_NAME}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
             echo "- Bootstrap: \`service_completed_successfully\`"
             echo "- Health Probe: \`http://127.0.0.1/healthz\`"
@@ -741,15 +747,16 @@ jobs:
       - name: Write publish summary
         env:
           CLIFF_RELEASE_NOTES: ${{ steps.cliff_release.outputs.content }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
         run: |
           {
             echo "## GitHub Release"
             echo
-            echo "- Tag: \`${{ github.ref_name }}\`"
+            echo "- Tag: \`${RELEASE_REF_NAME}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
             echo "- Channel: \`${{ needs.build-artifacts.outputs.channel }}\`"
-            echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${{ github.ref_name }}\`"
-            echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${{ github.ref_name }}\`"
+            echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${RELEASE_REF_NAME}\`"
+            echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${RELEASE_REF_NAME}\`"
             echo
             printf '%s\n' "${CLIFF_RELEASE_NOTES}"
           } >> "${GITHUB_STEP_SUMMARY}"

@@ -11,8 +11,8 @@
   - `openapi/**` for Docker resource wire contracts.
   - `server/modules/container/**` for normalized Docker resource projections.
   - `web/src/modules/container/**` for the Graft presentation layer.
-- Completed so far: product IA and acceptance decisions are locked.
-- Not started yet: contract, server projection, and Web implementation.
+- Completed so far: product IA, contract, server projection, and Web implementation.
+- Current stage: cross-boundary validation, browser evidence, and closeout.
 
 ## Recovery Receipt
 
@@ -40,15 +40,14 @@ Out of scope:
 
 ## Phase Plan
 
-- Batch 1: Context contract, relationship-trust projection, and product guideline.
-- Batch 2: Network and Volume list/detail/filter implementation.
-- Batch 3: cross-boundary validation, visual QA, and closeout.
+- Completed: Context contract, relationship-trust projection, product guideline, and Network/Volume implementation.
+- Current: cross-boundary validation, browser evidence, and closeout.
 
 ## Current Recovery Point
 
-- Batch 1 is in progress.
-- The first authority repair is a normalized Volume Context projection; web must not infer it from labels.
-- Next step: accept the contract and guideline slices, then implement the web consumer.
+- Contract, server projection, and Web implementation are complete.
+- The authority repair is a normalized Volume Context projection; web does not infer it from labels.
+- Next step: collect cross-boundary validation and browser evidence, then close out the topic.
 
 ## Work Intake
 

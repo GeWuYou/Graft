@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker volume list page', () => {
@@ -32,13 +33,14 @@ describe('docker volume list page', () => {
   });
 
   it('keeps mounted-container overflow actionable for pointer and keyboard users', () => {
-    expect(sourceText).toContain('<t-popup');
-    expect(sourceText).toContain('trigger="hover"');
-    expect(sourceText).toContain('@focus="showOverflow(row.name)"');
-    expect(sourceText).toContain('@keydown.esc.prevent="hideOverflow(row.name)"');
-    expect(sourceText).toContain('@keydown.enter.prevent="openContainerReference(reference.id)"');
-    expect(sourceText).toContain('@keydown.space.prevent="openContainerReference(reference.id)"');
-    expect(sourceText).toContain('containerReferenceTooltip(reference)');
+    expect(sourceText).toContain('<container-reference-list');
+    expect(referenceListText).toContain('<t-popup');
+    expect(referenceListText).toContain('trigger="hover"');
+    expect(referenceListText).toContain('@focus="overflowVisible = true"');
+    expect(referenceListText).toContain('@keydown.esc.prevent="overflowVisible = false"');
+    expect(referenceListText).toContain('@keydown.enter.prevent="emit(\'open\', reference.id)"');
+    expect(referenceListText).toContain('@keydown.space.prevent="emit(\'open\', reference.id)"');
+    expect(referenceListText).toContain('referenceTooltip(reference)');
   });
 
   it('provides selection and a batch removal request integration', () => {
@@ -95,7 +97,8 @@ describe('docker volume list page', () => {
   });
 
   it('shows sanitized container references in the table and detail drawer', () => {
-    expect(sourceText).toContain('row.container_references.slice(0, 2)');
+    expect(sourceText).toContain('<container-reference-list');
+    expect(referenceListText).toContain('references.slice(0, 2)');
     expect(sourceText).toContain('selectedVolume.container_references');
     expect(sourceText).toContain('openContainerReference(reference.id)');
     expect(sourceText).toContain("t('container.resourceContext.relations')");

@@ -326,25 +326,39 @@ jobs:
 
           git fetch --force --tags origin
 
-          latest_number=0
-          while IFS= read -r tag; do
-            if [[ "${tag}" =~ ^v${NEXT_VERSION//./\\.}-beta\.([1-9][0-9]*)$ ]]; then
-              number="${BASH_REMATCH[1]}"
-              if (( number > latest_number )); then
-                latest_number="${number}"
-              fi
-            fi
-          done < <(git tag --list "v${NEXT_VERSION}-beta.*")
-
-          beta_tag="v${NEXT_VERSION}-beta.$((latest_number + 1))"
-          if git ls-remote --exit-code --tags origin "refs/tags/${beta_tag}" >/dev/null 2>&1; then
-            echo "::error::Beta tag '${beta_tag}' already exists remotely. Rerun the workflow to calculate the next sequence."
-            exit 1
-          fi
-
-          git tag -a "${beta_tag}" "${GITHUB_SHA}" -m "Beta release ${beta_tag}"
           git remote set-url origin "https://x-access-token:${PAT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push origin "refs/tags/${beta_tag}"
+
+          for attempt in 1 2; do
+            git fetch --force --tags origin
+            latest_number=0
+            while IFS= read -r tag; do
+              if [[ "${tag}" =~ ^v${NEXT_VERSION//./\\.}-beta\.([1-9][0-9]*)$ ]]; then
+                number="${BASH_REMATCH[1]}"
+                if (( number > latest_number )); then
+                  latest_number="${number}"
+                fi
+              fi
+            done < <(git tag --list "v${NEXT_VERSION}-beta.*")
+
+            beta_tag="v${NEXT_VERSION}-beta.$((latest_number + 1))"
+            if git ls-remote --exit-code --tags origin "refs/tags/${beta_tag}" >/dev/null 2>&1; then
+              if (( attempt == 2 )); then
+                echo "::error::Beta tag '${beta_tag}' already exists remotely after retry."
+                exit 1
+              fi
+              continue
+            fi
+
+            git tag -a "${beta_tag}" "${GITHUB_SHA}" -m "Beta release ${beta_tag}"
+            if git push origin "refs/tags/${beta_tag}"; then
+              break
+            fi
+            git tag -d "${beta_tag}"
+            if (( attempt == 2 )); then
+              echo "::error::Failed to push Beta tag '${beta_tag}' after retry."
+              exit 1
+            fi
+          done
 
           echo "tag=${beta_tag}" >> "${GITHUB_OUTPUT}"
 

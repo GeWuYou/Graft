@@ -1,4 +1,4 @@
-Continue the Docker Resource Context IA topic through the current bounded batch.
+Continue the Docker Resource Context IA topic through cross-boundary validation, browser evidence, and closeout.
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
@@ -27,10 +27,14 @@ Locked decisions:
 1. Context is business information and may not be reconstructed from metadata in the web layer.
 2. Metadata is diagnostic-only, default-collapsed, and may not drive navigation or business judgment.
 
-Current batch plan:
+Completed batches:
 
-1. Complete Context contract, relationship-trust projection, and the Docker resource design guideline.
-2. Implement Network and Volume Web IA after the contract is available.
+- Context contract, relationship-trust projection, and the Docker resource design guideline.
+- Network and Volume contract, server projection, and Web IA implementation.
+
+Current batch:
+
+- Run cross-boundary validation, collect browser evidence, and close out the topic.
 
 Validation expectations:
 
@@ -40,6 +44,6 @@ git diff --check
 
 Required closeout:
 
-- State the current batch and changed authority owner.
+- State the cross-boundary validation and browser evidence status.
 - State validation run and any deliberate gaps.
 - Update topic tracking and trace before handing off.

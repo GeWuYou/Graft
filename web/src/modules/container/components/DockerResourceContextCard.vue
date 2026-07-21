@@ -38,6 +38,8 @@ import { useI18n } from 'vue-i18n';
 
 import type { components } from '@/contracts/openapi/generated/schema';
 
+import { getDockerResourceSourceLabel } from '../shared/resource-presentation';
+
 const props = withDefaults(
   defineProps<{
     context: components['schemas']['docker-resource-context'];
@@ -50,7 +52,7 @@ const { t } = useI18n();
 const runtimeLabel = computed(() =>
   t(`container.resourceContext.runtimeValues.${props.context.runtime}`, props.context.runtime),
 );
-const sourceLabel = computed(() => t(`container.resourceContext.sourceValues.${props.context.source}`));
+const sourceLabel = computed(() => getDockerResourceSourceLabel(t, props.context.source));
 const resourceLabel = computed(() =>
   t(props.resourceKind === 'network' ? 'container.resourceContext.network' : 'container.resourceContext.volume'),
 );
