@@ -81,6 +81,8 @@ describe('container resource query keys', () => {
           attachable: true,
           ingress: false,
           container_count: 0,
+          source: { kind: 'compose', compose_project: 'graft' },
+          label_groups: { system: {}, user: {} },
         },
       ],
       total: 1,

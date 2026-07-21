@@ -6667,6 +6667,22 @@ export interface components {
     'enveloped-docker-image-batch-remove-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-batch-remove-response'];
     };
+    'docker-network-source': {
+      /** @enum {string} */
+      kind: 'compose' | 'swarm' | 'docker' | 'custom' | 'unknown';
+      compose_project?: string;
+      compose_network?: string;
+      compose_version?: string;
+      swarm_stack?: string;
+    };
+    'docker-network-label-groups': {
+      system: {
+        [key: string]: string;
+      };
+      user: {
+        [key: string]: string;
+      };
+    };
     'docker-network': {
       id: string;
       name: string;
@@ -6681,6 +6697,8 @@ export interface components {
       labels?: {
         [key: string]: string;
       };
+      source: components['schemas']['docker-network-source'];
+      label_groups: components['schemas']['docker-network-label-groups'];
     };
     'docker-network-list-summary': {
       total: number;

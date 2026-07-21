@@ -1,0 +1,9 @@
+type: object
+required: [system, user]
+properties:
+  system:
+    type: object
+    additionalProperties: { type: string }
+  user:
+    type: object
+    additionalProperties: { type: string }

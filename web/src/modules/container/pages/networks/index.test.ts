@@ -44,20 +44,32 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('await invalidateDockerNetworkQueries();');
   });
 
-  it('renders network attributes, labels, and localized creation time in the list', () => {
+  it('renders network attributes, normalized resource sources, and localized creation time in the list', () => {
     expect(sourceText).toContain("'created_at'");
     expect(sourceText).toContain('formatLocaleDateTime(row.created_at, locale)');
     expect(sourceText).toContain("t('container.networks.noAttributes')");
-    expect(sourceText).toContain('Object.entries(row.labels ?? {})');
-    expect(sourceText).toContain('`${key}=${value}`');
-    expect(sourceText).toContain('<t-tooltip');
+    expect(sourceText).toContain("colKey: 'resource_source'");
+    expect(sourceText).toContain('<template #resource_source="{ row }">');
+    expect(sourceText).toContain('presentNetworkResourceSource(network)');
+    expect(sourceText).not.toContain('Object.entries(row.labels ?? {})');
+    expect(sourceText).not.toContain('Object.keys(detailQuery.data.value.labels ?? {})');
   });
 
-  it('keeps compact metadata columns while reserving room for labels', () => {
+  it('keeps compact metadata columns while reserving room for resource source summaries', () => {
     expect(sourceText).toContain("{ colKey: 'name', title: t('container.networks.fields.name'), width: 360");
     expect(sourceText).toContain("{ colKey: 'driver', title: t('container.networks.fields.driver'), width: 120");
     expect(sourceText).toContain("{ colKey: 'scope', title: t('container.networks.fields.scope'), width: 120");
-    expect(sourceText).toContain("{ colKey: 'labels', title: t('container.networks.labels'), width: 500 }");
+    expect(sourceText).toContain(
+      "{ colKey: 'resource_source', title: t('container.networks.resourceSource'), width: 260 }",
+    );
     expect(sourceText).toContain("{ colKey: 'created_at', title: t('container.networks.fields.createdAt'), width: 180");
+  });
+
+  it('uses an accessible click popup and one-column details for grouped label data', () => {
+    expect(sourceText).toContain('attach="body" destroy-on-close show-arrow trigger="click"');
+    expect(sourceText).toContain('class="docker-network-resource-source-trigger"');
+    expect(sourceText).toContain("t('container.networks.systemLabels')");
+    expect(sourceText).toContain("t('container.networks.userLabels')");
+    expect(sourceText).toContain("value: 'resource_source'");
   });
 });

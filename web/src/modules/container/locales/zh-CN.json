@@ -562,6 +562,9 @@
       "ingress": "入口网络",
       "noAttributes": "普通",
       "labels": "标签",
+      "resourceSource": "资源来源",
+      "systemLabels": "系统标签",
+      "userLabels": "用户标签",
       "ipam": "IPAM 配置",
       "connectedContainers": "已连接容器",
       "none": "暂无数据",
@@ -611,6 +614,24 @@
         "flags": "网络能力",
         "containers": "容器数",
         "createdAt": "创建时间"
+      },
+      "source": {
+        "openDetails": "查看 {source} 的资源来源与标签",
+        "noUserLabels": "无用户标签",
+        "kinds": {
+          "compose": "Compose",
+          "swarm": "Swarm",
+          "docker": "Docker 默认网络",
+          "custom": "自定义",
+          "unknown": "未知"
+        },
+        "fields": {
+          "kind": "来源类型",
+          "composeProject": "Compose 项目",
+          "composeNetwork": "Compose 网络",
+          "composeVersion": "Compose 版本",
+          "swarmStack": "Swarm 堆栈"
+        }
       },
       "form": {
         "name": "名称",

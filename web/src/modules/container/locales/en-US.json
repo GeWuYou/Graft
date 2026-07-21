@@ -562,6 +562,9 @@
       "ingress": "Ingress",
       "noAttributes": "Standard",
       "labels": "Labels",
+      "resourceSource": "Resource Source",
+      "systemLabels": "System Labels",
+      "userLabels": "User Labels",
       "ipam": "IPAM Configuration",
       "connectedContainers": "Connected Containers",
       "none": "No data",
@@ -611,6 +614,24 @@
         "flags": "Network Capabilities",
         "containers": "Containers",
         "createdAt": "Created At"
+      },
+      "source": {
+        "openDetails": "View resource source and labels for {source}",
+        "noUserLabels": "No user labels",
+        "kinds": {
+          "compose": "Compose",
+          "swarm": "Swarm",
+          "docker": "Docker Default Network",
+          "custom": "Custom",
+          "unknown": "Unknown"
+        },
+        "fields": {
+          "kind": "Source Type",
+          "composeProject": "Compose Project",
+          "composeNetwork": "Compose Network",
+          "composeVersion": "Compose Version",
+          "swarmStack": "Swarm Stack"
+        }
       },
       "form": {
         "name": "Name",

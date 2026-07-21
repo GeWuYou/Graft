@@ -74,7 +74,7 @@ type DockerImageListSummary struct {
 	Dangling  int
 }
 
-// DockerNetwork is the sanitized network projection shared by list and detail reads.
+// DockerNetwork 是列表与详情共享的脱敏网络投影，并包含面向界面展示的来源和标签分组。
 type DockerNetwork struct {
 	ID             string
 	Name           string
@@ -87,6 +87,8 @@ type DockerNetwork struct {
 	ContainerCount int
 	Removable      bool
 	Labels         map[string]string
+	Source         DockerNetworkSource
+	LabelGroups    DockerNetworkLabelGroups
 }
 
 // DockerNetworkListQuery 描述 Docker 网络列表的筛选和分页条件。
@@ -599,9 +601,11 @@ func imageLabels(item image.InspectResponse) map[string]string {
 	return item.Config.Labels
 }
 
-// dockerNetwork converts Docker network data into a normalized DockerNetwork value.
+// dockerNetwork 将 Docker 网络数据转换为统一投影，并在此处一次完成来源和标签分组。
 func dockerNetwork(item network.Network, containerCount int) DockerNetwork {
-	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Removable: !isDockerDefaultNetwork(strings.TrimSpace(item.Name)) && containerCount == 0, Labels: cloneLabels(item.Labels)}
+	name := strings.TrimSpace(item.Name)
+	source, labelGroups := classifyDockerNetworkMetadata(name, item.Ingress, item.Labels)
+	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: name, Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Removable: !isDockerDefaultNetwork(name) && containerCount == 0, Labels: cloneLabels(item.Labels), Source: source, LabelGroups: labelGroups}
 }
 
 // dockerVolume converts a Docker volume into a normalized DockerVolume projection, preserving usage metrics when available.

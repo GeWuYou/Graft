@@ -1,5 +1,5 @@
 type: object
-required: [id, name, driver, scope, created_at, internal, attachable, ingress, container_count]
+required: [id, name, driver, scope, created_at, internal, attachable, ingress, container_count, source, label_groups]
 properties:
   id: { type: string }
   name: { type: string }
@@ -12,3 +12,5 @@ properties:
   container_count: { type: integer, minimum: 0 }
   removable: { type: boolean }
   labels: { type: object, additionalProperties: { type: string } }
+  source: { $ref: ./docker-network-source.yaml }
+  label_groups: { $ref: ./docker-network-label-groups.yaml }

@@ -19635,6 +19635,7 @@
         "required": [
           "state",
           "summary",
+          "summary_params",
           "evidence_links"
         ],
         "properties": {
@@ -19649,7 +19650,14 @@
           },
           "summary": {
             "type": "string",
-            "description": "Human-readable summary of the correlated monitor evidence."
+            "description": "Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog."
+          },
+          "summary_params": {
+            "type": "object",
+            "description": "String-formatted interpolation values for the monitor summary locale key.",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "reason": {
             "type": "string",
@@ -26679,6 +26687,57 @@
           }
         ]
       },
+      "docker-network-source": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "compose",
+              "swarm",
+              "docker",
+              "custom",
+              "unknown"
+            ]
+          },
+          "compose_project": {
+            "type": "string"
+          },
+          "compose_network": {
+            "type": "string"
+          },
+          "compose_version": {
+            "type": "string"
+          },
+          "swarm_stack": {
+            "type": "string"
+          }
+        }
+      },
+      "docker-network-label-groups": {
+        "type": "object",
+        "required": [
+          "system",
+          "user"
+        ],
+        "properties": {
+          "system": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "user": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "docker-network": {
         "type": "object",
         "required": [
@@ -26690,7 +26749,9 @@
           "internal",
           "attachable",
           "ingress",
-          "container_count"
+          "container_count",
+          "source",
+          "label_groups"
         ],
         "properties": {
           "id": {
@@ -26729,6 +26790,12 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "source": {
+            "$ref": "#/components/schemas/docker-network-source"
+          },
+          "label_groups": {
+            "$ref": "#/components/schemas/docker-network-label-groups"
           }
         }
       },

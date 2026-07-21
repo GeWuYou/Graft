@@ -85,7 +85,16 @@
       :footer-summary="paginationSummary"
       :empty-title="t('container.networks.emptyTitle')"
       :empty-description="t('container.networks.emptyDescription')"
-      :cell-slot-names="['name', 'driver', 'scope', 'flags', 'container_count', 'labels', 'created_at', 'operation']"
+      :cell-slot-names="[
+        'name',
+        'driver',
+        'scope',
+        'flags',
+        'container_count',
+        'resource_source',
+        'created_at',
+        'operation',
+      ]"
       @select-change="handleSelectChange"
       @page-change="handlePageChange"
     >
@@ -136,13 +145,48 @@
           {{ row.container_count }}
         </t-tag>
       </template>
-      <template #labels="{ row }">
-        <t-space v-if="Object.keys(row.labels ?? {}).length" size="small" break-line>
-          <t-tooltip v-for="[key, value] in Object.entries(row.labels ?? {})" :key="key" :content="`${key}=${value}`">
-            <t-tag size="small" variant="light-outline" :title="`${key}=${value}`">{{ `${key}=${value}` }}</t-tag>
-          </t-tooltip>
-        </t-space>
-        <span v-else class="docker-network-page__muted">{{ t('container.networks.none') }}</span>
+      <template #resource_source="{ row }">
+        <t-popup attach="body" destroy-on-close show-arrow trigger="click" placement="bottom-left">
+          <template #content>
+            <div class="docker-network-resource-source-popup">
+              <section class="docker-network-resource-source-popup__section">
+                <h4>{{ t('container.networks.resourceSource') }}</h4>
+                <t-descriptions :column="1" size="small" table-layout="auto">
+                  <t-descriptions-item :label="t('container.networks.source.fields.kind')">
+                    {{ sourceKindLabel(resourceSource(row).kind) }}
+                  </t-descriptions-item>
+                  <t-descriptions-item
+                    v-for="field in resourceSource(row).sourceFields"
+                    :key="field.key"
+                    :label="t(`container.networks.source.fields.${field.key}`)"
+                  >
+                    <span class="docker-network-page__value">{{ field.value }}</span>
+                  </t-descriptions-item>
+                </t-descriptions>
+              </section>
+              <resource-label-group
+                :title="t('container.networks.systemLabels')"
+                :labels="resourceSource(row).systemLabels"
+              />
+              <resource-label-group
+                :title="t('container.networks.userLabels')"
+                :labels="resourceSource(row).userLabels"
+              />
+            </div>
+          </template>
+          <button
+            type="button"
+            class="docker-network-resource-source-trigger"
+            :aria-label="
+              t('container.networks.source.openDetails', { source: sourceKindLabel(resourceSource(row).kind) })
+            "
+          >
+            <span>{{ sourceIdentityLabel(resourceSource(row)) }}</span>
+            <span class="docker-network-resource-source-trigger__labels">{{
+              userLabelSummary(resourceSource(row))
+            }}</span>
+          </button>
+        </t-popup>
       </template>
       <template #created_at="{ row }">
         <t-tooltip :content="formatLocaleDateTime(row.created_at, locale)">
@@ -321,14 +365,30 @@
             <t-empty v-else size="small" :description="t('container.networks.none')" />
           </section>
           <section class="docker-network-page__section">
-            <h3>{{ t('container.networks.labels') }}</h3>
-            <t-space v-if="Object.keys(detailQuery.data.value.labels ?? {}).length" break-line size="small">
-              <t-tag v-for="(value, key) in detailQuery.data.value.labels" :key="key" variant="light"
-                >{{ key }}={{ value }}</t-tag
+            <h3>{{ t('container.networks.resourceSource') }}</h3>
+            <t-descriptions bordered :column="1" size="small" table-layout="auto">
+              <t-descriptions-item :label="t('container.networks.source.fields.kind')">
+                {{ sourceKindLabel(resourceSource(detailQuery.data.value).kind) }}
+              </t-descriptions-item>
+              <t-descriptions-item
+                v-for="field in resourceSource(detailQuery.data.value).sourceFields"
+                :key="field.key"
+                :label="t(`container.networks.source.fields.${field.key}`)"
               >
-            </t-space>
-            <t-empty v-else size="small" :description="t('container.networks.none')" />
+                <span class="docker-network-page__value">{{ field.value }}</span>
+              </t-descriptions-item>
+            </t-descriptions>
           </section>
+          <resource-label-group
+            :title="t('container.networks.systemLabels')"
+            :labels="resourceSource(detailQuery.data.value).systemLabels"
+            detail
+          />
+          <resource-label-group
+            :title="t('container.networks.userLabels')"
+            :labels="resourceSource(detailQuery.data.value).userLabels"
+            detail
+          />
           <section class="docker-network-page__section">
             <h3>{{ t('container.networks.connectedContainers') }}</h3>
             <t-table
@@ -377,7 +437,7 @@
 import { ArrowDownIcon, ArrowUpIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, defineComponent, h, reactive, ref, resolveComponent, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
@@ -407,10 +467,11 @@ import {
   useDockerNetworkListQuery,
 } from '../../shared/docker-network-queries';
 import type { DockerNetwork, DockerNetworkCreateRequest, DockerNetworkDriver } from '../../types/docker-network';
+import { presentNetworkResourceSource, type ResourceSourcePresentation } from './resource-source-presenter';
 
 defineOptions({ name: 'DockerNetworkListIndex' });
 
-// 本页复用模块 Docker 网络列表缓存；详情单独读取，避免列表快照承载连接容器等高基数信息。
+/** 网络页消费服务端规范化的来源与标签分组；原始 labels 只保留在创建请求，避免列表重复推导 Docker 元数据。 */
 const { locale, t } = useI18n();
 const permissionStore = usePermissionStore();
 const pagination = reactive({ current: 1, pageSize: 20 });
@@ -485,7 +546,7 @@ const columnOptions = [
   { label: t('container.networks.fields.scope'), value: 'scope' },
   { label: t('container.networks.fields.flags'), value: 'flags' },
   { label: t('container.networks.fields.containers'), value: 'container_count' },
-  { label: t('container.networks.labels'), value: 'labels' },
+  { label: t('container.networks.resourceSource'), value: 'resource_source' },
 ];
 const defaultColumnKeys = columnOptions.map((item) => item.value);
 const visibleColumnKeys = ref<string[]>(
@@ -509,7 +570,7 @@ const allColumns = computed<TableProps['columns']>(() => [
   { colKey: 'scope', title: t('container.networks.fields.scope'), width: 120, ellipsis: true },
   { colKey: 'flags', title: t('container.networks.fields.flags'), width: 180 },
   { colKey: 'container_count', title: t('container.networks.fields.containers'), width: 100 },
-  { colKey: 'labels', title: t('container.networks.labels'), width: 500 },
+  { colKey: 'resource_source', title: t('container.networks.resourceSource'), width: 260 },
   { colKey: 'created_at', title: t('container.networks.fields.createdAt'), width: 180, ellipsis: true },
   { colKey: 'operation', title: t('container.networks.operation'), width: 150, fixed: 'right' as const },
 ]);
@@ -574,6 +635,52 @@ function driverLabel(driver: string) {
 function scopeLabel(scope: string) {
   return t(`container.networks.scopes.${scope}`, scope);
 }
+function resourceSource(network: DockerNetwork): ResourceSourcePresentation {
+  return presentNetworkResourceSource(network);
+}
+function sourceKindLabel(kind: ResourceSourcePresentation['kind']) {
+  return t(`container.networks.source.kinds.${kind}`);
+}
+function sourceIdentityLabel(source: ResourceSourcePresentation) {
+  const kind = sourceKindLabel(source.kind);
+  return source.identity ? `${kind} · ${source.identity}` : kind;
+}
+function userLabelSummary(source: ResourceSourcePresentation) {
+  if (!source.userLabel) return t('container.networks.source.noUserLabels');
+  return source.remainingUserLabelCount ? `${source.userLabel} +${source.remainingUserLabelCount}` : source.userLabel;
+}
+const ResourceLabelGroup = defineComponent({
+  name: 'ResourceLabelGroup',
+  props: {
+    title: { type: String, required: true },
+    labels: { type: Array as () => Array<[string, string]>, required: true },
+    detail: Boolean,
+  },
+  setup(props) {
+    const descriptions = resolveComponent('t-descriptions');
+    const descriptionsItem = resolveComponent('t-descriptions-item');
+    return () =>
+      h('section', { class: ['docker-network-label-group', { 'docker-network-label-group--detail': props.detail }] }, [
+        h('h3', props.title),
+        props.labels.length
+          ? h(
+              descriptions,
+              { bordered: props.detail, column: 1, size: 'small', tableLayout: 'auto' },
+              {
+                default: () =>
+                  props.labels.map(([key, value]) =>
+                    h(
+                      descriptionsItem,
+                      { label: key },
+                      { default: () => h('span', { class: 'docker-network-page__value', title: value }, value) },
+                    ),
+                  ),
+              },
+            )
+          : h('span', { class: 'docker-network-page__muted' }, t('container.networks.none')),
+      ]);
+  },
+});
 function openCreateDrawer() {
   Object.assign(createForm, {
     name: '',
@@ -739,5 +846,68 @@ async function submitBatchRemove() {
 
 .docker-network-page__muted {
   color: var(--td-text-color-placeholder);
+}
+
+.docker-network-page__value {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.docker-network-resource-source-trigger {
+  background: transparent;
+  border: 0;
+  color: var(--td-text-color-primary);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--td-comp-margin-xs);
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+}
+
+.docker-network-resource-source-trigger:hover,
+.docker-network-resource-source-trigger:focus-visible {
+  color: var(--td-brand-color);
+  outline: none;
+}
+
+.docker-network-resource-source-trigger:focus-visible {
+  border-radius: var(--td-radius-small);
+  box-shadow: 0 0 0 2px var(--td-brand-color-focus);
+}
+
+.docker-network-resource-source-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-network-resource-source-trigger__labels {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-network-resource-source-popup {
+  padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-m);
+  width: min(420px, calc(100vw - var(--td-comp-margin-xxl)));
+}
+
+.docker-network-resource-source-popup__section,
+.docker-network-label-group {
+  margin-top: var(--td-comp-margin-m);
+}
+
+.docker-network-resource-source-popup__section:first-child {
+  margin-top: 0;
+}
+
+.docker-network-resource-source-popup h4,
+.docker-network-label-group h3 {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-body-medium);
+  font-weight: var(--td-font-weight-medium);
+  margin: 0 0 var(--td-comp-margin-s);
 }
 </style>

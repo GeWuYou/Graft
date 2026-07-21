@@ -89,7 +89,22 @@ func toDockerImageAction(result DockerImageActionResult) containergen.DockerImag
 
 // toDockerNetwork 将 Docker 网络领域对象转换为 OpenAPI 网络响应。
 func toDockerNetwork(item DockerNetwork) containergen.DockerNetwork {
-	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Removable: &item.Removable, Labels: optionalStringMap(item.Labels)}
+	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Removable: &item.Removable, Labels: optionalStringMap(item.Labels), Source: toDockerNetworkSource(item.Source), LabelGroups: toDockerNetworkLabelGroups(item.LabelGroups)}
+}
+
+func toDockerNetworkSource(source DockerNetworkSource) containergen.DockerNetworkSource {
+	return containergen.DockerNetworkSource{Kind: containergen.DockerNetworkSourceKind(source.Kind), ComposeProject: optionalString(source.ComposeProject), ComposeNetwork: optionalString(source.ComposeNetwork), ComposeVersion: optionalString(source.ComposeVersion), SwarmStack: optionalString(source.SwarmStack)}
+}
+
+func toDockerNetworkLabelGroups(groups DockerNetworkLabelGroups) containergen.DockerNetworkLabelGroups {
+	return containergen.DockerNetworkLabelGroups{System: cloneLabelGroup(groups.System), User: cloneLabelGroup(groups.User)}
+}
+
+func cloneLabelGroup(labels map[string]string) map[string]string {
+	if labels == nil {
+		return map[string]string{}
+	}
+	return cloneLabels(labels)
 }
 
 // toDockerNetworkList 将 Docker 网络列表映射为 API 响应。

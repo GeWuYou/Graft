@@ -2848,6 +2848,33 @@ func (e DockerNetworkCreateRequestDriver) Valid() bool {
 	}
 }
 
+// Defines values for DockerNetworkSourceKind.
+const (
+	DockerNetworkSourceKindCompose DockerNetworkSourceKind = "compose"
+	DockerNetworkSourceKindCustom  DockerNetworkSourceKind = "custom"
+	DockerNetworkSourceKindDocker  DockerNetworkSourceKind = "docker"
+	DockerNetworkSourceKindSwarm   DockerNetworkSourceKind = "swarm"
+	DockerNetworkSourceKindUnknown DockerNetworkSourceKind = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the DockerNetworkSourceKind enum.
+func (e DockerNetworkSourceKind) Valid() bool {
+	switch e {
+	case DockerNetworkSourceKindCompose:
+		return true
+	case DockerNetworkSourceKindCustom:
+		return true
+	case DockerNetworkSourceKindDocker:
+		return true
+	case DockerNetworkSourceKindSwarm:
+		return true
+	case DockerNetworkSourceKindUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DockerVolumeRemoveResponseAction.
 const (
 	DockerVolumeRemoveResponseActionRemove DockerVolumeRemoveResponseAction = "remove"
@@ -4953,16 +4980,16 @@ func (e GetDockerVolumesParamsUsage) Valid() bool {
 
 // Defines values for GetRolesParamsStatus.
 const (
-	Disabled GetRolesParamsStatus = "disabled"
-	Enabled  GetRolesParamsStatus = "enabled"
+	GetRolesParamsStatusDisabled GetRolesParamsStatus = "disabled"
+	GetRolesParamsStatusEnabled  GetRolesParamsStatus = "enabled"
 )
 
 // Valid indicates whether the value is a known member of the GetRolesParamsStatus enum.
 func (e GetRolesParamsStatus) Valid() bool {
 	switch e {
-	case Disabled:
+	case GetRolesParamsStatusDisabled:
 		return true
-	case Enabled:
+	case GetRolesParamsStatusEnabled:
 		return true
 	default:
 		return false
@@ -6511,8 +6538,11 @@ type AuditIncidentMonitorEvidence struct {
 	// State Availability of correlated monitor evidence for this incident.
 	State AuditIncidentMonitorEvidenceState `json:"state"`
 
-	// Summary Human-readable summary of the correlated monitor evidence.
+	// Summary Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog.
 	Summary string `json:"summary"`
+
+	// SummaryParams String-formatted interpolation values for the monitor summary locale key.
+	SummaryParams map[string]string `json:"summary_params"`
 }
 
 // AuditIncidentMonitorEvidenceAnomalyKey Canonical anomaly identifier describing the monitor condition tied to the incident.
@@ -7741,17 +7771,19 @@ type DockerImageUntagRequest struct {
 
 // DockerNetwork defines model for docker-network.
 type DockerNetwork struct {
-	Attachable     bool               `json:"attachable"`
-	ContainerCount int                `json:"container_count"`
-	CreatedAt      string             `json:"created_at"`
-	Driver         string             `json:"driver"`
-	Id             string             `json:"id"`
-	Ingress        bool               `json:"ingress"`
-	Internal       bool               `json:"internal"`
-	Labels         *map[string]string `json:"labels,omitempty"`
-	Name           string             `json:"name"`
-	Removable      *bool              `json:"removable,omitempty"`
-	Scope          string             `json:"scope"`
+	Attachable     bool                     `json:"attachable"`
+	ContainerCount int                      `json:"container_count"`
+	CreatedAt      string                   `json:"created_at"`
+	Driver         string                   `json:"driver"`
+	Id             string                   `json:"id"`
+	Ingress        bool                     `json:"ingress"`
+	Internal       bool                     `json:"internal"`
+	LabelGroups    DockerNetworkLabelGroups `json:"label_groups"`
+	Labels         *map[string]string       `json:"labels,omitempty"`
+	Name           string                   `json:"name"`
+	Removable      *bool                    `json:"removable,omitempty"`
+	Scope          string                   `json:"scope"`
+	Source         DockerNetworkSource      `json:"source"`
 }
 
 // DockerNetworkActionResponse defines model for docker-network-action-response.
@@ -7803,10 +7835,12 @@ type DockerNetworkDetail struct {
 	Ingress        bool                              `json:"ingress"`
 	Internal       bool                              `json:"internal"`
 	Ipam           *DockerNetworkIpam                `json:"ipam,omitempty"`
+	LabelGroups    DockerNetworkLabelGroups          `json:"label_groups"`
 	Labels         *map[string]string                `json:"labels,omitempty"`
 	Name           string                            `json:"name"`
 	Removable      *bool                             `json:"removable,omitempty"`
 	Scope          string                            `json:"scope"`
+	Source         DockerNetworkSource               `json:"source"`
 }
 
 // DockerNetworkIpam defines model for docker-network-ipam.
@@ -7819,6 +7853,12 @@ type DockerNetworkIpam struct {
 type DockerNetworkIpamConfig struct {
 	Gateway *string `json:"gateway,omitempty"`
 	Subnet  *string `json:"subnet,omitempty"`
+}
+
+// DockerNetworkLabelGroups defines model for docker-network-label-groups.
+type DockerNetworkLabelGroups struct {
+	System map[string]string `json:"system"`
+	User   map[string]string `json:"user"`
 }
 
 // DockerNetworkListResponse defines model for docker-network-list-response.
@@ -7841,6 +7881,18 @@ type DockerNetworkListSummary struct {
 type DockerNetworkRemoveRequest struct {
 	ConfirmNetworkName string `json:"confirm_network_name"`
 }
+
+// DockerNetworkSource defines model for docker-network-source.
+type DockerNetworkSource struct {
+	ComposeNetwork *string                 `json:"compose_network,omitempty"`
+	ComposeProject *string                 `json:"compose_project,omitempty"`
+	ComposeVersion *string                 `json:"compose_version,omitempty"`
+	Kind           DockerNetworkSourceKind `json:"kind"`
+	SwarmStack     *string                 `json:"swarm_stack,omitempty"`
+}
+
+// DockerNetworkSourceKind defines model for DockerNetworkSource.Kind.
+type DockerNetworkSourceKind string
 
 // DockerVolume defines model for docker-volume.
 type DockerVolume struct {

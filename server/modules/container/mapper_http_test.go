@@ -8,7 +8,7 @@ import (
 	containercontract "graft/server/modules/container/contract"
 )
 
-func TestToDockerNetworkMapsAttributesLabelsAndCreatedAt(t *testing.T) {
+func TestToDockerNetworkMapsAttributesLabelsSourceAndCreatedAt(t *testing.T) {
 	t.Parallel()
 
 	mapped := toDockerNetwork(DockerNetwork{
@@ -23,19 +23,70 @@ func TestToDockerNetworkMapsAttributesLabelsAndCreatedAt(t *testing.T) {
 		ContainerCount: 2,
 		Removable:      false,
 		Labels:         map[string]string{"com.example.project": "app", "environment": "prod"},
+		Source: DockerNetworkSource{
+			Kind:           dockerNetworkSourceCompose,
+			ComposeProject: "app",
+			ComposeNetwork: "default",
+			ComposeVersion: "5.1.0",
+		},
+		LabelGroups: DockerNetworkLabelGroups{
+			System: map[string]string{"com.docker.compose.project": "app"},
+			User:   map[string]string{"environment": "prod"},
+		},
 	})
 
+	assertMappedDockerNetworkIdentity(t, mapped)
+	assertMappedDockerNetworkAttributes(t, mapped)
+	assertMappedDockerNetworkLabels(t, mapped)
+	assertMappedDockerNetworkSource(t, mapped)
+	assertMappedDockerNetworkLabelGroups(t, mapped)
+}
+
+func assertMappedDockerNetworkIdentity(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
 	if mapped.Id != "network-id" || mapped.Name != "app-network" || mapped.CreatedAt != "2026-07-19T23:19:41Z" {
 		t.Fatalf("unexpected network identity mapping: %#v", mapped)
 	}
+}
+
+func assertMappedDockerNetworkAttributes(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
 	if !mapped.Internal || !mapped.Attachable || mapped.Ingress || mapped.ContainerCount != 2 {
 		t.Fatalf("unexpected network attributes mapping: %#v", mapped)
 	}
 	if mapped.Removable == nil || *mapped.Removable {
 		t.Fatalf("expected removable=false, got %#v", mapped.Removable)
 	}
+}
+
+func assertMappedDockerNetworkLabels(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
 	if mapped.Labels == nil || (*mapped.Labels)["com.example.project"] != "app" || (*mapped.Labels)["environment"] != "prod" {
 		t.Fatalf("unexpected network labels mapping: %#v", mapped.Labels)
+	}
+}
+
+func assertMappedDockerNetworkSource(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
+	if mapped.Source.Kind != containergen.DockerNetworkSourceKindCompose {
+		t.Fatalf("unexpected network source kind: %#v", mapped.Source)
+	}
+	assertStringPointer(t, mapped.Source.ComposeProject, "app", "compose project")
+	assertStringPointer(t, mapped.Source.ComposeNetwork, "default", "compose network")
+	assertStringPointer(t, mapped.Source.ComposeVersion, "5.1.0", "compose version")
+}
+
+func assertMappedDockerNetworkLabelGroups(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
+	if mapped.LabelGroups.System["com.docker.compose.project"] != "app" || mapped.LabelGroups.User["environment"] != "prod" {
+		t.Fatalf("unexpected network label groups mapping: %#v", mapped.LabelGroups)
+	}
+}
+
+func assertStringPointer(t *testing.T, value *string, want, name string) {
+	t.Helper()
+	if value == nil || *value != want {
+		t.Fatalf("unexpected %s: got %#v, want %q", name, value, want)
 	}
 }
 

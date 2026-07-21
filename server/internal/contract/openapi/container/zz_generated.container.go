@@ -2731,6 +2731,33 @@ func (e GetDockerNetworksParamsUsage) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerNetworks200JSONResponseBodyDataItemsSourceKind.
+const (
+	GetDockerNetworks200JSONResponseBodyDataItemsSourceKindCompose GetDockerNetworks200JSONResponseBodyDataItemsSourceKind = "compose"
+	GetDockerNetworks200JSONResponseBodyDataItemsSourceKindCustom  GetDockerNetworks200JSONResponseBodyDataItemsSourceKind = "custom"
+	GetDockerNetworks200JSONResponseBodyDataItemsSourceKindDocker  GetDockerNetworks200JSONResponseBodyDataItemsSourceKind = "docker"
+	GetDockerNetworks200JSONResponseBodyDataItemsSourceKindSwarm   GetDockerNetworks200JSONResponseBodyDataItemsSourceKind = "swarm"
+	GetDockerNetworks200JSONResponseBodyDataItemsSourceKindUnknown GetDockerNetworks200JSONResponseBodyDataItemsSourceKind = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks200JSONResponseBodyDataItemsSourceKind enum.
+func (e GetDockerNetworks200JSONResponseBodyDataItemsSourceKind) Valid() bool {
+	switch e {
+	case GetDockerNetworks200JSONResponseBodyDataItemsSourceKindCompose:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsSourceKindCustom:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsSourceKindDocker:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsSourceKindSwarm:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsSourceKindUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerNetworks400JSONResponseBodySuccess.
 const (
 	GetDockerNetworks400JSONResponseBodySuccessFalse GetDockerNetworks400JSONResponseBodySuccess = false
@@ -2785,6 +2812,33 @@ const (
 func (e GetDockerNetworks500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetDockerNetworks500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetwork200JSONResponseBodyDataSourceKind.
+const (
+	GetDockerNetwork200JSONResponseBodyDataSourceKindCompose GetDockerNetwork200JSONResponseBodyDataSourceKind = "compose"
+	GetDockerNetwork200JSONResponseBodyDataSourceKindCustom  GetDockerNetwork200JSONResponseBodyDataSourceKind = "custom"
+	GetDockerNetwork200JSONResponseBodyDataSourceKindDocker  GetDockerNetwork200JSONResponseBodyDataSourceKind = "docker"
+	GetDockerNetwork200JSONResponseBodyDataSourceKindSwarm   GetDockerNetwork200JSONResponseBodyDataSourceKind = "swarm"
+	GetDockerNetwork200JSONResponseBodyDataSourceKindUnknown GetDockerNetwork200JSONResponseBodyDataSourceKind = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetwork200JSONResponseBodyDataSourceKind enum.
+func (e GetDockerNetwork200JSONResponseBodyDataSourceKind) Valid() bool {
+	switch e {
+	case GetDockerNetwork200JSONResponseBodyDataSourceKindCompose:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataSourceKindCustom:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataSourceKindDocker:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataSourceKindSwarm:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataSourceKindUnknown:
 		return true
 	default:
 		return false
@@ -3976,6 +4030,9 @@ type GetDockerNetworksParams struct {
 // GetDockerNetworksParamsUsage defines parameters for GetDockerNetworks.
 type GetDockerNetworksParamsUsage string
 
+// GetDockerNetworks200JSONResponseBodyDataItemsSourceKind defines parameters for GetDockerNetworks.
+type GetDockerNetworks200JSONResponseBodyDataItemsSourceKind string
+
 // GetDockerNetworks400JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks400JSONResponseBodySuccess bool
 
@@ -3987,6 +4044,9 @@ type GetDockerNetworks403JSONResponseBodySuccess bool
 
 // GetDockerNetworks500JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks500JSONResponseBodySuccess bool
+
+// GetDockerNetwork200JSONResponseBodyDataSourceKind defines parameters for GetDockerNetwork.
+type GetDockerNetwork200JSONResponseBodyDataSourceKind string
 
 // GetDockerNetwork401JSONResponseBodySuccess defines parameters for GetDockerNetwork.
 type GetDockerNetwork401JSONResponseBodySuccess bool
