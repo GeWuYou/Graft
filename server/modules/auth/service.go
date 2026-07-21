@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"graft/server/internal/config"
 	"graft/server/internal/moduleapi"
@@ -20,11 +21,19 @@ type authService struct {
 	policy          passwordPolicy
 	tokens          *AccessTokenManager
 	refreshTokens   *RefreshTokenManager
+	personalTokens  authstore.PersonalAccessTokenStore
+	now             func() time.Time
 }
 
 // newAuthService 创建认证服务及其必需的 store、身份提供方、密码组件和 token manager。
 // 当必需依赖缺失、token manager 初始化失败，或 credential store 不支持原子密码变更时返回错误。
-func newAuthService(authConfig config.AuthConfig, credentials authstore.CredentialStore, sessions authstore.SessionStore, identity moduleapi.UserIdentityProvider) (*authService, error) {
+func newAuthService(
+	authConfig config.AuthConfig,
+	credentials authstore.CredentialStore,
+	sessions authstore.SessionStore,
+	identity moduleapi.UserIdentityProvider,
+	personalTokens ...authstore.PersonalAccessTokenStore,
+) (*authService, error) {
 	if credentials == nil || sessions == nil || identity == nil {
 		return nil, errors.New("auth runtime dependencies are unavailable")
 	}
@@ -40,7 +49,22 @@ func newAuthService(authConfig config.AuthConfig, credentials authstore.Credenti
 	if !ok {
 		return nil, errors.New("credential store does not support atomic password changes")
 	}
-	return &authService{credentials: credentials, sessions: sessions, passwordChanges: passwordChanges, identity: identity, passwords: newPasswordHasher(), policy: newPasswordPolicy(), tokens: tokens, refreshTokens: refreshTokens}, nil
+	var personalTokenStore authstore.PersonalAccessTokenStore
+	if len(personalTokens) > 0 {
+		personalTokenStore = personalTokens[0]
+	}
+	return &authService{
+		credentials:     credentials,
+		sessions:        sessions,
+		passwordChanges: passwordChanges,
+		identity:        identity,
+		passwords:       newPasswordHasher(),
+		policy:          newPasswordPolicy(),
+		tokens:          tokens,
+		refreshTokens:   refreshTokens,
+		personalTokens:  personalTokenStore,
+		now:             time.Now,
+	}, nil
 }
 
 func (s authService) CurrentUser(ctx context.Context) (*moduleapi.CurrentUser, error) {
@@ -120,3 +144,4 @@ func (s authService) RevokeOtherSessionsByUserID(ctx context.Context, userID uin
 var _ moduleapi.AuthService = authService{}
 var _ moduleapi.AuthSessionService = authService{}
 var _ moduleapi.AuthCredentialManagementService = authService{}
+var _ moduleapi.PersonalAccessTokenService = authService{}

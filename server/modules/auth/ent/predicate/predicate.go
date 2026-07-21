@@ -9,5 +9,8 @@ import (
 // AuthCredential is the predicate function for authcredential builders.
 type AuthCredential func(*sql.Selector)
 
+// AuthPersonalAccessToken is the predicate function for authpersonalaccesstoken builders.
+type AuthPersonalAccessToken func(*sql.Selector)
+
 // AuthRefreshSession is the predicate function for authrefreshsession builders.
 type AuthRefreshSession func(*sql.Selector)

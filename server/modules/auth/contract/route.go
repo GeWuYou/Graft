@@ -39,4 +39,10 @@ const (
 
 	// AuthCompleteRequiredPasswordChange 是受限会话完成强制改密接口的路由片段。
 	AuthCompleteRequiredPasswordChange = "/complete-required-password-change"
+
+	// AuthPersonalAccessTokens 是当前用户管理个人 API Token 的路由片段。
+	AuthPersonalAccessTokens = "/personal-access-tokens"
+
+	// AuthPersonalAccessTokenRevoke 是当前用户撤销一个个人 API Token 的路由片段。
+	AuthPersonalAccessTokenRevoke = "/personal-access-tokens/:tokenID/revoke"
 )

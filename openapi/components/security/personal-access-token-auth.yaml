@@ -1,0 +1,4 @@
+type: http
+scheme: bearer
+bearerFormat: Graft personal API token
+description: Personal API Token issued by the authenticated user for the product MCP transport. The token can only narrow existing server-side RBAC permissions.

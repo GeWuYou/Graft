@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// AuthCredential is the client for interacting with the AuthCredential builders.
 	AuthCredential *AuthCredentialClient
+	// AuthPersonalAccessToken is the client for interacting with the AuthPersonalAccessToken builders.
+	AuthPersonalAccessToken *AuthPersonalAccessTokenClient
 	// AuthRefreshSession is the client for interacting with the AuthRefreshSession builders.
 	AuthRefreshSession *AuthRefreshSessionClient
 
@@ -148,6 +150,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.AuthCredential = NewAuthCredentialClient(tx.config)
+	tx.AuthPersonalAccessToken = NewAuthPersonalAccessTokenClient(tx.config)
 	tx.AuthRefreshSession = NewAuthRefreshSessionClient(tx.config)
 }
 

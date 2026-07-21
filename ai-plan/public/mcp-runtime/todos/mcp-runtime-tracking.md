@@ -45,14 +45,15 @@ closeout:
 ## Current Recovery Point
 
 - Work Intake created the active topic and Batch 1 established the authority-level OpenAPI metadata contract.
-- Representative resource and action metadata exists, but no MCP runtime, compiler, or transport implementation has
-  been started.
-- Next batch: `mcp-auth-streamable-foundation`.
+- Batch 2 added auth-owned expiring personal API Tokens, a Streamable HTTP foundation, a shared caller context,
+  RBAC-first scope narrowing, and server-validated single-use confirmation primitives. The foundation exposes no
+  business tools, resources, or prompts.
+- Next batch: `mcp-openapi-compiler-read-tools`.
 
 ## Task Checklist
 
 - [x] `mcp-governance-and-contract`
-- [ ] `mcp-auth-streamable-foundation`
+- [x] `mcp-auth-streamable-foundation`
 - [ ] `mcp-openapi-compiler-read-tools`
 - [ ] `mcp-compatibility-resources-actions`
 - [ ] `mcp-hardening-stdio`
@@ -69,16 +70,24 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "mcp-governance-and-contract"
+    "mcp-governance-and-contract",
+    "mcp-auth-streamable-foundation"
   ],
   "pending_batches": [
-    "mcp-auth-streamable-foundation",
     "mcp-openapi-compiler-read-tools",
     "mcp-compatibility-resources-actions",
     "mcp-hardening-stdio"
   ],
   "current_batch": null,
-  "next_batch": "mcp-auth-streamable-foundation",
+  "next_batch": "mcp-openapi-compiler-read-tools",
   "closeout_status": "committed"
 }
 ```
+
+## Latest Validation
+
+- `cd server && go run ./cmd/graft validate backend`
+- `cd web && bun run check`
+- `just openapi-check`
+- `python3 scripts/validate_sql_migrations.py`
+- focused in-memory Streamable HTTP tests, including explicit session close

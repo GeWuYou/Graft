@@ -112,6 +112,41 @@ func RequirePermissionWithLogger(
 	}
 }
 
+// RequirePersonalAccessToken 使用 auth 模块验证的个人 API Token 保护非 REST transport 入口。
+//
+// 它复用 request-id、统一错误和安全审计链路，并把认证结果写入稳定请求 context；
+// 后续 transport 仍必须通过 moduleapi.Authorizer 完成每个业务 permission 的 RBAC 判断。
+func RequirePersonalAccessToken(
+	localizer *i18n.Service,
+	tokenService moduleapi.PersonalAccessTokenService,
+	auditPublishers ...SecurityAuditPublisher,
+) gin.HandlerFunc {
+	logger := zap.NewNop()
+	auditPublisher := firstSecurityAuditPublisher(auditPublishers...)
+	return func(ctx *gin.Context) {
+		if tokenService == nil {
+			abortAuthorizationInternalError(ctx, localizer, logger, errors.New("personal access token service is unavailable"))
+			return
+		}
+		requestToken, ok := extractBearerToken(ctx.Request)
+		if !ok {
+			writeMissingTokenAuditError(ctx, localizer, auditPublisher)
+			return
+		}
+		caller, err := tokenService.AuthenticatePersonalAccessToken(ctx.Request.Context(), requestToken)
+		if err != nil {
+			writePersonalAccessTokenError(ctx, localizer, logger, err, auditPublisher)
+			return
+		}
+
+		user := caller.User
+		requestCtx := moduleapi.WithRequestAuthContext(ctx.Request.Context(), moduleapi.RequestAuthContext{User: &user})
+		requestCtx = moduleapi.WithPersonalAccessTokenCaller(requestCtx, caller)
+		ctx.Request = ctx.Request.WithContext(requestCtx)
+		ctx.Next()
+	}
+}
+
 func authenticateRequest(
 	ctx *gin.Context,
 	localizer *i18n.Service,
@@ -177,6 +212,21 @@ func writeAccessTokenError(ctx *gin.Context, localizer *i18n.Service, logger *za
 			messageKey: messagecontract.AuthTokenExpired.String(),
 		})
 	case errors.Is(err, moduleapi.ErrInvalidAccessToken):
+		writeInvalidTokenAuditError(ctx, localizer, auditPublisher)
+	default:
+		abortAuthorizationInternalError(ctx, localizer, logger, err)
+	}
+}
+
+func writePersonalAccessTokenError(ctx *gin.Context, localizer *i18n.Service, logger *zap.Logger, err error, auditPublisher SecurityAuditPublisher) {
+	switch {
+	case errors.Is(err, moduleapi.ErrExpiredPersonalAccessToken):
+		writeSecurityAuditError(ctx, localizer, auditPublisher, securityAuditError{
+			eventType:  securityAuditEventAuthTokenExpired,
+			status:     http.StatusUnauthorized,
+			messageKey: messagecontract.AuthTokenExpired.String(),
+		})
+	case errors.Is(err, moduleapi.ErrInvalidPersonalAccessToken):
 		writeInvalidTokenAuditError(ctx, localizer, auditPublisher)
 	default:
 		abortAuthorizationInternalError(ctx, localizer, logger, err)

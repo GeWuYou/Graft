@@ -72,6 +72,10 @@ func readConfig(reader *viper.Viper) *Config {
 			RefreshCookieSameSite: reader.GetString("auth.refresh_cookie_same_site"),
 			RefreshCookiePath:     reader.GetString("auth.refresh_cookie_path"),
 		},
+		MCP: MCPConfig{
+			Enabled:              reader.GetBool("mcp.enabled"),
+			ConfirmationTokenTTL: reader.GetDuration("mcp.confirmation_token_ttl"),
+		},
 		Container: ContainerConfig{
 			Runtime:        reader.GetString("ops.container.runtime"),
 			DockerEndpoint: reader.GetString("ops.container.docker.endpoint"),

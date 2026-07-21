@@ -21,3 +21,23 @@
 
 - Start `mcp-auth-streamable-foundation` with fresh startup preflight, then design the server-owned caller,
   authorization, confirmation-token, and streamable foundation without exposing tools prematurely.
+
+## 2026-07-21 `mcp-auth-streamable-foundation`
+
+- Added auth-owned expiring personal API Tokens with one-time secret delivery, SHA-256 persistence, owner-only
+  management routes, revocation, last-used tracking, and live-row store semantics.
+- Added the opt-in `/mcp` Streamable HTTP adapter. It consumes the verified auth caller, binds sessions to the token
+  ID, runs RBAC before Token scope narrowing, and starts with no business tools, resources, or prompts.
+- Added short-lived, caller/action/request-bound confirmation tokens that expire and become invalid after the first
+  consume attempt; the next batch may consume these primitives but must not add a manual tool registry.
+- Regenerated Ent, migration embedding, and OpenAPI projections. Validation passed: `go run ./cmd/graft validate backend`,
+  `bun run check`, `just openapi-check`, and `python3 scripts/validate_sql_migrations.py`.
+- Added the existing `.tmp/**` disposable test-output path to ESLint ignores after the web validation fixture was
+  otherwise linted as application source; this keeps the required frontend entrypoint reproducible without changing
+  product behavior.
+- The OpenAPI generator emitted its known OpenAPI 3.1 support warning; freshness and contract checks still passed.
+
+## Next Step
+
+- Start `mcp-openapi-compiler-read-tools` with fresh startup preflight and compile opted-in, read-only tool
+  descriptors from canonical OpenAPI metadata only.

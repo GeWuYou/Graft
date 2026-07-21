@@ -4,6 +4,7 @@ package ent
 
 import (
 	"graft/server/modules/auth/ent/authcredential"
+	"graft/server/modules/auth/ent/authpersonalaccesstoken"
 	"graft/server/modules/auth/ent/authrefreshsession"
 	"graft/server/modules/auth/ent/schema"
 	"time"
@@ -29,6 +30,34 @@ func init() {
 	authcredential.DefaultUpdatedAt = authcredentialDescUpdatedAt.Default.(func() time.Time)
 	// authcredential.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	authcredential.UpdateDefaultUpdatedAt = authcredentialDescUpdatedAt.UpdateDefault.(func() time.Time)
+	authpersonalaccesstokenFields := schema.AuthPersonalAccessToken{}.Fields()
+	_ = authpersonalaccesstokenFields
+	// authpersonalaccesstokenDescName is the schema descriptor for name field.
+	authpersonalaccesstokenDescName := authpersonalaccesstokenFields[1].Descriptor()
+	// authpersonalaccesstoken.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	authpersonalaccesstoken.NameValidator = authpersonalaccesstokenDescName.Validators[0].(func(string) error)
+	// authpersonalaccesstokenDescTokenPrefix is the schema descriptor for token_prefix field.
+	authpersonalaccesstokenDescTokenPrefix := authpersonalaccesstokenFields[2].Descriptor()
+	// authpersonalaccesstoken.TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.
+	authpersonalaccesstoken.TokenPrefixValidator = authpersonalaccesstokenDescTokenPrefix.Validators[0].(func(string) error)
+	// authpersonalaccesstokenDescSecretHash is the schema descriptor for secret_hash field.
+	authpersonalaccesstokenDescSecretHash := authpersonalaccesstokenFields[3].Descriptor()
+	// authpersonalaccesstoken.SecretHashValidator is a validator for the "secret_hash" field. It is called by the builders before save.
+	authpersonalaccesstoken.SecretHashValidator = authpersonalaccesstokenDescSecretHash.Validators[0].(func(string) error)
+	// authpersonalaccesstokenDescCreatedAt is the schema descriptor for created_at field.
+	authpersonalaccesstokenDescCreatedAt := authpersonalaccesstokenFields[8].Descriptor()
+	// authpersonalaccesstoken.DefaultCreatedAt holds the default value on creation for the created_at field.
+	authpersonalaccesstoken.DefaultCreatedAt = authpersonalaccesstokenDescCreatedAt.Default.(func() time.Time)
+	// authpersonalaccesstokenDescUpdatedAt is the schema descriptor for updated_at field.
+	authpersonalaccesstokenDescUpdatedAt := authpersonalaccesstokenFields[9].Descriptor()
+	// authpersonalaccesstoken.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	authpersonalaccesstoken.DefaultUpdatedAt = authpersonalaccesstokenDescUpdatedAt.Default.(func() time.Time)
+	// authpersonalaccesstoken.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	authpersonalaccesstoken.UpdateDefaultUpdatedAt = authpersonalaccesstokenDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// authpersonalaccesstokenDescDeletedAt is the schema descriptor for deleted_at field.
+	authpersonalaccesstokenDescDeletedAt := authpersonalaccesstokenFields[10].Descriptor()
+	// authpersonalaccesstoken.DefaultDeletedAt holds the default value on creation for the deleted_at field.
+	authpersonalaccesstoken.DefaultDeletedAt = authpersonalaccesstokenDescDeletedAt.Default.(int64)
 	authrefreshsessionFields := schema.AuthRefreshSession{}.Fields()
 	_ = authrefreshsessionFields
 	// authrefreshsessionDescTokenID is the schema descriptor for token_id field.

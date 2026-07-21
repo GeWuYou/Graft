@@ -47,6 +47,8 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("auth.refresh_cookie_secure", false)
 	reader.SetDefault("auth.refresh_cookie_same_site", defaultRefreshCookieSameSite)
 	reader.SetDefault("auth.refresh_cookie_path", defaultRefreshCookiePath)
+	reader.SetDefault("mcp.enabled", false)
+	reader.SetDefault("mcp.confirmation_token_ttl", defaultMCPConfirmationTokenTTL)
 	reader.SetDefault("ops.container.runtime", defaultContainerRuntime)
 	reader.SetDefault("ops.container.docker.endpoint", defaultContainerDockerEndpoint)
 	reader.SetDefault("project.log_debug", false)

@@ -15,6 +15,7 @@ security:
 tags:
   - name: health
   - name: auth
+  - name: mcp
   - name: users
   - name: rbac
   - name: audit
@@ -59,6 +60,12 @@ paths:
     $ref: ./paths/auth.change-password.yaml
   /api/auth/complete-required-password-change:
     $ref: ./paths/auth.complete-required-password-change.yaml
+  /api/auth/personal-access-tokens:
+    $ref: ./paths/auth.personal-access-tokens.yaml
+  /api/auth/personal-access-tokens/{tokenID}/revoke:
+    $ref: ./paths/auth.personal-access-token.revoke.yaml
+  /mcp:
+    $ref: ./paths/mcp.streamable.yaml
   /api/users:
     $ref: ./paths/users.yaml
   /api/users/{id}:
@@ -432,6 +439,16 @@ components:
       $ref: ./components/schemas/enveloped-user-item-response.yaml
     EnvelopedSessionListResponse:
       $ref: ./components/schemas/enveloped-session-list-response.yaml
+    PersonalAccessTokenCreateRequest:
+      $ref: ./components/schemas/personal-access-token-create-request.yaml
+    PersonalAccessTokenSummary:
+      $ref: ./components/schemas/personal-access-token-summary.yaml
+    PersonalAccessTokenIssued:
+      $ref: ./components/schemas/personal-access-token-issued.yaml
+    EnvelopedPersonalAccessTokenListResponse:
+      $ref: ./components/schemas/enveloped-personal-access-token-list-response.yaml
+    EnvelopedPersonalAccessTokenIssuedResponse:
+      $ref: ./components/schemas/enveloped-personal-access-token-issued-response.yaml
     RoleListItem:
       $ref: ./components/schemas/role-list-item.yaml
     RoleDetailResponse:
@@ -1173,6 +1190,8 @@ components:
       $ref: ./components/security/bearer-auth.yaml
     refreshCookie:
       $ref: ./components/security/refresh-cookie.yaml
+    personalAccessTokenAuth:
+      $ref: ./components/security/personal-access-token-auth.yaml
   parameters:
     locale-header:
       $ref: ./components/parameters/locale-header.yaml

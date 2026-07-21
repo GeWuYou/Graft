@@ -226,6 +226,78 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/auth/personal-access-tokens': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List current user personal API tokens
+     * @description Returns non-secret lifecycle summaries for the authenticated user's personal API tokens.
+     */
+    get: operations['getAuthPersonalAccessTokens'];
+    put?: never;
+    /**
+     * Create current user personal API token
+     * @description Issues an expiring personal API token. The secret is returned exactly once and only its hash is retained by the server.
+     */
+    post: operations['postAuthPersonalAccessTokens'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/auth/personal-access-tokens/{tokenID}/revoke': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revoke current user personal API token
+     * @description Revokes one token owned by the current authenticated user. The operation is idempotent to avoid exposing credential lifecycle details.
+     */
+    post: operations['postAuthPersonalAccessTokenRevoke'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/mcp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Resume MCP Streamable HTTP event stream
+     * @description Resumes a stateful MCP Streamable HTTP session. The request must use a valid personal API token and the session remains bound to that token identifier.
+     */
+    get: operations['getMcpStreamable'];
+    put?: never;
+    /**
+     * Send MCP Streamable HTTP message
+     * @description Sends an MCP JSON-RPC request or notification. This foundation exposes no business tools, resources, or prompts yet.
+     */
+    post: operations['postMcpStreamable'];
+    /**
+     * Close MCP Streamable HTTP session
+     * @description Closes the caller's stateful MCP Streamable HTTP session.
+     */
+    delete: operations['deleteMcpStreamable'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/users': {
     parameters: {
       query?: never;
@@ -3453,6 +3525,11 @@ export interface components {
     UserListResponse: components['schemas']['user-list-response'];
     EnvelopedUserItemResponse: components['schemas']['enveloped-user-item-response'];
     EnvelopedSessionListResponse: components['schemas']['enveloped-session-list-response'];
+    PersonalAccessTokenCreateRequest: components['schemas']['personal-access-token-create-request'];
+    PersonalAccessTokenSummary: components['schemas']['personal-access-token-summary'];
+    PersonalAccessTokenIssued: components['schemas']['personal-access-token-issued'];
+    EnvelopedPersonalAccessTokenListResponse: components['schemas']['enveloped-personal-access-token-list-response'];
+    EnvelopedPersonalAccessTokenIssuedResponse: components['schemas']['enveloped-personal-access-token-issued-response'];
     RoleListItem: components['schemas']['role-list-item'];
     RoleDetailResponse: components['schemas']['role-detail-response'];
     RoleListResponse: components['schemas']['role-list-response'];
@@ -3959,6 +4036,43 @@ export interface components {
      */
     'complete-required-password-change-request': {
       new_password: string;
+    };
+    'personal-access-token-summary': {
+      /** Format: int64 */
+      id: number;
+      name: string;
+      /** @description Non-secret display prefix used to identify the credential. */
+      token_prefix: string;
+      scopes: string[];
+      /** Format: date-time */
+      expires_at: string;
+      /** Format: date-time */
+      revoked_at?: string | null;
+      /** Format: date-time */
+      last_used_at?: string | null;
+      /** Format: date-time */
+      created_at: string;
+    };
+    'enveloped-personal-access-token-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['personal-access-token-summary'][];
+    };
+    'personal-access-token-create-request': {
+      /** @description Human-readable owner label for the token. */
+      name: string;
+      /** @description Exact operation scopes. These values can only narrow current user RBAC permissions. */
+      scopes: string[];
+      /**
+       * Format: date-time
+       * @description Absolute UTC expiry. The server rejects past or unbounded credentials.
+       */
+      expires_at: string;
+    };
+    'personal-access-token-issued': components['schemas']['personal-access-token-summary'] & {
+      /** @description One-time secret. It is returned only by this creation response and is never stored or returned again. */
+      token: string;
+    };
+    'enveloped-personal-access-token-issued-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['personal-access-token-issued'];
     };
     'user-role-summary': {
       /** Format: int64 */
@@ -8759,6 +8873,238 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getAuthPersonalAccessTokens: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Personal API token summaries. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-personal-access-token-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthPersonalAccessTokens: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['personal-access-token-create-request'];
+      };
+    };
+    responses: {
+      /** @description Personal API token issued. */
+      201: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-personal-access-token-issued-response'];
+        };
+      };
+      /** @description Invalid token name, scopes, or expiry. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postAuthPersonalAccessTokenRevoke: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        tokenID: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Token is revoked or was already unavailable. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      /** @description Invalid token identifier. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getMcpStreamable: {
+    parameters: {
+      query?: never;
+      header: {
+        'Mcp-Session-Id': string;
+        'Last-Event-ID'?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description MCP event stream. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Invalid MCP transport request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description MCP session was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  postMcpStreamable: {
+    parameters: {
+      query?: never;
+      header?: {
+        'Mcp-Session-Id'?: string;
+        'MCP-Protocol-Version'?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          [key: string]: unknown;
+        };
+      };
+    };
+    responses: {
+      /** @description MCP JSON-RPC response or event stream framing. */
+      200: {
+        headers: {
+          'Mcp-Session-Id'?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+          'text/event-stream': string;
+        };
+      };
+      /** @description Invalid MCP transport request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  deleteMcpStreamable: {
+    parameters: {
+      query?: never;
+      header: {
+        'Mcp-Session-Id': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description MCP session closed. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid MCP transport request. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
     };
   };
   getUsers: {

@@ -10,8 +10,8 @@
   - `openapi/openapi.yaml` and referenced path fragments
   - `ai-plan/design/decisions/ADR-005-mcp-runtime-contract-and-transport-boundary.md`
   - `ai-plan/roadmap/MCP运行时实施计划.md`
-- Completed so far: `mcp-governance-and-contract`
-- Not started yet: runtime authentication foundation, compiler, resource/action projection, and transport hardening.
+- Completed so far: `mcp-governance-and-contract`, `mcp-auth-streamable-foundation`
+- Not started yet: OpenAPI compiler, resource/action projection, and transport hardening.
 
 ## Recovery Receipt
 
@@ -26,10 +26,14 @@
 - `ai-plan/public/mcp-runtime/**`
 - MCP ADR, roadmap, AI/MCP governance, and contract-governance rules
 - `openapi/**` MCP metadata anchors and examples
+- Batch 2 auth-owned personal API Token schema, migration, lifecycle routes, and stable capability
+- Batch 2 MCP Streamable HTTP adapter, caller context, RBAC-plus-scope bridge, and confirmation-token foundation
+- Derived server and web OpenAPI artifacts for the Batch 2 wire contract
 
 Out of scope:
 
-- `server/**`, `web/**`, generated OpenAPI artifacts, and manually maintained tool definitions
+- Hand-written tool definitions, tag/path-derived tool identity, and transport selection in OpenAPI metadata
+- Compiler read tools, resource/action projection, REST/MCP compatibility execution, stdio, and transport hardening
 - developer-local MCP client configuration, AI skills, and unrelated active topics
 
 ## Locked Decisions
@@ -48,8 +52,9 @@ Out of scope:
 ## Current Recovery Point
 
 - Batch 1 recorded the canonical metadata, URI conventions, compatibility gate, and runtime/developer-tool boundary.
-- No runtime implementation exists yet; the next batch must start with server/OpenAPI authority discovery before edits.
-- Next step: `mcp-auth-streamable-foundation`.
+- Batch 2 added auth-owned personal API Tokens, an opt-in Streamable HTTP adapter with no business capabilities,
+  server-validated confirmation primitives, and OpenAPI-derived request/response artifacts.
+- Next step: `mcp-openapi-compiler-read-tools`.
 
 ## Work Intake
 
@@ -59,7 +64,6 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- `mcp-auth-streamable-foundation`
 - `mcp-openapi-compiler-read-tools`
 - `mcp-compatibility-resources-actions`
 - `mcp-hardening-stdio`

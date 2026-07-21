@@ -8,6 +8,12 @@ type ServerInterface interface {
 	PostAuthRefresh(params PostAuthRefreshParams)
 	// PostAuthLogout 处理当前会话登出并清理 refresh session。
 	PostAuthLogout(params PostAuthLogoutParams)
+	// GetAuthPersonalAccessTokens 读取当前用户的非敏感个人 API Token 摘要。
+	GetAuthPersonalAccessTokens(params GetAuthPersonalAccessTokensParams)
+	// PostAuthPersonalAccessTokens 签发仅在本次响应中返回明文的个人 API Token。
+	PostAuthPersonalAccessTokens(params PostAuthPersonalAccessTokensParams, body PostAuthPersonalAccessTokensJSONRequestBody)
+	// PostAuthPersonalAccessTokenRevoke 撤销当前用户拥有的个人 API Token。
+	PostAuthPersonalAccessTokenRevoke(params PostAuthPersonalAccessTokenRevokeParams)
 	// GetAuthBootstrap 读取当前主体的 bootstrap 认证与导航上下文。
 	GetAuthBootstrap(params GetAuthBootstrapParams)
 	// GetAuthSessions 读取当前主体可见的活动会话列表。

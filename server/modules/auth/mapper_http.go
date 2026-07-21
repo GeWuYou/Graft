@@ -96,3 +96,50 @@ func toSessionSummaries(items []moduleapi.AuthSessionSummary) []generated.Sessio
 
 	return summaries
 }
+
+func toPersonalAccessTokenSummaries(items []moduleapi.PersonalAccessTokenSummary) ([]generated.PersonalAccessTokenSummary, error) {
+	summaries := make([]generated.PersonalAccessTokenSummary, 0, len(items))
+	for _, item := range items {
+		summary, err := toGeneratedPersonalAccessTokenSummary(item)
+		if err != nil {
+			return nil, err
+		}
+		summaries = append(summaries, summary)
+	}
+	return summaries, nil
+}
+
+func toPersonalAccessTokenIssued(item moduleapi.PersonalAccessTokenIssued) (generated.PersonalAccessTokenIssued, error) {
+	summary, err := toGeneratedPersonalAccessTokenSummary(item.Summary)
+	if err != nil {
+		return generated.PersonalAccessTokenIssued{}, err
+	}
+	return generated.PersonalAccessTokenIssued{
+		CreatedAt:   summary.CreatedAt,
+		ExpiresAt:   summary.ExpiresAt,
+		Id:          summary.Id,
+		LastUsedAt:  summary.LastUsedAt,
+		Name:        summary.Name,
+		RevokedAt:   summary.RevokedAt,
+		Scopes:      summary.Scopes,
+		Token:       item.Token,
+		TokenPrefix: summary.TokenPrefix,
+	}, nil
+}
+
+func toGeneratedPersonalAccessTokenSummary(item moduleapi.PersonalAccessTokenSummary) (generated.PersonalAccessTokenSummary, error) {
+	id, err := mustConvertGeneratedUserID(item.ID)
+	if err != nil {
+		return generated.PersonalAccessTokenSummary{}, err
+	}
+	return generated.PersonalAccessTokenSummary{
+		CreatedAt:   item.CreatedAt,
+		ExpiresAt:   item.ExpiresAt,
+		Id:          id,
+		LastUsedAt:  item.LastUsedAt,
+		Name:        item.Name,
+		RevokedAt:   item.RevokedAt,
+		Scopes:      append([]string(nil), item.Scopes...),
+		TokenPrefix: item.TokenPrefix,
+	}, nil
+}

@@ -7,6 +7,7 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
+	productmcp "graft/server/internal/mcp"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/moduleruntime"
 	"graft/server/internal/realtime"
@@ -40,7 +41,41 @@ func (r *Runtime) registerCoreAuthenticatedRoutes() error {
 	if err := r.registerRealtimeSubscriptionRoutes(); err != nil {
 		return err
 	}
+	if err := r.registerMCPRuntime(authorizer); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func (r *Runtime) registerMCPRuntime(authorizer moduleapi.Authorizer) error {
+	if r == nil || r.config == nil || !r.config.MCP.Enabled {
+		return nil
+	}
+	if r.server == nil {
+		return errors.New("runtime server is unavailable")
+	}
+
+	personalTokens, err := resolveRuntimeService[moduleapi.PersonalAccessTokenService](
+		r.services,
+		(*moduleapi.PersonalAccessTokenService)(nil),
+		"personal API token service",
+		"personal API token service",
+	)
+	if err != nil {
+		return fmt.Errorf("resolve MCP personal API token service: %w", err)
+	}
+
+	if err := productmcp.Register(productmcp.HTTPRegistration{
+		Engine:                 r.server.Engine(),
+		I18n:                   r.i18n,
+		PersonalTokenService:   personalTokens,
+		Authorizer:             authorizer,
+		SecurityAuditPublisher: httpx.NewSecurityAuditPublisher(r.eventBus, r.logger, "mcp"),
+		ConfirmationTokenTTL:   r.config.MCP.ConfirmationTokenTTL,
+	}); err != nil {
+		return fmt.Errorf("register MCP runtime: %w", err)
+	}
 	return nil
 }
 

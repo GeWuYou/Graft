@@ -1,0 +1,101 @@
+get:
+  tags: [mcp]
+  summary: Resume MCP Streamable HTTP event stream
+  operationId: getMcpStreamable
+  description: Resumes a stateful MCP Streamable HTTP session. The request must use a valid personal API token and the session remains bound to that token identifier.
+  parameters:
+    - name: Mcp-Session-Id
+      in: header
+      required: true
+      schema:
+        type: string
+    - name: Last-Event-ID
+      in: header
+      required: false
+      schema:
+        type: string
+  security:
+    - personalAccessTokenAuth: []
+  responses:
+    '200':
+      description: MCP event stream.
+      content:
+        text/event-stream:
+          schema:
+            type: string
+    '400':
+      description: Invalid MCP transport request.
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '404':
+      description: MCP session was not found.
+delete:
+  tags: [mcp]
+  summary: Close MCP Streamable HTTP session
+  operationId: deleteMcpStreamable
+  description: Closes the caller's stateful MCP Streamable HTTP session.
+  parameters:
+    - name: Mcp-Session-Id
+      in: header
+      required: true
+      schema:
+        type: string
+  security:
+    - personalAccessTokenAuth: []
+  responses:
+    '204':
+      description: MCP session closed.
+    '400':
+      description: Invalid MCP transport request.
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+post:
+  tags: [mcp]
+  summary: Send MCP Streamable HTTP message
+  operationId: postMcpStreamable
+  description: Sends an MCP JSON-RPC request or notification. This foundation exposes no business tools, resources, or prompts yet.
+  parameters:
+    - name: Mcp-Session-Id
+      in: header
+      required: false
+      schema:
+        type: string
+    - name: MCP-Protocol-Version
+      in: header
+      required: false
+      schema:
+        type: string
+  security:
+    - personalAccessTokenAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          additionalProperties: true
+  responses:
+    '200':
+      description: MCP JSON-RPC response or event stream framing.
+      headers:
+        Mcp-Session-Id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+        text/event-stream:
+          schema:
+            type: string
+    '400':
+      description: Invalid MCP transport request.
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml

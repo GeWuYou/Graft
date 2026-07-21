@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	BearerAuthScopes    bearerAuthContextKey    = "bearerAuth.Scopes"
-	RefreshCookieScopes refreshCookieContextKey = "refreshCookie.Scopes"
+	BearerAuthScopes              bearerAuthContextKey              = "bearerAuth.Scopes"
+	PersonalAccessTokenAuthScopes personalAccessTokenAuthContextKey = "personalAccessTokenAuth.Scopes"
+	RefreshCookieScopes           refreshCookieContextKey           = "refreshCookie.Scopes"
 )
 
 // Defines values for AnnouncementDeliveryMode.
@@ -9634,6 +9635,46 @@ type EnvelopedPermissionListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPersonalAccessTokenIssuedResponse defines model for enveloped-personal-access-token-issued-response.
+type EnvelopedPersonalAccessTokenIssuedResponse struct {
+	// Code Existing canonical response code.
+	Code string                    `json:"code"`
+	Data PersonalAccessTokenIssued `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPersonalAccessTokenListResponse defines model for enveloped-personal-access-token-list-response.
+type EnvelopedPersonalAccessTokenListResponse struct {
+	// Code Existing canonical response code.
+	Code string                       `json:"code"`
+	Data []PersonalAccessTokenSummary `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedRealtimeSubscriptionResponse defines model for enveloped-realtime-subscription-response.
 type EnvelopedRealtimeSubscriptionResponse struct {
 	// Code Existing canonical response code.
@@ -10564,6 +10605,49 @@ type PermissionListItem struct {
 // PermissionListResponse defines model for permission-list-response.
 type PermissionListResponse struct {
 	Items []PermissionListItem `json:"items"`
+}
+
+// PersonalAccessTokenCreateRequest defines model for personal-access-token-create-request.
+type PersonalAccessTokenCreateRequest struct {
+	// ExpiresAt Absolute UTC expiry. The server rejects past or unbounded credentials.
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Name Human-readable owner label for the token.
+	Name string `json:"name"`
+
+	// Scopes Exact operation scopes. These values can only narrow current user RBAC permissions.
+	Scopes []string `json:"scopes"`
+}
+
+// PersonalAccessTokenIssued defines model for personal-access-token-issued.
+type PersonalAccessTokenIssued struct {
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	Id         int64      `json:"id"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+	Scopes     []string   `json:"scopes"`
+
+	// Token One-time secret. It is returned only by this creation response and is never stored or returned again.
+	Token string `json:"token"`
+
+	// TokenPrefix Non-secret display prefix used to identify the credential.
+	TokenPrefix string `json:"token_prefix"`
+}
+
+// PersonalAccessTokenSummary defines model for personal-access-token-summary.
+type PersonalAccessTokenSummary struct {
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	Id         int64      `json:"id"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+	Scopes     []string   `json:"scopes"`
+
+	// TokenPrefix Non-secret display prefix used to identify the credential.
+	TokenPrefix string `json:"token_prefix"`
 }
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
@@ -11978,6 +12062,9 @@ type Unauthorized = ErrorResponse
 // bearerAuthContextKey is the context key for bearerAuth security scheme
 type bearerAuthContextKey string
 
+// personalAccessTokenAuthContextKey is the context key for personalAccessTokenAuth security scheme
+type personalAccessTokenAuthContextKey string
+
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
 
@@ -12494,6 +12581,36 @@ type PostAuthLoginParams struct {
 
 // PostAuthLogoutParams defines parameters for PostAuthLogout.
 type PostAuthLogoutParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetAuthPersonalAccessTokensParams defines parameters for GetAuthPersonalAccessTokens.
+type GetAuthPersonalAccessTokensParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuthPersonalAccessTokensParams defines parameters for PostAuthPersonalAccessTokens.
+type PostAuthPersonalAccessTokensParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostAuthPersonalAccessTokenRevokeParams defines parameters for PostAuthPersonalAccessTokenRevoke.
+type PostAuthPersonalAccessTokenRevokeParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -14207,6 +14324,26 @@ type PostUserUpdateParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// DeleteMcpStreamableParams defines parameters for DeleteMcpStreamable.
+type DeleteMcpStreamableParams struct {
+	McpSessionId string `json:"Mcp-Session-Id"`
+}
+
+// GetMcpStreamableParams defines parameters for GetMcpStreamable.
+type GetMcpStreamableParams struct {
+	McpSessionId string  `json:"Mcp-Session-Id"`
+	LastEventID  *string `json:"Last-Event-ID,omitempty"`
+}
+
+// PostMcpStreamableJSONBody defines parameters for PostMcpStreamable.
+type PostMcpStreamableJSONBody map[string]interface{}
+
+// PostMcpStreamableParams defines parameters for PostMcpStreamable.
+type PostMcpStreamableParams struct {
+	McpSessionId       *string `json:"Mcp-Session-Id,omitempty"`
+	MCPProtocolVersion *string `json:"MCP-Protocol-Version,omitempty"`
+}
+
 // GetRealtimeWebSocketParams defines parameters for GetRealtimeWebSocket.
 type GetRealtimeWebSocketParams struct {
 	// Ticket Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.
@@ -14260,6 +14397,9 @@ type PostAuthCompleteRequiredPasswordChangeJSONRequestBody = CompleteRequiredPas
 
 // PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
 type PostAuthLoginJSONRequestBody = LoginRequest
+
+// PostAuthPersonalAccessTokensJSONRequestBody defines body for PostAuthPersonalAccessTokens for application/json ContentType.
+type PostAuthPersonalAccessTokensJSONRequestBody = PersonalAccessTokenCreateRequest
 
 // PostNotificationsReadAllJSONRequestBody defines body for PostNotificationsReadAll for application/json ContentType.
 type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
@@ -14422,6 +14562,9 @@ type PostUserStatusJSONRequestBody = UpdateUserStatusRequest
 
 // PostUserUpdateJSONRequestBody defines body for PostUserUpdate for application/json ContentType.
 type PostUserUpdateJSONRequestBody = UpdateUserRequest
+
+// PostMcpStreamableJSONRequestBody defines body for PostMcpStreamable for application/json ContentType.
+type PostMcpStreamableJSONRequestBody PostMcpStreamableJSONBody
 
 // Getter for additional properties for ApplicationTemplateDraftRequest_Definition. Returns the specified
 // element and whether it was found
