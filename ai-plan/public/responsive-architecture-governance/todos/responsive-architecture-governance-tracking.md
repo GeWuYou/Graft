@@ -41,14 +41,16 @@ closeout:
 
 ## Current Recovery Point
 
-- B1 文档 bootstrap 已完成，结构、空白与链接检查通过，待 scoped commit。
-- 当前没有 authority escalation；B2 必须先盘点已有 shared/style 和壳层实现，避免创建平行基础设施。
-- Next step: `B2-foundation-runtime`。
+- B1 文档 bootstrap 与 B2 shared runtime foundation 已完成；B2 没有迁移业务页面、壳层或 Manifest 运行时数据。
+- `web/src/shared/responsive/**` 是无业务语义的阈值、container size、variant 与 token-name owner；`web/src/shared/composables/**` 只导出容器测量和 variant 组合式函数。
+- 当前没有 authority escalation；B3 必须以 B2 的语义 API 为基础收敛共享组件，不能重建本地 viewport/device 判断。
+- Responsive Debt：B2 新增 public API 暂无 Vue 入口消费者，因此 Knip 仅对 `shared/responsive/**`、`useContainerSize`、`useResponsiveVariant` 的 `exports` 建立受控豁免；owner=`B3-responsive-primitives`，deadline=`B3`，replacement=共享 primitive 的真实导入，完成首次消费后删除该豁免。
+- Next step: `B3-responsive-primitives`。
 
 ## Task Checklist
 
 - [x] `B1-docs-bootstrap`: 主题、规范和开发者 Manifest。
-- [ ] `B2-foundation-runtime`: shared token、container/variant 策略及壳层高风险债务。
+- [x] `B2-foundation-runtime`: shared token、container/variant 策略与壳层债务基线。
 - [ ] `B3-responsive-primitives`: 共享 Responsive 组件、exception/debt 治理记录。
 - [ ] `B4-page-migration-and-governance-gate`: 页面迁移、CI 规则和全面验收。
 
@@ -63,14 +65,13 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["B1-docs-bootstrap"],
+  "completed_batches": ["B1-docs-bootstrap", "B2-foundation-runtime"],
   "pending_batches": [
-    "B2-foundation-runtime",
     "B3-responsive-primitives",
     "B4-page-migration-and-governance-gate"
   ],
-  "current_batch": "B1-docs-bootstrap",
-  "next_batch": "B2-foundation-runtime",
+  "current_batch": "B2-foundation-runtime",
+  "next_batch": "B3-responsive-primitives",
   "closeout_status": "completed"
 }
 ```
