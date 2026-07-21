@@ -1,20 +1,34 @@
 <template>
-  <aside ref="container" :class="['responsive-sidebar', `responsive-sidebar--${variant.density}`]">
-    <slot :variant="variant" />
+  <aside v-if="mode !== 'drawer'" :class="['responsive-sidebar', `responsive-sidebar--${mode}`]">
+    <slot :compact="mode === 'compact'" />
   </aside>
+  <t-drawer
+    v-else
+    :visible="visible"
+    attach="body"
+    :close-btn="true"
+    :footer="false"
+    header
+    placement="left"
+    :prevent-scroll-through="true"
+    :size="'var(--graft-shell-mobile-drawer-width)'"
+    @update:visible="emit('update:visible', $event)"
+  >
+    <slot name="drawer" />
+  </t-drawer>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue';
+defineProps<{
+  mode: 'desktop' | 'compact' | 'drawer';
+  visible?: boolean;
+}>();
 
-import { useResponsiveVariant } from '@/shared/composables';
-
-/** Sidebar 仅提供壳层可用宽度语义，导航数据、展开态和路由行为仍属于 layouts。 */
-const container = ref<HTMLElement | null>(null);
-const variant = useResponsiveVariant(container, { surface: 'drawer' });
+const emit = defineEmits<{
+  'update:visible': [visible: boolean];
+}>();
 </script>
 <style scoped lang="less">
 .responsive-sidebar {
-  container-type: inline-size;
   min-width: 0;
 }
 </style>

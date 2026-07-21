@@ -2,6 +2,14 @@ import type { AppRouteMeta, MenuRoute } from '@/utils/types';
 
 export type SidebarMotionMode = NonNullable<AppRouteMeta['sidebarMotion']>;
 
+export type SidebarPresentation = 'desktop' | 'compact' | 'drawer';
+
+export function resolveSidebarPresentation(density: 'compact' | 'comfortable' | 'spacious'): SidebarPresentation {
+  if (density === 'compact') return 'drawer';
+  if (density === 'comfortable') return 'compact';
+  return 'desktop';
+}
+
 export type SidebarMotionPhase =
   | 'expanded'
   | 'collapsing-width'

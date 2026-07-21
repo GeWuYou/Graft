@@ -1,17 +1,24 @@
 <template>
-  <div class="app-shell" v-bind="shellSurfaceAttrs">
+  <div ref="shell" class="app-shell" v-bind="shellSurfaceAttrs">
     <template v-if="setting.layout.value === 'side'">
       <t-layout key="side" :class="['app-shell__layout', mainLayoutCls]">
-        <t-aside v-if="shouldRenderSidebar">
+        <t-aside v-if="shouldRenderPersistentSidebar">
           <layout-side-nav
-            :render-compact="sidebarRenderCompact"
-            :width-compact="sidebarWidthCompact"
+            :drawer-visible="mobileNavigationVisible"
+            :presentation="sidebarPresentation"
+            :render-compact="effectiveSidebarRenderCompact"
+            :width-compact="effectiveSidebarWidthCompact"
             :motion-phase="sidebarMotionPhase"
+            @update:drawer-visible="mobileNavigationVisible = $event"
           />
         </t-aside>
         <t-layout class="app-shell__main">
           <t-header class="app-shell__header">
-            <layout-header :render-compact="sidebarWidthCompact" />
+            <layout-header
+              :presentation="sidebarPresentation"
+              :render-compact="effectiveSidebarWidthCompact"
+              @open-navigation="mobileNavigationVisible = true"
+            />
           </t-header>
           <t-content class="app-shell__content"><layout-content @page-scroll="handlePageScroll" /></t-content>
         </t-layout>
@@ -21,19 +28,35 @@
     <template v-else>
       <t-layout key="no-side" class="app-shell__layout">
         <t-header class="app-shell__header">
-          <layout-header :render-compact="sidebarWidthCompact" />
+          <layout-header
+            :presentation="sidebarPresentation"
+            :render-compact="effectiveSidebarWidthCompact"
+            @open-navigation="mobileNavigationVisible = true"
+          />
         </t-header>
         <t-layout :class="['app-shell__main', mainLayoutCls]">
           <layout-side-nav
-            v-if="shouldRenderSidebar"
-            :render-compact="sidebarRenderCompact"
-            :width-compact="sidebarWidthCompact"
+            v-if="shouldRenderPersistentSidebar"
+            :drawer-visible="mobileNavigationVisible"
+            :presentation="sidebarPresentation"
+            :render-compact="effectiveSidebarRenderCompact"
+            :width-compact="effectiveSidebarWidthCompact"
             :motion-phase="sidebarMotionPhase"
+            @update:drawer-visible="mobileNavigationVisible = $event"
           />
           <layout-content @page-scroll="handlePageScroll" />
         </t-layout>
       </t-layout>
     </template>
+    <layout-side-nav
+      v-if="shouldRenderMobileDrawer"
+      :drawer-visible="mobileNavigationVisible"
+      presentation="drawer"
+      :render-compact="false"
+      :width-compact="false"
+      motion-phase="expanded"
+      @update:drawer-visible="mobileNavigationVisible = $event"
+    />
   </div>
   <force-password-change-dialog />
 </template>
@@ -46,6 +69,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
+import { useResponsiveVariant } from '@/shared/composables';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
 import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
@@ -55,7 +79,7 @@ import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vu
 import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
-import { resolveSidebarMotionMode, type SidebarMotionPhase } from './layout-navigation';
+import { resolveSidebarMotionMode, resolveSidebarPresentation, type SidebarMotionPhase } from './layout-navigation';
 
 // 后台壳布局负责把菜单、tabs、侧栏动效和滚动状态接入统一容器；离开时必须释放所有动画与实时调度冻结。
 const SIDEBAR_WIDTH_TRANSITION_MS = 320;
@@ -70,27 +94,45 @@ const settingStore = useSettingStore();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
 const setting = storeToRefs(settingStore);
+const shell = ref<HTMLElement | null>(null);
+const shellVariant = useResponsiveVariant(shell);
 const sidebarRenderCompact = ref(settingStore.isSidebarCompact);
 const sidebarWidthCompact = ref(settingStore.isSidebarCompact);
 const sidebarMotionPhase = ref<SidebarMotionPhase>(settingStore.isSidebarCompact ? 'compact' : 'expanded');
 const sidebarMotionTimers = new Set<number>();
 const sidebarMotionFrameIds = new Set<number>();
 const pageScrollTop = ref(0);
+const mobileNavigationVisible = ref(false);
 let sidebarFreezeToken: number | null = null;
 let sidebarResumeFrameId: number | null = null;
 let sidebarResumeNestedFrameId: number | null = null;
 let pageScrollFrameId: number | null = null;
 let pendingPageScrollTop = 0;
 
+const sidebarPresentation = computed(() => {
+  // 初始挂载和 SSR 回退没有可测量容器宽度时，先维持桌面壳层，随后由 ResizeObserver 切换。
+  if (!shell.value?.clientWidth) return 'desktop';
+  return resolveSidebarPresentation(shellVariant.value.density);
+});
+const effectiveSidebarWidthCompact = computed(
+  () =>
+    sidebarPresentation.value === 'compact' || (sidebarPresentation.value === 'desktop' && sidebarWidthCompact.value),
+);
+const effectiveSidebarRenderCompact = computed(
+  () =>
+    sidebarPresentation.value === 'compact' || (sidebarPresentation.value === 'desktop' && sidebarRenderCompact.value),
+);
+
 const shellSurfaceAttrs = computed(() => ({
   'data-layout-mode': settingStore.layout,
   'data-page-type': 'shell',
-  'data-sidebar-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-compact': String(effectiveSidebarWidthCompact.value),
   'data-sidebar-fixed': String(settingStore.isSidebarFixed),
   'data-sidebar-motion-phase': sidebarMotionPhase.value,
   'data-sidebar-motion-mode': resolveSidebarMotionMode(route.meta as AppRouteMeta),
-  'data-sidebar-render-compact': String(sidebarRenderCompact.value),
-  'data-sidebar-width-compact': String(sidebarWidthCompact.value),
+  'data-sidebar-presentation': sidebarPresentation.value,
+  'data-sidebar-render-compact': String(effectiveSidebarRenderCompact.value),
+  'data-sidebar-width-compact': String(effectiveSidebarWidthCompact.value),
   'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
   'data-theme-mode': settingStore.displayMode,
   style: {
@@ -101,10 +143,14 @@ const shellSurfaceAttrs = computed(() => ({
 const shouldRenderSidebar = computed(
   () => settingStore.showSidebar && !(setting.layout.value === 'mix' && route.path === '/'),
 );
+const shouldRenderPersistentSidebar = computed(
+  () => shouldRenderSidebar.value && sidebarPresentation.value !== 'drawer',
+);
+const shouldRenderMobileDrawer = computed(() => shouldRenderSidebar.value && sidebarPresentation.value === 'drawer');
 
 const mainLayoutCls = computed(() => [
   {
-    't-layout--with-sider': shouldRenderSidebar.value,
+    't-layout--with-sider': shouldRenderPersistentSidebar.value,
   },
 ]);
 
@@ -348,6 +394,19 @@ watch(
 );
 
 watch(
+  () => route.fullPath,
+  () => {
+    mobileNavigationVisible.value = false;
+  },
+);
+
+watch(sidebarPresentation, (presentation) => {
+  if (presentation !== 'drawer') {
+    mobileNavigationVisible.value = false;
+  }
+});
+
+watch(
   () => settingStore.isSidebarCompact,
   (nextCompact, previousCompact) => {
     if (nextCompact === previousCompact) {
@@ -362,6 +421,7 @@ watch(
 .app-shell {
   --graft-shell-sidebar-width: 232px;
   --graft-shell-sidebar-width-compact: 72px;
+  --graft-shell-mobile-drawer-width: min(20rem, 84vw);
   --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width);
   --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-current-width);
   --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-current-width);
