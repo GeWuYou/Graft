@@ -33,7 +33,6 @@
         :aria-expanded="overflowVisible"
         aria-haspopup="dialog"
         :aria-label="title"
-        @blur="overflowVisible = false"
         @focus="overflowVisible = true"
         @keydown.esc.prevent="overflowVisible = false"
       >
