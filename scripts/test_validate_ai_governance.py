@@ -109,6 +109,19 @@ class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
+
+class PersonalSkillReferenceTests(unittest.TestCase):
+    def test_personal_skill_references_are_absent_from_repository_guidance(self) -> None:
+        self.assertEqual(MODULE.validate_no_personal_skill_refs(MODULE.tracked_files()), [])
+
+    def test_personal_skill_reference_is_rejected(self) -> None:
+        with mock.patch.object(MODULE, "read_text", return_value="Use /root/.codex/skills/shutdown-after-completion/SKILL.md."):
+            findings = MODULE.validate_no_personal_skill_refs({"AGENTS.md"})
+
+        self.assertEqual(len(findings), 1)
+        self.assertIn("personal device skill term", findings[0].message)
+
+
 class AiToolingDocTests(unittest.TestCase):
     def test_ai_tooling_doc_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_ai_tooling_doc(), [])

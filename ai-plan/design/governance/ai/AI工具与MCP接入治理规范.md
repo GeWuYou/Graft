@@ -33,6 +33,9 @@ AI 工具按职责分层：
 - 仓库 / 团队级 Codex plugin 与外部 skill pack
   - AI guidance asset，用于沉淀可复用提示、前端生成规则和浏览器 QA 流程。
   - 不属于 `server` / `web` runtime、CI、hooks、package manager 依赖或仓库 authority。
+- 个人 Codex skill / plugin
+  - 只能通过用户级 marketplace 注册和启用；它的存在不等于当前工作树或当前会话可用。
+  - 不得在仓库文档、skill、启动 prompt 或环境清单中硬编码个人绝对路径、设备级操作命令或个人 skill 调用链接。
 
 MCP 和 skill 不得定义第二套启动 receipt、第二套 validation truth、第二套 commit 规则或第二套恢复入口。
 workflow 级 thin skill 也不得定义第二套 intake truth；如果存在 `graft-work-intake`，它只能执行文档已经批准的
@@ -184,6 +187,7 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 - 若新增 `agents/openai.yaml`，默认只写 `display_name`、`short_description`、`default_prompt`。
 - skill 不得要求读取无关大文件，不得把 task tracking 写到 `.agents/skills/**`。
 - skill 的脚本必须能在无项目运行时服务的情况下做最小结构验证。
+- 仓库 skill 只能引用仓库内 skill 或已登记的用户级工具能力；个人设备操作 skill 不得成为工作树的默认 prompt、隐式依赖或 closeout 步骤。
 - `graft-ai-plan-governance` 是 `ai-plan/**` router、active topic recovery、template、catalog 与 bounded validator
   的窄治理 skill；它必须回到 root `AGENTS.md`、`ai-plan/AGENTS.md`、`ai-plan/README.md` 与
   `ai-plan/design/governance/ai/AI任务追踪与恢复设计.md`，不得定义第二套 startup receipt、validation truth 或 recovery

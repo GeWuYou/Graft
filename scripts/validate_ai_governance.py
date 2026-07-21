@@ -898,6 +898,28 @@ def validate_no_private_config_tracked(tracked: set[str]) -> list[Finding]:
     return findings
 
 
+def validate_no_personal_skill_refs(tracked: set[str]) -> list[Finding]:
+    """Reject personal skill paths and device-level actions from repository guidance files."""
+    findings: list[Finding] = []
+    governed_prefixes = ("AGENTS.md", ".agents/", "ai-plan/", ".ai/")
+    forbidden_terms = (
+        "/root/.codex/skills/shutdown-after-completion/",
+        "shutdown /s /t",
+        "$shutdown-after-completion",
+    )
+    for relative_path in sorted(tracked):
+        if not relative_path.startswith(governed_prefixes):
+            continue
+        path = REPO_ROOT / relative_path
+        if not path.is_file():
+            continue
+        text = read_text(path)
+        for term in forbidden_terms:
+            if term in text:
+                findings.append(Finding(path, f"repository guidance must not reference personal device skill term {term!r}"))
+    return findings
+
+
 def run_validation() -> list[Finding]:
     """
     汇总并执行所有 AI 治理校验。
@@ -924,6 +946,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))
+    findings.extend(validate_no_personal_skill_refs(tracked))
     return findings
 
 
