@@ -15,6 +15,7 @@
 - Validation passed: `git diff --check`, `python3 scripts/validate_ai_plan_structure.py`,
   `python3 scripts/validate_ai_governance.py`, and `just openapi-check`. The last check confirms the OpenAPI source,
   runtime-path projection, web generated schema freshness, and contract projection without modifying generated files.
+- Loop acceptance recorded the batch commit `ddbe3d1f` and advanced the current state to the next batch.
 
 ## Next Step
 

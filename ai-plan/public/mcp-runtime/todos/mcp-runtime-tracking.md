@@ -77,8 +77,8 @@ closeout:
     "mcp-compatibility-resources-actions",
     "mcp-hardening-stdio"
   ],
-  "current_batch": "mcp-governance-and-contract",
+  "current_batch": null,
   "next_batch": "mcp-auth-streamable-foundation",
-  "closeout_status": "validated-pending-commit"
+  "closeout_status": "committed"
 }
 ```
