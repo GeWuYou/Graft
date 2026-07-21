@@ -10,8 +10,8 @@
   - `openapi/openapi.yaml` and referenced path fragments
   - `ai-plan/design/decisions/ADR-005-mcp-runtime-contract-and-transport-boundary.md`
   - `ai-plan/roadmap/MCP运行时实施计划.md`
-- Completed so far: `mcp-governance-and-contract`, `mcp-auth-streamable-foundation`
-- Not started yet: OpenAPI compiler, resource/action projection, and transport hardening.
+- Completed so far: `mcp-governance-and-contract`, `mcp-auth-streamable-foundation`, `mcp-openapi-compiler-read-tools`
+- Not started yet: resource/action projection and transport hardening.
 
 ## Recovery Receipt
 
@@ -28,12 +28,13 @@
 - `openapi/**` MCP metadata anchors and examples
 - Batch 2 auth-owned personal API Token schema, migration, lifecycle routes, and stable capability
 - Batch 2 MCP Streamable HTTP adapter, caller context, RBAC-plus-scope bridge, and confirmation-token foundation
+- Batch 3 OpenAPI read-tool compiler, Gin in-process dispatcher, deterministic bundled-spec integration, and focused compatibility evidence
 - Derived server and web OpenAPI artifacts for the Batch 2 wire contract
 
 Out of scope:
 
 - Hand-written tool definitions, tag/path-derived tool identity, and transport selection in OpenAPI metadata
-- Compiler read tools, resource/action projection, REST/MCP compatibility execution, stdio, and transport hardening
+- Resource/action projection, REST/MCP action compatibility execution, stdio, and transport hardening
 - developer-local MCP client configuration, AI skills, and unrelated active topics
 
 ## Locked Decisions
@@ -54,7 +55,11 @@ Out of scope:
 - Batch 1 recorded the canonical metadata, URI conventions, compatibility gate, and runtime/developer-tool boundary.
 - Batch 2 added auth-owned personal API Tokens, an opt-in Streamable HTTP adapter with no business capabilities,
   server-validated confirmation primitives, and OpenAPI-derived request/response artifacts.
-- Next step: `mcp-openapi-compiler-read-tools`.
+- Batch 3 compiles only `x-graft-mcp` opted-in low-risk GET operations from the embedded canonical OpenAPI bundle.
+  Tool IDs derive solely from normalized `operationId`; schemas, resource bindings, risk, and confirmation metadata are
+  validated before registration. The dispatcher invokes the same Gin REST route with the verified caller context, so
+  existing permission checks and audit behavior remain the execution authority.
+- Next step: `mcp-compatibility-resources-actions`.
 
 ## Work Intake
 
@@ -64,7 +69,6 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- `mcp-openapi-compiler-read-tools`
 - `mcp-compatibility-resources-actions`
 - `mcp-hardening-stdio`
 

@@ -41,3 +41,28 @@
 
 - Start `mcp-openapi-compiler-read-tools` with fresh startup preflight and compile opted-in, read-only tool
   descriptors from canonical OpenAPI metadata only.
+
+## 2026-07-22 `mcp-openapi-compiler-read-tools`
+
+- Added a startup-immutable compiler for the embedded canonical OpenAPI bundle. It accepts only explicit
+  `x-graft-mcp` GET operations and derives each snake_case tool ID from `operationId` without tag, path, summary, or
+  hand-written registry fallback.
+- Added validation for the root metadata anchor, risk and confirmation declarations, positive ISO-8601 confirmation
+  TTLs, canonical resource URI placeholder bindings, normalized tool-name collisions, and low-risk reversible read
+  eligibility. Input schemas derive path, query, and JSON body inputs from the same operation.
+- Added a generic in-process dispatcher that invokes the registered Gin REST route. The verified personal-token and
+  request-auth contexts propagate into the route, preserving existing permission middleware and route-owned audit
+  behavior; focused Streamable HTTP tests cover the full tool-call path.
+- The embedded bundle currently projects `get_application`, `get_container`, and `get_runtime_target`. Tool lists are
+  sorted deterministically and cannot change during the process lifetime; no Redis or new runtime cache is needed.
+- Shared-asset review reused the existing OpenAPI contract bundle and HTTP runtime boundaries; no curated asset registry
+  change is warranted. Comment-governance review accepted the added Chinese Go comments as responsibility or constraint
+  documentation and found no stale or mechanical comments.
+- Validation passed: `go test ./internal/mcp ./internal/httpx ./internal/app`, `go run ./cmd/graft validate backend`,
+  `bun run check`, and `just openapi-check`. The OpenAPI generator retains its known OpenAPI 3.1 support warning;
+  generated artifacts and projections are fresh.
+
+## Next Step
+
+- Start `mcp-compatibility-resources-actions` with fresh startup preflight. Preserve OpenAPI as the only capability
+  authority while adding resource/action projection and the ADR-005 REST/MCP compatibility matrix.

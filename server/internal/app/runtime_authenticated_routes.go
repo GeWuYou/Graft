@@ -68,6 +68,7 @@ func (r *Runtime) registerMCPRuntime(authorizer moduleapi.Authorizer) error {
 
 	if err := productmcp.Register(productmcp.HTTPRegistration{
 		Engine:                 r.server.Engine(),
+		OpenAPISpec:            OpenAPIDocsBundle(),
 		I18n:                   r.i18n,
 		PersonalTokenService:   personalTokens,
 		Authorizer:             authorizer,

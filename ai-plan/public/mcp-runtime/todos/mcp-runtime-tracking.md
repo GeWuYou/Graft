@@ -48,13 +48,18 @@ closeout:
 - Batch 2 added auth-owned expiring personal API Tokens, a Streamable HTTP foundation, a shared caller context,
   RBAC-first scope narrowing, and server-validated single-use confirmation primitives. The foundation exposes no
   business tools, resources, or prompts.
-- Next batch: `mcp-openapi-compiler-read-tools`.
+- Batch 3 compiles only opted-in low-risk GET operations from the embedded canonical OpenAPI bundle. It rejects invalid
+  metadata, unsafe read declarations, unbound resource URI placeholders, and normalized name collisions. The resulting
+  tool list is deterministic and startup-immutable; no manual business registry, resource, prompt, or action projection
+  was introduced. The generic dispatcher re-enters the Gin REST route with the existing caller context so REST handler,
+  authorization, and audit behavior remain authoritative.
+- Next batch: `mcp-compatibility-resources-actions`.
 
 ## Task Checklist
 
 - [x] `mcp-governance-and-contract`
 - [x] `mcp-auth-streamable-foundation`
-- [ ] `mcp-openapi-compiler-read-tools`
+- [x] `mcp-openapi-compiler-read-tools`
 - [ ] `mcp-compatibility-resources-actions`
 - [ ] `mcp-hardening-stdio`
 
@@ -71,23 +76,22 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "mcp-governance-and-contract",
-    "mcp-auth-streamable-foundation"
+    "mcp-auth-streamable-foundation",
+    "mcp-openapi-compiler-read-tools"
   ],
   "pending_batches": [
-    "mcp-openapi-compiler-read-tools",
     "mcp-compatibility-resources-actions",
     "mcp-hardening-stdio"
   ],
   "current_batch": null,
-  "next_batch": "mcp-openapi-compiler-read-tools",
+  "next_batch": "mcp-compatibility-resources-actions",
   "closeout_status": "committed"
 }
 ```
 
 ## Latest Validation
 
+- `cd server && go test ./internal/mcp ./internal/httpx ./internal/app`
 - `cd server && go run ./cmd/graft validate backend`
 - `cd web && bun run check`
 - `just openapi-check`
-- `python3 scripts/validate_sql_migrations.py`
-- focused in-memory Streamable HTTP tests, including explicit session close

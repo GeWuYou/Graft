@@ -30,7 +30,9 @@ const (
 // 业务 Tool 不在此处注册；后续 compiler 只能在同一个 adapter 上投影
 // OpenAPI 已声明的 operation，不能把 transport 变成第二套业务 API。
 type HTTPRegistration struct {
-	Engine                 *gin.Engine
+	Engine *gin.Engine
+	// OpenAPISpec 是已打包的 canonical OpenAPI 文档；Tool 清单只能从它编译得出。
+	OpenAPISpec            []byte
 	I18n                   *i18n.Service
 	PersonalTokenService   moduleapi.PersonalAccessTokenService
 	Authorizer             moduleapi.Authorizer
@@ -59,8 +61,12 @@ func Register(registration HTTPRegistration) error {
 	if registration.Authorizer == nil {
 		return errors.New("mcp authorizer is unavailable")
 	}
+	tools, err := CompileReadTools(registration.OpenAPISpec)
+	if err != nil {
+		return fmt.Errorf("compile MCP read tools: %w", err)
+	}
 
-	adapter, err := newAdapter(registration.Authorizer, registration.ConfirmationTokenTTL)
+	adapter, err := newAdapterWithTools(registration.Authorizer, registration.ConfirmationTokenTTL, registration.Engine, tools)
 	if err != nil {
 		return err
 	}
@@ -72,20 +78,37 @@ func Register(registration HTTPRegistration) error {
 	return nil
 }
 
-func newAdapter(authorizer moduleapi.Authorizer, confirmationTTL time.Duration) (*adapter, error) {
+func newAdapterWithTools(authorizer moduleapi.Authorizer, confirmationTTL time.Duration, engine *gin.Engine, tools []toolDefinition) (*adapter, error) {
 	confirmations, err := newConfirmationTokens(confirmationTTL)
 	if err != nil {
 		return nil, err
 	}
 
+	capabilities := &mcpsdk.ServerCapabilities{}
+	if len(tools) > 0 {
+		capabilities.Tools = &mcpsdk.ToolCapabilities{}
+	}
 	server := mcpsdk.NewServer(&mcpsdk.Implementation{
 		Name:    "graft",
 		Title:   "Graft",
 		Version: buildinfo.Current().Version,
 	}, &mcpsdk.ServerOptions{
-		// Foundation batch intentionally exposes no tools, resources, prompts, or logging capability.
-		Capabilities: &mcpsdk.ServerCapabilities{},
+		Capabilities: capabilities,
 	})
+	if len(tools) > 0 {
+		dispatcher, err := newDispatcher(engine)
+		if err != nil {
+			return nil, err
+		}
+		for _, tool := range tools {
+			tool := tool
+			server.AddTool(&mcpsdk.Tool{
+				Name:        tool.name,
+				Description: tool.description,
+				InputSchema: tool.inputSchema,
+			}, dispatcher.toolHandler(tool))
+		}
+	}
 	streamable := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
 		return server
 	}, &mcpsdk.StreamableHTTPOptions{

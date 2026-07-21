@@ -83,7 +83,8 @@ func RequirePermissionWithLogger(
 	}
 	auditPublisher := firstSecurityAuditPublisher(auditPublishers...)
 	return func(ctx *gin.Context) {
-		if authService == nil {
+		_, personalTokenCaller := moduleapi.PersonalAccessTokenCallerFromContext(ctx.Request.Context())
+		if authService == nil && !personalTokenCaller {
 			abortAuthorizationInternalError(ctx, localizer, logger, errors.New("auth service is unavailable"))
 			return
 		}
@@ -154,6 +155,11 @@ func authenticateRequest(
 	authService moduleapi.AuthService,
 	auditPublisher SecurityAuditPublisher,
 ) (moduleapi.RequestAuthContext, context.Context, bool) {
+	if caller, ok := moduleapi.PersonalAccessTokenCallerFromContext(ctx.Request.Context()); ok {
+		requestAuth := moduleapi.RequestAuthContext{User: &caller.User}
+		requestCtx := moduleapi.WithRequestAuthContext(ctx.Request.Context(), requestAuth)
+		return requestAuth, requestCtx, false
+	}
 	requestToken, ok := extractBearerToken(ctx.Request)
 	if !ok {
 		publishSecurityAudit(ctx, auditPublisher, securityAuditEventAuthTokenMissing, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
@@ -188,6 +194,10 @@ func authorizeRequest(
 ) bool {
 	ctx.Request = ctx.Request.WithContext(request.ctx)
 	if strings.TrimSpace(code) == "" {
+		if _, personalToken := moduleapi.PersonalAccessTokenCallerFromContext(request.ctx); personalToken {
+			writeAuthorizationError(ctx, request.localizer, request.logger, code, moduleapi.ErrPermissionDenied, request.auditPublisher)
+			return true
+		}
 		return false
 	}
 
@@ -199,7 +209,20 @@ func authorizeRequest(
 		writeAuthorizationError(ctx, request.localizer, request.logger, code, err, request.auditPublisher)
 		return true
 	}
+	if caller, ok := moduleapi.PersonalAccessTokenCallerFromContext(request.ctx); ok && !personalTokenHasScope(caller.Scopes, code) {
+		writeAuthorizationError(ctx, request.localizer, request.logger, code, moduleapi.ErrPermissionDenied, request.auditPublisher)
+		return true
+	}
 
+	return false
+}
+
+func personalTokenHasScope(scopes []string, permission string) bool {
+	for _, scope := range scopes {
+		if scope == permission {
+			return true
+		}
+	}
 	return false
 }
 

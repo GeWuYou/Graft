@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 )
 
@@ -82,7 +83,7 @@ func TestConfirmationTokensExpireBeforeConsumption(t *testing.T) {
 	}
 }
 
-func TestRegisterServesStreamableFoundationWithoutBusinessCapabilities(t *testing.T) {
+func TestRegisterServesStreamableReadToolsFromOpenAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	tokenService := foundationPersonalAccessTokenService{
@@ -95,6 +96,7 @@ func TestRegisterServesStreamableFoundationWithoutBusinessCapabilities(t *testin
 	}
 	if err := Register(HTTPRegistration{
 		Engine:               engine,
+		OpenAPISpec:          compilerTestBundle(map[string]any{"/api/items/{id}": map[string]any{"get": compilerTestOperation("getItem", compilerTestMetadata("low", false), false)}}),
 		PersonalTokenService: tokenService,
 		Authorizer:           &foundationTestAuthorizer{},
 		ConfirmationTokenTTL: time.Minute,
@@ -120,15 +122,41 @@ func TestRegisterServesStreamableFoundationWithoutBusinessCapabilities(t *testin
 	if err := json.Unmarshal(streamableResponsePayload(recorder.Body.String()), &response); err != nil {
 		t.Fatalf("decode initialize response: %v; body=%s", err, recorder.Body.String())
 	}
-	for _, capability := range []string{"tools", "resources", "prompts"} {
+	if _, ok := response.Result.Capabilities["tools"]; !ok {
+		t.Fatalf("compiled read tools must advertise tools capability: %s", recorder.Body.String())
+	}
+	for _, capability := range []string{"resources", "prompts"} {
 		if _, ok := response.Result.Capabilities[capability]; ok {
-			t.Fatalf("foundation must not expose %s capability: %s", capability, recorder.Body.String())
+			t.Fatalf("read tool batch must not expose %s capability: %s", capability, recorder.Body.String())
 		}
 	}
 
 	sessionID := recorder.Header().Get("Mcp-Session-Id")
 	if sessionID == "" {
 		t.Fatal("initialize response must create a streamable session")
+	}
+	listRequest := httptest.NewRequest(http.MethodPost, HTTPPath, strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}`))
+	listRequest.Header.Set("Authorization", "Bearer gpat_verified_by_httpx")
+	listRequest.Header.Set("Content-Type", "application/json")
+	listRequest.Header.Set("Accept", "application/json, text/event-stream")
+	listRequest.Header.Set("Mcp-Session-Id", sessionID)
+	listRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(listRecorder, listRequest)
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("tools/list status = %d, want %d: %s", listRecorder.Code, http.StatusOK, listRecorder.Body.String())
+	}
+	var toolList struct {
+		Result struct {
+			Tools []struct {
+				Name string `json:"name"`
+			} `json:"tools"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(streamableResponsePayload(listRecorder.Body.String()), &toolList); err != nil {
+		t.Fatalf("decode tools/list response: %v; body=%s", err, listRecorder.Body.String())
+	}
+	if len(toolList.Result.Tools) != 1 || toolList.Result.Tools[0].Name != "get_item" {
+		t.Fatalf("tools/list must contain only OpenAPI-compiled get_item: %#v", toolList.Result.Tools)
 	}
 	closeRequest := httptest.NewRequest(http.MethodDelete, HTTPPath, nil)
 	closeRequest.Header.Set("Authorization", "Bearer gpat_verified_by_httpx")
@@ -137,6 +165,68 @@ func TestRegisterServesStreamableFoundationWithoutBusinessCapabilities(t *testin
 	engine.ServeHTTP(closeRecorder, closeRequest)
 	if closeRecorder.Code != http.StatusNoContent {
 		t.Fatalf("close status = %d, want %d: %s", closeRecorder.Code, http.StatusNoContent, closeRecorder.Body.String())
+	}
+}
+
+func TestStreamableToolCallPreservesRESTAuthorizationAndAuditBehavior(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	authorizer := &foundationTestAuthorizer{}
+	auditEvents := 0
+	engine.GET("/api/items/:id", httpx.RequirePermission(nil, nil, authorizer, "item.read"), func(ginCtx *gin.Context) {
+		caller, ok := moduleapi.PersonalAccessTokenCallerFromContext(ginCtx.Request.Context())
+		if !ok || caller.User.ID != 7 {
+			t.Fatalf("REST handler lost personal token caller: %#v", caller)
+		}
+		requestAuth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context())
+		if !ok || requestAuth.User == nil || requestAuth.User.ID != caller.User.ID {
+			t.Fatalf("REST handler lost request auth context: %#v", requestAuth)
+		}
+		auditEvents++
+		ginCtx.JSON(http.StatusOK, gin.H{"id": ginCtx.Param("id")})
+	})
+	tokenService := foundationPersonalAccessTokenService{caller: moduleapi.PersonalAccessTokenCaller{
+		TokenID:   42,
+		User:      moduleapi.CurrentUser{ID: 7, Username: "alice"},
+		Scopes:    []string{"item.read"},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}}
+	if err := Register(HTTPRegistration{
+		Engine:               engine,
+		OpenAPISpec:          compilerTestBundle(map[string]any{"/api/items/{id}": map[string]any{"get": compilerTestOperation("getItem", compilerTestMetadata("low", false), false)}}),
+		PersonalTokenService: tokenService,
+		Authorizer:           authorizer,
+		ConfirmationTokenTTL: time.Minute,
+	}); err != nil {
+		t.Fatalf("register streamable MCP read tool: %v", err)
+	}
+
+	initialize := httptest.NewRequest(http.MethodPost, HTTPPath, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+	initialize.Header.Set("Authorization", "Bearer gpat_verified_by_httpx")
+	initialize.Header.Set("Content-Type", "application/json")
+	initialize.Header.Set("Accept", "application/json, text/event-stream")
+	initializeRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(initializeRecorder, initialize)
+	sessionID := initializeRecorder.Header().Get("Mcp-Session-Id")
+	if initializeRecorder.Code != http.StatusOK || sessionID == "" {
+		t.Fatalf("initialize = %d session=%q body=%s", initializeRecorder.Code, sessionID, initializeRecorder.Body.String())
+	}
+
+	call := httptest.NewRequest(http.MethodPost, HTTPPath, strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_item","arguments":{"id":"item-7"}}}`))
+	call.Header.Set("Authorization", "Bearer gpat_verified_by_httpx")
+	call.Header.Set("Content-Type", "application/json")
+	call.Header.Set("Accept", "application/json, text/event-stream")
+	call.Header.Set("Mcp-Session-Id", sessionID)
+	callRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(callRecorder, call)
+	if callRecorder.Code != http.StatusOK {
+		t.Fatalf("tools/call status = %d, want %d: %s", callRecorder.Code, http.StatusOK, callRecorder.Body.String())
+	}
+	if authorizer.calls != 1 || auditEvents != 1 {
+		t.Fatalf("REST authorization and audit behavior calls = %d, %d; want 1, 1", authorizer.calls, auditEvents)
+	}
+	if !strings.Contains(string(streamableResponsePayload(callRecorder.Body.String())), `"id":"item-7"`) {
+		t.Fatalf("tools/call must return canonical REST response: %s", callRecorder.Body.String())
 	}
 }
 
