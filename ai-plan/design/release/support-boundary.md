@@ -22,6 +22,8 @@
   `github.token`-authored release step
 - the release `PAT_TOKEN` must cover both repository write access for release publication and workflow-dispatch access
   for the post-release `license-compliance.yml` automation
+- the manual `Release` workflow may publish a Beta tag directly from the current `main` snapshot; stable tag creation
+  remains protected by the `release` environment approval path
 
 ## Not Yet Promised In `v0.1.0`
 

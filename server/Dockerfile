@@ -1,31 +1,3 @@
-FROM golang:1.26-bookworm AS builder
-
-WORKDIR /src/server
-
-COPY go.mod go.sum ./
-ARG GOPROXY=https://proxy.golang.org,direct
-ENV GOPROXY=${GOPROXY}
-RUN go mod download
-
-COPY . .
-
-ARG GRAFT_VERSION=dev
-ARG GRAFT_GIT_COMMIT=unknown
-ARG GRAFT_BUILD_TIME_UTC=unknown
-ARG GRAFT_GIT_TREE_STATE=dirty
-
-ENV CGO_ENABLED=0
-
-RUN go build \
-    -trimpath \
-    -ldflags="-s -w \
-      -X 'graft/server/internal/buildinfo.version=${GRAFT_VERSION}' \
-      -X 'graft/server/internal/buildinfo.gitCommit=${GRAFT_GIT_COMMIT}' \
-      -X 'graft/server/internal/buildinfo.buildTimeUTC=${GRAFT_BUILD_TIME_UTC}' \
-      -X 'graft/server/internal/buildinfo.gitTreeState=${GRAFT_GIT_TREE_STATE}'" \
-    -o /out/graft \
-    ./cmd/graft
-
 FROM alpine:3.22 AS runtime
 
 RUN apk add --no-cache ca-certificates curl \
@@ -34,7 +6,7 @@ RUN apk add --no-cache ca-certificates curl \
 
 WORKDIR /app
 
-COPY --from=builder /out/graft /app/graft
+COPY --from=release-binary /graft-server-linux-amd64 /app/graft
 
 ENV GRAFT_HTTP_ADDR=:8080
 

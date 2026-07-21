@@ -24,6 +24,8 @@ jobs:
 
     outputs:
       version: ${{ steps.tag_version.outputs.version }}
+      channel: ${{ steps.tag_version.outputs.channel }}
+      is_prerelease: ${{ steps.tag_version.outputs.is_prerelease }}
 
     steps:
       - name: Checkout repository at tag
@@ -34,14 +36,29 @@ jobs:
 
       - name: Determine tag version
         id: tag_version
+        shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF#refs/tags/}"
+          tag="${GITHUB_REF_NAME}"
+
+          if [[ "${tag}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            channel="stable"
+            is_prerelease="false"
+          elif [[ "${tag}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.([1-9][0-9]*)$ ]]; then
+            channel="beta"
+            is_prerelease="true"
+          else
+            echo "::error::Unsupported release tag '${tag}'. Expected vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-beta.N (N >= 1)."
+            exit 1
+          fi
+
           version="${tag#v}"
-          version="${version#V}"
           echo "tag=${tag}"
           echo "version=${version}"
+          echo "channel=${channel}"
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "channel=${channel}" >> "${GITHUB_OUTPUT}"
+          echo "is_prerelease=${is_prerelease}" >> "${GITHUB_OUTPUT}"
 
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
@@ -53,6 +70,14 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.3.13
+
+      - name: Restore Bun package cache
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
 
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
@@ -75,7 +100,9 @@ jobs:
       - name: Build server binary
         working-directory: server
         env:
-          CGO_ENABLED: "1"
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
         run: |
           set -euo pipefail
           mkdir -p ../dist/server
@@ -138,7 +165,7 @@ jobs:
       owner_lc: ${{ steps.image_vars.outputs.owner_lc }}
       server_image: ${{ steps.image_vars.outputs.server_image }}
       web_image: ${{ steps.image_vars.outputs.web_image }}
-      is_prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
+      is_prerelease: ${{ needs.build-artifacts.outputs.is_prerelease }}
       server_digest: ${{ steps.server_build.outputs.digest }}
       web_digest: ${{ steps.web_build.outputs.digest }}
 
@@ -161,28 +188,8 @@ jobs:
           echo "server_image=${server_image}" >> "${GITHUB_OUTPUT}"
           echo "web_image=${web_image}" >> "${GITHUB_OUTPUT}"
 
-      - name: Detect release channel
-        id: release_channel
-        shell: bash
-        env:
-          RELEASE_VERSION: ${{ needs.build-artifacts.outputs.version }}
-        run: |
-          set -euo pipefail
-          if [[ "${RELEASE_VERSION}" == *-* ]]; then
-            echo "is_prerelease=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "is_prerelease=false" >> "${GITHUB_OUTPUT}"
-          fi
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-
-      - name: Resolve image build timestamp
-        id: image_build_time
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "build_time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${GITHUB_OUTPUT}"
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
@@ -205,15 +212,58 @@ jobs:
           rm -rf web/dist
           tar -C web -xzf "release-assets/graft-web-dist-${RELEASE_REF_NAME}.tar.gz"
 
+      - name: Restore server binary artifact
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/server
+          tar -C dist/server -xzf "release-assets/graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz"
+          chmod +x dist/server/graft-server-linux-amd64
+
+      - name: Prepare Docker metadata tags
+        id: image_tags
+        shell: bash
+        env:
+          RELEASE_CHANNEL: ${{ needs.build-artifacts.outputs.channel }}
+          RELEASE_VERSION: ${{ needs.build-artifacts.outputs.version }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          case "${RELEASE_CHANNEL}" in
+            stable)
+              tag_lines="$(cat <<EOF
+          type=raw,value=${RELEASE_VERSION}
+          type=raw,value=${RELEASE_REF_NAME}
+          type=raw,value=latest
+          EOF
+          )"
+              ;;
+            beta)
+              tag_lines="$(cat <<EOF
+          type=raw,value=${RELEASE_REF_NAME}
+          type=raw,value=beta
+          EOF
+          )"
+              ;;
+            *)
+              echo "::error::Unsupported release channel '${RELEASE_CHANNEL}'."
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "tags<<EOF"
+            printf '%s\n' "${tag_lines}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
       - name: Docker metadata for server image
         id: server_meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ${{ steps.image_vars.outputs.server_image }}
-          tags: |
-            type=raw,value=${{ needs.build-artifacts.outputs.version }}
-            type=raw,value=${{ github.ref_name }}
-            type=raw,value=latest,enable=${{ steps.release_channel.outputs.is_prerelease != 'true' }}
+          tags: ${{ steps.image_tags.outputs.tags }}
           labels: |
             org.opencontainers.image.title=Graft Server
             org.opencontainers.image.description=Graft backend runtime image
@@ -223,10 +273,7 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ${{ steps.image_vars.outputs.web_image }}
-          tags: |
-            type=raw,value=${{ needs.build-artifacts.outputs.version }}
-            type=raw,value=${{ github.ref_name }}
-            type=raw,value=latest,enable=${{ steps.release_channel.outputs.is_prerelease != 'true' }}
+          tags: ${{ steps.image_tags.outputs.tags }}
           labels: |
             org.opencontainers.image.title=Graft Web
             org.opencontainers.image.description=Graft frontend static site image
@@ -237,17 +284,14 @@ jobs:
         with:
           context: ./server
           file: ./server/Dockerfile
+          build-contexts: |
+            release-binary=./dist/server
           platforms: linux/amd64
           push: true
           tags: ${{ steps.server_meta.outputs.tags }}
           labels: ${{ steps.server_meta.outputs.labels }}
           cache-from: type=gha,scope=graft-server-image
           cache-to: type=gha,mode=max,scope=graft-server-image
-          build-args: |
-            GRAFT_VERSION=${{ needs.build-artifacts.outputs.version }}
-            GRAFT_GIT_COMMIT=${{ github.sha }}
-            GRAFT_BUILD_TIME_UTC=${{ steps.image_build_time.outputs.build_time_utc }}
-            GRAFT_GIT_TREE_STATE=clean
 
       - name: Build and push web image
         id: web_build
@@ -270,12 +314,10 @@ jobs:
           mkdir -p image-assets
           cat > "image-assets/graft-container-images-${RELEASE_REF_NAME}.txt" <<EOF
           server_image=${{ steps.image_vars.outputs.server_image }}
-          server_version_tag=${{ needs.build-artifacts.outputs.version }}
-          server_ref_tag=${{ github.ref_name }}
+          server_tag=${{ github.ref_name }}
           server_digest=${{ steps.server_build.outputs.digest }}
           web_image=${{ steps.image_vars.outputs.web_image }}
-          web_version_tag=${{ needs.build-artifacts.outputs.version }}
-          web_ref_tag=${{ github.ref_name }}
+          web_tag=${{ github.ref_name }}
           web_digest=${{ steps.web_build.outputs.digest }}
           EOF
 
@@ -459,7 +501,7 @@ jobs:
           cat > .env <<EOF
           GRAFT_SERVER_IMAGE=${{ needs.publish-images.outputs.server_image }}
           GRAFT_WEB_IMAGE=${{ needs.publish-images.outputs.web_image }}
-          GRAFT_IMAGE_TAG=${{ needs.build-artifacts.outputs.version }}
+          GRAFT_IMAGE_TAG=${{ github.ref_name }}
           POSTGRES_DB=graft
           POSTGRES_USER=graft
           POSTGRES_PASSWORD=graft
@@ -669,7 +711,7 @@ jobs:
           name: Release ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
           draft: false
-          prerelease: false
+          prerelease: ${{ needs.build-artifacts.outputs.is_prerelease == 'true' }}
           files: |
             release-assets/*
         env:
@@ -705,8 +747,9 @@ jobs:
             echo
             echo "- Tag: \`${{ github.ref_name }}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
-            echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${{ needs.build-artifacts.outputs.version }}\`"
-            echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${{ needs.build-artifacts.outputs.version }}\`"
+            echo "- Channel: \`${{ needs.build-artifacts.outputs.channel }}\`"
+            echo "- Server Image: \`${{ needs.publish-images.outputs.server_image }}:${{ github.ref_name }}\`"
+            echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${{ github.ref_name }}\`"
             echo
             printf '%s\n' "${CLIFF_RELEASE_NOTES}"
           } >> "${GITHUB_STEP_SUMMARY}"

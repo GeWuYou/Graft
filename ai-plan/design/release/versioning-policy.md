@@ -11,6 +11,17 @@
 
 ## Release Type Boundaries
 
+### Beta
+
+- Beta is a pre-release test channel identified by `vMAJOR.MINOR.PATCH-beta.N`, where `N` is a positive integer
+- it may contain incomplete features or incompatible API behavior and is not an official compatibility promise
+- every Beta release must retain its immutable Git, artifact, and GHCR `vMAJOR.MINOR.PATCH-beta.N` identity
+- the `Release` workflow calculates the next base version from the current `main` semantic-release preview and assigns
+  the next unused Beta sequence automatically
+- the mutable GHCR `beta` tag may advance only to the newest published Beta image; Beta must never publish or replace
+  `latest`
+- Beta GitHub Releases are marked as pre-releases and retain the normal release asset, SBOM, and license evidence chain
+
 ### Patch
 
 - for bug fixes and safe additive adjustments
@@ -44,6 +55,7 @@ baseline:
 
 - official `server` artifact, `web` artifact, and release notes must share the same repository tag and commit lineage
 - mixing `server` and `web` artifacts from different official release tags is unsupported in `v0.1.0`
+- Beta server and web images must also use the same immutable Beta tag; `beta` is suitable only for disposable testing
 - migration version identifiers are internal ordering numbers only; they must not be used as product versions or
   compatibility labels
 - frontend toolchain dependency versions and build dependency versions are build inputs, not product release identity

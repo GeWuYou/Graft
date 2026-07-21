@@ -245,6 +245,12 @@ The current `v0.1.0` release identity and support baseline is:
 
 - the canonical official release identity is the repository Git tag `vMAJOR.MINOR.PATCH`
 - official `server` and `web` release artifacts, plus release notes, must come from the same release tag
+- Beta test releases use `vMAJOR.MINOR.PATCH-beta.N`; they are GitHub Pre-releases, may contain incompatible work, and
+  are not supported upgrade targets for regular operators
+- choose the `beta` channel from the GitHub Actions `Release` workflow on `main` to calculate and publish the next
+  Beta tag automatically; no local tag creation is required
+- a Beta publish creates only `beta` and its immutable `vMAJOR.MINOR.PATCH-beta.N` GHCR tags; it never updates
+  `latest`, which remains stable-release only
 - migration version numbers are internal ordering identifiers, not product versions and not compatibility labels
 - the minimal `BuildInfo` / `graft version` baseline is `version`, `git_commit`, `build_time_utc`, and
   `git_tree_state`
@@ -254,6 +260,9 @@ The current `v0.1.0` release identity and support baseline is:
   build timestamp, and `git_tree_state=clean`
 - when local builds do not inject ldflags, the fallback identity remains explicit as `dev` / `unknown`
 - `v0.1.0` does not promise LTS lines, independent `server` / `web` release trains, or mixed-version compatibility
+
+For a disposable remote test deployment, set `GRAFT_IMAGE_TAG=beta`. Pin `GRAFT_IMAGE_TAG` to a specific Beta tag when
+investigating an issue or rolling back.
 
 Windows PowerShell / CMD can use the same Go command:
 
