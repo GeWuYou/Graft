@@ -18,6 +18,29 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 }");
   });
 
+  it('makes volume identity, ownership, capacity, and relationship status scannable in one row', () => {
+    expect(sourceText).toContain("t('container.volume.types.named')");
+    expect(sourceText).toContain("t('container.volume.types.anonymous')");
+    expect(sourceText).toContain('const anonymousVolumeName = /^[a-f0-9]{64}$/i;');
+    expect(sourceText).toContain('function sourceDescription(row: VolumeRow)');
+    expect(sourceText).toContain("colKey: 'size'");
+    expect(sourceText).toContain("t('container.volume.columns.mountedContainers')");
+    expect(sourceText).toContain("t('container.volume.columns.status')");
+    expect(sourceText).toContain("title: t('container.resourceContext.source')");
+    expect(sourceText).not.toContain("t('container.volume.columns.references')");
+    expect(sourceText).not.toContain("t('container.volume.columns.usage')");
+  });
+
+  it('keeps mounted-container overflow actionable for pointer and keyboard users', () => {
+    expect(sourceText).toContain('<t-popup');
+    expect(sourceText).toContain('trigger="hover"');
+    expect(sourceText).toContain('@focus="showOverflow(row.name)"');
+    expect(sourceText).toContain('@keydown.esc.prevent="hideOverflow(row.name)"');
+    expect(sourceText).toContain('@keydown.enter.prevent="openContainerReference(reference.id)"');
+    expect(sourceText).toContain('@keydown.space.prevent="openContainerReference(reference.id)"');
+    expect(sourceText).toContain('containerReferenceTooltip(reference)');
+  });
+
   it('provides selection and a batch removal request integration', () => {
     expect(sourceText).toContain("{ colKey: 'row-select', type: 'multiple' as const, width: 48 }");
     expect(sourceText).toContain(':selected-row-keys="selectedRowKeys"');

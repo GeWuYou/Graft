@@ -225,16 +225,16 @@
       },
       "metrics": {
         "total": "Total volumes",
-        "inUse": "In use",
+        "inUse": "In Use",
         "unused": "Unused",
         "size": "Total size",
-        "referenceUnknown": "Reference state is unavailable for {count} volumes."
+        "referenceUnknown": "Relationship state is unavailable for {count} volumes."
       },
       "filters": {
         "keyword": "Search volume name",
         "driver": "Driver",
         "scope": "Scope",
-        "usage": "Usage",
+        "usage": "Status",
         "allUsage": "All usage",
         "query": "Query",
         "reset": "Reset"
@@ -243,14 +243,14 @@
         "name": "Name",
         "driver": "Driver",
         "scope": "Scope",
-        "usage": "Reference status",
-        "references": "References",
+        "status": "Status",
+        "mountedContainers": "Mounted Containers",
         "size": "Size",
         "createdAt": "Created at",
         "labels": "Labels",
         "actions": "Actions"
       },
-      "usage": { "used": "In use ({count})", "unused": "Unused", "unknown": "Reference unknown" },
+      "types": { "anonymous": "Anonymous Volume", "named": "Named Volume" },
       "pagination": { "summary": "{start}-{end} of {total}", "empty": "No records" },
       "actions": {
         "detail": "Details",

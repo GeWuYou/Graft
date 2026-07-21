@@ -33,8 +33,8 @@
           :placeholder="t('container.volume.filters.usage')"
         >
           <t-option value="all" :label="t('container.volume.filters.allUsage')" />
-          <t-option value="used" :label="t('container.volume.usage.used')" />
-          <t-option value="unused" :label="t('container.volume.usage.unused')" />
+          <t-option value="used" :label="t('container.resourceContext.relationship.used')" />
+          <t-option value="unused" :label="t('container.resourceContext.relationship.unused')" />
         </t-select>
         <t-button variant="outline" @click="advancedFiltersVisible = !advancedFiltersVisible">
           {{ t('container.resourceContext.moreFilters') }}
@@ -115,42 +115,96 @@
         />
       </template>
       <template #name="{ row }">
-        <t-tooltip :content="row.name">
-          <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
-            middleEllipsis(row.name, 31)
-          }}</t-link>
-        </t-tooltip>
-      </template>
-      <template #context="{ row }">
-        <div class="docker-volume-page__context">
-          <t-tag size="small" variant="light-outline">{{ sourceLabel(row.context.source) }}</t-tag>
-          <span v-if="row.context.compose_project">{{ row.context.compose_project }}</span>
-          <span v-else-if="row.context.compose_resource">{{ row.context.compose_resource }}</span>
+        <div class="docker-volume-page__identity">
+          <t-tooltip :content="row.name">
+            <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
+              middleEllipsis(row.name, 31)
+            }}</t-link>
+          </t-tooltip>
+          <span class="docker-volume-page__hint">{{ volumeType(row) }}</span>
         </div>
       </template>
+      <template #context="{ row }">
+        <t-tooltip v-if="sourceDescription(row)" :content="sourceDescription(row)" placement="top-left">
+          <span class="docker-volume-page__source">{{ sourceDescription(row) }}</span>
+        </t-tooltip>
+        <span v-else class="docker-volume-page__muted">—</span>
+      </template>
       <template #references="{ row }">
-        <t-space v-if="row.container_references?.length" size="small" break-line>
-          <t-link
+        <div v-if="row.container_references?.length" class="docker-volume-page__container-list">
+          <t-tooltip
             v-for="reference in row.container_references.slice(0, 2)"
             :key="reference.id"
-            theme="primary"
-            @click="openContainerReference(reference.id)"
+            :content="containerReferenceTooltip(reference)"
+            placement="top"
           >
-            <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
-          </t-link>
-          <t-tag v-if="row.container_references.length > 2" size="small" variant="light-outline">
-            +{{ row.container_references.length - 2 }}
-          </t-tag>
-        </t-space>
-        <t-tag
-          v-else-if="row.reference_count === null || row.reference_count === undefined"
-          theme="warning"
-          variant="light-outline"
-        >
-          {{ t('container.volume.usage.unknown') }}
-        </t-tag>
-        <t-tag v-else size="small" variant="light-outline">{{ t('container.volume.usage.unused') }}</t-tag>
+            <t-tag
+              class="docker-volume-page__container-badge"
+              role="link"
+              size="small"
+              tabindex="0"
+              variant="light-outline"
+              @click="openContainerReference(reference.id)"
+              @keydown.enter.prevent="openContainerReference(reference.id)"
+              @keydown.space.prevent="openContainerReference(reference.id)"
+            >
+              {{ reference.name || reference.id }}
+            </t-tag>
+          </t-tooltip>
+          <t-popup
+            v-if="row.container_references.length > 2"
+            :delay="[120, 160]"
+            :visible="activeOverflowVolume === row.name"
+            placement="top-left"
+            trigger="hover"
+            @visible-change="handleOverflowVisibleChange(row.name, $event)"
+          >
+            <button
+              class="docker-volume-page__container-overflow-trigger"
+              type="button"
+              :aria-expanded="activeOverflowVolume === row.name"
+              aria-haspopup="dialog"
+              @blur="hideOverflow(row.name)"
+              @focus="showOverflow(row.name)"
+              @keydown.esc.prevent="hideOverflow(row.name)"
+            >
+              <t-tag class="docker-volume-page__container-badge" size="small" variant="light-outline">
+                +{{ row.container_references.length - 2 }}
+              </t-tag>
+            </button>
+            <template #content>
+              <div class="docker-volume-page__container-overflow">
+                <span class="docker-volume-page__container-overflow-title">
+                  {{ t('container.volume.columns.mountedContainers') }}
+                </span>
+                <div class="docker-volume-page__container-list">
+                  <t-tooltip
+                    v-for="reference in row.container_references.slice(2)"
+                    :key="reference.id"
+                    :content="containerReferenceTooltip(reference)"
+                    placement="top"
+                  >
+                    <t-tag
+                      class="docker-volume-page__container-badge"
+                      role="link"
+                      size="small"
+                      tabindex="0"
+                      variant="light-outline"
+                      @click="openContainerReference(reference.id)"
+                      @keydown.enter.prevent="openContainerReference(reference.id)"
+                      @keydown.space.prevent="openContainerReference(reference.id)"
+                    >
+                      {{ reference.name || reference.id }}
+                    </t-tag>
+                  </t-tooltip>
+                </div>
+              </div>
+            </template>
+          </t-popup>
+        </div>
+        <span v-else class="docker-volume-page__muted">—</span>
       </template>
+      <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
       <template #status="{ row }">
         <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
           {{ relationshipPresentation(row.relationship_status).label }}
@@ -375,6 +429,7 @@ type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
 type CleanupVolume = Omit<VolumeRow, 'size_bytes'> & { id: string; size_bytes: number };
 type UsageFilter = 'all' | 'used' | 'unused';
 type DockerResourceSource = components['schemas']['docker-resource-source'];
+const anonymousVolumeName = /^[a-f0-9]{64}$/i;
 const { locale, t } = useI18n();
 const router = useRouter();
 const permissionStore = usePermissionStore();
@@ -411,6 +466,7 @@ const hasActiveFilters = computed(() =>
   ),
 );
 const selectedRowKeys = ref<string[]>([]);
+const activeOverflowVolume = ref<string | null>(null);
 const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
@@ -431,9 +487,10 @@ const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
 const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 },
-  { colKey: 'context', title: t('container.resourceContext.context'), minWidth: 210 },
-  { colKey: 'references', title: t('container.volume.columns.references'), minWidth: 220 },
-  { colKey: 'status', title: t('container.volume.columns.usage'), width: 120 },
+  { colKey: 'context', title: t('container.resourceContext.source'), minWidth: 210 },
+  { colKey: 'references', title: t('container.volume.columns.mountedContainers'), minWidth: 260 },
+  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const },
+  { colKey: 'status', title: t('container.volume.columns.status'), width: 120 },
   { colKey: 'actions', title: t('container.volume.columns.actions'), width: 144, fixed: 'right' },
 ]);
 const cleanup = useDockerCleanup<CleanupVolume>({
@@ -681,6 +738,35 @@ async function openDetail(row: VolumeRow) {
 function sourceLabel(source: DockerResourceSource) {
   return getDockerResourceSourceLabel(t, source);
 }
+function sourceDescription(row: VolumeRow) {
+  const { context } = row;
+  if (context.source === 'compose') {
+    const project = context.compose_project || context.compose_resource;
+    if (!project) return sourceLabel(context.source);
+    const resource =
+      context.compose_resource && context.compose_resource !== project ? ` / ${context.compose_resource}` : '';
+    return `${sourceLabel(context.source)} · ${project}${resource}`;
+  }
+  return ['managed', 'imported', 'unknown'].includes(context.source) ? sourceLabel(context.source) : '';
+}
+function volumeType(row: VolumeRow) {
+  return row.context.source !== 'compose' && anonymousVolumeName.test(row.name)
+    ? t('container.volume.types.anonymous')
+    : t('container.volume.types.named');
+}
+function containerReferenceTooltip(reference: NonNullable<VolumeRow['container_references']>[number]) {
+  return reference.name ? `${reference.name} (${reference.id})` : reference.id;
+}
+function showOverflow(name: string) {
+  activeOverflowVolume.value = name;
+}
+function hideOverflow(name: string) {
+  if (activeOverflowVolume.value === name) activeOverflowVolume.value = null;
+}
+function handleOverflowVisibleChange(name: string, visible: boolean) {
+  if (visible) showOverflow(name);
+  else hideOverflow(name);
+}
 const relationshipPresentation = (status: VolumeRow['relationship_status']) =>
   getDockerResourceRelationshipPresentation(t, status);
 const relationEmptyLabel = (status: VolumeRow['relationship_status']) => getDockerResourceRelationEmptyLabel(t, status);
@@ -754,9 +840,56 @@ function confirmRemove(row: VolumeRow) {
   white-space: nowrap;
 }
 
-.docker-volume-page__context {
+.docker-volume-page__identity {
   display: grid;
   gap: var(--td-comp-margin-xs);
+}
+
+.docker-volume-page__hint,
+.docker-volume-page__muted {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-volume-page__source {
+  color: var(--td-text-color-secondary);
+}
+
+.docker-volume-page__container-list {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--td-comp-margin-xs);
+}
+
+.docker-volume-page__container-badge {
+  cursor: pointer;
+}
+
+.docker-volume-page__container-badge:focus-visible,
+.docker-volume-page__container-overflow-trigger:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+
+.docker-volume-page__container-overflow-trigger {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0;
+}
+
+.docker-volume-page__container-overflow {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  max-width: 320px;
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+}
+
+.docker-volume-page__container-overflow-title {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
 }
 
 .docker-volume-page__section,
@@ -768,10 +901,6 @@ function confirmRemove(row: VolumeRow) {
 .docker-volume-page__danger-zone h3 {
   font-size: var(--td-font-size-body-large);
   margin: 0 0 var(--td-comp-margin-m);
-}
-
-.docker-volume-page__muted {
-  color: var(--td-text-color-placeholder);
 }
 
 .docker-volume-page__danger-zone {
