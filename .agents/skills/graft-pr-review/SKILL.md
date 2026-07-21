@@ -48,9 +48,9 @@ Fail-closed rule for this skill:
    - locate the PR for the current branch through the GitHub PR API
    - fetch PR metadata, issue comments, reviews, and review comments through the GitHub API
    - extract CodeRabbit summary blocks and actionable-comment rollups when present
-   - extract every CodeRabbit pre-merge summary check row, including `Failed`, `Warning`, `Inconclusive`, and
-     `Passed` status rows; warning and inconclusive rows are review signals that must be verified and dispositioned,
-     not silently omitted because the UI says addressing warnings is optional
+   - extract every CodeRabbit pre-merge summary check row into the helper's `pre_merge_checks` inventory, including
+     `Failed`, `Warning`, `Inconclusive`, and `Passed` status rows; preserve the raw status, normalized status,
+     explanation, resolution, and source commit
    - parse the latest CodeRabbit grouped review body across the PR, even when the newest head-commit CodeRabbit review is
      an empty approval or prompt-only follow-up; folded sections such as `Duplicate comments (N)`, `Major comments (N)`,
      `Minor comments (N)`, `Outside diff range comments (N)`, and `Nitpick comments (N)` must still be inventoried
@@ -75,8 +75,8 @@ Fail-closed rule for this skill:
      section
    - include actionable warning comments from GitHub Actions or MegaLinter when present
    - include CodeRabbit summary check signals such as docstring-coverage warnings, title-check inconclusive rows,
-     and other resolution text shown in the pre-merge checks block; preserve the check name, status, explanation,
-     resolution, and source commit
+     and other resolution text shown in the pre-merge checks block; a live workflow result of zero failures does not
+     clear this separate inventory
    - do not stop after “high priority”, “open threads”, or one section looks sufficient; the run is incomplete until all
      surfaced findings from the latest PR state are classified
    - do not begin fixing “obvious” findings before this inventory exists
@@ -85,9 +85,11 @@ Fail-closed rule for this skill:
    - prefer the script's `local_repro_command`
    - if the command is empty, use the linked failed step and workflow job name to reproduce the smallest matching validation locally
    - do not treat a failed check as understood merely because the GitHub UI shows a red status
-   - apply the same verification to CodeRabbit `Warning` and `Inconclusive` summary rows; determine whether each
-     row is actionable, stale, noise, or blocked by missing policy/context before deciding whether to change code,
-     metadata, or the PR title
+   - apply the same verification to CodeRabbit `Warning` and `Inconclusive` summary rows; `Inconclusive` rows require
+     a non-optional resolution before closeout, while `Warning` rows require verification and an explicit remediation
+     decision under `代码注释与模块文档规范.md`; do not resolve either class by ignoring the summary table
+   - for an actionable `Title check / Inconclusive`, update the PR title to the verified specific title when the
+     authorized PR write path is available; otherwise report `blocked` with the exact proposed title and next action
 8. Classify each verified finding before deciding the next action:
    - `actionable-local`
      - the finding still applies and fits one safe local slice
@@ -96,8 +98,10 @@ Fail-closed rule for this skill:
        follow-up execution round
    - `stale`
      - the finding no longer applies on the checked-out head
-   - `noise`
+    - `noise`
      - the finding is a false positive, misread, or otherwise not a real defect after local verification
+   - `Warning` remediation decisions are recorded separately as `remediate` or `accept-with-reason`; this does not
+     add a sixth general finding disposition. `Inconclusive` has no optional acceptance path.
 9. A `$graft-pr-review` run is not allowed to end after fixing only a subset such as “critical”, “major”, or “currently open”
    findings. Every finding from step 5 must end the run in exactly one reported disposition: `fixed`, `delegated`,
    `blocked`, `stale`, or `noise`.
@@ -153,6 +157,8 @@ Fail-closed rule for this skill:
       - how many AI review findings remained open on the PR at the time the inventory was captured, plus how many still remain open after this run when rechecked
     - `greptile_suggestions`
       - total verified Greptile findings in scope for the run, with their final dispositions
+    - `coderabbit_pre_merge_checks`
+      - total, status counts, source head commit, and each `Warning` decision / `Inconclusive` disposition
     - when another AI reviewer is present, keep it in the normal finding inventory, but the five fields above are still mandatory
     - append that same summary block to the managed PR issue comment ledger so the next `$graft-pr-review` run can confirm deltas incrementally instead of re-auditing prior handled rows by memory
 20. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
@@ -199,6 +205,8 @@ Fail-closed rule for this skill:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --ledger-validate-file /tmp/graft-pr-review-ledger.md`
 - Inspect only a high-signal section:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section open-threads`
+- Inspect CodeRabbit pre-merge checks, including warnings and inconclusive rows:
+  - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section pre-merge-checks`
 - Inspect grouped CodeRabbit severity comments from the latest review body:
   - `python3 .agents/skills/graft-pr-review/scripts/fetch_current_pr_review.py --pr 1 --section duplicate --section major --section minor --section outside-diff --section nitpick`
 - Inspect GitHub Advanced Security suggestions and code-scanning signals:
@@ -225,8 +233,9 @@ The script should produce:
 - GitHub Advanced Security status, including `github-advanced-security[bot]` review threads, code-scanning or CodeQL
   check-runs, failed annotations, and a focused `github_advanced_security` JSON section
 - Pre-merge failed checks, if present
-- Complete CodeRabbit pre-merge check inventory, including warning and inconclusive rows with their explanations and
-  resolutions; each row must receive a final disposition or an explicit execution blocker
+- Complete CodeRabbit pre-merge check inventory under `coderabbit_summary.pre_merge_checks`, including warning and
+  inconclusive rows with their normalized status, handling policy, explanations, resolutions, and source commit;
+  every non-passed row must receive a final disposition or an explicit execution blocker
 - Latest MegaLinter status and any detailed issues posted by `github-actions[bot]`
 - Test summary, including failed-test signals when present
 - Detailed failed-test rows from GitHub Test Reporter or CTRF comments when available
@@ -237,7 +246,8 @@ The script should produce:
   are normalized before the final payload check
 - Human review closeout that records each verified finding as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
 - Exhaustive coverage confirmation that no latest-review finding section was left unclassified
-- Closeout counts for `coderabbit_handled`, `coderabbit_outside_diff_range`, `coderabbit_nitpick`, `open_suggestions`, and `greptile_suggestions`
+- Closeout counts for `coderabbit_handled`, `coderabbit_outside_diff_range`, `coderabbit_nitpick`,
+  `coderabbit_pre_merge_checks`, `open_suggestions`, and `greptile_suggestions`
 - Thread reply state for replied AI findings: `unreplied`, `pending_ai_followup`, `resolved_after_reply`, or `contested`
 - Guidance and CLI support for replying to fixed-but-still-open AI threads with the fixing commit SHA
 - Explicit closeout guidance that findings needing human review must not be auto-replied on the PR thread
@@ -252,7 +262,9 @@ The script should produce:
 - If live check-runs are visible but job logs return `403`, keep the failed step, annotations, and repro command as the root-cause surface; warn, but do not treat the whole failed-check extraction as broken.
 - Treat CodeRabbit pre-merge `Warning` and `Inconclusive` rows as mandatory inventory. Verify docstring coverage,
   title checks, and similar summary signals against repository policy and the current head; do not dismiss them only
-  because CodeRabbit labels warnings optional or because no inline review thread exists.
+  because CodeRabbit labels warnings optional or because no inline review thread exists. A `Warning` may be accepted
+  only with an explicit comment-governance reason; an actionable `Inconclusive` must be fixed, delegated, blocked with
+  a concrete next step, or proven stale/noise before closeout.
 - Prefer GitHub API results over PR HTML. The PR HTML page is a fallback/debugging source, not the primary source of truth.
 - If the summary block and the latest head review threads disagree, trust the latest unresolved head-review threads and treat older summary findings as stale until re-verified locally.
 - If the latest review body contains folded sections, those sections are still in scope even when `open_threads` looks short;
