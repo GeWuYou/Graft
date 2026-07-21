@@ -223,10 +223,11 @@ func TestListDockerVolumesSummaryUsesFullSnapshotBeforeFilters(t *testing.T) {
 	result := listDockerVolumes([]DockerVolume{
 		{Name: "used", ReferenceCount: &used, SizeBytes: &size},
 		{Name: "unused", ReferenceCount: &unused, SizeBytes: &size},
+		{Name: "status-used", RelationshipStatus: dockerResourceRelationshipStatusUsed, SizeBytes: &size},
 		{Name: "unknown", SizeBytes: nil},
 	}, DockerVolumeListQuery{Usage: "used", Limit: 20})
 
-	if result.Total != 1 || result.Summary.Total != 3 || result.Summary.InUse != 1 || result.Summary.Unused != 1 || result.Summary.ReferenceUnknown != 1 {
+	if result.Total != 2 || result.Summary.Total != 4 || result.Summary.InUse != 2 || result.Summary.Unused != 1 || result.Summary.ReferenceUnknown != 1 {
 		t.Fatalf("unexpected filtered result or full summary: %#v", result)
 	}
 	if result.Summary.SizeBytes != nil {
@@ -366,8 +367,8 @@ func TestReadDockerVolumeReturnsUnknownReferencesWhenContainerListFails(t *testi
 	if result.ContainerReferences != nil {
 		t.Fatalf("expected references to remain unknown, got %#v", result.ContainerReferences)
 	}
-	if result.RelationshipStatus != dockerResourceRelationshipStatusException {
-		t.Fatalf("expected relationship exception status, got %#v", result.RelationshipStatus)
+	if result.RelationshipStatus != dockerResourceRelationshipStatusUsed {
+		t.Fatalf("expected known relationship status, got %#v", result.RelationshipStatus)
 	}
 }
 

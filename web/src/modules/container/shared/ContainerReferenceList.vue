@@ -41,7 +41,7 @@
         </t-tag>
       </button>
       <template #content>
-        <div class="container-reference-list__overflow">
+        <div class="container-reference-list__overflow graft-scrollbar">
           <span class="container-reference-list__overflow-title">{{ title }}</span>
           <div class="container-reference-list">
             <t-tooltip

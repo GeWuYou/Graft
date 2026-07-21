@@ -260,12 +260,12 @@ func summarizeDockerVolumes(items []DockerVolume) DockerVolumeListSummary {
 	var totalSize int64
 	sizeAvailable := true
 	for _, item := range items {
-		switch {
-		case item.ReferenceCount == nil:
+		switch dockerVolumeRelationshipStatus(item) {
+		case dockerResourceRelationshipStatusUnknown, dockerResourceRelationshipStatusException:
 			summary.ReferenceUnknown++
-		case *item.ReferenceCount > 0:
+		case dockerResourceRelationshipStatusUsed:
 			summary.InUse++
-		default:
+		case dockerResourceRelationshipStatusUnused:
 			summary.Unused++
 		}
 		if item.SizeBytes == nil {
@@ -618,14 +618,7 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 		if data, ok := usageByName[item.Name]; ok {
 			projected.ReferenceCount, projected.SizeBytes = nullableUsage(data.RefCount), nullableUsage(data.Size)
 		}
-		if containersErr == nil {
-			projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), references[projected.Name]...)
-			if projected.ReferenceCount == nil {
-				projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
-			}
-		} else {
-			projected.RelationshipStatus = dockerResourceRelationshipStatusException
-		}
+		applyDockerVolumeContainerReferences(&projected, references[projected.Name], containersErr)
 		items = append(items, projected)
 	}
 	return items, nil
@@ -658,16 +651,22 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 		All:     true,
 		Filters: make(mobyclient.Filters).Add("volume", projected.Name),
 	})
-	if err == nil {
-		projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), dockerVolumeReferences(containers)[projected.Name]...)
-		if projected.ReferenceCount == nil {
-			projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
-		}
-	} else {
-		projected.RelationshipStatus = dockerResourceRelationshipStatusException
-	}
+	applyDockerVolumeContainerReferences(&projected, dockerVolumeReferences(containers)[projected.Name], err)
 	// 引用查询是详情的附加信息；Docker 查询失败时保留核心 volume 投影，并以 nil 表示引用未知。
 	return projected, nil
+}
+
+func applyDockerVolumeContainerReferences(projected *DockerVolume, references []DockerVolumeContainerReference, err error) {
+	if err != nil {
+		if projected.ReferenceCount == nil {
+			projected.RelationshipStatus = dockerResourceRelationshipStatusException
+		}
+		return
+	}
+	projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), references...)
+	if projected.ReferenceCount == nil {
+		projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
+	}
 }
 
 func dockerVolumeReferences(items []container.Summary) map[string][]DockerVolumeContainerReference {
