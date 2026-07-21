@@ -42,20 +42,10 @@
         <t-button theme="primary" @click="applyFilters">{{ t('container.volume.filters.query') }}</t-button>
         <t-button variant="text" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
         <template v-if="advancedFiltersVisible">
-          <t-select
-            v-model="filters.source"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.resourceContext.source')"
-          >
-            <t-option v-for="source in resourceSources" :key="source" :value="source" :label="sourceLabel(source)" />
-          </t-select>
-          <t-input
-            v-model="filters.compose_project"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.resourceContext.project')"
-            @enter="applyFilters"
+          <docker-resource-context-filters
+            v-model:compose-project="filters.compose_project"
+            v-model:source="filters.source"
+            @apply="applyFilters"
           />
           <t-input
             v-model="filters.driver"
@@ -372,15 +362,19 @@ import {
   removeDockerVolume,
 } from '../../api/container';
 import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
+import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
+import {
+  getDockerResourceRelationEmptyLabel,
+  getDockerResourceRelationshipPresentation,
+  getDockerResourceSourceLabel,
+} from '../../shared/resource-presentation';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
 type CleanupVolume = Omit<VolumeRow, 'size_bytes'> & { id: string; size_bytes: number };
 type UsageFilter = 'all' | 'used' | 'unused';
 type DockerResourceSource = components['schemas']['docker-resource-source'];
-type RelationshipStatus = VolumeRow['relationship_status'];
-const resourceSources = ['compose', 'docker_default', 'docker', 'managed', 'imported', 'unknown'] as const;
 const { locale, t } = useI18n();
 const router = useRouter();
 const permissionStore = usePermissionStore();
@@ -685,24 +679,11 @@ async function openDetail(row: VolumeRow) {
   }
 }
 function sourceLabel(source: DockerResourceSource) {
-  return t(`container.resourceContext.sourceValues.${source}`);
+  return getDockerResourceSourceLabel(t, source);
 }
-function relationshipPresentation(status: RelationshipStatus) {
-  const theme =
-    status === 'used'
-      ? ('success' as const)
-      : status === 'unused'
-        ? ('default' as const)
-        : status === 'unknown'
-          ? ('warning' as const)
-          : ('danger' as const);
-  return { theme, label: t(`container.resourceContext.relationship.${status}`) };
-}
-function relationEmptyLabel(status: RelationshipStatus) {
-  return status === 'unknown' || status === 'exception'
-    ? relationshipPresentation(status).label
-    : t('container.resourceContext.noRelations');
-}
+const relationshipPresentation = (status: VolumeRow['relationship_status']) =>
+  getDockerResourceRelationshipPresentation(t, status);
+const relationEmptyLabel = (status: VolumeRow['relationship_status']) => getDockerResourceRelationEmptyLabel(t, status);
 function openContainerReference(containerId: string) {
   void router.push({
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,

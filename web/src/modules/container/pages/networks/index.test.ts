@@ -11,6 +11,9 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('invalidateDockerNetworkQueries()');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_CREATE');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_REMOVE');
+    expect(sourceText).toContain('@click="openRemoveDialog(row)"');
+    expect(sourceText).toContain("t('container.networks.remove')");
+    expect(sourceText).not.toContain('<table-action-menu');
   });
 
   it('uses TDesign drawers and dialogs instead of native browser dialogs', () => {
@@ -32,6 +35,7 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('limit: pagination.pageSize');
     expect(sourceText).toContain('usage:');
+    expect(sourceText).toContain('size="small" theme="danger" variant="outline" @click="openBatchRemoveDialog"');
   });
 
   it('uses the shared cleanup snapshot for removable unused networks', () => {
@@ -44,13 +48,21 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('await invalidateDockerNetworkQueries();');
   });
 
-  it('keeps the list focused on context, relations, and relationship status', () => {
+  it('keeps the list focused on source, relations, and relationship status', () => {
     expect(sourceText).toContain("colKey: 'context'");
+    expect(sourceText).toContain("title: t('container.resourceContext.source')");
     expect(sourceText).toContain("colKey: 'containers'");
     expect(sourceText).toContain("colKey: 'status'");
     expect(sourceText).toContain('relationshipPresentation(row.relationship_status)');
-    expect(sourceText).toContain('row.context.compose_project');
+    expect(sourceText).toContain('sourceDescription(row)');
+    expect(sourceText).not.toContain(
+      't-tag size="small" variant="light-outline">{{ sourceLabel(row.context.source) }}</t-tag>',
+    );
     expect(sourceText).toContain('row.container_references.slice(0, 2)');
+    expect(sourceText).toContain('row.container_references.slice(2)');
+    expect(sourceText).toContain('<t-popup');
+    expect(sourceText).toContain('trigger="hover"');
+    expect(sourceText).toContain('docker-network-page__container-badge');
     expect(sourceText).toContain('openContainerReference(reference.id)');
     expect(sourceText).not.toContain("colKey: 'labels'");
   });

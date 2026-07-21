@@ -46,19 +46,10 @@
         <t-button theme="primary" @click="applyFilters">{{ t('container.networks.filters.apply') }}</t-button>
         <t-button variant="text" @click="resetFilters">{{ t('container.networks.filters.reset') }}</t-button>
         <template v-if="advancedFiltersVisible">
-          <t-select
-            v-model="draftFilters.source"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.resourceContext.source')"
-          >
-            <t-option v-for="source in resourceSources" :key="source" :value="source" :label="sourceLabel(source)" />
-          </t-select>
-          <t-input
-            v-model="draftFilters.compose_project"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.resourceContext.project')"
+          <docker-resource-context-filters
+            v-model:compose-project="draftFilters.compose_project"
+            v-model:source="draftFilters.source"
+            @apply="applyFilters"
           />
           <t-select
             v-model="draftFilters.driver"
@@ -118,34 +109,75 @@
           :clear-label="t('container.networks.batch.cancelSelection')"
           @clear="clearSelection"
         >
-          <t-button v-if="canRemove" theme="danger" variant="outline" @click="openBatchRemoveDialog">{{
+          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="openBatchRemoveDialog">{{
             t('container.networks.batch.remove')
           }}</t-button>
         </management-batch-bar>
       </template>
       <template #name="{ row }">
-        <t-button variant="text" @click="openDetail(row.id)">{{ row.name }}</t-button>
-      </template>
-      <template #context="{ row }">
-        <div class="docker-network-page__context">
-          <t-tag size="small" variant="light-outline">{{ sourceLabel(row.context.source) }}</t-tag>
-          <span v-if="row.context.compose_project">{{ row.context.compose_project }}</span>
-          <span v-else-if="row.context.compose_resource">{{ row.context.compose_resource }}</span>
+        <div class="docker-network-page__identity">
+          <t-button class="docker-network-page__name" variant="text" @click="openDetail(row.id)">{{
+            row.name
+          }}</t-button>
+          <span v-if="networkHint(row)" class="docker-network-page__hint">{{ networkHint(row) }}</span>
         </div>
       </template>
+      <template #context="{ row }">
+        <t-tooltip :content="sourceDescription(row)" placement="top-left">
+          <span class="docker-network-page__source">{{ sourceDescription(row) }}</span>
+        </t-tooltip>
+      </template>
       <template #containers="{ row }">
-        <t-space v-if="row.container_references.length" break-line size="small">
-          <t-link
+        <div v-if="row.container_references.length" class="docker-network-page__container-list">
+          <t-tooltip
             v-for="reference in row.container_references.slice(0, 2)"
             :key="reference.id"
-            theme="primary"
-            @click="openContainerReference(reference.id)"
-            >{{ reference.name || reference.id }}</t-link
+            :content="containerReferenceTooltip(reference)"
+            placement="top"
           >
-          <t-tag v-if="row.container_references.length > 2" size="small" variant="light-outline"
-            >+{{ row.container_references.length - 2 }}</t-tag
-          >
-        </t-space>
+            <t-tag
+              class="docker-network-page__container-badge"
+              size="small"
+              variant="light-outline"
+              @click="openContainerReference(reference.id)"
+            >
+              {{ reference.name || reference.id }}
+            </t-tag>
+          </t-tooltip>
+          <t-popup v-if="row.container_references.length > 2" :delay="[120, 160]" placement="top-left" trigger="hover">
+            <t-tag
+              class="docker-network-page__container-badge docker-network-page__container-badge--overflow"
+              size="small"
+              variant="light-outline"
+            >
+              +{{ row.container_references.length - 2 }}
+            </t-tag>
+            <template #content>
+              <div class="docker-network-page__container-overflow">
+                <span class="docker-network-page__container-overflow-title">
+                  {{ t('container.networks.connectedContainers') }}
+                </span>
+                <div class="docker-network-page__container-list">
+                  <t-tooltip
+                    v-for="reference in row.container_references.slice(2)"
+                    :key="reference.id"
+                    :content="containerReferenceTooltip(reference)"
+                    placement="top"
+                  >
+                    <t-tag
+                      class="docker-network-page__container-badge"
+                      size="small"
+                      variant="light-outline"
+                      @click="openContainerReference(reference.id)"
+                    >
+                      {{ reference.name || reference.id }}
+                    </t-tag>
+                  </t-tooltip>
+                </div>
+              </div>
+            </template>
+          </t-popup>
+        </div>
         <span v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</span>
       </template>
       <template #status="{ row }">
@@ -154,11 +186,14 @@
         </t-tag>
       </template>
       <template #operation="{ row }">
-        <table-action-menu
-          :actions="networkRowActions(row)"
-          :more-label="t('container.list.actions.more')"
-          @action="handleNetworkRowAction($event, row)"
-        />
+        <t-space align="center" size="small">
+          <t-button size="small" variant="outline" @click="openDetail(row.id)">{{
+            t('container.networks.detail')
+          }}</t-button>
+          <t-button v-if="canRemove" size="small" theme="danger" variant="text" @click="openRemoveDialog(row)">{{
+            t('container.networks.remove')
+          }}</t-button>
+        </t-space>
       </template>
       <template #empty>
         <t-empty :title="t('container.networks.emptyTitle')" :description="t('container.networks.emptyDescription')" />
@@ -416,7 +451,6 @@ import {
   ManagementPageHeader,
   ManagementStatisticsBar,
   ManagementToolbar,
-  TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -430,6 +464,7 @@ import {
   removeDockerNetwork,
 } from '../../api/container';
 import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
+import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import {
@@ -437,6 +472,11 @@ import {
   useDockerNetworkDetailQuery,
   useDockerNetworkListQuery,
 } from '../../shared/docker-network-queries';
+import {
+  getDockerResourceRelationEmptyLabel,
+  getDockerResourceRelationshipPresentation,
+  getDockerResourceSourceLabel,
+} from '../../shared/resource-presentation';
 import type { DockerNetwork, DockerNetworkCreateRequest, DockerNetworkDriver } from '../../types/docker-network';
 
 defineOptions({ name: 'DockerNetworkListIndex' });
@@ -447,7 +487,6 @@ const router = useRouter();
 const permissionStore = usePermissionStore();
 const pagination = reactive({ current: 1, pageSize: 20 });
 type DockerResourceSource = components['schemas']['docker-resource-source'];
-type RelationshipStatus = DockerNetwork['relationship_status'];
 
 const draftFilters = reactive<{
   keyword: string;
@@ -490,7 +529,6 @@ const selectedNetwork = ref<DockerNetwork | null>(null);
 const removeConfirmation = ref('');
 const advancedFiltersVisible = ref(false);
 const drivers: DockerNetworkDriver[] = ['bridge', 'overlay', 'macvlan', 'ipvlan', 'none'];
-const resourceSources = ['compose', 'docker_default', 'docker', 'managed', 'imported', 'unknown'] as const;
 const createForm = reactive({
   name: '',
   driver: 'bridge' as DockerNetworkDriver,
@@ -527,10 +565,10 @@ cleanup = useDockerCleanup<DockerNetwork>({
 });
 const allColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'name', title: t('container.networks.fields.name'), minWidth: 260, ellipsis: true },
-  { colKey: 'context', title: t('container.resourceContext.context'), minWidth: 210 },
-  { colKey: 'containers', title: t('container.resourceContext.containers'), width: 140 },
-  { colKey: 'status', title: t('container.networks.fields.status'), width: 120 },
+  { colKey: 'name', title: t('container.networks.fields.name'), minWidth: 280, ellipsis: true },
+  { colKey: 'context', title: t('container.resourceContext.source'), minWidth: 190, ellipsis: true },
+  { colKey: 'containers', title: t('container.resourceContext.containers'), minWidth: 240 },
+  { colKey: 'status', title: t('container.networks.fields.status'), width: 104 },
   { colKey: 'operation', title: t('container.networks.operation'), width: 144, fixed: 'right' as const },
 ]);
 const columns = allColumns;
@@ -581,40 +619,36 @@ function scopeLabel(scope: string) {
   return t(`container.networks.scopes.${scope}`, scope);
 }
 function sourceLabel(source: DockerResourceSource) {
-  return t(`container.resourceContext.sourceValues.${source}`);
+  return getDockerResourceSourceLabel(t, source);
 }
-function relationshipPresentation(status: RelationshipStatus) {
-  const theme =
-    status === 'used'
-      ? ('success' as const)
-      : status === 'unused'
-        ? ('default' as const)
-        : status === 'unknown'
-          ? ('warning' as const)
-          : ('danger' as const);
-  return { theme, label: t(`container.resourceContext.relationship.${status}`) };
+function sourceDescription(network: DockerNetwork) {
+  const contextDetail =
+    network.context.compose_project || network.context.compose_resource || network.context.managed_by || '';
+  return contextDetail
+    ? `${sourceLabel(network.context.source)} · ${contextDetail}`
+    : sourceLabel(network.context.source);
 }
-function relationEmptyLabel(status: RelationshipStatus) {
-  return status === 'unknown' || status === 'exception'
-    ? relationshipPresentation(status).label
-    : t('container.resourceContext.noRelations');
+function networkHint(network: DockerNetwork) {
+  return [
+    network.internal ? t('container.networks.internal') : '',
+    network.ingress ? t('container.networks.ingress') : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
+function containerReferenceTooltip(reference: DockerNetwork['container_references'][number]) {
+  return reference.name ? `${reference.name} (${reference.id})` : reference.id;
+}
+const relationshipPresentation = (status: DockerNetwork['relationship_status']) =>
+  getDockerResourceRelationshipPresentation(t, status);
+const relationEmptyLabel = (status: DockerNetwork['relationship_status']) =>
+  getDockerResourceRelationEmptyLabel(t, status);
 function openContainerReference(containerId: string) {
   void router.push({
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
     params: { id: containerId },
     query: { tab: 'network' },
   });
-}
-function networkRowActions(_network: DockerNetwork) {
-  return [
-    { label: 'container.networks.detail', value: 'detail' },
-    ...(canRemove.value ? [{ label: 'container.networks.remove', value: 'remove' }] : []),
-  ];
-}
-function handleNetworkRowAction(action: string, network: DockerNetwork) {
-  if (action === 'detail') openDetail(network.id);
-  if (action === 'remove') openRemoveDialog(network);
 }
 function openCreateDrawer() {
   Object.assign(createForm, {
@@ -785,9 +819,60 @@ async function submitBatchRemove() {
   color: var(--td-text-color-placeholder);
 }
 
-.docker-network-page__context {
+.docker-network-page__identity {
   display: grid;
+  gap: var(--td-comp-margin-xxs);
+  min-width: 0;
+}
+
+.docker-network-page__name {
+  justify-content: flex-start;
+  max-width: 100%;
+}
+
+.docker-network-page__hint,
+.docker-network-page__source {
+  color: var(--td-text-color-secondary);
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-network-page__hint {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-network-page__container-list {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--td-comp-margin-xs);
+}
+
+.docker-network-page__container-badge {
+  cursor: pointer;
+  max-width: 148px;
+}
+
+.docker-network-page__container-badge--overflow {
+  color: var(--td-text-color-secondary);
+}
+
+.docker-network-page__container-overflow {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  max-height: min(40vh, 240px);
+  max-width: 320px;
+  overflow: auto;
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+}
+
+.docker-network-page__container-overflow-title {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
 }
 
 .docker-network-page__section h4 {
