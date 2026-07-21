@@ -2115,6 +2115,16 @@ def format_text(
                 lines.append(f"  Local repro: {truncate_text(check['local_repro_command'], max_description_length)}")
             if check.get("details_url"):
                 lines.append(f"  Details: {check['details_url']}")
+        nonpassed_pre_merge_count = sum(
+            1
+            for check in result.get("coderabbit_summary", {}).get("pre_merge_checks", [])
+            if check.get("status_kind") not in {"passed", "unknown"}
+        )
+        if nonpassed_pre_merge_count:
+            lines.append(
+                "  Note: CodeRabbit pre-merge signals are separate from live failures; "
+                "inspect --section pre-merge-checks before closeout."
+            )
 
     pre_merge_checks = result.get("coderabbit_summary", {}).get("pre_merge_checks", [])
     if "pre-merge-checks" in selected_sections:
@@ -2178,6 +2188,15 @@ def format_text(
     visible_open_threads = filter_threads_by_path(open_threads, normalized_path_filters)
     visible_all_open_threads = filter_threads_by_path(all_open_threads, normalized_path_filters)
     review_agents = [agent for agent in result.get("review_agents", []) if agent.get("detected")]
+    folded_review_count = sum(
+        int(group.get("count", 0))
+        for group in review_feedback.get("comment_groups", {}).values()
+    )
+    if "open-threads" in selected_sections and folded_review_count:
+        lines.append(
+            "Folded CodeRabbit review sections are present; inspect duplicate, major, minor, "
+            "outside-diff, and nitpick sections before closeout."
+        )
     if latest_commit and "open-threads" in selected_sections:
         lines.append("")
         lines.append(f"Latest reviewed commit: {latest_commit.get('sha', '')}")

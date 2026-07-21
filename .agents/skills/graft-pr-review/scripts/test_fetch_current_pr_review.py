@@ -917,14 +917,18 @@ class MainOutputTests(unittest.TestCase):
                     },
                 },
                 "coderabbit_comments": {},
-                "coderabbit_review": {},
+                "coderabbit_review": {
+                    "comment_groups": {"outside-diff": {"count": 1}},
+                },
                 "latest_commit_review": {},
                 "parse_warnings": [],
             },
-            sections=["pr", "failed-checks", "pre-merge-checks"],
+            sections=["pr", "failed-checks", "pre-merge-checks", "open-threads"],
         )
 
         self.assertIn("Failed checks: 0", output)
+        self.assertIn("inspect --section pre-merge-checks before closeout", output)
+        self.assertIn("Folded CodeRabbit review sections are present", output)
         self.assertIn("Review ledger action: rebuild the complete finding inventory", output)
         self.assertIn("CodeRabbit pre-merge checks: 1 total", output)
         self.assertIn("kind=inconclusive policy=verify-and-resolve", output)

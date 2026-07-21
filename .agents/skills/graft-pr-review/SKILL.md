@@ -146,6 +146,8 @@ Fail-closed rule for this skill:
     - `blocked`
     - `stale`
     - `noise`
+   - A narrow `--section failed-checks` or `--section open-threads` query is not a complete review run; follow the
+     helper's pre-merge and folded-section notices or run the default complete output before making any closeout claim.
 19. At task closeout, always include one reviewer-inventory summary block that is easy to compare across runs:
     - `coderabbit_handled`
       - how many CodeRabbit findings from the rebuilt inventory ended this run as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
