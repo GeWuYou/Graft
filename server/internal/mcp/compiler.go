@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/http"
 	"regexp"
 	"slices"
 	"sort"
@@ -17,7 +18,9 @@ const (
 	mcpExtensionName       = "x-graft-mcp"
 	mcpExtensionSchemaName = "x-graft-mcp-schema"
 
-	inputBodyName = "body"
+	inputBodyName                         = "body"
+	confirmationTokenInputName            = "confirmation_token"
+	resourceTemplatePlaceholderMatchParts = 2
 )
 
 var (
@@ -36,6 +39,21 @@ type toolDefinition struct {
 	path        string
 	inputSchema map[string]any
 	inputs      []inputBinding
+	metadata    mcpMetadata
+}
+
+// capabilityDefinitions 是从同一份 OpenAPI operation 投影出的 MCP 能力集合。
+// Tool、Resource Template 与 Action 共用 operationId、参数和风险元数据，避免维护第二套清单。
+type capabilityDefinitions struct {
+	tools     []toolDefinition
+	resources []resourceDefinition
+}
+
+type resourceDefinition struct {
+	name        string
+	description string
+	uriTemplate string
+	tool        toolDefinition
 }
 
 // Name 返回由 operationId 规范化得到的稳定 MCP Tool 名称。
@@ -72,11 +90,27 @@ type mcpConfirmation struct {
 // CompileReadTools 从已打包的 canonical OpenAPI 文档生成 MCP read Tool。
 // 它只接受显式声明 x-graft-mcp 的 GET operation，拒绝不完整 metadata，且不提供 tag、path 或 summary 回退。
 func CompileReadTools(bundle []byte) ([]toolDefinition, error) {
-	document, err := loadOpenAPIDocument(bundle)
+	capabilities, err := CompileCapabilities(bundle)
 	if err != nil {
 		return nil, err
 	}
-	return compileDocumentReadTools(document)
+	tools := make([]toolDefinition, 0, len(capabilities.tools))
+	for _, tool := range capabilities.tools {
+		if tool.method == http.MethodGet {
+			tools = append(tools, tool)
+		}
+	}
+	return tools, nil
+}
+
+// CompileCapabilities 从 canonical OpenAPI 生成所有已批准的 MCP 投影。
+// 只有声明 x-graft-mcp 的 GET 和确认保护的 POST 会被接受，身份始终来自 operationId。
+func CompileCapabilities(bundle []byte) (capabilityDefinitions, error) {
+	document, err := loadOpenAPIDocument(bundle)
+	if err != nil {
+		return capabilityDefinitions{}, err
+	}
+	return compileDocumentCapabilities(document)
 }
 
 func loadOpenAPIDocument(bundle []byte) (*openapi3.T, error) {
@@ -95,62 +129,100 @@ func loadOpenAPIDocument(bundle []byte) (*openapi3.T, error) {
 	return document, nil
 }
 
-func compileDocumentReadTools(document *openapi3.T) ([]toolDefinition, error) {
+func compileDocumentCapabilities(document *openapi3.T) (capabilityDefinitions, error) {
 	paths := slices.Collect(maps.Keys(document.Paths.Map()))
 	sort.Strings(paths)
 	allNames := make(map[string]string)
-	tools := make([]toolDefinition, 0)
+	capabilities := capabilityDefinitions{tools: make([]toolDefinition, 0), resources: make([]resourceDefinition, 0)}
 	for _, path := range paths {
 		pathItem := document.Paths.Find(path)
 		if pathItem == nil {
-			return nil, fmt.Errorf("OpenAPI path %q is unavailable", path)
+			return capabilityDefinitions{}, fmt.Errorf("OpenAPI path %q is unavailable", path)
 		}
 		methods := slices.Collect(maps.Keys(pathItem.Operations()))
 		sort.Strings(methods)
 		for _, method := range methods {
-			definition, err := compileOpenAPIOperation(pathItem, path, method, allNames)
+			definitions, err := compileOpenAPIOperation(pathItem, path, method, allNames)
 			if err != nil {
-				return nil, err
+				return capabilityDefinitions{}, err
 			}
-			if definition != nil {
-				tools = append(tools, *definition)
+			if definitions.tool != nil {
+				capabilities.tools = append(capabilities.tools, *definitions.tool)
+			}
+			if definitions.resource != nil {
+				capabilities.resources = append(capabilities.resources, *definitions.resource)
 			}
 		}
 	}
-	slices.SortFunc(tools, func(left, right toolDefinition) int {
+	slices.SortFunc(capabilities.tools, func(left, right toolDefinition) int {
 		return strings.Compare(left.name, right.name)
 	})
-	return tools, nil
+	slices.SortFunc(capabilities.resources, func(left, right resourceDefinition) int {
+		return strings.Compare(left.uriTemplate, right.uriTemplate)
+	})
+	return capabilities, nil
 }
 
-func compileOpenAPIOperation(pathItem *openapi3.PathItem, path, method string, allNames map[string]string) (*toolDefinition, error) {
+type compiledOperation struct {
+	tool     *toolDefinition
+	resource *resourceDefinition
+}
+
+func compileOpenAPIOperation(pathItem *openapi3.PathItem, path, method string, allNames map[string]string) (compiledOperation, error) {
 	operation := pathItem.GetOperation(method)
 	if operation == nil || operation.Extensions == nil {
-		return nil, nil
+		return compiledOperation{}, nil
 	}
 	rawMetadata, optedIn := operation.Extensions[mcpExtensionName]
 	if !optedIn {
-		return nil, nil
+		return compiledOperation{}, nil
 	}
 	metadata, parameters, err := compileOperationMetadata(pathItem, operation, method, path, rawMetadata)
 	if err != nil {
-		return nil, err
+		return compiledOperation{}, err
 	}
 	toolName, err := registerOperationToolName(allNames, operation.OperationID, method, path)
 	if err != nil {
-		return nil, err
+		return compiledOperation{}, err
 	}
-	if strings.ToUpper(method) != "GET" {
-		return nil, nil
+	return compileOperationProjection(toolName, operation, path, method, parameters, metadata)
+}
+
+func compileOperationProjection(toolName string, operation *openapi3.Operation, path, method string, parameters map[string]*openapi3.Parameter, metadata mcpMetadata) (compiledOperation, error) {
+	switch strings.ToUpper(method) {
+	case http.MethodGet:
+		return compileReadProjection(toolName, operation, path, parameters, metadata)
+	case http.MethodPost:
+		return compileActionProjection(toolName, operation, path, parameters, metadata)
+	default:
+		return compiledOperation{}, fmt.Errorf("OpenAPI %s %s is not supported for MCP projection", strings.ToUpper(method), path)
 	}
+}
+
+func compileReadProjection(toolName string, operation *openapi3.Operation, path string, parameters map[string]*openapi3.Parameter, metadata mcpMetadata) (compiledOperation, error) {
 	if err := validateReadOnlyMetadata(metadata); err != nil {
-		return nil, fmt.Errorf("OpenAPI GET %s is not safe to compile as a read tool: %w", path, err)
+		return compiledOperation{}, fmt.Errorf("OpenAPI GET %s is not safe to compile as a read tool: %w", path, err)
 	}
-	definition, err := compileReadTool(toolName, operation, path, parameters)
+	definition, err := compileTool(toolName, operation, path, http.MethodGet, parameters, metadata)
 	if err != nil {
-		return nil, fmt.Errorf("compile OpenAPI GET %s: %w", path, err)
+		return compiledOperation{}, fmt.Errorf("compile OpenAPI GET %s: %w", path, err)
 	}
-	return &definition, nil
+	resource, err := compileResource(definition, metadata)
+	if err != nil {
+		return compiledOperation{}, fmt.Errorf("compile OpenAPI GET %s resource: %w", path, err)
+	}
+	return compiledOperation{tool: &definition, resource: resource}, nil
+}
+
+func compileActionProjection(toolName string, operation *openapi3.Operation, path string, parameters map[string]*openapi3.Parameter, metadata mcpMetadata) (compiledOperation, error) {
+	if !metadata.confirmation.required {
+		return compiledOperation{}, fmt.Errorf("OpenAPI POST %s must require two-phase confirmation", path)
+	}
+	definition, err := compileTool(toolName, operation, path, http.MethodPost, parameters, metadata)
+	if err != nil {
+		return compiledOperation{}, fmt.Errorf("compile OpenAPI POST %s: %w", path, err)
+	}
+	return compiledOperation{tool: &definition}, nil
 }
 
 func compileOperationMetadata(pathItem *openapi3.PathItem, operation *openapi3.Operation, method, path string, rawMetadata any) (mcpMetadata, map[string]*openapi3.Parameter, error) {
@@ -436,7 +508,7 @@ func collectParameters(pathItem *openapi3.PathItem, operation *openapi3.Operatio
 	return parameters, nil
 }
 
-func compileReadTool(name string, operation *openapi3.Operation, path string, parameters map[string]*openapi3.Parameter) (toolDefinition, error) {
+func compileTool(name string, operation *openapi3.Operation, path string, method string, parameters map[string]*openapi3.Parameter, metadata mcpMetadata) (toolDefinition, error) {
 	parameterInputs, err := compileParameterInputs(parameters)
 	if err != nil {
 		return toolDefinition{}, err
@@ -455,14 +527,30 @@ func compileReadTool(name string, operation *openapi3.Operation, path string, pa
 		}
 		inputs = append(inputs, bodyInput.binding)
 	}
+	if metadata.confirmation.required {
+		properties[confirmationTokenInputName] = map[string]any{"type": "string", "minLength": 1}
+	}
 	slices.Sort(required)
 	return toolDefinition{
 		name:        name,
 		description: strings.TrimSpace(operation.Description),
-		method:      "GET",
+		method:      method,
 		path:        path,
 		inputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false},
 		inputs:      inputs,
+		metadata:    metadata,
+	}, nil
+}
+
+func compileResource(tool toolDefinition, metadata mcpMetadata) (*resourceDefinition, error) {
+	if len(metadata.resourceURITemplates) != 1 {
+		return nil, fmt.Errorf("read operation must declare exactly one resource URI template")
+	}
+	return &resourceDefinition{
+		name:        tool.name,
+		description: tool.description,
+		uriTemplate: metadata.resourceURITemplates[0],
+		tool:        tool,
 	}, nil
 }
 

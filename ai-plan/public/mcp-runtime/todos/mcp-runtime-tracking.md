@@ -49,18 +49,20 @@ closeout:
   RBAC-first scope narrowing, and server-validated single-use confirmation primitives. The foundation exposes no
   business tools, resources, or prompts.
 - Batch 3 compiles only opted-in low-risk GET operations from the embedded canonical OpenAPI bundle. It rejects invalid
-  metadata, unsafe read declarations, unbound resource URI placeholders, and normalized name collisions. The resulting
-  tool list is deterministic and startup-immutable; no manual business registry, resource, prompt, or action projection
-  was introduced. The generic dispatcher re-enters the Gin REST route with the existing caller context so REST handler,
-  authorization, and audit behavior remain authoritative.
-- Next batch: `mcp-compatibility-resources-actions`.
+  metadata, unsafe read declarations, unbound resource URI placeholders, and normalized name collisions.
+- Batch 4 projects approved canonical resource templates for container, application, and runtime-target detail reads,
+  and projects the opted-in high-risk container restart operation from its normalized `operationId`. The adapter issues
+  a caller/action/request-bound two-phase token before dispatching the action through the existing Gin route. The
+  executable Phase 2.5 matrix compares REST/MCP canonical JSON, error payloads, permission-denial behavior, and audit
+  counts; resource errors retain the canonical REST payload in MCP error data.
+- Next batch: `mcp-hardening-stdio`.
 
 ## Task Checklist
 
 - [x] `mcp-governance-and-contract`
 - [x] `mcp-auth-streamable-foundation`
 - [x] `mcp-openapi-compiler-read-tools`
-- [ ] `mcp-compatibility-resources-actions`
+- [x] `mcp-compatibility-resources-actions`
 - [ ] `mcp-hardening-stdio`
 
 ## Acceptance Conditions
@@ -77,14 +79,14 @@ closeout:
   "completed_batches": [
     "mcp-governance-and-contract",
     "mcp-auth-streamable-foundation",
-    "mcp-openapi-compiler-read-tools"
+    "mcp-openapi-compiler-read-tools",
+    "mcp-compatibility-resources-actions"
   ],
   "pending_batches": [
-    "mcp-compatibility-resources-actions",
     "mcp-hardening-stdio"
   ],
   "current_batch": null,
-  "next_batch": "mcp-compatibility-resources-actions",
+  "next_batch": "mcp-hardening-stdio",
   "closeout_status": "committed"
 }
 ```

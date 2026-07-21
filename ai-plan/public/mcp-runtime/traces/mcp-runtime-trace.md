@@ -62,7 +62,21 @@
   `bun run check`, and `just openapi-check`. The OpenAPI generator retains its known OpenAPI 3.1 support warning;
   generated artifacts and projections are fresh.
 
+## 2026-07-22 `mcp-compatibility-resources-actions`
+
+- Extended the OpenAPI compiler into one capability projection: approved low-risk GET operations produce both Tools
+  and canonical Resource Templates, while the opted-in high-risk `postContainerRestart` operation produces its
+  normalized operationId Tool. No path/tag-derived identity or manual business registry was added.
+- Registered `graft://docker/containers/{id}`, `graft://applications/{id}`, and
+  `graft://runtime-targets/{id}` resource templates. Reads and confirmed actions re-enter the existing Gin routes,
+  preserving existing Handler, Service, authorization, error, and audit ownership.
+- Added server-enforced two-phase action confirmation. The first request issues a caller/action/request-fingerprint
+  bound token; only a second request with that token reaches the REST route. Missing, expired, reused, or mismatched
+  tokens remain rejected before any business side effect.
+- Added an executable Phase 2.5 compatibility matrix that compares canonical REST/MCP success JSON, 403/404 errors,
+  resource error data, permission-denial behavior, and audit evidence. Focused MCP, HTTP, and app tests passed.
+
 ## Next Step
 
-- Start `mcp-compatibility-resources-actions` with fresh startup preflight. Preserve OpenAPI as the only capability
-  authority while adding resource/action projection and the ADR-005 REST/MCP compatibility matrix.
+- Start `mcp-hardening-stdio` with fresh startup preflight. Keep transport hardening behind the established compiler,
+  confirmation, route-dispatch, and compatibility boundaries.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
@@ -125,10 +126,11 @@ func TestRegisterServesStreamableReadToolsFromOpenAPI(t *testing.T) {
 	if _, ok := response.Result.Capabilities["tools"]; !ok {
 		t.Fatalf("compiled read tools must advertise tools capability: %s", recorder.Body.String())
 	}
-	for _, capability := range []string{"resources", "prompts"} {
-		if _, ok := response.Result.Capabilities[capability]; ok {
-			t.Fatalf("read tool batch must not expose %s capability: %s", capability, recorder.Body.String())
-		}
+	if _, ok := response.Result.Capabilities["resources"]; !ok {
+		t.Fatalf("OpenAPI resource projection must advertise resources capability: %s", recorder.Body.String())
+	}
+	if _, ok := response.Result.Capabilities["prompts"]; ok {
+		t.Fatalf("resource/action batch must not expose prompts capability: %s", recorder.Body.String())
 	}
 
 	sessionID := recorder.Header().Get("Mcp-Session-Id")
@@ -227,6 +229,52 @@ func TestStreamableToolCallPreservesRESTAuthorizationAndAuditBehavior(t *testing
 	}
 	if !strings.Contains(string(streamableResponsePayload(callRecorder.Body.String())), `"id":"item-7"`) {
 		t.Fatalf("tools/call must return canonical REST response: %s", callRecorder.Body.String())
+	}
+}
+
+func TestResourceAndConfirmedActionPreserveCanonicalRESTBehavior(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	auditEvents := 0
+	engine.GET("/api/items/:id", func(ginCtx *gin.Context) {
+		auditEvents++
+		ginCtx.JSON(http.StatusOK, gin.H{"id": ginCtx.Param("id"), "result": "read"})
+	})
+	engine.POST("/api/items/:id/restart", func(ginCtx *gin.Context) {
+		auditEvents++
+		ginCtx.JSON(http.StatusOK, gin.H{"id": ginCtx.Param("id"), "result": "restarted"})
+	})
+	dispatcher, err := newDispatcher(engine)
+	if err != nil {
+		t.Fatalf("new dispatcher: %v", err)
+	}
+	read := toolDefinition{name: "get_item", method: http.MethodGet, path: "/api/items/{id}", inputs: []inputBinding{{name: "id", location: "path", required: true}}, metadata: mcpMetadata{resourceURIParameterBindings: map[string]string{"id": "id"}}}
+	resource := resourceDefinition{uriTemplate: "graft://docker/containers/{id}", tool: read}
+	ctx := withCaller(context.Background(), caller{tokenID: 42})
+	resourceResult, err := dispatcher.resourceHandler(resource)(ctx, &mcpsdk.ReadResourceRequest{Params: &mcpsdk.ReadResourceParams{URI: "graft://docker/containers/item-7"}})
+	if err != nil || len(resourceResult.Contents) != 1 || resourceResult.Contents[0].Text != `{"id":"item-7","result":"read"}` {
+		t.Fatalf("resource projection = %#v, %v; want canonical REST JSON", resourceResult, err)
+	}
+
+	confirmations, err := newConfirmationTokens(time.Minute)
+	if err != nil {
+		t.Fatalf("new confirmations: %v", err)
+	}
+	action := toolDefinition{name: "post_item_restart", method: http.MethodPost, path: "/api/items/{id}/restart", inputs: []inputBinding{{name: "id", location: "path", required: true}}, metadata: mcpMetadata{confirmation: mcpConfirmation{required: true, strategy: "two_phase", ttl: "PT1M"}}}
+	handler := dispatcher.actionHandler(action, confirmations)
+	first, err := handler(ctx, &mcpsdk.CallToolRequest{Params: &mcpsdk.CallToolParamsRaw{Arguments: json.RawMessage(`{"id":"item-7"}`)}})
+	if err != nil || !first.IsError || auditEvents != 1 {
+		t.Fatalf("unconfirmed action = %#v, %v; it must not invoke REST", first, err)
+	}
+	var confirmation map[string]any
+	if err := json.Unmarshal([]byte(toolResultText(first)), &confirmation); err != nil {
+		t.Fatalf("decode confirmation: %v", err)
+	}
+	token, _ := confirmation[confirmationTokenInputName].(string)
+	arguments, _ := json.Marshal(map[string]any{"id": "item-7", confirmationTokenInputName: token})
+	confirmed, err := handler(ctx, &mcpsdk.CallToolRequest{Params: &mcpsdk.CallToolParamsRaw{Arguments: arguments}})
+	if err != nil || confirmed.IsError || toolResultText(confirmed) != `{"id":"item-7","result":"restarted"}` || auditEvents != 2 {
+		t.Fatalf("confirmed action = %#v, %v; must preserve REST response and audit", confirmed, err)
 	}
 }
 

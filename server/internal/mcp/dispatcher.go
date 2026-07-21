@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -39,6 +41,116 @@ func (d *dispatcher) toolHandler(definition toolDefinition) mcpsdk.ToolHandler {
 		}
 		return d.dispatch(ctx, definition, arguments)
 	}
+}
+
+func (d *dispatcher) actionHandler(definition toolDefinition, confirmations *ConfirmationTokens) mcpsdk.ToolHandler {
+	return func(ctx context.Context, request *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+		arguments, err := toolArguments(request)
+		if err != nil {
+			return toolErrorResult(err), nil
+		}
+		token, _ := arguments[confirmationTokenInputName].(string)
+		delete(arguments, confirmationTokenInputName)
+		fingerprint, err := actionFingerprint(arguments)
+		if err != nil {
+			return toolErrorResult(err), nil
+		}
+		if strings.TrimSpace(token) == "" {
+			issued, err := confirmations.Issue(ctx, definition.name, fingerprint)
+			if err != nil {
+				return toolErrorResult(err), nil
+			}
+			return confirmationRequiredResult(issued, definition.metadata.confirmation.ttl), nil
+		}
+		if err := confirmations.Consume(ctx, token, definition.name, fingerprint); err != nil {
+			return toolErrorResult(err), nil
+		}
+		return d.dispatch(ctx, definition, arguments)
+	}
+}
+
+func actionFingerprint(arguments map[string]any) (string, error) {
+	encoded, err := json.Marshal(arguments)
+	if err != nil {
+		return "", fmt.Errorf("encode MCP action arguments: %w", err)
+	}
+	sum := sha256.Sum256(encoded)
+	return fmt.Sprintf("%x", sum[:]), nil
+}
+
+func confirmationRequiredResult(token string, ttl string) *mcpsdk.CallToolResult {
+	payload, _ := json.Marshal(map[string]any{
+		"confirmation_required": true,
+		"confirmation_token":    token,
+		"confirmation_ttl":      ttl,
+	})
+	return &mcpsdk.CallToolResult{
+		Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: string(payload)}},
+		IsError: true,
+	}
+}
+
+func (d *dispatcher) resourceHandler(definition resourceDefinition) mcpsdk.ResourceHandler {
+	return func(ctx context.Context, request *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
+		if request == nil || request.Params == nil {
+			return nil, mcpsdk.ResourceNotFoundError("")
+		}
+		arguments, ok := resourceArguments(definition, request.Params.URI)
+		if !ok {
+			return nil, mcpsdk.ResourceNotFoundError(request.Params.URI)
+		}
+		result, err := d.dispatch(ctx, definition.tool, arguments)
+		if err != nil {
+			return nil, err
+		}
+		if result.IsError {
+			return nil, resourceRESTError(request.Params.URI, result)
+		}
+		return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{
+			URI:      request.Params.URI,
+			MIMEType: "application/json",
+			Text:     toolResultText(result),
+		}}}, nil
+	}
+}
+
+func resourceArguments(definition resourceDefinition, uri string) (map[string]any, bool) {
+	template := definition.uriTemplate
+	match := resourceTemplatePlaceholderPattern.FindStringSubmatch(template)
+	if len(match) < resourceTemplatePlaceholderMatchParts {
+		return nil, false
+	}
+	placeholder := match[1]
+	binding := definition.tool.metadata.resourceURIParameterBindings[placeholder]
+	prefix := template[:resourceTemplatePlaceholderPattern.FindStringIndex(template)[0]]
+	suffix := template[resourceTemplatePlaceholderPattern.FindStringIndex(template)[1]:]
+	if !strings.HasPrefix(uri, prefix) || !strings.HasSuffix(uri, suffix) {
+		return nil, false
+	}
+	value := strings.TrimSuffix(strings.TrimPrefix(uri, prefix), suffix)
+	if value == "" || strings.ContainsAny(value, "/?#") || binding == "" {
+		return nil, false
+	}
+	return map[string]any{binding: value}, true
+}
+
+func resourceRESTError(uri string, result *mcpsdk.CallToolResult) error {
+	if result == nil {
+		return mcpsdk.ResourceNotFoundError(uri)
+	}
+	// Resource protocol errors have their own envelope; preserve the canonical REST
+	// error payload in data so clients can apply the same error-code/message policy.
+	return &jsonrpc.Error{Code: jsonrpc.CodeInternalError, Message: "Resource read failed", Data: json.RawMessage(toolResultText(result))}
+}
+
+func toolResultText(result *mcpsdk.CallToolResult) string {
+	if result == nil || len(result.Content) == 0 {
+		return ""
+	}
+	if text, ok := result.Content[0].(*mcpsdk.TextContent); ok {
+		return text.Text
+	}
+	return ""
 }
 
 func toolArguments(request *mcpsdk.CallToolRequest) (map[string]any, error) {

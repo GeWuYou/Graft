@@ -61,12 +61,12 @@ func Register(registration HTTPRegistration) error {
 	if registration.Authorizer == nil {
 		return errors.New("mcp authorizer is unavailable")
 	}
-	tools, err := CompileReadTools(registration.OpenAPISpec)
+	capabilities, err := CompileCapabilities(registration.OpenAPISpec)
 	if err != nil {
-		return fmt.Errorf("compile MCP read tools: %w", err)
+		return fmt.Errorf("compile MCP capabilities: %w", err)
 	}
 
-	adapter, err := newAdapterWithTools(registration.Authorizer, registration.ConfirmationTokenTTL, registration.Engine, tools)
+	adapter, err := newAdapterWithCapabilities(registration.Authorizer, registration.ConfirmationTokenTTL, registration.Engine, capabilities)
 	if err != nil {
 		return err
 	}
@@ -78,35 +78,51 @@ func Register(registration HTTPRegistration) error {
 	return nil
 }
 
-func newAdapterWithTools(authorizer moduleapi.Authorizer, confirmationTTL time.Duration, engine *gin.Engine, tools []toolDefinition) (*adapter, error) {
+func newAdapterWithCapabilities(authorizer moduleapi.Authorizer, confirmationTTL time.Duration, engine *gin.Engine, capabilities capabilityDefinitions) (*adapter, error) {
 	confirmations, err := newConfirmationTokens(confirmationTTL)
 	if err != nil {
 		return nil, err
 	}
 
-	capabilities := &mcpsdk.ServerCapabilities{}
-	if len(tools) > 0 {
-		capabilities.Tools = &mcpsdk.ToolCapabilities{}
+	serverCapabilities := &mcpsdk.ServerCapabilities{}
+	if len(capabilities.tools) > 0 {
+		serverCapabilities.Tools = &mcpsdk.ToolCapabilities{}
+	}
+	if len(capabilities.resources) > 0 {
+		serverCapabilities.Resources = &mcpsdk.ResourceCapabilities{}
 	}
 	server := mcpsdk.NewServer(&mcpsdk.Implementation{
 		Name:    "graft",
 		Title:   "Graft",
 		Version: buildinfo.Current().Version,
 	}, &mcpsdk.ServerOptions{
-		Capabilities: capabilities,
+		Capabilities: serverCapabilities,
 	})
-	if len(tools) > 0 {
+	if len(capabilities.tools) > 0 || len(capabilities.resources) > 0 {
 		dispatcher, err := newDispatcher(engine)
 		if err != nil {
 			return nil, err
 		}
-		for _, tool := range tools {
+		for _, tool := range capabilities.tools {
 			tool := tool
+			handler := dispatcher.toolHandler(tool)
+			if tool.metadata.confirmation.required {
+				handler = dispatcher.actionHandler(tool, confirmations)
+			}
 			server.AddTool(&mcpsdk.Tool{
 				Name:        tool.name,
 				Description: tool.description,
 				InputSchema: tool.inputSchema,
-			}, dispatcher.toolHandler(tool))
+			}, handler)
+		}
+		for _, resource := range capabilities.resources {
+			resource := resource
+			server.AddResourceTemplate(&mcpsdk.ResourceTemplate{
+				Name:        resource.name,
+				Description: resource.description,
+				MIMEType:    "application/json",
+				URITemplate: resource.uriTemplate,
+			}, dispatcher.resourceHandler(resource))
 		}
 	}
 	streamable := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
