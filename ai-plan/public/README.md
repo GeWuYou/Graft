@@ -15,6 +15,8 @@ Overlay note:
 
 ## Active Topics
 
+- `responsive-architecture-governance`
+  - Recovery entry: `ai-plan/public/responsive-architecture-governance/README.md`
 - `handwritten-comment-governance`
   - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`
