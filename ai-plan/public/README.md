@@ -36,6 +36,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/tanstack-adoption-followups/README.md`
 - `cross-boundary-contract-projection-convergence`
   - Recovery entry: `ai-plan/public/cross-boundary-contract-projection-convergence/README.md`
+- `mcp-runtime`
+  - Recovery entry: `ai-plan/public/mcp-runtime/README.md`
 
 ## Archive Location
 

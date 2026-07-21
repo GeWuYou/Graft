@@ -6,6 +6,8 @@ info:
     Establishes the OpenAPI-owned contract and validation loop for the existing
     server runtime while preserving current business behavior, response envelope
     semantics, and auth/session transport ownership.
+x-graft-mcp-schema:
+  $ref: ./components/schemas/graft-mcp-operation-metadata.yaml
 servers:
   - url: /
 security:

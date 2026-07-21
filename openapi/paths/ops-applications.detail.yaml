@@ -2,6 +2,20 @@ get:
   tags: [application]
   summary: Get one Compose application summary
   operationId: getApplication
+  x-graft-mcp:
+    resource_uri_templates:
+      - graft://applications/{id}
+    resource_uri_parameter_bindings:
+      id: applicationId
+    risk:
+      level: low
+      reason: Reads one registered application's existing summary.
+      reversible: true
+      impact: Does not change application state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
