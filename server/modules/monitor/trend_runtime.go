@@ -74,7 +74,7 @@ func resolveTrendStore(moduleCtx *module.Context, instance *Module) statex.TimeS
 }
 
 func (p *Module) startTrendSampler(ctx *module.Context) {
-	if p == nil || ctx == nil || p.trendStore == nil || ctx.LifecycleContext == nil {
+	if p == nil || ctx == nil || ctx.LifecycleContext == nil {
 		return
 	}
 
@@ -152,10 +152,10 @@ func (p *Module) recordTrendSample(
 	storageKey string,
 	previousCPUTimes **cpu.TimesStat,
 ) {
+	hostObservability := p.sampleHostObservability(ctx)
 	if trendStore == nil {
 		return
 	}
-
 	runtimeSnapshot, err := collectRuntimeSnapshot(ctx)
 	if err != nil {
 		logTrendWarning(p, nil, "collect monitor runtime snapshot failed", err)
@@ -168,16 +168,26 @@ func (p *Module) recordTrendSample(
 	}
 	observedAt := time.Now().UTC()
 	point := generated.ServerStatusTrendPoint{
-		ObservedAt:                observedAt,
-		CpuPercent:                cpuPercent,
-		HostMemoryUsedPercent:     runtimeSnapshot.HostMemoryUsedPercent,
-		LoadAverageOneMinute:      runtimeSnapshot.LoadAverage.OneMinute,
-		LoadAverageFiveMinutes:    runtimeSnapshot.LoadAverage.FiveMinutes,
-		LoadAverageFifteenMinutes: runtimeSnapshot.LoadAverage.FifteenMinutes,
-		Goroutines:                runtimeSnapshot.Goroutines,
-		RuntimeAllocBytes:         runtimeSnapshot.RuntimeAllocBytes,
-		RuntimeHeapInUseBytes:     runtimeSnapshot.RuntimeHeapInUseBytes,
-		RuntimeSysBytes:           runtimeSnapshot.RuntimeSysBytes,
+		ObservedAt:                      observedAt,
+		CpuPercent:                      cpuPercent,
+		HostMemoryUsedPercent:           runtimeSnapshot.HostMemoryUsedPercent,
+		LoadAverageOneMinute:            runtimeSnapshot.LoadAverage.OneMinute,
+		LoadAverageFiveMinutes:          runtimeSnapshot.LoadAverage.FiveMinutes,
+		LoadAverageFifteenMinutes:       runtimeSnapshot.LoadAverage.FifteenMinutes,
+		Goroutines:                      runtimeSnapshot.Goroutines,
+		RuntimeAllocBytes:               runtimeSnapshot.RuntimeAllocBytes,
+		RuntimeHeapInUseBytes:           runtimeSnapshot.RuntimeHeapInUseBytes,
+		RuntimeSysBytes:                 runtimeSnapshot.RuntimeSysBytes,
+		NetworkSentBytesPerSecond:       hostObservability.Network.SentBytesPerSecond,
+		NetworkReceivedBytesPerSecond:   hostObservability.Network.ReceivedBytesPerSecond,
+		NetworkSentPacketsPerSecond:     hostObservability.Network.SentPacketsPerSecond,
+		NetworkReceivedPacketsPerSecond: hostObservability.Network.ReceivedPacketsPerSecond,
+		DiskReadBytesPerSecond:          hostObservability.DiskIo.ReadBytesPerSecond,
+		DiskWriteBytesPerSecond:         hostObservability.DiskIo.WriteBytesPerSecond,
+		DiskReadIops:                    hostObservability.DiskIo.ReadIops,
+		DiskWriteIops:                   hostObservability.DiskIo.WriteIops,
+		DiskReadAverageLatencyMs:        hostObservability.DiskIo.ReadAverageLatencyMs,
+		DiskWriteAverageLatencyMs:       hostObservability.DiskIo.WriteAverageLatencyMs,
 	}
 
 	if err := storeTrendPoint(ctx, trendStore, storageKey, observedAt, point); err != nil {

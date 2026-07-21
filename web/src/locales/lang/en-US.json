@@ -28,9 +28,12 @@
     "header": {
       "code": "Code Repository",
       "apiDocs": "API Docs",
+      "collapseNavigation": "Collapse Navigation",
       "enterFullscreen": "Enter Fullscreen",
+      "expandNavigation": "Expand Navigation",
       "exitFullscreen": "Exit Fullscreen",
       "help": "Document",
+      "openNavigation": "Open Navigation",
       "user": "Profile",
       "signOut": "Sign Out",
       "setting": "Setting",

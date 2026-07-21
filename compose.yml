@@ -56,7 +56,7 @@ services:
       GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
       GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
       GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
-      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-80},http://localhost:${GRAFT_WEB_HOST_PORT:-80}}
+      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-3000},http://localhost:${GRAFT_WEB_HOST_PORT:-3000}}
 
   application-root-init:
     image: ${GRAFT_SERVER_IMAGE}:${GRAFT_IMAGE_TAG}
@@ -77,6 +77,21 @@ services:
   server:
     image: ${GRAFT_SERVER_IMAGE}:${GRAFT_IMAGE_TAG}
     restart: unless-stopped
+    user: "0:0"
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -S /var/run/docker.sock ]; then
+          sock_gid="$$(stat -c '%g' /var/run/docker.sock)"
+          sock_group="$$(awk -F: -v gid="$$sock_gid" '$$3 == gid { print $$1; exit }' /etc/group)"
+          if [ -z "$$sock_group" ]; then
+            addgroup -S -g "$$sock_gid" dockerhost
+            sock_group=dockerhost
+          fi
+          addgroup graft "$$sock_group"
+        fi
+        exec su graft -s /bin/sh -c '/app/graft serve'
     env_file:
       - .env
     depends_on:
@@ -90,12 +105,13 @@ services:
       GRAFT_DATABASE_URL: ${GRAFT_DATABASE_URL:-host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} sslmode=disable}
       GRAFT_REDIS_ADDR: ${GRAFT_REDIS_ADDR:-redis:6379}
       GRAFT_AUTH_JWT_SECRET: ${GRAFT_AUTH_JWT_SECRET}
-      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-80},http://localhost:${GRAFT_WEB_HOST_PORT:-80}}
+      GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-3000},http://localhost:${GRAFT_WEB_HOST_PORT:-3000}}
       GRAFT_PROJECT_IMPORT_DEFAULT_PATH: ${GRAFT_PROJECT_IMPORT_DEFAULT_PATH:-}
       GRAFT_PROJECT_IMPORT_CONTAINER_PATH: ${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}
     expose:
       - "${GRAFT_SERVER_EXPOSE_PORT:-8080}"
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
 
@@ -108,4 +124,4 @@ services:
       server:
         condition: service_healthy
     ports:
-      - "${GRAFT_WEB_HOST_PORT:-80}:80"
+      - "${GRAFT_WEB_HOST_PORT:-3000}:80"

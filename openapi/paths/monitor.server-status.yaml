@@ -73,6 +73,28 @@ get:
                     runtime_heap_objects: 18432
                     runtime_heap_released_bytes: 8388608
                     runtime_stack_in_use_bytes: 1048576
+                  host_observability:
+                    network:
+                      sent_bytes_per_second: 12840.5
+                      received_bytes_per_second: 9241.2
+                      sent_packets_per_second: 82.4
+                      received_packets_per_second: 74.1
+                    disk_io:
+                      read_bytes_per_second: 4096
+                      write_bytes_per_second: 8192
+                      read_iops: 4
+                      write_iops: 6
+                      read_average_latency_ms: 1.2
+                      write_average_latency_ms: 2.1
+                    tcp:
+                      total: 18
+                      established: 6
+                      time_wait: 9
+                      close_wait: 0
+                    process:
+                      rss_bytes: 75497472
+                      open_file_descriptors: 42
+                      os_threads: 16
                   dependencies:
                     database:
                       status: healthy

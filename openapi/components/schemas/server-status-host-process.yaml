@@ -1,0 +1,15 @@
+type: object
+required: [rss_bytes, open_file_descriptors, os_threads]
+properties:
+  rss_bytes:
+    type: integer
+    format: int64
+    nullable: true
+  open_file_descriptors:
+    type: integer
+    format: int64
+    nullable: true
+  os_threads:
+    type: integer
+    format: int64
+    nullable: true

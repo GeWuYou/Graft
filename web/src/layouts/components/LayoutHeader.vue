@@ -7,18 +7,26 @@
     :is-fixed="settingStore.isHeaderFixed"
     :menu="headerMenu"
     :is-compact="renderCompact"
+    :navigation-presentation="presentation"
+    :sidebar-visible="presentation !== 'drawer'"
+    @open-navigation="emit('open-navigation')"
   />
 </template>
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 
-import { flattenMixHeaderMenus } from '@/layouts/layout-navigation';
+import { flattenMixHeaderMenus, type SidebarPresentation } from '@/layouts/layout-navigation';
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
 
 defineProps<{
+  presentation: SidebarPresentation;
   renderCompact: boolean;
+}>();
+
+const emit = defineEmits<{
+  'open-navigation': [];
 }>();
 
 import LHeader from './Header.vue';

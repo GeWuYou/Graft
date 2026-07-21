@@ -1,6 +1,20 @@
 schema_version: 1
 updated_at: "2026-07-13"
 assets:
+  - name: "responsive-sidebar"
+    type: "frontend-component"
+    path: "web/src/shared/components/responsive/ResponsiveSidebar.vue"
+    owner: "web/shared"
+    purpose: "Shell navigation surface that renders a desktop rail, compact tablet rail, or controlled mobile Drawer through slots."
+    use_when:
+      - "A shell-owned navigation surface must switch presentation by container width without duplicating navigation data or route handling."
+    do_not_use_when:
+      - "A module-private drawer or a business-specific side panel is needed."
+    examples:
+      - "web/src/layouts/components/LayoutSideNav.vue"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "management-components"
     type: "frontend-component-suite"
     path: "web/src/shared/components/management"

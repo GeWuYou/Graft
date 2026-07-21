@@ -431,7 +431,7 @@ Important deployment notes:
   services will use the same password through their normal runtime configuration.
 - If you override `GRAFT_HTTP_ADDR`, also keep `GRAFT_SERVER_EXPOSE_PORT` and `GRAFT_SERVER_UPSTREAM` aligned with the
   same internal server port so the `web` container can still reach the `server` container.
-- `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`, and the published host port defaults to `80` unless
+- `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`, and the published host port defaults to `3000` unless
   you override `GRAFT_WEB_HOST_PORT`.
 - The bundled `web` nginx runtime proxies both `/api/*` HTTP traffic and the unified realtime `/ws` WebSocket gateway
   to the `server` container. If you replace that proxy with your own ingress or reverse proxy, you must preserve
@@ -444,6 +444,10 @@ Important deployment notes:
   `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` explicitly to match the real browser-visible web origin. The same allowlist
   also gates the unified realtime `/ws` gateway, so LAN-IP or domain-based deployments must set it correctly for
   container stats and other realtime subscriptions to connect.
+- The root Compose file mounts `/var/run/docker.sock` into `server` and starts the image entrypoint as root only long
+  enough to discover the socket group, add `graft` to that group, and then run `/app/graft serve` as `graft`.
+- Docker provider configuration is deployment-owned, but container access, Shell, dangerous actions, log limits, and
+  sampling remain System Config policies. Socket availability alone does not bypass those policies.
 - The `web` container does not read the root `.env` file directly; only the server-side services receive those secrets.
 - Production docs are disabled by default. Set `GRAFT_DOCS_ENABLED=true` only when you intentionally want `/docs` and
   OpenAPI endpoints exposed.
@@ -451,19 +455,15 @@ Important deployment notes:
 Compose variants:
 
 - Use `compose.named-volume.yml` if you prefer a Docker named volume for PostgreSQL data instead of `./.data/postgres`.
-- Use `compose.ops-container.yml` when you intentionally enable container-management features and need the server to
-  mount `/var/run/docker.sock`.
-- The ops-container overlay starts the `server` container as `root` only long enough to read the mounted
-  `/var/run/docker.sock` group id, add the existing `graft` user to that group, and then drop back to the `graft`
-  user before starting `/app/graft serve`.
-- If container management still reports permission denied after the socket is mounted, verify that the merged compose
-  config includes both the socket mount and the overridden `entrypoint` / `user: "0:0"` from `compose.ops-container.yml`.
+- Docker container management is included in the default `compose.yml`; no additional overlay is required.
+- If container management reports permission denied, verify that the host Docker Socket is accessible and that the
+  server container can resolve its socket group. The container process itself still runs as `graft` after startup.
 
 Examples:
 
 ```bash
 docker compose -f compose.yml -f compose.named-volume.yml up -d
-docker compose --env-file .env -f compose.yml -f compose.ops-container.yml up -d
+docker compose up -d
 ```
 
 To reproduce the local contract-governance changed scan:

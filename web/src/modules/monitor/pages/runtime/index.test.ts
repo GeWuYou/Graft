@@ -303,6 +303,24 @@ function createResponse(): ServerStatusResponse {
       runtime_heap_released_bytes: 8388608,
       runtime_stack_in_use_bytes: 1048576,
     },
+    host_observability: {
+      network: {
+        sent_bytes_per_second: null,
+        received_bytes_per_second: null,
+        sent_packets_per_second: null,
+        received_packets_per_second: null,
+      },
+      disk_io: {
+        read_bytes_per_second: null,
+        write_bytes_per_second: null,
+        read_iops: null,
+        write_iops: null,
+        read_average_latency_ms: null,
+        write_average_latency_ms: null,
+      },
+      tcp: { total: null, established: null, time_wait: null, close_wait: null },
+      process: { rss_bytes: null, open_file_descriptors: null, os_threads: null },
+    },
     dependencies: {
       database: { status: 'healthy', detail: 'ok', latency_ms: 2.1 },
       redis: { status: 'disabled', detail: 'not configured', latency_ms: null },

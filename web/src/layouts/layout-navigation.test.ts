@@ -8,10 +8,17 @@ import {
   flattenMixHeaderMenus,
   resolveMenuNavigationPath,
   resolveSidebarMotionMode,
+  resolveSidebarPresentation,
   selectMixSidebarMenu,
 } from './layout-navigation';
 
 describe('layout navigation helpers', () => {
+  it('maps shell density to desktop, compact rail, and drawer presentations', () => {
+    expect(resolveSidebarPresentation('spacious')).toBe('desktop');
+    expect(resolveSidebarPresentation('comfortable')).toBe('compact');
+    expect(resolveSidebarPresentation('compact')).toBe('drawer');
+  });
+
   it('uses wide-table motion for paged list routes', () => {
     expect(resolveSidebarMotionMode({ pageKind: 'list' })).toBe('wide-table');
     expect(resolveSidebarMotionMode({ pageKind: 'list', pageSurface: 'paged-table' })).toBe('wide-table');

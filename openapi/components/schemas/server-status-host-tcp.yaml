@@ -1,0 +1,19 @@
+type: object
+required: [total, established, time_wait, close_wait]
+properties:
+  total:
+    type: integer
+    format: int64
+    nullable: true
+  established:
+    type: integer
+    format: int64
+    nullable: true
+  time_wait:
+    type: integer
+    format: int64
+    nullable: true
+  close_wait:
+    type: integer
+    format: int64
+    nullable: true

@@ -5462,6 +5462,33 @@
                           "runtime_heap_released_bytes": 8388608,
                           "runtime_stack_in_use_bytes": 1048576
                         },
+                        "host_observability": {
+                          "network": {
+                            "sent_bytes_per_second": 12840.5,
+                            "received_bytes_per_second": 9241.2,
+                            "sent_packets_per_second": 82.4,
+                            "received_packets_per_second": 74.1
+                          },
+                          "disk_io": {
+                            "read_bytes_per_second": 4096,
+                            "write_bytes_per_second": 8192,
+                            "read_iops": 4,
+                            "write_iops": 6,
+                            "read_average_latency_ms": 1.2,
+                            "write_average_latency_ms": 2.1
+                          },
+                          "tcp": {
+                            "total": 18,
+                            "established": 6,
+                            "time_wait": 9,
+                            "close_wait": 0
+                          },
+                          "process": {
+                            "rss_bytes": 75497472,
+                            "open_file_descriptors": 42,
+                            "os_threads": 16
+                          }
+                        },
                         "dependencies": {
                           "database": {
                             "status": "healthy",
@@ -16790,6 +16817,21 @@
       "ServerStatusDiskUsage": {
         "$ref": "#/components/schemas/server-status-disk-usage"
       },
+      "ServerStatusHostNetwork": {
+        "$ref": "#/components/schemas/server-status-host-network"
+      },
+      "ServerStatusHostDiskIo": {
+        "$ref": "#/components/schemas/server-status-host-disk-io"
+      },
+      "ServerStatusHostTcp": {
+        "$ref": "#/components/schemas/server-status-host-tcp"
+      },
+      "ServerStatusHostProcess": {
+        "$ref": "#/components/schemas/server-status-host-process"
+      },
+      "ServerStatusHostObservability": {
+        "$ref": "#/components/schemas/server-status-host-observability"
+      },
       "ServerStatusRuntime": {
         "$ref": "#/components/schemas/server-status-runtime"
       },
@@ -20459,6 +20501,149 @@
           "runtime_stack_in_use_bytes": 1048576
         }
       },
+      "server-status-host-network": {
+        "type": "object",
+        "required": [
+          "sent_bytes_per_second",
+          "received_bytes_per_second",
+          "sent_packets_per_second",
+          "received_packets_per_second"
+        ],
+        "properties": {
+          "sent_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "received_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "sent_packets_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "received_packets_per_second": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "server-status-host-disk-io": {
+        "type": "object",
+        "required": [
+          "read_bytes_per_second",
+          "write_bytes_per_second",
+          "read_iops",
+          "write_iops",
+          "read_average_latency_ms",
+          "write_average_latency_ms"
+        ],
+        "properties": {
+          "read_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "write_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "read_iops": {
+            "type": "number",
+            "nullable": true
+          },
+          "write_iops": {
+            "type": "number",
+            "nullable": true
+          },
+          "read_average_latency_ms": {
+            "type": "number",
+            "nullable": true
+          },
+          "write_average_latency_ms": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "server-status-host-tcp": {
+        "type": "object",
+        "required": [
+          "total",
+          "established",
+          "time_wait",
+          "close_wait"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "established": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "time_wait": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "close_wait": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "server-status-host-process": {
+        "type": "object",
+        "required": [
+          "rss_bytes",
+          "open_file_descriptors",
+          "os_threads"
+        ],
+        "properties": {
+          "rss_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "open_file_descriptors": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "os_threads": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "server-status-host-observability": {
+        "type": "object",
+        "required": [
+          "network",
+          "disk_io",
+          "tcp",
+          "process"
+        ],
+        "properties": {
+          "network": {
+            "$ref": "#/components/schemas/server-status-host-network"
+          },
+          "disk_io": {
+            "$ref": "#/components/schemas/server-status-host-disk-io"
+          },
+          "tcp": {
+            "$ref": "#/components/schemas/server-status-host-tcp"
+          },
+          "process": {
+            "$ref": "#/components/schemas/server-status-host-process"
+          }
+        }
+      },
       "server-status-connection-pool": {
         "type": "object",
         "required": [
@@ -20698,6 +20883,46 @@
           "runtime_sys_bytes": {
             "type": "integer",
             "format": "int64"
+          },
+          "network_sent_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "network_received_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "network_sent_packets_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "network_received_packets_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "disk_read_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "disk_write_bytes_per_second": {
+            "type": "number",
+            "nullable": true
+          },
+          "disk_read_iops": {
+            "type": "number",
+            "nullable": true
+          },
+          "disk_write_iops": {
+            "type": "number",
+            "nullable": true
+          },
+          "disk_read_average_latency_ms": {
+            "type": "number",
+            "nullable": true
+          },
+          "disk_write_average_latency_ms": {
+            "type": "number",
+            "nullable": true
           }
         },
         "example": {
@@ -20890,6 +21115,7 @@
           "observed_at",
           "server",
           "runtime",
+          "host_observability",
           "dependencies",
           "summary",
           "trend",
@@ -20909,6 +21135,9 @@
           },
           "runtime": {
             "$ref": "#/components/schemas/server-status-runtime"
+          },
+          "host_observability": {
+            "$ref": "#/components/schemas/server-status-host-observability"
           },
           "dependencies": {
             "$ref": "#/components/schemas/server-status-dependencies"

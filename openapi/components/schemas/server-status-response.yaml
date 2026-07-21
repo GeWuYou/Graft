@@ -1,5 +1,5 @@
 type: object
-required: [status, observed_at, server, runtime, dependencies, summary, trend, modules, anomalies]
+required: [status, observed_at, server, runtime, host_observability, dependencies, summary, trend, modules, anomalies]
 properties:
   status:
     type: string
@@ -10,6 +10,8 @@ properties:
     $ref: ./server-status-server.yaml
   runtime:
     $ref: ./server-status-runtime.yaml
+  host_observability:
+    $ref: ./server-status-host-observability.yaml
   dependencies:
     $ref: ./server-status-dependencies.yaml
   summary:

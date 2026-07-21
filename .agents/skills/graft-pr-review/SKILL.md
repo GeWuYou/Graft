@@ -90,6 +90,21 @@ Fail-closed rule for this skill:
      decision under `代码注释与模块文档规范.md`; do not resolve either class by ignoring the summary table
    - for an actionable `Title check / Inconclusive`, update the PR title to the verified specific title when the
      authorized PR write path is available; otherwise report `blocked` with the exact proposed title and next action
+   - for an actionable `Description check / Inconclusive`, preserve the current PR body before editing it. Never use a
+     replacement body that overwrites author-, human-, or reviewer-owned content, including Greptile's
+     `<!-- greptile_comment -->` block. Append the remediation after all existing content in this exact owned region:
+
+     ```markdown
+     <!-- graft-pr-review-managed-description:start -->
+     ## Maintainer Update
+
+     <concise verified description>
+     <!-- graft-pr-review-managed-description:end -->
+     ```
+
+     When the owned markers already exist, replace only the content between those markers. When they do not exist,
+     append the complete region after a blank line and `---` separator. Re-read the PR body after writing and verify
+     that every non-owned region is unchanged; otherwise report the metadata update as `blocked`.
 8. Classify each verified finding before deciding the next action:
    - `actionable-local`
      - the finding still applies and fits one safe local slice

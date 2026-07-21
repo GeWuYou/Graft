@@ -6,9 +6,17 @@
           <brand-identity class="t-logo" :label="t('common.appName')" />
         </span>
         <div v-else class="header-operate-left">
-          <t-button theme="default" shape="square" variant="text" @click="changeCollapsed">
-            <t-icon class="collapsed-icon" name="view-list" />
-          </t-button>
+          <t-tooltip v-if="navigationPresentation !== 'compact'" placement="bottom" :content="navigationToggleLabel">
+            <t-button
+              :aria-label="navigationToggleLabel"
+              theme="default"
+              shape="square"
+              variant="text"
+              @click="handleNavigationToggle"
+            >
+              <t-icon class="collapsed-icon" :name="navigationPresentation === 'drawer' ? 'menu' : 'view-list'" />
+            </t-button>
+          </t-tooltip>
           <search />
         </div>
       </template>
@@ -124,7 +132,7 @@ import MenuContent from './MenuContent.vue';
 import Notice from './Notice.vue';
 import Search from './Search.vue';
 
-const { theme, layout, showLogo, menu, isFixed, isCompact } = defineProps({
+const { theme, layout, showLogo, menu, isFixed, isCompact, navigationPresentation, sidebarVisible } = defineProps({
   theme: {
     type: String,
     default: 'light',
@@ -149,11 +157,23 @@ const { theme, layout, showLogo, menu, isFixed, isCompact } = defineProps({
     type: Boolean,
     default: false,
   },
+  navigationPresentation: {
+    type: String as PropType<'desktop' | 'compact' | 'drawer'>,
+    default: 'desktop',
+  },
+  sidebarVisible: {
+    type: Boolean,
+    default: true,
+  },
   maxLevel: {
     type: Number,
     default: 3,
   },
 });
+
+const emit = defineEmits<{
+  'open-navigation': [];
+}>();
 
 const router = useRouter();
 const settingStore = useSettingStore();
@@ -166,6 +186,10 @@ const isDocumentFullscreenSupported = computed(() => documentFullscreen.isSuppor
 const documentFullscreenLabel = computed(() =>
   t(isDocumentFullscreen.value ? 'layout.header.exitFullscreen' : 'layout.header.enterFullscreen'),
 );
+const navigationToggleLabel = computed(() => {
+  if (navigationPresentation === 'drawer') return t('layout.header.openNavigation');
+  return t(settingStore.isSidebarCompact ? 'layout.header.expandNavigation' : 'layout.header.collapseNavigation');
+});
 
 const toggleDocumentFullscreen = () => {
   void documentFullscreen.toggle();
@@ -195,8 +219,9 @@ const menuCls = computed(() => {
     {
       [`${prefix}-header-menu`]: !isFixed,
       [`${prefix}-header-menu-fixed`]: isFixed,
-      [`${prefix}-header-menu-fixed-side`]: layout === 'side' && isFixed,
-      [`${prefix}-header-menu-fixed-side-compact`]: layout === 'side' && isFixed && isCompact,
+      [`${prefix}-header-menu-fixed-side`]: layout === 'side' && isFixed && sidebarVisible,
+      [`${prefix}-header-menu-fixed-side-compact`]: layout === 'side' && isFixed && sidebarVisible && isCompact,
+      [`${prefix}-header-menu-fixed-mobile`]: layout === 'side' && isFixed && !sidebarVisible,
     },
   ];
 });
@@ -206,6 +231,14 @@ const changeCollapsed = () => {
   settingStore.updateConfig({
     isSidebarCompact: !settingStore.isSidebarCompact,
   });
+};
+
+const handleNavigationToggle = () => {
+  if (navigationPresentation === 'drawer') {
+    emit('open-navigation');
+    return;
+  }
+  changeCollapsed();
 };
 
 const handleNav = (url: string) => {
@@ -255,6 +288,12 @@ const navToHelper = () => {
       &-compact {
         left: 72px;
       }
+    }
+
+    &-mobile {
+      left: 0;
+      right: 0;
+      width: auto;
     }
   }
 

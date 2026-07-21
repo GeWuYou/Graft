@@ -530,6 +530,16 @@ components:
       $ref: ./components/schemas/server-status-load-average.yaml
     ServerStatusDiskUsage:
       $ref: ./components/schemas/server-status-disk-usage.yaml
+    ServerStatusHostNetwork:
+      $ref: ./components/schemas/server-status-host-network.yaml
+    ServerStatusHostDiskIo:
+      $ref: ./components/schemas/server-status-host-disk-io.yaml
+    ServerStatusHostTcp:
+      $ref: ./components/schemas/server-status-host-tcp.yaml
+    ServerStatusHostProcess:
+      $ref: ./components/schemas/server-status-host-process.yaml
+    ServerStatusHostObservability:
+      $ref: ./components/schemas/server-status-host-observability.yaml
     ServerStatusRuntime:
       $ref: ./components/schemas/server-status-runtime.yaml
     ServerStatusDependencies:
