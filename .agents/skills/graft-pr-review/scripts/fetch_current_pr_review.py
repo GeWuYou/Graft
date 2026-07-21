@@ -751,7 +751,7 @@ def build_review_ledger_delta(
     baseline_pre_merge = baseline_inventory.get("coderabbit_pre_merge_checks", {})
     current_pre_merge_counts = summarize_pre_merge_checks(pre_merge_checks)
     current_nonpassed_count = sum(
-        current_pre_merge_counts.get(status, 0) for status in ("failed", "warning", "inconclusive", "unknown")
+        count for status, count in current_pre_merge_counts.items() if status != "passed"
     )
     baseline_pre_merge_count = int(baseline_pre_merge.get("total", 0))
     head_changed = bool(baseline_sha and current_head_sha and baseline_sha != current_head_sha)
@@ -998,8 +998,9 @@ def parse_pre_merge_checks(
     summary_block: str,
     *,
     source_commit: str = "",
+    warnings: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    """Parse every CodeRabbit pre-merge check row, including warnings and inconclusive rows."""
+    """Parse every CodeRabbit pre-merge check row, including passed rows."""
     failed_section = extract_section(
         summary_block,
         "### ❌ Failed checks",
@@ -1019,7 +1020,7 @@ def parse_pre_merge_checks(
         ):
             continue
 
-        parts = [part.strip() for part in stripped.strip("|").split("|")]
+        parts = [part.strip() for part in stripped.strip("|").split("|", 3)]
         if len(parts) != 4:
             continue
 
@@ -1033,6 +1034,40 @@ def parse_pre_merge_checks(
             "resolution": parts[3],
             "source_commit": source_commit,
         })
+
+    passed_section = extract_section(
+        summary_block,
+        "<summary>✅ Passed checks",
+        ["</details>", "<!-- pre_merge_checks_walkthrough_end -->"],
+    )
+    if passed_section:
+        for line in passed_section.splitlines():
+            stripped = line.strip()
+            if (
+                not stripped.startswith("|")
+                or "Check name" in stripped
+                or stripped.startswith("| :")
+                or re.fullmatch(r"\|[\s|:-]+\|", stripped)
+            ):
+                continue
+            parts = [part.strip() for part in stripped.strip("|").split("|", 2)]
+            if len(parts) == 3:
+                rows.append({
+                    "name": parts[0], "status": parts[1], "status_kind": "passed",
+                    "handling_policy": pre_merge_check_policy("passed"),
+                    "explanation": parts[2], "resolution": "", "source_commit": source_commit,
+                })
+        declared_match = re.search(
+            r"\((\d+) passed\)",
+            passed_section.splitlines()[0] if passed_section.splitlines() else "",
+        )
+        if warnings is not None and declared_match:
+            parsed_passed = sum(check["status_kind"] == "passed" for check in rows)
+            if parsed_passed != int(declared_match.group(1)):
+                warnings.append(
+                    "CodeRabbit pre-merge passed row count mismatch: "
+                    f"declared {declared_match.group(1)}, parsed {parsed_passed}."
+                )
 
     return rows
 
@@ -1943,6 +1978,7 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
         parse_pre_merge_checks(
             summary_block,
             source_commit=str(pull_request_metadata.get("head_sha") or ""),
+            warnings=warnings,
         )
         if summary_block
         else []

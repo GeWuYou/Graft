@@ -152,6 +152,23 @@ class ParsePreMergeChecksTests(unittest.TestCase):
             {"failed": 0, "warning": 1, "inconclusive": 1, "passed": 0, "unknown": 0},
         )
 
+    def test_parse_pre_merge_checks_keeps_passed_rows(self) -> None:
+        """Passed rows should remain in the machine-readable inventory."""
+        summary = """
+### ❌ Failed checks (1 warning)
+| Check name | Status | Explanation | Resolution |
+| --- | --- | --- | --- |
+| Coverage | ⚠️ Warning | 21% | Add docs |
+<details>
+<summary>✅ Passed checks (1 passed)</summary>
+| Check name | Status | Explanation | Resolution |
+| --- | --- | --- | --- |
+| Title | ✅ Passed | Clear | Keep |
+</details>
+"""
+        checks = MODULE.parse_pre_merge_checks(summary, source_commit="abc123")
+        self.assertEqual([check["status_kind"] for check in checks], ["warning", "passed"])
+
     def test_parse_latest_review_body_keeps_extensionless_paths(self) -> None:
         """Common extensionless file names should survive grouped comment parsing."""
         review_body = """

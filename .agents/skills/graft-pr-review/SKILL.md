@@ -98,7 +98,7 @@ Fail-closed rule for this skill:
        follow-up execution round
    - `stale`
      - the finding no longer applies on the checked-out head
-    - `noise`
+   - `noise`
      - the finding is a false positive, misread, or otherwise not a real defect after local verification
    - `Warning` remediation decisions are recorded separately as `remediate` or `accept-with-reason`; this does not
      add a sixth general finding disposition. `Inconclusive` has no optional acceptance path.
