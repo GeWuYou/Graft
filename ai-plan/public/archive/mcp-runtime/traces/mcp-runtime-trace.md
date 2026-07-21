@@ -90,6 +90,12 @@
   OpenAPI-derived capability and return the same REST JSON while retaining caller context. No browser, Compose, or
   temporary database was needed or started.
 
-## Next Step
+## 2026-07-22 Archive Readiness
 
-- The outer loop must run final archive-readiness acceptance, PR review, push, and the authorized shutdown workflow.
+- Accepted all five committed implementation batches after the required cross-boundary validation evidence was recorded.
+- Confirmed the topic acceptance conditions: OpenAPI remains the sole capability authority, normalized `operationId`
+  tool identity and canonical resource URIs are preserved, two-phase confirmation remains server-owned, Phase 2.5
+  verifies REST/MCP JSON, error, permission, and audit parity, and HTTP/stdio share one compiled registry and Gin
+  dispatcher.
+- Moved the topic from the active recovery index to `ai-plan/public/archive/mcp-runtime/`. This archive is historical
+  evidence; it is not a future startup or implementation path.

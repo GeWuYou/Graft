@@ -55,7 +55,7 @@ closeout:
   a caller/action/request-bound two-phase token before dispatching the action through the existing Gin route. The
   executable Phase 2.5 matrix compares REST/MCP canonical JSON, error payloads, permission-denial behavior, and audit
   counts; resource errors retain the canonical REST payload in MCP error data.
-- All implementation batches are committed. The outer loop must now perform archive-readiness acceptance.
+- All implementation batches are committed and outer archive-readiness acceptance has passed.
 
 ## Task Checklist
 
@@ -87,7 +87,7 @@ closeout:
   "pending_batches": [],
   "current_batch": null,
   "next_batch": null,
-  "closeout_status": "committed"
+  "closeout_status": "archive-ready"
 }
 ```
 

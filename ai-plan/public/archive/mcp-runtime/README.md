@@ -3,14 +3,14 @@
 ## Current Status Summary
 
 - Topic objective: 在 OpenAPI authority 上建立产品 MCP runtime，并保持 REST 与 MCP 业务语义一致。
-- Current status: `active`
+- Current status: `archive-ready`
 - Task class: `cross-boundary`
 - Intake summary: 这是需要 design、roadmap、ADR、稳定恢复与多 batch 执行的长期 feature。
 - Canonical authority:
   - `openapi/openapi.yaml` and referenced path fragments
   - `ai-plan/design/decisions/ADR-005-mcp-runtime-contract-and-transport-boundary.md`
   - `ai-plan/roadmap/MCP运行时实施计划.md`
-- Completed so far: all implementation batches; awaiting outer archive-readiness acceptance.
+- Completed so far: all implementation batches and outer archive-readiness acceptance.
 
 ## Recovery Receipt
 
@@ -62,7 +62,8 @@ Out of scope:
   2.5 matrix checks canonical JSON, errors, denials, and audit behavior across both transports.
 - Batch 5 adds runtime-owned transport limits, lifecycle shutdown, correlation-safe metrics/logging, and a stdio
   launcher that uses the same compiled server and Gin dispatcher as Streamable HTTP.
-- Next step: outer archive-readiness acceptance, final review, push, and shutdown orchestration.
+- Archive disposition: implementation and acceptance evidence are complete. Retain this topic as historical evidence;
+  future changes start through normal Work Intake rather than resuming this topic.
 
 ## Work Intake
 
