@@ -7,6 +7,7 @@ This directory is for repository-wide frontend design and frontend implementatio
 - frontend visual-governance rules
 - page-pattern and interaction-governance guidance
 - TDesign workflow or frontend AI-assist governance
+- [Graft 响应式架构治理规范](Graft响应式架构治理规范.md)：Desktop 优先、Container-first 的响应式 authority、组件契约与迁移治理
 
 ## Boundaries
 

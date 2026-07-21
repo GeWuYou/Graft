@@ -18,7 +18,10 @@ vi.mock('vue-router', () => ({
   useRoute: () => route,
   useRouter: () => ({ push: mocks.push }),
 }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock('vue-i18n', async () => ({
+  ...(await vi.importActual<typeof import('vue-i18n')>('vue-i18n')),
+  useI18n: () => ({ t: (key: string) => key }),
+}));
 vi.mock('../../api/project', () => ({ getPublishedApplicationTemplate: mocks.getPublishedApplicationTemplate }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,

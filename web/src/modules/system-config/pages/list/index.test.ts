@@ -272,7 +272,8 @@ vi.mock('tdesign-icons-vue-next', () => ({
   SearchIcon: defineComponent({ name: 'SearchIcon', setup: () => () => h('span') }),
 }));
 
-vi.mock('vue-i18n', () => ({
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({
     getLocaleMessage: () => translations,
     locale: ref('zh-CN'),

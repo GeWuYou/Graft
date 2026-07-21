@@ -10,7 +10,8 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push, resolve }),
 }));
 
-vi.mock('vue-i18n', () => ({
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({ t: (key: string) => key }),
 }));
 vi.mock('@/store/modules/tabs-router', () => ({

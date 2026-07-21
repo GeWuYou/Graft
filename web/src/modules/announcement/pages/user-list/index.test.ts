@@ -58,6 +58,7 @@ vi.mock('../../api/announcement', () => ({
 }));
 
 vi.mock('vue-i18n', () => ({
+  createI18n: () => ({ global: { getLocaleMessage: () => ({}), t: (key: string) => key } }),
   useI18n: () => ({
     locale: { value: 'en-US' },
     t: (key: string, params?: Record<string, unknown>) => {
@@ -133,6 +134,11 @@ const buttonStub = defineComponent({
 });
 
 const componentStubs = {
+  ResponsiveTable: defineComponent({
+    setup(_, { slots }) {
+      return () => h('section', { 'data-responsive-presentation': 'entity' }, [slots.default?.(), slots.cards?.()]);
+    },
+  }),
   't-button': buttonStub,
   't-card': defineComponent({
     setup(_, { slots }) {
@@ -191,6 +197,29 @@ const componentStubs = {
       return () => h('span', slots.default?.());
     },
   }),
+  't-table': defineComponent({
+    props: {
+      columns: { type: Array, default: () => [] },
+      data: { type: Array, default: () => [] },
+    },
+    emits: ['row-click'],
+    setup(props, { emit, slots }) {
+      return () =>
+        h(
+          'table',
+          {
+            'data-row-count': props.data.length,
+            'data-column-count': props.columns.length,
+            onClick: (event: MouseEvent) => {
+              if (props.data.length) {
+                emit('row-click', { row: props.data[0], index: 0, e: event });
+              }
+            },
+          },
+          [props.data.length ? slots.title?.({ row: props.data[0] }) : null, slots.default?.()],
+        );
+    },
+  }),
   't-tooltip': defineComponent({
     props: {
       content: { type: String, default: '' },
@@ -233,6 +262,8 @@ describe('UserAnnouncementPage', () => {
 
     expect(wrapper.text()).toContain('announcement.test.title');
     expect(wrapper.text()).toContain('announcement.readState.unread');
+    expect(wrapper.find('[data-responsive-presentation="entity"]').exists()).toBe(true);
+    expect(wrapper.get('table').attributes('data-row-count')).toBe('1');
 
     const markReadButton = wrapper.findAll('button').find((button) => button.text() === 'announcement.user.markRead');
     expect(markReadButton).toBeTruthy();
@@ -266,6 +297,21 @@ describe('UserAnnouncementPage', () => {
 
     expect(api.markAnnouncementRead).toHaveBeenCalledWith(7);
     expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'graft:announcement-changed' }));
+  });
+
+  it('opens the read panel from a table row', async () => {
+    const wrapper = mount(UserAnnouncementPage, {
+      global: {
+        stubs: componentStubs,
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    await wrapper.get('table').trigger('click');
+
+    expect(wrapper.get('[data-testid="read-panel"]').attributes('data-title')).toBe('announcement.test.title');
   });
 
   it('toggles unread-only list query through page filters', async () => {

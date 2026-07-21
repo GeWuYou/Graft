@@ -17,7 +17,10 @@ vi.mock('vue-router', () => ({
   useRoute: () => route,
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string) => key }) }));
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
+  useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string) => key }),
+}));
 vi.mock('tdesign-vue-next', () => ({ MessagePlugin: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } }));
 vi.mock('../../api/project', () => ({ getApplicationTemplateCatalog: mocks.getApplicationTemplateCatalog }));
 vi.mock('@/shared/localized-api-error', () => ({

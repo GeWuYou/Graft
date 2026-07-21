@@ -59,66 +59,104 @@
         </management-empty-state>
 
         <t-loading v-else :loading="loading" size="large" :text="t('announcement.user.loading')">
-          <t-list v-if="presentedRows.length" class="announcement-user-page__list" :split="true" size="large">
-            <t-list-item v-for="row in presentedRows" :key="row.id">
-              <article
-                class="announcement-user-page__item"
-                :class="{ 'is-unread': row.unread }"
-                role="button"
-                tabindex="0"
-                @click="openReadPanel(row)"
-                @keydown.enter.prevent="openReadPanel(row)"
-                @keydown.space.prevent="openReadPanel(row)"
+          <responsive-table v-if="presentedRows.length" presentation="entity">
+            <template #cards>
+              <t-list class="announcement-user-page__list" :split="true" size="large">
+                <t-list-item v-for="row in presentedRows" :key="row.id">
+                  <article
+                    class="announcement-user-page__item"
+                    :class="{ 'is-unread': row.unread }"
+                    role="button"
+                    tabindex="0"
+                    @click="openReadPanel(row)"
+                    @keydown.enter.prevent="openReadPanel(row)"
+                    @keydown.space.prevent="openReadPanel(row)"
+                  >
+                    <span v-if="row.unread" class="announcement-user-page__unread-dot" aria-hidden="true" />
+                    <div class="announcement-user-page__item-main">
+                      <header class="announcement-user-page__item-head">
+                        <div class="announcement-user-page__title-group">
+                          <strong>{{ row.title }}</strong>
+                          <div class="announcement-user-page__tags">
+                            <t-tag v-if="row.pinned" theme="primary" variant="light" size="small">
+                              {{ row.pinnedLabel }}
+                            </t-tag>
+                            <t-tag :theme="row.levelTheme" variant="light" size="small">
+                              {{ row.levelLabel }}
+                            </t-tag>
+                            <t-tag :theme="row.unread ? 'primary' : 'default'" variant="light" size="small">
+                              {{ row.unreadLabel }}
+                            </t-tag>
+                          </div>
+                        </div>
+                        <t-button
+                          v-if="row.unread"
+                          theme="primary"
+                          variant="text"
+                          size="small"
+                          :loading="markingReadId === row.id"
+                          @click.stop="markRead(row.id)"
+                        >
+                          {{ t('announcement.user.markRead') }}
+                        </t-button>
+                      </header>
+                      <t-tooltip placement="top-left" :content="row.summary">
+                        <p class="announcement-user-page__summary">{{ row.summary }}</p>
+                      </t-tooltip>
+                      <dl class="announcement-user-page__meta">
+                        <div>
+                          <dt>{{ t('announcement.user.publishAt') }}</dt>
+                          <dd>{{ row.publishAtLabel }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('announcement.user.expireAt') }}</dt>
+                          <dd>{{ row.expireAtLabel }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('announcement.user.readAt') }}</dt>
+                          <dd>{{ row.readAtLabel }}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </article>
+                </t-list-item>
+              </t-list>
+            </template>
+            <t-table
+              row-key="id"
+              :data="presentedRows"
+              :columns="columns"
+              :loading="loading"
+              table-layout="fixed"
+              @row-click="({ row }) => openReadPanel(row as AnnouncementViewModel)"
+            >
+              <template #title="{ row }"
+                ><strong>{{ row.title }}</strong>
+                <div>{{ row.summary }}</div></template
               >
-                <span v-if="row.unread" class="announcement-user-page__unread-dot" aria-hidden="true" />
-                <div class="announcement-user-page__item-main">
-                  <header class="announcement-user-page__item-head">
-                    <div class="announcement-user-page__title-group">
-                      <strong>{{ row.title }}</strong>
-                      <div class="announcement-user-page__tags">
-                        <t-tag v-if="row.pinned" theme="primary" variant="light" size="small">
-                          {{ row.pinnedLabel }}
-                        </t-tag>
-                        <t-tag :theme="row.levelTheme" variant="light" size="small">
-                          {{ row.levelLabel }}
-                        </t-tag>
-                        <t-tag :theme="row.unread ? 'primary' : 'default'" variant="light" size="small">
-                          {{ row.unreadLabel }}
-                        </t-tag>
-                      </div>
-                    </div>
-                    <t-button
-                      v-if="row.unread"
-                      theme="primary"
-                      variant="text"
-                      size="small"
-                      :loading="markingReadId === row.id"
-                      @click.stop="markRead(row.id)"
-                    >
-                      {{ t('announcement.user.markRead') }}
-                    </t-button>
-                  </header>
-                  <t-tooltip placement="top-left" :content="row.summary">
-                    <p class="announcement-user-page__summary">{{ row.summary }}</p>
-                  </t-tooltip>
-                  <dl class="announcement-user-page__meta">
-                    <div>
-                      <dt>{{ t('announcement.user.publishAt') }}</dt>
-                      <dd>{{ row.publishAtLabel }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ t('announcement.user.expireAt') }}</dt>
-                      <dd>{{ row.expireAtLabel }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ t('announcement.user.readAt') }}</dt>
-                      <dd>{{ row.readAtLabel }}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </article>
-            </t-list-item>
-          </t-list>
+              <template #levelLabel="{ row }"
+                ><t-tag :theme="row.levelTheme" variant="light">{{ row.levelLabel }}</t-tag></template
+              >
+              <template #unreadLabel="{ row }"
+                ><t-tag :theme="row.unread ? 'primary' : 'default'" variant="light">{{
+                  row.unreadLabel
+                }}</t-tag></template
+              >
+              <template #operation="{ row }">
+                <t-button
+                  v-if="row.unread"
+                  theme="primary"
+                  variant="text"
+                  size="small"
+                  :loading="markingReadId === row.id"
+                  @click.stop="markRead(row.id)"
+                >
+                  {{ t('announcement.user.markRead') }}
+                </t-button>
+                <span v-else>-</span>
+              </template>
+            </t-table>
+          </responsive-table>
 
           <t-empty v-else class="announcement-user-page__empty" :title="emptyTitle" :description="emptyDescription">
             <template v-if="filters.unreadOnly" #action>
@@ -166,6 +204,7 @@ import {
   ManagementTablePagination,
   ManagementToolbar,
 } from '@/shared/components/management';
+import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
 import AnnouncementReadPanel from '../../components/AnnouncementReadPanel.vue';
@@ -210,6 +249,15 @@ const listError = computed(() => {
 const presentedRows = computed<AnnouncementViewModel[]>(() =>
   (announcementListQuery.data.value?.items ?? []).map((item) => presentAnnouncement(item, t, locale.value)),
 );
+const columns = computed(() => [
+  { colKey: 'title', title: t('announcement.user.title'), width: 320 },
+  { colKey: 'levelLabel', title: t('announcement.user.level'), width: 120 },
+  { colKey: 'publishAtLabel', title: t('announcement.user.publishAt'), width: 180 },
+  { colKey: 'expireAtLabel', title: t('announcement.user.expireAt'), width: 180 },
+  { colKey: 'readAtLabel', title: t('announcement.user.readAt'), width: 180 },
+  { colKey: 'unreadLabel', title: t('announcement.user.unreadSummary'), width: 140 },
+  { colKey: 'operation', title: t('announcement.user.markRead'), width: 140 },
+]);
 const total = computed(() => announcementListQuery.data.value?.total ?? 0);
 const unreadCount = computed(() => unreadCountQuery.data.value?.count ?? 0);
 const canMarkAllRead = computed(() => unreadCount.value > 0 && !markingAllRead.value);

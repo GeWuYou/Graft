@@ -1,13 +1,16 @@
 <template>
-  <section class="management-toolbar">
-    <div class="management-toolbar__filters">
-      <slot name="filters" />
-    </div>
-    <div v-if="$slots.actions" class="management-toolbar__actions">
-      <slot name="actions" />
-    </div>
-  </section>
+  <responsive-toolbar class="management-toolbar">
+    <template #filters>
+      <div class="management-toolbar__filters"><slot name="filters" /></div>
+    </template>
+    <template v-if="$slots.actions" #primary>
+      <div class="management-toolbar__actions"><slot name="actions" /></div>
+    </template>
+  </responsive-toolbar>
 </template>
+<script setup lang="ts">
+import ResponsiveToolbar from '@/shared/components/responsive/ResponsiveToolbar.vue';
+</script>
 <style scoped lang="less">
 .management-toolbar,
 .management-toolbar__filters,
@@ -65,7 +68,7 @@
   width: var(--graft-list-select-width);
 }
 
-@media (width <= 768px) {
+@container (width < 48rem) {
   .management-toolbar {
     padding: var(--graft-density-gap-16);
   }

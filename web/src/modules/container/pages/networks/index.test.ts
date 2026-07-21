@@ -39,6 +39,13 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('size="small" theme="danger" variant="outline" @click="openBatchRemoveDialog"');
   });
 
+  it('keeps the paged table on the shared data presentation for narrow containers', () => {
+    expect(sourceText).toContain('<management-paged-table');
+    expect(sourceText).toContain('v-model:current="pagination.current"');
+    expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
+    expect(sourceText).not.toContain('presentation="entity"');
+  });
+
   it('uses the shared cleanup snapshot for removable unused networks', () => {
     expect(sourceText).toContain('useDockerCleanup<DockerNetwork>');
     expect(sourceText).toContain("usage: 'unused'");

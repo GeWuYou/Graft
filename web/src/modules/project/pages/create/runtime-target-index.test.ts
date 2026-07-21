@@ -13,7 +13,10 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ query: { deployment: 'compose' } }),
   useRouter: () => ({ push: mocks.push, replace: mocks.replace, resolve: mocks.resolve }),
 }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
+  useI18n: () => ({ t: (key: string) => key }),
+}));
 vi.mock('../../api/project', () => ({
   getApplicationComposeRuntimeTargets: mocks.getApplicationComposeRuntimeTargets,
 }));

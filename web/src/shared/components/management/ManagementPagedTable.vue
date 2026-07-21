@@ -17,45 +17,47 @@
 
     <slot name="feedback" />
 
-    <div
-      ref="tableHostRef"
-      class="management-paged-table__table-host graft-scrollbar"
-      :data-table-mode="tableWidthPolicy.mode"
-    >
-      <t-table
-        :key="props.size ?? 'default-size'"
-        :row-key="resolvedRowKey"
-        :columns="props.columns"
-        :data="props.rows"
-        :loading="props.loading"
-        :row-class-name="props.rowClassName"
-        :selected-row-keys="props.selectedRowKeys"
-        :size="props.size"
-        :sort="props.sort"
-        table-layout="fixed"
-        :table-content-width="tableWidthPolicy.tableContentWidth"
-        cell-empty-content="-"
-        hover
-        @row-click="emitRowClick"
-        @select-change="emitSelectChange"
-        @sort-change="emitSortChange"
+    <responsive-table presentation="data">
+      <div
+        ref="tableHostRef"
+        class="management-paged-table__table-host graft-scrollbar"
+        :data-table-mode="tableWidthPolicy.mode"
       >
-        <template v-for="slotName in tableSlotNames" #[slotName]="slotProps" :key="slotName">
-          <slot :name="slotName" v-bind="slotProps" />
-        </template>
-        <template #empty>
-          <slot name="empty">
-            <div class="management-paged-table__empty">
-              <t-empty :title="props.emptyTitle" :description="props.emptyDescription">
-                <template v-if="$slots['empty-action']" #action>
-                  <slot name="empty-action" />
-                </template>
-              </t-empty>
-            </div>
-          </slot>
-        </template>
-      </t-table>
-    </div>
+        <t-table
+          :key="props.size ?? 'default-size'"
+          :row-key="resolvedRowKey"
+          :columns="props.columns"
+          :data="props.rows"
+          :loading="props.loading"
+          :row-class-name="props.rowClassName"
+          :selected-row-keys="props.selectedRowKeys"
+          :size="props.size"
+          :sort="props.sort"
+          table-layout="fixed"
+          :table-content-width="tableWidthPolicy.tableContentWidth"
+          cell-empty-content="-"
+          hover
+          @row-click="emitRowClick"
+          @select-change="emitSelectChange"
+          @sort-change="emitSortChange"
+        >
+          <template v-for="slotName in tableSlotNames" #[slotName]="slotProps" :key="slotName">
+            <slot :name="slotName" v-bind="slotProps" />
+          </template>
+          <template #empty>
+            <slot name="empty">
+              <div class="management-paged-table__empty">
+                <t-empty :title="props.emptyTitle" :description="props.emptyDescription">
+                  <template v-if="$slots['empty-action']" #action>
+                    <slot name="empty-action" />
+                  </template>
+                </t-empty>
+              </div>
+            </slot>
+          </template>
+        </t-table>
+      </div>
+    </responsive-table>
 
     <template v-if="props.paginationVisible" #footer>
       <slot name="footer">
@@ -77,6 +79,8 @@
 <script setup lang="ts">
 import type { PageInfo, PaginationProps, TableRowData, TableSort, TdBaseTableProps } from 'tdesign-vue-next';
 import { computed, useSlots } from 'vue';
+
+import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 
 import ManagementTableCard from './ManagementTableCard.vue';
 import ManagementTablePagination from './ManagementTablePagination.vue';

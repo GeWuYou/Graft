@@ -17,6 +17,11 @@
 @screen-md-max: calc(@screen-lg-min - 1px);
 @screen-lg-max: calc(@screen-xl-min - 1px);
 
+// 共享响应式能力只消费语义阈值；数值继续由既有 screen 变量维护。
+@responsive-container-comfortable-min: @screen-sm;
+@responsive-container-spacious-min: @screen-md;
+@responsive-container-wide-min: @screen-lg;
+
 // 动画
 @anim-time-fn-easing: cubic-bezier(0.38, 0, 0.24, 1);
 @anim-time-fn-ease-out: cubic-bezier(0, 0, 0.15, 1);

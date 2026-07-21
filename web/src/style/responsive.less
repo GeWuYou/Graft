@@ -1,0 +1,21 @@
+:root {
+  --graft-responsive-container-comfortable-min: @responsive-container-comfortable-min;
+  --graft-responsive-container-spacious-min: @responsive-container-spacious-min;
+  --graft-responsive-container-wide-min: @responsive-container-wide-min;
+  --graft-responsive-content-gutter: var(--graft-density-gap-16);
+  --graft-responsive-dialog-compact-max: 28rem;
+  --graft-responsive-dialog-medium-max: 42rem;
+  --graft-responsive-dialog-large-max: 60rem;
+  --graft-responsive-touch-target-min: 2.75rem;
+}
+
+.graft-responsive-container {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.graft-responsive-inline-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}

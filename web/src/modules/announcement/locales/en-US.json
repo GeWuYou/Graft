@@ -50,6 +50,7 @@
       "publishAt": "Effective At",
       "expireAt": "Expires At",
       "readAt": "Read At",
+      "level": "Level",
       "markReadSuccess": "Announcement Marked Read",
       "markReadFailed": "Failed to Mark Announcement",
       "markAllReadSuccess": "All Announcements Marked Read",

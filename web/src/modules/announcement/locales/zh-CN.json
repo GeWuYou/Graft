@@ -50,6 +50,7 @@
       "publishAt": "生效时间",
       "expireAt": "失效时间",
       "readAt": "阅读时间",
+      "level": "级别",
       "markReadSuccess": "公告已标为已读",
       "markReadFailed": "标记公告失败",
       "markAllReadSuccess": "全部公告已标为已读",

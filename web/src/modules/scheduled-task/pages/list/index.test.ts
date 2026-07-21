@@ -286,7 +286,8 @@ vi.mock('tdesign-vue-next/es/tag', async () => {
   };
 });
 
-vi.mock('vue-i18n', () => ({
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({
     locale: { value: 'zh-CN' },
     t: (key: string, params?: Record<string, unknown>) =>

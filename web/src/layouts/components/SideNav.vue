@@ -31,7 +31,7 @@ import remove from 'lodash/remove';
 import union from 'lodash/union';
 import type { MenuValue } from 'tdesign-vue-next';
 import type { PropType } from 'vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { prefix } from '@/config/global';
@@ -86,8 +86,6 @@ const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motion
     default: 'expanded',
   },
 });
-
-const MIN_POINT = 992 - 1;
 
 const collapsed = computed(() => renderCompact);
 const settingStore = useSettingStore();
@@ -241,23 +239,7 @@ const menuCls = computed(() => {
 
 const shellNavigation = useShellNavigation();
 
-const autoCollapsed = () => {
-  const isCompact = window.innerWidth <= MIN_POINT;
-  settingStore.updateConfig({
-    isSidebarCompact: isCompact,
-  });
-};
-
-onMounted(() => {
-  getExpanded();
-  autoCollapsed();
-
-  window.addEventListener('resize', autoCollapsed);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', autoCollapsed);
-});
+getExpanded();
 
 const goHome = () => {
   void shellNavigation.goHome();
