@@ -1,0 +1,6 @@
+name: source
+in: query
+required: false
+description: Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts.
+schema:
+  $ref: ../schemas/docker-resource-source.yaml

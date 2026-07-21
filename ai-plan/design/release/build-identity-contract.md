@@ -15,6 +15,9 @@
 - official `server` artifact, `web` artifact, and release notes must derive from the same release tag
 - `BuildInfo.version` uses bare semver such as `0.1.0`
 - the canonical release tag keeps the `v` prefix, for example `v0.1.0`
+- a Beta test identity uses `vMAJOR.MINOR.PATCH-beta.N`; its `BuildInfo.version` keeps the SemVer prerelease suffix
+- the release archive and container image for one tag must contain the same verified server binary rather than two
+  independently compiled binaries
 
 ## Minimum BuildInfo Fields
 

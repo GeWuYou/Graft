@@ -1,4 +1,4 @@
 interface:
   display_name: "Graft PR Review"
   short_description: "Inspect the current PR and AI review findings"
-  default_prompt: "Use $graft-pr-review to inspect the current branch PR with GitHub MCP when available, fall back to the Python inventory helper for structured findings, and classify every AI review finding."
+  default_prompt: "Use $graft-pr-review to inspect the current branch PR with GitHub MCP when available, fall back to the Python inventory helper for structured findings, inventory CodeRabbit pre-merge checks separately from live CI failures, require resolution of Inconclusive rows, and make an explicit comment-governance decision for every Warning before classifying all AI findings."

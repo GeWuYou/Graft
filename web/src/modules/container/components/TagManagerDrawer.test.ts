@@ -11,7 +11,7 @@ describe('TagManagerDrawer', () => {
   });
 
   it('offers only copyable image identity, digest, reference, and pull command values', () => {
-    expect(sourceText).toContain('image.repository_digests');
+    expect(sourceText).toContain('image.repository_digests?.length');
     expect(sourceText).toContain('`docker pull ${reference}`');
     expect(sourceText).toContain('copy(image.id)');
     expect(sourceText).toContain('copy(reference)');

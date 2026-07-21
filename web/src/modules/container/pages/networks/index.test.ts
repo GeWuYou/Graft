@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
 import sourceText from './index.vue?raw';
 
 describe('Docker network management page', () => {
@@ -11,6 +12,9 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('invalidateDockerNetworkQueries()');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_CREATE');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_REMOVE');
+    expect(sourceText).toContain('@click="openRemoveDialog(row)"');
+    expect(sourceText).toContain("t('container.networks.remove')");
+    expect(sourceText).not.toContain('<table-action-menu');
   });
 
   it('uses TDesign drawers and dialogs instead of native browser dialogs', () => {
@@ -32,6 +36,7 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('limit: pagination.pageSize');
     expect(sourceText).toContain('usage:');
+    expect(sourceText).toContain('size="small" theme="danger" variant="outline" @click="openBatchRemoveDialog"');
   });
 
   it('uses the shared cleanup snapshot for removable unused networks', () => {
@@ -44,20 +49,41 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('await invalidateDockerNetworkQueries();');
   });
 
-  it('renders network attributes, labels, and localized creation time in the list', () => {
-    expect(sourceText).toContain("'created_at'");
-    expect(sourceText).toContain('formatLocaleDateTime(row.created_at, locale)');
-    expect(sourceText).toContain("t('container.networks.noAttributes')");
-    expect(sourceText).toContain('Object.entries(row.labels ?? {})');
-    expect(sourceText).toContain('`${key}=${value}`');
-    expect(sourceText).toContain('<t-tooltip');
+  it('keeps the list focused on source, relations, and relationship status', () => {
+    expect(sourceText).toContain("colKey: 'context'");
+    expect(sourceText).toContain("title: t('container.resourceContext.source')");
+    expect(sourceText).toContain("colKey: 'containers'");
+    expect(sourceText).toContain("colKey: 'status'");
+    expect(sourceText).toContain('relationshipPresentation(row.relationship_status)');
+    expect(sourceText).toContain('sourceDescription(row)');
+    expect(sourceText).not.toContain(
+      't-tag size="small" variant="light-outline">{{ sourceLabel(row.context.source) }}</t-tag>',
+    );
+    expect(sourceText).toContain('<container-reference-list');
+    expect(referenceListText).toContain('references.slice(0, 2)');
+    expect(referenceListText).toContain('references.slice(2)');
+    expect(referenceListText).toContain('<t-popup');
+    expect(referenceListText).toContain('trigger="hover"');
+    expect(referenceListText).toContain('container-reference-list__badge');
+    expect(sourceText).toContain('openContainerReference(reference.id)');
+    expect(sourceText).not.toContain("colKey: 'labels'");
   });
 
-  it('keeps compact metadata columns while reserving room for labels', () => {
-    expect(sourceText).toContain("{ colKey: 'name', title: t('container.networks.fields.name'), width: 360");
-    expect(sourceText).toContain("{ colKey: 'driver', title: t('container.networks.fields.driver'), width: 120");
-    expect(sourceText).toContain("{ colKey: 'scope', title: t('container.networks.fields.scope'), width: 120");
-    expect(sourceText).toContain("{ colKey: 'labels', title: t('container.networks.labels'), width: 500 }");
-    expect(sourceText).toContain("{ colKey: 'created_at', title: t('container.networks.fields.createdAt'), width: 180");
+  it('uses Context before relations and keeps metadata and removal in the drawer tail', () => {
+    expect(sourceText).toContain('<docker-resource-context-card');
+    expect(sourceText).toContain("t('container.resourceContext.relations')");
+    expect(sourceText).toContain('<t-collapse');
+    expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
+    expect(sourceText).toContain('advancedFiltersVisible');
+  });
+
+  it('keeps network detail loading, error, empty, and data states mutually exclusive', () => {
+    expect(sourceText).toContain('detailQuery.isError.value');
+    expect(sourceText).toContain('v-else-if="detailQuery.data.value"');
+    expect(sourceText).toContain('v-else-if="!detailQuery.isFetching.value"');
+    expect(sourceText).toContain('container.networks.detailEmptyTitle');
+    expect(sourceText).toContain('container.networks.detailLoadFailed');
+    expect(sourceText).toContain('row.container_references?.length');
+    expect(sourceText).toContain('detailQuery.data.value.container_references?.length');
   });
 });

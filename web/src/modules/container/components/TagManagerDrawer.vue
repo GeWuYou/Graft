@@ -29,8 +29,8 @@
             </div>
           </t-descriptions-item>
           <t-descriptions-item :label="t('container.images.fields.digests')">
-            <t-space v-if="image.repository_digests.length" direction="vertical" size="small">
-              <div v-for="digest in image.repository_digests" :key="digest" class="tag-manager-copyable">
+            <t-space v-if="image.repository_digests?.length" direction="vertical" size="small">
+              <div v-for="digest in image.repository_digests ?? []" :key="digest" class="tag-manager-copyable">
                 <span class="tag-manager-copyable__value">{{ digest }}</span>
                 <t-button size="small" variant="text" @click="copy(digest)">{{
                   t('container.images.tagManager.copy')
@@ -122,7 +122,7 @@ const loading = ref(false);
 const removing = ref(false);
 const removeDialogVisible = ref(false);
 const selectedReference = ref('');
-const tags = computed(() => image.value?.repository_tags.filter(Boolean) ?? []);
+const tags = computed(() => image.value?.repository_tags?.filter(Boolean) ?? []);
 
 async function loadImage() {
   if (!props.imageId) return;

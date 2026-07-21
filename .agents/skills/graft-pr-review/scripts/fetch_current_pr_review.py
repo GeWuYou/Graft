@@ -6,6 +6,7 @@ Fetch the GitHub PR signals for the current Graft branch.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import html
 import io
@@ -44,6 +45,7 @@ PR_REVIEW_LEDGER_REQUIRED_FIELDS = (
     "coderabbit_handled",
     "coderabbit_outside_diff_range",
     "coderabbit_nitpick",
+    "coderabbit_pre_merge_checks",
     "open_suggestions",
     "greptile_suggestions",
 )
@@ -96,6 +98,7 @@ SUPPORTED_AI_REVIEWER_LOGINS = frozenset(agent["login"] for agent in SUPPORTED_A
 DISPLAY_SECTION_CHOICES = (
     "pr",
     "failed-checks",
+    "pre-merge-checks",
     "actionable",
     "duplicate",
     "major",
@@ -653,6 +656,50 @@ def find_managed_issue_comment(
     return max(matching_comments, key=lambda item: (item.get("updated_at", ""), item.get("created_at", "")))
 
 
+def parse_latest_ledger_run(body: str) -> dict[str, Any]:
+    """Extract the newest machine-readable run metadata from the append-only ledger."""
+    normalized = normalize_legacy_ledger_body(html.unescape(str(body or "")))
+    matches = re.finditer(
+        r"(?ms)^## Run (?P<timestamp>\d{4}-\d{2}-\d{2}T[^\n]+)\n(?P<section>.*?)(?=^## Run |\Z)",
+        normalized,
+    )
+    candidates: list[dict[str, Any]] = []
+    for match in matches:
+        section = match.group("section")
+        head_match = re.search(r"(?m)^- Head SHA: `?(?P<head>[0-9a-f]{7,40})`?\s*$", section, re.I)
+        if not head_match:
+            continue
+
+        inventory: dict[str, dict[str, int]] = {}
+        for field in (
+            "coderabbit_outside_diff_range",
+            "coderabbit_nitpick",
+            "coderabbit_pre_merge_checks",
+        ):
+            field_match = re.search(rf"(?m)^- `{re.escape(field)}`:\s*(?P<value>[^\n]+)$", section)
+            if not field_match:
+                continue
+            inventory[field] = {
+                key: int(value)
+                for key, value in re.findall(
+                    r"(declared|handled|total|warning|inconclusive|passed|failed)\s*(?:=|\s)\s*(\d+)",
+                    field_match.group("value"),
+                )
+            }
+
+        candidates.append(
+            {
+                "timestamp": match.group("timestamp"),
+                "head_sha": head_match.group("head"),
+                "inventory": inventory,
+            }
+        )
+
+    if not candidates:
+        return {"timestamp": "", "head_sha": "", "inventory": {}}
+    return max(candidates, key=lambda candidate: candidate["timestamp"])
+
+
 def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_REVIEW_LEDGER_MARKER) -> dict[str, Any]:
     """Normalize one managed issue comment into a stable JSON shape."""
     if comment is None:
@@ -663,15 +710,74 @@ def summarize_issue_comment(comment: dict[str, Any] | None, *, marker: str = PR_
             "created_at": "",
             "updated_at": "",
             "body": "",
+            "latest_run": {"timestamp": "", "head_sha": "", "inventory": {}},
         }
 
+    body = html.unescape(str(comment.get("body") or ""))
     return {
         "marker": marker,
         "comment_id": comment.get("id"),
         "html_url": comment.get("html_url") or "",
         "created_at": comment.get("created_at") or "",
         "updated_at": comment.get("updated_at") or "",
-        "body": html.unescape(str(comment.get("body") or "")),
+        "body": body,
+        "latest_run": parse_latest_ledger_run(body),
+    }
+
+
+def build_review_ledger_delta(
+    managed_review_ledger: dict[str, Any],
+    *,
+    current_head_sha: str,
+    coderabbit_review: dict[str, Any],
+    pre_merge_checks: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Compare the current inventory with the latest ledger run without suppressing new findings."""
+    latest_run = managed_review_ledger.get("latest_run", {})
+    baseline_sha = str(latest_run.get("head_sha") or "")
+    baseline_inventory = latest_run.get("inventory", {})
+    current_groups = coderabbit_review.get("comment_groups", {})
+    baseline_group_counts = {
+        "outside-diff": int(baseline_inventory.get("coderabbit_outside_diff_range", {}).get("declared", 0)),
+        "nitpick": int(baseline_inventory.get("coderabbit_nitpick", {}).get("declared", 0)),
+    }
+    new_group_counts: dict[str, int] = {}
+    for group in CODERABBIT_REVIEW_GROUPS:
+        current_count = int(current_groups.get(group["slug"], {}).get("count", 0))
+        baseline_count = baseline_group_counts.get(group["slug"], 0)
+        if current_count > baseline_count:
+            new_group_counts[group["slug"]] = current_count - baseline_count
+
+    baseline_pre_merge = baseline_inventory.get("coderabbit_pre_merge_checks", {})
+    current_pre_merge_counts = summarize_pre_merge_checks(pre_merge_checks)
+    current_nonpassed_count = sum(
+        count for status, count in current_pre_merge_counts.items() if status != "passed"
+    )
+    baseline_pre_merge_count = int(baseline_pre_merge.get("total", 0))
+    head_changed = bool(baseline_sha and current_head_sha and baseline_sha != current_head_sha)
+    pre_merge_requires_rebuild = current_nonpassed_count > baseline_pre_merge_count
+    must_rebuild_inventory = bool(
+        current_head_sha
+        and (not baseline_sha or head_changed or new_group_counts or pre_merge_requires_rebuild)
+    )
+    reasons: list[str] = []
+    if not baseline_sha:
+        reasons.append("no machine-readable ledger head was found")
+    elif head_changed:
+        reasons.append(f"PR head changed from {baseline_sha} to {current_head_sha}")
+    if new_group_counts:
+        reasons.append("new folded review-section counts exceed the ledger baseline")
+    if pre_merge_requires_rebuild:
+        reasons.append("new or previously untracked CodeRabbit pre-merge signals are present")
+
+    return {
+        "baseline_head_sha": baseline_sha,
+        "current_head_sha": current_head_sha,
+        "head_changed": head_changed,
+        "new_group_counts": new_group_counts,
+        "new_pre_merge_check_count": max(0, current_nonpassed_count - baseline_pre_merge_count),
+        "must_rebuild_inventory": must_rebuild_inventory,
+        "reason": "; ".join(reasons),
     }
 
 
@@ -864,8 +970,37 @@ def extract_section(text: str, start_marker: str, end_markers: list[str]) -> str
     return text[start:end].strip()
 
 
-def parse_failed_checks(summary_block: str) -> list[dict[str, str]]:
-    """Parse CodeRabbit summary rows for failed checks."""
+def classify_pre_merge_check_status(status: str) -> str:
+    """Normalize a CodeRabbit pre-merge status into a stable machine value."""
+    normalized = collapse_whitespace(status).lower()
+    if "inconclusive" in normalized or "❓" in status:
+        return "inconclusive"
+    if "warning" in normalized or "⚠" in status:
+        return "warning"
+    if "passed" in normalized or "✅" in status:
+        return "passed"
+    if "failed" in normalized or "❌" in status:
+        return "failed"
+    return "unknown"
+
+
+def pre_merge_check_policy(status_kind: str) -> str:
+    """Return the closeout policy for one CodeRabbit pre-merge status."""
+    return {
+        "failed": "verify-and-resolve",
+        "inconclusive": "verify-and-resolve",
+        "warning": "verify-and-decide",
+        "passed": "evidence-only",
+    }.get(status_kind, "verify-and-classify")
+
+
+def parse_pre_merge_checks(
+    summary_block: str,
+    *,
+    source_commit: str = "",
+    warnings: list[str] | None = None,
+) -> list[dict[str, str]]:
+    """Parse every CodeRabbit pre-merge check row, including passed rows."""
     failed_section = extract_section(
         summary_block,
         "### ❌ Failed checks",
@@ -877,23 +1012,70 @@ def parse_failed_checks(summary_block: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for line in failed_section.splitlines():
         stripped = line.strip()
-        if not stripped.startswith("|") or "Check name" in stripped or stripped.startswith("| :"):
+        if (
+            not stripped.startswith("|")
+            or "Check name" in stripped
+            or stripped.startswith("| :")
+            or re.fullmatch(r"\|[\s|:-]+\|", stripped)
+        ):
             continue
 
-        parts = [part.strip() for part in stripped.strip("|").split("|")]
+        parts = [part.strip() for part in stripped.strip("|").split("|", 3)]
         if len(parts) != 4:
             continue
 
-        rows.append(
-            {
-                "name": parts[0],
-                "status": parts[1],
-                "explanation": parts[2],
-                "resolution": parts[3],
-            }
+        status_kind = classify_pre_merge_check_status(parts[1])
+        rows.append({
+            "name": parts[0],
+            "status": parts[1],
+            "status_kind": status_kind,
+            "handling_policy": pre_merge_check_policy(status_kind),
+            "explanation": parts[2],
+            "resolution": parts[3],
+            "source_commit": source_commit,
+        })
+
+    passed_section = extract_section(
+        summary_block,
+        "<summary>✅ Passed checks",
+        ["</details>", "<!-- pre_merge_checks_walkthrough_end -->"],
+    )
+    if passed_section:
+        for line in passed_section.splitlines():
+            stripped = line.strip()
+            if (
+                not stripped.startswith("|")
+                or "Check name" in stripped
+                or stripped.startswith("| :")
+                or re.fullmatch(r"\|[\s|:-]+\|", stripped)
+            ):
+                continue
+            parts = [part.strip() for part in stripped.strip("|").split("|", 2)]
+            if len(parts) == 3:
+                rows.append({
+                    "name": parts[0], "status": parts[1], "status_kind": "passed",
+                    "handling_policy": pre_merge_check_policy("passed"),
+                    "explanation": parts[2], "resolution": "", "source_commit": source_commit,
+                })
+        declared_match = re.search(
+            r"\((\d+) passed\)",
+            passed_section.splitlines()[0] if passed_section.splitlines() else "",
         )
+        if warnings is not None and declared_match:
+            parsed_passed = sum(check["status_kind"] == "passed" for check in rows)
+            if parsed_passed != int(declared_match.group(1)):
+                warnings.append(
+                    "CodeRabbit pre-merge passed row count mismatch: "
+                    f"declared {declared_match.group(1)}, parsed {parsed_passed}."
+                )
 
     return rows
+
+
+def summarize_pre_merge_checks(checks: list[dict[str, str]]) -> dict[str, int]:
+    """Count CodeRabbit pre-merge checks by normalized status."""
+    counts = Counter(check.get("status_kind", "unknown") for check in checks)
+    return {status: counts.get(status, 0) for status in ("failed", "warning", "inconclusive", "passed", "unknown")}
 
 
 def parse_actionable_comments(actionable_block: str) -> dict[str, Any]:
@@ -1792,6 +1974,22 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
     ):
         warnings.append("CodeRabbit actionable comments block was not found in issue comments.")
 
+    pre_merge_checks = (
+        parse_pre_merge_checks(
+            summary_block,
+            source_commit=str(pull_request_metadata.get("head_sha") or ""),
+            warnings=warnings,
+        )
+        if summary_block
+        else []
+    )
+    managed_review_ledger["incremental"] = build_review_ledger_delta(
+        managed_review_ledger,
+        current_head_sha=str(pull_request_metadata.get("head_sha") or ""),
+        coderabbit_review=coderabbit_review,
+        pre_merge_checks=pre_merge_checks,
+    )
+
     return {
         "pull_request": {
             "number": pull_request_metadata["number"],
@@ -1805,7 +2003,8 @@ def build_result(pr_number: int, branch: str) -> dict[str, Any]:
         },
         "workflow_checks": workflow_checks,
         "coderabbit_summary": {
-            "failed_checks": parse_failed_checks(summary_block) if summary_block else [],
+            "pre_merge_checks": pre_merge_checks,
+            "pre_merge_check_counts": summarize_pre_merge_checks(pre_merge_checks),
             "raw": summary_block,
         },
         "managed_review_ledger": managed_review_ledger,
@@ -1906,10 +2105,21 @@ def format_text(
         lines.append(f"Branch: {pr['head_branch']} -> {pr['base_branch']}")
         lines.append(f"Head SHA: {pr.get('head_sha', '')}")
         lines.append(f"URL: {pr['url']}")
+        ledger = result.get("managed_review_ledger", {})
+        incremental = ledger.get("incremental", {})
+        if ledger.get("comment_id") and incremental:
+            lines.append(
+                "Review ledger baseline: "
+                f"{incremental.get('baseline_head_sha') or 'none'} -> {incremental.get('current_head_sha') or 'unknown'}"
+            )
+            if incremental.get("must_rebuild_inventory"):
+                lines.append(
+                    "Review ledger action: rebuild the complete finding inventory; "
+                    f"{incremental.get('reason') or 'new review signals are present'}."
+                )
 
     workflow_checks = result.get("workflow_checks", {})
     failed_checks = workflow_checks.get("failed", [])
-    fallback_failed_checks = result["coderabbit_summary"].get("failed_checks", [])
     if "failed-checks" in selected_sections:
         lines.append("")
         lines.append(f"Failed checks: {len(failed_checks)}")
@@ -1941,12 +2151,36 @@ def format_text(
                 lines.append(f"  Local repro: {truncate_text(check['local_repro_command'], max_description_length)}")
             if check.get("details_url"):
                 lines.append(f"  Details: {check['details_url']}")
-        if not failed_checks and fallback_failed_checks:
-            lines.append("  Live checks returned no failures; falling back to CodeRabbit summary block.")
-            for check in fallback_failed_checks:
-                lines.append(f"- {check['name']}: {check['status']}")
-                lines.append(f"  Explanation: {truncate_text(check['explanation'], max_description_length)}")
-                lines.append(f"  Resolution: {truncate_text(check['resolution'], max_description_length)}")
+        nonpassed_pre_merge_count = sum(
+            1
+            for check in result.get("coderabbit_summary", {}).get("pre_merge_checks", [])
+            if check.get("status_kind") not in {"passed", "unknown"}
+        )
+        if nonpassed_pre_merge_count:
+            lines.append(
+                "  Note: CodeRabbit pre-merge signals are separate from live failures; "
+                "inspect --section pre-merge-checks before closeout."
+            )
+
+    pre_merge_checks = result.get("coderabbit_summary", {}).get("pre_merge_checks", [])
+    if "pre-merge-checks" in selected_sections:
+        counts = result.get("coderabbit_summary", {}).get("pre_merge_check_counts", {})
+        lines.append("")
+        lines.append(
+            "CodeRabbit pre-merge checks: "
+            f"{len(pre_merge_checks)} total "
+            f"(failed={counts.get('failed', 0)}, warning={counts.get('warning', 0)}, "
+            f"inconclusive={counts.get('inconclusive', 0)}, passed={counts.get('passed', 0)})"
+        )
+        for check in pre_merge_checks:
+            lines.append(
+                f"- {check['name']}: status={check['status']} "
+                f"kind={check['status_kind']} policy={check['handling_policy']}"
+            )
+            lines.append(f"  Explanation: {truncate_text(check['explanation'], max_description_length)}")
+            lines.append(f"  Resolution: {truncate_text(check['resolution'], max_description_length)}")
+            if check.get("source_commit"):
+                lines.append(f"  Source commit: {check['source_commit']}")
 
     coderabbit_comments = result.get("coderabbit_comments", {})
     review_feedback = result.get("coderabbit_review", {})
@@ -1990,6 +2224,15 @@ def format_text(
     visible_open_threads = filter_threads_by_path(open_threads, normalized_path_filters)
     visible_all_open_threads = filter_threads_by_path(all_open_threads, normalized_path_filters)
     review_agents = [agent for agent in result.get("review_agents", []) if agent.get("detected")]
+    folded_review_count = sum(
+        int(group.get("count", 0))
+        for group in review_feedback.get("comment_groups", {}).values()
+    )
+    if "open-threads" in selected_sections and folded_review_count:
+        lines.append(
+            "Folded CodeRabbit review sections are present; inspect duplicate, major, minor, "
+            "outside-diff, and nitpick sections before closeout."
+        )
     if latest_commit and "open-threads" in selected_sections:
         lines.append("")
         lines.append(f"Latest reviewed commit: {latest_commit.get('sha', '')}")

@@ -127,6 +127,9 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
     `Outside diff range comments (N)`、`Nitpick comments (N)`、`Duplicate comments (N)`、`Major comments (N)`、
     `Minor comments (N)`；这些项不是可忽略附录，也不能因为后续使用 `graft-multi-agent-batch`、`graft-commit`
     或 `graft-push` 就被隐式跳过。
+  - CodeRabbit pre-merge checks 是独立于 live workflow failures 的评审信号：`Inconclusive` 必须验证并解决，
+    `Warning` 必须验证并依据注释治理规范记录是否修复，不能因为 GitHub UI 标记 warning 可选或没有 inline
+    thread 就丢弃。
 - `playwright`
   - 等级：`L1`
   - 用途：作为 `graft-web-browser-agent` 的探索层，快速识别页面结构、role、label、TDesign 弹窗/抽屉交互和稳定 selector。
@@ -196,6 +199,8 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 - `graft-pr-review` 的完整盘点要求必须贯穿其后续 repair / commit / push 链路；如果一个批次来自 PR review，
   则 `Outside diff range comments`、`Nitpick comments` 和其它 folded latest-review findings 仍然必须在 closeout
   中逐项落到 `fixed`、`delegated`、`blocked`、`stale` 或 `noise`，不能因中间 commit、push 或并行修复而降级为可选。
+- 预合并汇总检查也必须进入同一 closeout：passed 仅作为证据保留；Warning 必须有显式 remediation decision；
+  Inconclusive 必须有非可选 disposition，不能被 live workflow 的成功状态覆盖。
 - `graft-table-design` 是数据库表设计、Ent schema、migration、审计字段、软删除、索引和数据库注释的治理
   skill；它必须回到 `ai-plan/design/governance/backend/数据库表设计与迁移规范.md`，不得定义第二套 schema 或 migration 真相。
 - `graft-sql-migration` 是创建或修改 live Atlas/PostgreSQL migration SQL 的专用治理 skill；SQL 注释硬规则、

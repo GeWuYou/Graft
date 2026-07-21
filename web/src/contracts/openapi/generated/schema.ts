@@ -3691,6 +3691,10 @@ export interface components {
     DockerImageBatchRemoveResponse: components['schemas']['docker-image-batch-remove-response'];
     DockerImagePullEvent: components['schemas']['docker-image-pull-event'];
     DockerNetwork: components['schemas']['docker-network'];
+    DockerNetworkContainerReference: components['schemas']['docker-network-container-reference'];
+    DockerResourceContext: components['schemas']['docker-resource-context'];
+    DockerResourceRelationshipStatus: components['schemas']['docker-resource-relationship-status'];
+    DockerResourceSource: components['schemas']['docker-resource-source'];
     DockerNetworkListResponse: components['schemas']['docker-network-list-response'];
     DockerVolume: components['schemas']['docker-volume'];
     DockerVolumeListResponse: components['schemas']['docker-volume-list-response'];
@@ -6667,6 +6671,35 @@ export interface components {
     'enveloped-docker-image-batch-remove-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-batch-remove-response'];
     };
+    /**
+     * @description Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+     * @enum {string}
+     */
+    'docker-resource-source': 'compose' | 'docker_default' | 'docker' | 'managed' | 'imported' | 'unknown';
+    /** @description Sanitized container reference connected to a Docker network. It intentionally excludes network endpoint and inspect metadata. */
+    'docker-network-container-reference': {
+      id: string;
+      name: string;
+    };
+    /** @description Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload. */
+    'docker-resource-context': {
+      /** @description Stable runtime provider identifier, such as docker. Clients localize known values. */
+      runtime: string;
+      /** @description Stable runtime target identifier when the resource is scoped to a known target. */
+      runtime_target?: string | null;
+      source: components['schemas']['docker-resource-source'];
+      /** @description Compose project identity when the resource is Compose-owned. */
+      compose_project?: string | null;
+      /** @description Compose network or volume name when supplied by trusted Compose runtime metadata. */
+      compose_resource?: string | null;
+      /** @description Control-plane identity when a managed resource has a known owner. */
+      managed_by?: string | null;
+    };
+    /**
+     * @description Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+     * @enum {string}
+     */
+    'docker-resource-relationship-status': 'used' | 'unused' | 'unknown' | 'exception';
     'docker-network': {
       id: string;
       name: string;
@@ -6677,6 +6710,10 @@ export interface components {
       attachable: boolean;
       ingress: boolean;
       container_count: number;
+      /** @description Containers currently connected to this network, represented as sanitized display references. */
+      container_references: components['schemas']['docker-network-container-reference'][];
+      context: components['schemas']['docker-resource-context'];
+      relationship_status: components['schemas']['docker-resource-relationship-status'];
       removable?: boolean;
       labels?: {
         [key: string]: string;
@@ -6730,17 +6767,8 @@ export interface components {
       driver?: string;
       config?: components['schemas']['docker-network-ipam-config'][];
     };
-    'docker-network-container-endpoint': {
-      id: string;
-      name: string;
-      endpoint_id?: string;
-      ipv4_address?: string;
-      ipv6_address?: string;
-      mac_address?: string;
-    };
     'docker-network-detail': components['schemas']['docker-network'] & {
       ipam?: components['schemas']['docker-network-ipam'];
-      containers?: components['schemas']['docker-network-container-endpoint'][];
     };
     'enveloped-docker-network-detail': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-network-detail'];
@@ -6766,6 +6794,8 @@ export interface components {
       size_bytes?: number | null;
       /** @description Containers currently referencing this volume, represented as sanitized display references. */
       container_references: components['schemas']['docker-volume-container-reference'][];
+      context: components['schemas']['docker-resource-context'];
+      relationship_status: components['schemas']['docker-resource-relationship-status'];
     };
     'docker-volume-list-summary': {
       total: number;
@@ -8257,6 +8287,10 @@ export interface components {
     'docker-network-list-scope': string;
     /** @description Optional Docker network usage filter. */
     'docker-network-list-usage': 'used' | 'unused';
+    /** @description Optional normalized Docker network source filter, resolved by the server from trusted runtime facts. */
+    'docker-network-list-source': components['schemas']['docker-resource-source'];
+    /** @description Optional exact Compose project filter. Only applies to networks with source=compose. */
+    'docker-network-list-compose-project': string;
     /** @description Docker network ID or name. Clients must encode the value before placing it in the path. */
     'docker-network-id-path': string;
     /** @description Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100. */
@@ -8269,8 +8303,12 @@ export interface components {
     'docker-volume-list-driver': string;
     /** @description Optional exact Docker volume scope filter. */
     'docker-volume-list-scope': string;
-    /** @description Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available. */
+    /** @description Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server. */
     'docker-volume-list-usage': 'used' | 'unused';
+    /** @description Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts. */
+    'docker-volume-list-source': components['schemas']['docker-resource-source'];
+    /** @description Optional exact Compose project filter. Only applies to volumes with source=compose. */
+    'docker-volume-list-compose-project': string;
     /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
     'docker-volume-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
@@ -14962,6 +15000,10 @@ export interface operations {
         scope?: components['parameters']['docker-network-list-scope'];
         /** @description Optional Docker network usage filter. */
         usage?: components['parameters']['docker-network-list-usage'];
+        /** @description Optional normalized Docker network source filter, resolved by the server from trusted runtime facts. */
+        source?: components['parameters']['docker-network-list-source'];
+        /** @description Optional exact Compose project filter. Only applies to networks with source=compose. */
+        compose_project?: components['parameters']['docker-network-list-compose-project'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -15138,8 +15180,12 @@ export interface operations {
         driver?: components['parameters']['docker-volume-list-driver'];
         /** @description Optional exact Docker volume scope filter. */
         scope?: components['parameters']['docker-volume-list-scope'];
-        /** @description Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available. */
+        /** @description Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server. */
         usage?: components['parameters']['docker-volume-list-usage'];
+        /** @description Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts. */
+        source?: components['parameters']['docker-volume-list-source'];
+        /** @description Optional exact Compose project filter. Only applies to volumes with source=compose. */
+        compose_project?: components['parameters']['docker-volume-list-compose-project'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

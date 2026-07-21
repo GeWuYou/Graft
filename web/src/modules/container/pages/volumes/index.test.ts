@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker volume list page', () => {
@@ -15,7 +16,31 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('middleEllipsis(row.name, 31)');
     expect(sourceText).toContain(':content="row.name"');
     expect(sourceText).toContain("const columns = computed<TableProps['columns']>(() => [");
-    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), width: 280 }");
+    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 }");
+  });
+
+  it('makes volume identity, ownership, capacity, and relationship status scannable in one row', () => {
+    expect(sourceText).toContain("t('container.volume.types.named')");
+    expect(sourceText).toContain("t('container.volume.types.anonymous')");
+    expect(sourceText).toContain('const anonymousVolumeName = /^[a-f0-9]{64}$/i;');
+    expect(sourceText).toContain('function sourceDescription(row: VolumeRow)');
+    expect(sourceText).toContain("colKey: 'size'");
+    expect(sourceText).toContain("t('container.volume.columns.mountedContainers')");
+    expect(sourceText).toContain("t('container.volume.columns.status')");
+    expect(sourceText).toContain("title: t('container.resourceContext.source')");
+    expect(sourceText).not.toContain("t('container.volume.columns.references')");
+    expect(sourceText).not.toContain("t('container.volume.columns.usage')");
+  });
+
+  it('keeps mounted-container overflow actionable for pointer and keyboard users', () => {
+    expect(sourceText).toContain('<container-reference-list');
+    expect(referenceListText).toContain('<t-popup');
+    expect(referenceListText).toContain('trigger="hover"');
+    expect(referenceListText).toContain('@focus="overflowVisible = true"');
+    expect(referenceListText).toContain('@keydown.esc.prevent="overflowVisible = false"');
+    expect(referenceListText).toContain('@keydown.enter.prevent="emit(\'open\', reference.id)"');
+    expect(referenceListText).toContain('@keydown.space.prevent="emit(\'open\', reference.id)"');
+    expect(referenceListText).toContain('referenceTooltip(reference)');
   });
 
   it('provides selection and a batch removal request integration', () => {
@@ -72,10 +97,11 @@ describe('docker volume list page', () => {
   });
 
   it('shows sanitized container references in the table and detail drawer', () => {
-    expect(sourceText).toContain('row.container_references.slice(0, 2)');
+    expect(sourceText).toContain('<container-reference-list');
+    expect(referenceListText).toContain('references.slice(0, 2)');
     expect(sourceText).toContain('selectedVolume.container_references');
     expect(sourceText).toContain('openContainerReference(reference.id)');
-    expect(sourceText).toContain("t('container.volume.detail.references')");
+    expect(sourceText).toContain("t('container.resourceContext.relations')");
     expect(sourceText).toContain("t('container.volume.metrics.referenceUnknown'");
   });
 
@@ -87,6 +113,23 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('defaultChecked: isChecked()');
     expect(sourceText).toContain('const previousPage = pagination.current;');
     expect(sourceText).toContain('if (previousPage === 1) void refresh();');
+  });
+
+  it('keeps Context and relationship status in the list while moving technical filters behind More Filters', () => {
+    expect(sourceText).toContain("colKey: 'context'");
+    expect(sourceText).toContain("colKey: 'status'");
+    expect(sourceText).toContain('advancedFiltersVisible');
+    expect(sourceText).toContain('<docker-resource-context-card');
+    expect(sourceText).toContain('<t-collapse');
+    expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
+  });
+
+  it('keeps volume detail loading, error, empty, and data states mutually exclusive', () => {
+    expect(sourceText).toContain('v-else-if="selectedVolume"');
+    expect(sourceText).toContain('v-else-if="!detailLoading"');
+    expect(sourceText).toContain('container.volume.detail.emptyTitle');
+    expect(sourceText).toContain('detailError');
+    expect(sourceText).toContain('selectedVolume.value = null;');
   });
 
   it('consumes the canonical generated permission contract for dangerous actions', () => {

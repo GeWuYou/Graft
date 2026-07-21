@@ -32,28 +32,6 @@
           <template #prefix-icon><search-icon /></template>
         </t-input>
         <t-select
-          v-model="draftFilters.driver"
-          class="management-toolbar__select"
-          :placeholder="t('container.networks.filters.driver')"
-          clearable
-        >
-          <t-option value="bridge" :label="t('container.networks.drivers.bridge')" />
-          <t-option value="overlay" :label="t('container.networks.drivers.overlay')" />
-          <t-option value="macvlan" :label="t('container.networks.drivers.macvlan')" />
-          <t-option value="ipvlan" :label="t('container.networks.drivers.ipvlan')" />
-          <t-option value="none" :label="t('container.networks.drivers.none')" />
-        </t-select>
-        <t-select
-          v-model="draftFilters.scope"
-          class="management-toolbar__select"
-          :placeholder="t('container.networks.filters.scope')"
-          clearable
-        >
-          <t-option value="local" :label="t('container.networks.scopes.local')" />
-          <t-option value="swarm" :label="t('container.networks.scopes.swarm')" />
-          <t-option value="global" :label="t('container.networks.scopes.global')" />
-        </t-select>
-        <t-select
           v-model="draftFilters.usage"
           class="management-toolbar__select"
           :placeholder="t('container.networks.filters.usage')"
@@ -62,8 +40,36 @@
           <t-option value="used" :label="t('container.networks.filters.inUse')" />
           <t-option value="unused" :label="t('container.networks.filters.unused')" />
         </t-select>
+        <t-button variant="outline" @click="advancedFiltersVisible = !advancedFiltersVisible">
+          {{ t('container.resourceContext.moreFilters') }}
+        </t-button>
         <t-button theme="primary" @click="applyFilters">{{ t('container.networks.filters.apply') }}</t-button>
         <t-button variant="text" @click="resetFilters">{{ t('container.networks.filters.reset') }}</t-button>
+        <template v-if="advancedFiltersVisible">
+          <docker-resource-context-filters
+            v-model:compose-project="draftFilters.compose_project"
+            v-model:source="draftFilters.source"
+            @apply="applyFilters"
+          />
+          <t-select
+            v-model="draftFilters.driver"
+            class="management-toolbar__select"
+            clearable
+            :placeholder="t('container.networks.filters.driver')"
+          >
+            <t-option v-for="driver in drivers" :key="driver" :value="driver" :label="driverLabel(driver)" />
+          </t-select>
+          <t-select
+            v-model="draftFilters.scope"
+            class="management-toolbar__select"
+            clearable
+            :placeholder="t('container.networks.filters.scope')"
+          >
+            <t-option value="local" :label="t('container.networks.scopes.local')" />
+            <t-option value="swarm" :label="t('container.networks.scopes.swarm')" />
+            <t-option value="global" :label="t('container.networks.scopes.global')" />
+          </t-select>
+        </template>
       </template>
     </management-toolbar>
 
@@ -85,7 +91,7 @@
       :footer-summary="paginationSummary"
       :empty-title="t('container.networks.emptyTitle')"
       :empty-description="t('container.networks.emptyDescription')"
-      :cell-slot-names="['name', 'driver', 'scope', 'flags', 'container_count', 'labels', 'created_at', 'operation']"
+      :cell-slot-names="['name', 'context', 'containers', 'status', 'operation']"
       @select-change="handleSelectChange"
       @page-change="handlePageChange"
     >
@@ -93,9 +99,7 @@
         <table-view-toolbar
           :refresh-label="t('container.networks.refresh')"
           :refresh-loading="networkQuery.isFetching.value"
-          :column-settings-label="t('container.list.columnSettings')"
           @refresh="networkQuery.refetch"
-          @column-settings="columnDrawerVisible = true"
         />
       </template>
       <template #batch>
@@ -105,66 +109,53 @@
           :clear-label="t('container.networks.batch.cancelSelection')"
           @clear="clearSelection"
         >
-          <t-button v-if="canRemove" theme="danger" variant="outline" @click="openBatchRemoveDialog">{{
+          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="openBatchRemoveDialog">{{
             t('container.networks.batch.remove')
           }}</t-button>
         </management-batch-bar>
       </template>
       <template #name="{ row }">
-        <t-button variant="text" @click="openDetail(row.id)">{{ row.name }}</t-button>
+        <div class="docker-network-page__identity">
+          <t-button class="docker-network-page__name" variant="text" @click="openDetail(row.id)">{{
+            row.name
+          }}</t-button>
+          <span v-if="networkHint(row)" class="docker-network-page__hint">{{ networkHint(row) }}</span>
+        </div>
       </template>
-      <template #driver="{ row }"
-        ><t-tag size="small" variant="light">{{ driverLabel(row.driver) }}</t-tag></template
-      >
-      <template #scope="{ row }">{{ scopeLabel(row.scope) }}</template>
-      <template #flags="{ row }">
-        <t-space v-if="row.internal || row.attachable || row.ingress" size="small" break-line>
-          <t-tag v-if="row.internal" size="small" theme="warning" variant="light">{{
-            t('container.networks.internal')
-          }}</t-tag>
-          <t-tag v-if="row.attachable" size="small" theme="primary" variant="light">{{
-            t('container.networks.attachable')
-          }}</t-tag>
-          <t-tag v-if="row.ingress" size="small" theme="success" variant="light">{{
-            t('container.networks.ingress')
-          }}</t-tag>
-        </t-space>
-        <span v-else class="docker-network-page__muted">{{ t('container.networks.noAttributes') }}</span>
-      </template>
-      <template #container_count="{ row }">
-        <t-tag :theme="row.container_count > 0 ? 'primary' : 'default'" size="small" variant="light">
-          {{ row.container_count }}
-        </t-tag>
-      </template>
-      <template #labels="{ row }">
-        <t-space v-if="Object.keys(row.labels ?? {}).length" size="small" break-line>
-          <t-tooltip v-for="[key, value] in Object.entries(row.labels ?? {})" :key="key" :content="`${key}=${value}`">
-            <t-tag size="small" variant="light-outline" :title="`${key}=${value}`">{{ `${key}=${value}` }}</t-tag>
-          </t-tooltip>
-        </t-space>
-        <span v-else class="docker-network-page__muted">{{ t('container.networks.none') }}</span>
-      </template>
-      <template #created_at="{ row }">
-        <t-tooltip :content="formatLocaleDateTime(row.created_at, locale)">
-          <span>{{ formatLocaleDateTime(row.created_at, locale) }}</span>
+      <template #context="{ row }">
+        <t-tooltip :content="sourceDescription(row)" placement="top-left">
+          <span class="docker-network-page__source">{{ sourceDescription(row) }}</span>
         </t-tooltip>
       </template>
+      <template #containers="{ row }">
+        <div v-if="row.container_references?.length" class="docker-network-page__container-list">
+          <container-reference-list
+            :references="row.container_references"
+            :title="t('container.networks.connectedContainers')"
+            @open="openContainerReference"
+          />
+        </div>
+        <span v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</span>
+      </template>
+      <template #status="{ row }">
+        <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+          {{ relationshipPresentation(row.relationship_status).label }}
+        </t-tag>
+      </template>
       <template #operation="{ row }">
-        <t-space size="small">
-          <t-button variant="text" @click="openDetail(row.id)">{{ t('container.networks.detail') }}</t-button>
-          <t-button v-if="canRemove" theme="danger" variant="text" @click="openRemoveDialog(row)">
-            {{ t('container.networks.remove') }}
-          </t-button>
+        <t-space align="center" size="small">
+          <t-button size="small" variant="outline" @click="openDetail(row.id)">{{
+            t('container.networks.detail')
+          }}</t-button>
+          <t-button v-if="canRemove" size="small" theme="danger" variant="text" @click="openRemoveDialog(row)">{{
+            t('container.networks.remove')
+          }}</t-button>
         </t-space>
       </template>
       <template #empty>
         <t-empty :title="t('container.networks.emptyTitle')" :description="t('container.networks.emptyDescription')" />
       </template>
     </management-paged-table>
-
-    <t-drawer v-model:visible="columnDrawerVisible" :header="t('container.list.columnSettings')" size="360px">
-      <t-checkbox-group v-model="visibleColumnKeys" :options="columnOptions" />
-    </t-drawer>
 
     <t-dialog
       v-model:visible="cleanup.visible.value"
@@ -278,67 +269,107 @@
 
     <t-drawer
       v-model:visible="detailDrawerVisible"
-      :header="t('container.networks.detailTitle')"
+      :header="detailQuery.data.value?.name || t('container.networks.detailTitle')"
       size="720px"
       destroy-on-close
       :footer="false"
     >
       <t-loading :loading="detailQuery.isFetching.value">
-        <template v-if="detailQuery.data.value">
-          <t-descriptions bordered :column="2" table-layout="auto">
-            <t-descriptions-item :label="t('container.networks.fields.name')">{{
-              detailQuery.data.value.name
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('container.networks.fields.id')">{{
-              detailQuery.data.value.id
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('container.networks.fields.driver')">{{
-              detailQuery.data.value.driver
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('container.networks.fields.scope')">{{
-              detailQuery.data.value.scope
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('container.networks.fields.createdAt')">{{
-              formatLocaleDateTime(detailQuery.data.value.created_at, locale)
-            }}</t-descriptions-item>
-            <t-descriptions-item :label="t('container.networks.fields.containers')">{{
-              detailQuery.data.value.container_count
-            }}</t-descriptions-item>
-          </t-descriptions>
+        <t-alert
+          v-if="detailQuery.isError.value"
+          theme="error"
+          :message="resolveLocalizedErrorMessage(t, detailQuery.error.value, t('container.networks.detailLoadFailed'))"
+        />
+        <template v-else-if="detailQuery.data.value">
           <section class="docker-network-page__section">
-            <h3>{{ t('container.networks.ipam') }}</h3>
-            <t-descriptions v-if="detailQuery.data.value.ipam" bordered :column="2">
-              <t-descriptions-item :label="t('container.networks.fields.driver')">{{
-                detailQuery.data.value.ipam.driver || '-'
-              }}</t-descriptions-item>
-              <t-descriptions-item :label="t('container.networks.form.subnet')">{{
-                detailQuery.data.value.ipam.config?.[0]?.subnet || '-'
-              }}</t-descriptions-item>
-              <t-descriptions-item :label="t('container.networks.form.gateway')">{{
-                detailQuery.data.value.ipam.config?.[0]?.gateway || '-'
-              }}</t-descriptions-item>
-            </t-descriptions>
-            <t-empty v-else size="small" :description="t('container.networks.none')" />
+            <h3>{{ t('container.resourceContext.overview') }}</h3>
+            <t-space break-line size="small">
+              <t-tag size="small" variant="light-outline">{{ driverLabel(detailQuery.data.value.driver) }}</t-tag>
+              <t-tag
+                :theme="relationshipPresentation(detailQuery.data.value.relationship_status).theme"
+                size="small"
+                variant="light"
+                >{{ relationshipPresentation(detailQuery.data.value.relationship_status).label }}</t-tag
+              >
+              <t-tag v-if="detailQuery.data.value.internal" theme="warning" size="small" variant="light">{{
+                t('container.networks.internal')
+              }}</t-tag>
+              <span>{{
+                t('container.resourceContext.containerCount', { count: detailQuery.data.value.container_count })
+              }}</span>
+              <span>{{ formatLocaleDateTime(detailQuery.data.value.created_at, locale) }}</span>
+            </t-space>
           </section>
+          <docker-resource-context-card :context="detailQuery.data.value.context" resource-kind="network" />
           <section class="docker-network-page__section">
-            <h3>{{ t('container.networks.labels') }}</h3>
-            <t-space v-if="Object.keys(detailQuery.data.value.labels ?? {}).length" break-line size="small">
-              <t-tag v-for="(value, key) in detailQuery.data.value.labels" :key="key" variant="light"
-                >{{ key }}={{ value }}</t-tag
+            <h3>{{ t('container.resourceContext.relations') }}</h3>
+            <t-space v-if="detailQuery.data.value.container_references?.length" break-line size="small">
+              <t-link
+                v-for="reference in detailQuery.data.value.container_references"
+                :key="reference.id"
+                theme="primary"
+                @click="openContainerReference(reference.id)"
+                >{{ reference.name || reference.id }}</t-link
               >
             </t-space>
-            <t-empty v-else size="small" :description="t('container.networks.none')" />
+            <span v-else class="docker-network-page__muted">{{
+              relationEmptyLabel(detailQuery.data.value.relationship_status)
+            }}</span>
           </section>
           <section class="docker-network-page__section">
-            <h3>{{ t('container.networks.connectedContainers') }}</h3>
-            <t-table
-              row-key="id"
-              size="small"
-              :data="detailQuery.data.value.containers ?? []"
-              :columns="endpointColumns"
-            />
+            <h3>{{ t('container.resourceContext.configuration') }}</h3>
+            <t-descriptions :column="2">
+              <t-descriptions-item :label="t('container.networks.fields.driver')">{{
+                driverLabel(detailQuery.data.value.driver)
+              }}</t-descriptions-item>
+              <t-descriptions-item :label="t('container.networks.fields.scope')">{{
+                scopeLabel(detailQuery.data.value.scope)
+              }}</t-descriptions-item>
+            </t-descriptions>
+            <template v-if="detailQuery.data.value.ipam?.driver || detailQuery.data.value.ipam?.config?.length">
+              <h4>{{ t('container.networks.ipam') }}</h4>
+              <t-descriptions :column="2">
+                <t-descriptions-item :label="t('container.networks.fields.driver')">{{
+                  detailQuery.data.value.ipam.driver || '-'
+                }}</t-descriptions-item>
+                <t-descriptions-item :label="t('container.networks.form.subnet')">{{
+                  detailQuery.data.value.ipam.config?.[0]?.subnet || '-'
+                }}</t-descriptions-item>
+                <t-descriptions-item :label="t('container.networks.form.gateway')">{{
+                  detailQuery.data.value.ipam.config?.[0]?.gateway || '-'
+                }}</t-descriptions-item>
+              </t-descriptions>
+            </template>
+          </section>
+          <t-collapse
+            v-if="Object.keys(detailQuery.data.value.labels ?? {}).length"
+            class="docker-network-page__section"
+          >
+            <t-collapse-panel :header="t('container.resourceContext.metadata')" value="metadata">
+              <t-space break-line size="small"
+                ><t-tag v-for="(value, key) in detailQuery.data.value.labels" :key="key" variant="light-outline"
+                  >{{ key }}={{ value }}</t-tag
+                ></t-space
+              >
+              <p class="docker-network-page__metadata-id">
+                {{ t('container.networks.fields.id') }}: {{ detailQuery.data.value.id }}
+              </p>
+            </t-collapse-panel>
+          </t-collapse>
+          <section v-if="canRemove" class="docker-network-page__danger-zone">
+            <h3>{{ t('container.resourceContext.dangerZone') }}</h3>
+            <t-button theme="danger" variant="outline" @click="openRemoveDialog(detailQuery.data.value)">{{
+              t('container.networks.remove')
+            }}</t-button>
           </section>
         </template>
+        <div v-else-if="!detailQuery.isFetching.value" class="docker-network-page__detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.networks.detailEmptyTitle')"
+            :description="t('container.networks.detailEmptyDescription')"
+          />
+        </div>
       </t-loading>
     </t-drawer>
 
@@ -377,10 +408,12 @@
 import { ArrowDownIcon, ArrowUpIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
+import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
   ManagementPagedTable,
@@ -399,22 +432,40 @@ import {
   getDockerNetworks,
   removeDockerNetwork,
 } from '../../api/container';
-import { CONTAINER_NETWORK_COLUMN_STORAGE_KEY } from '../../contract/storage';
+import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
+import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
+import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
+import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
 import {
   invalidateDockerNetworkQueries,
   useDockerNetworkDetailQuery,
   useDockerNetworkListQuery,
 } from '../../shared/docker-network-queries';
+import {
+  getDockerResourceRelationEmptyLabel,
+  getDockerResourceRelationshipPresentation,
+  getDockerResourceSourceDescription,
+} from '../../shared/resource-presentation';
 import type { DockerNetwork, DockerNetworkCreateRequest, DockerNetworkDriver } from '../../types/docker-network';
 
 defineOptions({ name: 'DockerNetworkListIndex' });
 
 // 本页复用模块 Docker 网络列表缓存；详情单独读取，避免列表快照承载连接容器等高基数信息。
 const { locale, t } = useI18n();
+const router = useRouter();
 const permissionStore = usePermissionStore();
 const pagination = reactive({ current: 1, pageSize: 20 });
-const draftFilters = reactive({ keyword: '', driver: '', scope: '', usage: '' });
+type DockerResourceSource = components['schemas']['docker-resource-source'];
+
+const draftFilters = reactive<{
+  keyword: string;
+  driver: string;
+  scope: string;
+  usage: string;
+  source: DockerResourceSource | '';
+  compose_project: string;
+}>({ keyword: '', driver: '', scope: '', usage: '', source: '', compose_project: '' });
 const appliedFilters = ref({ ...draftFilters });
 const networkListQuery = computed<DockerNetworkListQuery>(() => ({
   limit: pagination.pageSize,
@@ -423,6 +474,8 @@ const networkListQuery = computed<DockerNetworkListQuery>(() => ({
   driver: appliedFilters.value.driver || undefined,
   scope: appliedFilters.value.scope || undefined,
   usage: appliedFilters.value.usage ? (appliedFilters.value.usage as 'used' | 'unused') : undefined,
+  source: appliedFilters.value.source || undefined,
+  compose_project: appliedFilters.value.compose_project || undefined,
 }));
 const networkQuery = useDockerNetworkListQuery(networkListQuery);
 const selectedNetworkId = ref('');
@@ -444,6 +497,7 @@ const selectedNetworkNames = computed(() =>
 );
 const selectedNetwork = ref<DockerNetwork | null>(null);
 const removeConfirmation = ref('');
+const advancedFiltersVisible = ref(false);
 const drivers: DockerNetworkDriver[] = ['bridge', 'overlay', 'macvlan', 'ipvlan', 'none'];
 const createForm = reactive({
   name: '',
@@ -479,58 +533,18 @@ cleanup = useDockerCleanup<DockerNetwork>({
   fetchCandidates: fetchCleanupCandidates,
   execute: removeCleanupCandidates,
 });
-const columnDrawerVisible = ref(false);
-const columnOptions = [
-  { label: t('container.networks.fields.driver'), value: 'driver' },
-  { label: t('container.networks.fields.scope'), value: 'scope' },
-  { label: t('container.networks.fields.flags'), value: 'flags' },
-  { label: t('container.networks.fields.containers'), value: 'container_count' },
-  { label: t('container.networks.labels'), value: 'labels' },
-];
-const defaultColumnKeys = columnOptions.map((item) => item.value);
-const visibleColumnKeys = ref<string[]>(
-  typeof localStorage === 'undefined' ? defaultColumnKeys : readVisibleColumnKeys(),
-);
-function readVisibleColumnKeys() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(CONTAINER_NETWORK_COLUMN_STORAGE_KEY) ?? 'null');
-    return Array.isArray(stored) ? stored.filter((key): key is string => typeof key === 'string') : defaultColumnKeys;
-  } catch {
-    return defaultColumnKeys;
-  }
-}
-watch(visibleColumnKeys, (value) => localStorage.setItem(CONTAINER_NETWORK_COLUMN_STORAGE_KEY, JSON.stringify(value)), {
-  deep: true,
-});
 const allColumns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'name', title: t('container.networks.fields.name'), width: 360, ellipsis: true },
-  { colKey: 'driver', title: t('container.networks.fields.driver'), width: 120, ellipsis: true },
-  { colKey: 'scope', title: t('container.networks.fields.scope'), width: 120, ellipsis: true },
-  { colKey: 'flags', title: t('container.networks.fields.flags'), width: 180 },
-  { colKey: 'container_count', title: t('container.networks.fields.containers'), width: 100 },
-  { colKey: 'labels', title: t('container.networks.labels'), width: 500 },
-  { colKey: 'created_at', title: t('container.networks.fields.createdAt'), width: 180, ellipsis: true },
-  { colKey: 'operation', title: t('container.networks.operation'), width: 150, fixed: 'right' as const },
+  { colKey: 'name', title: t('container.networks.fields.name'), minWidth: 280, ellipsis: true },
+  { colKey: 'context', title: t('container.resourceContext.source'), minWidth: 190, ellipsis: true },
+  { colKey: 'containers', title: t('container.resourceContext.containers'), minWidth: 240 },
+  { colKey: 'status', title: t('container.networks.fields.status'), width: 104 },
+  { colKey: 'operation', title: t('container.networks.operation'), width: 144, fixed: 'right' as const },
 ]);
-const columns = computed<TableProps['columns']>(() =>
-  (allColumns.value ?? []).filter(
-    (column) =>
-      ['row-select', 'name', 'operation', 'created_at'].includes(String(column.colKey)) ||
-      visibleColumnKeys.value.includes(String(column.colKey)),
-  ),
-);
+const columns = allColumns;
 const cleanupColumns = computed<TableProps['columns']>(() =>
-  (allColumns.value ?? []).filter((column) =>
-    ['row-select', 'name', 'driver', 'scope', 'container_count'].includes(String(column.colKey)),
-  ),
+  (allColumns.value ?? []).filter((column) => ['row-select', 'name', 'status'].includes(String(column.colKey))),
 );
-const endpointColumns: TableProps['columns'] = [
-  { colKey: 'name', title: t('container.networks.fields.name') },
-  { colKey: 'id', title: t('container.networks.fields.id'), ellipsis: true },
-  { colKey: 'ipv4_address', title: t('container.networks.fields.ipv4') },
-  { colKey: 'mac_address', title: 'MAC' },
-];
 async function fetchCleanupCandidates() {
   const first = await getDockerNetworks({ limit: 100, offset: 0, usage: 'unused' });
   const all = [...first.items];
@@ -573,6 +587,28 @@ function driverLabel(driver: string) {
 }
 function scopeLabel(scope: string) {
   return t(`container.networks.scopes.${scope}`, scope);
+}
+function sourceDescription(network: DockerNetwork) {
+  return getDockerResourceSourceDescription(t, network.context);
+}
+function networkHint(network: DockerNetwork) {
+  return [
+    network.internal ? t('container.networks.internal') : '',
+    network.ingress ? t('container.networks.ingress') : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+const relationshipPresentation = (status: DockerNetwork['relationship_status']) =>
+  getDockerResourceRelationshipPresentation(t, status);
+const relationEmptyLabel = (status: DockerNetwork['relationship_status']) =>
+  getDockerResourceRelationEmptyLabel(t, status);
+function openContainerReference(containerId: string) {
+  void router.push({
+    name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
+    params: { id: containerId },
+    query: { tab: 'network' },
+  });
 }
 function openCreateDrawer() {
   Object.assign(createForm, {
@@ -624,11 +660,13 @@ function applyFilters() {
     driver: draftFilters.driver,
     scope: draftFilters.scope,
     usage: draftFilters.usage,
+    source: draftFilters.source,
+    compose_project: draftFilters.compose_project.trim(),
   };
   pagination.current = 1;
 }
 function resetFilters() {
-  Object.assign(draftFilters, { keyword: '', driver: '', scope: '', usage: '' });
+  Object.assign(draftFilters, { keyword: '', driver: '', scope: '', usage: '', source: '', compose_project: '' });
   applyFilters();
 }
 function parseLabels(source: string) {
@@ -732,6 +770,14 @@ async function submitBatchRemove() {
   margin-top: var(--td-comp-margin-xl);
 }
 
+.docker-network-page__detail-state {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
+}
+
 .docker-network-page__section h3 {
   font-size: var(--td-font-size-body-large);
   margin: 0 0 var(--td-comp-margin-m);
@@ -739,5 +785,92 @@ async function submitBatchRemove() {
 
 .docker-network-page__muted {
   color: var(--td-text-color-placeholder);
+}
+
+.docker-network-page__identity {
+  display: grid;
+  gap: var(--td-comp-margin-xxs);
+  min-width: 0;
+}
+
+.docker-network-page__name {
+  justify-content: flex-start;
+  max-width: 100%;
+}
+
+.docker-network-page__hint,
+.docker-network-page__source {
+  color: var(--td-text-color-secondary);
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-network-page__hint {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-network-page__container-list {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--td-comp-margin-xs);
+}
+
+.docker-network-page__container-badge {
+  cursor: pointer;
+  max-width: 148px;
+}
+
+.docker-network-page__container-badge--overflow {
+  color: var(--td-text-color-secondary);
+}
+
+.docker-network-page__container-overflow-trigger {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0;
+}
+
+.docker-network-page__container-overflow-trigger:focus-visible,
+.docker-network-page__container-badge:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+
+.docker-network-page__container-overflow {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  max-height: min(40vh, 240px);
+  max-width: 320px;
+  overflow: auto;
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+}
+
+.docker-network-page__container-overflow-title {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-network-page__section h4 {
+  font-size: var(--td-font-size-body-medium);
+  margin: var(--td-comp-margin-l) 0 var(--td-comp-margin-m);
+}
+
+.docker-network-page__metadata-id {
+  color: var(--td-text-color-secondary);
+  margin: var(--td-comp-margin-m) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.docker-network-page__danger-zone {
+  border-top: 1px solid var(--td-component-stroke);
+  margin-top: var(--td-comp-margin-xl);
+  padding-top: var(--td-comp-paddingTB-l);
 }
 </style>

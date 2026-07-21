@@ -1,0 +1,5 @@
+name: compose_project
+in: query
+required: false
+description: Optional exact Compose project filter. Only applies to networks with source=compose.
+schema: { type: string, minLength: 1, maxLength: 128 }

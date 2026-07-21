@@ -27,31 +27,41 @@
           :placeholder="t('container.volume.filters.keyword')"
           @enter="applyFilters"
         />
-        <t-input
-          v-model="filters.driver"
-          class="management-toolbar__select"
-          clearable
-          :placeholder="t('container.volume.filters.driver')"
-          @enter="applyFilters"
-        />
-        <t-input
-          v-model="filters.scope"
-          class="management-toolbar__select"
-          clearable
-          :placeholder="t('container.volume.filters.scope')"
-          @enter="applyFilters"
-        />
         <t-select
           v-model="filters.usage"
           class="management-toolbar__select"
           :placeholder="t('container.volume.filters.usage')"
         >
           <t-option value="all" :label="t('container.volume.filters.allUsage')" />
-          <t-option value="used" :label="t('container.volume.usage.used')" />
-          <t-option value="unused" :label="t('container.volume.usage.unused')" />
+          <t-option value="used" :label="t('container.resourceContext.relationship.used')" />
+          <t-option value="unused" :label="t('container.resourceContext.relationship.unused')" />
         </t-select>
+        <t-button variant="outline" @click="advancedFiltersVisible = !advancedFiltersVisible">
+          {{ t('container.resourceContext.moreFilters') }}
+        </t-button>
         <t-button theme="primary" @click="applyFilters">{{ t('container.volume.filters.query') }}</t-button>
         <t-button variant="text" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
+        <template v-if="advancedFiltersVisible">
+          <docker-resource-context-filters
+            v-model:compose-project="filters.compose_project"
+            v-model:source="filters.source"
+            @apply="applyFilters"
+          />
+          <t-input
+            v-model="filters.driver"
+            class="management-toolbar__select"
+            clearable
+            :placeholder="t('container.volume.filters.driver')"
+            @enter="applyFilters"
+          />
+          <t-input
+            v-model="filters.scope"
+            class="management-toolbar__select"
+            clearable
+            :placeholder="t('container.volume.filters.scope')"
+            @enter="applyFilters"
+          />
+        </template>
       </template>
     </management-toolbar>
 
@@ -105,38 +115,37 @@
         />
       </template>
       <template #name="{ row }">
-        <t-tooltip :content="row.name">
-          <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
-            middleEllipsis(row.name, 31)
-          }}</t-link>
+        <div class="docker-volume-page__identity">
+          <t-tooltip :content="row.name">
+            <t-link class="docker-volume-page__name" theme="primary" @click="openDetail(row)">{{
+              middleEllipsis(row.name, 31)
+            }}</t-link>
+          </t-tooltip>
+          <span class="docker-volume-page__hint">{{ volumeType(row) }}</span>
+        </div>
+      </template>
+      <template #context="{ row }">
+        <t-tooltip v-if="sourceDescription(row)" :content="sourceDescription(row)" placement="top-left">
+          <span class="docker-volume-page__source">{{ sourceDescription(row) }}</span>
         </t-tooltip>
+        <span v-else class="docker-volume-page__muted">—</span>
       </template>
       <template #references="{ row }">
-        <t-space v-if="row.container_references?.length" size="small" break-line>
-          <t-link
-            v-for="reference in row.container_references.slice(0, 2)"
-            :key="reference.id"
-            theme="primary"
-            @click="openContainerReference(reference.id)"
-          >
-            <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
-          </t-link>
-          <t-tag v-if="row.container_references.length > 2" size="small" variant="light-outline">
-            +{{ row.container_references.length - 2 }}
-          </t-tag>
-        </t-space>
-        <t-tag
-          v-else-if="row.reference_count === null || row.reference_count === undefined"
-          theme="warning"
-          variant="light-outline"
-        >
-          {{ t('container.volume.usage.unknown') }}
-        </t-tag>
-        <t-tag v-else size="small" variant="light-outline">{{ t('container.volume.usage.unused') }}</t-tag>
+        <div v-if="row.container_references?.length" class="docker-volume-page__container-list">
+          <container-reference-list
+            :references="row.container_references"
+            :title="t('container.volume.columns.mountedContainers')"
+            @open="openContainerReference"
+          />
+        </div>
+        <span v-else class="docker-volume-page__muted">—</span>
       </template>
       <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
-      <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
-      <template #labels="{ row }">{{ Object.keys(row.labels || {}).length }}</template>
+      <template #status="{ row }">
+        <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+          {{ relationshipPresentation(row.relationship_status).label }}
+        </t-tag>
+      </template>
       <template #actions="{ row }">
         <table-action-menu
           :actions="volumeRowActions(row)"
@@ -243,39 +252,28 @@
       v-model:visible="detailDrawerVisible"
       :header="selectedVolume?.name || t('container.volume.detail.title')"
       size="520px"
+      :footer="false"
     >
       <t-loading :loading="detailLoading">
         <t-alert v-if="detailError" theme="error" :message="detailError" />
-        <t-descriptions v-else-if="selectedVolume" bordered :column="2">
-          <t-descriptions-item :label="t('container.volume.columns.name')">{{
-            selectedVolume.name
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.columns.driver')">{{
-            selectedVolume.driver
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.columns.scope')">{{
-            selectedVolume.scope
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.columns.usage')">{{
-            usageLabel(selectedVolume)
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.columns.size')">{{
-            formatBytes(selectedVolume.size_bytes, t('container.volume.unavailable'))
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.columns.createdAt')">{{
-            formatTime(selectedVolume.created_at)
-          }}</t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.detail.labels')" :span="2">
-            <t-space break-line>
-              <t-tag v-for="(value, key) in selectedVolume.labels || {}" :key="key" variant="light-outline"
-                >{{ key }}={{ value }}</t-tag
+        <template v-else-if="selectedVolume">
+          <section class="docker-volume-page__section">
+            <h3>{{ t('container.resourceContext.overview') }}</h3>
+            <t-space break-line size="small">
+              <t-tag size="small" variant="light-outline">{{ selectedVolume.driver }}</t-tag>
+              <t-tag
+                :theme="relationshipPresentation(selectedVolume.relationship_status).theme"
+                size="small"
+                variant="light"
+                >{{ relationshipPresentation(selectedVolume.relationship_status).label }}</t-tag
               >
-              <span v-if="!Object.keys(selectedVolume.labels || {}).length">{{
-                t('container.volume.detail.noLabels')
-              }}</span>
+              <span>{{ formatBytes(selectedVolume.size_bytes, t('container.volume.unavailable')) }}</span>
+              <span>{{ formatTime(selectedVolume.created_at) }}</span>
             </t-space>
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('container.volume.detail.references')" :span="2">
+          </section>
+          <docker-resource-context-card :context="selectedVolume.context" resource-kind="volume" />
+          <section class="docker-volume-page__section">
+            <h3>{{ t('container.resourceContext.relations') }}</h3>
             <t-space v-if="selectedVolume.container_references?.length" size="small" break-line>
               <t-link
                 v-for="reference in selectedVolume.container_references"
@@ -286,16 +284,44 @@
                 <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
               </t-link>
             </t-space>
-            <t-tag
-              v-else-if="selectedVolume.reference_count === null || selectedVolume.reference_count === undefined"
-              theme="warning"
-              variant="light-outline"
-            >
-              {{ t('container.volume.usage.unknown') }}
-            </t-tag>
-            <span v-else>{{ t('container.volume.usage.unused') }}</span>
-          </t-descriptions-item>
-        </t-descriptions>
+            <span v-else class="docker-volume-page__muted">{{
+              relationEmptyLabel(selectedVolume.relationship_status)
+            }}</span>
+          </section>
+          <section class="docker-volume-page__section">
+            <h3>{{ t('container.resourceContext.configuration') }}</h3>
+            <t-descriptions :column="2">
+              <t-descriptions-item :label="t('container.volume.columns.driver')">{{
+                selectedVolume.driver
+              }}</t-descriptions-item>
+              <t-descriptions-item :label="t('container.volume.columns.scope')">{{
+                selectedVolume.scope
+              }}</t-descriptions-item>
+            </t-descriptions>
+          </section>
+          <t-collapse v-if="Object.keys(selectedVolume.labels || {}).length" class="docker-volume-page__section">
+            <t-collapse-panel :header="t('container.resourceContext.metadata')" value="metadata">
+              <t-space break-line size="small"
+                ><t-tag v-for="(value, key) in selectedVolume.labels" :key="key" variant="light-outline"
+                  >{{ key }}={{ value }}</t-tag
+                ></t-space
+              >
+            </t-collapse-panel>
+          </t-collapse>
+          <section v-if="canRemove" class="docker-volume-page__danger-zone">
+            <h3>{{ t('container.resourceContext.dangerZone') }}</h3>
+            <t-button theme="danger" variant="outline" @click="confirmRemove(selectedVolume)">{{
+              t('container.volume.actions.remove')
+            }}</t-button>
+          </section>
+        </template>
+        <div v-else-if="!detailLoading" class="docker-volume-page__detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.volume.detail.emptyTitle')"
+            :description="t('container.volume.detail.emptyDescription')"
+          />
+        </div>
       </t-loading>
     </t-drawer>
   </div>
@@ -309,6 +335,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/container';
+import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
   ManagementPagedTable,
@@ -331,24 +358,56 @@ import {
   listDockerVolumes,
   removeDockerVolume,
 } from '../../api/container';
+import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
+import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
+import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
+import {
+  getDockerResourceRelationEmptyLabel,
+  getDockerResourceRelationshipPresentation,
+  getDockerResourceSourceDescription,
+} from '../../shared/resource-presentation';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
 type CleanupVolume = Omit<VolumeRow, 'size_bytes'> & { id: string; size_bytes: number };
 type UsageFilter = 'all' | 'used' | 'unused';
+type DockerResourceSource = components['schemas']['docker-resource-source'];
+const anonymousVolumeName = /^[a-f0-9]{64}$/i;
 const { locale, t } = useI18n();
 const router = useRouter();
 const permissionStore = usePermissionStore();
 const rows = ref<VolumeRow[]>([]);
 const loading = ref(false);
 const error = ref('');
-const filters = reactive({ keyword: '', driver: '', scope: '', usage: 'all' as UsageFilter });
+const filters = reactive<{
+  keyword: string;
+  driver: string;
+  scope: string;
+  usage: UsageFilter;
+  source: DockerResourceSource | '';
+  compose_project: string;
+}>({
+  keyword: '',
+  driver: '',
+  scope: '',
+  usage: 'all',
+  source: '',
+  compose_project: '',
+});
 const applied = ref({ ...filters });
+const advancedFiltersVisible = ref(false);
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 });
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VOLUME_REMOVE));
 const hasActiveFilters = computed(() =>
-  Boolean(applied.value.keyword || applied.value.driver || applied.value.scope || applied.value.usage !== 'all'),
+  Boolean(
+    applied.value.keyword ||
+    applied.value.driver ||
+    applied.value.scope ||
+    applied.value.source ||
+    applied.value.compose_project ||
+    applied.value.usage !== 'all',
+  ),
 );
 const selectedRowKeys = ref<string[]>([]);
 const selectedVolume = ref<DockerVolumeDetail | null>(null);
@@ -370,14 +429,12 @@ const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
 ]);
 const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
-  { colKey: 'name', title: t('container.volume.columns.name'), width: 280 },
-  { colKey: 'driver', title: t('container.volume.columns.driver'), width: 140, ellipsis: true },
-  { colKey: 'scope', title: t('container.volume.columns.scope'), width: 120, ellipsis: true },
-  { colKey: 'references', title: t('container.volume.columns.references'), minWidth: 220 },
-  { colKey: 'size', title: t('container.volume.columns.size'), width: 130 },
-  { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
-  { colKey: 'labels', title: t('container.volume.columns.labels'), width: 100 },
-  { colKey: 'actions', title: t('container.volume.columns.actions'), width: 150, fixed: 'right' },
+  { colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 },
+  { colKey: 'context', title: t('container.resourceContext.source'), minWidth: 210 },
+  { colKey: 'references', title: t('container.volume.columns.mountedContainers'), minWidth: 260 },
+  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const },
+  { colKey: 'status', title: t('container.volume.columns.status'), width: 120 },
+  { colKey: 'actions', title: t('container.volume.columns.actions'), width: 144, fixed: 'right' },
 ]);
 const cleanup = useDockerCleanup<CleanupVolume>({
   fetchCandidates: fetchCleanupCandidates,
@@ -410,6 +467,8 @@ function buildQuery(): DockerVolumeListQuery {
     driver: applied.value.driver || undefined,
     scope: applied.value.scope || undefined,
     usage: applied.value.usage === 'all' ? undefined : applied.value.usage,
+    source: applied.value.source || undefined,
+    compose_project: applied.value.compose_project || undefined,
   };
 }
 async function refresh() {
@@ -437,6 +496,8 @@ function applyFilters() {
     driver: filters.driver.trim(),
     scope: filters.scope.trim(),
     usage: filters.usage,
+    source: filters.source,
+    compose_project: filters.compose_project.trim(),
   };
   pagination.current = 1;
   if (previousPage === 1) void refresh();
@@ -446,6 +507,8 @@ function resetFilters() {
   filters.driver = '';
   filters.scope = '';
   filters.usage = 'all';
+  filters.source = '';
+  filters.compose_project = '';
   applyFilters();
 }
 function handlePageChange(page: { current: number; pageSize: number }) {
@@ -603,6 +666,7 @@ function handleBatchRemove() {
   });
 }
 async function openDetail(row: VolumeRow) {
+  selectedVolume.value = null;
   detailDrawerVisible.value = true;
   detailLoading.value = true;
   detailError.value = '';
@@ -615,12 +679,17 @@ async function openDetail(row: VolumeRow) {
     detailLoading.value = false;
   }
 }
-function usageLabel(row: VolumeRow) {
-  if (row.reference_count === null || row.reference_count === undefined) return t('container.volume.usage.unknown');
-  return row.reference_count > 0
-    ? t('container.volume.usage.used', { count: row.reference_count })
-    : t('container.volume.usage.unused');
+function sourceDescription(row: VolumeRow) {
+  return getDockerResourceSourceDescription(t, row.context);
 }
+function volumeType(row: VolumeRow) {
+  return row.context.source !== 'compose' && anonymousVolumeName.test(row.name)
+    ? t('container.volume.types.anonymous')
+    : t('container.volume.types.named');
+}
+const relationshipPresentation = (status: VolumeRow['relationship_status']) =>
+  getDockerResourceRelationshipPresentation(t, status);
+const relationEmptyLabel = (status: VolumeRow['relationship_status']) => getDockerResourceRelationEmptyLabel(t, status);
 function openContainerReference(containerId: string) {
   void router.push({
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
@@ -689,6 +758,45 @@ function confirmRemove(row: VolumeRow) {
   max-width: 252px;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.docker-volume-page__identity {
+  display: grid;
+  gap: var(--td-comp-margin-xs);
+}
+
+.docker-volume-page__hint,
+.docker-volume-page__muted {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-volume-page__source {
+  color: var(--td-text-color-secondary);
+}
+
+.docker-volume-page__section,
+.docker-volume-page__danger-zone {
+  margin-top: var(--td-comp-margin-xl);
+}
+
+.docker-volume-page__detail-state {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
+}
+
+.docker-volume-page__section h3,
+.docker-volume-page__danger-zone h3 {
+  font-size: var(--td-font-size-body-large);
+  margin: 0 0 var(--td-comp-margin-m);
+}
+
+.docker-volume-page__danger-zone {
+  border-top: 1px solid var(--td-component-stroke);
+  padding-top: var(--td-comp-paddingTB-l);
 }
 
 .docker-volume-cleanup-summary,

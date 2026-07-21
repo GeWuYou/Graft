@@ -2731,6 +2731,90 @@ func (e GetDockerNetworksParamsUsage) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerNetworksParamsSource.
+const (
+	GetDockerNetworksParamsSourceDockerResourceSourceCompose       GetDockerNetworksParamsSource = "compose"
+	GetDockerNetworksParamsSourceDockerResourceSourceDocker        GetDockerNetworksParamsSource = "docker"
+	GetDockerNetworksParamsSourceDockerResourceSourceDockerDefault GetDockerNetworksParamsSource = "docker_default"
+	GetDockerNetworksParamsSourceDockerResourceSourceImported      GetDockerNetworksParamsSource = "imported"
+	GetDockerNetworksParamsSourceDockerResourceSourceManaged       GetDockerNetworksParamsSource = "managed"
+	GetDockerNetworksParamsSourceDockerResourceSourceUnknown       GetDockerNetworksParamsSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworksParamsSource enum.
+func (e GetDockerNetworksParamsSource) Valid() bool {
+	switch e {
+	case GetDockerNetworksParamsSourceDockerResourceSourceCompose:
+		return true
+	case GetDockerNetworksParamsSourceDockerResourceSourceDocker:
+		return true
+	case GetDockerNetworksParamsSourceDockerResourceSourceDockerDefault:
+		return true
+	case GetDockerNetworksParamsSourceDockerResourceSourceImported:
+		return true
+	case GetDockerNetworksParamsSourceDockerResourceSourceManaged:
+		return true
+	case GetDockerNetworksParamsSourceDockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworks200JSONResponseBodyDataItemsContextSource.
+const (
+	GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceCompose       GetDockerNetworks200JSONResponseBodyDataItemsContextSource = "compose"
+	GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDocker        GetDockerNetworks200JSONResponseBodyDataItemsContextSource = "docker"
+	GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDockerDefault GetDockerNetworks200JSONResponseBodyDataItemsContextSource = "docker_default"
+	GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceImported      GetDockerNetworks200JSONResponseBodyDataItemsContextSource = "imported"
+	GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceManaged       GetDockerNetworks200JSONResponseBodyDataItemsContextSource = "managed"
+	GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceUnknown       GetDockerNetworks200JSONResponseBodyDataItemsContextSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks200JSONResponseBodyDataItemsContextSource enum.
+func (e GetDockerNetworks200JSONResponseBodyDataItemsContextSource) Valid() bool {
+	switch e {
+	case GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceCompose:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDocker:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDockerDefault:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceImported:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceManaged:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsContextSourceDockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus.
+const (
+	GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusException GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus = "exception"
+	GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnknown   GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus = "unknown"
+	GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnused    GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus = "unused"
+	GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUsed      GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus enum.
+func (e GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus) Valid() bool {
+	switch e {
+	case GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusException:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnknown:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnused:
+		return true
+	case GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUsed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerNetworks400JSONResponseBodySuccess.
 const (
 	GetDockerNetworks400JSONResponseBodySuccessFalse GetDockerNetworks400JSONResponseBodySuccess = false
@@ -2785,6 +2869,60 @@ const (
 func (e GetDockerNetworks500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetDockerNetworks500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetwork200JSONResponseBodyDataContextSource.
+const (
+	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceCompose       GetDockerNetwork200JSONResponseBodyDataContextSource = "compose"
+	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceDocker        GetDockerNetwork200JSONResponseBodyDataContextSource = "docker"
+	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceDockerDefault GetDockerNetwork200JSONResponseBodyDataContextSource = "docker_default"
+	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceImported      GetDockerNetwork200JSONResponseBodyDataContextSource = "imported"
+	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceManaged       GetDockerNetwork200JSONResponseBodyDataContextSource = "managed"
+	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceUnknown       GetDockerNetwork200JSONResponseBodyDataContextSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetwork200JSONResponseBodyDataContextSource enum.
+func (e GetDockerNetwork200JSONResponseBodyDataContextSource) Valid() bool {
+	switch e {
+	case GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceCompose:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceDocker:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceDockerDefault:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceImported:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceManaged:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetwork200JSONResponseBodyDataRelationshipStatus.
+const (
+	GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusException GetDockerNetwork200JSONResponseBodyDataRelationshipStatus = "exception"
+	GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnknown   GetDockerNetwork200JSONResponseBodyDataRelationshipStatus = "unknown"
+	GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnused    GetDockerNetwork200JSONResponseBodyDataRelationshipStatus = "unused"
+	GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUsed      GetDockerNetwork200JSONResponseBodyDataRelationshipStatus = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetwork200JSONResponseBodyDataRelationshipStatus enum.
+func (e GetDockerNetwork200JSONResponseBodyDataRelationshipStatus) Valid() bool {
+	switch e {
+	case GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusException:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnknown:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnused:
+		return true
+	case GetDockerNetwork200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUsed:
 		return true
 	default:
 		return false
@@ -2920,6 +3058,90 @@ func (e GetDockerVolumesParamsUsage) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerVolumesParamsSource.
+const (
+	GetDockerVolumesParamsSourceDockerResourceSourceCompose       GetDockerVolumesParamsSource = "compose"
+	GetDockerVolumesParamsSourceDockerResourceSourceDocker        GetDockerVolumesParamsSource = "docker"
+	GetDockerVolumesParamsSourceDockerResourceSourceDockerDefault GetDockerVolumesParamsSource = "docker_default"
+	GetDockerVolumesParamsSourceDockerResourceSourceImported      GetDockerVolumesParamsSource = "imported"
+	GetDockerVolumesParamsSourceDockerResourceSourceManaged       GetDockerVolumesParamsSource = "managed"
+	GetDockerVolumesParamsSourceDockerResourceSourceUnknown       GetDockerVolumesParamsSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumesParamsSource enum.
+func (e GetDockerVolumesParamsSource) Valid() bool {
+	switch e {
+	case GetDockerVolumesParamsSourceDockerResourceSourceCompose:
+		return true
+	case GetDockerVolumesParamsSourceDockerResourceSourceDocker:
+		return true
+	case GetDockerVolumesParamsSourceDockerResourceSourceDockerDefault:
+		return true
+	case GetDockerVolumesParamsSourceDockerResourceSourceImported:
+		return true
+	case GetDockerVolumesParamsSourceDockerResourceSourceManaged:
+		return true
+	case GetDockerVolumesParamsSourceDockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumes200JSONResponseBodyDataItemsContextSource.
+const (
+	GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceCompose       GetDockerVolumes200JSONResponseBodyDataItemsContextSource = "compose"
+	GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDocker        GetDockerVolumes200JSONResponseBodyDataItemsContextSource = "docker"
+	GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDockerDefault GetDockerVolumes200JSONResponseBodyDataItemsContextSource = "docker_default"
+	GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceImported      GetDockerVolumes200JSONResponseBodyDataItemsContextSource = "imported"
+	GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceManaged       GetDockerVolumes200JSONResponseBodyDataItemsContextSource = "managed"
+	GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceUnknown       GetDockerVolumes200JSONResponseBodyDataItemsContextSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumes200JSONResponseBodyDataItemsContextSource enum.
+func (e GetDockerVolumes200JSONResponseBodyDataItemsContextSource) Valid() bool {
+	switch e {
+	case GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceCompose:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDocker:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceDockerDefault:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceImported:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceManaged:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsContextSourceDockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus.
+const (
+	GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusException GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus = "exception"
+	GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnknown   GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus = "unknown"
+	GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnused    GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus = "unused"
+	GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUsed      GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus enum.
+func (e GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus) Valid() bool {
+	switch e {
+	case GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusException:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnknown:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUnused:
+		return true
+	case GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatusDockerResourceRelationshipStatusUsed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerVolumes400JSONResponseBodySuccess.
 const (
 	GetDockerVolumes400JSONResponseBodySuccessFalse GetDockerVolumes400JSONResponseBodySuccess = false
@@ -3034,6 +3256,60 @@ const (
 func (e PostDockerVolumeBatchRemove500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PostDockerVolumeBatchRemove500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolume200JSONResponseBodyDataContextSource.
+const (
+	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceCompose       GetDockerVolume200JSONResponseBodyDataContextSource = "compose"
+	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceDocker        GetDockerVolume200JSONResponseBodyDataContextSource = "docker"
+	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceDockerDefault GetDockerVolume200JSONResponseBodyDataContextSource = "docker_default"
+	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceImported      GetDockerVolume200JSONResponseBodyDataContextSource = "imported"
+	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceManaged       GetDockerVolume200JSONResponseBodyDataContextSource = "managed"
+	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceUnknown       GetDockerVolume200JSONResponseBodyDataContextSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume200JSONResponseBodyDataContextSource enum.
+func (e GetDockerVolume200JSONResponseBodyDataContextSource) Valid() bool {
+	switch e {
+	case GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceCompose:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceDocker:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceDockerDefault:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceImported:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceManaged:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolume200JSONResponseBodyDataRelationshipStatus.
+const (
+	GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusException GetDockerVolume200JSONResponseBodyDataRelationshipStatus = "exception"
+	GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnknown   GetDockerVolume200JSONResponseBodyDataRelationshipStatus = "unknown"
+	GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnused    GetDockerVolume200JSONResponseBodyDataRelationshipStatus = "unused"
+	GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUsed      GetDockerVolume200JSONResponseBodyDataRelationshipStatus = "used"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolume200JSONResponseBodyDataRelationshipStatus enum.
+func (e GetDockerVolume200JSONResponseBodyDataRelationshipStatus) Valid() bool {
+	switch e {
+	case GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusException:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnknown:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUnused:
+		return true
+	case GetDockerVolume200JSONResponseBodyDataRelationshipStatusDockerResourceRelationshipStatusUsed:
 		return true
 	default:
 		return false
@@ -3965,6 +4241,12 @@ type GetDockerNetworksParams struct {
 	// Usage Optional Docker network usage filter.
 	Usage *GetDockerNetworksParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
 
+	// Source Optional normalized Docker network source filter, resolved by the server from trusted runtime facts.
+	Source *GetDockerNetworksParamsSource `form:"source,omitempty" json:"source,omitempty"`
+
+	// ComposeProject Optional exact Compose project filter. Only applies to networks with source=compose.
+	ComposeProject *string `form:"compose_project,omitempty" json:"compose_project,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 
@@ -3975,6 +4257,15 @@ type GetDockerNetworksParams struct {
 
 // GetDockerNetworksParamsUsage defines parameters for GetDockerNetworks.
 type GetDockerNetworksParamsUsage string
+
+// GetDockerNetworksParamsSource defines parameters for GetDockerNetworks.
+type GetDockerNetworksParamsSource string
+
+// GetDockerNetworks200JSONResponseBodyDataItemsContextSource defines parameters for GetDockerNetworks.
+type GetDockerNetworks200JSONResponseBodyDataItemsContextSource string
+
+// GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus defines parameters for GetDockerNetworks.
+type GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus string
 
 // GetDockerNetworks400JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks400JSONResponseBodySuccess bool
@@ -3987,6 +4278,12 @@ type GetDockerNetworks403JSONResponseBodySuccess bool
 
 // GetDockerNetworks500JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks500JSONResponseBodySuccess bool
+
+// GetDockerNetwork200JSONResponseBodyDataContextSource defines parameters for GetDockerNetwork.
+type GetDockerNetwork200JSONResponseBodyDataContextSource string
+
+// GetDockerNetwork200JSONResponseBodyDataRelationshipStatus defines parameters for GetDockerNetwork.
+type GetDockerNetwork200JSONResponseBodyDataRelationshipStatus string
 
 // GetDockerNetwork401JSONResponseBodySuccess defines parameters for GetDockerNetwork.
 type GetDockerNetwork401JSONResponseBodySuccess bool
@@ -4026,8 +4323,14 @@ type GetDockerVolumesParams struct {
 	// Scope Optional exact Docker volume scope filter.
 	Scope *string `form:"scope,omitempty" json:"scope,omitempty"`
 
-	// Usage Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.
+	// Usage Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.
 	Usage *GetDockerVolumesParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
+
+	// Source Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts.
+	Source *GetDockerVolumesParamsSource `form:"source,omitempty" json:"source,omitempty"`
+
+	// ComposeProject Optional exact Compose project filter. Only applies to volumes with source=compose.
+	ComposeProject *string `form:"compose_project,omitempty" json:"compose_project,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
@@ -4039,6 +4342,15 @@ type GetDockerVolumesParams struct {
 
 // GetDockerVolumesParamsUsage defines parameters for GetDockerVolumes.
 type GetDockerVolumesParamsUsage string
+
+// GetDockerVolumesParamsSource defines parameters for GetDockerVolumes.
+type GetDockerVolumesParamsSource string
+
+// GetDockerVolumes200JSONResponseBodyDataItemsContextSource defines parameters for GetDockerVolumes.
+type GetDockerVolumes200JSONResponseBodyDataItemsContextSource string
+
+// GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus defines parameters for GetDockerVolumes.
+type GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus string
 
 // GetDockerVolumes400JSONResponseBodySuccess defines parameters for GetDockerVolumes.
 type GetDockerVolumes400JSONResponseBodySuccess bool
@@ -4089,6 +4401,12 @@ type GetDockerVolumeParams struct {
 	// through the response header and envelope traceId field.
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
+
+// GetDockerVolume200JSONResponseBodyDataContextSource defines parameters for GetDockerVolume.
+type GetDockerVolume200JSONResponseBodyDataContextSource string
+
+// GetDockerVolume200JSONResponseBodyDataRelationshipStatus defines parameters for GetDockerVolume.
+type GetDockerVolume200JSONResponseBodyDataRelationshipStatus string
 
 // GetDockerVolume400JSONResponseBodySuccess defines parameters for GetDockerVolume.
 type GetDockerVolume400JSONResponseBodySuccess bool

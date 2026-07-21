@@ -52,11 +52,17 @@ type DockerImageContainerReference struct {
 	Name string
 }
 
-// DockerVolumeContainerReference 是引用数据卷的容器安全展示投影。
-type DockerVolumeContainerReference struct {
+// DockerContainerReference 是 Docker 资源关系中容器的安全展示投影。
+type DockerContainerReference struct {
 	ID   string
 	Name string
 }
+
+// DockerVolumeContainerReference 是引用数据卷的容器安全展示投影。
+type DockerVolumeContainerReference = DockerContainerReference
+
+// DockerNetworkContainerReference 是连接网络的容器安全展示投影。
+type DockerNetworkContainerReference = DockerContainerReference
 
 // DockerImageListResult 保存一次 Docker 镜像快照及其完整运行时统计。
 // Items 由同一次 ImageList 调用产生，调用方可以在此快照上完成过滤和分页，避免重复访问 Docker daemon。
@@ -76,23 +82,70 @@ type DockerImageListSummary struct {
 
 // DockerNetwork is the sanitized network projection shared by list and detail reads.
 type DockerNetwork struct {
-	ID             string
-	Name           string
-	Driver         string
-	Scope          string
-	CreatedAt      string
-	Internal       bool
-	Attachable     bool
-	Ingress        bool
-	ContainerCount int
-	Removable      bool
-	Labels         map[string]string
+	ID                  string
+	Name                string
+	Driver              string
+	Scope               string
+	CreatedAt           string
+	Internal            bool
+	Attachable          bool
+	Ingress             bool
+	ContainerCount      int
+	ContainerReferences []DockerNetworkContainerReference
+	IPAM                *DockerNetworkIPAMDetail
+	Removable           bool
+	Labels              map[string]string
+	Context             DockerResourceContext
+	RelationshipStatus  DockerResourceRelationshipStatus
+}
+
+// DockerResourceSource 表示由服务端从可信运行时事实归一化的 Docker 资源业务来源。
+type DockerResourceSource string
+
+const (
+	dockerResourceSourceCompose       DockerResourceSource = "compose"
+	dockerResourceSourceDockerDefault DockerResourceSource = "docker_default"
+	dockerResourceSourceDocker        DockerResourceSource = "docker"
+)
+
+// DockerResourceRelationshipStatus 表示当前关系快照的可用性和使用状态。
+type DockerResourceRelationshipStatus string
+
+const (
+	dockerResourceRelationshipStatusUsed      DockerResourceRelationshipStatus = "used"
+	dockerResourceRelationshipStatusUnused    DockerResourceRelationshipStatus = "unused"
+	dockerResourceRelationshipStatusUnknown   DockerResourceRelationshipStatus = "unknown"
+	dockerResourceRelationshipStatusException DockerResourceRelationshipStatus = "exception"
+)
+
+// DockerResourceContext 是面向资源页首屏的业务上下文，不承载原始 inspect 或 Labels 数据。
+type DockerResourceContext struct {
+	Runtime         string
+	RuntimeTarget   string
+	Source          DockerResourceSource
+	ComposeProject  string
+	ComposeResource string
+	ManagedBy       string
+}
+
+// DockerNetworkIPAMDetail 是网络详情可展示的 IPAM 配置投影，不包含 driver options 或原始 inspect 数据。
+type DockerNetworkIPAMDetail struct {
+	Driver string
+	Config []DockerNetworkIPAMDetailConfig
+}
+
+// DockerNetworkIPAMDetailConfig 是单条网络 IPAM 子网和网关配置。
+type DockerNetworkIPAMDetailConfig struct {
+	Subnet  string
+	Gateway string
 }
 
 // DockerNetworkListQuery 描述 Docker 网络列表的筛选和分页条件。
 type DockerNetworkListQuery struct {
 	Limit, Offset                 int
 	Keyword, Driver, Scope, Usage string
+	Source                        DockerResourceSource
+	ComposeProject                string
 }
 
 // DockerNetworkListResult 是 Docker 网络列表的分页投影，摘要始终基于完整快照。
@@ -124,31 +177,19 @@ func listDockerNetworks(items []DockerNetwork, query DockerNetworkListQuery) Doc
 }
 
 func dockerNetworkMatches(item DockerNetwork, query DockerNetworkListQuery) bool {
-	keyword := strings.ToLower(strings.TrimSpace(query.Keyword))
-	if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
-		return false
-	}
-	if query.Driver != "" && item.Driver != query.Driver {
-		return false
-	}
-	if query.Scope != "" && item.Scope != query.Scope {
-		return false
-	}
-	if query.Usage == "used" {
-		return item.ContainerCount > 0
-	}
-	if query.Usage == "unused" {
-		return item.ContainerCount == 0
-	}
-	return true
+	return dockerResourceAttributesMatch(
+		dockerResourceAttributes{Name: item.Name, Driver: item.Driver, Scope: item.Scope, Context: item.Context},
+		dockerResourceAttributeFilter{Keyword: query.Keyword, Driver: query.Driver, Scope: query.Scope, Source: query.Source, ComposeProject: query.ComposeProject},
+	) && dockerRelationshipUsageMatches(dockerNetworkRelationshipStatus(item), query.Usage)
 }
 
 func summarizeDockerNetworks(items []DockerNetwork) DockerNetworkListSummary {
 	summary := DockerNetworkListSummary{Total: len(items)}
 	for _, item := range items {
-		if item.ContainerCount > 0 {
+		switch dockerNetworkRelationshipStatus(item) {
+		case dockerResourceRelationshipStatusUsed:
 			summary.InUse++
-		} else {
+		case dockerResourceRelationshipStatusUnused:
 			summary.Unused++
 		}
 	}
@@ -166,12 +207,16 @@ type DockerVolume struct {
 	ReferenceCount      *int64
 	SizeBytes           *int64
 	ContainerReferences []DockerVolumeContainerReference
+	Context             DockerResourceContext
+	RelationshipStatus  DockerResourceRelationshipStatus
 }
 
 // DockerVolumeListQuery 描述数据卷列表的受限筛选和分页条件。
 type DockerVolumeListQuery struct {
 	Limit, Offset                 int
 	Keyword, Driver, Scope, Usage string
+	Source                        DockerResourceSource
+	ComposeProject                string
 }
 
 // DockerVolumeListResult 是数据卷列表的分页投影。
@@ -215,12 +260,12 @@ func summarizeDockerVolumes(items []DockerVolume) DockerVolumeListSummary {
 	var totalSize int64
 	sizeAvailable := true
 	for _, item := range items {
-		switch {
-		case item.ReferenceCount == nil:
+		switch dockerVolumeRelationshipStatus(item) {
+		case dockerResourceRelationshipStatusUnknown, dockerResourceRelationshipStatusException:
 			summary.ReferenceUnknown++
-		case *item.ReferenceCount > 0:
+		case dockerResourceRelationshipStatusUsed:
 			summary.InUse++
-		default:
+		case dockerResourceRelationshipStatusUnused:
 			summary.Unused++
 		}
 		if item.SizeBytes == nil {
@@ -236,27 +281,88 @@ func summarizeDockerVolumes(items []DockerVolume) DockerVolumeListSummary {
 }
 
 func dockerVolumeMatchesQuery(item DockerVolume, query DockerVolumeListQuery, keyword string) bool {
-	if keyword != "" && !strings.Contains(strings.ToLower(item.Name), keyword) {
-		return false
-	}
-	if query.Driver != "" && item.Driver != query.Driver {
-		return false
-	}
-	if query.Scope != "" && item.Scope != query.Scope {
-		return false
-	}
-	return dockerVolumeUsageMatches(item.ReferenceCount, query.Usage)
+	return dockerResourceAttributesMatch(
+		dockerResourceAttributes{Name: item.Name, Driver: item.Driver, Scope: item.Scope, Context: item.Context},
+		dockerResourceAttributeFilter{Keyword: keyword, Driver: query.Driver, Scope: query.Scope, Source: query.Source, ComposeProject: query.ComposeProject},
+	) && dockerRelationshipUsageMatches(dockerVolumeRelationshipStatus(item), query.Usage)
 }
 
-func dockerVolumeUsageMatches(referenceCount *int64, usage string) bool {
+type dockerResourceAttributes struct {
+	Name, Driver, Scope string
+	Context             DockerResourceContext
+}
+
+type dockerResourceAttributeFilter struct {
+	Keyword, Driver, Scope, ComposeProject string
+	Source                                 DockerResourceSource
+}
+
+func dockerResourceAttributesMatch(attributes dockerResourceAttributes, filter dockerResourceAttributeFilter) bool {
+	return dockerResourceNameMatches(attributes.Name, filter.Keyword) &&
+		dockerResourceValueMatches(attributes.Driver, filter.Driver) &&
+		dockerResourceValueMatches(attributes.Scope, filter.Scope) &&
+		dockerResourceSourceMatches(attributes.Context.Source, filter.Source) &&
+		dockerResourceComposeProjectMatches(attributes.Context.ComposeProject, filter.ComposeProject)
+}
+
+func dockerResourceNameMatches(name, keyword string) bool {
+	keyword = strings.ToLower(strings.TrimSpace(keyword))
+	return keyword == "" || strings.Contains(strings.ToLower(name), keyword)
+}
+
+func dockerResourceValueMatches(value, filter string) bool {
+	return filter == "" || value == filter
+}
+
+func dockerResourceSourceMatches(source, filter DockerResourceSource) bool {
+	return filter == "" || source == filter
+}
+
+func dockerResourceComposeProjectMatches(project, filter string) bool {
+	filter = strings.TrimSpace(filter)
+	return filter == "" || strings.EqualFold(project, filter)
+}
+
+func dockerRelationshipUsageMatches(status DockerResourceRelationshipStatus, usage string) bool {
 	switch usage {
 	case "used":
-		return referenceCount != nil && *referenceCount > 0
+		return status == dockerResourceRelationshipStatusUsed
 	case "unused":
-		return referenceCount != nil && *referenceCount == 0
+		return status == dockerResourceRelationshipStatusUnused
 	default:
 		return true
 	}
+}
+
+func dockerRelationshipStatus(known bool, count int) DockerResourceRelationshipStatus {
+	if !known {
+		return dockerResourceRelationshipStatusException
+	}
+	if count > 0 {
+		return dockerResourceRelationshipStatusUsed
+	}
+	return dockerResourceRelationshipStatusUnused
+}
+
+func dockerRelationshipStatusFromReferenceCount(referenceCount *int64) DockerResourceRelationshipStatus {
+	if referenceCount == nil {
+		return dockerResourceRelationshipStatusUnknown
+	}
+	return dockerRelationshipStatus(true, int(*referenceCount))
+}
+
+func dockerNetworkRelationshipStatus(item DockerNetwork) DockerResourceRelationshipStatus {
+	if item.RelationshipStatus != "" {
+		return item.RelationshipStatus
+	}
+	return dockerRelationshipStatus(true, item.ContainerCount)
+}
+
+func dockerVolumeRelationshipStatus(item DockerVolume) DockerResourceRelationshipStatus {
+	if item.RelationshipStatus != "" {
+		return item.RelationshipStatus
+	}
+	return dockerRelationshipStatusFromReferenceCount(item.ReferenceCount)
 }
 
 // DockerResourceReader marks a runtime that can list Docker-native resources.
@@ -392,33 +498,66 @@ func (r *DockerRuntime) ListDockerNetworks(ctx context.Context) ([]DockerNetwork
 		return nil, mapDockerError(err)
 	}
 	result := make([]DockerNetwork, 0, len(items))
-	containers, err := client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
-	if err != nil {
-		return nil, mapDockerError(err)
-	}
-	counts := dockerNetworkContainerCounts(containers)
+	containers, containersErr := client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true})
+	references := dockerNetworkContainerReferences(containers)
+	counts := dockerNetworkContainerReferenceCounts(references)
 	for _, item := range items {
 		projected := dockerNetwork(item.Network, counts[strings.TrimSpace(item.ID)])
-		projected.Removable = !isDockerDefaultNetwork(projected.Name) && projected.ContainerCount == 0
+		if containersErr == nil {
+			projected.ContainerReferences = append([]DockerNetworkContainerReference(nil), references[strings.TrimSpace(item.ID)]...)
+		}
+		projected.RelationshipStatus = dockerRelationshipStatus(containersErr == nil, projected.ContainerCount)
+		projected.Removable = !isDockerDefaultNetwork(projected.Name) && projected.RelationshipStatus == dockerResourceRelationshipStatusUnused
 		result = append(result, projected)
 	}
 	return result, nil
 }
 
-func dockerNetworkContainerCounts(items []container.Summary) map[string]int {
-	counts := make(map[string]int)
-	for _, item := range items {
-		for id, endpoint := range item.NetworkSettings.Networks {
-			networkID := strings.TrimSpace(id)
-			if endpoint != nil && strings.TrimSpace(endpoint.NetworkID) != "" {
-				networkID = strings.TrimSpace(endpoint.NetworkID)
-			}
-			if networkID != "" {
-				counts[networkID]++
-			}
-		}
+func dockerNetworkContainerReferenceCounts(references map[string][]DockerNetworkContainerReference) map[string]int {
+	counts := make(map[string]int, len(references))
+	for networkID, items := range references {
+		counts[networkID] = len(items)
 	}
 	return counts
+}
+
+func dockerNetworkContainerReferences(items []container.Summary) map[string][]DockerNetworkContainerReference {
+	byNetwork := make(map[string]map[string]DockerNetworkContainerReference)
+	for _, item := range items {
+		reference, ok := dockerContainerReference(item)
+		if !ok {
+			continue
+		}
+		if item.NetworkSettings == nil {
+			continue
+		}
+		for id, endpoint := range item.NetworkSettings.Networks {
+			addDockerNetworkReference(byNetwork, dockerNetworkReferenceID(id, endpoint), reference)
+		}
+	}
+	result := make(map[string][]DockerNetworkContainerReference, len(byNetwork))
+	for networkID, references := range byNetwork {
+		result[networkID] = sortedDockerContainerReferences(references)
+	}
+	return result
+}
+
+func dockerNetworkReferenceID(id string, endpoint *network.EndpointSettings) string {
+	networkID := strings.TrimSpace(id)
+	if endpoint != nil && strings.TrimSpace(endpoint.NetworkID) != "" {
+		networkID = strings.TrimSpace(endpoint.NetworkID)
+	}
+	return networkID
+}
+
+func addDockerNetworkReference(byNetwork map[string]map[string]DockerNetworkContainerReference, networkID string, reference DockerNetworkContainerReference) {
+	if networkID == "" {
+		return
+	}
+	if byNetwork[networkID] == nil {
+		byNetwork[networkID] = make(map[string]DockerNetworkContainerReference)
+	}
+	byNetwork[networkID][reference.ID] = reference
 }
 
 // ReadDockerNetwork returns one sanitized Docker network by ID.
@@ -431,7 +570,21 @@ func (r *DockerRuntime) ReadDockerNetwork(ctx context.Context, id string) (Docke
 	if err != nil {
 		return DockerNetwork{}, mapDockerError(err)
 	}
-	return dockerNetwork(item.Network, len(item.Containers)), nil
+	projected := dockerNetwork(item.Network, len(item.Containers))
+	projected.ContainerReferences = dockerNetworkInspectReferences(item.Containers)
+	return projected, nil
+}
+
+func dockerNetworkInspectReferences(containers map[string]network.EndpointResource) []DockerNetworkContainerReference {
+	references := make(map[string]DockerNetworkContainerReference, len(containers))
+	for id, endpoint := range containers {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		references[id] = DockerNetworkContainerReference{ID: id, Name: strings.TrimPrefix(strings.TrimSpace(endpoint.Name), "/")}
+	}
+	return sortedDockerContainerReferences(references)
 }
 
 // ListDockerVolumes returns sanitized Docker volumes from the configured runtime.
@@ -457,10 +610,7 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 			}
 		}
 	}
-	containers, err := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
-	if err != nil {
-		return nil, mapDockerError(err)
-	}
+	containers, containersErr := client.ContainerList(readCtx, mobyclient.ContainerListOptions{All: true})
 	references := dockerVolumeReferences(containers)
 	items := make([]DockerVolume, 0, len(result))
 	for _, item := range result {
@@ -468,7 +618,7 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 		if data, ok := usageByName[item.Name]; ok {
 			projected.ReferenceCount, projected.SizeBytes = nullableUsage(data.RefCount), nullableUsage(data.Size)
 		}
-		projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), references[projected.Name]...)
+		applyDockerVolumeContainerReferences(&projected, references[projected.Name], containersErr)
 		items = append(items, projected)
 	}
 	return items, nil
@@ -501,11 +651,22 @@ func (r *DockerRuntime) ReadDockerVolume(ctx context.Context, id string) (Docker
 		All:     true,
 		Filters: make(mobyclient.Filters).Add("volume", projected.Name),
 	})
-	if err == nil {
-		projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), dockerVolumeReferences(containers)[projected.Name]...)
-	}
+	applyDockerVolumeContainerReferences(&projected, dockerVolumeReferences(containers)[projected.Name], err)
 	// 引用查询是详情的附加信息；Docker 查询失败时保留核心 volume 投影，并以 nil 表示引用未知。
 	return projected, nil
+}
+
+func applyDockerVolumeContainerReferences(projected *DockerVolume, references []DockerVolumeContainerReference, err error) {
+	if err != nil {
+		if projected.ReferenceCount == nil {
+			projected.RelationshipStatus = dockerResourceRelationshipStatusException
+		}
+		return
+	}
+	projected.ContainerReferences = append([]DockerVolumeContainerReference(nil), references...)
+	if projected.ReferenceCount == nil {
+		projected.RelationshipStatus = dockerRelationshipStatus(true, len(projected.ContainerReferences))
+	}
 }
 
 func dockerVolumeReferences(items []container.Summary) map[string][]DockerVolumeContainerReference {
@@ -528,31 +689,35 @@ func dockerVolumeReferences(items []container.Summary) map[string][]DockerVolume
 	}
 	result := make(map[string][]DockerVolumeContainerReference, len(byVolume))
 	for volumeName, references := range byVolume {
-		items := make([]DockerVolumeContainerReference, 0, len(references))
-		for _, reference := range references {
-			items = append(items, reference)
-		}
-		sort.Slice(items, func(i, j int) bool {
-			if items[i].Name != items[j].Name {
-				return items[i].Name < items[j].Name
-			}
-			return items[i].ID < items[j].ID
-		})
-		result[volumeName] = items
+		result[volumeName] = sortedDockerContainerReferences(references)
 	}
 	return result
 }
 
-func dockerContainerReference(item container.Summary) (DockerVolumeContainerReference, bool) {
+func sortedDockerContainerReferences(references map[string]DockerContainerReference) []DockerContainerReference {
+	items := make([]DockerContainerReference, 0, len(references))
+	for _, reference := range references {
+		items = append(items, reference)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Name != items[j].Name {
+			return items[i].Name < items[j].Name
+		}
+		return items[i].ID < items[j].ID
+	})
+	return items
+}
+
+func dockerContainerReference(item container.Summary) (DockerContainerReference, bool) {
 	id := strings.TrimSpace(item.ID)
 	if id == "" {
-		return DockerVolumeContainerReference{}, false
+		return DockerContainerReference{}, false
 	}
 	name := ""
 	if len(item.Names) > 0 {
 		name = strings.TrimPrefix(strings.TrimSpace(item.Names[0]), "/")
 	}
-	return DockerVolumeContainerReference{ID: id, Name: name}, true
+	return DockerContainerReference{ID: id, Name: name}, true
 }
 
 func dockerVolumeMountName(itemMount container.MountPoint) (string, bool) {
@@ -601,7 +766,30 @@ func imageLabels(item image.InspectResponse) map[string]string {
 
 // dockerNetwork converts Docker network data into a normalized DockerNetwork value.
 func dockerNetwork(item network.Network, containerCount int) DockerNetwork {
-	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Removable: !isDockerDefaultNetwork(strings.TrimSpace(item.Name)) && containerCount == 0, Labels: cloneLabels(item.Labels)}
+	name := strings.TrimSpace(item.Name)
+	status := dockerRelationshipStatus(true, containerCount)
+	return DockerNetwork{ID: strings.TrimSpace(item.ID), Name: name, Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: item.Created.UTC().Format(time.RFC3339), Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: containerCount, Removable: !isDockerDefaultNetwork(name) && status == dockerResourceRelationshipStatusUnused, Labels: cloneLabels(item.Labels), Context: dockerResourceContext(item.Labels, name, composeNetworkLabel, isDockerDefaultNetwork(name)), RelationshipStatus: status, IPAM: dockerNetworkDetailIPAM(item.IPAM)}
+}
+
+func dockerNetworkDetailIPAM(item network.IPAM) *DockerNetworkIPAMDetail {
+	config := make([]DockerNetworkIPAMDetailConfig, 0, len(item.Config))
+	for _, value := range item.Config {
+		subnet, gateway := "", ""
+		if value.Subnet.IsValid() {
+			subnet = value.Subnet.String()
+		}
+		if value.Gateway.IsValid() {
+			gateway = value.Gateway.String()
+		}
+		if subnet == "" && gateway == "" {
+			continue
+		}
+		config = append(config, DockerNetworkIPAMDetailConfig{Subnet: subnet, Gateway: gateway})
+	}
+	if strings.TrimSpace(item.Driver) == "" && len(config) == 0 {
+		return nil
+	}
+	return &DockerNetworkIPAMDetail{Driver: strings.TrimSpace(item.Driver), Config: config}
 }
 
 // dockerVolume converts a Docker volume into a normalized DockerVolume projection, preserving usage metrics when available.
@@ -611,7 +799,24 @@ func dockerVolume(item volume.Volume) DockerVolume {
 		referenceCount = nullableUsage(item.UsageData.RefCount)
 		sizeBytes = nullableUsage(item.UsageData.Size)
 	}
-	return DockerVolume{Name: strings.TrimSpace(item.Name), Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes}
+	name := strings.TrimSpace(item.Name)
+	return DockerVolume{Name: name, Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes, Context: dockerResourceContext(item.Labels, name, composeVolumeLabel, false), RelationshipStatus: dockerRelationshipStatusFromReferenceCount(referenceCount)}
+}
+
+func dockerResourceContext(labels map[string]string, resourceName, composeResourceLabel string, defaultDockerResource bool) DockerResourceContext {
+	resourceContext := DockerResourceContext{Runtime: runtimeNameDocker, Source: dockerResourceSourceDocker}
+	if defaultDockerResource {
+		resourceContext.Source = dockerResourceSourceDockerDefault
+		return resourceContext
+	}
+	project := strings.TrimSpace(labels[composeProjectLabel])
+	if project == "" {
+		return resourceContext
+	}
+	resourceContext.Source = dockerResourceSourceCompose
+	resourceContext.ComposeProject = project
+	resourceContext.ComposeResource = firstNonEmpty(strings.TrimSpace(labels[composeResourceLabel]), resourceName)
+	return resourceContext
 }
 
 var _ DockerResourceReader = (*DockerRuntime)(nil)

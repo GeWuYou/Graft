@@ -47,6 +47,21 @@ func TestListDockerNetworksFiltersPagesAndSummarizesSnapshot(t *testing.T) {
 	}
 }
 
+func TestSummarizeDockerNetworksDoesNotCountUnknownAsUnused(t *testing.T) {
+	t.Parallel()
+
+	items := []DockerNetwork{
+		{RelationshipStatus: dockerResourceRelationshipStatusUsed},
+		{RelationshipStatus: dockerResourceRelationshipStatusUnused},
+		{RelationshipStatus: dockerResourceRelationshipStatusUnknown},
+		{RelationshipStatus: dockerResourceRelationshipStatusException},
+	}
+
+	if got := summarizeDockerNetworks(items); got != (DockerNetworkListSummary{Total: 4, InUse: 1, Unused: 1}) {
+		t.Fatalf("unknown network relationship must not be counted as unused: %#v", got)
+	}
+}
+
 func TestListDockerVolumesNormalizesNegativePagination(t *testing.T) {
 	t.Parallel()
 
@@ -70,13 +85,58 @@ func TestListDockerVolumesAvoidsPaginationSliceOverflow(t *testing.T) {
 	}
 }
 
-func TestDockerVolumeUsageUnknownDoesNotMatchUnused(t *testing.T) {
-	if dockerVolumeUsageMatches(nil, "unused") {
-		t.Fatal("unknown reference count must not match unused")
+func TestDockerRelationshipUsageMatchesServerOwnedStatus(t *testing.T) {
+	if dockerRelationshipUsageMatches(dockerResourceRelationshipStatusUnknown, "unused") {
+		t.Fatal("unknown relationship status must not match unused")
 	}
-	zero := int64(0)
-	if !dockerVolumeUsageMatches(&zero, "unused") {
-		t.Fatal("zero reference count must match unused")
+	if dockerRelationshipUsageMatches(dockerResourceRelationshipStatusException, "used") {
+		t.Fatal("exception relationship status must not match used")
+	}
+	if !dockerRelationshipUsageMatches(dockerResourceRelationshipStatusUnused, "unused") {
+		t.Fatal("unused relationship status must match unused")
+	}
+	if !dockerRelationshipUsageMatches(dockerResourceRelationshipStatusUsed, "used") {
+		t.Fatal("used relationship status must match used")
+	}
+}
+
+func TestDockerResourceContextClassifiesComposeAndDefaultResources(t *testing.T) {
+	t.Parallel()
+
+	compose := dockerResourceContext(map[string]string{
+		composeProjectLabel: "gitea",
+		composeNetworkLabel: "backend",
+	}, "gitea_backend", composeNetworkLabel, false)
+	if compose.Runtime != runtimeNameDocker || compose.Source != dockerResourceSourceCompose || compose.ComposeProject != "gitea" || compose.ComposeResource != "backend" {
+		t.Fatalf("unexpected compose context: %#v", compose)
+	}
+
+	defaultNetwork := dockerResourceContext(nil, "bridge", composeNetworkLabel, true)
+	if defaultNetwork.Runtime != runtimeNameDocker || defaultNetwork.Source != dockerResourceSourceDockerDefault {
+		t.Fatalf("unexpected default Docker context: %#v", defaultNetwork)
+	}
+}
+
+func TestListDockerResourcesFiltersNormalizedContext(t *testing.T) {
+	t.Parallel()
+
+	networks := []DockerNetwork{
+		{Name: "gitea_backend", Context: DockerResourceContext{Source: dockerResourceSourceCompose, ComposeProject: "gitea"}, RelationshipStatus: dockerResourceRelationshipStatusUsed},
+		{Name: "grafana_default", Context: DockerResourceContext{Source: dockerResourceSourceCompose, ComposeProject: "grafana"}, RelationshipStatus: dockerResourceRelationshipStatusUnused},
+		{Name: "bridge", Context: DockerResourceContext{Source: dockerResourceSourceDockerDefault}, RelationshipStatus: dockerResourceRelationshipStatusUsed},
+	}
+	filteredNetworks := listDockerNetworks(networks, DockerNetworkListQuery{Source: dockerResourceSourceCompose, ComposeProject: "GITEA", Limit: 20})
+	if filteredNetworks.Total != 1 || filteredNetworks.Items[0].Name != "gitea_backend" {
+		t.Fatalf("unexpected context-filtered networks: %#v", filteredNetworks)
+	}
+
+	volumes := []DockerVolume{
+		{Name: "gitea_data", Context: DockerResourceContext{Source: dockerResourceSourceCompose, ComposeProject: "gitea"}, RelationshipStatus: dockerResourceRelationshipStatusUsed},
+		{Name: "docker_data", Context: DockerResourceContext{Source: dockerResourceSourceDocker}, RelationshipStatus: dockerResourceRelationshipStatusUnused},
+	}
+	filteredVolumes := listDockerVolumes(volumes, DockerVolumeListQuery{Source: dockerResourceSourceCompose, ComposeProject: "gitea", Usage: "used", Limit: 20})
+	if filteredVolumes.Total != 1 || filteredVolumes.Items[0].Name != "gitea_data" {
+		t.Fatalf("unexpected context-filtered volumes: %#v", filteredVolumes)
 	}
 }
 
@@ -105,6 +165,57 @@ func TestDockerVolumeReferencesDeduplicateMountsAndIgnoreNonVolumes(t *testing.T
 	}
 }
 
+func TestDockerNetworkReferencesDeduplicateAndUseNetworkID(t *testing.T) {
+	t.Parallel()
+
+	references := dockerNetworkContainerReferences([]dockertypes.Summary{
+		{
+			ID:    "container-b",
+			Names: []string{"/worker"},
+			NetworkSettings: &dockertypes.NetworkSettingsSummary{Networks: map[string]*network.EndpointSettings{
+				"backend": {NetworkID: "network-backend"},
+			}},
+		},
+		{
+			ID:    "container-a",
+			Names: []string{"/api"},
+			NetworkSettings: &dockertypes.NetworkSettingsSummary{Networks: map[string]*network.EndpointSettings{
+				"backend": {NetworkID: "network-backend"},
+				"other":   {NetworkID: "network-other"},
+			}},
+		},
+	})
+
+	backend := references["network-backend"]
+	if len(backend) != 2 || backend[0].Name != "api" || backend[1].Name != "worker" {
+		t.Fatalf("unexpected network references: %#v", backend)
+	}
+	if other := references["network-other"]; len(other) != 1 || other[0].ID != "container-a" {
+		t.Fatalf("unexpected secondary network references: %#v", other)
+	}
+}
+
+func TestDockerNetworkReferencesIgnoreContainersWithoutNetworkSettings(t *testing.T) {
+	t.Parallel()
+
+	references := dockerNetworkContainerReferences([]dockertypes.Summary{{ID: "container-a"}})
+	if len(references) != 0 {
+		t.Fatalf("expected nil network settings to produce no references, got %#v", references)
+	}
+}
+
+func TestDockerNetworkInspectReferencesExcludeEndpointMetadata(t *testing.T) {
+	t.Parallel()
+
+	references := dockerNetworkInspectReferences(map[string]network.EndpointResource{
+		"container-b": {Name: "/worker", EndpointID: "endpoint-b"},
+		"container-a": {Name: "/api", EndpointID: "endpoint-a"},
+	})
+	if len(references) != 2 || references[0] != (DockerNetworkContainerReference{ID: "container-a", Name: "api"}) || references[1] != (DockerNetworkContainerReference{ID: "container-b", Name: "worker"}) {
+		t.Fatalf("unexpected sanitized inspect references: %#v", references)
+	}
+}
+
 func TestListDockerVolumesSummaryUsesFullSnapshotBeforeFilters(t *testing.T) {
 	t.Parallel()
 
@@ -112,10 +223,11 @@ func TestListDockerVolumesSummaryUsesFullSnapshotBeforeFilters(t *testing.T) {
 	result := listDockerVolumes([]DockerVolume{
 		{Name: "used", ReferenceCount: &used, SizeBytes: &size},
 		{Name: "unused", ReferenceCount: &unused, SizeBytes: &size},
+		{Name: "status-used", RelationshipStatus: dockerResourceRelationshipStatusUsed, SizeBytes: &size},
 		{Name: "unknown", SizeBytes: nil},
 	}, DockerVolumeListQuery{Usage: "used", Limit: 20})
 
-	if result.Total != 1 || result.Summary.Total != 3 || result.Summary.InUse != 1 || result.Summary.Unused != 1 || result.Summary.ReferenceUnknown != 1 {
+	if result.Total != 2 || result.Summary.Total != 4 || result.Summary.InUse != 2 || result.Summary.Unused != 1 || result.Summary.ReferenceUnknown != 1 {
 		t.Fatalf("unexpected filtered result or full summary: %#v", result)
 	}
 	if result.Summary.SizeBytes != nil {
@@ -254,5 +366,27 @@ func TestReadDockerVolumeReturnsUnknownReferencesWhenContainerListFails(t *testi
 	}
 	if result.ContainerReferences != nil {
 		t.Fatalf("expected references to remain unknown, got %#v", result.ContainerReferences)
+	}
+	if result.RelationshipStatus != dockerResourceRelationshipStatusUsed {
+		t.Fatalf("expected known relationship status, got %#v", result.RelationshipStatus)
+	}
+}
+
+func TestReadDockerVolumeKeepsKnownRefCountWhenContainerListDisagrees(t *testing.T) {
+	t.Parallel()
+
+	refCount := int64(1)
+	client := &volumeDetailDockerClient{volume: volume.Volume{
+		Name:      "data",
+		UsageData: &volume.UsageData{RefCount: refCount, Size: 4096},
+	}}
+	runtime := &DockerRuntime{client: client}
+
+	result, err := runtime.ReadDockerVolume(context.Background(), "data")
+	if err != nil {
+		t.Fatalf("read volume: %v", err)
+	}
+	if result.RelationshipStatus != dockerResourceRelationshipStatusUsed {
+		t.Fatalf("expected known Docker refcount to preserve used status, got %#v", result)
 	}
 }

@@ -2848,6 +2848,60 @@ func (e DockerNetworkCreateRequestDriver) Valid() bool {
 	}
 }
 
+// Defines values for DockerResourceRelationshipStatus.
+const (
+	DockerResourceRelationshipStatusException DockerResourceRelationshipStatus = "exception"
+	DockerResourceRelationshipStatusUnknown   DockerResourceRelationshipStatus = "unknown"
+	DockerResourceRelationshipStatusUnused    DockerResourceRelationshipStatus = "unused"
+	DockerResourceRelationshipStatusUsed      DockerResourceRelationshipStatus = "used"
+)
+
+// Valid indicates whether the value is a known member of the DockerResourceRelationshipStatus enum.
+func (e DockerResourceRelationshipStatus) Valid() bool {
+	switch e {
+	case DockerResourceRelationshipStatusException:
+		return true
+	case DockerResourceRelationshipStatusUnknown:
+		return true
+	case DockerResourceRelationshipStatusUnused:
+		return true
+	case DockerResourceRelationshipStatusUsed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerResourceSource.
+const (
+	DockerResourceSourceCompose       DockerResourceSource = "compose"
+	DockerResourceSourceDocker        DockerResourceSource = "docker"
+	DockerResourceSourceDockerDefault DockerResourceSource = "docker_default"
+	DockerResourceSourceImported      DockerResourceSource = "imported"
+	DockerResourceSourceManaged       DockerResourceSource = "managed"
+	DockerResourceSourceUnknown       DockerResourceSource = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the DockerResourceSource enum.
+func (e DockerResourceSource) Valid() bool {
+	switch e {
+	case DockerResourceSourceCompose:
+		return true
+	case DockerResourceSourceDocker:
+		return true
+	case DockerResourceSourceDockerDefault:
+		return true
+	case DockerResourceSourceImported:
+		return true
+	case DockerResourceSourceManaged:
+		return true
+	case DockerResourceSourceUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DockerVolumeRemoveResponseAction.
 const (
 	DockerVolumeRemoveResponseActionRemove DockerVolumeRemoveResponseAction = "remove"
@@ -6511,8 +6565,11 @@ type AuditIncidentMonitorEvidence struct {
 	// State Availability of correlated monitor evidence for this incident.
 	State AuditIncidentMonitorEvidenceState `json:"state"`
 
-	// Summary Human-readable summary of the correlated monitor evidence.
+	// Summary Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog.
 	Summary string `json:"summary"`
+
+	// SummaryParams String-formatted interpolation values for the monitor summary locale key.
+	SummaryParams map[string]string `json:"summary_params"`
 }
 
 // AuditIncidentMonitorEvidenceAnomalyKey Canonical anomaly identifier describing the monitor condition tied to the incident.
@@ -7741,17 +7798,26 @@ type DockerImageUntagRequest struct {
 
 // DockerNetwork defines model for docker-network.
 type DockerNetwork struct {
-	Attachable     bool               `json:"attachable"`
-	ContainerCount int                `json:"container_count"`
-	CreatedAt      string             `json:"created_at"`
-	Driver         string             `json:"driver"`
-	Id             string             `json:"id"`
-	Ingress        bool               `json:"ingress"`
-	Internal       bool               `json:"internal"`
-	Labels         *map[string]string `json:"labels,omitempty"`
-	Name           string             `json:"name"`
-	Removable      *bool              `json:"removable,omitempty"`
-	Scope          string             `json:"scope"`
+	Attachable     bool `json:"attachable"`
+	ContainerCount int  `json:"container_count"`
+
+	// ContainerReferences Containers currently connected to this network, represented as sanitized display references.
+	ContainerReferences []DockerNetworkContainerReference `json:"container_references"`
+
+	// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+	Context   DockerResourceContext `json:"context"`
+	CreatedAt string                `json:"created_at"`
+	Driver    string                `json:"driver"`
+	Id        string                `json:"id"`
+	Ingress   bool                  `json:"ingress"`
+	Internal  bool                  `json:"internal"`
+	Labels    *map[string]string    `json:"labels,omitempty"`
+	Name      string                `json:"name"`
+
+	// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+	RelationshipStatus DockerResourceRelationshipStatus `json:"relationship_status"`
+	Removable          *bool                            `json:"removable,omitempty"`
+	Scope              string                           `json:"scope"`
 }
 
 // DockerNetworkActionResponse defines model for docker-network-action-response.
@@ -7769,14 +7835,10 @@ type DockerNetworkActionResponseAction string
 // DockerNetworkActionResponseResult defines model for DockerNetworkActionResponse.Result.
 type DockerNetworkActionResponseResult string
 
-// DockerNetworkContainerEndpoint defines model for docker-network-container-endpoint.
-type DockerNetworkContainerEndpoint struct {
-	EndpointId  *string `json:"endpoint_id,omitempty"`
-	Id          string  `json:"id"`
-	Ipv4Address *string `json:"ipv4_address,omitempty"`
-	Ipv6Address *string `json:"ipv6_address,omitempty"`
-	MacAddress  *string `json:"mac_address,omitempty"`
-	Name        string  `json:"name"`
+// DockerNetworkContainerReference Sanitized container reference connected to a Docker network. It intentionally excludes network endpoint and inspect metadata.
+type DockerNetworkContainerReference struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // DockerNetworkCreateRequest defines model for docker-network-create-request.
@@ -7794,19 +7856,27 @@ type DockerNetworkCreateRequestDriver string
 
 // DockerNetworkDetail defines model for docker-network-detail.
 type DockerNetworkDetail struct {
-	Attachable     bool                              `json:"attachable"`
-	ContainerCount int                               `json:"container_count"`
-	Containers     *[]DockerNetworkContainerEndpoint `json:"containers,omitempty"`
-	CreatedAt      string                            `json:"created_at"`
-	Driver         string                            `json:"driver"`
-	Id             string                            `json:"id"`
-	Ingress        bool                              `json:"ingress"`
-	Internal       bool                              `json:"internal"`
-	Ipam           *DockerNetworkIpam                `json:"ipam,omitempty"`
-	Labels         *map[string]string                `json:"labels,omitempty"`
-	Name           string                            `json:"name"`
-	Removable      *bool                             `json:"removable,omitempty"`
-	Scope          string                            `json:"scope"`
+	Attachable     bool `json:"attachable"`
+	ContainerCount int  `json:"container_count"`
+
+	// ContainerReferences Containers currently connected to this network, represented as sanitized display references.
+	ContainerReferences []DockerNetworkContainerReference `json:"container_references"`
+
+	// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+	Context   DockerResourceContext `json:"context"`
+	CreatedAt string                `json:"created_at"`
+	Driver    string                `json:"driver"`
+	Id        string                `json:"id"`
+	Ingress   bool                  `json:"ingress"`
+	Internal  bool                  `json:"internal"`
+	Ipam      *DockerNetworkIpam    `json:"ipam,omitempty"`
+	Labels    *map[string]string    `json:"labels,omitempty"`
+	Name      string                `json:"name"`
+
+	// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+	RelationshipStatus DockerResourceRelationshipStatus `json:"relationship_status"`
+	Removable          *bool                            `json:"removable,omitempty"`
+	Scope              string                           `json:"scope"`
 }
 
 // DockerNetworkIpam defines model for docker-network-ipam.
@@ -7842,17 +7912,50 @@ type DockerNetworkRemoveRequest struct {
 	ConfirmNetworkName string `json:"confirm_network_name"`
 }
 
+// DockerResourceContext Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+type DockerResourceContext struct {
+	// ComposeProject Compose project identity when the resource is Compose-owned.
+	ComposeProject *string `json:"compose_project,omitempty"`
+
+	// ComposeResource Compose network or volume name when supplied by trusted Compose runtime metadata.
+	ComposeResource *string `json:"compose_resource,omitempty"`
+
+	// ManagedBy Control-plane identity when a managed resource has a known owner.
+	ManagedBy *string `json:"managed_by,omitempty"`
+
+	// Runtime Stable runtime provider identifier, such as docker. Clients localize known values.
+	Runtime string `json:"runtime"`
+
+	// RuntimeTarget Stable runtime target identifier when the resource is scoped to a known target.
+	RuntimeTarget *string `json:"runtime_target,omitempty"`
+
+	// Source Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+	Source DockerResourceSource `json:"source"`
+}
+
+// DockerResourceRelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+type DockerResourceRelationshipStatus string
+
+// DockerResourceSource Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+type DockerResourceSource string
+
 // DockerVolume defines model for docker-volume.
 type DockerVolume struct {
 	// ContainerReferences Containers currently referencing this volume, represented as sanitized display references.
 	ContainerReferences []DockerVolumeContainerReference `json:"container_references"`
-	CreatedAt           string                           `json:"created_at"`
-	Driver              string                           `json:"driver"`
-	Labels              *map[string]string               `json:"labels,omitempty"`
-	Name                string                           `json:"name"`
-	ReferenceCount      *int64                           `json:"reference_count,omitempty"`
-	Scope               string                           `json:"scope"`
-	SizeBytes           *int64                           `json:"size_bytes,omitempty"`
+
+	// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+	Context        DockerResourceContext `json:"context"`
+	CreatedAt      string                `json:"created_at"`
+	Driver         string                `json:"driver"`
+	Labels         *map[string]string    `json:"labels,omitempty"`
+	Name           string                `json:"name"`
+	ReferenceCount *int64                `json:"reference_count,omitempty"`
+
+	// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+	RelationshipStatus DockerResourceRelationshipStatus `json:"relationship_status"`
+	Scope              string                           `json:"scope"`
+	SizeBytes          *int64                           `json:"size_bytes,omitempty"`
 }
 
 // DockerVolumeBatchRemoveItem defines model for docker-volume-batch-remove-item.
@@ -11764,6 +11867,9 @@ type DockerImageListUnused = bool
 // DockerNetworkIdPath defines model for docker-network-id-path.
 type DockerNetworkIdPath = string
 
+// DockerNetworkListComposeProject defines model for docker-network-list-compose-project.
+type DockerNetworkListComposeProject = string
+
 // DockerNetworkListDriver defines model for docker-network-list-driver.
 type DockerNetworkListDriver = string
 
@@ -11779,11 +11885,17 @@ type DockerNetworkListOffset = int
 // DockerNetworkListScope defines model for docker-network-list-scope.
 type DockerNetworkListScope = string
 
+// DockerNetworkListSource Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+type DockerNetworkListSource = DockerResourceSource
+
 // DockerNetworkListUsage defines model for docker-network-list-usage.
 type DockerNetworkListUsage string
 
 // DockerVolumeIdPath defines model for docker-volume-id-path.
 type DockerVolumeIdPath = string
+
+// DockerVolumeListComposeProject defines model for docker-volume-list-compose-project.
+type DockerVolumeListComposeProject = string
 
 // DockerVolumeListDriver defines model for docker-volume-list-driver.
 type DockerVolumeListDriver = string
@@ -11799,6 +11911,9 @@ type DockerVolumeListOffset = int
 
 // DockerVolumeListScope defines model for docker-volume-list-scope.
 type DockerVolumeListScope = string
+
+// DockerVolumeListSource Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+type DockerVolumeListSource = DockerResourceSource
 
 // DockerVolumeListUsage defines model for docker-volume-list-usage.
 type DockerVolumeListUsage string
@@ -13366,6 +13481,12 @@ type GetDockerNetworksParams struct {
 	// Usage Optional Docker network usage filter.
 	Usage *GetDockerNetworksParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
 
+	// Source Optional normalized Docker network source filter, resolved by the server from trusted runtime facts.
+	Source *DockerNetworkListSource `form:"source,omitempty" json:"source,omitempty"`
+
+	// ComposeProject Optional exact Compose project filter. Only applies to networks with source=compose.
+	ComposeProject *DockerNetworkListComposeProject `form:"compose_project,omitempty" json:"compose_project,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -13394,8 +13515,14 @@ type GetDockerVolumesParams struct {
 	// Scope Optional exact Docker volume scope filter.
 	Scope *DockerVolumeListScope `form:"scope,omitempty" json:"scope,omitempty"`
 
-	// Usage Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.
+	// Usage Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.
 	Usage *GetDockerVolumesParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
+
+	// Source Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts.
+	Source *DockerVolumeListSource `form:"source,omitempty" json:"source,omitempty"`
+
+	// ComposeProject Optional exact Compose project filter. Only applies to volumes with source=compose.
+	ComposeProject *DockerVolumeListComposeProject `form:"compose_project,omitempty" json:"compose_project,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`

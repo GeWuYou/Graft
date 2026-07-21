@@ -12,30 +12,123 @@ func TestToDockerNetworkMapsAttributesLabelsAndCreatedAt(t *testing.T) {
 	t.Parallel()
 
 	mapped := toDockerNetwork(DockerNetwork{
-		ID:             "network-id",
-		Name:           "app-network",
-		Driver:         "bridge",
-		Scope:          "local",
-		CreatedAt:      "2026-07-19T23:19:41Z",
-		Internal:       true,
-		Attachable:     true,
-		Ingress:        false,
-		ContainerCount: 2,
-		Removable:      false,
-		Labels:         map[string]string{"com.example.project": "app", "environment": "prod"},
+		ID:                  "network-id",
+		Name:                "app-network",
+		Driver:              "bridge",
+		Scope:               "local",
+		CreatedAt:           "2026-07-19T23:19:41Z",
+		Internal:            true,
+		Attachable:          true,
+		Ingress:             false,
+		ContainerCount:      2,
+		ContainerReferences: []DockerNetworkContainerReference{{ID: "container-1", Name: "api"}, {ID: "container-2", Name: "worker"}},
+		Removable:           false,
+		Context: DockerResourceContext{
+			Runtime:         runtimeNameDocker,
+			Source:          dockerResourceSourceCompose,
+			ComposeProject:  "gitea",
+			ComposeResource: "backend",
+		},
+		RelationshipStatus: dockerResourceRelationshipStatusUsed,
+		Labels:             map[string]string{"com.example.project": "app", "environment": "prod"},
 	})
 
+	assertMappedNetworkIdentity(t, mapped)
+	assertMappedNetworkAttributes(t, mapped)
+	assertMappedNetworkRelations(t, mapped)
+	assertMappedNetworkContextAndMetadata(t, mapped)
+}
+
+func TestToDockerImageMapsRequiredArraysAsEmptyArrays(t *testing.T) {
+	t.Parallel()
+
+	mapped := toDockerImage(DockerImage{ID: "sha256:image-id"})
+
+	if mapped.RepositoryTags == nil || len(mapped.RepositoryTags) != 0 {
+		t.Fatalf("expected empty repository tags array, got %#v", mapped.RepositoryTags)
+	}
+	if mapped.RepositoryDigests == nil || len(mapped.RepositoryDigests) != 0 {
+		t.Fatalf("expected empty repository digests array, got %#v", mapped.RepositoryDigests)
+	}
+	if mapped.ContainerReferences == nil || len(mapped.ContainerReferences) != 0 {
+		t.Fatalf("expected empty container references array, got %#v", mapped.ContainerReferences)
+	}
+
+	network := toDockerNetwork(DockerNetwork{ID: "network-id"})
+	if network.ContainerReferences == nil || len(network.ContainerReferences) != 0 {
+		t.Fatalf("expected empty network container references array, got %#v", network.ContainerReferences)
+	}
+
+	volume := toDockerVolume(DockerVolume{Name: "volume-name"})
+	if volume.ContainerReferences == nil || len(volume.ContainerReferences) != 0 {
+		t.Fatalf("expected empty volume container references array, got %#v", volume.ContainerReferences)
+	}
+}
+
+func assertMappedNetworkIdentity(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
 	if mapped.Id != "network-id" || mapped.Name != "app-network" || mapped.CreatedAt != "2026-07-19T23:19:41Z" {
 		t.Fatalf("unexpected network identity mapping: %#v", mapped)
 	}
+}
+
+func assertMappedNetworkAttributes(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
 	if !mapped.Internal || !mapped.Attachable || mapped.Ingress || mapped.ContainerCount != 2 {
 		t.Fatalf("unexpected network attributes mapping: %#v", mapped)
 	}
 	if mapped.Removable == nil || *mapped.Removable {
 		t.Fatalf("expected removable=false, got %#v", mapped.Removable)
 	}
+}
+
+func assertMappedNetworkRelations(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
+	if len(mapped.ContainerReferences) != 2 || mapped.ContainerReferences[0].Id != "container-1" || mapped.ContainerReferences[0].Name != "api" {
+		t.Fatalf("unexpected network container references: %#v", mapped.ContainerReferences)
+	}
+}
+
+func assertMappedNetworkContextAndMetadata(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
+	if mapped.Context.Source != containergen.DockerResourceSourceCompose || mapped.Context.ComposeProject == nil || *mapped.Context.ComposeProject != "gitea" || mapped.RelationshipStatus != containergen.DockerResourceRelationshipStatusUsed {
+		t.Fatalf("unexpected network context or relationship status mapping: %#v", mapped)
+	}
 	if mapped.Labels == nil || (*mapped.Labels)["com.example.project"] != "app" || (*mapped.Labels)["environment"] != "prod" {
 		t.Fatalf("unexpected network labels mapping: %#v", mapped.Labels)
+	}
+}
+
+func TestToDockerNetworkDetailAggregatesDrawerData(t *testing.T) {
+	t.Parallel()
+
+	mapped := toDockerNetworkDetail(DockerNetwork{
+		ID:                  "network-id",
+		Name:                "gitea_backend",
+		Driver:              "bridge",
+		Scope:               "local",
+		CreatedAt:           "2026-07-19T23:19:41Z",
+		ContainerCount:      1,
+		ContainerReferences: []DockerNetworkContainerReference{{ID: "container-1", Name: "gitea"}},
+		Context: DockerResourceContext{
+			Runtime:         runtimeNameDocker,
+			Source:          dockerResourceSourceCompose,
+			ComposeProject:  "gitea",
+			ComposeResource: "backend",
+		},
+		RelationshipStatus: dockerResourceRelationshipStatusUsed,
+		IPAM:               &DockerNetworkIPAMDetail{Driver: "default", Config: []DockerNetworkIPAMDetailConfig{{Subnet: "172.20.0.0/16", Gateway: "172.20.0.1"}}},
+		Labels:             map[string]string{"com.docker.compose.project": "gitea"},
+	})
+
+	if len(mapped.ContainerReferences) != 1 || mapped.ContainerReferences[0] != (containergen.DockerNetworkContainerReference{Id: "container-1", Name: "gitea"}) {
+		t.Fatalf("expected sanitized container references, got %#v", mapped.ContainerReferences)
+	}
+	if mapped.Ipam == nil || mapped.Ipam.Driver == nil || *mapped.Ipam.Driver != "default" || mapped.Ipam.Config == nil || len(*mapped.Ipam.Config) != 1 || (*mapped.Ipam.Config)[0].Subnet == nil || *(*mapped.Ipam.Config)[0].Subnet != "172.20.0.0/16" {
+		t.Fatalf("expected IPAM configuration in detail aggregation, got %#v", mapped.Ipam)
+	}
+	if mapped.Context.ComposeProject == nil || *mapped.Context.ComposeProject != "gitea" || mapped.Labels == nil || (*mapped.Labels)["com.docker.compose.project"] != "gitea" {
+		t.Fatalf("expected context and metadata in detail aggregation, got %#v", mapped)
 	}
 }
 

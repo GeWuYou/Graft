@@ -123,6 +123,52 @@ Mention additional grouped review sections.
         self.assertEqual(parsed["minor_comments"][0]["path"], ".agents/skills/graft-pr-review/SKILL.md")
         self.assertEqual(parsed["comment_groups"]["major"]["section_name"], "Major comments")
 
+
+class ParsePreMergeChecksTests(unittest.TestCase):
+    """Cover CodeRabbit pre-merge status extraction and handling policy."""
+
+    def test_parse_pre_merge_checks_keeps_warning_and_inconclusive_rows(self) -> None:
+        """Warning and inconclusive rows must remain visible even without live CI failures."""
+        summary = """
+### ❌ Failed checks (1 warning, 1 inconclusive)
+
+| Check name | Status | Explanation | Resolution |
+| --- | --- | --- | --- |
+| Docstring Coverage | ⚠️ Warning | Docstring coverage is 21.21% which is insufficient. | Write valuable docstrings where required. |
+| Title check | ❓ Inconclusive | 标题过于笼统。 | 请改为更具体的标题。 |
+
+<details>
+<summary>✅ Passed checks (1 passed)</summary>
+"""
+
+        checks = MODULE.parse_pre_merge_checks(summary, source_commit="abc123")
+
+        self.assertEqual([check["status_kind"] for check in checks], ["warning", "inconclusive"])
+        self.assertEqual(checks[0]["handling_policy"], "verify-and-decide")
+        self.assertEqual(checks[1]["handling_policy"], "verify-and-resolve")
+        self.assertEqual(checks[1]["source_commit"], "abc123")
+        self.assertEqual(
+            MODULE.summarize_pre_merge_checks(checks),
+            {"failed": 0, "warning": 1, "inconclusive": 1, "passed": 0, "unknown": 0},
+        )
+
+    def test_parse_pre_merge_checks_keeps_passed_rows(self) -> None:
+        """Passed rows should remain in the machine-readable inventory."""
+        summary = """
+### ❌ Failed checks (1 warning)
+| Check name | Status | Explanation | Resolution |
+| --- | --- | --- | --- |
+| Coverage | ⚠️ Warning | 21% | Add docs |
+<details>
+<summary>✅ Passed checks (1 passed)</summary>
+| Check name | Status | Explanation | Resolution |
+| --- | --- | --- | --- |
+| Title | ✅ Passed | Clear | Keep |
+</details>
+"""
+        checks = MODULE.parse_pre_merge_checks(summary, source_commit="abc123")
+        self.assertEqual([check["status_kind"] for check in checks], ["warning", "passed"])
+
     def test_parse_latest_review_body_keeps_extensionless_paths(self) -> None:
         """Common extensionless file names should survive grouped comment parsing."""
         review_body = """
@@ -845,6 +891,66 @@ Use a fixed tag.
 class MainOutputTests(unittest.TestCase):
     """Cover CLI output semantics for JSON and file-output combinations."""
 
+    def test_format_text_shows_pre_merge_checks_separately_from_live_failures(self) -> None:
+        """CodeRabbit inconclusive checks must be actionable when live CI is green."""
+        output = MODULE.format_text(
+            {
+                "pull_request": {
+                    "number": 184,
+                    "title": "Feature/cross boundary contract projection",
+                    "state": "OPEN",
+                    "head_branch": "feature/test",
+                    "base_branch": "main",
+                    "head_sha": "c694815b",
+                    "url": "https://example.com/pr/184",
+                },
+                "workflow_checks": {"failed": []},
+                "managed_review_ledger": {
+                    "comment_id": 1,
+                    "incremental": {
+                        "baseline_head_sha": "72638ae8",
+                        "current_head_sha": "c694815b",
+                        "must_rebuild_inventory": True,
+                        "reason": "PR head changed",
+                    },
+                },
+                "coderabbit_summary": {
+                    "pre_merge_checks": [
+                        {
+                            "name": "Title check",
+                            "status": "❓ Inconclusive",
+                            "status_kind": "inconclusive",
+                            "handling_policy": "verify-and-resolve",
+                            "explanation": "标题过于笼统。",
+                            "resolution": "请改为更具体的标题。",
+                            "source_commit": "c694815b",
+                        }
+                    ],
+                    "pre_merge_check_counts": {
+                        "failed": 0,
+                        "warning": 0,
+                        "inconclusive": 1,
+                        "passed": 0,
+                    },
+                },
+                "coderabbit_comments": {},
+                "coderabbit_review": {
+                    "comment_groups": {"outside-diff": {"count": 1}},
+                },
+                "latest_commit_review": {},
+                "parse_warnings": [],
+            },
+            sections=["pr", "failed-checks", "pre-merge-checks", "open-threads"],
+        )
+
+        self.assertIn("Failed checks: 0", output)
+        self.assertIn("inspect --section pre-merge-checks before closeout", output)
+        self.assertIn("Folded CodeRabbit review sections are present", output)
+        self.assertIn("Review ledger action: rebuild the complete finding inventory", output)
+        self.assertIn("CodeRabbit pre-merge checks: 1 total", output)
+        self.assertIn("kind=inconclusive policy=verify-and-resolve", output)
+        self.assertIn("请改为更具体的标题。", output)
+
     def test_main_prints_json_to_stdout_even_when_json_output_is_requested(self) -> None:
         """JSON mode should keep stdout machine-readable while still writing the file."""
         args = argparse.Namespace(
@@ -911,9 +1017,51 @@ class ManagedIssueCommentTests(unittest.TestCase):
     VALID_ENTRY_BODY = """- `coderabbit_handled`: fixed 1, delegated 0, blocked 0, stale 0, noise 0.
 - `coderabbit_outside_diff_range`: declared 0, handled 0.
 - `coderabbit_nitpick`: declared 0, handled 0.
+- `coderabbit_pre_merge_checks`: total 2, warning 1, inconclusive 1, passed 0, handled 2.
 - `open_suggestions`: 0 unresolved, 0 remaining.
 - `greptile_suggestions`: 0 verified.
 """
+
+    def test_parse_latest_ledger_run_extracts_head_and_inventory(self) -> None:
+        """The second review round must recover the previous head from the managed ledger."""
+        body = f"""{MODULE.PR_REVIEW_LEDGER_MARKER}
+# Graft PR Review Ledger
+
+## Run 2026-07-21T06:10:06Z
+- Head SHA: 72638ae80cdfd269bdd353bb78fd8c671949522f
+- `coderabbit_outside_diff_range`: declared=0, handled=0.
+- `coderabbit_nitpick`: declared=7, handled=7.
+"""
+
+        parsed = MODULE.parse_latest_ledger_run(body)
+
+        self.assertEqual(parsed["head_sha"], "72638ae80cdfd269bdd353bb78fd8c671949522f")
+        self.assertEqual(parsed["inventory"]["coderabbit_nitpick"]["declared"], 7)
+
+    def test_build_review_ledger_delta_requires_rebuild_after_new_head(self) -> None:
+        """A changed PR head must never reuse the previous ledger as review closure."""
+        ledger = {
+            "comment_id": 1,
+            "latest_run": {
+                "head_sha": "72638ae8",
+                "inventory": {"coderabbit_outside_diff_range": {"declared": 0}},
+            },
+        }
+        delta = MODULE.build_review_ledger_delta(
+            ledger,
+            current_head_sha="c694815b",
+            coderabbit_review={
+                "comment_groups": {"outside-diff": {"count": 1}},
+            },
+            pre_merge_checks=[
+                {"status_kind": "warning"},
+                {"status_kind": "inconclusive"},
+            ],
+        )
+
+        self.assertTrue(delta["head_changed"])
+        self.assertTrue(delta["must_rebuild_inventory"])
+        self.assertEqual(delta["new_group_counts"], {"outside-diff": 1})
 
     def test_validate_review_ledger_body_rejects_literal_escapes_and_missing_fields(self) -> None:
         """Ledger input must contain real newlines and the required inventory summary."""

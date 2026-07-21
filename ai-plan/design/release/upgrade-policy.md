@@ -14,6 +14,8 @@ operator responsibility boundary 和 compatibility principle，但不承诺自�
 ## Unsupported Or Discouraged Path
 
 - mixed-tag `server` / `web` deployment
+- treating a Beta image as a supported operator upgrade target; Beta is for disposable test environments and must use
+  the matching immutable Beta tag when repeatability matters
 - relying on `graft serve` for migration side effects
 - skipping release notes, upgrade notes, or config review for releases with governed changes
 - treating migration ordering numbers as product compatibility promises
