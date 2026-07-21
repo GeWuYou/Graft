@@ -12023,6 +12023,12 @@
           },
           {
             "$ref": "#/components/parameters/docker-network-list-usage"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-source"
+          },
+          {
+            "$ref": "#/components/parameters/docker-network-list-compose-project"
           }
         ],
         "security": [
@@ -12243,6 +12249,12 @@
           },
           {
             "$ref": "#/components/parameters/docker-volume-list-usage"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-source"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-compose-project"
           }
         ],
         "security": [
@@ -17341,6 +17353,18 @@
       },
       "DockerNetwork": {
         "$ref": "#/components/schemas/docker-network"
+      },
+      "DockerNetworkContainerReference": {
+        "$ref": "#/components/schemas/docker-network-container-reference"
+      },
+      "DockerResourceContext": {
+        "$ref": "#/components/schemas/docker-resource-context"
+      },
+      "DockerResourceRelationshipStatus": {
+        "$ref": "#/components/schemas/docker-resource-relationship-status"
+      },
+      "DockerResourceSource": {
+        "$ref": "#/components/schemas/docker-resource-source"
       },
       "DockerNetworkListResponse": {
         "$ref": "#/components/schemas/docker-network-list-response"
@@ -26687,56 +26711,96 @@
           }
         ]
       },
-      "docker-network-source": {
+      "docker-resource-source": {
+        "type": "string",
+        "description": "Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.",
+        "enum": [
+          "compose",
+          "docker_default",
+          "docker",
+          "managed",
+          "imported",
+          "unknown"
+        ],
+        "x-enum-varnames": [
+          "DockerResourceSourceCompose",
+          "DockerResourceSourceDockerDefault",
+          "DockerResourceSourceDocker",
+          "DockerResourceSourceManaged",
+          "DockerResourceSourceImported",
+          "DockerResourceSourceUnknown"
+        ]
+      },
+      "docker-network-container-reference": {
         "type": "object",
+        "description": "Sanitized container reference connected to a Docker network. It intentionally excludes network endpoint and inspect metadata.",
         "required": [
-          "kind"
+          "id",
+          "name"
         ],
         "properties": {
-          "kind": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "docker-resource-context": {
+        "type": "object",
+        "description": "Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.",
+        "required": [
+          "runtime",
+          "source"
+        ],
+        "properties": {
+          "runtime": {
             "type": "string",
-            "enum": [
-              "compose",
-              "swarm",
-              "docker",
-              "custom",
-              "unknown"
-            ]
+            "description": "Stable runtime provider identifier, such as docker. Clients localize known values."
+          },
+          "runtime_target": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stable runtime target identifier when the resource is scoped to a known target."
+          },
+          "source": {
+            "$ref": "#/components/schemas/docker-resource-source"
           },
           "compose_project": {
-            "type": "string"
+            "type": "string",
+            "nullable": true,
+            "description": "Compose project identity when the resource is Compose-owned."
           },
-          "compose_network": {
-            "type": "string"
+          "compose_resource": {
+            "type": "string",
+            "nullable": true,
+            "description": "Compose network or volume name when supplied by trusted Compose runtime metadata."
           },
-          "compose_version": {
-            "type": "string"
-          },
-          "swarm_stack": {
-            "type": "string"
+          "managed_by": {
+            "type": "string",
+            "nullable": true,
+            "description": "Control-plane identity when a managed resource has a known owner."
           }
-        }
+        },
+        "additionalProperties": false
       },
-      "docker-network-label-groups": {
-        "type": "object",
-        "required": [
-          "system",
-          "user"
+      "docker-resource-relationship-status": {
+        "type": "string",
+        "description": "Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.",
+        "enum": [
+          "used",
+          "unused",
+          "unknown",
+          "exception"
         ],
-        "properties": {
-          "system": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "user": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        }
+        "x-enum-varnames": [
+          "DockerResourceRelationshipStatusUsed",
+          "DockerResourceRelationshipStatusUnused",
+          "DockerResourceRelationshipStatusUnknown",
+          "DockerResourceRelationshipStatusException"
+        ]
       },
       "docker-network": {
         "type": "object",
@@ -26750,8 +26814,9 @@
           "attachable",
           "ingress",
           "container_count",
-          "source",
-          "label_groups"
+          "container_references",
+          "context",
+          "relationship_status"
         ],
         "properties": {
           "id": {
@@ -26782,6 +26847,19 @@
             "type": "integer",
             "minimum": 0
           },
+          "container_references": {
+            "type": "array",
+            "description": "Containers currently connected to this network, represented as sanitized display references.",
+            "items": {
+              "$ref": "#/components/schemas/docker-network-container-reference"
+            }
+          },
+          "context": {
+            "$ref": "#/components/schemas/docker-resource-context"
+          },
+          "relationship_status": {
+            "$ref": "#/components/schemas/docker-resource-relationship-status"
+          },
           "removable": {
             "type": "boolean"
           },
@@ -26790,12 +26868,6 @@
             "additionalProperties": {
               "type": "string"
             }
-          },
-          "source": {
-            "$ref": "#/components/schemas/docker-network-source"
-          },
-          "label_groups": {
-            "$ref": "#/components/schemas/docker-network-label-groups"
           }
         }
       },
@@ -26991,33 +27063,6 @@
           }
         }
       },
-      "docker-network-container-endpoint": {
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "endpoint_id": {
-            "type": "string"
-          },
-          "ipv4_address": {
-            "type": "string"
-          },
-          "ipv6_address": {
-            "type": "string"
-          },
-          "mac_address": {
-            "type": "string"
-          }
-        }
-      },
       "docker-network-detail": {
         "allOf": [
           {
@@ -27028,12 +27073,6 @@
             "properties": {
               "ipam": {
                 "$ref": "#/components/schemas/docker-network-ipam"
-              },
-              "containers": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/docker-network-container-endpoint"
-                }
               }
             }
           }
@@ -27093,7 +27132,9 @@
           "driver",
           "scope",
           "created_at",
-          "container_references"
+          "container_references",
+          "context",
+          "relationship_status"
         ],
         "properties": {
           "name": {
@@ -27130,6 +27171,12 @@
             "items": {
               "$ref": "#/components/schemas/docker-volume-container-reference"
             }
+          },
+          "context": {
+            "$ref": "#/components/schemas/docker-resource-context"
+          },
+          "relationship_status": {
+            "$ref": "#/components/schemas/docker-resource-relationship-status"
           }
         }
       },
@@ -33447,6 +33494,26 @@
           ]
         }
       },
+      "docker-network-list-source": {
+        "name": "source",
+        "in": "query",
+        "required": false,
+        "description": "Optional normalized Docker network source filter, resolved by the server from trusted runtime facts.",
+        "schema": {
+          "$ref": "#/components/schemas/docker-resource-source"
+        }
+      },
+      "docker-network-list-compose-project": {
+        "name": "compose_project",
+        "in": "query",
+        "required": false,
+        "description": "Optional exact Compose project filter. Only applies to networks with source=compose.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
       "docker-network-id-path": {
         "name": "id",
         "in": "path",
@@ -33515,7 +33582,7 @@
         "name": "usage",
         "in": "query",
         "required": false,
-        "description": "Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.",
+        "description": "Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.",
         "schema": {
           "type": "string",
           "enum": [
@@ -33526,6 +33593,26 @@
             "DockerVolumeListUsageUsed",
             "DockerVolumeListUsageUnused"
           ]
+        }
+      },
+      "docker-volume-list-source": {
+        "name": "source",
+        "in": "query",
+        "required": false,
+        "description": "Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts.",
+        "schema": {
+          "$ref": "#/components/schemas/docker-resource-source"
+        }
+      },
+      "docker-volume-list-compose-project": {
+        "name": "compose_project",
+        "in": "query",
+        "required": false,
+        "description": "Optional exact Compose project filter. Only applies to volumes with source=compose.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
         }
       },
       "docker-volume-id-path": {

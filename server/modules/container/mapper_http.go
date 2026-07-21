@@ -89,22 +89,51 @@ func toDockerImageAction(result DockerImageActionResult) containergen.DockerImag
 
 // toDockerNetwork 将 Docker 网络领域对象转换为 OpenAPI 网络响应。
 func toDockerNetwork(item DockerNetwork) containergen.DockerNetwork {
-	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, Removable: &item.Removable, Labels: optionalStringMap(item.Labels), Source: toDockerNetworkSource(item.Source), LabelGroups: toDockerNetworkLabelGroups(item.LabelGroups)}
-}
-
-func toDockerNetworkSource(source DockerNetworkSource) containergen.DockerNetworkSource {
-	return containergen.DockerNetworkSource{Kind: containergen.DockerNetworkSourceKind(source.Kind), ComposeProject: optionalString(source.ComposeProject), ComposeNetwork: optionalString(source.ComposeNetwork), ComposeVersion: optionalString(source.ComposeVersion), SwarmStack: optionalString(source.SwarmStack)}
-}
-
-func toDockerNetworkLabelGroups(groups DockerNetworkLabelGroups) containergen.DockerNetworkLabelGroups {
-	return containergen.DockerNetworkLabelGroups{System: cloneLabelGroup(groups.System), User: cloneLabelGroup(groups.User)}
-}
-
-func cloneLabelGroup(labels map[string]string) map[string]string {
-	if labels == nil {
-		return map[string]string{}
+	refs := make([]containergen.DockerNetworkContainerReference, 0, len(item.ContainerReferences))
+	for _, ref := range item.ContainerReferences {
+		refs = append(refs, containergen.DockerNetworkContainerReference{Id: ref.ID, Name: ref.Name})
 	}
-	return cloneLabels(labels)
+	return containergen.DockerNetwork{Id: item.ID, Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Internal: item.Internal, Attachable: item.Attachable, Ingress: item.Ingress, ContainerCount: item.ContainerCount, ContainerReferences: refs, Context: toDockerResourceContext(item.Context), RelationshipStatus: containergen.DockerResourceRelationshipStatus(dockerNetworkRelationshipStatus(item)), Removable: &item.Removable, Labels: optionalStringMap(item.Labels)}
+}
+
+// toDockerNetworkDetail 将一次服务端聚合的网络详情投影到 Drawer 所需的单一响应。
+func toDockerNetworkDetail(item DockerNetwork) containergen.DockerNetworkDetail {
+	base := toDockerNetwork(item)
+	return containergen.DockerNetworkDetail{
+		Attachable:          base.Attachable,
+		ContainerCount:      base.ContainerCount,
+		ContainerReferences: base.ContainerReferences,
+		Context:             base.Context,
+		CreatedAt:           base.CreatedAt,
+		Driver:              base.Driver,
+		Id:                  base.Id,
+		Ingress:             base.Ingress,
+		Internal:            base.Internal,
+		Labels:              base.Labels,
+		Name:                base.Name,
+		RelationshipStatus:  base.RelationshipStatus,
+		Removable:           base.Removable,
+		Scope:               base.Scope,
+		Ipam:                toDockerNetworkIPAM(item.IPAM),
+	}
+}
+
+func toDockerNetworkIPAM(item *DockerNetworkIPAMDetail) *containergen.DockerNetworkIpam {
+	if item == nil {
+		return nil
+	}
+	config := make([]containergen.DockerNetworkIpamConfig, 0, len(item.Config))
+	for _, value := range item.Config {
+		config = append(config, containergen.DockerNetworkIpamConfig{Subnet: optionalString(value.Subnet), Gateway: optionalString(value.Gateway)})
+	}
+	return &containergen.DockerNetworkIpam{Driver: optionalString(item.Driver), Config: optionalDockerNetworkIPAMConfig(config)}
+}
+
+func optionalDockerNetworkIPAMConfig(values []containergen.DockerNetworkIpamConfig) *[]containergen.DockerNetworkIpamConfig {
+	if len(values) == 0 {
+		return nil
+	}
+	return &values
 }
 
 // toDockerNetworkList 将 Docker 网络列表映射为 API 响应。
@@ -123,7 +152,19 @@ func toDockerVolume(item DockerVolume) containergen.DockerVolume {
 	for _, ref := range item.ContainerReferences {
 		refs = append(refs, containergen.DockerVolumeContainerReference{Id: ref.ID, Name: ref.Name})
 	}
-	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes, ContainerReferences: refs}
+	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Context: toDockerResourceContext(item.Context), RelationshipStatus: containergen.DockerResourceRelationshipStatus(dockerVolumeRelationshipStatus(item)), Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes, ContainerReferences: refs}
+}
+
+// toDockerResourceContext 将服务端归一化的资源业务上下文映射到 HTTP 契约。
+func toDockerResourceContext(item DockerResourceContext) containergen.DockerResourceContext {
+	return containergen.DockerResourceContext{
+		Runtime:         item.Runtime,
+		RuntimeTarget:   optionalString(item.RuntimeTarget),
+		Source:          containergen.DockerResourceSource(item.Source),
+		ComposeProject:  optionalString(item.ComposeProject),
+		ComposeResource: optionalString(item.ComposeResource),
+		ManagedBy:       optionalString(item.ManagedBy),
+	}
 }
 
 // toDockerVolumeList 将 Docker 卷列表转换为 API 响应。

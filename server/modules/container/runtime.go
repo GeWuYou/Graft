@@ -72,6 +72,8 @@ const (
 
 	composeProjectLabel     = "com.docker.compose.project"
 	composeServiceLabel     = "com.docker.compose.service"
+	composeNetworkLabel     = "com.docker.compose.network"
+	composeVolumeLabel      = "com.docker.compose.volume"
 	composeWorkingDirLabel  = "com.docker.compose.project.working_dir"
 	composeConfigFilesLabel = "com.docker.compose.project.config_files"
 

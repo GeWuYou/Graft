@@ -325,7 +325,7 @@ func (r routeRuntime) handleDockerNetwork(c *gin.Context) {
 		r.writeRouteError(c, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toDockerNetwork(item))
+	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkDetail(item))
 }
 
 func (r routeRuntime) handleDockerNetworkCreate(c *gin.Context) {
@@ -887,6 +887,7 @@ func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerPa
 	return containeropenapi.GetContainerParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
+//nolint:cyclop // 数据卷查询参数需在单一 HTTP 边界完成校验与绑定。
 func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetDockerVolumesParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := containeropenapi.GetDockerVolumesParams{XGraftLocale: locale, XRequestId: requestID}
@@ -908,7 +909,7 @@ func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (conta
 		offset = &defaultOffset
 	}
 	params.Offset = offset
-	if !bindDockerVolumeStringQuery(ginCtx, ctx, "keyword", &params.Keyword) || !bindDockerVolumeStringQuery(ginCtx, ctx, "driver", &params.Driver) || !bindDockerVolumeStringQuery(ginCtx, ctx, "scope", &params.Scope) {
+	if !bindDockerVolumeStringQuery(ginCtx, ctx, "keyword", &params.Keyword) || !bindDockerVolumeStringQuery(ginCtx, ctx, "driver", &params.Driver) || !bindDockerVolumeStringQuery(ginCtx, ctx, "scope", &params.Scope) || !bindDockerVolumeStringQuery(ginCtx, ctx, "compose_project", &params.ComposeProject) {
 		return containeropenapi.GetDockerVolumesParams{}, false
 	}
 	if usage := strings.TrimSpace(ginCtx.Query("usage")); usage != "" {
@@ -918,6 +919,14 @@ func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (conta
 			return containeropenapi.GetDockerVolumesParams{}, false
 		}
 		params.Usage = &value
+	}
+	if source, ok := optionalEnumQueryValue(ginCtx, ctx, "source", func(value string) bool {
+		return containeropenapi.GetDockerVolumesParamsSource(value).Valid()
+	}); !ok {
+		return containeropenapi.GetDockerVolumesParams{}, false
+	} else if source != "" {
+		value := containeropenapi.GetDockerVolumesParamsSource(source)
+		params.Source = &value
 	}
 	return params, true
 }
@@ -1091,11 +1100,15 @@ func listQueryFromParams(params containeropenapi.GetContainersParams) ListQuery 
 
 func dockerVolumeListQueryFromParams(params containeropenapi.GetDockerVolumesParams) DockerVolumeListQuery {
 	query := DockerVolumeListQuery{
-		Limit:   intValue(params.Limit),
-		Offset:  intValue(params.Offset),
-		Keyword: stringPtrValue(params.Keyword),
-		Driver:  stringPtrValue(params.Driver),
-		Scope:   stringPtrValue(params.Scope),
+		Limit:          intValue(params.Limit),
+		Offset:         intValue(params.Offset),
+		Keyword:        stringPtrValue(params.Keyword),
+		Driver:         stringPtrValue(params.Driver),
+		Scope:          stringPtrValue(params.Scope),
+		ComposeProject: stringPtrValue(params.ComposeProject),
+	}
+	if params.Source != nil {
+		query.Source = DockerResourceSource(*params.Source)
 	}
 	if params.Usage != nil {
 		query.Usage = string(*params.Usage)
@@ -1104,7 +1117,10 @@ func dockerVolumeListQueryFromParams(params containeropenapi.GetDockerVolumesPar
 }
 
 func dockerNetworkListQueryFromParams(params containeropenapi.GetDockerNetworksParams) DockerNetworkListQuery {
-	query := DockerNetworkListQuery{Limit: intValue(params.Limit), Offset: intValue(params.Offset), Keyword: stringPtrValue(params.Keyword), Driver: stringPtrValue(params.Driver), Scope: stringPtrValue(params.Scope)}
+	query := DockerNetworkListQuery{Limit: intValue(params.Limit), Offset: intValue(params.Offset), Keyword: stringPtrValue(params.Keyword), Driver: stringPtrValue(params.Driver), Scope: stringPtrValue(params.Scope), ComposeProject: stringPtrValue(params.ComposeProject)}
+	if params.Source != nil {
+		query.Source = DockerResourceSource(*params.Source)
+	}
 	if params.Usage != nil {
 		query.Usage = string(*params.Usage)
 	}
@@ -1125,7 +1141,7 @@ func bindGetDockerNetworksParams(ginCtx *gin.Context, ctx *module.Context) (cont
 		return params, false
 	}
 	params.Offset = offset
-	for _, field := range []string{"keyword", "driver", "scope"} {
+	for _, field := range []string{"keyword", "driver", "scope", "compose_project"} {
 		if value := strings.TrimSpace(ginCtx.Query(field)); value != "" {
 			if len(value) > containerListKeywordMaxLength {
 				writeInvalidContainerQuery(ginCtx, ctx, field)
@@ -1138,6 +1154,8 @@ func bindGetDockerNetworksParams(ginCtx *gin.Context, ctx *module.Context) (cont
 				params.Driver = &value
 			case "scope":
 				params.Scope = &value
+			case "compose_project":
+				params.ComposeProject = &value
 			}
 		}
 	}
@@ -1148,6 +1166,14 @@ func bindGetDockerNetworksParams(ginCtx *gin.Context, ctx *module.Context) (cont
 		}
 		usage := containeropenapi.GetDockerNetworksParamsUsage(value)
 		params.Usage = &usage
+	}
+	if source, ok := optionalEnumQueryValue(ginCtx, ctx, "source", func(value string) bool {
+		return containeropenapi.GetDockerNetworksParamsSource(value).Valid()
+	}); !ok {
+		return params, false
+	} else if source != "" {
+		value := containeropenapi.GetDockerNetworksParamsSource(source)
+		params.Source = &value
 	}
 	return params, true
 }

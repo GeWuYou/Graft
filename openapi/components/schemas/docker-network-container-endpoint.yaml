@@ -1,9 +1,0 @@
-type: object
-required: [id, name]
-properties:
-  id: { type: string }
-  name: { type: string }
-  endpoint_id: { type: string }
-  ipv4_address: { type: string }
-  ipv6_address: { type: string }
-  mac_address: { type: string }

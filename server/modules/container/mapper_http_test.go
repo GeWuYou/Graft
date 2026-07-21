@@ -8,48 +8,45 @@ import (
 	containercontract "graft/server/modules/container/contract"
 )
 
-func TestToDockerNetworkMapsAttributesLabelsSourceAndCreatedAt(t *testing.T) {
+func TestToDockerNetworkMapsAttributesLabelsAndCreatedAt(t *testing.T) {
 	t.Parallel()
 
 	mapped := toDockerNetwork(DockerNetwork{
-		ID:             "network-id",
-		Name:           "app-network",
-		Driver:         "bridge",
-		Scope:          "local",
-		CreatedAt:      "2026-07-19T23:19:41Z",
-		Internal:       true,
-		Attachable:     true,
-		Ingress:        false,
-		ContainerCount: 2,
-		Removable:      false,
-		Labels:         map[string]string{"com.example.project": "app", "environment": "prod"},
-		Source: DockerNetworkSource{
-			Kind:           dockerNetworkSourceCompose,
-			ComposeProject: "app",
-			ComposeNetwork: "default",
-			ComposeVersion: "5.1.0",
+		ID:                  "network-id",
+		Name:                "app-network",
+		Driver:              "bridge",
+		Scope:               "local",
+		CreatedAt:           "2026-07-19T23:19:41Z",
+		Internal:            true,
+		Attachable:          true,
+		Ingress:             false,
+		ContainerCount:      2,
+		ContainerReferences: []DockerNetworkContainerReference{{ID: "container-1", Name: "api"}, {ID: "container-2", Name: "worker"}},
+		Removable:           false,
+		Context: DockerResourceContext{
+			Runtime:         runtimeNameDocker,
+			Source:          dockerResourceSourceCompose,
+			ComposeProject:  "gitea",
+			ComposeResource: "backend",
 		},
-		LabelGroups: DockerNetworkLabelGroups{
-			System: map[string]string{"com.docker.compose.project": "app"},
-			User:   map[string]string{"environment": "prod"},
-		},
+		RelationshipStatus: dockerResourceRelationshipStatusUsed,
+		Labels:             map[string]string{"com.example.project": "app", "environment": "prod"},
 	})
 
-	assertMappedDockerNetworkIdentity(t, mapped)
-	assertMappedDockerNetworkAttributes(t, mapped)
-	assertMappedDockerNetworkLabels(t, mapped)
-	assertMappedDockerNetworkSource(t, mapped)
-	assertMappedDockerNetworkLabelGroups(t, mapped)
+	assertMappedNetworkIdentity(t, mapped)
+	assertMappedNetworkAttributes(t, mapped)
+	assertMappedNetworkRelations(t, mapped)
+	assertMappedNetworkContextAndMetadata(t, mapped)
 }
 
-func assertMappedDockerNetworkIdentity(t *testing.T, mapped containergen.DockerNetwork) {
+func assertMappedNetworkIdentity(t *testing.T, mapped containergen.DockerNetwork) {
 	t.Helper()
 	if mapped.Id != "network-id" || mapped.Name != "app-network" || mapped.CreatedAt != "2026-07-19T23:19:41Z" {
 		t.Fatalf("unexpected network identity mapping: %#v", mapped)
 	}
 }
 
-func assertMappedDockerNetworkAttributes(t *testing.T, mapped containergen.DockerNetwork) {
+func assertMappedNetworkAttributes(t *testing.T, mapped containergen.DockerNetwork) {
 	t.Helper()
 	if !mapped.Internal || !mapped.Attachable || mapped.Ingress || mapped.ContainerCount != 2 {
 		t.Fatalf("unexpected network attributes mapping: %#v", mapped)
@@ -59,34 +56,53 @@ func assertMappedDockerNetworkAttributes(t *testing.T, mapped containergen.Docke
 	}
 }
 
-func assertMappedDockerNetworkLabels(t *testing.T, mapped containergen.DockerNetwork) {
+func assertMappedNetworkRelations(t *testing.T, mapped containergen.DockerNetwork) {
 	t.Helper()
+	if len(mapped.ContainerReferences) != 2 || mapped.ContainerReferences[0].Id != "container-1" || mapped.ContainerReferences[0].Name != "api" {
+		t.Fatalf("unexpected network container references: %#v", mapped.ContainerReferences)
+	}
+}
+
+func assertMappedNetworkContextAndMetadata(t *testing.T, mapped containergen.DockerNetwork) {
+	t.Helper()
+	if mapped.Context.Source != containergen.DockerResourceSourceCompose || mapped.Context.ComposeProject == nil || *mapped.Context.ComposeProject != "gitea" || mapped.RelationshipStatus != containergen.DockerResourceRelationshipStatusUsed {
+		t.Fatalf("unexpected network context or relationship status mapping: %#v", mapped)
+	}
 	if mapped.Labels == nil || (*mapped.Labels)["com.example.project"] != "app" || (*mapped.Labels)["environment"] != "prod" {
 		t.Fatalf("unexpected network labels mapping: %#v", mapped.Labels)
 	}
 }
 
-func assertMappedDockerNetworkSource(t *testing.T, mapped containergen.DockerNetwork) {
-	t.Helper()
-	if mapped.Source.Kind != containergen.DockerNetworkSourceKindCompose {
-		t.Fatalf("unexpected network source kind: %#v", mapped.Source)
-	}
-	assertStringPointer(t, mapped.Source.ComposeProject, "app", "compose project")
-	assertStringPointer(t, mapped.Source.ComposeNetwork, "default", "compose network")
-	assertStringPointer(t, mapped.Source.ComposeVersion, "5.1.0", "compose version")
-}
+func TestToDockerNetworkDetailAggregatesDrawerData(t *testing.T) {
+	t.Parallel()
 
-func assertMappedDockerNetworkLabelGroups(t *testing.T, mapped containergen.DockerNetwork) {
-	t.Helper()
-	if mapped.LabelGroups.System["com.docker.compose.project"] != "app" || mapped.LabelGroups.User["environment"] != "prod" {
-		t.Fatalf("unexpected network label groups mapping: %#v", mapped.LabelGroups)
-	}
-}
+	mapped := toDockerNetworkDetail(DockerNetwork{
+		ID:                  "network-id",
+		Name:                "gitea_backend",
+		Driver:              "bridge",
+		Scope:               "local",
+		CreatedAt:           "2026-07-19T23:19:41Z",
+		ContainerCount:      1,
+		ContainerReferences: []DockerNetworkContainerReference{{ID: "container-1", Name: "gitea"}},
+		Context: DockerResourceContext{
+			Runtime:         runtimeNameDocker,
+			Source:          dockerResourceSourceCompose,
+			ComposeProject:  "gitea",
+			ComposeResource: "backend",
+		},
+		RelationshipStatus: dockerResourceRelationshipStatusUsed,
+		IPAM:               &DockerNetworkIPAMDetail{Driver: "default", Config: []DockerNetworkIPAMDetailConfig{{Subnet: "172.20.0.0/16", Gateway: "172.20.0.1"}}},
+		Labels:             map[string]string{"com.docker.compose.project": "gitea"},
+	})
 
-func assertStringPointer(t *testing.T, value *string, want, name string) {
-	t.Helper()
-	if value == nil || *value != want {
-		t.Fatalf("unexpected %s: got %#v, want %q", name, value, want)
+	if len(mapped.ContainerReferences) != 1 || mapped.ContainerReferences[0] != (containergen.DockerNetworkContainerReference{Id: "container-1", Name: "gitea"}) {
+		t.Fatalf("expected sanitized container references, got %#v", mapped.ContainerReferences)
+	}
+	if mapped.Ipam == nil || mapped.Ipam.Driver == nil || *mapped.Ipam.Driver != "default" || mapped.Ipam.Config == nil || len(*mapped.Ipam.Config) != 1 || (*mapped.Ipam.Config)[0].Subnet == nil || *(*mapped.Ipam.Config)[0].Subnet != "172.20.0.0/16" {
+		t.Fatalf("expected IPAM configuration in detail aggregation, got %#v", mapped.Ipam)
+	}
+	if mapped.Context.ComposeProject == nil || *mapped.Context.ComposeProject != "gitea" || mapped.Labels == nil || (*mapped.Labels)["com.docker.compose.project"] != "gitea" {
+		t.Fatalf("expected context and metadata in detail aggregation, got %#v", mapped)
 	}
 }
 

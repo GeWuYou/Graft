@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `docker-resource-context-ia`
+  - Recovery entry: `ai-plan/public/docker-resource-context-ia/README.md`
+
 - `handwritten-comment-governance`
   - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`

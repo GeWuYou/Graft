@@ -1,5 +1,5 @@
 type: object
-required: [id, name, driver, scope, created_at, internal, attachable, ingress, container_count, source, label_groups]
+required: [id, name, driver, scope, created_at, internal, attachable, ingress, container_count, container_references, context, relationship_status]
 properties:
   id: { type: string }
   name: { type: string }
@@ -10,7 +10,11 @@ properties:
   attachable: { type: boolean }
   ingress: { type: boolean }
   container_count: { type: integer, minimum: 0 }
+  container_references:
+    type: array
+    description: Containers currently connected to this network, represented as sanitized display references.
+    items: { $ref: ./docker-network-container-reference.yaml }
+  context: { $ref: ./docker-resource-context.yaml }
+  relationship_status: { $ref: ./docker-resource-relationship-status.yaml }
   removable: { type: boolean }
   labels: { type: object, additionalProperties: { type: string } }
-  source: { $ref: ./docker-network-source.yaml }
-  label_groups: { $ref: ./docker-network-label-groups.yaml }

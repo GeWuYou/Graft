@@ -1,0 +1,8 @@
+type: string
+description: Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+enum: [used, unused, unknown, exception]
+x-enum-varnames:
+  - DockerResourceRelationshipStatusUsed
+  - DockerResourceRelationshipStatusUnused
+  - DockerResourceRelationshipStatusUnknown
+  - DockerResourceRelationshipStatusException

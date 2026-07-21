@@ -1,7 +1,7 @@
 name: usage
 in: query
 required: false
-description: Optional Docker volume usage filter. Used and unused only include volumes whose reference count is available.
+description: Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.
 schema:
   type: string
   enum: [used, unused]

@@ -3,6 +3,3 @@ allOf:
   - type: object
     properties:
       ipam: { $ref: ./docker-network-ipam.yaml }
-      containers:
-        type: array
-        items: { $ref: ./docker-network-container-endpoint.yaml }

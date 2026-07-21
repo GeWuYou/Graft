@@ -1,0 +1,10 @@
+type: string
+description: Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+enum: [compose, docker_default, docker, managed, imported, unknown]
+x-enum-varnames:
+  - DockerResourceSourceCompose
+  - DockerResourceSourceDockerDefault
+  - DockerResourceSourceDocker
+  - DockerResourceSourceManaged
+  - DockerResourceSourceImported
+  - DockerResourceSourceUnknown

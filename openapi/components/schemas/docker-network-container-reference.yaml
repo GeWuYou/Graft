@@ -1,0 +1,7 @@
+type: object
+description: Sanitized container reference connected to a Docker network. It intentionally excludes network endpoint and inspect metadata.
+required: [id, name]
+properties:
+  id: { type: string }
+  name: { type: string }
+additionalProperties: false

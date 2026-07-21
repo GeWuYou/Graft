@@ -15,7 +15,7 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('middleEllipsis(row.name, 31)');
     expect(sourceText).toContain(':content="row.name"');
     expect(sourceText).toContain("const columns = computed<TableProps['columns']>(() => [");
-    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), width: 280 }");
+    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 }");
   });
 
   it('provides selection and a batch removal request integration', () => {
@@ -75,7 +75,7 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('row.container_references.slice(0, 2)');
     expect(sourceText).toContain('selectedVolume.container_references');
     expect(sourceText).toContain('openContainerReference(reference.id)');
-    expect(sourceText).toContain("t('container.volume.detail.references')");
+    expect(sourceText).toContain("t('container.resourceContext.relations')");
     expect(sourceText).toContain("t('container.volume.metrics.referenceUnknown'");
   });
 
@@ -87,6 +87,15 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('defaultChecked: isChecked()');
     expect(sourceText).toContain('const previousPage = pagination.current;');
     expect(sourceText).toContain('if (previousPage === 1) void refresh();');
+  });
+
+  it('keeps Context and relationship status in the list while moving technical filters behind More Filters', () => {
+    expect(sourceText).toContain("colKey: 'context'");
+    expect(sourceText).toContain("colKey: 'status'");
+    expect(sourceText).toContain('advancedFiltersVisible');
+    expect(sourceText).toContain('<docker-resource-context-card');
+    expect(sourceText).toContain('<t-collapse');
+    expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
   });
 
   it('consumes the canonical generated permission contract for dangerous actions', () => {

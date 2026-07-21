@@ -906,6 +906,14 @@ components:
       $ref: ./components/schemas/docker-image-pull-event.yaml
     DockerNetwork:
       $ref: ./components/schemas/docker-network.yaml
+    DockerNetworkContainerReference:
+      $ref: ./components/schemas/docker-network-container-reference.yaml
+    DockerResourceContext:
+      $ref: ./components/schemas/docker-resource-context.yaml
+    DockerResourceRelationshipStatus:
+      $ref: ./components/schemas/docker-resource-relationship-status.yaml
+    DockerResourceSource:
+      $ref: ./components/schemas/docker-resource-source.yaml
     DockerNetworkListResponse:
       $ref: ./components/schemas/docker-network-list-response.yaml
     DockerVolume:

@@ -11,6 +11,8 @@ get:
     - $ref: ../components/parameters/docker-volume-list-driver.yaml
     - $ref: ../components/parameters/docker-volume-list-scope.yaml
     - $ref: ../components/parameters/docker-volume-list-usage.yaml
+    - $ref: ../components/parameters/docker-volume-list-source.yaml
+    - $ref: ../components/parameters/docker-volume-list-compose-project.yaml
   security: [{ bearerAuth: [] }]
   responses:
     '200': { description: Docker volume list., headers: { X-Request-Id: { $ref: ../components/headers/request-id.yaml } }, content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-volume-list-response.yaml } } } }
