@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "defaults": {
+    "pageEntry": "ResponsivePage",
+    "requiredWidths": [375, 768, 992, 1200],
+    "forbiddenBusinessApis": [
+      "window.innerWidth",
+      "document.body.clientWidth",
+      "screen.width",
+      "matchMedia",
+      "useMediaQuery",
+      "isMobile"
+    ]
+  },
+  "profiles": [
+    { "path": "src/layouts/index.vue", "kind": "shell", "components": ["ResponsiveSidebar"], "status": "migrated" },
+    {
+      "path": "src/shared/components/management/ManagementPagedTable.vue",
+      "kind": "shared-list",
+      "components": ["ResponsiveTable"],
+      "status": "migrated"
+    },
+    {
+      "path": "src/shared/components/management/ManagementToolbar.vue",
+      "kind": "shared-toolbar",
+      "components": ["ResponsiveToolbar"],
+      "status": "migrated"
+    }
+  ],
+  "exceptions": [
+    {
+      "path": "src/shared/components/viewer/ContentViewerFrame.vue",
+      "reason": "Desktop Preferred workspace sizing is pending container-first migration.",
+      "replacement": "shared container variant",
+      "cleanupPhase": "Phase 3"
+    },
+    {
+      "path": "src/shared/components/GlobalMenuSearch.vue",
+      "reason": "Overlay geometry uses viewport bounds, not page layout.",
+      "replacement": "TDesign overlay positioning",
+      "cleanupPhase": "not-applicable"
+    }
+  ],
+  "debt": [
+    {
+      "issue": "Fixed pixel Dialog and Drawer consumers",
+      "owner": "shared and module consumers",
+      "deadline": "Phase 3",
+      "migrationPhase": "page migration",
+      "reason": "Existing overlays have not yet consumed ResponsiveDialog semantic purpose and size.",
+      "replacement": "ResponsiveDialog"
+    },
+    {
+      "issue": "Legacy page-local responsive CSS",
+      "owner": "module pages",
+      "deadline": "Phase 4",
+      "migrationPhase": "page migration",
+      "reason": "Existing media rules predate the shared component contract.",
+      "replacement": "Responsive primitives and container rules"
+    },
+    {
+      "issue": "ContentViewerFrame viewport sizing",
+      "owner": "shared viewer",
+      "deadline": "Phase 3",
+      "migrationPhase": "workspace migration",
+      "reason": "Workspace still derives layout from viewport size.",
+      "replacement": "shared container variant and Desktop Preferred policy"
+    }
+  ]
+}

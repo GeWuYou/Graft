@@ -41,8 +41,8 @@ const variant = useResponsiveVariant(container);
 }
 
 .responsive-empty--error {
-  background: color-mix(in srgb, var(--td-error-color-5) 6%, var(--td-bg-color-container));
-  border-color: color-mix(in srgb, var(--td-error-color-5) 26%, var(--td-component-stroke));
+  background: var(--td-error-color-1);
+  border-color: var(--td-error-color-5);
 }
 
 .responsive-empty__copy {

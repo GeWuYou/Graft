@@ -54,7 +54,7 @@ closeout:
 - [x] `B1-docs-bootstrap`: 主题、规范和开发者 Manifest。
 - [x] `B2-foundation-runtime`: shared token、container/variant 策略与壳层债务基线。
 - [x] `B3-responsive-primitives`: 共享 Responsive 组件、exception/debt 治理记录。
-- [ ] `B4-page-migration-and-governance-gate`: 页面迁移、CI 规则和全面验收。
+- [x] `B4-page-migration-and-governance-gate`: shared/shell 最小迁移与 CI 规则；浏览器四宽度证据因本轮范围未执行，保留为后续页面迁移验收。
 
 ## Acceptance Conditions
 
@@ -67,10 +67,14 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["B1-docs-bootstrap", "B2-foundation-runtime", "B3-responsive-primitives"],
-  "pending_batches": ["B4-page-migration-and-governance-gate"],
-  "current_batch": "B3-responsive-primitives",
-  "next_batch": "B4-page-migration-and-governance-gate",
+  "completed_batches": [
+    "B1-docs-bootstrap",
+    "B2-foundation-runtime",
+    "B3-responsive-primitives"
+  ],
+  "pending_batches": [],
+  "current_batch": "B4-page-migration-and-governance-gate",
+  "next_batch": null,
   "closeout_status": "completed"
 }
 ```

@@ -8,7 +8,7 @@
 - 列表或查询页使用 `ResponsiveTable`；表格必须声明 `presentation="data"` 或 `presentation="entity"`，业务页面不得自行切换第二份 Mobile 卡片布局。
 - 表单使用 `ResponsiveForm`；短确认、详情、表单与 workspace 通过 `ResponsiveDialog` 的 `purpose` 和 `size` 表达语义，不传像素宽度。
 - 在 `375`、`768`、`992`、`1200px` 以及窄 Drawer/Dialog/Split 容器验收。
-- 在页面 profile 中记录页面类型、响应式组件、复杂 workspace 的 Mobile 降级和已批准例外。未来机器可读 manifest 位于 `docs/responsive/` 或 `scripts/responsive/`，由 CI 消费，不进入生产 bundle。
+- 在页面 profile 中记录页面类型、响应式组件、复杂 workspace 的 Mobile 降级和已批准例外。机器可读 manifest 位于 `docs/responsive/manifest.json`，由 `bun run responsive:governance:check` 消费，不进入生产 bundle。
 
 ## 运行时边界
 
@@ -39,4 +39,4 @@ web/src/shared/responsive/
 
 Desktop 是完整能力基线。Tablet 保持紧凑高密度操作。Mobile Friendly 至少保证浏览、监控、筛选、确认和简单操作；Monaco、YAML/JSON、Diff、终端与复杂 Compose 编辑在 Mobile 应安全降级为只读，不开发独立移动编辑器。
 
-PR 在后续 CI 门禁启用后必须通过响应式 manifest 校验和四宽度证据；在门禁落地前，作者仍必须按本清单完成自检并在 closeout 中报告例外或债务。
+PR 必须通过响应式 manifest 校验和四宽度证据；作者仍须在 closeout 中报告例外或债务。浏览器证据的执行时机由任务验证范围决定。

@@ -2,11 +2,14 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
+import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
 import ResponsiveDialog from './ResponsiveDialog.vue';
 import ResponsiveEmpty from './ResponsiveEmpty.vue';
+import ResponsiveForm from './ResponsiveForm.vue';
 import ResponsiveHeader from './ResponsiveHeader.vue';
 import ResponsivePage from './ResponsivePage.vue';
+import ResponsiveTable from './ResponsiveTable.vue';
 import ResponsiveToolbar from './ResponsiveToolbar.vue';
 
 describe('responsive primitives', () => {
@@ -26,6 +29,26 @@ describe('responsive primitives', () => {
     expect(content.classes()).toContain('responsive-content--split');
     expect(header.find('.responsive-header__actions').text()).toContain('create');
     expect(header.find('.responsive-header__description').text()).toContain('summary');
+  });
+
+  it('keeps data tables scrollable and reserves compact cards for entity presentation', () => {
+    const dataTable = mount(ResponsiveTable, {
+      slots: { default: '<table><tbody><tr><td>row</td></tr></tbody></table>' },
+    });
+    const entityTable = mount(ResponsiveTable, {
+      props: { presentation: 'entity' },
+      slots: { cards: '<article>card</article>', default: '<table><tbody><tr><td>row</td></tr></tbody></table>' },
+    });
+    const form = mount(ResponsiveForm, {
+      slots: { default: '<input aria-label="name">', actions: '<button>save</button>' },
+    });
+    const cards = mount(ResponsiveCardList, { slots: { default: '<article>entity</article>' } });
+
+    expect(dataTable.attributes('data-responsive-presentation')).toBe('data');
+    expect(dataTable.find('.responsive-table__scroll table').exists()).toBe(true);
+    expect(entityTable.attributes('data-responsive-presentation')).toBe('entity');
+    expect(form.find('.responsive-form__actions').text()).toContain('save');
+    expect(cards.text()).toContain('entity');
   });
 
   it('provides named toolbar and empty-state slots without business props', () => {

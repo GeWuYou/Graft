@@ -51,12 +51,12 @@ web/src/                       # B2 以现有目录为基础的目标形态
 
 ### 4.1 规范断点
 
-| 语义层 | 可用宽度 |
-| --- | --- |
-| Mobile | `< 768px` |
-| Tablet | `768px - 991px` |
+| 语义层  | 可用宽度         |
+| ------- | ---------------- |
+| Mobile  | `< 768px`        |
+| Tablet  | `768px - 991px`  |
 | Desktop | `992px - 1199px` |
-| Wide | `>= 1200px` |
+| Wide    | `>= 1200px`      |
 
 这些值必须继续从 `web/src/style/variables.less` 消费，不能由组件或页面重复定义。`1400px` 只可用于 Wide 内部的额外密度增强，不能创造第五种业务页面。组件优先根据自身容器而不是 window 宽度作出布局决定；窗口媒体查询只保留给壳层级别的全局布局。
 
@@ -79,13 +79,13 @@ Container Resize
 
 响应式组件只接受稳定语义，不接收像素宽度或设备布尔值。
 
-| 维度 | 值 | 用途 |
-| --- | --- | --- |
-| Density | `compact` / `comfortable` / `spacious` | 信息密度、间距和工具栏排布 |
-| Layout | `stack` / `flow` / `split` / `grid` | 内容关系与栅格行为 |
-| Surface | `page` / `dialog` / `drawer` / `sheet` | 容器与交互表面 |
-| Presentation | `data` / `entity` | 表格优先或实体卡片可选 |
-| Interaction | `readonly` / `interactive` / `workspace` | 窄容器下允许的操作等级 |
+| 维度         | 值                                       | 用途                       |
+| ------------ | ---------------------------------------- | -------------------------- |
+| Density      | `compact` / `comfortable` / `spacious`   | 信息密度、间距和工具栏排布 |
+| Layout       | `stack` / `flow` / `split` / `grid`      | 内容关系与栅格行为         |
+| Surface      | `page` / `dialog` / `drawer` / `sheet`   | 容器与交互表面             |
+| Presentation | `data` / `entity`                        | 表格优先或实体卡片可选     |
+| Interaction  | `readonly` / `interactive` / `workspace` | 窄容器下允许的操作等级     |
 
 业务页面只传递业务语义，例如 `presentation="data"`、`purpose="form"` 或 `interaction="workspace"`；shared 层依据容器与策略选择具体布局。禁止以 `width=900`、`mobile` 或 `isMobile` 作为组件公共接口。
 
@@ -106,18 +106,18 @@ Container Resize
 
 ## 7. 组件职责与契约
 
-| 组件 | 业务输入 | shared 层职责 |
-| --- | --- | --- |
-| `ResponsivePage` | 页面类型、密度 | 页面宽度、滚动边界、安全区与标准留白 |
-| `ResponsiveHeader` | 标题、主/次操作 slots | 标题与操作区堆叠、动作溢出 |
-| `ResponsiveToolbar` | 筛选、主操作、次操作、批量操作、溢出 slots | 换行、全宽筛选、保留主操作、次操作收进 Overflow Menu |
-| `ResponsiveContent` | 内容与布局语义 | 标准节奏、信息栅格与窄容器内边距 |
-| `ResponsiveTable` | `rows`、语义 columns、行操作、`presentation` | 容器测量、固定主列/操作列、列优先级、横向滚动、分页与 CardList 切换 |
-| `ResponsiveCardList` | 同一行数据与实体摘要映射 | 仅用于 `entity` presentation 的移动呈现，不能形成第二个业务页 |
-| `ResponsiveForm` | 字段组、语义列跨度、操作区 | 标签位置、Grid 到单列、控件宽度与底部操作区安全性 |
-| `ResponsiveDialog` | `purpose`、`size`、slots、操作语义 | 在 Dialog、Drawer、Fullscreen、Bottom Sheet 间选择表面 |
-| `ResponsiveLayout` / `ResponsiveSidebar` | 导航树与壳层 slots | Desktop 固定侧栏、Tablet 紧凑导航、Mobile Drawer、面包屑截断和 Tabs 溢出 |
-| `ResponsiveEmpty` | 空、加载、错误态语义 | 紧凑且可访问的反馈布局，不重复页面级间距规则 |
+| 组件                                     | 业务输入                                     | shared 层职责                                                            |
+| ---------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| `ResponsivePage`                         | 页面类型、密度                               | 页面宽度、滚动边界、安全区与标准留白                                     |
+| `ResponsiveHeader`                       | 标题、主/次操作 slots                        | 标题与操作区堆叠、动作溢出                                               |
+| `ResponsiveToolbar`                      | 筛选、主操作、次操作、批量操作、溢出 slots   | 换行、全宽筛选、保留主操作、次操作收进 Overflow Menu                     |
+| `ResponsiveContent`                      | 内容与布局语义                               | 标准节奏、信息栅格与窄容器内边距                                         |
+| `ResponsiveTable`                        | `rows`、语义 columns、行操作、`presentation` | 容器测量、固定主列/操作列、列优先级、横向滚动、分页与 CardList 切换      |
+| `ResponsiveCardList`                     | 同一行数据与实体摘要映射                     | 仅用于 `entity` presentation 的移动呈现，不能形成第二个业务页            |
+| `ResponsiveForm`                         | 字段组、语义列跨度、操作区                   | 标签位置、Grid 到单列、控件宽度与底部操作区安全性                        |
+| `ResponsiveDialog`                       | `purpose`、`size`、slots、操作语义           | 在 Dialog、Drawer、Fullscreen、Bottom Sheet 间选择表面                   |
+| `ResponsiveLayout` / `ResponsiveSidebar` | 导航树与壳层 slots                           | Desktop 固定侧栏、Tablet 紧凑导航、Mobile Drawer、面包屑截断和 Tabs 溢出 |
+| `ResponsiveEmpty`                        | 空、加载、错误态语义                         | 紧凑且可访问的反馈布局，不重复页面级间距规则                             |
 
 `ResponsiveTable` 的 `data` presentation 永远保留表格语义，Mobile 允许横向滚动和辅助列隐藏；只有 `entity` presentation 可以切换为 `ResponsiveCardList`。每列必须声明可见性优先级，并确保状态、主标识和可操作入口不会同时消失。
 
@@ -152,12 +152,12 @@ Container Resize
 
 历史响应式债务必须进入治理清单并按迁移批次销账。清单字段固定为 `Issue`、`Owner`、`Deadline`、`Migration Phase`、`Reason`、`Replacement`。
 
-| Issue | Owner | Deadline | Migration Phase | Reason | Replacement |
-| --- | --- | --- | --- | --- | --- |
-| 壳层 `min-width: 760px` | shell/shared | Phase 1 | 基础设施 | 阻断窄容器 | `ResponsiveLayout` 容器策略 |
-| 固定像素 Dialog/Drawer | shared + consumers | Phase 2 | 公共组件 | 无 Mobile surface 策略 | `ResponsiveDialog` purpose/size |
-| 页面本地 media query | 各模块 | Phase 3 | 页面迁移 | 断点分散 | shared variant 与容器规则 |
-| 页面 overflow / 固定尺寸 | 各模块 | Phase 3 | 页面迁移 | 窄容器不可用 | ResponsivePage/Content token |
+| Issue                    | Owner              | Deadline | Migration Phase | Reason                 | Replacement                     |
+| ------------------------ | ------------------ | -------- | --------------- | ---------------------- | ------------------------------- |
+| 壳层 `min-width: 760px`  | shell/shared       | Phase 1  | 基础设施        | 阻断窄容器             | `ResponsiveLayout` 容器策略     |
+| 固定像素 Dialog/Drawer   | shared + consumers | Phase 2  | 公共组件        | 无 Mobile surface 策略 | `ResponsiveDialog` purpose/size |
+| 页面本地 media query     | 各模块             | Phase 3  | 页面迁移        | 断点分散               | shared variant 与容器规则       |
+| 页面 overflow / 固定尺寸 | 各模块             | Phase 3  | 页面迁移        | 窄容器不可用           | ResponsivePage/Content token    |
 
 任何新增债务都必须有明确 owner、到期批次与替代项；“历史代码很多”不是豁免理由。
 
@@ -165,7 +165,7 @@ Container Resize
 
 - 新页面必须通过 `ResponsivePage` 进入，共享组件优先于页面级布局；禁止 `if (isMobile)`、`v-if="mobile"`、`MobilePage.vue` 或 Desktop/Mobile 双组件。
 - 业务页面可选择语义 variant，不可自行读取 viewport/device，亦不可新增页面级断点 CSS。
-- 未来 CI 的 `responsive:governance:check` 必须读取治理路径下的 manifest，而非运行时 bundle，并检查页面 profile、禁用 API、受控例外和未清偿债务。该门禁将在后续批次实现并接入 `bun run check`。
+- `responsive:governance:check` 读取 `web/docs/responsive/manifest.json`，而非运行时 bundle；它已接入 `bun run check` 的 hygiene 阶段，检查页面 profile、业务目录禁用 API、受控例外和未清偿债务。
 - 每个新页面及迁移页面必须在 `375`、`768`、`992`、`1200px` 验收；还要覆盖窄 Drawer、Dialog 与 Split 容器。
 - 验收检查：无非预期横向溢出、工具栏与分页可操作、表格主信息可见、表单可填写、Dialog 有可用关闭/提交路径、图表不截断、workspace 在 Mobile 降级为安全只读。
 

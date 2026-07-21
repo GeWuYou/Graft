@@ -39,6 +39,32 @@
 }
 ```
 
+## 2026-07-21 B4-page-migration-and-governance-gate
+
+- `ManagementPagedTable` 已消费 `ResponsiveTable` 的 `data` presentation，保留既有 `ResizeObserver` 宽度测量与横向滚动策略；`ManagementToolbar` 已消费 `ResponsiveToolbar`，本地窄宽规则收敛为容器查询。
+- 新增 `ResponsiveForm`、`ResponsiveCardList` 与 `ResponsiveSidebar` 作为无业务语义 shared primitive。它们只提供容器布局和 slots，不获取设备布尔值、业务数据或页面状态。
+- 壳层 `min-width: 760px` 已改为 `min-width: 0`，`SideNav` 已移除 `window.innerWidth`/window resize 对持久化 sidebar 状态的写入，壳层通过 `ResponsiveSidebar` 消费 shared 容器表面。
+- `web/docs/responsive/manifest.json` 是非运行时治理资产；`responsive:governance:check` 已接入 `hygiene:check`，阻止 `app/**` 与 `modules/**` 新增设备 API，并验证 profile、例外与债务字段。
+- 本轮按用户范围不执行浏览器验证；375/768/992/1200 与窄容器浏览器证据继续作为页面迁移的验收要求。
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "B1-docs-bootstrap",
+    "B2-foundation-runtime",
+    "B3-responsive-primitives",
+    "B4-page-migration-and-governance-gate"
+  ],
+  "pending_batches": [],
+  "current_batch": "B4-page-migration-and-governance-gate",
+  "next_batch": null,
+  "closeout_status": "completed"
+}
+```
+
 ## 2026-07-21 B3-responsive-primitives
 
 - 新增 `ResponsivePage`、`ResponsiveHeader`、`ResponsiveToolbar`、`ResponsiveContent`、`ResponsiveEmpty` 与 `ResponsiveDialog`。它们是无业务语义的 shared 组件，只消费 slots、layout/tone/purpose/size 等语义输入，不暴露 device 或像素宽度接口。
@@ -52,7 +78,11 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["B1-docs-bootstrap", "B2-foundation-runtime", "B3-responsive-primitives"],
+  "completed_batches": [
+    "B1-docs-bootstrap",
+    "B2-foundation-runtime",
+    "B3-responsive-primitives"
+  ],
   "pending_batches": ["B4-page-migration-and-governance-gate"],
   "current_batch": "B3-responsive-primitives",
   "next_batch": "B4-page-migration-and-governance-gate",
