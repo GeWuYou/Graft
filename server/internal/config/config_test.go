@@ -80,6 +80,11 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
 	assertEqual(t, "MCP default enabled", cfg.MCP.Enabled, false)
 	assertEqual(t, "MCP confirmation token ttl", cfg.MCP.ConfirmationTokenTTL, defaultMCPConfirmationTokenTTL)
+	assertEqual(t, "MCP session timeout", cfg.MCP.SessionTimeout, defaultMCPSessionTimeout)
+	assertEqual(t, "MCP request timeout", cfg.MCP.RequestTimeout, defaultMCPRequestTimeout)
+	assertEqual(t, "MCP request byte limit", cfg.MCP.MaxRequestBytes, defaultMCPMaxRequestBytes)
+	assertEqual(t, "MCP session limit", cfg.MCP.MaxSessions, defaultMCPMaxSessions)
+	assertEqual(t, "MCP concurrency limit", cfg.MCP.MaxConcurrentRequests, defaultMCPMaxConcurrentRequests)
 	assertEqual(t, "default access token ttl", cfg.Auth.AccessTokenTTL, defaultAccessTokenTTL)
 	assertEqual(t, "default refresh token ttl", cfg.Auth.RefreshTokenTTL, defaultRefreshTokenTTL)
 	assertEqual(t, "jwt secret from .env", cfg.Auth.JWTSecret, "dotenv-jwt-secret")
@@ -99,7 +104,7 @@ func TestValidateMCPConfigRequiresConfirmationTTLOnlyWhenEnabled(t *testing.T) {
 	if err := validateMCPConfig(&Config{MCP: MCPConfig{Enabled: true}}); err == nil {
 		t.Fatal("enabled MCP configuration must require a confirmation token TTL")
 	}
-	if err := validateMCPConfig(&Config{MCP: MCPConfig{Enabled: true, ConfirmationTokenTTL: time.Minute}}); err != nil {
+	if err := validateMCPConfig(&Config{MCP: MCPConfig{Enabled: true, ConfirmationTokenTTL: time.Minute, SessionTimeout: time.Minute, RequestTimeout: time.Second, MaxRequestBytes: 1, MaxSessions: 1, MaxConcurrentRequests: 1}}); err != nil {
 		t.Fatalf("enabled MCP configuration with a positive confirmation token TTL: %v", err)
 	}
 }

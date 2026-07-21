@@ -55,7 +55,7 @@ closeout:
   a caller/action/request-bound two-phase token before dispatching the action through the existing Gin route. The
   executable Phase 2.5 matrix compares REST/MCP canonical JSON, error payloads, permission-denial behavior, and audit
   counts; resource errors retain the canonical REST payload in MCP error data.
-- Next batch: `mcp-hardening-stdio`.
+- All implementation batches are committed. The outer loop must now perform archive-readiness acceptance.
 
 ## Task Checklist
 
@@ -63,13 +63,14 @@ closeout:
 - [x] `mcp-auth-streamable-foundation`
 - [x] `mcp-openapi-compiler-read-tools`
 - [x] `mcp-compatibility-resources-actions`
-- [ ] `mcp-hardening-stdio`
+- [x] `mcp-hardening-stdio`
 
 ## Acceptance Conditions
 
 - OpenAPI remains the sole MCP capability contract and no manual tool registry is introduced.
 - Tool identity, resource URI, confirmation, transport, and compatibility decisions remain aligned with ADR-005.
 - Phase 2.5 proves REST/MCP canonical JSON, error, permission, and audit equivalence before broad action exposure.
+- HTTP and stdio share one compiled capability registry, one Gin dispatcher, bounded lifecycle, limits, error boundary, and correlation-safe observability.
 
 ## Loop Batch State
 
@@ -80,13 +81,12 @@ closeout:
     "mcp-governance-and-contract",
     "mcp-auth-streamable-foundation",
     "mcp-openapi-compiler-read-tools",
-    "mcp-compatibility-resources-actions"
-  ],
-  "pending_batches": [
+    "mcp-compatibility-resources-actions",
     "mcp-hardening-stdio"
   ],
+  "pending_batches": [],
   "current_batch": null,
-  "next_batch": "mcp-hardening-stdio",
+  "next_batch": null,
   "closeout_status": "committed"
 }
 ```
@@ -94,6 +94,7 @@ closeout:
 ## Latest Validation
 
 - `cd server && go test ./internal/mcp ./internal/httpx ./internal/app`
+- `cd server && go test ./internal/config`
 - `cd server && go run ./cmd/graft validate backend`
 - `cd web && bun run check`
 - `just openapi-check`

@@ -66,7 +66,7 @@ func (r *Runtime) registerMCPRuntime(authorizer moduleapi.Authorizer) error {
 		return fmt.Errorf("resolve MCP personal API token service: %w", err)
 	}
 
-	if err := productmcp.Register(productmcp.HTTPRegistration{
+	mcpRuntime, err := productmcp.Register(productmcp.HTTPRegistration{
 		Engine:                 r.server.Engine(),
 		OpenAPISpec:            OpenAPIDocsBundle(),
 		I18n:                   r.i18n,
@@ -74,9 +74,19 @@ func (r *Runtime) registerMCPRuntime(authorizer moduleapi.Authorizer) error {
 		Authorizer:             authorizer,
 		SecurityAuditPublisher: httpx.NewSecurityAuditPublisher(r.eventBus, r.logger, "mcp"),
 		ConfirmationTokenTTL:   r.config.MCP.ConfirmationTokenTTL,
-	}); err != nil {
+		Limits: productmcp.RuntimeLimits{
+			SessionTimeout:        r.config.MCP.SessionTimeout,
+			RequestTimeout:        r.config.MCP.RequestTimeout,
+			MaxRequestBytes:       r.config.MCP.MaxRequestBytes,
+			MaxSessions:           r.config.MCP.MaxSessions,
+			MaxConcurrentRequests: r.config.MCP.MaxConcurrentRequests,
+		},
+		Logger: r.logger,
+	})
+	if err != nil {
 		return fmt.Errorf("register MCP runtime: %w", err)
 	}
+	r.mcpRuntime = mcpRuntime
 	return nil
 }
 

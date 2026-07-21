@@ -95,12 +95,13 @@ func TestRegisterServesStreamableReadToolsFromOpenAPI(t *testing.T) {
 			ExpiresAt: time.Now().Add(time.Hour),
 		},
 	}
-	if err := Register(HTTPRegistration{
+	if _, err := Register(HTTPRegistration{
 		Engine:               engine,
 		OpenAPISpec:          compilerTestBundle(map[string]any{"/api/items/{id}": map[string]any{"get": compilerTestOperation("getItem", compilerTestMetadata("low", false), false)}}),
 		PersonalTokenService: tokenService,
 		Authorizer:           &foundationTestAuthorizer{},
 		ConfirmationTokenTTL: time.Minute,
+		Limits:               testRuntimeLimits(),
 	}); err != nil {
 		t.Fatalf("register streamable MCP foundation: %v", err)
 	}
@@ -193,12 +194,13 @@ func TestStreamableToolCallPreservesRESTAuthorizationAndAuditBehavior(t *testing
 		Scopes:    []string{"item.read"},
 		ExpiresAt: time.Now().Add(time.Hour),
 	}}
-	if err := Register(HTTPRegistration{
+	if _, err := Register(HTTPRegistration{
 		Engine:               engine,
 		OpenAPISpec:          compilerTestBundle(map[string]any{"/api/items/{id}": map[string]any{"get": compilerTestOperation("getItem", compilerTestMetadata("low", false), false)}}),
 		PersonalTokenService: tokenService,
 		Authorizer:           authorizer,
 		ConfirmationTokenTTL: time.Minute,
+		Limits:               testRuntimeLimits(),
 	}); err != nil {
 		t.Fatalf("register streamable MCP read tool: %v", err)
 	}
@@ -343,4 +345,8 @@ func streamableResponsePayload(body string) []byte {
 		}
 	}
 	return []byte(body)
+}
+
+func testRuntimeLimits() RuntimeLimits {
+	return RuntimeLimits{SessionTimeout: time.Minute, RequestTimeout: time.Second, MaxRequestBytes: 1024, MaxSessions: 4, MaxConcurrentRequests: 4}
 }

@@ -66,13 +66,18 @@ Run this gate after the compiler is available and before broad actions or a prod
 The test harness must compare canonical JSON, error, permission, and audit semantics explicitly. Transport-specific
 envelope fields may differ only when documented by the adapter; their presence must not change the canonical payload.
 
-### 5. `mcp-hardening-stdio`
+### 5. `mcp-hardening-stdio` (complete)
 
 - Choose and harden the first runtime transport after the prior batches pass, beginning with stdio only if the runtime
   decision confirms it.
 - Add lifecycle, shutdown, limits, observability, abuse controls, and transport-specific conformance coverage.
 
 Acceptance: transport hardening cannot bypass the compiler, confirmation, permission, audit, or compatibility gate.
+
+Delivered: Streamable HTTP and stdio use the same OpenAPI-compiled server and Gin dispatcher. Runtime-owned deployment
+limits bound request size, request lifetime, sessions, and concurrency; lifecycle closure stops admission and server
+shutdown cancels residual connections. Adapter metrics and structured correlation-safe logs contain no tool arguments,
+tokens, or response bodies.
 
 ## Non-goals
 

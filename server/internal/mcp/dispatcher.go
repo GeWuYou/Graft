@@ -184,6 +184,7 @@ func (d *dispatcher) dispatch(ctx context.Context, definition toolDefinition, ar
 		return nil, fmt.Errorf("build in-process REST request: %w", err)
 	}
 	request.Header.Set("Accept", "application/json")
+	request = request.WithContext(withRESTCallerContext(request.Context()))
 	if body != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}

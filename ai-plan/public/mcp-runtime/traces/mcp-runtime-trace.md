@@ -76,7 +76,20 @@
 - Added an executable Phase 2.5 compatibility matrix that compares canonical REST/MCP success JSON, 403/404 errors,
   resource error data, permission-denial behavior, and audit evidence. Focused MCP, HTTP, and app tests passed.
 
+## 2026-07-22 `mcp-hardening-stdio`
+
+- Added bounded MCP runtime limits for request bytes, request duration, idle sessions, concurrent work, and total HTTP
+  sessions. The values are deployment configuration, never OpenAPI capability metadata.
+- Added adapter lifecycle admission shutdown, non-sensitive cumulative metrics, and structured invocation logs carrying
+  request/trace correlation when an HTTP request provides it. Adapter errors remain at the transport boundary and do
+  not alter canonical REST errors.
+- Added `RunStdio`, which accepts a caller already authenticated by the existing personal API Token service and runs
+  the same compiled `mcp.Server`, confirmation store, and in-process Gin route dispatcher as Streamable HTTP. It does
+  not parse credentials or create a second authorization path.
+- Added focused lifecycle and stdio protocol coverage. The stdio test proves `tools/list` and `tools/call` project the
+  OpenAPI-derived capability and return the same REST JSON while retaining caller context. No browser, Compose, or
+  temporary database was needed or started.
+
 ## Next Step
 
-- Start `mcp-hardening-stdio` with fresh startup preflight. Keep transport hardening behind the established compiler,
-  confirmation, route-dispatch, and compatibility boundaries.
+- The outer loop must run final archive-readiness acceptance, PR review, push, and the authorized shutdown workflow.

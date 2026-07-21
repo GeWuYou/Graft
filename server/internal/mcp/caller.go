@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"graft/server/internal/moduleapi"
 )
@@ -60,6 +61,23 @@ func (c caller) hasScope(scope string) bool {
 		}
 	}
 	return false
+}
+
+// withRESTCallerContext 将 adapter 已验证的主体恢复为既有 Gin 鉴权中间件理解的请求事实。
+// 这使 HTTP 与 stdio 均通过原有 permission、scope、audit 路径，而不引入第二条授权链。
+func withRESTCallerContext(ctx context.Context) context.Context {
+	caller, ok := callerFromContext(ctx)
+	if !ok {
+		return ctx
+	}
+	user := caller.user
+	ctx = moduleapi.WithRequestAuthContext(ctx, moduleapi.RequestAuthContext{User: &user})
+	return moduleapi.WithPersonalAccessTokenCaller(ctx, moduleapi.PersonalAccessTokenCaller{
+		TokenID:   caller.tokenID,
+		User:      user,
+		Scopes:    append([]string(nil), caller.scopes...),
+		ExpiresAt: time.Unix(caller.expiresAt, 0).UTC(),
+	})
 }
 
 // ScopeGate 始终先调用现有 RBAC authorizer，再检查个人 API Token 的精确 scope。

@@ -45,6 +45,11 @@ const (
 	defaultContainerLogsMaxTail     = 2000
 	defaultRealtimeAllowedOrigins   = ""
 	defaultMCPConfirmationTokenTTL  = 5 * time.Minute
+	defaultMCPSessionTimeout        = 15 * time.Minute
+	defaultMCPRequestTimeout        = 30 * time.Second
+	defaultMCPMaxRequestBytes       = int64(1 << 20)
+	defaultMCPMaxSessions           = 64
+	defaultMCPMaxConcurrentRequests = 32
 )
 
 const (
@@ -238,8 +243,13 @@ type AuthConfig struct {
 // 这些值在模块和 System Config 尚未可用时决定是否装配公开 `/mcp` 入口，
 // 因此属于部署配置而不是可热更新的管理员策略。
 type MCPConfig struct {
-	Enabled              bool
-	ConfirmationTokenTTL time.Duration
+	Enabled               bool
+	ConfirmationTokenTTL  time.Duration
+	SessionTimeout        time.Duration
+	RequestTimeout        time.Duration
+	MaxRequestBytes       int64
+	MaxSessions           int
+	MaxConcurrentRequests int
 }
 
 // ContainerConfig 描述容器管理模块的部署配置。
@@ -587,6 +597,12 @@ func validateMCPConfig(c *Config) error {
 	}
 	if c.MCP.ConfirmationTokenTTL <= 0 {
 		return errors.New("GRAFT_MCP_CONFIRMATION_TOKEN_TTL must be greater than zero")
+	}
+	if c.MCP.SessionTimeout <= 0 || c.MCP.RequestTimeout <= 0 {
+		return errors.New("GRAFT_MCP_SESSION_TIMEOUT and GRAFT_MCP_REQUEST_TIMEOUT must be greater than zero")
+	}
+	if c.MCP.MaxRequestBytes <= 0 || c.MCP.MaxSessions <= 0 || c.MCP.MaxConcurrentRequests <= 0 {
+		return errors.New("GRAFT_MCP request, session, and concurrency limits must be greater than zero")
 	}
 	return nil
 }

@@ -365,6 +365,12 @@ func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeMo
 	defer cancel()
 
 	var shutdownErr error
+	if r.mcpRuntime != nil {
+		if err := r.mcpRuntime.Close(); err != nil {
+			shutdownErr = errors.Join(shutdownErr, err)
+		}
+		r.mcpRuntime = nil
+	}
 	if r.server != nil {
 		if err := r.server.Shutdown(shutdownCtx.LifecycleContext); err != nil {
 			shutdownErr = errors.Join(shutdownErr, err)

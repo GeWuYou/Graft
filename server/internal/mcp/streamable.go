@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"go.uber.org/zap"
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -21,9 +23,16 @@ import (
 const (
 	// HTTPPath 是产品 MCP Streamable HTTP transport 的唯一公开路径。
 	HTTPPath = "/mcp"
-
-	streamableSessionTimeout = 15 * time.Minute
 )
+
+// RuntimeLimits 约束 MCP adapter 的单进程资源使用，不参与 OpenAPI capability 编译。
+type RuntimeLimits struct {
+	SessionTimeout        time.Duration
+	RequestTimeout        time.Duration
+	MaxRequestBytes       int64
+	MaxSessions           int
+	MaxConcurrentRequests int
+}
 
 // HTTPRegistration 描述 MCP transport 装配所需的 core 与 auth 依赖。
 //
@@ -38,52 +47,82 @@ type HTTPRegistration struct {
 	Authorizer             moduleapi.Authorizer
 	SecurityAuditPublisher httpx.SecurityAuditPublisher
 	ConfirmationTokenTTL   time.Duration
+	Limits                 RuntimeLimits
+	Logger                 *zap.Logger
 }
 
 // adapter 持有 MCP Streamable HTTP handler 与后续 Tool 投影需要的安全基础。
 type adapter struct {
+	server        *mcpsdk.Server
 	handler       http.Handler
 	scopes        ScopeGate
 	confirmations *ConfirmationTokens
+	lifecycle     *runtimeLifecycle
+	closeOnce     sync.Once
 }
 
 // Register 在根 Gin engine 注册受个人 API Token 保护的 MCP transport。
 //
 // 注册仅在 app 确认部署开关开启后调用。认证仍由 httpx 和 auth 模块负责，
 // 这里不解析 token、不调用 loopback REST，也不注册业务 Tool。
-func Register(registration HTTPRegistration) error {
+func Register(registration HTTPRegistration) (*adapter, error) {
 	if registration.Engine == nil {
-		return errors.New("mcp runtime engine is unavailable")
+		return nil, errors.New("mcp runtime engine is unavailable")
 	}
 	if registration.PersonalTokenService == nil {
-		return errors.New("mcp personal API token service is unavailable")
+		return nil, errors.New("mcp personal API token service is unavailable")
 	}
 	if registration.Authorizer == nil {
-		return errors.New("mcp authorizer is unavailable")
+		return nil, errors.New("mcp authorizer is unavailable")
 	}
 	capabilities, err := CompileCapabilities(registration.OpenAPISpec)
 	if err != nil {
-		return fmt.Errorf("compile MCP capabilities: %w", err)
+		return nil, fmt.Errorf("compile MCP capabilities: %w", err)
 	}
 
-	adapter, err := newAdapterWithCapabilities(registration.Authorizer, registration.ConfirmationTokenTTL, registration.Engine, capabilities)
+	adapter, err := newAdapterWithCapabilities(registration.Authorizer, registration.ConfirmationTokenTTL, registration.Engine, capabilities, registration.Limits, registration.Logger)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	registration.Engine.Any(
 		HTTPPath,
 		httpx.RequirePersonalAccessToken(registration.I18n, registration.PersonalTokenService, registration.SecurityAuditPublisher),
 		adapter.serveHTTP,
 	)
-	return nil
+	return adapter, nil
 }
 
-func newAdapterWithCapabilities(authorizer moduleapi.Authorizer, confirmationTTL time.Duration, engine *gin.Engine, capabilities capabilityDefinitions) (*adapter, error) {
+func newAdapterWithCapabilities(authorizer moduleapi.Authorizer, confirmationTTL time.Duration, engine *gin.Engine, capabilities capabilityDefinitions, limits RuntimeLimits, logger *zap.Logger) (*adapter, error) {
 	confirmations, err := newConfirmationTokens(confirmationTTL)
 	if err != nil {
 		return nil, err
 	}
 
+	lifecycle, err := newRuntimeLifecycle(limits, logger)
+	if err != nil {
+		return nil, err
+	}
+	server, err := buildServer(engine, capabilities, confirmations, lifecycle)
+	if err != nil {
+		return nil, err
+	}
+	streamable := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
+		return server
+	}, &mcpsdk.StreamableHTTPOptions{
+		CrossOriginProtection: &http.CrossOriginProtection{},
+		SessionTimeout:        limits.SessionTimeout,
+	})
+
+	return &adapter{
+		server:        server,
+		handler:       lifecycle.httpHandler(withSDKTokenInfo(streamable)),
+		scopes:        ScopeGate{authorizer: authorizer},
+		confirmations: confirmations,
+		lifecycle:     lifecycle,
+	}, nil
+}
+
+func buildServer(engine *gin.Engine, capabilities capabilityDefinitions, confirmations *ConfirmationTokens, lifecycle *runtimeLifecycle) (*mcpsdk.Server, error) {
 	serverCapabilities := &mcpsdk.ServerCapabilities{}
 	if len(capabilities.tools) > 0 {
 		serverCapabilities.Tools = &mcpsdk.ToolCapabilities{}
@@ -109,6 +148,7 @@ func newAdapterWithCapabilities(authorizer moduleapi.Authorizer, confirmationTTL
 			if tool.metadata.confirmation.required {
 				handler = dispatcher.actionHandler(tool, confirmations)
 			}
+			handler = lifecycle.toolHandler(tool.name, handler)
 			server.AddTool(&mcpsdk.Tool{
 				Name:        tool.name,
 				Description: tool.description,
@@ -122,21 +162,31 @@ func newAdapterWithCapabilities(authorizer moduleapi.Authorizer, confirmationTTL
 				Description: resource.description,
 				MIMEType:    "application/json",
 				URITemplate: resource.uriTemplate,
-			}, dispatcher.resourceHandler(resource))
+			}, lifecycle.resourceHandler(resource.name, dispatcher.resourceHandler(resource)))
 		}
 	}
-	streamable := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
-		return server
-	}, &mcpsdk.StreamableHTTPOptions{
-		CrossOriginProtection: &http.CrossOriginProtection{},
-		SessionTimeout:        streamableSessionTimeout,
-	})
+	return server, nil
+}
 
-	return &adapter{
-		handler:       withSDKTokenInfo(streamable),
-		scopes:        ScopeGate{authorizer: authorizer},
-		confirmations: confirmations,
-	}, nil
+// Close 停止接纳新的 MCP 请求；HTTP server 的既有关闭上下文会取消残留连接。
+func (a *adapter) Close() error {
+	if a == nil {
+		return nil
+	}
+	a.closeOnce.Do(func() {
+		if a.lifecycle != nil {
+			a.lifecycle.Close()
+		}
+	})
+	return nil
+}
+
+// Metrics 返回 adapter 累计的非敏感运行指标，供宿主进程接入现有监控导出器。
+func (a *adapter) Metrics() RuntimeMetrics {
+	if a == nil || a.lifecycle == nil {
+		return RuntimeMetrics{}
+	}
+	return a.lifecycle.Metrics()
 }
 
 func (a *adapter) serveHTTP(ginCtx *gin.Context) {

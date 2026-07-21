@@ -10,8 +10,7 @@
   - `openapi/openapi.yaml` and referenced path fragments
   - `ai-plan/design/decisions/ADR-005-mcp-runtime-contract-and-transport-boundary.md`
   - `ai-plan/roadmap/MCP运行时实施计划.md`
-- Completed so far: `mcp-governance-and-contract`, `mcp-auth-streamable-foundation`, `mcp-openapi-compiler-read-tools`, `mcp-compatibility-resources-actions`
-- Not started yet: transport hardening.
+- Completed so far: all implementation batches; awaiting outer archive-readiness acceptance.
 
 ## Recovery Receipt
 
@@ -35,7 +34,6 @@
 Out of scope:
 
 - Hand-written tool definitions, tag/path-derived tool identity, and transport selection in OpenAPI metadata
-- stdio and transport hardening
 - developer-local MCP client configuration, AI skills, and unrelated active topics
 
 ## Locked Decisions
@@ -49,7 +47,7 @@ Out of scope:
 - `mcp-auth-streamable-foundation`
 - `mcp-openapi-compiler-read-tools`
 - `mcp-compatibility-resources-actions`
-- `mcp-hardening-stdio`
+- `mcp-hardening-stdio` (complete)
 
 ## Current Recovery Point
 
@@ -62,7 +60,9 @@ Out of scope:
 - Batch 4 projects approved detail operations as canonical MCP Resource Templates and projects the opted-in container
   restart action as a server-confirmed MCP Tool. The dispatcher continues to invoke the same Gin routes, and the Phase
   2.5 matrix checks canonical JSON, errors, denials, and audit behavior across both transports.
-- Next step: `mcp-hardening-stdio`.
+- Batch 5 adds runtime-owned transport limits, lifecycle shutdown, correlation-safe metrics/logging, and a stdio
+  launcher that uses the same compiled server and Gin dispatcher as Streamable HTTP.
+- Next step: outer archive-readiness acceptance, final review, push, and shutdown orchestration.
 
 ## Work Intake
 
@@ -72,7 +72,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- `mcp-hardening-stdio`
+- none
 
 ## Validation Targets
 

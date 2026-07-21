@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"testing"
 
@@ -32,6 +33,42 @@ func TestOpenAPIDocsBundleCompilesCanonicalMCPReadTools(t *testing.T) {
 		}
 	}
 }
+
+func TestShutdownRuntimeClosesMCPAdapterBeforeHTTPServer(t *testing.T) {
+	closer := &mcpRuntimeCloser{}
+	runtime := &Runtime{mcpRuntime: closer}
+	if err := runtime.shutdownRuntime(nil, nil); err != nil {
+		t.Fatalf("shutdown runtime: %v", err)
+	}
+	if closer.calls != 1 || runtime.mcpRuntime != nil {
+		t.Fatalf("MCP adapter lifecycle was not closed: calls=%d runtime=%#v", closer.calls, runtime.mcpRuntime)
+	}
+}
+
+type mcpRuntimeCloser struct {
+	calls int
+}
+
+func (c *mcpRuntimeCloser) Close() error {
+	c.calls++
+	return nil
+}
+
+var _ interface{ Close() error } = (*mcpRuntimeCloser)(nil)
+
+func TestShutdownRuntimeReturnsMCPAdapterCloseError(t *testing.T) {
+	runtime := &Runtime{mcpRuntime: mcpRuntimeCloseError{}}
+	err := runtime.shutdownRuntime(nil, nil)
+	if !errors.Is(err, errMCPRuntimeClose) {
+		t.Fatalf("shutdown error = %v, want MCP close error", err)
+	}
+}
+
+var errMCPRuntimeClose = errors.New("mcp runtime close")
+
+type mcpRuntimeCloseError struct{}
+
+func (mcpRuntimeCloseError) Close() error { return errMCPRuntimeClose }
 
 type testMCPAuthorizer struct{}
 
