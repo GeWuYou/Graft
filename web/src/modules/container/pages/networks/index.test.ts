@@ -76,4 +76,14 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
     expect(sourceText).toContain('advancedFiltersVisible');
   });
+
+  it('keeps network detail loading, error, empty, and data states mutually exclusive', () => {
+    expect(sourceText).toContain('detailQuery.isError.value');
+    expect(sourceText).toContain('v-else-if="detailQuery.data.value"');
+    expect(sourceText).toContain('v-else-if="!detailQuery.isFetching.value"');
+    expect(sourceText).toContain('container.networks.detailEmptyTitle');
+    expect(sourceText).toContain('container.networks.detailLoadFailed');
+    expect(sourceText).toContain('row.container_references?.length');
+    expect(sourceText).toContain('detailQuery.data.value.container_references?.length');
+  });
 });

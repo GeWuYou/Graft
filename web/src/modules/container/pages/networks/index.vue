@@ -128,7 +128,7 @@
         </t-tooltip>
       </template>
       <template #containers="{ row }">
-        <div v-if="row.container_references.length" class="docker-network-page__container-list">
+        <div v-if="row.container_references?.length" class="docker-network-page__container-list">
           <container-reference-list
             :references="row.container_references"
             :title="t('container.networks.connectedContainers')"
@@ -275,7 +275,12 @@
       :footer="false"
     >
       <t-loading :loading="detailQuery.isFetching.value">
-        <template v-if="detailQuery.data.value">
+        <t-alert
+          v-if="detailQuery.isError.value"
+          theme="error"
+          :message="resolveLocalizedErrorMessage(t, detailQuery.error.value, t('container.networks.detailLoadFailed'))"
+        />
+        <template v-else-if="detailQuery.data.value">
           <section class="docker-network-page__section">
             <h3>{{ t('container.resourceContext.overview') }}</h3>
             <t-space break-line size="small">
@@ -298,7 +303,7 @@
           <docker-resource-context-card :context="detailQuery.data.value.context" resource-kind="network" />
           <section class="docker-network-page__section">
             <h3>{{ t('container.resourceContext.relations') }}</h3>
-            <t-space v-if="detailQuery.data.value.container_references.length" break-line size="small">
+            <t-space v-if="detailQuery.data.value.container_references?.length" break-line size="small">
               <t-link
                 v-for="reference in detailQuery.data.value.container_references"
                 :key="reference.id"
@@ -358,6 +363,13 @@
             }}</t-button>
           </section>
         </template>
+        <div v-else-if="!detailQuery.isFetching.value" class="docker-network-page__detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.networks.detailEmptyTitle')"
+            :description="t('container.networks.detailEmptyDescription')"
+          />
+        </div>
       </t-loading>
     </t-drawer>
 
@@ -756,6 +768,14 @@ async function submitBatchRemove() {
 
 .docker-network-page__section {
   margin-top: var(--td-comp-margin-xl);
+}
+
+.docker-network-page__detail-state {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
 }
 
 .docker-network-page__section h3 {

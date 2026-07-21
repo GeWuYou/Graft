@@ -39,6 +39,32 @@ func TestToDockerNetworkMapsAttributesLabelsAndCreatedAt(t *testing.T) {
 	assertMappedNetworkContextAndMetadata(t, mapped)
 }
 
+func TestToDockerImageMapsRequiredArraysAsEmptyArrays(t *testing.T) {
+	t.Parallel()
+
+	mapped := toDockerImage(DockerImage{ID: "sha256:image-id"})
+
+	if mapped.RepositoryTags == nil || len(mapped.RepositoryTags) != 0 {
+		t.Fatalf("expected empty repository tags array, got %#v", mapped.RepositoryTags)
+	}
+	if mapped.RepositoryDigests == nil || len(mapped.RepositoryDigests) != 0 {
+		t.Fatalf("expected empty repository digests array, got %#v", mapped.RepositoryDigests)
+	}
+	if mapped.ContainerReferences == nil || len(mapped.ContainerReferences) != 0 {
+		t.Fatalf("expected empty container references array, got %#v", mapped.ContainerReferences)
+	}
+
+	network := toDockerNetwork(DockerNetwork{ID: "network-id"})
+	if network.ContainerReferences == nil || len(network.ContainerReferences) != 0 {
+		t.Fatalf("expected empty network container references array, got %#v", network.ContainerReferences)
+	}
+
+	volume := toDockerVolume(DockerVolume{Name: "volume-name"})
+	if volume.ContainerReferences == nil || len(volume.ContainerReferences) != 0 {
+		t.Fatalf("expected empty volume container references array, got %#v", volume.ContainerReferences)
+	}
+}
+
 func assertMappedNetworkIdentity(t *testing.T, mapped containergen.DockerNetwork) {
 	t.Helper()
 	if mapped.Id != "network-id" || mapped.Name != "app-network" || mapped.CreatedAt != "2026-07-19T23:19:41Z" {

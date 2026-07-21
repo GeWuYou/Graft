@@ -146,7 +146,10 @@
       placement="right"
     >
       <t-loading :loading="detailLoading">
-        <div v-if="selectedImage" class="docker-images-detail">
+        <div v-if="detailError" class="docker-images-detail-error">
+          <t-alert theme="error" :message="detailError" />
+        </div>
+        <div v-else-if="selectedImage" class="docker-images-detail">
           <section class="docker-images-detail__section">
             <h3>{{ t('container.images.detail.overview') }}</h3>
             <div class="docker-images-detail__identity">
@@ -211,10 +214,10 @@
               </div>
               <div>
                 <dt>{{ t('container.images.fields.digests') }}</dt>
-                <dd v-if="selectedImage.repository_digests.length">
-                  <t-tooltip :content="selectedImage.repository_digests.join(', ')"
+                <dd v-if="selectedImage.repository_digests?.length">
+                  <t-tooltip :content="(selectedImage.repository_digests ?? []).join(', ')"
                     ><span class="docker-images-code">{{
-                      middleEllipsis(selectedImage.repository_digests.join(', '), 44)
+                      middleEllipsis((selectedImage.repository_digests ?? []).join(', '), 44)
                     }}</span></t-tooltip
                   >
                 </dd>
@@ -233,6 +236,13 @@
               </div>
             </dl>
           </section>
+        </div>
+        <div v-else-if="!detailLoading" class="docker-images-detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.images.detail.emptyTitle')"
+            :description="t('container.images.detail.emptyDescription')"
+          />
         </div>
         <t-alert
           v-if="selectedImage && imageTags(selectedImage).length > 1"
@@ -629,6 +639,7 @@ const query = useDockerImageQuery(imageQuery);
 const selectedImage = ref<DockerImage | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
+const detailError = ref('');
 const tagDialogVisible = ref(false);
 const tagManagerVisible = ref(false);
 const tagManagerImageId = ref<string | null>(null);
@@ -775,7 +786,7 @@ const cleanupColumns = computed<TableProps['columns']>(() => [
 ]);
 
 function imageTags(image: DockerImage) {
-  return image.repository_tags.filter(Boolean);
+  return image.repository_tags?.filter(Boolean) ?? [];
 }
 function imageReference(reference: string) {
   const lastSlash = reference.lastIndexOf('/');
@@ -842,13 +853,14 @@ async function handleTagManagerRefreshed(image: DockerImage | null) {
   await refresh();
 }
 async function openDetail(image: DockerImage) {
-  selectedImage.value = image;
+  selectedImage.value = null;
+  detailError.value = '';
   detailDrawerVisible.value = true;
   detailLoading.value = true;
   try {
     selectedImage.value = await getDockerImage(image.id);
-  } catch {
-    MessagePlugin.error(t('container.images.detail.loadFailed'));
+  } catch (error) {
+    detailError.value = resolveLocalizedErrorMessage(t, error, t('container.images.detail.loadFailed'));
   } finally {
     detailLoading.value = false;
   }
@@ -1191,6 +1203,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+}
+
+.docker-images-detail-state {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
+}
+
+.docker-images-detail-error {
+  padding: var(--graft-density-gap-16) 0;
 }
 
 .docker-images-detail__section {

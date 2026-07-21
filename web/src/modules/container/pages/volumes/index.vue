@@ -315,6 +315,13 @@
             }}</t-button>
           </section>
         </template>
+        <div v-else-if="!detailLoading" class="docker-volume-page__detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.volume.detail.emptyTitle')"
+            :description="t('container.volume.detail.emptyDescription')"
+          />
+        </div>
       </t-loading>
     </t-drawer>
   </div>
@@ -659,6 +666,7 @@ function handleBatchRemove() {
   });
 }
 async function openDetail(row: VolumeRow) {
+  selectedVolume.value = null;
   detailDrawerVisible.value = true;
   detailLoading.value = true;
   detailError.value = '';
@@ -770,6 +778,14 @@ function confirmRemove(row: VolumeRow) {
 .docker-volume-page__section,
 .docker-volume-page__danger-zone {
   margin-top: var(--td-comp-margin-xl);
+}
+
+.docker-volume-page__detail-state {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
 }
 
 .docker-volume-page__section h3,

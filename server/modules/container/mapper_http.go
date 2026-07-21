@@ -43,7 +43,7 @@ func toDockerImage(item DockerImage) containergen.DockerImage {
 	for _, ref := range item.ContainerReferences {
 		refs = append(refs, containergen.DockerImageContainerReference{Id: ref.ID, Name: ref.Name})
 	}
-	return containergen.DockerImage{Id: item.ID, RepositoryTags: append([]string(nil), item.RepositoryTags...), RepositoryDigests: append([]string(nil), item.RepositoryDigests...), CreatedAt: item.CreatedAt, SizeBytes: item.SizeBytes, Containers: item.Containers, ContainerReferences: refs, Dangling: item.Dangling, Labels: optionalStringMap(item.Labels), Architecture: optionalString(item.Architecture), OperatingSystem: optionalString(item.OperatingSystem)}
+	return containergen.DockerImage{Id: item.ID, RepositoryTags: append([]string{}, item.RepositoryTags...), RepositoryDigests: append([]string{}, item.RepositoryDigests...), CreatedAt: item.CreatedAt, SizeBytes: item.SizeBytes, Containers: item.Containers, ContainerReferences: refs, Dangling: item.Dangling, Labels: optionalStringMap(item.Labels), Architecture: optionalString(item.Architecture), OperatingSystem: optionalString(item.OperatingSystem)}
 }
 
 // toDockerImageList 将 Docker 镜像分页结果映射为 canonical OpenAPI 响应。

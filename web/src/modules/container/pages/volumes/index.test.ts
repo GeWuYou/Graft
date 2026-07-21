@@ -124,6 +124,14 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
   });
 
+  it('keeps volume detail loading, error, empty, and data states mutually exclusive', () => {
+    expect(sourceText).toContain('v-else-if="selectedVolume"');
+    expect(sourceText).toContain('v-else-if="!detailLoading"');
+    expect(sourceText).toContain('container.volume.detail.emptyTitle');
+    expect(sourceText).toContain('detailError');
+    expect(sourceText).toContain('selectedVolume.value = null;');
+  });
+
   it('consumes the canonical generated permission contract for dangerous actions', () => {
     expect(sourceText).toContain("from '@/contracts/generated/modules/container'");
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.VOLUME_REMOVE');

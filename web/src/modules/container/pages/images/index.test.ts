@@ -157,7 +157,7 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.detail.basicInfo')");
     expect(sourceText).toContain("t('container.images.detail.metadata')");
     expect(sourceText).toContain('middleEllipsis(selectedImage.id)');
-    expect(sourceText).toContain('middleEllipsis(selectedImage.repository_digests.join');
+    expect(sourceText).toContain('middleEllipsis((selectedImage.repository_digests ?? []).join');
     expect(sourceText).toContain('t-tooltip :content="selectedImage.id"');
     expect(sourceText).toContain(
       "middleEllipsis(imageReference(imageTags(selectedImage)[0] ?? '').repository || '-', 44)",
@@ -173,6 +173,17 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('isMultipleTagFailure(error)');
     expect(sourceText).toContain('openFailedImageTagManager');
     expect(sourceText).toContain('removeDockerImage(selectedImage.value.id, { force: forceRemove.value })');
+  });
+
+  it('keeps image detail loading, error, empty, and data states mutually exclusive', () => {
+    expect(sourceText).toContain('detailError');
+    expect(sourceText).toContain('v-else-if="selectedImage"');
+    expect(sourceText).toContain('v-else-if="!detailLoading"');
+    expect(sourceText).toContain('container.images.detail.emptyTitle');
+    expect(sourceText).toContain("resolveLocalizedErrorMessage(t, error, t('container.images.detail.loadFailed'))");
+    expect(sourceText).toContain('selectedImage.value = null;');
+    expect(sourceText).toContain('selectedImage.repository_digests?.length');
+    expect(sourceText).toContain('image.repository_tags?.filter(Boolean) ?? []');
   });
 
   it('loads all unused images and selects them by default in the cleanup dialog', () => {
