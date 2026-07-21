@@ -40,6 +40,32 @@
       </dl>
     </section>
 
+    <section v-if="variant === 'full' && history" class="dependency-health-card__history" :aria-label="history.title">
+      <div class="dependency-health-card__history-header">
+        <span class="dependency-health-card__section-label">{{ history.title }}</span>
+        <span class="dependency-health-card__history-window">{{ history.windowLabel }}</span>
+      </div>
+      <dependency-history-chart
+        :state="history.state"
+        :message="history.message"
+        :points="history.points"
+        :availability-label="history.availabilityLabel"
+        :latency-label="history.latencyLabel"
+      />
+    </section>
+
+    <section v-if="variant === 'full' && metricGroups?.length" class="dependency-health-card__metrics">
+      <div v-for="group in metricGroups" :key="group.key" class="dependency-health-card__metric-group">
+        <span class="dependency-health-card__section-label">{{ group.title }}</span>
+        <dl class="dependency-health-card__metric-grid">
+          <div v-for="item in group.items" :key="item.key" class="dependency-health-card__metric-item">
+            <dt>{{ item.label }}</dt>
+            <dd>{{ item.value }}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
     <footer v-if="variant === 'full'" class="dependency-health-card__actions">
       <t-button
         class="dependency-health-card__diagnostic-action"
@@ -54,6 +80,8 @@
   </article>
 </template>
 <script setup lang="ts">
+import type { ServerStatusDependencyHistoryPoint } from '../types/server-status';
+import DependencyHistoryChart from './DependencyHistoryChart.vue';
 import MetricUsageBar, { type MetricUsageStatus } from './MetricUsageBar.vue';
 import type { ServerStatusTone } from './server-status-ui';
 import StatusTag from './StatusTag.vue';
@@ -89,6 +117,23 @@ export type DependencyHealthDiagnostics = {
   items: DependencyHealthPoolItem[];
 };
 
+export type DependencyHealthMetricGroup = {
+  key: string;
+  title: string;
+  items: DependencyHealthPoolItem[];
+};
+
+export type DependencyHealthHistory = {
+  title: string;
+  windowLabel: string;
+  state: 'ready' | 'empty' | 'partial' | 'unavailable';
+  message: string;
+  points: ServerStatusDependencyHistoryPoint[];
+  availabilityLabel: string;
+  latencyLabel: string;
+};
+
+// 依赖健康卡承载页面组装后的显示模型，不在组件内推断后端指标或诊断语义。
 withDefaults(
   defineProps<{
     serviceKey: string;
@@ -99,11 +144,23 @@ withDefaults(
     statusLabel: string;
     primaryMetric: DependencyHealthMetric;
     pool: DependencyHealthPool;
+    metricGroups?: DependencyHealthMetricGroup[];
+    history?: DependencyHealthHistory;
     diagnosticsTitle: string;
   }>(),
   {
     description: '',
     variant: 'full',
+    metricGroups: () => [],
+    history: () => ({
+      title: '',
+      windowLabel: '',
+      state: 'unavailable',
+      message: '',
+      points: [],
+      availabilityLabel: '',
+      latencyLabel: '',
+    }),
   },
 );
 
@@ -229,6 +286,52 @@ const emit = defineEmits<{
 .dependency-health-card__pool-state {
   display: grid;
   gap: var(--graft-density-gap-10);
+}
+
+.dependency-health-card__history,
+.dependency-health-card__metrics,
+.dependency-health-card__metric-group {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+}
+
+.dependency-health-card__history-header {
+  align-items: baseline;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+}
+
+.dependency-health-card__history-window {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.dependency-health-card__metric-grid {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.dependency-health-card__metric-item {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.dependency-health-card__metric-item dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.dependency-health-card__metric-item dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-small);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .dependency-health-card__pool-grid {

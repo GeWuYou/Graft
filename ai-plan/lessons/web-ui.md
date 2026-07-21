@@ -1,5 +1,34 @@
 # Web UI Lessons
 
+## LESSON-WEB-UI-SEMANTIC-PORT-001：从工作树移植功能时保留当前页面骨架
+
+- Status: active
+- Level: L1
+- Applies to:
+  - 从任务工作树或候选分支选择性移植的 `web` 页面能力
+  - monitor、dashboard 与其他已有后台页面的指标、图表和深链增强
+- Source:
+  - 可观测性能力集成中，用户明确要求保留现有页面 UI，只增加指标趋势、统计和访问日志下钻
+- Problem:
+  候选工作树往往同时包含有价值的数据能力和与当前分支不一致的页面重构。整页合并会覆盖已经验收的布局、卡片层级、响应式行为和本地化键，导致功能增强变成无授权的视觉重写。
+- Correct pattern:
+  以当前分支页面的容器、主栅格、既有卡片、抽屉和导航交互作为 UI 真相；只移植需要的 OpenAPI、服务端聚合、页面内指标、趋势图、明细和深链语义。新增内容应嵌入已有信息架构，并通过桌面与移动端截图确认原有结构仍可辨识。
+- Anti-pattern:
+  - 直接合并候选工作树的整个页面、样式或 locale 文件
+  - 为了加入一个指标替换现有卡片分组、主栅格或页面壳
+  - 把已有功能的导航和回退上下文删除或改成新页面流
+- Enforcement:
+  选择性移植前比较候选页与当前页的布局和 locale 差异；实现后运行相关组件测试与 `bun run check`，并用浏览器截图复核既有首屏结构、响应式断点和新增下钻路径。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `web/src/modules/monitor/pages/dependencies/index.vue`
+  - `web/src/modules/monitor/pages/request-performance/index.vue`
+  - `web/src/modules/access-log/pages/list/index.vue`
+- Updated at:
+  2026-07-22
+
 ## LESSON-WEB-UI-MENU-ICON-AUTHORITY-001：菜单图标必须从上游 descriptor 的语义 key 统一解析
 
 - Status: active

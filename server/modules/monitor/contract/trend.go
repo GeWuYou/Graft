@@ -26,6 +26,16 @@ const (
 	TrendRange1Hour TrendRange = "1h"
 )
 
+// IsSupported 返回该值是否属于 monitor 历史允许的规范窗口。
+func (r TrendRange) IsSupported() bool {
+	switch r {
+	case TrendRange10Minutes, TrendRange30Minutes, TrendRange1Hour:
+		return true
+	default:
+		return false
+	}
+}
+
 // Duration 返回趋势范围对应的规范时长。
 func (r TrendRange) Duration() time.Duration {
 	switch r {

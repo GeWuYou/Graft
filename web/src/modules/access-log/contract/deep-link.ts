@@ -1,5 +1,6 @@
 import type { LocationQuery } from 'vue-router';
 
+import { buildMonitorOriginQuery, type MonitorOriginContext } from '@/modules/monitor/contract/navigation';
 import { buildLogListLocation, parseLogRouteQuery } from '@/shared/observability';
 
 import { ACCESS_LOG_ROUTE_PATH } from './paths';
@@ -49,12 +50,19 @@ export function parseAccessLogRouteQuery(query: LocationQuery | AccessLogRouteQu
   return parseLogRouteQuery<AccessLogRouteQuery>(query, ACCESS_LOG_QUERY_KEYS);
 }
 
-export function buildAccessLogLocation(query: AccessLogRouteQuery) {
-  return buildLogListLocation(ACCESS_LOG_ROUTE_PATH.LIST, ACCESS_LOG_QUERY_KEYS, query);
+export function buildAccessLogLocation(query: AccessLogRouteQuery, monitorOrigin?: MonitorOriginContext | null) {
+  const location = buildLogListLocation(ACCESS_LOG_ROUTE_PATH.LIST, ACCESS_LOG_QUERY_KEYS, query);
+  return {
+    ...location,
+    query: {
+      ...location.query,
+      ...(monitorOrigin ? buildMonitorOriginQuery(monitorOrigin) : {}),
+    },
+  };
 }
 
-export function buildAccessLogRequestLocation(requestId: string) {
-  return buildAccessLogLocation({ request_id: requestId });
+export function buildAccessLogRequestLocation(requestId: string, monitorOrigin?: MonitorOriginContext | null) {
+  return buildAccessLogLocation({ request_id: requestId }, monitorOrigin);
 }
 
 void (null as unknown as AccessLogQueryKey);

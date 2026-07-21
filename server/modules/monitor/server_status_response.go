@@ -52,6 +52,22 @@ func buildServerStatusResponseWithRuntimeSnapshot(
 	if err != nil {
 		return generated.ServerStatusResponse{}, err
 	}
+	databaseStatus.History = buildDependencyHistory(
+		ctx,
+		moduleCtx,
+		instance,
+		observedAt,
+		trendRange,
+		monitorcontract.DependencyKindPostgreSQL,
+	)
+	redisStatus.History = buildDependencyHistory(
+		ctx,
+		moduleCtx,
+		instance,
+		observedAt,
+		trendRange,
+		monitorcontract.DependencyKindRedis,
+	)
 	modules := runtimeModuleSummaries(moduleCtx, databaseStatus, redisStatus)
 	summary := buildServerStatusSummary(databaseStatus, redisStatus, modules)
 	trend := buildServerStatusTrend(ctx, moduleCtx, instance, observedAt, trendRange)

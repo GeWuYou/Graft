@@ -36,9 +36,10 @@ const (
 // Server 只管理 HTTP 外壳本身，不负责模块路由装配策略或业务中间件语义；
 // 这些职责仍留在 app 与各模块边界内。
 type Server struct {
-	engine *gin.Engine
-	mu     sync.Mutex
-	repo   AccessLogRepository
+	engine         *gin.Engine
+	mu             sync.Mutex
+	repo           AccessLogRepository
+	activeRequests *activeRequestTracker
 	// server 持有当前运行中的 http.Server 指针，用于串行化 Run/Shutdown
 	// 的所有权切换，避免重复关闭或重复启动同一个生命周期槽位。
 	server *http.Server
@@ -72,6 +73,7 @@ func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
 // NewServerWithOptions 使用显式 runtime 选项创建 Gin 服务外壳。
 func NewServerWithOptions(logger *zap.Logger, options ServerOptions, repo ...AccessLogRepository) *Server {
 	engine := gin.New()
+	activeRequests := newActiveRequestTracker()
 
 	var accessLogRepo AccessLogRepository
 	for _, candidate := range repo {
@@ -81,8 +83,12 @@ func NewServerWithOptions(logger *zap.Logger, options ServerOptions, repo ...Acc
 		}
 	}
 
-	engine.Use(RequestIDMiddleware(), newAccessLogMiddleware(logger, accessLogRepo, options.AccessLog), newRecoveryMiddleware(logger, options.I18n))
-	return &Server{engine: engine, repo: accessLogRepo}
+	engine.Use(
+		RequestIDMiddleware(),
+		newAccessLogMiddleware(logger, accessLogRepo, activeRequests, options.AccessLog),
+		newRecoveryMiddleware(logger, options.I18n),
+	)
+	return &Server{engine: engine, repo: accessLogRepo, activeRequests: activeRequests}
 }
 
 func newRecoveryMiddleware(runtimeLogger *zap.Logger, localizer *i18n.Service) gin.HandlerFunc {
@@ -136,6 +142,14 @@ func (s *Server) AccessLogRepository() AccessLogRepository {
 		return nil
 	}
 	return s.repo
+}
+
+// ActiveRequestReader 返回当前 Server 唯一持有的进程内活动请求读取能力。
+func (s *Server) ActiveRequestReader() moduleapi.ActiveRequestReader {
+	if s == nil {
+		return nil
+	}
+	return s.activeRequests
 }
 
 // Start 启动 HTTP 服务，并返回监听 goroutine 的错误通道。

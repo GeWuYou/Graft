@@ -4,6 +4,9 @@ required:
   - total_requests
   - requests_per_second
   - p95_latency_ms
+  - p99_latency_ms
+  - request_bytes_per_second
+  - response_bytes_per_second
   - error_5xx_count
   - error_5xx_rate
 properties:
@@ -19,6 +22,18 @@ properties:
     format: double
     minimum: 0
   p95_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  p99_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  request_bytes_per_second:
+    type: number
+    format: double
+    minimum: 0
+  response_bytes_per_second:
     type: number
     format: double
     minimum: 0

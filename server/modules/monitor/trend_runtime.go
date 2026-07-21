@@ -193,6 +193,22 @@ func (p *Module) recordTrendSample(
 	if err := storeTrendPoint(ctx, trendStore, storageKey, observedAt, point); err != nil {
 		logTrendWarning(p, nil, "store monitor trend sample failed", err)
 	}
+
+	database, databaseErr := databaseHealth(ctx, p)
+	if databaseErr != nil {
+		logTrendWarning(p, nil, "collect dependency history database sample failed", databaseErr)
+	}
+	redis, redisErr := redisHealth(ctx, nil, p)
+	if redisErr != nil {
+		logTrendWarning(p, nil, "collect dependency history Redis sample failed", redisErr)
+	}
+	recordDependencyHistorySamples(ctx, trendStore, dependencyHistorySampleInput{
+		appName:    p.appName,
+		hostName:   resolveHostName(),
+		observedAt: observedAt,
+		database:   database,
+		redis:      redis,
+	})
 }
 
 // collectCPUPercent 计算当前 CPU 使用百分比，基于与前一次采样的对比。若无法获取 CPU 数据或前一次采样数据为 nil，返回 0。

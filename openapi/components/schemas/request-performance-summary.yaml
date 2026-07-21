@@ -4,6 +4,12 @@ required:
   - requests_per_second
   - p50_latency_ms
   - p95_latency_ms
+  - average_latency_ms
+  - p99_latency_ms
+  - max_latency_ms
+  - active_requests
+  - request_bytes
+  - response_bytes
   - error_5xx_count
   - error_5xx_rate
   - slow_request_count
@@ -24,6 +30,26 @@ properties:
     type: number
     format: double
     minimum: 0
+  average_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  p99_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  max_latency_ms:
+    type: number
+    format: double
+    minimum: 0
+  active_requests:
+    type: integer
+    format: int64
+    minimum: 0
+  request_bytes:
+    $ref: ./request-performance-byte-summary.yaml
+  response_bytes:
+    $ref: ./request-performance-byte-summary.yaml
   error_5xx_count:
     type: integer
     format: int64

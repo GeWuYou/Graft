@@ -153,6 +153,16 @@ vi.mock('@/store', () => ({
   useRealtimeSchedulerStore: () => ({
     allowPolling: true,
   }),
+  useSettingStore: () => ({
+    brandTheme: 'default',
+    displayMode: 'light',
+    resolvedThemeTokensForDisplayMode: {},
+    chartColors: {
+      borderColor: '#dcdcdc',
+      containerColor: '#ffffff',
+      textColor: '#1f1f1f',
+    },
+  }),
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));
 

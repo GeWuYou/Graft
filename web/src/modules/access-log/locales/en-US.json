@@ -39,7 +39,8 @@
       "viewRelatedAuditRecords": "View Related Audit Records",
       "copy": "Copy",
       "copySuccess": "Copied",
-      "copyFail": "Copy failed"
+      "copyFail": "Copy failed",
+      "backToRequestPerformance": "Back to Request Performance"
     },
     "presets": {
       "label": "Quick Filters",

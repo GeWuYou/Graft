@@ -1,0 +1,32 @@
+type: object
+description: >-
+  Redis-backed short history for one dependency. The selected range is limited to 10m, 30m, or 1h and is isolated
+  by application, host, and dependency kind.
+required: [range, retention_seconds, sample_interval_seconds, status, points]
+properties:
+  range:
+    type: string
+    enum: [10m, 30m, 1h]
+    description: Requested bounded history range.
+  retention_seconds:
+    type: integer
+    format: int64
+    description: Retention represented by the requested range in seconds.
+  sample_interval_seconds:
+    type: integer
+    format: int64
+    description: Nominal monitor sampling interval in seconds.
+  status:
+    type: string
+    enum: [available, unavailable]
+    description: Whether Redis history could be read. Available history may contain zero points.
+  unavailable_reason:
+    type: string
+    nullable: true
+    enum: [redis_not_configured, read_failed]
+    description: Stable reason when status is unavailable; absent when status is available.
+  points:
+    type: array
+    description: Ordered aggregate points for the selected range; no point is fabricated for unavailable data.
+    items:
+      $ref: ./server-status-dependency-history-point.yaml

@@ -249,22 +249,22 @@ func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksAudit
 
 // Defines values for GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState.
 const (
-	Available   GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "available"
-	Empty       GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "empty"
-	Unavailable GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "unavailable"
-	Unsupported GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "unsupported"
+	GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateAvailable   GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "available"
+	GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateEmpty       GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "empty"
+	GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateUnavailable GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "unavailable"
+	GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateUnsupported GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState enum.
 func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkState) Valid() bool {
 	switch e {
-	case Available:
+	case GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateAvailable:
 		return true
-	case Empty:
+	case GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateEmpty:
 		return true
-	case Unavailable:
+	case GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateUnavailable:
 		return true
-	case Unsupported:
+	case GetMonitorServerStatus200JSONResponseBodyDataAnomaliesEvidenceLinksLinkStateUnsupported:
 		return true
 	default:
 		return false
@@ -340,6 +340,198 @@ const (
 func (e GetMonitorServerStatus200JSONResponseBodyDataAnomaliesStatus) Valid() bool {
 	switch e {
 	case Active:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRangeN10m GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange = "10m"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRangeN1h  GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange = "1h"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRangeN30m GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRangeN10m:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRangeN1h:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRangeN30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatusAvailable   GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus = "available"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatusUnavailable GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatusAvailable:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReasonReadFailed         GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason = "read_failed"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReasonRedisNotConfigured GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason = "redis_not_configured"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReasonReadFailed:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReasonRedisNotConfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatusDown GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus = "down"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatusUp   GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus = "up"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatusDown:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatusUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRoleMaster  GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole = "master"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRoleReplica GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole = "replica"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRoleUnknown GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRoleMaster:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRoleReplica:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRoleUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRangeN10m GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange = "10m"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRangeN1h  GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange = "1h"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRangeN30m GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRangeN10m:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRangeN1h:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRangeN30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus.
+const (
+	Available   GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus = "available"
+	Unavailable GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus) Valid() bool {
+	switch e {
+	case Available:
+		return true
+	case Unavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReasonReadFailed         GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason = "read_failed"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReasonRedisNotConfigured GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason = "redis_not_configured"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReasonReadFailed:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReasonRedisNotConfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatusDown GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus = "down"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatusUp   GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus = "up"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatusDown:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatusUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole.
+const (
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRoleMaster  GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole = "master"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRoleReplica GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole = "replica"
+	GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRoleUnknown GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole enum.
+func (e GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole) Valid() bool {
+	switch e {
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRoleMaster:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRoleReplica:
+		return true
+	case GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRoleUnknown:
 		return true
 	default:
 		return false
@@ -512,6 +704,36 @@ type GetMonitorServerStatus200JSONResponseBodyDataAnomaliesSeverity string
 
 // GetMonitorServerStatus200JSONResponseBodyDataAnomaliesStatus defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatus200JSONResponseBodyDataAnomaliesStatus string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryRange string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryStatus string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseHistoryUnavailableReason string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsMasterLinkStatus string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesDatabaseRedisMetricsReplicationRole string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryRange string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryStatus string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisHistoryUnavailableReason string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsMasterLinkStatus string
+
+// GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole defines parameters for GetMonitorServerStatus.
+type GetMonitorServerStatus200JSONResponseBodyDataDependenciesRedisRedisMetricsReplicationRole string
 
 // GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState defines parameters for GetMonitorServerStatus.
 type GetMonitorServerStatus200JSONResponseBodyDataServerBuildGitTreeState string

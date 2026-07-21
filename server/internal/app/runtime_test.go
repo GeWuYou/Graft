@@ -505,6 +505,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertServiceRegistered(t, runtime.services, (*redisx.HealthReporter)(nil), "redis health reporter")
 	assertServiceRegistered(t, runtime.services, (*statex.TimeSeriesStore)(nil), "statex time-series store")
 	assertServiceRegistered(t, runtime.services, (*moduleapi.RequestPerformanceReader)(nil), "request performance reader")
+	assertResolvedService[moduleapi.ActiveRequestReader](t, runtime.services, (*moduleapi.ActiveRequestReader)(nil), runtime.server.ActiveRequestReader(), "active request reader")
 	assertServiceKeyNotRegistered(t, runtime.services, (*redis.Client)(nil), "redis client")
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }

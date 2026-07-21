@@ -3,14 +3,30 @@ required: [status, detail, latency_ms]
 properties:
   status:
     type: string
+    description: Current dependency health state from the monitor probe; it remains available when optional metrics or history are unavailable.
   detail:
     type: string
+    description: Current monitor-owned probe detail. It does not contain credentials, connection strings, key contents, or query text.
   latency_ms:
     type: number
     nullable: true
+    minimum: 0
+    description: Most recent successful monitor-probe latency in milliseconds. Current gauge; null when no successful probe produced a latency.
   pool:
     $ref: ./server-status-connection-pool.yaml
     nullable: true
+  postgresql_metrics:
+    $ref: ./server-status-postgresql-current-metrics.yaml
+    nullable: true
+    description: PostgreSQL-only current diagnostics. Null until collection is unavailable or does not apply to this dependency.
+  redis_metrics:
+    $ref: ./server-status-redis-current-metrics.yaml
+    nullable: true
+    description: Redis-only current diagnostics. Null until collection is unavailable or does not apply to this dependency.
+  history:
+    $ref: ./server-status-dependency-history.yaml
+    nullable: true
+    description: Redis-backed short history for this dependency. Its unavailability never invalidates the current dependency snapshot.
 example:
   status: healthy
   detail: Database ping succeeded

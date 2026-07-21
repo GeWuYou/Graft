@@ -23,6 +23,8 @@
             :status-label="service.statusLabel"
             :primary-metric="service.primaryMetric"
             :pool="service.pool"
+            :metric-groups="service.metricGroups"
+            :history="service.history"
             :diagnostics-title="service.diagnostics.title"
             @show-diagnostics="showDiagnostics(service)"
           />
@@ -63,7 +65,9 @@ import { useI18n } from 'vue-i18n';
 import DependencyDiagnosticDrawer from '../../components/DependencyDiagnosticDrawer.vue';
 import DependencyHealthCard, {
   type DependencyHealthDiagnostics,
+  type DependencyHealthHistory,
   type DependencyHealthMetric,
+  type DependencyHealthMetricGroup,
   type DependencyHealthPool,
 } from '../../components/DependencyHealthCard.vue';
 import MonitorStatusPageFrame from '../../components/MonitorStatusPageFrame.vue';
@@ -80,6 +84,7 @@ import {
 } from '../../shared/pool-metrics';
 import {
   displayText,
+  formatBytes,
   formatLatency,
   formatPoolWait,
   formatTimestamp,
@@ -89,20 +94,24 @@ import {
 import { formatDateOnly, formatTimeOnly } from '../../shared/time-display';
 import type { ServerStatusConnectionPool, ServerStatusDependency } from '../../types/server-status';
 
+type DependencyKey = 'postgresql' | 'redis';
+
 type DependencyCard = {
-  key: string;
+  key: DependencyKey;
   name: string;
   description: string;
   status: ServerStatusTone;
   statusLabel: string;
   primaryMetric: DependencyHealthMetric;
   pool: DependencyHealthPool;
+  metricGroups: DependencyHealthMetricGroup[];
+  history: DependencyHealthHistory;
   diagnostics: DependencyHealthDiagnostics;
 };
 
 const { locale, t } = useI18n();
 const diagnosticDrawerVisible = ref(false);
-const selectedDependencyKey = ref<string | null>(null);
+const selectedDependencyKey = ref<DependencyKey | null>(null);
 /* jscpd:ignore-start */
 // 页面直接解构 snapshot 是为了让依赖状态、frame 配置和模板保持同一局部边界；此处的重复由 jscpd 明确豁免。
 // 修改这段局部结构时必须同步复核 jscpd ignore，避免把工具豁免变成过期的重复代码保护。
@@ -214,6 +223,8 @@ const serviceCards = computed<DependencyCard[]>(() => {
       pool: database?.pool,
       checkedAt: observedLabel,
       detail: database?.detail,
+      metricGroups: buildPostgreSQLMetricGroups(database?.postgresql_metrics),
+      history: buildHistoryView(database?.history),
     }),
     buildServiceCard({
       key: 'redis',
@@ -224,6 +235,8 @@ const serviceCards = computed<DependencyCard[]>(() => {
       pool: redis?.pool,
       checkedAt: observedLabel,
       detail: redis?.detail,
+      metricGroups: buildRedisMetricGroups(redis?.redis_metrics),
+      history: buildHistoryView(redis?.history),
     }),
   ];
 });
@@ -263,7 +276,7 @@ const overallDependencyStatus = computed<ServerStatusTone>(() => {
 });
 
 function buildServiceCard(options: {
-  key: string;
+  key: DependencyKey;
   name: string;
   description: string;
   status: ServerStatusTone;
@@ -271,6 +284,8 @@ function buildServiceCard(options: {
   pool?: ServerStatusDependency['pool'] | null;
   checkedAt: string;
   detail?: string;
+  metricGroups: DependencyHealthMetricGroup[];
+  history: DependencyHealthHistory;
 }): DependencyCard {
   return {
     key: options.key,
@@ -284,8 +299,128 @@ function buildServiceCard(options: {
       description: t('monitor.dependenciesPage.fieldDescriptions.latency'),
     },
     pool: buildPoolView(options.name, options.pool),
+    metricGroups: options.metricGroups,
+    history: options.history,
     diagnostics: buildDiagnosticsView(options.status, options.pool, options.checkedAt, options.detail),
   };
+}
+
+function buildPostgreSQLMetricGroups(
+  metrics: ServerStatusDependency['postgresql_metrics'] | null | undefined,
+): DependencyHealthMetricGroup[] {
+  return [
+    metricGroup('connections', t('monitor.dependenciesPage.metrics.postgresql.capacity'), [
+      metricItem(
+        'active',
+        t('monitor.dependenciesPage.metrics.activeConnections'),
+        formatMetricNumber(metrics?.active_connections),
+      ),
+      metricItem(
+        'idle',
+        t('monitor.dependenciesPage.metrics.idleConnections'),
+        formatMetricNumber(metrics?.idle_connections),
+      ),
+      metricItem(
+        'waiting',
+        t('monitor.dependenciesPage.metrics.waitingConnections'),
+        formatMetricNumber(metrics?.waiting_connections),
+      ),
+      metricItem(
+        'limit',
+        t('monitor.dependenciesPage.metrics.maxConnections'),
+        formatMetricNumber(metrics?.max_connections),
+      ),
+    ]),
+    metricGroup('workload', t('monitor.dependenciesPage.metrics.postgresql.workload'), [
+      metricItem('size', t('monitor.dependenciesPage.metrics.databaseSize'), formatBytes(metrics?.database_size_bytes)),
+      metricItem('cache', t('monitor.dependenciesPage.metrics.cacheHit'), formatPercent(metrics?.cache_hit_percent)),
+      metricItem(
+        'commits',
+        t('monitor.dependenciesPage.metrics.commits'),
+        formatMetricNumber(metrics?.transaction_commit_total),
+      ),
+      metricItem(
+        'deadlocks',
+        t('monitor.dependenciesPage.metrics.deadlocks'),
+        formatMetricNumber(metrics?.deadlocks_total),
+      ),
+    ]),
+  ];
+}
+
+function buildRedisMetricGroups(
+  metrics: ServerStatusDependency['redis_metrics'] | null | undefined,
+): DependencyHealthMetricGroup[] {
+  return [
+    metricGroup('connections', t('monitor.dependenciesPage.metrics.redis.connections'), [
+      metricItem(
+        'clients',
+        t('monitor.dependenciesPage.metrics.connectedClients'),
+        formatMetricNumber(metrics?.connected_clients),
+      ),
+      metricItem(
+        'blocked',
+        t('monitor.dependenciesPage.metrics.blockedClients'),
+        formatMetricNumber(metrics?.blocked_clients),
+      ),
+      metricItem('limit', t('monitor.dependenciesPage.metrics.maxClients'), formatMetricNumber(metrics?.max_clients)),
+      metricItem(
+        'received',
+        t('monitor.dependenciesPage.metrics.connectionsReceived'),
+        formatMetricNumber(metrics?.total_connections_received),
+      ),
+    ]),
+    metricGroup('memory', t('monitor.dependenciesPage.metrics.redis.memory'), [
+      metricItem('used', t('monitor.dependenciesPage.metrics.usedMemory'), formatBytes(metrics?.used_memory_bytes)),
+      metricItem(
+        'peak',
+        t('monitor.dependenciesPage.metrics.peakMemory'),
+        formatBytes(metrics?.used_memory_peak_bytes),
+      ),
+      metricItem('max', t('monitor.dependenciesPage.metrics.maxMemory'), formatBytes(metrics?.max_memory_bytes)),
+      metricItem(
+        'ops',
+        t('monitor.dependenciesPage.metrics.operations'),
+        formatMetricNumber(metrics?.instantaneous_ops_per_second),
+      ),
+    ]),
+  ];
+}
+
+function buildHistoryView(history: ServerStatusDependency['history'] | null | undefined): DependencyHealthHistory {
+  const points = history?.points ?? [];
+  const unavailable = history?.status === 'unavailable';
+  return {
+    title: t('monitor.dependenciesPage.history.title'),
+    windowLabel: history?.range ?? '--',
+    state: unavailable ? 'unavailable' : points.length === 0 ? 'empty' : 'ready',
+    message: unavailable
+      ? t('monitor.dependenciesPage.history.unavailable')
+      : t('monitor.dependenciesPage.history.empty'),
+    points,
+    availabilityLabel: t('monitor.dependenciesPage.history.availability'),
+    latencyLabel: t('monitor.dependenciesPage.history.latency'),
+  };
+}
+
+function metricGroup(
+  key: string,
+  title: string,
+  items: DependencyHealthMetricGroup['items'],
+): DependencyHealthMetricGroup {
+  return { key, title, items };
+}
+
+function metricItem(key: string, label: string, value: string) {
+  return { key, label, value };
+}
+
+function formatMetricNumber(value: number | null | undefined) {
+  return value === null || value === undefined ? emptyMetricText() : new Intl.NumberFormat(locale.value).format(value);
+}
+
+function formatPercent(value: number | null | undefined) {
+  return value === null || value === undefined ? emptyMetricText() : `${value.toFixed(1)}%`;
 }
 
 function buildPoolView(label: string, pool?: ServerStatusConnectionPool | null): DependencyHealthPool {

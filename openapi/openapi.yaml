@@ -520,6 +520,16 @@ components:
       $ref: ./components/schemas/enveloped-audit-visibility-override-response.yaml
     ServerStatusConnectionPool:
       $ref: ./components/schemas/server-status-connection-pool.yaml
+    ServerStatusPostgreSQLCurrentMetrics:
+      $ref: ./components/schemas/server-status-postgresql-current-metrics.yaml
+    ServerStatusRedisKeyspaceMetrics:
+      $ref: ./components/schemas/server-status-redis-keyspace-metrics.yaml
+    ServerStatusRedisCurrentMetrics:
+      $ref: ./components/schemas/server-status-redis-current-metrics.yaml
+    ServerStatusDependencyHistoryPoint:
+      $ref: ./components/schemas/server-status-dependency-history-point.yaml
+    ServerStatusDependencyHistory:
+      $ref: ./components/schemas/server-status-dependency-history.yaml
     ServerStatusDependency:
       $ref: ./components/schemas/server-status-dependency.yaml
     ServerStatusModule:
@@ -558,10 +568,18 @@ components:
       $ref: ./components/schemas/enveloped-server-status-response.yaml
     RequestPerformanceSummary:
       $ref: ./components/schemas/request-performance-summary.yaml
+    RequestPerformanceByteSummary:
+      $ref: ./components/schemas/request-performance-byte-summary.yaml
     RequestPerformanceMinuteBucket:
       $ref: ./components/schemas/request-performance-minute-bucket.yaml
     RequestPerformanceStatusGroup:
       $ref: ./components/schemas/request-performance-status-group.yaml
+    RequestPerformanceStatusCode:
+      $ref: ./components/schemas/request-performance-status-code.yaml
+    RequestPerformanceDistributionBucket:
+      $ref: ./components/schemas/request-performance-distribution-bucket.yaml
+    RequestPerformanceRequestInstance:
+      $ref: ./components/schemas/request-performance-request-instance.yaml
     RequestPerformanceRoute:
       $ref: ./components/schemas/request-performance-route.yaml
     RequestPerformanceTopRoutes:

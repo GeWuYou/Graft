@@ -1,0 +1,21 @@
+type: object
+required: [measured_count, total_bytes, average_bytes, bytes_per_second]
+properties:
+  measured_count:
+    type: integer
+    format: int64
+    minimum: 0
+  total_bytes:
+    type: integer
+    format: int64
+    minimum: 0
+  average_bytes:
+    type: number
+    nullable: true
+    format: double
+    minimum: 0
+  bytes_per_second:
+    type: number
+    nullable: true
+    format: double
+    minimum: 0

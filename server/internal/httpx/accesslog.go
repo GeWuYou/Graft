@@ -20,13 +20,18 @@ const (
 	accessLogPersistTimeout = 500 * time.Millisecond
 )
 
-func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, options AccessLogOptions) gin.HandlerFunc {
+func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, activeRequests *activeRequestTracker, options AccessLogOptions) gin.HandlerFunc {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	options = normalizeAccessLogOptions(options)
 
 	return func(ctx *gin.Context) {
+		if ctx.Request != nil && !websocket.IsWebSocketUpgrade(ctx.Request) {
+			requestContext, done := activeRequests.begin(ctx.Request.Context())
+			ctx.Request = ctx.Request.WithContext(requestContext)
+			defer done()
+		}
 		startedAt := time.Now()
 		requestID := EnsureRequestID(ctx)
 		traceID := EnsureTraceID(ctx)

@@ -15,6 +15,12 @@
     :source="{ labelKey: 'menu.logCenter.title', fallback: t('menu.logCenter.title') }"
     @reload="fetchAccessLogs"
   >
+    <template #actions>
+      <t-button v-if="monitorReturnLocation" theme="primary" variant="outline" @click="returnToMonitor">
+        <template #icon><arrow-left-icon /></template>
+        {{ t('accessLog.actions.backToRequestPerformance') }}
+      </t-button>
+    </template>
     <template #filters>
       <access-log-filters
         v-model="filters"
@@ -73,6 +79,7 @@
 <script setup lang="ts">
 // 访问日志页负责把 URL 查询、服务端列表状态和详情深链汇合到只读审计视图。
 import { useQuery } from '@tanstack/vue-query';
+import { ArrowLeftIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -81,6 +88,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
 import { useAuthSessionStore } from '@/modules/auth/store';
+import { buildMonitorLocationFromOrigin, parseMonitorOriginQuery } from '@/modules/monitor/contract/navigation';
 import { TableViewToolbar } from '@/shared/components/management';
 import {
   AdvancedQueryColumnDrawer,
@@ -187,6 +195,10 @@ const pagination = ref({
 const filters = ref<AccessLogFilterState>(createDefaultFilters());
 const deepLinkCorrelation = ref<'requestId' | null>(null);
 const routeHydrated = ref(false);
+const monitorOrigin = computed(() => parseMonitorOriginQuery(route.query as Record<string, unknown>));
+const monitorReturnLocation = computed(() =>
+  monitorOrigin.value?.view === 'request-performance' ? buildMonitorLocationFromOrigin(monitorOrigin.value) : null,
+);
 
 const presetViews = computed(() => [
   { key: 'all' as const, title: t('accessLog.presets.all') },
@@ -475,25 +487,32 @@ function buildRouteQuery() {
   const [startedFrom = '', startedTo = ''] = normalizePageStateRangeForRoute(filters.value.startedRange);
   const [occurredFrom = '', occurredTo = ''] = normalizePageStateRangeForRoute(filters.value.occurredRange);
   const isGroupedStatusCode = filters.value.statusCode === '4xx' || filters.value.statusCode === '5xx';
-  return buildAccessLogLocation({
-    keyword: filters.value.keyword,
-    request_id: filters.value.requestId,
-    user_id: filters.value.userId,
-    username: filters.value.username,
-    method: filters.value.method,
-    path: filters.value.path,
-    path_match: filters.value.pathMatch === 'prefix' ? filters.value.pathMatch : '',
-    route: filters.value.route,
-    status_code: isGroupedStatusCode ? '' : filters.value.statusCode,
-    status_group: isGroupedStatusCode ? filters.value.statusCode : '',
-    duration_min_ms: filters.value.durationMinMs,
-    duration_max_ms: filters.value.durationMaxMs,
-    started_from: startedFrom,
-    started_to: startedTo,
-    occurred_from: occurredFrom,
-    occurred_to: occurredTo,
-    sort: encodeSorters(normalizedSorters, sortOptions.value),
-  });
+  return buildAccessLogLocation(
+    {
+      keyword: filters.value.keyword,
+      request_id: filters.value.requestId,
+      user_id: filters.value.userId,
+      username: filters.value.username,
+      method: filters.value.method,
+      path: filters.value.path,
+      path_match: filters.value.pathMatch === 'prefix' ? filters.value.pathMatch : '',
+      route: filters.value.route,
+      status_code: isGroupedStatusCode ? '' : filters.value.statusCode,
+      status_group: isGroupedStatusCode ? filters.value.statusCode : '',
+      duration_min_ms: filters.value.durationMinMs,
+      duration_max_ms: filters.value.durationMaxMs,
+      started_from: startedFrom,
+      started_to: startedTo,
+      occurred_from: occurredFrom,
+      occurred_to: occurredTo,
+      sort: encodeSorters(normalizedSorters, sortOptions.value),
+    },
+    monitorOrigin.value,
+  );
+}
+
+function returnToMonitor() {
+  if (monitorReturnLocation.value) void router.push(monitorReturnLocation.value);
 }
 
 async function updateRouteQuery() {

@@ -10,7 +10,7 @@ const MONITOR_ORIGIN_QUERY_KEY = {
   SCOPE_REF: 'monitorScopeRef',
 } as const;
 
-export type MonitorOriginView = 'overview' | 'runtime' | 'dependencies';
+export type MonitorOriginView = 'overview' | 'runtime' | 'dependencies' | 'request-performance';
 
 export type MonitorOriginContext = Partial<{
   view: MonitorOriginView;
@@ -28,6 +28,7 @@ function normalizeView(value: string): MonitorOriginView | '' {
     case 'overview':
     case 'runtime':
     case 'dependencies':
+    case 'request-performance':
       return value;
     default:
       return '';
@@ -81,7 +82,9 @@ export function buildMonitorLocationFromOrigin(context: MonitorOriginContext): R
       ? MONITOR_ROUTE_PATH.OBSERVABILITY_SERVICE_STATUS
       : normalized.view === 'dependencies'
         ? MONITOR_ROUTE_PATH.OBSERVABILITY_DEPENDENCIES
-        : MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW;
+        : normalized.view === 'request-performance'
+          ? MONITOR_ROUTE_PATH.OBSERVABILITY_REQUEST_PERFORMANCE
+          : MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW;
 
   return {
     path,

@@ -148,6 +148,15 @@ func (r *Runtime) runtimeDataServiceRegistrations() []serviceRegistration {
 				return reader, nil
 			},
 		},
+		{
+			key: (*moduleapi.ActiveRequestReader)(nil),
+			provider: func() (any, error) {
+				if r.server == nil || r.server.ActiveRequestReader() == nil {
+					return nil, errors.New("active request reader is unavailable")
+				}
+				return r.server.ActiveRequestReader(), nil
+			},
+		},
 	}
 }
 
