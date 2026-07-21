@@ -24,7 +24,13 @@ vi.mock('../../api/project', () => ({
   postApplicationTemplateWithdraw: mocks.postApplicationTemplateWithdraw,
 }));
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>();
+  return {
+    ...actual,
+    useI18n: () => ({ t: (key: string) => key }),
+  };
+});
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: vi.fn() } }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,

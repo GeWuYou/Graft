@@ -86,6 +86,13 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('<table-action-menu');
   });
 
+  it('keeps the paged table on the shared data presentation for narrow containers', () => {
+    expect(sourceText).toContain('<management-paged-table');
+    expect(sourceText).toContain('v-model:current="pagination.current"');
+    expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
+    expect(sourceText).not.toContain('presentation="entity"');
+  });
+
   it('uses the full runtime summary for four aligned statistics', () => {
     expect(sourceText).toContain('<management-statistics-bar');
     expect(sourceText).toContain("t('container.volume.metrics.total')");

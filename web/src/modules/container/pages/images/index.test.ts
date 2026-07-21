@@ -27,6 +27,13 @@ describe('docker image list page', () => {
     expect(sourceText).not.toContain('docker-images-metrics');
   });
 
+  it('keeps responsive data-table behavior in the shared paged-table boundary', () => {
+    expect(sourceText).toContain('<management-paged-table');
+    expect(sourceText).toContain('v-model:current="pagination.current"');
+    expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
+    expect(sourceText).not.toContain('presentation="entity"');
+  });
+
   it('resets server pagination when submitting or clearing the keyword', () => {
     expect(sourceText).toContain('@enter="applyKeyword"');
     expect(sourceText).toContain('@clear="clearKeyword"');
