@@ -15,7 +15,10 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ query: { deployment: 'compose', runtime_target_id: '7' } }),
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock('vue-i18n', async () => ({
+  ...(await vi.importActual<typeof import('vue-i18n')>('vue-i18n')),
+  useI18n: () => ({ t: (key: string) => key }),
+}));
 vi.mock('../../shared/navigation', () => ({
   useApplicationCreateRouteNavigation: () => (target: unknown) => mocks.push(target),
 }));

@@ -9,7 +9,10 @@ const routeState = vi.hoisted(() => ({ params: { id: '7' } }));
 
 vi.mock('../../api/runtime-target', () => apiMocks);
 vi.mock('vue-router', () => ({ useRoute: () => routeState }));
-vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+vi.mock('vue-i18n', async () => ({
+  ...(await vi.importActual<typeof import('vue-i18n')>('vue-i18n')),
+  useI18n: () => ({ t: (key: string) => key }),
+}));
 vi.mock('@/locales/useLocale', () => ({ useLocale: () => ({ locale: 'en-US' }) }));
 vi.mock('@/shared/observability', () => ({
   formatBytes: (value: number) => `${value} B`,
