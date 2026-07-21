@@ -18,6 +18,8 @@ Overlay note:
 - `docker-resource-context-ia`
   - Recovery entry: `ai-plan/public/docker-resource-context-ia/README.md`
 
+- `responsive-architecture-governance`
+  - Recovery entry: `ai-plan/public/responsive-architecture-governance/README.md`
 - `handwritten-comment-governance`
   - Recovery entry: `ai-plan/public/handwritten-comment-governance/README.md`
 - `compose-project-management`

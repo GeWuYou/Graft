@@ -1,15 +1,16 @@
 <template>
-  <l-side-nav
-    v-if="settingStore.showSidebar"
-    :show-logo="settingStore.showSidebarLogo"
-    :layout="settingStore.layout"
-    :is-fixed="settingStore.isSidebarFixed"
-    :menu="sideMenu"
-    :theme="settingStore.displaySideMode"
-    :is-compact="widthCompact"
-    :render-compact="renderCompact"
-    :motion-phase="motionPhase"
-  />
+  <responsive-sidebar v-if="settingStore.showSidebar">
+    <l-side-nav
+      :show-logo="settingStore.showSidebarLogo"
+      :layout="settingStore.layout"
+      :is-fixed="settingStore.isSidebarFixed"
+      :menu="sideMenu"
+      :theme="settingStore.displaySideMode"
+      :is-compact="widthCompact"
+      :render-compact="renderCompact"
+      :motion-phase="motionPhase"
+    />
+  </responsive-sidebar>
 </template>
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
@@ -17,6 +18,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 import { selectMixSidebarMenu, type SidebarMotionPhase } from '@/layouts/layout-navigation';
+import ResponsiveSidebar from '@/shared/components/responsive/ResponsiveSidebar.vue';
 import { usePermissionStore, useSettingStore } from '@/store';
 import type { MenuRoute } from '@/utils/types';
 
