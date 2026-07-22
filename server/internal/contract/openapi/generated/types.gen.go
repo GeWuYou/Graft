@@ -3281,6 +3281,39 @@ func (e NotificationTargetType) Valid() bool {
 	}
 }
 
+// Defines values for PlatformUpdateOperationStatus.
+const (
+	PlatformUpdateOperationStatusBACKINGUP      PlatformUpdateOperationStatus = "BACKING_UP"
+	PlatformUpdateOperationStatusFAILED         PlatformUpdateOperationStatus = "FAILED"
+	PlatformUpdateOperationStatusINSTALLING     PlatformUpdateOperationStatus = "INSTALLING"
+	PlatformUpdateOperationStatusNEEDSATTENTION PlatformUpdateOperationStatus = "NEEDS_ATTENTION"
+	PlatformUpdateOperationStatusPLANNING       PlatformUpdateOperationStatus = "PLANNING"
+	PlatformUpdateOperationStatusRECOVERED      PlatformUpdateOperationStatus = "RECOVERED"
+	PlatformUpdateOperationStatusSUCCESS        PlatformUpdateOperationStatus = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateOperationStatus enum.
+func (e PlatformUpdateOperationStatus) Valid() bool {
+	switch e {
+	case PlatformUpdateOperationStatusBACKINGUP:
+		return true
+	case PlatformUpdateOperationStatusFAILED:
+		return true
+	case PlatformUpdateOperationStatusINSTALLING:
+		return true
+	case PlatformUpdateOperationStatusNEEDSATTENTION:
+		return true
+	case PlatformUpdateOperationStatusPLANNING:
+		return true
+	case PlatformUpdateOperationStatusRECOVERED:
+		return true
+	case PlatformUpdateOperationStatusSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateStatusChannel.
 const (
 	PlatformUpdateStatusChannelBeta    PlatformUpdateStatusChannel = "beta"
@@ -4825,22 +4858,22 @@ func (e GetAuditLogsParamsResult) Valid() bool {
 
 // Defines values for GetAuditLogsParamsResults.
 const (
-	GetAuditLogsParamsResultsDENIED  GetAuditLogsParamsResults = "DENIED"
-	GetAuditLogsParamsResultsERROR   GetAuditLogsParamsResults = "ERROR"
-	GetAuditLogsParamsResultsFAILED  GetAuditLogsParamsResults = "FAILED"
-	GetAuditLogsParamsResultsSUCCESS GetAuditLogsParamsResults = "SUCCESS"
+	DENIED  GetAuditLogsParamsResults = "DENIED"
+	ERROR   GetAuditLogsParamsResults = "ERROR"
+	FAILED  GetAuditLogsParamsResults = "FAILED"
+	SUCCESS GetAuditLogsParamsResults = "SUCCESS"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditLogsParamsResults enum.
 func (e GetAuditLogsParamsResults) Valid() bool {
 	switch e {
-	case GetAuditLogsParamsResultsDENIED:
+	case DENIED:
 		return true
-	case GetAuditLogsParamsResultsERROR:
+	case ERROR:
 		return true
-	case GetAuditLogsParamsResultsFAILED:
+	case FAILED:
 		return true
-	case GetAuditLogsParamsResultsSUCCESS:
+	case SUCCESS:
 		return true
 	default:
 		return false
@@ -7743,6 +7776,13 @@ type CreateAnnouncementRequest struct {
 	Title     string     `json:"title"`
 }
 
+// CreatePlatformUpdateOperationRequest defines model for create-platform-update-operation-request.
+type CreatePlatformUpdateOperationRequest struct {
+	// Confirmation Exact target_version typed by the administrator.
+	Confirmation  string `json:"confirmation"`
+	TargetVersion string `json:"target_version"`
+}
+
 // CreateRoleRequest defines model for create-role-request.
 type CreateRoleRequest struct {
 	// Description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null.
@@ -9870,6 +9910,24 @@ type EnvelopedPersonalAccessTokenListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformUpdateOperation defines model for enveloped-platform-update-operation.
+type EnvelopedPlatformUpdateOperation struct {
+	Code    string                  `json:"code"`
+	Data    PlatformUpdateOperation `json:"data"`
+	Message string                  `json:"message"`
+	Success bool                    `json:"success"`
+	TraceId string                  `json:"traceId"`
+}
+
+// EnvelopedPlatformUpdateOperationList defines model for enveloped-platform-update-operation-list.
+type EnvelopedPlatformUpdateOperationList struct {
+	Code    string                      `json:"code"`
+	Data    PlatformUpdateOperationList `json:"data"`
+	Message string                      `json:"message"`
+	Success bool                        `json:"success"`
+	TraceId string                      `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateStatus defines model for enveloped-platform-update-status.
 type EnvelopedPlatformUpdateStatus struct {
 	Code    string               `json:"code"`
@@ -10853,6 +10911,28 @@ type PersonalAccessTokenSummary struct {
 	// TokenPrefix Non-secret display prefix used to identify the credential.
 	TokenPrefix string `json:"token_prefix"`
 }
+
+// PlatformUpdateOperation defines model for platform-update-operation.
+type PlatformUpdateOperation struct {
+	BackupId          *int64                        `json:"backup_id,omitempty"`
+	CreatedAt         time.Time                     `json:"created_at"`
+	FailureCode       *string                       `json:"failure_code,omitempty"`
+	FinishedAt        *time.Time                    `json:"finished_at,omitempty"`
+	OperationId       string                        `json:"operation_id"`
+	RecoveryCompleted bool                          `json:"recovery_completed"`
+	RequestedBy       *int64                        `json:"requested_by,omitempty"`
+	SourceVersion     string                        `json:"source_version"`
+	StartedAt         time.Time                     `json:"started_at"`
+	Status            PlatformUpdateOperationStatus `json:"status"`
+	TargetVersion     string                        `json:"target_version"`
+	TaskId            int64                         `json:"task_id"`
+}
+
+// PlatformUpdateOperationStatus defines model for PlatformUpdateOperation.Status.
+type PlatformUpdateOperationStatus string
+
+// PlatformUpdateOperationList defines model for platform-update-operation-list.
+type PlatformUpdateOperationList = []PlatformUpdateOperation
 
 // PlatformUpdateStatus defines model for platform-update-status.
 type PlatformUpdateStatus struct {
@@ -14282,6 +14362,38 @@ type PostPlatformUpdateCheckParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPlatformUpdateOperationsParams defines parameters for GetPlatformUpdateOperations.
+type GetPlatformUpdateOperationsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPlatformUpdateOperationParams defines parameters for PostPlatformUpdateOperation.
+type PostPlatformUpdateOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformUpdateOperationParams defines parameters for GetPlatformUpdateOperation.
+type GetPlatformUpdateOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPlatformUpdateStatusParams defines parameters for GetPlatformUpdateStatus.
 type GetPlatformUpdateStatusParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15086,6 +15198,9 @@ type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest
+
+// PostPlatformUpdateOperationJSONRequestBody defines body for PostPlatformUpdateOperation for application/json ContentType.
+type PostPlatformUpdateOperationJSONRequestBody = CreatePlatformUpdateOperationRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

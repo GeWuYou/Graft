@@ -2,12 +2,16 @@ package update
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
+	"graft/server/internal/buildinfo"
 	"graft/server/internal/moduleapi"
 )
 
@@ -65,6 +69,116 @@ func TestRunnerReceiptDoesNotSerializeBackupStorageReferences(t *testing.T) {
 	if string(encoded) == "" || containsAny(string(encoded), "storage_ref", "database_dump_ref", "config_snapshot_ref", "/var/") {
 		t.Fatalf("runner receipt exposes backup storage data: %s", encoded)
 	}
+}
+
+func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	discovery := NewService(nil)
+	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
+	discovery.profile = func() InstallationProfile {
+		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
+	}
+	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
+	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
+	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
+	operations := &memoryOperationStore{}
+	launcher := &recordingLauncher{}
+	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
+	rollout.newOperation = func() string { return "update-77" }
+	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "wrong"); err == nil {
+		t.Fatal("expected confirmation rejection")
+	}
+	operation, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0")
+	if err != nil {
+		t.Fatalf("start rollout: %v", err)
+	}
+	if operation.Outcome != ExecutionOutcomeInstalling || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
+		t.Fatalf("unexpected rollout operation: %#v / %#v", operation, launcher.input)
+	}
+	if filepath.Dir(filepath.Dir(filepath.Dir(launcher.inputPath))) != root || operations.items[operation.OperationID].TaskID != 77 {
+		t.Fatalf("runner input or persisted operation lost constrained identity: %q %#v", launcher.inputPath, operations.items)
+	}
+}
+
+func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testing.T) {
+	input := fixtureRunnerInput("/opt/graft")
+	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json")
+	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
+		t.Fatalf("runner config is not constrained: %#v", config)
+	}
+	if len(host.Binds) != 2 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.NetworkMode != "none" {
+		t.Fatalf("runner host config is not constrained: %#v", host)
+	}
+}
+
+func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, source_version TEXT, target_version TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP)`); err != nil {
+		t.Fatalf("create update operations: %v", err)
+	}
+	store, err := newSQLOperationStore(db)
+	if err != nil {
+		t.Fatalf("new operation store: %v", err)
+	}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomeInstalling}
+	if err := store.Create(t.Context(), created); err != nil {
+		t.Fatalf("create operation: %v", err)
+	}
+	created.Outcome, created.BackupID, created.FailureCode, created.ReceiptIntegritySHA256 = ExecutionOutcomeNeedsAttention, 7, "healthz_failed", strings.Repeat("a", 64)
+	if err := store.Settle(t.Context(), created); err != nil {
+		t.Fatalf("settle operation: %v", err)
+	}
+	loaded, err := store.Get(t.Context(), created.OperationID)
+	if err != nil {
+		t.Fatalf("get operation: %v", err)
+	}
+	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
+		t.Fatalf("unexpected durable history: %#v", loaded)
+	}
+}
+
+type memoryOperationStore struct {
+	items map[string]ComposeUpdateOperation
+}
+
+func (s *memoryOperationStore) Create(_ context.Context, item ComposeUpdateOperation) error {
+	if s.items == nil {
+		s.items = map[string]ComposeUpdateOperation{}
+	}
+	s.items[item.OperationID] = item
+	return nil
+}
+func (s *memoryOperationStore) Get(_ context.Context, id string) (ComposeUpdateOperation, error) {
+	item, ok := s.items[id]
+	if !ok {
+		return ComposeUpdateOperation{}, errUpdateOperationNotFound
+	}
+	return item, nil
+}
+func (s *memoryOperationStore) List(context.Context, int) ([]ComposeUpdateOperation, error) {
+	return nil, nil
+}
+func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOperation) error {
+	s.items[item.OperationID] = item
+	return nil
+}
+
+type recordingLauncher struct {
+	input     RunnerInput
+	inputPath string
+}
+
+func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
+	l.input = input
+	path, err := persistRunnerInput(input)
+	l.inputPath = path
+	return err
 }
 
 func containsAny(value string, needles ...string) bool {

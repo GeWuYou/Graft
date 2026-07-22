@@ -1,0 +1,43 @@
+get:
+  tags: [platform-update]
+  summary: List self-update history
+  operationId: getPlatformUpdateOperations
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    '200':
+      description: Update operation history without deployment secrets or receipt contents.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-operation-list.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+post:
+  tags: [platform-update]
+  summary: Confirm and start an official Compose update
+  operationId: postPlatformUpdateOperation
+  description: Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and never accepts commands, image references, or host paths from the request.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/create-platform-update-operation-request.yaml }
+  responses:
+    '202':
+      description: The one-shot runner was accepted by Docker.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-operation.yaml }
+    '400': { description: Invalid confirmation or request payload. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: The installation profile or current release does not permit execution. }

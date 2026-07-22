@@ -1,0 +1,22 @@
+get:
+  tags: [platform-update]
+  summary: Read a self-update operation
+  operationId: getPlatformUpdateOperation
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: operationID
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+  responses:
+    '200':
+      description: Update operation history without deployment secrets or receipt contents.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-operation.yaml }
+    '400': { description: Invalid operation identity. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Update operation not found. }

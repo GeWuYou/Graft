@@ -30,6 +30,10 @@ type Release struct {
 	ManifestURL  string    `json:"manifest_url"`
 	ServerDigest string    `json:"server_digest"`
 	WebDigest    string    `json:"web_digest"`
+	ServerImage  string    `json:"server_image"`
+	WebImage     string    `json:"web_image"`
+	ServerRef    string    `json:"server_reference"`
+	WebRef       string    `json:"web_reference"`
 	RunnerImage  string    `json:"runner_image"`
 	RunnerDigest string    `json:"runner_digest"`
 	RunnerRef    string    `json:"runner_reference"`
@@ -216,7 +220,7 @@ func validBetaPrerelease(value string) bool {
 
 func buildRelease(source githubRelease, manifest releaseManifest, manifestURL, checksumsURL string) Release {
 	version, _ := ParseVersion(manifest.Version)
-	return Release{Version: version.String(), Channel: strings.ToLower(strings.TrimSpace(manifest.Channel)), Notes: source.Body, PublishedAt: source.PublishedAt.UTC(), ManifestURL: manifestURL, ServerDigest: manifest.Images.Server.Digest, WebDigest: manifest.Images.Web.Digest, RunnerImage: manifest.Runners.Compose.Image, RunnerDigest: manifest.Runners.Compose.Digest, RunnerRef: manifest.Runners.Compose.Reference, ChecksumsURL: checksumsURL}
+	return Release{Version: version.String(), Channel: strings.ToLower(strings.TrimSpace(manifest.Channel)), Notes: source.Body, PublishedAt: source.PublishedAt.UTC(), ManifestURL: manifestURL, ServerDigest: manifest.Images.Server.Digest, WebDigest: manifest.Images.Web.Digest, ServerImage: manifest.Images.Server.Image, WebImage: manifest.Images.Web.Image, ServerRef: manifest.Images.Server.Reference, WebRef: manifest.Images.Web.Reference, RunnerImage: manifest.Runners.Compose.Image, RunnerDigest: manifest.Runners.Compose.Digest, RunnerRef: manifest.Runners.Compose.Reference, ChecksumsURL: checksumsURL}
 }
 
 func downloadManifest(ctx context.Context, client *http.Client, location, checksumLocation string) (releaseManifest, bool) {

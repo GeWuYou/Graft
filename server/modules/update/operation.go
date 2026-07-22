@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"graft/server/internal/moduleapi"
 )
@@ -17,13 +18,19 @@ const (
 
 // ComposeUpdateOperation 是 Update 编排层持有的冻结关联；Task 和 Backup 的持久事实仍分别由各自模块拥有。
 type ComposeUpdateOperation struct {
-	OperationID            string
-	SourceVersion          string
-	TargetVersion          string
-	TaskID                 uint64
-	BackupID               uint64
-	Outcome                ExecutionOutcome
-	ReceiptIntegritySHA256 string
+	OperationID            string           `json:"operation_id"`
+	SourceVersion          string           `json:"source_version"`
+	TargetVersion          string           `json:"target_version"`
+	TaskID                 uint64           `json:"task_id"`
+	BackupID               uint64           `json:"backup_id,omitempty"`
+	RequestedBy            uint64           `json:"requested_by,omitempty"`
+	Outcome                ExecutionOutcome `json:"status"`
+	ReceiptIntegritySHA256 string           `json:"-"`
+	FailureCode            string           `json:"failure_code,omitempty"`
+	RecoveryCompleted      bool             `json:"recovery_completed"`
+	CreatedAt              time.Time        `json:"created_at"`
+	StartedAt              time.Time        `json:"started_at"`
+	FinishedAt             *time.Time       `json:"finished_at,omitempty"`
 }
 
 // ComposeExecutionCoordinator 只消费 Task 与 Backup capability，避免 Update 直接访问其它模块的仓储。
@@ -68,26 +75,16 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 
 // SettleReceipt consumes runner evidence after recreation. Migration-started failures become NEEDS_ATTENTION and never request database restore.
 func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operation ComposeUpdateOperation, receipt RunnerReceipt) (ComposeUpdateOperation, error) {
-	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || receipt.ProtocolVersion != runnerProtocolVersion || receipt.OperationID != operation.OperationID {
+	if err := validateReceiptSettlement(c, operation, receipt); err != nil {
 		return ComposeUpdateOperation{}, errors.New("compose runner receipt does not match update operation")
 	}
-	if receipt.BackupCompletion != nil {
-		completion, err := c.backups.CompleteRunnerHandoff(ctx, *receipt.BackupCompletion)
-		if err != nil {
-			return ComposeUpdateOperation{}, fmt.Errorf("complete update backup handoff: %w", err)
-		}
-		if completion.OperationID != operation.OperationID || completion.TaskID != operation.TaskID {
-			return ComposeUpdateOperation{}, errors.New("backup handoff completion does not match update operation")
-		}
-		operation.BackupID = completion.BackupID
+	completed, err := c.completeBackupHandoff(ctx, operation, receipt.BackupCompletion)
+	if err != nil {
+		return ComposeUpdateOperation{}, err
 	}
+	operation.BackupID = completed
 	outcome := ClassifyRunnerReceipt(receipt)
-	externalOutcome := moduleapi.ExternalReceiptOutcomeFailed
-	if outcome == ExecutionOutcomeSuccess {
-		externalOutcome = moduleapi.ExternalReceiptOutcomeSuccess
-	} else if outcome == ExecutionOutcomeNeedsAttention {
-		externalOutcome = moduleapi.ExternalReceiptOutcomeNeedsAttention
-	}
+	externalOutcome := taskReceiptOutcome(outcome)
 	integrity, err := RunnerReceiptIntegrity(receipt)
 	if err != nil {
 		return ComposeUpdateOperation{}, err
@@ -98,10 +95,44 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 	}
 	operation.Outcome = outcome
 	operation.ReceiptIntegritySHA256 = integrity
+	operation.FailureCode = receipt.FailureCode
+	operation.RecoveryCompleted = receipt.RecoveryCompleted
 	if settlement.TaskID != operation.TaskID {
 		return ComposeUpdateOperation{}, errors.New("settled task does not match update operation")
 	}
 	return operation, nil
+}
+
+func validateReceiptSettlement(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation, receipt RunnerReceipt) error {
+	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || receipt.ProtocolVersion != runnerProtocolVersion || receipt.OperationID != operation.OperationID {
+		return errors.New("invalid")
+	}
+	return nil
+}
+
+func (c *ComposeExecutionCoordinator) completeBackupHandoff(ctx context.Context, operation ComposeUpdateOperation, input *moduleapi.CompleteBackupRunnerHandoffInput) (uint64, error) {
+	if input == nil {
+		return operation.BackupID, nil
+	}
+	completion, err := c.backups.CompleteRunnerHandoff(ctx, *input)
+	if err != nil {
+		return 0, fmt.Errorf("complete update backup handoff: %w", err)
+	}
+	if completion.OperationID != operation.OperationID || completion.TaskID != operation.TaskID {
+		return 0, errors.New("backup handoff completion does not match update operation")
+	}
+	return completion.BackupID, nil
+}
+
+func taskReceiptOutcome(outcome ExecutionOutcome) moduleapi.ExternalReceiptOutcome {
+	switch outcome {
+	case ExecutionOutcomeSuccess:
+		return moduleapi.ExternalReceiptOutcomeSuccess
+	case ExecutionOutcomeNeedsAttention:
+		return moduleapi.ExternalReceiptOutcomeNeedsAttention
+	default:
+		return moduleapi.ExternalReceiptOutcomeFailed
+	}
 }
 
 func validOperation(operation ComposeUpdateOperation) bool {

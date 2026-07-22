@@ -16,48 +16,54 @@ const runnerProtocolVersion = 1
 // ComposePreflight 是 server 在启动一次性 runner 前冻结的无秘密部署证据。
 // 它只描述官方 Compose 画像，不接受自定义覆盖层、外部数据库或可变镜像标签。
 type ComposePreflight struct {
-	DeclaredMode        string
-	DetectedMode        string
-	ComposeRoot         string
-	Platform            string
-	DockerSocket        string
-	ComposeFiles        []string
-	ServerReference     string
-	WebReference        string
-	ServerDigest        string
-	WebDigest           string
-	RunnerReference     string
-	RunnerDigest        string
-	BundledPostgres     bool
-	OfficialServerImage string
-	OfficialWebImage    string
-	OfficialRunnerImage string
+	DeclaredMode        string   `json:"declared_mode"`
+	DetectedMode        string   `json:"detected_mode"`
+	ComposeRoot         string   `json:"compose_root"`
+	Platform            string   `json:"platform"`
+	DockerSocket        string   `json:"docker_socket"`
+	ComposeFiles        []string `json:"compose_files"`
+	ServerReference     string   `json:"server_reference"`
+	WebReference        string   `json:"web_reference"`
+	ServerDigest        string   `json:"server_digest"`
+	WebDigest           string   `json:"web_digest"`
+	RunnerReference     string   `json:"runner_reference"`
+	RunnerDigest        string   `json:"runner_digest"`
+	BundledPostgres     bool     `json:"bundled_postgres"`
+	OfficialServerImage string   `json:"official_server_image"`
+	OfficialWebImage    string   `json:"official_web_image"`
+	OfficialRunnerImage string   `json:"official_runner_image"`
 }
 
 // RunnerInput 是 server 写入 runner 输入目录的版本化、无秘密协议。runner 只读取该文件，
 // 不提供 HTTP API，也不得把 .env、数据库连接串或备份正文写入 receipt。
 type RunnerInput struct {
-	ProtocolVersion int
-	OperationID     string
-	TaskID          uint64
-	Preflight       ComposePreflight
+	ProtocolVersion int              `json:"protocol_version"`
+	OperationID     string           `json:"operation_id"`
+	TaskID          uint64           `json:"task_id"`
+	Preflight       ComposePreflight `json:"preflight"`
 }
 
 // RunnerReceipt 是 runner 写入受限状态目录的无秘密结算证据。
 type RunnerReceipt struct {
-	ProtocolVersion   int
-	OperationID       string
-	MigrationStarted  bool
-	Succeeded         bool
-	FailureCode       string
-	RecoveryCompleted bool
-	BackupCompletion  *moduleapi.CompleteBackupRunnerHandoffInput
+	ProtocolVersion   int                                         `json:"protocol_version"`
+	OperationID       string                                      `json:"operation_id"`
+	MigrationStarted  bool                                        `json:"migration_started"`
+	Succeeded         bool                                        `json:"succeeded"`
+	FailureCode       string                                      `json:"failure_code,omitempty"`
+	RecoveryCompleted bool                                        `json:"recovery_completed"`
+	BackupCompletion  *moduleapi.CompleteBackupRunnerHandoffInput `json:"backup_completion,omitempty"`
 }
 
 // ExecutionOutcome 将 receipt 转换为 Update 业务状态。迁移已开始后不自动回退数据库。
 type ExecutionOutcome string
 
 const (
+	// ExecutionOutcomePlanning 表示操作已经持久化，尚未交给 runner。
+	ExecutionOutcomePlanning ExecutionOutcome = "PLANNING"
+	// ExecutionOutcomeBackingUp 为 runner 启动前备份交接的可见阶段。
+	ExecutionOutcomeBackingUp ExecutionOutcome = "BACKING_UP"
+	// ExecutionOutcomeInstalling 表示一次性 runner 已启动，等待目标 server 结算 receipt。
+	ExecutionOutcomeInstalling ExecutionOutcome = "INSTALLING"
 	// ExecutionOutcomeSuccess 表示 runner 已完成目标版本健康验证。
 	ExecutionOutcomeSuccess ExecutionOutcome = "SUCCESS"
 	// ExecutionOutcomeFailed 表示 runner 未开始迁移且未提供可恢复失败证据。
