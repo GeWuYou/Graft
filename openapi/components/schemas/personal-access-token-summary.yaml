@@ -1,0 +1,29 @@
+type: object
+required: [id, name, token_prefix, scopes, expires_at, created_at]
+properties:
+  id:
+    type: integer
+    format: int64
+  name:
+    type: string
+  token_prefix:
+    type: string
+    description: Non-secret display prefix used to identify the credential.
+  scopes:
+    type: array
+    items:
+      type: string
+  expires_at:
+    type: string
+    format: date-time
+  revoked_at:
+    type: string
+    format: date-time
+    nullable: true
+  last_used_at:
+    type: string
+    format: date-time
+    nullable: true
+  created_at:
+    type: string
+    format: date-time

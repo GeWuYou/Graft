@@ -17,32 +17,36 @@ type routeGuards struct {
 }
 
 type authRouteRegistrar struct {
-	ctx        *module.Context
-	moduleName string
-	authFlow   moduleapi.AuthFlowService
-	cookies    CookieManager
-	guards     routeGuards
+	ctx            *module.Context
+	moduleName     string
+	authFlow       moduleapi.AuthFlowService
+	personalTokens moduleapi.PersonalAccessTokenService
+	cookies        CookieManager
+	guards         routeGuards
 }
 
 func registerAuthRoutes(
 	ctx *module.Context,
 	moduleName string,
 	authService moduleapi.AuthService,
+	personalTokens moduleapi.PersonalAccessTokenService,
 	authFlow moduleapi.AuthFlowService,
 ) error {
 	authGroup := ctx.Router.Group(authcontract.AuthGroup)
 	guards := newRouteGuards(ctx, authService, authFlow, authGroup.BasePath())
 
 	registrar := authRouteRegistrar{
-		ctx:        ctx,
-		moduleName: moduleName,
-		authFlow:   authFlow,
-		cookies:    NewCookieManager(ctx.Config.Auth),
-		guards:     guards,
+		ctx:            ctx,
+		moduleName:     moduleName,
+		authFlow:       authFlow,
+		personalTokens: personalTokens,
+		cookies:        NewCookieManager(ctx.Config.Auth),
+		guards:         guards,
 	}
 	authGroup.Use(httpx.RequestIDMiddleware())
 	registrar.registerLoginRoutes(authGroup)
 	registrar.registerCurrentUserSessionRoutes(authGroup)
+	registrar.registerPersonalAccessTokenRoutes(authGroup)
 	registrar.registerBootstrapAndPasswordRoutes(authGroup)
 
 	return nil

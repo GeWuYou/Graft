@@ -44,6 +44,12 @@ const (
 	defaultContainerLogsDefaultTail = 200
 	defaultContainerLogsMaxTail     = 2000
 	defaultRealtimeAllowedOrigins   = ""
+	defaultMCPConfirmationTokenTTL  = 5 * time.Minute
+	defaultMCPSessionTimeout        = 15 * time.Minute
+	defaultMCPRequestTimeout        = 30 * time.Second
+	defaultMCPMaxRequestBytes       = int64(1 << 20)
+	defaultMCPMaxSessions           = 64
+	defaultMCPMaxConcurrentRequests = 32
 )
 
 const (
@@ -134,6 +140,7 @@ type Config struct {
 	Runtime   RuntimeConfig
 	I18n      I18nConfig
 	Auth      AuthConfig
+	MCP       MCPConfig
 	Container ContainerConfig
 	Project   ProjectConfig
 }
@@ -231,6 +238,20 @@ type AuthConfig struct {
 	RefreshCookiePath     string
 }
 
+// MCPConfig 描述产品 MCP runtime 的进程级 transport 开关与安全生命周期参数。
+//
+// 这些值在模块和 System Config 尚未可用时决定是否装配公开 `/mcp` 入口，
+// 因此属于部署配置而不是可热更新的管理员策略。
+type MCPConfig struct {
+	Enabled               bool
+	ConfirmationTokenTTL  time.Duration
+	SessionTimeout        time.Duration
+	RequestTimeout        time.Duration
+	MaxRequestBytes       int64
+	MaxSessions           int
+	MaxConcurrentRequests int
+}
+
 // ContainerConfig 描述容器管理模块的部署配置。
 //
 // Provider 和 endpoint 由部署环境决定；管理员运行时策略由 System Config 拥有。
@@ -320,6 +341,7 @@ func (c *Config) Validate() error {
 		validateRedisConfig,
 		validateI18nConfig,
 		validateAuthConfig,
+		validateMCPConfig,
 		validateContainerConfig,
 	}
 	for _, validate := range validators {
@@ -565,6 +587,23 @@ func validateAuthConfig(c *Config) error {
 		return errors.New("GRAFT_AUTH_REFRESH_COOKIE_PATH is required")
 	}
 
+	return nil
+}
+
+// validateMCPConfig 拒绝无效的确认 Token 生命周期，避免开启 MCP 后出现不可预测的确认窗口。
+func validateMCPConfig(c *Config) error {
+	if !c.MCP.Enabled {
+		return nil
+	}
+	if c.MCP.ConfirmationTokenTTL <= 0 {
+		return errors.New("GRAFT_MCP_CONFIRMATION_TOKEN_TTL must be greater than zero")
+	}
+	if c.MCP.SessionTimeout <= 0 || c.MCP.RequestTimeout <= 0 {
+		return errors.New("GRAFT_MCP_SESSION_TIMEOUT and GRAFT_MCP_REQUEST_TIMEOUT must be greater than zero")
+	}
+	if c.MCP.MaxRequestBytes <= 0 || c.MCP.MaxSessions <= 0 || c.MCP.MaxConcurrentRequests <= 0 {
+		return errors.New("GRAFT_MCP request, session, and concurrency limits must be greater than zero")
+	}
 	return nil
 }
 

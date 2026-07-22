@@ -3,6 +3,20 @@ post:
   summary: Restart container
   operationId: postContainerRestart
   description: Restarts one container when dangerous actions are enabled.
+  x-graft-mcp:
+    resource_uri_templates:
+      - graft://docker/containers/{id}
+    resource_uri_parameter_bindings:
+      id: id
+    risk:
+      level: high
+      reason: Restarts a running workload and interrupts its service.
+      reversible: true
+      impact: The container is stopped and started again.
+    confirmation:
+      required: true
+      strategy: two_phase
+      ttl: PT5M
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

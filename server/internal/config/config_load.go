@@ -72,6 +72,15 @@ func readConfig(reader *viper.Viper) *Config {
 			RefreshCookieSameSite: reader.GetString("auth.refresh_cookie_same_site"),
 			RefreshCookiePath:     reader.GetString("auth.refresh_cookie_path"),
 		},
+		MCP: MCPConfig{
+			Enabled:               reader.GetBool("mcp.enabled"),
+			ConfirmationTokenTTL:  reader.GetDuration("mcp.confirmation_token_ttl"),
+			SessionTimeout:        reader.GetDuration("mcp.session_timeout"),
+			RequestTimeout:        reader.GetDuration("mcp.request_timeout"),
+			MaxRequestBytes:       reader.GetInt64("mcp.max_request_bytes"),
+			MaxSessions:           reader.GetInt("mcp.max_sessions"),
+			MaxConcurrentRequests: reader.GetInt("mcp.max_concurrent_requests"),
+		},
 		Container: ContainerConfig{
 			Runtime:        reader.GetString("ops.container.runtime"),
 			DockerEndpoint: reader.GetString("ops.container.docker.endpoint"),

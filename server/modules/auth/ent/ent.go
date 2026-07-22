@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"graft/server/modules/auth/ent/authcredential"
+	"graft/server/modules/auth/ent/authpersonalaccesstoken"
 	"graft/server/modules/auth/ent/authrefreshsession"
 	"reflect"
 	"sync"
@@ -74,8 +75,9 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			authcredential.Table:     authcredential.ValidColumn,
-			authrefreshsession.Table: authrefreshsession.ValidColumn,
+			authcredential.Table:          authcredential.ValidColumn,
+			authpersonalaccesstoken.Table: authpersonalaccesstoken.ValidColumn,
+			authrefreshsession.Table:      authrefreshsession.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

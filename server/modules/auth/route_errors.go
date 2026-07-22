@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -92,6 +93,14 @@ func (r routeRuntime) writeResponseMappingError(ginCtx *gin.Context, message str
 	httpx.AbortAppError(ginCtx, r.localizer, r.logger, reported)
 }
 
+func (r authRouteRegistrar) writePersonalAccessTokenRouteError(ginCtx *gin.Context, message string, err error) {
+	if errors.Is(err, errInvalidPersonalAccessTokenInput) {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+		return
+	}
+	r.runtime().writeAuthRouteError(ginCtx, message, err)
+}
+
 func zapFieldValue(field zap.Field) any {
 	switch field.Type {
 	case zapcore.StringType:
@@ -117,6 +126,16 @@ func readSessionIDParam(ginCtx *gin.Context, localizer *i18n.Service) (string, b
 	}
 
 	return sessionID, true
+}
+
+func readPersonalAccessTokenIDParam(ginCtx *gin.Context, localizer *i18n.Service) (uint64, bool) {
+	value, err := strconv.ParseUint(strings.TrimSpace(ginCtx.Param("tokenID")), 10, 64)
+	if err != nil || value == 0 {
+		writeInvalidArgumentField(ginCtx, localizer, "tokenID")
+		return 0, false
+	}
+
+	return value, true
 }
 
 func parseSessionListLimit(rawLimit string) (int, error) {

@@ -56,7 +56,11 @@ func (p *Module) newRuntime(ctx *module.Context) (*authService, authFlowBridge, 
 	if err != nil {
 		return nil, authFlowBridge{}, err
 	}
-	authService, err := newAuthService(ctx.Config.Auth, credentials, sessions, identity)
+	personalTokens, err := storeent.NewPersonalAccessTokenStore(p.client)
+	if err != nil {
+		return nil, authFlowBridge{}, err
+	}
+	authService, err := newAuthService(ctx.Config.Auth, credentials, sessions, identity, personalTokens)
 	if err != nil {
 		return nil, authFlowBridge{}, err
 	}
@@ -85,8 +89,13 @@ func (p *Module) registerCapabilitiesAndRoutes(ctx *module.Context, authService 
 	}); err != nil {
 		return fmt.Errorf("register auth credential management service: %w", err)
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.PersonalAccessTokenService)(nil), func(container.Resolver) (any, error) {
+		return authService, nil
+	}); err != nil {
+		return fmt.Errorf("register personal access token service: %w", err)
+	}
 
-	return registerAuthRoutes(ctx, moduleID, authService, flow)
+	return registerAuthRoutes(ctx, moduleID, authService, authService, flow)
 }
 
 // Boot 在所有模块完成稳定 RBAC 引导能力注册后，创建 auth 所拥有的默认凭据。

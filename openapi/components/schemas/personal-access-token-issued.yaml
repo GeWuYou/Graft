@@ -1,0 +1,8 @@
+allOf:
+  - $ref: ./personal-access-token-summary.yaml
+  - type: object
+    required: [token]
+    properties:
+      token:
+        type: string
+        description: One-time secret. It is returned only by this creation response and is never stored or returned again.

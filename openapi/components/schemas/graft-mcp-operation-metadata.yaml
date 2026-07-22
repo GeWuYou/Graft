@@ -1,0 +1,56 @@
+type: object
+description: >-
+  Validation anchor for the operation-level x-graft-mcp extension. Its presence opts an existing OpenAPI operation
+  into later MCP runtime compilation; it does not define a transport or a manually maintained tool identifier.
+required:
+  - risk
+  - confirmation
+properties:
+  resource_uri_templates:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      pattern: '^graft://[^/]+/.+$'
+      description: Canonical Graft resource URI template associated with the operation.
+  resource_uri_parameter_bindings:
+    type: object
+    additionalProperties:
+      type: string
+      minLength: 1
+    description: Maps a canonical resource URI placeholder, such as id, to the operation path parameter that supplies it.
+  risk:
+    type: object
+    required:
+      - level
+    properties:
+      level:
+        type: string
+        enum: [low, medium, high, critical]
+      reason:
+        type: string
+        minLength: 1
+      reversible:
+        type: boolean
+      impact:
+        type: string
+        minLength: 1
+    additionalProperties: true
+  confirmation:
+    type: object
+    required:
+      - required
+      - strategy
+      - ttl
+    properties:
+      required:
+        type: boolean
+      strategy:
+        type: string
+        enum: [none, two_phase]
+      ttl:
+        type: string
+        pattern: '^P.+$'
+        description: ISO 8601 duration. A required confirmation uses a positive, expiring TTL.
+    additionalProperties: true
+additionalProperties: true

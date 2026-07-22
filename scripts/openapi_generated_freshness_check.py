@@ -54,7 +54,7 @@ USER_WRITE_ARGS = [
 ]
 AUTH_ARGS = [
     "--include-operation-ids",
-    "postAuthLogin,postAuthRefresh,postAuthLogout,getAuthBootstrap,getAuthSessions,postAuthSessionsRevokeAll,postAuthSessionsRevokeOthers,postAuthSessionRevoke,postAuthChangePassword,postAuthCompleteRequiredPasswordChange",
+    "postAuthLogin,postAuthRefresh,postAuthLogout,getAuthBootstrap,getAuthSessions,postAuthSessionsRevokeAll,postAuthSessionsRevokeOthers,postAuthSessionRevoke,postAuthChangePassword,postAuthCompleteRequiredPasswordChange,getAuthPersonalAccessTokens,postAuthPersonalAccessTokens,postAuthPersonalAccessTokenRevoke",
     "--generate",
     "types",
     "--package",

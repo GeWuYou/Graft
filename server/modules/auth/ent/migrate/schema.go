@@ -33,6 +33,40 @@ var (
 			},
 		},
 	}
+	// AuthPersonalAccessTokensColumns holds the columns for the "auth_personal_access_tokens" table.
+	AuthPersonalAccessTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeUint64, Comment: "关联用户资料的稳定标识"},
+		{Name: "name", Type: field.TypeString, Comment: "用户标记令牌用途的名称"},
+		{Name: "token_prefix", Type: field.TypeString, Comment: "仅用于识别令牌的公开前缀，不包含完整密钥"},
+		{Name: "secret_hash", Type: field.TypeString, Unique: true, Comment: "个人 API 令牌明文的 SHA-256 摘要"},
+		{Name: "scopes", Type: field.TypeJSON, Comment: "允许调用的精确权限代码列表，只能收窄用户 RBAC 权限"},
+		{Name: "expires_at", Type: field.TypeTime, Comment: "个人 API 令牌失效时间"},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true, Comment: "令牌撤销时间，为空表示未主动撤销"},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true, Comment: "最近一次通过令牌完成认证的时间"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "令牌创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "令牌最近更新时间"},
+		{Name: "deleted_at", Type: field.TypeInt64, Comment: "软删除时间戳，0 表示当前记录仍有效", Default: 0},
+	}
+	// AuthPersonalAccessTokensTable holds the schema information for the "auth_personal_access_tokens" table.
+	AuthPersonalAccessTokensTable = &schema.Table{
+		Name:       "auth_personal_access_tokens",
+		Comment:    "个人 API 令牌表（认证模块）",
+		Columns:    AuthPersonalAccessTokensColumns,
+		PrimaryKey: []*schema.Column{AuthPersonalAccessTokensColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "authpersonalaccesstoken_secret_hash",
+				Unique:  true,
+				Columns: []*schema.Column{AuthPersonalAccessTokensColumns[4]},
+			},
+			{
+				Name:    "authpersonalaccesstoken_user_id_deleted_at_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AuthPersonalAccessTokensColumns[1], AuthPersonalAccessTokensColumns[11], AuthPersonalAccessTokensColumns[9]},
+			},
+		},
+	}
 	// AuthRefreshSessionsColumns holds the columns for the "auth_refresh_sessions" table.
 	AuthRefreshSessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -66,6 +100,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AuthCredentialsTable,
+		AuthPersonalAccessTokensTable,
 		AuthRefreshSessionsTable,
 	}
 )
@@ -73,6 +108,9 @@ var (
 func init() {
 	AuthCredentialsTable.Annotation = &entsql.Annotation{
 		Table: "auth_credentials",
+	}
+	AuthPersonalAccessTokensTable.Annotation = &entsql.Annotation{
+		Table: "auth_personal_access_tokens",
 	}
 	AuthRefreshSessionsTable.Annotation = &entsql.Annotation{
 		Table: "auth_refresh_sessions",

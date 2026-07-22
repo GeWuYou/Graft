@@ -5,6 +5,89 @@
     "version": "0.1.0-phase-2a",
     "description": "Establishes the OpenAPI-owned contract and validation loop for the existing\nserver runtime while preserving current business behavior, response envelope\nsemantics, and auth/session transport ownership.\n"
   },
+  "x-graft-mcp-schema": {
+    "type": "object",
+    "description": "Validation anchor for the operation-level x-graft-mcp extension. Its presence opts an existing OpenAPI operation into later MCP runtime compilation; it does not define a transport or a manually maintained tool identifier.",
+    "required": [
+      "risk",
+      "confirmation"
+    ],
+    "properties": {
+      "resource_uri_templates": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "pattern": "^graft://[^/]+/.+$",
+          "description": "Canonical Graft resource URI template associated with the operation."
+        }
+      },
+      "resource_uri_parameter_bindings": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Maps a canonical resource URI placeholder, such as id, to the operation path parameter that supplies it."
+      },
+      "risk": {
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reversible": {
+            "type": "boolean"
+          },
+          "impact": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      },
+      "confirmation": {
+        "type": "object",
+        "required": [
+          "required",
+          "strategy",
+          "ttl"
+        ],
+        "properties": {
+          "required": {
+            "type": "boolean"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "none",
+              "two_phase"
+            ]
+          },
+          "ttl": {
+            "type": "string",
+            "pattern": "^P.+$",
+            "description": "ISO 8601 duration. A required confirmation uses a positive, expiring TTL."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": true
+  },
   "servers": [
     {
       "url": "/"
@@ -21,6 +104,9 @@
     },
     {
       "name": "auth"
+    },
+    {
+      "name": "mcp"
     },
     {
       "name": "users"
@@ -952,6 +1038,371 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/auth/personal-access-tokens": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List current user personal API tokens",
+        "operationId": "getAuthPersonalAccessTokens",
+        "description": "Returns non-secret lifecycle summaries for the authenticated user's personal API tokens.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Personal API token summaries.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-personal-access-token-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create current user personal API token",
+        "operationId": "postAuthPersonalAccessTokens",
+        "description": "Issues an expiring personal API token. The secret is returned exactly once and only its hash is retained by the server.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/personal-access-token-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Personal API token issued.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-personal-access-token-issued-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid token name, scopes, or expiry.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/auth/personal-access-tokens/{tokenID}/revoke": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Revoke current user personal API token",
+        "operationId": "postAuthPersonalAccessTokenRevoke",
+        "description": "Revokes one token owned by the current authenticated user. The operation is idempotent to avoid exposing credential lifecycle details.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "tokenID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token is revoked or was already unavailable.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid token identifier.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "get": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Resume MCP Streamable HTTP event stream",
+        "operationId": "getMcpStreamable",
+        "description": "Resumes a stateful MCP Streamable HTTP session. The request must use a valid personal API token and the session remains bound to that token identifier.",
+        "parameters": [
+          {
+            "name": "Mcp-Session-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "personalAccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MCP event stream.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid MCP transport request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "MCP session was not found."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Close MCP Streamable HTTP session",
+        "operationId": "deleteMcpStreamable",
+        "description": "Closes the caller's stateful MCP Streamable HTTP session.",
+        "parameters": [
+          {
+            "name": "Mcp-Session-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "personalAccessTokenAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "MCP session closed."
+          },
+          "400": {
+            "description": "Invalid MCP transport request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mcp"
+        ],
+        "summary": "Send MCP Streamable HTTP message",
+        "operationId": "postMcpStreamable",
+        "description": "Sends an MCP JSON-RPC request or notification. This foundation exposes no business tools, resources, or prompts yet.",
+        "parameters": [
+          {
+            "name": "Mcp-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "MCP-Protocol-Version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "personalAccessTokenAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MCP JSON-RPC response or event stream framing.",
+            "headers": {
+              "Mcp-Session-Id": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid MCP transport request."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
           }
         }
       }
@@ -10609,6 +11060,25 @@
         "summary": "Read container detail",
         "operationId": "getContainer",
         "description": "Returns one container detail without exposing sensitive environment variables.",
+        "x-graft-mcp": {
+          "resource_uri_templates": [
+            "graft://docker/containers/{id}"
+          ],
+          "resource_uri_parameter_bindings": {
+            "id": "id"
+          },
+          "risk": {
+            "level": "low",
+            "reason": "Reads one container's existing detail.",
+            "reversible": true,
+            "impact": "Does not change container state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11459,6 +11929,25 @@
         "summary": "Restart container",
         "operationId": "postContainerRestart",
         "description": "Restarts one container when dangerous actions are enabled.",
+        "x-graft-mcp": {
+          "resource_uri_templates": [
+            "graft://docker/containers/{id}"
+          ],
+          "resource_uri_parameter_bindings": {
+            "id": "id"
+          },
+          "risk": {
+            "level": "high",
+            "reason": "Restarts a running workload and interrupts its service.",
+            "reversible": true,
+            "impact": "The container is stopped and started again."
+          },
+          "confirmation": {
+            "required": true,
+            "strategy": "two_phase",
+            "ttl": "PT5M"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -13122,6 +13611,25 @@
         ],
         "summary": "Read runtime target",
         "operationId": "getRuntimeTarget",
+        "x-graft-mcp": {
+          "resource_uri_templates": [
+            "graft://runtime-targets/{id}"
+          ],
+          "resource_uri_parameter_bindings": {
+            "id": "id"
+          },
+          "risk": {
+            "level": "low",
+            "reason": "Reads one runtime target's existing configuration and status.",
+            "reversible": true,
+            "impact": "Does not change runtime target state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -14752,6 +15260,25 @@
         ],
         "summary": "Get one Compose application summary",
         "operationId": "getApplication",
+        "x-graft-mcp": {
+          "resource_uri_templates": [
+            "graft://applications/{id}"
+          ],
+          "resource_uri_parameter_bindings": {
+            "id": "applicationId"
+          },
+          "risk": {
+            "level": "low",
+            "reason": "Reads one registered application's existing summary.",
+            "reversible": true,
+            "impact": "Does not change application state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -16667,6 +17194,21 @@
       "EnvelopedSessionListResponse": {
         "$ref": "#/components/schemas/enveloped-session-list-response"
       },
+      "PersonalAccessTokenCreateRequest": {
+        "$ref": "#/components/schemas/personal-access-token-create-request"
+      },
+      "PersonalAccessTokenSummary": {
+        "$ref": "#/components/schemas/personal-access-token-summary"
+      },
+      "PersonalAccessTokenIssued": {
+        "$ref": "#/components/schemas/personal-access-token-issued"
+      },
+      "EnvelopedPersonalAccessTokenListResponse": {
+        "$ref": "#/components/schemas/enveloped-personal-access-token-list-response"
+      },
+      "EnvelopedPersonalAccessTokenIssuedResponse": {
+        "$ref": "#/components/schemas/enveloped-personal-access-token-issued-response"
+      },
       "RoleListItem": {
         "$ref": "#/components/schemas/role-list-item"
       },
@@ -18242,6 +18784,144 @@
         "example": {
           "new_password": "next-password-456"
         }
+      },
+      "personal-access-token-summary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "token_prefix",
+          "scopes",
+          "expires_at",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token_prefix": {
+            "type": "string",
+            "description": "Non-secret display prefix used to identify the credential."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revoked_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "enveloped-personal-access-token-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/personal-access-token-summary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "personal-access-token-create-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "scopes",
+          "expires_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Human-readable owner label for the token."
+          },
+          "scopes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Exact operation scopes. These values can only narrow current user RBAC permissions."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Absolute UTC expiry. The server rejects past or unbounded credentials."
+          }
+        }
+      },
+      "personal-access-token-issued": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/personal-access-token-summary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "token"
+            ],
+            "properties": {
+              "token": {
+                "type": "string",
+                "description": "One-time secret. It is returned only by this creation response and is never stored or returned again."
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-personal-access-token-issued-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/personal-access-token-issued"
+              }
+            }
+          }
+        ]
       },
       "user-role-summary": {
         "type": "object",
@@ -20755,60 +21435,70 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current database size in bytes. Gauge."
           },
           "max_connections": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Configured PostgreSQL connection limit. Gauge."
           },
           "active_connections": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Sessions currently executing a query. Gauge."
           },
           "idle_connections": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Sessions currently idle. Gauge."
           },
           "idle_in_transaction_connections": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Sessions idle while holding an open transaction. Gauge."
           },
           "waiting_connections": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Sessions waiting on a database event. Gauge."
           },
           "transaction_commit_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative committed transactions reported by PostgreSQL. Counter."
           },
           "transaction_rollback_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative rolled-back transactions reported by PostgreSQL. Counter."
           },
           "blocks_read_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative disk blocks read by PostgreSQL. Counter."
           },
           "blocks_hit_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative buffer-cache block hits reported by PostgreSQL. Counter."
           },
           "cache_hit_percent": {
@@ -20822,54 +21512,63 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative tuples returned by scans. Counter."
           },
           "tuples_fetched_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative tuples fetched by index scans. Counter."
           },
           "tuples_inserted_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative inserted tuples. Counter."
           },
           "tuples_updated_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative updated tuples. Counter."
           },
           "tuples_deleted_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative deleted tuples. Counter."
           },
           "temp_files_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative temporary files created by PostgreSQL. Counter."
           },
           "temp_bytes_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative temporary-file bytes written by PostgreSQL. Counter."
           },
           "conflicts_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative recovery conflicts reported by PostgreSQL. Counter."
           },
           "deadlocks_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative detected deadlocks reported by PostgreSQL. Counter."
           }
         }
@@ -20889,18 +21588,21 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current keys in this logical database. Gauge."
           },
           "expires": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current keys with an expiry in this logical database. Gauge."
           },
           "average_ttl_ms": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current average expiry TTL in milliseconds when Redis reports it. Gauge."
           }
         }
@@ -20913,70 +21615,82 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current connected Redis clients. Gauge."
           },
           "blocked_clients": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current Redis clients blocked on an operation. Gauge."
           },
           "max_clients": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Configured Redis client limit. Gauge."
           },
           "used_memory_bytes": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Current memory allocated by Redis in bytes. Gauge."
           },
           "used_memory_peak_bytes": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Peak Redis memory allocation since process start in bytes. Gauge."
           },
           "max_memory_bytes": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Configured Redis maxmemory in bytes. Gauge."
           },
           "memory_fragmentation_ratio": {
             "type": "number",
             "nullable": true,
+            "minimum": 0,
             "description": "Current Redis memory fragmentation ratio. Gauge."
           },
           "total_connections_received": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative client connections accepted by Redis. Counter."
           },
           "total_commands_processed": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative commands processed by Redis. Counter."
           },
           "instantaneous_ops_per_second": {
             "type": "number",
             "nullable": true,
+            "minimum": 0,
             "description": "Most recent Redis command throughput in operations per second. Gauge."
           },
           "keyspace_hits_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative successful key lookups reported by Redis. Counter."
           },
           "keyspace_misses_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative failed key lookups reported by Redis. Counter."
           },
           "keyspace_hit_percent": {
@@ -20990,12 +21704,14 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative expired keys removed by Redis. Counter."
           },
           "evicted_keys_total": {
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Cumulative keys evicted by Redis. Counter."
           },
           "keyspaces": {
@@ -21064,6 +21780,7 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Number of dependency probes aggregated into this bucket. Bucket aggregate, not a process counter."
           },
           "availability_percent": {
@@ -21077,6 +21794,7 @@
             "type": "integer",
             "format": "int64",
             "nullable": true,
+            "minimum": 0,
             "description": "Failed dependency probes in this bucket. Bucket aggregate, not a cumulative process counter."
           },
           "latency_average_ms": {
@@ -21116,18 +21834,26 @@
           "retention_seconds": {
             "type": "integer",
             "format": "int64",
+            "minimum": 0,
             "description": "Retention represented by the requested range in seconds."
           },
           "sample_interval_seconds": {
             "type": "integer",
             "format": "int64",
+            "minimum": 1,
             "description": "Nominal monitor sampling interval in seconds."
           },
           "status": {
             "type": "string",
             "enum": [
               "available",
+              "partial",
               "unavailable"
+            ],
+            "x-enum-varnames": [
+              "RedisHistoryAvailable",
+              "RedisHistoryPartial",
+              "RedisHistoryUnavailable"
             ],
             "description": "Whether Redis history could be read. Available history may contain zero points."
           },
@@ -33662,6 +34388,12 @@
         "in": "cookie",
         "name": "graft_refresh_token",
         "description": "Documents the refresh cookie transport used by auth refresh/logout flows. The runtime may\noverride the cookie name from auth config; this spec keeps the current default name as the\ndocumented baseline.\n"
+      },
+      "personalAccessTokenAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Graft personal API token",
+        "description": "Personal API Token issued by the authenticated user for the product MCP transport. The token can only narrow existing server-side RBAC permissions."
       }
     },
     "parameters": {

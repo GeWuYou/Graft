@@ -99,6 +99,7 @@ type Runtime struct {
 	runtimeMetadata           module.RuntimeMetadata
 	appLogRepository          logger.AppLogRepository
 	canonicalAppLogger        logger.AppLogger
+	mcpRuntime                interface{ Close() error }
 }
 
 // NewRuntime 使用给定模块构造显式的 MVP 运行时外壳。

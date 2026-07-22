@@ -20,6 +20,18 @@ func (f AuthCredentialFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Val
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthCredentialMutation", m)
 }
 
+// The AuthPersonalAccessTokenFunc type is an adapter to allow the use of ordinary
+// function as AuthPersonalAccessToken mutator.
+type AuthPersonalAccessTokenFunc func(context.Context, *ent.AuthPersonalAccessTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AuthPersonalAccessTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AuthPersonalAccessTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuthPersonalAccessTokenMutation", m)
+}
+
 // The AuthRefreshSessionFunc type is an adapter to allow the use of ordinary
 // function as AuthRefreshSession mutator.
 type AuthRefreshSessionFunc func(context.Context, *ent.AuthRefreshSessionMutation) (ent.Value, error)

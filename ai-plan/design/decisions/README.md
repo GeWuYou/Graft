@@ -8,6 +8,8 @@ This directory stores ADRs that lock design or governance decisions before wider
 - decisions that later batches or validators must converge on
 
 Current architecture decisions also include `ADR-004-task-runtime-state-machine.md`, which fixes the platform Task Runtime boundary before consumer implementation.
+`ADR-005-mcp-runtime-contract-and-transport-boundary.md` fixes the product MCP runtime boundary before its adapter
+and compiler batches begin.
 
 ## Rules
 

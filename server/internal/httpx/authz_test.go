@@ -282,6 +282,60 @@ func TestRequirePermissionAllowsAuthorizedRequest(t *testing.T) {
 	}
 }
 
+func TestRequirePermissionUsesVerifiedPersonalAccessTokenContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	caller := moduleapi.PersonalAccessTokenCaller{
+		TokenID:   17,
+		User:      moduleapi.CurrentUser{ID: 7, Username: "alice"},
+		Scopes:    []string{"container.read"},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	authorizer := testAuthorizer{authorize: func(_ context.Context, request moduleapi.RequestAuthContext, permission string) error {
+		if request.User == nil || request.User.ID != caller.User.ID || permission != "container.read" {
+			t.Fatalf("unexpected RBAC request %#v for %q", request, permission)
+		}
+		return nil
+	}}
+	engine := gin.New()
+	engine.Use(RequirePermission(nil, nil, authorizer, "container.read"))
+	engine.GET("/api/containers/:id", func(ginCtx *gin.Context) { ginCtx.Status(http.StatusNoContent) })
+	request := httptest.NewRequest(http.MethodGet, "/api/containers/item-7", nil)
+	request = request.WithContext(moduleapi.WithPersonalAccessTokenCaller(request.Context(), caller))
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("verified personal token request status = %d, want %d", recorder.Code, http.StatusNoContent)
+	}
+}
+
+func TestRequirePermissionRejectsPersonalAccessTokenWithoutExactScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	caller := moduleapi.PersonalAccessTokenCaller{
+		TokenID:   17,
+		User:      moduleapi.CurrentUser{ID: 7, Username: "alice"},
+		Scopes:    []string{"container.list"},
+		ExpiresAt: time.Now().Add(time.Hour),
+	}
+	authorizerCalls := 0
+	authorizer := testAuthorizer{authorize: func(context.Context, moduleapi.RequestAuthContext, string) error {
+		authorizerCalls++
+		return nil
+	}}
+	engine := gin.New()
+	engine.Use(RequirePermission(newTestLocalizer(), nil, authorizer, "container.read"))
+	engine.GET("/api/containers/:id", func(ginCtx *gin.Context) { ginCtx.Status(http.StatusNoContent) })
+	request := httptest.NewRequest(http.MethodGet, "/api/containers/item-7", nil)
+	request = request.WithContext(moduleapi.WithPersonalAccessTokenCaller(request.Context(), caller))
+	recorder := httptest.NewRecorder()
+	engine.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("missing token scope status = %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+	if authorizerCalls != 1 {
+		t.Fatalf("RBAC must run before scope narrowing, got %d calls", authorizerCalls)
+	}
+}
+
 func TestRequirePermissionInjectsCanonicalRequestAuditContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
