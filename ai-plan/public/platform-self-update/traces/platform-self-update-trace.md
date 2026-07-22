@@ -64,6 +64,11 @@
 - Added the hermetic local-version Compose runner fixture in `5a5ecddd`; it verifies the restricted runner action order, receipt persistence, immutable digest rejection and same-tag server/web target reconstruction.
 - A migration-stage failure remains `NEEDS_ATTENTION` and exercises no database restore action. Compose configuration validation ran without starting containers, preserving the worktree runtime boundary.
 
+## 2026-07-22 Archive Readiness Gap
+
+- Archive review confirmed the prerequisite boundaries but rejected completion: Update operation state is not durable and no constrained Docker socket launcher exists to run the manifest-pinned runner or settle its receipt after server recreation.
+- The next bounded rollout slice must add Update-owned history/API and the one-shot launcher without changing Task or Backup ownership; it must preserve the post-migration `NEEDS_ATTENTION` boundary.
+
 ## Loop Batch State
 
 ```json
@@ -78,14 +83,15 @@
     "task-receipt-settlement",
     "backup-runner-handoff",
     "runner-digest-authority",
-    "compose-fixture-execution"
+    "compose-fixture-execution",
+    "compose-execution-and-recovery"
   ],
   "pending_batches": [
-    "compose-execution-and-recovery",
+    "compose-rollout-launcher-and-history",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "compose-execution-and-recovery",
+  "next_batch": "compose-rollout-launcher-and-history",
   "closeout_status": "in_progress"
 }
 ```

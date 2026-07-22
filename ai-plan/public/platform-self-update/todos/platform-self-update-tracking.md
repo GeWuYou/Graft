@@ -51,7 +51,8 @@ closeout:
 - Task Runtime now settles bound, no-secret external receipts exactly once after a runner handoff.
 - Backup now owns a runner handoff that freezes operation/task-bound artifact paths and re-verifies the resolved files, SHA-256, and byte counts before an idempotent Backup fact is created.
 - Release manifest verification now includes a checksummed, official, immutable Compose runner identity.
-- The hermetic Compose fixture proves digest rejection, same-tag reconstruction and fixed runner sequencing; the next batch is `compose-execution-and-recovery`.
+- The hermetic Compose fixture proves digest rejection, same-tag reconstruction and fixed runner sequencing.
+- Archive review found the remaining official rollout gap: durable UpdateOperation/history, protected confirmation/history API, and a constrained Docker socket launcher that settles the runner receipt after server recreation. The next batch is `compose-rollout-launcher-and-history`.
 
 ## Task Checklist
 
@@ -64,7 +65,8 @@ closeout:
 - [x] `backup-runner-handoff`
 - [x] `runner-digest-authority`
 - [x] `compose-fixture-execution`
-- [ ] `compose-execution-and-recovery`
+- [x] `compose-execution-and-recovery`
+- [ ] `compose-rollout-launcher-and-history`
 - [ ] `archive-readiness`
 
 ## Acceptance Conditions
@@ -87,14 +89,15 @@ closeout:
     "task-receipt-settlement",
     "backup-runner-handoff",
     "runner-digest-authority",
-    "compose-fixture-execution"
+    "compose-fixture-execution",
+    "compose-execution-and-recovery"
   ],
   "pending_batches": [
-    "compose-execution-and-recovery",
+    "compose-rollout-launcher-and-history",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "compose-execution-and-recovery",
+  "next_batch": "compose-rollout-launcher-and-history",
   "closeout_status": "in_progress"
 }
 ```
