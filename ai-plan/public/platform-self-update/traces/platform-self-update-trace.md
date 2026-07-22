@@ -47,6 +47,12 @@
 - Settlement persists idempotent Task-owned evidence, reconciles running or crash-recovered unknown stages, and appends immutable task events without allowing Update to write Task storage.
 - Validated Task/Project/registry scopes, the live migration chain, and the backend completion entrypoint.
 
+## 2026-07-22 Backup Runner Handoff
+
+- Added the Backup-owned `backup_runner_handoffs` immutable execution-evidence table and public narrow capability in `70526fd1`; the handoff freezes operation/task identity, artifact root and refs before the one-shot runner starts.
+- Target server settlement resolves paths beneath the frozen root, computes actual SHA-256 and byte counts, rejects forged metadata, and creates the Backup fact exactly once without exposing storage references through the completion receipt.
+- Validated Backup package tests, migration hash and SQL/version gates, generated registry, diff hygiene, and the backend completion entrypoint.
+
 ## Loop Batch State
 
 ```json
@@ -58,17 +64,17 @@
     "update-center-ui",
     "backup-capability",
     "compose-runner-preflight-contract",
-    "task-receipt-settlement"
+    "task-receipt-settlement",
+    "backup-runner-handoff"
   ],
   "pending_batches": [
-    "backup-runner-handoff",
     "runner-digest-authority",
     "compose-fixture-execution",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "backup-runner-handoff",
+  "next_batch": "runner-digest-authority",
   "closeout_status": "in_progress"
 }
 ```
