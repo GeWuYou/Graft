@@ -52,6 +52,29 @@ SUBAGENT_DELEGATION_SKILLS = (
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
 HEADROOM_RTK_END = "<!-- /headroom:rtk-instructions -->"
+GOVERNED_GUIDANCE_PREFIXES = (".agents/", "ai-plan/", ".ai/")
+FORBIDDEN_PERSONAL_GUIDANCE_PATTERNS = (
+    (
+        "personal absolute tooling path",
+        re.compile(
+            r"(?<![\w])(?:~|/(?:root|home/[A-Za-z0-9._-]+|Users/[A-Za-z0-9._-]+)|[A-Za-z]:[\\/]+Users[\\/][A-Za-z0-9._-]+)[\\/]"
+            r"(?:\.codex|\.claude)[\\/]skills(?:[\\/]|$)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "device-level command",
+        re.compile(
+            r"(?im)(?<![\w-])(?:shutdown(?:\.exe)?\s+/[str]\b|"
+            r"(?:poweroff|reboot|halt)(?:\s|$)|systemctl\s+(?:poweroff|reboot|halt)\b|"
+            r"Stop-Computer\b)",
+        ),
+    ),
+    (
+        "personal skill link",
+        re.compile(r"(?<![\w-])\$shutdown-after-completion\b", re.IGNORECASE),
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -899,24 +922,23 @@ def validate_no_private_config_tracked(tracked: set[str]) -> list[Finding]:
 
 
 def validate_no_personal_skill_refs(tracked: set[str]) -> list[Finding]:
-    """Reject personal skill paths and device-level actions from repository guidance files."""
+    """Reject personal skill paths and device-level actions from guidance files."""
     findings: list[Finding] = []
-    governed_prefixes = ("AGENTS.md", ".agents/", "ai-plan/", ".ai/")
-    forbidden_terms = (
-        "/root/.codex/skills/shutdown-after-completion/",
-        "shutdown /s /t",
-        "$shutdown-after-completion",
-    )
     for relative_path in sorted(tracked):
-        if not relative_path.startswith(governed_prefixes):
+        is_guidance_file = Path(relative_path).name == "AGENTS.md"
+        is_governed_prefix = any(
+            relative_path == prefix.rstrip("/") or relative_path.startswith(prefix)
+            for prefix in GOVERNED_GUIDANCE_PREFIXES
+        )
+        if not (is_guidance_file or is_governed_prefix):
             continue
         path = REPO_ROOT / relative_path
         if not path.is_file():
             continue
         text = read_text(path)
-        for term in forbidden_terms:
-            if term in text:
-                findings.append(Finding(path, f"repository guidance must not reference personal device skill term {term!r}"))
+        for label, pattern in FORBIDDEN_PERSONAL_GUIDANCE_PATTERNS:
+            if pattern.search(text):
+                findings.append(Finding(path, f"repository guidance must not reference forbidden {label}"))
     return findings
 
 

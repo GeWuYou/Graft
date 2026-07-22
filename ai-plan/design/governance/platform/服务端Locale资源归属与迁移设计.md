@@ -164,5 +164,5 @@ cd server && go test ./internal/app/... ./internal/moduleruntime/...
 cd server && go test ./modules/announcement/... ./modules/container/... ./modules/audit/... ./modules/monitor/... ./modules/rbac/... ./modules/scheduler/... ./modules/system-config/... ./modules/user/...
 cd server && go run ./cmd/graft validate backend --stage lint
 cd server && go build ./cmd/graft
-python3 /root/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/graft-localization-governance
+python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-localization-governance
 ```

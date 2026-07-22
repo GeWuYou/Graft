@@ -106,7 +106,7 @@
 
 ```bash
 git diff --check
-python3 /root/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/graft-localization-governance
+python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-localization-governance
 ```
 
 后续 server implementation：

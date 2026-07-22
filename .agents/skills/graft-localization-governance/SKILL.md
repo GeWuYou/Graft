@@ -84,7 +84,7 @@ For docs or skill-only changes:
 
 ```bash
 git diff --check
-python3 /root/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/graft-localization-governance
+python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-localization-governance
 ```
 
 For server i18n implementation:

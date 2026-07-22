@@ -105,7 +105,7 @@
 
 ```bash
 git diff --check
-python3 /root/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/graft-cache-governance
+python3 "$SKILL_CREATOR_ROOT/scripts/quick_validate.py" .agents/skills/graft-cache-governance
 python3 scripts/validate_ai_governance.py
 python3 scripts/validate_shared_asset_registries.py
 ```
