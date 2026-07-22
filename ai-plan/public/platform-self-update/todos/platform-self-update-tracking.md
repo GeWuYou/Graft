@@ -53,6 +53,7 @@ closeout:
 - Release manifest verification now includes a checksummed, official, immutable Compose runner identity.
 - The hermetic Compose fixture proves digest rejection, same-tag reconstruction and fixed runner sequencing.
 - Archive review found the remaining official rollout gap: durable UpdateOperation/history, protected confirmation/history API, and a constrained Docker socket launcher that settles the runner receipt after server recreation. The next batch is `compose-rollout-launcher-and-history`.
+- Archive readiness found two release-critical delivery gaps: no runnable/published Compose runner image and no persisted last-success release discovery cache. The next batch is `compose-runner-delivery-and-discovery-cache`.
 
 ## Task Checklist
 
@@ -68,6 +69,7 @@ closeout:
 - [x] `compose-execution-and-recovery`
 - [ ] `compose-rollout-launcher-and-history`
 - [ ] `archive-readiness`
+- [ ] `compose-runner-delivery-and-discovery-cache`
 
 ## Acceptance Conditions
 
@@ -93,6 +95,7 @@ closeout:
     "compose-execution-and-recovery"
   ],
   "pending_batches": [
+    "compose-runner-delivery-and-discovery-cache",
     "compose-rollout-launcher-and-history",
     "archive-readiness"
   ],
