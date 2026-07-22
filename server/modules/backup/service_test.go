@@ -2,7 +2,11 @@ package backup
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,9 +14,12 @@ import (
 )
 
 type serviceTestRepository struct {
-	created  moduleapi.CreateBackupInput
-	restored moduleapi.RecordBackupRestoreInput
-	item     moduleapi.Backup
+	created   moduleapi.CreateBackupInput
+	restored  moduleapi.RecordBackupRestoreInput
+	item      moduleapi.Backup
+	plan      moduleapi.BackupRunnerHandoffPlan
+	completed moduleapi.CompleteBackupRunnerHandoffInput
+	settledID uint64
 }
 
 func (r *serviceTestRepository) Create(_ context.Context, input moduleapi.CreateBackupInput) (moduleapi.Backup, error) {
@@ -25,6 +32,17 @@ func (r *serviceTestRepository) Get(_ context.Context, _ uint64) (moduleapi.Back
 func (r *serviceTestRepository) RecordRestoreEvidence(_ context.Context, input moduleapi.RecordBackupRestoreInput) (moduleapi.Backup, error) {
 	r.restored = input
 	return r.item, nil
+}
+func (r *serviceTestRepository) PrepareRunnerHandoff(_ context.Context, plan moduleapi.BackupRunnerHandoffPlan) (moduleapi.BackupRunnerHandoffPlan, error) {
+	r.plan = plan
+	return plan, nil
+}
+func (r *serviceTestRepository) GetRunnerHandoff(_ context.Context, _ string, _ uint64) (moduleapi.BackupRunnerHandoffPlan, uint64, error) {
+	return r.plan, r.settledID, nil
+}
+func (r *serviceTestRepository) CompleteRunnerHandoff(_ context.Context, input moduleapi.CompleteBackupRunnerHandoffInput) (moduleapi.BackupRunnerHandoffCompletion, error) {
+	r.completed = input
+	return moduleapi.BackupRunnerHandoffCompletion{BackupID: 7, OperationID: input.OperationID, TaskID: input.TaskID}, nil
 }
 
 func TestServiceForwardsBackupCapabilityAndProjectsSafeSummary(t *testing.T) {
@@ -61,4 +79,79 @@ func TestServiceRejectsUnavailableRepositoryAndInvalidID(t *testing.T) {
 	if _, err := NewService(&serviceTestRepository{}).Get(context.Background(), 0); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
 		t.Fatalf("expected invalid id error, got %v", err)
 	}
+}
+
+func TestServiceCompletesRunnerHandoffAfterVerifyingFrozenArtifacts(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	configRef := filepath.Join(root, "config.snapshot")
+	dumpRef := filepath.Join(root, "database.dump")
+	configContent := []byte("CONFIG=redacted\n")
+	dumpContent := []byte("postgres dump")
+	writeRunnerArtifact(t, configRef, configContent)
+	writeRunnerArtifact(t, dumpRef, dumpContent)
+	repository := &serviceTestRepository{plan: moduleapi.BackupRunnerHandoffPlan{
+		OperationID: "update-42", TaskID: 42, Purpose: "platform_update", RetainUntil: time.Now().UTC().Add(time.Hour),
+		ArtifactRoot: root, ConfigSnapshotRef: configRef, DatabaseDumpRef: dumpRef,
+	}}
+	service := NewService(repository)
+	configSHA, configSize := runnerArtifactDigest(configContent)
+	dumpSHA, dumpSize := runnerArtifactDigest(dumpContent)
+	completion, err := service.CompleteRunnerHandoff(context.Background(), moduleapi.CompleteBackupRunnerHandoffInput{
+		OperationID: "update-42", TaskID: 42, ConfigSnapshotSHA256: configSHA, ConfigSnapshotBytes: configSize,
+		DatabaseDumpSHA256: dumpSHA, DatabaseDumpBytes: dumpSize,
+	})
+	if err != nil || completion.BackupID != 7 {
+		t.Fatalf("complete verified handoff: completion=%#v err=%v", completion, err)
+	}
+	if repository.completed.ConfigSnapshotSHA256 != configSHA || repository.completed.DatabaseDumpBytes != dumpSize {
+		t.Fatalf("completion did not use server-verified metadata: %#v", repository.completed)
+	}
+	if _, err := service.CompleteRunnerHandoff(context.Background(), moduleapi.CompleteBackupRunnerHandoffInput{
+		OperationID: "update-42", TaskID: 42, ConfigSnapshotSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ConfigSnapshotBytes: configSize,
+		DatabaseDumpSHA256: dumpSHA, DatabaseDumpBytes: dumpSize,
+	}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected forged checksum rejection, got %v", err)
+	}
+}
+
+func TestServiceRejectsRunnerArtifactOutsideFrozenRoot(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.dump")
+	writeRunnerArtifact(t, outside, []byte("dump"))
+	service := NewService(&serviceTestRepository{})
+	if _, err := service.PrepareRunnerHandoff(context.Background(), moduleapi.BackupRunnerHandoffPlan{
+		OperationID: "update-43", TaskID: 43, Purpose: "platform_update", RetainUntil: time.Now().UTC().Add(time.Hour),
+		ArtifactRoot: root, ConfigSnapshotRef: filepath.Join(root, "config"), DatabaseDumpRef: outside,
+	}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected outside artifact rejection, got %v", err)
+	}
+}
+
+func TestServiceReplaysSettledRunnerHandoffWithoutReadingExpiredArtifacts(t *testing.T) {
+	t.Parallel()
+	repository := &serviceTestRepository{settledID: 7}
+	service := NewService(repository)
+	input := moduleapi.CompleteBackupRunnerHandoffInput{
+		OperationID: "update-45", TaskID: 45,
+		ConfigSnapshotSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ConfigSnapshotBytes: 10,
+		DatabaseDumpSHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", DatabaseDumpBytes: 20,
+	}
+	completion, err := service.CompleteRunnerHandoff(context.Background(), input)
+	if err != nil || completion.BackupID != 7 || repository.completed.OperationID != input.OperationID {
+		t.Fatalf("replay settled handoff: completion=%#v completed=%#v err=%v", completion, repository.completed, err)
+	}
+}
+
+func writeRunnerArtifact(t *testing.T, path string, content []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write runner artifact: %v", err)
+	}
+}
+
+func runnerArtifactDigest(content []byte) (string, int64) {
+	digest := sha256.Sum256(content)
+	return hex.EncodeToString(digest[:]), int64(len(content))
 }

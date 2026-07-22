@@ -78,12 +78,48 @@ type RecordBackupRestoreInput struct {
 	RecordedAt  time.Time
 }
 
+// BackupRunnerHandoffPlan 冻结一次性 runner 可写入的更新前备份范围，不包含配置或 dump 内容。
+type BackupRunnerHandoffPlan struct {
+	OperationID       string
+	TaskID            uint64
+	Purpose           string
+	RetainUntil       time.Time
+	CreatedBy         *uint64
+	ArtifactRoot      string
+	ConfigSnapshotRef string
+	DatabaseDumpRef   string
+}
+
+// CompleteBackupRunnerHandoffInput 只携带 runner 计算出的无秘密完整性元数据；工件引用必须复用冻结计划。
+type CompleteBackupRunnerHandoffInput struct {
+	OperationID          string
+	TaskID               uint64
+	ConfigSnapshotSHA256 string
+	ConfigSnapshotBytes  int64
+	DatabaseDumpSHA256   string
+	DatabaseDumpBytes    int64
+}
+
+// BackupRunnerHandoffCompletion 是可写入 runner receipt 的安全备份证据，不暴露工件引用或内容。
+type BackupRunnerHandoffCompletion struct {
+	BackupID             uint64
+	OperationID          string
+	TaskID               uint64
+	ConfigSnapshotSHA256 string
+	ConfigSnapshotBytes  int64
+	DatabaseDumpSHA256   string
+	DatabaseDumpBytes    int64
+	Idempotent           bool
+}
+
 // BackupService 是 Update 等消费者可依赖的窄备份 capability。
 //
 // 它只记录由 backup owner 创建或验证过的工件事实；不会下载工件、返回配置内容，
 // 也不会执行数据库恢复或 migration。
 type BackupService interface {
 	Create(ctx context.Context, input CreateBackupInput) (Backup, error)
+	PrepareRunnerHandoff(ctx context.Context, plan BackupRunnerHandoffPlan) (BackupRunnerHandoffPlan, error)
+	CompleteRunnerHandoff(ctx context.Context, input CompleteBackupRunnerHandoffInput) (BackupRunnerHandoffCompletion, error)
 	Get(ctx context.Context, id uint64) (Backup, error)
 	RecordRestoreEvidence(ctx context.Context, input RecordBackupRestoreInput) (Backup, error)
 }
