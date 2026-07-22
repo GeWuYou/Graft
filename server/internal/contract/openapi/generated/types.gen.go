@@ -3281,6 +3281,102 @@ func (e NotificationTargetType) Valid() bool {
 	}
 }
 
+// Defines values for PlatformUpdateStatusChannel.
+const (
+	PlatformUpdateStatusChannelBeta    PlatformUpdateStatusChannel = "beta"
+	PlatformUpdateStatusChannelStable  PlatformUpdateStatusChannel = "stable"
+	PlatformUpdateStatusChannelUnknown PlatformUpdateStatusChannel = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusChannel enum.
+func (e PlatformUpdateStatusChannel) Valid() bool {
+	switch e {
+	case PlatformUpdateStatusChannelBeta:
+		return true
+	case PlatformUpdateStatusChannelStable:
+		return true
+	case PlatformUpdateStatusChannelUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateStatusInstallationProfileCapability.
+const (
+	ComposeUpgradeAvailable PlatformUpdateStatusInstallationProfileCapability = "compose_upgrade_available"
+	ManualGuidance          PlatformUpdateStatusInstallationProfileCapability = "manual_guidance"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileCapability enum.
+func (e PlatformUpdateStatusInstallationProfileCapability) Valid() bool {
+	switch e {
+	case ComposeUpgradeAvailable:
+		return true
+	case ManualGuidance:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateStatusInstallationProfileDeclaredMode.
+const (
+	PlatformUpdateStatusInstallationProfileDeclaredModeBinary  PlatformUpdateStatusInstallationProfileDeclaredMode = "binary"
+	PlatformUpdateStatusInstallationProfileDeclaredModeCompose PlatformUpdateStatusInstallationProfileDeclaredMode = "compose"
+	PlatformUpdateStatusInstallationProfileDeclaredModeUnknown PlatformUpdateStatusInstallationProfileDeclaredMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileDeclaredMode enum.
+func (e PlatformUpdateStatusInstallationProfileDeclaredMode) Valid() bool {
+	switch e {
+	case PlatformUpdateStatusInstallationProfileDeclaredModeBinary:
+		return true
+	case PlatformUpdateStatusInstallationProfileDeclaredModeCompose:
+		return true
+	case PlatformUpdateStatusInstallationProfileDeclaredModeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateStatusInstallationProfileDetectedMode.
+const (
+	PlatformUpdateStatusInstallationProfileDetectedModeBinary  PlatformUpdateStatusInstallationProfileDetectedMode = "binary"
+	PlatformUpdateStatusInstallationProfileDetectedModeCompose PlatformUpdateStatusInstallationProfileDetectedMode = "compose"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileDetectedMode enum.
+func (e PlatformUpdateStatusInstallationProfileDetectedMode) Valid() bool {
+	switch e {
+	case PlatformUpdateStatusInstallationProfileDetectedModeBinary:
+		return true
+	case PlatformUpdateStatusInstallationProfileDetectedModeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateStatusLatestChannel.
+const (
+	Beta   PlatformUpdateStatusLatestChannel = "beta"
+	Stable PlatformUpdateStatusLatestChannel = "stable"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusLatestChannel enum.
+func (e PlatformUpdateStatusLatestChannel) Valid() bool {
+	switch e {
+	case Beta:
+		return true
+	case Stable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RequestPerformanceResponseRange.
 const (
 	RequestPerformanceResponseRangeN10m RequestPerformanceResponseRange = "10m"
@@ -4111,19 +4207,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case RestartRequired:
+	case SystemConfigItemRuntimeApplyModeRestartRequired:
 		return true
-	case RuntimeHot:
+	case SystemConfigItemRuntimeApplyModeRuntimeHot:
 		return true
-	case Unknown:
+	case SystemConfigItemRuntimeApplyModeUnknown:
 		return true
 	default:
 		return false
@@ -9774,6 +9870,15 @@ type EnvelopedPersonalAccessTokenListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformUpdateStatus defines model for enveloped-platform-update-status.
+type EnvelopedPlatformUpdateStatus struct {
+	Code    string               `json:"code"`
+	Data    PlatformUpdateStatus `json:"data"`
+	Message string               `json:"message"`
+	Success bool                 `json:"success"`
+	TraceId string               `json:"traceId"`
+}
+
 // EnvelopedRealtimeSubscriptionResponse defines model for enveloped-realtime-subscription-response.
 type EnvelopedRealtimeSubscriptionResponse struct {
 	// Code Existing canonical response code.
@@ -10748,6 +10853,45 @@ type PersonalAccessTokenSummary struct {
 	// TokenPrefix Non-secret display prefix used to identify the credential.
 	TokenPrefix string `json:"token_prefix"`
 }
+
+// PlatformUpdateStatus defines model for platform-update-status.
+type PlatformUpdateStatus struct {
+	Channel             PlatformUpdateStatusChannel `json:"channel"`
+	CheckError          *string                     `json:"check_error,omitempty"`
+	CheckedAt           *time.Time                  `json:"checked_at,omitempty"`
+	CurrentVersion      string                      `json:"current_version"`
+	InstallationProfile struct {
+		Capability   PlatformUpdateStatusInstallationProfileCapability   `json:"capability"`
+		DeclaredMode PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
+		DetectedMode PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
+		Guidance     string                                              `json:"guidance"`
+	} `json:"installation_profile"`
+	Latest *struct {
+		Channel      PlatformUpdateStatusLatestChannel `json:"channel"`
+		ChecksumsUrl *string                           `json:"checksums_url,omitempty"`
+		ManifestUrl  string                            `json:"manifest_url"`
+		Notes        string                            `json:"notes"`
+		PublishedAt  time.Time                         `json:"published_at"`
+		ServerDigest string                            `json:"server_digest"`
+		Version      string                            `json:"version"`
+		WebDigest    string                            `json:"web_digest"`
+	} `json:"latest,omitempty"`
+}
+
+// PlatformUpdateStatusChannel defines model for PlatformUpdateStatus.Channel.
+type PlatformUpdateStatusChannel string
+
+// PlatformUpdateStatusInstallationProfileCapability defines model for PlatformUpdateStatus.InstallationProfile.Capability.
+type PlatformUpdateStatusInstallationProfileCapability string
+
+// PlatformUpdateStatusInstallationProfileDeclaredMode defines model for PlatformUpdateStatus.InstallationProfile.DeclaredMode.
+type PlatformUpdateStatusInstallationProfileDeclaredMode string
+
+// PlatformUpdateStatusInstallationProfileDetectedMode defines model for PlatformUpdateStatus.InstallationProfile.DetectedMode.
+type PlatformUpdateStatusInstallationProfileDetectedMode string
+
+// PlatformUpdateStatusLatestChannel defines model for PlatformUpdateStatus.Latest.Channel.
+type PlatformUpdateStatusLatestChannel string
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -14120,6 +14264,26 @@ type GetPermissionsParams struct {
 
 // GetPermissionParams defines parameters for GetPermission.
 type GetPermissionParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPlatformUpdateCheckParams defines parameters for PostPlatformUpdateCheck.
+type PostPlatformUpdateCheckParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformUpdateStatusParams defines parameters for GetPlatformUpdateStatus.
+type GetPlatformUpdateStatusParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

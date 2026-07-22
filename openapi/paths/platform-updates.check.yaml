@@ -1,0 +1,23 @@
+post:
+  tags: [platform-update]
+  summary: Refresh self-update release discovery
+  operationId: postPlatformUpdateCheck
+  description: Reads and verifies upstream release manifests; it does not download artifacts or modify the installation.
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  responses:
+    '200':
+      description: Refreshed update discovery status.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-platform-update-status.yaml
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

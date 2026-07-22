@@ -98,6 +98,7 @@
         "scheduled-tasks",
         "tasks",
         "system-config",
+        "platform-update",
         "dashboard",
         "notifications",
         "announcements"
@@ -187,6 +188,10 @@
     },
     {
       "name": "system-config"
+    },
+    {
+      "name": "platform-update",
+      "description": "Self-hosted platform release discovery and installation capability preflight."
     },
     {
       "name": "access-log"
@@ -8543,6 +8548,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-system-config-item"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/platform/updates/status": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Read self-update discovery status",
+        "operationId": "getPlatformUpdateStatus",
+        "description": "Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update discovery status.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-status"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/platform/updates/check": {
+      "post": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Refresh self-update release discovery",
+        "operationId": "postPlatformUpdateCheck",
+        "description": "Reads and verifies upstream release manifests; it does not download artifacts or modify the installation.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refreshed update discovery status.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-status"
                 }
               }
             }
@@ -18298,6 +18401,12 @@
       "EnvelopedSystemConfigListResponse": {
         "$ref": "#/components/schemas/enveloped-system-config-list-response"
       },
+      "PlatformUpdateStatus": {
+        "$ref": "#/components/schemas/platform-update-status"
+      },
+      "EnvelopedPlatformUpdateStatus": {
+        "$ref": "#/components/schemas/enveloped-platform-update-status"
+      },
       "AccessLogDetailResponse": {
         "$ref": "#/components/schemas/access-log-detail-response"
       },
@@ -25413,6 +25522,142 @@
         "properties": {
           "value": {
             "description": "JSON value to store as the user override for the registered definition."
+          }
+        }
+      },
+      "platform-update-status": {
+        "type": "object",
+        "required": [
+          "current_version",
+          "channel",
+          "installation_profile"
+        ],
+        "properties": {
+          "current_version": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "stable",
+              "beta",
+              "unknown"
+            ]
+          },
+          "latest": {
+            "type": "object",
+            "required": [
+              "version",
+              "channel",
+              "notes",
+              "published_at",
+              "manifest_url",
+              "server_digest",
+              "web_digest"
+            ],
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string",
+                "enum": [
+                  "stable",
+                  "beta"
+                ]
+              },
+              "notes": {
+                "type": "string"
+              },
+              "published_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "manifest_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "server_digest": {
+                "type": "string"
+              },
+              "web_digest": {
+                "type": "string"
+              },
+              "checksums_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          },
+          "installation_profile": {
+            "type": "object",
+            "required": [
+              "declared_mode",
+              "detected_mode",
+              "capability",
+              "guidance"
+            ],
+            "properties": {
+              "declared_mode": {
+                "type": "string",
+                "enum": [
+                  "compose",
+                  "binary",
+                  "unknown"
+                ]
+              },
+              "detected_mode": {
+                "type": "string",
+                "enum": [
+                  "compose",
+                  "binary"
+                ]
+              },
+              "capability": {
+                "type": "string",
+                "enum": [
+                  "compose_upgrade_available",
+                  "manual_guidance"
+                ]
+              },
+              "guidance": {
+                "type": "string"
+              }
+            }
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "check_error": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-platform-update-status": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-status"
           }
         }
       },

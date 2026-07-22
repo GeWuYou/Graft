@@ -14,6 +14,7 @@ x-tagGroups:
       - scheduled-tasks
       - tasks
       - system-config
+      - platform-update
       - dashboard
       - notifications
       - announcements
@@ -56,6 +57,8 @@ tags:
   - name: tasks
     description: Platform Task Runtime history and operator controls.
   - name: system-config
+  - name: platform-update
+    description: Self-hosted platform release discovery and installation capability preflight.
   - name: access-log
   - name: app-log
   - name: dashboard
@@ -214,6 +217,10 @@ paths:
     $ref: ./paths/system-config.detail.yaml
   /api/system-configs/{key}/reset:
     $ref: ./paths/system-config.reset.yaml
+  /api/platform/updates/status:
+    $ref: ./paths/platform-updates.status.yaml
+  /api/platform/updates/check:
+    $ref: ./paths/platform-updates.check.yaml
   /api/access-log:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
@@ -703,6 +710,10 @@ components:
       $ref: ./components/schemas/enveloped-system-config-item.yaml
     EnvelopedSystemConfigListResponse:
       $ref: ./components/schemas/enveloped-system-config-list-response.yaml
+    PlatformUpdateStatus:
+      $ref: ./components/schemas/platform-update-status.yaml
+    EnvelopedPlatformUpdateStatus:
+      $ref: ./components/schemas/enveloped-platform-update-status.yaml
     AccessLogDetailResponse:
       $ref: ./components/schemas/access-log-detail-response.yaml
     AccessLogListResponse:

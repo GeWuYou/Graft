@@ -138,3 +138,9 @@ rbac.permissionCatalog.applicationTemplatePublish.display: Publish Application T
 rbac.permissionCatalog.applicationTemplatePublish.description: Publish immutable Application template versions for creators.
 rbac.audit.rolePermissionsAdded: Role permissions added
 rbac.audit.rolePermissionsRemoved: Role permissions removed
+rbac.permissionCatalog.platformUpdateRead.display: View Platform Updates
+rbac.permissionCatalog.platformUpdateRead.description: Allows reading release discovery and installation capability.
+rbac.permissionCatalog.platformUpdateCheck.display: Check Platform Updates
+rbac.permissionCatalog.platformUpdateCheck.description: Allows refreshing verified release discovery.
+rbac.permissionCatalog.platformUpdateManage.display: Manage Platform Updates
+rbac.permissionCatalog.platformUpdateManage.description: Reserved for future confirmed upgrade and recovery operations.

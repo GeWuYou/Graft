@@ -1,0 +1,23 @@
+get:
+  tags: [platform-update]
+  summary: Read self-update discovery status
+  operationId: getPlatformUpdateStatus
+  description: Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade.
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  responses:
+    '200':
+      description: Update discovery status.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-platform-update-status.yaml
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

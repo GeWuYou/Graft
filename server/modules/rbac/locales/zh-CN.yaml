@@ -138,3 +138,9 @@ rbac.permissionCatalog.applicationTemplatePublish.display: 发布应用模板
 rbac.permissionCatalog.applicationTemplatePublish.description: 发布供创建者使用的不可变应用模板版本。
 rbac.audit.rolePermissionsAdded: 角色权限已追加
 rbac.audit.rolePermissionsRemoved: 角色权限已移除
+rbac.permissionCatalog.platformUpdateRead.display: 查看平台更新
+rbac.permissionCatalog.platformUpdateRead.description: 允许读取发行发现结果和安装能力。
+rbac.permissionCatalog.platformUpdateCheck.display: 检查平台更新
+rbac.permissionCatalog.platformUpdateCheck.description: 允许刷新经过验证的发行发现结果。
+rbac.permissionCatalog.platformUpdateManage.display: 管理平台更新
+rbac.permissionCatalog.platformUpdateManage.description: 预留给后续经确认的升级和恢复操作。

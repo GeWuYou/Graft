@@ -17,6 +17,7 @@ import (
 	securitymodule "graft/server/modules/security"
 	system_configmodule "graft/server/modules/system-config"
 	taskmodule "graft/server/modules/task"
+	updatemodule "graft/server/modules/update"
 	usermodule "graft/server/modules/user"
 )
 
@@ -35,6 +36,7 @@ var generatedModuleSpecs = []module.Spec{
 	securitymodule.NewModuleSpec(),
 	system_configmodule.NewModuleSpec(),
 	taskmodule.NewModuleSpec(),
+	updatemodule.NewModuleSpec(),
 	usermodule.NewModuleSpec(),
 }
 

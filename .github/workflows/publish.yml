@@ -699,6 +699,27 @@ jobs:
           name: image-assets
           path: release-assets
 
+      - name: Write release manifest
+        env:
+          RELEASE_VERSION: ${{ needs.build-artifacts.outputs.version }}
+          RELEASE_CHANNEL: ${{ needs.build-artifacts.outputs.channel }}
+          SERVER_DIGEST: ${{ needs.publish-images.outputs.server_digest }}
+          WEB_DIGEST: ${{ needs.publish-images.outputs.web_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-assets/release-manifest.json <<EOF
+          {
+            "version": "${RELEASE_VERSION}",
+            "channel": "${RELEASE_CHANNEL}",
+            "images": {
+              "server": { "digest": "${SERVER_DIGEST}" },
+              "web": { "digest": "${WEB_DIGEST}" }
+            },
+            "migration": { "atlas": "required" }
+          }
+          EOF
+
       - name: Generate release notes
         id: cliff_release
         uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5
