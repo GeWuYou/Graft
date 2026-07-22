@@ -121,7 +121,7 @@ func (r *Runtime) handleOpenAPIYAML(ctx *gin.Context) {
 }
 
 func (r *Runtime) handleOpenAPIDocs(ctx *gin.Context) {
-	html, err := renderScalarDocsHTML(openapiJSONPath)
+	html, err := renderScalarDocsHTML(openapiJSONPath, r.openapiDocs.summary)
 	if err != nil {
 		if r.logger != nil {
 			r.appLogger().Error(ctx.Request.Context(), "render docs page", logger.ErrorField(err))

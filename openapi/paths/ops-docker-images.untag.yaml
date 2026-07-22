@@ -1,4 +1,5 @@
 post:
+  tags: [container]
   operationId: postDockerImageUntag
   summary: Remove a Docker image tag
   description: Removes the specified Repository:Tag reference only after the server verifies it currently belongs to the Image ID. This operation never forces image deletion.

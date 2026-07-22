@@ -2,12 +2,42 @@ openapi: 3.1.0
 info:
   title: Graft Server API
   version: 0.1.0-phase-2a
-  description: |
-    Establishes the OpenAPI-owned contract and validation loop for the existing
-    server runtime while preserving current business behavior, response envelope
-    semantics, and auth/session transport ownership.
+  description: Graft Server API is described using OpenAPI 3.1 and provides unified API documentation, interactive testing, and client code generation.
 x-graft-mcp-schema:
   $ref: ./components/schemas/graft-mcp-operation-metadata.yaml
+x-tagGroups:
+  - name: Platform
+    tags:
+      - health
+      - mcp
+      - modules
+      - scheduled-tasks
+      - tasks
+      - system-config
+      - dashboard
+      - notifications
+      - announcements
+  - name: Security
+    tags:
+      - auth
+      - users
+      - rbac
+      - security
+      - audit
+  - name: Applications
+    tags:
+      - application
+  - name: Infrastructure
+    tags:
+      - runtime-target
+  - name: Resources
+    tags:
+      - container
+  - name: Observability
+    tags:
+      - monitor
+      - access-log
+      - app-log
 servers:
   - url: /
 security:

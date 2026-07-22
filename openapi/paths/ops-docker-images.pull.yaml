@@ -1,4 +1,5 @@
 post:
+  tags: [container]
   operationId: postDockerImagePull
   summary: Pull a Docker image through the configured daemon
   requestBody:

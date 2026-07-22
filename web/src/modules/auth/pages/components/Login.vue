@@ -15,7 +15,7 @@
           autocomplete="username"
           name="username"
           size="large"
-          :placeholder="`${t('app.auth.login.input.account')}：admin`"
+          :placeholder="`${t('app.auth.login.input.account')}：graft`"
         >
           <template #prefix-icon>
             <t-icon name="user" />
@@ -31,7 +31,7 @@
           size="large"
           :type="showPsw ? 'text' : 'password'"
           clearable
-          :placeholder="`${t('app.auth.login.input.password')}：admin`"
+          :placeholder="`${t('app.auth.login.input.password')}：graft-admin`"
         >
           <template #prefix-icon>
             <t-icon name="lock-on" />

@@ -1,4 +1,5 @@
 post:
+  tags: [container]
   operationId: postDockerImageRemove
   summary: Remove a Docker image
   parameters:
