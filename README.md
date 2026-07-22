@@ -1,548 +1,127 @@
-# Graft
+<p align="center">
+  <img src="web/public/favicon.svg" width="72" alt="Graft logo">
+</p>
 
-Graft is a composable admin platform built with Go and Vue 3.
+<h1 align="center">Graft</h1>
 
-License: `AGPL-3.0-only`. See the repository root [LICENSE](LICENSE).
+<p align="center"><strong>A self-hosted application platform.</strong></p>
 
-The project is not a single-purpose business application and is not a dynamic extension marketplace. Its current
-architecture is a module-oriented modular monolith: the backend composes business capabilities through compile-time
-modules, while the frontend provides a Vue 3 admin shell with module-owned feature pages.
+<p align="center">Manage Compose applications, their Docker runtime, and the operational signals around them from one place.</p>
 
-Current baseline:
+<p align="center">
+  <a href="https://github.com/GeWuYou/Graft/tags"><img src="https://img.shields.io/github/v/tag/GeWuYou/Graft?sort=semver&label=release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-0e7490.svg" alt="AGPL-3.0-only license"></a>
+  <img src="https://img.shields.io/badge/backend-Go-00ADD8.svg?logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/frontend-Vue%203-42b883.svg?logo=vuedotjs&logoColor=white" alt="Vue 3">
+</p>
 
-- Backend: `Go + Gin + Ent + PostgreSQL + Redis`
-- Frontend: `Vue 3 + TypeScript + Vite`
-- UI: `TDesign Vue Next`
-- Architecture: compile-time modules in a modular monolith
-- Dependency model: lightweight DI and explicit service registration, not a heavyweight IoC container
+<p align="center"><a href="README.zh-CN.md">简体中文</a> · <a href="#quick-start">Quick start</a> · <a href="#documentation">Documentation</a> · <a href="#contributing">Contributing</a></p>
 
-## Documentation
+![Runtime targets in Graft](docs/images/runtime-targets-en.png)
 
-- [Project design](ai-plan/design/architecture/项目设计.md)
-- [Module and dependency injection design](ai-plan/design/architecture/模块与依赖注入设计.md)
-- [Frontend architecture design](ai-plan/design/architecture/前端架构设计.md)
-- [Contract and magic-value governance](ai-plan/design/governance/platform/契约治理与魔法值治理规范.md)
-- [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md)
-- [AI task tracking and recovery design](ai-plan/design/governance/ai/AI任务追踪与恢复设计.md)
-- [AI Plan recovery index](ai-plan/public/README.md)
-- [AI environment inventory](.ai/environment/README.md)
+## What is Graft?
 
-For repository-level coding, validation, startup, and commit rules, read [AGENTS.md](AGENTS.md) first. Backend-specific
-execution rules live in [server/AGENTS.md](server/AGENTS.md), and frontend-specific execution rules live in
-[web/AGENTS.md](web/AGENTS.md).
+Graft is a self-hosted application platform for teams that run Compose applications on Docker. It keeps application records, runtime targets, container resources, and operational views in a single admin surface instead of scattering them across separate tools.
 
-## Current State
+Its current deployment adapter is Compose and its current runtime target is Local Docker. Those boundaries are deliberate: Graft does not present unfinished providers as supported integrations.
 
-The repository is in the MVP convergence stage. The priority is to stabilize the backend runtime, module boundaries,
-real server/web contracts, and the minimum admin platform loop around:
+## Highlights
 
-- `auth`
-- `user`
-- `rbac`
-- `audit`
-- `scheduler`
+|                          |                                                                                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Application first**    | Register, create, import, template, configure, and operate Compose applications as application-level resources.                                      |
+| **Unified runtime**      | Connect application records to a Local Docker target and inspect containers, images, networks, volumes, events, logs, and controlled shell sessions. |
+| **Observability**        | Review runtime health, resource trends, dependencies, request performance, access logs, application logs, and audit events.                          |
+| **OpenAPI first**        | OpenAPI 3.1 is the shared API contract; the web client generates its API types from that source.                                                     |
+| **Developer experience** | Go modules, a Vue 3 admin shell, explicit runtime wiring, and Compose deployment keep the extension path visible.                                    |
 
-Business behavior belongs under `server/modules/*`. Stable cross-module backend contracts belong under
-`server/internal/moduleapi/**` or another documented stable boundary. Frontend business capabilities should default to
-`web/src/modules/<name>`.
+## Why Graft?
 
-The repository also keeps `.ai/environment/` as generated environment truth:
+Graft treats Docker and Compose as runtime capabilities, not as the product boundary. The application remains the unit you manage; runtime state and observability remain connected to it.
 
-- `.ai/environment/tools.raw.yaml` records raw local machine and repository facts.
-- `.ai/environment/tools.ai.yaml` records the condensed inventory used by AI agents and contributors.
+| Layer           | Current responsibility                                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------- |
+| **Application** | Compose application records, templates, lifecycle actions, configuration workspace, and application logs. |
+| **Runtime**     | Local Docker discovery, resource inventory, runtime health, container actions, and real-time signals.     |
+| **Platform**    | Authentication, RBAC, audit, scheduler, notifications, system configuration, and OpenAPI contracts.       |
 
-## Optional Just Developer Entrypoint
+## Quick Start
 
-The repository root [Justfile](Justfile) provides an optional contributor-facing entrypoint for common local tasks. It
-is a convenience wrapper, not a new source of truth.
-
-Authority remains with the underlying repository entrypoints:
-
-- Go CLI commands under `server/cmd/graft`
-- `web/package.json` scripts such as `bun run dev` and `bun run check`
-- root and `scripts/**` automation such as `scripts/install-git-hooks.sh` and `scripts/openapi-bundle.mjs`
-- the root `compose.yml` plus normal `docker compose` commands
-
-Recommended first-run path:
+Graft publishes server and web images to GHCR. A Docker host with Docker Compose is required.
 
 ```bash
-just setup
-just dev
-just web
-just check
-```
-
-Other common shortcuts:
-
-```bash
-just generate
-just compose-up
-```
-
-Notes:
-
-- `just setup` installs root and `web` Bun dependencies, then warms server Go modules with `go mod download`.
-- `just check` wraps `cd server && go run ./cmd/graft validate backend` and `cd web && bun run check`.
-- `just check-server` and `just check-web` expose the authoritative backend and frontend completion entrypoints separately.
-- `just check-changed` picks the smallest local check for the current diff, then escalates to `just check` for shared governance, contract, or cross-boundary changes.
-- `just generate` runs `cd server && go generate ./...`, the root OpenAPI bundle script, and frontend OpenAPI type
-  generation.
-- `just compose-up` runs `docker compose up -d` from the repository root; compose behavior and deployment authority
-  remain documented below.
-
-The rest of this README keeps the underlying commands visible because those remain the authoritative reference for
-validation, migration, generation, git hooks, and compose behavior.
-
-## Local Quality Entry Points
-
-The repository keeps one local completion command and a few narrower diagnostics:
-
-```bash
-just check
-just check-server
-just check-web
-just check-changed
-just lint-server
-just buildtest-server
-just lint-web
-just test-web
-just check-path server/modules/project/service.go
-just check-path web/src/modules/project/pages/detail/index.test.ts
-```
-
-Command map:
-
-- `just check` is the default local completion path for contributors and agents.
-- `just check-server` and `just check-web` keep the backend and frontend completion chains explicit.
-- `just check-changed` is the preferred incremental local command when the current diff stays within one side.
-- `just check-path <path>` is a focused diagnostic helper, not a completion-state substitute.
-
-Authoritative validation truth remains unchanged:
-
-- backend completion: `cd server && go run ./cmd/graft validate backend`
-- backend lint stage: `cd server && go run ./cmd/graft validate backend --stage lint`
-- backend build/test stage: `cd server && go run ./cmd/graft validate backend --stage buildtest`
-- frontend completion: `cd web && bun run check`
-
-## Local Server
-
-The server uses `.env` as its primary local runtime configuration source. The recommended IDE working directory is
-`server`. If the command is launched from the repository root, the server falls back to `server/.env`; if it is launched
-from a nested server directory such as `server/cmd/graft`, it walks upward to the same `server/.env`.
-
-Minimal startup:
-
-1. Copy `server/.env.example` to `server/.env`.
-2. Set the local auth secrets in `server/.env`.
-3. Prefer the optional root shortcut:
-
-```bash
-just dev
-```
-
-4. Or run the authoritative development entrypoint directly:
-
-```bash
-cd server
-go run ./cmd/graft dev
-```
-
-If auth secrets are missing, startup fails with:
-
-```text
-GRAFT_AUTH_JWT_SECRET or GRAFT_AUTH_SIGNING_KEY is required
-```
-
-To generate local auth secret values:
-
-```bash
-cd server
-go run ./cmd/graft-jwt-secret
-go run ./cmd/graft-signing-key
-```
-
-Each command prints one config line that can be pasted into `server/.env`.
-
-`graft dev` is the local development supervisor. It runs explicit migrations first and starts the service only after
-migrations succeed. This does not change `graft serve`, which remains the pure runtime startup command.
-
-### Hot Reload
-
-The repository provides a fixed Air configuration for local server rebuilds:
-
-```bash
-cd server
-go run ./cmd/graft dev air
-```
-
-Notes:
-
-- Air is pinned as a dev-only Go tool dependency in `server/go.mod`.
-- Air rebuilds the server binary and restarts the serve child process.
-- Air does not run `graft dev` or `graft migrate up`.
-- Server config loading remains owned by the server `.env` lookup rules.
-
-Recommended hot-reload flow:
-
-```bash
-cd server
-go run ./cmd/graft migrate up
-go run ./cmd/graft dev air
-```
-
-Run `graft migrate up` before hot reload on first startup or after schema/migration changes. For a one-shot
-"migrate then start" flow, keep using `go run ./cmd/graft dev`.
-
-### Reset the Local Admin
-
-For repeated local verification of the default admin forced-password-change flow:
-
-```bash
-cd server
-go run ./cmd/graft dev reset-admin
-```
-
-This dev-only command is allowed only when `GRAFT_APP_ENV=local` or `test`. It ensures the default admin user `graft`
-exists, resets the password to `graft-admin`, and sets `must_change_password=true`.
-
-After running it, clear browser `localStorage` and `sessionStorage`, then log in with `graft / graft-admin`.
-
-### Split Migration and Runtime Startup
-
-If you need to run migrations and startup separately:
-
-```bash
-cd server
-go run ./cmd/graft migrate up
-go run ./cmd/graft serve
-```
-
-Important server notes:
-
-- The root `graft` command only prints help; it does not start the service.
-- `graft dev` and `graft migrate up` require the Atlas CLI.
-- The default migration chain is owner-aligned across live core-owned and module-owned migration directories.
-- The historical shared Ent migration directory is retained only for explicit manual or diagnostic use.
-- After adding, renaming, or editing migration files, refresh the corresponding Atlas hash before rerunning migrations.
-- `graft serve` connects to PostgreSQL and Redis before serving; unavailable dependencies fail startup.
-- In GoLand or another IDE, use working directory `server`, program entry `./cmd/graft`, and argument `dev`.
-
-### Release Safety Baseline
-
-The current `v0.1.0` release-governance baseline is documentation-first and operator-controlled:
-
-- live database evolution is governed as forward-only migration application
-- `graft serve` does not apply migrations; use `graft migrate up` or `graft dev`
-- upgrade preparation should verify database backup and restore capability before applying live migrations
-- rollback support is manual and documentation-based; the repository does not currently promise automatic database or
-  config rollback helpers
-- stable config rename, removal, or semantic re-interpretation must be called out in release notes and upgrade notes;
-  alias bridges are not assumed by default
-
-### Release Identity Baseline
-
-The current `v0.1.0` release identity and support baseline is:
-
-- the canonical official release identity is the repository Git tag `vMAJOR.MINOR.PATCH`
-- official `server` and `web` release artifacts, plus release notes, must come from the same release tag
-- Beta test releases use `vMAJOR.MINOR.PATCH-beta.N`; they are GitHub Pre-releases, may contain incompatible work, and
-  are not supported upgrade targets for regular operators
-- choose the `beta` channel from the GitHub Actions `Release` workflow on `main` to calculate and publish the next
-  Beta tag automatically; no local tag creation is required
-- a Beta publish creates only `beta` and its immutable `vMAJOR.MINOR.PATCH-beta.N` GHCR tags; it never updates
-  `latest`, which remains stable-release only
-- migration version numbers are internal ordering identifiers, not product versions and not compatibility labels
-- the minimal `BuildInfo` / `graft version` baseline is `version`, `git_commit`, `build_time_utc`, and
-  `git_tree_state`
-- `graft version` now exposes the canonical server build identity without starting runtime dependencies
-- `.github/workflows/publish.yml` injects those four fields into tagged release server binaries with Go ldflags; the
-  publish path sets `version` from the Git tag, `git_commit` from the tagged commit, `build_time_utc` from the UTC
-  build timestamp, and `git_tree_state=clean`
-- when local builds do not inject ldflags, the fallback identity remains explicit as `dev` / `unknown`
-- `v0.1.0` does not promise LTS lines, independent `server` / `web` release trains, or mixed-version compatibility
-
-For a disposable remote test deployment, set `GRAFT_IMAGE_TAG=beta`. Pin `GRAFT_IMAGE_TAG` to a specific Beta tag when
-investigating an issue or rolling back.
-
-Windows PowerShell / CMD can use the same Go command:
-
-```powershell
-cd server
-go run ./cmd/graft dev
-```
-
-If the CLI has already been built:
-
-```powershell
-cd server
-.\graft.exe dev
-```
-
-## Server Validation
-
-Optional wrapper:
-
-```bash
-just check
-```
-
-`just check` includes the authoritative backend completion entrypoint below, then runs the authoritative frontend
-completion entrypoint.
-
-The backend completion entrypoint is:
-
-```bash
-cd server
-go run ./cmd/graft validate backend
-```
-
-The repository pins `golangci-lint v2.12.2` and requires local development, AI agents, and CI to reuse this backend
-validation entrypoint instead of maintaining separate blocking lint commands.
-
-Backend completion order:
-
-1. Migration version gate
-2. `graft validate backend --stage lint`
-3. Smallest directly relevant `go test` scope
-4. `go build ./cmd/graft`
-5. `graft validate smoke` when a runtime startup proof is needed
-
-The backend blocking lint gate is changed-file scoped against the resolved base branch using
-`--new-from-rev=<merge-base> --whole-files`. Untouched files are not blocking gate failures. Full-repository lint is
-audit-only backlog scanning. New code must not expand the lint backlog.
-
-## Local Web
-
-Local frontend configuration should not commit real `web/.env.development` values. The committed file is
-`web/.env.example`; local `.env` files remain ignored.
-
-Minimal startup:
-
-1. In the canonical repository root, copy `web/.env.example` to `web/.env.development`.
-2. Set `VITE_API_TARGET` to the local backend address.
-3. Prefer the optional root shortcut:
-
-```bash
-just web
-```
-
-4. Or start the authoritative Vite entrypoint directly:
-
-```bash
-cd web
-bun run dev
-```
-
-Default development request flow:
-
-- Browser requests go to `http://localhost:3002/api/...`.
-- The core health probe is available at `http://localhost:3002/healthz`.
-- The Vite dev proxy forwards `/api` requests, `/healthz`, and `/ws` to `VITE_API_TARGET`.
-
-Notes:
-
-- Keep `web/.env.development`, `web/.env.local`, and other `web/.env.*` local files untracked.
-- `web/.env.example` is only a shared template and must not contain personal secrets or machine-specific addresses.
-- When reusable agent worktrees exist, keep one canonical `web/.env.development` and let Worktree Manager create
-  relative symlinks instead of copying per-worktree local config.
-
-## Web Validation
-
-Optional wrapper:
-
-```bash
-just check
-```
-
-`just check` includes the authoritative frontend completion entrypoint below, together with backend validation.
-
-The frontend completion entrypoint is:
-
-```bash
-cd web
-bun run check
-```
-
-`bun run check` currently runs:
-
-```text
-format:check -> typecheck -> openapi:frontend-governance:check -> lint:i18n -> lint -> stylelint -> hygiene:check -> test:run -> build
-```
-
-Focused commands are fine during development, but completion, handoff, and merge readiness should use `bun run check`
-unless the task explicitly reports why a narrower validation was used.
-
-## Container Deployment
-
-The tagged release workflow publishes two container images to GHCR:
-
-- `graft-server`
-- `graft-web`
-
-The default deployment entrypoint is the repository root `compose.yml`.
-
-Minimal startup:
-
-1. Copy `compose.env.example` to `.env`.
-2. Set the image coordinates and runtime secrets in `.env`.
-3. Optional shortcut for the common start path:
-
-```bash
-just compose-up
-```
-
-4. Run `docker compose` from the repository root so relative paths resolve against the checked-out deployment files.
-5. Pull and start the stack with the authoritative commands:
-
-```bash
+git clone https://github.com/GeWuYou/Graft.git
+cd Graft
+cp compose.env.example .env
+# Set strong values for POSTGRES_PASSWORD and GRAFT_AUTH_JWT_SECRET in .env.
 docker compose pull
 docker compose up -d
 ```
 
-Compose startup semantics:
+Open [http://localhost:3000](http://localhost:3000). The Compose stack brings up PostgreSQL and Redis, runs database migrations through the one-shot bootstrap service, then starts the server and web services.
 
-- `postgres` and `redis` start first.
-- `bootstrap` runs as a one-shot init service.
-- The current `bootstrap` implementation executes `graft migrate up` and expects a clean deployment database state.
-- `server` starts only after `bootstrap` exits successfully.
-- `web` starts only after `server` becomes healthy.
+On the first sign-in, use the default administrator credentials `graft` / `graft-admin`. Graft requires this initial password to be changed before the admin shell can be used.
 
-Important deployment notes:
-
-- `server` itself does not auto-migrate the database.
-- Database change authority remains the explicit CLI command `graft migrate up`.
-- Compose only orchestrates that step into the startup flow; it does not move migration logic into runtime startup.
-- The `--allow-dirty` retry path is limited to the local `graft dev` bootstrap flow for disposable development databases.
-- The `bootstrap` service is the future extension point for other one-time initialization tasks such as seed data,
-  license initialization, storage validation, or plugin preflight checks.
-- The default `compose.yml` anchors the PostgreSQL bind mount at `${COMPOSE_FILE_DIR:-.}/.data/postgres` so deployment
-  data stays beside the compose file instead of in an anonymous Docker-managed location.
-- `.env` must exist at the repository root next to `compose.yml` before `docker compose up`; compose will fail fast if
-  the file is missing.
-- Optional deployment and core startup overrides belong in `.env`. Administrator runtime policies are managed in
-  System Config after startup; do not duplicate them in the compose environment file.
-- The root `compose.yml` is a container deployment entrypoint, not a local Vite development entrypoint. Keep
-  `VITE_*` variables in `web/.env.*`; they remain development-only and do not belong in the root compose template.
-- If `GRAFT_DATABASE_URL` is left unset, `bootstrap` and `server` default to the bundled `postgres` service. Set
-  `GRAFT_DATABASE_URL` explicitly when you want those containers to use an external PostgreSQL instance instead.
-- If `GRAFT_REDIS_ADDR` is left unset, `bootstrap` and `server` default to the bundled `redis` service. Set
-  `GRAFT_REDIS_ADDR` explicitly when you want those containers to use an external Redis instance instead.
-- If you set `GRAFT_REDIS_PASSWORD`, the bundled `redis` service will start with `requirepass`, and the server-side
-  services will use the same password through their normal runtime configuration.
-- If you override `GRAFT_HTTP_ADDR`, also keep `GRAFT_SERVER_EXPOSE_PORT` and `GRAFT_SERVER_UPSTREAM` aligned with the
-  same internal server port so the `web` container can still reach the `server` container.
-- `web` runtime proxying is controlled by `GRAFT_SERVER_UPSTREAM`, and the published host port defaults to `3000` unless
-  you override `GRAFT_WEB_HOST_PORT`.
-- The bundled `web` nginx runtime proxies both `/api/*` HTTP traffic and the unified realtime `/ws` WebSocket gateway
-  to the `server` container. If you replace that proxy with your own ingress or reverse proxy, you must preserve
-  WebSocket upgrade handling for `/ws` in addition to the normal `/api/*` forwarding.
-- When the root compose deployment leaves `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` unset, `compose.yml` derives a
-  default allowlist from `GRAFT_WEB_HOST_PORT`, permitting
-  `http://127.0.0.1:<port>` and `http://localhost:<port>` by default so local browser access does not require an extra
-  manual setting.
-- If the browser reaches the deployment through HTTPS, a custom hostname, or a reverse proxy, override
-  `GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS` explicitly to match the real browser-visible web origin. The same allowlist
-  also gates the unified realtime `/ws` gateway, so LAN-IP or domain-based deployments must set it correctly for
-  container stats and other realtime subscriptions to connect.
-- The root Compose file mounts `/var/run/docker.sock` into `server` and starts the image entrypoint as root only long
-  enough to discover the socket group, add `graft` to that group, and then run `/app/graft serve` as `graft`.
-- Docker provider configuration is deployment-owned, but container access, Shell, dangerous actions, log limits, and
-  sampling remain System Config policies. Socket availability alone does not bypass those policies.
-- The `web` container does not read the root `.env` file directly; only the server-side services receive those secrets.
-- Production docs are disabled by default. Set `GRAFT_DOCS_ENABLED=true` only when you intentionally want `/docs` and
-  OpenAPI endpoints exposed.
-
-Compose variants:
-
-- Use `compose.named-volume.yml` if you prefer a Docker named volume for PostgreSQL data instead of `./.data/postgres`.
-- Docker container management is included in the default `compose.yml`; no additional overlay is required.
-- If container management reports permission denied, verify that the host Docker Socket is accessible and that the
-  server container can resolve its socket group. The container process itself still runs as `graft` after startup.
-
-Examples:
+For local development, use the source-tree entrypoints:
 
 ```bash
-docker compose -f compose.yml -f compose.named-volume.yml up -d
-docker compose up -d
-```
+# Terminal 1
+cd server
+go run ./cmd/graft dev
 
-To reproduce the local contract-governance changed scan:
-
-```bash
+# Terminal 2
 cd web
-bun run contract:check:changed
+bun run dev
 ```
 
-## Worktrees
+See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost.
 
-Worktrees are reusable AI-agent temporary workspaces, not long-lived feature branches. `main` is the stable baseline;
-the developer-owned primary checkout is the integration and review workspace and may use whichever branch the current
-integration needs.
+## Screenshots
 
-Use Worktree Manager rather than private setup scripts or routine `git worktree add/remove` commands:
+### Application management
+
+![Application management](docs/images/applications-en.png)
+
+### Observability
+
+![System runtime overview](docs/images/observability-en.png)
+
+### Containers
+
+![Docker containers](docs/images/containers-en.png)
+
+## Documentation
+
+- [Project design](ai-plan/design/architecture/项目设计.md) explains the platform boundary and module-oriented architecture.
+- [Module and dependency injection design](ai-plan/design/architecture/模块与依赖注入设计.md) describes runtime composition.
+- [Frontend architecture](ai-plan/design/architecture/前端架构设计.md) documents the Vue admin shell and module ownership.
+- [OpenAPI contract](openapi/openapi.yaml) is the canonical HTTP API description.
+- [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md) records the currently approved platform scope.
+
+## Roadmap
+
+Graft is focused on completing and hardening its existing application, runtime, observability, and platform loops. Planned work is tracked in the [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md); this README only describes capabilities that are present in the repository.
+
+## Contributing
+
+Read [AGENTS.md](AGENTS.md) for repository conventions, startup rules, and validation entrypoints. The default local completion command is:
 
 ```bash
-python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py status
-python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py acquire feature/runtime-target
-python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py release --confirm-integrated <commit-or-ref>
-python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py reconcile --confirm 01 02 03
-python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
+just check
 ```
 
-- `acquire` fetches `origin`, reuses the lowest clean numbered `.worktrees/01` style directory even when its cached
-  baseline is stale, synchronizes it to the current `origin/main`, then creates a unique task branch.
-- `release` first prints a review summary. Only after a developer confirms that the branch was merged or cherry-picked
-  does it restore the directory to its local-only `main-01` style pool marker and remove the local task branch.
-- `reconcile --confirm 01 02 03` converts selected clean legacy detached slots to `main-01`, `main-02`, and `main-03`
-  and refreshes them to the current baseline. It refuses dirty or divergent slots.
-- Agents may commit their task branch but never perform the final merge or cherry-pick. Developers integrate in the
-  primary checkout.
-- `main-XX` pool marker branches are local-only, have no upstream, and are never valid `$graft-push` targets.
-- Atlas migrations, generated code, OpenAPI clients, lock files, and snapshots are linear resources; final generation
-  and conflict resolution occur in the developer integration workspace.
-- The manager uses `.worktree-shared.json` for relative shared-resource links and never relies on `.local`.
-- `relocate --confirm` is the developer-approved, one-time migration for clean legacy sibling worktrees. It moves them
-  into `.worktrees/<slot>` and rebuilds declared shared-resource links; it refuses dirty or non-baseline pool slots
-  but does not depend on unrelated primary-workspace changes.
+For narrower work, use `cd server && go run ./cmd/graft validate backend` for server changes and `cd web && bun run check` for web changes.
 
-The shared local-resource source of truth is `.worktree-shared.json`, not `.local`.
+## License
 
-## Git Hooks
+Graft is licensed under [AGPL-3.0-only](LICENSE).
 
-The repository Git hooks source of truth is the root `.husky/` directory, not a `prepare` script in
-`web/package.json`.
+## Star History
 
-After initializing a clone or worktree:
-
-```bash
-just setup
-```
-
-`just setup` helps install dependencies, but hook installation authority remains the repository script below:
-
-```bash
-sh scripts/install-git-hooks.sh
-```
-
-Verify the hook path:
-
-```bash
-git config --get core.hooksPath
-```
-
-Expected output:
-
-```text
-.husky
-```
-
-## Development Rules
-
-- Read root [AGENTS.md](AGENTS.md) before changing code or structure.
-- Read `server/AGENTS.md` for backend work and `web/AGENTS.md` for frontend work.
-- Fix the highest incorrect source of truth when code, generated artifacts, and docs drift.
-- Do not add compatibility layers, aliases, or fallback mappings before proving why the canonical authority cannot be
-  repaired directly.
-- Keep backend business behavior in `server/modules/*`.
-- Keep frontend module behavior in `web/src/modules/<name>`.
-- Use repository validation entrypoints instead of inventing second validation contracts.
+<a href="https://www.star-history.com/?repos=GeWuYou%2FGraft&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=GeWuYou/Graft&type=date&theme=dark&legend=top-left&sealed_token=bZsfuLebiyxvCHaxsmMnS0lBafr-7iguLkD4iWQe7CeLm1HSgvgjpWgYochrIVVfWYegBQ--p_ESH218NGe507pi7MawLenhJ2o4uTfAePVXSqOLKDVgJw">
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=GeWuYou/Graft&type=date&legend=top-left&sealed_token=bZsfuLebiyxvCHaxsmMnS0lBafr-7iguLkD4iWQe7CeLm1HSgvgjpWgYochrIVVfWYegBQ--p_ESH218NGe507pi7MawLenhJ2o4uTfAePVXSqOLKDVgJw">
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=GeWuYou/Graft&type=date&legend=top-left&sealed_token=bZsfuLebiyxvCHaxsmMnS0lBafr-7iguLkD4iWQe7CeLm1HSgvgjpWgYochrIVVfWYegBQ--p_ESH218NGe507pi7MawLenhJ2o4uTfAePVXSqOLKDVgJw">
+  </picture>
+</a>
