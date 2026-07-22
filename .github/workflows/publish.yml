@@ -169,7 +169,7 @@ jobs:
       is_prerelease: ${{ needs.build-artifacts.outputs.is_prerelease }}
       server_digest: ${{ steps.server_build.outputs.digest }}
       web_digest: ${{ steps.web_build.outputs.digest }}
-      runner_digest: ${{ steps.runner_asset.outputs.digest }}
+      runner_digest: ${{ steps.runner_build.outputs.digest }}
 
     steps:
       - name: Checkout repository at tag
@@ -201,21 +201,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
-
-      - name: Resolve separately published Compose runner
-        id: runner_asset
-        shell: bash
-        env:
-          RUNNER_IMAGE: ${{ steps.image_vars.outputs.runner_image }}
-          RUNNER_DIGEST: ${{ vars.GRAFT_COMPOSE_RUNNER_DIGEST }}
-        run: |
-          set -euo pipefail
-          if [[ ! "${RUNNER_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::GRAFT_COMPOSE_RUNNER_DIGEST must identify a separately published immutable GHCR runner image."
-            exit 1
-          fi
-          docker buildx imagetools inspect "${RUNNER_IMAGE}@${RUNNER_DIGEST}" >/dev/null
-          echo "digest=${RUNNER_DIGEST}" >> "${GITHUB_OUTPUT}"
 
       - name: Download release artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -297,6 +282,16 @@ jobs:
             org.opencontainers.image.title=Graft Web
             org.opencontainers.image.description=Graft frontend static site image
 
+      - name: Docker metadata for Compose runner image
+        id: runner_meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ${{ steps.image_vars.outputs.runner_image }}
+          tags: ${{ steps.image_tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=Graft Compose Update Runner
+            org.opencontainers.image.description=One-shot Graft Compose update runner
+
       - name: Build and push server image
         id: server_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
@@ -325,6 +320,19 @@ jobs:
           cache-from: type=gha,scope=graft-web-image
           cache-to: type=gha,mode=max,scope=graft-web-image
 
+      - name: Build and push Compose runner image
+        id: runner_build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ./server
+          file: ./server/runner/compose/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.runner_meta.outputs.tags }}
+          labels: ${{ steps.runner_meta.outputs.labels }}
+          cache-from: type=gha,scope=graft-compose-runner-image
+          cache-to: type=gha,mode=max,scope=graft-compose-runner-image
+
       - name: Write image manifest
         env:
           RELEASE_REF_NAME: ${{ github.ref_name }}
@@ -341,7 +349,7 @@ jobs:
           web_tag=${RELEASE_REF_NAME}
           web_digest=${{ steps.web_build.outputs.digest }}
           runner_image=${{ steps.image_vars.outputs.runner_image }}
-          runner_digest=${{ steps.runner_asset.outputs.digest }}
+          runner_digest=${{ steps.runner_build.outputs.digest }}
           EOF
 
           # This is the machine-readable release authority consumed by self-update.
@@ -356,7 +364,7 @@ jobs:
             --arg webImage "${{ steps.image_vars.outputs.web_image }}" \
             --arg webDigest "${{ steps.web_build.outputs.digest }}" \
             --arg runnerImage "${{ steps.image_vars.outputs.runner_image }}" \
-            --arg runnerDigest "${{ steps.runner_asset.outputs.digest }}" \
+            --arg runnerDigest "${{ steps.runner_build.outputs.digest }}" \
             --arg serverArtifact "graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz" \
             --arg webArtifact "graft-web-dist-${RELEASE_REF_NAME}.tar.gz" \
             --arg checksums "graft-sha256sums-${RELEASE_REF_NAME}.txt" \

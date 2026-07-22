@@ -10936,6 +10936,7 @@ type PlatformUpdateOperationList = []PlatformUpdateOperation
 
 // PlatformUpdateStatus defines model for platform-update-status.
 type PlatformUpdateStatus struct {
+	CacheStale          *bool                       `json:"cache_stale,omitempty"`
 	Channel             PlatformUpdateStatusChannel `json:"channel"`
 	CheckError          *string                     `json:"check_error,omitempty"`
 	CheckedAt           *time.Time                  `json:"checked_at,omitempty"`
@@ -10946,7 +10947,8 @@ type PlatformUpdateStatus struct {
 		DetectedMode PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
 		Guidance     string                                              `json:"guidance"`
 	} `json:"installation_profile"`
-	Latest *struct {
+	LastSuccessfulAt *time.Time `json:"last_successful_at,omitempty"`
+	Latest           *struct {
 		Channel      PlatformUpdateStatusLatestChannel `json:"channel"`
 		ChecksumsUrl *string                           `json:"checksums_url,omitempty"`
 		ManifestUrl  string                            `json:"manifest_url"`

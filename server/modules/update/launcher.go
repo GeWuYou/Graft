@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"syscall"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
@@ -101,8 +103,14 @@ func persistRunnerInput(input RunnerInput) (string, error) {
 func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containertypes.Config, containertypes.HostConfig) {
 	root := input.Preflight.ComposeRoot
 	socket := input.Preflight.DockerSocket
-	return containertypes.Config{Image: input.Preflight.RunnerReference, Env: []string{"GRAFT_UPDATE_RUNNER_INPUT=" + inputPath}, Labels: map[string]string{
+	groups := []string{}
+	if stat, err := os.Stat(socket); err == nil {
+		if details, ok := stat.Sys().(*syscall.Stat_t); ok {
+			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
+		}
+	}
+	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "65532:65532", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
 		"io.graft.update.protocol":  "compose-runner/v1",
-	}}, containertypes.HostConfig{AutoRemove: true, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
+	}}, containertypes.HostConfig{AutoRemove: true, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }

@@ -28,8 +28,8 @@ type Module struct {
 }
 
 // NewModule 创建 platform-update 模块。
-func NewModule(operations OperationStore) *Module {
-	return &Module{service: NewService(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")}), operations: operations}
+func NewModule(operations OperationStore, cache DiscoveryCache) *Module {
+	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")}, cache), operations: operations}
 }
 
 // Register 注册权限、菜单、读/check 路由和默认每日发现任务。

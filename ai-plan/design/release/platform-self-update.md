@@ -35,7 +35,7 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 }
 ```
 
-`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 是独立发布的 GHCR image：当前仓库没有其 Docker build context，`publish.yml` 因而只接受预先发布且可由 GHCR inspect 的 `GRAFT_COMPOSE_RUNNER_DIGEST`，不会伪造本地 build 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、artifact 名称和 server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
+`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 从 `server/runner/compose/Dockerfile` 由同一 release workflow 构建和推送；manifest 只接受当前 Buildx 输出的 immutable digest，绝不接受仓库变量、外部断言 digest 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、artifact 名称和 server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
 
 ## Version And Channel Selection
 
@@ -43,6 +43,7 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 - stable 安装只选择比当前版本新的 stable release，不将 beta 作为候选。
 - beta 安装选择更高的 beta 或其后的 stable release。因此 `0.9.1-beta.1` 可升级到 `0.9.1-beta.2`、`0.10.0-beta.1`，以及后来发布的稳定版本。
 - catalog 条目必须通过 manifest 校验后才可展示为可升级；release notes 只作为展示内容，不能替代 manifest。
+- Update 持久化最近成功验证的 catalog projection，缓存窗口为 24 小时；网络失败必须显示检查失败和缓存陈旧，不能把缓存解释为“已是最新”。
 
 ## Installation Profile And Capability Matrix
 

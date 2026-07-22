@@ -25804,6 +25804,13 @@
             "type": "string",
             "format": "date-time"
           },
+          "last_successful_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cache_stale": {
+            "type": "boolean"
+          },
           "check_error": {
             "type": "string"
           }

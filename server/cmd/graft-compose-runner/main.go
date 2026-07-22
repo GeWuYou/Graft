@@ -1,0 +1,158 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+
+	"graft/server/internal/moduleapi"
+	"graft/server/modules/update"
+)
+
+// main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
+func main() {
+	path := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RUNNER_INPUT"))
+	contents, err := os.ReadFile(path)
+	if path == "" || err != nil {
+		fatal(fmt.Errorf("read runner input: %w", err))
+	}
+	var input update.RunnerInput
+	if err := json.Unmarshal(contents, &input); err != nil {
+		fatal(fmt.Errorf("decode runner input: %w", err))
+	}
+	if _, err := update.ExecuteComposeRunner(context.Background(), input, &actions{}); err != nil {
+		fatal(err)
+	}
+}
+func fatal(err error) { _, _ = fmt.Fprintln(os.Stderr, err); os.Exit(1) }
+
+type actions struct {
+	backup moduleapi.CompleteBackupRunnerHandoffInput
+}
+
+func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
+	root := filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID)
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		return err
+	}
+	if err := copyFile(filepath.Join(in.Preflight.ComposeRoot, ".env"), filepath.Join(root, "config.snapshot")); err != nil {
+		return err
+	}
+	dump, err := os.OpenFile(filepath.Join(root, "database.dump"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	command := exec.CommandContext(ctx, "docker", "compose", "--env-file", ".env", "-f", "compose.yml", "exec", "-T", "postgres", "sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"")
+	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, dump, os.Stderr
+	err = command.Run()
+	closeErr := dump.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	configHash, configSize, err := digest(filepath.Join(root, "config.snapshot"))
+	if err != nil {
+		return err
+	}
+	dumpHash, dumpSize, err := digest(filepath.Join(root, "database.dump"))
+	if err != nil {
+		return err
+	}
+	a.backup = moduleapi.CompleteBackupRunnerHandoffInput{OperationID: in.OperationID, TaskID: in.TaskID, ConfigSnapshotSHA256: configHash, ConfigSnapshotBytes: configSize, DatabaseDumpSHA256: dumpHash, DatabaseDumpBytes: dumpSize}
+	return nil
+}
+func (a *actions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput { return a.backup }
+func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
+	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight.ServerReference, in.Preflight.WebReference); err != nil {
+		return err
+	}
+	return compose(ctx, in, "pull")
+}
+func (a *actions) BootstrapMigrate(ctx context.Context, in update.RunnerInput) error {
+	return compose(ctx, in, "run", "--rm", "bootstrap")
+}
+func (a *actions) Recreate(ctx context.Context, in update.RunnerInput) error {
+	return compose(ctx, in, "up", "-d", "--no-deps", "--force-recreate", "server", "web")
+}
+func (a *actions) DockerHealth(ctx context.Context, in update.RunnerInput) error {
+	return compose(ctx, in, "ps", "--status", "running", "--services", "server", "web")
+}
+func (a *actions) Healthz(ctx context.Context, in update.RunnerInput) error {
+	return compose(ctx, in, "exec", "-T", "server", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz")
+}
+func (a *actions) RecoverPreMigration(ctx context.Context, in update.RunnerInput) error {
+	root := filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID)
+	if err := copyFile(filepath.Join(root, "config.snapshot"), filepath.Join(in.Preflight.ComposeRoot, ".env")); err != nil {
+		return err
+	}
+	return compose(ctx, in, "up", "-d", "--no-deps", "--force-recreate", "server", "web")
+}
+func compose(ctx context.Context, in update.RunnerInput, args ...string) error {
+	command := exec.CommandContext(ctx, "docker", append([]string{"compose", "--env-file", ".env", "-f", "compose.yml"}, args...)...)
+	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, os.Stdout, os.Stderr
+	return command.Run()
+}
+func copyFile(source, target string) error {
+	input, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+	output, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(output, input)
+	closeErr := output.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
+}
+func digest(path string) (string, int64, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	size, err := io.Copy(hash, file)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), size, nil
+}
+func replaceRefs(path, server, web string) error {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	values := map[string]string{"GRAFT_SERVER_IMAGE": server, "GRAFT_WEB_IMAGE": web}
+	lines := strings.Split(string(contents), "\n")
+	for index, line := range lines {
+		for key, value := range values {
+			if strings.HasPrefix(line, key+"=") {
+				lines[index] = key + "=" + value
+				delete(values, key)
+			}
+		}
+	}
+	if len(values) != 0 {
+		return errors.New("official compose environment lacks image references")
+	}
+	temporary := path + ".graft-update-tmp"
+	if err := os.WriteFile(temporary, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(temporary, path)
+}
