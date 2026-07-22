@@ -41,6 +41,12 @@
 - The executor cannot yet be implemented without violating authority boundaries: Task Runtime lacks durable external receipt settlement, Backup lacks a runner handoff contract, and release delivery has no pinned runner image identity.
 - The prior loop stopped after its permitted retry. The user resumed the topic with an explicit dependency chain: Task receipt settlement, Backup runner handoff, runner digest authority, Compose fixture execution, then Update rollout.
 
+## 2026-07-22 Task Receipt Settlement
+
+- Added Task Runtime-owned, no-secret external receipt settlement in `ecb7ae41`, binding receipt protocol and operation identity to the frozen final Stage plan.
+- Settlement persists idempotent Task-owned evidence, reconciles running or crash-recovered unknown stages, and appends immutable task events without allowing Update to write Task storage.
+- Validated Task/Project/registry scopes, the live migration chain, and the backend completion entrypoint.
+
 ## Loop Batch State
 
 ```json
@@ -50,10 +56,11 @@
     "release-authority-and-manifest",
     "read-only-update-discovery",
     "update-center-ui",
-    "backup-capability"
+    "backup-capability",
+    "compose-runner-preflight-contract",
+    "task-receipt-settlement"
   ],
   "pending_batches": [
-    "task-receipt-settlement",
     "backup-runner-handoff",
     "runner-digest-authority",
     "compose-fixture-execution",
@@ -61,7 +68,7 @@
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "task-receipt-settlement",
+  "next_batch": "backup-runner-handoff",
   "closeout_status": "in_progress"
 }
 ```

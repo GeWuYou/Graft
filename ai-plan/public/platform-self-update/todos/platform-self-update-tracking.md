@@ -48,7 +48,7 @@ closeout:
 - Batch 2 added read-only release discovery, the installation profile, and the protected status/check API.
 - Batch 3 added the front-end Update Center and the logo version affordance.
 - Batch 4 added the independent `platform-backup` capability with retained artifact metadata and recovery evidence.
-- The Compose preflight/protocol foundation is committed. Continue through the fixed dependency chain: Task Runtime durable receipt settlement, Backup runner handoff, runner digest authority, Compose fixture execution, then Update rollout.
+- Task Runtime now settles bound, no-secret external receipts exactly once after a runner handoff. The next batch is `backup-runner-handoff`.
 
 ## Task Checklist
 
@@ -57,7 +57,7 @@ closeout:
 - [x] `update-center-ui`
 - [x] `backup-capability`
 - [x] `compose-runner-preflight-contract`
-- [ ] `task-receipt-settlement`
+- [x] `task-receipt-settlement`
 - [ ] `backup-runner-handoff`
 - [ ] `runner-digest-authority`
 - [ ] `compose-fixture-execution`
@@ -79,10 +79,11 @@ closeout:
     "release-authority-and-manifest",
     "read-only-update-discovery",
     "update-center-ui",
-    "backup-capability"
+    "backup-capability",
+    "compose-runner-preflight-contract",
+    "task-receipt-settlement"
   ],
   "pending_batches": [
-    "task-receipt-settlement",
     "backup-runner-handoff",
     "runner-digest-authority",
     "compose-fixture-execution",
@@ -90,7 +91,7 @@ closeout:
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "task-receipt-settlement",
+  "next_batch": "backup-runner-handoff",
   "closeout_status": "in_progress"
 }
 ```
