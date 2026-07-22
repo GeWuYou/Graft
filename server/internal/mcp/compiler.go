@@ -30,6 +30,42 @@ var (
 
 const isoWeeksCaptureIndex = 3
 
+// DocumentationCatalog 是由 canonical OpenAPI 的 MCP capability 投影生成的只读文档清单。
+// 它与 runtime 共用编译结果，避免 Explorer 维护第二份 Tool、Resource 或 Action 定义。
+type DocumentationCatalog struct {
+	Tools     []DocumentationItem `json:"tools"`
+	Resources []DocumentationItem `json:"resources"`
+	Actions   []DocumentationItem `json:"actions"`
+}
+
+// DocumentationItem 描述可由 MCP runtime 注册的单个 capability。
+// Resource 会填充 URI 模板；Tool 和 Action 则保留其对应的 REST operation 与输入 schema。
+type DocumentationItem struct {
+	Name         string                    `json:"name"`
+	Description  string                    `json:"description"`
+	Method       string                    `json:"method"`
+	Path         string                    `json:"path"`
+	InputSchema  map[string]any            `json:"input_schema"`
+	URITemplate  string                    `json:"uri_template,omitempty"`
+	Risk         DocumentationRisk         `json:"risk"`
+	Confirmation DocumentationConfirmation `json:"confirmation"`
+}
+
+// DocumentationRisk 保留 operation 对 Agent 调用决策有意义的风险说明。
+type DocumentationRisk struct {
+	Level      string `json:"level"`
+	Reason     string `json:"reason,omitempty"`
+	Reversible *bool  `json:"reversible,omitempty"`
+	Impact     string `json:"impact,omitempty"`
+}
+
+// DocumentationConfirmation 描述危险 Action 所需的二阶段确认策略。
+type DocumentationConfirmation struct {
+	Required bool   `json:"required"`
+	Strategy string `json:"strategy"`
+	TTL      string `json:"ttl"`
+}
+
 // toolDefinition 是从 canonical OpenAPI operation 编译出的只读 MCP Tool。
 // 它保留 REST path、参数绑定和输入 JSON Schema，运行时不能再手写补充业务 Tool。
 type toolDefinition struct {
@@ -78,7 +114,9 @@ type mcpMetadata struct {
 
 type mcpRisk struct {
 	level      string
+	reason     string
 	reversible *bool
+	impact     string
 }
 
 type mcpConfirmation struct {
@@ -104,13 +142,66 @@ func CompileReadTools(bundle []byte) ([]toolDefinition, error) {
 }
 
 // CompileCapabilities 从 canonical OpenAPI 生成所有已批准的 MCP 投影。
-// 只有声明 x-graft-mcp 的 GET 和确认保护的 POST 会被接受，身份始终来自 operationId。
+// GET 与声明为低风险的无副作用 POST 可作为查询 Tool；确认保护的 POST 则作为 Action，身份始终来自 operationId。
 func CompileCapabilities(bundle []byte) (capabilityDefinitions, error) {
 	document, err := loadOpenAPIDocument(bundle)
 	if err != nil {
 		return capabilityDefinitions{}, err
 	}
 	return compileDocumentCapabilities(document)
+}
+
+// CompileDocumentationCatalog 从 canonical OpenAPI 生成供 MCP Explorer 序列化的 capability 清单。
+// 它不会扩展 runtime 行为，且不推断 operation 未声明的权限或 scope。
+func CompileDocumentationCatalog(bundle []byte) (DocumentationCatalog, error) {
+	capabilities, err := CompileCapabilities(bundle)
+	if err != nil {
+		return DocumentationCatalog{}, err
+	}
+	catalog := DocumentationCatalog{
+		Tools:     make([]DocumentationItem, 0),
+		Resources: make([]DocumentationItem, 0, len(capabilities.resources)),
+		Actions:   make([]DocumentationItem, 0),
+	}
+	for _, tool := range capabilities.tools {
+		item := documentationItemFromTool(tool)
+		if tool.metadata.confirmation.required {
+			catalog.Actions = append(catalog.Actions, item)
+			continue
+		}
+		catalog.Tools = append(catalog.Tools, item)
+	}
+	for _, resource := range capabilities.resources {
+		item := documentationItemFromTool(resource.tool)
+		item.URITemplate = resource.uriTemplate
+		catalog.Resources = append(catalog.Resources, item)
+	}
+	return catalog, nil
+}
+
+func documentationItemFromTool(tool toolDefinition) DocumentationItem {
+	item := DocumentationItem{
+		Name:        tool.name,
+		Description: tool.description,
+		Method:      tool.method,
+		Path:        tool.path,
+		InputSchema: tool.inputSchema,
+		Risk: DocumentationRisk{
+			Level:      tool.metadata.risk.level,
+			Reason:     tool.metadata.risk.reason,
+			Reversible: tool.metadata.risk.reversible,
+			Impact:     tool.metadata.risk.impact,
+		},
+		Confirmation: DocumentationConfirmation{
+			Required: tool.metadata.confirmation.required,
+			Strategy: tool.metadata.confirmation.strategy,
+			TTL:      tool.metadata.confirmation.ttl,
+		},
+	}
+	if len(tool.metadata.resourceURITemplates) == 1 {
+		item.URITemplate = tool.metadata.resourceURITemplates[0]
+	}
+	return item
 }
 
 func loadOpenAPIDocument(bundle []byte) (*openapi3.T, error) {
@@ -158,7 +249,10 @@ func compileDocumentCapabilities(document *openapi3.T) (capabilityDefinitions, e
 		return strings.Compare(left.name, right.name)
 	})
 	slices.SortFunc(capabilities.resources, func(left, right resourceDefinition) int {
-		return strings.Compare(left.uriTemplate, right.uriTemplate)
+		if compared := strings.Compare(left.uriTemplate, right.uriTemplate); compared != 0 {
+			return compared
+		}
+		return strings.Compare(left.name, right.name)
 	})
 	return capabilities, nil
 }
@@ -207,6 +301,9 @@ func compileReadProjection(toolName string, operation *openapi3.Operation, path 
 	if err != nil {
 		return compiledOperation{}, fmt.Errorf("compile OpenAPI GET %s: %w", path, err)
 	}
+	if len(metadata.resourceURITemplates) == 0 {
+		return compiledOperation{tool: &definition}, nil
+	}
 	resource, err := compileResource(definition, metadata)
 	if err != nil {
 		return compiledOperation{}, fmt.Errorf("compile OpenAPI GET %s resource: %w", path, err)
@@ -216,7 +313,14 @@ func compileReadProjection(toolName string, operation *openapi3.Operation, path 
 
 func compileActionProjection(toolName string, operation *openapi3.Operation, path string, parameters map[string]*openapi3.Parameter, metadata mcpMetadata) (compiledOperation, error) {
 	if !metadata.confirmation.required {
-		return compiledOperation{}, fmt.Errorf("OpenAPI POST %s must require two-phase confirmation", path)
+		if err := validateReadOnlyMetadata(metadata); err != nil {
+			return compiledOperation{}, fmt.Errorf("OpenAPI POST %s is not safe to compile as a query tool: %w", path, err)
+		}
+		definition, err := compileTool(toolName, operation, path, http.MethodPost, parameters, metadata)
+		if err != nil {
+			return compiledOperation{}, fmt.Errorf("compile OpenAPI POST %s query tool: %w", path, err)
+		}
+		return compiledOperation{tool: &definition}, nil
 	}
 	definition, err := compileTool(toolName, operation, path, http.MethodPost, parameters, metadata)
 	if err != nil {
@@ -344,7 +448,11 @@ func parseRiskMetadata(raw any) (mcpRisk, error) {
 	if !ok || strings.TrimSpace(level) == "" {
 		return mcpRisk{}, fmt.Errorf("risk.level is required")
 	}
-	risk := mcpRisk{level: strings.TrimSpace(level)}
+	risk := mcpRisk{
+		level:  strings.TrimSpace(level),
+		reason: strings.TrimSpace(stringValue(riskValue["reason"])),
+		impact: strings.TrimSpace(stringValue(riskValue["impact"])),
+	}
 	if reversible, exists := riskValue["reversible"]; exists {
 		parsed, ok := reversible.(bool)
 		if !ok {

@@ -2,6 +2,16 @@ get:
   tags: [audit]
   summary: Get audit log detail
   operationId: getAuditLogDetail
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads one guarded audit record without changing audit evidence.
+      reversible: true
+      impact: Does not change audit or resource state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Returns one immutable audit-log evidence record for drawer-based inspection.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

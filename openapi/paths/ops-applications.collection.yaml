@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: List applications
   operationId: getApplications
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads registered application summaries without changing application state.
+      reversible: true
+      impact: Does not change applications or runtime targets.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Returns application applicationions. Compose remains the only supported application type and Runtime Target remains the target/provider authority.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

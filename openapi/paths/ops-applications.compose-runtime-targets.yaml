@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: List selectable Compose runtime targets
   operationId: getApplicationComposeRuntimeTargets
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads registered runtime target capability and availability summaries.
+      reversible: true
+      impact: Does not change applications or runtime targets.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: "Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready."
   security: [{bearerAuth: []}]
   responses:

@@ -3,6 +3,9 @@ get:
   summary: List scheduled task runs
   operationId: getScheduledTaskRuns
   description: Returns persisted Job Run history for one Scheduled Task.
+  x-graft-mcp:
+    risk: { level: low, reason: Lists existing scheduled task run history, reversible: true, impact: Does not change scheduler state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

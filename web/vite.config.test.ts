@@ -55,6 +55,25 @@ describe('createViteConfig', () => {
     }
   });
 
+  it('proxies MCP Explorer HTML and catalog routes without changing their root paths', () => {
+    process.env.VITE_IS_REQUEST_PROXY = 'true';
+    try {
+      const config = createViteConfig('development');
+
+      for (const proxyPath of ['/mcp/docs', '/mcp/docs.json']) {
+        const proxy =
+          config.server?.proxy && proxyPath in config.server.proxy ? config.server.proxy[proxyPath] : undefined;
+
+        expect(typeof proxy).toBe('object');
+        expect(proxy && 'target' in proxy ? proxy.target : undefined).toEqual(expect.any(String));
+        expect(proxy && 'changeOrigin' in proxy ? proxy.changeOrigin : undefined).toBe(true);
+        expect(proxy && 'ws' in proxy ? proxy.ws : undefined).not.toBe(true);
+      }
+    } finally {
+      delete process.env.VITE_IS_REQUEST_PROXY;
+    }
+  });
+
   it('splits monaco dependencies into a dedicated vendor chunk', () => {
     const config = createViteConfig('development');
     const manualChunks = config.build?.rollupOptions?.output;

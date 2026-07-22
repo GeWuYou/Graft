@@ -2,6 +2,16 @@ get:
   tags: [rbac]
   summary: List roles
   operationId: getRoles
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads role summaries without changing authorization policy.
+      reversible: true
+      impact: Does not change role definitions or bindings.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

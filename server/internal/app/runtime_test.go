@@ -1222,6 +1222,10 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load openapi docs assets: %v", err)
 	}
+	mcpDocs, err := buildMCPDocsCatalog(generatedOpenAPIBundleJSON, true)
+	if err != nil {
+		t.Fatalf("build MCP docs catalog: %v", err)
+	}
 
 	runtime := &Runtime{
 		config:             &config.Config{Docs: config.DocsConfig{Enabled: true}},
@@ -1230,6 +1234,7 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 		permissionRegistry: permission.NewRegistry(),
 		cronRegistry:       cronx.NewRegistry(),
 		openapiDocs:        docsAssets,
+		mcpDocs:            mcpDocs,
 	}
 
 	engine := gin.New()
@@ -1240,6 +1245,7 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 	assertOpenAPIJSONResponse(t, engine, "v1.2.3")
 	assertOpenAPIYAMLResponse(t, engine, "v1.2.3")
 	assertDocsHTMLResponse(t, engine)
+	assertMCPDocsResponses(t, engine, true)
 }
 
 func TestLoadOpenAPIDocsAssetsUsesGeneratedCanonicalBundle(t *testing.T) {
@@ -1276,6 +1282,28 @@ func TestLoadOpenAPIDocsAssetsUsesGeneratedCanonicalBundle(t *testing.T) {
 	}
 }
 
+func TestBuildMCPDocsCatalogKeepsContractVisibleWhenMCPDisabled(t *testing.T) {
+	payload, err := buildMCPDocsCatalog(generatedOpenAPIBundleJSON, false)
+	if err != nil {
+		t.Fatalf("build disabled MCP docs catalog: %v", err)
+	}
+
+	var decoded struct {
+		MCP struct {
+			Enabled bool `json:"enabled"`
+		} `json:"mcp"`
+		Catalog struct {
+			Tools []map[string]any `json:"tools"`
+		} `json:"catalog"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("decode disabled MCP docs catalog: %v", err)
+	}
+	if decoded.MCP.Enabled || len(decoded.Catalog.Tools) == 0 {
+		t.Fatalf("expected disabled runtime with a visible catalog, got %#v", decoded)
+	}
+}
+
 func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -1292,7 +1320,7 @@ func TestRegisterCoreRoutesSkipsOpenAPIDocsWhenDisabled(t *testing.T) {
 		t.Fatalf("register core routes: %v", err)
 	}
 
-	for _, path := range []string{openapiJSONPath, openapiYAMLPath, openapiDocsPath} {
+	for _, path := range []string{openapiJSONPath, openapiYAMLPath, openapiDocsPath, mcpDocsJSONPath, mcpDocsPath} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, path, nil)
 		engine.ServeHTTP(recorder, request)
@@ -1596,6 +1624,43 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 	}
 	if !strings.Contains(recorder.Body.String(), `integrity="`+scalarDocsScriptIntegrity+`"`) {
 		t.Fatalf("%s: expected body to contain the pinned Scalar docs integrity", openapiDocsPath)
+	}
+}
+
+func assertMCPDocsResponses(t *testing.T, engine *gin.Engine, expectedEnabled bool) {
+	t.Helper()
+
+	jsonRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(jsonRecorder, httptest.NewRequest(http.MethodGet, mcpDocsJSONPath, nil))
+	assertResponseStatusAndType(t, jsonRecorder, mcpDocsJSONPath, http.StatusOK, "application/json; charset=utf-8")
+	var payload struct {
+		MCP struct {
+			Endpoint string `json:"endpoint"`
+			Enabled  bool   `json:"enabled"`
+		} `json:"mcp"`
+		Catalog struct {
+			Tools     []map[string]any `json:"tools"`
+			Resources []map[string]any `json:"resources"`
+			Actions   []map[string]any `json:"actions"`
+		} `json:"catalog"`
+	}
+	if err := json.NewDecoder(jsonRecorder.Body).Decode(&payload); err != nil {
+		t.Fatalf("%s: decode MCP Explorer payload: %v", mcpDocsJSONPath, err)
+	}
+	if payload.MCP.Endpoint != "/mcp" || payload.MCP.Enabled != expectedEnabled {
+		t.Fatalf("%s: unexpected MCP runtime metadata %#v", mcpDocsJSONPath, payload.MCP)
+	}
+	if len(payload.Catalog.Tools) == 0 || len(payload.Catalog.Resources) == 0 || len(payload.Catalog.Actions) == 0 {
+		t.Fatalf("%s: expected tools, resources, and actions, got %#v", mcpDocsJSONPath, payload.Catalog)
+	}
+
+	htmlRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(htmlRecorder, httptest.NewRequest(http.MethodGet, mcpDocsPath, nil))
+	assertResponseStatusAndType(t, htmlRecorder, mcpDocsPath, http.StatusOK, "text/html; charset=utf-8")
+	for _, expected := range []string{"Graft MCP Explorer", mcpDocsJSONPath, "Search capabilities", "data-kind=\"actions\""} {
+		if !strings.Contains(htmlRecorder.Body.String(), expected) {
+			t.Fatalf("%s: expected page to contain %q", mcpDocsPath, expected)
+		}
 	}
 }
 

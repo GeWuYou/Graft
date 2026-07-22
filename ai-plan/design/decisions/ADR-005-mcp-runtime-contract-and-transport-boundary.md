@@ -17,7 +17,8 @@ OpenAPI, permissions, errors, and audit logging.
    It invokes the existing operation semantics and shares their permission, error, and audit behavior.
 2. `openapi/openapi.yaml` and referenced path fragments are the sole MCP capability contract. `x-graft-mcp` is one
    operation-level extensible object whose validation anchor is `#/x-graft-mcp-schema`.
-   A later compiler reads this metadata; no manually maintained tool registry is allowed.
+   The compiler reads this metadata for runtime registration and documentation projection; no manually maintained tool
+   registry or documentation catalog is allowed.
 3. A tool identifier is the normalized snake_case form of `operationId` only. The compiler must require an
    `operationId`, use no tag/path/summary fallback, and reject normalized-name collisions. For example,
    `getContainer` becomes `get_container` and `postContainerRestart` becomes `post_container_restart`.
@@ -30,6 +31,10 @@ OpenAPI, permissions, errors, and audit logging.
 6. Phase 2.5 is mandatory before broad resource/action exposure. It compares REST and MCP behavior for canonical
    JSON, errors, permission denials, and audit events. The same underlying business contract must be observable on
    both transports.
+7. The server-hosted MCP Explorer is a read-only compiler projection. It presents only registered Tool, Resource
+   Template, and confirmation-protected Action metadata at `/mcp/docs`; Prompt presentation waits for a canonical
+   OpenAPI extension, compiler projection, and runtime registration. Explorer does not invoke MCP tools or retain
+   personal API tokens.
 
 ## Validation Rules
 
@@ -50,5 +55,7 @@ The later OpenAPI compiler must validate every opted-in operation against the an
   dependency prohibition does not apply to that product adapter.
 - REST remains the canonical external contract; MCP is a transport projection whose compatibility must be tested, not
   assumed.
+- MCP documentation is available only as a derived catalog and must not infer unmodeled operation permissions or
+  introduce business semantics outside the canonical OpenAPI document.
 - This ADR does not select stdio, HTTP, or any other transport. The runtime chooses transport after the shared
   compiler, authorization, and parity foundation exists.

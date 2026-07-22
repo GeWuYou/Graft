@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: List Compose application creation methods
   operationId: getApplicationCreationMethods
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads supported creation method availability without creating an application.
+      reversible: true
+      impact: Does not change applications or managed workspaces.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Returns the currently supported ways to create a Compose application. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

@@ -91,6 +91,88 @@ func TestCompileReadToolsRejectsUnsafeOrAmbiguousMetadata(t *testing.T) {
 	}
 }
 
+func TestCompileDocumentationCatalogProjectsRuntimeCapabilitiesDeterministically(t *testing.T) {
+	bundle := compilerTestBundle(map[string]any{
+		"/api/items/{id}": map[string]any{
+			"get": compilerTestOperation("getItem", compilerTestMetadata("low", false), false),
+		},
+		"/api/items/{id}/restart": map[string]any{
+			"post": compilerTestOperation("postItemRestart", compilerTestMetadata("high", true), false),
+		},
+		"/api/items/{id}/status": map[string]any{
+			"get": compilerTestOperation("getItemStatus", compilerTestMetadata("low", false), false),
+		},
+	})
+
+	catalog, err := CompileDocumentationCatalog(bundle)
+	if err != nil {
+		t.Fatalf("compile documentation catalog: %v", err)
+	}
+	assertDocumentationCatalogTools(t, catalog)
+	assertDocumentationCatalogResources(t, catalog)
+	action := documentationCatalogAction(t, catalog)
+	assertDocumentationCatalogAction(t, action)
+	assertDocumentationCatalogInputSchema(t, action)
+	assertDocumentationCatalogDoesNotInferAccessMetadata(t, catalog)
+}
+
+func assertDocumentationCatalogTools(t *testing.T, catalog DocumentationCatalog) {
+	t.Helper()
+	if len(catalog.Tools) != 2 || catalog.Tools[0].Name != "get_item" || catalog.Tools[1].Name != "get_item_status" {
+		t.Fatalf("unexpected deterministic tools: %#v", catalog.Tools)
+	}
+}
+
+func assertDocumentationCatalogResources(t *testing.T, catalog DocumentationCatalog) {
+	t.Helper()
+	if len(catalog.Resources) != 2 || catalog.Resources[0].Name != "get_item" || catalog.Resources[1].Name != "get_item_status" || catalog.Resources[0].URITemplate != "graft://docker/containers/{id}" || catalog.Resources[1].URITemplate != "graft://docker/containers/{id}" {
+		t.Fatalf("unexpected resources: %#v", catalog.Resources)
+	}
+}
+
+func documentationCatalogAction(t *testing.T, catalog DocumentationCatalog) DocumentationItem {
+	t.Helper()
+	if len(catalog.Actions) != 1 {
+		t.Fatalf("action count = %d, want 1", len(catalog.Actions))
+	}
+	return catalog.Actions[0]
+}
+
+func assertDocumentationCatalogAction(t *testing.T, action DocumentationItem) {
+	t.Helper()
+	if action.Name != "post_item_restart" || action.Method != http.MethodPost || action.Path != "/api/items/{id}/restart" {
+		t.Fatalf("unexpected action: %#v", action)
+	}
+	if action.URITemplate != "graft://docker/containers/{id}" {
+		t.Fatalf("unexpected action resource URI: %q", action.URITemplate)
+	}
+	if action.Risk.Level != "high" || action.Risk.Reason != "test" || action.Risk.Impact != "test" || action.Risk.Reversible == nil || *action.Risk.Reversible {
+		t.Fatalf("unexpected action risk: %#v", action.Risk)
+	}
+	if !action.Confirmation.Required || action.Confirmation.Strategy != "two_phase" || action.Confirmation.TTL != "PT5M" {
+		t.Fatalf("unexpected action confirmation: %#v", action.Confirmation)
+	}
+}
+
+func assertDocumentationCatalogInputSchema(t *testing.T, action DocumentationItem) {
+	t.Helper()
+	properties, ok := action.InputSchema["properties"].(map[string]any)
+	if !ok || properties["id"] == nil || properties[confirmationTokenInputName] == nil {
+		t.Fatalf("action input schema must preserve runtime inputs: %#v", action.InputSchema)
+	}
+}
+
+func assertDocumentationCatalogDoesNotInferAccessMetadata(t *testing.T, catalog DocumentationCatalog) {
+	t.Helper()
+	encoded, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatalf("marshal documentation catalog: %v", err)
+	}
+	if strings.Contains(string(encoded), "permission") || strings.Contains(string(encoded), "scope") {
+		t.Fatalf("catalog must not infer permission or scope data: %s", encoded)
+	}
+}
+
 func TestPositiveISODurationRejectsIncompleteAndOutOfOrderValues(t *testing.T) {
 	for _, value := range []string{"P1D", "PT5M", "P1DT2H"} {
 		if !positiveISODuration(value) {

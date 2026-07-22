@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: Get Compose application runtime overview
   operationId: getApplicationOverview
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads a bounded application runtime overview without changing workloads.
+      reversible: true
+      impact: Does not change application or container state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: >
     Returns the Application-owned overview dashboard applicationion backed by the bounded container runtime resource
     aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics,

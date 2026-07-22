@@ -1336,7 +1336,7 @@
         ],
         "summary": "Send MCP Streamable HTTP message",
         "operationId": "postMcpStreamable",
-        "description": "Sends an MCP JSON-RPC request or notification. This foundation exposes no business tools, resources, or prompts yet.",
+        "description": "Sends an MCP JSON-RPC request or notification. The server exposes only Tools and Resource Templates compiled from opted-in OpenAPI operations; it does not expose Prompts until their canonical contract and runtime projection are implemented.",
         "parameters": [
           {
             "name": "Mcp-Session-Id",
@@ -1414,6 +1414,19 @@
         ],
         "summary": "List users",
         "operationId": "getUsers",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads managed-user summaries without changing account state.",
+            "reversible": true,
+            "impact": "Does not change users or role bindings."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the user list with minimal embedded role summaries so the frontend does not need per-row role reads.",
         "parameters": [
           {
@@ -1565,6 +1578,19 @@
         ],
         "summary": "Get one user",
         "operationId": "getUserById",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads one managed-user summary without changing account state.",
+            "reversible": true,
+            "impact": "Does not change the user or role bindings."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the existing managed-user summary for the specified user id.",
         "parameters": [
           {
@@ -2743,6 +2769,19 @@
         ],
         "summary": "List roles",
         "operationId": "getRoles",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads role summaries without changing authorization policy.",
+            "reversible": true,
+            "impact": "Does not change role definitions or bindings."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -2907,6 +2946,19 @@
         ],
         "summary": "Get one role",
         "operationId": "getRole",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads one role summary without changing authorization policy.",
+            "reversible": true,
+            "impact": "Does not change role definitions or bindings."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -2995,6 +3047,19 @@
         ],
         "summary": "List permission bindings for one role",
         "operationId": "getRolePermissions",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads existing role permissions without changing authorization.",
+            "reversible": true,
+            "impact": "Does not change role permissions or user access."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the permission id snapshot currently bound to the target role.",
         "parameters": [
           {
@@ -3934,6 +3999,19 @@
         ],
         "summary": "List role bindings for one user",
         "operationId": "getUserRoles",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads existing role bindings without changing authorization.",
+            "reversible": true,
+            "impact": "Does not change user access."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the role id snapshot currently bound to the target user.",
         "parameters": [
           {
@@ -4730,6 +4808,19 @@
         ],
         "summary": "List audit logs",
         "operationId": "getAuditLogs",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads guarded audit evidence without changing audit records.",
+            "reversible": true,
+            "impact": "Does not change audit or resource state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns a guarded paged audit-log list for MVP read-only inspection.",
         "parameters": [
           {
@@ -5112,6 +5203,19 @@
         ],
         "summary": "Get audit log detail",
         "operationId": "getAuditLogDetail",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads one guarded audit record without changing audit evidence.",
+            "reversible": true,
+            "impact": "Does not change audit or resource state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns one immutable audit-log evidence record for drawer-based inspection.",
         "parameters": [
           {
@@ -5394,6 +5498,19 @@
         ],
         "summary": "Read security overview",
         "operationId": "getSecurityOverview",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads a bounded security posture snapshot without changing policy.",
+            "reversible": true,
+            "impact": "Does not change access control or audit state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns one bounded snapshot of access-control posture and audit security signals.",
         "parameters": [
           {
@@ -5457,6 +5574,19 @@
         ],
         "summary": "Read audit incident drilldown",
         "operationId": "getAuditIncident",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads incident evidence without changing the incident or audit records.",
+            "reversible": true,
+            "impact": "Does not change audit or resource state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the audit-owned incident context for one stable security timeline seed event.",
         "parameters": [
           {
@@ -5546,6 +5676,19 @@
         ],
         "summary": "Read audit visibility policy",
         "operationId": "getAuditVisibilityPolicy",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads audit visibility policy without changing record visibility.",
+            "reversible": true,
+            "impact": "Does not change audit policy or records."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the audit-owned visibility default and per-event override snapshot.",
         "parameters": [
           {
@@ -5825,6 +5968,19 @@
         "summary": "Read current server status snapshot",
         "operationId": "getMonitorServerStatus",
         "description": "Returns the current aggregated monitor server-status snapshot, optional Redis-backed runtime trends, and bounded per-dependency history. PostgreSQL and Redis diagnostics are optional current fields; a history read failure is represented in that dependency history and never fails the current snapshot. Current diagnostics are the active monitor anomalies in this response only; this route does not persist anomalies or create notifications.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the current aggregated server-status snapshot",
+            "reversible": true,
+            "impact": "Does not change monitor or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6069,6 +6225,19 @@
         "summary": "Read request performance snapshot",
         "operationId": "getMonitorRequestPerformance",
         "description": "Returns an aggregated normal HTTP request-performance snapshot for the selected bounded time range. Successfully upgraded WebSocket connections are retained as access-log facts but excluded because their duration is connection lifetime rather than request latency.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an aggregated request-performance snapshot",
+            "reversible": true,
+            "impact": "Does not change monitor or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6136,6 +6305,19 @@
         "summary": "Read module runtime snapshot",
         "operationId": "getModulesRuntime",
         "description": "Returns the read-only compile-time module runtime snapshot for the current process.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the current module runtime snapshot",
+            "reversible": true,
+            "impact": "Does not change module runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6260,6 +6442,19 @@
         "summary": "Read module runtime detail",
         "operationId": "getModulesRuntimeModule",
         "description": "Returns one module item from the read-only compile-time module runtime snapshot.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an existing module runtime item",
+            "reversible": true,
+            "impact": "Does not change module runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6333,6 +6528,19 @@
         "summary": "List scheduled tasks",
         "operationId": "getScheduledTasks",
         "description": "Returns Scheduled Tasks that bind Job Definitions to cron schedules.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists existing scheduled tasks",
+            "reversible": true,
+            "impact": "Does not change scheduler state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6475,6 +6683,19 @@
         "summary": "List Task history",
         "operationId": "listTasks",
         "description": "Lists persisted Task history within resources authorized for the caller; a Task ID alone never grants access.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists authorized Task history",
+            "reversible": true,
+            "impact": "Does not change Task state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6589,6 +6810,19 @@
         ],
         "summary": "Read Task detail",
         "operationId": "getTask",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an authorized existing Task",
+            "reversible": true,
+            "impact": "Does not change Task state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -6662,6 +6896,19 @@
         ],
         "summary": "List Task Stages",
         "operationId": "listTaskStages",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists existing Task stage records",
+            "reversible": true,
+            "impact": "Does not change Task state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -7111,6 +7358,19 @@
         "summary": "List scheduler job definitions",
         "operationId": "getScheduledTaskJobDefinitions",
         "description": "Returns registered Job Definitions that can be bound to Scheduled Tasks.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists registered scheduler job definitions",
+            "reversible": true,
+            "impact": "Does not change scheduler state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -7160,6 +7420,19 @@
         "summary": "Read scheduler job definition detail",
         "operationId": "getScheduledTaskJobDefinition",
         "description": "Returns one registered Job Definition that can be bound to Scheduled Tasks.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an existing scheduler job definition",
+            "reversible": true,
+            "impact": "Does not change scheduler state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -7227,6 +7500,19 @@
         "summary": "Read scheduled task detail",
         "operationId": "getScheduledTask",
         "description": "Returns one Scheduled Task schedule definition with its latest run state.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an existing scheduled task definition",
+            "reversible": true,
+            "impact": "Does not change scheduler state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -7628,6 +7914,19 @@
         "summary": "List scheduled task runs",
         "operationId": "getScheduledTaskRuns",
         "description": "Returns persisted Job Run history for one Scheduled Task.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists existing scheduled task run history",
+            "reversible": true,
+            "impact": "Does not change scheduler state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -7701,6 +8000,19 @@
         "summary": "Read scheduled task run detail",
         "operationId": "getScheduledTaskRun",
         "description": "Returns one persisted Job Run history record for a Scheduled Task.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads existing scheduled task run history",
+            "reversible": true,
+            "impact": "Does not change scheduler state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -8203,6 +8515,19 @@
         "summary": "List access logs",
         "operationId": "getAccessLogs",
         "description": "Returns the canonical paged access-log explorer surface.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists retained access logs",
+            "reversible": true,
+            "impact": "Does not change retained logs or access-log state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -8436,6 +8761,19 @@
         ],
         "summary": "Get access log detail",
         "operationId": "getAccessLogDetail",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads one retained access log",
+            "reversible": true,
+            "impact": "Does not change retained logs or access-log state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -8718,6 +9056,19 @@
         "summary": "List app logs",
         "operationId": "getAppLogs",
         "description": "Returns the canonical paged App Log Explorer surface owned by the logger runtime.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists retained application logs",
+            "reversible": true,
+            "impact": "Does not change retained logs or logger state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -8999,6 +9350,19 @@
         ],
         "summary": "Get app log detail",
         "operationId": "getAppLogDetail",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads one retained application log",
+            "reversible": true,
+            "impact": "Does not change retained logs or logger state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -9368,6 +9732,19 @@
         "summary": "Read dashboard summary",
         "operationId": "getDashboardSummary",
         "description": "Returns the fixed dashboard system summary plus insight widgets visible to the current user.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the current-user dashboard summary",
+            "reversible": true,
+            "impact": "Does not change dashboard or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -9414,6 +9791,19 @@
         "summary": "Read dashboard widget",
         "operationId": "getDashboardWidget",
         "description": "Returns one visible dashboard widget by id for focused refresh and retry flows.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an existing visible dashboard widget",
+            "reversible": true,
+            "impact": "Does not change dashboard or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -9484,6 +9874,19 @@
         "summary": "List current-user notifications",
         "operationId": "getNotifications",
         "description": "Returns paged notification deliveries visible to the current user.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists current-user notification deliveries",
+            "reversible": true,
+            "impact": "Does not change notification state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -9600,6 +10003,19 @@
         "summary": "Read current-user unread notification count",
         "operationId": "getNotificationsUnreadCount",
         "description": "Returns the unread notification delivery count for the current user.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the current-user unread notification count",
+            "reversible": true,
+            "impact": "Does not change notification state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -9856,6 +10272,19 @@
         "summary": "List announcements for management",
         "operationId": "getAnnouncements",
         "description": "Returns a paged management announcement list.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Lists existing announcement records",
+            "reversible": true,
+            "impact": "Does not change announcement state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -10034,6 +10463,19 @@
         "summary": "Get one announcement for management",
         "operationId": "getAnnouncement",
         "description": "Returns one management announcement record.",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads an existing announcement record",
+            "reversible": true,
+            "impact": "Does not change announcement state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -10851,6 +11293,19 @@
         ],
         "summary": "List containers",
         "operationId": "getContainers",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads container summaries without changing container state.",
+            "reversible": true,
+            "impact": "Does not change container or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns container summaries for the configured container runtime.",
         "parameters": [
           {
@@ -10936,6 +11391,19 @@
         ],
         "summary": "Read container dashboard summary",
         "operationId": "getContainerDashboardSummary",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the current container dashboard projection without changing workloads.",
+            "reversible": true,
+            "impact": "Does not change container or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the container-module-owned dashboard summary projection built from current runtime list snapshots. The canonical realtime companion topic is `container.dashboard.summary`, which reuses the unified realtime subscription and WebSocket flow.\n",
         "parameters": [
           {
@@ -11160,6 +11628,19 @@
         ],
         "summary": "Read container runtime events",
         "operationId": "getContainerEvents",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads bounded recent runtime events without changing the container.",
+            "reversible": true,
+            "impact": "Does not change container or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns bounded recent canonical runtime events for one container. Each record includes a manager-assigned `seq` used for reconnect-safe merge and dedupe with the companion realtime topic `container.events:{id}`.\n",
         "parameters": [
           {
@@ -11242,6 +11723,19 @@
         ],
         "summary": "List container mount usage",
         "operationId": "getContainerMountUsage",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads cached mount usage statistics without triggering filesystem scanning.",
+            "reversible": true,
+            "impact": "Does not change container, mount, or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the latest cached usage statistics for the current container mounts. This endpoint does not trigger filesystem scanning.\n",
         "parameters": [
           {
@@ -13114,6 +13608,19 @@
         ],
         "summary": "List applications",
         "operationId": "getApplications",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads registered application summaries without changing application state.",
+            "reversible": true,
+            "impact": "Does not change applications or runtime targets."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns application applicationions. Compose remains the only supported application type and Runtime Target remains the target/provider authority.",
         "parameters": [
           {
@@ -13193,6 +13700,19 @@
         ],
         "summary": "Resolve Compose application references",
         "operationId": "postApplicationComposeContextReferences",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Resolves existing Compose references without changing registrations or workloads.",
+            "reversible": true,
+            "impact": "Does not change applications or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Resolves live Compose application references by the canonical runtime target and Compose project name identity. Unregistered contexts are omitted.",
         "parameters": [
           {
@@ -13267,6 +13787,19 @@
         ],
         "summary": "List private application-list saved views",
         "operationId": "getApplicationSavedViews",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the caller's saved application-list views without changing preferences.",
+            "reversible": true,
+            "impact": "Does not change saved views or application state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -13502,6 +14035,19 @@
         ],
         "summary": "List runtime targets",
         "operationId": "getRuntimeTargets",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads runtime target summaries without changing target configuration or availability.",
+            "reversible": true,
+            "impact": "Does not change runtime target state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -13734,6 +14280,19 @@
         ],
         "summary": "Validate a Compose application import",
         "operationId": "postApplicationImportValidate",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Validates import inputs and static parsing without registering an application.",
+            "reversible": true,
+            "impact": "Does not change applications, files, or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Validates Compose import inputs, file discovery, and static parsing without persisting a application record.",
         "parameters": [
           {
@@ -13823,6 +14382,19 @@
         ],
         "summary": "List runtime Compose import candidates",
         "operationId": "getApplicationImportRuntimeCandidates",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads runtime-derived import candidate summaries without registering applications.",
+            "reversible": true,
+            "impact": "Does not change applications or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns Compose import candidates derived from container runtime metadata, including both importable and unavailable candidates.",
         "parameters": [
           {
@@ -13884,6 +14456,19 @@
         ],
         "summary": "Inspect one runtime Compose import candidate",
         "operationId": "postApplicationImportRuntimeInspect",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Produces a bounded runtime import preview without registering an application.",
+            "reversible": true,
+            "impact": "Does not change applications or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Resolves one ready runtime candidate into an inspect preview while reusing the application-owned import inspection pipeline.",
         "parameters": [
           {
@@ -13958,6 +14543,19 @@
         ],
         "summary": "Inspect one import directory",
         "operationId": "postApplicationImportInspect",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Produces a bounded import inspection preview without registering an application.",
+            "reversible": true,
+            "impact": "Does not change applications, files, or runtime state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Discovers compose and env files under the selected directory, parses the Compose application once, and returns a short-lived inspection snapshot for later import confirmation. Previewable naming or ownership conflicts are reported inside the 200 response body rather than as transport-level 409 errors.",
         "parameters": [
           {
@@ -14304,6 +14902,19 @@
         ],
         "summary": "List Compose application creation methods",
         "operationId": "getApplicationCreationMethods",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads supported creation method availability without creating an application.",
+            "reversible": true,
+            "impact": "Does not change applications or managed workspaces."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the currently supported ways to create a Compose application. Each method supplies only its stable availability and optional blocking reason; user-facing copy and navigation remain client-owned.",
         "parameters": [
           {
@@ -14353,6 +14964,19 @@
         ],
         "summary": "List selectable Compose runtime targets",
         "operationId": "getApplicationComposeRuntimeTargets",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads registered runtime target capability and availability summaries.",
+            "reversible": true,
+            "impact": "Does not change applications or runtime targets."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns registered Runtime Targets with both compose_execution and workspace_access capabilities. Availability is dynamic: unavailable targets remain selectable for workspace creation but cannot deploy until ready.",
         "security": [
           {
@@ -14389,6 +15013,19 @@
         ],
         "summary": "List bounded application discovery candidates",
         "operationId": "getApplicationDiscoveryCandidates",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads bounded discovery previews without registering applications or changing ownership.",
+            "reversible": true,
+            "impact": "Does not change applications, workspaces, or runtime ownership."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns local directory-scan and auto-discovery candidate previews under the current application authority without auto-registering applications or changing runtime ownership.",
         "parameters": [
           {
@@ -14487,6 +15124,19 @@
         ],
         "summary": "Validate a managed Compose application create request",
         "operationId": "postApplicationCreateValidate",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Validates bounded create inputs without writing files or registering an application.",
+            "reversible": true,
+            "impact": "Does not change applications or managed workspaces."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a application.",
         "parameters": [
           {
@@ -14576,6 +15226,19 @@
         ],
         "summary": "Check managed application-name availability",
         "operationId": "postApplicationNameAvailability",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Checks name availability without writing files or registering an application.",
+            "reversible": true,
+            "impact": "Does not change applications or managed workspaces."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Resolves whether an application name is already registered, available for a new workspace, or points to an unregistered managed workspace. This endpoint never writes files.",
         "parameters": [
           {
@@ -15360,6 +16023,19 @@
         ],
         "summary": "Get Compose application runtime overview",
         "operationId": "getApplicationOverview",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads a bounded application runtime overview without changing workloads.",
+            "reversible": true,
+            "impact": "Does not change application or container state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns the Application-owned overview dashboard applicationion backed by the bounded container runtime resource aggregate. Container remains the authority for per-container detail, logs, events, realtime stats topics, and raw runtime inspection.\n",
         "parameters": [
           {
@@ -15788,6 +16464,19 @@
         ],
         "summary": "Get Compose application service aggregation",
         "operationId": "getApplicationServices",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads bounded service and container membership summaries without changing workloads.",
+            "reversible": true,
+            "impact": "Does not change application or container state."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "description": "Returns Application-owned static service definitions plus bounded container membership counts. Container remains the runtime authority for detail, logs, events, stats, and shell.\n",
         "parameters": [
           {

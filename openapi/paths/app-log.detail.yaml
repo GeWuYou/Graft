@@ -2,6 +2,9 @@ get:
   tags: [app-log]
   summary: Get app log detail
   operationId: getAppLogDetail
+  x-graft-mcp:
+    risk: { level: low, reason: Reads one retained application log, reversible: true, impact: Does not change retained logs or logger state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

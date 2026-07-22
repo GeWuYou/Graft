@@ -3,6 +3,9 @@ get:
   summary: List current-user notifications
   operationId: getNotifications
   description: Returns paged notification deliveries visible to the current user.
+  x-graft-mcp:
+    risk: { level: low, reason: Lists current-user notification deliveries, reversible: true, impact: Does not change notification state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

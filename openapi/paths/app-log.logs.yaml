@@ -3,6 +3,9 @@ get:
   summary: List app logs
   operationId: getAppLogs
   description: Returns the canonical paged App Log Explorer surface owned by the logger runtime.
+  x-graft-mcp:
+    risk: { level: low, reason: Lists retained application logs, reversible: true, impact: Does not change retained logs or logger state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

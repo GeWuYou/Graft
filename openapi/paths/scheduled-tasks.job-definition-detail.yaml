@@ -3,6 +3,9 @@ get:
   summary: Read scheduler job definition detail
   operationId: getScheduledTaskJobDefinition
   description: Returns one registered Job Definition that can be bound to Scheduled Tasks.
+  x-graft-mcp:
+    risk: { level: low, reason: Reads an existing scheduler job definition, reversible: true, impact: Does not change scheduler state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

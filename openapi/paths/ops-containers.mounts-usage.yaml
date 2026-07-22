@@ -2,6 +2,16 @@ get:
   tags: [container]
   summary: List container mount usage
   operationId: getContainerMountUsage
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads cached mount usage statistics without triggering filesystem scanning.
+      reversible: true
+      impact: Does not change container, mount, or runtime state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: >
     Returns the latest cached usage statistics for the current container mounts. This endpoint does not trigger
     filesystem scanning.
