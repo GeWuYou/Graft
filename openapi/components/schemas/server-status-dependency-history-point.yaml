@@ -12,6 +12,7 @@ properties:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Number of dependency probes aggregated into this bucket. Bucket aggregate, not a process counter.
   availability_percent:
     type: number
@@ -23,6 +24,7 @@ properties:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Failed dependency probes in this bucket. Bucket aggregate, not a cumulative process counter.
   latency_average_ms:
     type: number

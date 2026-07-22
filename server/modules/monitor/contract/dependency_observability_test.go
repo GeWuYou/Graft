@@ -25,7 +25,11 @@ func TestDependencyHistoryContractValuesAreStable(t *testing.T) {
 	if DependencyKindPostgreSQL != "postgresql" || DependencyKindRedis != "redis" {
 		t.Fatalf("unexpected dependency kinds: %q, %q", DependencyKindPostgreSQL, DependencyKindRedis)
 	}
-	if DependencyHistoryStatusAvailable != "available" || DependencyHistoryStatusUnavailable != "unavailable" {
-		t.Fatalf("unexpected history statuses: %q, %q", DependencyHistoryStatusAvailable, DependencyHistoryStatusUnavailable)
+	if DependencyHistoryStatusAvailable != "available" || DependencyHistoryStatusPartial != "partial" || DependencyHistoryStatusUnavailable != "unavailable" {
+		t.Fatalf("unexpected history statuses: %q, %q, %q", DependencyHistoryStatusAvailable, DependencyHistoryStatusPartial, DependencyHistoryStatusUnavailable)
+	}
+	if DependencyHistoryUnavailableRedisNotConfigured != "redis_not_configured" ||
+		DependencyHistoryUnavailableReadFailed != "read_failed" {
+		t.Fatalf("unexpected unavailable reasons: %q, %q", DependencyHistoryUnavailableRedisNotConfigured, DependencyHistoryUnavailableReadFailed)
 	}
 }

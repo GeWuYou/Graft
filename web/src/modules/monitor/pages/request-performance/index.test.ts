@@ -351,6 +351,37 @@ describe('request performance page', () => {
     wrapper.unmount();
   });
 
+  it('rebinds histogram charts when an available distribution remounts its container', async () => {
+    schedulerStoreMock.store!.allowPolling = false;
+    const unavailableResponse = createResponse();
+    unavailableResponse.request_size_distribution = [];
+    unavailableResponse.response_size_distribution = [];
+    unavailableResponse.summary.request_bytes.measured_count = 0;
+    unavailableResponse.summary.response_bytes.measured_count = 0;
+    monitorApiMocks.getRequestPerformance.mockReset();
+    monitorApiMocks.getRequestPerformance.mockResolvedValueOnce(createResponse());
+    monitorApiMocks.getRequestPerformance.mockResolvedValueOnce(unavailableResponse);
+    monitorApiMocks.getRequestPerformance.mockResolvedValue(createResponse());
+    chartMocks.init.mockClear();
+    chartMocks.dispose.mockClear();
+
+    const wrapper = mountPage();
+    await flushPromises();
+    const page = wrapper.vm as unknown as { refresh: () => Promise<void> };
+    const initialInitCount = chartMocks.init.mock.calls.length;
+
+    await page.refresh();
+    await flushPromises();
+    expect(chartMocks.dispose).toHaveBeenCalledTimes(2);
+
+    await page.refresh();
+    await flushPromises();
+
+    expect(initialInitCount).toBe(7);
+    expect(chartMocks.init).toHaveBeenCalledTimes(9);
+    wrapper.unmount();
+  });
+
   it('renders eight summaries and builds status/request drilldowns with monitor origin', async () => {
     schedulerStoreMock.store!.allowPolling = false;
     const wrapper = mountPage();

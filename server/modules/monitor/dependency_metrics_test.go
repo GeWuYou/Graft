@@ -131,12 +131,16 @@ func TestRedisHealthMapsCollectedMetrics(t *testing.T) {
 	t.Parallel()
 
 	clients := int64(4)
+	hits := int64(18)
+	misses := int64(2)
 	keyspaces := []redisx.KeyspaceMetrics{{Database: "db0", Keys: int64Ptr(10)}}
 	reporter := monitorRedisHealthReporterStub{
 		report: redisx.HealthReport{Configured: true, Reachable: true, Latency: time.Millisecond},
 		metrics: redisx.Metrics{
-			ConnectedClients: &clients,
-			Keyspaces:        &keyspaces,
+			ConnectedClients:    &clients,
+			KeyspaceHitsTotal:   &hits,
+			KeyspaceMissesTotal: &misses,
+			Keyspaces:           &keyspaces,
 		},
 	}
 	dependency, err := redisHealth(context.Background(), nil, &Module{redisHealth: reporter})
@@ -146,8 +150,31 @@ func TestRedisHealthMapsCollectedMetrics(t *testing.T) {
 	if dependency.RedisMetrics == nil || dependency.RedisMetrics.ConnectedClients == nil || *dependency.RedisMetrics.ConnectedClients != clients {
 		t.Fatalf("expected Redis metrics in dependency snapshot, got %#v", dependency)
 	}
+	if dependency.RedisMetrics.KeyspaceHitPercent == nil || *dependency.RedisMetrics.KeyspaceHitPercent != 90 {
+		t.Fatalf("expected Redis keyspace hit percentage 90, got %#v", dependency.RedisMetrics.KeyspaceHitPercent)
+	}
 	if dependency.RedisMetrics.Keyspaces == nil || len(*dependency.RedisMetrics.Keyspaces) != 1 || (*dependency.RedisMetrics.Keyspaces)[0].Database != "db0" {
 		t.Fatalf("expected mapped Redis keyspace metrics, got %#v", dependency.RedisMetrics.Keyspaces)
+	}
+}
+
+func TestRedisHealthProbeSkipsOptionalMetrics(t *testing.T) {
+	t.Parallel()
+
+	metricsCalls := 0
+	reporter := &monitorRedisHealthReporterStub{
+		report:          redisx.HealthReport{Configured: true, Reachable: true, Latency: time.Millisecond},
+		metricsCallsPtr: &metricsCalls,
+	}
+	dependency, err := redisHealthProbe(context.Background(), nil, &Module{redisHealth: reporter})
+	if err != nil {
+		t.Fatalf("probe Redis health: %v", err)
+	}
+	if dependency.Status != statusHealthy || dependency.LatencyMs == nil {
+		t.Fatalf("expected healthy Redis probe, got %#v", dependency)
+	}
+	if metricsCalls != 0 {
+		t.Fatalf("expected Redis probe to skip optional metrics, got %d calls", metricsCalls)
 	}
 }
 
@@ -210,10 +237,10 @@ func assertDependencyHistoryRetention(t *testing.T, sample appendedTrendSample, 
 
 func assertDependencyHistoryKeys(t *testing.T, samples []appendedTrendSample) {
 	t.Helper()
-	if samples[0].key != dependencyHistoryStorageKey("graft", "host-a", monitorcontract.DependencyKindPostgreSQL) {
+	if samples[0].key != dependencyHistoryStorageKey("graft", "host-a", "unstarted", monitorcontract.DependencyKindPostgreSQL) {
 		t.Fatalf("unexpected PostgreSQL history key %q", samples[0].key)
 	}
-	if samples[1].key != dependencyHistoryStorageKey("graft", "host-a", monitorcontract.DependencyKindRedis) {
+	if samples[1].key != dependencyHistoryStorageKey("graft", "host-a", "unstarted", monitorcontract.DependencyKindRedis) {
 		t.Fatalf("unexpected Redis history key %q", samples[1].key)
 	}
 }

@@ -11,14 +11,20 @@ properties:
   retention_seconds:
     type: integer
     format: int64
+    minimum: 0
     description: Retention represented by the requested range in seconds.
   sample_interval_seconds:
     type: integer
     format: int64
+    minimum: 1
     description: Nominal monitor sampling interval in seconds.
   status:
     type: string
-    enum: [available, unavailable]
+    enum: [available, partial, unavailable]
+    x-enum-varnames:
+      - RedisHistoryAvailable
+      - RedisHistoryPartial
+      - RedisHistoryUnavailable
     description: Whether Redis history could be read. Available history may contain zero points.
   unavailable_reason:
     type: string

@@ -146,33 +146,56 @@ const headerStatusLabel = computed(() => {
 });
 
 const summaryMetrics = computed(() => {
+  const response = serverStatus.value;
   const summary = serverStatus.value?.summary;
+  const historySummary = summarizeDependencyHistory([
+    response?.dependencies.database?.history,
+    response?.dependencies.redis?.history,
+  ]);
 
   return [
     {
-      key: 'healthy',
-      label: t('monitor.dependenciesPage.summary.healthy'),
-      value: summary?.healthy_dependencies !== undefined ? String(summary.healthy_dependencies) : '--',
-      description: t('monitor.dependenciesPage.summary.healthyDescription'),
+      key: 'dependencies',
+      label: t('monitor.dependenciesPage.summary.dependencies'),
+      value:
+        summary?.healthy_dependencies !== undefined && summary.total_dependencies !== undefined
+          ? t('monitor.dependenciesPage.summary.dependenciesValue', {
+              healthy: summary.healthy_dependencies,
+              total: summary.total_dependencies,
+            })
+          : '--',
+      description: t('monitor.dependenciesPage.summary.dependenciesDescription'),
     },
     {
-      key: 'abnormal',
-      label: t('monitor.dependenciesPage.summary.abnormal'),
-      value: summary?.degraded_dependencies !== undefined ? String(summary.degraded_dependencies) : '--',
-      description: t('monitor.dependenciesPage.summary.abnormalDescription'),
+      key: 'availability',
+      label: t('monitor.dependenciesPage.summary.availability'),
+      value: formatPercent(historySummary.availabilityPercent),
+      description: t('monitor.dependenciesPage.summary.availabilityDescription'),
     },
     {
-      key: 'notConfigured',
-      label: t('monitor.dependenciesPage.summary.notConfigured'),
-      value: summary?.disabled_dependencies !== undefined ? String(summary.disabled_dependencies) : '--',
-      description: t('monitor.dependenciesPage.summary.notConfiguredDescription'),
+      key: 'failures',
+      label: t('monitor.dependenciesPage.summary.failures'),
+      value: formatMetricNumber(historySummary.failureCount),
+      description: t('monitor.dependenciesPage.summary.failuresDescription'),
     },
     {
-      key: 'lastCheck',
-      label: t('monitor.dependenciesPage.summary.lastCheck'),
+      key: 'aggregateLatency',
+      label: t('monitor.dependenciesPage.summary.aggregateLatency'),
+      value: formatLatency(historySummary.aggregateLatencyMs),
+      description: t('monitor.dependenciesPage.summary.aggregateLatencyDescription'),
+    },
+    {
+      key: 'anomalies',
+      label: t('monitor.dependenciesPage.summary.anomalies'),
+      value: response ? String(response.anomalies.length) : '--',
+      description: t('monitor.dependenciesPage.summary.anomaliesDescription'),
+    },
+    {
+      key: 'observedAt',
+      label: t('monitor.dependenciesPage.summary.observedAt'),
       value: formatTimeOnly(observedAt.value, locale),
       description:
-        formatDateOnly(observedAt.value, locale) || t('monitor.dependenciesPage.summary.lastCheckDescription'),
+        formatDateOnly(observedAt.value, locale) || t('monitor.dependenciesPage.summary.observedAtDescription'),
     },
   ];
 });
@@ -345,6 +368,46 @@ function buildPostgreSQLMetricGroups(
         formatMetricNumber(metrics?.deadlocks_total),
       ),
     ]),
+    metricGroup('storage', t('monitor.dependenciesPage.metrics.postgresql.storage'), [
+      metricItem(
+        'blocksRead',
+        t('monitor.dependenciesPage.metrics.blocksRead'),
+        formatMetricNumber(metrics?.blocks_read_total),
+      ),
+      metricItem(
+        'blocksHit',
+        t('monitor.dependenciesPage.metrics.blocksHit'),
+        formatMetricNumber(metrics?.blocks_hit_total),
+      ),
+      metricItem(
+        'tuplesReturned',
+        t('monitor.dependenciesPage.metrics.tuplesReturned'),
+        formatMetricNumber(metrics?.tuples_returned_total),
+      ),
+      metricItem(
+        'tuplesFetched',
+        t('monitor.dependenciesPage.metrics.tuplesFetched'),
+        formatMetricNumber(metrics?.tuples_fetched_total),
+      ),
+      metricItem(
+        'tuplesChanged',
+        t('monitor.dependenciesPage.metrics.tuplesChanged'),
+        formatMetricNumber(
+          sumMetricValues(metrics?.tuples_inserted_total, metrics?.tuples_updated_total, metrics?.tuples_deleted_total),
+        ),
+      ),
+      metricItem(
+        'tempFiles',
+        t('monitor.dependenciesPage.metrics.tempFiles'),
+        formatMetricNumber(metrics?.temp_files_total),
+      ),
+      metricItem('tempBytes', t('monitor.dependenciesPage.metrics.tempBytes'), formatBytes(metrics?.temp_bytes_total)),
+      metricItem(
+        'conflicts',
+        t('monitor.dependenciesPage.metrics.conflicts'),
+        formatMetricNumber(metrics?.conflicts_total),
+      ),
+    ]),
   ];
 }
 
@@ -384,6 +447,80 @@ function buildRedisMetricGroups(
         formatMetricNumber(metrics?.instantaneous_ops_per_second),
       ),
     ]),
+    metricGroup('workload', t('monitor.dependenciesPage.metrics.redis.workload'), [
+      metricItem(
+        'fragmentation',
+        t('monitor.dependenciesPage.metrics.fragmentation'),
+        formatMetricDecimal(metrics?.memory_fragmentation_ratio),
+      ),
+      metricItem(
+        'commands',
+        t('monitor.dependenciesPage.metrics.commands'),
+        formatMetricNumber(metrics?.total_commands_processed),
+      ),
+      metricItem(
+        'keyspaceHit',
+        t('monitor.dependenciesPage.metrics.keyspaceHit'),
+        formatPercent(metrics?.keyspace_hit_percent),
+      ),
+      metricItem(
+        'keyspaceHits',
+        t('monitor.dependenciesPage.metrics.keyspaceHits'),
+        formatMetricNumber(metrics?.keyspace_hits_total),
+      ),
+      metricItem(
+        'keyspaceMisses',
+        t('monitor.dependenciesPage.metrics.keyspaceMisses'),
+        formatMetricNumber(metrics?.keyspace_misses_total),
+      ),
+      metricItem(
+        'evicted',
+        t('monitor.dependenciesPage.metrics.evicted'),
+        formatMetricNumber(metrics?.evicted_keys_total),
+      ),
+      metricItem(
+        'expired',
+        t('monitor.dependenciesPage.metrics.expired'),
+        formatMetricNumber(metrics?.expired_keys_total),
+      ),
+    ]),
+    metricGroup('persistence', t('monitor.dependenciesPage.metrics.redis.persistence'), [
+      metricItem(
+        'rdbSavedAt',
+        t('monitor.dependenciesPage.metrics.rdbSavedAt'),
+        formatTimestamp(metrics?.rdb_last_save_at, locale),
+      ),
+      metricItem(
+        'rdbSaving',
+        t('monitor.dependenciesPage.metrics.rdbSaving'),
+        formatBooleanMetric(metrics?.rdb_bgsave_in_progress),
+      ),
+      metricItem(
+        'aofEnabled',
+        t('monitor.dependenciesPage.metrics.aofEnabled'),
+        formatBooleanMetric(metrics?.aof_enabled),
+      ),
+      metricItem(
+        'aofRewriting',
+        t('monitor.dependenciesPage.metrics.aofRewriting'),
+        formatBooleanMetric(metrics?.aof_rewrite_in_progress),
+      ),
+      metricItem(
+        'replicationRole',
+        t('monitor.dependenciesPage.metrics.replicationRole'),
+        displayText(metrics?.replication_role),
+      ),
+      metricItem(
+        'masterLink',
+        t('monitor.dependenciesPage.metrics.masterLink'),
+        displayText(metrics?.master_link_status),
+      ),
+      metricItem(
+        'keyspaces',
+        t('monitor.dependenciesPage.metrics.keyspaces'),
+        formatMetricNumber(metrics?.keyspaces?.length),
+      ),
+    ]),
   ];
 }
 
@@ -395,11 +532,40 @@ function buildHistoryView(history: ServerStatusDependency['history'] | null | un
     windowLabel: history?.range ?? '--',
     state: unavailable ? 'unavailable' : points.length === 0 ? 'empty' : 'ready',
     message: unavailable
-      ? t('monitor.dependenciesPage.history.unavailable')
+      ? history?.unavailable_reason === 'redis_not_configured'
+        ? t('monitor.dependenciesPage.history.redisUnavailable')
+        : t('monitor.dependenciesPage.history.unavailable')
       : t('monitor.dependenciesPage.history.empty'),
     points,
     availabilityLabel: t('monitor.dependenciesPage.history.availability'),
     latencyLabel: t('monitor.dependenciesPage.history.latency'),
+  };
+}
+
+function summarizeDependencyHistory(histories: Array<ServerStatusDependency['history'] | null | undefined>) {
+  let probeCount = 0;
+  let failureCount = 0;
+  let successfulLatencyTotal = 0;
+  let successfulLatencyCount = 0;
+
+  for (const history of histories) {
+    for (const point of history?.points ?? []) {
+      const probes = point.probe_count ?? 0;
+      const failures = point.failure_count ?? 0;
+      const successfulProbes = Math.max(0, probes - failures);
+      probeCount += probes;
+      failureCount += failures;
+      if (point.latency_average_ms !== null && point.latency_average_ms !== undefined) {
+        successfulLatencyTotal += point.latency_average_ms * successfulProbes;
+        successfulLatencyCount += successfulProbes;
+      }
+    }
+  }
+
+  return {
+    availabilityPercent: probeCount > 0 ? ((probeCount - failureCount) / probeCount) * 100 : null,
+    failureCount: probeCount > 0 ? failureCount : null,
+    aggregateLatencyMs: successfulLatencyCount > 0 ? successfulLatencyTotal / successfulLatencyCount : null,
   };
 }
 
@@ -421,6 +587,23 @@ function formatMetricNumber(value: number | null | undefined) {
 
 function formatPercent(value: number | null | undefined) {
   return value === null || value === undefined ? emptyMetricText() : `${value.toFixed(1)}%`;
+}
+
+function formatMetricDecimal(value: number | null | undefined) {
+  return value === null || value === undefined ? emptyMetricText() : value.toFixed(2);
+}
+
+function formatBooleanMetric(value: boolean | null | undefined) {
+  if (value === null || value === undefined) {
+    return emptyMetricText();
+  }
+
+  return value ? t('monitor.dependenciesPage.metrics.yes') : t('monitor.dependenciesPage.metrics.no');
+}
+
+function sumMetricValues(...values: Array<number | null | undefined>) {
+  const availableValues = values.filter((value): value is number => value !== null && value !== undefined);
+  return availableValues.length > 0 ? availableValues.reduce((sum, value) => sum + value, 0) : null;
 }
 
 function buildPoolView(label: string, pool?: ServerStatusConnectionPool | null): DependencyHealthPool {

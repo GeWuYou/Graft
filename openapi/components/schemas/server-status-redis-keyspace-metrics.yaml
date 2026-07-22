@@ -9,14 +9,17 @@ properties:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Current keys in this logical database. Gauge.
   expires:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Current keys with an expiry in this logical database. Gauge.
   average_ttl_ms:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Current average expiry TTL in milliseconds when Redis reports it. Gauge.

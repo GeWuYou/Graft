@@ -16,7 +16,7 @@ func TestBuildDependencyHistoryReadsSelectedRedisWindow(t *testing.T) {
 	t.Parallel()
 
 	observedAt := time.Date(2026, 7, 18, 10, 0, 0, 0, time.UTC)
-	key := dependencyHistoryStorageKey("app", resolveHostName(), monitorcontract.DependencyKindPostgreSQL)
+	key := dependencyHistoryStorageKey("", resolveHostName(), "unstarted", monitorcontract.DependencyKindPostgreSQL)
 	point := generated.ServerStatusDependencyHistoryPoint{ObservedAt: observedAt.Add(-15 * time.Minute)}
 	availabilityPercent := float32(98.5)
 	point.AvailabilityPercent = &availabilityPercent
@@ -73,6 +73,77 @@ func TestBuildDependencyHistoryReportsUnavailableWithoutFailingCurrentSnapshot(t
 	}
 	if len(history.Points) != 0 {
 		t.Fatalf("expected no history points, got %#v", history.Points)
+	}
+}
+
+func TestBuildDependencyHistoryReportsRedisNotConfigured(t *testing.T) {
+	t.Parallel()
+
+	history := buildDependencyHistory(
+		context.Background(),
+		nil,
+		&Module{},
+		time.Date(2026, 7, 18, 10, 0, 0, 0, time.UTC),
+		monitorcontract.TrendRange10Minutes,
+		monitorcontract.DependencyKindRedis,
+	)
+
+	if history.Status != generated.ServerStatusDependencyHistoryStatus(monitorcontract.DependencyHistoryStatusUnavailable) {
+		t.Fatalf("expected unavailable history, got %q", history.Status)
+	}
+	if history.UnavailableReason == nil || *history.UnavailableReason != generated.ServerStatusDependencyHistoryUnavailableReason(monitorcontract.DependencyHistoryUnavailableRedisNotConfigured) {
+		t.Fatalf("unexpected unavailable reason: %#v", history.UnavailableReason)
+	}
+	if len(history.Points) != 0 {
+		t.Fatalf("expected no history points, got %#v", history.Points)
+	}
+}
+
+func TestBuildDependencyHistoryReportsPartialWhenSamplesCannotBeDecoded(t *testing.T) {
+	t.Parallel()
+
+	observedAt := time.Date(2026, 7, 18, 10, 0, 0, 0, time.UTC)
+	point := generated.ServerStatusDependencyHistoryPoint{ObservedAt: observedAt.Add(-time.Minute)}
+	payload, err := json.Marshal(point)
+	if err != nil {
+		t.Fatalf("marshal dependency history point: %v", err)
+	}
+	key := dependencyHistoryStorageKey("", resolveHostName(), "unstarted", monitorcontract.DependencyKindRedis)
+	history := buildDependencyHistory(
+		context.Background(),
+		nil,
+		&Module{trendStore: &dependencyHistoryStoreStub{samplesByKey: map[string][]statex.TimeSeriesSample{
+			key: {
+				{ObservedAt: point.ObservedAt, Payload: payload},
+				{ObservedAt: observedAt.Add(-2 * time.Minute), Payload: []byte("not-json")},
+			},
+		}}},
+		observedAt,
+		monitorcontract.TrendRange10Minutes,
+		monitorcontract.DependencyKindRedis,
+	)
+
+	if history.Status != generated.ServerStatusDependencyHistoryStatus(monitorcontract.DependencyHistoryStatusPartial) {
+		t.Fatalf("expected partial history, got %q", history.Status)
+	}
+	if len(history.Points) != 1 {
+		t.Fatalf("expected one decoded history point, got %#v", history.Points)
+	}
+}
+
+func TestDependencyHistoryStorageKeySeparatesDeploymentInstances(t *testing.T) {
+	t.Parallel()
+
+	first := dependencyHistoryStorageKey("foo.bar", "host", "deployment-one", monitorcontract.DependencyKindRedis)
+	second := dependencyHistoryStorageKey("foo-bar", "host", "deployment-two", monitorcontract.DependencyKindRedis)
+	if first == second {
+		t.Fatalf("expected deployment history keys to remain distinct, got %q", first)
+	}
+	if dependencyHistoryStorageKey("app", "host", "deployment-one", monitorcontract.DependencyKindRedis) == dependencyHistoryStorageKey("app", "host", "deployment-two", monitorcontract.DependencyKindRedis) {
+		t.Fatal("expected distinct deployment IDs to produce distinct history keys")
+	}
+	if dependencyHistoryStorageKey("foo.bar", "host", "deployment", monitorcontract.DependencyKindRedis) == dependencyHistoryStorageKey("foo-bar", "host", "deployment", monitorcontract.DependencyKindRedis) {
+		t.Fatal("expected distinct raw app names to produce distinct history keys")
 	}
 }
 

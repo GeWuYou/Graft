@@ -2,8 +2,11 @@ package monitor
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -19,11 +22,12 @@ import (
 const dependencyHistoryStorageKeyPrefix = "graft:monitor:server-status:dependency-history"
 
 type dependencyHistorySampleInput struct {
-	appName    string
-	hostName   string
-	observedAt time.Time
-	database   generated.ServerStatusDependency
-	redis      generated.ServerStatusDependency
+	appName      string
+	hostName     string
+	deploymentID string
+	observedAt   time.Time
+	database     generated.ServerStatusDependency
+	redis        generated.ServerStatusDependency
 }
 
 // storeDependencyHistoryPoint 写入单个依赖探活的聚合桶。
@@ -98,7 +102,7 @@ func recordDependencyHistorySamples(
 		if err := storeDependencyHistoryPoint(
 			ctx,
 			trendStore,
-			dependencyHistoryStorageKey(input.appName, input.hostName, item.kind),
+			dependencyHistoryStorageKey(input.appName, input.hostName, input.deploymentID, item.kind),
 			input.observedAt,
 			point,
 		); err != nil {
@@ -139,7 +143,7 @@ func buildDependencyHistory(
 	points, err := loadDependencyHistoryPoints(
 		ctx,
 		trendStore,
-		dependencyHistoryStorageKey(resolveAppName(moduleCtx), resolveHostName(), dependencyKind),
+		dependencyHistoryStorageKey(resolveAppName(moduleCtx), resolveHostName(), monitorDeploymentID(instance), dependencyKind),
 		observedAt,
 		retention,
 	)
@@ -151,7 +155,10 @@ func buildDependencyHistory(
 	}
 
 	history.Status = generated.ServerStatusDependencyHistoryStatus(monitorcontract.DependencyHistoryStatusAvailable)
-	history.Points = points
+	if points.skipped > 0 {
+		history.Status = generated.ServerStatusDependencyHistoryStatus(monitorcontract.DependencyHistoryStatusPartial)
+	}
+	history.Points = points.points
 	return history
 }
 
@@ -161,19 +168,21 @@ func loadDependencyHistoryPoints(
 	storageKey string,
 	observedAt time.Time,
 	retention time.Duration,
-) ([]generated.ServerStatusDependencyHistoryPoint, error) {
+) (dependencyHistoryPoints, error) {
 	samples, err := trendStore.Range(ctx, storageKey, statex.TimeSeriesQuery{
 		StartAt: observedAt.Add(-retention),
 		EndAt:   observedAt,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("range dependency history points: %w", err)
+		return dependencyHistoryPoints{}, fmt.Errorf("range dependency history points: %w", err)
 	}
 
 	points := make([]generated.ServerStatusDependencyHistoryPoint, 0, len(samples))
+	skipped := 0
 	for _, sample := range samples {
 		var point generated.ServerStatusDependencyHistoryPoint
 		if err := json.Unmarshal(sample.Payload, &point); err != nil {
+			skipped++
 			logger.Category(zap.L(), logger.CategoryRuntimeMetrics).Warn("decode stored dependency history point failed",
 				zap.Time("observedAt", sample.ObservedAt),
 				zap.String("storageKey", storageKey),
@@ -184,19 +193,46 @@ func loadDependencyHistoryPoints(
 		points = append(points, point)
 	}
 
-	return points, nil
+	return dependencyHistoryPoints{points: points, skipped: skipped}, nil
+}
+
+type dependencyHistoryPoints struct {
+	points  []generated.ServerStatusDependencyHistoryPoint
+	skipped int
+}
+
+func monitorDeploymentID(instance *Module) string {
+	if instance == nil {
+		return "unstarted"
+	}
+	startedAt := instance.startedAtUnixNs.Load()
+	if startedAt == 0 {
+		return "unstarted"
+	}
+	return strconv.FormatInt(startedAt, 10)
 }
 
 func dependencyHistoryStorageKey(
 	appName string,
 	hostName string,
+	deploymentID string,
 	dependencyKind monitorcontract.DependencyKind,
 ) string {
 	return fmt.Sprintf(
-		"%s:%s:%s:%s",
+		"%s:%s:%s:%s:%s",
 		dependencyHistoryStorageKeyPrefix,
-		statexkeys.Segment(appName, "app"),
-		statexkeys.Segment(hostName, "host"),
+		dependencyHistoryIdentitySegment(appName, "app"),
+		dependencyHistoryIdentitySegment(hostName, "host"),
+		statexkeys.Segment(deploymentID, "unstarted"),
 		dependencyKind,
 	)
+}
+
+func dependencyHistoryIdentitySegment(value string, fallback string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(value))
+	if trimmed == "" {
+		return statexkeys.Segment(value, fallback)
+	}
+	digest := sha256.Sum256([]byte(trimmed))
+	return fmt.Sprintf("%s-%x", statexkeys.Segment(value, fallback), digest[:6])
 }

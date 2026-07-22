@@ -31,13 +31,22 @@ const props = defineProps<{
 const settingStore = useSettingStore();
 const chartElement = ref<HTMLDivElement | null>(null);
 let instance: echarts.ECharts | null = null;
+let instanceElement: HTMLDivElement | null = null;
 
 function renderChart() {
   if ((props.state !== 'ready' && props.state !== 'partial') || !chartElement.value) {
+    instance?.dispose();
+    instance = null;
+    instanceElement = null;
     return;
   }
 
+  if (instance && instanceElement !== chartElement.value) {
+    instance.dispose();
+    instance = null;
+  }
   instance ??= echarts.init(chartElement.value);
+  instanceElement = chartElement.value;
   const availabilityColor = readThemeColor('--td-success-color-5', '#2ba471');
   const latencyColor = readThemeColor('--td-brand-color', '#0052d9');
   const labels = props.points.map((point) => formatChartTimeOnly(point.observed_at));
@@ -119,6 +128,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   instance?.dispose();
+  instance = null;
+  instanceElement = null;
   window.removeEventListener('resize', resizeChart);
 });
 </script>

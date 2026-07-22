@@ -194,20 +194,21 @@ func (p *Module) recordTrendSample(
 		logTrendWarning(p, nil, "store monitor trend sample failed", err)
 	}
 
-	database, databaseErr := databaseHealth(ctx, p)
+	database, databaseErr := databaseHealthProbe(ctx, p)
 	if databaseErr != nil {
 		logTrendWarning(p, nil, "collect dependency history database sample failed", databaseErr)
 	}
-	redis, redisErr := redisHealth(ctx, nil, p)
+	redis, redisErr := redisHealthProbe(ctx, nil, p)
 	if redisErr != nil {
 		logTrendWarning(p, nil, "collect dependency history Redis sample failed", redisErr)
 	}
 	recordDependencyHistorySamples(ctx, trendStore, dependencyHistorySampleInput{
-		appName:    p.appName,
-		hostName:   resolveHostName(),
-		observedAt: observedAt,
-		database:   database,
-		redis:      redis,
+		appName:      p.appName,
+		hostName:     resolveHostName(),
+		deploymentID: monitorDeploymentID(p),
+		observedAt:   observedAt,
+		database:     database,
+		redis:        redis,
 	})
 }
 

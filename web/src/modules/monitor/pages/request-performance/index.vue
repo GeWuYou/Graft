@@ -240,6 +240,7 @@ const expandedStatusGroups = ref<string[]>([]);
 const remainingRefreshSeconds = ref<number | null>(null);
 const chartRefs = ref<Partial<Record<ChartKey, HTMLDivElement | null>>>({});
 const chartInstances = new Map<ChartKey, echarts.ECharts>();
+const chartElements = new Map<ChartKey, HTMLDivElement>();
 let refreshTimer: number | null = null;
 let refreshDeadline: number | null = null;
 let pendingDisplayTimer: number | null = null;
@@ -686,8 +687,11 @@ function renderCharts() {
   };
   (Object.keys(definitions) as Array<keyof typeof definitions>).forEach((key) => {
     const element = chartRefs.value[key];
-    if (!element) return;
-    const instance = chartInstances.get(key) ?? echarts.init(element);
+    if (!element) {
+      disposeChart(key);
+      return;
+    }
+    const instance = getChartInstance(key, element);
     chartInstances.set(key, instance);
     const definition = definitions[key];
     instance.setOption({
@@ -764,10 +768,12 @@ function renderHistogramCharts() {
   };
   (Object.keys(definitions) as Array<keyof typeof definitions>).forEach((key) => {
     const element = chartRefs.value[key];
-    if (!element) return;
+    if (!element) {
+      disposeChart(key);
+      return;
+    }
     const definition = definitions[key];
-    const instance = chartInstances.get(key) ?? echarts.init(element);
-    chartInstances.set(key, instance);
+    const instance = getChartInstance(key, element);
     instance.setOption({
       color: [definition.color],
       tooltip: {
@@ -799,6 +805,23 @@ function renderHistogramCharts() {
       ],
     });
   });
+}
+
+function getChartInstance(key: ChartKey, element: HTMLDivElement) {
+  const currentInstance = chartInstances.get(key);
+  if (currentInstance && chartElements.get(key) === element) return currentInstance;
+
+  currentInstance?.dispose();
+  const nextInstance = echarts.init(element);
+  chartInstances.set(key, nextInstance);
+  chartElements.set(key, element);
+  return nextInstance;
+}
+
+function disposeChart(key: ChartKey) {
+  chartInstances.get(key)?.dispose();
+  chartInstances.delete(key);
+  chartElements.delete(key);
 }
 
 function formatHistogramRange(lower: number, upper: number | null, formatter: (value: number) => string) {
@@ -834,6 +857,8 @@ onUnmounted(() => {
   if (refreshTimer !== null) window.clearInterval(refreshTimer);
   if (pendingDisplayTimer !== null) window.clearTimeout(pendingDisplayTimer);
   chartInstances.forEach((instance) => instance.dispose());
+  chartInstances.clear();
+  chartElements.clear();
   window.removeEventListener('resize', resizeCharts);
 });
 </script>

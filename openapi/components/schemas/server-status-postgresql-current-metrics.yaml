@@ -7,51 +7,61 @@ properties:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Current database size in bytes. Gauge.
   max_connections:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Configured PostgreSQL connection limit. Gauge.
   active_connections:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Sessions currently executing a query. Gauge.
   idle_connections:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Sessions currently idle. Gauge.
   idle_in_transaction_connections:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Sessions idle while holding an open transaction. Gauge.
   waiting_connections:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Sessions waiting on a database event. Gauge.
   transaction_commit_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative committed transactions reported by PostgreSQL. Counter.
   transaction_rollback_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative rolled-back transactions reported by PostgreSQL. Counter.
   blocks_read_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative disk blocks read by PostgreSQL. Counter.
   blocks_hit_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative buffer-cache block hits reported by PostgreSQL. Counter.
   cache_hit_percent:
     type: number
@@ -63,44 +73,53 @@ properties:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative tuples returned by scans. Counter.
   tuples_fetched_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative tuples fetched by index scans. Counter.
   tuples_inserted_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative inserted tuples. Counter.
   tuples_updated_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative updated tuples. Counter.
   tuples_deleted_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative deleted tuples. Counter.
   temp_files_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative temporary files created by PostgreSQL. Counter.
   temp_bytes_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative temporary-file bytes written by PostgreSQL. Counter.
   conflicts_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative recovery conflicts reported by PostgreSQL. Counter.
   deadlocks_total:
     type: integer
     format: int64
     nullable: true
+    minimum: 0
     description: Cumulative detected deadlocks reported by PostgreSQL. Counter.

@@ -43,6 +43,20 @@ const (
 // 通过 Ping 测试连接可达性：失败返回降级状态，成功返回健康状态及延迟信息。
 // 仅当延迟转换失败时返回错误；Ping 失败作为可观测的降级状态返回。
 func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStatusDependency, error) {
+	dependency, err := databaseHealthProbe(ctx, instance)
+	if err != nil || dependency.Status != statusHealthy {
+		return dependency, err
+	}
+
+	if metrics, err := collectPostgreSQLMetrics(ctx, instance.db); err != nil {
+		logTrendWarning(instance, nil, "collect PostgreSQL metrics failed", err)
+	} else {
+		dependency.PostgresqlMetrics = metrics
+	}
+	return dependency, nil
+}
+
+func databaseHealthProbe(ctx context.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	if instance == nil || instance.db == nil {
 		return generated.ServerStatusDependency{
 			Status: statusUnknown,
@@ -68,23 +82,32 @@ func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStat
 	if err != nil {
 		return generated.ServerStatusDependency{}, fmt.Errorf("convert database latency: %w", err)
 	}
-	dependency := generated.ServerStatusDependency{
+	return generated.ServerStatusDependency{
 		Status:    statusHealthy,
 		Detail:    "Database ping succeeded",
 		LatencyMs: &latencyMs,
 		Pool:      databasePoolStats(instance.db),
-	}
-	if metrics, err := collectPostgreSQLMetrics(ctx, instance.db); err != nil {
-		logTrendWarning(instance, nil, "collect PostgreSQL metrics failed", err)
-	} else {
-		dependency.PostgresqlMetrics = metrics
-	}
-	return dependency, nil
+	}, nil
 }
 
 // redisHealth 检查 Redis 连接状态；未配置时返回 disabled，检查失败或不可达时返回 degraded，成功时返回 healthy。
 // 可用时同时返回连接池统计和延迟；连接检查失败作为状态返回，仅延迟转换失败才返回错误。
 func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
+	dependency, err := redisHealthProbe(ctx, moduleCtx, instance)
+	if err != nil || dependency.Status != statusHealthy {
+		return dependency, err
+	}
+
+	reporter := resolveRedisHealthReporter(moduleCtx, instance)
+	if metrics, err := reporter.ReportMetrics(ctx); err != nil {
+		logTrendWarning(instance, moduleCtx, "collect Redis metrics failed", err)
+	} else {
+		dependency.RedisMetrics = mapRedisMetrics(metrics)
+	}
+	return dependency, nil
+}
+
+func redisHealthProbe(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	reporter := resolveRedisHealthReporter(moduleCtx, instance)
 	if reporter == nil {
 		return generated.ServerStatusDependency{
@@ -96,7 +119,7 @@ func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Modul
 
 	report, err := reporter.Report(ctx)
 	if err != nil {
-		logTrendWarning(nil, moduleCtx, "redis ping failed", err)
+		logTrendWarning(instance, moduleCtx, "redis ping failed", err)
 		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Redis ping failed",
@@ -122,18 +145,12 @@ func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Modul
 	if err != nil {
 		return generated.ServerStatusDependency{}, fmt.Errorf("convert redis latency: %w", err)
 	}
-	dependency := generated.ServerStatusDependency{
+	return generated.ServerStatusDependency{
 		Status:    statusHealthy,
 		Detail:    "Redis ping succeeded",
 		LatencyMs: &latencyMs,
 		Pool:      redisPoolStats(report.Pool),
-	}
-	if metrics, err := reporter.ReportMetrics(ctx); err != nil {
-		logTrendWarning(instance, moduleCtx, "collect Redis metrics failed", err)
-	} else {
-		dependency.RedisMetrics = mapRedisMetrics(metrics)
-	}
-	return dependency, nil
+	}, nil
 }
 
 // collectPostgreSQLMetrics 通过固定只读聚合查询收集当前诊断数据。
@@ -235,6 +252,7 @@ func mapRedisMetrics(metrics redisx.Metrics) *generated.ServerStatusRedisCurrent
 		InstantaneousOpsPerSecond: metrics.InstantaneousOpsPerSecond,
 		KeyspaceHitsTotal:         metrics.KeyspaceHitsTotal,
 		KeyspaceMissesTotal:       metrics.KeyspaceMissesTotal,
+		KeyspaceHitPercent:        cacheHitPercent(metrics.KeyspaceHitsTotal, metrics.KeyspaceMissesTotal),
 		ExpiredKeysTotal:          metrics.ExpiredKeysTotal,
 		EvictedKeysTotal:          metrics.EvictedKeysTotal,
 		RdbLastSaveAt:             metrics.RdbLastSaveAt,

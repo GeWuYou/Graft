@@ -320,7 +320,7 @@
         "requestTitle": "最大请求",
         "requestHint": "请求体最大的五条已采集请求。",
         "responseTitle": "最大响应",
-        "responseHint": "响应体最大的五条已采集请求。",
+        "responseHint": "响应体最大的五条已采集响应。",
         "view": "查看"
       },
       "statusGroups": {

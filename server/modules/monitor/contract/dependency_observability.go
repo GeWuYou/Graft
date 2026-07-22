@@ -18,6 +18,8 @@ const (
 	DependencyHistoryStatusAvailable DependencyHistoryStatus = "available"
 	// DependencyHistoryStatusUnavailable 表示当前快照无法读取历史，但不影响当前依赖状态。
 	DependencyHistoryStatusUnavailable DependencyHistoryStatus = "unavailable"
+	// DependencyHistoryStatusPartial 表示历史可读取但部分点位无法解码。
+	DependencyHistoryStatusPartial DependencyHistoryStatus = "partial"
 )
 
 // DependencyHistoryUnavailableReason 标识不返回历史点位的稳定原因。

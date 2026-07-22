@@ -859,10 +859,11 @@ func (s *monitorTrendStoreStub) Range(_ context.Context, key string, _ statex.Ti
 }
 
 type monitorRedisHealthReporterStub struct {
-	report     redisx.HealthReport
-	err        error
-	metrics    redisx.Metrics
-	metricsErr error
+	report          redisx.HealthReport
+	err             error
+	metrics         redisx.Metrics
+	metricsErr      error
+	metricsCallsPtr *int
 }
 
 func (s monitorRedisHealthReporterStub) Report(context.Context) (redisx.HealthReport, error) {
@@ -870,6 +871,9 @@ func (s monitorRedisHealthReporterStub) Report(context.Context) (redisx.HealthRe
 }
 
 func (s monitorRedisHealthReporterStub) ReportMetrics(context.Context) (redisx.Metrics, error) {
+	if s.metricsCallsPtr != nil {
+		*s.metricsCallsPtr++
+	}
 	return s.metrics, s.metricsErr
 }
 
