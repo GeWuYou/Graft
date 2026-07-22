@@ -395,7 +395,7 @@
       "errorTitle": "操作失败",
       "requestIdLabel": "请求 ID：",
       "copyRequestIdAction": "复制",
-      "viewAuditAction": "查看审计",
+      "viewAppLogAction": "查看应用日志",
       "copyRequestIdSuccessTitle": "请求 ID 已复制",
       "copyRequestIdSuccessContent": "可直接用于后续排障调查。",
       "copyRequestIdErrorTitle": "复制失败",

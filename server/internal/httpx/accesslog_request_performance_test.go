@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
+
 	"graft/server/internal/moduleapi"
 )
 
@@ -153,6 +155,35 @@ func TestAccessLogRepositoryReadRequestPerformanceRejectsInvalidQuery(t *testing
 	})
 	if err != moduleapi.ErrRequestPerformanceInvalidQuery {
 		t.Fatalf("expected invalid query error, got %v", err)
+	}
+}
+
+func TestAccessLogRepositoryReadRequestPerformanceUsesAllPostgresCursorArguments(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("create postgres query mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	repository, err := newAccessLogRepositoryWithDialect(db, accessLogSQLDialectPostgres)
+	if err != nil {
+		t.Fatalf("new postgres access log repository: %v", err)
+	}
+	reader := repository.(moduleapi.RequestPerformanceReader)
+	base := time.Date(2026, 7, 14, 8, 0, 0, 0, time.UTC)
+	mock.ExpectQuery(`(?s)SELECT id, request_id.*occurred_at = \$5 AND id > \$6.*LIMIT \$7`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "request_id", "occurred_at", "method", "path", "route", "status_code", "duration_ms", "request_size", "response_size"}))
+
+	if _, err := reader.ReadRequestPerformance(context.Background(), moduleapi.RequestPerformanceQuery{
+		WindowStart: base,
+		WindowEnd:   base.Add(time.Minute),
+		BucketSize:  moduleapi.RequestPerformanceMinuteBucketSize,
+	}); err != nil {
+		t.Fatalf("read postgres request performance: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("postgres request performance query contract: %v", err)
 	}
 }
 

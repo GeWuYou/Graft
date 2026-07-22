@@ -25,8 +25,9 @@ const (
 	requestPerformanceWindowEndArg       = 2
 	requestPerformanceConnectionTypeArg  = 3
 	requestPerformanceCursorTimeArg      = 4
-	requestPerformanceCursorIDArg        = 5
-	requestPerformancePageSizeArg        = 6
+	requestPerformanceCursorTimeEndArg   = 5
+	requestPerformanceCursorIDArg        = 6
+	requestPerformancePageSizeArg        = 7
 	requestPerformanceUnmatchedRoute     = "<unmatched>"
 )
 
@@ -108,7 +109,7 @@ func (r *accessLogRepository) ReadRequestPerformance(
 		WHERE occurred_at >= %s AND occurred_at < %s AND connection_type = %s
 			AND (occurred_at > %s OR (occurred_at = %s AND id > %s))
 		ORDER BY occurred_at ASC, id ASC
-		LIMIT %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorIDArg), r.placeholder(requestPerformancePageSizeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP, cursorOccurredAt, cursorOccurredAt, cursorID, requestPerformancePageSize)
+		LIMIT %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorTimeEndArg), r.placeholder(requestPerformanceCursorIDArg), r.placeholder(requestPerformancePageSizeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP, cursorOccurredAt, cursorOccurredAt, cursorID, requestPerformancePageSize)
 		if err != nil {
 			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("query request performance access logs: %w", err)
 		}

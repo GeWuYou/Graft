@@ -395,7 +395,7 @@
       "errorTitle": "Operation failed",
       "requestIdLabel": "Request ID:",
       "copyRequestIdAction": "Copy",
-      "viewAuditAction": "View Audit",
+      "viewAppLogAction": "View App Log",
       "copyRequestIdSuccessTitle": "Request ID copied",
       "copyRequestIdSuccessContent": "The request ID is ready for troubleshooting.",
       "copyRequestIdErrorTitle": "Copy failed",
