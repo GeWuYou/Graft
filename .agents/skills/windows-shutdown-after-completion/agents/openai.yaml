@@ -1,0 +1,6 @@
+interface:
+  display_name: "Shutdown After Completion"
+  short_description: "Schedule a Windows shutdown after completed work."
+  default_prompt: "Use $windows-shutdown-after-completion after all requested work is validated and closed out."
+policy:
+  allow_implicit_invocation: false
