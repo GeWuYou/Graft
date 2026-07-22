@@ -1,0 +1,19 @@
+{
+  "source": {
+    "server": "graft-update-fixture-server:v1.0.0",
+    "web": "graft-update-fixture-web:v1.0.0"
+  },
+  "target": {
+    "tag": "v1.1.0",
+    "server": "graft-update-fixture-server:v1.1.0",
+    "web": "graft-update-fixture-web:v1.1.0"
+  },
+  "expected_trace": [
+    "backup",
+    "compose pull",
+    "bootstrap migrate up",
+    "compose recreate server web",
+    "docker health",
+    "healthz"
+  ]
+}

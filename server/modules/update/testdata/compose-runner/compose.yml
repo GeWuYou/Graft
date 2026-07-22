@@ -1,0 +1,8 @@
+services:
+  bootstrap:
+    image: ${GRAFT_SERVER_REFERENCE}
+    command: ["migrate", "up"]
+  server:
+    image: ${GRAFT_SERVER_REFERENCE}
+  web:
+    image: ${GRAFT_WEB_REFERENCE}
