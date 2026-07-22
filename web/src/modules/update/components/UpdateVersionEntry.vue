@@ -2,7 +2,6 @@
   <t-tooltip v-if="canRead && versionLabel" placement="bottom" :content="tooltip">
     <span class="update-version-entry" :aria-label="tooltip">
       {{ versionLabel }}
-      <span v-if="discoveryStore.hasUpdate" class="update-version-entry__indicator" aria-hidden="true" />
     </span>
   </t-tooltip>
 </template>
@@ -30,19 +29,17 @@ const tooltip = computed(() =>
 <style scoped lang="less">
 .update-version-entry {
   align-items: center;
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 4px;
   color: var(--td-text-color-secondary);
   display: inline-flex;
-  font: var(--td-font-body-small);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  gap: var(--td-comp-margin-xs);
-  margin-left: 0;
+  font-weight: 600;
+  line-height: 16px;
+  margin-right: var(--td-comp-paddingLR-m);
+  padding: 0 var(--td-comp-paddingLR-xs);
   white-space: nowrap;
-}
-
-.update-version-entry__indicator {
-  background: var(--td-success-color);
-  border-radius: 50%;
-  height: 6px;
-  width: 6px;
 }
 </style>
