@@ -102,6 +102,7 @@ func registerMessages(localizer *i18n.Service) error {
 	}
 	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
 		for _, key := range []i18n.MessageKey{
+			"menu.platform.maintenance",
 			"menu.platform.update",
 			"scheduledTask.platformUpdateCheck.title",
 			"scheduledTask.platformUpdateCheck.description",
@@ -129,6 +130,7 @@ func registerMenu(registry *menu.Registry) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
-	registry.Register(menu.Item{Code: "platform-update.center", ParentCode: "domain.platform", Kind: menu.NodeKindEntry, TitleKey: "menu.platform.update", Path: updatecontract.UpdateMenuPath, Icon: "platform-update", Order: platformUpdateMenuOrder, Permission: updatecontract.UpdateReadPermission.String(), Module: moduleID})
+	registry.Register(menu.Item{Code: "platform-maintenance", ParentCode: "domain.platform", Kind: menu.NodeKindGroup, TitleKey: "menu.platform.maintenance", Icon: "platform-configuration", Order: platformUpdateMenuOrder, Module: moduleID})
+	registry.Register(menu.Item{Code: "platform-update.center", ParentCode: "platform-maintenance", Kind: menu.NodeKindEntry, TitleKey: "menu.platform.update", Path: updatecontract.UpdateMenuPath, Icon: "platform-update", Order: platformUpdateMenuOrder, Permission: updatecontract.UpdateReadPermission.String(), Module: moduleID})
 	return nil
 }

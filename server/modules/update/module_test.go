@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/robfig/cron/v3"
-
 	"graft/server/internal/config"
 	"graft/server/internal/i18n"
+	"graft/server/internal/menu"
+	updatecontract "graft/server/modules/update/contract"
 	updatelocales "graft/server/modules/update/locales"
 )
 
@@ -22,6 +23,7 @@ func TestRegisterMessagesIncludesPlatformUpdateScheduledTaskKeys(t *testing.T) {
 	if err := registerMessages(localizer); err != nil {
 		t.Fatalf("register platform-update messages: %v", err)
 	}
+	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleZHCN, "menu.platform.maintenance", "系统维护")
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleZHCN, "scheduledTask.platformUpdateCheck.title", "检查平台更新")
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleENUS, "scheduledTask.platformUpdateCheck.title", "Check Platform Updates")
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleZHCN, "scheduledTask.platformUpdateCheck.description", "检查发布源中是否存在经过验证的较新平台版本。")
@@ -58,5 +60,26 @@ func assertRegisteredUpdateMessage(t *testing.T, localizer *i18n.Service, locale
 	}
 	if matches[0].Text != expected {
 		t.Fatalf("expected platform-update message %q for %s %q, got %#v", expected, locale, key, matches[0])
+	}
+}
+
+func TestRegisterMenuGroupsUpdateUnderPlatformMaintenance(t *testing.T) {
+	registry := menu.NewRegistry()
+	menu.RegisterDomainGroups(registry)
+	if err := registerMenu(registry); err != nil {
+		t.Fatalf("register menu: %v", err)
+	}
+
+	items := map[string]menu.Item{}
+	for _, item := range registry.Items() {
+		items[item.Code] = item
+	}
+	maintenance := items["platform-maintenance"]
+	if maintenance.ParentCode != "domain.platform" || maintenance.Kind != menu.NodeKindGroup || maintenance.TitleKey != "menu.platform.maintenance" {
+		t.Fatalf("unexpected maintenance group: %#v", maintenance)
+	}
+	update := items["platform-update.center"]
+	if update.ParentCode != maintenance.Code || update.Path != updatecontract.UpdateMenuPath || update.Permission != updatecontract.UpdateReadPermission.String() {
+		t.Fatalf("unexpected update entry: %#v", update)
 	}
 }

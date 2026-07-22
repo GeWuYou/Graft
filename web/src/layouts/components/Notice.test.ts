@@ -28,14 +28,24 @@ vi.mock('@/modules/notification', () => ({
   }),
 }));
 
+vi.mock('@/modules/update', () => ({
+  updateNotification: defineComponent({
+    name: 'UpdateNotificationStub',
+    setup() {
+      return () => h('div', { class: 'update-notification', 'data-testid': 'update-notification-entry' });
+    },
+  }),
+}));
+
 describe('Notice', () => {
-  it('wraps notification and announcement entries with standard header operation items', () => {
+  it('wraps update, notification, and announcement entries with standard header operation items', () => {
     const wrapper = mount(Notice);
 
     const operationItems = wrapper.findAll('.header-operation-item');
-    expect(operationItems).toHaveLength(2);
-    expect(operationItems[0]?.find('[data-testid="notification-entry"]').exists()).toBe(true);
-    expect(operationItems[1]?.find('[data-testid="announcement-entry"]').exists()).toBe(true);
+    expect(operationItems).toHaveLength(3);
+    expect(operationItems[0]?.find('[data-testid="update-notification-entry"]').exists()).toBe(true);
+    expect(operationItems[1]?.find('[data-testid="notification-entry"]').exists()).toBe(true);
+    expect(operationItems[2]?.find('[data-testid="announcement-entry"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="announcement-popup-host"]').exists()).toBe(true);
     expect(wrapper.find('.header-notice-actions').exists()).toBe(false);
   });

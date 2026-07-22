@@ -1,5 +1,8 @@
 <template>
   <div class="header-operation-item">
+    <component :is="updateNotification" />
+  </div>
+  <div class="header-operation-item">
     <component :is="notificationHeaderWidget" />
   </div>
   <div class="header-operation-item">
@@ -10,4 +13,5 @@
 <script setup lang="ts">
 import { announcementHeaderEntry, announcementPopupHost } from '@/modules/announcement';
 import { notificationHeaderWidget } from '@/modules/notification';
+import { updateNotification } from '@/modules/update';
 </script>

@@ -87,6 +87,6 @@ InstallationProfile {
 
 ## Scope
 
-当前主题实现：release manifest、read-only discovery、Update Center、独立 backup capability、管理员确认的 Compose 执行、历史和恢复证据。
+当前主题实现：release manifest、read-only discovery、顶部轻量更新提醒、`Platform -> System Maintenance -> Updates` 管理页、独立 backup capability、管理员确认的 Compose 执行、历史和恢复证据。顶部提醒只消费认证壳生命周期内的单一 discovery snapshot；它不承担独立轮询或第二套发现请求。
 
 明确延后：无确认自动安装、多节点编排、Kubernetes executor、持久 Update Agent、容器内 binary replacement、host/systemd binary replacement，以及承诺自动 schema rollback。
