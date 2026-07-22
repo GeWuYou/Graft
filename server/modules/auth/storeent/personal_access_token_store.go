@@ -3,7 +3,7 @@ package storeent
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"math"
 	"time"
 
 	authent "graft/server/modules/auth/ent"
@@ -135,8 +135,7 @@ func toStorePersonalAccessToken(record *authent.AuthPersonalAccessToken) store.P
 }
 
 func personalAccessTokenEntID(tokenID uint64) (int, error) {
-	maxID := uint64(1<<(strconv.IntSize-1) - 1)
-	if tokenID > maxID {
+	if tokenID > math.MaxInt {
 		return 0, fmt.Errorf("personal access token id exceeds ent integer range: %d", tokenID)
 	}
 	return int(tokenID), nil
