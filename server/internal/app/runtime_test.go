@@ -1287,7 +1287,7 @@ func TestLoadOpenAPIDocsAssetsUsesGeneratedCanonicalBundle(t *testing.T) {
 func TestSummarizeOpenAPIOperationsKeepsStableNonZeroMethodOrder(t *testing.T) {
 	paths := openapi3.NewPaths(
 		openapi3.WithPath("/widgets", &openapi3.PathItem{
-			Get:   &openapi3.Operation{},
+			Get:   &openapi3.Operation{Deprecated: true},
 			Post:  &openapi3.Operation{},
 			Patch: &openapi3.Operation{},
 		}),
@@ -1299,6 +1299,9 @@ func TestSummarizeOpenAPIOperationsKeepsStableNonZeroMethodOrder(t *testing.T) {
 	summary := summarizeOpenAPIOperations(paths)
 	if summary.Total != 4 {
 		t.Fatalf("expected 4 operations, got %d", summary.Total)
+	}
+	if summary.Deprecated != 1 {
+		t.Fatalf("expected 1 deprecated operation, got %d", summary.Deprecated)
 	}
 	want := []openAPIDocsMethodCount{
 		{Method: http.MethodGet, Count: 1},
@@ -1332,7 +1335,7 @@ func TestEnrichOpenAPITagDescriptionsBuildsOverviewAndSecurityFromOperations(t *
 				Get: &openapi3.Operation{Tags: []string{"auth"}},
 			}),
 			openapi3.WithPath("/api/ops/containers", &openapi3.PathItem{
-				Delete: &openapi3.Operation{Tags: []string{"container"}},
+				Delete: &openapi3.Operation{Tags: []string{"container"}, Deprecated: true},
 			}),
 		),
 	}
@@ -1353,8 +1356,13 @@ func TestEnrichOpenAPITagDescriptionsBuildsOverviewAndSecurityFromOperations(t *
 		}
 	}
 	container := document.Tags.Get("container")
-	if !strings.Contains(container.Description, "Authentication required for 1 of 1 operations.") {
-		t.Fatalf("expected container authentication summary, got %q", container.Description)
+	for _, expected := range []string{
+		"Deprecated: 1 operations.",
+		"Authentication required for 1 of 1 operations.",
+	} {
+		if !strings.Contains(container.Description, expected) {
+			t.Fatalf("expected container authentication summary to contain %q, got %q", expected, container.Description)
+		}
 	}
 }
 
@@ -1696,11 +1704,24 @@ func assertScalarDocsConfiguration(t *testing.T, body string) scalarDocsConfigur
 func assertDocsOperationSummary(t *testing.T, body string, summary openAPIDocsOperationSummary) {
 	t.Helper()
 
-	if !strings.Contains(body, `aria-label="API operation summary"`) {
-		t.Fatalf("%s: expected API operation summary", openapiDocsPath)
+	if !strings.Contains(body, `aria-label="Documentation health summary"`) {
+		t.Fatalf("%s: expected documentation health summary", openapiDocsPath)
 	}
 	if !strings.Contains(body, `data-operation-count="`+strconv.Itoa(summary.Total)+`"`) {
 		t.Fatalf("%s: expected total operation count %d", openapiDocsPath, summary.Total)
+	}
+	deprecated := `class="graft-docs-stat"><dt>Deprecated</dt><dd data-operation-count="` + strconv.Itoa(summary.Deprecated) + `">` + strconv.Itoa(summary.Deprecated) + `</dd></div>`
+	if !strings.Contains(body, deprecated) {
+		t.Fatalf("%s: expected deprecated operation summary %q", openapiDocsPath, deprecated)
+	}
+	for _, expected := range []string{
+		"<dt>OpenAPI Version</dt><dd>" + summary.OpenAPIVersion + "</dd>",
+		"<dt>Tags</dt><dd>" + strconv.Itoa(summary.Tags) + "</dd>",
+		"<dt>Tagged Operations</dt><dd>" + strconv.Itoa(summary.TaggedOperations) + "</dd>",
+	} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("%s: expected documentation health metric %q", openapiDocsPath, expected)
+		}
 	}
 	for _, method := range summary.Methods {
 		expected := `class="graft-docs-stat" data-operation-method="` + method.Method + `"><dt>` + method.Method + `</dt><dd data-operation-count="` + strconv.Itoa(method.Count) + `"`

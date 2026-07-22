@@ -88,6 +88,58 @@
     },
     "additionalProperties": true
   },
+  "x-tagGroups": [
+    {
+      "name": "Platform",
+      "tags": [
+        "health",
+        "mcp",
+        "modules",
+        "scheduled-tasks",
+        "tasks",
+        "system-config",
+        "dashboard",
+        "notifications",
+        "announcements"
+      ]
+    },
+    {
+      "name": "Security",
+      "tags": [
+        "auth",
+        "users",
+        "rbac",
+        "security",
+        "audit"
+      ]
+    },
+    {
+      "name": "Applications",
+      "tags": [
+        "application"
+      ]
+    },
+    {
+      "name": "Infrastructure",
+      "tags": [
+        "runtime-target"
+      ]
+    },
+    {
+      "name": "Resources",
+      "tags": [
+        "container"
+      ]
+    },
+    {
+      "name": "Observability",
+      "tags": [
+        "monitor",
+        "access-log",
+        "app-log"
+      ]
+    }
+  ],
   "servers": [
     {
       "url": "/"

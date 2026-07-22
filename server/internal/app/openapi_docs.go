@@ -114,10 +114,14 @@ var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!
   </head>
   <body>
     <main class="graft-docs-shell">
-      <section class="graft-docs-overview" aria-label="API operation summary">
-        <span class="graft-docs-overview-title">API Operations</span>
+      <section class="graft-docs-overview" aria-label="Documentation health summary">
+        <span class="graft-docs-overview-title">Documentation Health</span>
         <dl class="graft-docs-stat-list">
-          <div class="graft-docs-stat"><dt>Total</dt><dd data-operation-count="{{ .Summary.Total }}">{{ .Summary.Total }}</dd></div>
+          <div class="graft-docs-stat"><dt>Total APIs</dt><dd data-operation-count="{{ .Summary.Total }}">{{ .Summary.Total }}</dd></div>
+          <div class="graft-docs-stat"><dt>Deprecated</dt><dd data-operation-count="{{ .Summary.Deprecated }}">{{ .Summary.Deprecated }}</dd></div>
+          <div class="graft-docs-stat"><dt>OpenAPI Version</dt><dd>{{ .Summary.OpenAPIVersion }}</dd></div>
+          <div class="graft-docs-stat"><dt>Tags</dt><dd>{{ .Summary.Tags }}</dd></div>
+          <div class="graft-docs-stat"><dt>Tagged Operations</dt><dd>{{ .Summary.TaggedOperations }}</dd></div>
           {{ range .Summary.Methods }}
           <div class="graft-docs-stat" data-operation-method="{{ .Method }}"><dt>{{ .Method }}</dt><dd data-operation-count="{{ .Count }}">{{ .Count }}</dd></div>
           {{ end }}
@@ -137,8 +141,12 @@ type openAPIDocsAssets struct {
 }
 
 type openAPIDocsOperationSummary struct {
-	Total   int
-	Methods []openAPIDocsMethodCount
+	Total            int
+	Deprecated       int
+	OpenAPIVersion   string
+	Tags             int
+	TaggedOperations int
+	Methods          []openAPIDocsMethodCount
 }
 
 type openAPIDocsMethodCount struct {
@@ -210,24 +218,47 @@ func buildOpenAPIDocsAssets(spec []byte, build buildinfo.Info) (*openAPIDocsAsse
 		return nil, fmt.Errorf("generated bundled openapi spec still contains external file refs")
 	}
 
-	return &openAPIDocsAssets{
-		json:    runtimeSpec,
-		summary: summarizeOpenAPIOperations(document.Paths),
-	}, nil
+	summary := summarizeOpenAPIOperations(document.Paths)
+	summary.OpenAPIVersion = document.OpenAPI
+	summary.Tags = len(document.Tags)
+	summary.TaggedOperations = countTaggedOpenAPIOperations(document.Paths)
+
+	return &openAPIDocsAssets{json: runtimeSpec, summary: summary}, nil
 }
 
-func summarizeOpenAPIOperations(paths *openapi3.Paths) openAPIDocsOperationSummary {
-	counts := make(map[string]int)
+func countTaggedOpenAPIOperations(paths *openapi3.Paths) int {
+	count := 0
+	if paths == nil {
+		return count
+	}
 	for _, pathItem := range paths.Map() {
 		if pathItem == nil {
 			continue
 		}
-		for method := range pathItem.Operations() {
+		for _, operation := range pathItem.Operations() {
+			if operation != nil && len(operation.Tags) > 0 {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func summarizeOpenAPIOperations(paths *openapi3.Paths) openAPIDocsOperationSummary {
+	counts := make(map[string]int)
+	summary := openAPIDocsOperationSummary{}
+	for _, pathItem := range paths.Map() {
+		if pathItem == nil {
+			continue
+		}
+		for method, operation := range pathItem.Operations() {
 			counts[method]++
+			if operation != nil && operation.Deprecated {
+				summary.Deprecated++
+			}
 		}
 	}
 
-	summary := openAPIDocsOperationSummary{}
 	for _, method := range openAPIDocsMethodOrder {
 		count := counts[method]
 		if count == 0 {
@@ -241,6 +272,7 @@ func summarizeOpenAPIOperations(paths *openapi3.Paths) openAPIDocsOperationSumma
 
 type openAPIDocsTagSummary struct {
 	Total              int
+	Deprecated         int
 	AuthenticatedTotal int
 	MethodCounts       map[string]int
 }
@@ -287,6 +319,9 @@ func collectOperationTagSummary(method string, operation *openapi3.Operation, de
 		}
 		summary.Total++
 		summary.MethodCounts[method]++
+		if operation.Deprecated {
+			summary.Deprecated++
+		}
 		if authenticated {
 			summary.AuthenticatedTotal++
 		}
@@ -336,6 +371,7 @@ func renderOpenAPITagDashboard(summary openAPIDocsTagSummary) string {
 	}
 	lines = append(
 		lines,
+		fmt.Sprintf("Deprecated: %d operations.", summary.Deprecated),
 		"",
 		"### Security",
 		fmt.Sprintf("Authentication required for %d of %d operations.", summary.AuthenticatedTotal, summary.Total),
