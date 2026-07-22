@@ -109,6 +109,56 @@ class EnvironmentInventoryTests(unittest.TestCase):
     def test_environment_inventory_covers_adopted_and_pilot_mcp_servers(self) -> None:
         self.assertEqual(MODULE.validate_environment_inventory(), [])
 
+
+class PersonalSkillReferenceTests(unittest.TestCase):
+    def test_personal_skill_references_are_absent_from_repository_guidance(self) -> None:
+        self.assertEqual(MODULE.validate_no_personal_skill_refs(MODULE.tracked_files()), [])
+
+    def test_personal_skill_reference_is_rejected(self) -> None:
+        with mock.patch.object(
+            MODULE,
+            "read_text",
+            return_value="Use /root/.codex/skills/shutdown-after-completion/SKILL.md or $shutdown-after-completion.",
+        ):
+            findings = MODULE.validate_no_personal_skill_refs({"AGENTS.md"})
+
+        self.assertEqual(len(findings), 2)
+        self.assertTrue(any("personal absolute tooling path" in finding.message for finding in findings))
+        self.assertTrue(any("personal skill link" in finding.message for finding in findings))
+
+    def test_guidance_scope_includes_subdomain_agents_without_prefix_collisions(self) -> None:
+        tracked = {"server/AGENTS.md", "web/AGENTS.md", ".agentsx/README.md", "server/README.md"}
+
+        with mock.patch.object(MODULE, "read_text", return_value="shutdown.exe /s /t 0"):
+            findings = MODULE.validate_no_personal_skill_refs(tracked)
+
+        self.assertEqual({finding.path for finding in findings}, {
+            MODULE.REPO_ROOT / "server/AGENTS.md",
+            MODULE.REPO_ROOT / "web/AGENTS.md",
+        })
+
+    def test_forbidden_patterns_cover_device_commands_and_tool_paths(self) -> None:
+        cases = (
+            "Run /home/alice/.codex/skills/reboot/SKILL.md",
+            "Run C:\\Users\\alice\\.claude\\skills\\shutdown\\SKILL.md",
+            "Use systemctl poweroff after completion.",
+            "Use Stop-Computer -Force.",
+        )
+
+        for text in cases:
+            with self.subTest(text=text), mock.patch.object(MODULE, "read_text", return_value=text):
+                findings = MODULE.validate_no_personal_skill_refs({"AGENTS.md"})
+                self.assertTrue(findings)
+
+    def test_similar_repository_paths_and_documented_commands_are_allowed(self) -> None:
+        text = "Use /workspace/.codex/skills/shared/SKILL.md; do not run shutdown now."
+
+        with mock.patch.object(MODULE, "read_text", return_value=text):
+            findings = MODULE.validate_no_personal_skill_refs({"AGENTS.md"})
+
+        self.assertEqual(findings, [])
+
+
 class AiToolingDocTests(unittest.TestCase):
     def test_ai_tooling_doc_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_ai_tooling_doc(), [])

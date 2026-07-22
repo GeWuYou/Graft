@@ -75,9 +75,9 @@
     },
     "dependenciesPage": {
       "title": "Dependencies",
-      "subtitle": "Review health signals for PostgreSQL, Redis, and future module-owned dependency checks.",
+      "subtitle": "Review PostgreSQL and Redis health, capacity, current diagnostics, and short-term history.",
       "serviceListTitle": "Dependency Services",
-      "noteDescription": "Focus on health, latency, pool pressure, and wait signals. Additional services can show their own health checks here as they become available.",
+      "noteDescription": "Selected-window health, current capacity, and monitor diagnostics for each dependency.",
       "statusHealthy": "Healthy",
       "statusAbnormal": "Abnormal",
       "statusNotConfigured": "Not configured",
@@ -97,7 +97,20 @@
         "notConfigured": "Not configured",
         "notConfiguredDescription": "Dependencies intentionally not wired in",
         "lastCheck": "Last check",
-        "lastCheckDescription": "Time of the latest aggregated snapshot"
+        "lastCheckDescription": "Time of the latest aggregated snapshot",
+        "dependencies": "Dependencies",
+        "dependenciesValue": "{healthy} / {total} healthy",
+        "dependenciesDescription": "Current healthy dependencies",
+        "availability": "Availability",
+        "availabilityDescription": "Weighted successful probes in the selected window",
+        "failures": "Failures",
+        "failuresDescription": "Failed probes in the selected window",
+        "aggregateLatency": "Average latency",
+        "aggregateLatencyDescription": "Weighted successful-probe latency in the selected window",
+        "anomalies": "Active diagnostics",
+        "anomaliesDescription": "Current monitor anomalies",
+        "observedAt": "Observed at",
+        "observedAtDescription": "Time of the current monitor snapshot"
       },
       "fields": {
         "latency": "Response latency",
@@ -124,7 +137,13 @@
         "riskUnknown": "Pool data is unavailable"
       },
       "diagnostics": {
-        "title": "Advanced diagnostics"
+        "title": "Advanced diagnostics",
+        "titleWithCount": "Current diagnostics ({count})",
+        "none": "No active diagnostics",
+        "severity": "Severity",
+        "observedAt": "Observed at",
+        "warning": "Warning",
+        "critical": "Critical"
       },
       "fieldDescriptions": {
         "latency": "Most recent probe response duration.",
@@ -133,6 +152,68 @@
         "checkedAt": "Currently follows the latest server-status snapshot time.",
         "errorInfo": "Shows the latest error only when the dependency is abnormal or unknown.",
         "detail": "Raw probe detail returned by the current backend snapshot."
+      },
+      "history": {
+        "title": "Selected-window history",
+        "availability": "Availability",
+        "latency": "P95 latency (ms)",
+        "empty": "No observations in the selected window.",
+        "partial": "Some observations are unavailable in this window.",
+        "unavailable": "History is currently unavailable.",
+        "redisUnavailable": "History storage is not configured."
+      },
+      "metrics": {
+        "postgresql": { "capacity": "Capacity", "workload": "Workload", "storage": "Storage and tuples" },
+        "redis": {
+          "connections": "Connections",
+          "memory": "Memory",
+          "workload": "Workload",
+          "persistence": "Persistence and replication"
+        },
+        "databaseSize": "Database size",
+        "maxConnections": "Connection limit",
+        "activeConnections": "Active connections",
+        "idleConnections": "Idle connections",
+        "idleInTransaction": "Idle in transaction",
+        "waitingConnections": "Waiting connections",
+        "commits": "Committed transactions",
+        "rollbacks": "Rolled-back transactions",
+        "cacheHit": "Cache hit ratio",
+        "blocksRead": "Blocks read",
+        "blocksHit": "Blocks hit",
+        "deadlocks": "Deadlocks",
+        "tuplesReturned": "Tuples returned",
+        "tuplesFetched": "Tuples fetched",
+        "tuplesChanged": "Inserted / updated / deleted",
+        "tempFiles": "Temporary files",
+        "tempBytes": "Temporary bytes",
+        "conflicts": "Conflicts",
+        "connectedClients": "Connected clients",
+        "blockedClients": "Blocked clients",
+        "maxClients": "Client limit",
+        "connectionsReceived": "Connections received",
+        "usedMemory": "Memory used",
+        "peakMemory": "Peak memory",
+        "maxMemory": "Memory limit",
+        "fragmentation": "Fragmentation ratio",
+        "operations": "Operations per second",
+        "commands": "Commands processed",
+        "keyspaceHit": "Keyspace hit ratio",
+        "keyspaceHits": "Keyspace hits",
+        "keyspaceMisses": "Keyspace misses",
+        "evicted": "Evicted keys",
+        "expired": "Expired keys",
+        "rdbSavedAt": "Last RDB save",
+        "rdbSaving": "RDB save running",
+        "aofEnabled": "AOF enabled",
+        "aofRewriting": "AOF rewrite running",
+        "replicationRole": "Replication role",
+        "masterLink": "Master link",
+        "keyspaces": "Keyspace databases",
+        "keyspacesEmpty": "No logical databases reported",
+        "yes": "Yes",
+        "no": "No",
+        "enum": { "master": "Primary", "replica": "Replica", "unknown": "Unknown", "up": "Up", "down": "Down" }
       }
     }
   }

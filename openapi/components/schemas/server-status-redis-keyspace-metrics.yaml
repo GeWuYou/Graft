@@ -1,0 +1,25 @@
+type: object
+description: Current Redis keyspace counters for one logical database; key names and values are never exposed.
+required: [database]
+properties:
+  database:
+    type: string
+    description: Logical Redis database identifier, for example db0.
+  keys:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Current keys in this logical database. Gauge.
+  expires:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Current keys with an expiry in this logical database. Gauge.
+  average_ttl_ms:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Current average expiry TTL in milliseconds when Redis reports it. Gauge.

@@ -1,0 +1,126 @@
+type: object
+description: >-
+  Current Redis diagnostics. Every nullable property is unavailable or not collected when Redis cannot report it;
+  null never represents a zero counter or gauge.
+properties:
+  connected_clients:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Current connected Redis clients. Gauge.
+  blocked_clients:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Current Redis clients blocked on an operation. Gauge.
+  max_clients:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Configured Redis client limit. Gauge.
+  used_memory_bytes:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Current memory allocated by Redis in bytes. Gauge.
+  used_memory_peak_bytes:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Peak Redis memory allocation since process start in bytes. Gauge.
+  max_memory_bytes:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Configured Redis maxmemory in bytes. Gauge.
+  memory_fragmentation_ratio:
+    type: number
+    nullable: true
+    minimum: 0
+    description: Current Redis memory fragmentation ratio. Gauge.
+  total_connections_received:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Cumulative client connections accepted by Redis. Counter.
+  total_commands_processed:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Cumulative commands processed by Redis. Counter.
+  instantaneous_ops_per_second:
+    type: number
+    nullable: true
+    minimum: 0
+    description: Most recent Redis command throughput in operations per second. Gauge.
+  keyspace_hits_total:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Cumulative successful key lookups reported by Redis. Counter.
+  keyspace_misses_total:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Cumulative failed key lookups reported by Redis. Counter.
+  keyspace_hit_percent:
+    type: number
+    nullable: true
+    minimum: 0
+    maximum: 100
+    description: Current derived keyspace hit ratio in percent. Gauge.
+  expired_keys_total:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Cumulative expired keys removed by Redis. Counter.
+  evicted_keys_total:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Cumulative keys evicted by Redis. Counter.
+  keyspaces:
+    type: array
+    nullable: true
+    description: Current per-logical-database keyspace aggregates; an empty array is a valid observed result.
+    items:
+      $ref: ./server-status-redis-keyspace-metrics.yaml
+  rdb_last_save_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Most recent successful RDB persistence completion time. Gauge.
+  rdb_bgsave_in_progress:
+    type: boolean
+    nullable: true
+    description: Whether an RDB background save is currently running. Gauge.
+  aof_enabled:
+    type: boolean
+    nullable: true
+    description: Whether append-only persistence is enabled. Gauge.
+  aof_rewrite_in_progress:
+    type: boolean
+    nullable: true
+    description: Whether an AOF rewrite is currently running. Gauge.
+  replication_role:
+    type: string
+    nullable: true
+    enum: [master, replica, unknown]
+    description: Current Redis replication role. Gauge.
+  master_link_status:
+    type: string
+    nullable: true
+    enum: [up, down]
+    description: Current upstream master-link status when this Redis node is a replica. Gauge.

@@ -11,11 +11,52 @@ import (
 	"graft/server/internal/redisx"
 )
 
+const (
+	postgresActivityMetricsQuery = `SELECT
+		count(*) FILTER (WHERE state = 'active'),
+		count(*) FILTER (WHERE state = 'idle'),
+		count(*) FILTER (WHERE state = 'idle in transaction'),
+		count(*) FILTER (WHERE wait_event_type IS NOT NULL)
+	FROM pg_stat_activity`
+	postgresMaxConnectionsQuery  = `SELECT setting::bigint FROM pg_settings WHERE name = 'max_connections'`
+	postgresDatabaseMetricsQuery = `SELECT
+		pg_database_size(current_database()),
+		xact_commit,
+		xact_rollback,
+		blks_read,
+		blks_hit,
+		tup_returned,
+		tup_fetched,
+		tup_inserted,
+		tup_updated,
+		tup_deleted,
+		conflicts,
+		deadlocks,
+		temp_files,
+		temp_bytes
+	FROM pg_stat_database
+	WHERE datname = current_database()`
+)
+
 // databaseHealth 检查数据库连接的健康状态。
 // 若实例或数据库句柄为空，返回未知状态。
 // 通过 Ping 测试连接可达性：失败返回降级状态，成功返回健康状态及延迟信息。
 // 仅当延迟转换失败时返回错误；Ping 失败作为可观测的降级状态返回。
 func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStatusDependency, error) {
+	dependency, err := databaseHealthProbe(ctx, instance)
+	if err != nil || dependency.Status != statusHealthy {
+		return dependency, err
+	}
+
+	if metrics, err := collectPostgreSQLMetrics(ctx, instance.db); err != nil {
+		logTrendWarning(instance, nil, "collect PostgreSQL metrics failed", err)
+	} else {
+		dependency.PostgresqlMetrics = metrics
+	}
+	return dependency, nil
+}
+
+func databaseHealthProbe(ctx context.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	if instance == nil || instance.db == nil {
 		return generated.ServerStatusDependency{
 			Status: statusUnknown,
@@ -52,6 +93,21 @@ func databaseHealth(ctx context.Context, instance *Module) (generated.ServerStat
 // redisHealth 检查 Redis 连接状态；未配置时返回 disabled，检查失败或不可达时返回 degraded，成功时返回 healthy。
 // 可用时同时返回连接池统计和延迟；连接检查失败作为状态返回，仅延迟转换失败才返回错误。
 func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
+	dependency, err := redisHealthProbe(ctx, moduleCtx, instance)
+	if err != nil || dependency.Status != statusHealthy {
+		return dependency, err
+	}
+
+	reporter := resolveRedisHealthReporter(moduleCtx, instance)
+	if metrics, err := reporter.ReportMetrics(ctx); err != nil {
+		logTrendWarning(instance, moduleCtx, "collect Redis metrics failed", err)
+	} else {
+		dependency.RedisMetrics = mapRedisMetrics(metrics)
+	}
+	return dependency, nil
+}
+
+func redisHealthProbe(ctx context.Context, moduleCtx *module.Context, instance *Module) (generated.ServerStatusDependency, error) {
 	reporter := resolveRedisHealthReporter(moduleCtx, instance)
 	if reporter == nil {
 		return generated.ServerStatusDependency{
@@ -63,7 +119,7 @@ func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Modul
 
 	report, err := reporter.Report(ctx)
 	if err != nil {
-		logTrendWarning(nil, moduleCtx, "redis ping failed", err)
+		logTrendWarning(instance, moduleCtx, "redis ping failed", err)
 		return generated.ServerStatusDependency{
 			Status: statusDegraded,
 			Detail: "Redis ping failed",
@@ -95,6 +151,136 @@ func redisHealth(ctx context.Context, moduleCtx *module.Context, instance *Modul
 		LatencyMs: &latencyMs,
 		Pool:      redisPoolStats(report.Pool),
 	}, nil
+}
+
+// collectPostgreSQLMetrics 通过固定只读聚合查询收集当前诊断数据。
+// 每个查询组独立失败，受限统计权限不会使已获得的当前健康快照或其它指标失效。
+func collectPostgreSQLMetrics(ctx context.Context, db *sql.DB) (*generated.ServerStatusPostgresqlCurrentMetrics, error) {
+	if db == nil {
+		return nil, nil
+	}
+	metricsCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+	defer cancel()
+	metrics := &generated.ServerStatusPostgresqlCurrentMetrics{}
+	collected := false
+	var firstErr error
+
+	var active, idle, idleInTransaction, waiting sql.NullInt64
+	if err := db.QueryRowContext(metricsCtx, postgresActivityMetricsQuery).Scan(&active, &idle, &idleInTransaction, &waiting); err != nil {
+		firstErr = fmt.Errorf("read PostgreSQL activity metrics: %w", err)
+	} else {
+		metrics.ActiveConnections = nullInt64Ptr(active)
+		metrics.IdleConnections = nullInt64Ptr(idle)
+		metrics.IdleInTransactionConnections = nullInt64Ptr(idleInTransaction)
+		metrics.WaitingConnections = nullInt64Ptr(waiting)
+		collected = true
+	}
+
+	var maxConnections sql.NullInt64
+	if err := db.QueryRowContext(metricsCtx, postgresMaxConnectionsQuery).Scan(&maxConnections); err != nil {
+		if firstErr == nil {
+			firstErr = fmt.Errorf("read PostgreSQL connection limit: %w", err)
+		}
+	} else {
+		metrics.MaxConnections = nullInt64Ptr(maxConnections)
+		collected = true
+	}
+
+	var databaseSize, commits, rollbacks, blocksRead, blocksHit sql.NullInt64
+	var tuplesReturned, tuplesFetched, tuplesInserted, tuplesUpdated, tuplesDeleted sql.NullInt64
+	var conflicts, deadlocks, tempFiles, tempBytes sql.NullInt64
+	if err := db.QueryRowContext(metricsCtx, postgresDatabaseMetricsQuery).Scan(
+		&databaseSize, &commits, &rollbacks, &blocksRead, &blocksHit,
+		&tuplesReturned, &tuplesFetched, &tuplesInserted, &tuplesUpdated, &tuplesDeleted,
+		&conflicts, &deadlocks, &tempFiles, &tempBytes,
+	); err != nil {
+		if firstErr == nil {
+			firstErr = fmt.Errorf("read PostgreSQL database metrics: %w", err)
+		}
+	} else {
+		metrics.DatabaseSizeBytes = nullInt64Ptr(databaseSize)
+		metrics.TransactionCommitTotal = nullInt64Ptr(commits)
+		metrics.TransactionRollbackTotal = nullInt64Ptr(rollbacks)
+		metrics.BlocksReadTotal = nullInt64Ptr(blocksRead)
+		metrics.BlocksHitTotal = nullInt64Ptr(blocksHit)
+		metrics.TuplesReturnedTotal = nullInt64Ptr(tuplesReturned)
+		metrics.TuplesFetchedTotal = nullInt64Ptr(tuplesFetched)
+		metrics.TuplesInsertedTotal = nullInt64Ptr(tuplesInserted)
+		metrics.TuplesUpdatedTotal = nullInt64Ptr(tuplesUpdated)
+		metrics.TuplesDeletedTotal = nullInt64Ptr(tuplesDeleted)
+		metrics.ConflictsTotal = nullInt64Ptr(conflicts)
+		metrics.DeadlocksTotal = nullInt64Ptr(deadlocks)
+		metrics.TempFilesTotal = nullInt64Ptr(tempFiles)
+		metrics.TempBytesTotal = nullInt64Ptr(tempBytes)
+		metrics.CacheHitPercent = cacheHitPercent(metrics.BlocksHitTotal, metrics.BlocksReadTotal)
+		collected = true
+	}
+
+	if !collected {
+		return nil, firstErr
+	}
+	return metrics, nil
+}
+
+func nullInt64Ptr(value sql.NullInt64) *int64 {
+	if !value.Valid || value.Int64 < 0 {
+		return nil
+	}
+	converted := value.Int64
+	return &converted
+}
+
+func cacheHitPercent(hits, reads *int64) *float32 {
+	if hits == nil || reads == nil || *hits+*reads <= 0 {
+		return nil
+	}
+	percent := float32(roundUsagePercent(float64(*hits) / float64(*hits+*reads) * percentageScale))
+	return &percent
+}
+
+func mapRedisMetrics(metrics redisx.Metrics) *generated.ServerStatusRedisCurrentMetrics {
+	ret := &generated.ServerStatusRedisCurrentMetrics{
+		ConnectedClients:          metrics.ConnectedClients,
+		BlockedClients:            metrics.BlockedClients,
+		MaxClients:                metrics.MaxClients,
+		UsedMemoryBytes:           metrics.UsedMemoryBytes,
+		UsedMemoryPeakBytes:       metrics.UsedMemoryPeakBytes,
+		MaxMemoryBytes:            metrics.MaxMemoryBytes,
+		MemoryFragmentationRatio:  metrics.MemoryFragmentationRatio,
+		TotalConnectionsReceived:  metrics.TotalConnectionsReceived,
+		TotalCommandsProcessed:    metrics.TotalCommandsProcessed,
+		InstantaneousOpsPerSecond: metrics.InstantaneousOpsPerSecond,
+		KeyspaceHitsTotal:         metrics.KeyspaceHitsTotal,
+		KeyspaceMissesTotal:       metrics.KeyspaceMissesTotal,
+		KeyspaceHitPercent:        cacheHitPercent(metrics.KeyspaceHitsTotal, metrics.KeyspaceMissesTotal),
+		ExpiredKeysTotal:          metrics.ExpiredKeysTotal,
+		EvictedKeysTotal:          metrics.EvictedKeysTotal,
+		RdbLastSaveAt:             metrics.RdbLastSaveAt,
+		RdbBgsaveInProgress:       metrics.RdbBgsaveInProgress,
+		AofEnabled:                metrics.AofEnabled,
+		AofRewriteInProgress:      metrics.AofRewriteInProgress,
+	}
+	if metrics.ReplicationRole != nil {
+		role := generated.ServerStatusRedisCurrentMetricsReplicationRole(*metrics.ReplicationRole)
+		ret.ReplicationRole = &role
+	}
+	if metrics.MasterLinkStatus != nil {
+		status := generated.ServerStatusRedisCurrentMetricsMasterLinkStatus(*metrics.MasterLinkStatus)
+		ret.MasterLinkStatus = &status
+	}
+	if metrics.Keyspaces != nil {
+		keyspaces := make([]generated.ServerStatusRedisKeyspaceMetrics, 0, len(*metrics.Keyspaces))
+		for _, keyspace := range *metrics.Keyspaces {
+			keyspaces = append(keyspaces, generated.ServerStatusRedisKeyspaceMetrics{
+				Database:     keyspace.Database,
+				Keys:         keyspace.Keys,
+				Expires:      keyspace.Expires,
+				AverageTtlMs: keyspace.AverageTTLMs,
+			})
+		}
+		ret.Keyspaces = &keyspaces
+	}
+	return ret
 }
 
 // databasePoolStats 从数据库连接句柄中提取连接池统计信息。

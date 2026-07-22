@@ -11,6 +11,30 @@ import (
 	"graft/server/internal/config"
 )
 
+func TestParseMetricsReadsOnlySupportedInfoFields(t *testing.T) {
+	t.Parallel()
+
+	metrics := parseMetrics("# Clients\nconnected_clients:4\nblocked_clients:0\nmaxclients:10000\n" +
+		"# Memory\nused_memory:1024\nused_memory_peak:2048\nmaxmemory:4096\nmem_fragmentation_ratio:1.25\n" +
+		"# Stats\ntotal_connections_received:11\ntotal_commands_processed:12\ninstantaneous_ops_per_sec:3.5\nkeyspace_hits:18\nkeyspace_misses:2\nexpired_keys:4\nevicted_keys:1\n" +
+		"# Persistence\nrdb_last_save_time:1784368800\nrdb_bgsave_in_progress:0\naof_enabled:1\naof_rewrite_in_progress:0\n" +
+		"# Replication\nrole:slave\nmaster_link_status:up\n" +
+		"# Keyspace\ndb0:keys=10,expires=2,avg_ttl=500\ndb2:keys=0,expires=0,avg_ttl=0\nmaster_host:secret-host\n")
+
+	if metrics.ConnectedClients == nil || *metrics.ConnectedClients != 4 || metrics.MemoryFragmentationRatio == nil || *metrics.MemoryFragmentationRatio != 1.25 {
+		t.Fatalf("expected parsed client and memory metrics, got %#v", metrics)
+	}
+	if metrics.ReplicationRole == nil || *metrics.ReplicationRole != "replica" || metrics.MasterLinkStatus == nil || *metrics.MasterLinkStatus != "up" {
+		t.Fatalf("expected sanitized replication metrics, got %#v", metrics)
+	}
+	if metrics.Keyspaces == nil || len(*metrics.Keyspaces) != 2 || (*metrics.Keyspaces)[0].Database != "db0" || (*metrics.Keyspaces)[1].Database != "db2" {
+		t.Fatalf("expected only keyspace aggregates, got %#v", metrics.Keyspaces)
+	}
+	if (*metrics.Keyspaces)[1].Keys == nil || *(*metrics.Keyspaces)[1].Keys != 0 {
+		t.Fatalf("expected observed zero-valued keyspace counter, got %#v", (*metrics.Keyspaces)[1])
+	}
+}
+
 func TestOpenAppliesPoolOptions(t *testing.T) {
 	server := miniredis.RunT(t)
 

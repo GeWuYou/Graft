@@ -9,7 +9,7 @@ import { useRealtimeSchedulerStore } from '@/store';
 
 import { getServerStatus } from '../api/server-status';
 import { useMonitorRefreshPreferences } from '../composables/use-monitor-refresh-preferences';
-import { MONITOR_TREND_RANGE } from '../contract/trend';
+import { MONITOR_TREND_RANGE, type MonitorTrendRange } from '../contract/trend';
 import type { ServerStatusConnectionPool } from '../types/server-status';
 import type { ServerStatusResponse } from '../types/server-status';
 
@@ -37,6 +37,7 @@ export function useServerStatusSnapshot() {
   const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
   const remainingRefreshSeconds = ref<number | null>(null);
   const serverStatus = ref<ServerStatusResponse | null>(null);
+  const selectedTrendRange = ref<MonitorTrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
   const consecutiveFailures = ref(0);
 
   let nextRefreshAt: number | null = null;
@@ -54,7 +55,7 @@ export function useServerStatusSnapshot() {
     errorMessage.value = '';
 
     try {
-      serverStatus.value = await getServerStatus(MONITOR_TREND_RANGE.TEN_MINUTES);
+      serverStatus.value = await getServerStatus(selectedTrendRange.value);
       consecutiveFailures.value = 0;
     } catch (error) {
       consecutiveFailures.value += 1;
@@ -213,6 +214,15 @@ export function useServerStatusSnapshot() {
     clearRefreshSchedule();
   }
 
+  function updateTrendRange(value: MonitorTrendRange) {
+    if (selectedTrendRange.value === value) {
+      return;
+    }
+
+    selectedTrendRange.value = value;
+    void refreshSnapshot();
+  }
+
   function updateRemainingRefreshSeconds() {
     if (nextRefreshAt === null) {
       remainingRefreshSeconds.value = null;
@@ -232,10 +242,12 @@ export function useServerStatusSnapshot() {
     refreshControlStatus,
     refreshIntervalOptions,
     selectedRefreshInterval,
+    selectedTrendRange,
     serverStatus,
     refreshSnapshot,
     observedAt: computed(() => serverStatus.value?.observed_at ?? ''),
     toggleAutoRefresh,
+    updateTrendRange,
   };
 }
 

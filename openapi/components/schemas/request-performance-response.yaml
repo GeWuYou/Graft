@@ -1,7 +1,28 @@
 type: object
-required: [observed_at, range, summary, minute_buckets, status_groups, top_routes]
+required:
+  - observed_at
+  - window_start
+  - window_end
+  - range
+  - summary
+  - minute_buckets
+  - status_groups
+  - status_codes
+  - latency_distribution
+  - request_size_distribution
+  - response_size_distribution
+  - top_routes
+  - slowest_requests
+  - largest_requests
+  - largest_responses
 properties:
   observed_at:
+    type: string
+    format: date-time
+  window_start:
+    type: string
+    format: date-time
+  window_end:
     type: string
     format: date-time
   range:
@@ -17,5 +38,36 @@ properties:
     type: array
     items:
       $ref: ./request-performance-status-group.yaml
+  status_codes:
+    type: array
+    items:
+      $ref: ./request-performance-status-code.yaml
+  latency_distribution:
+    type: array
+    items:
+      $ref: ./request-performance-distribution-bucket.yaml
+  request_size_distribution:
+    type: array
+    items:
+      $ref: ./request-performance-distribution-bucket.yaml
+  response_size_distribution:
+    type: array
+    items:
+      $ref: ./request-performance-distribution-bucket.yaml
   top_routes:
     $ref: ./request-performance-top-routes.yaml
+  slowest_requests:
+    type: array
+    maxItems: 5
+    items:
+      $ref: ./request-performance-request-instance.yaml
+  largest_requests:
+    type: array
+    maxItems: 5
+    items:
+      $ref: ./request-performance-request-instance.yaml
+  largest_responses:
+    type: array
+    maxItems: 5
+    items:
+      $ref: ./request-performance-request-instance.yaml

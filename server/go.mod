@@ -3,6 +3,7 @@ module graft/server
 go 1.26.4
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/getkin/kin-openapi v0.142.0
 	// Gin 是 server 的 HTTP 路由、中间件和请求处理框架。
 	github.com/gin-gonic/gin v1.12.0

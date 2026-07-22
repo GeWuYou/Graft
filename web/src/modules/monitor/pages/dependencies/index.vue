@@ -23,6 +23,8 @@
             :status-label="service.statusLabel"
             :primary-metric="service.primaryMetric"
             :pool="service.pool"
+            :metric-groups="service.metricGroups"
+            :history="service.history"
             :diagnostics-title="service.diagnostics.title"
             @show-diagnostics="showDiagnostics(service)"
           />
@@ -63,7 +65,9 @@ import { useI18n } from 'vue-i18n';
 import DependencyDiagnosticDrawer from '../../components/DependencyDiagnosticDrawer.vue';
 import DependencyHealthCard, {
   type DependencyHealthDiagnostics,
+  type DependencyHealthHistory,
   type DependencyHealthMetric,
+  type DependencyHealthMetricGroup,
   type DependencyHealthPool,
 } from '../../components/DependencyHealthCard.vue';
 import MonitorStatusPageFrame from '../../components/MonitorStatusPageFrame.vue';
@@ -80,6 +84,7 @@ import {
 } from '../../shared/pool-metrics';
 import {
   displayText,
+  formatBytes,
   formatLatency,
   formatPoolWait,
   formatTimestamp,
@@ -89,20 +94,24 @@ import {
 import { formatDateOnly, formatTimeOnly } from '../../shared/time-display';
 import type { ServerStatusConnectionPool, ServerStatusDependency } from '../../types/server-status';
 
+type DependencyKey = 'postgresql' | 'redis';
+
 type DependencyCard = {
-  key: string;
+  key: DependencyKey;
   name: string;
   description: string;
   status: ServerStatusTone;
   statusLabel: string;
   primaryMetric: DependencyHealthMetric;
   pool: DependencyHealthPool;
+  metricGroups: DependencyHealthMetricGroup[];
+  history: DependencyHealthHistory;
   diagnostics: DependencyHealthDiagnostics;
 };
 
 const { locale, t } = useI18n();
 const diagnosticDrawerVisible = ref(false);
-const selectedDependencyKey = ref<string | null>(null);
+const selectedDependencyKey = ref<DependencyKey | null>(null);
 /* jscpd:ignore-start */
 // 页面直接解构 snapshot 是为了让依赖状态、frame 配置和模板保持同一局部边界；此处的重复由 jscpd 明确豁免。
 // 修改这段局部结构时必须同步复核 jscpd ignore，避免把工具豁免变成过期的重复代码保护。
@@ -137,33 +146,56 @@ const headerStatusLabel = computed(() => {
 });
 
 const summaryMetrics = computed(() => {
+  const response = serverStatus.value;
   const summary = serverStatus.value?.summary;
+  const historySummary = summarizeDependencyHistory([
+    response?.dependencies.database?.history,
+    response?.dependencies.redis?.history,
+  ]);
 
   return [
     {
-      key: 'healthy',
-      label: t('monitor.dependenciesPage.summary.healthy'),
-      value: summary?.healthy_dependencies !== undefined ? String(summary.healthy_dependencies) : '--',
-      description: t('monitor.dependenciesPage.summary.healthyDescription'),
+      key: 'dependencies',
+      label: t('monitor.dependenciesPage.summary.dependencies'),
+      value:
+        summary?.healthy_dependencies !== undefined && summary.total_dependencies !== undefined
+          ? t('monitor.dependenciesPage.summary.dependenciesValue', {
+              healthy: summary.healthy_dependencies,
+              total: summary.total_dependencies,
+            })
+          : '--',
+      description: t('monitor.dependenciesPage.summary.dependenciesDescription'),
     },
     {
-      key: 'abnormal',
-      label: t('monitor.dependenciesPage.summary.abnormal'),
-      value: summary?.degraded_dependencies !== undefined ? String(summary.degraded_dependencies) : '--',
-      description: t('monitor.dependenciesPage.summary.abnormalDescription'),
+      key: 'availability',
+      label: t('monitor.dependenciesPage.summary.availability'),
+      value: formatPercent(historySummary.availabilityPercent),
+      description: t('monitor.dependenciesPage.summary.availabilityDescription'),
     },
     {
-      key: 'notConfigured',
-      label: t('monitor.dependenciesPage.summary.notConfigured'),
-      value: summary?.disabled_dependencies !== undefined ? String(summary.disabled_dependencies) : '--',
-      description: t('monitor.dependenciesPage.summary.notConfiguredDescription'),
+      key: 'failures',
+      label: t('monitor.dependenciesPage.summary.failures'),
+      value: formatMetricNumber(historySummary.failureCount),
+      description: t('monitor.dependenciesPage.summary.failuresDescription'),
     },
     {
-      key: 'lastCheck',
-      label: t('monitor.dependenciesPage.summary.lastCheck'),
+      key: 'aggregateLatency',
+      label: t('monitor.dependenciesPage.summary.aggregateLatency'),
+      value: formatLatency(historySummary.aggregateLatencyMs),
+      description: t('monitor.dependenciesPage.summary.aggregateLatencyDescription'),
+    },
+    {
+      key: 'anomalies',
+      label: t('monitor.dependenciesPage.summary.anomalies'),
+      value: response ? String(response.anomalies.length) : '--',
+      description: t('monitor.dependenciesPage.summary.anomaliesDescription'),
+    },
+    {
+      key: 'observedAt',
+      label: t('monitor.dependenciesPage.summary.observedAt'),
       value: formatTimeOnly(observedAt.value, locale),
       description:
-        formatDateOnly(observedAt.value, locale) || t('monitor.dependenciesPage.summary.lastCheckDescription'),
+        formatDateOnly(observedAt.value, locale) || t('monitor.dependenciesPage.summary.observedAtDescription'),
     },
   ];
 });
@@ -214,6 +246,8 @@ const serviceCards = computed<DependencyCard[]>(() => {
       pool: database?.pool,
       checkedAt: observedLabel,
       detail: database?.detail,
+      metricGroups: buildPostgreSQLMetricGroups(database?.postgresql_metrics),
+      history: buildHistoryView(database?.history),
     }),
     buildServiceCard({
       key: 'redis',
@@ -224,6 +258,8 @@ const serviceCards = computed<DependencyCard[]>(() => {
       pool: redis?.pool,
       checkedAt: observedLabel,
       detail: redis?.detail,
+      metricGroups: buildRedisMetricGroups(redis?.redis_metrics),
+      history: buildHistoryView(redis?.history),
     }),
   ];
 });
@@ -263,7 +299,7 @@ const overallDependencyStatus = computed<ServerStatusTone>(() => {
 });
 
 function buildServiceCard(options: {
-  key: string;
+  key: DependencyKey;
   name: string;
   description: string;
   status: ServerStatusTone;
@@ -271,6 +307,8 @@ function buildServiceCard(options: {
   pool?: ServerStatusDependency['pool'] | null;
   checkedAt: string;
   detail?: string;
+  metricGroups: DependencyHealthMetricGroup[];
+  history: DependencyHealthHistory;
 }): DependencyCard {
   return {
     key: options.key,
@@ -284,8 +322,288 @@ function buildServiceCard(options: {
       description: t('monitor.dependenciesPage.fieldDescriptions.latency'),
     },
     pool: buildPoolView(options.name, options.pool),
+    metricGroups: options.metricGroups,
+    history: options.history,
     diagnostics: buildDiagnosticsView(options.status, options.pool, options.checkedAt, options.detail),
   };
+}
+
+function buildPostgreSQLMetricGroups(
+  metrics: ServerStatusDependency['postgresql_metrics'] | null | undefined,
+): DependencyHealthMetricGroup[] {
+  return [
+    metricGroup('connections', t('monitor.dependenciesPage.metrics.postgresql.capacity'), [
+      metricItem(
+        'active',
+        t('monitor.dependenciesPage.metrics.activeConnections'),
+        formatMetricNumber(metrics?.active_connections),
+      ),
+      metricItem(
+        'idle',
+        t('monitor.dependenciesPage.metrics.idleConnections'),
+        formatMetricNumber(metrics?.idle_connections),
+      ),
+      metricItem(
+        'waiting',
+        t('monitor.dependenciesPage.metrics.waitingConnections'),
+        formatMetricNumber(metrics?.waiting_connections),
+      ),
+      metricItem(
+        'limit',
+        t('monitor.dependenciesPage.metrics.maxConnections'),
+        formatMetricNumber(metrics?.max_connections),
+      ),
+    ]),
+    metricGroup('workload', t('monitor.dependenciesPage.metrics.postgresql.workload'), [
+      metricItem('size', t('monitor.dependenciesPage.metrics.databaseSize'), formatBytes(metrics?.database_size_bytes)),
+      metricItem('cache', t('monitor.dependenciesPage.metrics.cacheHit'), formatPercent(metrics?.cache_hit_percent)),
+      metricItem(
+        'commits',
+        t('monitor.dependenciesPage.metrics.commits'),
+        formatMetricNumber(metrics?.transaction_commit_total),
+      ),
+      metricItem(
+        'deadlocks',
+        t('monitor.dependenciesPage.metrics.deadlocks'),
+        formatMetricNumber(metrics?.deadlocks_total),
+      ),
+    ]),
+    metricGroup('storage', t('monitor.dependenciesPage.metrics.postgresql.storage'), [
+      metricItem(
+        'blocksRead',
+        t('monitor.dependenciesPage.metrics.blocksRead'),
+        formatMetricNumber(metrics?.blocks_read_total),
+      ),
+      metricItem(
+        'blocksHit',
+        t('monitor.dependenciesPage.metrics.blocksHit'),
+        formatMetricNumber(metrics?.blocks_hit_total),
+      ),
+      metricItem(
+        'tuplesReturned',
+        t('monitor.dependenciesPage.metrics.tuplesReturned'),
+        formatMetricNumber(metrics?.tuples_returned_total),
+      ),
+      metricItem(
+        'tuplesFetched',
+        t('monitor.dependenciesPage.metrics.tuplesFetched'),
+        formatMetricNumber(metrics?.tuples_fetched_total),
+      ),
+      metricItem(
+        'tuplesChanged',
+        t('monitor.dependenciesPage.metrics.tuplesChanged'),
+        formatMetricNumber(
+          sumMetricValues(metrics?.tuples_inserted_total, metrics?.tuples_updated_total, metrics?.tuples_deleted_total),
+        ),
+      ),
+      metricItem(
+        'tempFiles',
+        t('monitor.dependenciesPage.metrics.tempFiles'),
+        formatMetricNumber(metrics?.temp_files_total),
+      ),
+      metricItem('tempBytes', t('monitor.dependenciesPage.metrics.tempBytes'), formatBytes(metrics?.temp_bytes_total)),
+      metricItem(
+        'conflicts',
+        t('monitor.dependenciesPage.metrics.conflicts'),
+        formatMetricNumber(metrics?.conflicts_total),
+      ),
+    ]),
+  ];
+}
+
+function buildRedisMetricGroups(
+  metrics: ServerStatusDependency['redis_metrics'] | null | undefined,
+): DependencyHealthMetricGroup[] {
+  return [
+    metricGroup('connections', t('monitor.dependenciesPage.metrics.redis.connections'), [
+      metricItem(
+        'clients',
+        t('monitor.dependenciesPage.metrics.connectedClients'),
+        formatMetricNumber(metrics?.connected_clients),
+      ),
+      metricItem(
+        'blocked',
+        t('monitor.dependenciesPage.metrics.blockedClients'),
+        formatMetricNumber(metrics?.blocked_clients),
+      ),
+      metricItem('limit', t('monitor.dependenciesPage.metrics.maxClients'), formatMetricNumber(metrics?.max_clients)),
+      metricItem(
+        'received',
+        t('monitor.dependenciesPage.metrics.connectionsReceived'),
+        formatMetricNumber(metrics?.total_connections_received),
+      ),
+    ]),
+    metricGroup('memory', t('monitor.dependenciesPage.metrics.redis.memory'), [
+      metricItem('used', t('monitor.dependenciesPage.metrics.usedMemory'), formatBytes(metrics?.used_memory_bytes)),
+      metricItem(
+        'peak',
+        t('monitor.dependenciesPage.metrics.peakMemory'),
+        formatBytes(metrics?.used_memory_peak_bytes),
+      ),
+      metricItem('max', t('monitor.dependenciesPage.metrics.maxMemory'), formatBytes(metrics?.max_memory_bytes)),
+      metricItem(
+        'ops',
+        t('monitor.dependenciesPage.metrics.operations'),
+        formatMetricNumber(metrics?.instantaneous_ops_per_second),
+      ),
+    ]),
+    metricGroup('workload', t('monitor.dependenciesPage.metrics.redis.workload'), [
+      metricItem(
+        'fragmentation',
+        t('monitor.dependenciesPage.metrics.fragmentation'),
+        formatMetricDecimal(metrics?.memory_fragmentation_ratio),
+      ),
+      metricItem(
+        'commands',
+        t('monitor.dependenciesPage.metrics.commands'),
+        formatMetricNumber(metrics?.total_commands_processed),
+      ),
+      metricItem(
+        'keyspaceHit',
+        t('monitor.dependenciesPage.metrics.keyspaceHit'),
+        formatPercent(metrics?.keyspace_hit_percent),
+      ),
+      metricItem(
+        'keyspaceHits',
+        t('monitor.dependenciesPage.metrics.keyspaceHits'),
+        formatMetricNumber(metrics?.keyspace_hits_total),
+      ),
+      metricItem(
+        'keyspaceMisses',
+        t('monitor.dependenciesPage.metrics.keyspaceMisses'),
+        formatMetricNumber(metrics?.keyspace_misses_total),
+      ),
+      metricItem(
+        'evicted',
+        t('monitor.dependenciesPage.metrics.evicted'),
+        formatMetricNumber(metrics?.evicted_keys_total),
+      ),
+      metricItem(
+        'expired',
+        t('monitor.dependenciesPage.metrics.expired'),
+        formatMetricNumber(metrics?.expired_keys_total),
+      ),
+    ]),
+    metricGroup('persistence', t('monitor.dependenciesPage.metrics.redis.persistence'), [
+      metricItem(
+        'rdbSavedAt',
+        t('monitor.dependenciesPage.metrics.rdbSavedAt'),
+        formatTimestamp(metrics?.rdb_last_save_at, locale),
+      ),
+      metricItem(
+        'rdbSaving',
+        t('monitor.dependenciesPage.metrics.rdbSaving'),
+        formatBooleanMetric(metrics?.rdb_bgsave_in_progress),
+      ),
+      metricItem(
+        'aofEnabled',
+        t('monitor.dependenciesPage.metrics.aofEnabled'),
+        formatBooleanMetric(metrics?.aof_enabled),
+      ),
+      metricItem(
+        'aofRewriting',
+        t('monitor.dependenciesPage.metrics.aofRewriting'),
+        formatBooleanMetric(metrics?.aof_rewrite_in_progress),
+      ),
+      metricItem(
+        'replicationRole',
+        t('monitor.dependenciesPage.metrics.replicationRole'),
+        displayText(metrics?.replication_role),
+      ),
+      metricItem(
+        'masterLink',
+        t('monitor.dependenciesPage.metrics.masterLink'),
+        displayText(metrics?.master_link_status),
+      ),
+      metricItem(
+        'keyspaces',
+        t('monitor.dependenciesPage.metrics.keyspaces'),
+        formatMetricNumber(metrics?.keyspaces?.length),
+      ),
+    ]),
+  ];
+}
+
+function buildHistoryView(history: ServerStatusDependency['history'] | null | undefined): DependencyHealthHistory {
+  const points = history?.points ?? [];
+  const unavailable = history?.status === 'unavailable';
+  return {
+    title: t('monitor.dependenciesPage.history.title'),
+    windowLabel: history?.range ?? '--',
+    state: unavailable ? 'unavailable' : points.length === 0 ? 'empty' : 'ready',
+    message: unavailable
+      ? history?.unavailable_reason === 'redis_not_configured'
+        ? t('monitor.dependenciesPage.history.redisUnavailable')
+        : t('monitor.dependenciesPage.history.unavailable')
+      : t('monitor.dependenciesPage.history.empty'),
+    points,
+    availabilityLabel: t('monitor.dependenciesPage.history.availability'),
+    latencyLabel: t('monitor.dependenciesPage.history.latency'),
+  };
+}
+
+function summarizeDependencyHistory(histories: Array<ServerStatusDependency['history'] | null | undefined>) {
+  let probeCount = 0;
+  let failureCount = 0;
+  let successfulLatencyTotal = 0;
+  let successfulLatencyCount = 0;
+
+  for (const history of histories) {
+    for (const point of history?.points ?? []) {
+      const probes = point.probe_count ?? 0;
+      const failures = point.failure_count ?? 0;
+      const successfulProbes = Math.max(0, probes - failures);
+      probeCount += probes;
+      failureCount += failures;
+      if (point.latency_average_ms !== null && point.latency_average_ms !== undefined) {
+        successfulLatencyTotal += point.latency_average_ms * successfulProbes;
+        successfulLatencyCount += successfulProbes;
+      }
+    }
+  }
+
+  return {
+    availabilityPercent: probeCount > 0 ? ((probeCount - failureCount) / probeCount) * 100 : null,
+    failureCount: probeCount > 0 ? failureCount : null,
+    aggregateLatencyMs: successfulLatencyCount > 0 ? successfulLatencyTotal / successfulLatencyCount : null,
+  };
+}
+
+function metricGroup(
+  key: string,
+  title: string,
+  items: DependencyHealthMetricGroup['items'],
+): DependencyHealthMetricGroup {
+  return { key, title, items };
+}
+
+function metricItem(key: string, label: string, value: string) {
+  return { key, label, value };
+}
+
+function formatMetricNumber(value: number | null | undefined) {
+  return value === null || value === undefined ? emptyMetricText() : new Intl.NumberFormat(locale.value).format(value);
+}
+
+function formatPercent(value: number | null | undefined) {
+  return value === null || value === undefined ? emptyMetricText() : `${value.toFixed(1)}%`;
+}
+
+function formatMetricDecimal(value: number | null | undefined) {
+  return value === null || value === undefined ? emptyMetricText() : value.toFixed(2);
+}
+
+function formatBooleanMetric(value: boolean | null | undefined) {
+  if (value === null || value === undefined) {
+    return emptyMetricText();
+  }
+
+  return value ? t('monitor.dependenciesPage.metrics.yes') : t('monitor.dependenciesPage.metrics.no');
+}
+
+function sumMetricValues(...values: Array<number | null | undefined>) {
+  const availableValues = values.filter((value): value is number => value !== null && value !== undefined);
+  return availableValues.length > 0 ? availableValues.reduce((sum, value) => sum + value, 0) : null;
 }
 
 function buildPoolView(label: string, pool?: ServerStatusConnectionPool | null): DependencyHealthPool {

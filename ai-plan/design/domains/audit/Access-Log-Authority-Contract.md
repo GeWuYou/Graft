@@ -10,7 +10,8 @@ Historical scope note:
 
 - this document originally defined the authority contract before implementation approval
 - later bounded topics approved and implemented durable access-log storage, read APIs, and the `web` access-log explorer
-- metrics, tracing, OpenTelemetry, monitor-scope expansion, app-log storage, and audit/security ownership changes remain outside this contract
+- a bounded request-performance projection may consume canonical access-log facts without taking ownership of them; its aggregation and display semantics remain monitor-owned
+- process-local active-request state remains owned by `server/internal/httpx/**`, while tracing, OpenTelemetry, broader monitor/anomaly semantics, app-log storage, and audit/security ownership changes remain outside this contract
 
 ## 2. Authority Summary
 

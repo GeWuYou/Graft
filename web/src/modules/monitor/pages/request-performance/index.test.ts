@@ -21,6 +21,10 @@ const chartMocks = vi.hoisted(() => {
 const schedulerStoreMock = vi.hoisted(() => ({
   store: null as { allowPolling: boolean } | null,
 }));
+const routerMocks = vi.hoisted(() => ({
+  push: vi.fn(),
+  query: {} as Record<string, string>,
+}));
 
 const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.sectionTitle': 'Observability',
@@ -98,6 +102,11 @@ vi.mock('vue-i18n', async () => {
   };
 });
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: routerMocks.query }),
+  useRouter: () => ({ push: routerMocks.push }),
+}));
+
 vi.mock('@/store', () => {
   const schedulerStore = reactive({ allowPolling: true });
   schedulerStoreMock.store = schedulerStore;
@@ -145,18 +154,46 @@ const tooltipStub = defineComponent({
 
 function createResponse() {
   return {
+    latency_distribution: [
+      { lower_bound: 0, upper_bound: 5, sample_count: 120, sample_rate: 80 },
+      { lower_bound: 100, upper_bound: null, sample_count: 3, sample_rate: 2 },
+    ],
+    largest_requests: [
+      {
+        request_id: 'req-large',
+        observed_at: '2026-07-14T09:00:00Z',
+        method: 'POST',
+        path: '/upload',
+        route: '/upload',
+        status_code: 201,
+        duration_ms: 20,
+        request_size_bytes: 4096,
+        response_size_bytes: 128,
+      },
+    ],
+    largest_responses: [],
     minute_buckets: [
       {
         error_5xx_count: 0,
         error_5xx_rate: 2,
         observed_at: '2026-07-14T09:00:00Z',
         p95_latency_ms: 42,
+        p99_latency_ms: 84,
+        request_bytes_per_second: 1024,
         requests_per_second: 2.5,
+        response_bytes_per_second: 2048,
         total_requests: 150,
       },
     ],
     observed_at: '2026-07-14T09:01:00Z',
     range: '10m',
+    request_size_distribution: [{ lower_bound: 0, upper_bound: 1024, sample_count: 150, sample_rate: 100 }],
+    response_size_distribution: [{ lower_bound: 0, upper_bound: 1024, sample_count: 150, sample_rate: 100 }],
+    slowest_requests: [],
+    status_codes: [
+      { status_code: 200, request_count: 120, request_rate: 80 },
+      { status_code: 500, request_count: 3, request_rate: 2 },
+    ],
     status_groups: [
       { request_count: 120, request_rate: 80, status_group: '2xx' },
       { request_count: 3, request_rate: 2, status_group: '3xx' },
@@ -164,15 +201,33 @@ function createResponse() {
       { request_count: 3, request_rate: 2, status_group: '5xx' },
     ],
     summary: {
+      active_requests: 2,
+      average_latency_ms: 10,
       error_5xx_count: 3,
       error_5xx_rate: 2,
+      max_latency_ms: 500,
       p50_latency_ms: 7,
       p95_latency_ms: 42,
+      p99_latency_ms: 84,
+      request_bytes: {
+        measured_count: 150,
+        total_bytes: 614400,
+        average_bytes: 4096,
+        bytes_per_second: 1024,
+      },
       requests_per_second: 2.5,
+      response_bytes: {
+        measured_count: 150,
+        total_bytes: 1228800,
+        average_bytes: 8192,
+        bytes_per_second: 2048,
+      },
       slow_request_count: 1,
       total_requests: 150,
     },
     top_routes: { errors_5xx: [], p95_latency: [], traffic: [] },
+    window_end: '2026-07-14T09:01:00Z',
+    window_start: '2026-07-14T08:51:00Z',
   };
 }
 
@@ -187,6 +242,7 @@ function mountPage() {
         'section-card': sectionCardStub,
         'server-status-page-shell': passthroughStub,
         'summary-metric-card': passthroughStub,
+        't-button': passthroughStub,
         't-empty': passthroughStub,
         't-table': passthroughStub,
         't-tooltip': tooltipStub,
@@ -200,6 +256,8 @@ beforeEach(() => {
   monitorApiMocks.getRequestPerformance.mockReset();
   monitorApiMocks.getRequestPerformance.mockResolvedValue(createResponse());
   schedulerStoreMock.store!.allowPolling = true;
+  routerMocks.push.mockReset();
+  Object.keys(routerMocks.query).forEach((key) => delete routerMocks.query[key]);
 });
 
 afterEach(() => {
@@ -264,24 +322,110 @@ describe('request performance page', () => {
 
     const options = chartMocks.setOption.mock.calls.map(([option]) => option) as Array<{
       color: string[];
-      series: Array<{ areaStyle: { opacity: number }; lineStyle: { color: string; width: number } }>;
-      tooltip: { formatter: (params: Array<{ axisValueLabel: string; color: string; data: number }>) => string };
+      series: Array<{ areaStyle?: { opacity: number }; lineStyle?: { color: string; width: number } }>;
+      tooltip: {
+        formatter?: (
+          params: Array<{ axisValueLabel: string; color: string; data: number; seriesIndex?: number }>,
+        ) => string;
+      };
     }>;
 
-    expect(options).toHaveLength(3);
-    expect(options.map((option) => option.color[0])).toEqual(['#0052d9', '#ebb105', '#e34d59']);
+    expect(options).toHaveLength(7);
+    expect(options.slice(0, 4).map((option) => option.color[0])).toEqual(['#0052d9', '#ebb105', '#e34d59', '#0052d9']);
     expect(options.every((option) => !option.color[0].startsWith('var('))).toBe(true);
-    expect(options.every((option) => option.series[0]?.lineStyle.width === 2)).toBe(true);
-    expect(options.every((option) => option.series[0]?.areaStyle.opacity === 0.1)).toBe(true);
-    expect(options[0]?.tooltip.formatter([{ axisValueLabel: '09:00', color: '#0052d9', data: 2.5 }])).toContain(
+    expect(options.slice(0, 4).every((option) => option.series[0]?.lineStyle?.width === 2)).toBe(true);
+    expect(options.slice(0, 4).every((option) => option.series[0]?.areaStyle?.opacity === 0.1)).toBe(true);
+    expect(options[0]?.tooltip.formatter?.([{ axisValueLabel: '09:00', color: '#0052d9', data: 2.5 }])).toContain(
       '2.50 RPS',
     );
-    expect(options[1]?.tooltip.formatter([{ axisValueLabel: '09:00', color: '#ebb105', data: 42 }])).toContain('42 ms');
-    expect(options[2]?.tooltip.formatter([{ axisValueLabel: '09:00', color: '#e34d59', data: 2 }])).toContain('2.00%');
+    expect(options[1]?.tooltip.formatter?.([{ axisValueLabel: '09:00', color: '#ebb105', data: 42 }])).toContain(
+      '42 ms',
+    );
+    expect(options[2]?.tooltip.formatter?.([{ axisValueLabel: '09:00', color: '#e34d59', data: 2 }])).toContain(
+      '2.00%',
+    );
     expect(wrapper.text()).toContain('Success');
     expect(wrapper.text()).toContain('Server Error');
     expect(wrapper.find('[data-tooltip-content="P95 explanation"]').exists()).toBe(true);
     expect(wrapper.find('[data-tooltip-content="5xx explanation"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('rebinds histogram charts when an available distribution remounts its container', async () => {
+    schedulerStoreMock.store!.allowPolling = false;
+    const unavailableResponse = createResponse();
+    unavailableResponse.request_size_distribution = [];
+    unavailableResponse.response_size_distribution = [];
+    unavailableResponse.summary.request_bytes.measured_count = 0;
+    unavailableResponse.summary.response_bytes.measured_count = 0;
+    monitorApiMocks.getRequestPerformance.mockReset();
+    monitorApiMocks.getRequestPerformance.mockResolvedValueOnce(createResponse());
+    monitorApiMocks.getRequestPerformance.mockResolvedValueOnce(unavailableResponse);
+    monitorApiMocks.getRequestPerformance.mockResolvedValue(createResponse());
+    chartMocks.init.mockClear();
+    chartMocks.dispose.mockClear();
+
+    const wrapper = mountPage();
+    await flushPromises();
+    const page = wrapper.vm as unknown as { refresh: () => Promise<void> };
+    const initialInitCount = chartMocks.init.mock.calls.length;
+
+    await page.refresh();
+    await flushPromises();
+    expect(chartMocks.dispose).toHaveBeenCalledTimes(2);
+
+    await page.refresh();
+    await flushPromises();
+
+    expect(initialInitCount).toBe(7);
+    expect(chartMocks.init).toHaveBeenCalledTimes(9);
+    wrapper.unmount();
+  });
+
+  it('renders eight summaries and builds status/request drilldowns with monitor origin', async () => {
+    schedulerStoreMock.store!.allowPolling = false;
+    const wrapper = mountPage();
+    await flushPromises();
+    const page = wrapper.vm as unknown as {
+      summaryCards: Array<{ key: string }>;
+      toggleStatusGroup: (group: string) => void;
+      expandedStatusGroups: string[];
+      openStatusCode: (code: number) => void;
+      openRequestInstance: (context: { row: ReturnType<typeof createResponse>['largest_requests'][number] }) => void;
+    };
+
+    expect(page.summaryCards.map((item) => item.key)).toEqual([
+      'rps',
+      'latency',
+      'average',
+      'p99',
+      'errors',
+      'slow',
+      'active',
+      'total',
+    ]);
+    page.toggleStatusGroup('5xx');
+    expect(page.expandedStatusGroups).toEqual(['5xx']);
+    page.openStatusCode(500);
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/observability/access-logs',
+      query: {
+        status_code: '500',
+        occurred_from: '2026-07-14T08:51:00Z',
+        occurred_to: '2026-07-14T09:01:00Z',
+        monitorView: 'request-performance',
+        monitorTrendRange: '10m',
+      },
+    });
+    page.openRequestInstance({ row: createResponse().largest_requests[0] });
+    expect(routerMocks.push).toHaveBeenLastCalledWith({
+      path: '/observability/access-logs',
+      query: {
+        request_id: 'req-large',
+        monitorView: 'request-performance',
+        monitorTrendRange: '10m',
+      },
+    });
     wrapper.unmount();
   });
 
@@ -293,6 +437,18 @@ describe('request performance page', () => {
 
     expect(wrapper.findAll('.request-performance-page__route-table')).toHaveLength(3);
     expect(wrapper.findAll('.request-performance-page__route-table--empty')).toHaveLength(3);
+    wrapper.unmount();
+  });
+
+  it('restores the selected trend range from monitor origin context', async () => {
+    schedulerStoreMock.store!.allowPolling = false;
+    routerMocks.query.monitorView = 'request-performance';
+    routerMocks.query.monitorTrendRange = '30m';
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(monitorApiMocks.getRequestPerformance).toHaveBeenCalledWith('30m');
     wrapper.unmount();
   });
 });

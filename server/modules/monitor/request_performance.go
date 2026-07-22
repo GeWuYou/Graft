@@ -34,7 +34,7 @@ func newRequestPerformanceHandler(handler *monitorServerHandler) gin.HandlerFunc
 		}
 
 		requestRange := parseGeneratedRequestPerformanceRange(params.Range)
-		payload, err := buildRequestPerformanceResponse(ginCtx.Request.Context(), handler.requestPerformanceReader(), requestRange, time.Now().UTC())
+		payload, err := buildRequestPerformanceResponse(ginCtx.Request.Context(), handler.requestPerformanceReader(), handler.activeRequestReader(), requestRange, time.Now().UTC())
 		if err != nil {
 			reported := handler.logRequestPerformanceError(ginCtx, err)
 			httpx.AbortAppError(ginCtx, handler.localizer(), handler.runtimeLogger(), reported)
@@ -57,6 +57,18 @@ func (h *monitorServerHandler) requestPerformanceReader() moduleapi.RequestPerfo
 		return nil
 	}
 	return h.instance.requestPerformanceReader
+}
+
+func (h *monitorServerHandler) activeRequestReader() moduleapi.ActiveRequestReader {
+	if h == nil || h.ctx == nil || h.ctx.Services == nil {
+		return nil
+	}
+	resolved, err := h.ctx.Services.Resolve((*moduleapi.ActiveRequestReader)(nil))
+	if err != nil {
+		return nil
+	}
+	reader, _ := resolved.(moduleapi.ActiveRequestReader)
+	return reader
 }
 
 func (h *monitorServerHandler) localizer() *i18n.Service {
@@ -95,11 +107,15 @@ func parseGeneratedRequestPerformanceRange(raw *monitoropenapi.GetMonitorRequest
 func buildRequestPerformanceResponse(
 	ctx context.Context,
 	reader moduleapi.RequestPerformanceReader,
+	activeReader moduleapi.ActiveRequestReader,
 	requestRange monitorcontract.TrendRange,
 	observedAt time.Time,
 ) (generated.RequestPerformanceResponse, error) {
 	if reader == nil {
 		return generated.RequestPerformanceResponse{}, errors.New("request performance reader is unavailable")
+	}
+	if activeReader == nil {
+		return generated.RequestPerformanceResponse{}, errors.New("active request reader is unavailable")
 	}
 
 	observedAt = observedAt.UTC()
@@ -114,35 +130,98 @@ func buildRequestPerformanceResponse(
 
 	durationSeconds := requestRange.Duration().Seconds()
 	return generated.RequestPerformanceResponse{
-		ObservedAt: observedAt,
-		Range:      generated.RequestPerformanceResponseRange(requestRange.String()),
+		ObservedAt:  observedAt,
+		WindowStart: summary.WindowStart.UTC(),
+		WindowEnd:   summary.WindowEnd.UTC(),
+		Range:       generated.RequestPerformanceResponseRange(requestRange.String()),
 		Summary: generated.RequestPerformanceSummary{
 			TotalRequests:     summary.TotalRequests,
-			RequestsPerSecond: requestsPerSecond(summary.TotalRequests, durationSeconds),
+			RequestsPerSecond: perSecondRate(summary.TotalRequests, durationSeconds),
+			AverageLatencyMs:  summary.AverageLatencyMS,
 			P50LatencyMs:      float64(summary.P50LatencyMS),
 			P95LatencyMs:      float64(summary.P95LatencyMS),
+			P99LatencyMs:      float64(summary.P99LatencyMS),
+			MaxLatencyMs:      float64(summary.MaxLatencyMS),
+			ActiveRequests:    activeReader.ReadActiveRequests(ctx),
+			RequestBytes:      requestPerformanceByteSummary(summary.RequestBytes, durationSeconds),
+			ResponseBytes:     requestPerformanceByteSummary(summary.ResponseBytes, durationSeconds),
 			Error5xxCount:     summary.ServerErrorCount,
 			Error5xxRate:      percentage(summary.ServerErrorCount, summary.TotalRequests),
 			SlowRequestCount:  summary.SlowRequestCount,
 		},
-		MinuteBuckets: requestPerformanceMinuteBuckets(summary.Buckets),
-		StatusGroups:  requestPerformanceStatusGroups(summary.StatusGroups, summary.TotalRequests),
-		TopRoutes:     requestPerformanceTopRoutesResponse(summary.TopRoutes),
+		MinuteBuckets:            requestPerformanceMinuteBuckets(summary.Buckets),
+		StatusGroups:             requestPerformanceStatusGroups(summary.StatusGroups, summary.TotalRequests),
+		StatusCodes:              requestPerformanceStatusCodes(summary.StatusCodes, summary.TotalRequests),
+		LatencyDistribution:      requestPerformanceDistribution(summary.LatencyHistogram, summary.TotalRequests),
+		RequestSizeDistribution:  requestPerformanceDistribution(summary.RequestSizeHistogram, summary.RequestBytes.MeasuredCount),
+		ResponseSizeDistribution: requestPerformanceDistribution(summary.ResponseSizeHistogram, summary.ResponseBytes.MeasuredCount),
+		TopRoutes:                requestPerformanceTopRoutesResponse(summary.TopRoutes),
+		SlowestRequests:          requestPerformanceInstances(summary.SlowestRequests),
+		LargestRequests:          requestPerformanceInstances(summary.LargestRequests),
+		LargestResponses:         requestPerformanceInstances(summary.LargestResponses),
 	}, nil
 }
 
+func requestPerformanceByteSummary(item moduleapi.RequestPerformanceByteSummary, durationSeconds float64) generated.RequestPerformanceByteSummary {
+	result := generated.RequestPerformanceByteSummary{MeasuredCount: item.MeasuredCount, TotalBytes: item.TotalBytes}
+	if item.MeasuredCount > 0 {
+		averageBytes := item.AverageBytes
+		bytesPerSecond := perSecondRate(item.TotalBytes, durationSeconds)
+		result.AverageBytes = &averageBytes
+		result.BytesPerSecond = &bytesPerSecond
+	}
+	return result
+}
+
 // requestPerformanceMinuteBuckets 将每分钟请求性能指标转换为响应模型中的分钟桶。
-// 返回包含观测时间、请求量、请求速率、P95 延迟及 5xx 错误指标的分钟桶列表。
+// 返回包含观测时间、请求量、延迟分位、字节速率及 5xx 错误指标的分钟桶列表。
 func requestPerformanceMinuteBuckets(items []moduleapi.RequestPerformanceMinuteBucket) []generated.RequestPerformanceMinuteBucket {
 	result := make([]generated.RequestPerformanceMinuteBucket, 0, len(items))
 	for _, item := range items {
 		result = append(result, generated.RequestPerformanceMinuteBucket{
-			ObservedAt:        item.Start.UTC(),
-			TotalRequests:     item.TotalRequests,
-			RequestsPerSecond: requestsPerSecond(item.TotalRequests, moduleapi.RequestPerformanceMinuteBucketSize.Seconds()),
-			P95LatencyMs:      float64(item.P95LatencyMS),
-			Error5xxCount:     item.ServerErrorCount,
-			Error5xxRate:      percentage(item.ServerErrorCount, item.TotalRequests),
+			ObservedAt:             item.Start.UTC(),
+			TotalRequests:          item.TotalRequests,
+			RequestsPerSecond:      perSecondRate(item.TotalRequests, moduleapi.RequestPerformanceMinuteBucketSize.Seconds()),
+			P95LatencyMs:           float64(item.P95LatencyMS),
+			P99LatencyMs:           float64(item.P99LatencyMS),
+			RequestBytesPerSecond:  perSecondRate(item.RequestBytes, moduleapi.RequestPerformanceMinuteBucketSize.Seconds()),
+			ResponseBytesPerSecond: perSecondRate(item.ResponseBytes, moduleapi.RequestPerformanceMinuteBucketSize.Seconds()),
+			Error5xxCount:          item.ServerErrorCount,
+			Error5xxRate:           percentage(item.ServerErrorCount, item.TotalRequests),
+		})
+	}
+	return result
+}
+
+func requestPerformanceStatusCodes(items []moduleapi.RequestPerformanceStatusCodeCount, total int64) []generated.RequestPerformanceStatusCode {
+	result := make([]generated.RequestPerformanceStatusCode, 0, len(items))
+	for _, item := range items {
+		result = append(result, generated.RequestPerformanceStatusCode{StatusCode: item.StatusCode, RequestCount: item.Count, RequestRate: percentage(item.Count, total)})
+	}
+	return result
+}
+
+func requestPerformanceDistribution(items []moduleapi.RequestPerformanceHistogramBucket, total int64) []generated.RequestPerformanceDistributionBucket {
+	result := make([]generated.RequestPerformanceDistributionBucket, 0, len(items))
+	for _, item := range items {
+		result = append(result, generated.RequestPerformanceDistributionBucket{LowerBound: item.LowerBound, UpperBound: item.UpperBound, SampleCount: item.Count, SampleRate: percentage(item.Count, total)})
+	}
+	return result
+}
+
+func requestPerformanceInstances(items []moduleapi.RequestPerformanceRequestInstance) []generated.RequestPerformanceRequestInstance {
+	result := make([]generated.RequestPerformanceRequestInstance, 0, len(items))
+	for _, item := range items {
+		result = append(result, generated.RequestPerformanceRequestInstance{
+			RequestId:         item.RequestID,
+			ObservedAt:        item.OccurredAt.UTC(),
+			Method:            item.Method,
+			Path:              item.Path,
+			Route:             item.Route,
+			StatusCode:        item.StatusCode,
+			DurationMs:        item.DurationMS,
+			RequestSizeBytes:  item.RequestSize,
+			ResponseSizeBytes: item.ResponseSize,
 		})
 	}
 	return result
@@ -183,9 +262,8 @@ func requestPerformanceRoutes(items []moduleapi.RequestPerformanceRoute) []gener
 	return result
 }
 
-// requestsPerSecond 计算指定时长内的请求速率。
-// 当请求数或时长为零或负数时返回零。
-func requestsPerSecond(total int64, seconds float64) float64 {
+// perSecondRate 计算计数或字节总量在指定时长内的每秒速率；总量或时长无效时返回零。
+func perSecondRate(total int64, seconds float64) float64 {
 	if total <= 0 || seconds <= 0 {
 		return 0
 	}

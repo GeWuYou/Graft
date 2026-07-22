@@ -2964,22 +2964,22 @@ func (e ErrorResponseSuccess) Valid() bool {
 
 // Defines values for EvidenceLinkLinkState.
 const (
-	Available   EvidenceLinkLinkState = "available"
-	Empty       EvidenceLinkLinkState = "empty"
-	Unavailable EvidenceLinkLinkState = "unavailable"
-	Unsupported EvidenceLinkLinkState = "unsupported"
+	EvidenceLinkLinkStateAvailable   EvidenceLinkLinkState = "available"
+	EvidenceLinkLinkStateEmpty       EvidenceLinkLinkState = "empty"
+	EvidenceLinkLinkStateUnavailable EvidenceLinkLinkState = "unavailable"
+	EvidenceLinkLinkStateUnsupported EvidenceLinkLinkState = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the EvidenceLinkLinkState enum.
 func (e EvidenceLinkLinkState) Valid() bool {
 	switch e {
-	case Available:
+	case EvidenceLinkLinkStateAvailable:
 		return true
-	case Empty:
+	case EvidenceLinkLinkStateEmpty:
 		return true
-	case Unavailable:
+	case EvidenceLinkLinkStateUnavailable:
 		return true
-	case Unsupported:
+	case EvidenceLinkLinkStateUnsupported:
 		return true
 	default:
 		return false
@@ -3967,6 +3967,102 @@ func (e ServerStatusAnomalyStatus) Valid() bool {
 	}
 }
 
+// Defines values for ServerStatusDependencyHistoryRange.
+const (
+	ServerStatusDependencyHistoryRangeN10m ServerStatusDependencyHistoryRange = "10m"
+	ServerStatusDependencyHistoryRangeN1h  ServerStatusDependencyHistoryRange = "1h"
+	ServerStatusDependencyHistoryRangeN30m ServerStatusDependencyHistoryRange = "30m"
+)
+
+// Valid indicates whether the value is a known member of the ServerStatusDependencyHistoryRange enum.
+func (e ServerStatusDependencyHistoryRange) Valid() bool {
+	switch e {
+	case ServerStatusDependencyHistoryRangeN10m:
+		return true
+	case ServerStatusDependencyHistoryRangeN1h:
+		return true
+	case ServerStatusDependencyHistoryRangeN30m:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerStatusDependencyHistoryStatus.
+const (
+	ServerStatusDependencyHistoryStatusAvailable   ServerStatusDependencyHistoryStatus = "available"
+	ServerStatusDependencyHistoryStatusUnavailable ServerStatusDependencyHistoryStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ServerStatusDependencyHistoryStatus enum.
+func (e ServerStatusDependencyHistoryStatus) Valid() bool {
+	switch e {
+	case ServerStatusDependencyHistoryStatusAvailable:
+		return true
+	case ServerStatusDependencyHistoryStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerStatusDependencyHistoryUnavailableReason.
+const (
+	ReadFailed         ServerStatusDependencyHistoryUnavailableReason = "read_failed"
+	RedisNotConfigured ServerStatusDependencyHistoryUnavailableReason = "redis_not_configured"
+)
+
+// Valid indicates whether the value is a known member of the ServerStatusDependencyHistoryUnavailableReason enum.
+func (e ServerStatusDependencyHistoryUnavailableReason) Valid() bool {
+	switch e {
+	case ReadFailed:
+		return true
+	case RedisNotConfigured:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerStatusRedisCurrentMetricsMasterLinkStatus.
+const (
+	Down ServerStatusRedisCurrentMetricsMasterLinkStatus = "down"
+	Up   ServerStatusRedisCurrentMetricsMasterLinkStatus = "up"
+)
+
+// Valid indicates whether the value is a known member of the ServerStatusRedisCurrentMetricsMasterLinkStatus enum.
+func (e ServerStatusRedisCurrentMetricsMasterLinkStatus) Valid() bool {
+	switch e {
+	case Down:
+		return true
+	case Up:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerStatusRedisCurrentMetricsReplicationRole.
+const (
+	ServerStatusRedisCurrentMetricsReplicationRoleMaster  ServerStatusRedisCurrentMetricsReplicationRole = "master"
+	ServerStatusRedisCurrentMetricsReplicationRoleReplica ServerStatusRedisCurrentMetricsReplicationRole = "replica"
+	ServerStatusRedisCurrentMetricsReplicationRoleUnknown ServerStatusRedisCurrentMetricsReplicationRole = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ServerStatusRedisCurrentMetricsReplicationRole enum.
+func (e ServerStatusRedisCurrentMetricsReplicationRole) Valid() bool {
+	switch e {
+	case ServerStatusRedisCurrentMetricsReplicationRoleMaster:
+		return true
+	case ServerStatusRedisCurrentMetricsReplicationRoleReplica:
+		return true
+	case ServerStatusRedisCurrentMetricsReplicationRoleUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServerStatusServerBuildInfoGitTreeState.
 const (
 	ServerStatusServerBuildInfoGitTreeStateClean   ServerStatusServerBuildInfoGitTreeState = "clean"
@@ -4011,19 +4107,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case SystemConfigItemRuntimeApplyModeRestartRequired:
+	case RestartRequired:
 		return true
-	case SystemConfigItemRuntimeApplyModeRuntimeHot:
+	case RuntimeHot:
 		return true
-	case SystemConfigItemRuntimeApplyModeUnknown:
+	case Unknown:
 		return true
 	default:
 		return false
@@ -4743,19 +4839,19 @@ func (e GetMonitorRequestPerformanceParamsRange) Valid() bool {
 
 // Defines values for GetMonitorServerStatusParamsTrendRange.
 const (
-	N10m GetMonitorServerStatusParamsTrendRange = "10m"
-	N1h  GetMonitorServerStatusParamsTrendRange = "1h"
-	N30m GetMonitorServerStatusParamsTrendRange = "30m"
+	GetMonitorServerStatusParamsTrendRangeN10m GetMonitorServerStatusParamsTrendRange = "10m"
+	GetMonitorServerStatusParamsTrendRangeN1h  GetMonitorServerStatusParamsTrendRange = "1h"
+	GetMonitorServerStatusParamsTrendRangeN30m GetMonitorServerStatusParamsTrendRange = "30m"
 )
 
 // Valid indicates whether the value is a known member of the GetMonitorServerStatusParamsTrendRange enum.
 func (e GetMonitorServerStatusParamsTrendRange) Valid() bool {
 	switch e {
-	case N10m:
+	case GetMonitorServerStatusParamsTrendRangeN10m:
 		return true
-	case N1h:
+	case GetMonitorServerStatusParamsTrendRangeN1h:
 		return true
-	case N30m:
+	case GetMonitorServerStatusParamsTrendRangeN30m:
 		return true
 	default:
 		return false
@@ -10604,24 +10700,65 @@ type ReplaceUserRolesRequest struct {
 	RoleIds []int64 `json:"role_ids"`
 }
 
+// RequestPerformanceByteSummary defines model for request-performance-byte-summary.
+type RequestPerformanceByteSummary struct {
+	AverageBytes   *float64 `json:"average_bytes"`
+	BytesPerSecond *float64 `json:"bytes_per_second"`
+	MeasuredCount  int64    `json:"measured_count"`
+	TotalBytes     int64    `json:"total_bytes"`
+}
+
+// RequestPerformanceDistributionBucket defines model for request-performance-distribution-bucket.
+type RequestPerformanceDistributionBucket struct {
+	LowerBound  int64   `json:"lower_bound"`
+	SampleCount int64   `json:"sample_count"`
+	SampleRate  float64 `json:"sample_rate"`
+	UpperBound  *int64  `json:"upper_bound"`
+}
+
 // RequestPerformanceMinuteBucket defines model for request-performance-minute-bucket.
 type RequestPerformanceMinuteBucket struct {
-	Error5xxCount     int64     `json:"error_5xx_count"`
-	Error5xxRate      float64   `json:"error_5xx_rate"`
+	Error5xxCount          int64     `json:"error_5xx_count"`
+	Error5xxRate           float64   `json:"error_5xx_rate"`
+	ObservedAt             time.Time `json:"observed_at"`
+	P95LatencyMs           float64   `json:"p95_latency_ms"`
+	P99LatencyMs           float64   `json:"p99_latency_ms"`
+	RequestBytesPerSecond  float64   `json:"request_bytes_per_second"`
+	RequestsPerSecond      float64   `json:"requests_per_second"`
+	ResponseBytesPerSecond float64   `json:"response_bytes_per_second"`
+	TotalRequests          int64     `json:"total_requests"`
+}
+
+// RequestPerformanceRequestInstance defines model for request-performance-request-instance.
+type RequestPerformanceRequestInstance struct {
+	DurationMs        int64     `json:"duration_ms"`
+	Method            string    `json:"method"`
 	ObservedAt        time.Time `json:"observed_at"`
-	P95LatencyMs      float64   `json:"p95_latency_ms"`
-	RequestsPerSecond float64   `json:"requests_per_second"`
-	TotalRequests     int64     `json:"total_requests"`
+	Path              string    `json:"path"`
+	RequestId         string    `json:"request_id"`
+	RequestSizeBytes  *int64    `json:"request_size_bytes"`
+	ResponseSizeBytes *int64    `json:"response_size_bytes"`
+	Route             string    `json:"route"`
+	StatusCode        int       `json:"status_code"`
 }
 
 // RequestPerformanceResponse defines model for request-performance-response.
 type RequestPerformanceResponse struct {
-	MinuteBuckets []RequestPerformanceMinuteBucket `json:"minute_buckets"`
-	ObservedAt    time.Time                        `json:"observed_at"`
-	Range         RequestPerformanceResponseRange  `json:"range"`
-	StatusGroups  []RequestPerformanceStatusGroup  `json:"status_groups"`
-	Summary       RequestPerformanceSummary        `json:"summary"`
-	TopRoutes     RequestPerformanceTopRoutes      `json:"top_routes"`
+	LargestRequests          []RequestPerformanceRequestInstance    `json:"largest_requests"`
+	LargestResponses         []RequestPerformanceRequestInstance    `json:"largest_responses"`
+	LatencyDistribution      []RequestPerformanceDistributionBucket `json:"latency_distribution"`
+	MinuteBuckets            []RequestPerformanceMinuteBucket       `json:"minute_buckets"`
+	ObservedAt               time.Time                              `json:"observed_at"`
+	Range                    RequestPerformanceResponseRange        `json:"range"`
+	RequestSizeDistribution  []RequestPerformanceDistributionBucket `json:"request_size_distribution"`
+	ResponseSizeDistribution []RequestPerformanceDistributionBucket `json:"response_size_distribution"`
+	SlowestRequests          []RequestPerformanceRequestInstance    `json:"slowest_requests"`
+	StatusCodes              []RequestPerformanceStatusCode         `json:"status_codes"`
+	StatusGroups             []RequestPerformanceStatusGroup        `json:"status_groups"`
+	Summary                  RequestPerformanceSummary              `json:"summary"`
+	TopRoutes                RequestPerformanceTopRoutes            `json:"top_routes"`
+	WindowEnd                time.Time                              `json:"window_end"`
+	WindowStart              time.Time                              `json:"window_start"`
 }
 
 // RequestPerformanceResponseRange defines model for RequestPerformanceResponse.Range.
@@ -10635,6 +10772,13 @@ type RequestPerformanceRoute struct {
 	P95LatencyMs  float64 `json:"p95_latency_ms"`
 	Route         string  `json:"route"`
 	TotalRequests int64   `json:"total_requests"`
+}
+
+// RequestPerformanceStatusCode defines model for request-performance-status-code.
+type RequestPerformanceStatusCode struct {
+	RequestCount int64   `json:"request_count"`
+	RequestRate  float64 `json:"request_rate"`
+	StatusCode   int     `json:"status_code"`
 }
 
 // RequestPerformanceStatusGroup defines model for request-performance-status-group.
@@ -10651,15 +10795,21 @@ type RequestPerformanceStatusGroupStatusGroup string
 
 // RequestPerformanceSummary defines model for request-performance-summary.
 type RequestPerformanceSummary struct {
-	Error5xxCount int64 `json:"error_5xx_count"`
+	ActiveRequests   int64   `json:"active_requests"`
+	AverageLatencyMs float64 `json:"average_latency_ms"`
+	Error5xxCount    int64   `json:"error_5xx_count"`
 
 	// Error5xxRate 5xx error rate as a percentage from 0 to 100.
-	Error5xxRate      float64 `json:"error_5xx_rate"`
-	P50LatencyMs      float64 `json:"p50_latency_ms"`
-	P95LatencyMs      float64 `json:"p95_latency_ms"`
-	RequestsPerSecond float64 `json:"requests_per_second"`
-	SlowRequestCount  int64   `json:"slow_request_count"`
-	TotalRequests     int64   `json:"total_requests"`
+	Error5xxRate      float64                       `json:"error_5xx_rate"`
+	MaxLatencyMs      float64                       `json:"max_latency_ms"`
+	P50LatencyMs      float64                       `json:"p50_latency_ms"`
+	P95LatencyMs      float64                       `json:"p95_latency_ms"`
+	P99LatencyMs      float64                       `json:"p99_latency_ms"`
+	RequestBytes      RequestPerformanceByteSummary `json:"request_bytes"`
+	RequestsPerSecond float64                       `json:"requests_per_second"`
+	ResponseBytes     RequestPerformanceByteSummary `json:"response_bytes"`
+	SlowRequestCount  int64                         `json:"slow_request_count"`
+	TotalRequests     int64                         `json:"total_requests"`
 }
 
 // RequestPerformanceTopRoutes defines model for request-performance-top-routes.
@@ -11232,10 +11382,75 @@ type ServerStatusDependencies struct {
 
 // ServerStatusDependency defines model for server-status-dependency.
 type ServerStatusDependency struct {
-	Detail    string                      `json:"detail"`
+	// Detail Current monitor-owned probe detail. It does not contain credentials, connection strings, key contents, or query text.
+	Detail string `json:"detail"`
+
+	// History Redis-backed short history for this dependency. Its unavailability never invalidates the current dependency snapshot.
+	History *ServerStatusDependencyHistory `json:"history,omitempty"`
+
+	// LatencyMs Most recent successful monitor-probe latency in milliseconds. Current gauge; null when no successful probe produced a latency.
 	LatencyMs *float32                    `json:"latency_ms"`
 	Pool      *ServerStatusConnectionPool `json:"pool,omitempty"`
-	Status    string                      `json:"status"`
+
+	// PostgresqlMetrics PostgreSQL-only current diagnostics. Null until collection is unavailable or does not apply to this dependency.
+	PostgresqlMetrics *ServerStatusPostgresqlCurrentMetrics `json:"postgresql_metrics,omitempty"`
+
+	// RedisMetrics Redis-only current diagnostics. Null until collection is unavailable or does not apply to this dependency.
+	RedisMetrics *ServerStatusRedisCurrentMetrics `json:"redis_metrics,omitempty"`
+
+	// Status Current dependency health state from the monitor probe; it remains available when optional metrics or history are unavailable.
+	Status string `json:"status"`
+}
+
+// ServerStatusDependencyHistory Redis-backed short history for one dependency. The selected range is limited to 10m, 30m, or 1h and is isolated by application, host, and dependency kind.
+type ServerStatusDependencyHistory struct {
+	// Points Ordered aggregate points for the selected range; no point is fabricated for unavailable data.
+	Points []ServerStatusDependencyHistoryPoint `json:"points"`
+
+	// Range Requested bounded history range.
+	Range ServerStatusDependencyHistoryRange `json:"range"`
+
+	// RetentionSeconds Retention represented by the requested range in seconds.
+	RetentionSeconds int64 `json:"retention_seconds"`
+
+	// SampleIntervalSeconds Nominal monitor sampling interval in seconds.
+	SampleIntervalSeconds int64 `json:"sample_interval_seconds"`
+
+	// Status Whether Redis history could be read. Available history may contain zero points.
+	Status ServerStatusDependencyHistoryStatus `json:"status"`
+
+	// UnavailableReason Stable reason when status is unavailable; absent when status is available.
+	UnavailableReason *ServerStatusDependencyHistoryUnavailableReason `json:"unavailable_reason,omitempty"`
+}
+
+// ServerStatusDependencyHistoryRange Requested bounded history range.
+type ServerStatusDependencyHistoryRange string
+
+// ServerStatusDependencyHistoryStatus Whether Redis history could be read. Available history may contain zero points.
+type ServerStatusDependencyHistoryStatus string
+
+// ServerStatusDependencyHistoryUnavailableReason Stable reason when status is unavailable; absent when status is available.
+type ServerStatusDependencyHistoryUnavailableReason string
+
+// ServerStatusDependencyHistoryPoint One Redis-backed aggregate bucket for a dependency. A nullable aggregate was unavailable for that bucket and is never a synthetic zero.
+type ServerStatusDependencyHistoryPoint struct {
+	// AvailabilityPercent Successful probes divided by probe_count, in percent. Derived bucket gauge.
+	AvailabilityPercent *float32 `json:"availability_percent,omitempty"`
+
+	// FailureCount Failed dependency probes in this bucket. Bucket aggregate, not a cumulative process counter.
+	FailureCount *int64 `json:"failure_count,omitempty"`
+
+	// LatencyAverageMs Arithmetic mean successful-probe latency in milliseconds for this bucket. Derived bucket gauge.
+	LatencyAverageMs *float32 `json:"latency_average_ms,omitempty"`
+
+	// LatencyP95Ms 95th-percentile successful-probe latency in milliseconds for this bucket. Derived bucket gauge.
+	LatencyP95Ms *float32 `json:"latency_p95_ms,omitempty"`
+
+	// ObservedAt RFC 3339 bucket observation time.
+	ObservedAt time.Time `json:"observed_at"`
+
+	// ProbeCount Number of dependency probes aggregated into this bucket. Bucket aggregate, not a process counter.
+	ProbeCount *int64 `json:"probe_count,omitempty"`
 }
 
 // ServerStatusDiskUsage defines model for server-status-disk-usage.
@@ -11302,6 +11517,159 @@ type ServerStatusModule struct {
 	Name                string    `json:"name"`
 	Status              string    `json:"status"`
 	StatusDetail        string    `json:"status_detail"`
+}
+
+// ServerStatusPostgresqlCurrentMetrics Current PostgreSQL diagnostics. Every property is nullable because a reachable PostgreSQL server may deny a statistics view or expose only part of it; null means unavailable or not collected, never zero.
+type ServerStatusPostgresqlCurrentMetrics struct {
+	// ActiveConnections Sessions currently executing a query. Gauge.
+	ActiveConnections *int64 `json:"active_connections,omitempty"`
+
+	// BlocksHitTotal Cumulative buffer-cache block hits reported by PostgreSQL. Counter.
+	BlocksHitTotal *int64 `json:"blocks_hit_total,omitempty"`
+
+	// BlocksReadTotal Cumulative disk blocks read by PostgreSQL. Counter.
+	BlocksReadTotal *int64 `json:"blocks_read_total,omitempty"`
+
+	// CacheHitPercent Current derived cache hit ratio from blocks_hit_total and blocks_read_total, in percent. Gauge.
+	CacheHitPercent *float32 `json:"cache_hit_percent,omitempty"`
+
+	// ConflictsTotal Cumulative recovery conflicts reported by PostgreSQL. Counter.
+	ConflictsTotal *int64 `json:"conflicts_total,omitempty"`
+
+	// DatabaseSizeBytes Current database size in bytes. Gauge.
+	DatabaseSizeBytes *int64 `json:"database_size_bytes,omitempty"`
+
+	// DeadlocksTotal Cumulative detected deadlocks reported by PostgreSQL. Counter.
+	DeadlocksTotal *int64 `json:"deadlocks_total,omitempty"`
+
+	// IdleConnections Sessions currently idle. Gauge.
+	IdleConnections *int64 `json:"idle_connections,omitempty"`
+
+	// IdleInTransactionConnections Sessions idle while holding an open transaction. Gauge.
+	IdleInTransactionConnections *int64 `json:"idle_in_transaction_connections,omitempty"`
+
+	// MaxConnections Configured PostgreSQL connection limit. Gauge.
+	MaxConnections *int64 `json:"max_connections,omitempty"`
+
+	// TempBytesTotal Cumulative temporary-file bytes written by PostgreSQL. Counter.
+	TempBytesTotal *int64 `json:"temp_bytes_total,omitempty"`
+
+	// TempFilesTotal Cumulative temporary files created by PostgreSQL. Counter.
+	TempFilesTotal *int64 `json:"temp_files_total,omitempty"`
+
+	// TransactionCommitTotal Cumulative committed transactions reported by PostgreSQL. Counter.
+	TransactionCommitTotal *int64 `json:"transaction_commit_total,omitempty"`
+
+	// TransactionRollbackTotal Cumulative rolled-back transactions reported by PostgreSQL. Counter.
+	TransactionRollbackTotal *int64 `json:"transaction_rollback_total,omitempty"`
+
+	// TuplesDeletedTotal Cumulative deleted tuples. Counter.
+	TuplesDeletedTotal *int64 `json:"tuples_deleted_total,omitempty"`
+
+	// TuplesFetchedTotal Cumulative tuples fetched by index scans. Counter.
+	TuplesFetchedTotal *int64 `json:"tuples_fetched_total,omitempty"`
+
+	// TuplesInsertedTotal Cumulative inserted tuples. Counter.
+	TuplesInsertedTotal *int64 `json:"tuples_inserted_total,omitempty"`
+
+	// TuplesReturnedTotal Cumulative tuples returned by scans. Counter.
+	TuplesReturnedTotal *int64 `json:"tuples_returned_total,omitempty"`
+
+	// TuplesUpdatedTotal Cumulative updated tuples. Counter.
+	TuplesUpdatedTotal *int64 `json:"tuples_updated_total,omitempty"`
+
+	// WaitingConnections Sessions waiting on a database event. Gauge.
+	WaitingConnections *int64 `json:"waiting_connections,omitempty"`
+}
+
+// ServerStatusRedisCurrentMetrics Current Redis diagnostics. Every nullable property is unavailable or not collected when Redis cannot report it; null never represents a zero counter or gauge.
+type ServerStatusRedisCurrentMetrics struct {
+	// AofEnabled Whether append-only persistence is enabled. Gauge.
+	AofEnabled *bool `json:"aof_enabled,omitempty"`
+
+	// AofRewriteInProgress Whether an AOF rewrite is currently running. Gauge.
+	AofRewriteInProgress *bool `json:"aof_rewrite_in_progress,omitempty"`
+
+	// BlockedClients Current Redis clients blocked on an operation. Gauge.
+	BlockedClients *int64 `json:"blocked_clients,omitempty"`
+
+	// ConnectedClients Current connected Redis clients. Gauge.
+	ConnectedClients *int64 `json:"connected_clients,omitempty"`
+
+	// EvictedKeysTotal Cumulative keys evicted by Redis. Counter.
+	EvictedKeysTotal *int64 `json:"evicted_keys_total,omitempty"`
+
+	// ExpiredKeysTotal Cumulative expired keys removed by Redis. Counter.
+	ExpiredKeysTotal *int64 `json:"expired_keys_total,omitempty"`
+
+	// InstantaneousOpsPerSecond Most recent Redis command throughput in operations per second. Gauge.
+	InstantaneousOpsPerSecond *float32 `json:"instantaneous_ops_per_second,omitempty"`
+
+	// KeyspaceHitPercent Current derived keyspace hit ratio in percent. Gauge.
+	KeyspaceHitPercent *float32 `json:"keyspace_hit_percent,omitempty"`
+
+	// KeyspaceHitsTotal Cumulative successful key lookups reported by Redis. Counter.
+	KeyspaceHitsTotal *int64 `json:"keyspace_hits_total,omitempty"`
+
+	// KeyspaceMissesTotal Cumulative failed key lookups reported by Redis. Counter.
+	KeyspaceMissesTotal *int64 `json:"keyspace_misses_total,omitempty"`
+
+	// Keyspaces Current per-logical-database keyspace aggregates; an empty array is a valid observed result.
+	Keyspaces *[]ServerStatusRedisKeyspaceMetrics `json:"keyspaces,omitempty"`
+
+	// MasterLinkStatus Current upstream master-link status when this Redis node is a replica. Gauge.
+	MasterLinkStatus *ServerStatusRedisCurrentMetricsMasterLinkStatus `json:"master_link_status,omitempty"`
+
+	// MaxClients Configured Redis client limit. Gauge.
+	MaxClients *int64 `json:"max_clients,omitempty"`
+
+	// MaxMemoryBytes Configured Redis maxmemory in bytes. Gauge.
+	MaxMemoryBytes *int64 `json:"max_memory_bytes,omitempty"`
+
+	// MemoryFragmentationRatio Current Redis memory fragmentation ratio. Gauge.
+	MemoryFragmentationRatio *float32 `json:"memory_fragmentation_ratio,omitempty"`
+
+	// RdbBgsaveInProgress Whether an RDB background save is currently running. Gauge.
+	RdbBgsaveInProgress *bool `json:"rdb_bgsave_in_progress,omitempty"`
+
+	// RdbLastSaveAt Most recent successful RDB persistence completion time. Gauge.
+	RdbLastSaveAt *time.Time `json:"rdb_last_save_at,omitempty"`
+
+	// ReplicationRole Current Redis replication role. Gauge.
+	ReplicationRole *ServerStatusRedisCurrentMetricsReplicationRole `json:"replication_role,omitempty"`
+
+	// TotalCommandsProcessed Cumulative commands processed by Redis. Counter.
+	TotalCommandsProcessed *int64 `json:"total_commands_processed,omitempty"`
+
+	// TotalConnectionsReceived Cumulative client connections accepted by Redis. Counter.
+	TotalConnectionsReceived *int64 `json:"total_connections_received,omitempty"`
+
+	// UsedMemoryBytes Current memory allocated by Redis in bytes. Gauge.
+	UsedMemoryBytes *int64 `json:"used_memory_bytes,omitempty"`
+
+	// UsedMemoryPeakBytes Peak Redis memory allocation since process start in bytes. Gauge.
+	UsedMemoryPeakBytes *int64 `json:"used_memory_peak_bytes,omitempty"`
+}
+
+// ServerStatusRedisCurrentMetricsMasterLinkStatus Current upstream master-link status when this Redis node is a replica. Gauge.
+type ServerStatusRedisCurrentMetricsMasterLinkStatus string
+
+// ServerStatusRedisCurrentMetricsReplicationRole Current Redis replication role. Gauge.
+type ServerStatusRedisCurrentMetricsReplicationRole string
+
+// ServerStatusRedisKeyspaceMetrics Current Redis keyspace counters for one logical database; key names and values are never exposed.
+type ServerStatusRedisKeyspaceMetrics struct {
+	// AverageTtlMs Current average expiry TTL in milliseconds when Redis reports it. Gauge.
+	AverageTtlMs *int64 `json:"average_ttl_ms,omitempty"`
+
+	// Database Logical Redis database identifier, for example db0.
+	Database string `json:"database"`
+
+	// Expires Current keys with an expiry in this logical database. Gauge.
+	Expires *int64 `json:"expires,omitempty"`
+
+	// Keys Current keys in this logical database. Gauge.
+	Keys *int64 `json:"keys,omitempty"`
 }
 
 // ServerStatusResponse defines model for server-status-response.

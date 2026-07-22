@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import { resetMonitorRefreshPreferencesForTests } from '../../composables/use-monitor-refresh-preferences';
+import type { ServerStatusDependency } from '../../types/server-status';
 import DependenciesPage from './index.vue';
 
 const monitorApiMocks = vi.hoisted(() => ({
@@ -111,6 +112,19 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'monitor.dependenciesPage.pool.riskCritical': 'Pool is close to exhaustion',
   'monitor.dependenciesPage.pool.riskUnknown': 'Pool data is unavailable',
   'monitor.dependenciesPage.diagnostics.title': 'Advanced diagnostics',
+  'monitor.dependenciesPage.history.redisUnavailable': 'History storage is not configured.',
+  'monitor.dependenciesPage.metrics.postgresql.storage': 'Storage and tuples',
+  'monitor.dependenciesPage.metrics.redis.persistence': 'Persistence and replication',
+  'monitor.dependenciesPage.metrics.fragmentation': 'Fragmentation ratio',
+  'monitor.dependenciesPage.metrics.replicationRole': 'Replication role',
+  'monitor.dependenciesPage.metrics.masterLink': 'Master link',
+  'monitor.dependenciesPage.metrics.keyspaces': 'Keyspace databases',
+  'monitor.dependenciesPage.metrics.rdbSavedAt': 'Last RDB save',
+  'monitor.dependenciesPage.metrics.rdbSaving': 'RDB save running',
+  'monitor.dependenciesPage.metrics.aofEnabled': 'AOF enabled',
+  'monitor.dependenciesPage.metrics.aofRewriting': 'AOF rewrite running',
+  'monitor.dependenciesPage.metrics.yes': 'Yes',
+  'monitor.dependenciesPage.metrics.no': 'No',
   'monitor.dependenciesPage.fieldDescriptions.latency': 'Most recent probe response duration.',
   'monitor.dependenciesPage.fieldDescriptions.checkedAt': 'Currently follows the latest server-status snapshot time.',
   'monitor.dependenciesPage.fieldDescriptions.errorInfo':
@@ -152,6 +166,16 @@ vi.mock('vue-router', () => ({
 vi.mock('@/store', () => ({
   useRealtimeSchedulerStore: () => ({
     allowPolling: true,
+  }),
+  useSettingStore: () => ({
+    brandTheme: 'default',
+    displayMode: 'light',
+    resolvedThemeTokensForDisplayMode: {},
+    chartColors: {
+      borderColor: '#dcdcdc',
+      containerColor: '#ffffff',
+      textColor: '#1f1f1f',
+    },
   }),
   useTabsRouterStore: () => tabsRouterStoreMock,
 }));
@@ -306,6 +330,19 @@ function createResponse() {
         status: 'healthy',
         detail: 'Database ping succeeded',
         latency_ms: 2.1,
+        postgresql_metrics: {
+          database_size_bytes: 1048576,
+          blocks_read_total: 10,
+          blocks_hit_total: 90,
+          tuples_returned_total: 100,
+          tuples_fetched_total: 80,
+          tuples_inserted_total: 4,
+          tuples_updated_total: 3,
+          tuples_deleted_total: 2,
+          temp_files_total: 1,
+          temp_bytes_total: 2048,
+          conflicts_total: 0,
+        },
         pool: {
           capacity: 25,
           max_active_connections: 25,
@@ -318,11 +355,27 @@ function createResponse() {
           timeout_count: 0,
           stale_count: 1,
         },
+        history: undefined as ServerStatusDependency['history'],
       },
       redis: {
         status: 'healthy',
         detail: 'Redis ping succeeded',
         latency_ms: 0.23,
+        redis_metrics: {
+          memory_fragmentation_ratio: 1.12,
+          total_commands_processed: 1000,
+          keyspace_hits_total: 90,
+          keyspace_misses_total: 10,
+          keyspace_hit_percent: 90,
+          expired_keys_total: 4,
+          evicted_keys_total: 2,
+          rdb_bgsave_in_progress: false,
+          aof_enabled: true,
+          aof_rewrite_in_progress: false,
+          replication_role: 'master',
+          master_link_status: 'up',
+          keyspaces: [{ database: 'db0', keys: 12, expires: 4, average_ttl_ms: 60000 }],
+        },
         pool: {
           capacity: 280,
           max_active_connections: 0,
@@ -335,6 +388,7 @@ function createResponse() {
           timeout_count: 3,
           stale_count: 2,
         },
+        history: undefined as ServerStatusDependency['history'],
       },
     },
     summary: {
@@ -353,6 +407,7 @@ function createResponse() {
       points: [],
     },
     modules: [],
+    anomalies: [],
   };
 }
 
@@ -395,6 +450,10 @@ describe('monitor dependencies page', () => {
     expect(wrapper.text()).toContain('Total connections');
     expect(wrapper.text()).toContain('Max connections');
     expect(wrapper.text()).toContain('Advanced diagnostics');
+    expect(wrapper.text()).toContain('Storage and tuples');
+    expect(wrapper.text()).toContain('Persistence and replication');
+    expect(wrapper.text()).toContain('1.12');
+    expect(wrapper.text()).toContain('Primary');
     expect(wrapper.find('[data-testid="diagnostic-drawer"]').exists()).toBe(false);
     expect(wrapper.text()).not.toContain('2 · 4.25 ms');
     expect(wrapper.text()).not.toContain('Wait timeouts');
@@ -422,5 +481,24 @@ describe('monitor dependencies page', () => {
     expect(drawer.text()).toContain('Connections recycled');
     expect(drawer.text()).toContain('2');
     expect(drawer.text()).toContain('Redis ping succeeded');
+  });
+
+  it('uses the reason-specific history message when Redis history is not configured', async () => {
+    const response = createResponse();
+    response.dependencies.redis.history = {
+      range: '10m',
+      retention_seconds: 600,
+      sample_interval_seconds: 5,
+      status: 'unavailable',
+      unavailable_reason: 'redis_not_configured',
+      points: [],
+    };
+    monitorApiMocks.getServerStatus.mockResolvedValue(response);
+
+    const wrapper = mountDependenciesPage();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('History storage is not configured.');
+    expect(wrapper.text()).not.toContain('History is currently unavailable.');
   });
 });

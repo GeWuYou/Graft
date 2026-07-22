@@ -39,7 +39,8 @@
       "viewRelatedAuditRecords": "查看关联审计记录",
       "copy": "复制",
       "copySuccess": "已复制",
-      "copyFail": "复制失败"
+      "copyFail": "复制失败",
+      "backToRequestPerformance": "返回请求性能"
     },
     "presets": {
       "label": "快捷筛选",

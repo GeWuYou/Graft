@@ -1,0 +1,21 @@
+type: object
+required: [lower_bound, upper_bound, sample_count, sample_rate]
+properties:
+  lower_bound:
+    type: integer
+    format: int64
+    minimum: 0
+  upper_bound:
+    type: integer
+    nullable: true
+    format: int64
+    minimum: 0
+  sample_count:
+    type: integer
+    format: int64
+    minimum: 0
+  sample_rate:
+    type: number
+    format: double
+    minimum: 0
+    maximum: 100

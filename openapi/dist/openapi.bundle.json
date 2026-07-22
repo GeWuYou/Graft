@@ -5373,7 +5373,7 @@
         ],
         "summary": "Read current server status snapshot",
         "operationId": "getMonitorServerStatus",
-        "description": "Returns the current aggregated monitor server-status snapshot and optional redis-backed trend points.",
+        "description": "Returns the current aggregated monitor server-status snapshot, optional Redis-backed runtime trends, and bounded per-dependency history. PostgreSQL and Redis diagnostics are optional current fields; a history read failure is represented in that dependency history and never fails the current snapshot. Current diagnostics are the active monitor anomalies in this response only; this route does not persist anomalies or create notifications.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -16802,6 +16802,21 @@
       "ServerStatusConnectionPool": {
         "$ref": "#/components/schemas/server-status-connection-pool"
       },
+      "ServerStatusPostgreSQLCurrentMetrics": {
+        "$ref": "#/components/schemas/server-status-postgresql-current-metrics"
+      },
+      "ServerStatusRedisKeyspaceMetrics": {
+        "$ref": "#/components/schemas/server-status-redis-keyspace-metrics"
+      },
+      "ServerStatusRedisCurrentMetrics": {
+        "$ref": "#/components/schemas/server-status-redis-current-metrics"
+      },
+      "ServerStatusDependencyHistoryPoint": {
+        "$ref": "#/components/schemas/server-status-dependency-history-point"
+      },
+      "ServerStatusDependencyHistory": {
+        "$ref": "#/components/schemas/server-status-dependency-history"
+      },
       "ServerStatusDependency": {
         "$ref": "#/components/schemas/server-status-dependency"
       },
@@ -16859,11 +16874,23 @@
       "RequestPerformanceSummary": {
         "$ref": "#/components/schemas/request-performance-summary"
       },
+      "RequestPerformanceByteSummary": {
+        "$ref": "#/components/schemas/request-performance-byte-summary"
+      },
       "RequestPerformanceMinuteBucket": {
         "$ref": "#/components/schemas/request-performance-minute-bucket"
       },
       "RequestPerformanceStatusGroup": {
         "$ref": "#/components/schemas/request-performance-status-group"
+      },
+      "RequestPerformanceStatusCode": {
+        "$ref": "#/components/schemas/request-performance-status-code"
+      },
+      "RequestPerformanceDistributionBucket": {
+        "$ref": "#/components/schemas/request-performance-distribution-bucket"
+      },
+      "RequestPerformanceRequestInstance": {
+        "$ref": "#/components/schemas/request-performance-request-instance"
       },
       "RequestPerformanceRoute": {
         "$ref": "#/components/schemas/request-performance-route"
@@ -20720,6 +20747,408 @@
           "stale_count": 1
         }
       },
+      "server-status-postgresql-current-metrics": {
+        "type": "object",
+        "description": "Current PostgreSQL diagnostics. Every property is nullable because a reachable PostgreSQL server may deny a statistics view or expose only part of it; null means unavailable or not collected, never zero.",
+        "properties": {
+          "database_size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current database size in bytes. Gauge."
+          },
+          "max_connections": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Configured PostgreSQL connection limit. Gauge."
+          },
+          "active_connections": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Sessions currently executing a query. Gauge."
+          },
+          "idle_connections": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Sessions currently idle. Gauge."
+          },
+          "idle_in_transaction_connections": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Sessions idle while holding an open transaction. Gauge."
+          },
+          "waiting_connections": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Sessions waiting on a database event. Gauge."
+          },
+          "transaction_commit_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative committed transactions reported by PostgreSQL. Counter."
+          },
+          "transaction_rollback_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative rolled-back transactions reported by PostgreSQL. Counter."
+          },
+          "blocks_read_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative disk blocks read by PostgreSQL. Counter."
+          },
+          "blocks_hit_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative buffer-cache block hits reported by PostgreSQL. Counter."
+          },
+          "cache_hit_percent": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Current derived cache hit ratio from blocks_hit_total and blocks_read_total, in percent. Gauge."
+          },
+          "tuples_returned_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative tuples returned by scans. Counter."
+          },
+          "tuples_fetched_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative tuples fetched by index scans. Counter."
+          },
+          "tuples_inserted_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative inserted tuples. Counter."
+          },
+          "tuples_updated_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative updated tuples. Counter."
+          },
+          "tuples_deleted_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative deleted tuples. Counter."
+          },
+          "temp_files_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative temporary files created by PostgreSQL. Counter."
+          },
+          "temp_bytes_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative temporary-file bytes written by PostgreSQL. Counter."
+          },
+          "conflicts_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative recovery conflicts reported by PostgreSQL. Counter."
+          },
+          "deadlocks_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative detected deadlocks reported by PostgreSQL. Counter."
+          }
+        }
+      },
+      "server-status-redis-keyspace-metrics": {
+        "type": "object",
+        "description": "Current Redis keyspace counters for one logical database; key names and values are never exposed.",
+        "required": [
+          "database"
+        ],
+        "properties": {
+          "database": {
+            "type": "string",
+            "description": "Logical Redis database identifier, for example db0."
+          },
+          "keys": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current keys in this logical database. Gauge."
+          },
+          "expires": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current keys with an expiry in this logical database. Gauge."
+          },
+          "average_ttl_ms": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current average expiry TTL in milliseconds when Redis reports it. Gauge."
+          }
+        }
+      },
+      "server-status-redis-current-metrics": {
+        "type": "object",
+        "description": "Current Redis diagnostics. Every nullable property is unavailable or not collected when Redis cannot report it; null never represents a zero counter or gauge.",
+        "properties": {
+          "connected_clients": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current connected Redis clients. Gauge."
+          },
+          "blocked_clients": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current Redis clients blocked on an operation. Gauge."
+          },
+          "max_clients": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Configured Redis client limit. Gauge."
+          },
+          "used_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Current memory allocated by Redis in bytes. Gauge."
+          },
+          "used_memory_peak_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Peak Redis memory allocation since process start in bytes. Gauge."
+          },
+          "max_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Configured Redis maxmemory in bytes. Gauge."
+          },
+          "memory_fragmentation_ratio": {
+            "type": "number",
+            "nullable": true,
+            "description": "Current Redis memory fragmentation ratio. Gauge."
+          },
+          "total_connections_received": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative client connections accepted by Redis. Counter."
+          },
+          "total_commands_processed": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative commands processed by Redis. Counter."
+          },
+          "instantaneous_ops_per_second": {
+            "type": "number",
+            "nullable": true,
+            "description": "Most recent Redis command throughput in operations per second. Gauge."
+          },
+          "keyspace_hits_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative successful key lookups reported by Redis. Counter."
+          },
+          "keyspace_misses_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative failed key lookups reported by Redis. Counter."
+          },
+          "keyspace_hit_percent": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Current derived keyspace hit ratio in percent. Gauge."
+          },
+          "expired_keys_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative expired keys removed by Redis. Counter."
+          },
+          "evicted_keys_total": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Cumulative keys evicted by Redis. Counter."
+          },
+          "keyspaces": {
+            "type": "array",
+            "nullable": true,
+            "description": "Current per-logical-database keyspace aggregates; an empty array is a valid observed result.",
+            "items": {
+              "$ref": "#/components/schemas/server-status-redis-keyspace-metrics"
+            }
+          },
+          "rdb_last_save_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Most recent successful RDB persistence completion time. Gauge."
+          },
+          "rdb_bgsave_in_progress": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether an RDB background save is currently running. Gauge."
+          },
+          "aof_enabled": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether append-only persistence is enabled. Gauge."
+          },
+          "aof_rewrite_in_progress": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Whether an AOF rewrite is currently running. Gauge."
+          },
+          "replication_role": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "master",
+              "replica",
+              "unknown"
+            ],
+            "description": "Current Redis replication role. Gauge."
+          },
+          "master_link_status": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "up",
+              "down"
+            ],
+            "description": "Current upstream master-link status when this Redis node is a replica. Gauge."
+          }
+        }
+      },
+      "server-status-dependency-history-point": {
+        "type": "object",
+        "description": "One Redis-backed aggregate bucket for a dependency. A nullable aggregate was unavailable for that bucket and is never a synthetic zero.",
+        "required": [
+          "observed_at"
+        ],
+        "properties": {
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 bucket observation time."
+          },
+          "probe_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Number of dependency probes aggregated into this bucket. Bucket aggregate, not a process counter."
+          },
+          "availability_percent": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Successful probes divided by probe_count, in percent. Derived bucket gauge."
+          },
+          "failure_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Failed dependency probes in this bucket. Bucket aggregate, not a cumulative process counter."
+          },
+          "latency_average_ms": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Arithmetic mean successful-probe latency in milliseconds for this bucket. Derived bucket gauge."
+          },
+          "latency_p95_ms": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "95th-percentile successful-probe latency in milliseconds for this bucket. Derived bucket gauge."
+          }
+        }
+      },
+      "server-status-dependency-history": {
+        "type": "object",
+        "description": "Redis-backed short history for one dependency. The selected range is limited to 10m, 30m, or 1h and is isolated by application, host, and dependency kind.",
+        "required": [
+          "range",
+          "retention_seconds",
+          "sample_interval_seconds",
+          "status",
+          "points"
+        ],
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "10m",
+              "30m",
+              "1h"
+            ],
+            "description": "Requested bounded history range."
+          },
+          "retention_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Retention represented by the requested range in seconds."
+          },
+          "sample_interval_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Nominal monitor sampling interval in seconds."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "description": "Whether Redis history could be read. Available history may contain zero points."
+          },
+          "unavailable_reason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "redis_not_configured",
+              "read_failed"
+            ],
+            "description": "Stable reason when status is unavailable; absent when status is available."
+          },
+          "points": {
+            "type": "array",
+            "description": "Ordered aggregate points for the selected range; no point is fabricated for unavailable data.",
+            "items": {
+              "$ref": "#/components/schemas/server-status-dependency-history-point"
+            }
+          }
+        }
+      },
       "server-status-dependency": {
         "type": "object",
         "required": [
@@ -20729,18 +21158,37 @@
         ],
         "properties": {
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Current dependency health state from the monitor probe; it remains available when optional metrics or history are unavailable."
           },
           "detail": {
-            "type": "string"
+            "type": "string",
+            "description": "Current monitor-owned probe detail. It does not contain credentials, connection strings, key contents, or query text."
           },
           "latency_ms": {
             "type": "number",
-            "nullable": true
+            "nullable": true,
+            "minimum": 0,
+            "description": "Most recent successful monitor-probe latency in milliseconds. Current gauge; null when no successful probe produced a latency."
           },
           "pool": {
             "$ref": "#/components/schemas/server-status-connection-pool",
             "nullable": true
+          },
+          "postgresql_metrics": {
+            "$ref": "#/components/schemas/server-status-postgresql-current-metrics",
+            "nullable": true,
+            "description": "PostgreSQL-only current diagnostics. Null until collection is unavailable or does not apply to this dependency."
+          },
+          "redis_metrics": {
+            "$ref": "#/components/schemas/server-status-redis-current-metrics",
+            "nullable": true,
+            "description": "Redis-only current diagnostics. Null until collection is unavailable or does not apply to this dependency."
+          },
+          "history": {
+            "$ref": "#/components/schemas/server-status-dependency-history",
+            "nullable": true,
+            "description": "Redis-backed short history for this dependency. Its unavailability never invalidates the current dependency snapshot."
           }
         },
         "example": {
@@ -21177,6 +21625,39 @@
           }
         ]
       },
+      "request-performance-byte-summary": {
+        "type": "object",
+        "required": [
+          "measured_count",
+          "total_bytes",
+          "average_bytes",
+          "bytes_per_second"
+        ],
+        "properties": {
+          "measured_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "total_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "average_bytes": {
+            "type": "number",
+            "nullable": true,
+            "format": "double",
+            "minimum": 0
+          },
+          "bytes_per_second": {
+            "type": "number",
+            "nullable": true,
+            "format": "double",
+            "minimum": 0
+          }
+        }
+      },
       "request-performance-summary": {
         "type": "object",
         "required": [
@@ -21184,6 +21665,12 @@
           "requests_per_second",
           "p50_latency_ms",
           "p95_latency_ms",
+          "average_latency_ms",
+          "p99_latency_ms",
+          "max_latency_ms",
+          "active_requests",
+          "request_bytes",
+          "response_bytes",
           "error_5xx_count",
           "error_5xx_rate",
           "slow_request_count"
@@ -21208,6 +21695,32 @@
             "type": "number",
             "format": "double",
             "minimum": 0
+          },
+          "average_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p99_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "max_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "active_requests": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_bytes": {
+            "$ref": "#/components/schemas/request-performance-byte-summary"
+          },
+          "response_bytes": {
+            "$ref": "#/components/schemas/request-performance-byte-summary"
           },
           "error_5xx_count": {
             "type": "integer",
@@ -21235,6 +21748,9 @@
           "total_requests",
           "requests_per_second",
           "p95_latency_ms",
+          "p99_latency_ms",
+          "request_bytes_per_second",
+          "response_bytes_per_second",
           "error_5xx_count",
           "error_5xx_rate"
         ],
@@ -21254,6 +21770,21 @@
             "minimum": 0
           },
           "p95_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "p99_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "request_bytes_per_second": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0
+          },
+          "response_bytes_per_second": {
             "type": "number",
             "format": "double",
             "minimum": 0
@@ -21296,6 +21827,65 @@
             "type": "number",
             "format": "double",
             "description": "Request rate as a percentage from 0 to 100.",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "request-performance-status-code": {
+        "type": "object",
+        "required": [
+          "status_code",
+          "request_count",
+          "request_rate"
+        ],
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "request_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_rate": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "request-performance-distribution-bucket": {
+        "type": "object",
+        "required": [
+          "lower_bound",
+          "upper_bound",
+          "sample_count",
+          "sample_rate"
+        ],
+        "properties": {
+          "lower_bound": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "upper_bound": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64",
+            "minimum": 0
+          },
+          "sample_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "sample_rate": {
+            "type": "number",
+            "format": "double",
             "minimum": 0,
             "maximum": 100
           }
@@ -21371,18 +21961,89 @@
           }
         }
       },
+      "request-performance-request-instance": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "observed_at",
+          "method",
+          "path",
+          "route",
+          "status_code",
+          "duration_ms",
+          "request_size_bytes",
+          "response_size_bytes"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "method": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "status_code": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_size_bytes": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64",
+            "minimum": 0
+          },
+          "response_size_bytes": {
+            "type": "integer",
+            "nullable": true,
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
       "request-performance-response": {
         "type": "object",
         "required": [
           "observed_at",
+          "window_start",
+          "window_end",
           "range",
           "summary",
           "minute_buckets",
           "status_groups",
-          "top_routes"
+          "status_codes",
+          "latency_distribution",
+          "request_size_distribution",
+          "response_size_distribution",
+          "top_routes",
+          "slowest_requests",
+          "largest_requests",
+          "largest_responses"
         ],
         "properties": {
           "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "window_start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "window_end": {
             "type": "string",
             "format": "date-time"
           },
@@ -21409,8 +22070,53 @@
               "$ref": "#/components/schemas/request-performance-status-group"
             }
           },
+          "status_codes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-status-code"
+            }
+          },
+          "latency_distribution": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-distribution-bucket"
+            }
+          },
+          "request_size_distribution": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-distribution-bucket"
+            }
+          },
+          "response_size_distribution": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/request-performance-distribution-bucket"
+            }
+          },
           "top_routes": {
             "$ref": "#/components/schemas/request-performance-top-routes"
+          },
+          "slowest_requests": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-request-instance"
+            }
+          },
+          "largest_requests": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-request-instance"
+            }
+          },
+          "largest_responses": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/request-performance-request-instance"
+            }
           }
         }
       },

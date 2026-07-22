@@ -52,6 +52,29 @@ SUBAGENT_DELEGATION_SKILLS = (
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 HEADROOM_RTK_START = "<!-- headroom:rtk-instructions -->"
 HEADROOM_RTK_END = "<!-- /headroom:rtk-instructions -->"
+GOVERNED_GUIDANCE_PREFIXES = (".agents/", "ai-plan/", ".ai/")
+FORBIDDEN_PERSONAL_GUIDANCE_PATTERNS = (
+    (
+        "personal absolute tooling path",
+        re.compile(
+            r"(?<![\w])(?:~|/(?:root|home/[A-Za-z0-9._-]+|Users/[A-Za-z0-9._-]+)|[A-Za-z]:[\\/]+Users[\\/][A-Za-z0-9._-]+)[\\/]"
+            r"(?:\.codex|\.claude)[\\/]skills(?:[\\/]|$)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "device-level command",
+        re.compile(
+            r"(?im)(?<![\w-])(?:shutdown(?:\.exe)?\s+/[str]\b|"
+            r"(?:poweroff|reboot|halt)(?:\s|$)|systemctl\s+(?:poweroff|reboot|halt)\b|"
+            r"Stop-Computer\b)",
+        ),
+    ),
+    (
+        "personal skill link",
+        re.compile(r"(?<![\w-])\$shutdown-after-completion\b", re.IGNORECASE),
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -898,6 +921,27 @@ def validate_no_private_config_tracked(tracked: set[str]) -> list[Finding]:
     return findings
 
 
+def validate_no_personal_skill_refs(tracked: set[str]) -> list[Finding]:
+    """Reject personal skill paths and device-level actions from guidance files."""
+    findings: list[Finding] = []
+    for relative_path in sorted(tracked):
+        is_guidance_file = Path(relative_path).name == "AGENTS.md"
+        is_governed_prefix = any(
+            relative_path == prefix.rstrip("/") or relative_path.startswith(prefix)
+            for prefix in GOVERNED_GUIDANCE_PREFIXES
+        )
+        if not (is_guidance_file or is_governed_prefix):
+            continue
+        path = REPO_ROOT / relative_path
+        if not path.is_file():
+            continue
+        text = read_text(path)
+        for label, pattern in FORBIDDEN_PERSONAL_GUIDANCE_PATTERNS:
+            if pattern.search(text):
+                findings.append(Finding(path, f"repository guidance must not reference forbidden {label}"))
+    return findings
+
+
 def run_validation() -> list[Finding]:
     """
     汇总并执行所有 AI 治理校验。
@@ -924,6 +968,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))
+    findings.extend(validate_no_personal_skill_refs(tracked))
     return findings
 
 

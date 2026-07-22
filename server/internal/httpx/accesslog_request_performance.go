@@ -17,10 +17,16 @@ const (
 	requestPerformanceTopRouteLimit      = 5
 	requestPerformanceP50Percentile      = 0.50
 	requestPerformanceP95Percentile      = 0.95
+	requestPerformanceP99Percentile      = 0.99
 	requestPerformanceLatencySampleLimit = 1024
+	requestPerformancePageSize           = 1024
+	requestPerformanceTopInstanceLimit   = 5
 	requestPerformanceWindowStartArg     = 1
 	requestPerformanceWindowEndArg       = 2
 	requestPerformanceConnectionTypeArg  = 3
+	requestPerformanceCursorTimeArg      = 4
+	requestPerformanceCursorIDArg        = 5
+	requestPerformancePageSizeArg        = 6
 	requestPerformanceUnmatchedRoute     = "<unmatched>"
 )
 
@@ -42,13 +48,41 @@ type requestPerformanceBucketAggregate struct {
 	totalRequests    int64
 	serverErrorCount int64
 	latencies        requestPerformanceLatencySummary
+	requestBytes     int64
+	responseBytes    int64
 }
 
 type requestPerformanceCollector struct {
-	summary   moduleapi.RequestPerformanceSummary
-	buckets   map[time.Time]*requestPerformanceBucketAggregate
-	routes    map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate
-	latencies requestPerformanceLatencySummary
+	summary               moduleapi.RequestPerformanceSummary
+	buckets               map[time.Time]*requestPerformanceBucketAggregate
+	routes                map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate
+	latencies             requestPerformanceLatencySummary
+	totalLatencyMS        int64
+	statusCodes           map[int]int64
+	latencyHistogram      requestPerformanceHistogram
+	requestSizeHistogram  requestPerformanceHistogram
+	responseSizeHistogram requestPerformanceHistogram
+	slowestRequests       []moduleapi.RequestPerformanceRequestInstance
+	largestRequests       []moduleapi.RequestPerformanceRequestInstance
+	largestResponses      []moduleapi.RequestPerformanceRequestInstance
+}
+
+type requestPerformanceRow struct {
+	id           int64
+	requestID    string
+	occurredAt   time.Time
+	method       string
+	path         string
+	route        string
+	statusCode   int
+	durationMS   int64
+	requestSize  *int64
+	responseSize *int64
+}
+
+type requestPerformanceHistogram struct {
+	bounds []int64
+	counts []int64
 }
 
 // ReadRequestPerformance 从规范访问日志事实中读取有界的请求性能汇总。
@@ -65,42 +99,66 @@ func (r *accessLogRepository) ReadRequestPerformance(
 
 	windowStart := query.WindowStart.UTC()
 	windowEnd := query.WindowEnd.UTC()
-	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT occurred_at, method, route, status_code, duration_ms
+	collector := newRequestPerformanceCollector(query)
+	cursorOccurredAt := windowStart
+	var cursorID int64
+	for {
+		rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, request_id, occurred_at, method, path, route, status_code, duration_ms, request_size, response_size
 		FROM access_logs
-		WHERE occurred_at >= %s AND occurred_at < %s AND connection_type = %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP)
-	if err != nil {
-		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("query request performance access logs: %w", err)
-	}
+		WHERE occurred_at >= %s AND occurred_at < %s AND connection_type = %s
+			AND (occurred_at > %s OR (occurred_at = %s AND id > %s))
+		ORDER BY occurred_at ASC, id ASC
+		LIMIT %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorIDArg), r.placeholder(requestPerformancePageSizeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP, cursorOccurredAt, cursorOccurredAt, cursorID, requestPerformancePageSize)
+		if err != nil {
+			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("query request performance access logs: %w", err)
+		}
 
-	summary, readErr := collectRequestPerformanceRows(rows, query)
-	closeErr := rows.Close()
-	if readErr != nil {
-		return moduleapi.RequestPerformanceSummary{}, readErr
+		page, readErr := collectRequestPerformanceRows(rows, collector, query)
+		closeErr := rows.Close()
+		if readErr != nil {
+			return moduleapi.RequestPerformanceSummary{}, readErr
+		}
+		if closeErr != nil {
+			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("close request performance access log rows: %w", closeErr)
+		}
+		if page.count == 0 {
+			break
+		}
+		cursorOccurredAt = page.lastOccurredAt
+		cursorID = page.lastID
 	}
-	if closeErr != nil {
-		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("close request performance access log rows: %w", closeErr)
-	}
-	return summary, nil
+	return collector.summaryWithRankings(), nil
 }
 
 // collectRequestPerformanceRows 聚合数据库行中的请求性能数据；扫描失败或迭代失败时返回错误。
-func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerformanceQuery) (moduleapi.RequestPerformanceSummary, error) {
-	collector := newRequestPerformanceCollector(query)
+func collectRequestPerformanceRows(rows *sql.Rows, collector *requestPerformanceCollector, query moduleapi.RequestPerformanceQuery) (requestPerformancePage, error) {
+	page := requestPerformancePage{}
 	for rows.Next() {
-		var occurredAt time.Time
-		var method string
+		var row requestPerformanceRow
 		var route sql.NullString
-		var statusCode int
-		var durationMS int64
-		if err := rows.Scan(&occurredAt, &method, &route, &statusCode, &durationMS); err != nil {
-			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("scan request performance access log: %w", err)
+		var requestSize sql.NullInt64
+		var responseSize sql.NullInt64
+		if err := rows.Scan(&row.id, &row.requestID, &row.occurredAt, &row.method, &row.path, &route, &row.statusCode, &row.durationMS, &requestSize, &responseSize); err != nil {
+			return requestPerformancePage{}, fmt.Errorf("scan request performance access log: %w", err)
 		}
-		collector.add(occurredAt, method, requestPerformanceRouteValue(route), statusCode, durationMS, query.BucketSize)
+		row.route = requestPerformanceRouteValue(route)
+		row.requestSize = requestPerformanceOptionalInt64(requestSize)
+		row.responseSize = requestPerformanceOptionalInt64(responseSize)
+		collector.add(row, query.BucketSize)
+		page.count++
+		page.lastOccurredAt = row.occurredAt
+		page.lastID = row.id
 	}
 	if err := rows.Err(); err != nil {
-		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("iterate request performance access logs: %w", err)
+		return requestPerformancePage{}, fmt.Errorf("iterate request performance access logs: %w", err)
 	}
-	return collector.summaryWithRankings(), nil
+	return page, nil
+}
+
+type requestPerformancePage struct {
+	count          int
+	lastOccurredAt time.Time
+	lastID         int64
 }
 
 // newRequestPerformanceCollector 创建按查询时间窗口和桶大小初始化的性能聚合器。
@@ -111,33 +169,59 @@ func newRequestPerformanceCollector(query moduleapi.RequestPerformanceQuery) *re
 		buckets[summary.Buckets[index].Start] = &requestPerformanceBucketAggregate{}
 	}
 	return &requestPerformanceCollector{
-		summary: summary,
-		buckets: buckets,
-		routes:  make(map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate),
+		summary:               summary,
+		buckets:               buckets,
+		routes:                make(map[requestPerformanceRouteKey]*requestPerformanceRouteAggregate),
+		statusCodes:           make(map[int]int64),
+		latencyHistogram:      newRequestPerformanceHistogram([]int64{0, 5, 10, 20, 50, 100}),
+		requestSizeHistogram:  newRequestPerformanceHistogram([]int64{0, 1024, 10 * 1024, 100 * 1024, 1024 * 1024, 10 * 1024 * 1024}),
+		responseSizeHistogram: newRequestPerformanceHistogram([]int64{0, 1024, 10 * 1024, 100 * 1024, 1024 * 1024, 10 * 1024 * 1024}),
 	}
 }
 
-func (c *requestPerformanceCollector) add(occurredAt time.Time, method, route string, statusCode int, durationMS int64, bucketSize time.Duration) {
-	bucket := c.buckets[occurredAt.UTC().Truncate(bucketSize)]
+func (c *requestPerformanceCollector) add(row requestPerformanceRow, bucketSize time.Duration) {
+	bucket := c.buckets[row.occurredAt.UTC().Truncate(bucketSize)]
 	if bucket == nil {
 		return
 	}
-	routeAggregate := c.route(method, route)
+	routeAggregate := c.route(row.method, row.route)
 	c.summary.TotalRequests++
 	bucket.totalRequests++
 	routeAggregate.totalRequests++
-	incrementRequestPerformanceStatusGroup(&c.summary.StatusGroups, statusCode)
-	if isRequestPerformanceServerError(statusCode) {
+	c.statusCodes[row.statusCode]++
+	incrementRequestPerformanceStatusGroup(&c.summary.StatusGroups, row.statusCode)
+	if isRequestPerformanceServerError(row.statusCode) {
 		c.summary.ServerErrorCount++
 		bucket.serverErrorCount++
 		routeAggregate.serverErrorCount++
 	}
-	if durationMS >= requestPerformanceSlowThresholdMS {
+	if row.durationMS >= requestPerformanceSlowThresholdMS {
 		c.summary.SlowRequestCount++
 	}
-	c.latencies.add(durationMS)
-	bucket.latencies.add(durationMS)
-	routeAggregate.latencies.add(durationMS)
+	c.totalLatencyMS += row.durationMS
+	if row.durationMS > c.summary.MaxLatencyMS {
+		c.summary.MaxLatencyMS = row.durationMS
+	}
+	c.latencies.add(row.durationMS)
+	bucket.latencies.add(row.durationMS)
+	routeAggregate.latencies.add(row.durationMS)
+	c.latencyHistogram.add(row.durationMS)
+	instance := requestPerformanceRequestInstance(row)
+	c.slowestRequests = requestPerformanceInsertTopInstance(c.slowestRequests, instance, requestPerformanceInstanceMetricDuration)
+	if row.requestSize != nil {
+		c.summary.RequestBytes.MeasuredCount++
+		c.summary.RequestBytes.TotalBytes += *row.requestSize
+		bucket.requestBytes += *row.requestSize
+		c.requestSizeHistogram.add(*row.requestSize)
+		c.largestRequests = requestPerformanceInsertTopInstance(c.largestRequests, instance, requestPerformanceInstanceMetricRequestSize)
+	}
+	if row.responseSize != nil {
+		c.summary.ResponseBytes.MeasuredCount++
+		c.summary.ResponseBytes.TotalBytes += *row.responseSize
+		bucket.responseBytes += *row.responseSize
+		c.responseSizeHistogram.add(*row.responseSize)
+		c.largestResponses = requestPerformanceInsertTopInstance(c.largestResponses, instance, requestPerformanceInstanceMetricResponseSize)
+	}
 }
 
 func (c *requestPerformanceCollector) route(method, route string) *requestPerformanceRouteAggregate {
@@ -151,19 +235,141 @@ func (c *requestPerformanceCollector) route(method, route string) *requestPerfor
 }
 
 func (c *requestPerformanceCollector) summaryWithRankings() moduleapi.RequestPerformanceSummary {
+	if c.summary.TotalRequests > 0 {
+		c.summary.AverageLatencyMS = float64(c.totalLatencyMS) / float64(c.summary.TotalRequests)
+	}
+	if c.summary.RequestBytes.MeasuredCount > 0 {
+		c.summary.RequestBytes.AverageBytes = float64(c.summary.RequestBytes.TotalBytes) / float64(c.summary.RequestBytes.MeasuredCount)
+	}
+	if c.summary.ResponseBytes.MeasuredCount > 0 {
+		c.summary.ResponseBytes.AverageBytes = float64(c.summary.ResponseBytes.TotalBytes) / float64(c.summary.ResponseBytes.MeasuredCount)
+	}
 	c.summary.P50LatencyMS = c.latencies.percentile(requestPerformanceP50Percentile)
 	c.summary.P95LatencyMS = c.latencies.percentile(requestPerformanceP95Percentile)
+	c.summary.P99LatencyMS = c.latencies.percentile(requestPerformanceP99Percentile)
+	c.summary.StatusCodes = requestPerformanceSortedStatusCodes(c.statusCodes)
+	c.summary.LatencyHistogram = c.latencyHistogram.result()
+	c.summary.RequestSizeHistogram = c.requestSizeHistogram.result()
+	c.summary.ResponseSizeHistogram = c.responseSizeHistogram.result()
+	c.summary.SlowestRequests = c.slowestRequests
+	c.summary.LargestRequests = c.largestRequests
+	c.summary.LargestResponses = c.largestResponses
 	for index := range c.summary.Buckets {
 		bucket := c.buckets[c.summary.Buckets[index].Start]
 		c.summary.Buckets[index].TotalRequests = bucket.totalRequests
 		c.summary.Buckets[index].ServerErrorCount = bucket.serverErrorCount
 		c.summary.Buckets[index].P95LatencyMS = bucket.latencies.percentile(requestPerformanceP95Percentile)
+		c.summary.Buckets[index].P99LatencyMS = bucket.latencies.percentile(requestPerformanceP99Percentile)
+		c.summary.Buckets[index].RequestBytes = bucket.requestBytes
+		c.summary.Buckets[index].ResponseBytes = bucket.responseBytes
 	}
 	for _, route := range c.routes {
 		route.p95LatencyMS = route.latencies.percentile(requestPerformanceP95Percentile)
 	}
 	c.summary.TopRoutes = requestPerformanceTopRoutes(c.routes)
 	return c.summary
+}
+
+func requestPerformanceOptionalInt64(value sql.NullInt64) *int64 {
+	if !value.Valid {
+		return nil
+	}
+	result := value.Int64
+	return &result
+}
+
+func newRequestPerformanceHistogram(bounds []int64) requestPerformanceHistogram {
+	return requestPerformanceHistogram{bounds: bounds, counts: make([]int64, len(bounds))}
+}
+
+func (h *requestPerformanceHistogram) add(value int64) {
+	index := sort.Search(len(h.bounds), func(index int) bool { return h.bounds[index] > value }) - 1
+	if index >= 0 {
+		h.counts[index]++
+	}
+}
+
+func (h requestPerformanceHistogram) result() []moduleapi.RequestPerformanceHistogramBucket {
+	result := make([]moduleapi.RequestPerformanceHistogramBucket, 0, len(h.bounds))
+	for index, lowerBound := range h.bounds {
+		bucket := moduleapi.RequestPerformanceHistogramBucket{LowerBound: lowerBound, Count: h.counts[index]}
+		if index+1 < len(h.bounds) {
+			upperBound := h.bounds[index+1]
+			bucket.UpperBound = &upperBound
+		}
+		result = append(result, bucket)
+	}
+	return result
+}
+
+func requestPerformanceSortedStatusCodes(counts map[int]int64) []moduleapi.RequestPerformanceStatusCodeCount {
+	statusCodes := make([]int, 0, len(counts))
+	for statusCode := range counts {
+		statusCodes = append(statusCodes, statusCode)
+	}
+	sort.Ints(statusCodes)
+	result := make([]moduleapi.RequestPerformanceStatusCodeCount, 0, len(statusCodes))
+	for _, statusCode := range statusCodes {
+		result = append(result, moduleapi.RequestPerformanceStatusCodeCount{StatusCode: statusCode, Count: counts[statusCode]})
+	}
+	return result
+}
+
+func requestPerformanceRequestInstance(row requestPerformanceRow) moduleapi.RequestPerformanceRequestInstance {
+	return moduleapi.RequestPerformanceRequestInstance{
+		RequestID:    row.requestID,
+		OccurredAt:   row.occurredAt.UTC(),
+		Method:       row.method,
+		Path:         row.path,
+		Route:        row.route,
+		StatusCode:   row.statusCode,
+		DurationMS:   row.durationMS,
+		RequestSize:  row.requestSize,
+		ResponseSize: row.responseSize,
+	}
+}
+
+type requestPerformanceInstanceMetric int
+
+const (
+	requestPerformanceInstanceMetricDuration requestPerformanceInstanceMetric = iota
+	requestPerformanceInstanceMetricRequestSize
+	requestPerformanceInstanceMetricResponseSize
+)
+
+// requestPerformanceInsertTopInstance 只保留有界榜单，并按指标、发生时间和请求 ID 提供确定性顺序。
+func requestPerformanceInsertTopInstance(
+	instances []moduleapi.RequestPerformanceRequestInstance,
+	instance moduleapi.RequestPerformanceRequestInstance,
+	metric requestPerformanceInstanceMetric,
+) []moduleapi.RequestPerformanceRequestInstance {
+	instances = append(instances, instance)
+	sort.Slice(instances, func(left, right int) bool {
+		leftMetric := requestPerformanceInstanceMetricValue(instances[left], metric)
+		rightMetric := requestPerformanceInstanceMetricValue(instances[right], metric)
+		if leftMetric != rightMetric {
+			return leftMetric > rightMetric
+		}
+		if !instances[left].OccurredAt.Equal(instances[right].OccurredAt) {
+			return instances[left].OccurredAt.After(instances[right].OccurredAt)
+		}
+		return instances[left].RequestID < instances[right].RequestID
+	})
+	if len(instances) > requestPerformanceTopInstanceLimit {
+		instances = instances[:requestPerformanceTopInstanceLimit]
+	}
+	return instances
+}
+
+func requestPerformanceInstanceMetricValue(instance moduleapi.RequestPerformanceRequestInstance, metric requestPerformanceInstanceMetric) int64 {
+	switch metric {
+	case requestPerformanceInstanceMetricRequestSize:
+		return *instance.RequestSize
+	case requestPerformanceInstanceMetricResponseSize:
+		return *instance.ResponseSize
+	default:
+		return instance.DurationMS
+	}
 }
 
 // validateRequestPerformanceQuery 校验请求性能查询的时间窗口和桶大小；当前仅接受规范的分钟桶。

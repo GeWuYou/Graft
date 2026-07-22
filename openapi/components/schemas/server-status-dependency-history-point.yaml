@@ -1,0 +1,38 @@
+type: object
+description: >-
+  One Redis-backed aggregate bucket for a dependency. A nullable aggregate was unavailable for that bucket and is
+  never a synthetic zero.
+required: [observed_at]
+properties:
+  observed_at:
+    type: string
+    format: date-time
+    description: RFC 3339 bucket observation time.
+  probe_count:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Number of dependency probes aggregated into this bucket. Bucket aggregate, not a process counter.
+  availability_percent:
+    type: number
+    nullable: true
+    minimum: 0
+    maximum: 100
+    description: Successful probes divided by probe_count, in percent. Derived bucket gauge.
+  failure_count:
+    type: integer
+    format: int64
+    nullable: true
+    minimum: 0
+    description: Failed dependency probes in this bucket. Bucket aggregate, not a cumulative process counter.
+  latency_average_ms:
+    type: number
+    nullable: true
+    minimum: 0
+    description: Arithmetic mean successful-probe latency in milliseconds for this bucket. Derived bucket gauge.
+  latency_p95_ms:
+    type: number
+    nullable: true
+    minimum: 0
+    description: 95th-percentile successful-probe latency in milliseconds for this bucket. Derived bucket gauge.

@@ -11,7 +11,8 @@ Current implementation status:
 - access-log OpenAPI list/detail contracts are implemented under `openapi/**`
 - HTTP handlers, repository query methods, retention jobs, and runtime registration are implemented under `server/internal/httpx/**`
 - the frontend explorer is implemented under `web/src/modules/access-log/**`
-- app-log explorer, metrics, tracing, OpenTelemetry expansion, and audit/security authority changes remain outside this surface
+- the request-performance page may consume a bounded projection of canonical access-log facts, but it does not own explorer truth; process-local active-request state remains owned by `server/internal/httpx/**`
+- app-log explorer, tracing, OpenTelemetry expansion, broader monitor/anomaly semantics, and audit/security authority changes remain outside this surface
 
 ## 2. Authority Summary
 
@@ -30,6 +31,8 @@ Current implementation status:
 `web` is a downstream consumer only.
 
 `server/modules/audit/**` and `server/modules/monitor/**` may consume access-log correlation but do not own access-log explorer truth.
+
+Frontend monitor-origin context is UI-only navigation state. It must not become an access-log backend query field or alter the canonical request-fact contract.
 
 ## 3. Consumer Analysis
 
@@ -330,4 +333,4 @@ Entry condition for that topic:
 
 - treat this document as the canonical explorer authority
 - implement backend and frontend only within these bounded semantics
-- do not widen into app-log explorer, retention policy invention, metrics, or tracing
+- do not widen into app-log explorer, retention policy invention, tracing, OpenTelemetry, or monitor semantics beyond the bounded request-performance projection described above

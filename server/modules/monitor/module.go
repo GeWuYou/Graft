@@ -77,6 +77,7 @@ func defaultDiskUsagePath() string {
 // 趋势采样器由模块生命周期管理，Shutdown 必须在共享运行时资源释放前完成收敛。
 type Module struct {
 	startedAtUnixNs          atomic.Int64
+	appName                  string
 	db                       *sql.DB
 	logger                   *zap.Logger
 	authService              moduleapi.AuthService
@@ -197,6 +198,7 @@ func (p *Module) bindDependencies(ctx *module.Context) error {
 		return err
 	}
 	p.db = db
+	p.appName = resolveAppName(ctx)
 	p.logger = ctx.Logger
 
 	trendStore, err := resolveOptionalTrendStore(ctx)

@@ -938,7 +938,7 @@ export interface paths {
     };
     /**
      * Read current server status snapshot
-     * @description Returns the current aggregated monitor server-status snapshot and optional redis-backed trend points.
+     * @description Returns the current aggregated monitor server-status snapshot, optional Redis-backed runtime trends, and bounded per-dependency history. PostgreSQL and Redis diagnostics are optional current fields; a history read failure is represented in that dependency history and never fails the current snapshot. Current diagnostics are the active monitor anomalies in this response only; this route does not persist anomalies or create notifications.
      */
     get: operations['getMonitorServerStatus'];
     put?: never;
@@ -3498,6 +3498,11 @@ export interface components {
     EnvelopedAuditVisibilityDefaultResponse: components['schemas']['enveloped-audit-visibility-default-response'];
     EnvelopedAuditVisibilityOverrideResponse: components['schemas']['enveloped-audit-visibility-override-response'];
     ServerStatusConnectionPool: components['schemas']['server-status-connection-pool'];
+    ServerStatusPostgreSQLCurrentMetrics: components['schemas']['server-status-postgresql-current-metrics'];
+    ServerStatusRedisKeyspaceMetrics: components['schemas']['server-status-redis-keyspace-metrics'];
+    ServerStatusRedisCurrentMetrics: components['schemas']['server-status-redis-current-metrics'];
+    ServerStatusDependencyHistoryPoint: components['schemas']['server-status-dependency-history-point'];
+    ServerStatusDependencyHistory: components['schemas']['server-status-dependency-history'];
     ServerStatusDependency: components['schemas']['server-status-dependency'];
     ServerStatusModule: components['schemas']['server-status-module'];
     ServerStatusServer: components['schemas']['server-status-server'];
@@ -3517,8 +3522,12 @@ export interface components {
     ServerStatusResponse: components['schemas']['server-status-response'];
     EnvelopedServerStatusResponse: components['schemas']['enveloped-server-status-response'];
     RequestPerformanceSummary: components['schemas']['request-performance-summary'];
+    RequestPerformanceByteSummary: components['schemas']['request-performance-byte-summary'];
     RequestPerformanceMinuteBucket: components['schemas']['request-performance-minute-bucket'];
     RequestPerformanceStatusGroup: components['schemas']['request-performance-status-group'];
+    RequestPerformanceStatusCode: components['schemas']['request-performance-status-code'];
+    RequestPerformanceDistributionBucket: components['schemas']['request-performance-distribution-bucket'];
+    RequestPerformanceRequestInstance: components['schemas']['request-performance-request-instance'];
     RequestPerformanceRoute: components['schemas']['request-performance-route'];
     RequestPerformanceTopRoutes: components['schemas']['request-performance-top-routes'];
     RequestPerformanceResponse: components['schemas']['request-performance-response'];
@@ -4806,6 +4815,272 @@ export interface components {
        */
       stale_count: number;
     };
+    /** @description Current PostgreSQL diagnostics. Every property is nullable because a reachable PostgreSQL server may deny a statistics view or expose only part of it; null means unavailable or not collected, never zero. */
+    'server-status-postgresql-current-metrics': {
+      /**
+       * Format: int64
+       * @description Current database size in bytes. Gauge.
+       */
+      database_size_bytes?: number | null;
+      /**
+       * Format: int64
+       * @description Configured PostgreSQL connection limit. Gauge.
+       */
+      max_connections?: number | null;
+      /**
+       * Format: int64
+       * @description Sessions currently executing a query. Gauge.
+       */
+      active_connections?: number | null;
+      /**
+       * Format: int64
+       * @description Sessions currently idle. Gauge.
+       */
+      idle_connections?: number | null;
+      /**
+       * Format: int64
+       * @description Sessions idle while holding an open transaction. Gauge.
+       */
+      idle_in_transaction_connections?: number | null;
+      /**
+       * Format: int64
+       * @description Sessions waiting on a database event. Gauge.
+       */
+      waiting_connections?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative committed transactions reported by PostgreSQL. Counter.
+       */
+      transaction_commit_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative rolled-back transactions reported by PostgreSQL. Counter.
+       */
+      transaction_rollback_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative disk blocks read by PostgreSQL. Counter.
+       */
+      blocks_read_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative buffer-cache block hits reported by PostgreSQL. Counter.
+       */
+      blocks_hit_total?: number | null;
+      /** @description Current derived cache hit ratio from blocks_hit_total and blocks_read_total, in percent. Gauge. */
+      cache_hit_percent?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative tuples returned by scans. Counter.
+       */
+      tuples_returned_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative tuples fetched by index scans. Counter.
+       */
+      tuples_fetched_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative inserted tuples. Counter.
+       */
+      tuples_inserted_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative updated tuples. Counter.
+       */
+      tuples_updated_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative deleted tuples. Counter.
+       */
+      tuples_deleted_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative temporary files created by PostgreSQL. Counter.
+       */
+      temp_files_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative temporary-file bytes written by PostgreSQL. Counter.
+       */
+      temp_bytes_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative recovery conflicts reported by PostgreSQL. Counter.
+       */
+      conflicts_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative detected deadlocks reported by PostgreSQL. Counter.
+       */
+      deadlocks_total?: number | null;
+    };
+    /** @description Current Redis keyspace counters for one logical database; key names and values are never exposed. */
+    'server-status-redis-keyspace-metrics': {
+      /** @description Logical Redis database identifier, for example db0. */
+      database: string;
+      /**
+       * Format: int64
+       * @description Current keys in this logical database. Gauge.
+       */
+      keys?: number | null;
+      /**
+       * Format: int64
+       * @description Current keys with an expiry in this logical database. Gauge.
+       */
+      expires?: number | null;
+      /**
+       * Format: int64
+       * @description Current average expiry TTL in milliseconds when Redis reports it. Gauge.
+       */
+      average_ttl_ms?: number | null;
+    };
+    /** @description Current Redis diagnostics. Every nullable property is unavailable or not collected when Redis cannot report it; null never represents a zero counter or gauge. */
+    'server-status-redis-current-metrics': {
+      /**
+       * Format: int64
+       * @description Current connected Redis clients. Gauge.
+       */
+      connected_clients?: number | null;
+      /**
+       * Format: int64
+       * @description Current Redis clients blocked on an operation. Gauge.
+       */
+      blocked_clients?: number | null;
+      /**
+       * Format: int64
+       * @description Configured Redis client limit. Gauge.
+       */
+      max_clients?: number | null;
+      /**
+       * Format: int64
+       * @description Current memory allocated by Redis in bytes. Gauge.
+       */
+      used_memory_bytes?: number | null;
+      /**
+       * Format: int64
+       * @description Peak Redis memory allocation since process start in bytes. Gauge.
+       */
+      used_memory_peak_bytes?: number | null;
+      /**
+       * Format: int64
+       * @description Configured Redis maxmemory in bytes. Gauge.
+       */
+      max_memory_bytes?: number | null;
+      /** @description Current Redis memory fragmentation ratio. Gauge. */
+      memory_fragmentation_ratio?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative client connections accepted by Redis. Counter.
+       */
+      total_connections_received?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative commands processed by Redis. Counter.
+       */
+      total_commands_processed?: number | null;
+      /** @description Most recent Redis command throughput in operations per second. Gauge. */
+      instantaneous_ops_per_second?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative successful key lookups reported by Redis. Counter.
+       */
+      keyspace_hits_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative failed key lookups reported by Redis. Counter.
+       */
+      keyspace_misses_total?: number | null;
+      /** @description Current derived keyspace hit ratio in percent. Gauge. */
+      keyspace_hit_percent?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative expired keys removed by Redis. Counter.
+       */
+      expired_keys_total?: number | null;
+      /**
+       * Format: int64
+       * @description Cumulative keys evicted by Redis. Counter.
+       */
+      evicted_keys_total?: number | null;
+      /** @description Current per-logical-database keyspace aggregates; an empty array is a valid observed result. */
+      keyspaces?: components['schemas']['server-status-redis-keyspace-metrics'][] | null;
+      /**
+       * Format: date-time
+       * @description Most recent successful RDB persistence completion time. Gauge.
+       */
+      rdb_last_save_at?: string | null;
+      /** @description Whether an RDB background save is currently running. Gauge. */
+      rdb_bgsave_in_progress?: boolean | null;
+      /** @description Whether append-only persistence is enabled. Gauge. */
+      aof_enabled?: boolean | null;
+      /** @description Whether an AOF rewrite is currently running. Gauge. */
+      aof_rewrite_in_progress?: boolean | null;
+      /**
+       * @description Current Redis replication role. Gauge.
+       * @enum {string|null}
+       */
+      replication_role?: 'master' | 'replica' | 'unknown' | null;
+      /**
+       * @description Current upstream master-link status when this Redis node is a replica. Gauge.
+       * @enum {string|null}
+       */
+      master_link_status?: 'up' | 'down' | null;
+    };
+    /** @description One Redis-backed aggregate bucket for a dependency. A nullable aggregate was unavailable for that bucket and is never a synthetic zero. */
+    'server-status-dependency-history-point': {
+      /**
+       * Format: date-time
+       * @description RFC 3339 bucket observation time.
+       */
+      observed_at: string;
+      /**
+       * Format: int64
+       * @description Number of dependency probes aggregated into this bucket. Bucket aggregate, not a process counter.
+       */
+      probe_count?: number | null;
+      /** @description Successful probes divided by probe_count, in percent. Derived bucket gauge. */
+      availability_percent?: number | null;
+      /**
+       * Format: int64
+       * @description Failed dependency probes in this bucket. Bucket aggregate, not a cumulative process counter.
+       */
+      failure_count?: number | null;
+      /** @description Arithmetic mean successful-probe latency in milliseconds for this bucket. Derived bucket gauge. */
+      latency_average_ms?: number | null;
+      /** @description 95th-percentile successful-probe latency in milliseconds for this bucket. Derived bucket gauge. */
+      latency_p95_ms?: number | null;
+    };
+    /** @description Redis-backed short history for one dependency. The selected range is limited to 10m, 30m, or 1h and is isolated by application, host, and dependency kind. */
+    'server-status-dependency-history': {
+      /**
+       * @description Requested bounded history range.
+       * @enum {string}
+       */
+      range: '10m' | '30m' | '1h';
+      /**
+       * Format: int64
+       * @description Retention represented by the requested range in seconds.
+       */
+      retention_seconds: number;
+      /**
+       * Format: int64
+       * @description Nominal monitor sampling interval in seconds.
+       */
+      sample_interval_seconds: number;
+      /**
+       * @description Whether Redis history could be read. Available history may contain zero points.
+       * @enum {string}
+       */
+      status: 'available' | 'partial' | 'unavailable';
+      /**
+       * @description Stable reason when status is unavailable; absent when status is available.
+       * @enum {string|null}
+       */
+      unavailable_reason?: 'redis_not_configured' | 'read_failed' | null;
+      /** @description Ordered aggregate points for the selected range; no point is fabricated for unavailable data. */
+      points: components['schemas']['server-status-dependency-history-point'][];
+    };
     /**
      * @example {
      *       "status": "healthy",
@@ -4826,10 +5101,19 @@ export interface components {
      *     }
      */
     'server-status-dependency': {
+      /** @description Current dependency health state from the monitor probe; it remains available when optional metrics or history are unavailable. */
       status: string;
+      /** @description Current monitor-owned probe detail. It does not contain credentials, connection strings, key contents, or query text. */
       detail: string;
+      /** @description Most recent successful monitor-probe latency in milliseconds. Current gauge; null when no successful probe produced a latency. */
       latency_ms: number | null;
       pool?: components['schemas']['server-status-connection-pool'];
+      /** @description PostgreSQL-only current diagnostics. Null until collection is unavailable or does not apply to this dependency. */
+      postgresql_metrics?: components['schemas']['server-status-postgresql-current-metrics'];
+      /** @description Redis-only current diagnostics. Null until collection is unavailable or does not apply to this dependency. */
+      redis_metrics?: components['schemas']['server-status-redis-current-metrics'];
+      /** @description Redis-backed short history for this dependency. Its unavailability never invalidates the current dependency snapshot. */
+      history?: components['schemas']['server-status-dependency-history'];
     };
     /**
      * @example {
@@ -5004,6 +5288,16 @@ export interface components {
     'enveloped-server-status-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['server-status-response'];
     };
+    'request-performance-byte-summary': {
+      /** Format: int64 */
+      measured_count: number;
+      /** Format: int64 */
+      total_bytes: number;
+      /** Format: double */
+      average_bytes: number | null;
+      /** Format: double */
+      bytes_per_second: number | null;
+    };
     'request-performance-summary': {
       /** Format: int64 */
       total_requests: number;
@@ -5013,6 +5307,16 @@ export interface components {
       p50_latency_ms: number;
       /** Format: double */
       p95_latency_ms: number;
+      /** Format: double */
+      average_latency_ms: number;
+      /** Format: double */
+      p99_latency_ms: number;
+      /** Format: double */
+      max_latency_ms: number;
+      /** Format: int64 */
+      active_requests: number;
+      request_bytes: components['schemas']['request-performance-byte-summary'];
+      response_bytes: components['schemas']['request-performance-byte-summary'];
       /** Format: int64 */
       error_5xx_count: number;
       /**
@@ -5032,6 +5336,12 @@ export interface components {
       requests_per_second: number;
       /** Format: double */
       p95_latency_ms: number;
+      /** Format: double */
+      p99_latency_ms: number;
+      /** Format: double */
+      request_bytes_per_second: number;
+      /** Format: double */
+      response_bytes_per_second: number;
       /** Format: int64 */
       error_5xx_count: number;
       /** Format: double */
@@ -5047,6 +5357,23 @@ export interface components {
        * @description Request rate as a percentage from 0 to 100.
        */
       request_rate: number;
+    };
+    'request-performance-status-code': {
+      status_code: number;
+      /** Format: int64 */
+      request_count: number;
+      /** Format: double */
+      request_rate: number;
+    };
+    'request-performance-distribution-bucket': {
+      /** Format: int64 */
+      lower_bound: number;
+      /** Format: int64 */
+      upper_bound: number | null;
+      /** Format: int64 */
+      sample_count: number;
+      /** Format: double */
+      sample_rate: number;
     };
     'request-performance-route': {
       method: string;
@@ -5065,15 +5392,41 @@ export interface components {
       errors_5xx: components['schemas']['request-performance-route'][];
       p95_latency: components['schemas']['request-performance-route'][];
     };
+    'request-performance-request-instance': {
+      request_id: string;
+      /** Format: date-time */
+      observed_at: string;
+      method: string;
+      path: string;
+      route: string;
+      status_code: number;
+      /** Format: int64 */
+      duration_ms: number;
+      /** Format: int64 */
+      request_size_bytes: number | null;
+      /** Format: int64 */
+      response_size_bytes: number | null;
+    };
     'request-performance-response': {
       /** Format: date-time */
       observed_at: string;
+      /** Format: date-time */
+      window_start: string;
+      /** Format: date-time */
+      window_end: string;
       /** @enum {string} */
       range: '10m' | '30m' | '1h';
       summary: components['schemas']['request-performance-summary'];
       minute_buckets: components['schemas']['request-performance-minute-bucket'][];
       status_groups: components['schemas']['request-performance-status-group'][];
+      status_codes: components['schemas']['request-performance-status-code'][];
+      latency_distribution: components['schemas']['request-performance-distribution-bucket'][];
+      request_size_distribution: components['schemas']['request-performance-distribution-bucket'][];
+      response_size_distribution: components['schemas']['request-performance-distribution-bucket'][];
       top_routes: components['schemas']['request-performance-top-routes'];
+      slowest_requests: components['schemas']['request-performance-request-instance'][];
+      largest_requests: components['schemas']['request-performance-request-instance'][];
+      largest_responses: components['schemas']['request-performance-request-instance'][];
     };
     'enveloped-request-performance-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['request-performance-response'];

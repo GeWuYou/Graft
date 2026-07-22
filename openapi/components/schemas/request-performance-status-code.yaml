@@ -1,0 +1,16 @@
+type: object
+required: [status_code, request_count, request_rate]
+properties:
+  status_code:
+    type: integer
+    minimum: 100
+    maximum: 599
+  request_count:
+    type: integer
+    format: int64
+    minimum: 0
+  request_rate:
+    type: number
+    format: double
+    minimum: 0
+    maximum: 100

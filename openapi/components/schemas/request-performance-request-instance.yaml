@@ -1,0 +1,41 @@
+type: object
+required:
+  - request_id
+  - observed_at
+  - method
+  - path
+  - route
+  - status_code
+  - duration_ms
+  - request_size_bytes
+  - response_size_bytes
+properties:
+  request_id:
+    type: string
+  observed_at:
+    type: string
+    format: date-time
+  method:
+    type: string
+  path:
+    type: string
+  route:
+    type: string
+  status_code:
+    type: integer
+    minimum: 100
+    maximum: 599
+  duration_ms:
+    type: integer
+    format: int64
+    minimum: 0
+  request_size_bytes:
+    type: integer
+    nullable: true
+    format: int64
+    minimum: 0
+  response_size_bytes:
+    type: integer
+    nullable: true
+    format: int64
+    minimum: 0
