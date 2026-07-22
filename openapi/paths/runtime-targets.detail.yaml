@@ -2,6 +2,20 @@ get:
   tags: [runtime-target]
   summary: Read runtime target
   operationId: getRuntimeTarget
+  x-graft-mcp:
+    resource_uri_templates:
+      - graft://runtime-targets/{id}
+    resource_uri_parameter_bindings:
+      id: id
+    risk:
+      level: low
+      reason: Reads one runtime target's existing configuration and status.
+      reversible: true
+      impact: Does not change runtime target state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   security: [{bearerAuth: []}]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

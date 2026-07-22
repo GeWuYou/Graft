@@ -1,0 +1,9 @@
+allOf:
+  - $ref: ./api-envelope.yaml
+  - type: object
+    required: [data]
+    properties:
+      data:
+        type: array
+        items:
+          $ref: ./personal-access-token-summary.yaml

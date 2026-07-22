@@ -4,7 +4,7 @@ import { Space } from 'tdesign-vue-next/es/space';
 import { h } from 'vue';
 import type { Router } from 'vue-router';
 
-import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
+import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { copyText } from '@/shared/observability';
 
 type Translate = (key: string, params?: Record<string, unknown>) => string;
@@ -88,10 +88,10 @@ export function openCorrelationErrorNotification(options: CorrelationActionsOpti
                     theme: 'primary',
                     variant: 'base',
                     onClick: () => {
-                      void options.router?.push(buildAuditRequestLocation(requestId));
+                      void options.router?.push(buildAppLogLocation({ request_id: requestId }));
                     },
                   },
-                  () => options.translate('audit.correlation.viewAuditAction'),
+                  () => options.translate('audit.correlation.viewAppLogAction'),
                 )
               : null,
           ])

@@ -12,6 +12,7 @@ import (
 	"graft/server/modules/auth/ent/migrate"
 
 	"graft/server/modules/auth/ent/authcredential"
+	"graft/server/modules/auth/ent/authpersonalaccesstoken"
 	"graft/server/modules/auth/ent/authrefreshsession"
 
 	"entgo.io/ent"
@@ -26,6 +27,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// AuthCredential is the client for interacting with the AuthCredential builders.
 	AuthCredential *AuthCredentialClient
+	// AuthPersonalAccessToken is the client for interacting with the AuthPersonalAccessToken builders.
+	AuthPersonalAccessToken *AuthPersonalAccessTokenClient
 	// AuthRefreshSession is the client for interacting with the AuthRefreshSession builders.
 	AuthRefreshSession *AuthRefreshSessionClient
 }
@@ -40,6 +43,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.AuthCredential = NewAuthCredentialClient(c.config)
+	c.AuthPersonalAccessToken = NewAuthPersonalAccessTokenClient(c.config)
 	c.AuthRefreshSession = NewAuthRefreshSessionClient(c.config)
 }
 
@@ -131,10 +135,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		AuthCredential:     NewAuthCredentialClient(cfg),
-		AuthRefreshSession: NewAuthRefreshSessionClient(cfg),
+		ctx:                     ctx,
+		config:                  cfg,
+		AuthCredential:          NewAuthCredentialClient(cfg),
+		AuthPersonalAccessToken: NewAuthPersonalAccessTokenClient(cfg),
+		AuthRefreshSession:      NewAuthRefreshSessionClient(cfg),
 	}, nil
 }
 
@@ -152,10 +157,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		AuthCredential:     NewAuthCredentialClient(cfg),
-		AuthRefreshSession: NewAuthRefreshSessionClient(cfg),
+		ctx:                     ctx,
+		config:                  cfg,
+		AuthCredential:          NewAuthCredentialClient(cfg),
+		AuthPersonalAccessToken: NewAuthPersonalAccessTokenClient(cfg),
+		AuthRefreshSession:      NewAuthRefreshSessionClient(cfg),
 	}, nil
 }
 
@@ -185,6 +191,7 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	c.AuthCredential.Use(hooks...)
+	c.AuthPersonalAccessToken.Use(hooks...)
 	c.AuthRefreshSession.Use(hooks...)
 }
 
@@ -192,6 +199,7 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	c.AuthCredential.Intercept(interceptors...)
+	c.AuthPersonalAccessToken.Intercept(interceptors...)
 	c.AuthRefreshSession.Intercept(interceptors...)
 }
 
@@ -200,6 +208,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *AuthCredentialMutation:
 		return c.AuthCredential.mutate(ctx, m)
+	case *AuthPersonalAccessTokenMutation:
+		return c.AuthPersonalAccessToken.mutate(ctx, m)
 	case *AuthRefreshSessionMutation:
 		return c.AuthRefreshSession.mutate(ctx, m)
 	default:
@@ -340,6 +350,139 @@ func (c *AuthCredentialClient) mutate(ctx context.Context, m *AuthCredentialMuta
 	}
 }
 
+// AuthPersonalAccessTokenClient is a client for the AuthPersonalAccessToken schema.
+type AuthPersonalAccessTokenClient struct {
+	config
+}
+
+// NewAuthPersonalAccessTokenClient returns a client for the AuthPersonalAccessToken from the given config.
+func NewAuthPersonalAccessTokenClient(c config) *AuthPersonalAccessTokenClient {
+	return &AuthPersonalAccessTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `authpersonalaccesstoken.Hooks(f(g(h())))`.
+func (c *AuthPersonalAccessTokenClient) Use(hooks ...Hook) {
+	c.hooks.AuthPersonalAccessToken = append(c.hooks.AuthPersonalAccessToken, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `authpersonalaccesstoken.Intercept(f(g(h())))`.
+func (c *AuthPersonalAccessTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AuthPersonalAccessToken = append(c.inters.AuthPersonalAccessToken, interceptors...)
+}
+
+// Create returns a builder for creating a AuthPersonalAccessToken entity.
+func (c *AuthPersonalAccessTokenClient) Create() *AuthPersonalAccessTokenCreate {
+	mutation := newAuthPersonalAccessTokenMutation(c.config, OpCreate)
+	return &AuthPersonalAccessTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AuthPersonalAccessToken entities.
+func (c *AuthPersonalAccessTokenClient) CreateBulk(builders ...*AuthPersonalAccessTokenCreate) *AuthPersonalAccessTokenCreateBulk {
+	return &AuthPersonalAccessTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AuthPersonalAccessTokenClient) MapCreateBulk(slice any, setFunc func(*AuthPersonalAccessTokenCreate, int)) *AuthPersonalAccessTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AuthPersonalAccessTokenCreateBulk{err: fmt.Errorf("calling to AuthPersonalAccessTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AuthPersonalAccessTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AuthPersonalAccessTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AuthPersonalAccessToken.
+func (c *AuthPersonalAccessTokenClient) Update() *AuthPersonalAccessTokenUpdate {
+	mutation := newAuthPersonalAccessTokenMutation(c.config, OpUpdate)
+	return &AuthPersonalAccessTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AuthPersonalAccessTokenClient) UpdateOne(_m *AuthPersonalAccessToken) *AuthPersonalAccessTokenUpdateOne {
+	mutation := newAuthPersonalAccessTokenMutation(c.config, OpUpdateOne, withAuthPersonalAccessToken(_m))
+	return &AuthPersonalAccessTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AuthPersonalAccessTokenClient) UpdateOneID(id int) *AuthPersonalAccessTokenUpdateOne {
+	mutation := newAuthPersonalAccessTokenMutation(c.config, OpUpdateOne, withAuthPersonalAccessTokenID(id))
+	return &AuthPersonalAccessTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AuthPersonalAccessToken.
+func (c *AuthPersonalAccessTokenClient) Delete() *AuthPersonalAccessTokenDelete {
+	mutation := newAuthPersonalAccessTokenMutation(c.config, OpDelete)
+	return &AuthPersonalAccessTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AuthPersonalAccessTokenClient) DeleteOne(_m *AuthPersonalAccessToken) *AuthPersonalAccessTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AuthPersonalAccessTokenClient) DeleteOneID(id int) *AuthPersonalAccessTokenDeleteOne {
+	builder := c.Delete().Where(authpersonalaccesstoken.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AuthPersonalAccessTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for AuthPersonalAccessToken.
+func (c *AuthPersonalAccessTokenClient) Query() *AuthPersonalAccessTokenQuery {
+	return &AuthPersonalAccessTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAuthPersonalAccessToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AuthPersonalAccessToken entity by its id.
+func (c *AuthPersonalAccessTokenClient) Get(ctx context.Context, id int) (*AuthPersonalAccessToken, error) {
+	return c.Query().Where(authpersonalaccesstoken.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AuthPersonalAccessTokenClient) GetX(ctx context.Context, id int) *AuthPersonalAccessToken {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AuthPersonalAccessTokenClient) Hooks() []Hook {
+	return c.hooks.AuthPersonalAccessToken
+}
+
+// Interceptors returns the client interceptors.
+func (c *AuthPersonalAccessTokenClient) Interceptors() []Interceptor {
+	return c.inters.AuthPersonalAccessToken
+}
+
+func (c *AuthPersonalAccessTokenClient) mutate(ctx context.Context, m *AuthPersonalAccessTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AuthPersonalAccessTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AuthPersonalAccessTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AuthPersonalAccessTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AuthPersonalAccessTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AuthPersonalAccessToken mutation op: %q", m.Op())
+	}
+}
+
 // AuthRefreshSessionClient is a client for the AuthRefreshSession schema.
 type AuthRefreshSessionClient struct {
 	config
@@ -476,9 +619,9 @@ func (c *AuthRefreshSessionClient) mutate(ctx context.Context, m *AuthRefreshSes
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AuthCredential, AuthRefreshSession []ent.Hook
+		AuthCredential, AuthPersonalAccessToken, AuthRefreshSession []ent.Hook
 	}
 	inters struct {
-		AuthCredential, AuthRefreshSession []ent.Interceptor
+		AuthCredential, AuthPersonalAccessToken, AuthRefreshSession []ent.Interceptor
 	}
 )

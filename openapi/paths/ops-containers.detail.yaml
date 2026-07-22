@@ -3,6 +3,20 @@ get:
   summary: Read container detail
   operationId: getContainer
   description: Returns one container detail without exposing sensitive environment variables.
+  x-graft-mcp:
+    resource_uri_templates:
+      - graft://docker/containers/{id}
+    resource_uri_parameter_bindings:
+      id: id
+    risk:
+      level: low
+      reason: Reads one container's existing detail.
+      reversible: true
+      impact: Does not change container state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

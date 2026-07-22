@@ -1,3 +1,4 @@
-h1:wdC+gsC7lZe+72ZP+uagMQ2iXlXlCUyJLJLtlGGVtg0=
+h1:jzMveZKxzTLe1CEy4PessPitgpCZXG+HFm+zBXclpVg=
 202607100003_auth_credential_session_schema.sql h1:TSAMLO1fYtgS4mvESMQKnhuFoa+iHIplgzZrF5aXC34=
 202607100004_copy_legacy_auth_data.sql h1:iqPDgqVXRwt+614QKes9kDsctkcNa3NWRh3rmBTR128=
+202607210001_auth_personal_access_tokens.sql h1:TEwEQgW47qk/KH6Kjg+ty6oaUv7vz1To5PMl+nl0r38=

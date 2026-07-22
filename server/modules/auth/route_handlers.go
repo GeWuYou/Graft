@@ -160,6 +160,63 @@ func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.Rout
 	})
 }
 
+func (r authRouteRegistrar) registerPersonalAccessTokenRoutes(authGroup *gin.RouterGroup) {
+	authGroup.GET(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		authGeneratedHandler{}.GetAuthPersonalAccessTokens(bindGeneratedAuthPersonalAccessTokenListParams(ginCtx))
+
+		items, err := r.personalTokens.ListCurrentUserPersonalAccessTokens(ginCtx.Request.Context(), 0)
+		if err != nil {
+			r.writePersonalAccessTokenRouteError(ginCtx, "list personal access tokens failed", err)
+			return
+		}
+
+		response, mapErr := toPersonalAccessTokenSummaries(items)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map personal access token list response failed", mapErr)
+			return
+		}
+		httpx.WriteSuccess(ginCtx, http.StatusOK, response)
+	})
+	authGroup.POST(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		var request authopenapi.PostAuthPersonalAccessTokensJSONRequestBody
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
+			return
+		}
+		authGeneratedHandler{}.PostAuthPersonalAccessTokens(bindGeneratedAuthPersonalAccessTokenCreateParams(ginCtx), request)
+
+		issued, err := r.personalTokens.CreateCurrentUserPersonalAccessToken(ginCtx.Request.Context(), moduleapi.PersonalAccessTokenCreateInput{
+			Name:      request.Name,
+			Scopes:    request.Scopes,
+			ExpiresAt: request.ExpiresAt,
+		})
+		if err != nil {
+			r.writePersonalAccessTokenRouteError(ginCtx, "create personal access token failed", err)
+			return
+		}
+
+		response, mapErr := toPersonalAccessTokenIssued(issued)
+		if mapErr != nil {
+			r.runtime().writeResponseMappingError(ginCtx, "map personal access token issue response failed", mapErr)
+			return
+		}
+		httpx.WriteSuccess(ginCtx, http.StatusCreated, response)
+	})
+	authGroup.POST(authcontract.AuthPersonalAccessTokenRevoke, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
+		params, tokenID, ok := bindGeneratedAuthPersonalAccessTokenRevokeParams(ginCtx, r.ctx.I18n)
+		if !ok {
+			return
+		}
+		authGeneratedHandler{}.PostAuthPersonalAccessTokenRevoke(params)
+
+		if err := r.personalTokens.RevokeCurrentUserPersonalAccessToken(ginCtx.Request.Context(), tokenID); err != nil {
+			r.writePersonalAccessTokenRouteError(ginCtx, "revoke personal access token failed", err)
+			return
+		}
+		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	})
+}
+
 func (r authRouteRegistrar) registerBootstrapAndPasswordRoutes(authGroup *gin.RouterGroup) {
 	r.registerBootstrapRoute(authGroup)
 	r.registerChangePasswordRoute(authGroup)
@@ -274,6 +331,25 @@ func (h authGeneratedHandler) PostAuthLogout(params authopenapi.PostAuthLogoutPa
 	_ = params
 }
 
+func (h authGeneratedHandler) GetAuthPersonalAccessTokens(params authopenapi.GetAuthPersonalAccessTokensParams) {
+	_ = h
+	_ = params
+}
+
+func (h authGeneratedHandler) PostAuthPersonalAccessTokens(
+	params authopenapi.PostAuthPersonalAccessTokensParams,
+	body authopenapi.PostAuthPersonalAccessTokensJSONRequestBody,
+) {
+	_ = h
+	_ = params
+	_ = body
+}
+
+func (h authGeneratedHandler) PostAuthPersonalAccessTokenRevoke(params authopenapi.PostAuthPersonalAccessTokenRevokeParams) {
+	_ = h
+	_ = params
+}
+
 func (h authGeneratedHandler) GetAuthBootstrap(params authopenapi.GetAuthBootstrapParams) {
 	_ = h
 	_ = params
@@ -365,6 +441,38 @@ func bindGeneratedAuthLogoutParams(ginCtx *gin.Context) authopenapi.PostAuthLogo
 		XGraftLocale: locale,
 		XRequestId:   requestID,
 	}
+}
+
+func bindGeneratedAuthPersonalAccessTokenListParams(ginCtx *gin.Context) authopenapi.GetAuthPersonalAccessTokensParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.GetAuthPersonalAccessTokensParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthPersonalAccessTokenCreateParams(ginCtx *gin.Context) authopenapi.PostAuthPersonalAccessTokensParams {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	return authopenapi.PostAuthPersonalAccessTokensParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}
+}
+
+func bindGeneratedAuthPersonalAccessTokenRevokeParams(
+	ginCtx *gin.Context,
+	localizer *i18n.Service,
+) (authopenapi.PostAuthPersonalAccessTokenRevokeParams, uint64, bool) {
+	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
+	tokenID, ok := readPersonalAccessTokenIDParam(ginCtx, localizer)
+	if !ok {
+		return authopenapi.PostAuthPersonalAccessTokenRevokeParams{}, 0, false
+	}
+
+	return authopenapi.PostAuthPersonalAccessTokenRevokeParams{
+		XGraftLocale: locale,
+		XRequestId:   requestID,
+	}, tokenID, true
 }
 
 func bindGeneratedAuthSessionsParams(ginCtx *gin.Context) (authopenapi.GetAuthSessionsParams, error) {

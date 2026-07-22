@@ -95,6 +95,12 @@ func OpenAPIDocsBundleSHA256() string {
 	return generatedOpenAPIBundleSHA256
 }
 
+// OpenAPIDocsBundle 返回产品 runtime 使用的 canonical OpenAPI 打包文档副本。
+// MCP compiler 必须消费这份确定性生成物，不能从磁盘重新拼装或维护第二套 Tool 清单。
+func OpenAPIDocsBundle() []byte {
+	return append([]byte(nil), generatedOpenAPIBundleJSON...)
+}
+
 // loadOpenAPIDocsAssets 加载并校验嵌入式 OpenAPI 文档资源。
 func loadOpenAPIDocsAssets() (*openAPIDocsAssets, error) {
 	return buildOpenAPIDocsAssets(generatedOpenAPIBundleJSON, buildinfo.Current())

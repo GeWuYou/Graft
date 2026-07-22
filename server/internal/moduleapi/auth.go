@@ -14,6 +14,10 @@ var (
 	ErrInvalidAccessToken = errors.New("invalid access token")
 	// ErrExpiredAccessToken 表示访问令牌已经超过有效期。
 	ErrExpiredAccessToken = errors.New("expired access token")
+	// ErrInvalidPersonalAccessToken 表示个人 API Token 不存在、已撤销或与已知格式不匹配。
+	ErrInvalidPersonalAccessToken = errors.New("invalid personal access token")
+	// ErrExpiredPersonalAccessToken 表示个人 API Token 的有效期已经结束。
+	ErrExpiredPersonalAccessToken = errors.New("expired personal access token")
 	// ErrPermissionDenied 表示认证成功但缺少访问所需权限。
 	ErrPermissionDenied = errors.New("permission denied")
 	// ErrPasswordPolicyViolation 表示密码不满足认证模块当前的密码策略。
@@ -50,6 +54,50 @@ type AccessTokenClaims struct {
 type RequestAuthContext struct {
 	User   *CurrentUser
 	Claims *AccessTokenClaims
+}
+
+type personalAccessTokenCallerContextKey struct{}
+
+// PersonalAccessTokenCaller 描述由 auth 模块验证后的个人 API Token 主体。
+//
+// Scopes 仅是授权收窄条件；调用方仍必须先通过当前用户的 RBAC 授权，不能把
+// 这里的 scope 当作独立授权来源。
+type PersonalAccessTokenCaller struct {
+	TokenID   uint64
+	User      CurrentUser
+	Scopes    []string
+	ExpiresAt time.Time
+}
+
+// PersonalAccessTokenCreateInput 描述当前用户创建个人 API Token 时可声明的最小策略。
+//
+// ExpiresAt 必须由调用方显式指定且晚于当前时间，避免产生无期限的机器凭据。
+type PersonalAccessTokenCreateInput struct {
+	Name      string
+	Scopes    []string
+	ExpiresAt time.Time
+}
+
+// PersonalAccessTokenSummary 描述可以安全返回给 Token 所有者的生命周期快照。
+//
+// Secret 永不出现在该结构中；只有创建成功的 PersonalAccessTokenIssued 会携带一次性明文值。
+type PersonalAccessTokenSummary struct {
+	ID          uint64
+	Name        string
+	TokenPrefix string
+	Scopes      []string
+	ExpiresAt   time.Time
+	RevokedAt   *time.Time
+	LastUsedAt  *time.Time
+	CreatedAt   time.Time
+}
+
+// PersonalAccessTokenIssued 描述新建 Token 的一次性返回值。
+//
+// Token 只在创建响应中出现，调用方必须自行保存；auth 持久层仅保存其哈希。
+type PersonalAccessTokenIssued struct {
+	Summary PersonalAccessTokenSummary
+	Token   string
 }
 
 // AuthSessionSummary 描述认证模块对外暴露的稳定会话摘要。
@@ -144,12 +192,41 @@ func RequestAuthContextFromContext(ctx context.Context) (auth RequestAuthContext
 	return auth, ok
 }
 
+// WithPersonalAccessTokenCaller 返回带有已验证个人 API Token 主体的派生 context。
+//
+// core HTTP 中间件负责写入该值，MCP adapter 只消费它并转换为 transport-local caller context，
+// 这样 MCP 不需要重新解析或旁路 auth 模块的 Token 生命周期规则。
+func WithPersonalAccessTokenCaller(ctx context.Context, caller PersonalAccessTokenCaller) context.Context {
+	return context.WithValue(ctx, personalAccessTokenCallerContextKey{}, caller)
+}
+
+// PersonalAccessTokenCallerFromContext 返回当前请求由个人 API Token 建立的调用者。
+func PersonalAccessTokenCallerFromContext(ctx context.Context) (caller PersonalAccessTokenCaller, ok bool) {
+	if ctx == nil {
+		return PersonalAccessTokenCaller{}, false
+	}
+
+	caller, ok = ctx.Value(personalAccessTokenCallerContextKey{}).(PersonalAccessTokenCaller)
+	return caller, ok
+}
+
 // AuthService 暴露认证链路的最小稳定能力接口。
 //
 // 调用方只能依赖这里声明的签名和错误语义，不应依赖具体 token 生成算法或 cookie 处理实现。
 type AuthService interface {
 	CurrentUser(ctx context.Context) (*CurrentUser, error)
 	ParseAccessToken(ctx context.Context, token string) (*AccessTokenClaims, error)
+}
+
+// PersonalAccessTokenService 暴露 auth 模块拥有的个人 API Token 生命周期与验证能力。
+//
+// 管理操作绑定当前请求用户；AuthenticatePersonalAccessToken 只建立身份和 scope 收窄事实，
+// 不替代 RBAC 对具体 permission 的判断。
+type PersonalAccessTokenService interface {
+	CreateCurrentUserPersonalAccessToken(ctx context.Context, input PersonalAccessTokenCreateInput) (PersonalAccessTokenIssued, error)
+	ListCurrentUserPersonalAccessTokens(ctx context.Context, limit int) ([]PersonalAccessTokenSummary, error)
+	RevokeCurrentUserPersonalAccessToken(ctx context.Context, tokenID uint64) error
+	AuthenticatePersonalAccessToken(ctx context.Context, token string) (PersonalAccessTokenCaller, error)
 }
 
 // AuthSessionService 暴露认证模块拥有的稳定会话治理能力。

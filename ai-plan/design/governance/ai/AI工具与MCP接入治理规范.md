@@ -12,9 +12,13 @@
 
 非目标：
 
-- 不把 MCP Server 加入 `server/go.mod`、`web/package.json`、CI、hooks 或业务运行时。
+- 不把开发者本机 MCP Server 加入 `server/go.mod`、`web/package.json`、CI、hooks 或业务运行时。
 - 不要求所有贡献者安装相同的个人 MCP 客户端配置。
 - 不用第三方工具查询结果替代真实源码、设计文档、OpenAPI authority 或仓库验证命令。
+
+本规范只治理 AI 开发期 MCP。面向产品调用者的 MCP runtime 是 `server` 的 transport adapter，受
+`ai-plan/design/decisions/ADR-005-mcp-runtime-contract-and-transport-boundary.md`、canonical OpenAPI source 和
+后端安全边界治理；它可以拥有经过设计批准的服务端实现与依赖，不能被本规范中针对开发者本机工具的禁止条款误伤。
 
 ## 2. 分层原则
 
@@ -28,8 +32,11 @@ AI 工具按职责分层：
   - 可复用工作流、具体命令顺序、可选 helper 脚本。
 - `.ai/environment/**`
   - 生成的本机工具能力事实。
-- MCP Server
-  - 开发时知识源或交互辅助源。
+- 开发者 MCP Server
+  - 开发时知识源或交互辅助源，属于用户级客户端配置。
+- 产品 MCP runtime
+  - `server` 中由 OpenAPI operation contract 派生的产品 transport adapter，不是 AI 开发工具、个人客户端配置或
+    第二套业务 API。
 - 仓库 / 团队级 Codex plugin 与外部 skill pack
   - AI guidance asset，用于沉淀可复用提示、前端生成规则和浏览器 QA 流程。
   - 不属于 `server` / `web` runtime、CI、hooks、package manager 依赖或仓库 authority。
@@ -68,7 +75,7 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 同样 fail-closed，不得根据模型名称、可用性或 reasoning effort 推断。该规则由根 `AGENTS.md` 统一定义，实际
 委派 skill 只能引用并落实，不得创建第二套模型等级表。
 
-## 3. MCP 风险等级
+## 3. 开发者 MCP 风险等级
 
 接入 MCP 前必须先按能力分级：
 
@@ -79,13 +86,17 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
 | `L2` | 写能力工具，如 GitHub 评论、PR 修改、issue 修改 | 仅在仓库 skill 明确包裹后使用 |
 | `L3` | 凭证、数据库、生产数据、shell 写能力 | 默认拒绝；需要单独设计和最小权限证明 |
 
-所有 MCP 接入都必须遵守：
+所有开发者 MCP 接入都必须遵守：
 
 - 最小权限。
 - 只在任务需要时启用。
 - 不提交个人客户端配置、token、数据库 DSN 或私有 IDE 配置。
 - 不把 MCP 可用性作为任务完成硬门禁。
 - MCP 输出只是证据线索；最终结论必须回到仓库 authority 和真实文件。
+
+产品 MCP runtime 不使用本节 `L0` 至 `L3` 工具风险分级。其调用权限、危险操作确认、审计和 REST/MCP 语义一致性
+由 OpenAPI operation 的 `x-graft-mcp` 元数据、后端安全治理和后续 runtime 验证负责；不得把 runtime adapter
+伪装成开发者工具接入，也不得把开发者 MCP client 的可用性当作产品能力前提。
 
 ## 4. 当前采纳清单
 
@@ -176,6 +187,9 @@ source 与确定性生成产物必须由拥有该 bounded contract slice 的 Age
   - 原因：涉及凭证和数据读取风险；仅在明确运行时数据排查主题中单独设计。
 - 通用 shell 写能力 MCP
   - 原因：会绕过仓库已有命令、验证和提交治理。
+
+本节的拒绝项只针对开发者工具 MCP。它不禁止 ADR-005 已批准的产品 MCP runtime 在 `server` 内实现受控的
+transport adapter；产品 runtime 仍不得把开发者客户端配置、AI skill、个人 token 或隐式 shell 写能力带入业务路径。
 
 ## 5. Skill 设计规则
 

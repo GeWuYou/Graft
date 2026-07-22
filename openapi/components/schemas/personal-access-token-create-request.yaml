@@ -1,0 +1,21 @@
+type: object
+required: [name, scopes, expires_at]
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 128
+    description: Human-readable owner label for the token.
+  scopes:
+    type: array
+    minItems: 1
+    maxItems: 64
+    items:
+      type: string
+      minLength: 1
+      maxLength: 128
+    description: Exact operation scopes. These values can only narrow current user RBAC permissions.
+  expires_at:
+    type: string
+    format: date-time
+    description: Absolute UTC expiry. The server rejects past or unbounded credentials.

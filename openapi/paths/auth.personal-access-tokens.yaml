@@ -1,0 +1,67 @@
+get:
+  tags: [auth]
+  summary: List current user personal API tokens
+  operationId: getAuthPersonalAccessTokens
+  description: Returns non-secret lifecycle summaries for the authenticated user's personal API tokens.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: Personal API token summaries.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-personal-access-token-list-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
+post:
+  tags: [auth]
+  summary: Create current user personal API token
+  operationId: postAuthPersonalAccessTokens
+  description: Issues an expiring personal API token. The secret is returned exactly once and only its hash is retained by the server.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/personal-access-token-create-request.yaml
+  responses:
+    '201':
+      description: Personal API token issued.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-personal-access-token-issued-response.yaml
+    '400':
+      description: Invalid token name, scopes, or expiry.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '401':
+      $ref: ../components/responses/unauthorized.yaml
+    '403':
+      $ref: ../components/responses/forbidden.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
