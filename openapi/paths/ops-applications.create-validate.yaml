@@ -2,7 +2,17 @@ post:
   tags: [application]
   summary: Validate a managed Compose application create request
   operationId: postApplicationCreateValidate
-  description: Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a application.
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Validates bounded create inputs without writing files or registering an application.
+      reversible: true
+      impact: Does not change applications or managed workspaces.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
+  description: Validates managed-root authority, target paths, and bounded create inputs without writing files or registering an application.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

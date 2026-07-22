@@ -2,6 +2,16 @@ get:
   tags: [rbac]
   summary: Get one role
   operationId: getRole
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads one role summary without changing authorization policy.
+      reversible: true
+      impact: Does not change role definitions or bindings.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

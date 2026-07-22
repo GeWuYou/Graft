@@ -2,6 +2,16 @@ get:
   tags: [rbac]
   summary: List permission bindings for one role
   operationId: getRolePermissions
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads existing role permissions without changing authorization.
+      reversible: true
+      impact: Does not change role permissions or user access.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Returns the permission id snapshot currently bound to the target role.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

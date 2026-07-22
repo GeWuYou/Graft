@@ -3,6 +3,9 @@ get:
   summary: Get one announcement for management
   operationId: getAnnouncement
   description: Returns one management announcement record.
+  x-graft-mcp:
+    risk: { level: low, reason: Reads an existing announcement record, reversible: true, impact: Does not change announcement state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

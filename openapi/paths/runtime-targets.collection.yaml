@@ -2,6 +2,16 @@ get:
   tags: [runtime-target]
   summary: List runtime targets
   operationId: getRuntimeTargets
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads runtime target summaries without changing target configuration or availability.
+      reversible: true
+      impact: Does not change runtime target state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   security: [{bearerAuth: []}]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

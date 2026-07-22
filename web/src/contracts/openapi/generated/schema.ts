@@ -285,7 +285,7 @@ export interface paths {
     put?: never;
     /**
      * Send MCP Streamable HTTP message
-     * @description Sends an MCP JSON-RPC request or notification. This foundation exposes no business tools, resources, or prompts yet.
+     * @description Sends an MCP JSON-RPC request or notification. The server exposes only Tools and Resource Templates compiled from opted-in OpenAPI operations; it does not expose Prompts until their canonical contract and runtime projection are implemented.
      */
     post: operations['postMcpStreamable'];
     /**
@@ -2917,7 +2917,7 @@ export interface paths {
     put?: never;
     /**
      * Validate a managed Compose application create request
-     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a application.
+     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering an application.
      */
     post: operations['postApplicationCreateValidate'];
     delete?: never;

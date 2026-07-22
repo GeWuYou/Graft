@@ -2,6 +2,16 @@ get:
   tags: [container]
   summary: Read container dashboard summary
   operationId: getContainerDashboardSummary
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads the current container dashboard projection without changing workloads.
+      reversible: true
+      impact: Does not change container or runtime state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: >
     Returns the container-module-owned dashboard summary projection built from current runtime list snapshots.
     The canonical realtime companion topic is `container.dashboard.summary`, which reuses the unified realtime

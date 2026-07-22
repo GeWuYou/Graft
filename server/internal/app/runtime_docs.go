@@ -26,6 +26,11 @@ func (r *Runtime) loadOptionalDocsAssets() error {
 	}
 
 	r.openapiDocs = docsAssets
+	mcpDocs, err := buildMCPDocsCatalog(OpenAPIDocsBundle(), r.config.MCP.Enabled)
+	if err != nil {
+		return fmt.Errorf("build MCP docs catalog: %w", err)
+	}
+	r.mcpDocs = mcpDocs
 	return nil
 }
 
@@ -39,7 +44,17 @@ func (r *Runtime) registerCoreRoutes(engine *gin.Engine) error {
 	}
 	r.registerHealthRoute(engine)
 	r.registerOpenAPIRoutes(engine)
+	r.registerMCPDocsRoutes(engine)
 	return nil
+}
+
+func (r *Runtime) registerMCPDocsRoutes(engine *gin.Engine) {
+	if r.config == nil || !r.config.Docs.Enabled || len(r.mcpDocs) == 0 {
+		return
+	}
+
+	engine.GET(mcpDocsJSONPath, r.handleMCPDocsJSON)
+	engine.GET(mcpDocsPath, r.handleMCPDocs)
 }
 
 func (r *Runtime) registerRealtimeGatewayRoute(engine *gin.Engine) error {
@@ -115,6 +130,14 @@ func (r *Runtime) handleOpenAPIDocs(ctx *gin.Context) {
 		return
 	}
 	ctx.Data(http.StatusOK, "text/html; charset=utf-8", html)
+}
+
+func (r *Runtime) handleMCPDocsJSON(ctx *gin.Context) {
+	ctx.Data(http.StatusOK, "application/json; charset=utf-8", r.mcpDocs)
+}
+
+func (r *Runtime) handleMCPDocs(ctx *gin.Context) {
+	ctx.Data(http.StatusOK, "text/html; charset=utf-8", renderMCPDocsHTML())
 }
 
 var _ healthopenapi.ServerInterface = coreHealthGeneratedHandler{}

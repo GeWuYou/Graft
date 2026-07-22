@@ -2,6 +2,16 @@ post:
   tags: [application]
   summary: Resolve Compose application references
   operationId: postApplicationComposeContextReferences
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Resolves existing Compose references without changing registrations or workloads.
+      reversible: true
+      impact: Does not change applications or runtime state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Resolves live Compose application references by the canonical runtime target and Compose project name identity. Unregistered contexts are omitted.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

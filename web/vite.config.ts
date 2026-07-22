@@ -106,7 +106,14 @@ export function createViteConfig(mode: string): UserConfig {
   const proxyEnabled = env.VITE_IS_REQUEST_PROXY === 'true';
   const mockEnabled = mode === 'mock' || env.VITE_ENABLE_MOCK === 'true';
   const tdesignAutoImportEnabled = mode !== 'test';
-  const rootHTTPProxyPaths = ['/healthz', '/docs', '/openapi.json', '/openapi.yaml'] as const;
+  const rootHTTPProxyPaths = [
+    '/healthz',
+    '/docs',
+    '/openapi.json',
+    '/openapi.yaml',
+    '/mcp/docs',
+    '/mcp/docs.json',
+  ] as const;
   const websocketProxyPaths = ['/ws'] as const;
 
   const lessOptions = {

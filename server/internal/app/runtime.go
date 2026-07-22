@@ -86,6 +86,7 @@ type Runtime struct {
 	cacheManager              *cachex.Manager
 	server                    *httpx.Server
 	openapiDocs               *openAPIDocsAssets
+	mcpDocs                   []byte
 	eventBus                  eventbus.Bus
 	realtimeHub               realtime.Hub
 	realtimeTopicIssuers      realtime.TopicIssuerRegistry

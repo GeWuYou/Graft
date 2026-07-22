@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: List private application-list saved views
   operationId: getApplicationSavedViews
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads the caller's saved application-list views without changing preferences.
+      reversible: true
+      impact: Does not change saved views or application state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

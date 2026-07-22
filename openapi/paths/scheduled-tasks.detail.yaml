@@ -3,6 +3,9 @@ get:
   summary: Read scheduled task detail
   operationId: getScheduledTask
   description: Returns one Scheduled Task schedule definition with its latest run state.
+  x-graft-mcp:
+    risk: { level: low, reason: Reads an existing scheduled task definition, reversible: true, impact: Does not change scheduler state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

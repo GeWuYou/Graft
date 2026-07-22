@@ -2,6 +2,16 @@ post:
   tags: [application]
   summary: Validate a Compose application import
   operationId: postApplicationImportValidate
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Validates import inputs and static parsing without registering an application.
+      reversible: true
+      impact: Does not change applications, files, or runtime state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Validates Compose import inputs, file discovery, and static parsing without persisting a application record.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

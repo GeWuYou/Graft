@@ -2,6 +2,9 @@ get:
   tags: [tasks]
   summary: List Task Stages
   operationId: listTaskStages
+  x-graft-mcp:
+    risk: { level: low, reason: Lists existing Task stage records, reversible: true, impact: Does not change Task state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: Get Compose application service aggregation
   operationId: getApplicationServices
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads bounded service and container membership summaries without changing workloads.
+      reversible: true
+      impact: Does not change application or container state.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: >
     Returns Application-owned static service definitions plus bounded container membership counts. Container
     remains the runtime authority for detail, logs, events, stats, and shell.

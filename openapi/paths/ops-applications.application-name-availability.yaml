@@ -2,6 +2,16 @@ post:
   tags: [application]
   summary: Check managed application-name availability
   operationId: postApplicationNameAvailability
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Checks name availability without writing files or registering an application.
+      reversible: true
+      impact: Does not change applications or managed workspaces.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Resolves whether an application name is already registered, available for a new workspace, or points to an unregistered managed workspace. This endpoint never writes files.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

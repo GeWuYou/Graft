@@ -3,6 +3,9 @@ get:
   summary: List Task history
   operationId: listTasks
   description: Lists persisted Task history within resources authorized for the caller; a Task ID alone never grants access.
+  x-graft-mcp:
+    risk: { level: low, reason: Lists authorized Task history, reversible: true, impact: Does not change Task state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

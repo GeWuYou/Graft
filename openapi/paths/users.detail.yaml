@@ -2,6 +2,16 @@ get:
   tags: [users]
   summary: Get one user
   operationId: getUserById
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads one managed-user summary without changing account state.
+      reversible: true
+      impact: Does not change the user or role bindings.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Returns the existing managed-user summary for the specified user id.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

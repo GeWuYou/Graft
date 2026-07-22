@@ -3,6 +3,9 @@ get:
   summary: Read dashboard widget
   operationId: getDashboardWidget
   description: Returns one visible dashboard widget by id for focused refresh and retry flows.
+  x-graft-mcp:
+    risk: { level: low, reason: Reads an existing visible dashboard widget, reversible: true, impact: Does not change dashboard or runtime state. }
+    confirmation: { required: false, strategy: none, ttl: PT0S }
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

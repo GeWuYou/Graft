@@ -2,6 +2,16 @@ get:
   tags: [application]
   summary: List bounded application discovery candidates
   operationId: getApplicationDiscoveryCandidates
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads bounded discovery previews without registering applications or changing ownership.
+      reversible: true
+      impact: Does not change applications, workspaces, or runtime ownership.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   description: Returns local directory-scan and auto-discovery candidate previews under the current application authority without auto-registering applications or changing runtime ownership.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
