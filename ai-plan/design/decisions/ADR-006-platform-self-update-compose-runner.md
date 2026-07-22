@@ -20,6 +20,24 @@
 - runner 顺序执行独立 backup capability、pull、显式 bootstrap migration、受控 server/web recreate、health check，然后写 durable receipt。Task Runtime 和 update history 之后消费 receipt，形成最终审计事实。
 - runner 不替换容器内 binary、不使用 mutable `latest`/`beta` tag 作为目标，也不实现自动 schema rollback。
 
+### Protocol And Receipt Boundary
+
+runner input and receipt use a versioned schema. Input contains only operation identity, Task ID, target immutable
+server/web references, host absolute Compose root, socket location and preflight evidence. It never contains `.env`,
+database URLs, dump contents, or arbitrary commands. Receipt contains only operation identity, migration-started
+evidence, terminal result and stable failure code. The runner image itself must be a separately published
+digest-pinned release asset; an unpinned local image is not an execution authority.
+
+The fixed order is `backup -> compose pull -> bootstrap migrate up -> recreate server/web -> Docker health ->
+/healthz -> receipt`. A failure before migration starts may restore the configuration snapshot and old image
+references and records `RECOVERED`. Once migration has started, any failed verification records
+`NEEDS_ATTENTION`; neither runner nor server performs a database rollback or restore.
+
+Task Runtime, rather than Update, must own authenticated receipt settlement after server recreation. Update may
+submit an operation Task and consume its public settlement capability, but must not write `tasks`, `task_stages` or
+`task_events` directly. Backup remains owner of backup metadata; runner handoff records only backup evidence through
+the narrow Backup capability and never exposes its storage references through Update HTTP responses.
+
 ## Consequences
 
 正面影响：server 被 recreate 后仍能完成健康验证；运行时镜像由 immutable digest 确定；无须维护 agent-to-server 协议或 agent 升级链。
