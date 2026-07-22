@@ -70,14 +70,30 @@ type EventType string
 
 // EventType 类型常量标识 Task 和 Stage 行无法推导的历史事实。
 const (
-	EventTypeCreated          EventType = "created"
-	EventTypeCancelRequested  EventType = "cancel_requested"
-	EventTypeCancelled        EventType = "cancelled"
-	EventTypeRetryRequested   EventType = "retry_requested"
-	EventTypeRetryScheduled   EventType = "retry_scheduled"
-	EventTypeRecoveryRequired EventType = "recovery_required"
-	EventTypeRecoveryResolved EventType = "recovery_resolved"
+	EventTypeCreated                EventType = "created"
+	EventTypeCancelRequested        EventType = "cancel_requested"
+	EventTypeCancelled              EventType = "cancelled"
+	EventTypeRetryRequested         EventType = "retry_requested"
+	EventTypeRetryScheduled         EventType = "retry_scheduled"
+	EventTypeRecoveryRequired       EventType = "recovery_required"
+	EventTypeRecoveryResolved       EventType = "recovery_resolved"
+	EventTypeExternalReceiptSettled EventType = "external_receipt_settled"
 )
+
+// ExternalReceipt 保存由 Task Runtime 拥有的不可变、无秘密外部执行结算事实。
+type ExternalReceipt struct {
+	ID              uint64
+	TaskID          uint64
+	StageID         uint64
+	ExecutorType    moduleapi.StageExecutorType
+	Protocol        string
+	OperationID     string
+	Outcome         moduleapi.ExternalReceiptOutcome
+	FailureCode     *string
+	IntegritySHA256 string
+	SettledStatus   moduleapi.TaskStatus
+	CreatedAt       time.Time
+}
 
 // Log 表示一条按序排列的 Stage 输出或系统诊断记录。
 type Log struct {

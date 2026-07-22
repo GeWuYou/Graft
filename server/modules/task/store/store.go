@@ -40,6 +40,7 @@ type Repository interface {
 	NextEventSequence(ctx context.Context, taskID uint64) (int64, error)
 	NextLogSequence(ctx context.Context, taskID uint64) (int64, error)
 	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
+	SettleExternalReceipt(ctx context.Context, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error)
 }
 
 // StageClaim 是由持久化 running 状态表示的 worker 领取结果。
@@ -100,4 +101,24 @@ type AppendLogInput struct {
 	Level      string
 	Line       string
 	OccurredAt time.Time
+}
+
+// ExternalReceiptSettlementInput 是 Task Runtime 公共 capability 接受的完整绑定、无秘密回执。
+type ExternalReceiptSettlementInput struct {
+	TaskID          uint64
+	StageID         uint64
+	ExecutorType    moduleapi.StageExecutorType
+	Protocol        string
+	OperationID     string
+	Outcome         moduleapi.ExternalReceiptOutcome
+	FailureCode     string
+	IntegritySHA256 string
+}
+
+// ExternalReceiptSettlement 记录持久化结论及是否重放了完全相同的回执。
+type ExternalReceiptSettlement struct {
+	TaskID     uint64
+	StageID    uint64
+	Status     moduleapi.TaskStatus
+	Idempotent bool
 }

@@ -30,6 +30,10 @@ func (s failingLifecycleTaskService) Submit(context.Context, moduleapi.SubmitTas
 	return moduleapi.TaskReceipt{}, s.err
 }
 
+func (failingLifecycleTaskService) SettleExternalReceipt(context.Context, moduleapi.ExternalTaskReceipt) (moduleapi.ExternalReceiptSettlement, error) {
+	return moduleapi.ExternalReceiptSettlement{}, nil
+}
+
 func (failingLifecycleTaskService) Cancel(context.Context, uint64) error { return nil }
 
 func (failingLifecycleTaskService) RetryStage(context.Context, uint64, uint64) error { return nil }

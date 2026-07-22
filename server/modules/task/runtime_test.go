@@ -121,6 +121,81 @@ func TestRepositoryRecoversRunningStageAsUnknownAndTaskNeedsAttention(t *testing
 	assertInterruptedTaskRecovery(t, repository, receipt.TaskID)
 }
 
+func TestRuntimeSettlesExternalReceiptAfterCrashRecovery(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name        string
+		outcome     moduleapi.ExternalReceiptOutcome
+		failureCode string
+		wantTask    moduleapi.TaskStatus
+		wantStage   moduleapi.StageStatus
+	}{
+		{name: "success", outcome: moduleapi.ExternalReceiptOutcomeSuccess, wantTask: moduleapi.TaskStatusSuccess, wantStage: moduleapi.StageStatusSuccess},
+		{name: "failed", outcome: moduleapi.ExternalReceiptOutcomeFailed, failureCode: "runner_failed", wantTask: moduleapi.TaskStatusFailed, wantStage: moduleapi.StageStatusFailed},
+		{name: "needs attention", outcome: moduleapi.ExternalReceiptOutcomeNeedsAttention, failureCode: "healthz_failed", wantTask: moduleapi.TaskStatusNeedsAttention, wantStage: moduleapi.StageStatusUnknown},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			assertExternalReceiptSettlement(t, testCase.outcome, testCase.failureCode, testCase.wantTask, testCase.wantStage)
+		})
+	}
+}
+
+func assertExternalReceiptSettlement(t *testing.T, outcome moduleapi.ExternalReceiptOutcome, failureCode string, wantTask moduleapi.TaskStatus, wantStage moduleapi.StageStatus) {
+	t.Helper()
+	runtime, repository, receipt := recoveredExternalReceiptTask(t)
+	settlement, err := runtime.SettleExternalReceipt(context.Background(), externalReceipt(receipt.TaskID, outcome, failureCode))
+	if err != nil || settlement.Status != wantTask || settlement.Idempotent {
+		t.Fatalf("settlement = %#v err=%v", settlement, err)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != wantTask {
+		t.Fatalf("task status = %q, want %q", task.Status, wantTask)
+	}
+	assertExternalReceiptStageAndEvent(t, repository, receipt.TaskID, wantStage, 3)
+}
+
+func TestRuntimeRejectsMismatchedOrConflictingExternalReceiptAndReplaysExactReceipt(t *testing.T) {
+	t.Parallel()
+	runtime, repository, receipt := claimedExternalReceiptTask(t)
+	assertMismatchedExternalReceiptRejected(t, runtime, repository, receipt)
+	assertExternalReceiptReplayRules(t, runtime, repository, receipt)
+}
+
+func assertMismatchedExternalReceiptRejected(t *testing.T, runtime *Runtime, repository *taskstore.SQLRepository, receipt moduleapi.TaskReceipt) {
+	t.Helper()
+	mismatch := externalReceipt(receipt.TaskID, moduleapi.ExternalReceiptOutcomeSuccess, "")
+	mismatch.OperationID = "unexpected-operation"
+	if _, err := runtime.SettleExternalReceipt(context.Background(), mismatch); err == nil {
+		t.Fatal("mismatched receipt settled")
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("mismatched receipt changed task: %#v", task)
+	}
+}
+
+func assertExternalReceiptReplayRules(t *testing.T, runtime *Runtime, repository *taskstore.SQLRepository, receipt moduleapi.TaskReceipt) {
+	t.Helper()
+	value := externalReceipt(receipt.TaskID, moduleapi.ExternalReceiptOutcomeSuccess, "")
+	first, err := runtime.SettleExternalReceipt(context.Background(), value)
+	if err != nil || first.Idempotent {
+		t.Fatalf("first settlement = %#v err=%v", first, err)
+	}
+	second, err := runtime.SettleExternalReceipt(context.Background(), value)
+	if err != nil || !second.Idempotent || second.Status != moduleapi.TaskStatusSuccess {
+		t.Fatalf("replayed settlement = %#v err=%v", second, err)
+	}
+	conflict := value
+	conflict.IntegritySHA256 = strings.Repeat("b", 64)
+	if _, err := runtime.SettleExternalReceipt(context.Background(), conflict); !errors.Is(err, taskstore.ErrStateConflict) {
+		t.Fatalf("conflicting replay error = %v", err)
+	}
+	events, err := repository.ListEvents(context.Background(), receipt.TaskID, 0, 10)
+	if err != nil || len(events) != 2 || events[1].Type != taskmodel.EventTypeExternalReceiptSettled {
+		t.Fatalf("replay events = %#v err=%v", events, err)
+	}
+}
+
 func TestRuntimeListTasksAuthorizesBeforePagination(t *testing.T) {
 	t.Parallel()
 	runtime, _ := newRuntimeForTest(t)
@@ -375,6 +450,54 @@ func testSubmitInput(stageCount int, attempts int) moduleapi.SubmitTaskInput {
 		stages = append(stages, moduleapi.StagePlan{Key: fmt.Sprintf("stage-%d", index+1), ExecutorType: "test.executor", RetryPolicy: moduleapi.StageRetryPolicy{MaxAttempts: attempts}, RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent})
 	}
 	return moduleapi.SubmitTaskInput{Type: "test.runtime", Owner: moduleapi.TaskOwner{Type: "test", ID: fmt.Sprintf("owner-%d", time.Now().UnixNano())}, Plan: moduleapi.TaskPlan{Stages: stages}}
+}
+
+func externalReceiptSubmitInput() moduleapi.SubmitTaskInput {
+	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].RecoveryPolicy = moduleapi.StageRecoveryManualReconcile
+	input.Plan.Stages[0].ExternalReceipt = &moduleapi.ExternalReceiptExpectation{Protocol: "compose-runner/v1", OperationID: "operation-123"}
+	return input
+}
+
+func externalReceipt(taskID uint64, outcome moduleapi.ExternalReceiptOutcome, failureCode string) moduleapi.ExternalTaskReceipt {
+	return moduleapi.ExternalTaskReceipt{TaskID: taskID, ExecutorType: "test.executor", Protocol: "compose-runner/v1", OperationID: "operation-123", Outcome: outcome, FailureCode: failureCode, IntegritySHA256: strings.Repeat("a", 64)}
+}
+
+func claimedExternalReceiptTask(t *testing.T) (*Runtime, *taskstore.SQLRepository, moduleapi.TaskReceipt) {
+	t.Helper()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	receipt, err := runtime.Submit(context.Background(), externalReceiptSubmitInput())
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
+		t.Fatalf("claim external stage: found=%t err=%v", found, err)
+	}
+	return runtime, repository, receipt
+}
+
+func recoveredExternalReceiptTask(t *testing.T) (*Runtime, *taskstore.SQLRepository, moduleapi.TaskReceipt) {
+	t.Helper()
+	runtime, repository, receipt := claimedExternalReceiptTask(t)
+	if _, err := repository.RecoverInterruptedStages(context.Background(), time.Now().UTC()); err != nil {
+		t.Fatalf("recover interrupted stage: %v", err)
+	}
+	return runtime, repository, receipt
+}
+
+func assertExternalReceiptStageAndEvent(t *testing.T, repository *taskstore.SQLRepository, taskID uint64, wantStage moduleapi.StageStatus, wantEventCount int) {
+	t.Helper()
+	stages, err := repository.ListStages(context.Background(), taskID)
+	if err != nil || len(stages) != 1 || stages[0].Status != wantStage {
+		t.Fatalf("settled stages = %#v err=%v", stages, err)
+	}
+	events, err := repository.ListEvents(context.Background(), taskID, 0, 10)
+	if err != nil || len(events) != wantEventCount || events[len(events)-1].Type != taskmodel.EventTypeExternalReceiptSettled {
+		t.Fatalf("settlement events = %#v err=%v", events, err)
+	}
 }
 
 func mustTask(t *testing.T, repository *taskstore.SQLRepository, taskID uint64) taskmodel.Task {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,11 +20,12 @@ import (
 )
 
 const (
-	defaultWorkerCount   = 2
-	defaultPollInterval  = 250 * time.Millisecond
-	errorCodeExecutor    = "stage_executor_failed"
-	errorCodeCancelled   = "cancelled"
-	errorCodeMissingExec = "stage_executor_unavailable"
+	defaultWorkerCount          = 2
+	defaultPollInterval         = 250 * time.Millisecond
+	errorCodeExecutor           = "stage_executor_failed"
+	errorCodeCancelled          = "cancelled"
+	errorCodeMissingExec        = "stage_executor_unavailable"
+	externalReceiptSHA256Length = 64
 )
 
 // Runtime 拥有 Task 提交、阶段串行分发和进程内 worker 生命周期；每次状态变化仍以 PostgreSQL 持久化事实为权威。
@@ -152,6 +154,118 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 	r.signalWake()
 	r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+}
+
+// SettleExternalReceipt 通过 Task Runtime 边界接收短生命周期外部执行器的已绑定、无秘密回执。
+// 调用方必须使用部署侧可信交付路径；该 capability 刻意不是 HTTP 或远程 agent API。
+func (r *Runtime) SettleExternalReceipt(ctx context.Context, receipt moduleapi.ExternalTaskReceipt) (moduleapi.ExternalReceiptSettlement, error) {
+	if r == nil || r.repository == nil {
+		return moduleapi.ExternalReceiptSettlement{}, errors.New("task runtime repository is unavailable")
+	}
+	stage, expectation, err := r.boundExternalReceipt(ctx, receipt)
+	if err != nil {
+		return moduleapi.ExternalReceiptSettlement{}, err
+	}
+	settlement, err := r.repository.SettleExternalReceipt(ctx, taskstore.ExternalReceiptSettlementInput{
+		TaskID: receipt.TaskID, StageID: stage.ID, ExecutorType: receipt.ExecutorType, Protocol: expectation.Protocol,
+		OperationID: expectation.OperationID, Outcome: receipt.Outcome, FailureCode: receipt.FailureCode, IntegritySHA256: receipt.IntegritySHA256,
+	})
+	if err != nil {
+		return moduleapi.ExternalReceiptSettlement{}, err
+	}
+	r.publishExternalReceiptSettlement(receipt, settlement)
+	return moduleapi.ExternalReceiptSettlement{TaskID: settlement.TaskID, StageID: settlement.StageID, Status: settlement.Status, Idempotent: settlement.Idempotent}, nil
+}
+
+func (r *Runtime) boundExternalReceipt(ctx context.Context, receipt moduleapi.ExternalTaskReceipt) (taskmodel.Stage, *moduleapi.ExternalReceiptExpectation, error) {
+	if err := validateExternalReceipt(receipt); err != nil {
+		return taskmodel.Stage{}, nil, err
+	}
+	task, err := r.repository.Get(ctx, receipt.TaskID)
+	if err != nil {
+		return taskmodel.Stage{}, nil, err
+	}
+	var plan moduleapi.TaskPlan
+	if err := json.Unmarshal(task.Plan, &plan); err != nil {
+		return taskmodel.Stage{}, nil, fmt.Errorf("decode frozen task plan: %w", err)
+	}
+	stages, err := r.repository.ListStages(ctx, receipt.TaskID)
+	if err != nil {
+		return taskmodel.Stage{}, nil, err
+	}
+	return externalReceiptBinding(plan, stages, receipt)
+}
+
+func (r *Runtime) publishExternalReceiptSettlement(receipt moduleapi.ExternalTaskReceipt, settlement taskstore.ExternalReceiptSettlement) {
+	if settlement.Idempotent {
+		return
+	}
+	eventType := taskcontract.TaskRealtimeEventStageCompleted
+	if receipt.Outcome != moduleapi.ExternalReceiptOutcomeSuccess {
+		eventType = taskcontract.TaskRealtimeEventStageFailed
+	}
+	r.publishTask(receipt.TaskID, eventType)
+}
+
+func validateExternalReceipt(receipt moduleapi.ExternalTaskReceipt) error {
+	if !externalReceiptIdentityValid(receipt) {
+		return errors.New("external receipt identity is incomplete")
+	}
+	if !lowercaseSHA256(receipt.IntegritySHA256) {
+		return errors.New("external receipt integrity digest must be a lowercase sha256")
+	}
+	return validateExternalReceiptOutcome(receipt)
+}
+
+func externalReceiptIdentityValid(receipt moduleapi.ExternalTaskReceipt) bool {
+	return receipt.TaskID != 0 && strings.TrimSpace(string(receipt.ExecutorType)) != "" && strings.TrimSpace(receipt.Protocol) != "" && strings.TrimSpace(receipt.OperationID) != "" && len(receipt.Protocol) <= 128 && len(receipt.OperationID) <= 256 && len(receipt.FailureCode) <= 128
+}
+
+func lowercaseSHA256(value string) bool {
+	if len(value) != externalReceiptSHA256Length {
+		return false
+	}
+	for _, character := range value {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func validateExternalReceiptOutcome(receipt moduleapi.ExternalTaskReceipt) error {
+	switch receipt.Outcome {
+	case moduleapi.ExternalReceiptOutcomeSuccess:
+		if receipt.FailureCode != "" {
+			return errors.New("successful external receipt cannot contain a failure code")
+		}
+	case moduleapi.ExternalReceiptOutcomeFailed, moduleapi.ExternalReceiptOutcomeNeedsAttention:
+		if strings.TrimSpace(receipt.FailureCode) == "" {
+			return errors.New("non-success external receipt requires a failure code")
+		}
+	default:
+		return errors.New("external receipt outcome is unsupported")
+	}
+	return nil
+}
+
+func externalReceiptBinding(plan moduleapi.TaskPlan, stages []taskmodel.Stage, receipt moduleapi.ExternalTaskReceipt) (taskmodel.Stage, *moduleapi.ExternalReceiptExpectation, error) {
+	if len(plan.Stages) != len(stages) {
+		return taskmodel.Stage{}, nil, errors.New("frozen task plan does not match persisted stages")
+	}
+	for index, candidate := range plan.Stages {
+		if candidate.ExternalReceipt == nil || candidate.ExecutorType != receipt.ExecutorType || candidate.ExternalReceipt.Protocol != receipt.Protocol || candidate.ExternalReceipt.OperationID != receipt.OperationID {
+			continue
+		}
+		if index != len(plan.Stages)-1 {
+			return taskmodel.Stage{}, nil, errors.New("external receipt stage must be final in task plan")
+		}
+		if stages[index].Key != candidate.Key || stages[index].ExecutorType != receipt.ExecutorType {
+			return taskmodel.Stage{}, nil, errors.New("external receipt stage binding does not match persisted plan")
+		}
+		return stages[index], candidate.ExternalReceipt, nil
+	}
+	return taskmodel.Stage{}, nil, errors.New("external receipt does not match a frozen task plan expectation")
 }
 
 // GetTask 返回一个已持久化的 Task 读模型；返回值来自仓储事实而不是 worker 内存状态。
@@ -533,19 +647,33 @@ func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
 		return errors.New("task plan must contain at least one stage")
 	}
 	seen := make(map[string]struct{}, len(plan.Stages))
-	for _, stage := range plan.Stages {
-		if stage.Key == "" || stage.ExecutorType == "" || stage.RecoveryPolicy == "" {
-			return errors.New("task plan stage is incomplete")
+	for index, stage := range plan.Stages {
+		if err := r.validateStagePlan(stage, index, len(plan.Stages), seen); err != nil {
+			return err
 		}
-		if _, exists := seen[stage.Key]; exists {
-			return fmt.Errorf("task plan contains duplicate stage %q", stage.Key)
-		}
-		if _, exists := r.executorFor(stage.ExecutorType); !exists {
-			return fmt.Errorf("task plan references unregistered stage executor %q", stage.ExecutorType)
-		}
-		seen[stage.Key] = struct{}{}
 	}
 	return nil
+}
+
+func (r *Runtime) validateStagePlan(stage moduleapi.StagePlan, index int, total int, seen map[string]struct{}) error {
+	if stage.Key == "" || stage.ExecutorType == "" || stage.RecoveryPolicy == "" {
+		return errors.New("task plan stage is incomplete")
+	}
+	if _, exists := seen[stage.Key]; exists {
+		return fmt.Errorf("task plan contains duplicate stage %q", stage.Key)
+	}
+	if _, exists := r.executorFor(stage.ExecutorType); !exists {
+		return fmt.Errorf("task plan references unregistered stage executor %q", stage.ExecutorType)
+	}
+	if stage.ExternalReceipt != nil && !externalReceiptExpectationValid(stage.ExternalReceipt, index, total) {
+		return errors.New("external receipt expectation must bind the final stage with a protocol and operation identity")
+	}
+	seen[stage.Key] = struct{}{}
+	return nil
+}
+
+func externalReceiptExpectationValid(expectation *moduleapi.ExternalReceiptExpectation, index int, total int) bool {
+	return index == total-1 && strings.TrimSpace(expectation.Protocol) != "" && strings.TrimSpace(expectation.OperationID) != "" && len(expectation.Protocol) <= 128 && len(expectation.OperationID) <= 256
 }
 
 func (r *Runtime) executorFor(executorType moduleapi.StageExecutorType) (moduleapi.StageExecutor, bool) {

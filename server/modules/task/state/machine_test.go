@@ -18,6 +18,8 @@ func TestTaskTransitionsRespectLifecycle(t *testing.T) {
 		{moduleapi.TaskStatusScheduled, moduleapi.TaskStatusCancelled},
 		{moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention},
 		{moduleapi.TaskStatusNeedsAttention, moduleapi.TaskStatusRunning},
+		{moduleapi.TaskStatusNeedsAttention, moduleapi.TaskStatusSuccess},
+		{moduleapi.TaskStatusNeedsAttention, moduleapi.TaskStatusFailed},
 	} {
 		if err := ValidateTaskTransition(transition.from, transition.to); err != nil {
 			t.Fatalf("expected task transition %s -> %s to be valid: %v", transition.from, transition.to, err)
@@ -37,6 +39,9 @@ func TestStageTransitionsProtectUnknownRecovery(t *testing.T) {
 	}
 	if err := ValidateStageTransition(moduleapi.StageStatusUnknown, moduleapi.StageStatusPending); err != nil {
 		t.Fatalf("expected manual retry reset to be valid: %v", err)
+	}
+	if err := ValidateStageTransition(moduleapi.StageStatusUnknown, moduleapi.StageStatusSuccess); err != nil {
+		t.Fatalf("expected receipt-backed stage settlement to be valid: %v", err)
 	}
 	if err := ValidateStageTransition(moduleapi.StageStatusSuccess, moduleapi.StageStatusPending); !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("expected completed stage rewrite rejection, got %v", err)
