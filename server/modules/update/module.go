@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	moduleID                = "platform-update"
-	platformUpdateMenuOrder = 103
+	moduleID                    = "platform-update"
+	platformUpdateMenuOrder     = 103
+	platformUpdateCheckSchedule = "0 0 4 * * *"
 )
 
 // Module 拥有更新发现的注册、周期检查与 HTTP 读取面。
@@ -50,7 +51,7 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	if ctx.CronRegistry != nil {
-		ctx.CronRegistry.Register(cronx.Job{Name: "platform-update.check", Key: "platform-update.check", ModuleKey: moduleID, Module: moduleID, Category: cronx.JobCategoryMaintenance, TitleKey: "scheduledTask.platformUpdateCheck.title", DescriptionKey: "scheduledTask.platformUpdateCheck.description", Schedule: "0 4 * * *", DefaultEnabled: true, Handler: func(runCtx context.Context, _ string) (cronx.JobRunResult, error) {
+		ctx.CronRegistry.Register(cronx.Job{Name: "platform-update.check", Key: "platform-update.check", ModuleKey: moduleID, Module: moduleID, Category: cronx.JobCategoryMaintenance, TitleKey: "scheduledTask.platformUpdateCheck.title", DescriptionKey: "scheduledTask.platformUpdateCheck.description", Schedule: platformUpdateCheckSchedule, DefaultEnabled: true, Handler: func(runCtx context.Context, _ string) (cronx.JobRunResult, error) {
 			status := m.service.Check(runCtx)
 			if status.CheckError != "" {
 				return cronx.JobRunResult{Summary: status.CheckError, Stage: "failed", AffectedResource: "platform_update"}, fmt.Errorf("check platform update: %s", status.CheckError)
