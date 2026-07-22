@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -106,12 +107,20 @@ func recordDependencyHistorySamples(
 			input.observedAt,
 			point,
 		); err != nil {
+			// 采样器退出时，Redis 写入可能与生命周期取消并发结束；该结果不是依赖故障。
+			if isExpectedDependencyHistoryCancellation(err) {
+				continue
+			}
 			logger.Category(zap.L(), logger.CategoryRuntimeMetrics).Warn("store dependency history sample failed",
 				zap.String("dependency", string(item.kind)),
 				zap.Error(err),
 			)
 		}
 	}
+}
+
+func isExpectedDependencyHistoryCancellation(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // buildDependencyHistory 读取指定依赖和窗口的短期聚合历史。

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -73,6 +74,18 @@ func TestBuildDependencyHistoryReportsUnavailableWithoutFailingCurrentSnapshot(t
 	}
 	if len(history.Points) != 0 {
 		t.Fatalf("expected no history points, got %#v", history.Points)
+	}
+}
+
+func TestDependencyHistoryCancellationIsNotTreatedAsDependencyFailure(t *testing.T) {
+	if !isExpectedDependencyHistoryCancellation(fmt.Errorf("write failed: %w", context.Canceled)) {
+		t.Fatal("expected wrapped cancellation to be recognized")
+	}
+	if !isExpectedDependencyHistoryCancellation(context.DeadlineExceeded) {
+		t.Fatal("expected deadline exceeded to be recognized")
+	}
+	if isExpectedDependencyHistoryCancellation(errors.New("redis unavailable")) {
+		t.Fatal("unexpectedly recognized redis failure as cancellation")
 	}
 }
 
