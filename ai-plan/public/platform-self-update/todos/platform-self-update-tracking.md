@@ -50,7 +50,8 @@ closeout:
 - Batch 4 added the independent `platform-backup` capability with retained artifact metadata and recovery evidence.
 - Task Runtime now settles bound, no-secret external receipts exactly once after a runner handoff.
 - Backup now owns a runner handoff that freezes operation/task-bound artifact paths and re-verifies the resolved files, SHA-256, and byte counts before an idempotent Backup fact is created.
-- Release manifest verification now includes a checksummed, official, immutable Compose runner identity; the next batch is `compose-fixture-execution`.
+- Release manifest verification now includes a checksummed, official, immutable Compose runner identity.
+- The hermetic Compose fixture proves digest rejection, same-tag reconstruction and fixed runner sequencing; the next batch is `compose-execution-and-recovery`.
 
 ## Task Checklist
 
@@ -62,7 +63,7 @@ closeout:
 - [x] `task-receipt-settlement`
 - [x] `backup-runner-handoff`
 - [x] `runner-digest-authority`
-- [ ] `compose-fixture-execution`
+- [x] `compose-fixture-execution`
 - [ ] `compose-execution-and-recovery`
 - [ ] `archive-readiness`
 
@@ -85,15 +86,15 @@ closeout:
     "compose-runner-preflight-contract",
     "task-receipt-settlement",
     "backup-runner-handoff",
-    "runner-digest-authority"
+    "runner-digest-authority",
+    "compose-fixture-execution"
   ],
   "pending_batches": [
-    "compose-fixture-execution",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "compose-fixture-execution",
+  "next_batch": "compose-execution-and-recovery",
   "closeout_status": "in_progress"
 }
 ```

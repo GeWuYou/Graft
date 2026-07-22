@@ -59,6 +59,11 @@
 - Update manifest verification now requires official GHCR server, web and sibling runner image/reference/digest triples, and Compose preflight rejects a missing, mutable or non-official runner reference.
 - Removed the release-stage reduced manifest overwrite; validated update tests, backend completion entrypoint, publish YAML parsing and diff hygiene.
 
+## 2026-07-22 Compose Fixture Execution
+
+- Added the hermetic local-version Compose runner fixture in `5a5ecddd`; it verifies the restricted runner action order, receipt persistence, immutable digest rejection and same-tag server/web target reconstruction.
+- A migration-stage failure remains `NEEDS_ATTENTION` and exercises no database restore action. Compose configuration validation ran without starting containers, preserving the worktree runtime boundary.
+
 ## Loop Batch State
 
 ```json
@@ -72,15 +77,15 @@
     "compose-runner-preflight-contract",
     "task-receipt-settlement",
     "backup-runner-handoff",
-    "runner-digest-authority"
+    "runner-digest-authority",
+    "compose-fixture-execution"
   ],
   "pending_batches": [
-    "compose-fixture-execution",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "compose-fixture-execution",
+  "next_batch": "compose-execution-and-recovery",
   "closeout_status": "in_progress"
 }
 ```
