@@ -104,6 +104,10 @@ var scalarDocsPageTemplate = template.Must(template.New("scalar-docs").Parse(`<!
       .graft-docs-stat[data-operation-method="PUT"] { --graft-operation-color: #d97706; }
       .graft-docs-stat[data-operation-method="PATCH"] { --graft-operation-color: #c2410c; }
       .graft-docs-stat[data-operation-method="DELETE"] { --graft-operation-color: #dc2626; }
+      .graft-docs-stat[data-operation-method="HEAD"] { --graft-operation-color: #7c3aed; }
+      .graft-docs-stat[data-operation-method="OPTIONS"] { --graft-operation-color: #2563eb; }
+      .graft-docs-stat[data-operation-method="TRACE"] { --graft-operation-color: #0891b2; }
+      .graft-docs-stat[data-operation-method="CONNECT"] { --graft-operation-color: #475569; }
       .graft-scalar-container { min-height: 0; overflow: hidden; }
       .graft-scalar-container > div, .graft-scalar-container > div > div { height: 100%; min-height: 0; }
       @media (max-width: 640px) {
@@ -346,9 +350,21 @@ func operationRequiresAuthentication(operation *openapi3.Operation, defaultRequi
 		return false
 	}
 	if operation.Security == nil {
-		return len(defaultRequirements) > 0
+		return securityRequirementsRequireAuthentication(defaultRequirements)
 	}
-	return len(*operation.Security) > 0
+	return securityRequirementsRequireAuthentication(*operation.Security)
+}
+
+func securityRequirementsRequireAuthentication(requirements openapi3.SecurityRequirements) bool {
+	if len(requirements) == 0 {
+		return false
+	}
+	for _, requirement := range requirements {
+		if len(requirement) == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func joinOpenAPITagDescription(description string, dashboard string) string {
@@ -381,7 +397,7 @@ func renderOpenAPITagDashboard(summary openAPIDocsTagSummary) string {
 
 // renderScalarDocsHTML 根据指定的 OpenAPI 规范 URL 渲染 Scalar 文档 HTML 页面。
 //
-// specURL 指定页面加载的 OpenAPI 规范地址。
+// specURL 指定页面加载的 OpenAPI 规范地址；summary 提供文档健康概览数据。
 //
 // 返回渲染后的 HTML 内容；如果配置编码或模板渲染失败，则返回错误。
 func renderScalarDocsHTML(specURL string, summary openAPIDocsOperationSummary) ([]byte, error) {

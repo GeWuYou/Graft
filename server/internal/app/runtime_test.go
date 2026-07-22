@@ -1366,6 +1366,13 @@ func TestEnrichOpenAPITagDescriptionsBuildsOverviewAndSecurityFromOperations(t *
 	}
 }
 
+func TestOperationRequiresAuthenticationTreatsEmptySecurityAlternativeAsAnonymous(t *testing.T) {
+	operation := &openapi3.Operation{Security: &openapi3.SecurityRequirements{{}}}
+	if operationRequiresAuthentication(operation, openapi3.SecurityRequirements{{"bearerAuth": {}}}) {
+		t.Fatal("expected an empty security requirement alternative to allow anonymous access")
+	}
+}
+
 func TestBuildMCPDocsCatalogKeepsContractVisibleWhenMCPDisabled(t *testing.T) {
 	payload, err := buildMCPDocsCatalog(generatedOpenAPIBundleJSON, false)
 	if err != nil {
