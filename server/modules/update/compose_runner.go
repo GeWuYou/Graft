@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"graft/server/internal/moduleapi"
 )
 
 var runnerOperationID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -21,6 +23,12 @@ type ComposeRunnerActions interface {
 	Recreate(context.Context, RunnerInput) error
 	DockerHealth(context.Context, RunnerInput) error
 	Healthz(context.Context, RunnerInput) error
+}
+
+// ComposeBackupReceiptProvider 让 runner 将备份阶段生成的无秘密完整性元数据写入 receipt。
+// Backup owner 会在目标 server 启动后重新读取工件并验证这些声明。
+type ComposeBackupReceiptProvider interface {
+	BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput
 }
 
 const (
@@ -49,8 +57,13 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 		receipt.FailureCode = runnerFailureBackup
 		return writeRunnerReceipt(input, receipt, err)
 	}
+	if provider, ok := actions.(ComposeBackupReceiptProvider); ok {
+		completion := provider.BackupReceipt()
+		receipt.BackupCompletion = &completion
+	}
 	if err := actions.Pull(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailurePull
+		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
 		return writeRunnerReceipt(input, receipt, err)
 	}
 
@@ -74,6 +87,13 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	}
 	receipt.Succeeded = true
 	return writeRunnerReceipt(input, receipt, nil)
+}
+
+func recoverPreMigration(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) bool {
+	recovery, ok := actions.(interface {
+		RecoverPreMigration(context.Context, RunnerInput) error
+	})
+	return ok && recovery.RecoverPreMigration(ctx, input) == nil
 }
 
 func validateRunnerExecution(input RunnerInput, actions ComposeRunnerActions) error {

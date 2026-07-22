@@ -48,6 +48,18 @@ func TestExecuteComposeRunnerMigrationFailureNeverRestoresDatabase(t *testing.T)
 	}
 }
 
+func TestExecuteComposeRunnerRecoversOnlyBeforeMigration(t *testing.T) {
+	input := fixtureRunnerInput(t.TempDir())
+	actions := &tracingRunnerActions{failAt: "compose pull", recover: true}
+	receipt, err := ExecuteComposeRunner(context.Background(), input, actions)
+	if err == nil {
+		t.Fatal("expected pull failure")
+	}
+	if receipt.MigrationStarted || !receipt.RecoveryCompleted || ClassifyRunnerReceipt(receipt) != ExecutionOutcomeRecovered {
+		t.Fatalf("unexpected receipt: %#v", receipt)
+	}
+}
+
 func TestExecuteComposeRunnerRejectsDigestMismatchBeforeBackup(t *testing.T) {
 	input := fixtureRunnerInput(t.TempDir())
 	input.Preflight.WebReference = "ghcr.io/gewuyou/graft-web:latest"
@@ -123,8 +135,16 @@ func readFixtureReceipt(t *testing.T, input RunnerInput) RunnerReceipt {
 }
 
 type tracingRunnerActions struct {
-	trace  []string
-	failAt string
+	trace   []string
+	failAt  string
+	recover bool
+}
+
+func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, RunnerInput) error {
+	if !actions.recover {
+		return errors.New("fixture recovery unavailable")
+	}
+	return nil
 }
 
 func (actions *tracingRunnerActions) Backup(context.Context, RunnerInput) error {

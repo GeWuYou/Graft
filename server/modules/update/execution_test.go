@@ -42,7 +42,10 @@ func TestClassifyRunnerReceiptNeverRollsBackAfterMigration(t *testing.T) {
 	if got := ClassifyRunnerReceipt(RunnerReceipt{MigrationStarted: true, FailureCode: "healthz_failed"}); got != ExecutionOutcomeNeedsAttention {
 		t.Fatalf("got %s", got)
 	}
-	if got := ClassifyRunnerReceipt(RunnerReceipt{MigrationStarted: false, FailureCode: "pull_failed"}); got != ExecutionOutcomeRecovered {
+	if got := ClassifyRunnerReceipt(RunnerReceipt{MigrationStarted: false, FailureCode: "pull_failed", RecoveryCompleted: true}); got != ExecutionOutcomeRecovered {
+		t.Fatalf("got %s", got)
+	}
+	if got := ClassifyRunnerReceipt(RunnerReceipt{MigrationStarted: false, FailureCode: "pull_failed"}); got != ExecutionOutcomeFailed {
 		t.Fatalf("got %s", got)
 	}
 }

@@ -1,9 +1,14 @@
 package update
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"strings"
+
+	"graft/server/internal/moduleapi"
 )
 
 const runnerProtocolVersion = 1
@@ -40,11 +45,13 @@ type RunnerInput struct {
 
 // RunnerReceipt 是 runner 写入受限状态目录的无秘密结算证据。
 type RunnerReceipt struct {
-	ProtocolVersion  int
-	OperationID      string
-	MigrationStarted bool
-	Succeeded        bool
-	FailureCode      string
+	ProtocolVersion   int
+	OperationID       string
+	MigrationStarted  bool
+	Succeeded         bool
+	FailureCode       string
+	RecoveryCompleted bool
+	BackupCompletion  *moduleapi.CompleteBackupRunnerHandoffInput
 }
 
 // ExecutionOutcome 将 receipt 转换为 Update 业务状态。迁移已开始后不自动回退数据库。
@@ -132,8 +139,18 @@ func ClassifyRunnerReceipt(value RunnerReceipt) ExecutionOutcome {
 	if value.MigrationStarted {
 		return ExecutionOutcomeNeedsAttention
 	}
-	if strings.TrimSpace(value.FailureCode) != "" {
+	if value.RecoveryCompleted {
 		return ExecutionOutcomeRecovered
 	}
 	return ExecutionOutcomeFailed
+}
+
+// RunnerReceiptIntegrity 为 Task Runtime 提供可重复计算的 receipt 完整性摘要；它不把 receipt 内容直接写入 Task 事实。
+func RunnerReceiptIntegrity(value RunnerReceipt) (string, error) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return "", errors.New("encode runner receipt integrity")
+	}
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:]), nil
 }
