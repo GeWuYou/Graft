@@ -58,6 +58,7 @@
       @update:drawer-visible="mobileNavigationVisible = $event"
     />
   </div>
+  <component :is="updateProvider" />
   <force-password-change-dialog />
 </template>
 <script setup lang="ts">
@@ -69,6 +70,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
+import { updateProvider } from '@/modules/update';
 import { useResponsiveVariant } from '@/shared/composables';
 import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';

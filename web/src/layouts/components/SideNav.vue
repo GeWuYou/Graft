@@ -18,7 +18,6 @@
             :class="logoCls"
             :label="t('common.appName')"
           />
-          <component :is="updateVersionEntry" v-if="!logoLabelHidden" />
         </span>
       </template>
       <menu-content :nav-data="menu" :show-sections="!renderCompact" />
@@ -39,7 +38,6 @@ import { prefix } from '@/config/global';
 import { findAllExpandedMenuPaths, findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
-import { updateVersionEntry } from '@/modules/update';
 import { getActive } from '@/router';
 import { BrandIdentity } from '@/shared/components/brand';
 import { useSettingStore } from '@/store';

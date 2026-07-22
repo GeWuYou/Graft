@@ -1,3 +1,4 @@
+menu.platform.maintenance: 系统维护
 menu.platform.update: 更新中心
 scheduledTask.platformUpdateCheck.title: 检查平台更新
 scheduledTask.platformUpdateCheck.description: 检查发布源中是否存在经过验证的较新平台版本。

@@ -110,6 +110,10 @@ vi.mock('@/store', () => ({
   useTabsRouterStore: () => storeState.tabsRouterStore,
 }));
 
+vi.mock('@/modules/update', () => ({
+  updateProvider: { name: 'UpdateProvider', template: '<span />' },
+}));
+
 vi.mock('@/utils/logger', () => ({
   createLogger: () => ({
     debug: vi.fn(),
