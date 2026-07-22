@@ -1,19 +1,19 @@
 # Platform Self Update
 
-## Current Status Summary
+## Final Status Summary
 
 - Topic objective: deliver Graft self-update as a controlled platform lifecycle capability.
-- Current status: `active`
+- Current status: `archive-ready`
 - Task class: `cross-boundary`
 - Intake summary: long-running feature using the default `topic-completion-loop`.
 - Canonical authority:
   - `ai-plan/design/release/`
   - `compose.yml`
   - `server/modules/*` and `web/src/modules/*` module conventions
-- Derived delivery automation: `.github/workflows/publish.yml` implements the release design; it does not define release policy.
-- Completed so far: Work Intake, release-manifest authority, release design, delivery roadmap, Compose runner ADR, read-only update discovery, and Update Center UI.
-- Loop closeout: `in-progress`; three implementation batches remain before archive readiness.
-- Next implementation batch: backup capability.
+- Completed scope: release-manifest authority, verified discovery cache, Update Center, independent backup and Task
+  capabilities, manifest-pinned one-shot Compose runner, durable Update history, protected execution APIs, and Compose
+  smoke evidence.
+- Archive-ready verdict: `confirmed` after the final cross-boundary validation on 2026-07-23.
 
 ## Recovery Receipt
 
@@ -47,26 +47,33 @@ Out of scope:
 - deliver read-only update discovery, installation profile, APIs, scheduler, and Update Center
 - add independent backup capability, then Compose execution and recovery evidence
 
-## Current Recovery Point
+## Final Closeout
 
-- Read-only update discovery and Update Center UI are complete and committed.
-- The deployment-profile capability matrix must remain authoritative over a declared environment value alone.
-- The loop remains in progress with `backup-capability` as the next batch.
+- The Compose executor consumes Task and Backup capabilities; it does not own their facts or persistence.
+- Official execution requires a fresh verified catalog, exact manual version confirmation, and manifest-pinned server,
+  web, and runner digests. Binary deployments remain verified manual guidance only.
+- The runner is non-root, one-shot, no-HTTP, and receipt-writing. Post-migration failure is `NEEDS_ATTENTION`; the
+  system does not promise automatic database rollback.
+- Future automatic binary replacement, multi-node orchestration, Kubernetes execution, and controlled database restore
+  require a separate topic and design authority.
 
 ## Work Intake
 
 - This topic was created through `Work Intake`.
 - Persist the full `Work Contract` in the tracking file, not here.
 
-## Pending Batch Direction
+## Archive Evidence
 
-- `backup-capability`
-- `compose-execution-and-recovery`
-- `archive-readiness`
+- Final implementation head: `01abcd32 feat(update): enforce release rollout authority`.
+- The prerequisite-to-rollout commit chain begins at `47358a21` and contains 17 scoped commits.
+- The active recovery index no longer routes to this topic. Historical evidence remains in this directory.
 
 ## Validation Targets
 
 ```bash
+cd server && go run ./cmd/graft validate backend
+cd web && bun run check
+scripts/smoke_compose_runner.sh
 git diff --check
 ```
 

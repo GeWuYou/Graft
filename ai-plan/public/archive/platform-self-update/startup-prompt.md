@@ -1,4 +1,5 @@
-Continue the `platform-self-update` topic with `$graft-multi-agent-loop` in `topic-completion-loop` mode.
+Historical startup prompt for the archived `platform-self-update` topic. Do not resume this topic; start a new
+bounded topic after the normal root startup preflight for follow-on work.
 
 Round context:
 
