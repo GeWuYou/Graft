@@ -5,6 +5,7 @@ import boxes from '@iconify-icons/lucide/boxes';
 import scheduledTasks from '@iconify-icons/lucide/calendar-clock';
 import clock from '@iconify-icons/lucide/clock';
 import container from '@iconify-icons/lucide/container';
+import downloadCloud from '@iconify-icons/lucide/download-cloud';
 import fileSearch from '@iconify-icons/lucide/file-search';
 import folder from '@iconify-icons/lucide/folder';
 import gauge from '@iconify-icons/lucide/gauge';
@@ -28,6 +29,7 @@ import slidersHorizontal from '@iconify-icons/lucide/sliders-horizontal';
 import target from '@iconify-icons/lucide/target';
 import users from '@iconify-icons/lucide/users';
 import workflow from '@iconify-icons/lucide/workflow';
+import wrench from '@iconify-icons/lucide/wrench';
 import docker from '@iconify-icons/tabler/brand-docker';
 
 // 服务端菜单声明拥有语义键 authority；此处只负责把已审查的语义键映射到静态资源。
@@ -61,6 +63,8 @@ const menuIcons = {
   'audit-trail': history,
   'scheduled-automation': scheduledTasks,
   'platform-configuration': settings,
+  'system-maintenance': wrench,
+  'platform-update': downloadCloud,
   'announcement-publishing': megaphone,
   notification: bell,
   time: clock,

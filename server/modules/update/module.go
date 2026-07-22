@@ -130,7 +130,7 @@ func registerMenu(registry *menu.Registry) error {
 	if registry == nil {
 		return errors.New("menu registry is unavailable")
 	}
-	registry.Register(menu.Item{Code: "platform-maintenance", ParentCode: "domain.platform", Kind: menu.NodeKindGroup, TitleKey: "menu.platform.maintenance", Icon: "platform-configuration", Order: platformUpdateMenuOrder, Module: moduleID})
+	registry.Register(menu.Item{Code: "platform-maintenance", ParentCode: "domain.platform", Kind: menu.NodeKindGroup, TitleKey: "menu.platform.maintenance", Icon: "system-maintenance", Order: platformUpdateMenuOrder, Module: moduleID})
 	registry.Register(menu.Item{Code: "platform-update.center", ParentCode: "platform-maintenance", Kind: menu.NodeKindEntry, TitleKey: "menu.platform.update", Path: updatecontract.UpdateMenuPath, Icon: "platform-update", Order: platformUpdateMenuOrder, Permission: updatecontract.UpdateReadPermission.String(), Module: moduleID})
 	return nil
 }
