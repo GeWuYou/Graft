@@ -12,15 +12,13 @@
     >
       <template #logo>
         <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" @click="goHome">
-          <span class="graft-side-nav-brand-row">
-            <brand-identity
-              :compact="logoCompact"
-              :label-hidden="logoLabelHidden"
-              :class="logoCls"
-              :label="t('common.appName')"
-            />
-            <component :is="updateVersionEntry" v-if="!logoLabelHidden" />
-          </span>
+          <brand-identity
+            :compact="logoCompact"
+            :label-hidden="logoLabelHidden"
+            :class="logoCls"
+            :label="t('common.appName')"
+          />
+          <component :is="updateVersionEntry" v-if="!logoLabelHidden" />
         </span>
       </template>
       <menu-content :nav-data="menu" :show-sections="!renderCompact" />
@@ -249,11 +247,4 @@ const goHome = () => {
   void shellNavigation.goHome();
 };
 </script>
-<style lang="less" scoped>
-.graft-side-nav-brand-row {
-  align-items: center;
-  display: inline-flex;
-  gap: var(--td-comp-margin-s);
-  justify-content: flex-start;
-}
-</style>
+<style lang="less" scoped></style>
