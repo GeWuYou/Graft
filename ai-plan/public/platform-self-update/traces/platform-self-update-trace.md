@@ -29,6 +29,12 @@
 - The upgrade button remains disabled until the Compose executor, backup, and migration APIs exist; binary installations receive explicit manual guidance.
 - Completed `update-center-ui`; the loop remains in progress with `backup-capability` next.
 
+## 2026-07-22 Backup Capability
+
+- Added the independent `platform-backup` module and narrow `BackupService` capability for Update to consume without accessing backup storage internals.
+- Backup facts retain only controlled artifact references, SHA-256 integrity metadata, retention status, and recovery evidence; no backup content, `.env` secret, restore endpoint, or migration behavior is exposed.
+- Validated the module, live migration SQL, and backend completion entrypoint before committing `40f61800`.
+
 ## Loop Batch State
 
 ```json
@@ -37,15 +43,15 @@
   "completed_batches": [
     "release-authority-and-manifest",
     "read-only-update-discovery",
-    "update-center-ui"
+    "update-center-ui",
+    "backup-capability"
   ],
   "pending_batches": [
-    "backup-capability",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "backup-capability",
-  "closeout_status": "in-progress"
+  "next_batch": "compose-execution-and-recovery",
+  "closeout_status": "completed"
 }
 ```

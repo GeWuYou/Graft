@@ -46,14 +46,15 @@ closeout:
 - Work Intake completed and the topic was bootstrapped.
 - Batch 1 established release-manifest, release authority, roadmap, and Compose runner ADR.
 - Batch 2 added read-only release discovery, the installation profile, and the protected status/check API.
-- Batch 3 added the front-end Update Center and the logo version affordance. The loop remains in progress; the next batch is `backup-capability`.
+- Batch 3 added the front-end Update Center and the logo version affordance.
+- Batch 4 added the independent `platform-backup` capability with retained artifact metadata and recovery evidence. The next batch is `compose-execution-and-recovery`.
 
 ## Task Checklist
 
 - [x] `release-authority-and-manifest`
 - [x] `read-only-update-discovery`
 - [x] `update-center-ui`
-- [ ] `backup-capability`
+- [x] `backup-capability`
 - [ ] `compose-execution-and-recovery`
 - [ ] `archive-readiness`
 
@@ -71,15 +72,15 @@ closeout:
   "completed_batches": [
     "release-authority-and-manifest",
     "read-only-update-discovery",
-    "update-center-ui"
+    "update-center-ui",
+    "backup-capability"
   ],
   "pending_batches": [
-    "backup-capability",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "backup-capability",
-  "closeout_status": "in-progress"
+  "next_batch": "compose-execution-and-recovery",
+  "closeout_status": "completed"
 }
 ```
