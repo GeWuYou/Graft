@@ -37,6 +37,7 @@ func (r *serviceTestRepository) PrepareRunnerHandoff(_ context.Context, plan mod
 	r.plan = plan
 	return plan, nil
 }
+func (*serviceTestRepository) CancelRunnerHandoff(context.Context, string, uint64) error { return nil }
 func (r *serviceTestRepository) GetRunnerHandoff(_ context.Context, _ string, _ uint64) (moduleapi.BackupRunnerHandoffPlan, uint64, error) {
 	return r.plan, r.settledID, nil
 }

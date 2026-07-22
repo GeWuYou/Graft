@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Create(context.Context, moduleapi.CreateBackupInput) (moduleapi.Backup, error)
 	PrepareRunnerHandoff(context.Context, moduleapi.BackupRunnerHandoffPlan) (moduleapi.BackupRunnerHandoffPlan, error)
+	CancelRunnerHandoff(context.Context, string, uint64) error
 	GetRunnerHandoff(context.Context, string, uint64) (moduleapi.BackupRunnerHandoffPlan, uint64, error)
 	CompleteRunnerHandoff(context.Context, moduleapi.CompleteBackupRunnerHandoffInput) (moduleapi.BackupRunnerHandoffCompletion, error)
 	Get(context.Context, uint64) (moduleapi.Backup, error)

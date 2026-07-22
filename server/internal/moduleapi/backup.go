@@ -119,6 +119,7 @@ type BackupRunnerHandoffCompletion struct {
 type BackupService interface {
 	Create(ctx context.Context, input CreateBackupInput) (Backup, error)
 	PrepareRunnerHandoff(ctx context.Context, plan BackupRunnerHandoffPlan) (BackupRunnerHandoffPlan, error)
+	CancelRunnerHandoff(ctx context.Context, operationID string, taskID uint64) error
 	CompleteRunnerHandoff(ctx context.Context, input CompleteBackupRunnerHandoffInput) (BackupRunnerHandoffCompletion, error)
 	Get(ctx context.Context, id uint64) (Backup, error)
 	RecordRestoreEvidence(ctx context.Context, input RecordBackupRestoreInput) (Backup, error)

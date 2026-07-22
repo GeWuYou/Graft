@@ -21,6 +21,14 @@ func (s *Service) PrepareRunnerHandoff(ctx context.Context, plan moduleapi.Backu
 	return s.repository.PrepareRunnerHandoff(ctx, plan)
 }
 
+// CancelRunnerHandoff 仅撤销未开始的 runner handoff，供调用方在 runner 启动前失败时清理冻结计划。
+func (s *Service) CancelRunnerHandoff(ctx context.Context, operationID string, taskID uint64) error {
+	if s == nil || s.repository == nil {
+		return moduleapi.ErrBackupInvalidInput
+	}
+	return s.repository.CancelRunnerHandoff(ctx, operationID, taskID)
+}
+
 // CompleteRunnerHandoff 重新读取冻结引用的工件并验证大小和 SHA-256，避免 runner 用任意引用或伪造元数据创建备份事实。
 func (s *Service) CompleteRunnerHandoff(ctx context.Context, input moduleapi.CompleteBackupRunnerHandoffInput) (moduleapi.BackupRunnerHandoffCompletion, error) {
 	if s == nil || s.repository == nil {

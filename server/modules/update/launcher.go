@@ -66,7 +66,9 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 		return fmt.Errorf("close compose runner pull result: %w", err)
 	}
 	configuration, host := composeRunnerContainerConfig(input, inputPath)
-	created, err := l.client.ContainerCreate(ctx, mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}, Name: "graft-update-" + input.OperationID})
+	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}}
+	options.Name = composeRunnerContainerName(input.OperationID)
+	created, err := l.client.ContainerCreate(ctx, options)
 	if err != nil {
 		return fmt.Errorf("create compose runner: %w", err)
 	}
@@ -75,6 +77,8 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 	}
 	return nil
 }
+
+func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
 
 func persistRunnerInput(input RunnerInput) (string, error) {
 	if !runnerOperationID.MatchString(input.OperationID) || !filepath.IsAbs(input.Preflight.ComposeRoot) {

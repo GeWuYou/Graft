@@ -80,6 +80,12 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 	}
 	if err := s.launcher.Launch(ctx, input); err != nil {
 		operation.Outcome, operation.FailureCode = ExecutionOutcomeFailed, "runner_launch_failed"
+		if cleanupErr := s.coordinator.CancelBeforeLaunch(ctx, operation); cleanupErr != nil {
+			operation.FailureCode = "runner_launch_cleanup_failed"
+			_ = s.operations.Settle(ctx, operation)
+			s.publishAudit(ctx, operation, false, operation.FailureCode)
+			return fmt.Errorf("launch compose update runner: %w; reconcile launch handoff: %w", err, cleanupErr)
+		}
 		_ = s.operations.Settle(ctx, operation)
 		s.publishAudit(ctx, operation, false, operation.FailureCode)
 		return fmt.Errorf("launch compose update runner: %w", err)

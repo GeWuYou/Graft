@@ -29,6 +29,22 @@ func (r *SQLRepository) PrepareRunnerHandoff(ctx context.Context, plan moduleapi
 	return plan, nil
 }
 
+// CancelRunnerHandoff 删除尚未交给 runner 执行的冻结计划；已完成的备份事实绝不由此路径删除。
+func (r *SQLRepository) CancelRunnerHandoff(ctx context.Context, operationID string, taskID uint64) error {
+	if r == nil || r.db == nil || strings.TrimSpace(operationID) == "" || taskID == 0 {
+		return moduleapi.ErrBackupInvalidInput
+	}
+	result, err := r.db.ExecContext(ctx, `DELETE FROM backup_runner_handoffs
+		WHERE operation_id = $1 AND task_id = $2 AND status = 'PLANNED'`, strings.TrimSpace(operationID), taskID)
+	if err != nil {
+		return fmt.Errorf("cancel backup runner handoff: %w", err)
+	}
+	if _, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("count canceled backup runner handoff: %w", err)
+	}
+	return nil
+}
+
 // GetRunnerHandoff 返回冻结的 handoff 计划及已结算备份标识；不返回任何工件内容。
 func (r *SQLRepository) GetRunnerHandoff(ctx context.Context, operationID string, taskID uint64) (moduleapi.BackupRunnerHandoffPlan, uint64, error) {
 	if strings.TrimSpace(operationID) == "" || taskID == 0 {

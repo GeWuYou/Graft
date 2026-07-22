@@ -101,6 +101,28 @@ func TestSQLRepositorySettlesRunnerHandoffIdempotently(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryCancelsOnlyPlannedRunnerHandoff(t *testing.T) {
+	t.Parallel()
+	repository, db := newTestRepository(t)
+	plan := moduleapi.BackupRunnerHandoffPlan{
+		OperationID: "update-cancel", TaskID: 61, Purpose: "platform_update", RetainUntil: time.Now().UTC().Add(time.Hour),
+		ArtifactRoot: "/var/lib/graft/update-cancel", ConfigSnapshotRef: "/var/lib/graft/update-cancel/config.snapshot", DatabaseDumpRef: "/var/lib/graft/update-cancel/database.dump",
+	}
+	if _, err := repository.PrepareRunnerHandoff(context.Background(), plan); err != nil {
+		t.Fatalf("prepare handoff: %v", err)
+	}
+	if err := repository.CancelRunnerHandoff(context.Background(), plan.OperationID, plan.TaskID); err != nil {
+		t.Fatalf("cancel handoff: %v", err)
+	}
+	if _, _, err := repository.GetRunnerHandoff(context.Background(), plan.OperationID, plan.TaskID); !errors.Is(err, moduleapi.ErrBackupNotFound) {
+		t.Fatalf("expected canceled handoff removal, got %v", err)
+	}
+	var rows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM backup_runner_handoffs`).Scan(&rows); err != nil || rows != 0 {
+		t.Fatalf("expected no orphan handoff, count=%d err=%v", rows, err)
+	}
+}
+
 func validCreateInput() moduleapi.CreateBackupInput {
 	creator := uint64(42)
 	return moduleapi.CreateBackupInput{

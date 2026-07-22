@@ -73,6 +73,19 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, TaskID: task.TaskID}, validatePreparedHandoff(prepared, operation)
 }
 
+// CancelBeforeLaunch 通过各 owner capability 清理 runner 尚未启动时的 Task 与 Backup handoff，避免 Update 写入其它模块的事实表。
+func (c *ComposeExecutionCoordinator) CancelBeforeLaunch(ctx context.Context, operation ComposeUpdateOperation) error {
+	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || !runnerOperationID.MatchString(operation.OperationID) {
+		return errors.New("compose update cancellation is unavailable")
+	}
+	backupErr := c.backups.CancelRunnerHandoff(ctx, operation.OperationID, operation.TaskID)
+	taskErr := c.tasks.Cancel(ctx, operation.TaskID)
+	if backupErr != nil || taskErr != nil {
+		return errors.Join(backupErr, taskErr)
+	}
+	return nil
+}
+
 // SettleReceipt consumes runner evidence after recreation. Migration-started failures become NEEDS_ATTENTION and never request database restore.
 func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operation ComposeUpdateOperation, receipt RunnerReceipt) (ComposeUpdateOperation, error) {
 	if err := validateReceiptSettlement(c, operation, receipt); err != nil {

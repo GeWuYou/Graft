@@ -102,6 +102,34 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	}
 }
 
+func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	discovery := NewService(nil)
+	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
+	discovery.profile = func() InstallationProfile {
+		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
+	}
+	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
+	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
+	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
+	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 78}}
+	backups := &stubBackupService{}
+	operations := &memoryOperationStore{}
+	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{launchErr: errors.New("docker unavailable")})
+	rollout.newOperation = func() string { return "update-78" }
+	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+		t.Fatal("expected launcher failure")
+	}
+	if tasks.canceled != 78 || backups.canceled.OperationID != "update-78" || backups.canceled.TaskID != 78 {
+		t.Fatalf("owner capability cleanup was not requested: task=%d backup=%#v", tasks.canceled, backups.canceled)
+	}
+	if item := operations.items["update-78"]; item.Outcome != ExecutionOutcomeFailed || item.FailureCode != "runner_launch_failed" {
+		t.Fatalf("operation failure was not persisted: %#v", item)
+	}
+}
+
 func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testing.T) {
 	input := fixtureRunnerInput("/opt/graft")
 	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json")
@@ -172,10 +200,14 @@ func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOpera
 type recordingLauncher struct {
 	input     RunnerInput
 	inputPath string
+	launchErr error
 }
 
 func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 	l.input = input
+	if l.launchErr != nil {
+		return l.launchErr
+	}
 	path, err := persistRunnerInput(input)
 	l.inputPath = path
 	return err
@@ -194,6 +226,7 @@ type stubTaskService struct {
 	receipt  moduleapi.TaskReceipt
 	plan     moduleapi.SubmitTaskInput
 	external moduleapi.ExternalTaskReceipt
+	canceled uint64
 }
 
 func (s *stubTaskService) Submit(_ context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
@@ -204,12 +237,16 @@ func (s *stubTaskService) SettleExternalReceipt(_ context.Context, receipt modul
 	s.external = receipt
 	return moduleapi.ExternalReceiptSettlement{TaskID: receipt.TaskID}, nil
 }
-func (*stubTaskService) Cancel(context.Context, uint64) error             { return nil }
+func (s *stubTaskService) Cancel(_ context.Context, taskID uint64) error {
+	s.canceled = taskID
+	return nil
+}
 func (*stubTaskService) RetryStage(context.Context, uint64, uint64) error { return nil }
 
 type stubBackupService struct {
 	plan       moduleapi.BackupRunnerHandoffPlan
 	completion moduleapi.CompleteBackupRunnerHandoffInput
+	canceled   moduleapi.BackupRunnerHandoffPlan
 }
 
 func (s *stubBackupService) Create(context.Context, moduleapi.CreateBackupInput) (moduleapi.Backup, error) {
@@ -218,6 +255,10 @@ func (s *stubBackupService) Create(context.Context, moduleapi.CreateBackupInput)
 func (s *stubBackupService) PrepareRunnerHandoff(_ context.Context, plan moduleapi.BackupRunnerHandoffPlan) (moduleapi.BackupRunnerHandoffPlan, error) {
 	s.plan = plan
 	return plan, nil
+}
+func (s *stubBackupService) CancelRunnerHandoff(_ context.Context, operationID string, taskID uint64) error {
+	s.canceled = moduleapi.BackupRunnerHandoffPlan{OperationID: operationID, TaskID: taskID}
+	return nil
 }
 func (s *stubBackupService) CompleteRunnerHandoff(_ context.Context, input moduleapi.CompleteBackupRunnerHandoffInput) (moduleapi.BackupRunnerHandoffCompletion, error) {
 	s.completion = input

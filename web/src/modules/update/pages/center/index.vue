@@ -65,14 +65,15 @@
               </div>
               <t-button
                 theme="primary"
-                :disabled="true"
-                :title="upgradeUnavailableReason"
+                :disabled="!canStartUpgrade"
+                :title="canStartUpgrade ? '' : upgradeUnavailableReason"
                 data-testid="update-center-upgrade"
+                @click="openConfirmation"
               >
                 {{ t('update.center.release.upgrade') }}
               </t-button>
             </div>
-            <t-alert theme="info" :message="upgradeUnavailableReason" />
+            <t-alert v-if="!canStartUpgrade" theme="info" :message="upgradeUnavailableReason" />
             <pre class="update-center__notes graft-scrollbar">{{
               status.latest.notes || t('update.center.release.notesEmpty')
             }}</pre>
@@ -112,11 +113,34 @@
       <p v-if="status.checked_at" class="update-center__checked-at">
         {{ t('update.center.checkedAt', { date: formatDate(status.checked_at) }) }}
       </p>
+
+      <t-card :title="t('update.center.history.title')" bordered>
+        <t-alert v-if="historyError" theme="warning" :message="historyError" />
+        <t-table v-else :data="operations" row-key="operation_id" :columns="operationColumns" size="small" />
+      </t-card>
     </template>
+
+    <t-dialog
+      v-model:visible="confirmationVisible"
+      :header="t('update.center.confirmation.title', { version: status?.latest?.version })"
+      :confirm-btn="{ content: t('update.center.confirmation.confirm'), theme: 'danger', loading: submitting }"
+      :confirm-disabled="!isExactConfirmation"
+      :cancel-btn="{ content: t('update.center.confirmation.cancel') }"
+      @confirm="submitUpgrade"
+    >
+      <p>{{ t('update.center.confirmation.description', { version: status?.latest?.version }) }}</p>
+      <t-input v-model="confirmation" :placeholder="status?.latest?.version" autofocus />
+      <t-alert
+        v-if="operationError"
+        class="update-center__confirmation-error"
+        theme="error"
+        :message="operationError"
+      />
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
-// Update Center 只消费发现接口；执行入口必须等待后端 Compose 执行器提供受审计的任务 API。
+// Update Center 只通过 Update API 读取 history 并提交精确版本确认，Task 与 Backup 事实不进入前端状态。
 import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -125,9 +149,9 @@ import { ManagementEmptyState } from '@/shared/components/management';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
-import { checkForUpdates, getUpdateStatus } from '../../api/update';
+import { checkForUpdates, createUpdateOperation, getUpdateOperations, getUpdateStatus } from '../../api/update';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
-import type { UpdateChannel, UpdateStatus } from '../../types/update';
+import type { UpdateChannel, UpdateOperation, UpdateStatus } from '../../types/update';
 
 const { locale, t } = useI18n();
 const permissionStore = usePermissionStore();
@@ -135,8 +159,21 @@ const status = ref<UpdateStatus | null>(null);
 const loading = ref(false);
 const checking = ref(false);
 const loadError = ref('');
+const historyError = ref('');
+const operations = ref<UpdateOperation[]>([]);
+const confirmationVisible = ref(false);
+const confirmation = ref('');
+const submitting = ref(false);
+const operationError = ref('');
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE));
+const canStartUpgrade = computed(
+  () =>
+    Boolean(status.value?.latest) &&
+    status.value?.installation_profile.capability === 'compose_upgrade_available' &&
+    canManage.value,
+);
+const isExactConfirmation = computed(() => confirmation.value === status.value?.latest?.version);
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'capability', title: t('update.center.capabilities.columns.capability'), width: 136 },
@@ -148,9 +185,21 @@ const capabilityRows = computed(() => [
   capabilityRow('check', 'supported', 'supported'),
   capabilityRow('notes', 'supported', 'supported'),
   capabilityRow('verify', 'supported', 'supported'),
-  capabilityRow('upgrade', 'pending', 'manual'),
-  capabilityRow('backup', 'pending', 'manual'),
-  capabilityRow('migration', 'pending', 'manual'),
+  capabilityRow('upgrade', 'supported', 'manual'),
+  capabilityRow('backup', 'supported', 'manual'),
+  capabilityRow('migration', 'supported', 'manual'),
+]);
+
+const operationColumns = computed<PrimaryTableCol[]>(() => [
+  { colKey: 'target_version', title: t('update.center.history.target'), width: 140 },
+  { colKey: 'status', title: t('update.center.history.status'), width: 160 },
+  { colKey: 'failure_code', title: t('update.center.history.result'), ellipsis: true },
+  {
+    colKey: 'created_at',
+    title: t('update.center.history.started'),
+    width: 190,
+    cell: (_h, { row }) => formatDate((row as UpdateOperation).created_at),
+  },
 ]);
 
 const upgradeUnavailableReason = computed(() => {
@@ -163,7 +212,7 @@ const upgradeUnavailableReason = computed(() => {
   if (!canManage.value) {
     return t('update.center.release.managePermissionRequired');
   }
-  return t('update.center.release.executionUnavailable');
+  return '';
 });
 
 onMounted(() => {
@@ -175,6 +224,7 @@ async function loadStatus() {
   loadError.value = '';
   try {
     status.value = await getUpdateStatus();
+    await loadHistory();
   } catch {
     loadError.value = t('update.center.loadFailed');
   } finally {
@@ -187,10 +237,43 @@ async function refreshStatus() {
   loadError.value = '';
   try {
     status.value = await checkForUpdates();
+    await loadHistory();
   } catch {
     loadError.value = t('update.center.checkRequestFailed');
   } finally {
     checking.value = false;
+  }
+}
+
+async function loadHistory() {
+  historyError.value = '';
+  try {
+    operations.value = await getUpdateOperations();
+  } catch {
+    historyError.value = t('update.center.history.loadFailed');
+  }
+}
+
+function openConfirmation() {
+  confirmation.value = '';
+  operationError.value = '';
+  confirmationVisible.value = true;
+}
+
+async function submitUpgrade() {
+  if (!status.value?.latest || !isExactConfirmation.value) {
+    return;
+  }
+  submitting.value = true;
+  operationError.value = '';
+  try {
+    await createUpdateOperation({ target_version: status.value.latest.version, confirmation: confirmation.value });
+    confirmationVisible.value = false;
+    await loadHistory();
+  } catch {
+    operationError.value = t('update.center.confirmation.submitFailed');
+  } finally {
+    submitting.value = false;
   }
 }
 
@@ -337,6 +420,10 @@ function formatDate(value: string) {
   font: var(--td-font-body-small);
   margin: 0;
   text-align: right;
+}
+
+.update-center__confirmation-error {
+  margin-top: var(--td-comp-margin-l);
 }
 
 @media (width <= 900px) {

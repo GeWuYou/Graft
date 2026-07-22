@@ -33,7 +33,7 @@
         "title": "Release notes",
         "verified": "The release manifest and OCI image digests are verified.",
         "upgrade": "Start upgrade",
-        "executionUnavailable": "This release supports discovery only. The Compose executor, backup, and migration steps will be enabled with the platform upgrade execution capability.",
+        "executionUnavailable": "This installation cannot run a controlled Compose upgrade.",
         "manualOnly": "This installation type provides verified packages and manual guidance only. It will not replace the running binary automatically.",
         "managePermissionRequired": "Platform update management permission is required before an upgrade can run.",
         "notesEmpty": "No release notes were provided for this version.",
@@ -41,6 +41,21 @@
         "checksums": "View checksums",
         "emptyTitle": "No update available",
         "emptyDescription": "After an update check, a release compatible with this channel appears here."
+      },
+      "confirmation": {
+        "title": "Confirm upgrade to {version}",
+        "description": "Type the exact target version to start the controlled Compose rollout.",
+        "confirm": "Start upgrade",
+        "cancel": "Cancel",
+        "submitFailed": "The upgrade request could not be started."
+      },
+      "history": {
+        "title": "Update history",
+        "target": "Target version",
+        "status": "Status",
+        "result": "Result",
+        "started": "Started",
+        "loadFailed": "Unable to load update history."
       },
       "capabilities": {
         "title": "Installation capability matrix",
