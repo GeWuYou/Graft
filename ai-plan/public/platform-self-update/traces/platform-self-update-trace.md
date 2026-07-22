@@ -35,6 +35,12 @@
 - Backup facts retain only controlled artifact references, SHA-256 integrity metadata, retention status, and recovery evidence; no backup content, `.env` secret, restore endpoint, or migration behavior is exposed.
 - Validated the module, live migration SQL, and backend completion entrypoint before committing `40f61800`.
 
+## 2026-07-22 Compose Protocol And Blocker
+
+- Added the versioned, no-secret runner input/receipt and strict official Compose preflight in `2358b883`; migration-started failure is classified as `NEEDS_ATTENTION`, never an automatic database rollback.
+- The executor cannot yet be implemented without violating authority boundaries: Task Runtime lacks durable external receipt settlement, Backup lacks a runner handoff contract, and release delivery has no pinned runner image identity.
+- The topic is blocked after the loop's permitted retry. Resume with the cross-boundary authority repair before re-entering Compose execution.
+
 ## Loop Batch State
 
 ```json
@@ -47,11 +53,12 @@
     "backup-capability"
   ],
   "pending_batches": [
+    "task-receipt-settlement-and-backup-runner-handoff",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "compose-execution-and-recovery",
-  "closeout_status": "completed"
+  "next_batch": "task-receipt-settlement-and-backup-runner-handoff",
+  "closeout_status": "blocked"
 }
 ```

@@ -47,7 +47,8 @@ closeout:
 - Batch 1 established release-manifest, release authority, roadmap, and Compose runner ADR.
 - Batch 2 added read-only release discovery, the installation profile, and the protected status/check API.
 - Batch 3 added the front-end Update Center and the logo version affordance.
-- Batch 4 added the independent `platform-backup` capability with retained artifact metadata and recovery evidence. The next batch is `compose-execution-and-recovery`.
+- Batch 4 added the independent `platform-backup` capability with retained artifact metadata and recovery evidence.
+- The Compose preflight/protocol foundation is committed, but execution is blocked until Task Runtime owns durable receipt settlement, Backup owns a runner handoff, and release delivery publishes a pinned runner identity. The next batch is `task-receipt-settlement-and-backup-runner-handoff`.
 
 ## Task Checklist
 
@@ -55,6 +56,8 @@ closeout:
 - [x] `read-only-update-discovery`
 - [x] `update-center-ui`
 - [x] `backup-capability`
+- [x] `compose-runner-preflight-contract`
+- [ ] `task-receipt-settlement-and-backup-runner-handoff`
 - [ ] `compose-execution-and-recovery`
 - [ ] `archive-readiness`
 
@@ -76,11 +79,12 @@ closeout:
     "backup-capability"
   ],
   "pending_batches": [
+    "task-receipt-settlement-and-backup-runner-handoff",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "compose-execution-and-recovery",
-  "closeout_status": "completed"
+  "next_batch": "task-receipt-settlement-and-backup-runner-handoff",
+  "closeout_status": "blocked"
 }
 ```
