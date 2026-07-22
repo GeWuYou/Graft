@@ -39,7 +39,7 @@
 
 - Added the versioned, no-secret runner input/receipt and strict official Compose preflight in `2358b883`; migration-started failure is classified as `NEEDS_ATTENTION`, never an automatic database rollback.
 - The executor cannot yet be implemented without violating authority boundaries: Task Runtime lacks durable external receipt settlement, Backup lacks a runner handoff contract, and release delivery has no pinned runner image identity.
-- The topic is blocked after the loop's permitted retry. Resume with the cross-boundary authority repair before re-entering Compose execution.
+- The prior loop stopped after its permitted retry. The user resumed the topic with an explicit dependency chain: Task receipt settlement, Backup runner handoff, runner digest authority, Compose fixture execution, then Update rollout.
 
 ## Loop Batch State
 
@@ -53,12 +53,15 @@
     "backup-capability"
   ],
   "pending_batches": [
-    "task-receipt-settlement-and-backup-runner-handoff",
+    "task-receipt-settlement",
+    "backup-runner-handoff",
+    "runner-digest-authority",
+    "compose-fixture-execution",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "task-receipt-settlement-and-backup-runner-handoff",
-  "closeout_status": "blocked"
+  "next_batch": "task-receipt-settlement",
+  "closeout_status": "in_progress"
 }
 ```
