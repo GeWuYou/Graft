@@ -25752,6 +25752,16 @@
                 "type": "string",
                 "format": "uri"
               },
+              "notes_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "upgrade_notes": {
+                "type": "string"
+              },
+              "minimum_source_version": {
+                "type": "string"
+              },
               "server_digest": {
                 "type": "string"
               },
@@ -25761,6 +25771,12 @@
               "checksums_url": {
                 "type": "string",
                 "format": "uri"
+              },
+              "asset_sha256": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -25792,10 +25808,36 @@
                 "type": "string",
                 "enum": [
                   "compose_upgrade_available",
-                  "manual_guidance"
+                  "manual_guidance",
+                  "manual_guidance_blocked"
                 ]
               },
               "guidance": {
+                "type": "string"
+              },
+              "binary_path": {
+                "type": "string"
+              },
+              "web_root": {
+                "type": "string"
+              },
+              "service_manager": {
+                "type": "string",
+                "enum": [
+                  "systemd",
+                  "manual"
+                ]
+              },
+              "service_name": {
+                "type": "string"
+              },
+              "manual_steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "blocking_reason": {
                 "type": "string"
               }
             }
@@ -25882,7 +25924,10 @@
             "enum": [
               "PLANNING",
               "BACKING_UP",
-              "INSTALLING",
+              "PULLING",
+              "MIGRATING",
+              "RECREATING",
+              "VERIFYING",
               "SUCCESS",
               "FAILED",
               "RECOVERED",

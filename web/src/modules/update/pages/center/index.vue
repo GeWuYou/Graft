@@ -32,12 +32,16 @@
           <p>{{ t('update.center.current.description') }}</p>
         </t-card>
         <t-card :title="t('update.center.latest.title')" bordered>
-          <template v-if="status.latest">
+          <template v-if="status.latest && !status.cache_stale && !status.check_error">
             <div class="update-center__version">
               <strong>{{ status.latest.version }}</strong>
               <t-tag size="small" theme="success" variant="light">{{ channelLabel(status.latest.channel) }}</t-tag>
             </div>
             <p>{{ t('update.center.latest.available', { date: formatDate(status.latest.published_at) }) }}</p>
+          </template>
+          <template v-else-if="status.cache_stale || status.check_error">
+            <strong class="update-center__up-to-date">{{ t('update.center.latest.unavailable') }}</strong>
+            <p>{{ t('update.center.latest.unavailableDescription') }}</p>
           </template>
           <template v-else>
             <strong class="update-center__up-to-date">{{ t('update.center.latest.upToDate') }}</strong>
@@ -77,9 +81,16 @@
             <pre class="update-center__notes graft-scrollbar">{{
               status.latest.notes || t('update.center.release.notesEmpty')
             }}</pre>
+            <t-alert v-if="status.latest.upgrade_notes" theme="info" :message="status.latest.upgrade_notes" />
+            <ol v-if="status.installation_profile.manual_steps?.length" class="update-center__manual-steps">
+              <li v-for="step in status.installation_profile.manual_steps" :key="step">{{ step }}</li>
+            </ol>
             <div class="update-center__release-links">
               <t-link theme="primary" :href="status.latest.manifest_url" target="_blank">
                 {{ t('update.center.release.manifest') }}
+              </t-link>
+              <t-link v-if="status.latest.notes_url" theme="primary" :href="status.latest.notes_url" target="_blank">
+                {{ t('update.center.release.releaseNotes') }}
               </t-link>
               <t-link
                 v-if="status.latest.checksums_url"
@@ -170,6 +181,8 @@ const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION
 const canStartUpgrade = computed(
   () =>
     Boolean(status.value?.latest) &&
+    !status.value?.cache_stale &&
+    !status.value?.check_error &&
     status.value?.installation_profile.capability === 'compose_upgrade_available' &&
     canManage.value,
 );
@@ -205,6 +218,9 @@ const operationColumns = computed<PrimaryTableCol[]>(() => [
 const upgradeUnavailableReason = computed(() => {
   if (!status.value) {
     return t('update.center.release.executionUnavailable');
+  }
+  if (status.value.cache_stale || status.value.check_error) {
+    return t('update.center.release.catalogStale');
   }
   if (status.value.installation_profile.capability !== 'compose_upgrade_available') {
     return t('update.center.release.manualOnly');
@@ -409,6 +425,11 @@ function formatDate(value: string) {
 
 .update-center__release-links {
   justify-content: flex-end;
+}
+
+.update-center__manual-steps {
+  margin: var(--td-comp-margin-m) 0;
+  padding-inline-start: var(--td-comp-margin-xxl);
 }
 
 .update-center__binary-guidance {

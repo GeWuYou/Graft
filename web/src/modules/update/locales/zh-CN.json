@@ -21,7 +21,9 @@
         "title": "可用版本",
         "available": "已于 {date} 发布",
         "upToDate": "已是最新版本",
-        "upToDateDescription": "当前通道内没有更高的已验证发行版本。"
+        "upToDateDescription": "当前通道内没有更高的已验证发行版本。",
+        "unavailable": "发行状态暂不可用",
+        "unavailableDescription": "最近一次目录结果已过期或检查失败，不能将其显示为已是最新。"
       },
       "installation": {
         "title": "安装画像",
@@ -35,9 +37,11 @@
         "upgrade": "开始升级",
         "executionUnavailable": "当前安装不满足受控 Compose 升级条件。",
         "manualOnly": "此安装类型仅提供校验包与人工升级指引，不会自动替换正在运行的二进制文件。",
+        "catalogStale": "必须先获得新的已验证发行目录，才能开始受控升级。",
         "managePermissionRequired": "需要平台更新管理权限后才能执行升级。",
         "notesEmpty": "该发行版本未提供发行说明。",
         "manifest": "查看发行清单",
+        "releaseNotes": "查看发行说明",
         "checksums": "查看校验和",
         "emptyTitle": "没有可用更新",
         "emptyDescription": "检查更新后，兼容当前通道的发行版本会显示在这里。"

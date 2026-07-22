@@ -19,6 +19,9 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
   "version": "0.10.0-beta.1",
   "channel": "beta",
   "release_tag": "v0.10.0-beta.1",
+  "release_notes_url": "https://github.com/<owner>/Graft/releases/tag/v0.10.0-beta.1",
+  "minimum_source_version": "0.9.0",
+  "upgrade_notes": "Read release notes and run the declared migration before runtime startup.",
   "images": {
     "server": { "image": "ghcr.io/<owner>/graft-server", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-server@sha256:..." },
     "web": { "image": "ghcr.io/<owner>/graft-web", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-web@sha256:..." }
@@ -29,13 +32,14 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
   "artifacts": {
     "server": "graft-server-linux-amd64-v0.10.0-beta.1.tar.gz",
     "web": "graft-web-dist-v0.10.0-beta.1.tar.gz",
-    "checksums": "graft-sha256sums-v0.10.0-beta.1.txt"
+    "checksums": "graft-sha256sums-v0.10.0-beta.1.txt",
+    "sha256": { "graft-server-linux-amd64-v0.10.0-beta.1.tar.gz": "...", "graft-web-dist-v0.10.0-beta.1.tar.gz": "..." }
   },
   "migration": { "required_before_runtime": true, "command": "graft migrate up", "mode": "forward-only" }
 }
 ```
 
-`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 从 `server/runner/compose/Dockerfile` 由同一 release workflow 构建和推送；manifest 只接受当前 Buildx 输出的 immutable digest，绝不接受仓库变量、外部断言 digest 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、artifact 名称和 server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
+`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 从 `server/runner/compose/Dockerfile` 由同一 release workflow 构建和推送；manifest 只接受当前 Buildx 输出的 immutable digest，绝不接受仓库变量、外部断言 digest 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、Release Notes URL、最低来源版本、升级说明、artifact 名称与逐项 SHA256、server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
 
 ## Version And Channel Selection
 
@@ -67,11 +71,11 @@ InstallationProfile {
 | migration | runner 执行 | 指引显式执行 | 指引显式执行 |
 | 恢复操作 | supported scope | operator-controlled | operator-controlled |
 
-二进制部署是一等安装类型：同 tag 下载 server binary 和 web distribution，验证 checksum，并生成 systemd 或手工安装步骤。MVP 不替换正在运行的 binary，也不尝试接管 systemd。
+二进制部署是一等安装类型：同 tag 下载 server binary 和 web distribution，验证 manifest SHA256，并生成 systemd 或手工安装步骤。`GRAFT_UPDATE_BINARY_PATH`、`GRAFT_UPDATE_WEB_ROOT` 与 `GRAFT_UPDATE_SERVICE_MANAGER=systemd|manual` 是完整指引的必要输入；systemd 还要求 `GRAFT_UPDATE_SERVICE_NAME`。缺少任何必要输入时，UI 必须显示阻断原因，不能给出不可靠的完整升级承诺。MVP 不替换正在运行的 binary，也不尝试接管 systemd。
 
 ## Update Lifecycle
 
-更新任务的标准状态为 `AVAILABLE -> PREFLIGHT -> BACKING_UP -> PULLING -> MIGRATING -> RECREATING -> VERIFYING -> SUCCESS`；任一阶段可到 `FAILED`。`ROLLBACK_PENDING` 和 `RESTORED` 记录恢复决策，不能把 forward-only schema migration 伪装成自动数据库 rollback。
+更新目录的候选状态是 `AVAILABLE`；持久 UpdateOperation 的标准生命周期为 `PLANNING -> BACKING_UP -> PULLING -> MIGRATING -> RECREATING -> VERIFYING -> SUCCESS`，任一阶段可到 `FAILED`。runner 交接后由 receipt 结算最终阶段；迁移后失败固定为 `NEEDS_ATTENTION`，迁移前完成配置和镜像恢复则为 `RECOVERED`。不能把 forward-only schema migration 伪装成自动数据库 rollback。
 
 所有阶段写入 Task Runtime、审计事件、不可变 target manifest digest、backup reference、migration 和 health receipt。权限分为 `platform-update.read`、`platform-update.check` 和 `platform-update.manage`；Phase 1 不暴露一个看似可执行但没有执行能力的 `execute` 权限。
 

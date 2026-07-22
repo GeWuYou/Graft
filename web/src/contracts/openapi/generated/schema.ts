@@ -6169,10 +6169,17 @@ export interface components {
         published_at: string;
         /** Format: uri */
         manifest_url: string;
+        /** Format: uri */
+        notes_url?: string;
+        upgrade_notes?: string;
+        minimum_source_version?: string;
         server_digest: string;
         web_digest: string;
         /** Format: uri */
         checksums_url?: string;
+        asset_sha256?: {
+          [key: string]: string;
+        };
       };
       installation_profile: {
         /** @enum {string} */
@@ -6180,8 +6187,15 @@ export interface components {
         /** @enum {string} */
         detected_mode: 'compose' | 'binary';
         /** @enum {string} */
-        capability: 'compose_upgrade_available' | 'manual_guidance';
+        capability: 'compose_upgrade_available' | 'manual_guidance' | 'manual_guidance_blocked';
         guidance: string;
+        binary_path?: string;
+        web_root?: string;
+        /** @enum {string} */
+        service_manager?: 'systemd' | 'manual';
+        service_name?: string;
+        manual_steps?: string[];
+        blocking_reason?: string;
       };
       /** Format: date-time */
       checked_at?: string;
@@ -6208,7 +6222,17 @@ export interface components {
       /** Format: int64 */
       requested_by?: number;
       /** @enum {string} */
-      status: 'PLANNING' | 'BACKING_UP' | 'INSTALLING' | 'SUCCESS' | 'FAILED' | 'RECOVERED' | 'NEEDS_ATTENTION';
+      status:
+        | 'PLANNING'
+        | 'BACKING_UP'
+        | 'PULLING'
+        | 'MIGRATING'
+        | 'RECREATING'
+        | 'VERIFYING'
+        | 'SUCCESS'
+        | 'FAILED'
+        | 'RECOVERED'
+        | 'NEEDS_ATTENTION';
       failure_code?: string;
       recovery_completed: boolean;
       /** Format: date-time */

@@ -1,3 +1,4 @@
+// Package main provides the short-lived, no-HTTP Compose update runner entrypoint.
 package main
 
 import (
@@ -17,9 +18,15 @@ import (
 	"graft/server/modules/update"
 )
 
+const (
+	directoryPermission   os.FileMode = 0o700
+	privateFilePermission os.FileMode = 0o600
+)
+
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
 func main() {
 	path := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RUNNER_INPUT"))
+	// #nosec G304,G703 -- the server supplies a validated, host-mounted runner input path.
 	contents, err := os.ReadFile(path)
 	if path == "" || err != nil {
 		fatal(fmt.Errorf("read runner input: %w", err))
@@ -40,16 +47,18 @@ type actions struct {
 
 func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 	root := filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID)
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	if err := os.MkdirAll(root, directoryPermission); err != nil {
 		return err
 	}
 	if err := copyFile(filepath.Join(in.Preflight.ComposeRoot, ".env"), filepath.Join(root, "config.snapshot")); err != nil {
 		return err
 	}
-	dump, err := os.OpenFile(filepath.Join(root, "database.dump"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	// #nosec G304 -- root derives from a preflight-validated host compose root and operation ID.
+	dump, err := os.OpenFile(filepath.Join(root, "database.dump"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, privateFilePermission)
 	if err != nil {
 		return err
 	}
+	// #nosec G204 -- this fixed command has no caller-provided executable or arguments.
 	command := exec.CommandContext(ctx, "docker", "compose", "--env-file", ".env", "-f", "compose.yml", "exec", "-T", "postgres", "sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"")
 	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, dump, os.Stderr
 	err = command.Run()
@@ -98,17 +107,20 @@ func (a *actions) RecoverPreMigration(ctx context.Context, in update.RunnerInput
 	return compose(ctx, in, "up", "-d", "--no-deps", "--force-recreate", "server", "web")
 }
 func compose(ctx context.Context, in update.RunnerInput, args ...string) error {
+	// #nosec G204 -- callers select only fixed runner lifecycle argument sets.
 	command := exec.CommandContext(ctx, "docker", append([]string{"compose", "--env-file", ".env", "-f", "compose.yml"}, args...)...)
 	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, os.Stdout, os.Stderr
 	return command.Run()
 }
 func copyFile(source, target string) error {
+	// #nosec G304 -- source and target are derived from the preflight-validated compose root.
 	input, err := os.Open(source)
 	if err != nil {
 		return err
 	}
-	defer input.Close()
-	output, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	defer func() { _ = input.Close() }()
+	// #nosec G304 -- source and target are derived from the preflight-validated compose root.
+	output, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, privateFilePermission)
 	if err != nil {
 		return err
 	}
@@ -120,11 +132,12 @@ func copyFile(source, target string) error {
 	return closeErr
 }
 func digest(path string) (string, int64, error) {
+	// #nosec G304 -- path is derived from the preflight-validated compose root.
 	file, err := os.Open(path)
 	if err != nil {
 		return "", 0, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	hash := sha256.New()
 	size, err := io.Copy(hash, file)
 	if err != nil {
@@ -133,6 +146,7 @@ func digest(path string) (string, int64, error) {
 	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }
 func replaceRefs(path, server, web string) error {
+	// #nosec G304 -- .env path is derived from the preflight-validated compose root.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -151,7 +165,8 @@ func replaceRefs(path, server, web string) error {
 		return errors.New("official compose environment lacks image references")
 	}
 	temporary := path + ".graft-update-tmp"
-	if err := os.WriteFile(temporary, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
+	// #nosec G703 -- temporary is a fixed suffix under the preflight-validated compose root.
+	if err := os.WriteFile(temporary, []byte(strings.Join(lines, "\n")), privateFilePermission); err != nil {
 		return err
 	}
 	return os.Rename(temporary, path)

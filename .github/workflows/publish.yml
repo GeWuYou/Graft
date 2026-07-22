@@ -355,24 +355,37 @@ jobs:
           # This is the machine-readable release authority consumed by self-update.
           # Migration execution is always explicit and idempotent; the manifest does
           # not attempt to infer whether a particular release contains SQL changes.
+          server_asset="graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz"
+          web_asset="graft-web-dist-${RELEASE_REF_NAME}.tar.gz"
+          checksums_asset="graft-sha256sums-${RELEASE_REF_NAME}.txt"
+          server_asset_sha256="$(sha256sum "release-assets/${server_asset}" | awk '{print $1}')"
+          web_asset_sha256="$(sha256sum "release-assets/${web_asset}" | awk '{print $1}')"
           jq -n \
             --arg version "${RELEASE_VERSION}" \
             --arg channel "${RELEASE_CHANNEL}" \
             --arg releaseTag "${RELEASE_REF_NAME}" \
+            --arg releaseNotesURL "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_REF_NAME}" \
+            --arg minimumSourceVersion "" \
+            --arg upgradeNotes "Review the GitHub Release Notes and perform the manifest-declared migration before runtime startup." \
             --arg serverImage "${{ steps.image_vars.outputs.server_image }}" \
             --arg serverDigest "${{ steps.server_build.outputs.digest }}" \
             --arg webImage "${{ steps.image_vars.outputs.web_image }}" \
             --arg webDigest "${{ steps.web_build.outputs.digest }}" \
             --arg runnerImage "${{ steps.image_vars.outputs.runner_image }}" \
             --arg runnerDigest "${{ steps.runner_build.outputs.digest }}" \
-            --arg serverArtifact "graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz" \
-            --arg webArtifact "graft-web-dist-${RELEASE_REF_NAME}.tar.gz" \
-            --arg checksums "graft-sha256sums-${RELEASE_REF_NAME}.txt" \
+            --arg serverArtifact "${server_asset}" \
+            --arg webArtifact "${web_asset}" \
+            --arg checksums "${checksums_asset}" \
+            --arg serverAssetSHA256 "${server_asset_sha256}" \
+            --arg webAssetSHA256 "${web_asset_sha256}" \
             '{
               schema_version: 1,
               version: $version,
               channel: $channel,
               release_tag: $releaseTag,
+              release_notes_url: $releaseNotesURL,
+              minimum_source_version: $minimumSourceVersion,
+              upgrade_notes: $upgradeNotes,
               images: {
                 server: {
                   image: $serverImage,
@@ -395,7 +408,8 @@ jobs:
               artifacts: {
                 server: $serverArtifact,
                 web: $webArtifact,
-                checksums: $checksums
+                checksums: $checksums,
+                sha256: {($serverArtifact): $serverAssetSHA256, ($webArtifact): $webAssetSHA256}
               },
               migration: {
                 required_before_runtime: true,
@@ -409,6 +423,10 @@ jobs:
             and (.version | test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-beta\\.[1-9][0-9]*)?$"))
             and (.channel == "stable" or .channel == "beta")
             and (.release_tag == ("v" + .version))
+            and (.release_notes_url | startswith("https://github.com/"))
+            and (.upgrade_notes | length > 0)
+            and (.artifacts.sha256[.artifacts.server] | test("^[0-9a-f]{64}$"))
+            and (.artifacts.sha256[.artifacts.web] | test("^[0-9a-f]{64}$"))
             and (.images.server.digest | startswith("sha256:"))
             and (.images.web.digest | startswith("sha256:"))
             and (.runners.compose.image | startswith("ghcr.io/"))

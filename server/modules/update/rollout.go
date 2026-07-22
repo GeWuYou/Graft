@@ -50,7 +50,7 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 	if err != nil {
 		return ComposeUpdateOperation{}, err
 	}
-	prepared.RequestedBy, prepared.Outcome = requestedBy, ExecutionOutcomeInstalling
+	prepared.RequestedBy, prepared.Outcome = requestedBy, ExecutionOutcomePulling
 	input.Preflight = preflight
 	if err := s.persistAndLaunch(ctx, prepared, input); err != nil {
 		return ComposeUpdateOperation{}, err
@@ -58,10 +58,21 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 	return prepared, nil
 }
 
+//nolint:cyclop // Each rejection is an independently auditable rollout safety gate.
 func (s *RolloutService) confirmedPreflight(targetVersion, confirmation string) (Status, ComposePreflight, error) {
 	status := s.discovery.Status()
+	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
+		return Status{}, ComposePreflight{}, errors.New("compose update execution requires a fresh verified release catalog")
+	}
 	if status.Profile.Capability != "compose_upgrade_available" || status.Latest == nil {
 		return Status{}, ComposePreflight{}, errors.New("compose update execution is not available for this installation")
+	}
+	if minimum := strings.TrimSpace(status.Latest.MinimumSourceVersion); minimum != "" {
+		current, currentErr := ParseVersion(status.CurrentVersion)
+		minimumVersion, minimumErr := ParseVersion(minimum)
+		if currentErr != nil || minimumErr != nil || current.Compare(minimumVersion) < 0 {
+			return Status{}, ComposePreflight{}, errors.New("current version does not meet the target release minimum source version")
+		}
 	}
 	if strings.TrimSpace(targetVersion) == "" || targetVersion != status.Latest.Version || confirmation != targetVersion {
 		return Status{}, ComposePreflight{}, errors.New("target version requires an exact manual confirmation")

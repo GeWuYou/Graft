@@ -147,7 +147,7 @@ func nullableString(value string) any {
 
 func validOutcome(value ExecutionOutcome) bool {
 	switch value {
-	case ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomeInstalling, ExecutionOutcomeSuccess, ExecutionOutcomeFailed, ExecutionOutcomeRecovered, ExecutionOutcomeNeedsAttention:
+	case ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling, ExecutionOutcomeMigrating, ExecutionOutcomeRecreating, ExecutionOutcomeVerifying, ExecutionOutcomeSuccess, ExecutionOutcomeFailed, ExecutionOutcomeRecovered, ExecutionOutcomeNeedsAttention:
 		return true
 	}
 	return false

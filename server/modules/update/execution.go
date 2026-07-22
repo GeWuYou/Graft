@@ -62,8 +62,14 @@ const (
 	ExecutionOutcomePlanning ExecutionOutcome = "PLANNING"
 	// ExecutionOutcomeBackingUp 为 runner 启动前备份交接的可见阶段。
 	ExecutionOutcomeBackingUp ExecutionOutcome = "BACKING_UP"
-	// ExecutionOutcomeInstalling 表示一次性 runner 已启动，等待目标 server 结算 receipt。
-	ExecutionOutcomeInstalling ExecutionOutcome = "INSTALLING"
+	// ExecutionOutcomePulling 表示 runner 正在拉取经 manifest 固定的目标镜像。
+	ExecutionOutcomePulling ExecutionOutcome = "PULLING"
+	// ExecutionOutcomeMigrating 表示目标 bootstrap 已开始执行 forward-only Atlas migration。
+	ExecutionOutcomeMigrating ExecutionOutcome = "MIGRATING"
+	// ExecutionOutcomeRecreating 表示 runner 正在受控重建 server 和 web。
+	ExecutionOutcomeRecreating ExecutionOutcome = "RECREATING"
+	// ExecutionOutcomeVerifying 表示 runner 正在执行 Docker health 与 /healthz 验证。
+	ExecutionOutcomeVerifying ExecutionOutcome = "VERIFYING"
 	// ExecutionOutcomeSuccess 表示 runner 已完成目标版本健康验证。
 	ExecutionOutcomeSuccess ExecutionOutcome = "SUCCESS"
 	// ExecutionOutcomeFailed 表示 runner 未开始迁移且未提供可恢复失败证据。

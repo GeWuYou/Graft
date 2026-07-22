@@ -23,21 +23,25 @@ const (
 
 // Release 描述经过 manifest 校验后可参与通道选择的不可变发行版本。
 type Release struct {
-	Version      string    `json:"version"`
-	Channel      string    `json:"channel"`
-	Notes        string    `json:"notes"`
-	PublishedAt  time.Time `json:"published_at"`
-	ManifestURL  string    `json:"manifest_url"`
-	ServerDigest string    `json:"server_digest"`
-	WebDigest    string    `json:"web_digest"`
-	ServerImage  string    `json:"server_image"`
-	WebImage     string    `json:"web_image"`
-	ServerRef    string    `json:"server_reference"`
-	WebRef       string    `json:"web_reference"`
-	RunnerImage  string    `json:"runner_image"`
-	RunnerDigest string    `json:"runner_digest"`
-	RunnerRef    string    `json:"runner_reference"`
-	ChecksumsURL string    `json:"checksums_url"`
+	Version              string            `json:"version"`
+	Channel              string            `json:"channel"`
+	Notes                string            `json:"notes"`
+	NotesURL             string            `json:"notes_url"`
+	UpgradeNotes         string            `json:"upgrade_notes"`
+	MinimumSourceVersion string            `json:"minimum_source_version"`
+	PublishedAt          time.Time         `json:"published_at"`
+	ManifestURL          string            `json:"manifest_url"`
+	ServerDigest         string            `json:"server_digest"`
+	WebDigest            string            `json:"web_digest"`
+	ServerImage          string            `json:"server_image"`
+	WebImage             string            `json:"web_image"`
+	ServerRef            string            `json:"server_reference"`
+	WebRef               string            `json:"web_reference"`
+	RunnerImage          string            `json:"runner_image"`
+	RunnerDigest         string            `json:"runner_digest"`
+	RunnerRef            string            `json:"runner_reference"`
+	ChecksumsURL         string            `json:"checksums_url"`
+	AssetSHA256          map[string]string `json:"asset_sha256"`
 }
 
 // ReleaseProvider 从一个可信发布源读取发布目录。
@@ -64,9 +68,19 @@ type githubAsset struct {
 	BrowserDownloadURL string `json:"browser_download_url"`
 }
 type releaseManifest struct {
-	Version string `json:"version"`
-	Channel string `json:"channel"`
-	Images  struct {
+	ReleaseTag           string `json:"release_tag"`
+	Version              string `json:"version"`
+	Channel              string `json:"channel"`
+	ReleaseNotesURL      string `json:"release_notes_url"`
+	MinimumSourceVersion string `json:"minimum_source_version"`
+	UpgradeNotes         string `json:"upgrade_notes"`
+	Artifacts            struct {
+		Server    string            `json:"server"`
+		Web       string            `json:"web"`
+		Checksums string            `json:"checksums"`
+		SHA256    map[string]string `json:"sha256"`
+	} `json:"artifacts"`
+	Images struct {
 		Server struct {
 			Image     string `json:"image"`
 			Digest    string `json:"digest"`
@@ -174,9 +188,18 @@ func releaseChecksumsURL(manifest releaseManifest, assets []githubAsset) string 
 	return ""
 }
 
+//nolint:cyclop // Manifest acceptance is intentionally one auditable sequence of independent authority checks.
 func validReleaseManifest(tagName string, manifest releaseManifest) bool {
 	version, err := ParseVersion(manifest.Version)
-	if err != nil || version.String() != strings.TrimPrefix(strings.TrimSpace(tagName), "v") {
+	if err != nil || version.String() != strings.TrimPrefix(strings.TrimSpace(tagName), "v") || strings.TrimSpace(manifest.ReleaseTag) != strings.TrimSpace(tagName) || !validAbsoluteURL(manifest.ReleaseNotesURL) || strings.TrimSpace(manifest.UpgradeNotes) == "" {
+		return false
+	}
+	if minimum := strings.TrimSpace(manifest.MinimumSourceVersion); minimum != "" {
+		if _, err := ParseVersion(minimum); err != nil {
+			return false
+		}
+	}
+	if !validAssetManifest(manifest.Artifacts) {
 		return false
 	}
 	if !validImageIdentity(manifest.Images.Server.Image, manifest.Images.Server.Digest, manifest.Images.Server.Reference) ||
@@ -220,7 +243,33 @@ func validBetaPrerelease(value string) bool {
 
 func buildRelease(source githubRelease, manifest releaseManifest, manifestURL, checksumsURL string) Release {
 	version, _ := ParseVersion(manifest.Version)
-	return Release{Version: version.String(), Channel: strings.ToLower(strings.TrimSpace(manifest.Channel)), Notes: source.Body, PublishedAt: source.PublishedAt.UTC(), ManifestURL: manifestURL, ServerDigest: manifest.Images.Server.Digest, WebDigest: manifest.Images.Web.Digest, ServerImage: manifest.Images.Server.Image, WebImage: manifest.Images.Web.Image, ServerRef: manifest.Images.Server.Reference, WebRef: manifest.Images.Web.Reference, RunnerImage: manifest.Runners.Compose.Image, RunnerDigest: manifest.Runners.Compose.Digest, RunnerRef: manifest.Runners.Compose.Reference, ChecksumsURL: checksumsURL}
+	return Release{Version: version.String(), Channel: strings.ToLower(strings.TrimSpace(manifest.Channel)), Notes: source.Body, NotesURL: manifest.ReleaseNotesURL, UpgradeNotes: manifest.UpgradeNotes, MinimumSourceVersion: manifest.MinimumSourceVersion, PublishedAt: source.PublishedAt.UTC(), ManifestURL: manifestURL, ServerDigest: manifest.Images.Server.Digest, WebDigest: manifest.Images.Web.Digest, ServerImage: manifest.Images.Server.Image, WebImage: manifest.Images.Web.Image, ServerRef: manifest.Images.Server.Reference, WebRef: manifest.Images.Web.Reference, RunnerImage: manifest.Runners.Compose.Image, RunnerDigest: manifest.Runners.Compose.Digest, RunnerRef: manifest.Runners.Compose.Reference, ChecksumsURL: checksumsURL, AssetSHA256: manifest.Artifacts.SHA256}
+}
+
+func validAbsoluteURL(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "https://github.com/") && !strings.ContainsAny(value, " \t\r\n")
+}
+
+func validAssetManifest(value struct {
+	Server    string            `json:"server"`
+	Web       string            `json:"web"`
+	Checksums string            `json:"checksums"`
+	SHA256    map[string]string `json:"sha256"`
+}) bool {
+	if strings.TrimSpace(value.Server) == "" || strings.TrimSpace(value.Web) == "" || strings.TrimSpace(value.Checksums) == "" || len(value.SHA256) < 2 {
+		return false
+	}
+	for _, name := range []string{value.Server, value.Web} {
+		digest, ok := value.SHA256[name]
+		if !ok || len(strings.TrimSpace(digest)) != sha256.Size*2 {
+			return false
+		}
+		if _, err := hex.DecodeString(digest); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func downloadManifest(ctx context.Context, client *http.Client, location, checksumLocation string) (releaseManifest, bool) {

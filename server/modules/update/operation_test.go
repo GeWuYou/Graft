@@ -83,6 +83,8 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
 	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
 	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
+	fresh := time.Now().UTC()
+	discovery.lastSuccessfulAt = &fresh
 	operations := &memoryOperationStore{}
 	launcher := &recordingLauncher{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
@@ -94,7 +96,7 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	if err != nil {
 		t.Fatalf("start rollout: %v", err)
 	}
-	if operation.Outcome != ExecutionOutcomeInstalling || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
+	if operation.Outcome != ExecutionOutcomePulling || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
 		t.Fatalf("unexpected rollout operation: %#v / %#v", operation, launcher.input)
 	}
 	if filepath.Dir(filepath.Dir(filepath.Dir(launcher.inputPath))) != root || operations.items[operation.OperationID].TaskID != 77 {
@@ -114,6 +116,8 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
 	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
 	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
+	fresh := time.Now().UTC()
+	discovery.lastSuccessfulAt = &fresh
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 78}}
 	backups := &stubBackupService{}
 	operations := &memoryOperationStore{}
@@ -127,6 +131,48 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	}
 	if item := operations.items["update-78"]; item.Outcome != ExecutionOutcomeFailed || item.FailureCode != "runner_launch_failed" {
 		t.Fatalf("operation failure was not persisted: %#v", item)
+	}
+}
+
+func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	discovery := NewService(nil)
+	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
+	discovery.profile = func() InstallationProfile {
+		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
+	}
+	discovery.latest = &Release{Version: "1.1.0"}
+	old := time.Now().UTC().Add(-discoveryCacheStaleAfter - time.Minute)
+	discovery.lastSuccessfulAt = &old
+	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 99}}
+	rollout := NewRolloutService(discovery, &memoryOperationStore{}, tasks, &stubBackupService{}, &recordingLauncher{})
+	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+		t.Fatal("expected stale release catalog to reject rollout")
+	}
+	if tasks.plan.Type != "" {
+		t.Fatal("stale catalog must not submit a task")
+	}
+}
+
+func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	discovery := NewService(nil)
+	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
+	discovery.profile = func() InstallationProfile {
+		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
+	}
+	discovery.latest = &Release{Version: "1.1.0", MinimumSourceVersion: "1.0.1"}
+	fresh := time.Now().UTC()
+	discovery.lastSuccessfulAt = &fresh
+	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 100}}
+	rollout := NewRolloutService(discovery, &memoryOperationStore{}, tasks, &stubBackupService{}, &recordingLauncher{})
+	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+		t.Fatal("expected minimum source version to reject rollout")
+	}
+	if tasks.plan.Type != "" {
+		t.Fatal("ineligible source version must not submit a task")
 	}
 }
 
@@ -154,7 +200,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
-	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomeInstalling}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
 	if err := store.Create(t.Context(), created); err != nil {
 		t.Fatalf("create operation: %v", err)
 	}

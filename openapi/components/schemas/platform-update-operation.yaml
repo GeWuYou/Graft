@@ -7,7 +7,7 @@ properties:
   task_id: { type: integer, format: int64 }
   backup_id: { type: integer, format: int64 }
   requested_by: { type: integer, format: int64 }
-  status: { type: string, enum: [PLANNING, BACKING_UP, INSTALLING, SUCCESS, FAILED, RECOVERED, NEEDS_ATTENTION] }
+  status: { type: string, enum: [PLANNING, BACKING_UP, PULLING, MIGRATING, RECREATING, VERIFYING, SUCCESS, FAILED, RECOVERED, NEEDS_ATTENTION] }
   failure_code: { type: string }
   recovery_completed: { type: boolean }
   created_at: { type: string, format: date-time }
