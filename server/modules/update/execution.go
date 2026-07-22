@@ -21,9 +21,12 @@ type ComposePreflight struct {
 	WebReference        string
 	ServerDigest        string
 	WebDigest           string
+	RunnerReference     string
+	RunnerDigest        string
 	BundledPostgres     bool
 	OfficialServerImage string
 	OfficialWebImage    string
+	OfficialRunnerImage string
 }
 
 // RunnerInput 是 server 写入 runner 输入目录的版本化、无秘密协议。runner 只读取该文件，
@@ -96,11 +99,14 @@ func validateComposeTopology(value ComposePreflight) error {
 }
 
 func validateComposeImages(value ComposePreflight) error {
-	if !validDigest(value.ServerDigest) || !validDigest(value.WebDigest) {
-		return errors.New("server and web image digests are required")
+	if !validDigest(value.ServerDigest) || !validDigest(value.WebDigest) || !validDigest(value.RunnerDigest) {
+		return errors.New("server, web, and runner image digests are required")
 	}
-	if value.ServerReference != value.OfficialServerImage+"@"+value.ServerDigest || value.WebReference != value.OfficialWebImage+"@"+value.WebDigest {
-		return errors.New("server and web must use official immutable image references")
+	if value.ServerReference != value.OfficialServerImage+"@"+value.ServerDigest || value.WebReference != value.OfficialWebImage+"@"+value.WebDigest || value.RunnerReference != value.OfficialRunnerImage+"@"+value.RunnerDigest {
+		return errors.New("server, web, and runner must use official immutable image references")
+	}
+	if value.OfficialRunnerImage != composeRunnerImage(value.OfficialServerImage) {
+		return errors.New("runner image does not belong to the official release authority")
 	}
 	return nil
 }

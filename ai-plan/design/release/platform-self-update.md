@@ -23,6 +23,9 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
     "server": { "image": "ghcr.io/<owner>/graft-server", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-server@sha256:..." },
     "web": { "image": "ghcr.io/<owner>/graft-web", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-web@sha256:..." }
   },
+  "runners": {
+    "compose": { "image": "ghcr.io/<owner>/graft-compose-runner", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-compose-runner@sha256:..." }
+  },
   "artifacts": {
     "server": "graft-server-linux-amd64-v0.10.0-beta.1.tar.gz",
     "web": "graft-web-dist-v0.10.0-beta.1.tar.gz",
@@ -32,7 +35,7 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 }
 ```
 
-`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、artifact 名称和 digest 必须交叉校验，任何不一致都使目标不可执行。
+`release-manifest.json.sha256` 与 manifest 同时作为 GitHub Release asset 发布；读取端先验证 manifest checksum，后验证 JSON 内容。Compose runner 是独立发布的 GHCR image：当前仓库没有其 Docker build context，`publish.yml` 因而只接受预先发布且可由 GHCR inspect 的 `GRAFT_COMPOSE_RUNNER_DIGEST`，不会伪造本地 build 或 mutable tag。`required_before_runtime` 表示每个受支持升级都必须执行显式且幂等的 migration command；它不声称每个 release 都包含 SQL 变更。目标 manifest 的 tag、SemVer channel、artifact 名称和 server/web/runner digest/reference 必须交叉校验，任何不一致、缺失 runner 或 mutable runner identity 都使目标不可执行。
 
 ## Version And Channel Selection
 

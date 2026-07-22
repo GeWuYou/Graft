@@ -2,6 +2,7 @@ package update
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ const (
 	releaseHTTPTimeout       = 10 * time.Second
 	releaseResponseMaxBytes  = 4 << 20
 	manifestResponseMaxBytes = 1 << 20
+	manifestChecksumMaxBytes = 1 << 10
 )
 
 // Release 描述经过 manifest 校验后可参与通道选择的不可变发行版本。
@@ -28,6 +30,9 @@ type Release struct {
 	ManifestURL  string    `json:"manifest_url"`
 	ServerDigest string    `json:"server_digest"`
 	WebDigest    string    `json:"web_digest"`
+	RunnerImage  string    `json:"runner_image"`
+	RunnerDigest string    `json:"runner_digest"`
+	RunnerRef    string    `json:"runner_reference"`
 	ChecksumsURL string    `json:"checksums_url"`
 }
 
@@ -36,7 +41,7 @@ type ReleaseProvider interface {
 	List(context.Context) ([]Release, error)
 }
 
-// GitHubReleaseProvider 只接受 GitHub Release 中与 tag 一致、包含两个 OCI digest 的 manifest。
+// GitHubReleaseProvider 只接受 GitHub Release 中与 tag 一致、包含官方 OCI digest 与 runner 身份的 manifest。
 type GitHubReleaseProvider struct {
 	Repository string
 	Client     *http.Client
@@ -59,12 +64,23 @@ type releaseManifest struct {
 	Channel string `json:"channel"`
 	Images  struct {
 		Server struct {
-			Digest string `json:"digest"`
+			Image     string `json:"image"`
+			Digest    string `json:"digest"`
+			Reference string `json:"reference"`
 		} `json:"server"`
 		Web struct {
-			Digest string `json:"digest"`
+			Image     string `json:"image"`
+			Digest    string `json:"digest"`
+			Reference string `json:"reference"`
 		} `json:"web"`
 	} `json:"images"`
+	Runners struct {
+		Compose struct {
+			Image     string `json:"image"`
+			Digest    string `json:"digest"`
+			Reference string `json:"reference"`
+		} `json:"compose"`
+	} `json:"runners"`
 	Artifacts releaseManifestArtifacts `json:"artifacts"`
 }
 
@@ -113,42 +129,45 @@ func (p GitHubReleaseProvider) List(ctx context.Context) ([]Release, error) {
 }
 
 func (p GitHubReleaseProvider) verifyRelease(ctx context.Context, client *http.Client, source githubRelease) (Release, bool) {
-	manifestURL := releaseManifestURL(source.Assets)
-	if manifestURL == "" {
+	manifestURL, manifestChecksumURL := releaseManifestURLs(source.Assets)
+	if manifestURL == "" || manifestChecksumURL == "" {
 		return Release{}, false
 	}
-	manifest, ok := downloadManifest(ctx, client, manifestURL)
+	manifest, ok := downloadManifest(ctx, client, manifestURL, manifestChecksumURL)
 	if !ok || !validReleaseManifest(source.TagName, manifest) || !releaseMatchesGitHubMetadata(source, manifest) {
 		return Release{}, false
 	}
-	_, checksumsURL := releaseAssetURLs(manifest, source.Assets)
+	checksumsURL := releaseChecksumsURL(manifest, source.Assets)
 	if checksumsURL == "" {
 		return Release{}, false
 	}
 	return buildRelease(source, manifest, manifestURL, checksumsURL), true
 }
 
-func releaseManifestURL(assets []githubAsset) string {
+func releaseManifestURLs(assets []githubAsset) (string, string) {
+	var manifestURL, manifestChecksumURL string
 	for _, asset := range assets {
-		if asset.Name == "release-manifest.json" {
+		switch asset.Name {
+		case "release-manifest.json":
+			manifestURL = asset.BrowserDownloadURL
+		case "release-manifest.json.sha256":
+			manifestChecksumURL = asset.BrowserDownloadURL
+		}
+	}
+	return manifestURL, manifestChecksumURL
+}
+
+func releaseChecksumsURL(manifest releaseManifest, assets []githubAsset) string {
+	checksumsName := strings.TrimSpace(manifest.Artifacts.Checksums)
+	if checksumsName == "" {
+		return ""
+	}
+	for _, asset := range assets {
+		if asset.Name == checksumsName {
 			return asset.BrowserDownloadURL
 		}
 	}
 	return ""
-}
-
-func releaseAssetURLs(manifest releaseManifest, assets []githubAsset) (string, string) {
-	manifestURL := releaseManifestURL(assets)
-	checksumsName := strings.TrimSpace(manifest.Artifacts.Checksums)
-	if checksumsName == "" {
-		return manifestURL, ""
-	}
-	for _, asset := range assets {
-		if asset.Name == checksumsName {
-			return manifestURL, asset.BrowserDownloadURL
-		}
-	}
-	return manifestURL, ""
 }
 
 func validReleaseManifest(tagName string, manifest releaseManifest) bool {
@@ -156,7 +175,15 @@ func validReleaseManifest(tagName string, manifest releaseManifest) bool {
 	if err != nil || version.String() != strings.TrimPrefix(strings.TrimSpace(tagName), "v") {
 		return false
 	}
-	if !validDigest(manifest.Images.Server.Digest) || !validDigest(manifest.Images.Web.Digest) || strings.TrimSpace(manifest.Artifacts.Checksums) == "" {
+	if !validImageIdentity(manifest.Images.Server.Image, manifest.Images.Server.Digest, manifest.Images.Server.Reference) ||
+		!validImageIdentity(manifest.Images.Web.Image, manifest.Images.Web.Digest, manifest.Images.Web.Reference) ||
+		!validImageIdentity(manifest.Runners.Compose.Image, manifest.Runners.Compose.Digest, manifest.Runners.Compose.Reference) {
+		return false
+	}
+	if manifest.Runners.Compose.Image != composeRunnerImage(manifest.Images.Server.Image) {
+		return false
+	}
+	if strings.TrimSpace(manifest.Artifacts.Checksums) == "" {
 		return false
 	}
 	return releaseChannelMatchesVersion(strings.ToLower(strings.TrimSpace(manifest.Channel)), version)
@@ -189,10 +216,10 @@ func validBetaPrerelease(value string) bool {
 
 func buildRelease(source githubRelease, manifest releaseManifest, manifestURL, checksumsURL string) Release {
 	version, _ := ParseVersion(manifest.Version)
-	return Release{Version: version.String(), Channel: strings.ToLower(strings.TrimSpace(manifest.Channel)), Notes: source.Body, PublishedAt: source.PublishedAt.UTC(), ManifestURL: manifestURL, ServerDigest: manifest.Images.Server.Digest, WebDigest: manifest.Images.Web.Digest, ChecksumsURL: checksumsURL}
+	return Release{Version: version.String(), Channel: strings.ToLower(strings.TrimSpace(manifest.Channel)), Notes: source.Body, PublishedAt: source.PublishedAt.UTC(), ManifestURL: manifestURL, ServerDigest: manifest.Images.Server.Digest, WebDigest: manifest.Images.Web.Digest, RunnerImage: manifest.Runners.Compose.Image, RunnerDigest: manifest.Runners.Compose.Digest, RunnerRef: manifest.Runners.Compose.Reference, ChecksumsURL: checksumsURL}
 }
 
-func downloadManifest(ctx context.Context, client *http.Client, location string) (releaseManifest, bool) {
+func downloadManifest(ctx context.Context, client *http.Client, location, checksumLocation string) (releaseManifest, bool) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
 	if err != nil {
 		return releaseManifest{}, false
@@ -205,11 +232,50 @@ func downloadManifest(ctx context.Context, client *http.Client, location string)
 	if response.StatusCode != http.StatusOK {
 		return releaseManifest{}, false
 	}
+	contents, err := io.ReadAll(io.LimitReader(response.Body, manifestResponseMaxBytes))
+	if err != nil {
+		return releaseManifest{}, false
+	}
+	checksum, ok := downloadManifestChecksum(ctx, client, checksumLocation)
+	if !ok || fmt.Sprintf("%x", sha256.Sum256(contents)) != checksum {
+		return releaseManifest{}, false
+	}
 	var manifest releaseManifest
-	if err := json.NewDecoder(io.LimitReader(response.Body, manifestResponseMaxBytes)).Decode(&manifest); err != nil {
+	if err := json.Unmarshal(contents, &manifest); err != nil {
 		return releaseManifest{}, false
 	}
 	return manifest, true
+}
+
+func downloadManifestChecksum(ctx context.Context, client *http.Client, location string) (string, bool) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, location, nil)
+	if err != nil {
+		return "", false
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", false
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		return "", false
+	}
+	contents, err := io.ReadAll(io.LimitReader(response.Body, manifestChecksumMaxBytes))
+	if err != nil {
+		return "", false
+	}
+	return parseManifestChecksum(contents)
+}
+
+func parseManifestChecksum(contents []byte) (string, bool) {
+	parts := strings.Fields(string(contents))
+	if len(parts) < 1 || len(parts[0]) != sha256.Size*2 {
+		return "", false
+	}
+	if _, err := hex.DecodeString(parts[0]); err != nil {
+		return "", false
+	}
+	return strings.ToLower(parts[0]), true
 }
 
 func validDigest(value string) bool {
@@ -219,6 +285,20 @@ func validDigest(value string) bool {
 	}
 	_, err := hex.DecodeString(strings.TrimPrefix(value, "sha256:"))
 	return err == nil
+}
+
+func validImageIdentity(image, digest, reference string) bool {
+	image = strings.TrimSpace(image)
+	path := strings.TrimPrefix(image, "ghcr.io/")
+	segments := strings.Split(path, "/")
+	if !strings.HasPrefix(image, "ghcr.io/") || len(segments) != 2 || segments[0] == "" || segments[1] == "" || strings.ContainsAny(image, "@ \t\n") || strings.Contains(path, ":") || !validDigest(digest) {
+		return false
+	}
+	return reference == image+"@"+strings.TrimSpace(digest)
+}
+
+func composeRunnerImage(serverImage string) string {
+	return strings.TrimSuffix(serverImage, "/graft-server") + "/graft-compose-runner"
 }
 
 // SelectLatest 返回与当前通道兼容且严格较新的发布。稳定用户只接收 stable；beta 用户同时接收 beta 与后续 stable。

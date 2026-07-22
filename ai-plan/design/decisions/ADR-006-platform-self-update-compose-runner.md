@@ -25,8 +25,12 @@
 runner input and receipt use a versioned schema. Input contains only operation identity, Task ID, target immutable
 server/web references, host absolute Compose root, socket location and preflight evidence. It never contains `.env`,
 database URLs, dump contents, or arbitrary commands. Receipt contains only operation identity, migration-started
-evidence, terminal result and stable failure code. The runner image itself must be a separately published
-digest-pinned release asset; an unpinned local image is not an execution authority.
+evidence, terminal result and stable failure code. The runner image itself must be a separately published,
+digest-pinned release asset. Canonical `release-manifest.json` includes `runners.compose.image`, `digest`, and
+`reference`; its companion checksum is verified before the manifest is consumed. The runner coordinate is the official
+sibling `ghcr.io/<owner>/graft-compose-runner` of the server image. An unpinned local image, a mutable tag, or a
+missing runner declaration is not an execution authority. Until a dedicated runner build context exists, the release
+workflow only accepts a separately published and GHCR-inspectable runner digest; it must not substitute a local build.
 
 The fixed order is `backup -> compose pull -> bootstrap migrate up -> recreate server/web -> Docker health ->
 /healthz -> receipt`. A failure before migration starts may restore the configuration snapshot and old image
