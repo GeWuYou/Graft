@@ -3,7 +3,7 @@
   "info": {
     "title": "Graft Server API",
     "version": "0.1.0-phase-2a",
-    "description": "Establishes the OpenAPI-owned contract and validation loop for the existing\nserver runtime while preserving current business behavior, response envelope\nsemantics, and auth/session transport ownership.\n"
+    "description": "Graft Server API is described using OpenAPI 3.1 and provides unified API documentation, interactive testing, and client code generation."
   },
   "x-graft-mcp-schema": {
     "type": "object",
@@ -12696,6 +12696,9 @@
     },
     "/api/ops/docker/images/pull": {
       "post": {
+        "tags": [
+          "container"
+        ],
         "operationId": "postDockerImagePull",
         "summary": "Pull a Docker image through the configured daemon",
         "requestBody": {
@@ -12779,6 +12782,9 @@
     },
     "/api/ops/docker/images/{id}/tag": {
       "post": {
+        "tags": [
+          "container"
+        ],
         "operationId": "postDockerImageTag",
         "summary": "Tag a Docker image",
         "parameters": [
@@ -12827,6 +12833,9 @@
     },
     "/api/ops/docker/images/{id}/untag": {
       "post": {
+        "tags": [
+          "container"
+        ],
         "operationId": "postDockerImageUntag",
         "summary": "Remove a Docker image tag",
         "description": "Removes the specified Repository:Tag reference only after the server verifies it currently belongs to the Image ID. This operation never forces image deletion.",
@@ -12879,6 +12888,9 @@
     },
     "/api/ops/docker/images/{id}/remove": {
       "post": {
+        "tags": [
+          "container"
+        ],
         "operationId": "postDockerImageRemove",
         "summary": "Remove a Docker image",
         "parameters": [

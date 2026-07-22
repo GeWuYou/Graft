@@ -11,11 +11,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -1244,7 +1246,7 @@ func TestRegisterCoreRoutesServesOpenAPIDocsWhenEnabled(t *testing.T) {
 
 	assertOpenAPIJSONResponse(t, engine, "v1.2.3")
 	assertOpenAPIYAMLResponse(t, engine, "v1.2.3")
-	assertDocsHTMLResponse(t, engine)
+	assertDocsHTMLResponse(t, engine, docsAssets.summary)
 	assertMCPDocsResponses(t, engine, true)
 }
 
@@ -1279,6 +1281,80 @@ func TestLoadOpenAPIDocsAssetsUsesGeneratedCanonicalBundle(t *testing.T) {
 	sum := sha256.Sum256(generatedOpenAPIBundleJSON)
 	if OpenAPIDocsBundleSHA256() != hex.EncodeToString(sum[:]) {
 		t.Fatalf("expected generated bundle sha256 %s, got %s", hex.EncodeToString(sum[:]), OpenAPIDocsBundleSHA256())
+	}
+}
+
+func TestSummarizeOpenAPIOperationsKeepsStableNonZeroMethodOrder(t *testing.T) {
+	paths := openapi3.NewPaths(
+		openapi3.WithPath("/widgets", &openapi3.PathItem{
+			Get:   &openapi3.Operation{},
+			Post:  &openapi3.Operation{},
+			Patch: &openapi3.Operation{},
+		}),
+		openapi3.WithPath("/widgets/{id}", &openapi3.PathItem{
+			Delete: &openapi3.Operation{},
+		}),
+	)
+
+	summary := summarizeOpenAPIOperations(paths)
+	if summary.Total != 4 {
+		t.Fatalf("expected 4 operations, got %d", summary.Total)
+	}
+	want := []openAPIDocsMethodCount{
+		{Method: http.MethodGet, Count: 1},
+		{Method: http.MethodPost, Count: 1},
+		{Method: http.MethodPatch, Count: 1},
+		{Method: http.MethodDelete, Count: 1},
+	}
+	if len(summary.Methods) != len(want) {
+		t.Fatalf("expected methods %#v, got %#v", want, summary.Methods)
+	}
+	for index, expected := range want {
+		if summary.Methods[index] != expected {
+			t.Fatalf("expected method %d to be %#v, got %#v", index, expected, summary.Methods[index])
+		}
+	}
+}
+
+func TestEnrichOpenAPITagDescriptionsBuildsOverviewAndSecurityFromOperations(t *testing.T) {
+	noAuthentication := openapi3.SecurityRequirements{}
+	document := &openapi3.T{
+		Security: openapi3.SecurityRequirements{{"bearerAuth": {}}},
+		Tags: openapi3.Tags{
+			{Name: "auth", Description: "Authentication and session APIs."},
+			{Name: "container"},
+		},
+		Paths: openapi3.NewPaths(
+			openapi3.WithPath("/api/auth/login", &openapi3.PathItem{
+				Post: &openapi3.Operation{Tags: []string{"auth"}, Security: &noAuthentication},
+			}),
+			openapi3.WithPath("/api/auth/sessions", &openapi3.PathItem{
+				Get: &openapi3.Operation{Tags: []string{"auth"}},
+			}),
+			openapi3.WithPath("/api/ops/containers", &openapi3.PathItem{
+				Delete: &openapi3.Operation{Tags: []string{"container"}},
+			}),
+		),
+	}
+
+	enrichOpenAPITagDescriptions(document)
+
+	auth := document.Tags.Get("auth")
+	for _, expected := range []string{
+		"Authentication and session APIs.",
+		"### Overview",
+		"2 operations",
+		`- <span class="graft-docs-operation-method graft-docs-operation-method-get">GET</span>: 1`,
+		`- <span class="graft-docs-operation-method graft-docs-operation-method-post">POST</span>: 1`,
+		"Authentication required for 1 of 2 operations.",
+	} {
+		if !strings.Contains(auth.Description, expected) {
+			t.Fatalf("expected auth dashboard to contain %q, got %q", expected, auth.Description)
+		}
+	}
+	container := document.Tags.Get("container")
+	if !strings.Contains(container.Description, "Authentication required for 1 of 1 operations.") {
+		t.Fatalf("expected container authentication summary, got %q", container.Description)
 	}
 }
 
@@ -1576,7 +1652,7 @@ func assertOpenAPIYAMLResponse(t *testing.T, engine *gin.Engine, expectedVersion
 	}
 }
 
-func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
+func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine, summary openAPIDocsOperationSummary) {
 	t.Helper()
 
 	recorder := httptest.NewRecorder()
@@ -1584,23 +1660,68 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 	engine.ServeHTTP(recorder, request)
 
 	assertResponseStatusAndType(t, recorder, openapiDocsPath, http.StatusOK, "text/html; charset=utf-8")
-	configuration := html.UnescapeString(extractHTMLAttribute(t, recorder.Body.String(), "data-configuration"))
-	var scalarConfiguration struct {
-		URL       string `json:"url"`
-		Layout    string `json:"layout"`
-		CustomCSS string `json:"customCss"`
-	}
+	scalarConfiguration := assertScalarDocsConfiguration(t, recorder.Body.String())
+	assertDocsOperationSummary(t, recorder.Body.String(), summary)
+	assertScalarDocsAssets(t, recorder.Body.String(), scalarConfiguration)
+}
+
+type scalarDocsConfiguration struct {
+	URL               string `json:"url"`
+	Layout            string `json:"layout"`
+	ShowSidebar       bool   `json:"showSidebar"`
+	CustomCSS         string `json:"customCss"`
+	DefaultHTTPClient struct {
+		TargetKey string `json:"targetKey"`
+		ClientKey string `json:"clientKey"`
+	} `json:"defaultHttpClient"`
+}
+
+func assertScalarDocsConfiguration(t *testing.T, body string) scalarDocsConfiguration {
+	t.Helper()
+
+	configuration := html.UnescapeString(extractHTMLAttribute(t, body, "data-configuration"))
+	var scalarConfiguration scalarDocsConfiguration
 	if err := json.Unmarshal([]byte(configuration), &scalarConfiguration); err != nil {
 		t.Fatalf("%s: decode Scalar configuration: %v", openapiDocsPath, err)
 	}
-	if scalarConfiguration.URL != openapiJSONPath || scalarConfiguration.Layout != "modern" {
+	if scalarConfiguration.URL != openapiJSONPath || scalarConfiguration.Layout != "modern" || !scalarConfiguration.ShowSidebar {
 		t.Fatalf("%s: unexpected Scalar configuration %#v", openapiDocsPath, scalarConfiguration)
 	}
+	if scalarConfiguration.DefaultHTTPClient.TargetKey != "shell" || scalarConfiguration.DefaultHTTPClient.ClientKey != "curl" {
+		t.Fatalf("%s: unexpected default HTTP client %#v", openapiDocsPath, scalarConfiguration.DefaultHTTPClient)
+	}
+	return scalarConfiguration
+}
+
+func assertDocsOperationSummary(t *testing.T, body string, summary openAPIDocsOperationSummary) {
+	t.Helper()
+
+	if !strings.Contains(body, `aria-label="API operation summary"`) {
+		t.Fatalf("%s: expected API operation summary", openapiDocsPath)
+	}
+	if !strings.Contains(body, `data-operation-count="`+strconv.Itoa(summary.Total)+`"`) {
+		t.Fatalf("%s: expected total operation count %d", openapiDocsPath, summary.Total)
+	}
+	for _, method := range summary.Methods {
+		expected := `class="graft-docs-stat" data-operation-method="` + method.Method + `"><dt>` + method.Method + `</dt><dd data-operation-count="` + strconv.Itoa(method.Count) + `"`
+		if !strings.Contains(body, expected) {
+			t.Fatalf("%s: expected method summary %q", openapiDocsPath, expected)
+		}
+	}
+}
+
+func assertScalarDocsAssets(t *testing.T, body string, scalarConfiguration scalarDocsConfiguration) {
+	t.Helper()
+
 	for _, expectedCSS := range []string{
 		"overflow: hidden",
+		"height: 100%;",
+		"max-height: 100%;",
 		".scalar-api-reference.references-layout",
 		".scalar-api-reference.references-layout .references-rendered",
 		".references-rendered",
+		".graft-docs-operation-method-get",
+		"--graft-docs-operation-color: #0082d0",
 		"scrollbar-color: var(--scalar-scrollbar-color, transparent)",
 	} {
 		if !strings.Contains(scalarConfiguration.CustomCSS, expectedCSS) {
@@ -1616,13 +1737,22 @@ func assertDocsHTMLResponse(t *testing.T, engine *gin.Engine) {
 			t.Fatalf("%s: custom CSS must not target the generic Scalar app selector %q", openapiDocsPath, unexpectedCSS)
 		}
 	}
-	if !strings.Contains(recorder.Body.String(), `href="/favicon.svg?v=3"`) {
+	for _, expectedCSS := range []string{
+		".graft-scalar-container > div, .graft-scalar-container > div > div",
+		"data-operation-method=\"GET\"",
+		"--graft-operation-color: #0082d0",
+	} {
+		if !strings.Contains(body, expectedCSS) {
+			t.Fatalf("%s: expected docs page CSS to contain %q", openapiDocsPath, expectedCSS)
+		}
+	}
+	if !strings.Contains(body, `href="/favicon.svg?v=3"`) {
 		t.Fatalf("%s: expected body to contain graft favicon link", openapiDocsPath)
 	}
-	if !strings.Contains(recorder.Body.String(), `src="`+scalarDocsScriptURL+`"`) {
+	if !strings.Contains(body, `src="`+scalarDocsScriptURL+`"`) {
 		t.Fatalf("%s: expected body to pin the Scalar docs script url", openapiDocsPath)
 	}
-	if !strings.Contains(recorder.Body.String(), `integrity="`+scalarDocsScriptIntegrity+`"`) {
+	if !strings.Contains(body, `integrity="`+scalarDocsScriptIntegrity+`"`) {
 		t.Fatalf("%s: expected body to contain the pinned Scalar docs integrity", openapiDocsPath)
 	}
 }

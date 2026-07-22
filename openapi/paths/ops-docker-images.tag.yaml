@@ -1,4 +1,5 @@
 post:
+  tags: [container]
   operationId: postDockerImageTag
   summary: Tag a Docker image
   parameters:
