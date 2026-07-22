@@ -69,6 +69,19 @@
 - Archive review confirmed the prerequisite boundaries but rejected completion: Update operation state is not durable and no constrained Docker socket launcher exists to run the manifest-pinned runner or settle its receipt after server recreation.
 - The next bounded rollout slice must add Update-owned history/API and the one-shot launcher without changing Task or Backup ownership; it must preserve the post-migration `NEEDS_ATTENTION` boundary.
 
+## 2026-07-23 Rollout Delivery And Archive Readiness
+
+- `1b2dda36` and `fd6ccc7c` added Update-owned operation history, confirmation/history APIs, a constrained Docker
+  socket launcher, and receipt settlement without taking ownership of Task or Backup facts.
+- `e4565581` made the one-shot runner a release-delivered, digest-pinned image and persisted only verified discovery
+  results with explicit stale/error state.
+- `53f125f4` and `01abcd32` added real Compose smoke coverage and final release authority gates for stale catalogs,
+  minimum source versions, full binary guidance, manifest assets, and lifecycle phases.
+- Final validation passed: backend completion entrypoint, `bun run check`, focused Task/Backup/Update tests, SQL
+  migration and ai-plan structure checks, release-grade BuildInfo validation, publish workflow YAML parsing, and the
+  local Docker Compose runner smoke. The smoke left no runner project or registry container.
+- The topic reached `archive-ready`; this trace is historical evidence and must not replace current root governance.
+
 ## Loop Batch State
 
 ```json
@@ -86,12 +99,9 @@
     "compose-fixture-execution",
     "compose-execution-and-recovery"
   ],
-  "pending_batches": [
-    "compose-rollout-launcher-and-history",
-    "archive-readiness"
-  ],
-  "current_batch": null,
-  "next_batch": "compose-rollout-launcher-and-history",
-  "closeout_status": "in_progress"
+  "pending_batches": [],
+  "current_batch": "archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```
