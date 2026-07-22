@@ -9,7 +9,7 @@
         :aria-label="tooltip"
         @click="visible = true"
       >
-        <t-icon name="system-3" />
+        <cloud-download-icon />
       </t-button>
     </t-tooltip>
   </t-badge>
@@ -23,6 +23,7 @@
 </template>
 <script setup lang="ts">
 // 顶部入口只消费 Provider 已加载的模块状态，不承担 discovery 请求职责。
+import { CloudDownloadIcon } from 'tdesign-icons-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';

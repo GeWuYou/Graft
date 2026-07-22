@@ -12,12 +12,15 @@
     >
       <template #logo>
         <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" @click="goHome">
-          <brand-identity
-            :compact="logoCompact"
-            :label-hidden="logoLabelHidden"
-            :class="logoCls"
-            :label="t('common.appName')"
-          />
+          <span class="graft-side-nav-brand-row">
+            <brand-identity
+              :compact="logoCompact"
+              :label-hidden="logoLabelHidden"
+              :class="logoCls"
+              :label="t('common.appName')"
+            />
+            <component :is="updateVersionEntry" v-if="!logoLabelHidden" />
+          </span>
         </span>
       </template>
       <menu-content :nav-data="menu" :show-sections="!renderCompact" />
@@ -38,6 +41,7 @@ import { prefix } from '@/config/global';
 import { findAllExpandedMenuPaths, findExpandedMenuPaths, type SidebarMotionPhase } from '@/layouts/layout-navigation';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
 import { t } from '@/locales';
+import { updateVersionEntry } from '@/modules/update';
 import { getActive } from '@/router';
 import { BrandIdentity } from '@/shared/components/brand';
 import { useSettingStore } from '@/store';
@@ -245,4 +249,11 @@ const goHome = () => {
   void shellNavigation.goHome();
 };
 </script>
-<style lang="less" scoped></style>
+<style lang="less" scoped>
+.graft-side-nav-brand-row {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--td-comp-margin-s);
+  justify-content: flex-start;
+}
+</style>

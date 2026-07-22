@@ -75,11 +75,11 @@ func TestRegisterMenuGroupsUpdateUnderPlatformMaintenance(t *testing.T) {
 		items[item.Code] = item
 	}
 	maintenance := items["platform-maintenance"]
-	if maintenance.ParentCode != "domain.platform" || maintenance.Kind != menu.NodeKindGroup || maintenance.TitleKey != "menu.platform.maintenance" {
+	if maintenance.ParentCode != "domain.platform" || maintenance.Kind != menu.NodeKindGroup || maintenance.TitleKey != "menu.platform.maintenance" || maintenance.Icon != "system-maintenance" {
 		t.Fatalf("unexpected maintenance group: %#v", maintenance)
 	}
 	update := items["platform-update.center"]
-	if update.ParentCode != maintenance.Code || update.Path != updatecontract.UpdateMenuPath || update.Permission != updatecontract.UpdateReadPermission.String() {
+	if update.ParentCode != maintenance.Code || update.Path != updatecontract.UpdateMenuPath || update.Permission != updatecontract.UpdateReadPermission.String() || update.Icon != "platform-update" {
 		t.Fatalf("unexpected update entry: %#v", update)
 	}
 }
