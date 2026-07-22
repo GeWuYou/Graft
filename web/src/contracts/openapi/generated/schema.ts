@@ -5072,7 +5072,7 @@ export interface components {
        * @description Whether Redis history could be read. Available history may contain zero points.
        * @enum {string}
        */
-      status: 'available' | 'unavailable';
+      status: 'available' | 'partial' | 'unavailable';
       /**
        * @description Stable reason when status is unavailable; absent when status is available.
        * @enum {string|null}
