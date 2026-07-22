@@ -211,6 +211,39 @@ func TestRequestPerformanceTopInstancesUseDeterministicTieOrder(t *testing.T) {
 	}
 }
 
+func TestAccessLogRepositoryReadRequestPerformancePaginatesRowsWithoutDroppingData(t *testing.T) {
+	repository := newSQLiteAccessLogRepository(t)
+	reader := repository.(moduleapi.RequestPerformanceReader)
+	base := time.Date(2026, 7, 14, 8, 0, 0, 0, time.UTC)
+	inputs := make([]CreateAccessLogInput, requestPerformancePageSize+1)
+	for index := range inputs {
+		inputs[index] = CreateAccessLogInput{
+			RequestID:  fmt.Sprintf("paged-%04d", index),
+			Method:     "GET",
+			Path:       "/api/paged",
+			Route:      "/api/paged",
+			StatusCode: 200,
+			DurationMS: int64(index + 1),
+			OccurredAt: base,
+		}
+	}
+	if _, err := repository.CreateAccessLogs(context.Background(), inputs); err != nil {
+		t.Fatalf("seed paged request performance access logs: %v", err)
+	}
+
+	summary, err := reader.ReadRequestPerformance(context.Background(), moduleapi.RequestPerformanceQuery{
+		WindowStart: base,
+		WindowEnd:   base.Add(time.Minute),
+		BucketSize:  moduleapi.RequestPerformanceMinuteBucketSize,
+	})
+	if err != nil {
+		t.Fatalf("read paged request performance: %v", err)
+	}
+	if summary.TotalRequests != int64(len(inputs)) || summary.TopRoutes.ByTraffic[0].TotalRequests != int64(len(inputs)) {
+		t.Fatalf("expected all paged requests to be aggregated, got %#v", summary)
+	}
+}
+
 func seedRequestPerformanceAccessLogs(t *testing.T, repository AccessLogRepository, base time.Time) {
 	t.Helper()
 	inputs := []CreateAccessLogInput{

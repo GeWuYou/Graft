@@ -19,10 +19,14 @@ const (
 	requestPerformanceP95Percentile      = 0.95
 	requestPerformanceP99Percentile      = 0.99
 	requestPerformanceLatencySampleLimit = 1024
+	requestPerformancePageSize           = 1024
 	requestPerformanceTopInstanceLimit   = 5
 	requestPerformanceWindowStartArg     = 1
 	requestPerformanceWindowEndArg       = 2
 	requestPerformanceConnectionTypeArg  = 3
+	requestPerformanceCursorTimeArg      = 4
+	requestPerformanceCursorIDArg        = 5
+	requestPerformancePageSizeArg        = 6
 	requestPerformanceUnmatchedRoute     = "<unmatched>"
 )
 
@@ -64,6 +68,7 @@ type requestPerformanceCollector struct {
 }
 
 type requestPerformanceRow struct {
+	id           int64
 	requestID    string
 	occurredAt   time.Time
 	method       string
@@ -94,44 +99,66 @@ func (r *accessLogRepository) ReadRequestPerformance(
 
 	windowStart := query.WindowStart.UTC()
 	windowEnd := query.WindowEnd.UTC()
-	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT request_id, occurred_at, method, path, route, status_code, duration_ms, request_size, response_size
+	collector := newRequestPerformanceCollector(query)
+	cursorOccurredAt := windowStart
+	var cursorID int64
+	for {
+		rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, request_id, occurred_at, method, path, route, status_code, duration_ms, request_size, response_size
 		FROM access_logs
-		WHERE occurred_at >= %s AND occurred_at < %s AND connection_type = %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP)
-	if err != nil {
-		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("query request performance access logs: %w", err)
-	}
+		WHERE occurred_at >= %s AND occurred_at < %s AND connection_type = %s
+			AND (occurred_at > %s OR (occurred_at = %s AND id > %s))
+		ORDER BY occurred_at ASC, id ASC
+		LIMIT %s`, r.placeholder(requestPerformanceWindowStartArg), r.placeholder(requestPerformanceWindowEndArg), r.placeholder(requestPerformanceConnectionTypeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorTimeArg), r.placeholder(requestPerformanceCursorIDArg), r.placeholder(requestPerformancePageSizeArg)), windowStart, windowEnd, AccessLogConnectionTypeHTTP, cursorOccurredAt, cursorOccurredAt, cursorID, requestPerformancePageSize)
+		if err != nil {
+			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("query request performance access logs: %w", err)
+		}
 
-	summary, readErr := collectRequestPerformanceRows(rows, query)
-	closeErr := rows.Close()
-	if readErr != nil {
-		return moduleapi.RequestPerformanceSummary{}, readErr
+		page, readErr := collectRequestPerformanceRows(rows, collector, query)
+		closeErr := rows.Close()
+		if readErr != nil {
+			return moduleapi.RequestPerformanceSummary{}, readErr
+		}
+		if closeErr != nil {
+			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("close request performance access log rows: %w", closeErr)
+		}
+		if page.count == 0 {
+			break
+		}
+		cursorOccurredAt = page.lastOccurredAt
+		cursorID = page.lastID
 	}
-	if closeErr != nil {
-		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("close request performance access log rows: %w", closeErr)
-	}
-	return summary, nil
+	return collector.summaryWithRankings(), nil
 }
 
 // collectRequestPerformanceRows 聚合数据库行中的请求性能数据；扫描失败或迭代失败时返回错误。
-func collectRequestPerformanceRows(rows *sql.Rows, query moduleapi.RequestPerformanceQuery) (moduleapi.RequestPerformanceSummary, error) {
-	collector := newRequestPerformanceCollector(query)
+func collectRequestPerformanceRows(rows *sql.Rows, collector *requestPerformanceCollector, query moduleapi.RequestPerformanceQuery) (requestPerformancePage, error) {
+	page := requestPerformancePage{}
 	for rows.Next() {
 		var row requestPerformanceRow
 		var route sql.NullString
 		var requestSize sql.NullInt64
 		var responseSize sql.NullInt64
-		if err := rows.Scan(&row.requestID, &row.occurredAt, &row.method, &row.path, &route, &row.statusCode, &row.durationMS, &requestSize, &responseSize); err != nil {
-			return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("scan request performance access log: %w", err)
+		if err := rows.Scan(&row.id, &row.requestID, &row.occurredAt, &row.method, &row.path, &route, &row.statusCode, &row.durationMS, &requestSize, &responseSize); err != nil {
+			return requestPerformancePage{}, fmt.Errorf("scan request performance access log: %w", err)
 		}
 		row.route = requestPerformanceRouteValue(route)
 		row.requestSize = requestPerformanceOptionalInt64(requestSize)
 		row.responseSize = requestPerformanceOptionalInt64(responseSize)
 		collector.add(row, query.BucketSize)
+		page.count++
+		page.lastOccurredAt = row.occurredAt
+		page.lastID = row.id
 	}
 	if err := rows.Err(); err != nil {
-		return moduleapi.RequestPerformanceSummary{}, fmt.Errorf("iterate request performance access logs: %w", err)
+		return requestPerformancePage{}, fmt.Errorf("iterate request performance access logs: %w", err)
 	}
-	return collector.summaryWithRankings(), nil
+	return page, nil
+}
+
+type requestPerformancePage struct {
+	count          int
+	lastOccurredAt time.Time
+	lastID         int64
 }
 
 // newRequestPerformanceCollector 创建按查询时间窗口和桶大小初始化的性能聚合器。

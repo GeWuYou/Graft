@@ -510,6 +510,15 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertServiceKeyNotRegistered(t, runtime.services, (*testent.Client)(nil), "*ent.Client")
 }
 
+func TestRedisBackedServiceRegistrationsSkipOptionalTrendStoreWithoutRedis(t *testing.T) {
+	runtime := &Runtime{}
+	for _, registration := range runtime.redisBackedServiceRegistrations() {
+		if _, ok := registration.key.(*statex.TimeSeriesStore); ok {
+			t.Fatal("expected optional trend store registration to be omitted without Redis")
+		}
+	}
+}
+
 func TestNewRuntimeCoreWiresAccessLogRepositoryIntoServer(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Cleanup(func() {

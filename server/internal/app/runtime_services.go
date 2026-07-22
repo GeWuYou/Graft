@@ -161,7 +161,7 @@ func (r *Runtime) runtimeDataServiceRegistrations() []serviceRegistration {
 }
 
 func (r *Runtime) redisBackedServiceRegistrations() []serviceRegistration {
-	return []serviceRegistration{
+	registrations := []serviceRegistration{
 		{
 			key: (*realtimeauth.Service)(nil),
 			provider: func() (any, error) {
@@ -198,13 +198,16 @@ func (r *Runtime) redisBackedServiceRegistrations() []serviceRegistration {
 				return redisx.NewHealthReporter(r.redis), nil
 			},
 		},
-		{
+	}
+	if r.redis != nil {
+		registrations = append(registrations, serviceRegistration{
 			key: (*statex.TimeSeriesStore)(nil),
 			provider: func() (any, error) {
 				return statex.NewRedisTimeSeriesStore(r.redis)
 			},
-		},
+		})
 	}
+	return registrations
 }
 
 func (r *Runtime) registerAccessLogRetentionJob() error {
