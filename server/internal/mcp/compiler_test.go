@@ -99,6 +99,9 @@ func TestCompileDocumentationCatalogProjectsRuntimeCapabilitiesDeterministically
 		"/api/items/{id}/restart": map[string]any{
 			"post": compilerTestOperation("postItemRestart", compilerTestMetadata("high", true), false),
 		},
+		"/api/items/{id}/inspect": map[string]any{
+			"post": compilerTestOperation("postItemInspect", compilerTestMetadata("low", false), false),
+		},
 		"/api/items/{id}/status": map[string]any{
 			"get": compilerTestOperation("getItemStatus", compilerTestMetadata("low", false), false),
 		},
@@ -118,8 +121,12 @@ func TestCompileDocumentationCatalogProjectsRuntimeCapabilitiesDeterministically
 
 func assertDocumentationCatalogTools(t *testing.T, catalog DocumentationCatalog) {
 	t.Helper()
-	if len(catalog.Tools) != 2 || catalog.Tools[0].Name != "get_item" || catalog.Tools[1].Name != "get_item_status" {
+	if len(catalog.Tools) != 3 || catalog.Tools[0].Name != "get_item" || catalog.Tools[1].Name != "get_item_status" || catalog.Tools[2].Name != "post_item_inspect" {
 		t.Fatalf("unexpected deterministic tools: %#v", catalog.Tools)
+	}
+	inspect := catalog.Tools[2]
+	if inspect.Method != http.MethodPost || inspect.Path != "/api/items/{id}/inspect" || inspect.Confirmation.Required {
+		t.Fatalf("low-risk confirmation-free POST must project as a tool: %#v", inspect)
 	}
 }
 

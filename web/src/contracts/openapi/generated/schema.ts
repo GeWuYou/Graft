@@ -2917,7 +2917,7 @@ export interface paths {
     put?: never;
     /**
      * Validate a managed Compose application create request
-     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a application.
+     * @description Validates managed-root authority, target paths, and bounded create inputs without writing files or registering an application.
      */
     post: operations['postApplicationCreateValidate'];
     delete?: never;

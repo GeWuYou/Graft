@@ -15137,7 +15137,7 @@
             "ttl": "PT0S"
           }
         },
-        "description": "Validates managed-root authority, target paths, and bounded create inputs without writing files or registering a application.",
+        "description": "Validates managed-root authority, target paths, and bounded create inputs without writing files or registering an application.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"

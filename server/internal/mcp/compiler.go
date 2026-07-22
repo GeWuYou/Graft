@@ -141,8 +141,8 @@ func CompileReadTools(bundle []byte) ([]toolDefinition, error) {
 	return tools, nil
 }
 
-// CompileCapabilities 从 canonical OpenAPI 生成所有已批准的 MCP 投影。
-// GET 与声明为低风险的无副作用 POST 可作为查询 Tool；确认保护的 POST 则作为 Action，身份始终来自 operationId。
+// CompileCapabilities 从 canonical OpenAPI 生成所有已批准的 MCP capability 投影。
+// capability 不能仅按 HTTP method 分类：GET 与显式声明为低风险、无确认的 POST 可作为查询 Tool；确认保护的 POST 才作为 Action，身份始终来自 operationId。
 func CompileCapabilities(bundle []byte) (capabilityDefinitions, error) {
 	document, err := loadOpenAPIDocument(bundle)
 	if err != nil {
