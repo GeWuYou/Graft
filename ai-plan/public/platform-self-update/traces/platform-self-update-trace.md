@@ -53,6 +53,12 @@
 - Target server settlement resolves paths beneath the frozen root, computes actual SHA-256 and byte counts, rejects forged metadata, and creates the Backup fact exactly once without exposing storage references through the completion receipt.
 - Validated Backup package tests, migration hash and SQL/version gates, generated registry, diff hygiene, and the backend completion entrypoint.
 
+## 2026-07-22 Runner Digest Authority
+
+- Added the checksummed `runners.compose` immutable identity to the canonical release manifest in `20999c3f`; publishing validates an externally supplied digest and does not claim a local runner build context as release authority.
+- Update manifest verification now requires official GHCR server, web and sibling runner image/reference/digest triples, and Compose preflight rejects a missing, mutable or non-official runner reference.
+- Removed the release-stage reduced manifest overwrite; validated update tests, backend completion entrypoint, publish YAML parsing and diff hygiene.
+
 ## Loop Batch State
 
 ```json
@@ -65,16 +71,16 @@
     "backup-capability",
     "compose-runner-preflight-contract",
     "task-receipt-settlement",
-    "backup-runner-handoff"
+    "backup-runner-handoff",
+    "runner-digest-authority"
   ],
   "pending_batches": [
-    "runner-digest-authority",
     "compose-fixture-execution",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "runner-digest-authority",
+  "next_batch": "compose-fixture-execution",
   "closeout_status": "in_progress"
 }
 ```
