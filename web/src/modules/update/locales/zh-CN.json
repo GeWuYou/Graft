@@ -1,0 +1,68 @@
+{
+  "update": {
+    "route": { "center": { "title": "更新中心", "breadcrumb": "更新中心" } },
+    "versionEntry": {
+      "unavailable": "版本未知",
+      "openCenter": "当前版本 {version}，打开更新中心",
+      "updateAvailable": "发现新版本 {version}，打开更新中心"
+    },
+    "center": {
+      "navHint": "平台",
+      "title": "更新中心",
+      "description": "查看受验证的 Graft 发行版本，并确认当前安装可用的更新方式。",
+      "checkNow": "检查更新",
+      "loadFailed": "无法加载更新状态。",
+      "checkRequestFailed": "检查更新请求未完成。",
+      "checkFailed": "最近一次更新检查失败：{reason}",
+      "checkedAt": "最近检查：{date}",
+      "channels": { "stable": "稳定版", "beta": "Beta", "unknown": "未知通道" },
+      "current": { "title": "当前版本", "description": "正在运行的 Graft 发行版本。" },
+      "latest": {
+        "title": "可用版本",
+        "available": "已于 {date} 发布",
+        "upToDate": "已是最新版本",
+        "upToDateDescription": "当前通道内没有更高的已验证发行版本。"
+      },
+      "installation": {
+        "title": "安装画像",
+        "declared": "声明模式",
+        "detected": "检测模式",
+        "modes": { "compose": "Compose", "binary": "二进制", "unknown": "未声明" }
+      },
+      "release": {
+        "title": "发行说明",
+        "verified": "发行清单与 OCI 镜像摘要已验证。",
+        "upgrade": "开始升级",
+        "executionUnavailable": "当前版本仅支持更新发现。Compose 执行器、备份与迁移将在平台升级执行能力就绪后启用。",
+        "manualOnly": "此安装类型仅提供校验包与人工升级指引，不会自动替换正在运行的二进制文件。",
+        "managePermissionRequired": "需要平台更新管理权限后才能执行升级。",
+        "notesEmpty": "该发行版本未提供发行说明。",
+        "manifest": "查看发行清单",
+        "checksums": "查看校验和",
+        "emptyTitle": "没有可用更新",
+        "emptyDescription": "检查更新后，兼容当前通道的发行版本会显示在这里。"
+      },
+      "capabilities": {
+        "title": "安装能力矩阵",
+        "description": "自动化能力由安装声明和运行时检测共同决定，不能仅由环境变量开启。",
+        "columns": { "capability": "能力", "compose": "官方 Compose", "binary": "二进制" },
+        "rows": {
+          "check": "检查版本",
+          "notes": "发行说明",
+          "verify": "校验发行包",
+          "upgrade": "受控升级",
+          "backup": "升级前备份",
+          "migration": "数据库迁移"
+        },
+        "states": { "supported": "支持", "pending": "即将支持", "manual": "人工操作" }
+      },
+      "binaryGuidance": "二进制安装请下载同版本 server 与 web 发行包，验证 SHA-256 后再按系统服务管理方式重启。"
+    }
+  },
+  "scheduledTask": {
+    "platformUpdateCheck": {
+      "title": "检查平台更新",
+      "description": "检查经过验证的 Graft 发行版本，不执行安装。"
+    }
+  }
+}

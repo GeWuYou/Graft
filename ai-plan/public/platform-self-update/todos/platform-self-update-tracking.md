@@ -45,13 +45,14 @@ closeout:
 
 - Work Intake completed and the topic was bootstrapped.
 - Batch 1 established release-manifest, release authority, roadmap, and Compose runner ADR.
-- Next step: delegate `read-only-update-discovery`.
+- Batch 2 added read-only release discovery, the installation profile, and the protected status/check API.
+- Batch 3 has added the front-end Update Center and the logo version affordance. The next batch is `backup-capability`.
 
 ## Task Checklist
 
 - [x] `release-authority-and-manifest`
-- [ ] `read-only-update-discovery`
-- [ ] `update-center-ui`
+- [x] `read-only-update-discovery`
+- [x] `update-center-ui`
 - [ ] `backup-capability`
 - [ ] `compose-execution-and-recovery`
 - [ ] `archive-readiness`
@@ -68,17 +69,16 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "release-authority-and-manifest"
+    "release-authority-and-manifest",
+    "read-only-update-discovery"
   ],
   "pending_batches": [
-    "read-only-update-discovery",
-    "update-center-ui",
     "backup-capability",
     "compose-execution-and-recovery",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "read-only-update-discovery",
+  "next_batch": "backup-capability",
   "closeout_status": "completed"
 }
 ```
