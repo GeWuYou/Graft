@@ -111,6 +111,7 @@ async function refreshStatus() {
   try {
     discoveryStore.replaceSnapshot(await checkForUpdates());
   } catch {
+    discoveryStore.invalidateSnapshot();
     MessagePlugin.error(t('update.preview.checkFailed'));
   } finally {
     checking.value = false;

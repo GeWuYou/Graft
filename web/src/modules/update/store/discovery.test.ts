@@ -69,4 +69,34 @@ describe('update discovery store', () => {
     expect(store.phase).toBe('ready');
     expect(store.error).toBe('');
   });
+
+  it('does not let an older initial request overwrite a manual refresh', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);
+    let resolveInitial!: (status: never) => void;
+    vi.mocked(getUpdateStatus).mockReturnValueOnce(new Promise((resolve) => (resolveInitial = resolve)));
+    const store = useUpdateDiscoveryStore();
+
+    const initialRequest = store.ensureSnapshot();
+    const refreshed = { current_version: '2.0.0' } as never;
+    store.replaceSnapshot(refreshed);
+    resolveInitial({ current_version: '1.0.0' } as never);
+    await initialRequest;
+
+    expect(store.status).toEqual(refreshed);
+  });
+
+  it('invalidates the current snapshot when a manual refresh fails', () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);
+    const store = useUpdateDiscoveryStore();
+    const current = { latest: { version: '1.1.0' }, cache_stale: false, check_error: '' } as never;
+
+    store.replaceSnapshot(current);
+    store.invalidateSnapshot();
+
+    expect(store.phase).toBe('error');
+    expect(store.hasUpdate).toBe(false);
+    expect(store.status?.check_error).toBe('check-failed');
+  });
 });

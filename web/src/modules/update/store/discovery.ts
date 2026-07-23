@@ -59,9 +59,20 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
       return this.requestPromise;
     },
     replaceSnapshot(status: UpdateStatus) {
+      this.generation += 1;
+      this.requestPromise = null;
       this.status = status;
       this.phase = 'ready';
       this.error = '';
+    },
+    invalidateSnapshot(error = 'check-failed') {
+      this.generation += 1;
+      this.requestPromise = null;
+      if (this.status) {
+        this.status = { ...this.status, cache_stale: true, check_error: error };
+      }
+      this.phase = 'error';
+      this.error = error;
     },
     reset() {
       this.generation += 1;
