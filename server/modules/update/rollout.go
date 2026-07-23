@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"graft/server/internal/eventbus"
@@ -203,14 +205,29 @@ func (s *RolloutService) settleReceiptEntry(ctx context.Context, root string, en
 }
 
 func validRunnerReceiptEntry(entry os.DirEntry) bool {
-	return !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") && filepath.Base(entry.Name()) == entry.Name()
+	if entry == nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || filepath.Base(entry.Name()) != entry.Name() || entry.Type()&os.ModeSymlink != 0 {
+		return false
+	}
+	info, err := entry.Info()
+	return err == nil && info.Mode().IsRegular() && info.Mode()&os.ModeSymlink == 0
 }
 
 func readPersistedRunnerReceipt(root, name string) (string, RunnerReceipt, error) {
 	path := filepath.Join(root, runnerReceiptDirectory, name)
 	// #nosec G304,G703 -- name is a validated basename from the restricted receipt directory under the configured root.
-	//nolint:gosec // The path is constrained to that receipt directory and never accepts a request-supplied path.
-	contents, err := os.ReadFile(path)
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return "", RunnerReceipt{}, fmt.Errorf("read compose runner receipt: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+	info, err := file.Stat()
+	if err != nil {
+		return "", RunnerReceipt{}, fmt.Errorf("stat compose runner receipt: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 {
+		return "", RunnerReceipt{}, errors.New("compose runner receipt is not a regular file")
+	}
+	contents, err := io.ReadAll(file)
 	if err != nil {
 		return "", RunnerReceipt{}, fmt.Errorf("read compose runner receipt: %w", err)
 	}
