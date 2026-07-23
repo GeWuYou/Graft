@@ -114,7 +114,7 @@ async function refreshStatus() {
   color: var(--td-text-color-secondary);
   cursor: pointer;
   display: inline-flex;
-  font-size: 11px;
+  font: var(--td-font-body-small);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   line-height: 16px;
