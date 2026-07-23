@@ -31,6 +31,25 @@ func TestRegisterMessagesIncludesPlatformUpdateScheduledTaskKeys(t *testing.T) {
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleENUS, "scheduledTask.platformUpdateCheck.description", "Checks the release source for a newer verified platform version.")
 }
 
+func TestRegisterMessagesRejectsMissingScheduledTaskMessage(t *testing.T) {
+	localizer := i18n.MustNew(config.I18nConfig{
+		DefaultLocale:    "zh-CN",
+		FallbackLocale:   "zh-CN",
+		SupportedLocales: []string{"zh-CN", "en-US"},
+	})
+	if err := localizer.RegisterEmbeddedLocaleResources([]i18n.EmbeddedLocaleResource{
+		{Namespace: "update", Locale: i18n.LocaleZHCN, Source: "update/zh-CN.yaml", Data: []byte("menu.platform.update: 更新中心\nscheduledTask.platformUpdateCheck.title: 检查平台更新\n")},
+		{Namespace: "update", Locale: i18n.LocaleENUS, Source: "update/en-US.yaml", Data: []byte("menu.platform.update: Update Center\nscheduledTask.platformUpdateCheck.title: Check Platform Updates\n")},
+	}); err != nil {
+		t.Fatalf("register synthetic platform-update locale resources: %v", err)
+	}
+
+	err := registerMessages(localizer)
+	if err == nil || err.Error() != "platform-update locale resource missing scheduledTask.platformUpdateCheck.description for zh-CN" {
+		t.Fatalf("expected missing scheduled task description error, got %v", err)
+	}
+}
+
 func assertRegisteredUpdateMessage(t *testing.T, localizer *i18n.Service, locale i18n.LocaleTag, key string, expected string) {
 	t.Helper()
 

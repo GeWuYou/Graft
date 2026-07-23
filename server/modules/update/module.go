@@ -64,8 +64,14 @@ func registerMessages(localizer *i18n.Service) error {
 		return errors.New("i18n service is unavailable")
 	}
 	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
-		if len(localizer.RegisteredMessageResources(locale, "menu.platform.update")) == 0 {
-			return fmt.Errorf("platform-update locale resource missing menu.platform.update")
+		for _, key := range []i18n.MessageKey{
+			"menu.platform.update",
+			"scheduledTask.platformUpdateCheck.title",
+			"scheduledTask.platformUpdateCheck.description",
+		} {
+			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
+				return fmt.Errorf("platform-update locale resource missing %s for %s", key, locale)
+			}
 		}
 	}
 	return nil

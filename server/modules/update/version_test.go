@@ -31,6 +31,21 @@ func TestDetectInstallationProfileRequiresDeclaredAndDetectedCompose(t *testing.
 	}
 }
 
+func TestDetectInstallationProfileTreatsRelativeComposeRootAsBinary(t *testing.T) {
+	profile := DetectInstallationProfile(func(key string) string {
+		if key == declaredDeploymentModeEnv {
+			return "compose"
+		}
+		if key == "GRAFT_UPDATE_COMPOSE_ROOT" {
+			return "deploy/graft"
+		}
+		return ""
+	}, func() (string, error) { return "/usr/local/bin/graft", nil })
+	if profile.DetectedMode != "binary" || profile.Capability != "manual_guidance" {
+		t.Fatalf("expected relative compose root to remain binary guidance, got %#v", profile)
+	}
+}
+
 func TestDetectInstallationProfile(t *testing.T) {
 	testCases := []struct {
 		name       string
