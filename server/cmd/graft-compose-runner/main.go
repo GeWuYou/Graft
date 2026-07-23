@@ -145,6 +145,8 @@ func digest(path string) (string, int64, error) {
 	}
 	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }
+
+//nolint:cyclop // 四个镜像坐标必须作为一组原子替换，避免 Compose 在任一服务上回退到旧引用。
 func replaceRefs(path, server, web string) error {
 	if !immutableReference(server) || !immutableReference(web) {
 		return errors.New("compose runner image references must be immutable digests")
