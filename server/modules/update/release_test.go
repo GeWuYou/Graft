@@ -6,9 +6,20 @@ import (
 )
 
 func TestReleaseAssetURLsRecognizesPublishedChecksumName(t *testing.T) {
-	_, checksumsURL := releaseAssetURLs("v1.2.3", []githubAsset{{Name: "graft-sha256sums-v1.2.3.txt", BrowserDownloadURL: "https://example.test/checksums"}})
+	manifest := releaseManifest{Artifacts: releaseManifestArtifacts{Checksums: "published-checksums.txt"}}
+	_, checksumsURL := releaseAssetURLs(manifest, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}})
 	if checksumsURL != "https://example.test/checksums" {
-		t.Fatalf("expected canonical checksum asset URL, got %q", checksumsURL)
+		t.Fatalf("expected manifest-bound checksum asset URL, got %q", checksumsURL)
+	}
+
+	_, checksumsURL = releaseAssetURLs(manifest, []githubAsset{{Name: "graft-sha256sums-v1.2.3.txt", BrowserDownloadURL: "https://example.test/checksums"}})
+	if checksumsURL != "" {
+		t.Fatalf("expected mismatched checksum asset to reject release, got %q", checksumsURL)
+	}
+
+	_, checksumsURL = releaseAssetURLs(releaseManifest{}, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}})
+	if checksumsURL != "" {
+		t.Fatalf("expected missing manifest checksum asset to reject release, got %q", checksumsURL)
 	}
 }
 
@@ -16,6 +27,7 @@ func TestValidReleaseManifestRequiresVersionChannelPair(t *testing.T) {
 	manifest := releaseManifest{}
 	manifest.Images.Server.Digest = validTestDigest('a')
 	manifest.Images.Web.Digest = validTestDigest('b')
+	manifest.Artifacts.Checksums = "graft-sha256sums-v1.2.3-beta.1.txt"
 
 	manifest.Version = "1.2.3"
 	manifest.Channel = "beta"

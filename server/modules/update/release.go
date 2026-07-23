@@ -65,6 +65,11 @@ type releaseManifest struct {
 			Digest string `json:"digest"`
 		} `json:"web"`
 	} `json:"images"`
+	Artifacts releaseManifestArtifacts `json:"artifacts"`
+}
+
+type releaseManifestArtifacts struct {
+	Checksums string `json:"checksums"`
 }
 
 // List 获取并验证上游 Release；任一个 Release 的 manifest 无效时仅跳过该版本。
@@ -108,7 +113,7 @@ func (p GitHubReleaseProvider) List(ctx context.Context) ([]Release, error) {
 }
 
 func (p GitHubReleaseProvider) verifyRelease(ctx context.Context, client *http.Client, source githubRelease) (Release, bool) {
-	manifestURL, checksumsURL := releaseAssetURLs(source.TagName, source.Assets)
+	manifestURL := releaseManifestURL(source.Assets)
 	if manifestURL == "" {
 		return Release{}, false
 	}
@@ -116,22 +121,34 @@ func (p GitHubReleaseProvider) verifyRelease(ctx context.Context, client *http.C
 	if !ok || !validReleaseManifest(source.TagName, manifest) || !releaseMatchesGitHubMetadata(source, manifest) {
 		return Release{}, false
 	}
+	_, checksumsURL := releaseAssetURLs(manifest, source.Assets)
+	if checksumsURL == "" {
+		return Release{}, false
+	}
 	return buildRelease(source, manifest, manifestURL, checksumsURL), true
 }
 
-func releaseAssetURLs(tagName string, assets []githubAsset) (string, string) {
-	var manifestURL, checksumsURL string
+func releaseManifestURL(assets []githubAsset) string {
 	for _, asset := range assets {
-		switch asset.Name {
-		case "release-manifest.json":
-			manifestURL = asset.BrowserDownloadURL
-		case "checksums.txt", "checksums.sha256":
-			checksumsURL = asset.BrowserDownloadURL
-		case "graft-sha256sums-" + tagName + ".txt":
-			checksumsURL = asset.BrowserDownloadURL
+		if asset.Name == "release-manifest.json" {
+			return asset.BrowserDownloadURL
 		}
 	}
-	return manifestURL, checksumsURL
+	return ""
+}
+
+func releaseAssetURLs(manifest releaseManifest, assets []githubAsset) (string, string) {
+	manifestURL := releaseManifestURL(assets)
+	checksumsName := strings.TrimSpace(manifest.Artifacts.Checksums)
+	if checksumsName == "" {
+		return manifestURL, ""
+	}
+	for _, asset := range assets {
+		if asset.Name == checksumsName {
+			return manifestURL, asset.BrowserDownloadURL
+		}
+	}
+	return manifestURL, ""
 }
 
 func validReleaseManifest(tagName string, manifest releaseManifest) bool {
@@ -139,7 +156,7 @@ func validReleaseManifest(tagName string, manifest releaseManifest) bool {
 	if err != nil || version.String() != strings.TrimPrefix(strings.TrimSpace(tagName), "v") {
 		return false
 	}
-	if !validDigest(manifest.Images.Server.Digest) || !validDigest(manifest.Images.Web.Digest) {
+	if !validDigest(manifest.Images.Server.Digest) || !validDigest(manifest.Images.Web.Digest) || strings.TrimSpace(manifest.Artifacts.Checksums) == "" {
 		return false
 	}
 	return releaseChannelMatchesVersion(strings.ToLower(strings.TrimSpace(manifest.Channel)), version)
