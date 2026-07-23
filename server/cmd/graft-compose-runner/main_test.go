@@ -22,7 +22,7 @@ func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read updated compose environment: %v", err)
 	}
-	if strings.Contains(string(contents), "sha256:old") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE_DIGEST=sha256:aaaaaaaa") || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE_DIGEST=sha256:bbbbbbbb") {
+	if strings.Contains(string(contents), "sha256:old") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE_DIGEST="+strings.TrimPrefix(server, "ghcr.io/gewuyou/graft-server@")) || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE_DIGEST="+strings.TrimPrefix(web, "ghcr.io/gewuyou/graft-web@")) {
 		t.Fatalf("compose environment does not contain frozen references: %s", contents)
 	}
 }
