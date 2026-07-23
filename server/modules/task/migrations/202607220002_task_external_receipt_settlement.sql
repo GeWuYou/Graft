@@ -3,7 +3,9 @@ ALTER TABLE task_events DROP CONSTRAINT task_events_type_check;
 ALTER TABLE task_events ADD CONSTRAINT task_events_type_check CHECK (event_type IN (
   'created', 'cancel_requested', 'cancelled', 'retry_requested', 'retry_scheduled',
   'recovery_required', 'recovery_resolved', 'external_receipt_settled'
-));
+)) NOT VALID;
+
+ALTER TABLE task_events VALIDATE CONSTRAINT task_events_type_check;
 
 CREATE TABLE task_external_receipts (
   id BIGSERIAL PRIMARY KEY,

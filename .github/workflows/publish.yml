@@ -365,7 +365,6 @@ jobs:
             --arg channel "${RELEASE_CHANNEL}" \
             --arg releaseTag "${RELEASE_REF_NAME}" \
             --arg releaseNotesURL "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_REF_NAME}" \
-            --arg minimumSourceVersion "" \
             --arg upgradeNotes "Review the GitHub Release Notes and perform the manifest-declared migration before runtime startup." \
             --arg serverImage "${{ steps.image_vars.outputs.server_image }}" \
             --arg serverDigest "${{ steps.server_build.outputs.digest }}" \
@@ -384,7 +383,6 @@ jobs:
               channel: $channel,
               release_tag: $releaseTag,
               release_notes_url: $releaseNotesURL,
-              minimum_source_version: $minimumSourceVersion,
               upgrade_notes: $upgradeNotes,
               images: {
                 server: {

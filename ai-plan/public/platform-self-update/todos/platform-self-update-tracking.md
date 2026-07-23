@@ -68,8 +68,8 @@ closeout:
 - [x] `compose-fixture-execution`
 - [x] `compose-execution-and-recovery`
 - [ ] `compose-rollout-launcher-and-history`
-- [ ] `archive-readiness`
 - [ ] `compose-runner-delivery-and-discovery-cache`
+- [ ] `archive-readiness`
 
 ## Acceptance Conditions
 
@@ -95,8 +95,8 @@ closeout:
     "compose-execution-and-recovery"
   ],
   "pending_batches": [
-    "compose-runner-delivery-and-discovery-cache",
     "compose-rollout-launcher-and-history",
+    "compose-runner-delivery-and-discovery-cache",
     "archive-readiness"
   ],
   "current_batch": null,
