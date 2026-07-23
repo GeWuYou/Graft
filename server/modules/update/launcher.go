@@ -35,6 +35,8 @@ type dockerRunnerClient interface {
 	ImagePull(context.Context, string, mobyclient.ImagePullOptions) (mobyclient.ImagePullResponse, error)
 	ContainerCreate(context.Context, mobyclient.ContainerCreateOptions) (mobyclient.ContainerCreateResult, error)
 	ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) (mobyclient.ContainerStartResult, error)
+	ContainerInspect(context.Context, string, mobyclient.ContainerInspectOptions) (mobyclient.ContainerInspectResult, error)
+	ContainerRemove(context.Context, string, mobyclient.ContainerRemoveOptions) (mobyclient.ContainerRemoveResult, error)
 	Close() error
 }
 
@@ -85,9 +87,27 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 		return fmt.Errorf("create compose runner: %w", err)
 	}
 	if _, err := l.client.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
+		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
+			return fmt.Errorf("start compose runner: %w; clean up unstarted runner: %v", err, cleanupErr)
+		}
 		return fmt.Errorf("start compose runner: %w", err)
 	}
 	return nil
+}
+
+func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context, id string) error {
+	inspected, err := l.client.ContainerInspect(ctx, id, mobyclient.ContainerInspectOptions{})
+	if err != nil {
+		return err
+	}
+	if inspected.Container.State == nil {
+		return errors.New("inspect compose runner returned no state")
+	}
+	if inspected.Container.State.Running {
+		return nil
+	}
+	_, err = l.client.ContainerRemove(ctx, id, mobyclient.ContainerRemoveOptions{})
+	return err
 }
 
 func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
