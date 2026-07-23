@@ -47,6 +47,7 @@ func CreateSQLite(db *sql.DB) error {
 			integrity_sha256 TEXT NOT NULL, settled_task_status TEXT NOT NULL, created_at TIMESTAMP NOT NULL,
 			FOREIGN KEY(task_id) REFERENCES tasks(id), FOREIGN KEY(task_id, stage_id) REFERENCES task_stages(task_id, id),
 			UNIQUE(task_id, operation_id), CHECK (outcome IN ('success', 'failed', 'needs_attention')),
+			CHECK (trim(executor_type) <> ''), CHECK (trim(receipt_protocol) <> ''), CHECK (trim(operation_id) <> ''),
 			CHECK ((outcome = 'success' AND failure_code IS NULL) OR (outcome IN ('failed', 'needs_attention') AND failure_code IS NOT NULL AND trim(failure_code) <> '')),
 			CHECK (settled_task_status IN ('success', 'failed', 'needs_attention'))
 		)`,

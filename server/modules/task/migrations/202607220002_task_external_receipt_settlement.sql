@@ -24,6 +24,7 @@ CREATE TABLE task_external_receipts (
   CONSTRAINT task_external_receipts_task_id_fkey FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE RESTRICT,
   CONSTRAINT task_external_receipts_task_stage_fkey FOREIGN KEY (task_id, stage_id) REFERENCES task_stages (task_id, id) ON DELETE RESTRICT,
   CONSTRAINT uq_task_external_receipts_task_operation UNIQUE (task_id, operation_id),
+  CONSTRAINT task_external_receipts_executor_type_check CHECK (btrim(executor_type) <> ''),
   CONSTRAINT task_external_receipts_protocol_check CHECK (btrim(receipt_protocol) <> ''),
   CONSTRAINT task_external_receipts_operation_check CHECK (btrim(operation_id) <> ''),
   CONSTRAINT task_external_receipts_outcome_check CHECK (outcome IN ('success', 'failed', 'needs_attention')),

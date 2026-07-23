@@ -30,6 +30,7 @@ func TestCreateSQLiteEnforcesTaskStageUniqueness(t *testing.T) {
 	) VALUES (1, 'third', 0, 'test.executor', 'pending', 0, 1, 0, '{}', 'manual_reconcile', '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`)
 }
 
+// TestCreateSQLiteEnforcesExternalReceiptIntegrity 验证外部执行回执的 SQLite 完整性约束。
 func TestCreateSQLiteEnforcesExternalReceiptIntegrity(t *testing.T) {
 	db := openSQLite(t, "task-testschema-external-receipt")
 	insertTask(t, db, "first")
@@ -38,6 +39,7 @@ func TestCreateSQLiteEnforcesExternalReceiptIntegrity(t *testing.T) {
 	insertStage(t, db, 2, "second-stage")
 
 	assertExternalReceiptRejected(t, db, "failed receipt without failure code", externalReceiptInput{taskID: 1, stageID: 1, outcome: "failed"})
+	assertExternalReceiptRejected(t, db, "needs_attention receipt without failure code", externalReceiptInput{taskID: 1, stageID: 1, outcome: "needs_attention"})
 	assertExternalReceiptRejected(t, db, "task and stage ownership mismatch", externalReceiptInput{taskID: 1, stageID: 2, outcome: "success"})
 }
 
@@ -47,6 +49,8 @@ func openSQLite(t *testing.T, name string) *sql.DB {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
+	db.SetMaxOpenConns(1)
+	db.SetConnMaxLifetime(0)
 	t.Cleanup(func() { _ = db.Close() })
 	if err := CreateSQLite(db); err != nil {
 		t.Fatalf("create task test schema: %v", err)
