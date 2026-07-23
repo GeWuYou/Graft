@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usePermissionStore } from '@/store';
 
-import { getUpdateStatus } from '../api/update';
+import { checkForUpdates, getUpdateStatus } from '../api/update';
 import { useUpdateDiscoveryStore } from './discovery';
 
-vi.mock('../api/update', () => ({ getUpdateStatus: vi.fn() }));
+vi.mock('../api/update', () => ({ checkForUpdates: vi.fn(), getUpdateStatus: vi.fn() }));
 
 describe('update discovery store', () => {
   beforeEach(() => {
@@ -98,5 +98,24 @@ describe('update discovery store', () => {
     expect(store.phase).toBe('error');
     expect(store.hasUpdate).toBe(false);
     expect(store.status?.check_error).toBe('check-failed');
+  });
+
+  it('keeps the newest manual refresh result when requests finish out of order', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);
+    let resolveFirst!: (status: never) => void;
+    let resolveSecond!: (status: never) => void;
+    vi.mocked(checkForUpdates)
+      .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (resolveSecond = resolve)));
+    const store = useUpdateDiscoveryStore();
+
+    const first = store.refreshSnapshot();
+    const second = store.refreshSnapshot();
+    resolveFirst({ current_version: '1.0.0' } as never);
+    resolveSecond({ current_version: '2.0.0' } as never);
+    await Promise.all([first, second]);
+
+    expect(store.status?.current_version).toBe('2.0.0');
   });
 });

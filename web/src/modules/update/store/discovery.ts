@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 
 import { usePermissionStore } from '@/store';
 
-import { getUpdateStatus } from '../api/update';
+import { checkForUpdates, getUpdateStatus } from '../api/update';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import type { UpdateStatus } from '../types/update';
 
@@ -64,6 +64,29 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
       this.status = status;
       this.phase = 'ready';
       this.error = '';
+    },
+    async refreshSnapshot() {
+      const generation = ++this.generation;
+      this.requestPromise = null;
+      this.phase = 'loading';
+      this.error = '';
+      try {
+        const status = await checkForUpdates();
+        if (generation === this.generation) {
+          this.status = status;
+          this.phase = 'ready';
+        }
+        return status;
+      } catch (error) {
+        if (generation === this.generation) {
+          if (this.status) {
+            this.status = { ...this.status, cache_stale: true, check_error: 'check-failed' };
+          }
+          this.phase = 'error';
+          this.error = 'check-failed';
+        }
+        throw error;
+      }
     },
     invalidateSnapshot(error = 'check-failed') {
       this.generation += 1;

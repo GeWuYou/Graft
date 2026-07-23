@@ -65,7 +65,6 @@ import { useI18n } from 'vue-i18n';
 
 import { usePermissionStore } from '@/store';
 
-import { checkForUpdates } from '../api/update';
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
@@ -109,9 +108,8 @@ async function refreshStatus() {
   }
   checking.value = true;
   try {
-    discoveryStore.replaceSnapshot(await checkForUpdates());
+    await discoveryStore.refreshSnapshot();
   } catch {
-    discoveryStore.invalidateSnapshot();
     MessagePlugin.error(t('update.preview.checkFailed'));
   } finally {
     checking.value = false;
