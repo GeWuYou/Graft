@@ -83,7 +83,9 @@
             }}</pre>
             <t-alert v-if="status.latest.upgrade_notes" theme="info" :message="status.latest.upgrade_notes" />
             <ol v-if="status.installation_profile.manual_steps?.length" class="update-center__manual-steps">
-              <li v-for="step in status.installation_profile.manual_steps" :key="step">{{ step }}</li>
+              <li v-for="step in status.installation_profile.manual_steps" :key="step.key">
+                {{ t(`update.center.manualSteps.${step.key}`, step.params ?? {}) }}
+              </li>
             </ol>
             <div class="update-center__release-links">
               <t-link theme="primary" :href="status.latest.manifest_url" target="_blank">
@@ -134,8 +136,12 @@
     <t-dialog
       v-model:visible="confirmationVisible"
       :header="t('update.center.confirmation.title', { version: status?.latest?.version })"
-      :confirm-btn="{ content: t('update.center.confirmation.confirm'), theme: 'danger', loading: submitting }"
-      :confirm-disabled="!isExactConfirmation"
+      :confirm-btn="{
+        content: t('update.center.confirmation.confirm'),
+        theme: 'danger',
+        loading: submitting,
+        disabled: !isExactConfirmation,
+      }"
       :cancel-btn="{ content: t('update.center.confirmation.cancel') }"
       @confirm="submitUpgrade"
     >

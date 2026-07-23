@@ -75,7 +75,15 @@
         },
         "states": { "supported": "支持", "pending": "即将支持", "manual": "人工操作" }
       },
-      "binaryGuidance": "二进制安装请下载同版本 server 与 web 发行包，验证 SHA-256 后再按系统服务管理方式重启。"
+      "binaryGuidance": "二进制安装请下载同版本 server 与 web 发行包，验证 SHA-256 后再按系统服务管理方式重启。",
+      "manualSteps": {
+        "download": "下载与目标发行版同标签的 server binary 和 web distribution。",
+        "verify": "使用 manifest 中的 SHA-256 校验两个发行资产。",
+        "deploy": "将 server binary 替换到 {binary_path}，并将 web distribution 部署到 {web_root}。",
+        "migrate": "显式执行 graft migrate up。",
+        "restartSystemd": "执行 systemctl restart {service_name}，然后验证 /healthz。",
+        "restartManual": "按当前人工运行方式重启服务，然后验证 /healthz。"
+      }
     }
   },
   "scheduledTask": {

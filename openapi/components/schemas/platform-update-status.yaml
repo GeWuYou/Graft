@@ -35,7 +35,14 @@ properties:
       service_name: { type: string }
       manual_steps:
         type: array
-        items: { type: string }
+        items:
+          type: object
+          required: [key]
+          properties:
+            key: { type: string }
+            params:
+              type: object
+              additionalProperties: { type: string }
       blocking_reason: { type: string }
   checked_at: { type: string, format: date-time }
   last_successful_at: { type: string, format: date-time }

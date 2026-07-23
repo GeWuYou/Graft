@@ -75,7 +75,15 @@
         },
         "states": { "supported": "Supported", "pending": "Coming soon", "manual": "Manual" }
       },
-      "binaryGuidance": "For binary installations, download matching server and web distributions, verify SHA-256, then restart through the system service manager."
+      "binaryGuidance": "For binary installations, download matching server and web distributions, verify SHA-256, then restart through the system service manager.",
+      "manualSteps": {
+        "download": "Download the server binary and web distribution with the target release tag.",
+        "verify": "Verify both release assets against the SHA-256 values in the manifest.",
+        "deploy": "Replace the server binary at {binary_path} and deploy the web distribution to {web_root}.",
+        "migrate": "Run graft migrate up explicitly.",
+        "restartSystemd": "Run systemctl restart {service_name}, then verify /healthz.",
+        "restartManual": "Restart the service using the current manual process, then verify /healthz."
+      }
     }
   },
   "scheduledTask": {

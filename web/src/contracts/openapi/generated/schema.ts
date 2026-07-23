@@ -6194,7 +6194,12 @@ export interface components {
         /** @enum {string} */
         service_manager?: 'systemd' | 'manual';
         service_name?: string;
-        manual_steps?: string[];
+        manual_steps?: {
+          key: string;
+          params?: {
+            [key: string]: string;
+          };
+        }[];
         blocking_reason?: string;
       };
       /** Format: date-time */

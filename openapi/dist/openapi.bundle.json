@@ -25834,7 +25834,21 @@
               "manual_steps": {
                 "type": "array",
                 "items": {
-                  "type": "string"
+                  "type": "object",
+                  "required": [
+                    "key"
+                  ],
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               },
               "blocking_reason": {
@@ -25996,10 +26010,12 @@
         "properties": {
           "target_version": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 128
           },
           "confirmation": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 128,
             "description": "Exact target_version typed by the administrator."
           }

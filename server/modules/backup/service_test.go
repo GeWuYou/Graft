@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,8 +64,12 @@ func TestServiceForwardsBackupCapabilityAndProjectsSafeSummary(t *testing.T) {
 	if err != nil || created.ID != repository.item.ID || repository.created.Purpose != input.Purpose {
 		t.Fatalf("create capability mismatch: item=%#v input=%#v err=%v", created, repository.created, err)
 	}
-	if _, err := service.RecordRestoreEvidence(context.Background(), moduleapi.RecordBackupRestoreInput{ID: 7, Status: moduleapi.BackupStatusRestored, RestoreCode: "manual_restore_verified", RecordedAt: time.Now().UTC()}); err != nil {
+	restoreEvidence := moduleapi.RecordBackupRestoreInput{ID: 7, Status: moduleapi.BackupStatusRestored, RestoreCode: "manual_restore_verified", RecordedAt: time.Now().UTC()}
+	if _, err := service.RecordRestoreEvidence(context.Background(), restoreEvidence); err != nil {
 		t.Fatalf("record restore evidence: %v", err)
+	}
+	if repository.restored != restoreEvidence {
+		t.Fatalf("restore evidence was not forwarded: got=%#v want=%#v", repository.restored, restoreEvidence)
 	}
 	summary := ToSummary(created)
 	if summary.ID != created.ID || summary.Purpose != created.Purpose || summary.Status != created.Status {
@@ -99,13 +104,13 @@ func TestServiceCompletesRunnerHandoffAfterVerifyingFrozenArtifacts(t *testing.T
 	configSHA, configSize := runnerArtifactDigest(configContent)
 	dumpSHA, dumpSize := runnerArtifactDigest(dumpContent)
 	completion, err := service.CompleteRunnerHandoff(context.Background(), moduleapi.CompleteBackupRunnerHandoffInput{
-		OperationID: "update-42", TaskID: 42, ConfigSnapshotSHA256: configSHA, ConfigSnapshotBytes: configSize,
-		DatabaseDumpSHA256: dumpSHA, DatabaseDumpBytes: dumpSize,
+		OperationID: "update-42", TaskID: 42, ConfigSnapshotSHA256: "  " + strings.ToUpper(configSHA) + "  ", ConfigSnapshotBytes: configSize,
+		DatabaseDumpSHA256: "\t" + strings.ToUpper(dumpSHA), DatabaseDumpBytes: dumpSize,
 	})
 	if err != nil || completion.BackupID != 7 {
 		t.Fatalf("complete verified handoff: completion=%#v err=%v", completion, err)
 	}
-	if repository.completed.ConfigSnapshotSHA256 != configSHA || repository.completed.DatabaseDumpBytes != dumpSize {
+	if repository.completed.ConfigSnapshotSHA256 != configSHA || repository.completed.ConfigSnapshotBytes != configSize || repository.completed.DatabaseDumpSHA256 != dumpSHA || repository.completed.DatabaseDumpBytes != dumpSize {
 		t.Fatalf("completion did not use server-verified metadata: %#v", repository.completed)
 	}
 	if _, err := service.CompleteRunnerHandoff(context.Background(), moduleapi.CompleteBackupRunnerHandoffInput{

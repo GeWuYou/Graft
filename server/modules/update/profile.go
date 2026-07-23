@@ -17,16 +17,22 @@ const (
 
 // InstallationProfile 组合 operator 声明与运行时证据；Capability 只在二者可安全对齐时允许自动化。
 type InstallationProfile struct {
-	DeclaredMode   string   `json:"declared_mode"`
-	DetectedMode   string   `json:"detected_mode"`
-	Capability     string   `json:"capability"`
-	Guidance       string   `json:"guidance"`
-	BinaryPath     string   `json:"binary_path,omitempty"`
-	WebRoot        string   `json:"web_root,omitempty"`
-	ServiceManager string   `json:"service_manager,omitempty"`
-	ServiceName    string   `json:"service_name,omitempty"`
-	ManualSteps    []string `json:"manual_steps,omitempty"`
-	BlockingReason string   `json:"blocking_reason,omitempty"`
+	DeclaredMode   string       `json:"declared_mode"`
+	DetectedMode   string       `json:"detected_mode"`
+	Capability     string       `json:"capability"`
+	Guidance       string       `json:"guidance"`
+	BinaryPath     string       `json:"binary_path,omitempty"`
+	WebRoot        string       `json:"web_root,omitempty"`
+	ServiceManager string       `json:"service_manager,omitempty"`
+	ServiceName    string       `json:"service_name,omitempty"`
+	ManualSteps    []ManualStep `json:"manual_steps,omitempty"`
+	BlockingReason string       `json:"blocking_reason,omitempty"`
+}
+
+// ManualStep 是 binary 安装人工升级指引的稳定本地化键与参数，不在 API 契约中固化某一种语言。
+type ManualStep struct {
+	Key    string            `json:"key"`
+	Params map[string]string `json:"params,omitempty"`
 }
 
 // DetectInstallationProfile 基于部署路径和运行时证据生成保守画像，永不把声明环境变量单独当作执行授权。
@@ -82,16 +88,16 @@ func binaryInstallationProfile(profile InstallationProfile, getenv func(string) 
 		profile.Guidance = profile.BlockingReason + "。不会自动替换正在运行的 binary。"
 		return profile
 	}
-	profile.ManualSteps = []string{
-		"下载与目标 release 同 tag 的 server binary 和 web distribution。",
-		"使用 manifest 中的 SHA-256 校验两个 release asset。",
-		"将 server binary 替换到 " + profile.BinaryPath + "，并将 web distribution 部署到 " + profile.WebRoot + "。",
-		"显式执行 graft migrate up。",
+	profile.ManualSteps = []ManualStep{
+		{Key: "download"},
+		{Key: "verify"},
+		{Key: "deploy", Params: map[string]string{"binary_path": profile.BinaryPath, "web_root": profile.WebRoot}},
+		{Key: "migrate"},
 	}
 	if profile.ServiceManager == "systemd" {
-		profile.ManualSteps = append(profile.ManualSteps, "执行 systemctl restart "+profile.ServiceName+"，然后验证 /healthz。")
+		profile.ManualSteps = append(profile.ManualSteps, ManualStep{Key: "restartSystemd", Params: map[string]string{"service_name": profile.ServiceName}})
 	} else {
-		profile.ManualSteps = append(profile.ManualSteps, "按当前人工运行方式重启服务，然后验证 /healthz。")
+		profile.ManualSteps = append(profile.ManualSteps, ManualStep{Key: "restartManual"})
 	}
 	profile.Guidance = "二进制部署只能按此受控人工步骤升级；server 与 web 必须使用同一 release tag。"
 	return profile

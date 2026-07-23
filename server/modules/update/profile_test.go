@@ -17,7 +17,7 @@ func TestDetectInstallationProfileBlocksIncompleteBinaryGuidance(t *testing.T) {
 func TestDetectInstallationProfileBuildsSystemdManualSteps(t *testing.T) {
 	values := map[string]string{declaredDeploymentModeEnv: "binary", binaryPathEnv: "/opt/graft/graft-server", binaryWebRootEnv: "/srv/graft/web", serviceManagerEnv: "systemd", serviceNameEnv: "graft.service"}
 	profile := DetectInstallationProfile(func(key string) string { return values[key] }, func() (string, error) { return "", nil })
-	if profile.Capability != "manual_guidance" || len(profile.ManualSteps) != 5 || profile.ManualSteps[4] != "执行 systemctl restart graft.service，然后验证 /healthz。" {
+	if profile.Capability != "manual_guidance" || len(profile.ManualSteps) != 5 || profile.ManualSteps[4].Key != "restartSystemd" || profile.ManualSteps[4].Params["service_name"] != "graft.service" {
 		t.Fatalf("expected exact systemd guidance, got %#v", profile)
 	}
 }
