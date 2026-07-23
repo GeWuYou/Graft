@@ -41,3 +41,19 @@ closeout:
 - pending_batches:
   - integration-runtime-validation
 - next_batch: integration-runtime-validation
+
+## Checklist
+
+- [x] Keep the reusable migration workflow aligned with the canonical SQL policy validator.
+- [x] Pass the disposable schema report path through bootstrap and upload the same path as an artifact.
+- [x] Preserve the Compose Smoke probe URL in the job summary without shell command substitution.
+- [x] Keep the topic README Owned Scope aligned with the migration contract checker package.
+- [x] Record this review batch without changing the existing Work Contract, Recovery Point, or Batch State.
+
+## Acceptance Conditions
+
+- `migration-check.yml` runs `python3 scripts/validate_sql_migrations.py` before migration bootstrap validation.
+- The bootstrap step writes `MIGRATION_SCHEMA_REPORT`, and the diagnostics artifact uploads that exact path.
+- Compose Smoke summary URLs render as Markdown code spans and retain the resolved probe base URL.
+- `README.md` lists `server/internal/migrationcontract/**` in Owned Scope.
+- This tracking file contains an auditable checklist and acceptance conditions, while PR metadata remains unchanged.

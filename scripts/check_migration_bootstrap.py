@@ -32,13 +32,17 @@ class BootstrapTarget:
 class CommandError(RuntimeError):
     """Raised when an external command fails after its output has been reported."""
 
+    def __init__(self, message: str, *, stdout: str = "") -> None:
+        super().__init__(message)
+        self.stdout = stdout
+
 
 def run_command(
     command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False)
     if check and result.returncode != 0:
-        raise CommandError(format_command_failure(command, result))
+        raise CommandError(format_command_failure(command, result), stdout=result.stdout)
     return result
 
 
@@ -157,6 +161,8 @@ def main() -> int:
         if args.schema_report is not None:
             args.schema_report.write_text(schema_report, encoding="utf-8")
     except (CommandError, RuntimeError) as error:
+        if args.schema_report is not None and isinstance(error, CommandError) and error.stdout:
+            args.schema_report.write_text(error.stdout, encoding="utf-8")
         print(f"migration bootstrap failed: {error}", file=sys.stderr)
         print_diagnostics(container_name)
         return 1

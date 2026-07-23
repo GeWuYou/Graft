@@ -318,7 +318,9 @@ SELECT ns.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid),
          SELECT 1 FROM pg_constraint target
          WHERE target.conrelid = con.confrelid
            AND target.contype IN ('p', 'u')
-           AND target.conkey = con.confkey
+           AND cardinality(target.conkey) = cardinality(con.confkey)
+           AND target.conkey @> con.confkey
+           AND target.conkey <@ con.confkey
        ) AS target_key_exists,
        con.convalidated
 FROM pg_constraint con

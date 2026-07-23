@@ -23,6 +23,7 @@
 ## Owned Scope
 
 - `server/internal/cli/**`
+- `server/internal/migrationcontract/**`
 - `scripts/**`
 - `.github/workflows/**`
 - `Justfile`

@@ -29,6 +29,8 @@ jobs:
             server/go.sum
       - name: Test migration governance helpers
         run: python3 -m unittest scripts/test_check_migration_bootstrap.py
+      - name: Validate SQL migration policy
+        run: python3 scripts/validate_sql_migrations.py
       - name: Validate migration source
         shell: bash
         run: |
@@ -46,5 +48,5 @@ jobs:
         with:
           name: migration-governance-diagnostics
           path: |
-            /tmp/graft-migration-schema-report.json
+            ${{ env.MIGRATION_SCHEMA_REPORT }}
           if-no-files-found: ignore

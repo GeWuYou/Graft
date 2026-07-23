@@ -21,12 +21,13 @@ MODULE_SPEC.loader.exec_module(MODULE)
 
 class MigrationEnvironmentTests(unittest.TestCase):
     def test_migration_environment_targets_disposable_database(self) -> None:
-        environment = MODULE.migration_environment(MODULE.BootstrapTarget("temporary-postgres", 42424))
+        target = MODULE.BootstrapTarget("temporary-postgres", 42424)
+        environment = MODULE.migration_environment(target)
 
         self.assertEqual(environment["GRAFT_APP_ENV"], "ci")
         self.assertEqual(
             environment["GRAFT_DATABASE_URL"],
-            "postgres://graft:graft@127.0.0.1:42424/graft?sslmode=disable",
+            f"postgres://graft:graft@127.0.0.1:{target.port}/graft?sslmode=disable",
         )
         self.assertEqual(environment["GRAFT_REDIS_ADDR"], "127.0.0.1:6379")
 
@@ -81,6 +82,26 @@ class LifecycleTests(unittest.TestCase):
 
         print_diagnostics.assert_called_once_with("graft-migration-bootstrap-abc123def456")
         remove_postgres.assert_called_once_with("graft-migration-bootstrap-abc123def456")
+
+    def test_main_writes_schema_report_before_propagating_schema_check_failure(self) -> None:
+        target = MODULE.BootstrapTarget("temporary-postgres", 42424)
+        command_error = MODULE.CommandError("schema check failed", stdout='{"findings": [{"name": "users"}]}\n')
+        schema_report = mock.Mock()
+        with mock.patch.object(
+            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=schema_report)
+        ) as parse_args, mock.patch.object(
+            MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))
+        ), mock.patch.object(MODULE, "start_postgres", return_value=target), mock.patch.object(
+            MODULE, "wait_for_postgres"
+        ), mock.patch.object(MODULE, "apply_migrations"), mock.patch.object(
+            MODULE, "check_schema_contract", side_effect=command_error
+        ), mock.patch.object(MODULE, "print_diagnostics"), mock.patch.object(
+            MODULE, "remove_postgres"
+        ):
+            self.assertEqual(MODULE.main(), 1)
+
+        parse_args.assert_called_once_with()
+        schema_report.write_text.assert_called_once_with(command_error.stdout, encoding="utf-8")
 
 
 if __name__ == "__main__":

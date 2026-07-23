@@ -777,6 +777,7 @@ jobs:
         shell: bash
         env:
           RELEASE_REF_NAME: ${{ github.ref_name }}
+          PROBE_BASE_URL: ${{ steps.compose_readiness.outputs.probe_base_url || 'unresolved' }}
         run: |
           {
             echo "## Compose Smoke Gate"
@@ -784,8 +785,8 @@ jobs:
             echo "- Tag: \`${RELEASE_REF_NAME}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
             echo "- Bootstrap: \`service_completed_successfully\`"
-            echo "- Health Probe: \`${{ steps.compose_readiness.outputs.probe_base_url || 'unresolved' }}/healthz\`"
-            echo "- Proxy Probe: \`${{ steps.compose_readiness.outputs.probe_base_url || 'unresolved' }}/openapi.json\`"
+            printf '%s\n' "- Health Probe: \`${PROBE_BASE_URL}/healthz\`"
+            printf '%s\n' "- Proxy Probe: \`${PROBE_BASE_URL}/openapi.json\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Tear down compose stack

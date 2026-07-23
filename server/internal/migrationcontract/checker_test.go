@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -93,6 +94,23 @@ func TestCheckerReportsMissingAtlasRevisionTable(t *testing.T) {
 func TestNewCheckerRequiresQueryer(t *testing.T) {
 	if _, err := NewChecker(nil); err == nil {
 		t.Fatal("expected nil queryer to fail")
+	}
+}
+
+func TestForeignKeyContractQueryMatchesTargetKeyAsUnorderedSet(t *testing.T) {
+	for _, fragment := range []string{
+		"target.contype IN ('p', 'u')",
+		"cardinality(target.conkey) = cardinality(con.confkey)",
+		"target.conkey @> con.confkey",
+		"target.conkey <@ con.confkey",
+		"con.convalidated",
+	} {
+		if !strings.Contains(foreignKeyContractQuery, fragment) {
+			t.Errorf("foreign key query missing contract fragment %q", fragment)
+		}
+	}
+	if strings.Contains(foreignKeyContractQuery, "target.conkey = con.confkey") {
+		t.Fatal("foreign key query must not require PostgreSQL array order to match")
 	}
 }
 
