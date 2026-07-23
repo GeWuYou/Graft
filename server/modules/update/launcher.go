@@ -57,6 +57,7 @@ func NewDockerComposeRunnerLauncher() (ComposeRunnerLauncher, error) {
 	return &dockerComposeRunnerLauncher{client: client}, nil
 }
 
+//nolint:cyclop // 启动流程中的每条失败分支对应一个独立的资源与错误边界。
 func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerInput) error {
 	if l == nil || l.client == nil {
 		return errors.New("compose runner launcher is unavailable")
