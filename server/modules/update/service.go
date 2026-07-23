@@ -8,6 +8,8 @@ import (
 	"graft/server/internal/buildinfo"
 )
 
+const releaseDiscoveryFailedMessage = "release discovery failed"
+
 // Status 是 Update Center 的只读发现快照。
 type Status struct {
 	CurrentVersion string              `json:"current_version"`
@@ -71,7 +73,8 @@ func (s *Service) Check(ctx context.Context) Status {
 	}
 	releases, err := s.provider.List(ctx)
 	if err != nil {
-		s.store(nil, now, err.Error())
+		// 发布源错误可能包含上游 URL 或响应细节，状态 API 只暴露稳定失败语义；保留已验证快照供运维判断。
+		s.storeCheckFailure(now, releaseDiscoveryFailedMessage)
 		return s.Status()
 	}
 	latest, found := SelectLatest(current, releases)
@@ -87,6 +90,13 @@ func (s *Service) store(latest *Release, checkedAt time.Time, checkError string)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.latest = latest
+	s.checkedAt = &checkedAt
+	s.checkError = checkError
+}
+
+func (s *Service) storeCheckFailure(checkedAt time.Time, checkError string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.checkedAt = &checkedAt
 	s.checkError = checkError
 }
