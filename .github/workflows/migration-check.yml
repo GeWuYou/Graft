@@ -1,0 +1,52 @@
+name: Migration Governance
+
+"on":
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-governance:
+    name: Migration Governance Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MIGRATION_SCHEMA_REPORT: /tmp/graft-migration-schema-report.json
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: server/go.mod
+          cache: true
+          cache-dependency-path: |
+            server/go.mod
+            server/go.sum
+      - name: Test migration governance helpers
+        run: python3 -m unittest scripts/test_check_migration_bootstrap.py
+      - name: Validate SQL migration policy
+        run: python3 scripts/validate_sql_migrations.py
+      - name: Validate migration source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd server
+          go run ./cmd/graft migrate validate
+      - name: Bootstrap the empty PostgreSQL schema and check catalog contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/check_migration_bootstrap.py --schema-report "${MIGRATION_SCHEMA_REPORT}"
+      - name: Upload migration governance diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: migration-governance-diagnostics
+          path: |
+            ${{ env.MIGRATION_SCHEMA_REPORT }}
+          if-no-files-found: ignore

@@ -25,6 +25,7 @@ help:
       '  just smoke             Run the backend smoke validation entrypoint' \
       '  just migrate-up        Apply pending Atlas migrations' \
       '  just migrate-validate  Validate migration assets without a DB connection' \
+      '  just migration-check   Run the full migration governance gate' \
       '  just compose-up        Start repository Docker Compose services' \
       '  just compose-down      Stop repository Docker Compose services' \
       '  just generate          Run Go generation, OpenAPI bundle, and frontend OpenAPI types' \
@@ -134,6 +135,12 @@ migrate-up:
 
 migrate-validate:
     cd server && go run ./cmd/graft migrate validate
+
+migration-check:
+    cd server && go run ./cmd/graft migrate validate
+    python3 scripts/check_migration_versions.py --mode all
+    python3 scripts/validate_sql_migrations.py
+    python3 scripts/check_migration_bootstrap.py
 
 compose-up:
     docker compose pull
