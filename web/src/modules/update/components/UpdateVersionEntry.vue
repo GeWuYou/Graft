@@ -15,7 +15,7 @@
 </template>
 <script setup lang="ts">
 // 侧栏版本入口只读取已授权的发现快照，避免在壳层复制更新模块的状态或权限判断。
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -31,6 +31,7 @@ const router = useRouter();
 const permissionStore = usePermissionStore();
 const loading = ref(false);
 const status = ref<UpdateStatus | null>(null);
+const hasLoaded = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const hasUpdate = computed(() => Boolean(status.value?.latest));
 const versionLabel = computed(() => status.value?.current_version || t('update.versionEntry.unavailable'));
@@ -40,10 +41,23 @@ const tooltip = computed(() =>
     : t('update.versionEntry.openCenter', { version: versionLabel.value }),
 );
 
-onMounted(async () => {
-  if (!canRead.value) {
+// 权限快照在壳层异步恢复后才可用；只在首次取得读取权限时加载，避免重复 hydration 产生并发请求。
+watch(
+  canRead,
+  (allowed) => {
+    if (allowed) {
+      void loadStatus();
+    }
+  },
+  { immediate: true },
+);
+
+async function loadStatus() {
+  if (hasLoaded.value || loading.value) {
     return;
   }
+
+  hasLoaded.value = true;
   loading.value = true;
   try {
     status.value = await getUpdateStatus();
@@ -52,7 +66,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
 
 function openCenter() {
   void router.push(UPDATE_ROUTE_PATH.CENTER);

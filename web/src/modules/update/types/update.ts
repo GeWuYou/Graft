@@ -1,29 +1,5 @@
-export type UpdateChannel = 'stable' | 'beta' | 'unknown';
-export type UpdateCapability = 'compose_upgrade_available' | 'manual_guidance';
+import type { components } from '@/contracts/openapi/generated/schema';
 
-export type InstallationProfile = {
-  declared_mode: 'compose' | 'binary' | 'unknown';
-  detected_mode: 'compose' | 'binary';
-  capability: UpdateCapability;
-  guidance: string;
-};
-
-export type UpdateRelease = {
-  version: string;
-  channel: Exclude<UpdateChannel, 'unknown'>;
-  notes: string;
-  published_at: string;
-  manifest_url: string;
-  server_digest: string;
-  web_digest: string;
-  checksums_url?: string;
-};
-
-export type UpdateStatus = {
-  current_version: string;
-  channel: UpdateChannel;
-  latest?: UpdateRelease;
-  installation_profile: InstallationProfile;
-  checked_at?: string;
-  check_error?: string;
-};
+/** 平台更新状态由 OpenAPI 生成契约拥有，模块只导出页面需要的稳定别名。 */
+export type UpdateStatus = components['schemas']['platform-update-status'];
+export type UpdateChannel = UpdateStatus['channel'];

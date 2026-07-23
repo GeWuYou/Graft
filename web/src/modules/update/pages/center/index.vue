@@ -73,7 +73,9 @@
               </t-button>
             </div>
             <t-alert theme="info" :message="upgradeUnavailableReason" />
-            <pre class="update-center__notes">{{ status.latest.notes || t('update.center.release.notesEmpty') }}</pre>
+            <pre class="update-center__notes graft-scrollbar">{{
+              status.latest.notes || t('update.center.release.notesEmpty')
+            }}</pre>
             <div class="update-center__release-links">
               <t-link theme="primary" :href="status.latest.manifest_url" target="_blank">
                 {{ t('update.center.release.manifest') }}
