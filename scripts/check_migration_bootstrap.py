@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -162,7 +163,12 @@ def main() -> int:
             args.schema_report.write_text(schema_report, encoding="utf-8")
     except (CommandError, RuntimeError) as error:
         if args.schema_report is not None and isinstance(error, CommandError) and error.stdout:
-            args.schema_report.write_text(error.stdout, encoding="utf-8")
+            try:
+                json.loads(error.stdout)
+            except json.JSONDecodeError:
+                pass
+            else:
+                args.schema_report.write_text(error.stdout, encoding="utf-8")
         print(f"migration bootstrap failed: {error}", file=sys.stderr)
         print_diagnostics(container_name)
         return 1

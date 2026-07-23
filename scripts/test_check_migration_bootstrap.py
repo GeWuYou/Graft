@@ -103,6 +103,25 @@ class LifecycleTests(unittest.TestCase):
         parse_args.assert_called_once_with()
         schema_report.write_text.assert_called_once_with(command_error.stdout, encoding="utf-8")
 
+    def test_main_does_not_write_schema_report_for_non_json_schema_check_failure(self) -> None:
+        target = MODULE.BootstrapTarget("temporary-postgres", 42424)
+        command_error = MODULE.CommandError("schema check failed", stdout="migration check output\n")
+        schema_report = mock.Mock()
+        with mock.patch.object(
+            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=schema_report)
+        ), mock.patch.object(
+            MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))
+        ), mock.patch.object(MODULE, "start_postgres", return_value=target), mock.patch.object(
+            MODULE, "wait_for_postgres"
+        ), mock.patch.object(MODULE, "apply_migrations"), mock.patch.object(
+            MODULE, "check_schema_contract", side_effect=command_error
+        ), mock.patch.object(MODULE, "print_diagnostics"), mock.patch.object(
+            MODULE, "remove_postgres"
+        ):
+            self.assertEqual(MODULE.main(), 1)
+
+        schema_report.write_text.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
