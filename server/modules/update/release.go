@@ -2,10 +2,12 @@ package update
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -106,24 +108,26 @@ func (p GitHubReleaseProvider) List(ctx context.Context) ([]Release, error) {
 }
 
 func (p GitHubReleaseProvider) verifyRelease(ctx context.Context, client *http.Client, source githubRelease) (Release, bool) {
-	manifestURL, checksumsURL := releaseAssetURLs(source.Assets)
+	manifestURL, checksumsURL := releaseAssetURLs(source.TagName, source.Assets)
 	if manifestURL == "" {
 		return Release{}, false
 	}
 	manifest, ok := downloadManifest(ctx, client, manifestURL)
-	if !ok || !validReleaseManifest(source.TagName, manifest) {
+	if !ok || !validReleaseManifest(source.TagName, manifest) || !releaseMatchesGitHubMetadata(source, manifest) {
 		return Release{}, false
 	}
 	return buildRelease(source, manifest, manifestURL, checksumsURL), true
 }
 
-func releaseAssetURLs(assets []githubAsset) (string, string) {
+func releaseAssetURLs(tagName string, assets []githubAsset) (string, string) {
 	var manifestURL, checksumsURL string
 	for _, asset := range assets {
 		switch asset.Name {
 		case "release-manifest.json":
 			manifestURL = asset.BrowserDownloadURL
 		case "checksums.txt", "checksums.sha256":
+			checksumsURL = asset.BrowserDownloadURL
+		case "graft-sha256sums-" + tagName + ".txt":
 			checksumsURL = asset.BrowserDownloadURL
 		}
 	}
@@ -138,8 +142,32 @@ func validReleaseManifest(tagName string, manifest releaseManifest) bool {
 	if !validDigest(manifest.Images.Server.Digest) || !validDigest(manifest.Images.Web.Digest) {
 		return false
 	}
-	channel := strings.ToLower(strings.TrimSpace(manifest.Channel))
-	return channel == "stable" || channel == "beta"
+	return releaseChannelMatchesVersion(strings.ToLower(strings.TrimSpace(manifest.Channel)), version)
+}
+
+func releaseMatchesGitHubMetadata(source githubRelease, manifest releaseManifest) bool {
+	version, err := ParseVersion(manifest.Version)
+	return err == nil && source.Prerelease == version.IsPrerelease()
+}
+
+func releaseChannelMatchesVersion(channel string, version Version) bool {
+	switch channel {
+	case "stable":
+		return !version.IsPrerelease()
+	case "beta":
+		return validBetaPrerelease(version.Prerelease)
+	default:
+		return false
+	}
+}
+
+func validBetaPrerelease(value string) bool {
+	sequence, ok := strings.CutPrefix(value, "beta.")
+	if !ok || sequence == "" || (len(sequence) > 1 && sequence[0] == '0') {
+		return false
+	}
+	_, err := strconv.ParseUint(sequence, 10, 64)
+	return err == nil
 }
 
 func buildRelease(source githubRelease, manifest releaseManifest, manifestURL, checksumsURL string) Release {
@@ -169,7 +197,11 @@ func downloadManifest(ctx context.Context, client *http.Client, location string)
 
 func validDigest(value string) bool {
 	value = strings.TrimSpace(value)
-	return strings.HasPrefix(value, "sha256:") && len(value) == len("sha256:")+64
+	if !strings.HasPrefix(value, "sha256:") || len(value) != len("sha256:")+64 {
+		return false
+	}
+	_, err := hex.DecodeString(strings.TrimPrefix(value, "sha256:"))
+	return err == nil
 }
 
 // SelectLatest 返回与当前通道兼容且严格较新的发布。稳定用户只接收 stable；beta 用户同时接收 beta 与后续 stable。
