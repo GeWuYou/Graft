@@ -2,7 +2,7 @@ package logger
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
+	"graft/server/internal/event"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/requestctx"
 )
@@ -48,12 +49,13 @@ const (
 const defaultAppLogCategory LogCategory = CategoryApplication
 
 const redactedValue = "[REDACTED]"
-const (
-	appLogPersistQueueSize = 1024
-	appLogPersistTimeout   = 2 * time.Second
-)
 
-var errAppLogPersistQueueFull = errors.New("app log persistence queue is full")
+const (
+	// AppLogPersistEventType 由 logger 拥有，表示一条已净化的应用日志记录需要异步持久化。
+	AppLogPersistEventType    event.Type = "logger.app-log.persist.v1"
+	appLogPersistEventVersion            = 1
+	appLogPersistEventSource             = "internal.logger"
+)
 
 // AppLogger defines the canonical application-log contract for runtime and modules.
 type AppLogger interface {
@@ -90,16 +92,15 @@ type appLogPersistSink interface {
 	CreateAppLog(context.Context, CreateAppLogInput) (AppLogRecord, error)
 }
 
-type asyncAppLogPersistSink struct {
-	repo  AppLogRepository
-	base  *zap.Logger
-	queue chan appLogPersistRequest
+type appLogRepositorySink struct{ repo AppLogRepository }
+
+type appLogEventPublisherSink struct{ publisher event.Publisher }
+
+type appLogPersistEventPayload struct {
+	Record CreateAppLogInput `json:"record"`
 }
 
-type appLogPersistRequest struct {
-	ctx    context.Context
-	record CreateAppLogInput
-}
+type appLogEventHandler struct{ repo AppLogRepository }
 
 type appLogRecordSetter func(*CreateAppLogInput, string)
 
@@ -137,28 +138,24 @@ func NewAppLogger(base *zap.Logger, options ...AppLoggerOption) AppLogger {
 	return logger
 }
 
-// WithAppLogRepository configures a best-effort durable App Log sink.
+// WithAppLogRepository 配置直接写入 repository 的测试 seam。
+//
+// Runtime 应使用 WithAppLogEventPublisher，把生产写入交给统一事件管线。
 func WithAppLogRepository(repo AppLogRepository) AppLoggerOption {
 	return func(l *appLogger) {
-		l.sink = newAsyncAppLogPersistSink(l.base, repo)
+		if repo != nil {
+			l.sink = appLogRepositorySink{repo: repo}
+		}
 	}
 }
 
-func newAsyncAppLogPersistSink(base *zap.Logger, repo AppLogRepository) appLogPersistSink {
-	if repo == nil {
-		return nil
+// WithAppLogEventPublisher 配置由通用事件管线异步持久化 App Log 的 sink。
+func WithAppLogEventPublisher(publisher event.Publisher) AppLoggerOption {
+	return func(l *appLogger) {
+		if publisher != nil {
+			l.sink = appLogEventPublisherSink{publisher: publisher}
+		}
 	}
-	if base == nil {
-		base = zap.NewNop()
-	}
-
-	sink := &asyncAppLogPersistSink{
-		repo:  repo,
-		base:  base,
-		queue: make(chan appLogPersistRequest, appLogPersistQueueSize),
-	}
-	go sink.run()
-	return sink
 }
 
 func (l appLogger) Debug(ctx context.Context, message string, fields ...Field) {
@@ -303,31 +300,60 @@ func (l appLogger) persist(ctx context.Context, severity AppLogSeverity, message
 	}
 }
 
-func (s *asyncAppLogPersistSink) CreateAppLog(ctx context.Context, record CreateAppLogInput) (AppLogRecord, error) {
-	if s == nil || s.repo == nil {
+func (s appLogRepositorySink) CreateAppLog(ctx context.Context, record CreateAppLogInput) (AppLogRecord, error) {
+	if s.repo == nil {
 		return AppLogRecord{}, nil
 	}
-
-	select {
-	case s.queue <- appLogPersistRequest{ctx: ctx, record: record}:
-		return AppLogRecord{}, nil
-	default:
-		return AppLogRecord{}, errAppLogPersistQueueFull
-	}
+	return s.repo.CreateAppLog(ctx, record)
 }
 
-func (s *asyncAppLogPersistSink) run() {
-	for request := range s.queue {
-		ctx := request.ctx
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		persistCtx, cancel := context.WithTimeout(ctx, appLogPersistTimeout)
-		if _, err := s.repo.CreateAppLog(persistCtx, request.record); err != nil {
-			s.base.Warn("app log persistence failed", zap.Error(err))
-		}
-		cancel()
+func (s appLogEventPublisherSink) CreateAppLog(_ context.Context, record CreateAppLogInput) (AppLogRecord, error) {
+	if s.publisher == nil {
+		return AppLogRecord{}, nil
 	}
+	payload, err := json.Marshal(appLogPersistEventPayload{Record: record})
+	if err != nil {
+		return AppLogRecord{}, fmt.Errorf("encode app log persistence event: %w", err)
+	}
+	eventID, err := event.NewID()
+	if err != nil {
+		return AppLogRecord{}, fmt.Errorf("create app log persistence event id: %w", err)
+	}
+	_, err = s.publisher.PublishAsync(event.Event{
+		ID:         eventID,
+		Type:       AppLogPersistEventType,
+		Version:    appLogPersistEventVersion,
+		Source:     appLogPersistEventSource,
+		Payload:    payload,
+		OccurredAt: record.OccurredAt,
+	}, event.PublishOptions{Delivery: event.DeliveryBestEffort})
+	if err != nil {
+		return AppLogRecord{}, fmt.Errorf("publish app log persistence event: %w", err)
+	}
+	return AppLogRecord{}, nil
+}
+
+// NewAppLogEventHandler 创建把 logger-owned App Log 事件写入 repository 的消费者。
+func NewAppLogEventHandler(repo AppLogRepository) event.Handler {
+	return appLogEventHandler{repo: repo}
+}
+
+func (appLogEventHandler) ID() string { return "logger.app-log-persist" }
+
+func (appLogEventHandler) Types() []event.Type { return []event.Type{AppLogPersistEventType} }
+
+func (h appLogEventHandler) Handle(ctx context.Context, current event.Event) error {
+	if h.repo == nil {
+		return fmt.Errorf("app log repository is unavailable")
+	}
+	var payload appLogPersistEventPayload
+	if err := json.Unmarshal(current.Payload, &payload); err != nil {
+		return fmt.Errorf("decode app log persistence event: %w", err)
+	}
+	if _, err := h.repo.CreateAppLog(ctx, payload.Record); err != nil {
+		return fmt.Errorf("persist app log: %w", err)
+	}
+	return nil
 }
 
 func (l appLogger) appLogRecord(ctx context.Context, severity AppLogSeverity, message string, fields ...Field) (CreateAppLogInput, error) {

@@ -15,6 +15,7 @@ import (
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
 	"graft/server/internal/database"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -98,6 +99,24 @@ func (r *Runtime) foundationServiceRegistrations() []serviceRegistration {
 			key: (*eventbus.Bus)(nil),
 			provider: func() (any, error) {
 				return r.eventBus, nil
+			},
+		},
+		{
+			key: (*event.Publisher)(nil),
+			provider: func() (any, error) {
+				if r.eventDispatcher == nil {
+					return nil, errors.New("event dispatcher is unavailable")
+				}
+				return event.Publisher(r.eventDispatcher), nil
+			},
+		},
+		{
+			key: (*event.Registry)(nil),
+			provider: func() (any, error) {
+				if r.eventDispatcher == nil {
+					return nil, errors.New("event dispatcher is unavailable")
+				}
+				return event.Registry(r.eventDispatcher), nil
 			},
 		},
 		{
@@ -267,7 +286,13 @@ func (r *Runtime) newAppLogger() logger.AppLogger {
 		r.canonicalAppLogger = logger.NewAppLogger(r.logger)
 		return r.canonicalAppLogger
 	}
-	r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+	if r.eventDispatcher == nil {
+		// 手工构造的最小 Runtime 不具备 dispatcher 生命周期；保留直连 seam，
+		// 使其不会发布到永远无法启动的队列。标准 Runtime 必须走事件管线。
+		r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+		return r.canonicalAppLogger
+	}
+	r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogEventPublisher(r.eventDispatcher))
 	return r.canonicalAppLogger
 }
 
@@ -386,6 +411,11 @@ func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeMo
 	if r.server != nil {
 		if err := r.server.Shutdown(shutdownCtx.LifecycleContext); err != nil {
 			shutdownErr = errors.Join(shutdownErr, err)
+		}
+	}
+	if r.eventDispatcher != nil {
+		if err := r.eventDispatcher.Shutdown(shutdownCtx.LifecycleContext); err != nil {
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown event dispatcher: %w", err))
 		}
 	}
 	if err := shutdownModules(shutdownCtx, booted); err != nil {

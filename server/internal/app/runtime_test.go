@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -330,6 +332,67 @@ func (p *eventBusRecorderModule) Boot(ctx *module.Context) error {
 
 func (p *eventBusRecorderModule) Shutdown(_ *module.Context) error { return nil }
 
+const runtimeEventPipelineTestType event.Type = "runtime.event-pipeline.test"
+
+type eventPipelineRecorderModule struct {
+	registerPublisher event.Publisher
+	registerRegistry  event.Registry
+	bootPublisher     event.Publisher
+	delivered         atomic.Int32
+	shutdownDelivered atomic.Bool
+	cancelOnBoot      context.CancelFunc
+	handleStartedOnce sync.Once
+	handleStarted     chan struct{}
+	releaseHandle     chan struct{}
+}
+
+func (p *eventPipelineRecorderModule) ID() string { return "runtime-event-pipeline-recorder" }
+
+func (p *eventPipelineRecorderModule) Types() []event.Type {
+	return []event.Type{runtimeEventPipelineTestType}
+}
+
+func (p *eventPipelineRecorderModule) Handle(ctx context.Context, _ event.Event) error {
+	p.handleStartedOnce.Do(func() { close(p.handleStarted) })
+	<-p.releaseHandle
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	p.delivered.Add(1)
+	return nil
+}
+
+func (p *eventPipelineRecorderModule) Register(ctx *module.Context) error {
+	p.registerPublisher = ctx.EventPublisher
+	p.registerRegistry = ctx.EventRegistry
+	return ctx.EventRegistry.Register(p)
+}
+
+func (p *eventPipelineRecorderModule) Boot(ctx *module.Context) error {
+	p.bootPublisher = ctx.EventPublisher
+	_, err := ctx.EventPublisher.Publish(ctx.LifecycleContext, event.Event{
+		ID:      "runtime-event-pipeline-event",
+		Type:    runtimeEventPipelineTestType,
+		Version: 1,
+		Source:  "runtime-test",
+		Payload: json.RawMessage(`{"value":"test"}`),
+	}, event.PublishOptions{})
+	if err != nil {
+		return err
+	}
+	<-p.handleStarted
+	if p.cancelOnBoot != nil {
+		p.cancelOnBoot()
+	}
+	close(p.releaseHandle)
+	return nil
+}
+
+func (p *eventPipelineRecorderModule) Shutdown(_ *module.Context) error {
+	p.shutdownDelivered.Store(p.delivered.Load() == 1)
+	return nil
+}
+
 type lifecycleContextRecorderModule struct {
 	registerLifecycleContext     context.Context
 	bootLifecycleContext         context.Context
@@ -447,6 +510,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	})
 	runtimeLogger := zap.NewNop()
 	runtimeEventBus := eventbus.New(runtimeLogger)
+	runtimeEventDispatcher := event.NewDispatcher(runtimeLogger, event.Options{})
 	sqlDB := &sql.DB{}
 
 	cfg := &config.Config{
@@ -488,6 +552,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		cacheManager:     cacheManager,
 		server:           httpx.NewServer(runtimeLogger, accessLogRepository),
 		eventBus:         runtimeEventBus,
+		eventDispatcher:  runtimeEventDispatcher,
 		services:         container.New(),
 		appLogRepository: &runtimeAppLogRecorderRepo{},
 	}
@@ -500,6 +565,8 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
+	assertResolvedService(t, runtime.services, (*event.Publisher)(nil), event.Publisher(runtimeEventDispatcher), "event publisher")
+	assertResolvedService(t, runtime.services, (*event.Registry)(nil), event.Registry(runtimeEventDispatcher), "event registry")
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*cachex.Manager)(nil), cacheManager, "cache manager")
 	assertAppLoggerRegistered(t, runtime.services)
@@ -939,6 +1006,52 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 	}
 	if recorder.bootEventBus != runtimeEventBus {
 		t.Fatal("expected boot phase to receive runtime event bus instance")
+	}
+}
+
+func TestRunStartsEventPipelineAfterRegisterAndDrainsBeforeModuleShutdown(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	recorder := &eventPipelineRecorderModule{
+		cancelOnBoot:  cancel,
+		handleStarted: make(chan struct{}),
+		releaseHandle: make(chan struct{}),
+	}
+	manager := module.NewManager()
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "event-pipeline-recorder"}, recorder)); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	dispatcher := event.NewDispatcher(zap.NewNop(), event.Options{WorkerCount: 1})
+	runtime := &Runtime{
+		config:             &config.Config{HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"}},
+		logger:             zap.NewNop(),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    dispatcher,
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      manager,
+	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
+
+	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
+	}
+	if recorder.registerPublisher != dispatcher || recorder.bootPublisher != dispatcher {
+		t.Fatal("expected Register and Boot to receive the runtime event publisher")
+	}
+	if recorder.registerRegistry != dispatcher {
+		t.Fatal("expected Register to receive the runtime event registry")
+	}
+	if recorder.delivered.Load() != 1 || !recorder.shutdownDelivered.Load() {
+		t.Fatal("expected accepted event delivery to drain before module shutdown")
 	}
 }
 

@@ -31,5 +31,6 @@
 
 ## 维护提示
 
-如果未来需求开始依赖重试、持久化或跨进程语义，应先更新 `ai-plan/design/architecture/模块与依赖注入设计.md`
-与 `ai-plan/roadmap/MVP实施计划.md`，再决定是否扩展当前接口或引入新的实现层。
+如果未来需求开始依赖后台重试、削峰、持久化或跨进程传输，应使用独立的通用异步事件基础设施
+`server/internal/event`，而不是扩展本包接口或改变 `Publish` 的同步错误回传语义。该基础设施的架构边界与阶段计划由
+`ai-plan/design/architecture/模块与依赖注入设计.md` 和 `ai-plan/roadmap/MVP实施计划.md` 定义。

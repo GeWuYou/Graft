@@ -22,6 +22,7 @@ import (
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -37,7 +38,7 @@ import (
 
 const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
-const coreServiceRegistrationCapacity = 13
+const coreServiceRegistrationCapacity = 15
 const (
 	coreModuleRuntimeHealthWidgetOrder = 10
 	moduleRuntimeHealthTitleKey        = "dashboard.widget.moduleRuntimeHealth.title"
@@ -88,6 +89,7 @@ type Runtime struct {
 	openapiDocs               *openAPIDocsAssets
 	mcpDocs                   []byte
 	eventBus                  eventbus.Bus
+	eventDispatcher           *event.Dispatcher
 	realtimeHub               realtime.Hub
 	realtimeTopicIssuers      realtime.TopicIssuerRegistry
 	services                  *container.Container
@@ -275,7 +277,16 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		return nil, fmt.Errorf("create cache manager: %w", err)
 	}
 
-	runtimeAppLogger := logger.NewAppLogger(runtimeLogger, logger.WithAppLogRepository(appLogRepo))
+	eventDispatcher := event.NewDispatcher(runtimeLogger, event.Options{})
+	if appLogRepo != nil {
+		if err := eventDispatcher.Register(logger.NewAppLogEventHandler(appLogRepo)); err != nil {
+			_ = redisClient.Close()
+			_ = database.Close(databaseResources)
+			_ = logger.Close(runtimeLogger)
+			return nil, fmt.Errorf("register app log event handler: %w", err)
+		}
+	}
+	runtimeAppLogger := logger.NewAppLogger(runtimeLogger, logger.WithAppLogEventPublisher(eventDispatcher))
 	runtime := &Runtime{
 		config:       cfg,
 		logger:       runtimeLogger,
@@ -292,6 +303,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 			I18n: localizer,
 		}, accessLogRepo),
 		eventBus:             eventbus.New(runtimeLogger),
+		eventDispatcher:      eventDispatcher,
 		realtimeHub:          realtime.NewHub(),
 		realtimeTopicIssuers: realtime.NewTopicIssuerRegistry(),
 		services:             container.New(),
@@ -424,10 +436,22 @@ func (r *Runtime) prepareModules(
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
 		return nil, err
 	}
+	if err := r.startEventDispatcher(); err != nil {
+		return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("start event dispatcher: %w", err))
+	}
 	if err := r.prepareCoreRegistries(runCtx, moduleCtx, booted); err != nil {
 		return nil, err
 	}
 	return r.bootModules(moduleCtx, ordered, booted)
+}
+
+// startEventDispatcher 使用独立于模块生命周期的上下文启动 worker。
+// runCtx 取消后 Runtime 仍需先 drain 已接收事件，直到 shutdownRuntime 显式停止 dispatcher。
+func (r *Runtime) startEventDispatcher() error {
+	if r.eventDispatcher == nil {
+		r.eventDispatcher = event.NewDispatcher(r.logger, event.Options{})
+	}
+	return r.eventDispatcher.Start(context.Background())
 }
 
 func (r *Runtime) prepareCoreRegistries(
@@ -601,6 +625,8 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 		AppLogger:          r.injectedAppLogger(),
 		I18n:               r.i18n,
 		EventBus:           r.eventBus,
+		EventPublisher:     r.eventDispatcher,
+		EventRegistry:      r.eventDispatcher,
 		Realtime:           r.realtimeHub,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,

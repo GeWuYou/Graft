@@ -1,6 +1,27 @@
 schema_version: 1
-updated_at: "2026-07-19"
+updated_at: "2026-07-23"
 assets:
+  - name: "async-event-infrastructure"
+    type: "backend-runtime-helper"
+    path: "server/internal/event"
+    owner: "server/core/event"
+    purpose: "Runtime-owned generic asynchronous event envelope, bounded local dispatch, handler registration, retry, and future durable delivery boundary."
+    use_when:
+      - "A module needs to publish a domain event for non-blocking downstream processing."
+      - "A module needs to declare an idempotent consumer during Register."
+    do_not_use_when:
+      - "A synchronous in-process notification requires existing eventbus ordering and error semantics."
+      - "Streaming WebSocket, terminal, container-log, or realtime latest-value transport is required."
+    examples:
+      - "server/internal/event/event.go"
+      - "server/internal/event/dispatcher.go"
+    related_assets:
+      - "moduleapi-contracts"
+      - "app-logger"
+      - "request-context"
+    validation_commands:
+      - "cd server && go test ./internal/event ./internal/app ./internal/module"
+
   - name: "moduleapi-contracts"
     type: "backend-moduleapi"
     path: "server/internal/moduleapi"
