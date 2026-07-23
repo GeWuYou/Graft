@@ -10,15 +10,18 @@
       "summary": "What's new",
       "summaryEmpty": "This release has no summary. View the complete release notes.",
       "viewManagement": "View update log",
+      "viewRelease": "View release",
+      "checkNow": "Check for updates",
       "startUpgrade": "Update now",
       "upToDate": "This installation is up to date.",
-      "unavailable": "Update status is temporarily unavailable. Try again later."
+      "unavailable": "Update status is temporarily unavailable. Try again later.",
+      "releaseUnavailable": "No release information is available for this version."
     },
     "versionEntry": {
       "unavailable": "Version unavailable",
       "current": "Current version {version}",
-      "openCenter": "Current version {version}; open Update Center",
-      "updateAvailable": "Version {version} is available; open Update Center"
+      "openCenter": "Current version {version}; open update preview",
+      "updateAvailable": "Version {version} is available; open update preview"
     },
     "center": {
       "navHint": "Platform",
