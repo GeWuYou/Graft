@@ -172,6 +172,7 @@ import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
 import { checkForUpdates, createUpdateOperation, getUpdateOperations } from '../../api/update';
+import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateChannel, UpdateOperation, UpdateStatus } from '../../types/update';
@@ -192,14 +193,7 @@ const submitting = ref(false);
 const operationError = ref('');
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE));
-const canStartUpgrade = computed(
-  () =>
-    Boolean(status.value?.latest) &&
-    !status.value?.cache_stale &&
-    !status.value?.check_error &&
-    status.value?.installation_profile.capability === 'compose_upgrade_available' &&
-    canManage.value,
-);
+const canStartUpgrade = computed(() => isUpgradeEligible(status.value, canManage.value));
 const isExactConfirmation = computed(() => confirmation.value === status.value?.latest?.version);
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [

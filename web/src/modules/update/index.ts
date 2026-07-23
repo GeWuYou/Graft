@@ -12,7 +12,11 @@ export const updateModuleRegistration: WebModuleRegistration = {
 };
 
 export const updateModulePermissionCodes = UPDATE_PERMISSION_CODE;
+
+/** 由后台壳层 Notice 挂载，复用 Provider 的发现状态；组件实现归平台更新模块所有。 */
 export const updateNotification = UpdateNotification;
+
+/** 由认证后的后台布局挂载一次，负责发现初始化与卸载清理；组件实现归平台更新模块所有。 */
 export const updateProvider = UpdateProvider;
 export const updateVersionEntry = UpdateVersionEntry;
 
