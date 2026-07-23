@@ -24,6 +24,7 @@ func TestRegisterMessagesIncludesPlatformUpdateScheduledTaskKeys(t *testing.T) {
 		t.Fatalf("register platform-update messages: %v", err)
 	}
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleZHCN, "menu.platform.maintenance", "系统维护")
+	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleENUS, "menu.platform.maintenance", "System Maintenance")
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleZHCN, "scheduledTask.platformUpdateCheck.title", "检查平台更新")
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleENUS, "scheduledTask.platformUpdateCheck.title", "Check Platform Updates")
 	assertRegisteredUpdateMessage(t, localizer, i18n.LocaleZHCN, "scheduledTask.platformUpdateCheck.description", "检查发布源中是否存在经过验证的较新平台版本。")
