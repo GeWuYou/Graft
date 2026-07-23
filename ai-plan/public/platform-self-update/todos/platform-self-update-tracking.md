@@ -46,7 +46,7 @@ closeout:
 - Work Intake completed and the topic was bootstrapped.
 - Batch 1 established release-manifest, release authority, roadmap, and Compose runner ADR.
 - Batch 2 added read-only release discovery, the installation profile, and the protected status/check API.
-- Batch 3 has added the front-end Update Center and the logo version affordance. The next batch is `backup-capability`.
+- Batch 3 added the front-end Update Center and the logo version affordance. The loop remains in progress; the next batch is `backup-capability`.
 
 ## Task Checklist
 
@@ -80,6 +80,6 @@ closeout:
   ],
   "current_batch": null,
   "next_batch": "backup-capability",
-  "closeout_status": "completed"
+  "closeout_status": "in-progress"
 }
 ```

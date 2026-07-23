@@ -27,6 +27,7 @@
 - Added `Platform -> Updates` as a module-owned dynamic route and exposed the running version under the side-nav logo.
 - The page consumes the protected status/check endpoints, presents SemVer channel selection, release notes, installation evidence, and the capability matrix.
 - The upgrade button remains disabled until the Compose executor, backup, and migration APIs exist; binary installations receive explicit manual guidance.
+- Completed `update-center-ui`; the loop remains in progress with `backup-capability` next.
 
 ## Loop Batch State
 
@@ -35,7 +36,8 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "release-authority-and-manifest",
-    "read-only-update-discovery"
+    "read-only-update-discovery",
+    "update-center-ui"
   ],
   "pending_batches": [
     "backup-capability",
@@ -44,6 +46,6 @@
   ],
   "current_batch": null,
   "next_batch": "backup-capability",
-  "closeout_status": "completed"
+  "closeout_status": "in-progress"
 }
 ```

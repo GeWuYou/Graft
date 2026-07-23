@@ -12,6 +12,7 @@
   - `server/modules/*` and `web/src/modules/*` module conventions
 - Derived delivery automation: `.github/workflows/publish.yml` implements the release design; it does not define release policy.
 - Completed so far: Work Intake, release-manifest authority, release design, delivery roadmap, Compose runner ADR, read-only update discovery, and Update Center UI.
+- Loop closeout: `in-progress`; three implementation batches remain before archive readiness.
 - Next implementation batch: backup capability.
 
 ## Recovery Receipt
@@ -50,7 +51,7 @@ Out of scope:
 
 - Read-only update discovery and Update Center UI are complete and committed.
 - The deployment-profile capability matrix must remain authoritative over a declared environment value alone.
-- Next step: `backup-capability`.
+- The loop remains in progress with `backup-capability` as the next batch.
 
 ## Work Intake
 
