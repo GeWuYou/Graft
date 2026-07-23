@@ -41,7 +41,7 @@ services:
       retries: 10
 
   bootstrap:
-    image: ${GRAFT_SERVER_IMAGE:?GRAFT_SERVER_IMAGE must be an immutable image reference}
+    image: ${GRAFT_SERVER_IMAGE_REPOSITORY:?GRAFT_SERVER_IMAGE_REPOSITORY must be set}@${GRAFT_SERVER_IMAGE_DIGEST:?GRAFT_SERVER_IMAGE_DIGEST must be set}
     restart: "no"
     env_file:
       - .env
@@ -59,7 +59,7 @@ services:
       GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS: ${GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS:-http://127.0.0.1:${GRAFT_WEB_HOST_PORT:-3000},http://localhost:${GRAFT_WEB_HOST_PORT:-3000}}
 
   application-root-init:
-    image: ${GRAFT_SERVER_IMAGE:?GRAFT_SERVER_IMAGE must be an immutable image reference}
+    image: ${GRAFT_SERVER_IMAGE_REPOSITORY:?GRAFT_SERVER_IMAGE_REPOSITORY must be set}@${GRAFT_SERVER_IMAGE_DIGEST:?GRAFT_SERVER_IMAGE_DIGEST must be set}
     restart: "no"
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
@@ -75,7 +75,7 @@ services:
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
 
   server:
-    image: ${GRAFT_SERVER_IMAGE:?GRAFT_SERVER_IMAGE must be an immutable image reference}
+    image: ${GRAFT_SERVER_IMAGE_REPOSITORY:?GRAFT_SERVER_IMAGE_REPOSITORY must be set}@${GRAFT_SERVER_IMAGE_DIGEST:?GRAFT_SERVER_IMAGE_DIGEST must be set}
     restart: unless-stopped
     user: "0:0"
     entrypoint:
@@ -116,7 +116,7 @@ services:
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
 
   web:
-    image: ${GRAFT_WEB_IMAGE:?GRAFT_WEB_IMAGE must be an immutable image reference}
+    image: ${GRAFT_WEB_IMAGE_REPOSITORY:?GRAFT_WEB_IMAGE_REPOSITORY must be set}@${GRAFT_WEB_IMAGE_DIGEST:?GRAFT_WEB_IMAGE_DIGEST must be set}
     restart: unless-stopped
     environment:
       GRAFT_SERVER_UPSTREAM: ${GRAFT_SERVER_UPSTREAM:-http://server:8080}

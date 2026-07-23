@@ -9,7 +9,7 @@ import (
 
 func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:latest\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE_REPOSITORY=ghcr.io/gewuyou/graft-server\nGRAFT_SERVER_IMAGE_DIGEST=sha256:old\nGRAFT_WEB_IMAGE_REPOSITORY=ghcr.io/gewuyou/graft-web\nGRAFT_WEB_IMAGE_DIGEST=sha256:old\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	server := "ghcr.io/gewuyou/graft-server@sha256:" + strings.Repeat("a", 64)
@@ -22,7 +22,7 @@ func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read updated compose environment: %v", err)
 	}
-	if strings.Contains(string(contents), ":latest") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE="+server) || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE="+web) {
+	if strings.Contains(string(contents), "sha256:old") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE_DIGEST=sha256:aaaaaaaa") || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE_DIGEST=sha256:bbbbbbbb") {
 		t.Fatalf("compose environment does not contain frozen references: %s", contents)
 	}
 }

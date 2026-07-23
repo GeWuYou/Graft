@@ -154,7 +154,15 @@ func replaceRefs(path, server, web string) error {
 	if err != nil {
 		return err
 	}
-	values := map[string]string{"GRAFT_SERVER_IMAGE": server, "GRAFT_WEB_IMAGE": web}
+	serverRepository, serverDigest, err := splitImmutableReference(server)
+	if err != nil {
+		return err
+	}
+	webRepository, webDigest, err := splitImmutableReference(web)
+	if err != nil {
+		return err
+	}
+	values := map[string]string{"GRAFT_SERVER_IMAGE_REPOSITORY": serverRepository, "GRAFT_SERVER_IMAGE_DIGEST": serverDigest, "GRAFT_WEB_IMAGE_REPOSITORY": webRepository, "GRAFT_WEB_IMAGE_DIGEST": webDigest}
 	lines := strings.Split(string(contents), "\n")
 	for index, line := range lines {
 		for key, value := range values {
@@ -165,7 +173,7 @@ func replaceRefs(path, server, web string) error {
 		}
 	}
 	if len(values) != 0 {
-		return errors.New("official compose environment lacks image references")
+		return errors.New("official compose environment lacks immutable image references")
 	}
 	temporary := path + ".graft-update-tmp"
 	// #nosec G703 -- temporary is a fixed suffix under the preflight-validated compose root.
@@ -173,6 +181,14 @@ func replaceRefs(path, server, web string) error {
 		return err
 	}
 	return os.Rename(temporary, path)
+}
+
+func splitImmutableReference(reference string) (string, string, error) {
+	repository, digest, ok := strings.Cut(strings.TrimSpace(reference), "@")
+	if repository == "" || !ok || !strings.HasPrefix(digest, "sha256:") {
+		return "", "", errors.New("image reference must use an immutable sha256 digest")
+	}
+	return repository, digest, nil
 }
 
 func immutableReference(value string) bool {
