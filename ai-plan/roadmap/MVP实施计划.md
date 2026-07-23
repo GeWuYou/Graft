@@ -153,7 +153,7 @@ Business Module -> EventPublisher -> Async Event Dispatcher -> EventHandler -> S
 * 该能力服务于任意模块的后台事件消费；审计、通知、Webhook、缓存刷新和同步等仅是消费者场景，不得进入基础设施命名、公共字段或 handler 契约
 * `Runtime` 持有 publisher、handler registry 与 dispatcher；模块在 `Register` 声明 `EventHandler`，dispatcher 在 `Boot` 启动，`Shutdown` 先停止接收、再有界 drain，最后关闭依赖资源
 * Phase 1 仅使用标准库有界内存 buffer、worker pool、批量拉取、并发限制、基础失败重试和优雅关闭。它是 best-effort：进程异常退出或关闭 deadline 到达时可能丢失尚未消费的事件，且队列满必须显式反馈而非静默丢弃
-* Phase 2 为需要可靠性的事件引入 PostgreSQL outbox 与按消费者维护的 delivery 状态；业务状态变更和 outbox 写入同事务提交，使用 lease/重试恢复提供至少一次投递。消费者必须按 event ID 或幂等键安全处理重复交付
+* Phase 2 已引入 PostgreSQL Outbox 与按消费者维护的 `(event_id, consumer_id)` delivery 状态；worker 使用 lease、`FOR UPDATE SKIP LOCKED` 和重试恢复提供至少一次投递。需要可靠事件的业务状态变更必须与注入的 `TransactionalPublisher.PublishTx` 同事务提交，消费者必须按 event ID 或幂等键安全处理重复交付
 * Phase 3 才通过 dispatcher adapter 接入 Redis Stream、RabbitMQ 或 Kafka。业务代码始终只依赖 `Event`、`EventPublisher`、`EventHandler`，不得直接 dual-write 数据库与 MQ 或依赖具体 MQ 客户端
 
 ---

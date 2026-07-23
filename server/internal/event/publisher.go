@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 )
 
@@ -14,6 +15,8 @@ var (
 	ErrDurableUnavailable = errors.New("durable event delivery is unavailable")
 	// ErrNoHandlers 表示没有注册事件类型的消费者。
 	ErrNoHandlers = errors.New("event has no registered handlers")
+	// ErrClaimLost 表示 delivery 的租约已被新的 worker 接管，当前执行结果不得写回。
+	ErrClaimLost = errors.New("event delivery claim is no longer owned")
 )
 
 // PublishOptions 只描述投递机制，不承载领域业务字段。
@@ -38,4 +41,12 @@ type Publisher interface {
 	Publish(context.Context, Event, PublishOptions) (Receipt, error)
 	PublishAsync(Event, PublishOptions) (Receipt, error)
 	PublishBatch(context.Context, []Event, PublishOptions) BatchReceipt
+}
+
+// TransactionalPublisher 为需要与业务事实同事务提交的 durable event 提供可选边界。
+//
+// 它不替代 Publisher；业务模块只有在自己已经持有 SQL transaction 时才应使用此接口，
+// Runtime 负责从冻结的 handler 注册表解析 consumer delivery。
+type TransactionalPublisher interface {
+	PublishTx(context.Context, *sql.Tx, Event, PublishOptions) (Receipt, error)
 }

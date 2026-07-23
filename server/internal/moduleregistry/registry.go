@@ -34,6 +34,7 @@ const DefaultMigrationDir = "default"
 const accessLogMigrationDir = "internal/httpx/migrations"
 const appLogMigrationDir = "internal/logger/migrations"
 const drilldownMigrationDir = "internal/drilldown/migrations"
+const eventMigrationDir = "internal/event/migrations"
 
 // EmbeddedMigrationFile 表示 compile-time 嵌入 registry 的单个迁移文件快照。
 type EmbeddedMigrationFile struct {
@@ -202,7 +203,7 @@ func BuildModules(buildCtx module.BuildContext, enabled []string) ([]module.Runt
 
 // CoreMigrationDirs 返回 core 拥有的 live migration 目录。
 func CoreMigrationDirs() []string {
-	return []string{accessLogMigrationDir, appLogMigrationDir, drilldownMigrationDir}
+	return []string{accessLogMigrationDir, appLogMigrationDir, drilldownMigrationDir, eventMigrationDir}
 }
 
 // EmbeddedMigrationDirs 返回 compile-time 生成的嵌入式迁移目录快照的深拷贝。

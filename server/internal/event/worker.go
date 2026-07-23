@@ -18,8 +18,49 @@ func (d *Dispatcher) runWorker(ctx context.Context) {
 			return
 		case event := <-d.queue:
 			d.deliver(ctx, event)
+		case delivery := <-d.durable:
+			d.deliverDurable(ctx, delivery)
 		}
 	}
+}
+
+func (d *Dispatcher) runOutboxPoller(ctx context.Context) {
+	defer d.poller.Done()
+	ticker := time.NewTicker(d.options.OutboxPoll)
+	defer ticker.Stop()
+	for {
+		if !d.claimOutbox(ctx) {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (d *Dispatcher) claimOutbox(ctx context.Context) bool {
+	if d.store == nil {
+		return false
+	}
+	claimed, err := d.store.Claim(ctx, d.ownerID, time.Now().UTC(), d.options.LeaseDuration, d.options.BufferSize)
+	if err != nil {
+		if ctx.Err() == nil {
+			d.logger.Error("claim durable event deliveries", zap.Error(err))
+		}
+		return ctx.Err() == nil
+	}
+	for _, delivery := range claimed {
+		d.work.Add(1)
+		select {
+		case <-ctx.Done():
+			d.work.Done()
+			return false
+		case d.durable <- delivery:
+		}
+	}
+	return true
 }
 
 func (d *Dispatcher) deliver(ctx context.Context, event Event) {
@@ -47,6 +88,32 @@ func (d *Dispatcher) deliver(ctx context.Context, event Event) {
 		case <-timer.C:
 		}
 	}
+}
+
+func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDelivery) {
+	defer d.work.Done()
+	handler := d.handlerFor(delivery.Event.Type, delivery.ConsumerID)
+	if handler == nil {
+		_ = d.store.Retry(ctx, delivery, time.Now().UTC().Add(d.options.RetryDelay), fmt.Errorf("%w: consumer %s", ErrNoHandlers, delivery.ConsumerID))
+		return
+	}
+	handlerCtx, cancel := context.WithTimeout(ctx, d.options.HandlerTimeout)
+	err := d.invoke(handlerCtx, handler, delivery.Event)
+	cancel()
+	if err == nil {
+		if completeErr := d.store.Complete(ctx, delivery); completeErr != nil {
+			d.logger.Error("complete durable event delivery", zap.String("event_id", delivery.Event.ID), zap.String("consumer", delivery.ConsumerID), zap.Error(completeErr))
+		}
+		return
+	}
+	retryAt := time.Now().UTC().Add(time.Duration(delivery.Attempt) * d.options.RetryDelay)
+	if retryErr := d.store.Retry(ctx, delivery, retryAt, err); retryErr != nil {
+		d.logger.Error("reschedule durable event delivery", zap.String("event_id", delivery.Event.ID), zap.String("consumer", delivery.ConsumerID), zap.Error(retryErr))
+		return
+	}
+	d.logger.Warn("durable event delivery failed and was rescheduled",
+		zap.String("event_id", delivery.Event.ID), zap.String("event_type", string(delivery.Event.Type)),
+		zap.String("consumer", delivery.ConsumerID), zap.Int("attempt", delivery.Attempt), zap.Error(err))
 }
 
 func (d *Dispatcher) handle(ctx context.Context, event Event) error {

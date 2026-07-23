@@ -15,6 +15,8 @@ var (
 	ErrInvalidEvent = errors.New("invalid event")
 )
 
+const eventIDByteLength = 16
+
 // Type 是由事件 owner 定义的稳定事件类型。
 type Type string
 
@@ -24,7 +26,7 @@ type DeliveryMode string
 const (
 	// DeliveryBestEffort 表示事件仅需被本地内存 dispatcher 接收。
 	DeliveryBestEffort DeliveryMode = "best_effort"
-	// DeliveryDurable 表示事件必须与业务事务一起写入未来的 Outbox。
+	// DeliveryDurable 表示事件需写入 PostgreSQL Outbox，并由 consumer delivery 恢复。
 	DeliveryDurable DeliveryMode = "durable"
 )
 
@@ -48,7 +50,7 @@ type Event struct {
 
 // NewID 返回适合作为事件稳定标识的随机十六进制值。
 func NewID() (string, error) {
-	bytes := make([]byte, 16)
+	bytes := make([]byte, eventIDByteLength)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("generate event id: %w", err)
 	}

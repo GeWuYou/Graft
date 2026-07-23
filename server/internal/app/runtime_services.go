@@ -111,6 +111,15 @@ func (r *Runtime) foundationServiceRegistrations() []serviceRegistration {
 			},
 		},
 		{
+			key: (*event.TransactionalPublisher)(nil),
+			provider: func() (any, error) {
+				if r.eventDispatcher == nil {
+					return nil, errors.New("event dispatcher is unavailable")
+				}
+				return event.TransactionalPublisher(r.eventDispatcher), nil
+			},
+		},
+		{
 			key: (*event.Registry)(nil),
 			provider: func() (any, error) {
 				if r.eventDispatcher == nil {

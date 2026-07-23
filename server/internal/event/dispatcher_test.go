@@ -20,6 +20,42 @@ type testHandler struct {
 	handle func(context.Context, Event) error
 }
 
+type memoryOutboxStore struct {
+	mu        sync.Mutex
+	pending   []ClaimedDelivery
+	completed chan ClaimedDelivery
+}
+
+func (s *memoryOutboxStore) Append(_ context.Context, event Event, consumerIDs []string) (Receipt, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, consumerID := range consumerIDs {
+		s.pending = append(s.pending, ClaimedDelivery{Event: event, ConsumerID: consumerID})
+	}
+	return Receipt{EventID: event.ID, Delivery: DeliveryDurable}, nil
+}
+
+func (s *memoryOutboxStore) Claim(_ context.Context, _ string, _ time.Time, _ time.Duration, limit int) ([]ClaimedDelivery, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if limit > len(s.pending) {
+		limit = len(s.pending)
+	}
+	claimed := append([]ClaimedDelivery(nil), s.pending[:limit]...)
+	s.pending = s.pending[limit:]
+	for index := range claimed {
+		claimed[index].Attempt++
+	}
+	return claimed, nil
+}
+
+func (s *memoryOutboxStore) Complete(_ context.Context, delivery ClaimedDelivery) error {
+	s.completed <- delivery
+	return nil
+}
+
+func (*memoryOutboxStore) Retry(context.Context, ClaimedDelivery, time.Time, error) error { return nil }
+
 func (h testHandler) ID() string { return h.id }
 
 func (h testHandler) Types() []Type { return h.types }
@@ -108,6 +144,36 @@ func TestDispatcherRejectsDurableAndUnknownEvents(t *testing.T) {
 	}
 	if _, err := dispatcher.Publish(context.Background(), newTestEvent(t, "event-4"), PublishOptions{Delivery: DeliveryDurable}); !errors.Is(err, ErrDurableUnavailable) {
 		t.Fatalf("expected durable unavailable error, got %v", err)
+	}
+	shutdownDispatcher(t, dispatcher)
+}
+
+func TestDurableDispatcherRecoversPerConsumerDelivery(t *testing.T) {
+	store := &memoryOutboxStore{completed: make(chan ClaimedDelivery, 1)}
+	dispatcher, err := NewDurableDispatcher(zap.NewNop(), Options{WorkerCount: 1, OutboxPoll: time.Millisecond}, store)
+	if err != nil {
+		t.Fatalf("new durable dispatcher: %v", err)
+	}
+	if err := dispatcher.Register(testHandler{id: "durable-receiver", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		return nil
+	}}); err != nil {
+		t.Fatalf("register handler: %v", err)
+	}
+	if err := dispatcher.Start(context.Background()); err != nil {
+		t.Fatalf("start dispatcher: %v", err)
+	}
+	if receipt, err := dispatcher.Publish(context.Background(), newTestEvent(t, "durable-1"), PublishOptions{Delivery: DeliveryDurable}); err != nil {
+		t.Fatalf("publish durable event: %v", err)
+	} else if receipt.Delivery != DeliveryDurable {
+		t.Fatalf("expected durable receipt, got %s", receipt.Delivery)
+	}
+	select {
+	case completed := <-store.completed:
+		if completed.ConsumerID != "durable-receiver" || completed.Attempt != 1 {
+			t.Fatalf("unexpected completed delivery: %+v", completed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for durable delivery")
 	}
 	shutdownDispatcher(t, dispatcher)
 }

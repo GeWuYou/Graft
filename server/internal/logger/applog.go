@@ -50,11 +50,12 @@ const defaultAppLogCategory LogCategory = CategoryApplication
 
 const redactedValue = "[REDACTED]"
 
+// AppLogPersistEventType 由 logger 拥有，表示一条已净化的应用日志记录需要异步持久化。
+const AppLogPersistEventType event.Type = "logger.app-log.persist.v1"
+
 const (
-	// AppLogPersistEventType 由 logger 拥有，表示一条已净化的应用日志记录需要异步持久化。
-	AppLogPersistEventType    event.Type = "logger.app-log.persist.v1"
-	appLogPersistEventVersion            = 1
-	appLogPersistEventSource             = "internal.logger"
+	appLogPersistEventVersion = 1
+	appLogPersistEventSource  = "internal.logger"
 )
 
 // AppLogger defines the canonical application-log contract for runtime and modules.

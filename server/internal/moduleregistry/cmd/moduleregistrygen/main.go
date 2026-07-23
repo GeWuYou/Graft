@@ -25,6 +25,7 @@ const (
 	httpxMigrationsPath     = "internal/httpx/migrations"
 	loggerMigrationsPath    = "internal/logger/migrations"
 	drilldownMigrationsPath = "internal/drilldown/migrations"
+	eventMigrationsPath     = "internal/event/migrations"
 )
 
 type modulePackage struct {
@@ -115,6 +116,7 @@ func collectMigrationDirs(workdir string, packages []modulePackage) ([]generated
 		httpxMigrationsPath,
 		loggerMigrationsPath,
 		drilldownMigrationsPath,
+		eventMigrationsPath,
 	}
 	for _, pkg := range packages {
 		moduleName := filepath.Base(pkg.importPath)

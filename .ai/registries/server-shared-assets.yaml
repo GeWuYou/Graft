@@ -5,7 +5,7 @@ assets:
     type: "backend-runtime-helper"
     path: "server/internal/event"
     owner: "server/core/event"
-    purpose: "Runtime-owned generic asynchronous event envelope, bounded local dispatch, handler registration, retry, and future durable delivery boundary."
+    purpose: "Runtime-owned generic asynchronous event envelope, bounded local dispatch, handler registration, PostgreSQL Outbox, per-consumer lease recovery, and retry."
     use_when:
       - "A module needs to publish a domain event for non-blocking downstream processing."
       - "A module needs to declare an idempotent consumer during Register."
