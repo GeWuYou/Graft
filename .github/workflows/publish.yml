@@ -700,13 +700,23 @@ jobs:
           fi
 
       - name: Wait for server and web readiness
+        id: compose_readiness
         shell: bash
         run: |
           set -euo pipefail
+          web_mapping="$(docker compose port web 80 | sed -n '1p')"
+          web_port="${web_mapping##*:}"
+          if ! [[ "${web_port}" =~ ^[1-9][0-9]{0,4}$ ]] || (( web_port > 65535 )); then
+            echo "unable to resolve the web host port from Compose mapping: ${web_mapping:-<empty>}"
+            docker compose ps -a
+            exit 1
+          fi
+          probe_base_url="http://127.0.0.1:${web_port}"
+          echo "probe_base_url=${probe_base_url}" >> "${GITHUB_OUTPUT}"
           for _ in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1/healthz > .tmp-compose-healthz.json \
-              && curl -fsS http://127.0.0.1/openapi.json > .tmp-compose-openapi.json \
-              && curl -fsS http://127.0.0.1/ > .tmp-compose-index.html; then
+            if curl -fsS "${probe_base_url}/healthz" > .tmp-compose-healthz.json \
+              && curl -fsS "${probe_base_url}/openapi.json" > .tmp-compose-openapi.json \
+              && curl -fsS "${probe_base_url}/" > .tmp-compose-index.html; then
               exit 0
             fi
             sleep 2
@@ -730,6 +740,7 @@ jobs:
           set -euo pipefail
           mkdir -p .tmp
           docker compose ps -a > .tmp/compose-ps.txt 2>&1 || true
+          docker compose port web 80 > .tmp/compose-web-port.txt 2>&1 || true
           docker compose logs bootstrap > .tmp/compose-bootstrap.log 2>&1 || true
           docker compose logs application-root-init > .tmp/compose-application-root-init.log 2>&1 || true
           root_init_id="$(docker compose ps -aq application-root-init || true)"
@@ -751,6 +762,7 @@ jobs:
             .tmp-compose-openapi.json
             .tmp-compose-index.html
             .tmp/compose-ps.txt
+            .tmp/compose-web-port.txt
             .tmp/compose-bootstrap.log
             .tmp/compose-application-root-init.log
             .tmp/compose-application-root-init-inspect.json
@@ -772,8 +784,8 @@ jobs:
             echo "- Tag: \`${RELEASE_REF_NAME}\`"
             echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
             echo "- Bootstrap: \`service_completed_successfully\`"
-            echo "- Health Probe: \`http://127.0.0.1/healthz\`"
-            echo "- Proxy Probe: \`http://127.0.0.1/openapi.json\`"
+            echo "- Health Probe: \`${{ steps.compose_readiness.outputs.probe_base_url || 'unresolved' }}/healthz\`"
+            echo "- Proxy Probe: \`${{ steps.compose_readiness.outputs.probe_base_url || 'unresolved' }}/openapi.json\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Tear down compose stack
