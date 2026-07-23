@@ -171,7 +171,7 @@ import { ManagementEmptyState } from '@/shared/components/management';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
-import { checkForUpdates, createUpdateOperation, getUpdateOperations } from '../../api/update';
+import { createUpdateOperation, getUpdateOperations } from '../../api/update';
 import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
@@ -259,7 +259,7 @@ async function refreshStatus() {
   checking.value = true;
   loadError.value = '';
   try {
-    discoveryStore.replaceSnapshot(await checkForUpdates());
+    await discoveryStore.refreshSnapshot();
     await loadHistory();
   } catch {
     loadError.value = t('update.center.checkRequestFailed');
