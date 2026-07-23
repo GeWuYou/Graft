@@ -1488,6 +1488,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/updates/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read self-update discovery status
+     * @description Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade.
+     */
+    get: operations['getPlatformUpdateStatus'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/updates/check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Refresh self-update release discovery
+     * @description Reads and verifies upstream release manifests; it does not download artifacts or modify the installation.
+     */
+    post: operations['postPlatformUpdateCheck'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/access-log': {
     parameters: {
       query?: never;
@@ -3642,6 +3682,8 @@ export interface components {
     UpdateSystemConfigRequest: components['schemas']['update-system-config-request'];
     EnvelopedSystemConfigItem: components['schemas']['enveloped-system-config-item'];
     EnvelopedSystemConfigListResponse: components['schemas']['enveloped-system-config-list-response'];
+    PlatformUpdateStatus: components['schemas']['platform-update-status'];
+    EnvelopedPlatformUpdateStatus: components['schemas']['enveloped-platform-update-status'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
@@ -6070,6 +6112,44 @@ export interface components {
     'update-system-config-request': {
       /** @description JSON value to store as the user override for the registered definition. */
       value: unknown;
+    };
+    'platform-update-status': {
+      current_version: string;
+      /** @enum {string} */
+      channel: 'stable' | 'beta' | 'unknown';
+      latest?: {
+        version: string;
+        /** @enum {string} */
+        channel: 'stable' | 'beta';
+        notes: string;
+        /** Format: date-time */
+        published_at: string;
+        /** Format: uri */
+        manifest_url: string;
+        server_digest: string;
+        web_digest: string;
+        /** Format: uri */
+        checksums_url?: string;
+      };
+      installation_profile: {
+        /** @enum {string} */
+        declared_mode: 'compose' | 'binary' | 'unknown';
+        /** @enum {string} */
+        detected_mode: 'compose' | 'binary';
+        /** @enum {string} */
+        capability: 'compose_upgrade_available' | 'manual_guidance';
+        guidance: string;
+      };
+      /** Format: date-time */
+      checked_at?: string;
+      check_error?: string;
+    };
+    'enveloped-platform-update-status': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-status'];
     };
     'access-log-detail-response': {
       /** Format: int64 */
@@ -13004,6 +13084,70 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-system-config-item'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getPlatformUpdateStatus: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Update discovery status. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-status'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postPlatformUpdateCheck: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Refreshed update discovery status. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-status'];
         };
       };
       401: components['responses']['unauthorized'];

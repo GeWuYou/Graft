@@ -1,0 +1,68 @@
+{
+  "update": {
+    "route": { "center": { "title": "Updates", "breadcrumb": "Updates" } },
+    "versionEntry": {
+      "unavailable": "Version unavailable",
+      "openCenter": "Current version {version}; open Update Center",
+      "updateAvailable": "Version {version} is available; open Update Center"
+    },
+    "center": {
+      "navHint": "Platform",
+      "title": "Update Center",
+      "description": "Review verified Graft releases and the update path available for this installation.",
+      "checkNow": "Check for updates",
+      "loadFailed": "Unable to load update status.",
+      "checkRequestFailed": "The update check could not be completed.",
+      "checkFailed": "The latest update check failed: {reason}",
+      "checkedAt": "Last checked: {date}",
+      "channels": { "stable": "Stable", "beta": "Beta", "unknown": "Unknown channel" },
+      "current": { "title": "Current version", "description": "The Graft release currently running." },
+      "latest": {
+        "title": "Available version",
+        "available": "Published {date}",
+        "upToDate": "Up to date",
+        "upToDateDescription": "There is no newer verified release in this channel."
+      },
+      "installation": {
+        "title": "Installation profile",
+        "declared": "Declared mode",
+        "detected": "Detected mode",
+        "modes": { "compose": "Compose", "binary": "Binary", "unknown": "Undeclared" }
+      },
+      "release": {
+        "title": "Release notes",
+        "verified": "The release manifest and OCI image digests are verified.",
+        "upgrade": "Start upgrade",
+        "executionUnavailable": "This release supports discovery only. The Compose executor, backup, and migration steps will be enabled with the platform upgrade execution capability.",
+        "manualOnly": "This installation type provides verified packages and manual guidance only. It will not replace the running binary automatically.",
+        "managePermissionRequired": "Platform update management permission is required before an upgrade can run.",
+        "notesEmpty": "No release notes were provided for this version.",
+        "manifest": "View release manifest",
+        "checksums": "View checksums",
+        "emptyTitle": "No update available",
+        "emptyDescription": "After an update check, a release compatible with this channel appears here."
+      },
+      "capabilities": {
+        "title": "Installation capability matrix",
+        "description": "Automation requires both an installation declaration and runtime detection; an environment value alone cannot enable it.",
+        "columns": { "capability": "Capability", "compose": "Official Compose", "binary": "Binary" },
+        "rows": {
+          "check": "Check versions",
+          "notes": "Release notes",
+          "verify": "Verify release package",
+          "upgrade": "Controlled upgrade",
+          "backup": "Pre-upgrade backup",
+          "migration": "Database migration"
+        },
+        "states": { "supported": "Supported", "pending": "Coming soon", "manual": "Manual" }
+      },
+      "binaryGuidance": "For binary installations, download matching server and web distributions, verify SHA-256, then restart through the system service manager."
+    }
+  },
+  "scheduledTask": {
+    "platformUpdateCheck": {
+      "title": "Check Platform Updates",
+      "description": "Checks verified Graft releases without installing them."
+    }
+  }
+}

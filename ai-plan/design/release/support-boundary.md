@@ -24,11 +24,18 @@
   for the post-release `license-compliance.yml` automation
 - the manual `Release` workflow may publish a Beta tag directly from the current `main` snapshot; stable tag creation
   remains protected by the `release` environment approval path
+- `release-manifest.json` is an official same-tag GitHub Release attachment that binds the release catalog entry,
+  checksummed binary/web artifacts, and immutable GHCR server/web image digests
+- operator-confirmed self-update is supported only for an installation profile detected as official Compose; it creates
+  backup, migration, health, and receipt evidence through the bounded runner described in
+  `platform-self-update.md`
+- binary installation profiles are supported for release discovery, checksum verification, and manual guidance only
 
 ## Not Yet Promised In `v0.1.0`
 
-- `Docker` / `Compose` / `Kubernetes` / hosted deployment support matrix
+- Kubernetes, hosted, multi-node, and non-official Compose deployment execution
 - automatic rollback tooling
+- unattended automatic installation or host/systemd binary replacement
 - implicit startup migration or startup-time schema repair
 - independent `server` / `web` official release trains
 - richer operator-facing introspection UI beyond future minimal `graft version`

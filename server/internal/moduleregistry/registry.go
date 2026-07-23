@@ -21,6 +21,7 @@ import (
 	schedulerlocales "graft/server/modules/scheduler/locales"
 	securitylocales "graft/server/modules/security/locales"
 	systemconfiglocales "graft/server/modules/system-config/locales"
+	updatelocales "graft/server/modules/update/locales"
 	userlocales "graft/server/modules/user/locales"
 )
 
@@ -62,6 +63,7 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "scheduler", load: schedulerlocales.EmbeddedLocaleResources},
 		{name: "security", load: securitylocales.EmbeddedLocaleResources},
 		{name: "system-config", load: systemconfiglocales.EmbeddedLocaleResources},
+		{name: "platform-update", load: updatelocales.EmbeddedLocaleResources},
 		{name: "user", load: userlocales.EmbeddedLocaleResources},
 	}
 

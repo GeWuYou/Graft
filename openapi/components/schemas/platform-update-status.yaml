@@ -1,0 +1,27 @@
+type: object
+required: [current_version, channel, installation_profile]
+properties:
+  current_version: { type: string }
+  channel: { type: string, enum: [stable, beta, unknown] }
+  latest:
+    type: object
+    required: [version, channel, notes, published_at, manifest_url, server_digest, web_digest]
+    properties:
+      version: { type: string }
+      channel: { type: string, enum: [stable, beta] }
+      notes: { type: string }
+      published_at: { type: string, format: date-time }
+      manifest_url: { type: string, format: uri }
+      server_digest: { type: string }
+      web_digest: { type: string }
+      checksums_url: { type: string, format: uri }
+  installation_profile:
+    type: object
+    required: [declared_mode, detected_mode, capability, guidance]
+    properties:
+      declared_mode: { type: string, enum: [compose, binary, unknown] }
+      detected_mode: { type: string, enum: [compose, binary] }
+      capability: { type: string, enum: [compose_upgrade_available, manual_guidance] }
+      guidance: { type: string }
+  checked_at: { type: string, format: date-time }
+  check_error: { type: string }

@@ -24,6 +24,7 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 		"scheduler":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"security":       {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"system-config":  {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"update":         {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"user":           {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 	}
 
@@ -158,7 +159,13 @@ func TestDescriptorsStayAlignedWithModuleDirectories(t *testing.T) {
 			continue
 		}
 
-		want = append(want, entry.Name())
+		moduleID := entry.Name()
+		// update 的目录名描述领域边界，平台可见模块 ID 保持 platform-update，
+		// 避免权限、任务和发布历史在未来目录调整时发生标识漂移。
+		if moduleID == "update" {
+			moduleID = "platform-update"
+		}
+		want = append(want, moduleID)
 	}
 	sort.Strings(want)
 
