@@ -745,6 +745,13 @@ func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) 
 			},
 			wantErr: "GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be greater than zero",
 		},
+		{
+			name: "persist timeout exceeds duration range",
+			mutate: func(cfg *Config) {
+				cfg.HTTPX.AccessLogPersistTimeoutMS = maxDurationMilliseconds + 1
+			},
+			wantErr: "GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be no greater than 9223372036854",
+		},
 	}
 
 	for _, testCase := range tests {
@@ -754,6 +761,15 @@ func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) 
 
 			assertValidateError(t, cfg, testCase.wantErr)
 		})
+	}
+}
+
+func TestValidateAcceptsMaximumAccessLogPersistTimeout(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.HTTPX.AccessLogPersistTimeoutMS = maxDurationMilliseconds
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate maximum access log persist timeout: %v", err)
 	}
 }
 

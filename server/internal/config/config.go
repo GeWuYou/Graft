@@ -33,6 +33,7 @@ const (
 	defaultAppLogPersistence        = true
 	defaultLocale                   = "zh-CN"
 	defaultSecondaryLocale          = "en-US"
+	maxDurationMilliseconds         = int64((1<<63 - 1) / int64(time.Millisecond))
 	defaultSupported                = "zh-CN,en-US"
 	defaultAccessTokenTTL           = 15 * time.Minute
 	defaultRefreshTokenTTL          = 7 * 24 * time.Hour
@@ -390,6 +391,9 @@ func validateHTTPXConfig(c *Config) error {
 	}
 	if c.HTTPX.AccessLogPersistTimeoutMS <= 0 {
 		return errors.New("GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be greater than zero")
+	}
+	if c.HTTPX.AccessLogPersistTimeoutMS > maxDurationMilliseconds {
+		return fmt.Errorf("GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be no greater than %d", maxDurationMilliseconds)
 	}
 	c.HTTPX.WebSocketAllowedOrigins = normalizeStringList(c.HTTPX.WebSocketAllowedOrigins)
 	if err := validateWebSocketAllowedOrigins(c.HTTPX.WebSocketAllowedOrigins); err != nil {

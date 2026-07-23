@@ -47,8 +47,9 @@ type Server struct {
 
 // AccessLogOptions 配置 HTTP access log 持久化与进程日志输出策略。
 type AccessLogOptions struct {
-	ConsolePolicy  config.AccessLogConsolePolicy
-	SlowThreshold  time.Duration
+	ConsolePolicy config.AccessLogConsolePolicy
+	SlowThreshold time.Duration
+	// PersistTimeout 限制单次访问日志持久化操作的耗时，非正值会回退到默认超时。
 	PersistTimeout time.Duration
 }
 

@@ -23,6 +23,7 @@ type stubAccessLogRepository struct {
 	queries              []AccessLogListQuery
 	results              []AccessLogListResult
 	listErr              error
+	createErr            error
 	waitForCreateContext bool
 }
 
@@ -31,8 +32,29 @@ func (r *stubAccessLogRepository) CreateAccessLog(ctx context.Context, input Cre
 		<-ctx.Done()
 		return AccessLog{}, ctx.Err()
 	}
+	if r.createErr != nil {
+		return AccessLog{}, r.createErr
+	}
 	r.created = append(r.created, input)
 	return normalizeCreateAccessLogInput(input), nil
+}
+
+func TestAccessLogPersistenceErrorIsNotMisclassifiedAfterDeadline(t *testing.T) {
+	core, recorded := observer.New(zapcore.ErrorLevel)
+	repo := &stubAccessLogRepository{createErr: errors.New("database unavailable")}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{ConsolePolicy: config.AccessLogConsoleNever, PersistTimeout: time.Second},
+	}, repo)
+	server.Engine().GET("/healthz", func(ctx *gin.Context) { ctx.Status(http.StatusNoContent) })
+
+	server.Engine().ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	entries := recorded.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one persistence error log, got %d", len(entries))
+	}
+	if failureType := entries[0].ContextMap()["failureType"]; failureType != "error" {
+		t.Fatalf("expected error failure type, got %#v", failureType)
+	}
 }
 
 func (r *stubAccessLogRepository) CreateAccessLogs(_ context.Context, inputs []CreateAccessLogInput) ([]AccessLog, error) {

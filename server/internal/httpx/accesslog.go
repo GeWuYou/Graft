@@ -150,7 +150,7 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 
 	if _, err := repo.CreateAccessLog(persistCtx, record); err != nil {
 		failureType := "error"
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(persistCtx.Err(), context.DeadlineExceeded) {
+		if errors.Is(err, context.DeadlineExceeded) {
 			failureType = "timeout"
 		}
 		logsafe.Error(logger, "persist access log failed",
