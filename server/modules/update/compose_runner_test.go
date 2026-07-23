@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"graft/server/internal/moduleapi"
 )
 
 func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
@@ -27,7 +29,7 @@ func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
 	}
 	persisted := readFixtureReceipt(t, input)
-	if persisted != receipt {
+	if !reflect.DeepEqual(persisted, receipt) {
 		t.Fatalf("persisted receipt = %#v, want %#v", persisted, receipt)
 	}
 }
@@ -70,6 +72,38 @@ func TestExecuteComposeRunnerRejectsDigestMismatchBeforeBackup(t *testing.T) {
 	}
 	if receipt.FailureCode != runnerFailureInvalidInput || len(actions.trace) != 0 {
 		t.Fatalf("receipt = %#v, trace = %#v", receipt, actions.trace)
+	}
+}
+
+func TestExecuteComposeRunnerRejectsMissingBackupCompletion(t *testing.T) {
+	input := fixtureRunnerInput(t.TempDir())
+	actions := &tracingRunnerActions{omitBackupReceipt: true}
+	receipt, err := ExecuteComposeRunner(context.Background(), input, actions)
+	if err == nil || receipt.FailureCode != runnerFailureBackup || receipt.BackupCompletion != nil {
+		t.Fatalf("missing backup completion must produce a failed receipt: %#v / %v", receipt, err)
+	}
+	if len(actions.trace) != 1 || actions.trace[0] != "backup" {
+		t.Fatalf("runner continued after missing backup completion: %#v", actions.trace)
+	}
+}
+
+func TestPersistRunnerReceiptReplacesReceiptWithoutTemporaryFiles(t *testing.T) {
+	input := fixtureRunnerInput(t.TempDir())
+	if err := persistRunnerReceipt(input, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, FailureCode: "first"}); err != nil {
+		t.Fatalf("persist first receipt: %v", err)
+	}
+	if err := persistRunnerReceipt(input, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, Succeeded: true}); err != nil {
+		t.Fatalf("replace receipt: %v", err)
+	}
+	if receipt := readFixtureReceipt(t, input); !receipt.Succeeded || receipt.FailureCode != "" {
+		t.Fatalf("receipt was not atomically replaced: %#v", receipt)
+	}
+	entries, err := os.ReadDir(filepath.Join(input.Preflight.ComposeRoot, runnerReceiptDirectory))
+	if err != nil {
+		t.Fatalf("list receipt directory: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != input.OperationID+".json" {
+		t.Fatalf("temporary receipt files remain: %#v", entries)
 	}
 }
 
@@ -135,9 +169,11 @@ func readFixtureReceipt(t *testing.T, input RunnerInput) RunnerReceipt {
 }
 
 type tracingRunnerActions struct {
-	trace   []string
-	failAt  string
-	recover bool
+	trace             []string
+	failAt            string
+	recover           bool
+	omitBackupReceipt bool
+	backup            moduleapi.CompleteBackupRunnerHandoffInput
 }
 
 func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, RunnerInput) error {
@@ -149,6 +185,16 @@ func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, Runner
 
 func (actions *tracingRunnerActions) Backup(context.Context, RunnerInput) error {
 	return actions.run("backup")
+}
+
+func (actions *tracingRunnerActions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput {
+	if actions.omitBackupReceipt {
+		return moduleapi.CompleteBackupRunnerHandoffInput{}
+	}
+	if actions.backup.OperationID == "" {
+		actions.backup = moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "fixture-operation-1", TaskID: 7, ConfigSnapshotSHA256: testDigest('a'), ConfigSnapshotBytes: 3, DatabaseDumpSHA256: testDigest('b'), DatabaseDumpBytes: 5}
+	}
+	return actions.backup
 }
 
 func (actions *tracingRunnerActions) Pull(context.Context, RunnerInput) error {

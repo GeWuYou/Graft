@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -57,6 +58,19 @@ func TestComposeExecutionCoordinatorRejectsForgedBackupReceiptBinding(t *testing
 	_, err := coordinator.SettleReceipt(context.Background(), ComposeUpdateOperation{OperationID: "update-53", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0", TaskID: 53}, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "update-53", FailureCode: "pull_failed", BackupCompletion: &moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "other", TaskID: 53}})
 	if err == nil {
 		t.Fatal("expected forged backup completion rejection")
+	}
+}
+
+func TestComposeExecutionCoordinatorCancelsPreparedHandoffWhenItsBindingIsInvalid(t *testing.T) {
+	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 66}}
+	backups := &stubBackupService{prepared: &moduleapi.BackupRunnerHandoffPlan{OperationID: "other", TaskID: 66}}
+	coordinator := NewComposeExecutionCoordinator(tasks, backups)
+	_, _, err := coordinator.Start(t.Context(), ComposeUpdateOperation{OperationID: "update-66", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0"}, 9, testBackupPlan("update-66"))
+	if err == nil {
+		t.Fatal("expected invalid prepared handoff rejection")
+	}
+	if tasks.canceled != 66 || backups.canceled.OperationID != "update-66" || backups.canceled.TaskID != 66 {
+		t.Fatalf("invalid prepared handoff was not cancelled through owners: task=%d backup=%#v", tasks.canceled, backups.canceled)
 	}
 }
 
@@ -132,6 +146,50 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	if item := operations.items["update-78"]; item.Outcome != ExecutionOutcomeFailed || item.FailureCode != "runner_launch_failed" {
 		t.Fatalf("operation failure was not persisted: %#v", item)
 	}
+}
+
+func TestSettleReceiptEntryDeletesOnlySuccessfulSettlements(t *testing.T) {
+	root := t.TempDir()
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-81": {OperationID: "update-81", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 81, Outcome: ExecutionOutcomePulling},
+		"update-82": {OperationID: "update-82", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 82, Outcome: ExecutionOutcomePulling},
+	}}
+	rollout := NewRolloutService(NewService(nil), operations, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
+	for _, receipt := range []RunnerReceipt{
+		{ProtocolVersion: runnerProtocolVersion, OperationID: "update-81", Succeeded: true},
+		{ProtocolVersion: runnerProtocolVersion, OperationID: "update-82", FailureCode: "pull_failed"},
+	} {
+		input := fixtureRunnerInput(root)
+		input.OperationID = receipt.OperationID
+		if err := persistRunnerReceipt(input, receipt); err != nil {
+			t.Fatalf("persist receipt %s: %v", receipt.OperationID, err)
+		}
+		entry := mustReceiptEntry(t, root, receipt.OperationID+".json")
+		if err := rollout.settleReceiptEntry(t.Context(), root, entry); err != nil {
+			t.Fatalf("settle receipt %s: %v", receipt.OperationID, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, runnerReceiptDirectory, "update-81.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("successful receipt should be removed, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, runnerReceiptDirectory, "update-82.json")); err != nil {
+		t.Fatalf("failed receipt should remain for retry, got %v", err)
+	}
+}
+
+func mustReceiptEntry(t *testing.T, root, name string) os.DirEntry {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(root, runnerReceiptDirectory))
+	if err != nil {
+		t.Fatalf("list receipts: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.Name() == name {
+			return entry
+		}
+	}
+	t.Fatalf("receipt %s was not created", name)
+	return nil
 }
 
 func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
@@ -259,6 +317,8 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 	return err
 }
 
+func (*recordingLauncher) Close() error { return nil }
+
 func containsAny(value string, needles ...string) bool {
 	for _, needle := range needles {
 		if strings.Contains(value, needle) {
@@ -291,6 +351,7 @@ func (*stubTaskService) RetryStage(context.Context, uint64, uint64) error { retu
 
 type stubBackupService struct {
 	plan       moduleapi.BackupRunnerHandoffPlan
+	prepared   *moduleapi.BackupRunnerHandoffPlan
 	completion moduleapi.CompleteBackupRunnerHandoffInput
 	canceled   moduleapi.BackupRunnerHandoffPlan
 }
@@ -300,6 +361,9 @@ func (s *stubBackupService) Create(context.Context, moduleapi.CreateBackupInput)
 }
 func (s *stubBackupService) PrepareRunnerHandoff(_ context.Context, plan moduleapi.BackupRunnerHandoffPlan) (moduleapi.BackupRunnerHandoffPlan, error) {
 	s.plan = plan
+	if s.prepared != nil {
+		return *s.prepared, nil
+	}
 	return plan, nil
 }
 func (s *stubBackupService) CancelRunnerHandoff(_ context.Context, operationID string, taskID uint64) error {

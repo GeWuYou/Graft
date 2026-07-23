@@ -70,7 +70,14 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("prepare update backup handoff: %w", err)
 	}
 	operation.TaskID = task.TaskID
-	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, TaskID: task.TaskID}, validatePreparedHandoff(prepared, operation)
+	if err := validatePreparedHandoff(prepared, operation); err != nil {
+		cleanupErr := c.CancelBeforeLaunch(ctx, operation)
+		if cleanupErr != nil {
+			return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("validate prepared backup handoff: %w; cancel prepared handoff: %v", err, cleanupErr)
+		}
+		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("validate prepared backup handoff: %w", err)
+	}
+	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, TaskID: task.TaskID}, nil
 }
 
 // CancelBeforeLaunch 通过各 owner capability 清理 runner 尚未启动时的 Task 与 Backup handoff，避免 Update 写入其它模块的事实表。

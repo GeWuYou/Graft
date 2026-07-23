@@ -2,6 +2,7 @@ package update
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,17 +19,12 @@ var runnerOperationID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 // 它没有任意命令入口；Backup 的工件事实仍由 Backup capability 在 runner 交接后结算。
 type ComposeRunnerActions interface {
 	Backup(context.Context, RunnerInput) error
+	BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput
 	Pull(context.Context, RunnerInput) error
 	BootstrapMigrate(context.Context, RunnerInput) error
 	Recreate(context.Context, RunnerInput) error
 	DockerHealth(context.Context, RunnerInput) error
 	Healthz(context.Context, RunnerInput) error
-}
-
-// ComposeBackupReceiptProvider 让 runner 将备份阶段生成的无秘密完整性元数据写入 receipt。
-// Backup owner 会在目标 server 启动后重新读取工件并验证这些声明。
-type ComposeBackupReceiptProvider interface {
-	BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput
 }
 
 const (
@@ -57,10 +53,12 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 		receipt.FailureCode = runnerFailureBackup
 		return writeRunnerReceipt(input, receipt, err)
 	}
-	if provider, ok := actions.(ComposeBackupReceiptProvider); ok {
-		completion := provider.BackupReceipt()
-		receipt.BackupCompletion = &completion
+	completion := actions.BackupReceipt()
+	if err := validateBackupReceipt(completion, input); err != nil {
+		receipt.FailureCode = runnerFailureBackup
+		return writeRunnerReceipt(input, receipt, err)
 	}
+	receipt.BackupCompletion = &completion
 	if err := actions.Pull(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailurePull
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
@@ -87,6 +85,19 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	}
 	receipt.Succeeded = true
 	return writeRunnerReceipt(input, receipt, nil)
+}
+
+func validateBackupReceipt(completion moduleapi.CompleteBackupRunnerHandoffInput, input RunnerInput) error {
+	if completion.OperationID != input.OperationID || completion.TaskID != input.TaskID || completion.ConfigSnapshotBytes < 0 || completion.DatabaseDumpBytes < 0 || len(completion.ConfigSnapshotSHA256) != 64 || len(completion.DatabaseDumpSHA256) != 64 {
+		return errors.New("backup completion does not match runner input")
+	}
+	if _, err := hex.DecodeString(completion.ConfigSnapshotSHA256); err != nil {
+		return errors.New("backup config snapshot digest is invalid")
+	}
+	if _, err := hex.DecodeString(completion.DatabaseDumpSHA256); err != nil {
+		return errors.New("backup database dump digest is invalid")
+	}
+	return nil
 }
 
 func recoverPreMigration(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) bool {
@@ -128,7 +139,40 @@ func persistRunnerReceipt(input RunnerInput, receipt RunnerReceipt) error {
 	if err := os.MkdirAll(filepath.Dir(path), runnerReceiptDirectoryMode); err != nil {
 		return fmt.Errorf("create runner receipt directory: %w", err)
 	}
-	return os.WriteFile(path, append(contents, '\n'), runnerReceiptFileMode)
+	directory := filepath.Dir(path)
+	file, err := os.CreateTemp(directory, ".receipt-*")
+	if err != nil {
+		return fmt.Errorf("create temporary runner receipt: %w", err)
+	}
+	temporaryPath := file.Name()
+	defer func() { _ = os.Remove(temporaryPath) }()
+	if err := file.Chmod(runnerReceiptFileMode); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("set runner receipt permissions: %w", err)
+	}
+	if _, err := file.Write(append(contents, '\n')); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("write temporary runner receipt: %w", err)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("sync temporary runner receipt: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close temporary runner receipt: %w", err)
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return fmt.Errorf("replace runner receipt: %w", err)
+	}
+	directoryHandle, err := os.Open(directory)
+	if err != nil {
+		return fmt.Errorf("open runner receipt directory: %w", err)
+	}
+	defer func() { _ = directoryHandle.Close() }()
+	if err := directoryHandle.Sync(); err != nil {
+		return fmt.Errorf("sync runner receipt directory: %w", err)
+	}
+	return nil
 }
 
 func runnerReceiptPath(input RunnerInput) (string, error) {

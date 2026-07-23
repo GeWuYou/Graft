@@ -16,7 +16,7 @@ func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
 	server = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/repos/owner/repo/releases":
-			_, _ = fmt.Fprintf(writer, `[{"tag_name":"v1.2.3","published_at":"2026-07-22T00:00:00Z","assets":[{"name":"release-manifest.json","browser_download_url":%q},{"name":"release-manifest.json.sha256","browser_download_url":%q}]}]`, server.URL+"/manifest", server.URL+"/manifest.sha256")
+			_, _ = fmt.Fprintf(writer, `[{"tag_name":"v1.2.3","published_at":"2026-07-22T00:00:00Z","assets":[{"name":"release-manifest.json","browser_download_url":%q},{"name":"release-manifest.json.sha256","browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q}]}]`, server.URL+"/manifest", server.URL+"/manifest.sha256", server.URL+"/checksums")
 		case "/manifest":
 			_, _ = writer.Write(manifest)
 		case "/manifest.sha256":

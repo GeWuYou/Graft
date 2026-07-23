@@ -68,19 +68,14 @@ type githubAsset struct {
 	BrowserDownloadURL string `json:"browser_download_url"`
 }
 type releaseManifest struct {
-	ReleaseTag           string `json:"release_tag"`
-	Version              string `json:"version"`
-	Channel              string `json:"channel"`
-	ReleaseNotesURL      string `json:"release_notes_url"`
-	MinimumSourceVersion string `json:"minimum_source_version"`
-	UpgradeNotes         string `json:"upgrade_notes"`
-	Artifacts            struct {
-		Server    string            `json:"server"`
-		Web       string            `json:"web"`
-		Checksums string            `json:"checksums"`
-		SHA256    map[string]string `json:"sha256"`
-	} `json:"artifacts"`
-	Images struct {
+	ReleaseTag           string                   `json:"release_tag"`
+	Version              string                   `json:"version"`
+	Channel              string                   `json:"channel"`
+	ReleaseNotesURL      string                   `json:"release_notes_url"`
+	MinimumSourceVersion string                   `json:"minimum_source_version"`
+	UpgradeNotes         string                   `json:"upgrade_notes"`
+	Artifacts            releaseManifestArtifacts `json:"artifacts"`
+	Images               struct {
 		Server struct {
 			Image     string `json:"image"`
 			Digest    string `json:"digest"`
@@ -99,11 +94,13 @@ type releaseManifest struct {
 			Reference string `json:"reference"`
 		} `json:"compose"`
 	} `json:"runners"`
-	Artifacts releaseManifestArtifacts `json:"artifacts"`
 }
 
 type releaseManifestArtifacts struct {
-	Checksums string `json:"checksums"`
+	Server    string            `json:"server"`
+	Web       string            `json:"web"`
+	Checksums string            `json:"checksums"`
+	SHA256    map[string]string `json:"sha256"`
 }
 
 // List 获取并验证上游 Release；任一个 Release 的 manifest 无效时仅跳过该版本。
@@ -251,12 +248,7 @@ func validAbsoluteURL(value string) bool {
 	return strings.HasPrefix(value, "https://github.com/") && !strings.ContainsAny(value, " \t\r\n")
 }
 
-func validAssetManifest(value struct {
-	Server    string            `json:"server"`
-	Web       string            `json:"web"`
-	Checksums string            `json:"checksums"`
-	SHA256    map[string]string `json:"sha256"`
-}) bool {
+func validAssetManifest(value releaseManifestArtifacts) bool {
 	if strings.TrimSpace(value.Server) == "" || strings.TrimSpace(value.Web) == "" || strings.TrimSpace(value.Checksums) == "" || len(value.SHA256) < 2 {
 		return false
 	}

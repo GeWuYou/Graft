@@ -25,6 +25,11 @@ type RolloutService struct {
 	auditBus     eventbus.Bus
 }
 
+var (
+	errRolloutInvalidArgument = errors.New("compose update request is invalid")
+	errRolloutPrecondition    = errors.New("compose update precondition is not met")
+)
+
 // SetAuditBus 注入审计事件发布端；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
 func (s *RolloutService) SetAuditBus(bus eventbus.Bus) { s.auditBus = bus }
 
@@ -62,26 +67,34 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 func (s *RolloutService) confirmedPreflight(targetVersion, confirmation string) (Status, ComposePreflight, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
-		return Status{}, ComposePreflight{}, errors.New("compose update execution requires a fresh verified release catalog")
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: fresh verified release catalog is required", errRolloutPrecondition)
 	}
 	if status.Profile.Capability != "compose_upgrade_available" || status.Latest == nil {
-		return Status{}, ComposePreflight{}, errors.New("compose update execution is not available for this installation")
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: rollout is unavailable for this installation", errRolloutPrecondition)
 	}
 	if minimum := strings.TrimSpace(status.Latest.MinimumSourceVersion); minimum != "" {
 		current, currentErr := ParseVersion(status.CurrentVersion)
 		minimumVersion, minimumErr := ParseVersion(minimum)
 		if currentErr != nil || minimumErr != nil || current.Compare(minimumVersion) < 0 {
-			return Status{}, ComposePreflight{}, errors.New("current version does not meet the target release minimum source version")
+			return Status{}, ComposePreflight{}, fmt.Errorf("%w: current version does not meet the target minimum source version", errRolloutPrecondition)
 		}
 	}
 	if strings.TrimSpace(targetVersion) == "" || targetVersion != status.Latest.Version || confirmation != targetVersion {
-		return Status{}, ComposePreflight{}, errors.New("target version requires an exact manual confirmation")
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: target version requires an exact manual confirmation", errRolloutInvalidArgument)
 	}
 	preflight, err := composePreflight(status.Profile, *status.Latest)
 	if err != nil {
-		return Status{}, ComposePreflight{}, err
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: %w", errRolloutPrecondition, err)
 	}
 	return status, preflight, nil
+}
+
+// Close 释放 rollout 持有的 Docker client，供模块关闭阶段调用。
+func (s *RolloutService) Close() error {
+	if s == nil || s.launcher == nil {
+		return nil
+	}
+	return s.launcher.Close()
 }
 
 func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput) error {
@@ -181,8 +194,14 @@ func (s *RolloutService) settleReceiptEntry(ctx context.Context, root string, en
 	if err := json.Unmarshal(contents, &receipt); err != nil {
 		return fmt.Errorf("decode compose runner receipt: %w", err)
 	}
-	if _, err := s.SettlePersistedReceipt(ctx, receipt); err != nil && !errors.Is(err, errUpdateOperationNotFound) {
+	settled, err := s.SettlePersistedReceipt(ctx, receipt)
+	if err != nil && !errors.Is(err, errUpdateOperationNotFound) {
 		return err
+	}
+	if err == nil && settled.Outcome == ExecutionOutcomeSuccess {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove settled compose runner receipt: %w", err)
+		}
 	}
 	return nil
 }

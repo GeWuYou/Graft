@@ -87,8 +87,13 @@ func (m *Module) Boot(ctx *module.Context) error {
 	return m.rollout.SettleAvailableReceipts(ctx.LifecycleContext)
 }
 
-// Shutdown 当前不持有后台资源。
-func (m *Module) Shutdown(_ *module.Context) error { return nil }
+// Shutdown 释放 rollout 持有的 Docker client，避免模块生命周期结束后遗留连接。
+func (m *Module) Shutdown(_ *module.Context) error {
+	if m == nil || m.rollout == nil {
+		return nil
+	}
+	return m.rollout.Close()
+}
 
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {

@@ -146,6 +146,9 @@ func digest(path string) (string, int64, error) {
 	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }
 func replaceRefs(path, server, web string) error {
+	if !immutableReference(server) || !immutableReference(web) {
+		return errors.New("compose runner image references must be immutable digests")
+	}
 	// #nosec G304 -- .env path is derived from the preflight-validated compose root.
 	contents, err := os.ReadFile(path)
 	if err != nil {
@@ -170,4 +173,13 @@ func replaceRefs(path, server, web string) error {
 		return err
 	}
 	return os.Rename(temporary, path)
+}
+
+func immutableReference(value string) bool {
+	repository, digest, ok := strings.Cut(strings.TrimSpace(value), "@")
+	if !ok || repository == "" || !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(strings.TrimPrefix(digest, "sha256:"))
+	return err == nil
 }

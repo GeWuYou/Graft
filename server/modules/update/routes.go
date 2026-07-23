@@ -55,7 +55,7 @@ func (h updateRouteHandlers) list(c *gin.Context) {
 	limit := 20
 	if raw := c.Query("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil {
+		if err != nil || parsed < 1 || parsed > 100 {
 			httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 			return
 		}
@@ -98,7 +98,14 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	}
 	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.Confirmation)
 	if err != nil {
-		httpx.WriteLocalizedError(c, h.localizer, http.StatusConflict, "common.conflict", nil)
+		switch {
+		case errors.Is(err, errRolloutInvalidArgument):
+			httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		case errors.Is(err, errRolloutPrecondition):
+			httpx.WriteLocalizedError(c, h.localizer, http.StatusPreconditionFailed, messagecontract.CommonInvalidArgument.String(), nil)
+		default:
+			httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		}
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusAccepted, operation)

@@ -26,6 +26,7 @@ const (
 // 它不暴露通用容器创建能力，调用方无法提供命令、环境或挂载。
 type ComposeRunnerLauncher interface {
 	Launch(context.Context, RunnerInput) error
+	Close() error
 }
 
 type dockerComposeRunnerLauncher struct{ client dockerRunnerClient }
@@ -34,6 +35,15 @@ type dockerRunnerClient interface {
 	ImagePull(context.Context, string, mobyclient.ImagePullOptions) (mobyclient.ImagePullResponse, error)
 	ContainerCreate(context.Context, mobyclient.ContainerCreateOptions) (mobyclient.ContainerCreateResult, error)
 	ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) (mobyclient.ContainerStartResult, error)
+	Close() error
+}
+
+// Close 释放 Docker API client 持有的连接。
+func (l *dockerComposeRunnerLauncher) Close() error {
+	if l == nil || l.client == nil {
+		return nil
+	}
+	return l.client.Close()
 }
 
 // NewDockerComposeRunnerLauncher 创建只可执行官方 Compose runner 的 Docker socket launcher。
