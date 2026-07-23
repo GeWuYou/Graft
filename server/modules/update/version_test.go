@@ -61,14 +61,13 @@ func TestDetectInstallationProfile(t *testing.T) {
 			capability: "compose_upgrade_available",
 		},
 		{
-			name:       "binary with executable",
-			env:        map[string]string{declaredDeploymentModeEnv: "binary"},
+			name:       "binary with complete manual guidance",
+			env:        map[string]string{declaredDeploymentModeEnv: "binary", binaryWebRootEnv: "/var/www/graft", serviceManagerEnv: "manual"},
 			executable: func() (string, error) { return "/usr/local/bin/graft", nil },
-			capability: "manual_guidance_blocked",
-			blocked:    true,
+			capability: "manual_guidance",
 		},
 		{
-			name:       "binary without executable",
+			name:       "binary without complete manual guidance",
 			env:        map[string]string{},
 			executable: func() (string, error) { return "", errors.New("not available") },
 			capability: "manual_guidance_blocked",
@@ -79,7 +78,8 @@ func TestDetectInstallationProfile(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			profile := DetectInstallationProfile(func(key string) string { return testCase.env[key] }, testCase.executable)
-			if profile.Capability != testCase.capability || (testCase.blocked && profile.BlockingReason == "") {
+			blocked := profile.BlockingReason != ""
+			if profile.Capability != testCase.capability || blocked != testCase.blocked {
 				t.Fatalf("expected capability %q with blocked=%t, got %#v", testCase.capability, testCase.blocked, profile)
 			}
 		})

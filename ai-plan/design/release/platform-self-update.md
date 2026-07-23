@@ -4,7 +4,7 @@
 
 ## Product Boundary
 
-- 入口为 `Platform -> Updates`；左侧 Graft 标识下的当前版本是进入此页的快捷入口。
+- 入口为 `Platform -> System Maintenance -> Updates`；左侧 Graft 标识下的当前版本是进入此页的快捷入口。
 - 更新是管理员确认后的受治理操作：自动检查可以启用，自动安装不在当前承诺范围内。
 - `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用 tag 或 mutable tag 作为升级事实。
 - `server/modules/update` 和 `server/modules/backup` 是两个独立模块。Update 消费 Backup capability；Atlas migration 仍由 core CLI 拥有，不创建 migration 业务模块。
@@ -87,6 +87,6 @@ InstallationProfile {
 
 ## Scope
 
-当前主题实现：release manifest、read-only discovery、Update Center、独立 backup capability、管理员确认的 Compose 执行、历史和恢复证据。
+当前主题实现：release manifest、read-only discovery、顶部轻量更新提醒、`Platform -> System Maintenance -> Updates` 管理页、独立 backup capability、管理员确认的 Compose 执行、历史和恢复证据。顶部提醒只消费认证壳生命周期内的单一 discovery snapshot；它不承担独立轮询或第二套发现请求。
 
 明确延后：无确认自动安装、多节点编排、Kubernetes executor、持久 Update Agent、容器内 binary replacement、host/systemd binary replacement，以及承诺自动 schema rollback。

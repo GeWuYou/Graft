@@ -1,6 +1,8 @@
 import container from '@iconify-icons/lucide/container';
+import downloadCloud from '@iconify-icons/lucide/download-cloud';
 import hardDrive from '@iconify-icons/lucide/hard-drive';
 import imageIcon from '@iconify-icons/lucide/image';
+import wrench from '@iconify-icons/lucide/wrench';
 import docker from '@iconify-icons/tabler/brand-docker';
 import { describe, expect, it } from 'vitest';
 
@@ -21,6 +23,11 @@ describe('resolveMenuIcon', () => {
 
   it('uses a persistent-storage icon for volume menus', () => {
     expect(resolveMenuIcon('persistent-volume')).toEqual(hardDrive);
+  });
+
+  it('uses maintenance and release icons for platform update navigation', () => {
+    expect(resolveMenuIcon('system-maintenance')).toEqual(wrench);
+    expect(resolveMenuIcon('platform-update')).toEqual(downloadCloud);
   });
 
   it('keeps application and runtime targets semantically distinct', () => {
@@ -72,6 +79,8 @@ describe('resolveMenuIcon', () => {
       'audit-trail',
       'scheduled-automation',
       'platform-configuration',
+      'system-maintenance',
+      'platform-update',
       'announcement-publishing',
     ];
 

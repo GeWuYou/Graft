@@ -70,6 +70,15 @@ vi.mock('@/locales', () => ({
   t: (key: string) => key,
 }));
 
+vi.mock('@/modules/update', () => ({
+  updateVersionEntry: defineComponent({
+    name: 'UpdateVersionEntryStub',
+    setup() {
+      return () => h('span', { 'data-testid': 'update-version-entry' }, 'dev');
+    },
+  }),
+}));
+
 vi.mock('@/shared/components/brand', () => ({
   BrandIdentity: defineComponent({
     name: 'BrandIdentityStub',
@@ -259,13 +268,14 @@ describe('SideNav', () => {
     expect(wrapper.get('[data-brand-label]').attributes('data-brand-label')).toBe('common.appName');
     expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('false');
     expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('false');
-    expect(wrapper.text()).not.toContain('1.0.0');
+    expect(wrapper.get('[data-testid="update-version-entry"]').text()).toBe('dev');
 
     await wrapper.setProps({
       motionPhase: 'collapsing-width',
     });
     expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('false');
     expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('true');
+    expect(wrapper.find('[data-testid="update-version-entry"]').exists()).toBe(false);
 
     await wrapper.setProps({
       isCompact: true,

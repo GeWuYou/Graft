@@ -1,3 +1,4 @@
+menu.platform.maintenance: System Maintenance
 menu.platform.update: Updates
 scheduledTask.platformUpdateCheck.title: Check Platform Updates
 scheduledTask.platformUpdateCheck.description: Checks the release source for a newer verified platform version.

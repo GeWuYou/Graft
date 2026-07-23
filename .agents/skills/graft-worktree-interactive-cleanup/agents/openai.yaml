@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interactive Worktree Cleanup"
+  short_description: "Safely clean stale numbered worktrees"
+  default_prompt: "Use $graft-worktree-interactive-cleanup to inspect and safely release confirmed stale numbered worktrees."

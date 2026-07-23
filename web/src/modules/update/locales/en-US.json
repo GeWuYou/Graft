@@ -1,15 +1,34 @@
 {
+  "menu": { "platform": { "maintenance": "System Maintenance", "update": "Updates" } },
   "update": {
-    "route": { "center": { "title": "Updates", "breadcrumb": "Updates" } },
+    "route": { "center": { "title": "Update Management", "breadcrumb": "Updates" } },
+    "notification": { "open": "View platform updates", "available": "Version {version} is available" },
+    "preview": {
+      "title": "Update available",
+      "current": "Current version",
+      "available": "New version",
+      "summary": "What's new",
+      "summaryEmpty": "This release has no summary. View the complete release notes.",
+      "viewManagement": "View update log",
+      "viewRelease": "View release",
+      "checkNow": "Check for updates",
+      "checkFailed": "The update check could not be completed. Try again later.",
+      "startUpgrade": "Update now",
+      "upToDate": "This installation is up to date.",
+      "availableVersion": "Version {version} is available.",
+      "unavailable": "Update status is temporarily unavailable. Try again later.",
+      "releaseUnavailable": "No release information is available for this version."
+    },
     "versionEntry": {
       "unavailable": "Version unavailable",
-      "openCenter": "Current version {version}; open Update Center",
-      "updateAvailable": "Version {version} is available; open Update Center"
+      "current": "Current version {version}",
+      "openCenter": "Current version {version}; open update preview",
+      "updateAvailable": "Version {version} is available; open update preview"
     },
     "center": {
       "navHint": "Platform",
-      "title": "Update Center",
-      "description": "Review verified Graft releases and the update path available for this installation.",
+      "title": "Update Management",
+      "description": "Review verified releases and run a controlled upgrade.",
       "checkNow": "Check for updates",
       "loadFailed": "Unable to load update status.",
       "checkRequestFailed": "The update check could not be completed.",
@@ -75,6 +94,7 @@
         },
         "states": { "supported": "Supported", "pending": "Coming soon", "manual": "Manual" }
       },
+      "advanced": { "title": "Advanced information", "installation": "Installation and upgrade method" },
       "binaryGuidance": "For binary installations, download matching server and web distributions, verify SHA-256, then restart through the system service manager.",
       "manualSteps": {
         "download": "Download the server binary and web distribution with the target release tag.",

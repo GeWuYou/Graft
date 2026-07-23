@@ -10,8 +10,8 @@
 2. **Read-only discovery**
    - 实现 `platform-update` module、InstallationProfile、GitHub catalog/manifest 校验、SemVer stable/beta 选择、`read/check/manage` 权限和默认周期检查。
    - 暴露 current/latest/release-notes/capability APIs；二进制部署生成校验后的人工步骤。
-3. **Update Center**
-   - 交付 `Platform -> Updates` 和版本快捷入口，显示当前/最新版本、release notes、capability matrix、检查结果和不可执行原因。
+3. **Update Management**
+   - 交付 `Platform -> System Maintenance -> Updates` 和顶部轻量版本提醒。提醒只展示当前/最新版本、更新摘要和受控升级入口；完整 release notes、安装与校验详情、能力矩阵、历史和不可执行原因保留在管理员管理页。
 4. **Independent backup capability**
    - 交付 `platform-backup` module 的配置与 PostgreSQL backup metadata、恢复入口和审计边界；更新只通过 capability 消费它。
 5. **Confirmed Compose execution and recovery**

@@ -62,7 +62,8 @@ func (transport rewriteTransport) RoundTrip(request *http.Request) (*http.Respon
 }
 
 func TestReleaseChecksumsURLBindsManifestAsset(t *testing.T) {
-	manifest := releaseManifest{Artifacts: releaseManifestArtifacts{Checksums: "published-checksums.txt"}}
+	manifest := releaseManifest{}
+	manifest.Artifacts.Checksums = "published-checksums.txt"
 	if got := releaseChecksumsURL(manifest, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}}); got != "https://example.test/checksums" {
 		t.Fatalf("expected manifest-bound checksum asset URL, got %q", got)
 	}

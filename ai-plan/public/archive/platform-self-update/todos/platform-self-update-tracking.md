@@ -53,7 +53,14 @@ closeout:
 - Release manifest verification now includes a checksummed, official, immutable Compose runner identity.
 - The hermetic Compose fixture proves digest rejection, same-tag reconstruction and fixed runner sequencing.
 - Archive review found the remaining official rollout gap: durable UpdateOperation/history, protected confirmation/history API, and a constrained Docker socket launcher that settles the runner receipt after server recreation. The next batch is `compose-rollout-launcher-and-history`.
-- Archive readiness found two release-critical delivery gaps: no runnable/published Compose runner image and no persisted last-success release discovery cache. The batch after `compose-rollout-launcher-and-history` is `compose-runner-delivery-and-discovery-cache`.
+- Archive readiness found two release-critical delivery gaps: no runnable/published Compose runner image and no persisted last-success release discovery cache. The next batch is `compose-runner-delivery-and-discovery-cache`.
+- `e4565581` delivered the published digest-pinned Compose runner and persisted verified discovery cache.
+- `53f125f4` added the isolated runner image and Compose smoke fixture; `01abcd32` tightened release rollout authority,
+  including fresh-catalog, minimum-source-version, and binary-guidance gates.
+- Final archive readiness on 2026-07-23 confirmed the complete `47358a21..01abcd32` commit chain, a clean owned
+  worktree (excluding the user-owned untracked shutdown skill), release-grade BuildInfo validation, backend/web
+  completion validation, migration/ai-plan guards, publish YAML parsing, and a real local Compose smoke.
+- Archive-ready verdict: `confirmed`. Future work must create a new bounded topic.
 
 ## Task Checklist
 
@@ -67,9 +74,9 @@ closeout:
 - [x] `runner-digest-authority`
 - [x] `compose-fixture-execution`
 - [x] `compose-execution-and-recovery`
-- [ ] `compose-rollout-launcher-and-history`
-- [ ] `compose-runner-delivery-and-discovery-cache`
-- [ ] `archive-readiness`
+- [x] `compose-rollout-launcher-and-history`
+- [x] `compose-runner-delivery-and-discovery-cache`
+- [x] `archive-readiness`
 
 ## Acceptance Conditions
 
@@ -92,15 +99,14 @@ closeout:
     "backup-runner-handoff",
     "runner-digest-authority",
     "compose-fixture-execution",
-    "compose-execution-and-recovery"
-  ],
-  "pending_batches": [
+    "compose-execution-and-recovery",
     "compose-rollout-launcher-and-history",
     "compose-runner-delivery-and-discovery-cache",
     "archive-readiness"
   ],
+  "pending_batches": [],
   "current_batch": null,
-  "next_batch": "compose-rollout-launcher-and-history",
-  "closeout_status": "in_progress"
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

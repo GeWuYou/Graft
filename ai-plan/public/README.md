@@ -15,9 +15,6 @@ Overlay note:
 
 ## Active Topics
 
-- `platform-self-update`
-  - Recovery entry: `ai-plan/public/platform-self-update/README.md`
-
 - `docker-resource-context-ia`
   - Recovery entry: `ai-plan/public/docker-resource-context-ia/README.md`
 

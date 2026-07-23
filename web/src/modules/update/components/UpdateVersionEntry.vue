@@ -1,102 +1,204 @@
 <template>
-  <t-tooltip v-if="canRead" placement="right" :content="tooltip">
-    <t-button
-      class="update-version-entry"
-      variant="text"
-      size="small"
-      :loading="loading"
-      :aria-label="tooltip"
-      @click.stop="openCenter"
-    >
-      <span class="update-version-entry__label">{{ versionLabel }}</span>
-      <span v-if="hasUpdate" class="update-version-entry__indicator" aria-hidden="true" />
-    </t-button>
-  </t-tooltip>
+  <t-popup
+    v-if="canRead && versionLabel"
+    v-model:visible="visible"
+    destroy-on-close
+    placement="bottom-right"
+    trigger="click"
+    :overlay-inner-style="{ padding: '0' }"
+  >
+    <button class="update-version-entry" data-testid="update-version-entry" type="button" :aria-label="tooltip">
+      {{ versionLabel }}
+    </button>
+    <template #content>
+      <section class="update-version-preview">
+        <header class="update-version-preview__header">
+          <span>{{ t('update.preview.current') }}</span>
+          <t-tooltip :content="t('update.preview.checkNow')" placement="top">
+            <t-button
+              shape="square"
+              size="small"
+              theme="default"
+              variant="text"
+              :disabled="!canCheck"
+              :loading="checking"
+              @click="refreshStatus"
+            >
+              <refresh-icon />
+            </t-button>
+          </t-tooltip>
+        </header>
+        <div class="update-version-preview__current">
+          <strong>{{ discoveryStore.status?.current_version }}</strong>
+          <p v-if="hasAvailableRelease" class="update-version-preview__available-status">
+            {{ t('update.preview.availableVersion', { version: discoveryStore.status?.latest?.version }) }}
+          </p>
+          <p v-else-if="statusUnavailable" class="update-version-preview__unavailable">
+            {{ t('update.preview.unavailable') }}
+          </p>
+          <p v-else class="update-version-preview__up-to-date">{{ t('update.preview.upToDate') }}</p>
+        </div>
+        <template v-if="hasAvailableRelease">
+          <p class="update-version-preview__available">
+            {{ t('update.preview.available') }} {{ discoveryStore.status?.latest?.version }}
+          </p>
+          <p class="update-version-preview__summary">{{ summary }}</p>
+        </template>
+        <footer class="update-version-preview__actions">
+          <t-button size="small" variant="text" :disabled="!canViewRelease" @click="openManagement">
+            {{ t('update.preview.viewRelease') }}
+          </t-button>
+          <t-button v-if="canStartUpgrade" size="small" theme="primary" @click="startUpgrade">
+            {{ t('update.preview.startUpgrade') }}
+          </t-button>
+        </footer>
+      </section>
+    </template>
+  </t-popup>
 </template>
 <script setup lang="ts">
-// 侧栏版本入口只读取已授权的发现快照，避免在壳层复制更新模块的状态或权限判断。
-import { computed, ref, watch } from 'vue';
+// 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口。
+import { RefreshIcon } from 'tdesign-icons-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { usePermissionStore } from '@/store';
 
-import { getUpdateStatus } from '../api/update';
-import { UPDATE_ROUTE_PATH } from '../contract/paths';
+import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
-import type { UpdateStatus } from '../types/update';
+import { useUpdateDiscoveryStore } from '../store/discovery';
 
 const { t } = useI18n();
-const router = useRouter();
 const permissionStore = usePermissionStore();
-const loading = ref(false);
-const status = ref<UpdateStatus | null>(null);
-const hasLoaded = ref(false);
+const discoveryStore = useUpdateDiscoveryStore();
+const visible = ref(false);
+const checking = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
-const hasUpdate = computed(() => Boolean(status.value?.latest));
-const versionLabel = computed(() => status.value?.current_version || t('update.versionEntry.unavailable'));
+const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
+const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
+const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible);
+const hasAvailableRelease = computed(
+  () =>
+    Boolean(discoveryStore.status?.latest) &&
+    !discoveryStore.status?.cache_stale &&
+    !discoveryStore.status?.check_error,
+);
+const statusUnavailable = computed(
+  () =>
+    discoveryStore.phase === 'error' ||
+    Boolean(discoveryStore.status?.cache_stale || discoveryStore.status?.check_error),
+);
+const canViewRelease = computed(() => hasAvailableRelease.value);
 const tooltip = computed(() =>
-  hasUpdate.value
-    ? t('update.versionEntry.updateAvailable', { version: status.value?.latest?.version })
+  discoveryStore.hasUpdate
+    ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
     : t('update.versionEntry.openCenter', { version: versionLabel.value }),
 );
-
-// 权限快照在壳层异步恢复后才可用；只在首次取得读取权限时加载，避免重复 hydration 产生并发请求。
-watch(
-  canRead,
-  (allowed) => {
-    if (allowed) {
-      void loadStatus();
-    }
-  },
-  { immediate: true },
+const summary = computed(
+  () =>
+    discoveryStore.status?.latest?.upgrade_notes ||
+    discoveryStore.status?.latest?.notes ||
+    t('update.preview.summaryEmpty'),
 );
 
-async function loadStatus() {
-  if (hasLoaded.value || loading.value) {
+async function refreshStatus() {
+  if (!canCheck.value) {
     return;
   }
-
-  hasLoaded.value = true;
-  loading.value = true;
+  checking.value = true;
   try {
-    status.value = await getUpdateStatus();
+    await discoveryStore.refreshSnapshot();
   } catch {
-    status.value = null;
+    MessagePlugin.error(t('update.preview.checkFailed'));
   } finally {
-    loading.value = false;
+    checking.value = false;
   }
-}
-
-function openCenter() {
-  void router.push(UPDATE_ROUTE_PATH.CENTER);
 }
 </script>
 <style scoped lang="less">
 .update-version-entry {
   align-items: center;
+  appearance: none;
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 4px;
   color: var(--td-text-color-secondary);
+  cursor: pointer;
   display: inline-flex;
+  font: var(--td-font-body-small);
   font-variant-numeric: tabular-nums;
-  justify-content: center;
-  margin-left: calc(var(--td-comp-size-l) + var(--td-comp-margin-s));
-  min-height: 24px;
-  padding: 0 var(--td-comp-paddingLR-s);
-  width: calc(100% - var(--td-comp-size-l) - var(--td-comp-margin-l));
-}
-
-.update-version-entry__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600;
+  line-height: 16px;
+  margin-right: var(--td-comp-paddingLR-m);
+  min-height: 18px;
+  padding: 0 var(--td-comp-paddingLR-xs);
   white-space: nowrap;
 }
 
-.update-version-entry__indicator {
-  background: var(--td-success-color);
-  border-radius: 50%;
-  display: inline-block;
-  height: 6px;
-  margin-left: var(--td-comp-margin-xs);
-  width: 6px;
+.update-version-preview {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  min-width: 336px;
+  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l);
+}
+
+.update-version-preview__header {
+  align-items: center;
+  color: var(--td-text-color-secondary);
+  display: flex;
+  font: var(--td-font-body-small);
+  justify-content: space-between;
+}
+
+.update-version-preview__current {
+  display: grid;
+  padding: var(--td-comp-paddingTB-l) 0;
+  place-items: center center;
+}
+
+.update-version-preview__current strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-display-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.update-version-preview__available {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  margin: 0;
+}
+
+.update-version-preview__summary {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
+  white-space: pre-line;
+}
+
+.update-version-preview__actions {
+  border-top: 1px solid var(--td-component-stroke);
+  display: flex;
+  gap: var(--td-comp-margin-s);
+  justify-content: flex-end;
+  padding-top: var(--td-comp-paddingTB-s);
+}
+
+.update-version-preview__up-to-date {
+  color: var(--td-success-color);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.update-version-preview__available-status {
+  color: var(--td-brand-color);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.update-version-preview__unavailable {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: 0;
 }
 </style>

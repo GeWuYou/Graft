@@ -11,12 +11,13 @@
       @expand="onExpanded"
     >
       <template #logo>
-        <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" @click="goHome">
+        <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`">
           <brand-identity
             :compact="logoCompact"
             :label-hidden="logoLabelHidden"
             :class="logoCls"
             :label="t('common.appName')"
+            @click="goHome"
           />
           <component :is="updateVersionEntry" v-if="!logoLabelHidden" />
         </span>

@@ -48,15 +48,6 @@
             <p>{{ t('update.center.latest.upToDateDescription') }}</p>
           </template>
         </t-card>
-        <t-card :title="t('update.center.installation.title')" bordered>
-          <div class="update-center__profile">
-            <span>{{ t('update.center.installation.declared') }}</span>
-            <strong>{{ deploymentModeLabel(status.installation_profile.declared_mode) }}</strong>
-            <span>{{ t('update.center.installation.detected') }}</span>
-            <strong>{{ deploymentModeLabel(status.installation_profile.detected_mode) }}</strong>
-          </div>
-          <p>{{ status.installation_profile.guidance }}</p>
-        </t-card>
       </div>
 
       <div class="update-center__content-grid">
@@ -111,15 +102,28 @@
           />
         </t-card>
 
-        <t-card :title="t('update.center.capabilities.title')" bordered>
-          <p class="update-center__card-description">{{ t('update.center.capabilities.description') }}</p>
-          <t-table :data="capabilityRows" row-key="key" :columns="capabilityColumns" size="small" />
-          <t-alert
-            v-if="status.installation_profile.detected_mode === 'binary'"
-            class="update-center__binary-guidance"
-            theme="info"
-            :message="t('update.center.binaryGuidance')"
-          />
+        <t-card :title="t('update.center.advanced.title')" bordered>
+          <t-collapse borderless>
+            <t-collapse-panel :header="t('update.center.advanced.installation')" value="installation">
+              <div class="update-center__profile">
+                <span>{{ t('update.center.installation.declared') }}</span
+                ><strong>{{ deploymentModeLabel(status.installation_profile.declared_mode) }}</strong>
+                <span>{{ t('update.center.installation.detected') }}</span
+                ><strong>{{ deploymentModeLabel(status.installation_profile.detected_mode) }}</strong>
+              </div>
+              <p class="update-center__card-description">{{ status.installation_profile.guidance }}</p>
+            </t-collapse-panel>
+            <t-collapse-panel :header="t('update.center.capabilities.title')" value="capabilities">
+              <p class="update-center__card-description">{{ t('update.center.capabilities.description') }}</p>
+              <t-table :data="capabilityRows" row-key="key" :columns="capabilityColumns" size="small" />
+              <t-alert
+                v-if="status.installation_profile.detected_mode === 'binary'"
+                class="update-center__binary-guidance"
+                theme="info"
+                :message="t('update.center.binaryGuidance')"
+              />
+            </t-collapse-panel>
+          </t-collapse>
         </t-card>
       </div>
 
@@ -157,23 +161,28 @@
   </div>
 </template>
 <script setup lang="ts">
-// Update Center 只通过 Update API 读取 history 并提交精确版本确认，Task 与 Backup 事实不进入前端状态。
+// 更新管理页复用壳层 discovery snapshot，仅为历史和精确版本确认保留自身的 Update API 调用。
 import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import { ManagementEmptyState } from '@/shared/components/management';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
-import { checkForUpdates, createUpdateOperation, getUpdateOperations, getUpdateStatus } from '../../api/update';
+import { createUpdateOperation, getUpdateOperations } from '../../api/update';
+import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
+import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateChannel, UpdateOperation, UpdateStatus } from '../../types/update';
 
 const { locale, t } = useI18n();
+const route = useRoute();
 const permissionStore = usePermissionStore();
-const status = ref<UpdateStatus | null>(null);
-const loading = ref(false);
+const discoveryStore = useUpdateDiscoveryStore();
+const status = computed<UpdateStatus | null>(() => discoveryStore.status);
+const loading = computed(() => discoveryStore.phase === 'loading');
 const checking = ref(false);
 const loadError = ref('');
 const historyError = ref('');
@@ -184,14 +193,7 @@ const submitting = ref(false);
 const operationError = ref('');
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE));
-const canStartUpgrade = computed(
-  () =>
-    Boolean(status.value?.latest) &&
-    !status.value?.cache_stale &&
-    !status.value?.check_error &&
-    status.value?.installation_profile.capability === 'compose_upgrade_available' &&
-    canManage.value,
-);
+const canStartUpgrade = computed(() => isUpgradeEligible(status.value, canManage.value));
 const isExactConfirmation = computed(() => confirmation.value === status.value?.latest?.version);
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
@@ -237,28 +239,27 @@ const upgradeUnavailableReason = computed(() => {
   return '';
 });
 
-onMounted(() => {
-  void loadStatus();
+onMounted(async () => {
+  await loadStatus();
+  if (route.query.upgrade === '1' && canStartUpgrade.value) {
+    openConfirmation();
+  }
 });
 
 async function loadStatus() {
-  loading.value = true;
   loadError.value = '';
-  try {
-    status.value = await getUpdateStatus();
-    await loadHistory();
-  } catch {
+  await discoveryStore.ensureSnapshot();
+  if (discoveryStore.phase === 'error') {
     loadError.value = t('update.center.loadFailed');
-  } finally {
-    loading.value = false;
   }
+  await loadHistory();
 }
 
 async function refreshStatus() {
   checking.value = true;
   loadError.value = '';
   try {
-    status.value = await checkForUpdates();
+    await discoveryStore.refreshSnapshot();
     await loadHistory();
   } catch {
     loadError.value = t('update.center.checkRequestFailed');
@@ -370,7 +371,7 @@ function formatDate(value: string) {
 }
 
 .update-center__summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .update-center__content-grid {

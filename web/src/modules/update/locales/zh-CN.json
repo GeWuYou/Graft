@@ -1,15 +1,34 @@
 {
+  "menu": { "platform": { "maintenance": "系统维护", "update": "更新" } },
   "update": {
-    "route": { "center": { "title": "更新中心", "breadcrumb": "更新中心" } },
+    "route": { "center": { "title": "更新管理", "breadcrumb": "更新" } },
+    "notification": { "open": "查看平台更新", "available": "发现新版本 {version}" },
+    "preview": {
+      "title": "发现更新",
+      "current": "当前版本",
+      "available": "发现新版本",
+      "summary": "更新摘要",
+      "summaryEmpty": "此版本未提供摘要，请查看完整更新日志。",
+      "viewManagement": "查看更新日志",
+      "viewRelease": "查看发布",
+      "checkNow": "检查更新",
+      "checkFailed": "检查更新未完成，请稍后重试。",
+      "startUpgrade": "立即更新",
+      "upToDate": "当前已是最新版本。",
+      "availableVersion": "发现可用版本 {version}。",
+      "unavailable": "暂时无法读取更新状态，请稍后重试。",
+      "releaseUnavailable": "当前版本没有可用的发行信息。"
+    },
     "versionEntry": {
       "unavailable": "版本未知",
-      "openCenter": "当前版本 {version}，打开更新中心",
-      "updateAvailable": "发现新版本 {version}，打开更新中心"
+      "current": "当前版本 {version}",
+      "openCenter": "当前版本 {version}，打开更新预览",
+      "updateAvailable": "发现新版本 {version}，打开更新预览"
     },
     "center": {
       "navHint": "平台",
-      "title": "更新中心",
-      "description": "查看受验证的 Graft 发行版本，并确认当前安装可用的更新方式。",
+      "title": "更新管理",
+      "description": "查看已验证发行版本并执行受控升级。",
       "checkNow": "检查更新",
       "loadFailed": "无法加载更新状态。",
       "checkRequestFailed": "检查更新请求未完成。",
@@ -75,6 +94,7 @@
         },
         "states": { "supported": "支持", "pending": "即将支持", "manual": "人工操作" }
       },
+      "advanced": { "title": "高级信息", "installation": "安装与升级方式" },
       "binaryGuidance": "二进制安装请下载同版本 server 与 web 发行包，验证 SHA-256 后再按系统服务管理方式重启。",
       "manualSteps": {
         "download": "下载与目标发行版本同标签的服务端二进制文件和 Web 发行包。",
