@@ -25,7 +25,10 @@
 runner input and receipt use a versioned schema. Input contains only operation identity, Task ID, target immutable
 server/web references, host absolute Compose root, socket location and preflight evidence. It never contains `.env`,
 database URLs, dump contents, or arbitrary commands. Receipt contains only operation identity, migration-started
-evidence, terminal result and stable failure code. The runner image itself must be a separately published,
+evidence, terminal result, stable failure code, and the versioned `BackupCompletion` integrity evidence required after
+backup validation succeeds. That evidence is limited to the operation/task binding, SHA-256 digests, and byte counts;
+it never contains backup storage references. A receipt that advances beyond the backup boundary must include valid
+`BackupCompletion`, while a backup failure receipt may omit it. The runner image itself must be a separately published,
 digest-pinned release asset. Canonical `release-manifest.json` includes `runners.compose.image`, `digest`, and
 `reference`; its companion checksum is verified before the manifest is consumed. The runner coordinate is the official
 sibling `ghcr.io/<owner>/graft-compose-runner` of the server image. An unpinned local image, a mutable tag, or a
@@ -40,7 +43,8 @@ references and records `RECOVERED`. Once migration has started, any failed verif
 `NEEDS_ATTENTION`; neither runner nor server performs a database rollback or restore.
 
 A successful terminal receipt always includes the Backup capability's completion evidence. The protocol does not
-permit a successful terminal result when that evidence is missing or invalid.
+permit a receipt to advance beyond backup validation, or a successful terminal result, when that evidence is missing
+or invalid.
 
 Task Runtime, rather than Update, must own authenticated receipt settlement after server recreation. Update may
 submit an operation Task and consume its public settlement capability, but must not write `tasks`, `task_stages` or

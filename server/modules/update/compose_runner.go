@@ -16,7 +16,8 @@ import (
 var runnerOperationID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
 // ComposeRunnerActions 是一次性 runner 可调用的固定动作集合。
-// 它没有任意命令入口；Backup 的工件事实仍由 Backup capability 在 runner 交接后结算。
+// 它没有任意命令入口；BackupReceipt 必须返回紧接 Backup 成功后生成的无秘密完整性证据，
+// runner 才能继续执行后续阶段并写入可结算的 receipt。
 type ComposeRunnerActions interface {
 	Backup(context.Context, RunnerInput) error
 	BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput
@@ -42,7 +43,7 @@ const (
 )
 
 // ExecuteComposeRunner 执行唯一允许的 Compose 更新顺序，并在每个终态写入受限 receipt。
-// migration 动作开始前即记录边界，确保后续失败永远不会被解释为可自动恢复数据库的失败。
+// Backup 成功后必须先校验 BackupReceipt；migration 动作开始前即记录边界，确保后续失败永远不会被解释为可自动恢复数据库的失败。
 func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) (RunnerReceipt, error) {
 	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID}
 	if err := validateRunnerExecution(input, actions); err != nil {
@@ -88,7 +89,11 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 }
 
 func validateBackupReceipt(completion moduleapi.CompleteBackupRunnerHandoffInput, input RunnerInput) error {
-	if completion.OperationID != input.OperationID || completion.TaskID != input.TaskID || completion.ConfigSnapshotBytes < 0 || completion.DatabaseDumpBytes < 0 || len(completion.ConfigSnapshotSHA256) != 64 || len(completion.DatabaseDumpSHA256) != 64 {
+	return validateBackupCompletion(completion, input.OperationID, input.TaskID)
+}
+
+func validateBackupCompletion(completion moduleapi.CompleteBackupRunnerHandoffInput, operationID string, taskID uint64) error {
+	if completion.OperationID != operationID || completion.TaskID != taskID || completion.ConfigSnapshotBytes < 0 || completion.DatabaseDumpBytes < 0 || len(completion.ConfigSnapshotSHA256) != 64 || len(completion.DatabaseDumpSHA256) != 64 {
 		return errors.New("backup completion does not match runner input")
 	}
 	if _, err := hex.DecodeString(completion.ConfigSnapshotSHA256); err != nil {
