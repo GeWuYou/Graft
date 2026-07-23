@@ -45,6 +45,8 @@ func NewComposeExecutionCoordinator(tasks moduleapi.TaskService, backups modulea
 }
 
 // Start 冻结目标版本、提交外部 receipt Task，并在 runner 启动前创建 Backup handoff。
+//
+//nolint:cyclop // 每条失败分支对应一个可审计的跨模块补偿边界，必须保持在同一生命周期顺序中。
 func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation ComposeUpdateOperation, requestedBy uint64, handoff moduleapi.BackupRunnerHandoffPlan) (ComposeUpdateOperation, RunnerInput, error) {
 	if c == nil || c.tasks == nil || c.backups == nil || !validOperation(operation) || strings.TrimSpace(handoff.OperationID) != operation.OperationID {
 		return ComposeUpdateOperation{}, RunnerInput{}, errors.New("compose update operation is invalid")

@@ -136,34 +136,50 @@ func persistRunnerReceipt(input RunnerInput, receipt RunnerReceipt) error {
 	if err != nil {
 		return fmt.Errorf("encode runner receipt: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), runnerReceiptDirectoryMode); err != nil {
+	directory := filepath.Dir(path)
+	if err := os.MkdirAll(directory, runnerReceiptDirectoryMode); err != nil {
 		return fmt.Errorf("create runner receipt directory: %w", err)
 	}
-	directory := filepath.Dir(path)
-	file, err := os.CreateTemp(directory, ".receipt-*")
+	temporaryPath, err := writeSyncedRunnerReceipt(directory, contents)
 	if err != nil {
-		return fmt.Errorf("create temporary runner receipt: %w", err)
+		return err
 	}
-	temporaryPath := file.Name()
 	defer func() { _ = os.Remove(temporaryPath) }()
-	if err := file.Chmod(runnerReceiptFileMode); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("set runner receipt permissions: %w", err)
-	}
-	if _, err := file.Write(append(contents, '\n')); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("write temporary runner receipt: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("sync temporary runner receipt: %w", err)
-	}
-	if err := file.Close(); err != nil {
-		return fmt.Errorf("close temporary runner receipt: %w", err)
-	}
 	if err := os.Rename(temporaryPath, path); err != nil {
 		return fmt.Errorf("replace runner receipt: %w", err)
 	}
+	return syncRunnerReceiptDirectory(directory)
+}
+
+func writeSyncedRunnerReceipt(directory string, contents []byte) (string, error) {
+	file, err := os.CreateTemp(directory, ".receipt-*")
+	if err != nil {
+		return "", fmt.Errorf("create temporary runner receipt: %w", err)
+	}
+	temporaryPath := file.Name()
+	cleanup := func(cause error) (string, error) {
+		_ = file.Close()
+		_ = os.Remove(temporaryPath)
+		return "", cause
+	}
+	if err := file.Chmod(runnerReceiptFileMode); err != nil {
+		return cleanup(fmt.Errorf("set runner receipt permissions: %w", err))
+	}
+	if _, err := file.Write(append(contents, '\n')); err != nil {
+		return cleanup(fmt.Errorf("write temporary runner receipt: %w", err))
+	}
+	if err := file.Sync(); err != nil {
+		return cleanup(fmt.Errorf("sync temporary runner receipt: %w", err))
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(temporaryPath)
+		return "", fmt.Errorf("close temporary runner receipt: %w", err)
+	}
+	return temporaryPath, nil
+}
+
+func syncRunnerReceiptDirectory(directory string) error {
+	// #nosec G304 -- directory derives from the validated absolute Compose root and fixed receipt subdirectory.
 	directoryHandle, err := os.Open(directory)
 	if err != nil {
 		return fmt.Errorf("open runner receipt directory: %w", err)

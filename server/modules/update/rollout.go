@@ -181,29 +181,44 @@ func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 }
 
 func (s *RolloutService) settleReceiptEntry(ctx context.Context, root string, entry os.DirEntry) error {
-	if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") || filepath.Base(entry.Name()) != entry.Name() {
+	if !validRunnerReceiptEntry(entry) {
 		return nil
 	}
-	path := filepath.Join(root, runnerReceiptDirectory, entry.Name())
-	// #nosec G304,G703 -- entry 由受限 receipt 目录读取，且其 basename 已校验，不接受 HTTP 路径输入。
-	contents, err := os.ReadFile(path)
+	path, receipt, err := readPersistedRunnerReceipt(root, entry.Name())
 	if err != nil {
-		return fmt.Errorf("read compose runner receipt: %w", err)
-	}
-	var receipt RunnerReceipt
-	if err := json.Unmarshal(contents, &receipt); err != nil {
-		return fmt.Errorf("decode compose runner receipt: %w", err)
+		return err
 	}
 	settled, err := s.SettlePersistedReceipt(ctx, receipt)
 	if err != nil && !errors.Is(err, errUpdateOperationNotFound) {
 		return err
 	}
-	if err == nil && settled.Outcome == ExecutionOutcomeSuccess {
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove settled compose runner receipt: %w", err)
-		}
+	if err != nil || settled.Outcome != ExecutionOutcomeSuccess {
+		return nil
+	}
+	// #nosec G703 -- path derives from a validated receipt filename below the configured absolute Compose root.
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove settled compose runner receipt: %w", err)
 	}
 	return nil
+}
+
+func validRunnerReceiptEntry(entry os.DirEntry) bool {
+	return !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") && filepath.Base(entry.Name()) == entry.Name()
+}
+
+func readPersistedRunnerReceipt(root, name string) (string, RunnerReceipt, error) {
+	path := filepath.Join(root, runnerReceiptDirectory, name)
+	// #nosec G304,G703 -- name is a validated basename from the restricted receipt directory under the configured root.
+	//nolint:gosec // The path is constrained to that receipt directory and never accepts a request-supplied path.
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", RunnerReceipt{}, fmt.Errorf("read compose runner receipt: %w", err)
+	}
+	var receipt RunnerReceipt
+	if err := json.Unmarshal(contents, &receipt); err != nil {
+		return "", RunnerReceipt{}, fmt.Errorf("decode compose runner receipt: %w", err)
+	}
+	return path, receipt, nil
 }
 
 func composePreflight(profile InstallationProfile, release Release) (ComposePreflight, error) {

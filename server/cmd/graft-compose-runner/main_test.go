@@ -17,6 +17,7 @@ func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	if err := replaceRefs(path, server, web); err != nil {
 		t.Fatalf("replace mutable image references: %v", err)
 	}
+	// #nosec G304 -- path is a test-owned file under this test's temporary directory.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read updated compose environment: %v", err)
