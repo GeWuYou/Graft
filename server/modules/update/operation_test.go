@@ -66,8 +66,8 @@ func TestComposeExecutionCoordinatorCancelsPreparedHandoffWhenItsBindingIsInvali
 	backups := &stubBackupService{prepared: &moduleapi.BackupRunnerHandoffPlan{OperationID: "other", TaskID: 66}}
 	coordinator := NewComposeExecutionCoordinator(tasks, backups)
 	_, _, err := coordinator.Start(t.Context(), ComposeUpdateOperation{OperationID: "update-66", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0"}, 9, testBackupPlan("update-66"))
-	if err == nil {
-		t.Fatal("expected invalid prepared handoff rejection")
+	if err == nil || !strings.Contains(err.Error(), "prepared backup handoff does not match update operation") {
+		t.Fatalf("expected invalid prepared handoff rejection, got %v", err)
 	}
 	if tasks.canceled != 66 || backups.canceled.OperationID != "update-66" || backups.canceled.TaskID != 66 {
 		t.Fatalf("invalid prepared handoff was not cancelled through owners: task=%d backup=%#v", tasks.canceled, backups.canceled)
