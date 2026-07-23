@@ -29,10 +29,10 @@ evidence, terminal result and stable failure code. The runner image itself must 
 digest-pinned release asset. Canonical `release-manifest.json` includes `runners.compose.image`, `digest`, and
 `reference`; its companion checksum is verified before the manifest is consumed. The runner coordinate is the official
 sibling `ghcr.io/<owner>/graft-compose-runner` of the server image. An unpinned local image, a mutable tag, or a
-missing runner declaration is not an execution authority. The release workflow's Buildx runner build output is the
-only publication authority: its emitted immutable digest is recorded in the manifest and must match the constructed
-GHCR reference. Neither an externally injected digest nor a locally built substitute may stand in for that workflow
-output.
+missing runner declaration is not an execution authority. The same release workflow builds the runner from
+`server/runner/compose/Dockerfile`; its Buildx output is the only publication authority. That emitted immutable digest
+is recorded in the manifest and must match the constructed GHCR reference. Neither an externally injected digest nor a
+locally built substitute may stand in for that workflow output.
 
 The fixed order is `backup -> compose pull -> bootstrap migrate up -> recreate server/web -> Docker health ->
 /healthz -> receipt`. A failure before migration starts may restore the configuration snapshot and old image
