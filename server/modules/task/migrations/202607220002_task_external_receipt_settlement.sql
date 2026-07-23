@@ -7,6 +7,8 @@ ALTER TABLE task_events ADD CONSTRAINT task_events_type_check CHECK (event_type 
 
 ALTER TABLE task_events VALIDATE CONSTRAINT task_events_type_check;
 
+ALTER TABLE task_stages ADD CONSTRAINT task_stages_task_id_id_key UNIQUE (task_id, id);
+
 CREATE TABLE task_external_receipts (
   id BIGSERIAL PRIMARY KEY,
   task_id BIGINT NOT NULL,
@@ -20,12 +22,12 @@ CREATE TABLE task_external_receipts (
   settled_task_status TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT task_external_receipts_task_id_fkey FOREIGN KEY (task_id) REFERENCES tasks (id) ON DELETE RESTRICT,
-  CONSTRAINT task_external_receipts_stage_id_fkey FOREIGN KEY (stage_id) REFERENCES task_stages (id) ON DELETE RESTRICT,
+  CONSTRAINT task_external_receipts_task_stage_fkey FOREIGN KEY (task_id, stage_id) REFERENCES task_stages (task_id, id) ON DELETE RESTRICT,
   CONSTRAINT uq_task_external_receipts_task_operation UNIQUE (task_id, operation_id),
   CONSTRAINT task_external_receipts_protocol_check CHECK (btrim(receipt_protocol) <> ''),
   CONSTRAINT task_external_receipts_operation_check CHECK (btrim(operation_id) <> ''),
   CONSTRAINT task_external_receipts_outcome_check CHECK (outcome IN ('success', 'failed', 'needs_attention')),
-  CONSTRAINT task_external_receipts_failure_code_check CHECK ((outcome = 'success' AND failure_code IS NULL) OR (outcome IN ('failed', 'needs_attention') AND btrim(failure_code) <> '')),
+  CONSTRAINT task_external_receipts_failure_code_check CHECK ((outcome = 'success' AND failure_code IS NULL) OR (outcome IN ('failed', 'needs_attention') AND failure_code IS NOT NULL AND btrim(failure_code) <> '')),
   CONSTRAINT task_external_receipts_integrity_check CHECK (integrity_sha256 ~ '^[0-9a-f]{64}$'),
   CONSTRAINT task_external_receipts_settled_status_check CHECK (settled_task_status IN ('success', 'failed', 'needs_attention'))
 );
