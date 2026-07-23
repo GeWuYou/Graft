@@ -41,7 +41,7 @@ func TestDetectInstallationProfileTreatsRelativeComposeRootAsBinary(t *testing.T
 		}
 		return ""
 	}, func() (string, error) { return "/usr/local/bin/graft", nil })
-	if profile.DetectedMode != "binary" || profile.Capability != "manual_guidance" {
+	if profile.DetectedMode != "binary" || profile.Capability != "manual_guidance_blocked" {
 		t.Fatalf("expected relative compose root to remain binary guidance, got %#v", profile)
 	}
 }
@@ -62,18 +62,18 @@ func TestDetectInstallationProfile(t *testing.T) {
 			guidance:   "官方 Compose 安装已通过声明与挂载路径预检；升级前仍会执行执行器预检。",
 		},
 		{
-			name:       "binary with executable",
-			env:        map[string]string{declaredDeploymentModeEnv: "binary"},
+			name:       "binary with complete manual guidance",
+			env:        map[string]string{declaredDeploymentModeEnv: "binary", binaryWebRootEnv: "/var/www/graft", serviceManagerEnv: "manual"},
 			executable: func() (string, error) { return "/usr/local/bin/graft", nil },
 			capability: "manual_guidance",
-			guidance:   "当前为二进制安装。下载同版本 server 与 web 发行包，校验 SHA-256 后按部署管理器重启服务。",
+			guidance:   "二进制部署只能按此受控人工步骤升级；server 与 web 必须使用同一 release tag。",
 		},
 		{
-			name:       "binary without executable",
+			name:       "binary without complete manual guidance",
 			env:        map[string]string{},
 			executable: func() (string, error) { return "", errors.New("not available") },
-			capability: "manual_guidance",
-			guidance:   "无法确认可执行文件路径。请按二进制发行说明手动校验并替换 server 与 web 发行包。",
+			capability: "manual_guidance_blocked",
+			guidance:   "完整二进制升级指引缺少 GRAFT_UPDATE_BINARY_PATH, GRAFT_UPDATE_WEB_ROOT, GRAFT_UPDATE_SERVICE_MANAGER。不会自动替换正在运行的 binary。",
 		},
 	}
 

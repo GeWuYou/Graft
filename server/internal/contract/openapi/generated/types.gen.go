@@ -3285,11 +3285,14 @@ func (e NotificationTargetType) Valid() bool {
 const (
 	PlatformUpdateOperationStatusBACKINGUP      PlatformUpdateOperationStatus = "BACKING_UP"
 	PlatformUpdateOperationStatusFAILED         PlatformUpdateOperationStatus = "FAILED"
-	PlatformUpdateOperationStatusINSTALLING     PlatformUpdateOperationStatus = "INSTALLING"
+	PlatformUpdateOperationStatusMIGRATING      PlatformUpdateOperationStatus = "MIGRATING"
 	PlatformUpdateOperationStatusNEEDSATTENTION PlatformUpdateOperationStatus = "NEEDS_ATTENTION"
 	PlatformUpdateOperationStatusPLANNING       PlatformUpdateOperationStatus = "PLANNING"
+	PlatformUpdateOperationStatusPULLING        PlatformUpdateOperationStatus = "PULLING"
 	PlatformUpdateOperationStatusRECOVERED      PlatformUpdateOperationStatus = "RECOVERED"
+	PlatformUpdateOperationStatusRECREATING     PlatformUpdateOperationStatus = "RECREATING"
 	PlatformUpdateOperationStatusSUCCESS        PlatformUpdateOperationStatus = "SUCCESS"
+	PlatformUpdateOperationStatusVERIFYING      PlatformUpdateOperationStatus = "VERIFYING"
 )
 
 // Valid indicates whether the value is a known member of the PlatformUpdateOperationStatus enum.
@@ -3299,15 +3302,21 @@ func (e PlatformUpdateOperationStatus) Valid() bool {
 		return true
 	case PlatformUpdateOperationStatusFAILED:
 		return true
-	case PlatformUpdateOperationStatusINSTALLING:
+	case PlatformUpdateOperationStatusMIGRATING:
 		return true
 	case PlatformUpdateOperationStatusNEEDSATTENTION:
 		return true
 	case PlatformUpdateOperationStatusPLANNING:
 		return true
+	case PlatformUpdateOperationStatusPULLING:
+		return true
 	case PlatformUpdateOperationStatusRECOVERED:
 		return true
+	case PlatformUpdateOperationStatusRECREATING:
+		return true
 	case PlatformUpdateOperationStatusSUCCESS:
+		return true
+	case PlatformUpdateOperationStatusVERIFYING:
 		return true
 	default:
 		return false
@@ -3339,6 +3348,7 @@ func (e PlatformUpdateStatusChannel) Valid() bool {
 const (
 	ComposeUpgradeAvailable PlatformUpdateStatusInstallationProfileCapability = "compose_upgrade_available"
 	ManualGuidance          PlatformUpdateStatusInstallationProfileCapability = "manual_guidance"
+	ManualGuidanceBlocked   PlatformUpdateStatusInstallationProfileCapability = "manual_guidance_blocked"
 )
 
 // Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileCapability enum.
@@ -3347,6 +3357,8 @@ func (e PlatformUpdateStatusInstallationProfileCapability) Valid() bool {
 	case ComposeUpgradeAvailable:
 		return true
 	case ManualGuidance:
+		return true
+	case ManualGuidanceBlocked:
 		return true
 	default:
 		return false
@@ -3386,6 +3398,24 @@ func (e PlatformUpdateStatusInstallationProfileDetectedMode) Valid() bool {
 	case PlatformUpdateStatusInstallationProfileDetectedModeBinary:
 		return true
 	case PlatformUpdateStatusInstallationProfileDetectedModeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateStatusInstallationProfileServiceManager.
+const (
+	PlatformUpdateStatusInstallationProfileServiceManagerManual  PlatformUpdateStatusInstallationProfileServiceManager = "manual"
+	PlatformUpdateStatusInstallationProfileServiceManagerSystemd PlatformUpdateStatusInstallationProfileServiceManager = "systemd"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileServiceManager enum.
+func (e PlatformUpdateStatusInstallationProfileServiceManager) Valid() bool {
+	switch e {
+	case PlatformUpdateStatusInstallationProfileServiceManagerManual:
+		return true
+	case PlatformUpdateStatusInstallationProfileServiceManagerSystemd:
 		return true
 	default:
 		return false
@@ -3868,19 +3898,19 @@ func (e ScheduledTaskRunItemStatus) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemTriggerType.
 const (
-	ScheduledTaskRunItemTriggerTypeCron    ScheduledTaskRunItemTriggerType = "cron"
-	ScheduledTaskRunItemTriggerTypeManual  ScheduledTaskRunItemTriggerType = "manual"
-	ScheduledTaskRunItemTriggerTypeStartup ScheduledTaskRunItemTriggerType = "startup"
+	Cron    ScheduledTaskRunItemTriggerType = "cron"
+	Manual  ScheduledTaskRunItemTriggerType = "manual"
+	Startup ScheduledTaskRunItemTriggerType = "startup"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemTriggerType enum.
 func (e ScheduledTaskRunItemTriggerType) Valid() bool {
 	switch e {
-	case ScheduledTaskRunItemTriggerTypeCron:
+	case Cron:
 		return true
-	case ScheduledTaskRunItemTriggerTypeManual:
+	case Manual:
 		return true
-	case ScheduledTaskRunItemTriggerTypeStartup:
+	case Startup:
 		return true
 	default:
 		return false
@@ -10942,21 +10972,31 @@ type PlatformUpdateStatus struct {
 	CheckedAt           *time.Time                  `json:"checked_at,omitempty"`
 	CurrentVersion      string                      `json:"current_version"`
 	InstallationProfile struct {
-		Capability   PlatformUpdateStatusInstallationProfileCapability   `json:"capability"`
-		DeclaredMode PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
-		DetectedMode PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
-		Guidance     string                                              `json:"guidance"`
+		BinaryPath     *string                                                `json:"binary_path,omitempty"`
+		BlockingReason *string                                                `json:"blocking_reason,omitempty"`
+		Capability     PlatformUpdateStatusInstallationProfileCapability      `json:"capability"`
+		DeclaredMode   PlatformUpdateStatusInstallationProfileDeclaredMode    `json:"declared_mode"`
+		DetectedMode   PlatformUpdateStatusInstallationProfileDetectedMode    `json:"detected_mode"`
+		Guidance       string                                                 `json:"guidance"`
+		ManualSteps    *[]string                                              `json:"manual_steps,omitempty"`
+		ServiceManager *PlatformUpdateStatusInstallationProfileServiceManager `json:"service_manager,omitempty"`
+		ServiceName    *string                                                `json:"service_name,omitempty"`
+		WebRoot        *string                                                `json:"web_root,omitempty"`
 	} `json:"installation_profile"`
 	LastSuccessfulAt *time.Time `json:"last_successful_at,omitempty"`
 	Latest           *struct {
-		Channel      PlatformUpdateStatusLatestChannel `json:"channel"`
-		ChecksumsUrl *string                           `json:"checksums_url,omitempty"`
-		ManifestUrl  string                            `json:"manifest_url"`
-		Notes        string                            `json:"notes"`
-		PublishedAt  time.Time                         `json:"published_at"`
-		ServerDigest string                            `json:"server_digest"`
-		Version      string                            `json:"version"`
-		WebDigest    string                            `json:"web_digest"`
+		AssetSha256          *map[string]string                `json:"asset_sha256,omitempty"`
+		Channel              PlatformUpdateStatusLatestChannel `json:"channel"`
+		ChecksumsUrl         *string                           `json:"checksums_url,omitempty"`
+		ManifestUrl          string                            `json:"manifest_url"`
+		MinimumSourceVersion *string                           `json:"minimum_source_version,omitempty"`
+		Notes                string                            `json:"notes"`
+		NotesUrl             *string                           `json:"notes_url,omitempty"`
+		PublishedAt          time.Time                         `json:"published_at"`
+		ServerDigest         string                            `json:"server_digest"`
+		UpgradeNotes         *string                           `json:"upgrade_notes,omitempty"`
+		Version              string                            `json:"version"`
+		WebDigest            string                            `json:"web_digest"`
 	} `json:"latest,omitempty"`
 }
 
@@ -10971,6 +11011,9 @@ type PlatformUpdateStatusInstallationProfileDeclaredMode string
 
 // PlatformUpdateStatusInstallationProfileDetectedMode defines model for PlatformUpdateStatus.InstallationProfile.DetectedMode.
 type PlatformUpdateStatusInstallationProfileDetectedMode string
+
+// PlatformUpdateStatusInstallationProfileServiceManager defines model for PlatformUpdateStatus.InstallationProfile.ServiceManager.
+type PlatformUpdateStatusInstallationProfileServiceManager string
 
 // PlatformUpdateStatusLatestChannel defines model for PlatformUpdateStatus.Latest.Channel.
 type PlatformUpdateStatusLatestChannel string

@@ -99,11 +99,6 @@ type releaseManifest struct {
 			Reference string `json:"reference"`
 		} `json:"compose"`
 	} `json:"runners"`
-	Artifacts releaseManifestArtifacts `json:"artifacts"`
-}
-
-type releaseManifestArtifacts struct {
-	Checksums string `json:"checksums"`
 }
 
 // List 获取并验证上游 Release；任一个 Release 的 manifest 无效时仅跳过该版本。

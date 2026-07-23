@@ -16,7 +16,7 @@ func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
 	server = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/repos/owner/repo/releases":
-			_, _ = fmt.Fprintf(writer, `[{"tag_name":"v1.2.3","published_at":"2026-07-22T00:00:00Z","assets":[{"name":"release-manifest.json","browser_download_url":%q},{"name":"release-manifest.json.sha256","browser_download_url":%q}]}]`, server.URL+"/manifest", server.URL+"/manifest.sha256")
+			_, _ = fmt.Fprintf(writer, `[{"tag_name":"v1.2.3","published_at":"2026-07-22T00:00:00Z","assets":[{"name":"release-manifest.json","browser_download_url":%q},{"name":"release-manifest.json.sha256","browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q}]}]`, server.URL+"/manifest", server.URL+"/manifest.sha256", server.URL+"/checksums")
 		case "/manifest":
 			_, _ = writer.Write(manifest)
 		case "/manifest.sha256":
@@ -62,7 +62,8 @@ func (transport rewriteTransport) RoundTrip(request *http.Request) (*http.Respon
 }
 
 func TestReleaseChecksumsURLBindsManifestAsset(t *testing.T) {
-	manifest := releaseManifest{Artifacts: releaseManifestArtifacts{Checksums: "published-checksums.txt"}}
+	manifest := releaseManifest{}
+	manifest.Artifacts.Checksums = "published-checksums.txt"
 	if got := releaseChecksumsURL(manifest, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}}); got != "https://example.test/checksums" {
 		t.Fatalf("expected manifest-bound checksum asset URL, got %q", got)
 	}
