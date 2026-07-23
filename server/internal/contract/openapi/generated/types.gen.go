@@ -3281,6 +3281,48 @@ func (e NotificationTargetType) Valid() bool {
 	}
 }
 
+// Defines values for PlatformUpdateOperationStatus.
+const (
+	PlatformUpdateOperationStatusBACKINGUP      PlatformUpdateOperationStatus = "BACKING_UP"
+	PlatformUpdateOperationStatusFAILED         PlatformUpdateOperationStatus = "FAILED"
+	PlatformUpdateOperationStatusMIGRATING      PlatformUpdateOperationStatus = "MIGRATING"
+	PlatformUpdateOperationStatusNEEDSATTENTION PlatformUpdateOperationStatus = "NEEDS_ATTENTION"
+	PlatformUpdateOperationStatusPLANNING       PlatformUpdateOperationStatus = "PLANNING"
+	PlatformUpdateOperationStatusPULLING        PlatformUpdateOperationStatus = "PULLING"
+	PlatformUpdateOperationStatusRECOVERED      PlatformUpdateOperationStatus = "RECOVERED"
+	PlatformUpdateOperationStatusRECREATING     PlatformUpdateOperationStatus = "RECREATING"
+	PlatformUpdateOperationStatusSUCCESS        PlatformUpdateOperationStatus = "SUCCESS"
+	PlatformUpdateOperationStatusVERIFYING      PlatformUpdateOperationStatus = "VERIFYING"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateOperationStatus enum.
+func (e PlatformUpdateOperationStatus) Valid() bool {
+	switch e {
+	case PlatformUpdateOperationStatusBACKINGUP:
+		return true
+	case PlatformUpdateOperationStatusFAILED:
+		return true
+	case PlatformUpdateOperationStatusMIGRATING:
+		return true
+	case PlatformUpdateOperationStatusNEEDSATTENTION:
+		return true
+	case PlatformUpdateOperationStatusPLANNING:
+		return true
+	case PlatformUpdateOperationStatusPULLING:
+		return true
+	case PlatformUpdateOperationStatusRECOVERED:
+		return true
+	case PlatformUpdateOperationStatusRECREATING:
+		return true
+	case PlatformUpdateOperationStatusSUCCESS:
+		return true
+	case PlatformUpdateOperationStatusVERIFYING:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateStatusChannel.
 const (
 	PlatformUpdateStatusChannelBeta    PlatformUpdateStatusChannel = "beta"
@@ -3306,6 +3348,7 @@ func (e PlatformUpdateStatusChannel) Valid() bool {
 const (
 	ComposeUpgradeAvailable PlatformUpdateStatusInstallationProfileCapability = "compose_upgrade_available"
 	ManualGuidance          PlatformUpdateStatusInstallationProfileCapability = "manual_guidance"
+	ManualGuidanceBlocked   PlatformUpdateStatusInstallationProfileCapability = "manual_guidance_blocked"
 )
 
 // Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileCapability enum.
@@ -3314,6 +3357,8 @@ func (e PlatformUpdateStatusInstallationProfileCapability) Valid() bool {
 	case ComposeUpgradeAvailable:
 		return true
 	case ManualGuidance:
+		return true
+	case ManualGuidanceBlocked:
 		return true
 	default:
 		return false
@@ -3353,6 +3398,24 @@ func (e PlatformUpdateStatusInstallationProfileDetectedMode) Valid() bool {
 	case PlatformUpdateStatusInstallationProfileDetectedModeBinary:
 		return true
 	case PlatformUpdateStatusInstallationProfileDetectedModeCompose:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateStatusInstallationProfileServiceManager.
+const (
+	PlatformUpdateStatusInstallationProfileServiceManagerManual  PlatformUpdateStatusInstallationProfileServiceManager = "manual"
+	PlatformUpdateStatusInstallationProfileServiceManagerSystemd PlatformUpdateStatusInstallationProfileServiceManager = "systemd"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateStatusInstallationProfileServiceManager enum.
+func (e PlatformUpdateStatusInstallationProfileServiceManager) Valid() bool {
+	switch e {
+	case PlatformUpdateStatusInstallationProfileServiceManagerManual:
+		return true
+	case PlatformUpdateStatusInstallationProfileServiceManagerSystemd:
 		return true
 	default:
 		return false
@@ -3835,19 +3898,19 @@ func (e ScheduledTaskRunItemStatus) Valid() bool {
 
 // Defines values for ScheduledTaskRunItemTriggerType.
 const (
-	ScheduledTaskRunItemTriggerTypeCron    ScheduledTaskRunItemTriggerType = "cron"
-	ScheduledTaskRunItemTriggerTypeManual  ScheduledTaskRunItemTriggerType = "manual"
-	ScheduledTaskRunItemTriggerTypeStartup ScheduledTaskRunItemTriggerType = "startup"
+	Cron    ScheduledTaskRunItemTriggerType = "cron"
+	Manual  ScheduledTaskRunItemTriggerType = "manual"
+	Startup ScheduledTaskRunItemTriggerType = "startup"
 )
 
 // Valid indicates whether the value is a known member of the ScheduledTaskRunItemTriggerType enum.
 func (e ScheduledTaskRunItemTriggerType) Valid() bool {
 	switch e {
-	case ScheduledTaskRunItemTriggerTypeCron:
+	case Cron:
 		return true
-	case ScheduledTaskRunItemTriggerTypeManual:
+	case Manual:
 		return true
-	case ScheduledTaskRunItemTriggerTypeStartup:
+	case Startup:
 		return true
 	default:
 		return false
@@ -4825,22 +4888,22 @@ func (e GetAuditLogsParamsResult) Valid() bool {
 
 // Defines values for GetAuditLogsParamsResults.
 const (
-	GetAuditLogsParamsResultsDENIED  GetAuditLogsParamsResults = "DENIED"
-	GetAuditLogsParamsResultsERROR   GetAuditLogsParamsResults = "ERROR"
-	GetAuditLogsParamsResultsFAILED  GetAuditLogsParamsResults = "FAILED"
-	GetAuditLogsParamsResultsSUCCESS GetAuditLogsParamsResults = "SUCCESS"
+	DENIED  GetAuditLogsParamsResults = "DENIED"
+	ERROR   GetAuditLogsParamsResults = "ERROR"
+	FAILED  GetAuditLogsParamsResults = "FAILED"
+	SUCCESS GetAuditLogsParamsResults = "SUCCESS"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditLogsParamsResults enum.
 func (e GetAuditLogsParamsResults) Valid() bool {
 	switch e {
-	case GetAuditLogsParamsResultsDENIED:
+	case DENIED:
 		return true
-	case GetAuditLogsParamsResultsERROR:
+	case ERROR:
 		return true
-	case GetAuditLogsParamsResultsFAILED:
+	case FAILED:
 		return true
-	case GetAuditLogsParamsResultsSUCCESS:
+	case SUCCESS:
 		return true
 	default:
 		return false
@@ -7743,6 +7806,13 @@ type CreateAnnouncementRequest struct {
 	Title     string     `json:"title"`
 }
 
+// CreatePlatformUpdateOperationRequest defines model for create-platform-update-operation-request.
+type CreatePlatformUpdateOperationRequest struct {
+	// Confirmation Exact target_version typed by the administrator.
+	Confirmation  string `json:"confirmation"`
+	TargetVersion string `json:"target_version"`
+}
+
 // CreateRoleRequest defines model for create-role-request.
 type CreateRoleRequest struct {
 	// Description Optional role description. The server trims surrounding whitespace and normalizes empty strings to null.
@@ -9870,6 +9940,24 @@ type EnvelopedPersonalAccessTokenListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformUpdateOperation defines model for enveloped-platform-update-operation.
+type EnvelopedPlatformUpdateOperation struct {
+	Code    string                  `json:"code"`
+	Data    PlatformUpdateOperation `json:"data"`
+	Message string                  `json:"message"`
+	Success bool                    `json:"success"`
+	TraceId string                  `json:"traceId"`
+}
+
+// EnvelopedPlatformUpdateOperationList defines model for enveloped-platform-update-operation-list.
+type EnvelopedPlatformUpdateOperationList struct {
+	Code    string                      `json:"code"`
+	Data    PlatformUpdateOperationList `json:"data"`
+	Message string                      `json:"message"`
+	Success bool                        `json:"success"`
+	TraceId string                      `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateStatus defines model for enveloped-platform-update-status.
 type EnvelopedPlatformUpdateStatus struct {
 	Code    string               `json:"code"`
@@ -10854,27 +10942,64 @@ type PersonalAccessTokenSummary struct {
 	TokenPrefix string `json:"token_prefix"`
 }
 
+// PlatformUpdateOperation defines model for platform-update-operation.
+type PlatformUpdateOperation struct {
+	BackupId          *int64                        `json:"backup_id,omitempty"`
+	CreatedAt         time.Time                     `json:"created_at"`
+	FailureCode       *string                       `json:"failure_code,omitempty"`
+	FinishedAt        *time.Time                    `json:"finished_at,omitempty"`
+	OperationId       string                        `json:"operation_id"`
+	RecoveryCompleted bool                          `json:"recovery_completed"`
+	RequestedBy       *int64                        `json:"requested_by,omitempty"`
+	SourceVersion     string                        `json:"source_version"`
+	StartedAt         time.Time                     `json:"started_at"`
+	Status            PlatformUpdateOperationStatus `json:"status"`
+	TargetVersion     string                        `json:"target_version"`
+	TaskId            int64                         `json:"task_id"`
+}
+
+// PlatformUpdateOperationStatus defines model for PlatformUpdateOperation.Status.
+type PlatformUpdateOperationStatus string
+
+// PlatformUpdateOperationList defines model for platform-update-operation-list.
+type PlatformUpdateOperationList = []PlatformUpdateOperation
+
 // PlatformUpdateStatus defines model for platform-update-status.
 type PlatformUpdateStatus struct {
+	CacheStale          *bool                       `json:"cache_stale,omitempty"`
 	Channel             PlatformUpdateStatusChannel `json:"channel"`
 	CheckError          *string                     `json:"check_error,omitempty"`
 	CheckedAt           *time.Time                  `json:"checked_at,omitempty"`
 	CurrentVersion      string                      `json:"current_version"`
 	InstallationProfile struct {
-		Capability   PlatformUpdateStatusInstallationProfileCapability   `json:"capability"`
-		DeclaredMode PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
-		DetectedMode PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
-		Guidance     string                                              `json:"guidance"`
+		BinaryPath     *string                                             `json:"binary_path,omitempty"`
+		BlockingReason *string                                             `json:"blocking_reason,omitempty"`
+		Capability     PlatformUpdateStatusInstallationProfileCapability   `json:"capability"`
+		DeclaredMode   PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
+		DetectedMode   PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
+		Guidance       string                                              `json:"guidance"`
+		ManualSteps    *[]struct {
+			Key    string             `json:"key"`
+			Params *map[string]string `json:"params,omitempty"`
+		} `json:"manual_steps,omitempty"`
+		ServiceManager *PlatformUpdateStatusInstallationProfileServiceManager `json:"service_manager,omitempty"`
+		ServiceName    *string                                                `json:"service_name,omitempty"`
+		WebRoot        *string                                                `json:"web_root,omitempty"`
 	} `json:"installation_profile"`
-	Latest *struct {
-		Channel      PlatformUpdateStatusLatestChannel `json:"channel"`
-		ChecksumsUrl *string                           `json:"checksums_url,omitempty"`
-		ManifestUrl  string                            `json:"manifest_url"`
-		Notes        string                            `json:"notes"`
-		PublishedAt  time.Time                         `json:"published_at"`
-		ServerDigest string                            `json:"server_digest"`
-		Version      string                            `json:"version"`
-		WebDigest    string                            `json:"web_digest"`
+	LastSuccessfulAt *time.Time `json:"last_successful_at,omitempty"`
+	Latest           *struct {
+		AssetSha256          *map[string]string                `json:"asset_sha256,omitempty"`
+		Channel              PlatformUpdateStatusLatestChannel `json:"channel"`
+		ChecksumsUrl         *string                           `json:"checksums_url,omitempty"`
+		ManifestUrl          string                            `json:"manifest_url"`
+		MinimumSourceVersion *string                           `json:"minimum_source_version,omitempty"`
+		Notes                string                            `json:"notes"`
+		NotesUrl             *string                           `json:"notes_url,omitempty"`
+		PublishedAt          time.Time                         `json:"published_at"`
+		ServerDigest         string                            `json:"server_digest"`
+		UpgradeNotes         *string                           `json:"upgrade_notes,omitempty"`
+		Version              string                            `json:"version"`
+		WebDigest            string                            `json:"web_digest"`
 	} `json:"latest,omitempty"`
 }
 
@@ -10889,6 +11014,9 @@ type PlatformUpdateStatusInstallationProfileDeclaredMode string
 
 // PlatformUpdateStatusInstallationProfileDetectedMode defines model for PlatformUpdateStatus.InstallationProfile.DetectedMode.
 type PlatformUpdateStatusInstallationProfileDetectedMode string
+
+// PlatformUpdateStatusInstallationProfileServiceManager defines model for PlatformUpdateStatus.InstallationProfile.ServiceManager.
+type PlatformUpdateStatusInstallationProfileServiceManager string
 
 // PlatformUpdateStatusLatestChannel defines model for PlatformUpdateStatus.Latest.Channel.
 type PlatformUpdateStatusLatestChannel string
@@ -14282,6 +14410,38 @@ type PostPlatformUpdateCheckParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPlatformUpdateOperationsParams defines parameters for GetPlatformUpdateOperations.
+type GetPlatformUpdateOperationsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPlatformUpdateOperationParams defines parameters for PostPlatformUpdateOperation.
+type PostPlatformUpdateOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformUpdateOperationParams defines parameters for GetPlatformUpdateOperation.
+type GetPlatformUpdateOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPlatformUpdateStatusParams defines parameters for GetPlatformUpdateStatus.
 type GetPlatformUpdateStatusParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15086,6 +15246,9 @@ type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest
+
+// PostPlatformUpdateOperationJSONRequestBody defines body for PostPlatformUpdateOperation for application/json ContentType.
+type PostPlatformUpdateOperationJSONRequestBody = CreatePlatformUpdateOperationRequest
 
 // PostRealtimeSubscriptionJSONRequestBody defines body for PostRealtimeSubscription for application/json ContentType.
 type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest

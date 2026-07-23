@@ -10,6 +10,7 @@ import (
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	updatecontract "graft/server/modules/update/contract"
 )
@@ -20,16 +21,20 @@ const (
 )
 
 // Module 拥有更新发现的注册、周期检查与 HTTP 读取面。
-type Module struct{ service *Service }
+type Module struct {
+	service    *Service
+	operations OperationStore
+	rollout    *RolloutService
+}
 
 // NewModule 创建 platform-update 模块。
-func NewModule() *Module {
-	return &Module{service: NewService(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")})}
+func NewModule(operations OperationStore, cache DiscoveryCache) *Module {
+	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")}, cache), operations: operations}
 }
 
 // Register 注册权限、菜单、读/check 路由和默认每日发现任务。
 func (m *Module) Register(ctx *module.Context) error {
-	if ctx == nil || m.service == nil {
+	if ctx == nil || m.service == nil || m.operations == nil {
 		return errors.New("platform-update module context is unavailable")
 	}
 	if err := registerMessages(ctx.I18n); err != nil {
@@ -41,8 +46,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
 		return err
 	}
+	if err := m.configureRollout(ctx); err != nil {
+		return err
+	}
 	if ctx.CronRegistry != nil {
-		ctx.CronRegistry.Register(cronx.Job{Name: "platform-update.check", Key: "platform-update.check", ModuleKey: moduleID, Module: moduleID, Category: cronx.JobCategoryMaintenance, TitleKey: "scheduledTask.platformUpdateCheck.title", DescriptionKey: "scheduledTask.platformUpdateCheck.description", Schedule: "17 3 * * *", DefaultEnabled: true, Handler: func(runCtx context.Context, _ string) (cronx.JobRunResult, error) {
+		ctx.CronRegistry.Register(cronx.Job{Name: "platform-update.check", Key: "platform-update.check", ModuleKey: moduleID, Module: moduleID, Category: cronx.JobCategoryMaintenance, TitleKey: "scheduledTask.platformUpdateCheck.title", DescriptionKey: "scheduledTask.platformUpdateCheck.description", Schedule: "0 4 * * *", DefaultEnabled: true, Handler: func(runCtx context.Context, _ string) (cronx.JobRunResult, error) {
 			status := m.service.Check(runCtx)
 			if status.CheckError != "" {
 				return cronx.JobRunResult{Summary: status.CheckError, Stage: "failed", AffectedResource: "platform_update"}, fmt.Errorf("check platform update: %s", status.CheckError)
@@ -50,14 +58,42 @@ func (m *Module) Register(ctx *module.Context) error {
 			return cronx.JobRunResult{Summary: "platform update check completed", Stage: "completed", AffectedResource: "platform_update"}, nil
 		}})
 	}
-	return registerRoutes(ctx, m.service)
+	return registerRoutes(ctx, m.service, m.rollout)
+}
+
+func (m *Module) configureRollout(ctx *module.Context) error {
+	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task service: %w", err)
+	}
+	backups, err := module.ResolveService[moduleapi.BackupService](ctx.Services, (*moduleapi.BackupService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve backup service: %w", err)
+	}
+	launcher, err := NewDockerComposeRunnerLauncher()
+	if err != nil {
+		return err
+	}
+	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
+	m.rollout.SetAuditBus(ctx.EventBus)
+	return nil
 }
 
 // Boot 不需要预先网络检查，避免启动可用性依赖上游 GitHub。
-func (m *Module) Boot(_ *module.Context) error { return nil }
+func (m *Module) Boot(ctx *module.Context) error {
+	if m == nil || m.rollout == nil || ctx == nil {
+		return nil
+	}
+	return m.rollout.SettleAvailableReceipts(ctx.LifecycleContext)
+}
 
-// Shutdown 当前不持有后台资源。
-func (m *Module) Shutdown(_ *module.Context) error { return nil }
+// Shutdown 释放 rollout 持有的 Docker client，避免模块生命周期结束后遗留连接。
+func (m *Module) Shutdown(_ *module.Context) error {
+	if m == nil || m.rollout == nil {
+		return nil
+	}
+	return m.rollout.Close()
+}
 
 func registerMessages(localizer *i18n.Service) error {
 	if localizer == nil {

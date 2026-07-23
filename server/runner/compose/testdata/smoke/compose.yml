@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: graft
+      POSTGRES_USER: graft
+      POSTGRES_PASSWORD: graft
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graft -d graft"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  bootstrap:
+    image: ${GRAFT_SERVER_IMAGE}
+    pull_policy: never
+    entrypoint: ["/bin/true"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  server:
+    image: ${GRAFT_SERVER_IMAGE}
+    pull_policy: never
+  web:
+    image: ${GRAFT_WEB_IMAGE}
+    pull_policy: never

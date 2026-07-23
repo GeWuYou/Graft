@@ -12,16 +12,39 @@ properties:
       notes: { type: string }
       published_at: { type: string, format: date-time }
       manifest_url: { type: string, format: uri }
+      notes_url: { type: string, format: uri }
+      upgrade_notes: { type: string }
+      minimum_source_version: { type: string }
       server_digest: { type: string }
       web_digest: { type: string }
       checksums_url: { type: string, format: uri }
+      asset_sha256:
+        type: object
+        additionalProperties: { type: string }
   installation_profile:
     type: object
     required: [declared_mode, detected_mode, capability, guidance]
     properties:
       declared_mode: { type: string, enum: [compose, binary, unknown] }
       detected_mode: { type: string, enum: [compose, binary] }
-      capability: { type: string, enum: [compose_upgrade_available, manual_guidance] }
+      capability: { type: string, enum: [compose_upgrade_available, manual_guidance, manual_guidance_blocked] }
       guidance: { type: string }
+      binary_path: { type: string }
+      web_root: { type: string }
+      service_manager: { type: string, enum: [systemd, manual] }
+      service_name: { type: string }
+      manual_steps:
+        type: array
+        items:
+          type: object
+          required: [key]
+          properties:
+            key: { type: string }
+            params:
+              type: object
+              additionalProperties: { type: string }
+      blocking_reason: { type: string }
   checked_at: { type: string, format: date-time }
+  last_successful_at: { type: string, format: date-time }
+  cache_stale: { type: boolean }
   check_error: { type: string }

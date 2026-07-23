@@ -165,9 +165,11 @@ jobs:
       owner_lc: ${{ steps.image_vars.outputs.owner_lc }}
       server_image: ${{ steps.image_vars.outputs.server_image }}
       web_image: ${{ steps.image_vars.outputs.web_image }}
+      runner_image: ${{ steps.image_vars.outputs.runner_image }}
       is_prerelease: ${{ needs.build-artifacts.outputs.is_prerelease }}
       server_digest: ${{ steps.server_build.outputs.digest }}
       web_digest: ${{ steps.web_build.outputs.digest }}
+      runner_digest: ${{ steps.runner_build.outputs.digest }}
 
     steps:
       - name: Checkout repository at tag
@@ -184,9 +186,11 @@ jobs:
           owner_lc="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           server_image="ghcr.io/${owner_lc}/graft-server"
           web_image="ghcr.io/${owner_lc}/graft-web"
+          runner_image="ghcr.io/${owner_lc}/graft-compose-runner"
           echo "owner_lc=${owner_lc}" >> "${GITHUB_OUTPUT}"
           echo "server_image=${server_image}" >> "${GITHUB_OUTPUT}"
           echo "web_image=${web_image}" >> "${GITHUB_OUTPUT}"
+          echo "runner_image=${runner_image}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
@@ -278,6 +282,16 @@ jobs:
             org.opencontainers.image.title=Graft Web
             org.opencontainers.image.description=Graft frontend static site image
 
+      - name: Docker metadata for Compose runner image
+        id: runner_meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+        with:
+          images: ${{ steps.image_vars.outputs.runner_image }}
+          tags: ${{ steps.image_tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.title=Graft Compose Update Runner
+            org.opencontainers.image.description=One-shot Graft Compose update runner
+
       - name: Build and push server image
         id: server_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
@@ -306,6 +320,19 @@ jobs:
           cache-from: type=gha,scope=graft-web-image
           cache-to: type=gha,mode=max,scope=graft-web-image
 
+      - name: Build and push Compose runner image
+        id: runner_build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: ./server
+          file: ./server/runner/compose/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.runner_meta.outputs.tags }}
+          labels: ${{ steps.runner_meta.outputs.labels }}
+          cache-from: type=gha,scope=graft-compose-runner-image
+          cache-to: type=gha,mode=max,scope=graft-compose-runner-image
+
       - name: Write image manifest
         env:
           RELEASE_REF_NAME: ${{ github.ref_name }}
@@ -321,27 +348,42 @@ jobs:
           web_image=${{ steps.image_vars.outputs.web_image }}
           web_tag=${RELEASE_REF_NAME}
           web_digest=${{ steps.web_build.outputs.digest }}
+          runner_image=${{ steps.image_vars.outputs.runner_image }}
+          runner_digest=${{ steps.runner_build.outputs.digest }}
           EOF
 
           # This is the machine-readable release authority consumed by self-update.
           # Migration execution is always explicit and idempotent; the manifest does
           # not attempt to infer whether a particular release contains SQL changes.
+          server_asset="graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz"
+          web_asset="graft-web-dist-${RELEASE_REF_NAME}.tar.gz"
+          checksums_asset="graft-sha256sums-${RELEASE_REF_NAME}.txt"
+          server_asset_sha256="$(sha256sum "release-assets/${server_asset}" | awk '{print $1}')"
+          web_asset_sha256="$(sha256sum "release-assets/${web_asset}" | awk '{print $1}')"
           jq -n \
             --arg version "${RELEASE_VERSION}" \
             --arg channel "${RELEASE_CHANNEL}" \
             --arg releaseTag "${RELEASE_REF_NAME}" \
+            --arg releaseNotesURL "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_REF_NAME}" \
+            --arg upgradeNotes "Review the GitHub Release Notes and perform the manifest-declared migration before runtime startup." \
             --arg serverImage "${{ steps.image_vars.outputs.server_image }}" \
             --arg serverDigest "${{ steps.server_build.outputs.digest }}" \
             --arg webImage "${{ steps.image_vars.outputs.web_image }}" \
             --arg webDigest "${{ steps.web_build.outputs.digest }}" \
-            --arg serverArtifact "graft-server-linux-amd64-${RELEASE_REF_NAME}.tar.gz" \
-            --arg webArtifact "graft-web-dist-${RELEASE_REF_NAME}.tar.gz" \
-            --arg checksums "graft-sha256sums-${RELEASE_REF_NAME}.txt" \
+            --arg runnerImage "${{ steps.image_vars.outputs.runner_image }}" \
+            --arg runnerDigest "${{ steps.runner_build.outputs.digest }}" \
+            --arg serverArtifact "${server_asset}" \
+            --arg webArtifact "${web_asset}" \
+            --arg checksums "${checksums_asset}" \
+            --arg serverAssetSHA256 "${server_asset_sha256}" \
+            --arg webAssetSHA256 "${web_asset_sha256}" \
             '{
               schema_version: 1,
               version: $version,
               channel: $channel,
               release_tag: $releaseTag,
+              release_notes_url: $releaseNotesURL,
+              upgrade_notes: $upgradeNotes,
               images: {
                 server: {
                   image: $serverImage,
@@ -354,10 +396,18 @@ jobs:
                   reference: ($webImage + "@" + $webDigest)
                 }
               },
+              runners: {
+                compose: {
+                  image: $runnerImage,
+                  digest: $runnerDigest,
+                  reference: ($runnerImage + "@" + $runnerDigest)
+                }
+              },
               artifacts: {
                 server: $serverArtifact,
                 web: $webArtifact,
-                checksums: $checksums
+                checksums: $checksums,
+                sha256: {($serverArtifact): $serverAssetSHA256, ($webArtifact): $webAssetSHA256}
               },
               migration: {
                 required_before_runtime: true,
@@ -371,10 +421,18 @@ jobs:
             and (.version | test("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-beta\\.[1-9][0-9]*)?$"))
             and (.channel == "stable" or .channel == "beta")
             and (.release_tag == ("v" + .version))
+            and (.release_notes_url | startswith("https://github.com/"))
+            and (.upgrade_notes | length > 0)
+            and (.artifacts.sha256[.artifacts.server] | test("^[0-9a-f]{64}$"))
+            and (.artifacts.sha256[.artifacts.web] | test("^[0-9a-f]{64}$"))
             and (.images.server.digest | startswith("sha256:"))
             and (.images.web.digest | startswith("sha256:"))
+            and (.runners.compose.image | startswith("ghcr.io/"))
+            and (.runners.compose.digest | startswith("sha256:"))
+            and (.runners.compose.reference == (.runners.compose.image + "@" + .runners.compose.digest))
             and (.migration.required_before_runtime == true)
           ' "image-assets/release-manifest.json" >/dev/null
+          sha256sum "image-assets/release-manifest.json" > "image-assets/release-manifest.json.sha256"
 
       - name: Upload image manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

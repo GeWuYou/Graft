@@ -25,8 +25,15 @@ var taskTransitions = map[moduleapi.TaskStatus]map[moduleapi.TaskStatus]struct{}
 		moduleapi.TaskStatusRunning: {},
 	},
 	moduleapi.TaskStatusNeedsAttention: {
-		moduleapi.TaskStatusRunning: {}, moduleapi.TaskStatusCancelled: {},
+		moduleapi.TaskStatusRunning: {}, moduleapi.TaskStatusCancelled: {}, moduleapi.TaskStatusSuccess: {}, moduleapi.TaskStatusFailed: {},
 	},
+}
+
+var stageTransitions = map[moduleapi.StageStatus]map[moduleapi.StageStatus]struct{}{
+	moduleapi.StageStatusPending: {moduleapi.StageStatusRunning: {}, moduleapi.StageStatusSkipped: {}, moduleapi.StageStatusCancelled: {}},
+	moduleapi.StageStatusRunning: {moduleapi.StageStatusSuccess: {}, moduleapi.StageStatusFailed: {}, moduleapi.StageStatusCancelled: {}, moduleapi.StageStatusUnknown: {}},
+	moduleapi.StageStatusFailed:  {moduleapi.StageStatusPending: {}},
+	moduleapi.StageStatusUnknown: {moduleapi.StageStatusPending: {}, moduleapi.StageStatusSuccess: {}, moduleapi.StageStatusFailed: {}},
 }
 
 // CanTransitionTask 判断持久化 Task 是否允许从当前状态迁移到目标状态；终态没有隐式回退路径。
@@ -49,16 +56,12 @@ func ValidateTaskTransition(from moduleapi.TaskStatus, to moduleapi.TaskStatus) 
 
 // CanTransitionStage 判断 Stage 是否允许生命周期迁移；failed 和 unknown 只能回到 pending 触发受控重试。
 func CanTransitionStage(from moduleapi.StageStatus, to moduleapi.StageStatus) bool {
-	switch from {
-	case moduleapi.StageStatusPending:
-		return to == moduleapi.StageStatusRunning || to == moduleapi.StageStatusSkipped || to == moduleapi.StageStatusCancelled
-	case moduleapi.StageStatusRunning:
-		return to == moduleapi.StageStatusSuccess || to == moduleapi.StageStatusFailed || to == moduleapi.StageStatusCancelled || to == moduleapi.StageStatusUnknown
-	case moduleapi.StageStatusFailed, moduleapi.StageStatusUnknown:
-		return to == moduleapi.StageStatusPending
-	default:
+	allowed, exists := stageTransitions[from]
+	if !exists {
 		return false
 	}
+	_, exists = allowed[to]
+	return exists
 }
 
 // ValidateStageTransition 验证阶段状态迁移是否符合允许的生命周期规则；非法迁移返回包含原状态和目标状态的错误。

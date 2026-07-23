@@ -1,0 +1,2 @@
+type: array
+items: { $ref: ./platform-update-operation.yaml }

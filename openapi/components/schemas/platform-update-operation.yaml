@@ -1,0 +1,15 @@
+type: object
+required: [operation_id, source_version, target_version, task_id, status, recovery_completed, created_at, started_at]
+properties:
+  operation_id: { type: string }
+  source_version: { type: string }
+  target_version: { type: string }
+  task_id: { type: integer, format: int64 }
+  backup_id: { type: integer, format: int64 }
+  requested_by: { type: integer, format: int64 }
+  status: { type: string, enum: [PLANNING, BACKING_UP, PULLING, MIGRATING, RECREATING, VERIFYING, SUCCESS, FAILED, RECOVERED, NEEDS_ATTENTION] }
+  failure_code: { type: string }
+  recovery_completed: { type: boolean }
+  created_at: { type: string, format: date-time }
+  started_at: { type: string, format: date-time }
+  finished_at: { type: string, format: date-time }

@@ -221,6 +221,10 @@ paths:
     $ref: ./paths/platform-updates.status.yaml
   /api/platform/updates/check:
     $ref: ./paths/platform-updates.check.yaml
+  /api/platform/updates/operations:
+    $ref: ./paths/platform-updates.operations.yaml
+  /api/platform/updates/operations/{operationID}:
+    $ref: ./paths/platform-updates.operation.yaml
   /api/access-log:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
@@ -714,6 +718,16 @@ components:
       $ref: ./components/schemas/platform-update-status.yaml
     EnvelopedPlatformUpdateStatus:
       $ref: ./components/schemas/enveloped-platform-update-status.yaml
+    PlatformUpdateOperation:
+      $ref: ./components/schemas/platform-update-operation.yaml
+    PlatformUpdateOperationList:
+      $ref: ./components/schemas/platform-update-operation-list.yaml
+    CreatePlatformUpdateOperationRequest:
+      $ref: ./components/schemas/create-platform-update-operation-request.yaml
+    EnvelopedPlatformUpdateOperation:
+      $ref: ./components/schemas/enveloped-platform-update-operation.yaml
+    EnvelopedPlatformUpdateOperationList:
+      $ref: ./components/schemas/enveloped-platform-update-operation-list.yaml
     AccessLogDetailResponse:
       $ref: ./components/schemas/access-log-detail-response.yaml
     AccessLogListResponse:

@@ -1,0 +1,5 @@
+type: object
+required: [target_version, confirmation]
+properties:
+  target_version: { type: string, minLength: 1, maxLength: 128 }
+  confirmation: { type: string, minLength: 1, maxLength: 128, description: Exact target_version typed by the administrator. }

@@ -84,11 +84,49 @@ type StageRetryPolicy struct {
 
 // StagePlan 定义 TaskPlan 中一个有序且不可变的 Stage。
 type StagePlan struct {
-	Key            string
-	ExecutorType   StageExecutorType
-	Input          json.RawMessage
-	RetryPolicy    StageRetryPolicy
-	RecoveryPolicy StageRecoveryPolicy
+	Key             string
+	ExecutorType    StageExecutorType
+	Input           json.RawMessage
+	RetryPolicy     StageRetryPolicy
+	RecoveryPolicy  StageRecoveryPolicy
+	ExternalReceipt *ExternalReceiptExpectation
+}
+
+// ExternalReceiptExpectation 冻结短生命周期外部执行器结算最终 Stage 时必须匹配的身份；它不包含凭据，认证由部署侧文件与进程边界承担。
+type ExternalReceiptExpectation struct {
+	Protocol    string
+	OperationID string
+}
+
+// ExternalReceiptOutcome 标识外部执行回执允许携带的受限终态结论。
+type ExternalReceiptOutcome string
+
+const (
+	// ExternalReceiptOutcomeSuccess 表示受限外部操作已成功完成。
+	ExternalReceiptOutcomeSuccess ExternalReceiptOutcome = "success"
+	// ExternalReceiptOutcomeFailed 表示受限外部操作失败但无需保留人工对账状态。
+	ExternalReceiptOutcomeFailed ExternalReceiptOutcome = "failed"
+	// ExternalReceiptOutcomeNeedsAttention 表示外部观察结果必须保留给操作者人工对账。
+	ExternalReceiptOutcomeNeedsAttention ExternalReceiptOutcome = "needs_attention"
+)
+
+// ExternalTaskReceipt 是通过 Task Runtime capability 提交的版本化、无秘密外部执行事实；它刻意排除命令、环境、日志和任意结果载荷。
+type ExternalTaskReceipt struct {
+	TaskID          uint64
+	ExecutorType    StageExecutorType
+	Protocol        string
+	OperationID     string
+	Outcome         ExternalReceiptOutcome
+	FailureCode     string
+	IntegritySHA256 string
+}
+
+// ExternalReceiptSettlement 返回已提交外部回执的持久 Task Runtime 结论。
+type ExternalReceiptSettlement struct {
+	TaskID     uint64
+	StageID    uint64
+	Status     TaskStatus
+	Idempotent bool
 }
 
 // TaskPlan 定义已提交 Task 的冻结有序 Stage 集合。
@@ -116,6 +154,7 @@ type TaskReceipt struct {
 // TaskService 向消费者模块暴露 Task Runtime 提交能力。
 type TaskService interface {
 	Submit(ctx context.Context, input SubmitTaskInput) (TaskReceipt, error)
+	SettleExternalReceipt(ctx context.Context, receipt ExternalTaskReceipt) (ExternalReceiptSettlement, error)
 	Cancel(ctx context.Context, taskID uint64) error
 	RetryStage(ctx context.Context, taskID uint64, stageID uint64) error
 }

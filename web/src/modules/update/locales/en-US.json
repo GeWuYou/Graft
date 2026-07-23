@@ -21,7 +21,9 @@
         "title": "Available version",
         "available": "Published {date}",
         "upToDate": "Up to date",
-        "upToDateDescription": "There is no newer verified release in this channel."
+        "upToDateDescription": "There is no newer verified release in this channel.",
+        "unavailable": "Release status unavailable",
+        "unavailableDescription": "The last catalog result is stale or the latest check failed. It is not treated as up to date."
       },
       "installation": {
         "title": "Installation profile",
@@ -33,14 +35,31 @@
         "title": "Release notes",
         "verified": "The release manifest and OCI image digests are verified.",
         "upgrade": "Start upgrade",
-        "executionUnavailable": "This release supports discovery only. The Compose executor, backup, and migration steps will be enabled with the platform upgrade execution capability.",
+        "executionUnavailable": "This installation cannot run a controlled Compose upgrade.",
         "manualOnly": "This installation type provides verified packages and manual guidance only. It will not replace the running binary automatically.",
+        "catalogStale": "A fresh verified release catalog is required before a controlled upgrade can start.",
         "managePermissionRequired": "Platform update management permission is required before an upgrade can run.",
         "notesEmpty": "No release notes were provided for this version.",
         "manifest": "View release manifest",
+        "releaseNotes": "View release notes",
         "checksums": "View checksums",
         "emptyTitle": "No update available",
         "emptyDescription": "After an update check, a release compatible with this channel appears here."
+      },
+      "confirmation": {
+        "title": "Confirm upgrade to {version}",
+        "description": "Type the exact target version to start the controlled Compose rollout.",
+        "confirm": "Start upgrade",
+        "cancel": "Cancel",
+        "submitFailed": "The upgrade request could not be started."
+      },
+      "history": {
+        "title": "Update history",
+        "target": "Target version",
+        "status": "Status",
+        "result": "Result",
+        "started": "Started",
+        "loadFailed": "Unable to load update history."
       },
       "capabilities": {
         "title": "Installation capability matrix",
@@ -56,7 +75,15 @@
         },
         "states": { "supported": "Supported", "pending": "Coming soon", "manual": "Manual" }
       },
-      "binaryGuidance": "For binary installations, download matching server and web distributions, verify SHA-256, then restart through the system service manager."
+      "binaryGuidance": "For binary installations, download matching server and web distributions, verify SHA-256, then restart through the system service manager.",
+      "manualSteps": {
+        "download": "Download the server binary and web distribution with the target release tag.",
+        "verify": "Verify both release assets against the SHA-256 values in the manifest.",
+        "deploy": "Replace the server binary at {binary_path} and deploy the web distribution to {web_root}.",
+        "migrate": "Run graft migrate up explicitly.",
+        "restartSystemd": "Run systemctl restart {service_name}, then verify /healthz.",
+        "restartManual": "Restart the service using the current manual process, then verify /healthz."
+      }
     }
   },
   "scheduledTask": {

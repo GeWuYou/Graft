@@ -5,4 +5,5 @@ export const UPDATE_ROUTE_PATH = {
 export const UPDATE_API_PATH = {
   STATUS: '/api/platform/updates/status',
   CHECK: '/api/platform/updates/check',
+  OPERATIONS: '/api/platform/updates/operations',
 } as const;

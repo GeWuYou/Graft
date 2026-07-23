@@ -46,15 +46,29 @@ closeout:
 - Work Intake completed and the topic was bootstrapped.
 - Batch 1 established release-manifest, release authority, roadmap, and Compose runner ADR.
 - Batch 2 added read-only release discovery, the installation profile, and the protected status/check API.
-- Batch 3 added the front-end Update Center and the logo version affordance. The loop remains in progress; the next batch is `backup-capability`.
+- Batch 3 added the front-end Update Center and the logo version affordance.
+- Batch 4 added the independent `platform-backup` capability with retained artifact metadata and recovery evidence.
+- Task Runtime now settles bound, no-secret external receipts exactly once after a runner handoff.
+- Backup now owns a runner handoff that freezes operation/task-bound artifact paths and re-verifies the resolved files, SHA-256, and byte counts before an idempotent Backup fact is created.
+- Release manifest verification now includes a checksummed, official, immutable Compose runner identity.
+- The hermetic Compose fixture proves digest rejection, same-tag reconstruction and fixed runner sequencing.
+- Archive review found the remaining official rollout gap: durable UpdateOperation/history, protected confirmation/history API, and a constrained Docker socket launcher that settles the runner receipt after server recreation. The next batch is `compose-rollout-launcher-and-history`.
+- Archive readiness found two release-critical delivery gaps: no runnable/published Compose runner image and no persisted last-success release discovery cache. The batch after `compose-rollout-launcher-and-history` is `compose-runner-delivery-and-discovery-cache`.
 
 ## Task Checklist
 
 - [x] `release-authority-and-manifest`
 - [x] `read-only-update-discovery`
 - [x] `update-center-ui`
-- [ ] `backup-capability`
-- [ ] `compose-execution-and-recovery`
+- [x] `backup-capability`
+- [x] `compose-runner-preflight-contract`
+- [x] `task-receipt-settlement`
+- [x] `backup-runner-handoff`
+- [x] `runner-digest-authority`
+- [x] `compose-fixture-execution`
+- [x] `compose-execution-and-recovery`
+- [ ] `compose-rollout-launcher-and-history`
+- [ ] `compose-runner-delivery-and-discovery-cache`
 - [ ] `archive-readiness`
 
 ## Acceptance Conditions
@@ -71,15 +85,22 @@ closeout:
   "completed_batches": [
     "release-authority-and-manifest",
     "read-only-update-discovery",
-    "update-center-ui"
+    "update-center-ui",
+    "backup-capability",
+    "compose-runner-preflight-contract",
+    "task-receipt-settlement",
+    "backup-runner-handoff",
+    "runner-digest-authority",
+    "compose-fixture-execution",
+    "compose-execution-and-recovery"
   ],
   "pending_batches": [
-    "backup-capability",
-    "compose-execution-and-recovery",
+    "compose-rollout-launcher-and-history",
+    "compose-runner-delivery-and-discovery-cache",
     "archive-readiness"
   ],
   "current_batch": null,
-  "next_batch": "backup-capability",
-  "closeout_status": "in-progress"
+  "next_batch": "compose-rollout-launcher-and-history",
+  "closeout_status": "in_progress"
 }
 ```

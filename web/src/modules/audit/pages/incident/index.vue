@@ -4,7 +4,7 @@
       <management-page-header
         :title="incidentTitle"
         :description="incidentDescription"
-        :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-warning-color-5)' }"
+        :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-brand-color-6)' }"
       >
         <template #actions>
           <t-space size="small" wrap>

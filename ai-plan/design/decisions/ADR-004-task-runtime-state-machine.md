@@ -16,9 +16,12 @@ Project lifecycle actions run external Docker Compose commands for a potentially
 4. Stage lifecycle is authoritative in `task_stages`; `task_events` only records non-derivable task lifecycle, retry, cancellation and recovery facts.
 5. A process crash turns a running non-resumable Stage into `unknown` and the parent Task into `needs_attention`; Docker shell actions default to manual reconciliation, never automatic replay.
 6. `scheduler` may create Tasks on schedule but does not run Stage executors.
+7. A consumer may freeze one final Stage's `ExternalReceiptExpectation` in its TaskPlan. A short-lived external executor submits only its protocol, operation identity, bounded outcome, stable failure code and canonical receipt SHA-256 through `TaskService.SettleExternalReceipt`; Task Runtime validates that immutable binding, persists an idempotency-keyed no-secret receipt, updates the Stage and parent Task atomically, and appends immutable settlement evidence.
 
 ## Consequences
 
 - Project will migrate lifecycle actions from synchronous HTTP completion to `202 Accepted` Task receipts.
 - Consumers cannot create task tables, runners, log flows or WebSocket topics.
 - MVP remains serial and in-process; DAG and distributed execution need a future ADR after evidence of need.
+- Receipt settlement is an internal capability, not a general remote-worker or agent API. The delivery path must be authenticated by the owning deployment boundary; the Task Runtime never accepts arbitrary commands, environment values, logs or result JSON from a receipt.
+- A receipt may settle a `running` or crash-recovered `unknown` final Stage to `success` or `failed`, or preserve `needs_attention`; this is evidence-based reconciliation, not automatic replay of an unknown command.

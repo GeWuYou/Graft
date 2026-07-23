@@ -2,7 +2,7 @@ import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import { UPDATE_API_PATH } from '../contract/paths';
-import type { UpdateStatus } from '../types/update';
+import type { CreateUpdateOperationRequest, UpdateOperation, UpdateStatus } from '../types/update';
 
 type UpdateStatusEnvelope =
   paths[typeof UPDATE_API_PATH.STATUS]['get']['responses'][200]['content']['application/json'];
@@ -18,4 +18,14 @@ export function getUpdateStatus() {
 
 export function checkForUpdates() {
   return request.post<CheckForUpdatesData>({ url: UPDATE_API_PATH.CHECK }) as Promise<UpdateStatus>;
+}
+
+export function getUpdateOperations() {
+  return request.get<UpdateOperation[]>({ url: UPDATE_API_PATH.OPERATIONS, params: { limit: 20 } }) as Promise<
+    UpdateOperation[]
+  >;
+}
+
+export function createUpdateOperation(payload: CreateUpdateOperationRequest) {
+  return request.post<UpdateOperation>({ url: UPDATE_API_PATH.OPERATIONS, data: payload }) as Promise<UpdateOperation>;
 }

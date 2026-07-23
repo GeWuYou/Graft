@@ -8662,6 +8662,166 @@
         }
       }
     },
+    "/api/platform/updates/operations": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "List self-update history",
+        "operationId": "getPlatformUpdateOperations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update operation history without deployment secrets or receipt contents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-operation-list"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Confirm and start an official Compose update",
+        "operationId": "postPlatformUpdateOperation",
+        "description": "Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and never accepts commands, image references, or host paths from the request.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create-platform-update-operation-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The one-shot runner was accepted by Docker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid confirmation or request payload."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "The installation profile or current release does not permit execution."
+          }
+        }
+      }
+    },
+    "/api/platform/updates/operations/{operationID}": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Read a self-update operation",
+        "operationId": "getPlatformUpdateOperation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "operationID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update operation history without deployment secrets or receipt contents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid operation identity."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Update operation not found."
+          }
+        }
+      }
+    },
     "/api/access-log": {
       "get": {
         "tags": [
@@ -18407,6 +18567,21 @@
       "EnvelopedPlatformUpdateStatus": {
         "$ref": "#/components/schemas/enveloped-platform-update-status"
       },
+      "PlatformUpdateOperation": {
+        "$ref": "#/components/schemas/platform-update-operation"
+      },
+      "PlatformUpdateOperationList": {
+        "$ref": "#/components/schemas/platform-update-operation-list"
+      },
+      "CreatePlatformUpdateOperationRequest": {
+        "$ref": "#/components/schemas/create-platform-update-operation-request"
+      },
+      "EnvelopedPlatformUpdateOperation": {
+        "$ref": "#/components/schemas/enveloped-platform-update-operation"
+      },
+      "EnvelopedPlatformUpdateOperationList": {
+        "$ref": "#/components/schemas/enveloped-platform-update-operation-list"
+      },
       "AccessLogDetailResponse": {
         "$ref": "#/components/schemas/access-log-detail-response"
       },
@@ -25577,6 +25752,16 @@
                 "type": "string",
                 "format": "uri"
               },
+              "notes_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "upgrade_notes": {
+                "type": "string"
+              },
+              "minimum_source_version": {
+                "type": "string"
+              },
               "server_digest": {
                 "type": "string"
               },
@@ -25586,6 +25771,12 @@
               "checksums_url": {
                 "type": "string",
                 "format": "uri"
+              },
+              "asset_sha256": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -25617,10 +25808,50 @@
                 "type": "string",
                 "enum": [
                   "compose_upgrade_available",
-                  "manual_guidance"
+                  "manual_guidance",
+                  "manual_guidance_blocked"
                 ]
               },
               "guidance": {
+                "type": "string"
+              },
+              "binary_path": {
+                "type": "string"
+              },
+              "web_root": {
+                "type": "string"
+              },
+              "service_manager": {
+                "type": "string",
+                "enum": [
+                  "systemd",
+                  "manual"
+                ]
+              },
+              "service_name": {
+                "type": "string"
+              },
+              "manual_steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "key"
+                  ],
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "blocking_reason": {
                 "type": "string"
               }
             }
@@ -25628,6 +25859,13 @@
           "checked_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "last_successful_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cache_stale": {
+            "type": "boolean"
           },
           "check_error": {
             "type": "string"
@@ -25658,6 +25896,155 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-update-status"
+          }
+        }
+      },
+      "platform-update-operation": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "source_version",
+          "target_version",
+          "task_id",
+          "status",
+          "recovery_completed",
+          "created_at",
+          "started_at"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "source_version": {
+            "type": "string"
+          },
+          "target_version": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "backup_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "requested_by": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNING",
+              "BACKING_UP",
+              "PULLING",
+              "MIGRATING",
+              "RECREATING",
+              "VERIFYING",
+              "SUCCESS",
+              "FAILED",
+              "RECOVERED",
+              "NEEDS_ATTENTION"
+            ]
+          },
+          "failure_code": {
+            "type": "string"
+          },
+          "recovery_completed": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "platform-update-operation-list": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/platform-update-operation"
+        }
+      },
+      "enveloped-platform-update-operation-list": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-operation-list"
+          }
+        }
+      },
+      "create-platform-update-operation-request": {
+        "type": "object",
+        "required": [
+          "target_version",
+          "confirmation"
+        ],
+        "properties": {
+          "target_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "confirmation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Exact target_version typed by the administrator."
+          }
+        }
+      },
+      "enveloped-platform-update-operation": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-operation"
           }
         }
       },

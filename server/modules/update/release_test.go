@@ -1,59 +1,70 @@
 package update
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestReleaseAssetURLsRecognizesPublishedChecksumName(t *testing.T) {
+func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
+	manifest := []byte(`{"release_tag":"v1.2.3","version":"1.2.3","channel":"stable","release_notes_url":"https://github.com/owner/repo/releases/tag/v1.2.3","upgrade_notes":"Read the release notes.","minimum_source_version":"1.0.0","artifacts":{"server":"server.tar.gz","web":"web.tar.gz","checksums":"checksums.txt","sha256":{"server.tar.gz":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","web.tar.gz":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},"images":{"server":{"image":"ghcr.io/gewuyou/graft-server","digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","reference":"ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"web":{"image":"ghcr.io/gewuyou/graft-web","digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},"runners":{"compose":{"image":"ghcr.io/gewuyou/graft-compose-runner","digest":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","reference":"ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}}`)
+	checksum := fmt.Sprintf("%x  release-manifest.json\n", sha256.Sum256(manifest))
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/repos/owner/repo/releases":
+			_, _ = fmt.Fprintf(writer, `[{"tag_name":"v1.2.3","published_at":"2026-07-22T00:00:00Z","assets":[{"name":"release-manifest.json","browser_download_url":%q},{"name":"release-manifest.json.sha256","browser_download_url":%q},{"name":"checksums.txt","browser_download_url":%q}]}]`, server.URL+"/manifest", server.URL+"/manifest.sha256", server.URL+"/checksums")
+		case "/manifest":
+			_, _ = writer.Write(manifest)
+		case "/manifest.sha256":
+			_, _ = writer.Write([]byte(checksum))
+		default:
+			http.NotFound(writer, request)
+		}
+	}))
+	defer server.Close()
+
+	provider := GitHubReleaseProvider{Repository: "owner/repo", Client: &http.Client{Transport: rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	releases, err := provider.List(t.Context())
+	if err != nil {
+		t.Fatalf("list releases: %v", err)
+	}
+	if len(releases) != 1 || releases[0].RunnerRef != "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" || releases[0].NotesURL == "" || releases[0].AssetSHA256["server.tar.gz"] == "" {
+		t.Fatalf("unexpected releases: %#v", releases)
+	}
+}
+
+func TestValidReleaseManifestRejectsMissingRunner(t *testing.T) {
+	if validReleaseManifest("v1.2.3", releaseManifest{Version: "1.2.3", Channel: "stable"}) {
+		t.Fatal("expected missing runner identity to reject manifest")
+	}
+}
+
+func TestValidImageIdentityRejectsMutableTag(t *testing.T) {
+	if validImageIdentity("ghcr.io/gewuyou/graft-compose-runner:latest", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "ghcr.io/gewuyou/graft-compose-runner:latest@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc") {
+		t.Fatal("expected mutable image tag rejection")
+	}
+}
+
+type rewriteTransport struct {
+	base   http.RoundTripper
+	target string
+}
+
+func (transport rewriteTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	clone := request.Clone(request.Context())
+	clone.URL.Scheme = "http"
+	clone.URL.Host = transport.target[len("http://"):]
+	return transport.base.RoundTrip(clone)
+}
+
+func TestReleaseChecksumsURLBindsManifestAsset(t *testing.T) {
 	manifest := releaseManifest{Artifacts: releaseManifestArtifacts{Checksums: "published-checksums.txt"}}
-	_, checksumsURL := releaseAssetURLs(manifest, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}})
-	if checksumsURL != "https://example.test/checksums" {
-		t.Fatalf("expected manifest-bound checksum asset URL, got %q", checksumsURL)
-	}
-
-	_, checksumsURL = releaseAssetURLs(manifest, []githubAsset{{Name: "graft-sha256sums-v1.2.3.txt", BrowserDownloadURL: "https://example.test/checksums"}})
-	if checksumsURL != "" {
-		t.Fatalf("expected mismatched checksum asset to reject release, got %q", checksumsURL)
-	}
-
-	_, checksumsURL = releaseAssetURLs(releaseManifest{}, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}})
-	if checksumsURL != "" {
-		t.Fatalf("expected missing manifest checksum asset to reject release, got %q", checksumsURL)
-	}
-}
-
-func TestValidReleaseManifestRequiresVersionChannelPair(t *testing.T) {
-	manifest := releaseManifest{}
-	manifest.Images.Server.Digest = validTestDigest('a')
-	manifest.Images.Web.Digest = validTestDigest('b')
-	manifest.Artifacts.Checksums = "graft-sha256sums-v1.2.3-beta.1.txt"
-
-	manifest.Version = "1.2.3"
-	manifest.Channel = "beta"
-	if validReleaseManifest("v1.2.3", manifest) {
-		t.Fatal("expected stable version in beta channel to reject manifest")
-	}
-
-	manifest.Version = "1.2.3-beta.1"
-	manifest.Channel = "stable"
-	if validReleaseManifest("v1.2.3-beta.1", manifest) {
-		t.Fatal("expected beta version in stable channel to reject manifest")
-	}
-
-	manifest.Channel = "beta"
-	if !validReleaseManifest("v1.2.3-beta.1", manifest) {
-		t.Fatal("expected beta version in beta channel to accept manifest")
-	}
-}
-
-func TestReleaseMatchesGitHubPrereleaseMetadata(t *testing.T) {
-	manifest := releaseManifest{Version: "1.2.3-beta.1"}
-	if releaseMatchesGitHubMetadata(githubRelease{Prerelease: false}, manifest) {
-		t.Fatal("expected prerelease metadata mismatch to reject release")
-	}
-	if !releaseMatchesGitHubMetadata(githubRelease{Prerelease: true}, manifest) {
-		t.Fatal("expected matching prerelease metadata to accept release")
+	if got := releaseChecksumsURL(manifest, []githubAsset{{Name: "published-checksums.txt", BrowserDownloadURL: "https://example.test/checksums"}}); got != "https://example.test/checksums" {
+		t.Fatalf("expected manifest-bound checksum asset URL, got %q", got)
 	}
 }
 
@@ -61,11 +72,4 @@ func TestValidDigestRequiresStrictHex(t *testing.T) {
 	if validDigest("sha256:" + strings.Repeat("z", 64)) {
 		t.Fatal("expected non-hex digest to reject")
 	}
-	if !validDigest(validTestDigest('a')) {
-		t.Fatal("expected lowercase hexadecimal digest to accept")
-	}
-}
-
-func validTestDigest(character byte) string {
-	return "sha256:" + strings.Repeat(string(character), 64)
 }

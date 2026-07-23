@@ -11,7 +11,7 @@
     :reload-label="t('audit.logList.refresh')"
     :retry-label="t('audit.logList.retry')"
     :show-header-reload="false"
-    :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-warning-color-5)' }"
+    :source="{ labelKey: 'menu.audit.title', fallback: t('menu.audit.title'), color: 'var(--td-brand-color-6)' }"
     @reload="fetchAuditLogs"
   >
     <template #actions>

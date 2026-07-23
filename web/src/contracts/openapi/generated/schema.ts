@@ -1528,6 +1528,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/updates/operations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List self-update history */
+    get: operations['getPlatformUpdateOperations'];
+    put?: never;
+    /**
+     * Confirm and start an official Compose update
+     * @description Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and never accepts commands, image references, or host paths from the request.
+     */
+    post: operations['postPlatformUpdateOperation'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/updates/operations/{operationID}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read a self-update operation */
+    get: operations['getPlatformUpdateOperation'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/access-log': {
     parameters: {
       query?: never;
@@ -3684,6 +3722,11 @@ export interface components {
     EnvelopedSystemConfigListResponse: components['schemas']['enveloped-system-config-list-response'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
     EnvelopedPlatformUpdateStatus: components['schemas']['enveloped-platform-update-status'];
+    PlatformUpdateOperation: components['schemas']['platform-update-operation'];
+    PlatformUpdateOperationList: components['schemas']['platform-update-operation-list'];
+    CreatePlatformUpdateOperationRequest: components['schemas']['create-platform-update-operation-request'];
+    EnvelopedPlatformUpdateOperation: components['schemas']['enveloped-platform-update-operation'];
+    EnvelopedPlatformUpdateOperationList: components['schemas']['enveloped-platform-update-operation-list'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
@@ -6126,10 +6169,17 @@ export interface components {
         published_at: string;
         /** Format: uri */
         manifest_url: string;
+        /** Format: uri */
+        notes_url?: string;
+        upgrade_notes?: string;
+        minimum_source_version?: string;
         server_digest: string;
         web_digest: string;
         /** Format: uri */
         checksums_url?: string;
+        asset_sha256?: {
+          [key: string]: string;
+        };
       };
       installation_profile: {
         /** @enum {string} */
@@ -6137,11 +6187,26 @@ export interface components {
         /** @enum {string} */
         detected_mode: 'compose' | 'binary';
         /** @enum {string} */
-        capability: 'compose_upgrade_available' | 'manual_guidance';
+        capability: 'compose_upgrade_available' | 'manual_guidance' | 'manual_guidance_blocked';
         guidance: string;
+        binary_path?: string;
+        web_root?: string;
+        /** @enum {string} */
+        service_manager?: 'systemd' | 'manual';
+        service_name?: string;
+        manual_steps?: {
+          key: string;
+          params?: {
+            [key: string]: string;
+          };
+        }[];
+        blocking_reason?: string;
       };
       /** Format: date-time */
       checked_at?: string;
+      /** Format: date-time */
+      last_successful_at?: string;
+      cache_stale?: boolean;
       check_error?: string;
     };
     'enveloped-platform-update-status': {
@@ -6150,6 +6215,57 @@ export interface components {
       message: string;
       traceId: string;
       data: components['schemas']['platform-update-status'];
+    };
+    'platform-update-operation': {
+      operation_id: string;
+      source_version: string;
+      target_version: string;
+      /** Format: int64 */
+      task_id: number;
+      /** Format: int64 */
+      backup_id?: number;
+      /** Format: int64 */
+      requested_by?: number;
+      /** @enum {string} */
+      status:
+        | 'PLANNING'
+        | 'BACKING_UP'
+        | 'PULLING'
+        | 'MIGRATING'
+        | 'RECREATING'
+        | 'VERIFYING'
+        | 'SUCCESS'
+        | 'FAILED'
+        | 'RECOVERED'
+        | 'NEEDS_ATTENTION';
+      failure_code?: string;
+      recovery_completed: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      started_at: string;
+      /** Format: date-time */
+      finished_at?: string;
+    };
+    'platform-update-operation-list': components['schemas']['platform-update-operation'][];
+    'enveloped-platform-update-operation-list': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-operation-list'];
+    };
+    'create-platform-update-operation-request': {
+      target_version: string;
+      /** @description Exact target_version typed by the administrator. */
+      confirmation: string;
+    };
+    'enveloped-platform-update-operation': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-operation'];
     };
     'access-log-detail-response': {
       /** Format: int64 */
@@ -13153,6 +13269,132 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getPlatformUpdateOperations: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Update operation history without deployment secrets or receipt contents. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-operation-list'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postPlatformUpdateOperation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-platform-update-operation-request'];
+      };
+    };
+    responses: {
+      /** @description The one-shot runner was accepted by Docker. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-operation'];
+        };
+      };
+      /** @description Invalid confirmation or request payload. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description The installation profile or current release does not permit execution. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getPlatformUpdateOperation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        operationID: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Update operation history without deployment secrets or receipt contents. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-operation'];
+        };
+      };
+      /** @description Invalid operation identity. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Update operation not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getAccessLogs: {

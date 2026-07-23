@@ -1,8 +1,27 @@
 package update
 
-import "graft/server/internal/module"
+import (
+	"database/sql"
+	"fmt"
+
+	"graft/server/internal/module"
+)
 
 // NewModuleSpec 返回 platform-update 的编译期模块描述符。
 func NewModuleSpec() module.Spec {
-	return module.Spec{ID: moduleID, Dependencies: []string{"user", "rbac"}, Builder: module.BuilderFunc(func(module.BuildContext) (module.Module, error) { return NewModule(), nil })}
+	return module.Spec{ID: moduleID, Dependencies: []string{"user", "rbac", "task", "platform-backup"}, MigrationPath: []string{"modules/update/migrations"}, Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
+		db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
+		if err != nil {
+			return nil, fmt.Errorf("resolve sql db: %w", err)
+		}
+		operations, err := newSQLOperationStore(db)
+		if err != nil {
+			return nil, err
+		}
+		cache, err := newSQLDiscoveryCache(db)
+		if err != nil {
+			return nil, err
+		}
+		return NewModule(operations, cache), nil
+	})}
 }

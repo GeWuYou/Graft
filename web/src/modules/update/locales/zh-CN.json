@@ -21,7 +21,9 @@
         "title": "可用版本",
         "available": "已于 {date} 发布",
         "upToDate": "已是最新版本",
-        "upToDateDescription": "当前通道内没有更高的已验证发行版本。"
+        "upToDateDescription": "当前通道内没有更高的已验证发行版本。",
+        "unavailable": "发行状态暂不可用",
+        "unavailableDescription": "最近一次目录结果已过期或检查失败，不能将其显示为已是最新。"
       },
       "installation": {
         "title": "安装画像",
@@ -33,14 +35,31 @@
         "title": "发行说明",
         "verified": "发行清单与 OCI 镜像摘要已验证。",
         "upgrade": "开始升级",
-        "executionUnavailable": "当前版本仅支持更新发现。Compose 执行器、备份与迁移将在平台升级执行能力就绪后启用。",
+        "executionUnavailable": "当前安装不满足受控 Compose 升级条件。",
         "manualOnly": "此安装类型仅提供校验包与人工升级指引，不会自动替换正在运行的二进制文件。",
+        "catalogStale": "必须先获得新的已验证发行目录，才能开始受控升级。",
         "managePermissionRequired": "需要平台更新管理权限后才能执行升级。",
         "notesEmpty": "该发行版本未提供发行说明。",
         "manifest": "查看发行清单",
+        "releaseNotes": "查看发行说明",
         "checksums": "查看校验和",
         "emptyTitle": "没有可用更新",
         "emptyDescription": "检查更新后，兼容当前通道的发行版本会显示在这里。"
+      },
+      "confirmation": {
+        "title": "确认升级到 {version}",
+        "description": "输入精确目标版本以启动受控 Compose 升级。",
+        "confirm": "开始升级",
+        "cancel": "取消",
+        "submitFailed": "升级请求未能启动。"
+      },
+      "history": {
+        "title": "更新历史",
+        "target": "目标版本",
+        "status": "状态",
+        "result": "结果",
+        "started": "开始时间",
+        "loadFailed": "无法加载更新历史。"
       },
       "capabilities": {
         "title": "安装能力矩阵",
@@ -56,7 +75,15 @@
         },
         "states": { "supported": "支持", "pending": "即将支持", "manual": "人工操作" }
       },
-      "binaryGuidance": "二进制安装请下载同版本 server 与 web 发行包，验证 SHA-256 后再按系统服务管理方式重启。"
+      "binaryGuidance": "二进制安装请下载同版本 server 与 web 发行包，验证 SHA-256 后再按系统服务管理方式重启。",
+      "manualSteps": {
+        "download": "下载与目标发行版本同标签的服务端二进制文件和 Web 发行包。",
+        "verify": "使用 manifest 中的 SHA-256 校验两个发行资产。",
+        "deploy": "将 server binary 替换到 {binary_path}，并将 web distribution 部署到 {web_root}。",
+        "migrate": "显式执行 graft migrate up。",
+        "restartSystemd": "执行 systemctl restart {service_name}，然后验证 /healthz。",
+        "restartManual": "按当前人工运行方式重启服务，然后验证 /healthz。"
+      }
     }
   },
   "scheduledTask": {

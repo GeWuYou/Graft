@@ -56,6 +56,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"internal/httpx/migrations",
 		"internal/logger/migrations",
 		"internal/drilldown/migrations",
+		"modules/backup/migrations",
 		"modules/user/migrations",
 		"modules/auth/migrations",
 		"modules/rbac/migrations",
@@ -67,6 +68,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/system-config/migrations",
 		"modules/scheduler/migrations",
 		"modules/task/migrations",
+		"modules/update/migrations",
 		"modules/project/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {
@@ -160,10 +162,13 @@ func TestDescriptorsStayAlignedWithModuleDirectories(t *testing.T) {
 		}
 
 		moduleID := entry.Name()
-		// update 的目录名描述领域边界，平台可见模块 ID 保持 platform-update，
+		// update 和 backup 的目录名描述领域边界，平台可见模块 ID 保持 platform 前缀，
 		// 避免权限、任务和发布历史在未来目录调整时发生标识漂移。
-		if moduleID == "update" {
+		switch moduleID {
+		case "update":
 			moduleID = "platform-update"
+		case "backup":
+			moduleID = "platform-backup"
 		}
 		want = append(want, moduleID)
 	}

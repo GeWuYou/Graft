@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	defaultPageLimit = 100
-	maxPageLimit     = 500
+	defaultPageLimit            = 100
+	maxPageLimit                = 500
+	externalReceiptSHA256Length = 64
 )
 
 // SQLRepository 将 Task Runtime 事实持久化到模块自有的 PostgreSQL 表中。
@@ -609,6 +610,180 @@ func (r *SQLRepository) RecoverInterruptedStages(ctx context.Context, now time.T
 	return unknownCount + retriedCount, nil
 }
 
+// SettleExternalReceipt 原子记录已绑定外部回执、更新其最终 Stage 并结算父 Task。
+func (r *SQLRepository) SettleExternalReceipt(ctx context.Context, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error) {
+	if !validExternalReceiptSettlement(input) {
+		return ExternalReceiptSettlement{}, ErrInvalidInput
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ExternalReceiptSettlement{}, fmt.Errorf("begin external receipt settlement: %w", err)
+	}
+	defer rollback(tx)
+
+	if settlement, found, err := r.existingExternalSettlement(ctx, tx, input); err != nil {
+		return ExternalReceiptSettlement{}, err
+	} else if found {
+		return settlement, tx.Commit()
+	}
+	if err := r.lockSettlementTask(ctx, tx, input.TaskID); err != nil {
+		return ExternalReceiptSettlement{}, err
+	}
+	// Recheck after acquiring the Task lock so concurrent submissions resolve as exact replays instead of conflicting writes.
+	if settlement, found, err := r.existingExternalSettlement(ctx, tx, input); err != nil {
+		return ExternalReceiptSettlement{}, err
+	} else if found {
+		return settlement, tx.Commit()
+	}
+
+	return r.persistExternalReceiptSettlement(ctx, tx, input)
+}
+
+func (r *SQLRepository) persistExternalReceiptSettlement(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error) {
+	status, stageStatus := settlementStatuses(input.Outcome)
+	now := time.Now().UTC()
+	if err := r.updateSettlementStage(ctx, tx, input, stageStatus, now); err != nil {
+		return ExternalReceiptSettlement{}, err
+	}
+	if err := r.updateSettlementTask(ctx, tx, input, status, now); err != nil {
+		return ExternalReceiptSettlement{}, err
+	}
+	if err := r.insertExternalReceipt(ctx, tx, input, status, now); err != nil {
+		return ExternalReceiptSettlement{}, err
+	}
+	if err := r.appendExternalReceiptEvent(ctx, tx, input, status, now); err != nil {
+		return ExternalReceiptSettlement{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return ExternalReceiptSettlement{}, fmt.Errorf("commit external receipt settlement: %w", err)
+	}
+	return ExternalReceiptSettlement{TaskID: input.TaskID, StageID: input.StageID, Status: status}, nil
+}
+
+func (r *SQLRepository) existingExternalSettlement(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, bool, error) {
+	existing, found, err := r.findExternalReceipt(ctx, tx, input.TaskID, input.OperationID)
+	if err != nil {
+		return ExternalReceiptSettlement{}, false, err
+	}
+	if !found {
+		return ExternalReceiptSettlement{}, false, nil
+	}
+	if !sameExternalReceipt(existing, input) {
+		return ExternalReceiptSettlement{}, false, ErrStateConflict
+	}
+	return ExternalReceiptSettlement{TaskID: existing.TaskID, StageID: existing.StageID, Status: existing.SettledStatus, Idempotent: true}, true, nil
+}
+
+func (r *SQLRepository) lockSettlementTask(ctx context.Context, tx *sql.Tx, taskID uint64) error {
+	query := `SELECT id FROM tasks WHERE id = ?`
+	if r.placeholder == placeholderDollar {
+		query += ` FOR UPDATE`
+	}
+	var id uint64
+	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(query), taskID).Scan(&id); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return fmt.Errorf("lock external receipt task: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) findExternalReceipt(ctx context.Context, tx *sql.Tx, taskID uint64, operationID string) (taskmodel.ExternalReceipt, bool, error) {
+	var item taskmodel.ExternalReceipt
+	var executorType, protocol, outcome, settledStatus string
+	var failureCode sql.NullString
+	err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT id, task_id, stage_id, executor_type, receipt_protocol, operation_id, outcome, failure_code, integrity_sha256, settled_task_status, created_at
+		FROM task_external_receipts WHERE task_id = ? AND operation_id = ?`), taskID, operationID).Scan(
+		&item.ID, &item.TaskID, &item.StageID, &executorType, &protocol, &item.OperationID, &outcome, &failureCode, &item.IntegritySHA256, &settledStatus, &item.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return taskmodel.ExternalReceipt{}, false, nil
+	}
+	if err != nil {
+		return taskmodel.ExternalReceipt{}, false, fmt.Errorf("find external receipt: %w", err)
+	}
+	item.ExecutorType = moduleapi.StageExecutorType(executorType)
+	item.Protocol = protocol
+	item.Outcome = moduleapi.ExternalReceiptOutcome(outcome)
+	item.FailureCode = nullableString(failureCode)
+	item.SettledStatus = moduleapi.TaskStatus(settledStatus)
+	return item, true, nil
+}
+
+func sameExternalReceipt(existing taskmodel.ExternalReceipt, input ExternalReceiptSettlementInput) bool {
+	failureCode := ""
+	if existing.FailureCode != nil {
+		failureCode = *existing.FailureCode
+	}
+	return existing.StageID == input.StageID && existing.ExecutorType == input.ExecutorType && existing.Protocol == input.Protocol && existing.Outcome == input.Outcome && failureCode == input.FailureCode && existing.IntegritySHA256 == input.IntegritySHA256
+}
+
+func settlementStatuses(outcome moduleapi.ExternalReceiptOutcome) (moduleapi.TaskStatus, moduleapi.StageStatus) {
+	switch outcome {
+	case moduleapi.ExternalReceiptOutcomeSuccess:
+		return moduleapi.TaskStatusSuccess, moduleapi.StageStatusSuccess
+	case moduleapi.ExternalReceiptOutcomeFailed:
+		return moduleapi.TaskStatusFailed, moduleapi.StageStatusFailed
+	default:
+		return moduleapi.TaskStatusNeedsAttention, moduleapi.StageStatusUnknown
+	}
+}
+
+func (r *SQLRepository) updateSettlementStage(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput, status moduleapi.StageStatus, now time.Time) error {
+	var failureCode any
+	if input.FailureCode != "" {
+		failureCode = input.FailureCode
+	}
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, failure_code = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND task_id = ? AND executor_type = ? AND status IN (?, ?)`),
+		status, failureCode, now, now, input.StageID, input.TaskID, input.ExecutorType, moduleapi.StageStatusRunning, moduleapi.StageStatusUnknown)
+	if err != nil {
+		return fmt.Errorf("settle external receipt stage: %w", err)
+	}
+	return expectOneAffected(result)
+}
+
+func (r *SQLRepository) updateSettlementTask(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput, status moduleapi.TaskStatus, now time.Time) error {
+	var failureCode any
+	if input.FailureCode != "" {
+		failureCode = input.FailureCode
+	}
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, current_stage_key = (SELECT stage_key FROM task_stages WHERE id = ?), failure_code = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND status IN (?, ?)`),
+		status, input.StageID, failureCode, now, now, input.TaskID, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention)
+	if err != nil {
+		return fmt.Errorf("settle external receipt task: %w", err)
+	}
+	return expectOneAffected(result)
+}
+
+func (r *SQLRepository) insertExternalReceipt(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput, status moduleapi.TaskStatus, now time.Time) error {
+	var failureCode any
+	if input.FailureCode != "" {
+		failureCode = input.FailureCode
+	}
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_external_receipts (
+		task_id, stage_id, executor_type, receipt_protocol, operation_id, outcome, failure_code, integrity_sha256, settled_task_status, created_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`), input.TaskID, input.StageID, input.ExecutorType, input.Protocol, input.OperationID, input.Outcome, failureCode, input.IntegritySHA256, status, now); err != nil {
+		return fmt.Errorf("insert external receipt: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) appendExternalReceiptEvent(ctx context.Context, tx *sql.Tx, input ExternalReceiptSettlementInput, status moduleapi.TaskStatus, now time.Time) error {
+	payload, err := json.Marshal(map[string]string{"operation_id": input.OperationID, "protocol": input.Protocol, "outcome": string(input.Outcome), "task_status": string(status)})
+	if err != nil {
+		return fmt.Errorf("marshal external receipt event: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_events (task_id, sequence, event_type, payload_json, created_at)
+		SELECT ?, COALESCE(MAX(sequence), 0) + 1, ?, ?, ? FROM task_events WHERE task_id = ?`), input.TaskID, taskmodel.EventTypeExternalReceiptSettled, payload, now, input.TaskID); err != nil {
+		return fmt.Errorf("append external receipt event: %w", err)
+	}
+	return nil
+}
+
 func (r *SQLRepository) markManualRecoveryUnknown(ctx context.Context, tx *sql.Tx, now time.Time) (int, error) {
 	recoveryMessage := "stage outcome is unknown after task runtime restart"
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
@@ -805,8 +980,42 @@ func closeRows(rows *sql.Rows) {
 // validEventType 判断事件类型是否属于任务仓储支持的历史事实集合。
 func validEventType(value taskmodel.EventType) bool {
 	switch value {
-	case taskmodel.EventTypeCreated, taskmodel.EventTypeCancelRequested, taskmodel.EventTypeCancelled, taskmodel.EventTypeRetryRequested, taskmodel.EventTypeRetryScheduled, taskmodel.EventTypeRecoveryRequired, taskmodel.EventTypeRecoveryResolved:
+	case taskmodel.EventTypeCreated, taskmodel.EventTypeCancelRequested, taskmodel.EventTypeCancelled, taskmodel.EventTypeRetryRequested, taskmodel.EventTypeRetryScheduled, taskmodel.EventTypeRecoveryRequired, taskmodel.EventTypeRecoveryResolved, taskmodel.EventTypeExternalReceiptSettled:
 		return true
+	default:
+		return false
+	}
+}
+
+func validExternalReceiptSettlement(input ExternalReceiptSettlementInput) bool {
+	if !externalReceiptSettlementIdentityValid(input) || !lowercaseReceiptSHA256(input.IntegritySHA256) {
+		return false
+	}
+	return externalReceiptSettlementOutcomeValid(input)
+}
+
+func externalReceiptSettlementIdentityValid(input ExternalReceiptSettlementInput) bool {
+	return input.TaskID != 0 && input.StageID != 0 && strings.TrimSpace(string(input.ExecutorType)) != "" && strings.TrimSpace(input.Protocol) != "" && strings.TrimSpace(input.OperationID) != "" && len(input.Protocol) <= 128 && len(input.OperationID) <= 256 && len(input.FailureCode) <= 128
+}
+
+func lowercaseReceiptSHA256(value string) bool {
+	if len(value) != externalReceiptSHA256Length {
+		return false
+	}
+	for _, character := range value {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func externalReceiptSettlementOutcomeValid(input ExternalReceiptSettlementInput) bool {
+	switch input.Outcome {
+	case moduleapi.ExternalReceiptOutcomeSuccess:
+		return input.FailureCode == ""
+	case moduleapi.ExternalReceiptOutcomeFailed, moduleapi.ExternalReceiptOutcomeNeedsAttention:
+		return strings.TrimSpace(input.FailureCode) != ""
 	default:
 		return false
 	}
