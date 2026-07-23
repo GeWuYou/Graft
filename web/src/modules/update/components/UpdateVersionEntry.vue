@@ -56,17 +56,15 @@
 import { RefreshIcon } from 'tdesign-icons-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { usePermissionStore } from '@/store';
 
 import { checkForUpdates } from '../api/update';
-import { UPDATE_ROUTE_PATH } from '../contract/paths';
+import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
 
 const { t } = useI18n();
-const router = useRouter();
 const permissionStore = usePermissionStore();
 const discoveryStore = useUpdateDiscoveryStore();
 const visible = ref(false);
@@ -74,6 +72,7 @@ const checking = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
+const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible);
 const releaseAvailable = computed(
   () =>
     Boolean(discoveryStore.status?.latest) &&
@@ -81,14 +80,6 @@ const releaseAvailable = computed(
     !discoveryStore.status?.check_error,
 );
 const canViewRelease = computed(() => releaseAvailable.value);
-const canStartUpgrade = computed(
-  () =>
-    Boolean(discoveryStore.status?.latest) &&
-    !discoveryStore.status?.cache_stale &&
-    !discoveryStore.status?.check_error &&
-    discoveryStore.status?.installation_profile.capability === 'compose_upgrade_available' &&
-    permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
-);
 const tooltip = computed(() =>
   discoveryStore.hasUpdate
     ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
@@ -100,16 +91,6 @@ const summary = computed(
     discoveryStore.status?.latest?.notes ||
     t('update.preview.summaryEmpty'),
 );
-
-function openManagement() {
-  visible.value = false;
-  void router.push(UPDATE_ROUTE_PATH.CENTER);
-}
-
-function startUpgrade() {
-  visible.value = false;
-  void router.push({ path: UPDATE_ROUTE_PATH.CENTER, query: { upgrade: '1' } });
-}
 
 async function refreshStatus() {
   if (!canCheck.value) {
