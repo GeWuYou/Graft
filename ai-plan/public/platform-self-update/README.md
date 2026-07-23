@@ -8,11 +8,11 @@
 - Intake summary: long-running feature using the default `topic-completion-loop`.
 - Canonical authority:
   - `ai-plan/design/release/`
-  - `.github/workflows/publish.yml`
   - `compose.yml`
   - `server/modules/*` and `web/src/modules/*` module conventions
-- Completed so far: Work Intake, release-manifest authority, release design, delivery roadmap, and Compose runner ADR.
-- Next implementation batch: read-only update discovery.
+- Derived delivery automation: `.github/workflows/publish.yml` implements the release design; it does not define release policy.
+- Completed so far: Work Intake, release-manifest authority, release design, delivery roadmap, Compose runner ADR, read-only update discovery, and Update Center UI.
+- Next implementation batch: backup capability.
 
 ## Recovery Receipt
 
@@ -48,9 +48,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 1 is complete and committed.
+- Read-only update discovery and Update Center UI are complete and committed.
 - The deployment-profile capability matrix must remain authoritative over a declared environment value alone.
-- Next step: `read-only-update-discovery`.
+- Next step: `backup-capability`.
 
 ## Work Intake
 
@@ -59,8 +59,6 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- `read-only-update-discovery`
-- `update-center-ui`
 - `backup-capability`
 - `compose-execution-and-recovery`
 - `archive-readiness`

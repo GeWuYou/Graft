@@ -70,7 +70,8 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "release-authority-and-manifest",
-    "read-only-update-discovery"
+    "read-only-update-discovery",
+    "update-center-ui"
   ],
   "pending_batches": [
     "backup-capability",
