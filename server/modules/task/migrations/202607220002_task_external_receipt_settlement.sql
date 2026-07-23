@@ -1,3 +1,5 @@
+-- atlas:txmode none
+
 ALTER TABLE task_events DROP CONSTRAINT task_events_type_check;
 
 ALTER TABLE task_events ADD CONSTRAINT task_events_type_check CHECK (event_type IN (
@@ -6,6 +8,11 @@ ALTER TABLE task_events ADD CONSTRAINT task_events_type_check CHECK (event_type 
 )) NOT VALID;
 
 ALTER TABLE task_events VALIDATE CONSTRAINT task_events_type_check;
+
+-- 回执复合外键要求任务与阶段主键组合具备可引用的唯一性；并发建索引避免长时间阻塞阶段读写。
+CREATE UNIQUE INDEX CONCURRENTLY task_stages_task_id_id_key_idx ON task_stages (task_id, id);
+
+ALTER TABLE task_stages ADD CONSTRAINT task_stages_task_id_id_key UNIQUE USING INDEX task_stages_task_id_id_key_idx;
 
 CREATE TABLE task_external_receipts (
   id BIGSERIAL PRIMARY KEY,

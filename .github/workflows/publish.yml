@@ -608,17 +608,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
+      - name: Download image manifest
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: image-assets
+          path: image-assets
+
       - name: Write compose environment
         shell: bash
-        env:
-          RELEASE_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          manifest="image-assets/release-manifest.json"
+          test -f "${manifest}"
+          server_repository="$(jq -er '.images.server.image' "${manifest}")"
+          server_digest="$(jq -er '.images.server.digest' "${manifest}")"
+          web_repository="$(jq -er '.images.web.image' "${manifest}")"
+          web_digest="$(jq -er '.images.web.digest' "${manifest}")"
           mkdir -p "${RUNNER_TEMP}/graft-apps"
           cat > .env <<EOF
-          GRAFT_SERVER_IMAGE=${{ needs.publish-images.outputs.server_image }}
-          GRAFT_WEB_IMAGE=${{ needs.publish-images.outputs.web_image }}
-          GRAFT_IMAGE_TAG=${RELEASE_REF_NAME}
+          GRAFT_SERVER_IMAGE_REPOSITORY=${server_repository}
+          GRAFT_SERVER_IMAGE_DIGEST=${server_digest}
+          GRAFT_WEB_IMAGE_REPOSITORY=${web_repository}
+          GRAFT_WEB_IMAGE_DIGEST=${web_digest}
           POSTGRES_DB=graft
           POSTGRES_USER=graft
           POSTGRES_PASSWORD=graft
@@ -632,6 +643,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .tmp
+          docker compose config --quiet
           docker compose pull
           docker compose up -d postgres redis
 
