@@ -35,4 +35,38 @@ describe('update discovery store', () => {
     expect(getUpdateStatus).not.toHaveBeenCalled();
     expect(store.phase).toBe('idle');
   });
+
+  it('does not expose stale or failed releases as an available update', () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);
+    const store = useUpdateDiscoveryStore();
+    const latest = { version: '1.1.0' };
+
+    store.replaceSnapshot({ latest, cache_stale: true, check_error: '' } as never);
+    expect(store.hasUpdate).toBe(false);
+
+    store.replaceSnapshot({ latest, cache_stale: false, check_error: 'catalog-unavailable' } as never);
+    expect(store.hasUpdate).toBe(false);
+
+    store.replaceSnapshot({ latest, cache_stale: false, check_error: '' } as never);
+    expect(store.hasUpdate).toBe(true);
+  });
+
+  it('allows a failed discovery request to be retried', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);
+    vi.mocked(getUpdateStatus)
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValueOnce({ current_version: '1.0.0' } as never);
+    const store = useUpdateDiscoveryStore();
+
+    await store.ensureSnapshot();
+    expect(store.phase).toBe('error');
+    expect(store.error).toBe('load-failed');
+
+    await store.ensureSnapshot();
+    expect(getUpdateStatus).toHaveBeenCalledTimes(2);
+    expect(store.phase).toBe('ready');
+    expect(store.error).toBe('');
+  });
 });

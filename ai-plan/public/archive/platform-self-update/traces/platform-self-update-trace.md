@@ -24,7 +24,7 @@
 
 ## 2026-07-22 Update Center UI
 
-- Added `Platform -> Updates` as a module-owned dynamic route and exposed the running version under the side-nav logo.
+- Added `Platform -> System Maintenance -> Updates` as a module-owned dynamic route and exposed the running version under the side-nav logo.
 - The page consumes the protected status/check endpoints, presents SemVer channel selection, release notes, installation evidence, and the capability matrix.
 - The upgrade button remains disabled until the Compose executor, backup, and migration APIs exist; binary installations receive explicit manual guidance.
 - Completed `update-center-ui`; the loop remains in progress with `backup-capability` next.
@@ -97,10 +97,13 @@
     "backup-runner-handoff",
     "runner-digest-authority",
     "compose-fixture-execution",
-    "compose-execution-and-recovery"
+    "compose-execution-and-recovery",
+    "compose-rollout-launcher-and-history",
+    "compose-runner-delivery-and-discovery-cache",
+    "archive-readiness"
   ],
   "pending_batches": [],
-  "current_batch": "archive-readiness",
+  "current_batch": null,
   "next_batch": null,
   "closeout_status": "archive-ready"
 }

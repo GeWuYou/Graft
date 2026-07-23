@@ -78,7 +78,8 @@ func TestDetectInstallationProfile(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			profile := DetectInstallationProfile(func(key string) string { return testCase.env[key] }, testCase.executable)
-			if profile.Capability != testCase.capability || (testCase.blocked && profile.BlockingReason == "") {
+			blocked := profile.BlockingReason != ""
+			if profile.Capability != testCase.capability || blocked != testCase.blocked {
 				t.Fatalf("expected capability %q with blocked=%t, got %#v", testCase.capability, testCase.blocked, profile)
 			}
 		})

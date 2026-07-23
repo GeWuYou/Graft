@@ -1,4 +1,6 @@
-Historical startup prompt for the archived `platform-self-update` topic. Do not resume this topic; start a new
+# Historical Startup Prompt: Platform Self Update
+
+This file is archived evidence and is non-executable. Do not run, copy, or resume these instructions. Start a new
 bounded topic after the normal root startup preflight for follow-on work.
 
 Round context:
@@ -6,7 +8,7 @@ Round context:
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
 - recovery source: `none`
-- recovery entry: `ai-plan/public/platform-self-update/README.md`
+- historical recovery entry: `ai-plan/public/archive/platform-self-update/README.md`
 - local execution truth:
   - `server/AGENTS.md`
   - `web/AGENTS.md`
@@ -40,7 +42,7 @@ Current batch plan:
 4. `compose-execution-and-recovery`
 5. `archive-readiness`
 
-Loop instructions:
+Historical loop instructions (reference only; do not execute):
 
 - Default `loop_mode=topic-completion-loop`.
 - Advance exactly one bounded batch this round.

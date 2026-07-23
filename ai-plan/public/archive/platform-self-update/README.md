@@ -36,7 +36,7 @@ Out of scope:
 
 ## Locked Decisions
 
-1. `Platform -> Updates` is the global entry; the logo version affordance links to it.
+1. `Platform -> System Maintenance -> Updates` is the global entry; the logo version affordance links to it.
 2. GitHub Release metadata plus immutable GHCR image digests is the v1 release source.
 3. Compose is the only executable MVP deployment type; binary installation is detected and guided, not automatically replaced.
 4. Backup is an independent platform capability consumed by update execution.
@@ -71,13 +71,16 @@ Out of scope:
 ## Validation Targets
 
 ```bash
-cd server && go run ./cmd/graft validate backend
-cd web && bun run check
-scripts/smoke_compose_runner.sh
+(cd server && go run ./cmd/graft validate backend)
+(cd web && bun run check)
+./scripts/smoke_compose_runner.sh
 git diff --check
 ```
 
-## Loop Entry
+These commands are historical archive evidence. Run them from the repository root; they are not a current recovery
+entry or an instruction to resume this archived topic.
 
-- Preferred entry: `ai-plan/public/platform-self-update/startup-prompt.md`
-- Preferred execution mode: `$graft-multi-agent-loop`
+## Historical Loop Entry
+
+- Historical entry: `ai-plan/public/archive/platform-self-update/startup-prompt.md`
+- Historical execution mode: `$graft-multi-agent-loop`

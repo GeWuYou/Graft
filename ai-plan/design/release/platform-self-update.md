@@ -4,7 +4,7 @@
 
 ## Product Boundary
 
-- 入口为 `Platform -> Updates`；左侧 Graft 标识下的当前版本是进入此页的快捷入口。
+- 入口为 `Platform -> System Maintenance -> Updates`；左侧 Graft 标识下的当前版本是进入此页的快捷入口。
 - 更新是管理员确认后的受治理操作：自动检查可以启用，自动安装不在当前承诺范围内。
 - `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用 tag 或 mutable tag 作为升级事实。
 - `server/modules/update` 和 `server/modules/backup` 是两个独立模块。Update 消费 Backup capability；Atlas migration 仍由 core CLI 拥有，不创建 migration 业务模块。

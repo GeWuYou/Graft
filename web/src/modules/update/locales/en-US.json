@@ -12,8 +12,10 @@
       "viewManagement": "View update log",
       "viewRelease": "View release",
       "checkNow": "Check for updates",
+      "checkFailed": "The update check could not be completed. Try again later.",
       "startUpgrade": "Update now",
       "upToDate": "This installation is up to date.",
+      "availableVersion": "Version {version} is available.",
       "unavailable": "Update status is temporarily unavailable. Try again later.",
       "releaseUnavailable": "No release information is available for this version."
     },

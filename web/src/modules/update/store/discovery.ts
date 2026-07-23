@@ -18,7 +18,7 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
     requestPromise: null as Promise<UpdateStatus | null> | null,
   }),
   getters: {
-    hasUpdate: (state) => Boolean(state.status?.latest),
+    hasUpdate: (state) => Boolean(state.status?.latest && !state.status.cache_stale && !state.status.check_error),
   },
   actions: {
     async ensureSnapshot() {
@@ -26,7 +26,7 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
       if (!permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ)) {
         return null;
       }
-      if (this.phase === 'ready' || this.phase === 'error') {
+      if (this.phase === 'ready') {
         return this.status;
       }
       if (this.requestPromise) {

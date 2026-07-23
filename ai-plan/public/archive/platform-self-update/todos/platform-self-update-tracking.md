@@ -99,10 +99,13 @@ closeout:
     "backup-runner-handoff",
     "runner-digest-authority",
     "compose-fixture-execution",
-    "compose-execution-and-recovery"
+    "compose-execution-and-recovery",
+    "compose-rollout-launcher-and-history",
+    "compose-runner-delivery-and-discovery-cache",
+    "archive-readiness"
   ],
   "pending_batches": [],
-  "current_batch": "archive-readiness",
+  "current_batch": null,
   "next_batch": null,
   "closeout_status": "archive-ready"
 }

@@ -30,12 +30,17 @@
         </header>
         <div class="update-version-preview__current">
           <strong>{{ discoveryStore.status?.current_version }}</strong>
-          <p v-if="releaseAvailable" class="update-version-preview__up-to-date">{{ t('update.preview.upToDate') }}</p>
-          <p v-else class="update-version-preview__unavailable">{{ t('update.preview.releaseUnavailable') }}</p>
+          <p v-if="hasAvailableRelease" class="update-version-preview__available-status">
+            {{ t('update.preview.availableVersion', { version: discoveryStore.status?.latest?.version }) }}
+          </p>
+          <p v-else-if="statusUnavailable" class="update-version-preview__unavailable">
+            {{ t('update.preview.unavailable') }}
+          </p>
+          <p v-else class="update-version-preview__up-to-date">{{ t('update.preview.upToDate') }}</p>
         </div>
-        <template v-if="discoveryStore.status?.latest">
+        <template v-if="hasAvailableRelease">
           <p class="update-version-preview__available">
-            {{ t('update.preview.available') }} {{ discoveryStore.status.latest.version }}
+            {{ t('update.preview.available') }} {{ discoveryStore.status?.latest?.version }}
           </p>
           <p class="update-version-preview__summary">{{ summary }}</p>
         </template>
@@ -54,6 +59,7 @@
 <script setup lang="ts">
 // 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -73,13 +79,18 @@ const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_C
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
 const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible);
-const releaseAvailable = computed(
+const hasAvailableRelease = computed(
   () =>
     Boolean(discoveryStore.status?.latest) &&
     !discoveryStore.status?.cache_stale &&
     !discoveryStore.status?.check_error,
 );
-const canViewRelease = computed(() => releaseAvailable.value);
+const statusUnavailable = computed(
+  () =>
+    discoveryStore.phase === 'error' ||
+    Boolean(discoveryStore.status?.cache_stale || discoveryStore.status?.check_error),
+);
+const canViewRelease = computed(() => hasAvailableRelease.value);
 const tooltip = computed(() =>
   discoveryStore.hasUpdate
     ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
@@ -99,6 +110,8 @@ async function refreshStatus() {
   checking.value = true;
   try {
     discoveryStore.replaceSnapshot(await checkForUpdates());
+  } catch {
+    MessagePlugin.error(t('update.preview.checkFailed'));
   } finally {
     checking.value = false;
   }
@@ -174,6 +187,12 @@ async function refreshStatus() {
 
 .update-version-preview__up-to-date {
   color: var(--td-success-color);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.update-version-preview__available-status {
+  color: var(--td-brand-color);
   font: var(--td-font-body-small);
   margin: 0;
 }
