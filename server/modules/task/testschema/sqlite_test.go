@@ -37,8 +37,8 @@ func TestCreateSQLiteEnforcesExternalReceiptIntegrity(t *testing.T) {
 	insertStage(t, db, 1, "first-stage")
 	insertStage(t, db, 2, "second-stage")
 
-	assertExternalReceiptRejected(t, db, "failed receipt without failure code", 1, 1, "failed", nil)
-	assertExternalReceiptRejected(t, db, "task and stage ownership mismatch", 1, 2, "success", nil)
+	assertExternalReceiptRejected(t, db, "failed receipt without failure code", externalReceiptInput{taskID: 1, stageID: 1, outcome: "failed"})
+	assertExternalReceiptRejected(t, db, "task and stage ownership mismatch", externalReceiptInput{taskID: 1, stageID: 2, outcome: "success"})
 }
 
 func openSQLite(t *testing.T, name string) *sql.DB {
@@ -72,11 +72,18 @@ func insertStage(t *testing.T, db *sql.DB, taskID int, stageKey string) {
 	}
 }
 
-func assertExternalReceiptRejected(t *testing.T, db *sql.DB, name string, taskID, stageID int, outcome string, failureCode any) {
+type externalReceiptInput struct {
+	taskID      int
+	stageID     int
+	outcome     string
+	failureCode any
+}
+
+func assertExternalReceiptRejected(t *testing.T, db *sql.DB, name string, input externalReceiptInput) {
 	t.Helper()
 	if _, err := db.Exec(`INSERT INTO task_external_receipts (
 		task_id, stage_id, executor_type, receipt_protocol, operation_id, outcome, failure_code, integrity_sha256, settled_task_status, created_at
-	) VALUES (?, ?, 'test.executor', 'test/v1', ?, ?, ?, '0123456789012345678901234567890123456789012345678901234567890123', 'failed', CURRENT_TIMESTAMP)`, taskID, stageID, name, outcome, failureCode); err == nil {
+	) VALUES (?, ?, 'test.executor', 'test/v1', ?, ?, ?, '0123456789012345678901234567890123456789012345678901234567890123', 'failed', CURRENT_TIMESTAMP)`, input.taskID, input.stageID, name, input.outcome, input.failureCode); err == nil {
 		t.Fatalf("%s insert succeeded", name)
 	}
 }
