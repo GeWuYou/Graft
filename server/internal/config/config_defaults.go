@@ -13,6 +13,7 @@ func setDefaults(reader *viper.Viper) {
 	reader.SetDefault("http.addr", defaultHTTPAddr)
 	reader.SetDefault("access_log.console", string(AccessLogConsoleAuto))
 	reader.SetDefault("access_log.slow_threshold_ms", defaultAccessLogSlowThreshold/time.Millisecond)
+	reader.SetDefault("access_log.persist_timeout_ms", defaultAccessLogPersistTimeout/time.Millisecond)
 	reader.SetDefault("httpx.websocket.allowed_origins", defaultRealtimeAllowedOrigins)
 	reader.SetDefault("modules.enabled", "")
 	reader.SetDefault("database.driver", defaultDatabaseDriver)

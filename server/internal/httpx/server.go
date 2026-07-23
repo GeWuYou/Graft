@@ -49,6 +49,8 @@ type Server struct {
 type AccessLogOptions struct {
 	ConsolePolicy config.AccessLogConsolePolicy
 	SlowThreshold time.Duration
+	// PersistTimeout 限制单次访问日志持久化操作的耗时，非正值会回退到默认超时。
+	PersistTimeout time.Duration
 }
 
 // ServerOptions 承载 NewServerWithOptions 使用的可选 HTTP runtime 行为。
@@ -64,8 +66,9 @@ type ServerOptions struct {
 func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
 	return NewServerWithOptions(logger, ServerOptions{
 		AccessLog: AccessLogOptions{
-			ConsolePolicy: config.AccessLogConsoleAlways,
-			SlowThreshold: time.Second,
+			ConsolePolicy:  config.AccessLogConsoleAlways,
+			SlowThreshold:  time.Second,
+			PersistTimeout: time.Second,
 		},
 	}, repo...)
 }

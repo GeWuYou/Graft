@@ -42,6 +42,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 		"GRAFT_GIN_MODE=release",
 		"GRAFT_ACCESS_LOG_CONSOLE=error_only",
 		"GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS=2500",
+		"GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS=1750",
 		"GRAFT_AUTH_JWT_SECRET=dotenv-jwt-secret",
 		"GRAFT_AUTH_SIGNING_KEY=dotenv-signing-key",
 	}, "\n")
@@ -75,6 +76,7 @@ func TestLoadReadsDotenv(t *testing.T) {
 	assertEqual(t, "gin mode from .env", cfg.Runtime.GinMode, GinModeRelease)
 	assertEqual(t, "access log console policy from .env", cfg.HTTPX.AccessLogConsole, AccessLogConsoleErrorOnly)
 	assertEqual(t, "access log slow threshold from .env", cfg.HTTPX.AccessLogSlowThresholdMS, int64(2500))
+	assertEqual(t, "access log persist timeout from .env", cfg.HTTPX.AccessLogPersistTimeoutMS, int64(1750))
 	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
 	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
 	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
@@ -353,6 +355,7 @@ func TestLoadUsesDefaultsWhenNoEnvironmentAvailable(t *testing.T) {
 	assertEqual(t, "default dev allow-dirty bootstrap", cfg.Runtime.DevAllowDirtyMigrationBootstrap, true)
 	assertEqual(t, "default access log console", cfg.HTTPX.AccessLogConsole, AccessLogConsoleAuto)
 	assertEqual(t, "default access log slow threshold", cfg.HTTPX.AccessLogSlowThresholdMS, int64(1000))
+	assertEqual(t, "default access log persist timeout", cfg.HTTPX.AccessLogPersistTimeoutMS, int64(1000))
 	assertEqual(t, "default locale", cfg.I18n.DefaultLocale, defaultLocale)
 	assertEqual(t, "fallback locale", cfg.I18n.FallbackLocale, defaultLocale)
 	assertStringSliceEqual(t, "supported locales", cfg.I18n.SupportedLocales, []string{defaultLocale, defaultSecondaryLocale})
@@ -735,6 +738,20 @@ func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) 
 			},
 			wantErr: "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS must be greater than zero",
 		},
+		{
+			name: "persist timeout",
+			mutate: func(cfg *Config) {
+				cfg.HTTPX.AccessLogPersistTimeoutMS = 0
+			},
+			wantErr: "GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be greater than zero",
+		},
+		{
+			name: "persist timeout exceeds duration range",
+			mutate: func(cfg *Config) {
+				cfg.HTTPX.AccessLogPersistTimeoutMS = maxDurationMilliseconds + 1
+			},
+			wantErr: "GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be no greater than 9223372036854",
+		},
 	}
 
 	for _, testCase := range tests {
@@ -744,6 +761,15 @@ func TestValidateRejectsInvalidAccessLogConsolePolicyAndThreshold(t *testing.T) 
 
 			assertValidateError(t, cfg, testCase.wantErr)
 		})
+	}
+}
+
+func TestValidateAcceptsMaximumAccessLogPersistTimeout(t *testing.T) {
+	cfg := validConfigForValidateTests()
+	cfg.HTTPX.AccessLogPersistTimeoutMS = maxDurationMilliseconds
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("validate maximum access log persist timeout: %v", err)
 	}
 }
 
@@ -963,8 +989,9 @@ func validConfigForValidateTests() *Config {
 			Addr: ":8080",
 		},
 		HTTPX: HTTPXConfig{
-			AccessLogConsole:         AccessLogConsoleAuto,
-			AccessLogSlowThresholdMS: 1000,
+			AccessLogConsole:          AccessLogConsoleAuto,
+			AccessLogSlowThresholdMS:  1000,
+			AccessLogPersistTimeoutMS: 1000,
 		},
 		Audit: AuditConfig{},
 		Log: LogConfig{

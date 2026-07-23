@@ -310,6 +310,13 @@ jobs:
           repository: ${{ github.repository }}
           missing-token-message: PAT_TOKEN is required to publish the Beta tag.
 
+      - name: Configure Git tag identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Create and push next Beta tag
         id: beta_tag
         shell: bash

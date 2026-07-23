@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -15,10 +16,7 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-const (
-	httpStatusBadRequest    = 400
-	accessLogPersistTimeout = 500 * time.Millisecond
-)
+const httpStatusBadRequest = 400
 
 func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, activeRequests *activeRequestTracker, options AccessLogOptions) gin.HandlerFunc {
 	if logger == nil {
@@ -65,7 +63,7 @@ func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, active
 		}
 		fields = append(fields, zap.Time("occurredAt", record.OccurredAt))
 
-		persistAccessLog(ctx, logger, repo, record)
+		persistAccessLog(ctx, logger, repo, record, options.PersistTimeout)
 		if shouldLogAccessToConsole(record, options) {
 			logAccess(logger, ctx.Writer.Status(), fields...)
 		}
@@ -82,6 +80,9 @@ func normalizeAccessLogOptions(options AccessLogOptions) AccessLogOptions {
 	}
 	if options.SlowThreshold <= 0 {
 		options.SlowThreshold = time.Second
+	}
+	if options.PersistTimeout <= 0 {
+		options.PersistTimeout = time.Second
 	}
 	return options
 }
@@ -137,21 +138,29 @@ func currentAccessLogConnectionType(ctx *gin.Context) AccessLogConnectionType {
 	return AccessLogConnectionTypeHTTP
 }
 
-// persistAccessLog 将访问日志记录持久化到仓储，并在持久化失败时记录错误。
-func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogRepository, record CreateAccessLogInput) {
+// persistAccessLog 将访问日志记录持久化到仓储；写入受独立 deadline 约束，失败不会改变原始 HTTP 响应。
+func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogRepository, record CreateAccessLogInput, timeout time.Duration) {
 	if repo == nil {
 		return
 	}
 
-	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx.Request.Context()), accessLogPersistTimeout)
+	startedAt := time.Now()
+	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx.Request.Context()), timeout)
 	defer cancel()
 
 	if _, err := repo.CreateAccessLog(persistCtx, record); err != nil {
+		failureType := "error"
+		if errors.Is(err, context.DeadlineExceeded) {
+			failureType = "timeout"
+		}
 		logsafe.Error(logger, "persist access log failed",
 			zap.String("requestId", record.RequestID),
 			zap.String("method", record.Method),
 			zap.String("path", record.Path),
 			zap.Int("statusCode", record.StatusCode),
+			zap.String("failureType", failureType),
+			zap.Duration("persistDuration", time.Since(startedAt)),
+			zap.Duration("persistTimeout", timeout),
 			zap.Error(err),
 		)
 	}
