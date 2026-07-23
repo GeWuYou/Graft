@@ -15,9 +15,10 @@ func readConfig(reader *viper.Viper) *Config {
 			Addr: reader.GetString("http.addr"),
 		},
 		HTTPX: HTTPXConfig{
-			AccessLogConsole:         AccessLogConsolePolicy(reader.GetString("access_log.console")),
-			AccessLogSlowThresholdMS: reader.GetInt64("access_log.slow_threshold_ms"),
-			WebSocketAllowedOrigins:  parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
+			AccessLogConsole:          AccessLogConsolePolicy(reader.GetString("access_log.console")),
+			AccessLogSlowThresholdMS:  reader.GetInt64("access_log.slow_threshold_ms"),
+			AccessLogPersistTimeoutMS: reader.GetInt64("access_log.persist_timeout_ms"),
+			WebSocketAllowedOrigins:   parseCommaSeparatedList(reader.GetString("httpx.websocket.allowed_origins")),
 		},
 		Audit: AuditConfig{},
 		Docs: DocsConfig{

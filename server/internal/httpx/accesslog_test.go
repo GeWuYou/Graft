@@ -19,13 +19,18 @@ import (
 )
 
 type stubAccessLogRepository struct {
-	created []CreateAccessLogInput
-	queries []AccessLogListQuery
-	results []AccessLogListResult
-	listErr error
+	created              []CreateAccessLogInput
+	queries              []AccessLogListQuery
+	results              []AccessLogListResult
+	listErr              error
+	waitForCreateContext bool
 }
 
-func (r *stubAccessLogRepository) CreateAccessLog(_ context.Context, input CreateAccessLogInput) (AccessLog, error) {
+func (r *stubAccessLogRepository) CreateAccessLog(ctx context.Context, input CreateAccessLogInput) (AccessLog, error) {
+	if r.waitForCreateContext {
+		<-ctx.Done()
+		return AccessLog{}, ctx.Err()
+	}
 	r.created = append(r.created, input)
 	return normalizeCreateAccessLogInput(input), nil
 }
@@ -239,6 +244,43 @@ func TestNewServerAppliesGlobalRequestIDAndAccessLog(t *testing.T) {
 	}
 	if repo.created[0].ResponseSize != nil && *repo.created[0].ResponseSize < 0 {
 		t.Fatalf("expected bounded response size when present, got %#v", repo.created[0].ResponseSize)
+	}
+}
+
+func TestAccessLogPersistenceTimeoutDoesNotChangeHTTPResponse(t *testing.T) {
+	core, recorded := observer.New(zapcore.ErrorLevel)
+	repo := &stubAccessLogRepository{waitForCreateContext: true}
+	server := NewServerWithOptions(zap.New(core), ServerOptions{
+		AccessLog: AccessLogOptions{
+			ConsolePolicy:  config.AccessLogConsoleNever,
+			SlowThreshold:  time.Second,
+			PersistTimeout: 10 * time.Millisecond,
+		},
+	}, repo)
+
+	server.Engine().GET("/healthz", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	server.Engine().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected original status %d, got %d", http.StatusNoContent, recorder.Code)
+	}
+	entries := recorded.All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one persistence error log, got %d", len(entries))
+	}
+	fields := entries[0].ContextMap()
+	if fields["failureType"] != "timeout" {
+		t.Fatalf("expected timeout failure type, got %#v", fields["failureType"])
+	}
+	if _, ok := fields["persistDuration"]; !ok {
+		t.Fatalf("expected persistence duration field, got %#v", fields)
+	}
+	if _, ok := fields["persistTimeout"]; !ok {
+		t.Fatalf("expected persistence timeout field, got %#v", fields)
 	}
 }
 

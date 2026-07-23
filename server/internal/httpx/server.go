@@ -47,8 +47,9 @@ type Server struct {
 
 // AccessLogOptions 配置 HTTP access log 持久化与进程日志输出策略。
 type AccessLogOptions struct {
-	ConsolePolicy config.AccessLogConsolePolicy
-	SlowThreshold time.Duration
+	ConsolePolicy  config.AccessLogConsolePolicy
+	SlowThreshold  time.Duration
+	PersistTimeout time.Duration
 }
 
 // ServerOptions 承载 NewServerWithOptions 使用的可选 HTTP runtime 行为。
@@ -64,8 +65,9 @@ type ServerOptions struct {
 func NewServer(logger *zap.Logger, repo ...AccessLogRepository) *Server {
 	return NewServerWithOptions(logger, ServerOptions{
 		AccessLog: AccessLogOptions{
-			ConsolePolicy: config.AccessLogConsoleAlways,
-			SlowThreshold: time.Second,
+			ConsolePolicy:  config.AccessLogConsoleAlways,
+			SlowThreshold:  time.Second,
+			PersistTimeout: time.Second,
 		},
 	}, repo...)
 }

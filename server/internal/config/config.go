@@ -68,8 +68,11 @@ const (
 	// EnvAccessLogConsole 是控制访问日志是否输出到进程日志的环境变量名。
 	EnvAccessLogConsole = "GRAFT_ACCESS_LOG_CONSOLE"
 	// EnvAccessLogSlowThresholdMS 是控制慢访问日志阈值的进程环境变量名。
-	EnvAccessLogSlowThresholdMS   = "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS"
-	defaultAccessLogSlowThreshold = 1000 * time.Millisecond
+	EnvAccessLogSlowThresholdMS = "GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS"
+	// EnvAccessLogPersistTimeoutMS 是控制访问日志持久化 deadline 的环境变量名。
+	EnvAccessLogPersistTimeoutMS   = "GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS"
+	defaultAccessLogSlowThreshold  = 1000 * time.Millisecond
+	defaultAccessLogPersistTimeout = 1000 * time.Millisecond
 )
 
 // LogFormat 描述 zap 输出使用的运行时编码格式。
@@ -158,9 +161,10 @@ type HTTPConfig struct {
 
 // HTTPXConfig 描述 core-owned httpx 运行时配置。
 type HTTPXConfig struct {
-	AccessLogConsole         AccessLogConsolePolicy
-	AccessLogSlowThresholdMS int64
-	WebSocketAllowedOrigins  []string
+	AccessLogConsole          AccessLogConsolePolicy
+	AccessLogSlowThresholdMS  int64
+	AccessLogPersistTimeoutMS int64
+	WebSocketAllowedOrigins   []string
 }
 
 // AuditConfig 预留 core 提供的审计启动配置边界。
@@ -383,6 +387,9 @@ func validateHTTPXConfig(c *Config) error {
 	}
 	if c.HTTPX.AccessLogSlowThresholdMS <= 0 {
 		return errors.New("GRAFT_ACCESS_LOG_SLOW_THRESHOLD_MS must be greater than zero")
+	}
+	if c.HTTPX.AccessLogPersistTimeoutMS <= 0 {
+		return errors.New("GRAFT_ACCESS_LOG_PERSIST_TIMEOUT_MS must be greater than zero")
 	}
 	c.HTTPX.WebSocketAllowedOrigins = normalizeStringList(c.HTTPX.WebSocketAllowedOrigins)
 	if err := validateWebSocketAllowedOrigins(c.HTTPX.WebSocketAllowedOrigins); err != nil {

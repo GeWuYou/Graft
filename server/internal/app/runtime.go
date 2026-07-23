@@ -285,8 +285,9 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		cacheManager: cacheManager,
 		server: httpx.NewServerWithOptions(runtimeLogger, httpx.ServerOptions{
 			AccessLog: httpx.AccessLogOptions{
-				ConsolePolicy: config.ResolveAccessLogConsolePolicy(cfg.App.Env, cfg.HTTPX.AccessLogConsole),
-				SlowThreshold: time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
+				ConsolePolicy:  config.ResolveAccessLogConsolePolicy(cfg.App.Env, cfg.HTTPX.AccessLogConsole),
+				SlowThreshold:  time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
+				PersistTimeout: time.Duration(cfg.HTTPX.AccessLogPersistTimeoutMS) * time.Millisecond,
 			},
 			I18n: localizer,
 		}, accessLogRepo),
