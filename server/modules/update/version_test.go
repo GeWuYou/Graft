@@ -61,14 +61,13 @@ func TestDetectInstallationProfile(t *testing.T) {
 			capability: "compose_upgrade_available",
 		},
 		{
-			name:       "binary with executable",
-			env:        map[string]string{declaredDeploymentModeEnv: "binary"},
+			name:       "binary with complete manual guidance",
+			env:        map[string]string{declaredDeploymentModeEnv: "binary", binaryWebRootEnv: "/var/www/graft", serviceManagerEnv: "manual"},
 			executable: func() (string, error) { return "/usr/local/bin/graft", nil },
-			capability: "manual_guidance_blocked",
-			blocked:    true,
+			capability: "manual_guidance",
 		},
 		{
-			name:       "binary without executable",
+			name:       "binary without complete manual guidance",
 			env:        map[string]string{},
 			executable: func() (string, error) { return "", errors.New("not available") },
 			capability: "manual_guidance_blocked",
