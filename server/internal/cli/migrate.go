@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"graft/server/internal/config"
+	"graft/server/internal/migrationcontract"
 	"graft/server/internal/moduleregistry"
 )
 
@@ -29,12 +31,18 @@ var migrateRegistryMigrationDirs = moduleregistry.MigrationDirs
 var migrateEmbeddedMigrationDirByPath = moduleregistry.EmbeddedMigrationDirByPath
 var migrateReadDir = os.ReadDir
 var migrateOpenExecutor = openAtlasExecutor
+var migrateSchemaContractRunner = runMigrationSchemaContract
 
 // migrateUpOptions 封装一次显式迁移执行所需的输入。
 type migrateUpOptions struct {
 	migrationDir string
 	workingDir   string
 	allowDirty   bool
+}
+
+type migrateCheckSchemaOptions struct {
+	format string
+	mode   string
 }
 
 type atlasExecutorHandle struct {
@@ -76,6 +84,19 @@ func newMigrateCommand() *cobra.Command {
 			return runMigrateValidate(migrateResolveOptions{migrationDir: migrationDir})
 		},
 	})
+
+	checkSchemaOptions := migrateCheckSchemaOptions{}
+	checkSchemaCommand := &cobra.Command{
+		Use:          "check-schema",
+		Short:        "Check PostgreSQL schema contracts from the system catalog",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runMigrateCheckSchema(cmd, checkSchemaOptions)
+		},
+	}
+	checkSchemaCommand.Flags().StringVar(&checkSchemaOptions.format, "format", "text", "output format: text or json")
+	checkSchemaCommand.Flags().StringVar(&checkSchemaOptions.mode, "mode", "enforce", "result mode: enforce or report")
+	command.AddCommand(checkSchemaCommand)
 
 	return command
 }
@@ -160,6 +181,75 @@ func runMigrateValidate(opts migrateResolveOptions) error {
 	}
 	if err := atlasmigrate.Validate(dir); err != nil {
 		return fmt.Errorf("validate migration dir: %w", err)
+	}
+	return nil
+}
+
+// runMigrateCheckSchema 输出 default migration chain 在 PostgreSQL 中形成的 catalog contract 结果。
+func runMigrateCheckSchema(cmd *cobra.Command, opts migrateCheckSchemaOptions) error { //nolint:cyclop // schema gate validates independent format, mode, config, output, and finding paths.
+	format := strings.TrimSpace(opts.format)
+	if format == "" {
+		format = "text"
+	}
+	if format != "text" && format != "json" {
+		return fmt.Errorf("unsupported schema check format %q: expected text or json", format)
+	}
+	mode := strings.TrimSpace(opts.mode)
+	if mode == "" {
+		mode = "enforce"
+	}
+	if mode != "enforce" && mode != "report" {
+		return fmt.Errorf("unsupported schema check mode %q: expected enforce or report", mode)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	result, err := migrateSchemaContractRunner(cmd.Context(), cfg.Database.URL)
+	if err != nil {
+		return fmt.Errorf("check migration schema contract: %w", err)
+	}
+	if err := writeMigrationSchemaContractResult(cmd, format, result); err != nil {
+		return err
+	}
+	if mode == "enforce" && result.HasEnforceFindings() {
+		return errors.New("migration schema contract has enforce findings")
+	}
+	return nil
+}
+
+func runMigrationSchemaContract(ctx context.Context, databaseURL string) (migrationcontract.Result, error) {
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		return migrationcontract.Result{}, fmt.Errorf("open postgres database pool: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	checker, err := migrationcontract.NewChecker(db)
+	if err != nil {
+		return migrationcontract.Result{}, err
+	}
+	return checker.Check(ctx)
+}
+
+func writeMigrationSchemaContractResult(cmd *cobra.Command, format string, result migrationcontract.Result) error {
+	if format == "json" {
+		encoded, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return fmt.Errorf("encode migration schema contract result: %w", err)
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(encoded))
+		return err
+	}
+	if len(result.Findings) == 0 {
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), "migration schema contract: ok")
+		return err
+	}
+	for _, finding := range result.Findings {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s: %s\n", finding.Severity, finding.ID, finding.Object, finding.Message); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 
+	"graft/server/internal/migrationcontract"
 	"graft/server/internal/moduleregistry"
 )
 
@@ -27,6 +29,7 @@ type migrateTestHooks struct {
 	embeddedMigrationDirByPath func(string) (moduleregistry.EmbeddedMigrationDir, bool)
 	readDir                    func(string) ([]os.DirEntry, error)
 	openExecutor               func(string, atlasmigrate.Dir, atlasmigrate.Logger, bool) (*atlasExecutorHandle, error)
+	schemaContractRunner       func(context.Context, string) (migrationcontract.Result, error)
 }
 
 func captureMigrateTestHooks() migrateTestHooks {
@@ -36,6 +39,7 @@ func captureMigrateTestHooks() migrateTestHooks {
 		embeddedMigrationDirByPath: migrateEmbeddedMigrationDirByPath,
 		readDir:                    migrateReadDir,
 		openExecutor:               migrateOpenExecutor,
+		schemaContractRunner:       migrateSchemaContractRunner,
 	}
 }
 
@@ -45,6 +49,7 @@ func (hooks migrateTestHooks) restore() {
 	migrateEmbeddedMigrationDirByPath = hooks.embeddedMigrationDirByPath
 	migrateReadDir = hooks.readDir
 	migrateOpenExecutor = hooks.openExecutor
+	migrateSchemaContractRunner = hooks.schemaContractRunner
 }
 
 func setMigrateCommandTestEnv(t *testing.T) {
@@ -1132,6 +1137,52 @@ func TestBuildAtlasMigrationDirSynthesizesDefaultChainWithoutCopiedAtlasSumFiles
 	}
 	if string(sumContent) != string(expectedSum) {
 		t.Fatalf("expected synthesized atlas.sum %q, got %q", expectedSum, string(sumContent))
+	}
+}
+
+func TestRunMigrateCheckSchemaWritesJSONAndBlocksEnforceFindings(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+	setMigrateCommandTestEnv(t)
+	migrateSchemaContractRunner = func(_ context.Context, databaseURL string) (migrationcontract.Result, error) {
+		if databaseURL != os.Getenv("GRAFT_DATABASE_URL") {
+			t.Fatalf("database URL = %q", databaseURL)
+		}
+		return migrationcontract.Result{Findings: []migrationcontract.Finding{{
+			ID: "migration.invalid_index", Severity: migrationcontract.SeverityEnforce, Object: "public.events.idx_events_broken",
+		}}}, nil
+	}
+	cmd := newSilentMigrateCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+
+	err := runMigrateCheckSchema(cmd, migrateCheckSchemaOptions{format: "json", mode: "enforce"})
+	if err == nil || !strings.Contains(err.Error(), "enforce findings") {
+		t.Fatalf("expected enforce findings error, got %v", err)
+	}
+	if !strings.Contains(output.String(), "migration.invalid_index") {
+		t.Fatalf("JSON output missing finding: %s", output.String())
+	}
+}
+
+func TestRunMigrateCheckSchemaReportModeDoesNotBlock(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+	setMigrateCommandTestEnv(t)
+	migrateSchemaContractRunner = func(context.Context, string) (migrationcontract.Result, error) {
+		return migrationcontract.Result{Findings: []migrationcontract.Finding{{
+			ID: "migration.constraint_name", Severity: migrationcontract.SeverityReport, Object: "public.events.events_pkey",
+		}}}, nil
+	}
+	cmd := newSilentMigrateCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+
+	if err := runMigrateCheckSchema(cmd, migrateCheckSchemaOptions{mode: "report"}); err != nil {
+		t.Fatalf("run report mode: %v", err)
+	}
+	if !strings.Contains(output.String(), "migration.constraint_name") {
+		t.Fatalf("text output missing report finding: %s", output.String())
 	}
 }
 

@@ -23,36 +23,6 @@ READINESS_ATTEMPTS = 30
 READINESS_DELAY_SECONDS = 1
 REQUIRED_STABLE_READINESS_CHECKS = 3
 
-COMPOSITE_FOREIGN_KEY_QUERY = """
-SELECT EXISTS (
-  SELECT 1
-  FROM pg_constraint AS foreign_key
-  JOIN pg_class AS relation ON relation.oid = foreign_key.conrelid
-  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-  WHERE namespace.nspname = current_schema()
-    AND relation.relname = 'task_external_receipts'
-    AND foreign_key.conname = 'task_external_receipts_task_stage_fkey'
-    AND foreign_key.contype = 'f'
-    AND pg_get_constraintdef(foreign_key.oid) LIKE
-      'FOREIGN KEY (task_id, stage_id) REFERENCES task_stages(task_id, id)%'
-);
-"""
-
-LEGACY_SINGLE_STAGE_FOREIGN_KEY_QUERY = """
-SELECT NOT EXISTS (
-  SELECT 1
-  FROM pg_constraint AS foreign_key
-  JOIN pg_class AS relation ON relation.oid = foreign_key.conrelid
-  JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-  WHERE namespace.nspname = current_schema()
-    AND relation.relname = 'task_external_receipts'
-    AND foreign_key.contype = 'f'
-    AND pg_get_constraintdef(foreign_key.oid) LIKE
-      'FOREIGN KEY (stage_id) REFERENCES task_stages(id)%'
-);
-"""
-
-
 @dataclass(frozen=True)
 class BootstrapTarget:
     container_name: str
@@ -142,33 +112,13 @@ def apply_migrations(target: BootstrapTarget) -> None:
     )
 
 
-def query_boolean(target: BootstrapTarget, query: str) -> bool:
+def check_schema_contract(target: BootstrapTarget) -> str:
     result = run_command(
-        [
-            "docker",
-            "exec",
-            target.container_name,
-            "psql",
-            "--tuples-only",
-            "--no-align",
-            "--set",
-            "ON_ERROR_STOP=1",
-            "--username",
-            POSTGRES_USER,
-            "--dbname",
-            POSTGRES_DATABASE,
-            "--command",
-            query,
-        ]
+        ["go", "run", "./cmd/graft", "migrate", "check-schema", "--mode", "enforce", "--format", "json"],
+        cwd=SERVER_DIR,
+        env=migration_environment(target),
     )
-    return result.stdout.strip() == "t"
-
-
-def assert_task_receipt_constraints(target: BootstrapTarget) -> None:
-    if not query_boolean(target, COMPOSITE_FOREIGN_KEY_QUERY):
-        raise RuntimeError("task_external_receipts composite task/stage foreign key is missing")
-    if not query_boolean(target, LEGACY_SINGLE_STAGE_FOREIGN_KEY_QUERY):
-        raise RuntimeError("task_external_receipts still has a legacy single-column stage foreign key")
+    return result.stdout
 
 
 def print_diagnostics(container_name: str) -> None:
@@ -191,6 +141,7 @@ def remove_postgres(container_name: str) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keep-container", action="store_true", help="retain the disposable PostgreSQL container for diagnosis")
+    parser.add_argument("--schema-report", type=Path, help="write the PostgreSQL catalog report to this path")
     return parser.parse_args()
 
 
@@ -202,7 +153,9 @@ def main() -> int:
         target = start_postgres(container_name)
         wait_for_postgres(target)
         apply_migrations(target)
-        assert_task_receipt_constraints(target)
+        schema_report = check_schema_contract(target)
+        if args.schema_report is not None:
+            args.schema_report.write_text(schema_report, encoding="utf-8")
     except (CommandError, RuntimeError) as error:
         print(f"migration bootstrap failed: {error}", file=sys.stderr)
         print_diagnostics(container_name)

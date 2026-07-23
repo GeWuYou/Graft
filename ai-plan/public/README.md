@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `migration-governance`
+  - Recovery entry: `ai-plan/public/migration-governance/README.md`
+
 - `docker-resource-context-ia`
   - Recovery entry: `ai-plan/public/docker-resource-context-ia/README.md`
 
