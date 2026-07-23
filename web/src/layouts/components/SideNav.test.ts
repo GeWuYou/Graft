@@ -57,6 +57,15 @@ vi.mock('@/layouts/useShellNavigation', () => ({
   }),
 }));
 
+vi.mock('@/modules/update', () => ({
+  updateVersionEntry: defineComponent({
+    name: 'UpdateVersionEntryStub',
+    setup() {
+      return () => h('div');
+    },
+  }),
+}));
+
 vi.mock('@/locales', () => ({
   t: (key: string) => key,
 }));
