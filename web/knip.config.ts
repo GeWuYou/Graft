@@ -14,6 +14,10 @@ const config: KnipConfig = {
     // pre-commit 直接通过 node_modules/.bin/lint-staged 调用，Knip 无法从 shell hook 静态追踪到该依赖。
     'lint-staged',
   ],
+  ignore: [
+    // 该路由只由 Vite development alias 装配；release alias 故意替换为空模块，Knip 无法解析该构建期分支。
+    'src/router/development-routes.development.ts',
+  ],
 };
 
 export default config;
