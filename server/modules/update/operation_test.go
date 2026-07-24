@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -219,6 +220,47 @@ func TestSettleAvailableReceiptsCleansRunnerOnlyAfterSuccessfulSettlement(t *tes
 	}
 }
 
+func TestReceiptPollingCloseCancelsAndWaitsForReader(t *testing.T) {
+	launcher := &blockingReceiptReaderLauncher{started: make(chan struct{}), closed: make(chan struct{})}
+	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, launcher)
+	rollout.receiptPollEvery = time.Millisecond
+	rollout.StartReceiptPolling(t.Context())
+	select {
+	case <-launcher.started:
+	case <-time.After(time.Second):
+		t.Fatal("receipt polling did not start")
+	}
+	if err := rollout.Close(); err != nil {
+		t.Fatalf("close rollout: %v", err)
+	}
+	select {
+	case <-launcher.closed:
+	default:
+		t.Fatal("launcher was closed before polling reader exited")
+	}
+	rollout.StartReceiptPolling(t.Context())
+}
+
+func TestReceiptPollingStartAndCloseAreSafeConcurrently(t *testing.T) {
+	launcher := &blockingReceiptReaderLauncher{started: make(chan struct{}), closed: make(chan struct{})}
+	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, launcher)
+	rollout.receiptPollEvery = time.Millisecond
+	var group sync.WaitGroup
+	for range 8 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			rollout.StartReceiptPolling(t.Context())
+		}()
+	}
+	group.Add(1)
+	go func() {
+		defer group.Done()
+		_ = rollout.Close()
+	}()
+	group.Wait()
+}
+
 func TestSettleReceiptWithoutCleanupInterfaceDoesNotRequireRunnerCleanup(t *testing.T) {
 	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
 		"update-85": {OperationID: "update-85", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 85, Outcome: ExecutionOutcomeSuccess},
@@ -392,6 +434,35 @@ func (*recordingLauncher) Close() error { return nil }
 type receiptReaderCleanupLauncher struct {
 	receipts []RunnerReceipt
 	removed  []string
+}
+
+type blockingReceiptReaderLauncher struct {
+	mu      sync.Mutex
+	started chan struct{}
+	closed  chan struct{}
+}
+
+func (*blockingReceiptReaderLauncher) Launch(context.Context, RunnerInput) error { return nil }
+func (l *blockingReceiptReaderLauncher) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	select {
+	case <-l.closed:
+	default:
+		close(l.closed)
+	}
+	return nil
+}
+func (l *blockingReceiptReaderLauncher) ReadRunnerReceipts(ctx context.Context) ([]RunnerReceipt, error) {
+	l.mu.Lock()
+	select {
+	case <-l.started:
+	default:
+		close(l.started)
+	}
+	l.mu.Unlock()
+	<-ctx.Done()
+	return nil, ctx.Err()
 }
 
 func (*receiptReaderCleanupLauncher) Launch(context.Context, RunnerInput) error { return nil }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -25,10 +26,21 @@ type RolloutService struct {
 	launcher          ComposeRunnerLauncher
 	newOperation      func() string
 	auditBus          eventbus.Bus
+	receiptPollMu     sync.Mutex
 	receiptPollCancel context.CancelFunc
+	receiptPollDone   chan struct{}
+	receiptPollClosed bool
+	receiptPollEvery  time.Duration
 }
 
 const receiptPollInterval = 15 * time.Second
+
+type receiptPolling struct {
+	reader   ComposeRunnerReceiptReader
+	ctx      context.Context
+	done     chan struct{}
+	interval time.Duration
+}
 
 var (
 	errRolloutInvalidArgument = errors.New("compose update request is invalid")
@@ -105,9 +117,18 @@ func (s *RolloutService) Close() error {
 	if s == nil {
 		return nil
 	}
-	if s.receiptPollCancel != nil {
-		s.receiptPollCancel()
-		s.receiptPollCancel = nil
+	s.receiptPollMu.Lock()
+	s.receiptPollClosed = true
+	cancel := s.receiptPollCancel
+	done := s.receiptPollDone
+	s.receiptPollCancel = nil
+	s.receiptPollDone = nil
+	s.receiptPollMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if done != nil {
+		<-done
 	}
 	if s.launcher == nil {
 		return nil
@@ -115,33 +136,62 @@ func (s *RolloutService) Close() error {
 	return s.launcher.Close()
 }
 
-// StartReceiptPolling 在 server 重建后持续读取保留 runner 的日志回执，直到生命周期关闭。
+// StartReceiptPolling 在 server 重建后持续读取保留 runner 的日志回执。
+// 当 service、launcher 或 receipt reader 不可用，或 service 已关闭时，此方法无副作用；否则会启动一个后台
+// goroutine，按固定间隔读取并结算回执。调用 Close 会取消 polling context，并等待该 goroutine 退出后再关闭 launcher。
+// 传入 ctx 被取消时，后台 goroutine 也会随之退出。
 func (s *RolloutService) StartReceiptPolling(ctx context.Context) {
-	if s == nil || s.receiptPollCancel != nil {
-		return
-	}
-	reader, ok := s.launcher.(ComposeRunnerReceiptReader)
+	polling, ok := s.prepareReceiptPolling(ctx)
 	if !ok {
 		return
 	}
-	pollCtx, cancel := context.WithCancel(ctx)
-	s.receiptPollCancel = cancel
 	go func() {
-		ticker := time.NewTicker(receiptPollInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-pollCtx.Done():
-				return
-			case <-ticker.C:
-				if receipts, err := reader.ReadRunnerReceipts(pollCtx); err == nil {
-					for _, receipt := range receipts {
-						_, _ = s.settleReceiptAndCleanup(pollCtx, receipt)
-					}
+		s.runReceiptPolling(polling.ctx, polling)
+	}()
+}
+
+func (s *RolloutService) prepareReceiptPolling(ctx context.Context) (receiptPolling, bool) {
+	if s == nil {
+		return receiptPolling{}, false
+	}
+	reader, ok := s.launcher.(ComposeRunnerReceiptReader)
+	if !ok {
+		return receiptPolling{}, false
+	}
+	pollCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	s.receiptPollMu.Lock()
+	if s.receiptPollClosed || s.receiptPollCancel != nil {
+		s.receiptPollMu.Unlock()
+		cancel()
+		return receiptPolling{}, false
+	}
+	s.receiptPollCancel = cancel
+	s.receiptPollDone = done
+	pollEvery := s.receiptPollEvery
+	if pollEvery <= 0 {
+		pollEvery = receiptPollInterval
+	}
+	s.receiptPollMu.Unlock()
+	return receiptPolling{reader: reader, ctx: pollCtx, done: done, interval: pollEvery}, true
+}
+
+func (s *RolloutService) runReceiptPolling(ctx context.Context, polling receiptPolling) {
+	defer close(polling.done)
+	ticker := time.NewTicker(polling.interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if receipts, err := polling.reader.ReadRunnerReceipts(ctx); err == nil {
+				for _, receipt := range receipts {
+					_, _ = s.settleReceiptAndCleanup(ctx, receipt)
 				}
 			}
 		}
-	}()
+	}
 }
 
 func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput) error {
