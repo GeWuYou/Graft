@@ -6,11 +6,16 @@ import (
 	"testing"
 
 	"graft/server/internal/moduleapi"
+	updatecontract "graft/server/modules/update/contract"
 )
 
 type updateAuthorizerStub struct{ err error }
 
-func (s updateAuthorizerStub) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, _ string) error {
+func (s updateAuthorizerStub) Authorize(_ context.Context, _ moduleapi.RequestAuthContext, permission string) error {
+	if permission != updatecontract.UpdateManagePermission.String() {
+		panic("unexpected update authorizer permission: " + permission)
+	}
+
 	return s.err
 }
 

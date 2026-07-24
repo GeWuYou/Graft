@@ -13,9 +13,16 @@ export function useUpdatePreviewActions(visible: Ref<boolean>, centerPath: strin
   const router = useRouter();
   const permissionStore = usePermissionStore();
   const discoveryStore = useUpdateDiscoveryStore();
-  const canStartUpgrade = computed(() =>
-    isUpgradeEligible(discoveryStore.status, permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE)),
-  );
+  const canStartUpgrade = computed(() => {
+    const status = discoveryStore.status;
+    const installationProfile = status?.installation_profile;
+
+    return (
+      isUpgradeEligible(status, permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE)) &&
+      (installationProfile?.compose_root_source !== 'docker_discovered' ||
+        (installationProfile.compose_candidates?.length ?? 0) > 0)
+    );
+  });
 
   function openManagement() {
     visible.value = false;

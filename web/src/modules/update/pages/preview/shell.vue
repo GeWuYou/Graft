@@ -19,7 +19,10 @@
 </template>
 <script setup lang="ts">
 // 开发预览壳复用正式侧栏和版本卡片，但只提供内存更新状态与开发路由。
+import { onUnmounted } from 'vue';
+
 import SideNav from '@/layouts/components/SideNav.vue';
+import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { usePermissionStore } from '@/store';
 import { localizeRouteTitleKey } from '@/utils/route/title';
 import type { MenuRoute } from '@/utils/types';
@@ -32,11 +35,34 @@ const UPDATE_MOCK_CENTER_PATH = '/mock/platform/updates';
 
 const permissionStore = usePermissionStore();
 const discoveryStore = useUpdateDiscoveryStore();
+const previousBootstrapSnapshot = permissionStore.bootstrapSnapshot;
+const previousDiscoveryState = { ...discoveryStore.$state };
 
-permissionStore.setBootstrapSnapshot({
+const previewBootstrapSnapshot: BootstrapResponse = {
+  user: {
+    id: 0,
+    username: 'preview',
+    display_name: 'Preview User',
+  },
+  must_change_password: false,
+  roles: ['preview'],
   permissions: [UPDATE_PERMISSION_CODE.READ, UPDATE_PERMISSION_CODE.MANAGE],
-} as never);
+  menus: [],
+  locale: {
+    current_locale: 'en-US',
+    default_locale: 'en-US',
+    fallback_locale: 'en-US',
+    supported_locales: ['en-US'],
+  },
+};
+
+permissionStore.setBootstrapSnapshot(previewBootstrapSnapshot);
 discoveryStore.replaceSnapshot(updateCenterPreviewStatus);
+
+onUnmounted(() => {
+  permissionStore.setBootstrapSnapshot(previousBootstrapSnapshot);
+  discoveryStore.$patch(previousDiscoveryState);
+});
 
 const menu: MenuRoute[] = [
   {

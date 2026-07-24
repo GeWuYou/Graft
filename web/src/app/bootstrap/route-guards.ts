@@ -16,7 +16,8 @@ import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 
 NProgress.configure({ showSpinner: false });
 
-const DEVELOPMENT_PREVIEW_PATH_PREFIX = '/mock/';
+const DEVELOPMENT_PREVIEW_PATH = '/mock';
+const DEVELOPMENT_PREVIEW_PATH_PREFIX = `${DEVELOPMENT_PREVIEW_PATH}/`;
 
 /**
  * 判断目标路由是否与来源路由处于同一导航状态。
@@ -85,7 +86,10 @@ export function registerRouteGuards(targetRouter: Router = router) {
     const { whiteListRouters } = permissionStore;
 
     // 预览路由只在 Vite 开发构建注册，并在进入认证流程前短路，避免本地 UI 验收依赖后端会话。
-    if (import.meta.env.DEV && to.path.startsWith(DEVELOPMENT_PREVIEW_PATH_PREFIX)) {
+    if (
+      import.meta.env.DEV &&
+      (to.path === DEVELOPMENT_PREVIEW_PATH || to.path.startsWith(DEVELOPMENT_PREVIEW_PATH_PREFIX))
+    ) {
       next();
       return;
     }

@@ -8,6 +8,7 @@ import { usePermissionStore } from '@/store';
 import { createUpdateOperation } from '../../api/update';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
+import type { UpdateCenterDataSource } from '../../types/preview';
 import UpdateCenter from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({ createUpdateOperation: vi.fn(), getUpdateOperations: vi.fn() }));
@@ -71,8 +72,9 @@ const status = (candidates: Array<Record<string, unknown>>) =>
     check_error: '',
   }) as never;
 
-function mountCenter() {
+function mountCenter(dataSource?: UpdateCenterDataSource) {
   return mount(UpdateCenter, {
+    props: { dataSource },
     global: {
       stubs: {
         't-alert': alertStub,
@@ -155,5 +157,42 @@ describe('UpdateCenter', () => {
     await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
     expect(wrapper.get('[data-testid="update-confirmation-submit"]').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('update.center.composeRoot.selectionRequired');
+  });
+
+  it('uses the injected data source for status, refresh, history, and upgrade submission', async () => {
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi
+        .fn()
+        .mockResolvedValue(
+          status([{ key: 'preview', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+        ),
+      checkForUpdates: vi
+        .fn()
+        .mockResolvedValue(
+          status([{ key: 'preview', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+        ),
+      getOperations: vi.fn().mockResolvedValue([]),
+      createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation' }),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    expect(dataSource.getStatus).toHaveBeenCalledOnce();
+    expect(dataSource.getOperations).toHaveBeenCalledOnce();
+
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    expect(dataSource.checkForUpdates).toHaveBeenCalledOnce();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(dataSource.createOperation).toHaveBeenCalledWith({
+      target_version: '1.1.0',
+      compose_candidate_key: 'preview',
+    });
+    expect(dataSource.getOperations).toHaveBeenCalledTimes(3);
   });
 });
