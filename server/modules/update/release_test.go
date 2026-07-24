@@ -10,7 +10,7 @@ import (
 )
 
 func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
-	manifest := []byte(`{"release_tag":"v1.2.3","version":"1.2.3","channel":"stable","release_notes_url":"https://github.com/owner/repo/releases/tag/v1.2.3","upgrade_notes":"Read the release notes.","minimum_source_version":"1.0.0","artifacts":{"server":"server.tar.gz","web":"web.tar.gz","checksums":"checksums.txt","sha256":{"server.tar.gz":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","web.tar.gz":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},"images":{"server":{"image":"ghcr.io/gewuyou/graft-server","digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","reference":"ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"web":{"image":"ghcr.io/gewuyou/graft-web","digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},"runners":{"compose":{"image":"ghcr.io/gewuyou/graft-updater","digest":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","reference":"ghcr.io/gewuyou/graft-updater@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}}`)
+	manifest := []byte(`{"release_tag":"v1.2.3","version":"1.2.3","channel":"stable","release_notes_url":"https://github.com/owner/repo/releases/tag/v1.2.3","upgrade_notes":"Read the release notes.","minimum_source_version":"1.0.0","artifacts":{"server":"server.tar.gz","web":"web.tar.gz","checksums":"checksums.txt","sha256":{"server.tar.gz":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","web.tar.gz":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},"images":{"server":{"image":"ghcr.io/gewuyou/graft-server","digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","reference":"ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"web":{"image":"ghcr.io/gewuyou/graft-web","digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},"runners":{"compose":{"image":"ghcr.io/gewuyou/graft-compose-runner","digest":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","reference":"ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}}`)
 	checksum := fmt.Sprintf("%x  release-manifest.json\n", sha256.Sum256(manifest))
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -32,7 +32,7 @@ func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list releases: %v", err)
 	}
-	if len(releases) != 1 || releases[0].RunnerRef != "ghcr.io/gewuyou/graft-updater@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" || releases[0].NotesURL == "" || releases[0].AssetSHA256["server.tar.gz"] == "" {
+	if len(releases) != 1 || releases[0].RunnerRef != "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" || releases[0].NotesURL == "" || releases[0].AssetSHA256["server.tar.gz"] == "" {
 		t.Fatalf("unexpected releases: %#v", releases)
 	}
 }
@@ -44,7 +44,7 @@ func TestValidReleaseManifestRejectsMissingRunner(t *testing.T) {
 }
 
 func TestValidImageIdentityRejectsMutableTag(t *testing.T) {
-	if validImageIdentity("ghcr.io/gewuyou/graft-updater:latest", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "ghcr.io/gewuyou/graft-updater:latest@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc") {
+	if validImageIdentity("ghcr.io/gewuyou/graft-compose-runner:latest", "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "ghcr.io/gewuyou/graft-compose-runner:latest@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc") {
 		t.Fatal("expected mutable image tag rejection")
 	}
 }

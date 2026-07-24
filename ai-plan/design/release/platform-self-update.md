@@ -27,7 +27,7 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
     "web": { "image": "ghcr.io/<owner>/graft-web", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-web@sha256:..." }
   },
   "runners": {
-    "compose": { "image": "ghcr.io/<owner>/graft-updater", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-updater@sha256:..." }
+    "compose": { "image": "ghcr.io/<owner>/graft-compose-runner", "digest": "sha256:...", "reference": "ghcr.io/<owner>/graft-compose-runner@sha256:..." }
   },
   "artifacts": {
     "server": "graft-server-linux-amd64-v0.10.0-beta.1.tar.gz",

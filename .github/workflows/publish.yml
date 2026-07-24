@@ -188,7 +188,7 @@ jobs:
           owner_lc="$(printf '%s' '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
           server_image="ghcr.io/${owner_lc}/graft-server"
           web_image="ghcr.io/${owner_lc}/graft-web"
-          runner_image="ghcr.io/${owner_lc}/graft-updater"
+          runner_image="ghcr.io/${owner_lc}/graft-compose-runner"
           echo "owner_lc=${owner_lc}" >> "${GITHUB_OUTPUT}"
           echo "server_image=${server_image}" >> "${GITHUB_OUTPUT}"
           echo "web_image=${web_image}" >> "${GITHUB_OUTPUT}"
@@ -324,10 +324,10 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
-          tags: graft-release-updater:${{ github.run_id }}
+          tags: graft-release-runner:${{ github.run_id }}
           labels: ${{ steps.runner_meta.outputs.labels }}
-          cache-from: type=gha,scope=graft-updater-image
-          cache-to: type=gha,mode=max,scope=graft-updater-image
+          cache-from: type=gha,scope=graft-compose-runner-image
+          cache-to: type=gha,mode=max,scope=graft-compose-runner-image
 
       - name: Run Compose smoke against local images
         env:
@@ -378,7 +378,7 @@ jobs:
 
           publish_local_image "graft-release-server:${{ github.run_id }}" "${SERVER_TAGS}"
           publish_local_image "graft-release-web:${{ github.run_id }}" "${WEB_TAGS}"
-          publish_local_image "graft-release-updater:${{ github.run_id }}" "${RUNNER_TAGS}"
+          publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
 
           server_digest="$(docker buildx imagetools inspect "${SERVER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
           web_digest="$(docker buildx imagetools inspect "${WEB_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
