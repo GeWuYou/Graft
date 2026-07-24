@@ -105,7 +105,7 @@ const statusUnavailable = computed(
   () => previewCheckFailed.value || Boolean(discoveryStore.status?.cache_stale || discoveryStore.status?.check_error),
 );
 const releaseUrl = computed(() => discoveryStore.status?.latest?.notes_url?.trim() ?? '');
-const canViewRelease = computed(() => hasAvailableRelease.value && Boolean(releaseUrl.value));
+const canViewRelease = computed(() => hasAvailableRelease.value && /^https:\/\//i.test(releaseUrl.value));
 const tooltip = computed(() =>
   discoveryStore.hasUpdate
     ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
@@ -121,6 +121,7 @@ const summary = computed(
 watch(
   visible,
   (isVisible) => {
+    // 使用 sync 确保弹窗打开时立即复用预览缓存或发起检查；手动刷新仍由 refreshStatus 负责强制更新。
     if (!isVisible || !canCheck.value) {
       return;
     }

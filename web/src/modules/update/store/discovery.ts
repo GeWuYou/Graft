@@ -94,6 +94,7 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
       }
     },
     async refreshPreviewSnapshot() {
+      // 预览入口共享请求 Promise；短 TTL 只复用没有 stale/error 标记的快照，实际刷新仍统一走 refreshSnapshot。
       if (this.previewRequestPromise) {
         return this.previewRequestPromise;
       }

@@ -139,7 +139,7 @@ describe('UpdateVersionEntry', () => {
     const releaseButton = wrapper.get('[data-testid="update-preview-release"]');
     expect(releaseButton.attributes('href')).toBe('https://github.com/GeWuYou/Graft/releases/tag/v1.1.0');
     expect(releaseButton.attributes('target')).toBe('_blank');
-    expect(releaseButton.attributes('disabled')).not.toBe('true');
+    expect(releaseButton.attributes('disabled')).not.toBe('');
   });
 
   it('keeps the dev version visible, disables release navigation, and allows retry after failure', async () => {

@@ -234,14 +234,12 @@ jobs:
               tag_lines="$(cat <<EOF
           type=raw,value=${RELEASE_VERSION}
           type=raw,value=${RELEASE_REF_NAME}
-          type=raw,value=latest
           EOF
           )"
               ;;
             beta)
               tag_lines="$(cat <<EOF
           type=raw,value=${RELEASE_REF_NAME}
-          type=raw,value=beta
           EOF
           )"
               ;;
@@ -397,18 +395,24 @@ jobs:
           RELEASE_REF_NAME: ${{ github.ref_name }}
           RELEASE_VERSION: ${{ needs.build-artifacts.outputs.version }}
           RELEASE_CHANNEL: ${{ needs.build-artifacts.outputs.channel }}
+          SERVER_IMAGE: ${{ steps.image_vars.outputs.server_image }}
+          SERVER_DIGEST: ${{ steps.publish_release_images.outputs.server_digest }}
+          WEB_IMAGE: ${{ steps.image_vars.outputs.web_image }}
+          WEB_DIGEST: ${{ steps.publish_release_images.outputs.web_digest }}
+          RUNNER_IMAGE: ${{ steps.image_vars.outputs.runner_image }}
+          RUNNER_DIGEST: ${{ steps.publish_release_images.outputs.runner_digest }}
         run: |
           set -euo pipefail
           mkdir -p image-assets
           cat > "image-assets/graft-container-images-${RELEASE_REF_NAME}.txt" <<EOF
-          server_image=${{ steps.image_vars.outputs.server_image }}
+          server_image=${SERVER_IMAGE}
           server_tag=${RELEASE_REF_NAME}
-          server_digest=${{ steps.publish_release_images.outputs.server_digest }}
-          web_image=${{ steps.image_vars.outputs.web_image }}
+          server_digest=${SERVER_DIGEST}
+          web_image=${WEB_IMAGE}
           web_tag=${RELEASE_REF_NAME}
-          web_digest=${{ steps.publish_release_images.outputs.web_digest }}
-          runner_image=${{ steps.image_vars.outputs.runner_image }}
-          runner_digest=${{ steps.publish_release_images.outputs.runner_digest }}
+          web_digest=${WEB_DIGEST}
+          runner_image=${RUNNER_IMAGE}
+          runner_digest=${RUNNER_DIGEST}
           EOF
 
           # This is the machine-readable release authority consumed by self-update.
@@ -425,12 +429,12 @@ jobs:
             --arg releaseTag "${RELEASE_REF_NAME}" \
             --arg releaseNotesURL "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_REF_NAME}" \
             --arg upgradeNotes "Review the GitHub Release Notes and perform the manifest-declared migration before runtime startup." \
-            --arg serverImage "${{ steps.image_vars.outputs.server_image }}" \
-            --arg serverDigest "${{ steps.publish_release_images.outputs.server_digest }}" \
-            --arg webImage "${{ steps.image_vars.outputs.web_image }}" \
-            --arg webDigest "${{ steps.publish_release_images.outputs.web_digest }}" \
-            --arg runnerImage "${{ steps.image_vars.outputs.runner_image }}" \
-            --arg runnerDigest "${{ steps.publish_release_images.outputs.runner_digest }}" \
+            --arg serverImage "${SERVER_IMAGE}" \
+            --arg serverDigest "${SERVER_DIGEST}" \
+            --arg webImage "${WEB_IMAGE}" \
+            --arg webDigest "${WEB_DIGEST}" \
+            --arg runnerImage "${RUNNER_IMAGE}" \
+            --arg runnerDigest "${RUNNER_DIGEST}" \
             --arg serverArtifact "${server_asset}" \
             --arg webArtifact "${web_asset}" \
             --arg checksums "${checksums_asset}" \
@@ -862,3 +866,36 @@ jobs:
             echo "- Cleanup: deleted failed pre-Release tag \`${RELEASE_TAG}\`."
             echo "- Cleanup scope: Git tag only; GHCR package versions require separate registry cleanup."
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  publish-mutable-tags:
+    name: Publish Mutable Container Tags
+    runs-on: ubuntu-latest
+    needs:
+      - create-release
+      - publish-images
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish channel tag after release creation
+        env:
+          RELEASE_CHANNEL: ${{ needs.publish-images.outputs.is_prerelease && 'beta' || 'latest' }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+          SERVER_IMAGE: ${{ needs.publish-images.outputs.server_image }}
+          WEB_IMAGE: ${{ needs.publish-images.outputs.web_image }}
+          RUNNER_IMAGE: ${{ needs.publish-images.outputs.runner_image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for image in "${SERVER_IMAGE}" "${WEB_IMAGE}" "${RUNNER_IMAGE}"; do
+            docker buildx imagetools create --tag "${image}:${RELEASE_CHANNEL}" "${image}:${RELEASE_REF_NAME}"
+          done

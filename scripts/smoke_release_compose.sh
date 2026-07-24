@@ -29,11 +29,14 @@ mkdir -p "${log_dir}" "${workspace}/apps"
 cp compose.yml compose.smoke.yml "${workspace}/"
 docker image inspect "${server_image}:${image_tag}" >/dev/null
 docker image inspect "${web_image}:${image_tag}" >/dev/null
+server_image_id="$(docker image inspect "${server_image}:${image_tag}" --format '{{.Id}}')"
+web_image_id="$(docker image inspect "${web_image}:${image_tag}" --format '{{.Id}}')"
 
 cat > "${workspace}/.env" <<EOF
-GRAFT_SERVER_IMAGE=${server_image}
-GRAFT_WEB_IMAGE=${web_image}
-GRAFT_IMAGE_TAG=${image_tag}
+GRAFT_SERVER_IMAGE_REPOSITORY=${server_image}
+GRAFT_SERVER_IMAGE_DIGEST=${server_image_id}
+GRAFT_WEB_IMAGE_REPOSITORY=${web_image}
+GRAFT_WEB_IMAGE_DIGEST=${web_image_id}
 COMPOSE_FILE_DIR=${workspace}
 POSTGRES_DB=graft
 POSTGRES_USER=graft
