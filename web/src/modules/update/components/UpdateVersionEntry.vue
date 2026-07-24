@@ -25,7 +25,9 @@
               :loading="checking"
               @click.stop="refreshStatus"
             >
-              <refresh-icon />
+              <template #icon>
+                <refresh-icon />
+              </template>
             </t-button>
           </t-tooltip>
         </header>
@@ -52,6 +54,15 @@
         </template>
         <footer class="update-version-preview__actions">
           <t-button
+            v-if="hasAvailableRelease"
+            data-testid="update-preview-detail"
+            size="small"
+            variant="text"
+            @click.stop="releaseDetailVisible = true"
+          >
+            {{ t('update.preview.detail.open') }}
+          </t-button>
+          <t-button
             data-testid="update-preview-release"
             size="small"
             variant="text"
@@ -70,9 +81,13 @@
       </section>
     </template>
   </t-popup>
+  <update-release-detail-dialog
+    v-model:visible="releaseDetailVisible"
+    :release="discoveryStore.status?.latest ?? null"
+  />
 </template>
 <script setup lang="ts">
-// 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口。
+// 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口；详情正文交给模块弹窗渲染。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
@@ -83,6 +98,7 @@ import { usePermissionStore } from '@/store';
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
+import UpdateReleaseDetailDialog from './UpdateReleaseDetailDialog.vue';
 
 const { t } = useI18n();
 const permissionStore = usePermissionStore();
@@ -91,6 +107,7 @@ const visible = ref(false);
 const checking = ref(false);
 const previewOpened = ref(false);
 const previewCheckFailed = ref(false);
+const releaseDetailVisible = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
