@@ -21,7 +21,7 @@ post:
   tags: [platform-update]
   summary: Confirm and start an official Compose update
   operationId: postPlatformUpdateOperation
-  description: Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and accepts only an opaque Compose root candidate key when Docker discovery is active; it never accepts commands, image references, or host paths from the request.
+  description: Starts a one-shot digest-pinned runner only for the currently verified target release. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
@@ -37,7 +37,7 @@ post:
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-update-operation.yaml }
-    '400': { description: Invalid confirmation or request payload. }
+    '400': { description: Invalid target version or request payload. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '409': { description: The installation profile or current release does not permit execution. }

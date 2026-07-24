@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import { APP_RESULT_ROUTE_NAME, APP_RESULT_ROUTE_PATH } from '@/contracts/app/routes';
 import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
+import { developmentRouterList } from '@/router/development-routes';
 import { PAGE_NOT_FOUND_ROUTE } from '@/utils/route/constant';
 import { localizeRouteTitle } from '@/utils/route/title';
 
@@ -13,7 +14,6 @@ const ROOT_ENTRY_TITLE_KEY = 'app.home.title';
 const ROOT_ENTRY_TITLE = localizeRouteTitle('Workspace', ROOT_ENTRY_TITLE_KEY);
 const RESTRICTED_SESSION_ROUTE_NAME = AUTH_ROUTE_NAME.RESTRICTED_SESSION;
 const RESTRICTED_SESSION_PATH = AUTH_ROUTE_PATH.RESTRICTED_SESSION;
-
 const exceptionRouterList: Array<RouteRecordRaw> = [
   {
     path: APP_RESULT_ROUTE_PATH.FORBIDDEN,
@@ -82,6 +82,7 @@ const exceptionRouterList: Array<RouteRecordRaw> = [
 ];
 
 const defaultRouterList: Array<RouteRecordRaw> = [
+  ...developmentRouterList,
   {
     path: AUTH_ROUTE_PATH.LOGIN,
     name: AUTH_ROUTE_NAME.LOGIN,

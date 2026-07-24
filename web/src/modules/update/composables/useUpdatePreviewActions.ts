@@ -9,22 +9,29 @@ import { useUpdateDiscoveryStore } from '../store/discovery';
 import { isUpgradeEligible } from './updateEligibility';
 
 /** 统一壳层更新入口的升级权限判定和导航，关闭各自的浮层后才进入更新中心。 */
-export function useUpdatePreviewActions(visible: Ref<boolean>) {
+export function useUpdatePreviewActions(visible: Ref<boolean>, centerPath: string = UPDATE_ROUTE_PATH.CENTER) {
   const router = useRouter();
   const permissionStore = usePermissionStore();
   const discoveryStore = useUpdateDiscoveryStore();
-  const canStartUpgrade = computed(() =>
-    isUpgradeEligible(discoveryStore.status, permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE)),
-  );
+  const canStartUpgrade = computed(() => {
+    const status = discoveryStore.status;
+    const installationProfile = status?.installation_profile;
+
+    return (
+      isUpgradeEligible(status, permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE)) &&
+      (installationProfile?.compose_root_source !== 'docker_discovered' ||
+        (installationProfile.compose_candidates?.length ?? 0) > 0)
+    );
+  });
 
   function openManagement() {
     visible.value = false;
-    void router.push(UPDATE_ROUTE_PATH.CENTER);
+    void router.push(centerPath);
   }
 
   function startUpgrade() {
     visible.value = false;
-    void router.push({ path: UPDATE_ROUTE_PATH.CENTER, query: { upgrade: '1' } });
+    void router.push({ path: centerPath, query: { upgrade: '1' } });
   }
 
   return { canStartUpgrade, openManagement, startUpgrade };

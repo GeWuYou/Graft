@@ -35,7 +35,7 @@ describe('platform update api', () => {
     expect(requestPost).toHaveBeenCalledWith({ url: UPDATE_API_PATH.CHECK });
   });
 
-  it('uses the canonical operation collection for history and exact confirmation', async () => {
+  it('uses the canonical operation collection for history and controlled upgrade submission', async () => {
     const requestGet = vi.mocked(request.get);
     const requestPost = vi.mocked(request.post);
     requestGet.mockResolvedValueOnce([] as never);
@@ -44,14 +44,13 @@ describe('platform update api', () => {
     await getUpdateOperations();
     await createUpdateOperation({
       target_version: '1.1.0',
-      confirmation: '1.1.0',
       compose_candidate_key: 'candidate-1',
     });
 
     expect(requestGet).toHaveBeenCalledWith({ url: UPDATE_API_PATH.OPERATIONS, params: { limit: 20 } });
     expect(requestPost).toHaveBeenCalledWith({
       url: UPDATE_API_PATH.OPERATIONS,
-      data: { target_version: '1.1.0', confirmation: '1.1.0', compose_candidate_key: 'candidate-1' },
+      data: { target_version: '1.1.0', compose_candidate_key: 'candidate-1' },
     });
   });
 });

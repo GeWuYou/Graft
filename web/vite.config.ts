@@ -106,6 +106,10 @@ export function createViteConfig(mode: string): UserConfig {
   const proxyEnabled = env.VITE_IS_REQUEST_PROXY === 'true';
   const mockEnabled = mode === 'mock' || env.VITE_ENABLE_MOCK === 'true';
   const tdesignAutoImportEnabled = mode !== 'test';
+  const developmentRoutesModule = path.resolve(
+    CWD,
+    mode === 'release' ? 'src/router/development-routes.release.ts' : 'src/router/development-routes.development.ts',
+  );
   const rootHTTPProxyPaths = [
     '/healthz',
     '/docs',
@@ -189,6 +193,7 @@ export function createViteConfig(mode: string): UserConfig {
     },
     resolve: {
       alias: {
+        '@/router/development-routes': developmentRoutesModule,
         '@': path.resolve(__dirname, './src'),
       },
     },

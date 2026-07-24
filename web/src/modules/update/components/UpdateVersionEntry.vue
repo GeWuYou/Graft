@@ -47,10 +47,15 @@
           </p>
         </div>
         <template v-if="hasAvailableRelease">
-          <p class="update-version-preview__available">
-            {{ t('update.preview.available') }} {{ discoveryStore.status?.latest?.version }}
-          </p>
-          <p class="update-version-preview__summary">{{ summary }}</p>
+          <t-button
+            v-if="canStartUpgrade"
+            class="update-version-preview__upgrade"
+            data-testid="update-preview-upgrade"
+            theme="primary"
+            @click.stop="startUpgrade"
+          >
+            {{ t('update.preview.startUpgrade') }}
+          </t-button>
         </template>
         <footer class="update-version-preview__actions">
           <t-button
@@ -58,7 +63,7 @@
             data-testid="update-preview-detail"
             size="small"
             variant="text"
-            @click.stop="openReleaseDetails"
+            @click.stop="openManagement"
           >
             {{ t('update.preview.detail.open') }}
           </t-button>
@@ -74,17 +79,13 @@
           >
             {{ t('update.preview.viewRelease') }}
           </t-button>
-          <t-button v-if="canStartUpgrade" size="small" theme="primary" @click="startUpgrade">
-            {{ t('update.preview.startUpgrade') }}
-          </t-button>
         </footer>
       </section>
     </template>
   </t-popup>
-  <update-release-detail-dialog v-model:visible="releaseDetailVisible" :release="releaseDetailRelease" />
 </template>
 <script setup lang="ts">
-// 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口；详情正文交给模块弹窗渲染。
+// 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
@@ -93,10 +94,16 @@ import { useI18n } from 'vue-i18n';
 import { usePermissionStore } from '@/store';
 
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
+import { UPDATE_ROUTE_PATH } from '../contract/paths';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
-import type { UpdateRelease } from '../types/update';
-import UpdateReleaseDetailDialog from './UpdateReleaseDetailDialog.vue';
+
+const props = withDefaults(
+  defineProps<{
+    centerPath?: string;
+  }>(),
+  { centerPath: UPDATE_ROUTE_PATH.CENTER },
+);
 
 const { t } = useI18n();
 const permissionStore = usePermissionStore();
@@ -105,12 +112,10 @@ const visible = ref(false);
 const checking = ref(false);
 const previewOpened = ref(false);
 const previewCheckFailed = ref(false);
-const releaseDetailVisible = ref(false);
-const releaseDetailRelease = ref<UpdateRelease | null>(null);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
-const { canStartUpgrade, startUpgrade } = useUpdatePreviewActions(visible);
+const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible, props.centerPath);
 const hasAvailableRelease = computed(
   () =>
     Boolean(discoveryStore.status?.latest) &&
@@ -127,13 +132,6 @@ const tooltip = computed(() =>
     ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
     : t('update.versionEntry.openCenter', { version: versionLabel.value }),
 );
-const summary = computed(
-  () =>
-    discoveryStore.status?.latest?.upgrade_notes ||
-    discoveryStore.status?.latest?.notes ||
-    t('update.preview.summaryEmpty'),
-);
-
 watch(
   visible,
   (isVisible) => {
@@ -155,23 +153,6 @@ watch(
   },
   { flush: 'sync' },
 );
-
-watch(hasAvailableRelease, (isAvailable) => {
-  // 预览刷新会替换共享 snapshot；release 失效时同步关闭依赖旧数据的详情弹窗。
-  if (!isAvailable) {
-    releaseDetailVisible.value = false;
-    releaseDetailRelease.value = null;
-  }
-});
-
-function openReleaseDetails() {
-  const release = discoveryStore.status?.latest;
-  if (!hasAvailableRelease.value || !release) {
-    return;
-  }
-  releaseDetailRelease.value = release;
-  releaseDetailVisible.value = true;
-}
 
 async function refreshStatus() {
   if (!canCheck.value) {
@@ -240,25 +221,18 @@ async function refreshStatus() {
   text-align: center;
 }
 
-.update-version-preview__available {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-medium);
-  margin: 0;
-}
-
-.update-version-preview__summary {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-  margin: 0;
-  white-space: pre-line;
-}
-
 .update-version-preview__actions {
   border-top: 1px solid var(--td-component-stroke);
   display: flex;
   gap: var(--td-comp-margin-s);
   justify-content: flex-end;
   padding-top: var(--td-comp-paddingTB-s);
+}
+
+.update-version-preview__upgrade {
+  justify-self: center;
+  min-height: 36px;
+  width: min(184px, 100%);
 }
 
 .update-version-preview__up-to-date {

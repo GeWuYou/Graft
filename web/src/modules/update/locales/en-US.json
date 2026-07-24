@@ -11,14 +11,7 @@
       "summaryEmpty": "This release has no summary. View the complete release notes.",
       "viewManagement": "View update log",
       "viewRelease": "View release",
-      "detail": {
-        "open": "Details",
-        "title": "Release details",
-        "releaseDescription": "A verified Graft release",
-        "publishedAt": "Published",
-        "upgradeNotes": "Upgrade notes",
-        "close": "Close details"
-      },
+      "detail": { "open": "Details" },
       "checkNow": "Check for updates",
       "checking": "Checking for updates...",
       "checkFailed": "The update check could not be completed. Try again later.",
@@ -82,7 +75,7 @@
       },
       "confirmation": {
         "title": "Confirm upgrade to {version}",
-        "description": "Type the exact target version to start the controlled Compose rollout.",
+        "description": "Confirm to start the controlled Compose rollout.",
         "confirm": "Start upgrade",
         "cancel": "Cancel",
         "submitFailed": "The upgrade request could not be started."

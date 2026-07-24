@@ -2,7 +2,7 @@ get:
   tags: [platform-update]
   summary: Read self-update discovery status
   operationId: getPlatformUpdateStatus
-  description: Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade.
+  description: Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade. Docker-discovered Compose candidates, including host paths, are only returned to callers that also hold platform-update.manage.
   security:
     - bearerAuth: []
   parameters:

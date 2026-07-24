@@ -57,10 +57,10 @@ func NewRolloutService(discovery *Service, operations OperationStore, tasks modu
 	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID}
 }
 
-// Start 要求操作者确认当前 catalog 中精确的候选版本，随后仅启动一次 digest-pinned runner。
+// Start 只接受当前 catalog 中已验证的候选版本，随后仅启动一次 digest-pinned runner。
 //
 //nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
-func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion, confirmation string, candidateKeys ...string) (ComposeUpdateOperation, error) {
+func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion string, candidateKeys ...string) (ComposeUpdateOperation, error) {
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || requestedBy == 0 {
 		return ComposeUpdateOperation{}, errors.New("compose update rollout is unavailable")
 	}
@@ -68,7 +68,7 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 	if len(candidateKeys) > 0 {
 		candidateKey = strings.TrimSpace(candidateKeys[0])
 	}
-	status, preflight, err := s.confirmedPreflight(targetVersion, confirmation, candidateKey)
+	status, preflight, err := s.confirmedPreflight(targetVersion, candidateKey)
 	if err != nil {
 		return ComposeUpdateOperation{}, err
 	}
@@ -87,7 +87,7 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 }
 
 //nolint:cyclop // Each rejection is an independently auditable rollout safety gate.
-func (s *RolloutService) confirmedPreflight(targetVersion, confirmation, candidateKey string) (Status, ComposePreflight, error) {
+func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey string) (Status, ComposePreflight, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
 		return Status{}, ComposePreflight{}, fmt.Errorf("%w: fresh verified release catalog is required", errRolloutPrecondition)
@@ -102,8 +102,8 @@ func (s *RolloutService) confirmedPreflight(targetVersion, confirmation, candida
 			return Status{}, ComposePreflight{}, fmt.Errorf("%w: current version does not meet the target minimum source version", errRolloutPrecondition)
 		}
 	}
-	if strings.TrimSpace(targetVersion) == "" || targetVersion != status.Latest.Version || confirmation != targetVersion {
-		return Status{}, ComposePreflight{}, fmt.Errorf("%w: target version requires an exact manual confirmation", errRolloutInvalidArgument)
+	if strings.TrimSpace(targetVersion) == "" || targetVersion != status.Latest.Version {
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: target version is not the currently verified release", errRolloutInvalidArgument)
 	}
 	preflight, err := composePreflight(status.Profile, *status.Latest, candidateKey)
 	if err != nil {

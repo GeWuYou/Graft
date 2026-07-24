@@ -2,7 +2,7 @@ post:
   tags: [platform-update]
   summary: Refresh self-update release discovery
   operationId: postPlatformUpdateCheck
-  description: Reads and verifies upstream release manifests; it does not download artifacts or modify the installation.
+  description: Reads and verifies upstream release manifests; it does not download artifacts or modify the installation. Docker-discovered Compose candidates, including host paths, are only returned to callers that also hold platform-update.manage.
   security:
     - bearerAuth: []
   parameters:
