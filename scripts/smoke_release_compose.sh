@@ -7,19 +7,20 @@ image_tag="${GRAFT_RELEASE_IMAGE_TAG:?GRAFT_RELEASE_IMAGE_TAG is required}"
 log_dir="${GRAFT_RELEASE_SMOKE_LOG_DIR:-.tmp/release-compose-smoke}"
 workspace="$(mktemp -d)"
 project="graft-release-smoke-${GITHUB_RUN_ID:-$$}"
+compose=(docker compose --project-name "${project}" --project-directory "${workspace}" -f compose.yml -f compose.smoke.yml)
 
 cleanup() {
   status=$?
   set +e
   mkdir -p "${log_dir}"
-  docker compose --project-name "${project}" --project-directory "${workspace}" ps -a > "${log_dir}/compose-ps.txt" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" logs bootstrap > "${log_dir}/compose-bootstrap.log" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" logs application-root-init > "${log_dir}/compose-application-root-init.log" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" logs postgres > "${log_dir}/compose-postgres.log" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" logs redis > "${log_dir}/compose-redis.log" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" logs server > "${log_dir}/compose-server.log" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" logs web > "${log_dir}/compose-web.log" 2>&1
-  docker compose --project-name "${project}" --project-directory "${workspace}" down -v --remove-orphans > "${log_dir}/compose-down.log" 2>&1
+  "${compose[@]}" ps -a > "${log_dir}/compose-ps.txt" 2>&1
+  "${compose[@]}" logs bootstrap > "${log_dir}/compose-bootstrap.log" 2>&1
+  "${compose[@]}" logs application-root-init > "${log_dir}/compose-application-root-init.log" 2>&1
+  "${compose[@]}" logs postgres > "${log_dir}/compose-postgres.log" 2>&1
+  "${compose[@]}" logs redis > "${log_dir}/compose-redis.log" 2>&1
+  "${compose[@]}" logs server > "${log_dir}/compose-server.log" 2>&1
+  "${compose[@]}" logs web > "${log_dir}/compose-web.log" 2>&1
+  "${compose[@]}" down -v --remove-orphans > "${log_dir}/compose-down.log" 2>&1
   rm -rf "${workspace}"
   exit "${status}"
 }
@@ -29,14 +30,16 @@ mkdir -p "${log_dir}" "${workspace}/apps"
 cp compose.yml compose.smoke.yml "${workspace}/"
 docker image inspect "${server_image}:${image_tag}" >/dev/null
 docker image inspect "${web_image}:${image_tag}" >/dev/null
-server_image_id="$(docker image inspect "${server_image}:${image_tag}" --format '{{.Id}}')"
-web_image_id="$(docker image inspect "${web_image}:${image_tag}" --format '{{.Id}}')"
-
 cat > "${workspace}/.env" <<EOF
-GRAFT_SERVER_IMAGE_REPOSITORY=${server_image}
-GRAFT_SERVER_IMAGE_DIGEST=${server_image_id}
-GRAFT_WEB_IMAGE_REPOSITORY=${web_image}
-GRAFT_WEB_IMAGE_DIGEST=${web_image_id}
+# Base Compose still requires digest-shaped values; compose.smoke.yml replaces
+# every application image with the local tag below before any service starts.
+GRAFT_SERVER_IMAGE_REPOSITORY=graft-release-smoke-placeholder
+GRAFT_SERVER_IMAGE_DIGEST=sha256:0000000000000000000000000000000000000000000000000000000000000000
+GRAFT_WEB_IMAGE_REPOSITORY=graft-release-smoke-placeholder
+GRAFT_WEB_IMAGE_DIGEST=sha256:0000000000000000000000000000000000000000000000000000000000000000
+GRAFT_RELEASE_SERVER_IMAGE=${server_image}
+GRAFT_RELEASE_WEB_IMAGE=${web_image}
+GRAFT_RELEASE_IMAGE_TAG=${image_tag}
 COMPOSE_FILE_DIR=${workspace}
 POSTGRES_DB=graft
 POSTGRES_USER=graft
@@ -47,12 +50,12 @@ GRAFT_APPLICATION_ROOT_HOST_PATH=${workspace}/apps
 GRAFT_WEB_HOST_PORT=3000
 EOF
 
-docker compose --project-name "${project}" --project-directory "${workspace}" config --quiet
-docker compose --project-name "${project}" --project-directory "${workspace}" up -d postgres redis
-docker compose --project-name "${project}" --project-directory "${workspace}" -f compose.yml -f compose.smoke.yml up -d bootstrap
+"${compose[@]}" config --quiet
+"${compose[@]}" up -d postgres redis
+"${compose[@]}" up -d bootstrap
 
 for _ in $(seq 1 60); do
-  bootstrap_id="$(docker compose --project-name "${project}" --project-directory "${workspace}" ps -aq bootstrap)"
+  bootstrap_id="$("${compose[@]}" ps -aq bootstrap)"
   if [[ -z "${bootstrap_id}" ]]; then
     sleep 2
     continue
@@ -69,14 +72,14 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
-bootstrap_id="$(docker compose --project-name "${project}" --project-directory "${workspace}" ps -aq bootstrap)"
+bootstrap_id="$("${compose[@]}" ps -aq bootstrap)"
 if [[ -z "${bootstrap_id}" || "$(docker inspect -f '{{.State.Status}}' "${bootstrap_id}")" != "exited" || "$(docker inspect -f '{{.State.ExitCode}}' "${bootstrap_id}")" != "0" ]]; then
   echo "bootstrap did not complete successfully"
   exit 1
 fi
 
-docker compose --project-name "${project}" --project-directory "${workspace}" up -d server web
-web_mapping="$(docker compose --project-name "${project}" --project-directory "${workspace}" port web 80 | sed -n '1p')"
+"${compose[@]}" up -d application-root-init server web
+web_mapping="$("${compose[@]}" port web 80 | sed -n '1p')"
 web_port="${web_mapping##*:}"
 if ! [[ "${web_port}" =~ ^[1-9][0-9]{0,4}$ ]] || (( web_port > 65535 )); then
   echo "unable to resolve the web host port from Compose mapping: ${web_mapping:-<empty>}"

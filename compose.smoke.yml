@@ -1,3 +1,20 @@
 services:
+  postgres:
+    volumes:
+      - postgres-smoke-data:/var/lib/postgresql/data
   bootstrap:
+    image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
     command: ["migrate", "up", "--allow-dirty"]
+  application-root-init:
+    image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
+  server:
+    image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
+  web:
+    image: ${GRAFT_RELEASE_WEB_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
+
+volumes:
+  postgres-smoke-data:

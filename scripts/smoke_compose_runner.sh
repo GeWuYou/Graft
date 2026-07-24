@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture_dir="${repo_root}/server/runner/compose/testdata/smoke"
-runner_image="${GRAFT_COMPOSE_RUNNER_SMOKE_IMAGE:-graft-compose-runner:local-smoke}"
+runner_image="${GRAFT_COMPOSE_RUNNER_SMOKE_IMAGE:-graft-updater:local-smoke}"
 workspace="$(mktemp -d)"
 project="graft-runner-smoke-$$"
 registry_id=""
@@ -19,14 +19,15 @@ trap cleanup EXIT
 docker image inspect "${runner_image}" >/dev/null
 docker build --progress=quiet -t graft-runner-fixture/graft-server:v1.1.0 -f "${fixture_dir}/Dockerfile.fixture" "${fixture_dir}"
 docker tag graft-runner-fixture/graft-server:v1.1.0 graft-runner-fixture/graft-web:v1.1.0
-runner_digest="$(docker image inspect "${runner_image}" --format '{{.Id}}')"
 registry_id="$(docker run -d -p 127.0.0.1::5000 registry:2)"
 registry_port="$(docker port "${registry_id}" 5000/tcp | sed 's/.*://')"
 registry="127.0.0.1:${registry_port}"
 docker tag graft-runner-fixture/graft-server:v1.1.0 "${registry}/graft-server:v1.1.0"
 docker tag graft-runner-fixture/graft-web:v1.1.0 "${registry}/graft-web:v1.1.0"
+docker tag "${runner_image}" "${registry}/graft-updater:v1.1.0"
 docker push "${registry}/graft-server:v1.1.0" >/dev/null
 docker push "${registry}/graft-web:v1.1.0" >/dev/null
+docker push "${registry}/graft-updater:v1.1.0" >/dev/null
 manifest_digest() {
   curl -fsSI \
     -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
@@ -35,8 +36,10 @@ manifest_digest() {
 }
 server_digest="$(manifest_digest graft-server)"
 web_digest="$(manifest_digest graft-web)"
+runner_digest="$(manifest_digest graft-updater)"
 server_reference="${registry}/graft-server@${server_digest}"
 web_reference="${registry}/graft-web@${web_digest}"
+runner_reference="${registry}/graft-updater@${runner_digest}"
 cp "${fixture_dir}/compose.yml" "${workspace}/compose.yml"
 cat > "${workspace}/.env" <<EOF
 GRAFT_SERVER_IMAGE=${registry}/graft-server:v1.0.0
@@ -69,14 +72,14 @@ cat > "${workspace}/runner-input.json" <<EOF
     "compose_files": ["${workspace}/compose.yml"],
     "server_reference": "${server_reference}",
     "web_reference": "${web_reference}",
-    "runner_reference": "${registry}/graft-compose-runner@${runner_digest}",
+    "runner_reference": "${runner_reference}",
     "server_digest": "${server_digest}",
     "web_digest": "${web_digest}",
     "runner_digest": "${runner_digest}",
     "bundled_postgres": true,
     "official_server_image": "${registry}/graft-server",
     "official_web_image": "${registry}/graft-web",
-    "official_runner_image": "${registry}/graft-compose-runner"
+    "official_runner_image": "${registry}/graft-updater"
   }
 }
 EOF

@@ -93,7 +93,7 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
 	}
-	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-updater", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
 	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
 	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
@@ -126,7 +126,7 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
 	}
-	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-updater", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
 	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
 	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest

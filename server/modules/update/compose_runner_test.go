@@ -144,9 +144,9 @@ func fixtureRunnerInput(root string) RunnerInput {
 	runnerDigest := "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	return RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "fixture-operation-1", TaskID: 7, Preflight: ComposePreflight{
 		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true,
-		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
+		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-updater",
 		ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest,
-		ServerReference: "ghcr.io/gewuyou/graft-server@" + serverDigest, WebReference: "ghcr.io/gewuyou/graft-web@" + webDigest, RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@" + runnerDigest,
+		ServerReference: "ghcr.io/gewuyou/graft-server@" + serverDigest, WebReference: "ghcr.io/gewuyou/graft-web@" + webDigest, RunnerReference: "ghcr.io/gewuyou/graft-updater@" + runnerDigest,
 	}}
 }
 

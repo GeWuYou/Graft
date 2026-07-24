@@ -6,11 +6,11 @@ func TestValidateRunnerInputRejectsNonOfficialComposeProfiles(t *testing.T) {
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
 		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: "/opt/graft", Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{"/opt/graft/compose.yml"}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web",
-		OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
+		OfficialRunnerImage: "ghcr.io/gewuyou/graft-updater",
 		ServerDigest:        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		RunnerDigest:    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 		ServerReference: "ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebReference: "ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		RunnerReference: "ghcr.io/gewuyou/graft-updater@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 	}}
 	if err := ValidateRunnerInput(valid); err != nil {
 		t.Fatalf("valid official profile rejected: %v", err)
@@ -24,11 +24,11 @@ func TestValidateRunnerInputRejectsNonOfficialComposeProfiles(t *testing.T) {
 func TestValidateRunnerInputRejectsMissingOrMutableRunnerIdentity(t *testing.T) {
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
 		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: "/opt/graft", Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{"/opt/graft/compose.yml"}, BundledPostgres: true,
-		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
+		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-updater",
 		ServerDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerDigest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-		ServerReference: "ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebReference: "ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		ServerReference: "ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebReference: "ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerReference: "ghcr.io/gewuyou/graft-updater@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 	}}
-	valid.Preflight.RunnerReference = "ghcr.io/gewuyou/graft-compose-runner:latest"
+	valid.Preflight.RunnerReference = "ghcr.io/gewuyou/graft-updater:latest"
 	if err := ValidateRunnerInput(valid); err == nil {
 		t.Fatal("expected mutable runner reference rejection")
 	}

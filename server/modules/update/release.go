@@ -343,7 +343,7 @@ func validImageIdentity(image, digest, reference string) bool {
 }
 
 func composeRunnerImage(serverImage string) string {
-	return strings.TrimSuffix(serverImage, "/graft-server") + "/graft-compose-runner"
+	return strings.TrimSuffix(serverImage, "/graft-server") + "/graft-updater"
 }
 
 // SelectLatest 返回与当前通道兼容且严格较新的发布。稳定用户只接收 stable；beta 用户同时接收 beta 与后续 stable。
