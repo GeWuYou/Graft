@@ -157,6 +157,13 @@ watch(
   { flush: 'sync' },
 );
 
+watch(hasAvailableRelease, (isAvailable) => {
+  // 预览刷新会替换共享 snapshot；release 失效时同步关闭依赖旧数据的详情弹窗。
+  if (!isAvailable) {
+    releaseDetailVisible.value = false;
+  }
+});
+
 async function refreshStatus() {
   if (!canCheck.value) {
     return;

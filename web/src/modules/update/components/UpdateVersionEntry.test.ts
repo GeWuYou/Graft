@@ -179,6 +179,28 @@ describe('UpdateVersionEntry', () => {
     expect(wrapper.get('[data-testid="update-release-detail-stub"]').isVisible()).toBe(true);
   });
 
+  it('closes release details when a refresh removes the available release', async () => {
+    const discovery = useUpdateDiscoveryStore();
+    discovery.replaceSnapshot(
+      status({
+        latest: {
+          version: '1.1.0',
+          notes: '# Release notes',
+          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
+        },
+      }),
+    );
+    const wrapper = mountEntry();
+
+    await wrapper.get('[data-testid="update-preview-detail"]').trigger('click');
+    expect(wrapper.get('[data-testid="update-release-detail-stub"]').isVisible()).toBe(true);
+
+    discovery.replaceSnapshot(status());
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find('[data-testid="update-release-detail-stub"]').exists()).toBe(false);
+  });
+
   it('keeps the dev version visible, disables release navigation, and allows retry after failure', async () => {
     apiMocks.checkForUpdates
       .mockRejectedValueOnce(new Error('network failure'))
