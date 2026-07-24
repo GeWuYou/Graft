@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	directoryPermission   os.FileMode = 0o700
-	privateFilePermission os.FileMode = 0o600
+	directoryPermission                   os.FileMode = 0o700
+	privateFilePermission                 os.FileMode = 0o600
+	composeFileArgumentCapacityMultiplier             = 2
 )
 
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
@@ -100,8 +101,10 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 	if err != nil {
 		return err
 	}
+	args := append([]string{"compose", "--env-file", ".env"}, composeFileArgs(in.Preflight.ComposeFiles)...)
+	args = append(args, "exec", "-T", "postgres", "sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"")
 	// #nosec G204 -- this fixed command has no caller-provided executable or arguments.
-	command := exec.CommandContext(ctx, "docker", "compose", "--env-file", ".env", "-f", "compose.yml", "exec", "-T", "postgres", "sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"")
+	command := exec.CommandContext(ctx, "docker", args...)
 	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, dump, os.Stderr
 	err = command.Run()
 	closeErr := dump.Close()
@@ -149,10 +152,19 @@ func (a *actions) RecoverPreMigration(ctx context.Context, in update.RunnerInput
 	return compose(ctx, in, "up", "-d", "--no-deps", "--force-recreate", "server", "web")
 }
 func compose(ctx context.Context, in update.RunnerInput, args ...string) error {
+	commandArgs := append([]string{"compose", "--env-file", ".env"}, composeFileArgs(in.Preflight.ComposeFiles)...)
 	// #nosec G204 -- callers select only fixed runner lifecycle argument sets.
-	command := exec.CommandContext(ctx, "docker", append([]string{"compose", "--env-file", ".env", "-f", "compose.yml"}, args...)...)
+	command := exec.CommandContext(ctx, "docker", append(commandArgs, args...)...)
 	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, os.Stdout, os.Stderr
 	return command.Run()
+}
+
+func composeFileArgs(files []string) []string {
+	args := make([]string, 0, len(files)*composeFileArgumentCapacityMultiplier)
+	for _, file := range files {
+		args = append(args, "-f", file)
+	}
+	return args
 }
 func copyFile(source, target string) error {
 	// #nosec G304 -- source and target are derived from the preflight-validated compose root.

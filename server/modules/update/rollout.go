@@ -136,7 +136,7 @@ func (s *RolloutService) StartReceiptPolling(ctx context.Context) {
 			case <-ticker.C:
 				if receipts, err := reader.ReadRunnerReceipts(pollCtx); err == nil {
 					for _, receipt := range receipts {
-						_, _ = s.SettlePersistedReceipt(pollCtx, receipt)
+						_, _ = s.settleReceiptAndCleanup(pollCtx, receipt)
 					}
 				}
 			}
@@ -221,7 +221,7 @@ func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 	if reader, ok := s.launcher.(ComposeRunnerReceiptReader); ok {
 		if receipts, err := reader.ReadRunnerReceipts(ctx); err == nil {
 			for _, receipt := range receipts {
-				_, _ = s.SettlePersistedReceipt(ctx, receipt)
+				_, _ = s.settleReceiptAndCleanup(ctx, receipt)
 			}
 		}
 	}
@@ -256,7 +256,7 @@ func (s *RolloutService) settleReceiptEntry(ctx context.Context, root string, en
 	if err != nil {
 		return err
 	}
-	settled, err := s.SettlePersistedReceipt(ctx, receipt)
+	settled, err := s.settleReceiptAndCleanup(ctx, receipt)
 	if err != nil && !errors.Is(err, errUpdateOperationNotFound) {
 		return err
 	}
@@ -268,6 +268,17 @@ func (s *RolloutService) settleReceiptEntry(ctx context.Context, root string, en
 		return fmt.Errorf("remove settled compose runner receipt: %w", err)
 	}
 	return nil
+}
+
+func (s *RolloutService) settleReceiptAndCleanup(ctx context.Context, receipt RunnerReceipt) (ComposeUpdateOperation, error) {
+	settled, err := s.SettlePersistedReceipt(ctx, receipt)
+	if err != nil {
+		return ComposeUpdateOperation{}, err
+	}
+	if cleanup, ok := s.launcher.(ComposeRunnerReceiptCleanup); ok {
+		_ = cleanup.RemoveRunner(ctx, receipt.OperationID)
+	}
+	return settled, nil
 }
 
 func validRunnerReceiptEntry(entry os.DirEntry) bool {
@@ -306,6 +317,7 @@ func readPersistedRunnerReceipt(root, name string) (string, RunnerReceipt, error
 
 func composePreflight(profile InstallationProfile, release Release, candidateKey string) (ComposePreflight, error) {
 	root := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_COMPOSE_ROOT"))
+	explicitRoot := root != ""
 	composeFiles := []string{}
 	if root == "" {
 		for _, candidate := range profile.ComposeCandidates {
@@ -320,13 +332,13 @@ func composePreflight(profile InstallationProfile, release Release, candidateKey
 		}
 	}
 	if len(composeFiles) == 0 {
+		if !explicitRoot {
+			return ComposePreflight{}, errors.New("the confirmed compose root candidate must include its compose file sequence")
+		}
 		composeFiles = []string{filepath.Join(root, "compose.yml")}
 	}
 	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerRef, WebReference: release.WebRef, RunnerReference: release.RunnerRef}
-	validationValue := value
-	// 先校验官方基础 Compose 拓扑，再把 Docker 标签确认过的完整文件序列交给 runner。
-	validationValue.ComposeFiles = []string{filepath.Join(root, "compose.yml")}
-	if err := ValidateComposePreflight(validationValue); err != nil {
+	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}
 	return value, nil

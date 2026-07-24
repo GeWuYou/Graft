@@ -198,6 +198,37 @@ func TestSettlePersistedReceiptShortCircuitsTerminalOperation(t *testing.T) {
 	}
 }
 
+func TestSettleAvailableReceiptsCleansRunnerOnlyAfterSuccessfulSettlement(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	discovery := NewService(nil)
+	discovery.profile = func() InstallationProfile { return InstallationProfile{DetectedMode: "compose"} }
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-84": {OperationID: "update-84", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 84, Outcome: ExecutionOutcomePulling},
+	}}
+	launcher := &receiptReaderCleanupLauncher{receipts: []RunnerReceipt{
+		{ProtocolVersion: runnerProtocolVersion, OperationID: "update-84", Succeeded: true, BackupCompletion: &moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "update-84", TaskID: 84, ConfigSnapshotSHA256: testDigest('a'), ConfigSnapshotBytes: 3, DatabaseDumpSHA256: testDigest('b'), DatabaseDumpBytes: 5}},
+		{OperationID: "update-missing", Succeeded: true},
+	}}
+	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 84}}, &stubBackupService{}, launcher)
+	if err := rollout.SettleAvailableReceipts(t.Context()); err != nil {
+		t.Fatalf("settle available receipts: %v", err)
+	}
+	if !slices.Equal(launcher.removed, []string{"update-84"}) {
+		t.Fatalf("removed runners = %#v, want only successfully settled runner", launcher.removed)
+	}
+}
+
+func TestSettleReceiptWithoutCleanupInterfaceDoesNotRequireRunnerCleanup(t *testing.T) {
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-85": {OperationID: "update-85", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 85, Outcome: ExecutionOutcomeSuccess},
+	}}
+	rollout := NewRolloutService(NewService(nil), operations, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
+	if _, err := rollout.settleReceiptAndCleanup(t.Context(), RunnerReceipt{OperationID: "update-85"}); err != nil {
+		t.Fatalf("settle receipt without optional cleanup: %v", err)
+	}
+}
+
 func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	root := t.TempDir()
 	serverImage := "ghcr.io/gewuyou/graft-server"
@@ -207,7 +238,7 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	webDigest := "sha256:" + strings.Repeat("b", 64)
 	runnerDigest := "sha256:" + strings.Repeat("c", 64)
 	release := Release{ServerImage: serverImage, WebImage: webImage, RunnerImage: runnerImage, ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest, ServerRef: serverImage + "@" + serverDigest, WebRef: webImage + "@" + webDigest, RunnerRef: runnerImage + "@" + runnerDigest}
-	files := []string{filepath.Join(root, "compose.yml"), filepath.Join(root, "overrides", "web.yml"), filepath.Join(root, "compose.override.yml")}
+	files := []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides", "web.yml")}
 	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-selected", Root: root, ConfigFiles: files}}}
 
 	preflight, err := composePreflight(profile, release, "compose-selected")
@@ -357,6 +388,21 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 }
 
 func (*recordingLauncher) Close() error { return nil }
+
+type receiptReaderCleanupLauncher struct {
+	receipts []RunnerReceipt
+	removed  []string
+}
+
+func (*receiptReaderCleanupLauncher) Launch(context.Context, RunnerInput) error { return nil }
+func (*receiptReaderCleanupLauncher) Close() error                              { return nil }
+func (l *receiptReaderCleanupLauncher) ReadRunnerReceipts(context.Context) ([]RunnerReceipt, error) {
+	return l.receipts, nil
+}
+func (l *receiptReaderCleanupLauncher) RemoveRunner(_ context.Context, operationID string) error {
+	l.removed = append(l.removed, operationID)
+	return nil
+}
 
 func containsAny(value string, needles ...string) bool {
 	for _, needle := range needles {

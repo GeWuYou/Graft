@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -62,6 +63,14 @@ func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
 	}
 	if got != receipt {
 		t.Fatalf("receipt = %#v, want %#v", got, receipt)
+	}
+}
+
+func TestComposeFileArgsPreservesEveryPreflightFileInOrder(t *testing.T) {
+	files := []string{"/opt/graft/compose.yaml", "/opt/graft/overrides/web.yml"}
+	want := []string{"-f", files[0], "-f", files[1]}
+	if got := composeFileArgs(files); !reflect.DeepEqual(got, want) {
+		t.Fatalf("compose file args = %#v, want %#v", got, want)
 	}
 }
 

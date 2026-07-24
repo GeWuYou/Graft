@@ -14,11 +14,11 @@ import (
 	mobyclient "github.com/moby/moby/client"
 )
 
-func TestReadRunnerReceiptsRemovesOnlyContainersWithValidReceipts(t *testing.T) {
+func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(t *testing.T) {
 	valid := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", Succeeded: true}
-	client := &receiptDockerClient{items: []containertypes.Summary{{ID: "valid"}, {ID: "pending"}}, logs: map[string][]byte{
+	client := &receiptDockerClient{items: []containertypes.Summary{{ID: "valid", Labels: runnerLabels("operation-1")}, {ID: "pending", Labels: runnerLabels("operation-2")}}, logs: map[string][]byte{
 		"valid":   multiplexRunnerLog(t, RunnerReceiptLogMarker, valid),
-		"pending": multiplexRunnerLog(t, "", RunnerReceipt{}),
+		"pending": multiplexRunnerLog(t, RunnerReceiptLogMarker, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-3"}),
 	}}
 	launcher := &dockerComposeRunnerLauncher{client: client}
 
@@ -29,9 +29,19 @@ func TestReadRunnerReceiptsRemovesOnlyContainersWithValidReceipts(t *testing.T) 
 	if len(receipts) != 1 || receipts[0] != valid {
 		t.Fatalf("receipts = %#v, want %#v", receipts, []RunnerReceipt{valid})
 	}
-	if len(client.removed) != 1 || client.removed[0] != "valid" {
-		t.Fatalf("removed containers = %#v, want [valid]", client.removed)
+	if len(client.removed) != 0 {
+		t.Fatalf("removed containers after read = %#v, want none", client.removed)
 	}
+	if err := launcher.RemoveRunner(context.Background(), valid.OperationID); err != nil {
+		t.Fatalf("remove settled runner: %v", err)
+	}
+	if len(client.removed) != 1 || client.removed[0] != "valid" {
+		t.Fatalf("removed containers after cleanup = %#v, want [valid]", client.removed)
+	}
+}
+
+func runnerLabels(operationID string) map[string]string {
+	return map[string]string{"io.graft.update.operation": operationID, "io.graft.update.protocol": "compose-runner/v1"}
 }
 
 func multiplexRunnerLog(t *testing.T, marker string, receipt RunnerReceipt) []byte {

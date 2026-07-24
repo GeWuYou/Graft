@@ -31,6 +31,11 @@ type ComposeRunnerReceiptReader interface {
 	ReadRunnerReceipts(context.Context) ([]RunnerReceipt, error)
 }
 
+// ComposeRunnerReceiptCleanup 按稳定 operation ID 清理已成功结算的 runner 容器。
+type ComposeRunnerReceiptCleanup interface {
+	RemoveRunner(context.Context, string) error
+}
+
 type dockerComposeRunnerLauncher struct{ client dockerRunnerClient }
 
 type dockerRunnerClient interface {
@@ -137,7 +142,7 @@ func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context,
 
 func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
 
-//nolint:cyclop // 读取、解码和成功后清理是同一回执生命周期的独立失败边界。
+//nolint:cyclop // 读取与解码分别对应 Docker 日志和回执协议的失败边界。
 func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([]RunnerReceipt, error) {
 	if l == nil || l.client == nil {
 		return nil, errors.New("compose runner receipt reader is unavailable")
@@ -161,19 +166,39 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([
 		}
 		var containerReceipts []RunnerReceipt
 		for _, line := range strings.Split(stdout.String()+"\n"+stderr.String(), "\n") {
-			if receipt, ok := parseRunnerReceiptLog(line); ok {
+			if receipt, ok := parseRunnerReceiptLog(line); ok && receipt.OperationID == item.Labels["io.graft.update.operation"] {
 				containerReceipts = append(containerReceipts, receipt)
 			}
 		}
 		if len(containerReceipts) == 0 {
 			continue
 		}
-		if _, removeErr := l.client.ContainerRemove(ctx, item.ID, mobyclient.ContainerRemoveOptions{}); removeErr != nil {
-			return nil, fmt.Errorf("remove settled compose runner: %w", removeErr)
-		}
 		receipts = append(receipts, containerReceipts...)
 	}
 	return receipts, nil
+}
+
+// RemoveRunner 删除指定 operation ID 对应的 runner；调用方应仅在 receipt 成功结算后调用。
+func (l *dockerComposeRunnerLauncher) RemoveRunner(ctx context.Context, operationID string) error {
+	if l == nil || l.client == nil {
+		return errors.New("compose runner receipt cleanup is unavailable")
+	}
+	if !runnerOperationID.MatchString(operationID) {
+		return errors.New("compose runner receipt cleanup operation ID is invalid")
+	}
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.operation="+operationID).Add("label", "io.graft.update.protocol=compose-runner/v1")})
+	if err != nil {
+		return fmt.Errorf("list settled compose runners: %w", err)
+	}
+	for _, item := range result.Items {
+		if item.Labels["io.graft.update.operation"] != operationID || item.Labels["io.graft.update.protocol"] != "compose-runner/v1" {
+			continue
+		}
+		if _, err := l.client.ContainerRemove(ctx, item.ID, mobyclient.ContainerRemoveOptions{}); err != nil {
+			return fmt.Errorf("remove settled compose runner: %w", err)
+		}
+	}
+	return nil
 }
 
 func encodeRunnerInput(input RunnerInput) (string, error) {
