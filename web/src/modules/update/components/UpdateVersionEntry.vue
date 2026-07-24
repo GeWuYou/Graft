@@ -16,13 +16,14 @@
           <span>{{ t('update.preview.current') }}</span>
           <t-tooltip :content="t('update.preview.checkNow')" placement="top">
             <t-button
+              data-testid="update-preview-refresh"
               shape="square"
               size="small"
               theme="default"
               variant="text"
-              :disabled="!canCheck"
+              :disabled="!canCheck || checking"
               :loading="checking"
-              @click="refreshStatus"
+              @click.stop="refreshStatus"
             >
               <refresh-icon />
             </t-button>
@@ -33,10 +34,15 @@
           <p v-if="hasAvailableRelease" class="update-version-preview__available-status">
             {{ t('update.preview.availableVersion', { version: discoveryStore.status?.latest?.version }) }}
           </p>
+          <p v-else-if="checking" class="update-version-preview__checking">
+            {{ t('update.preview.checking') }}
+          </p>
           <p v-else-if="statusUnavailable" class="update-version-preview__unavailable">
             {{ t('update.preview.unavailable') }}
           </p>
-          <p v-else class="update-version-preview__up-to-date">{{ t('update.preview.upToDate') }}</p>
+          <p v-else-if="previewOpened" class="update-version-preview__up-to-date">
+            {{ t('update.preview.upToDate') }}
+          </p>
         </div>
         <template v-if="hasAvailableRelease">
           <p class="update-version-preview__available">
@@ -45,7 +51,16 @@
           <p class="update-version-preview__summary">{{ summary }}</p>
         </template>
         <footer class="update-version-preview__actions">
-          <t-button size="small" variant="text" :disabled="!canViewRelease" @click="openManagement">
+          <t-button
+            data-testid="update-preview-release"
+            size="small"
+            variant="text"
+            :tag="canViewRelease ? 'a' : 'button'"
+            :href="canViewRelease ? releaseUrl : undefined"
+            target="_blank"
+            rel="noopener noreferrer"
+            :disabled="!canViewRelease"
+          >
             {{ t('update.preview.viewRelease') }}
           </t-button>
           <t-button v-if="canStartUpgrade" size="small" theme="primary" @click="startUpgrade">
@@ -60,7 +75,7 @@
 // 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口。
 import { RefreshIcon } from 'tdesign-icons-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { usePermissionStore } from '@/store';
@@ -74,10 +89,12 @@ const permissionStore = usePermissionStore();
 const discoveryStore = useUpdateDiscoveryStore();
 const visible = ref(false);
 const checking = ref(false);
+const previewOpened = ref(false);
+const previewCheckFailed = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
-const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible);
+const { canStartUpgrade, startUpgrade } = useUpdatePreviewActions(visible);
 const hasAvailableRelease = computed(
   () =>
     Boolean(discoveryStore.status?.latest) &&
@@ -85,11 +102,10 @@ const hasAvailableRelease = computed(
     !discoveryStore.status?.check_error,
 );
 const statusUnavailable = computed(
-  () =>
-    discoveryStore.phase === 'error' ||
-    Boolean(discoveryStore.status?.cache_stale || discoveryStore.status?.check_error),
+  () => previewCheckFailed.value || Boolean(discoveryStore.status?.cache_stale || discoveryStore.status?.check_error),
 );
-const canViewRelease = computed(() => hasAvailableRelease.value);
+const releaseUrl = computed(() => discoveryStore.status?.latest?.notes_url?.trim() ?? '');
+const canViewRelease = computed(() => hasAvailableRelease.value && /^https:\/\//i.test(releaseUrl.value));
 const tooltip = computed(() =>
   discoveryStore.hasUpdate
     ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
@@ -102,14 +118,39 @@ const summary = computed(
     t('update.preview.summaryEmpty'),
 );
 
+watch(
+  visible,
+  (isVisible) => {
+    // 使用 sync 确保弹窗打开时立即复用预览缓存或发起检查；手动刷新仍由 refreshStatus 负责强制更新。
+    if (!isVisible || !canCheck.value) {
+      return;
+    }
+    previewOpened.value = true;
+    previewCheckFailed.value = false;
+    checking.value = true;
+    void discoveryStore
+      .refreshPreviewSnapshot()
+      .catch(() => {
+        previewCheckFailed.value = true;
+      })
+      .finally(() => {
+        checking.value = false;
+      });
+  },
+  { flush: 'sync' },
+);
+
 async function refreshStatus() {
   if (!canCheck.value) {
     return;
   }
+  previewOpened.value = true;
+  previewCheckFailed.value = false;
   checking.value = true;
   try {
     await discoveryStore.refreshSnapshot();
   } catch {
+    previewCheckFailed.value = true;
     MessagePlugin.error(t('update.preview.checkFailed'));
   } finally {
     checking.value = false;
@@ -159,8 +200,11 @@ async function refreshStatus() {
 
 .update-version-preview__current strong {
   color: var(--td-text-color-primary);
-  font: var(--td-font-display-medium);
+  font: var(--td-font-title-large);
   font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .update-version-preview__available {
@@ -186,6 +230,12 @@ async function refreshStatus() {
 
 .update-version-preview__up-to-date {
   color: var(--td-success-color);
+  font: var(--td-font-body-small);
+  margin: 0;
+}
+
+.update-version-preview__checking {
+  color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
   margin: 0;
 }

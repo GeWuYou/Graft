@@ -12,10 +12,11 @@ import UpdateVersionEntry from './UpdateVersionEntry.vue';
 
 const apiMocks = vi.hoisted(() => ({ checkForUpdates: vi.fn() }));
 const messageMocks = vi.hoisted(() => ({ error: vi.fn() }));
+const routerMocks = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock('../api/update', () => apiMocks);
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: messageMocks }));
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('vue-router', () => ({ useRouter: () => routerMocks }));
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({
@@ -25,8 +26,20 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 
 const passthrough = defineComponent({ template: '<div><slot /></div>' });
 const buttonStub = defineComponent({
+  inheritAttrs: false,
+  props: {
+    disabled: Boolean,
+    href: { type: String, default: '' },
+    tag: { type: String, default: 'button' },
+  },
   emits: ['click'],
-  template: '<button @click="$emit(\'click\')"><slot /></button>',
+  template:
+    '<component :is="tag" v-bind="$attrs" :disabled="disabled" :href="href" @click="$emit(\'click\', $event)"><slot /></component>',
+});
+const popupStub = defineComponent({
+  props: { visible: Boolean },
+  emits: ['update:visible'],
+  template: '<div><slot /><slot name="content" /></div>',
 });
 
 const status = (overrides: Record<string, unknown> = {}) =>
@@ -49,7 +62,7 @@ function mountEntry() {
   return mount(UpdateVersionEntry, {
     global: {
       stubs: {
-        't-popup': defineComponent({ template: '<div><slot /><slot name="content" /></div>' }),
+        't-popup': popupStub,
         't-tooltip': passthrough,
         't-button': buttonStub,
         'refresh-icon': passthrough,
@@ -73,7 +86,15 @@ describe('UpdateVersionEntry', () => {
 
   it('shows an available release instead of an up-to-date message', () => {
     const discovery = useUpdateDiscoveryStore();
-    discovery.replaceSnapshot(status({ latest: { version: '1.1.0', upgrade_notes: 'Fixes' } }));
+    discovery.replaceSnapshot(
+      status({
+        latest: {
+          version: '1.1.0',
+          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
+          upgrade_notes: 'Fixes',
+        },
+      }),
+    );
 
     const wrapper = mountEntry();
 
@@ -92,14 +113,57 @@ describe('UpdateVersionEntry', () => {
     expect(wrapper.text()).not.toContain('1.1.0');
   });
 
-  it('shows an error message when refreshing the status fails', async () => {
-    apiMocks.checkForUpdates.mockRejectedValueOnce(new Error('network failure'));
+  it('checks asynchronously when the preview opens and shows the release link after success', async () => {
+    let resolveCheck!: (value: never) => void;
+    apiMocks.checkForUpdates.mockReturnValueOnce(new Promise((resolve) => (resolveCheck = resolve)));
     const wrapper = mountEntry();
+    const popup = wrapper.findComponent(popupStub);
 
-    await wrapper.findAll('button')[1]?.trigger('click');
+    await popup.vm.$emit('update:visible', true);
+    expect(checkForUpdates).toHaveBeenCalledOnce();
+    expect(wrapper.text()).toContain('update.preview.checking');
+    expect(wrapper.text()).not.toContain('update.preview.unavailable');
+    expect(wrapper.text()).not.toContain('update.preview.upToDate');
+
+    resolveCheck(
+      status({
+        latest: {
+          version: '1.1.0',
+          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
+          upgrade_notes: 'Fixes',
+        },
+      }) as never,
+    );
     await flushPromises();
 
-    expect(checkForUpdates).toHaveBeenCalledOnce();
+    const releaseButton = wrapper.get('[data-testid="update-preview-release"]');
+    expect(releaseButton.attributes('href')).toBe('https://github.com/GeWuYou/Graft/releases/tag/v1.1.0');
+    expect(releaseButton.attributes('target')).toBe('_blank');
+    expect(releaseButton.attributes('disabled')).not.toBe('');
+  });
+
+  it('keeps the dev version visible, disables release navigation, and allows retry after failure', async () => {
+    apiMocks.checkForUpdates
+      .mockRejectedValueOnce(new Error('network failure'))
+      .mockRejectedValueOnce(new Error('network failure'));
+    const wrapper = mountEntry();
+    const popup = wrapper.findComponent(popupStub);
+
+    await popup.vm.$emit('update:visible', true);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('1.0.0');
+    expect(wrapper.text()).toContain('update.preview.unavailable');
+    const releaseButton = wrapper.get('[data-testid="update-preview-release"]');
+    expect(releaseButton.attributes('disabled')).toBe('');
+    expect(releaseButton.attributes('href')).toBe('');
+
+    await wrapper.get('[data-testid="update-preview-refresh"]').trigger('click');
+    await flushPromises();
+
+    expect(checkForUpdates).toHaveBeenCalledTimes(2);
     expect(messageMocks.error).toHaveBeenCalledWith('update.preview.checkFailed');
+    expect(routerMocks.push).not.toHaveBeenCalled();
+    expect(popup.props('visible')).toBe(true);
   });
 });

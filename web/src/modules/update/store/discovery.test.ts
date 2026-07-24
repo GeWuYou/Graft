@@ -118,4 +118,41 @@ describe('update discovery store', () => {
 
     expect(store.status?.current_version).toBe('2.0.0');
   });
+
+  it('deduplicates preview checks and reuses a successful result for the short preview TTL', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read', 'platform-update.check'] } as never);
+    const firstStatus = { current_version: '1.0.0' } as never;
+    vi.mocked(checkForUpdates).mockResolvedValue(firstStatus);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const store = useUpdateDiscoveryStore();
+
+    await Promise.all([store.refreshPreviewSnapshot(), store.refreshPreviewSnapshot()]);
+    await store.refreshPreviewSnapshot();
+
+    expect(checkForUpdates).toHaveBeenCalledOnce();
+
+    now.mockReturnValue(62_000);
+    await store.refreshPreviewSnapshot();
+
+    expect(checkForUpdates).toHaveBeenCalledTimes(2);
+    now.mockRestore();
+  });
+
+  it.each([
+    ['cache_stale', { cache_stale: true, check_error: '' }],
+    ['check_error', { cache_stale: false, check_error: 'check-failed' }],
+  ])('refreshes a preview marked with %s even while its TTL is valid', async (_reason, flags) => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read', 'platform-update.check'] } as never);
+    const store = useUpdateDiscoveryStore();
+    store.replaceSnapshot({ current_version: '1.0.0', ...flags } as never);
+    vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    vi.mocked(checkForUpdates).mockResolvedValue({ current_version: '2.0.0' } as never);
+
+    await store.refreshPreviewSnapshot();
+
+    expect(checkForUpdates).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
+  });
 });
