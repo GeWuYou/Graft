@@ -118,4 +118,24 @@ describe('update discovery store', () => {
 
     expect(store.status?.current_version).toBe('2.0.0');
   });
+
+  it('deduplicates preview checks and reuses a successful result for the short preview TTL', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read', 'platform-update.check'] } as never);
+    const firstStatus = { current_version: '1.0.0' } as never;
+    vi.mocked(checkForUpdates).mockResolvedValue(firstStatus);
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const store = useUpdateDiscoveryStore();
+
+    await Promise.all([store.refreshPreviewSnapshot(), store.refreshPreviewSnapshot()]);
+    await store.refreshPreviewSnapshot();
+
+    expect(checkForUpdates).toHaveBeenCalledOnce();
+
+    now.mockReturnValue(62_000);
+    await store.refreshPreviewSnapshot();
+
+    expect(checkForUpdates).toHaveBeenCalledTimes(2);
+    now.mockRestore();
+  });
 });

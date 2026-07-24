@@ -12,6 +12,7 @@
       "viewManagement": "查看更新日志",
       "viewRelease": "查看发布",
       "checkNow": "检查更新",
+      "checking": "正在检查更新…",
       "checkFailed": "检查更新未完成，请稍后重试。",
       "startUpgrade": "立即更新",
       "upToDate": "当前已是最新版本。",
@@ -42,7 +43,7 @@
         "upToDate": "已是最新版本",
         "upToDateDescription": "当前通道内没有更高的已验证发行版本。",
         "unavailable": "发行状态暂不可用",
-        "unavailableDescription": "最近一次目录结果已过期或检查失败，不能将其显示为已是最新。"
+        "unavailableDescription": "暂时无法获取可用版本，请稍后重试。"
       },
       "installation": {
         "title": "安装画像",

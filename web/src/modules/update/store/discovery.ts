@@ -8,6 +8,8 @@ import type { UpdateStatus } from '../types/update';
 
 export type UpdateDiscoveryPhase = 'idle' | 'loading' | 'ready' | 'error';
 
+const previewRefreshTtlMs = 60_000;
+
 /** 更新发现快照的模块级状态源，避免壳层入口和管理页分别请求同一份服务端事实。 */
 export const useUpdateDiscoveryStore = defineStore('update-discovery', {
   state: () => ({
@@ -16,6 +18,8 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
     error: '',
     generation: 0,
     requestPromise: null as Promise<UpdateStatus | null> | null,
+    previewRequestPromise: null as Promise<UpdateStatus> | null,
+    lastRefreshAt: 0,
   }),
   getters: {
     hasUpdate: (state) => Boolean(state.status?.latest && !state.status.cache_stale && !state.status.check_error),
@@ -75,6 +79,7 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
         if (generation === this.generation) {
           this.status = status;
           this.phase = 'ready';
+          this.lastRefreshAt = Date.now();
         }
         return status;
       } catch (error) {
@@ -87,6 +92,26 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
         }
         throw error;
       }
+    },
+    async refreshPreviewSnapshot() {
+      if (this.previewRequestPromise) {
+        return this.previewRequestPromise;
+      }
+
+      const hasFreshSnapshot =
+        this.status &&
+        !this.status.cache_stale &&
+        !this.status.check_error &&
+        this.lastRefreshAt > 0 &&
+        Date.now() - this.lastRefreshAt < previewRefreshTtlMs;
+      if (hasFreshSnapshot) {
+        return this.status;
+      }
+
+      this.previewRequestPromise = this.refreshSnapshot().finally(() => {
+        this.previewRequestPromise = null;
+      });
+      return this.previewRequestPromise;
     },
     invalidateSnapshot(error = 'check-failed') {
       this.generation += 1;
@@ -103,6 +128,8 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
       this.phase = 'idle';
       this.error = '';
       this.requestPromise = null;
+      this.previewRequestPromise = null;
+      this.lastRefreshAt = 0;
     },
   },
 });

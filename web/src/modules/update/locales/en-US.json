@@ -12,6 +12,7 @@
       "viewManagement": "View update log",
       "viewRelease": "View release",
       "checkNow": "Check for updates",
+      "checking": "Checking for updates...",
       "checkFailed": "The update check could not be completed. Try again later.",
       "startUpgrade": "Update now",
       "upToDate": "This installation is up to date.",
@@ -42,7 +43,7 @@
         "upToDate": "Up to date",
         "upToDateDescription": "There is no newer verified release in this channel.",
         "unavailable": "Release status unavailable",
-        "unavailableDescription": "The last catalog result is stale or the latest check failed. It is not treated as up to date."
+        "unavailableDescription": "Unable to retrieve available releases right now. Try again later."
       },
       "installation": {
         "title": "Installation profile",
