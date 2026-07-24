@@ -58,7 +58,7 @@
             data-testid="update-preview-detail"
             size="small"
             variant="text"
-            @click.stop="releaseDetailVisible = true"
+            @click.stop="openReleaseDetails"
           >
             {{ t('update.preview.detail.open') }}
           </t-button>
@@ -81,10 +81,7 @@
       </section>
     </template>
   </t-popup>
-  <update-release-detail-dialog
-    v-model:visible="releaseDetailVisible"
-    :release="discoveryStore.status?.latest ?? null"
-  />
+  <update-release-detail-dialog v-model:visible="releaseDetailVisible" :release="releaseDetailRelease" />
 </template>
 <script setup lang="ts">
 // 品牌区复用壳层 discovery snapshot，并把版本 Badge 作为锚定的轻量更新入口；详情正文交给模块弹窗渲染。
@@ -98,6 +95,7 @@ import { usePermissionStore } from '@/store';
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
+import type { UpdateRelease } from '../types/update';
 import UpdateReleaseDetailDialog from './UpdateReleaseDetailDialog.vue';
 
 const { t } = useI18n();
@@ -108,6 +106,7 @@ const checking = ref(false);
 const previewOpened = ref(false);
 const previewCheckFailed = ref(false);
 const releaseDetailVisible = ref(false);
+const releaseDetailRelease = ref<UpdateRelease | null>(null);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
@@ -161,8 +160,18 @@ watch(hasAvailableRelease, (isAvailable) => {
   // 预览刷新会替换共享 snapshot；release 失效时同步关闭依赖旧数据的详情弹窗。
   if (!isAvailable) {
     releaseDetailVisible.value = false;
+    releaseDetailRelease.value = null;
   }
 });
+
+function openReleaseDetails() {
+  const release = discoveryStore.status?.latest;
+  if (!hasAvailableRelease.value || !release) {
+    return;
+  }
+  releaseDetailRelease.value = release;
+  releaseDetailVisible.value = true;
+}
 
 async function refreshStatus() {
   if (!canCheck.value) {

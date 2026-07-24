@@ -69,7 +69,7 @@ function mountEntry() {
         'refresh-icon': defineComponent({ template: '<span data-testid="refresh-icon" />' }),
         UpdateReleaseDetailDialog: defineComponent({
           props: { release: { type: Object, default: null }, visible: Boolean },
-          template: '<div v-if="visible" data-testid="update-release-detail-stub">Details</div>',
+          template: '<div v-if="visible" data-testid="update-release-detail-stub">Details {{ release?.version }}</div>',
         }),
       },
     },
@@ -199,6 +199,37 @@ describe('UpdateVersionEntry', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('[data-testid="update-release-detail-stub"]').exists()).toBe(false);
+  });
+
+  it('keeps the opened release details stable when a refresh finds another release', async () => {
+    const discovery = useUpdateDiscoveryStore();
+    discovery.replaceSnapshot(
+      status({
+        latest: {
+          version: '1.1.0',
+          notes: '# Release notes',
+          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
+        },
+      }),
+    );
+    const wrapper = mountEntry();
+
+    await wrapper.get('[data-testid="update-preview-detail"]').trigger('click');
+    expect(wrapper.get('[data-testid="update-release-detail-stub"]').text()).toContain('1.1.0');
+
+    discovery.replaceSnapshot(
+      status({
+        latest: {
+          version: '1.2.0',
+          notes: '# New release notes',
+          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.2.0',
+        },
+      }),
+    );
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-testid="update-release-detail-stub"]').text()).toContain('1.1.0');
+    expect(wrapper.get('[data-testid="update-release-detail-stub"]').text()).not.toContain('1.2.0');
   });
 
   it('keeps the dev version visible, disables release navigation, and allows retry after failure', async () => {
