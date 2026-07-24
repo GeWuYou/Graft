@@ -20,9 +20,8 @@ import (
 )
 
 const (
-	directoryPermission    os.FileMode = 0o700
-	privateFilePermission  os.FileMode = 0o600
-	runnerReceiptLogMarker             = "GRAFT_UPDATE_RECEIPT:"
+	directoryPermission   os.FileMode = 0o700
+	privateFilePermission os.FileMode = 0o600
 )
 
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
@@ -76,7 +75,7 @@ func writeRunnerReceiptLog(writer io.Writer, receipt update.RunnerReceipt) error
 		return fmt.Errorf("encode runner receipt: %w", err)
 	}
 	encoded := base64.RawStdEncoding.EncodeToString(contents)
-	if _, err := fmt.Fprintln(writer, runnerReceiptLogMarker+encoded); err != nil {
+	if _, err := fmt.Fprintln(writer, update.RunnerReceiptLogMarker+encoded); err != nil {
 		return err
 	}
 	return nil

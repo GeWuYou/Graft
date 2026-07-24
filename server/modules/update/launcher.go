@@ -44,14 +44,15 @@ type dockerRunnerClient interface {
 	Close() error
 }
 
-const runnerReceiptLogMarker = "GRAFT_UPDATE_RECEIPT:"
+// RunnerReceiptLogMarker 是 runner 回执日志使用的稳定协议标记，写入与读取必须共用这一 authority。
+const RunnerReceiptLogMarker = "GRAFT_UPDATE_RECEIPT:"
 
 func parseRunnerReceiptLog(line string) (RunnerReceipt, bool) {
 	value := strings.TrimSpace(line)
-	if !strings.HasPrefix(value, runnerReceiptLogMarker) {
+	if !strings.HasPrefix(value, RunnerReceiptLogMarker) {
 		return RunnerReceipt{}, false
 	}
-	encoded := strings.TrimSpace(strings.TrimPrefix(value, runnerReceiptLogMarker))
+	encoded := strings.TrimSpace(strings.TrimPrefix(value, RunnerReceiptLogMarker))
 	contents, err := base64.RawStdEncoding.DecodeString(encoded)
 	if err != nil {
 		return RunnerReceipt{}, false
@@ -136,6 +137,7 @@ func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context,
 
 func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
 
+//nolint:cyclop // 读取、解码和成功后清理是同一回执生命周期的独立失败边界。
 func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([]RunnerReceipt, error) {
 	if l == nil || l.client == nil {
 		return nil, errors.New("compose runner receipt reader is unavailable")
@@ -157,11 +159,19 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([
 		if copyErr != nil {
 			return nil, fmt.Errorf("decode retained compose runner logs: %w", copyErr)
 		}
+		var containerReceipts []RunnerReceipt
 		for _, line := range strings.Split(stdout.String()+"\n"+stderr.String(), "\n") {
 			if receipt, ok := parseRunnerReceiptLog(line); ok {
-				receipts = append(receipts, receipt)
+				containerReceipts = append(containerReceipts, receipt)
 			}
 		}
+		if len(containerReceipts) == 0 {
+			continue
+		}
+		if _, removeErr := l.client.ContainerRemove(ctx, item.ID, mobyclient.ContainerRemoveOptions{}); removeErr != nil {
+			return nil, fmt.Errorf("remove settled compose runner: %w", removeErr)
+		}
+		receipts = append(receipts, containerReceipts...)
 	}
 	return receipts, nil
 }

@@ -49,7 +49,7 @@ func NewService(provider ReleaseProvider) *Service {
 func NewServiceWithCache(provider ReleaseProvider, cache DiscoveryCache) *Service {
 	service := &Service{provider: provider, cache: cache, current: buildinfo.Current}
 	service.profile = func() InstallationProfile {
-		return DetectInstallationProfileWithComposeReader(os.Getenv, os.Executable, service.runtimeReader)
+		return DetectInstallationProfileWithComposeReader(context.Background(), os.Getenv, os.LookupEnv, os.Executable, service.runtimeReader)
 	}
 	return service
 }

@@ -63,7 +63,7 @@ InstallationProfile {
 }
 ```
 
-检测需验证 official Compose 文件、同一 host absolute compose root、Docker socket 可用性、镜像坐标和运行中服务；声明与检测矛盾时 capability 降级为不可执行并显示原因。`GRAFT_UPDATE_COMPOSE_ROOT` 非空时是唯一 Compose root authority，检测失败不得自动回退；为空时由 Docker API 检查当前 server 容器的 Compose labels、config files 和 bind mounts，生成一个或多个 host root 候选。候选必须显示给管理员确认，且每次升级启动前重新发现并验证；候选 key 和选择结果不持久化，前端不得提交原始 host path。
+检测需验证 official Compose 文件、同一 host absolute compose root、Docker socket 可用性、镜像坐标和运行中服务；声明与检测矛盾时 capability 降级为不可执行并显示原因。已设置的 `GRAFT_UPDATE_COMPOSE_ROOT` 是唯一 Compose root authority，显式空值或相对路径必须 fail closed，不得自动回退到 binary 或 Docker 自动发现；只有环境变量未设置且 Docker API 可用时才检查当前 server 容器的 Compose labels、config files 和 bind mounts，生成一个或多个 host root 候选。候选必须显示给管理员确认，且每次升级启动前重新发现并验证；候选 key 和选择结果不持久化，前端不得提交原始 host path。
 
 | Capability | Official Compose | Binary + systemd | Binary manual |
 | --- | --- | --- | --- |

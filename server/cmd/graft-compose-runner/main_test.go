@@ -48,10 +48,10 @@ func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
 		t.Fatalf("write runner receipt log: %v", err)
 	}
 	line := strings.TrimSpace(output.String())
-	if !strings.HasPrefix(line, runnerReceiptLogMarker) {
+	if !strings.HasPrefix(line, update.RunnerReceiptLogMarker) {
 		t.Fatalf("receipt marker missing: %q", line)
 	}
-	encoded := strings.TrimPrefix(line, runnerReceiptLogMarker)
+	encoded := strings.TrimPrefix(line, update.RunnerReceiptLogMarker)
 	contents, err := base64.RawStdEncoding.DecodeString(encoded)
 	if err != nil {
 		t.Fatalf("decode receipt log: %v", err)

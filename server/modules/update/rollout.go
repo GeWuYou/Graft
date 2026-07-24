@@ -45,8 +45,9 @@ func NewRolloutService(discovery *Service, operations OperationStore, tasks modu
 	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID}
 }
 
-//nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
 // Start 要求操作者确认当前 catalog 中精确的候选版本，随后仅启动一次 digest-pinned runner。
+//
+//nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
 func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion, confirmation string, candidateKeys ...string) (ComposeUpdateOperation, error) {
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || requestedBy == 0 {
 		return ComposeUpdateOperation{}, errors.New("compose update rollout is unavailable")
@@ -126,7 +127,7 @@ func (s *RolloutService) StartReceiptPolling(ctx context.Context) {
 	pollCtx, cancel := context.WithCancel(ctx)
 	s.receiptPollCancel = cancel
 	go func() {
-			ticker := time.NewTicker(receiptPollInterval)
+		ticker := time.NewTicker(receiptPollInterval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -173,6 +174,9 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 	if err != nil {
 		return ComposeUpdateOperation{}, err
 	}
+	if isTerminalOutcome(operation.Outcome) {
+		return operation, nil
+	}
 	settled, err := s.coordinator.SettleReceipt(ctx, operation, receipt)
 	if err != nil {
 		s.publishAudit(ctx, operation, false, "receipt_settlement_failed")
@@ -198,8 +202,18 @@ func (s *RolloutService) publishAudit(ctx context.Context, operation ComposeUpda
 	_ = s.auditBus.Publish(ctx, eventbus.Event{Name: string(moduleapi.AuditRecordEventName), Source: moduleID, Payload: moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: operator, Action: "platform.update.compose", ResourceType: "platform_update", ResourceID: operation.OperationID, ResourceName: operation.TargetVersion, StatusCode: http.StatusAccepted, Success: success, Message: strings.TrimSpace(message), Metadata: map[string]any{"source_version": operation.SourceVersion, "target_version": operation.TargetVersion, "task_id": operation.TaskID, "status": operation.Outcome}}, OccurredAt: time.Now().UTC()})
 }
 
-//nolint:cyclop // 日志 receipt 与 legacy durable receipt 是两个独立的恢复来源。
+func isTerminalOutcome(outcome ExecutionOutcome) bool {
+	switch outcome {
+	case ExecutionOutcomeSuccess, ExecutionOutcomeFailed, ExecutionOutcomeRecovered, ExecutionOutcomeNeedsAttention:
+		return true
+	default:
+		return false
+	}
+}
+
 // SettleAvailableReceipts 收敛目标 Compose 根目录下由 runner 留下的 receipt；无法解析的文件不影响 server 启动。
+//
+//nolint:cyclop // 日志 receipt 与 legacy durable receipt 是两个独立的恢复来源。
 func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 	if s == nil || s.discovery == nil {
 		return nil
@@ -292,10 +306,12 @@ func readPersistedRunnerReceipt(root, name string) (string, RunnerReceipt, error
 
 func composePreflight(profile InstallationProfile, release Release, candidateKey string) (ComposePreflight, error) {
 	root := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_COMPOSE_ROOT"))
+	composeFiles := []string{}
 	if root == "" {
 		for _, candidate := range profile.ComposeCandidates {
 			if candidate.CandidateKey == strings.TrimSpace(candidateKey) {
 				root = strings.TrimSpace(candidate.Root)
+				composeFiles = append(composeFiles, candidate.ConfigFiles...)
 				break
 			}
 		}
@@ -303,8 +319,14 @@ func composePreflight(profile InstallationProfile, release Release, candidateKey
 			return ComposePreflight{}, errors.New("a confirmed compose root candidate is required")
 		}
 	}
-	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerRef, WebReference: release.WebRef, RunnerReference: release.RunnerRef}
-	if err := ValidateComposePreflight(value); err != nil {
+	if len(composeFiles) == 0 {
+		composeFiles = []string{filepath.Join(root, "compose.yml")}
+	}
+	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerRef, WebReference: release.WebRef, RunnerReference: release.RunnerRef}
+	validationValue := value
+	// 先校验官方基础 Compose 拓扑，再把 Docker 标签确认过的完整文件序列交给 runner。
+	validationValue.ComposeFiles = []string{filepath.Join(root, "compose.yml")}
+	if err := ValidateComposePreflight(validationValue); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}
 	return value, nil

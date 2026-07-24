@@ -31,7 +31,7 @@ func TestParseRunnerReceiptLogAcceptsOnlyBoundProtocolMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal receipt: %v", err)
 	}
-	parsed, ok := parseRunnerReceiptLog(runnerReceiptLogMarker + base64.RawStdEncoding.EncodeToString(encoded))
+	parsed, ok := parseRunnerReceiptLog(RunnerReceiptLogMarker + base64.RawStdEncoding.EncodeToString(encoded))
 	if !ok || parsed.OperationID != receipt.OperationID || !parsed.Succeeded {
 		t.Fatalf("unexpected parsed receipt: %#v, %v", parsed, ok)
 	}

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -174,6 +175,47 @@ func TestSettleReceiptEntryDeletesOnlySuccessfulSettlements(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, runnerReceiptDirectory, "update-82.json")); err != nil {
 		t.Fatalf("failed receipt should remain for retry, got %v", err)
+	}
+}
+
+func TestSettlePersistedReceiptShortCircuitsTerminalOperation(t *testing.T) {
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-83": {OperationID: "update-83", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 83, Outcome: ExecutionOutcomeSuccess},
+	}}
+	tasks := &stubTaskService{}
+	backups := &stubBackupService{}
+	rollout := NewRolloutService(NewService(nil), operations, tasks, backups, &recordingLauncher{})
+
+	settled, err := rollout.SettlePersistedReceipt(t.Context(), RunnerReceipt{OperationID: "update-83"})
+	if err != nil {
+		t.Fatalf("settle terminal operation: %v", err)
+	}
+	if settled != operations.items["update-83"] {
+		t.Fatalf("terminal operation changed during replay: got %#v want %#v", settled, operations.items["update-83"])
+	}
+	if tasks.external.TaskID != 0 || backups.completion.OperationID != "" {
+		t.Fatalf("terminal receipt replay triggered side effects: task=%#v backup=%#v", tasks.external, backups.completion)
+	}
+}
+
+func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
+	root := t.TempDir()
+	serverImage := "ghcr.io/gewuyou/graft-server"
+	webImage := "ghcr.io/gewuyou/graft-web"
+	runnerImage := "ghcr.io/gewuyou/graft-compose-runner"
+	serverDigest := "sha256:" + strings.Repeat("a", 64)
+	webDigest := "sha256:" + strings.Repeat("b", 64)
+	runnerDigest := "sha256:" + strings.Repeat("c", 64)
+	release := Release{ServerImage: serverImage, WebImage: webImage, RunnerImage: runnerImage, ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest, ServerRef: serverImage + "@" + serverDigest, WebRef: webImage + "@" + webDigest, RunnerRef: runnerImage + "@" + runnerDigest}
+	files := []string{filepath.Join(root, "compose.yml"), filepath.Join(root, "overrides", "web.yml"), filepath.Join(root, "compose.override.yml")}
+	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-selected", Root: root, ConfigFiles: files}}}
+
+	preflight, err := composePreflight(profile, release, "compose-selected")
+	if err != nil {
+		t.Fatalf("build compose preflight: %v", err)
+	}
+	if !slices.Equal(preflight.ComposeFiles, files) {
+		t.Fatalf("candidate config file sequence was not passed to runner input: got %#v want %#v", preflight.ComposeFiles, files)
 	}
 }
 

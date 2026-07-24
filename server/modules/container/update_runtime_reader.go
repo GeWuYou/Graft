@@ -18,9 +18,10 @@ const (
 	updateComposeCandidateConfidenceMedium = "medium"
 )
 
-//nolint:cyclop,gocognit,gocyclo // 候选归并、来源置信度和稳定排序共同构成一次发现快照。
 // DiscoverCurrentServerCompose 通过当前进程容器的 hostname inspect Docker 元数据，生成一次性 Compose 根目录候选。
 // 它不读取宿主机文件，也不把 Docker inspect 原始载荷暴露给 Update；候选根目录必须来自 Compose 元数据或 bind source。
+//
+//nolint:cyclop,gocognit,gocyclo // 候选归并、来源置信度和稳定排序共同构成一次发现快照。
 func (r containerProjectRuntimeReader) DiscoverCurrentServerCompose(ctx context.Context) ([]moduleapi.UpdateComposeRuntimeCandidate, error) {
 	if r.service == nil {
 		return nil, errRuntimeDisabled
@@ -52,8 +53,9 @@ func (r containerProjectRuntimeReader) DiscoverCurrentServerCompose(ctx context.
 		}
 		files := make([]string, 0, len(configFiles))
 		for _, file := range configFiles {
-			if filepath.IsAbs(file) && filepath.Dir(filepath.Clean(file)) == root {
-				files = append(files, filepath.Clean(file))
+			file = filepath.Clean(file)
+			if filepath.IsAbs(file) && pathWithinRoot(root, file) {
+				files = append(files, file)
 			}
 		}
 		if len(files) == 0 && confidence == updateComposeCandidateConfidenceHigh {
@@ -89,6 +91,14 @@ func (r containerProjectRuntimeReader) DiscoverCurrentServerCompose(ctx context.
 		return candidates[i].Root < candidates[j].Root
 	})
 	return candidates, nil
+}
+
+func pathWithinRoot(root, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	if err != nil || relative == ".." {
+		return false
+	}
+	return !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && relative != "."
 }
 
 var _ moduleapi.UpdateComposeRuntimeReader = containerProjectRuntimeReader{}

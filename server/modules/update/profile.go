@@ -52,29 +52,43 @@ type ManualStep struct {
 
 // DetectInstallationProfile 基于部署路径和运行时证据生成保守画像，永不把声明环境变量单独当作执行授权。
 func DetectInstallationProfile(getenv func(string) string, executable func() (string, error)) InstallationProfile {
-	return DetectInstallationProfileWithComposeReader(getenv, executable, nil)
+	return DetectInstallationProfileWithComposeReader(context.Background(), getenv, func(key string) (string, bool) {
+		value := getenv(key)
+		return value, value != ""
+	}, executable, nil)
 }
 
-//nolint:cyclop // 显式路径、自动发现、声明不匹配和 binary 指引是互斥的安装安全门。
 // DetectInstallationProfileWithComposeReader 在未配置显式根目录时读取容器运行时候选；显式路径失败时不会回退。
-func DetectInstallationProfileWithComposeReader(getenv func(string) string, executable func() (string, error), reader moduleapi.UpdateComposeRuntimeReader) InstallationProfile {
+//
+//nolint:cyclop,gocognit,gocyclo // 显式路径、自动发现、声明不匹配和 binary 指引是互斥的安装安全门。
+func DetectInstallationProfileWithComposeReader(ctx context.Context, getenv func(string) string, lookupEnv func(string) (string, bool), executable func() (string, error), reader moduleapi.UpdateComposeRuntimeReader) InstallationProfile {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	declared := normalizeMode(getenv(declaredDeploymentModeEnv))
-	composeRoot := strings.TrimSpace(getenv("GRAFT_UPDATE_COMPOSE_ROOT"))
+	composeRootValue, composeRootSet := lookupEnv("GRAFT_UPDATE_COMPOSE_ROOT")
+	composeRoot := strings.TrimSpace(composeRootValue)
 	detected := "binary"
 	if filepath.IsAbs(composeRoot) {
 		detected = "compose"
 	}
 	profile := InstallationProfile{DeclaredMode: declared, DetectedMode: detected, ComposeRootSource: "unavailable", ComposeCandidates: []ComposeRootCandidate{}}
-	if composeRoot != "" {
+	if composeRootSet {
 		profile.ComposeRootSource = "explicit_env"
+	}
+	if composeRootSet && (composeRoot == "" || detected != "compose") {
+		profile.Capability = "manual_guidance_blocked"
+		profile.BlockingReason = "GRAFT_UPDATE_COMPOSE_ROOT 必须是非空的宿主机绝对路径"
+		profile.Guidance = profile.BlockingReason + "；不会回退到 Docker 自动发现。"
+		return profile
 	}
 	switch {
 	case detected == "compose" && declared == "compose":
 		profile.ComposeRootSource = "explicit_env"
 		profile.Capability = "compose_upgrade_available"
 		profile.Guidance = "官方 Compose 安装已通过声明与挂载路径预检；升级前仍会执行执行器预检。"
-	case declared == "compose" && composeRoot == "" && reader != nil:
-		candidates, err := reader.DiscoverCurrentServerCompose(context.Background())
+	case declared == "compose" && !composeRootSet && reader != nil:
+		candidates, err := reader.DiscoverCurrentServerCompose(ctx)
 		profile.DetectedMode = "compose"
 		profile.ComposeRootSource = "docker_discovered"
 		for _, candidate := range candidates {
@@ -82,7 +96,7 @@ func DetectInstallationProfileWithComposeReader(getenv func(string) string, exec
 			if len(candidate.Warnings) > 0 {
 				warning = candidate.Warnings[0]
 			}
-			profile.ComposeCandidates = append(profile.ComposeCandidates, ComposeRootCandidate{CandidateKey: candidate.CandidateKey, Root: candidate.Root, WorkingDir: candidate.WorkingDir, ConfigFiles: append([]string(nil), candidate.ConfigFiles...), ProjectName: candidate.ProjectName, Confidence: candidate.Confidence, Warning: warning})
+			profile.ComposeCandidates = append(profile.ComposeCandidates, ComposeRootCandidate{CandidateKey: candidate.CandidateKey, Root: candidate.Root, WorkingDir: candidate.WorkingDir, ConfigFiles: copyStrings(candidate.ConfigFiles), ProjectName: candidate.ProjectName, Confidence: candidate.Confidence, Warning: warning})
 		}
 		if err != nil || len(profile.ComposeCandidates) == 0 {
 			profile.Capability = "manual_guidance"
@@ -92,6 +106,12 @@ func DetectInstallationProfileWithComposeReader(getenv func(string) string, exec
 			profile.Capability = "compose_upgrade_available"
 			profile.Guidance = "Compose 根目录由 Docker bind mount 推导；执行升级前必须确认候选。"
 		}
+	case declared == "compose" && !composeRootSet:
+		profile.DetectedMode = "compose"
+		profile.ComposeRootSource = "docker_unavailable"
+		profile.Capability = "manual_guidance_blocked"
+		profile.BlockingReason = "未配置 GRAFT_UPDATE_COMPOSE_ROOT，且 Docker 运行时发现不可用"
+		profile.Guidance = profile.BlockingReason + "；不会使用容器内路径或 binary 方式替代。"
 	case detected == "compose":
 		profile.ComposeRootSource = "explicit_env"
 		profile.Capability = "manual_guidance"
@@ -100,6 +120,13 @@ func DetectInstallationProfileWithComposeReader(getenv func(string) string, exec
 		profile = binaryInstallationProfile(profile, getenv, executable)
 	}
 	return profile
+}
+
+func copyStrings(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	return append([]string{}, values...)
 }
 
 // binaryInstallationProfile 只生成可复现的人工升级指引；缺失任一必要宿主信息时明确阻断完整指引。
