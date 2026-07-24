@@ -11,6 +11,8 @@
 - a GitHub-hosted temporary pre-release smoke gate that runs the release-grade `server` artifact against disposable
   PostgreSQL and Redis, applies explicit migration through `graft migrate up --allow-dirty`, and then probes
   `/healthz` before the GitHub Release step continues
+- release image publication only after the release artifact and Compose smoke gates pass; a failed run before GitHub
+  Release creation automatically removes its triggering tag when the tag still points to that run's commit
 - release-binary authority where the `server` artifact itself carries canonical `BuildInfo`, the default embedded
   migration chain, and the runtime embedded OpenAPI asset
 - release-package authority where `LICENSE`, `SBOM`, license compliance report, checksum bundle, and `web` dist may be
@@ -34,7 +36,7 @@
 ## Not Yet Promised In `v0.1.0`
 
 - Kubernetes, hosted, multi-node, and non-official Compose deployment execution
-- automatic rollback tooling
+- automatic rollback of published runtime images, database schema, or an already-created GitHub Release
 - unattended automatic installation or host/systemd binary replacement
 - implicit startup migration or startup-time schema repair
 - independent `server` / `web` official release trains

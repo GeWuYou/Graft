@@ -153,9 +153,11 @@ jobs:
           if-no-files-found: error
 
   publish-images:
-    name: Publish Container Images
+    name: Smoke and Publish Container Images
     runs-on: ubuntu-latest
-    needs: build-artifacts
+    needs:
+      - build-artifacts
+      - bubble-smoke
 
     permissions:
       contents: read
@@ -167,9 +169,9 @@ jobs:
       web_image: ${{ steps.image_vars.outputs.web_image }}
       runner_image: ${{ steps.image_vars.outputs.runner_image }}
       is_prerelease: ${{ needs.build-artifacts.outputs.is_prerelease }}
-      server_digest: ${{ steps.server_build.outputs.digest }}
-      web_digest: ${{ steps.web_build.outputs.digest }}
-      runner_digest: ${{ steps.runner_build.outputs.digest }}
+      server_digest: ${{ steps.publish_release_images.outputs.server_digest }}
+      web_digest: ${{ steps.publish_release_images.outputs.web_digest }}
+      runner_digest: ${{ steps.publish_release_images.outputs.runner_digest }}
 
     steps:
       - name: Checkout repository at tag
@@ -194,13 +196,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
-
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
 
       - name: Download release artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -301,37 +296,101 @@ jobs:
           build-contexts: |
             release-binary=./dist/server
           platforms: linux/amd64
-          push: true
-          tags: ${{ steps.server_meta.outputs.tags }}
+          load: true
+          push: false
+          tags: graft-release-server:${{ github.run_id }}
           labels: ${{ steps.server_meta.outputs.labels }}
           cache-from: type=gha,scope=graft-server-image
           cache-to: type=gha,mode=max,scope=graft-server-image
 
-      - name: Build and push web image
+      - name: Build web image for smoke
         id: web_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: ./web
           file: ./web/Dockerfile
           platforms: linux/amd64
-          push: true
-          tags: ${{ steps.web_meta.outputs.tags }}
+          load: true
+          push: false
+          tags: graft-release-web:${{ github.run_id }}
           labels: ${{ steps.web_meta.outputs.labels }}
           cache-from: type=gha,scope=graft-web-image
           cache-to: type=gha,mode=max,scope=graft-web-image
 
-      - name: Build and push Compose runner image
+      - name: Build Compose runner image for smoke
         id: runner_build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: ./server
           file: ./server/runner/compose/Dockerfile
           platforms: linux/amd64
-          push: true
-          tags: ${{ steps.runner_meta.outputs.tags }}
+          load: true
+          push: false
+          tags: graft-release-runner:${{ github.run_id }}
           labels: ${{ steps.runner_meta.outputs.labels }}
           cache-from: type=gha,scope=graft-compose-runner-image
           cache-to: type=gha,mode=max,scope=graft-compose-runner-image
+
+      - name: Run Compose smoke against local images
+        env:
+          GRAFT_RELEASE_SERVER_IMAGE: graft-release-server
+          GRAFT_RELEASE_WEB_IMAGE: graft-release-web
+          GRAFT_RELEASE_IMAGE_TAG: ${{ github.run_id }}
+          GRAFT_RELEASE_SMOKE_LOG_DIR: .tmp/release-compose-smoke
+        run: ./scripts/smoke_release_compose.sh
+
+      - name: Upload Compose smoke logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-compose-smoke-logs
+          path: .tmp/release-compose-smoke/*
+          if-no-files-found: ignore
+
+      - name: Log in to GHCR after smoke gates
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish approved image tags
+        id: publish_release_images
+        env:
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+          SERVER_IMAGE: ${{ steps.image_vars.outputs.server_image }}
+          WEB_IMAGE: ${{ steps.image_vars.outputs.web_image }}
+          RUNNER_IMAGE: ${{ steps.image_vars.outputs.runner_image }}
+          SERVER_TAGS: ${{ steps.server_meta.outputs.tags }}
+          WEB_TAGS: ${{ steps.web_meta.outputs.tags }}
+          RUNNER_TAGS: ${{ steps.runner_meta.outputs.tags }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          publish_local_image() {
+            local source="$1"
+            local tags="$2"
+            while IFS= read -r tag; do
+              [[ -n "${tag}" ]] || continue
+              docker tag "${source}" "${tag}"
+              docker push "${tag}"
+            done <<< "${tags}"
+          }
+
+          publish_local_image "graft-release-server:${{ github.run_id }}" "${SERVER_TAGS}"
+          publish_local_image "graft-release-web:${{ github.run_id }}" "${WEB_TAGS}"
+          publish_local_image "graft-release-runner:${{ github.run_id }}" "${RUNNER_TAGS}"
+
+          server_digest="$(docker buildx imagetools inspect "${SERVER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
+          web_digest="$(docker buildx imagetools inspect "${WEB_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
+          runner_digest="$(docker buildx imagetools inspect "${RUNNER_IMAGE}:${RELEASE_REF_NAME}" | awk '/^Digest:/ { print $2; exit }')"
+          [[ "${server_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${web_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${runner_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "server_digest=${server_digest}" >> "${GITHUB_OUTPUT}"
+          echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
+          echo "runner_digest=${runner_digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Write image manifest
         env:
@@ -344,12 +403,12 @@ jobs:
           cat > "image-assets/graft-container-images-${RELEASE_REF_NAME}.txt" <<EOF
           server_image=${{ steps.image_vars.outputs.server_image }}
           server_tag=${RELEASE_REF_NAME}
-          server_digest=${{ steps.server_build.outputs.digest }}
+          server_digest=${{ steps.publish_release_images.outputs.server_digest }}
           web_image=${{ steps.image_vars.outputs.web_image }}
           web_tag=${RELEASE_REF_NAME}
-          web_digest=${{ steps.web_build.outputs.digest }}
+          web_digest=${{ steps.publish_release_images.outputs.web_digest }}
           runner_image=${{ steps.image_vars.outputs.runner_image }}
-          runner_digest=${{ steps.runner_build.outputs.digest }}
+          runner_digest=${{ steps.publish_release_images.outputs.runner_digest }}
           EOF
 
           # This is the machine-readable release authority consumed by self-update.
@@ -367,11 +426,11 @@ jobs:
             --arg releaseNotesURL "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_REF_NAME}" \
             --arg upgradeNotes "Review the GitHub Release Notes and perform the manifest-declared migration before runtime startup." \
             --arg serverImage "${{ steps.image_vars.outputs.server_image }}" \
-            --arg serverDigest "${{ steps.server_build.outputs.digest }}" \
+            --arg serverDigest "${{ steps.publish_release_images.outputs.server_digest }}" \
             --arg webImage "${{ steps.image_vars.outputs.web_image }}" \
-            --arg webDigest "${{ steps.web_build.outputs.digest }}" \
+            --arg webDigest "${{ steps.publish_release_images.outputs.web_digest }}" \
             --arg runnerImage "${{ steps.image_vars.outputs.runner_image }}" \
-            --arg runnerDigest "${{ steps.runner_build.outputs.digest }}" \
+            --arg runnerDigest "${{ steps.publish_release_images.outputs.runner_digest }}" \
             --arg serverArtifact "${server_asset}" \
             --arg webArtifact "${web_asset}" \
             --arg checksums "${checksums_asset}" \
@@ -582,219 +641,6 @@ jobs:
             echo "- Duration Seconds: \`${{ steps.bubble_smoke.outputs.duration_seconds || 'unknown' }}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
-  compose-smoke:
-    name: Compose Smoke Gate
-    runs-on: ubuntu-latest
-    needs:
-      - build-artifacts
-      - publish-images
-    timeout-minutes: 20
-
-    permissions:
-      contents: read
-      packages: read
-
-    steps:
-      - name: Checkout repository at tag
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-
-      - name: Download image manifest
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: image-assets
-          path: image-assets
-
-      - name: Write compose environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          manifest="image-assets/release-manifest.json"
-          test -f "${manifest}"
-          server_repository="$(jq -er '.images.server.image' "${manifest}")"
-          server_digest="$(jq -er '.images.server.digest' "${manifest}")"
-          web_repository="$(jq -er '.images.web.image' "${manifest}")"
-          web_digest="$(jq -er '.images.web.digest' "${manifest}")"
-          mkdir -p "${RUNNER_TEMP}/graft-apps"
-          cat > .env <<EOF
-          GRAFT_SERVER_IMAGE_REPOSITORY=${server_repository}
-          GRAFT_SERVER_IMAGE_DIGEST=${server_digest}
-          GRAFT_WEB_IMAGE_REPOSITORY=${web_repository}
-          GRAFT_WEB_IMAGE_DIGEST=${web_digest}
-          POSTGRES_DB=graft
-          POSTGRES_USER=graft
-          POSTGRES_PASSWORD=graft
-          GRAFT_AUTH_JWT_SECRET=ci-compose-smoke-secret
-          GRAFT_DOCS_ENABLED=true
-          GRAFT_APPLICATION_ROOT_HOST_PATH=${RUNNER_TEMP}/graft-apps
-          EOF
-
-      - name: Start compose stack
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .tmp
-          docker compose config --quiet
-          docker compose pull
-          docker compose up -d postgres redis
-
-      - name: Run bootstrap migration
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker compose -f compose.yml -f compose.smoke.yml up -d bootstrap
-
-      - name: Wait for bootstrap completion
-        shell: bash
-        run: |
-          set -euo pipefail
-          for _ in $(seq 1 60); do
-            bootstrap_id="$(docker compose ps -aq bootstrap)"
-            if [[ -z "${bootstrap_id}" ]]; then
-              sleep 2
-              continue
-            fi
-            status="$(docker inspect -f '{{.State.Status}}' "${bootstrap_id}")"
-            exit_code="$(docker inspect -f '{{.State.ExitCode}}' "${bootstrap_id}")"
-            if [[ "${status}" == "exited" && "${exit_code}" == "0" ]]; then
-              exit 0
-            fi
-            if [[ "${status}" == "exited" && "${exit_code}" != "0" ]]; then
-              echo "bootstrap failed with exit code ${exit_code}"
-              docker compose ps -a
-              docker inspect "${bootstrap_id}" || true
-              docker compose logs bootstrap
-              exit 1
-            fi
-            sleep 2
-          done
-          echo "bootstrap did not complete in time"
-          docker compose ps -a
-          if [[ -n "$(docker compose ps -aq bootstrap)" ]]; then
-            docker inspect "$(docker compose ps -aq bootstrap)" || true
-          fi
-          docker compose logs bootstrap
-          exit 1
-
-      - name: Start server and web
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! docker compose up -d server web; then
-            docker compose ps -a || true
-            docker compose logs application-root-init || true
-            root_init_id="$(docker compose ps -aq application-root-init || true)"
-            if [[ -n "${root_init_id}" ]]; then
-              docker inspect "${root_init_id}" || true
-            fi
-            exit 1
-          fi
-
-      - name: Wait for server and web readiness
-        id: compose_readiness
-        shell: bash
-        run: |
-          set -euo pipefail
-          web_mapping="$(docker compose port web 80 | sed -n '1p')"
-          web_port="${web_mapping##*:}"
-          if ! [[ "${web_port}" =~ ^[1-9][0-9]{0,4}$ ]] || (( web_port > 65535 )); then
-            echo "unable to resolve the web host port from Compose mapping: ${web_mapping:-<empty>}"
-            docker compose ps -a
-            exit 1
-          fi
-          probe_base_url="http://127.0.0.1:${web_port}"
-          echo "probe_base_url=${probe_base_url}" >> "${GITHUB_OUTPUT}"
-          for _ in $(seq 1 60); do
-            if curl -fsS "${probe_base_url}/healthz" > .tmp-compose-healthz.json \
-              && curl -fsS "${probe_base_url}/openapi.json" > .tmp-compose-openapi.json \
-              && curl -fsS "${probe_base_url}/" > .tmp-compose-index.html; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "compose services were not ready in time"
-          docker compose ps
-          docker compose logs server web
-          exit 1
-
-      - name: Verify frontend shell and proxied assets
-        shell: bash
-        run: |
-          set -euo pipefail
-          grep -q "<!doctype html" .tmp-compose-index.html
-          grep -q "\"openapi\"" .tmp-compose-openapi.json
-
-      - name: Capture compose diagnostics
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .tmp
-          docker compose ps -a > .tmp/compose-ps.txt 2>&1 || true
-          docker compose port web 80 > .tmp/compose-web-port.txt 2>&1 || true
-          docker compose logs bootstrap > .tmp/compose-bootstrap.log 2>&1 || true
-          docker compose logs application-root-init > .tmp/compose-application-root-init.log 2>&1 || true
-          root_init_id="$(docker compose ps -aq application-root-init || true)"
-          if [[ -n "${root_init_id}" ]]; then
-            docker inspect "${root_init_id}" > .tmp/compose-application-root-init-inspect.json 2>&1 || true
-          fi
-          docker compose logs postgres > .tmp/compose-postgres.log 2>&1 || true
-          docker compose logs redis > .tmp/compose-redis.log 2>&1 || true
-          docker compose logs server > .tmp/compose-server.log 2>&1 || true
-          docker compose logs web > .tmp/compose-web.log 2>&1 || true
-
-      - name: Upload compose smoke logs
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: compose-smoke-logs
-          path: |
-            .tmp-compose-healthz.json
-            .tmp-compose-openapi.json
-            .tmp-compose-index.html
-            .tmp/compose-ps.txt
-            .tmp/compose-web-port.txt
-            .tmp/compose-bootstrap.log
-            .tmp/compose-application-root-init.log
-            .tmp/compose-application-root-init-inspect.json
-            .tmp/compose-postgres.log
-            .tmp/compose-redis.log
-            .tmp/compose-server.log
-            .tmp/compose-web.log
-          if-no-files-found: ignore
-
-      - name: Write compose smoke summary
-        if: always()
-        shell: bash
-        env:
-          RELEASE_REF_NAME: ${{ github.ref_name }}
-          PROBE_BASE_URL: ${{ steps.compose_readiness.outputs.probe_base_url || 'unresolved' }}
-        run: |
-          {
-            echo "## Compose Smoke Gate"
-            echo
-            echo "- Tag: \`${RELEASE_REF_NAME}\`"
-            echo "- Version: \`${{ needs.build-artifacts.outputs.version }}\`"
-            echo "- Bootstrap: \`service_completed_successfully\`"
-            printf '%s\n' "- Health Probe: \`${PROBE_BASE_URL}/healthz\`"
-            printf '%s\n' "- Proxy Probe: \`${PROBE_BASE_URL}/openapi.json\`"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Tear down compose stack
-        if: always()
-        shell: bash
-        run: |
-          docker compose down -v --remove-orphans
-
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
@@ -802,7 +648,6 @@ jobs:
       - build-artifacts
       - bubble-smoke
       - publish-images
-      - compose-smoke
 
     permissions:
       contents: write
@@ -897,4 +742,123 @@ jobs:
             echo "- Web Image: \`${{ needs.publish-images.outputs.web_image }}:${RELEASE_REF_NAME}\`"
             echo
             printf '%s\n' "${CLIFF_RELEASE_NOTES}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  cleanup-failed-tag:
+    name: Cleanup Failed Pre-Release Tag
+    runs-on: ubuntu-latest
+    if: ${{ always() && (needs.build-artifacts.result != 'success' || needs.bubble-smoke.result != 'success' || needs.publish-images.result != 'success' || needs.create-release.result != 'success') }}
+    needs:
+      - build-artifacts
+      - bubble-smoke
+      - publish-images
+      - create-release
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Remove tag only when no GitHub Release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          TRIGGER_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-beta\.[1-9][0-9]*)?$ ]]; then
+            echo "::error::Refusing automatic cleanup for unsupported release tag '${RELEASE_TAG}'."
+            exit 1
+          fi
+
+          api_root="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}"
+          release_response="$(mktemp)"
+          release_status="$(curl -sS -o "${release_response}" -w '%{http_code}' \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "${api_root}/releases/tags/${RELEASE_TAG}")"
+
+          case "${release_status}" in
+            200)
+              echo "GitHub Release ${RELEASE_TAG} exists; preserving tag and published identity."
+              echo "- Cleanup: skipped because the GitHub Release already exists." >> "${GITHUB_STEP_SUMMARY}"
+              exit 0
+              ;;
+            404)
+              ;;
+            *)
+              echo "::error::Cannot determine whether GitHub Release ${RELEASE_TAG} exists (HTTP ${release_status})."
+              cat "${release_response}"
+              exit 1
+              ;;
+          esac
+
+          tag_response="$(mktemp)"
+          tag_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "${api_root}/git/ref/tags/${RELEASE_TAG}")"
+          if [[ "${tag_status}" == "404" ]]; then
+            echo "Tag ${RELEASE_TAG} is already absent."
+            echo "- Cleanup: tag was already absent." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          if [[ "${tag_status}" != "200" ]]; then
+            echo "::error::Cannot inspect tag ${RELEASE_TAG} (HTTP ${tag_status})."
+            cat "${tag_response}"
+            exit 1
+          fi
+
+          tag_object_type="$(jq -er '.object.type' "${tag_response}")"
+          tag_object_sha="$(jq -er '.object.sha' "${tag_response}")"
+          case "${tag_object_type}" in
+            commit)
+              tag_target_sha="${tag_object_sha}"
+              ;;
+            tag)
+              tag_target_response="$(mktemp)"
+              tag_target_status="$(curl -sS -o "${tag_target_response}" -w '%{http_code}' \
+                -H 'Accept: application/vnd.github+json' \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                "${api_root}/git/tags/${tag_object_sha}")"
+              if [[ "${tag_target_status}" != "200" ]]; then
+                echo "::error::Cannot resolve annotated tag ${RELEASE_TAG} target (HTTP ${tag_target_status})."
+                cat "${tag_target_response}"
+                exit 1
+              fi
+              tag_target_type="$(jq -er '.object.type' "${tag_target_response}")"
+              if [[ "${tag_target_type}" != "commit" ]]; then
+                echo "::error::Refusing to delete ${RELEASE_TAG}: annotated tag resolves to ${tag_target_type}, not a commit."
+                exit 1
+              fi
+              tag_target_sha="$(jq -er '.object.sha' "${tag_target_response}")"
+              ;;
+            *)
+              echo "::error::Refusing to delete ${RELEASE_TAG}: unsupported ref object type ${tag_object_type}."
+              exit 1
+              ;;
+          esac
+
+          if [[ "${tag_target_sha}" != "${TRIGGER_SHA}" ]]; then
+            echo "::error::Refusing to delete ${RELEASE_TAG}: it resolves to ${tag_target_sha}, expected ${TRIGGER_SHA}."
+            exit 1
+          fi
+
+          delete_status="$(curl -sS -o "${tag_response}" -w '%{http_code}' -X DELETE \
+            -H 'Accept: application/vnd.github+json' \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "${api_root}/git/refs/tags/${RELEASE_TAG}")"
+          if [[ "${delete_status}" != "204" ]]; then
+            echo "::error::Failed to delete tag ${RELEASE_TAG} (HTTP ${delete_status})."
+            cat "${tag_response}"
+            exit 1
+          fi
+
+          echo "Deleted failed pre-Release tag ${RELEASE_TAG}."
+          {
+            echo "- Cleanup: deleted failed pre-Release tag \`${RELEASE_TAG}\`."
+            echo "- Cleanup scope: Git tag only; GHCR package versions require separate registry cleanup."
           } >> "${GITHUB_STEP_SUMMARY}"
