@@ -11,14 +11,7 @@
       "summaryEmpty": "此版本未提供摘要，请查看完整更新日志。",
       "viewManagement": "查看更新日志",
       "viewRelease": "查看发布",
-      "detail": {
-        "open": "详情",
-        "title": "发行说明详情",
-        "releaseDescription": "已验证的 Graft 发行版本",
-        "publishedAt": "发布时间",
-        "upgradeNotes": "升级说明",
-        "close": "关闭详情"
-      },
+      "detail": { "open": "详情" },
       "checkNow": "检查更新",
       "checking": "正在检查更新…",
       "checkFailed": "检查更新未完成，请稍后重试。",

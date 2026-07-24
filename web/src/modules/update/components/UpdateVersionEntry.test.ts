@@ -6,6 +6,7 @@ import { defineComponent } from 'vue';
 import { usePermissionStore } from '@/store';
 
 import { checkForUpdates } from '../api/update';
+import { UPDATE_ROUTE_PATH } from '../contract/paths';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
 import UpdateVersionEntry from './UpdateVersionEntry.vue';
@@ -70,10 +71,6 @@ function mountEntry() {
         't-tooltip': passthrough,
         't-button': buttonStub,
         'refresh-icon': defineComponent({ template: '<span data-testid="refresh-icon" />' }),
-        UpdateReleaseDetailDialog: defineComponent({
-          props: { release: { type: Object, default: null }, visible: Boolean },
-          template: '<div v-if="visible" data-testid="update-release-detail-stub">Details {{ release?.version }}</div>',
-        }),
       },
     },
   });
@@ -92,7 +89,7 @@ describe('UpdateVersionEntry', () => {
     vi.clearAllMocks();
   });
 
-  it('shows an available release instead of an up-to-date message', () => {
+  it('shows an available release without repeating its release summary', () => {
     const discovery = useUpdateDiscoveryStore();
     discovery.replaceSnapshot(
       status({
@@ -108,7 +105,8 @@ describe('UpdateVersionEntry', () => {
 
     expect(wrapper.text()).toContain('update.preview.availableVersion:1.1.0');
     expect(wrapper.text()).not.toContain('update.preview.upToDate');
-    expect(wrapper.text()).toContain('update.preview.available');
+    expect(wrapper.findAll('p').some((paragraph) => paragraph.text() === 'update.preview.available')).toBe(false);
+    expect(wrapper.text()).not.toContain('Fixes');
   });
 
   it('shows unavailable messaging and hides stale release details', () => {
@@ -164,7 +162,7 @@ describe('UpdateVersionEntry', () => {
     await flushPromises();
   });
 
-  it('opens release details from the header preview', async () => {
+  it('opens update management from the header preview details action', async () => {
     const discovery = useUpdateDiscoveryStore();
     discovery.replaceSnapshot(
       status({
@@ -179,60 +177,28 @@ describe('UpdateVersionEntry', () => {
 
     await wrapper.get('[data-testid="update-preview-detail"]').trigger('click');
 
-    expect(wrapper.get('[data-testid="update-release-detail-stub"]').isVisible()).toBe(true);
+    expect(routerMocks.push).toHaveBeenCalledWith(UPDATE_ROUTE_PATH.CENTER);
   });
 
-  it('closes release details when a refresh removes the available release', async () => {
+  it('starts the controlled upgrade flow from the primary quick action', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({
+      permissions: [UPDATE_PERMISSION_CODE.READ, UPDATE_PERMISSION_CODE.CHECK, UPDATE_PERMISSION_CODE.MANAGE],
+    } as never);
     const discovery = useUpdateDiscoveryStore();
     discovery.replaceSnapshot(
       status({
         latest: {
           version: '1.1.0',
-          notes: '# Release notes',
           notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
         },
       }),
     );
     const wrapper = mountEntry();
 
-    await wrapper.get('[data-testid="update-preview-detail"]').trigger('click');
-    expect(wrapper.get('[data-testid="update-release-detail-stub"]').isVisible()).toBe(true);
+    await wrapper.get('[data-testid="update-preview-upgrade"]').trigger('click');
 
-    discovery.replaceSnapshot(status());
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.find('[data-testid="update-release-detail-stub"]').exists()).toBe(false);
-  });
-
-  it('keeps the opened release details stable when a refresh finds another release', async () => {
-    const discovery = useUpdateDiscoveryStore();
-    discovery.replaceSnapshot(
-      status({
-        latest: {
-          version: '1.1.0',
-          notes: '# Release notes',
-          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
-        },
-      }),
-    );
-    const wrapper = mountEntry();
-
-    await wrapper.get('[data-testid="update-preview-detail"]').trigger('click');
-    expect(wrapper.get('[data-testid="update-release-detail-stub"]').text()).toContain('1.1.0');
-
-    discovery.replaceSnapshot(
-      status({
-        latest: {
-          version: '1.2.0',
-          notes: '# New release notes',
-          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.2.0',
-        },
-      }),
-    );
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.get('[data-testid="update-release-detail-stub"]').text()).toContain('1.1.0');
-    expect(wrapper.get('[data-testid="update-release-detail-stub"]').text()).not.toContain('1.2.0');
+    expect(routerMocks.push).toHaveBeenCalledWith({ path: UPDATE_ROUTE_PATH.CENTER, query: { upgrade: '1' } });
   });
 
   it('keeps the dev version visible, disables release navigation, and allows retry after failure', async () => {

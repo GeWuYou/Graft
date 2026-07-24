@@ -11,14 +11,7 @@
       "summaryEmpty": "This release has no summary. View the complete release notes.",
       "viewManagement": "View update log",
       "viewRelease": "View release",
-      "detail": {
-        "open": "Details",
-        "title": "Release details",
-        "releaseDescription": "A verified Graft release",
-        "publishedAt": "Published",
-        "upgradeNotes": "Upgrade notes",
-        "close": "Close details"
-      },
+      "detail": { "open": "Details" },
       "checkNow": "Check for updates",
       "checking": "Checking for updates...",
       "checkFailed": "The update check could not be completed. Try again later.",
