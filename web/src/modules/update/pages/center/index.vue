@@ -69,9 +69,9 @@
               </t-button>
             </div>
             <t-alert v-if="!canStartUpgrade" theme="info" :message="upgradeUnavailableReason" />
-            <pre class="update-center__notes graft-scrollbar">{{
-              status.latest.notes || t('update.center.release.notesEmpty')
-            }}</pre>
+            <div class="update-center__notes graft-scrollbar">
+              <markdown-viewer :source="releaseNotes" />
+            </div>
             <t-alert v-if="status.latest.upgrade_notes" theme="info" :message="status.latest.upgrade_notes" />
             <ol v-if="status.installation_profile.manual_steps?.length" class="update-center__manual-steps">
               <li v-for="step in status.installation_profile.manual_steps" :key="step.key">
@@ -168,6 +168,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import { ManagementEmptyState } from '@/shared/components/management';
+import { MarkdownViewer } from '@/shared/components/markdown';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
@@ -195,6 +196,7 @@ const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_
 const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE));
 const canStartUpgrade = computed(() => isUpgradeEligible(status.value, canManage.value));
 const isExactConfirmation = computed(() => confirmation.value === status.value?.latest?.version);
+const releaseNotes = computed(() => status.value?.latest?.notes || t('update.center.release.notesEmpty'));
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'capability', title: t('update.center.capabilities.columns.capability'), width: 136 },
@@ -427,7 +429,6 @@ function formatDate(value: string) {
   max-height: 360px;
   overflow: auto;
   padding: var(--td-comp-paddingLR-l);
-  white-space: pre-wrap;
 }
 
 .update-center__release-links {
