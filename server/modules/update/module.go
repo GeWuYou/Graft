@@ -47,6 +47,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
 		return err
 	}
+	m.configureRuntimeReader(ctx)
 	if err := m.configureRollout(ctx); err != nil {
 		return err
 	}
@@ -60,6 +61,12 @@ func (m *Module) Register(ctx *module.Context) error {
 		}})
 	}
 	return registerRoutes(ctx, m.service, m.rollout)
+}
+
+func (m *Module) configureRuntimeReader(ctx *module.Context) {
+	if reader, err := module.ResolveService[moduleapi.UpdateComposeRuntimeReader](ctx.Services, (*moduleapi.UpdateComposeRuntimeReader)(nil)); err == nil {
+		m.service.runtimeReader = reader
+	}
 }
 
 func (m *Module) configureRollout(ctx *module.Context) error {
@@ -85,7 +92,11 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.rollout == nil || ctx == nil {
 		return nil
 	}
-	return m.rollout.SettleAvailableReceipts(ctx.LifecycleContext)
+	if err := m.rollout.SettleAvailableReceipts(ctx.LifecycleContext); err != nil {
+		return err
+	}
+	m.rollout.StartReceiptPolling(ctx.LifecycleContext)
+	return nil
 }
 
 // Shutdown 释放 rollout 持有的 Docker client，避免模块生命周期结束后遗留连接。

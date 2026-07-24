@@ -1,25 +1,22 @@
 package update
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
+	"github.com/moby/moby/api/pkg/stdcopy"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
-)
-
-const (
-	runnerInputDirectory     = ".graft-update/inputs"
-	runnerInputDirectoryMode = 0o700
-	runnerInputFileMode      = 0o600
 )
 
 // ComposeRunnerLauncher 是 server 启动一次性 runner 的最小 Docker 边界。
@@ -27,6 +24,11 @@ const (
 type ComposeRunnerLauncher interface {
 	Launch(context.Context, RunnerInput) error
 	Close() error
+}
+
+// ComposeRunnerReceiptReader 读取保留 runner 容器日志中的无秘密结算回执。
+type ComposeRunnerReceiptReader interface {
+	ReadRunnerReceipts(context.Context) ([]RunnerReceipt, error)
 }
 
 type dockerComposeRunnerLauncher struct{ client dockerRunnerClient }
@@ -37,7 +39,28 @@ type dockerRunnerClient interface {
 	ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) (mobyclient.ContainerStartResult, error)
 	ContainerInspect(context.Context, string, mobyclient.ContainerInspectOptions) (mobyclient.ContainerInspectResult, error)
 	ContainerRemove(context.Context, string, mobyclient.ContainerRemoveOptions) (mobyclient.ContainerRemoveResult, error)
+	ContainerList(context.Context, mobyclient.ContainerListOptions) (mobyclient.ContainerListResult, error)
+	ContainerLogs(context.Context, string, mobyclient.ContainerLogsOptions) (mobyclient.ContainerLogsResult, error)
 	Close() error
+}
+
+const runnerReceiptLogMarker = "GRAFT_UPDATE_RECEIPT:"
+
+func parseRunnerReceiptLog(line string) (RunnerReceipt, bool) {
+	value := strings.TrimSpace(line)
+	if !strings.HasPrefix(value, runnerReceiptLogMarker) {
+		return RunnerReceipt{}, false
+	}
+	encoded := strings.TrimSpace(strings.TrimPrefix(value, runnerReceiptLogMarker))
+	contents, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil {
+		return RunnerReceipt{}, false
+	}
+	var receipt RunnerReceipt
+	if err := json.Unmarshal(contents, &receipt); err != nil || receipt.ProtocolVersion != runnerProtocolVersion || !runnerOperationID.MatchString(receipt.OperationID) {
+		return RunnerReceipt{}, false
+	}
+	return receipt, true
 }
 
 // Close 释放 Docker API client 持有的连接。
@@ -65,7 +88,7 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 	if err := ValidateRunnerInput(input); err != nil {
 		return fmt.Errorf("validate compose runner launch: %w", err)
 	}
-	inputPath, err := persistRunnerInput(input)
+	encodedInput, err := encodeRunnerInput(input)
 	if err != nil {
 		return err
 	}
@@ -80,7 +103,7 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 	if err := pulled.Close(); err != nil {
 		return fmt.Errorf("close compose runner pull result: %w", err)
 	}
-	configuration, host := composeRunnerContainerConfig(input, inputPath)
+	configuration, host := composeRunnerContainerConfig(input, encodedInput)
 	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}}
 	options.Name = composeRunnerContainerName(input.OperationID)
 	created, err := l.client.ContainerCreate(ctx, options)
@@ -113,22 +136,42 @@ func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context,
 
 func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
 
-func persistRunnerInput(input RunnerInput) (string, error) {
-	if !runnerOperationID.MatchString(input.OperationID) || !filepath.IsAbs(input.Preflight.ComposeRoot) {
-		return "", errors.New("compose runner input path is invalid")
+func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([]RunnerReceipt, error) {
+	if l == nil || l.client == nil {
+		return nil, errors.New("compose runner receipt reader is unavailable")
 	}
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.protocol=compose-runner/v1")})
+	if err != nil {
+		return nil, fmt.Errorf("list retained compose runners: %w", err)
+	}
+	var receipts []RunnerReceipt
+	for _, item := range result.Items {
+		logsResult, logErr := l.client.ContainerLogs(ctx, item.ID, mobyclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+		if logErr != nil {
+			return nil, fmt.Errorf("read retained compose runner logs: %w", logErr)
+		}
+		logs := logsResult
+		var stdout, stderr bytes.Buffer
+		_, copyErr := stdcopy.StdCopy(&stdout, &stderr, logs)
+		_ = logs.Close()
+		if copyErr != nil {
+			return nil, fmt.Errorf("decode retained compose runner logs: %w", copyErr)
+		}
+		for _, line := range strings.Split(stdout.String()+"\n"+stderr.String(), "\n") {
+			if receipt, ok := parseRunnerReceiptLog(line); ok {
+				receipts = append(receipts, receipt)
+			}
+		}
+	}
+	return receipts, nil
+}
+
+func encodeRunnerInput(input RunnerInput) (string, error) {
 	contents, err := json.Marshal(input)
 	if err != nil {
 		return "", fmt.Errorf("encode compose runner input: %w", err)
 	}
-	path := filepath.Join(input.Preflight.ComposeRoot, runnerInputDirectory, input.OperationID+".json")
-	if err := os.MkdirAll(filepath.Dir(path), runnerInputDirectoryMode); err != nil {
-		return "", fmt.Errorf("create compose runner input directory: %w", err)
-	}
-	if err := os.WriteFile(path, append(contents, '\n'), runnerInputFileMode); err != nil {
-		return "", fmt.Errorf("write compose runner input: %w", err)
-	}
-	return path, nil
+	return base64.RawStdEncoding.EncodeToString(contents), nil
 }
 
 func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containertypes.Config, containertypes.HostConfig) {
@@ -140,8 +183,8 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containe
 			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
 		}
 	}
-	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "65532:65532", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT=" + inputPath}, Labels: map[string]string{
+	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "65532:65532", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
 		"io.graft.update.protocol":  "compose-runner/v1",
-	}}, containertypes.HostConfig{AutoRemove: true, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
+	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }

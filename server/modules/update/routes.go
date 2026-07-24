@@ -86,6 +86,7 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	var request struct {
 		TargetVersion string `json:"target_version"`
 		Confirmation  string `json:"confirmation"`
+		CandidateKey  string `json:"compose_candidate_key,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
@@ -96,7 +97,7 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusUnauthorized, "auth.unauthenticated", nil)
 		return
 	}
-	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.Confirmation)
+	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.Confirmation, request.CandidateKey)
 	if err != nil {
 		switch {
 		case errors.Is(err, errRolloutInvalidArgument):

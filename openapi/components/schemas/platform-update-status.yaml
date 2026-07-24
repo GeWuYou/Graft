@@ -23,7 +23,7 @@ properties:
         additionalProperties: { type: string }
   installation_profile:
     type: object
-    required: [declared_mode, detected_mode, capability, guidance]
+    required: [declared_mode, detected_mode, capability, guidance, compose_root_source, compose_candidates]
     properties:
       declared_mode: { type: string, enum: [compose, binary, unknown] }
       detected_mode: { type: string, enum: [compose, binary] }
@@ -44,6 +44,10 @@ properties:
               type: object
               additionalProperties: { type: string }
       blocking_reason: { type: string }
+      compose_root_source: { $ref: ./platform-update-compose-root-source.yaml }
+      compose_candidates:
+        type: array
+        items: { $ref: ./platform-update-compose-root-candidate.yaml }
   checked_at: { type: string, format: date-time }
   last_successful_at: { type: string, format: date-time }
   cache_stale: { type: boolean }

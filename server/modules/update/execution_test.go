@@ -1,6 +1,10 @@
 package update
 
-import "testing"
+import (
+	"encoding/base64"
+	"encoding/json"
+	"testing"
+)
 
 func TestValidateRunnerInputRejectsNonOfficialComposeProfiles(t *testing.T) {
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
@@ -18,6 +22,21 @@ func TestValidateRunnerInputRejectsNonOfficialComposeProfiles(t *testing.T) {
 	valid.Preflight.ComposeFiles = append(valid.Preflight.ComposeFiles, "/opt/graft/compose.override.yml")
 	if err := ValidateRunnerInput(valid); err == nil {
 		t.Fatal("expected compose override rejection")
+	}
+}
+
+func TestParseRunnerReceiptLogAcceptsOnlyBoundProtocolMarker(t *testing.T) {
+	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "update-log-1", Succeeded: true}
+	encoded, err := json.Marshal(receipt)
+	if err != nil {
+		t.Fatalf("marshal receipt: %v", err)
+	}
+	parsed, ok := parseRunnerReceiptLog(runnerReceiptLogMarker + base64.RawStdEncoding.EncodeToString(encoded))
+	if !ok || parsed.OperationID != receipt.OperationID || !parsed.Succeeded {
+		t.Fatalf("unexpected parsed receipt: %#v, %v", parsed, ok)
+	}
+	if _, ok := parseRunnerReceiptLog("ordinary runner log"); ok {
+		t.Fatal("ordinary runner log must not be treated as a receipt")
 	}
 }
 

@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -19,26 +20,68 @@ import (
 )
 
 const (
-	directoryPermission   os.FileMode = 0o700
-	privateFilePermission os.FileMode = 0o600
+	directoryPermission    os.FileMode = 0o700
+	privateFilePermission  os.FileMode = 0o600
+	runnerReceiptLogMarker             = "GRAFT_UPDATE_RECEIPT:"
 )
 
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
 func main() {
-	path := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RUNNER_INPUT"))
-	// #nosec G304,G703 -- the server supplies a validated, host-mounted runner input path.
-	contents, err := os.ReadFile(path)
-	if path == "" || err != nil {
-		fatal(fmt.Errorf("read runner input: %w", err))
-	}
-	var input update.RunnerInput
-	if err := json.Unmarshal(contents, &input); err != nil {
-		fatal(fmt.Errorf("decode runner input: %w", err))
-	}
-	if _, err := update.ExecuteComposeRunner(context.Background(), input, &actions{}); err != nil {
+	input, err := readRunnerInput()
+	if err != nil {
 		fatal(err)
 	}
+	receipt, executionErr := update.ExecuteComposeRunner(context.Background(), input, &actions{})
+	if err := writeRunnerReceiptLog(os.Stdout, receipt); err != nil {
+		fatal(fmt.Errorf("write runner receipt log: %w", err))
+	}
+	if executionErr != nil {
+		fatal(executionErr)
+	}
 }
+
+func readRunnerInput() (update.RunnerInput, error) {
+	encoded := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RUNNER_INPUT_B64"))
+	if encoded != "" {
+		contents, err := base64.RawStdEncoding.DecodeString(encoded)
+		if err != nil {
+			return update.RunnerInput{}, fmt.Errorf("decode inline runner input: %w", err)
+		}
+		return decodeRunnerInput(contents)
+	}
+
+	path := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RUNNER_INPUT"))
+	if path == "" {
+		return update.RunnerInput{}, errors.New("runner input is missing")
+	}
+	// #nosec G304,G703 -- the server supplies a validated, host-mounted runner input path.
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return update.RunnerInput{}, fmt.Errorf("read runner input: %w", err)
+	}
+	return decodeRunnerInput(contents)
+}
+
+func decodeRunnerInput(contents []byte) (update.RunnerInput, error) {
+	var input update.RunnerInput
+	if err := json.Unmarshal(contents, &input); err != nil {
+		return update.RunnerInput{}, fmt.Errorf("decode runner input: %w", err)
+	}
+	return input, nil
+}
+
+func writeRunnerReceiptLog(writer io.Writer, receipt update.RunnerReceipt) error {
+	contents, err := json.Marshal(receipt)
+	if err != nil {
+		return fmt.Errorf("encode runner receipt: %w", err)
+	}
+	encoded := base64.RawStdEncoding.EncodeToString(contents)
+	if _, err := fmt.Fprintln(writer, runnerReceiptLogMarker+encoded); err != nil {
+		return err
+	}
+	return nil
+}
+
 func fatal(err error) { _, _ = fmt.Fprintln(os.Stderr, err); os.Exit(1) }
 
 type actions struct {

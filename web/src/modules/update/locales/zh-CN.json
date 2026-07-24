@@ -74,6 +74,12 @@
         "emptyTitle": "没有可用更新",
         "emptyDescription": "检查更新后，兼容当前通道的发行版本会显示在这里。"
       },
+      "composeRoot": {
+        "title": "确认 Compose 项目目录",
+        "description": "系统通过 Docker 容器挂载自动发现候选目录。请确认要用于本次升级的宿主机路径。",
+        "noCandidates": "未发现可确认的 Compose 项目目录，暂时不能自动升级。",
+        "selectionRequired": "请选择一个 Compose 项目目录后再继续。"
+      },
       "confirmation": {
         "title": "确认升级到 {version}",
         "description": "输入精确目标版本以启动受控 Compose 升级。",

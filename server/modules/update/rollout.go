@@ -19,13 +19,16 @@ import (
 
 // RolloutService 只编排人工确认的 Compose 更新；它保存 Update operation，Task 和 Backup 仍是外部能力。
 type RolloutService struct {
-	discovery    *Service
-	operations   OperationStore
-	coordinator  *ComposeExecutionCoordinator
-	launcher     ComposeRunnerLauncher
-	newOperation func() string
-	auditBus     eventbus.Bus
+	discovery         *Service
+	operations        OperationStore
+	coordinator       *ComposeExecutionCoordinator
+	launcher          ComposeRunnerLauncher
+	newOperation      func() string
+	auditBus          eventbus.Bus
+	receiptPollCancel context.CancelFunc
 }
+
+const receiptPollInterval = 15 * time.Second
 
 var (
 	errRolloutInvalidArgument = errors.New("compose update request is invalid")
@@ -42,12 +45,17 @@ func NewRolloutService(discovery *Service, operations OperationStore, tasks modu
 	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID}
 }
 
+//nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
 // Start 要求操作者确认当前 catalog 中精确的候选版本，随后仅启动一次 digest-pinned runner。
-func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion, confirmation string) (ComposeUpdateOperation, error) {
+func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion, confirmation string, candidateKeys ...string) (ComposeUpdateOperation, error) {
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || requestedBy == 0 {
 		return ComposeUpdateOperation{}, errors.New("compose update rollout is unavailable")
 	}
-	status, preflight, err := s.confirmedPreflight(targetVersion, confirmation)
+	candidateKey := ""
+	if len(candidateKeys) > 0 {
+		candidateKey = strings.TrimSpace(candidateKeys[0])
+	}
+	status, preflight, err := s.confirmedPreflight(targetVersion, confirmation, candidateKey)
 	if err != nil {
 		return ComposeUpdateOperation{}, err
 	}
@@ -66,7 +74,7 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 }
 
 //nolint:cyclop // Each rejection is an independently auditable rollout safety gate.
-func (s *RolloutService) confirmedPreflight(targetVersion, confirmation string) (Status, ComposePreflight, error) {
+func (s *RolloutService) confirmedPreflight(targetVersion, confirmation, candidateKey string) (Status, ComposePreflight, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
 		return Status{}, ComposePreflight{}, fmt.Errorf("%w: fresh verified release catalog is required", errRolloutPrecondition)
@@ -84,7 +92,7 @@ func (s *RolloutService) confirmedPreflight(targetVersion, confirmation string) 
 	if strings.TrimSpace(targetVersion) == "" || targetVersion != status.Latest.Version || confirmation != targetVersion {
 		return Status{}, ComposePreflight{}, fmt.Errorf("%w: target version requires an exact manual confirmation", errRolloutInvalidArgument)
 	}
-	preflight, err := composePreflight(status.Profile, *status.Latest)
+	preflight, err := composePreflight(status.Profile, *status.Latest, candidateKey)
 	if err != nil {
 		return Status{}, ComposePreflight{}, fmt.Errorf("%w: %w", errRolloutPrecondition, err)
 	}
@@ -93,10 +101,46 @@ func (s *RolloutService) confirmedPreflight(targetVersion, confirmation string) 
 
 // Close 释放 rollout 持有的 Docker client，供模块关闭阶段调用。
 func (s *RolloutService) Close() error {
-	if s == nil || s.launcher == nil {
+	if s == nil {
+		return nil
+	}
+	if s.receiptPollCancel != nil {
+		s.receiptPollCancel()
+		s.receiptPollCancel = nil
+	}
+	if s.launcher == nil {
 		return nil
 	}
 	return s.launcher.Close()
+}
+
+// StartReceiptPolling 在 server 重建后持续读取保留 runner 的日志回执，直到生命周期关闭。
+func (s *RolloutService) StartReceiptPolling(ctx context.Context) {
+	if s == nil || s.receiptPollCancel != nil {
+		return
+	}
+	reader, ok := s.launcher.(ComposeRunnerReceiptReader)
+	if !ok {
+		return
+	}
+	pollCtx, cancel := context.WithCancel(ctx)
+	s.receiptPollCancel = cancel
+	go func() {
+			ticker := time.NewTicker(receiptPollInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-pollCtx.Done():
+				return
+			case <-ticker.C:
+				if receipts, err := reader.ReadRunnerReceipts(pollCtx); err == nil {
+					for _, receipt := range receipts {
+						_, _ = s.SettlePersistedReceipt(pollCtx, receipt)
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput) error {
@@ -154,10 +198,18 @@ func (s *RolloutService) publishAudit(ctx context.Context, operation ComposeUpda
 	_ = s.auditBus.Publish(ctx, eventbus.Event{Name: string(moduleapi.AuditRecordEventName), Source: moduleID, Payload: moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: operator, Action: "platform.update.compose", ResourceType: "platform_update", ResourceID: operation.OperationID, ResourceName: operation.TargetVersion, StatusCode: http.StatusAccepted, Success: success, Message: strings.TrimSpace(message), Metadata: map[string]any{"source_version": operation.SourceVersion, "target_version": operation.TargetVersion, "task_id": operation.TaskID, "status": operation.Outcome}}, OccurredAt: time.Now().UTC()})
 }
 
+//nolint:cyclop // 日志 receipt 与 legacy durable receipt 是两个独立的恢复来源。
 // SettleAvailableReceipts 收敛目标 Compose 根目录下由 runner 留下的 receipt；无法解析的文件不影响 server 启动。
 func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 	if s == nil || s.discovery == nil {
 		return nil
+	}
+	if reader, ok := s.launcher.(ComposeRunnerReceiptReader); ok {
+		if receipts, err := reader.ReadRunnerReceipts(ctx); err == nil {
+			for _, receipt := range receipts {
+				_, _ = s.SettlePersistedReceipt(ctx, receipt)
+			}
+		}
 	}
 	profile := s.discovery.Status().Profile
 	if profile.DetectedMode != "compose" {
@@ -238,8 +290,19 @@ func readPersistedRunnerReceipt(root, name string) (string, RunnerReceipt, error
 	return path, receipt, nil
 }
 
-func composePreflight(profile InstallationProfile, release Release) (ComposePreflight, error) {
+func composePreflight(profile InstallationProfile, release Release, candidateKey string) (ComposePreflight, error) {
 	root := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_COMPOSE_ROOT"))
+	if root == "" {
+		for _, candidate := range profile.ComposeCandidates {
+			if candidate.CandidateKey == strings.TrimSpace(candidateKey) {
+				root = strings.TrimSpace(candidate.Root)
+				break
+			}
+		}
+		if root == "" {
+			return ComposePreflight{}, errors.New("a confirmed compose root candidate is required")
+		}
+	}
 	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerRef, WebReference: release.WebRef, RunnerReference: release.RunnerRef}
 	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)

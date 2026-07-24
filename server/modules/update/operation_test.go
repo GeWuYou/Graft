@@ -113,8 +113,8 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	if operation.Outcome != ExecutionOutcomePulling || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
 		t.Fatalf("unexpected rollout operation: %#v / %#v", operation, launcher.input)
 	}
-	if filepath.Dir(filepath.Dir(filepath.Dir(launcher.inputPath))) != root || operations.items[operation.OperationID].TaskID != 77 {
-		t.Fatalf("runner input or persisted operation lost constrained identity: %q %#v", launcher.inputPath, operations.items)
+	if launcher.input.Preflight.ComposeRoot != root || launcher.input.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
+		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
 	}
 }
 
@@ -237,10 +237,10 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testing.T) {
 	input := fixtureRunnerInput("/opt/graft")
 	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json")
-	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
+	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT_B64=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
 		t.Fatalf("runner config is not constrained: %#v", config)
 	}
-	if len(host.Binds) != 2 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.NetworkMode != "none" {
+	if len(host.Binds) != 2 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.NetworkMode != "none" || host.AutoRemove {
 		t.Fatalf("runner host config is not constrained: %#v", host)
 	}
 }
@@ -303,7 +303,6 @@ func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOpera
 
 type recordingLauncher struct {
 	input     RunnerInput
-	inputPath string
 	launchErr error
 }
 
@@ -312,9 +311,7 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 	if l.launchErr != nil {
 		return l.launchErr
 	}
-	path, err := persistRunnerInput(input)
-	l.inputPath = path
-	return err
+	return nil
 }
 
 func (*recordingLauncher) Close() error { return nil }

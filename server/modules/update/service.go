@@ -2,10 +2,12 @@ package update
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
 	"graft/server/internal/buildinfo"
+	"graft/server/internal/moduleapi"
 )
 
 const releaseDiscoveryFailedMessage = "release discovery failed"
@@ -28,6 +30,7 @@ type Service struct {
 	provider         ReleaseProvider
 	cache            DiscoveryCache
 	profile          func() InstallationProfile
+	runtimeReader    moduleapi.UpdateComposeRuntimeReader
 	current          func() buildinfo.Info
 	mu               sync.RWMutex
 	latest           *Release
@@ -44,7 +47,11 @@ func NewService(provider ReleaseProvider) *Service {
 
 // NewServiceWithCache 创建带有 Update 自有持久 catalog 快照的发现服务。
 func NewServiceWithCache(provider ReleaseProvider, cache DiscoveryCache) *Service {
-	return &Service{provider: provider, cache: cache, profile: runtimeInstallationProfile, current: buildinfo.Current}
+	service := &Service{provider: provider, cache: cache, current: buildinfo.Current}
+	service.profile = func() InstallationProfile {
+		return DetectInstallationProfileWithComposeReader(os.Getenv, os.Executable, service.runtimeReader)
+	}
+	return service
 }
 
 // Status 返回当前进程已知的发布发现状态。

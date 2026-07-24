@@ -104,5 +104,10 @@ func registerModuleServices(ctx *module.Context, service *service) error {
 	}); err != nil {
 		return err
 	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.UpdateComposeRuntimeReader)(nil), func(_ containerdi.Resolver) (any, error) {
+		return containerProjectRuntimeReader{service: service}, nil
+	}); err != nil {
+		return err
+	}
 	return nil
 }
