@@ -55,6 +55,9 @@ const status = (overrides: Record<string, unknown> = {}) =>
       declared_mode: 'compose',
       detected_mode: 'compose',
       capability: 'compose_upgrade_available',
+      guidance: '',
+      compose_root_source: 'explicit_env',
+      compose_candidates: [],
     },
     ...overrides,
   }) as never;

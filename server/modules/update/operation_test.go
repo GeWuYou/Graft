@@ -7,7 +7,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,8 +115,8 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	if operation.Outcome != ExecutionOutcomePulling || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
 		t.Fatalf("unexpected rollout operation: %#v / %#v", operation, launcher.input)
 	}
-	if filepath.Dir(filepath.Dir(filepath.Dir(launcher.inputPath))) != root || operations.items[operation.OperationID].TaskID != 77 {
-		t.Fatalf("runner input or persisted operation lost constrained identity: %q %#v", launcher.inputPath, operations.items)
+	if launcher.input.Preflight.ComposeRoot != root || launcher.input.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
+		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
 	}
 }
 
@@ -174,6 +176,119 @@ func TestSettleReceiptEntryDeletesOnlySuccessfulSettlements(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, runnerReceiptDirectory, "update-82.json")); err != nil {
 		t.Fatalf("failed receipt should remain for retry, got %v", err)
+	}
+}
+
+func TestSettlePersistedReceiptShortCircuitsTerminalOperation(t *testing.T) {
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-83": {OperationID: "update-83", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 83, Outcome: ExecutionOutcomeSuccess},
+	}}
+	tasks := &stubTaskService{}
+	backups := &stubBackupService{}
+	rollout := NewRolloutService(NewService(nil), operations, tasks, backups, &recordingLauncher{})
+
+	settled, err := rollout.SettlePersistedReceipt(t.Context(), RunnerReceipt{OperationID: "update-83"})
+	if err != nil {
+		t.Fatalf("settle terminal operation: %v", err)
+	}
+	if settled != operations.items["update-83"] {
+		t.Fatalf("terminal operation changed during replay: got %#v want %#v", settled, operations.items["update-83"])
+	}
+	if tasks.external.TaskID != 0 || backups.completion.OperationID != "" {
+		t.Fatalf("terminal receipt replay triggered side effects: task=%#v backup=%#v", tasks.external, backups.completion)
+	}
+}
+
+func TestSettleAvailableReceiptsCleansRunnerOnlyAfterSuccessfulSettlement(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	discovery := NewService(nil)
+	discovery.profile = func() InstallationProfile { return InstallationProfile{DetectedMode: "compose"} }
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-84": {OperationID: "update-84", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 84, Outcome: ExecutionOutcomePulling},
+	}}
+	launcher := &receiptReaderCleanupLauncher{receipts: []RunnerReceipt{
+		{ProtocolVersion: runnerProtocolVersion, OperationID: "update-84", Succeeded: true, BackupCompletion: &moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "update-84", TaskID: 84, ConfigSnapshotSHA256: testDigest('a'), ConfigSnapshotBytes: 3, DatabaseDumpSHA256: testDigest('b'), DatabaseDumpBytes: 5}},
+		{OperationID: "update-missing", Succeeded: true},
+	}}
+	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 84}}, &stubBackupService{}, launcher)
+	if err := rollout.SettleAvailableReceipts(t.Context()); err != nil {
+		t.Fatalf("settle available receipts: %v", err)
+	}
+	if !slices.Equal(launcher.removed, []string{"update-84"}) {
+		t.Fatalf("removed runners = %#v, want only successfully settled runner", launcher.removed)
+	}
+}
+
+func TestReceiptPollingCloseCancelsAndWaitsForReader(t *testing.T) {
+	launcher := &blockingReceiptReaderLauncher{started: make(chan struct{}), closed: make(chan struct{})}
+	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, launcher)
+	rollout.receiptPollEvery = time.Millisecond
+	rollout.StartReceiptPolling(t.Context())
+	select {
+	case <-launcher.started:
+	case <-time.After(time.Second):
+		t.Fatal("receipt polling did not start")
+	}
+	if err := rollout.Close(); err != nil {
+		t.Fatalf("close rollout: %v", err)
+	}
+	select {
+	case <-launcher.closed:
+	default:
+		t.Fatal("launcher was closed before polling reader exited")
+	}
+	rollout.StartReceiptPolling(t.Context())
+}
+
+func TestReceiptPollingStartAndCloseAreSafeConcurrently(t *testing.T) {
+	launcher := &blockingReceiptReaderLauncher{started: make(chan struct{}), closed: make(chan struct{})}
+	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, launcher)
+	rollout.receiptPollEvery = time.Millisecond
+	var group sync.WaitGroup
+	for range 8 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			rollout.StartReceiptPolling(t.Context())
+		}()
+	}
+	group.Add(1)
+	go func() {
+		defer group.Done()
+		_ = rollout.Close()
+	}()
+	group.Wait()
+}
+
+func TestSettleReceiptWithoutCleanupInterfaceDoesNotRequireRunnerCleanup(t *testing.T) {
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-85": {OperationID: "update-85", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 85, Outcome: ExecutionOutcomeSuccess},
+	}}
+	rollout := NewRolloutService(NewService(nil), operations, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
+	if _, err := rollout.settleReceiptAndCleanup(t.Context(), RunnerReceipt{OperationID: "update-85"}); err != nil {
+		t.Fatalf("settle receipt without optional cleanup: %v", err)
+	}
+}
+
+func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
+	root := t.TempDir()
+	serverImage := "ghcr.io/gewuyou/graft-server"
+	webImage := "ghcr.io/gewuyou/graft-web"
+	runnerImage := "ghcr.io/gewuyou/graft-compose-runner"
+	serverDigest := "sha256:" + strings.Repeat("a", 64)
+	webDigest := "sha256:" + strings.Repeat("b", 64)
+	runnerDigest := "sha256:" + strings.Repeat("c", 64)
+	release := Release{ServerImage: serverImage, WebImage: webImage, RunnerImage: runnerImage, ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest, ServerRef: serverImage + "@" + serverDigest, WebRef: webImage + "@" + webDigest, RunnerRef: runnerImage + "@" + runnerDigest}
+	files := []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides", "web.yml")}
+	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-selected", Root: root, ConfigFiles: files}}}
+
+	preflight, err := composePreflight(profile, release, "compose-selected")
+	if err != nil {
+		t.Fatalf("build compose preflight: %v", err)
+	}
+	if !slices.Equal(preflight.ComposeFiles, files) {
+		t.Fatalf("candidate config file sequence was not passed to runner input: got %#v want %#v", preflight.ComposeFiles, files)
 	}
 }
 
@@ -237,10 +352,10 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testing.T) {
 	input := fixtureRunnerInput("/opt/graft")
 	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json")
-	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
+	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT_B64=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
 		t.Fatalf("runner config is not constrained: %#v", config)
 	}
-	if len(host.Binds) != 2 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.NetworkMode != "none" {
+	if len(host.Binds) != 2 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.NetworkMode != "none" || host.AutoRemove {
 		t.Fatalf("runner host config is not constrained: %#v", host)
 	}
 }
@@ -303,7 +418,6 @@ func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOpera
 
 type recordingLauncher struct {
 	input     RunnerInput
-	inputPath string
 	launchErr error
 }
 
@@ -312,12 +426,54 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 	if l.launchErr != nil {
 		return l.launchErr
 	}
-	path, err := persistRunnerInput(input)
-	l.inputPath = path
-	return err
+	return nil
 }
 
 func (*recordingLauncher) Close() error { return nil }
+
+type receiptReaderCleanupLauncher struct {
+	receipts []RunnerReceipt
+	removed  []string
+}
+
+type blockingReceiptReaderLauncher struct {
+	mu      sync.Mutex
+	started chan struct{}
+	closed  chan struct{}
+}
+
+func (*blockingReceiptReaderLauncher) Launch(context.Context, RunnerInput) error { return nil }
+func (l *blockingReceiptReaderLauncher) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	select {
+	case <-l.closed:
+	default:
+		close(l.closed)
+	}
+	return nil
+}
+func (l *blockingReceiptReaderLauncher) ReadRunnerReceipts(ctx context.Context) ([]RunnerReceipt, error) {
+	l.mu.Lock()
+	select {
+	case <-l.started:
+	default:
+		close(l.started)
+	}
+	l.mu.Unlock()
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (*receiptReaderCleanupLauncher) Launch(context.Context, RunnerInput) error { return nil }
+func (*receiptReaderCleanupLauncher) Close() error                              { return nil }
+func (l *receiptReaderCleanupLauncher) ReadRunnerReceipts(context.Context) ([]RunnerReceipt, error) {
+	return l.receipts, nil
+}
+func (l *receiptReaderCleanupLauncher) RemoveRunner(_ context.Context, operationID string) error {
+	l.removed = append(l.removed, operationID)
+	return nil
+}
 
 func containsAny(value string, needles ...string) bool {
 	for _, needle := range needles {

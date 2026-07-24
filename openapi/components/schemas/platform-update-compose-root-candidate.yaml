@@ -1,0 +1,11 @@
+type: object
+required: [key, host_path, compose_files, confidence]
+properties:
+  key: { type: string, minLength: 1, maxLength: 256, description: Opaque server-issued candidate identifier. }
+  host_path: { type: string, minLength: 1, description: Host path shown for administrator confirmation only. }
+  compose_files:
+    type: array
+    items: { type: string }
+  project_name: { type: string }
+  confidence: { type: string, enum: [high, medium, low] }
+  warning: { type: string }

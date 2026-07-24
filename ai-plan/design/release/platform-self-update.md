@@ -63,7 +63,7 @@ InstallationProfile {
 }
 ```
 
-检测需验证 official Compose 文件、同一 host absolute compose root、Docker socket 可用性、镜像坐标和运行中服务；声明与检测矛盾时 capability 降级为不可执行并显示原因。
+检测需验证 official Compose 文件、同一 host absolute compose root、Docker socket 可用性、镜像坐标和运行中服务；声明与检测矛盾时 capability 降级为不可执行并显示原因。已设置的 `GRAFT_UPDATE_COMPOSE_ROOT` 是唯一 Compose root authority，显式空值或相对路径必须 fail closed，不得自动回退到 binary 或 Docker 自动发现；只有环境变量未设置且 Docker API 可用时才检查当前 server 容器的 Compose labels、config files 和 bind mounts，生成一个或多个 host root 候选。候选必须显示给管理员确认，且每次升级启动前重新发现并验证；候选 key 和选择结果不持久化，前端不得提交原始 host path。
 
 | Capability | Official Compose | Binary + systemd | Binary manual |
 | --- | --- | --- | --- |
@@ -83,9 +83,9 @@ InstallationProfile {
 
 ## Compose Execution Boundary
 
-官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标 digest、host compose root、受限 Compose 命令和 receipt 位置，挂载 Docker socket 后执行：备份、`docker compose pull`、bootstrap migration、受控 recreate、health check、写 receipt。
+官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标 digest、host compose root、受限 Compose 命令和 receipt 位置。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 后执行：备份、`docker compose pull`、bootstrap migration、受控 recreate、health check，并将 marker-bounded receipt 写入带 operation/protocol labels 的保留容器日志。server 通过 Docker API 读取、校验并结算 receipt 后才清理 runner。
 
-`GRAFT_UPDATE_COMPOSE_ROOT` 必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。详细信任边界由 `ADR-006` 固定。
+`GRAFT_UPDATE_COMPOSE_ROOT` 非空时必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载；Docker daemon 返回的 Linux host path 是执行权威。为空时，Docker API 发现结果只作为待确认候选，不能由 server 容器路径、WSL 映射路径或前端输入推导和替代。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。详细信任边界由 `ADR-006` 固定。
 
 ## Scope
 

@@ -68,6 +68,32 @@
                 {{ t('update.center.release.upgrade') }}
               </t-button>
             </div>
+            <div v-if="isDockerDiscovery" class="update-center__compose-root">
+              <t-alert
+                v-if="!composeCandidates.length"
+                theme="warning"
+                :message="t('update.center.composeRoot.noCandidates')"
+              />
+              <template v-else>
+                <p class="update-center__compose-root-title">
+                  {{ t('update.center.composeRoot.title') }}
+                </p>
+                <p class="update-center__card-description">
+                  {{ t('update.center.composeRoot.description') }}
+                </p>
+                <t-radio-group v-model="selectedCandidateKey" direction="vertical">
+                  <t-radio v-for="candidate in composeCandidates" :key="candidate.key" :value="candidate.key">
+                    <span class="update-center__candidate">
+                      <strong>{{ candidate.host_path }}</strong>
+                      <small>
+                        {{ candidate.compose_files.join(', ') }}
+                        <template v-if="candidate.project_name"> · {{ candidate.project_name }} </template>
+                      </small>
+                    </span>
+                  </t-radio>
+                </t-radio-group>
+              </template>
+            </div>
             <t-alert v-if="!canStartUpgrade" theme="info" :message="upgradeUnavailableReason" />
             <div class="update-center__notes graft-scrollbar">
               <markdown-viewer :source="releaseNotes" />
@@ -192,10 +218,20 @@ const confirmationVisible = ref(false);
 const confirmation = ref('');
 const submitting = ref(false);
 const operationError = ref('');
+const selectedCandidateKey = ref('');
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE));
-const canStartUpgrade = computed(() => isUpgradeEligible(status.value, canManage.value));
-const isExactConfirmation = computed(() => confirmation.value === status.value?.latest?.version);
+const isDockerDiscovery = computed(
+  () => status.value?.installation_profile.compose_root_source === 'docker_discovered',
+);
+const composeCandidates = computed(() => status.value?.installation_profile.compose_candidates ?? []);
+const hasSelectedCandidate = computed(
+  () => !isDockerDiscovery.value || composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
+);
+const canStartUpgrade = computed(() => isUpgradeEligible(status.value, canManage.value) && hasSelectedCandidate.value);
+const isExactConfirmation = computed(
+  () => confirmation.value === status.value?.latest?.version && hasSelectedCandidate.value,
+);
 const releaseNotes = computed(() => status.value?.latest?.notes || t('update.center.release.notesEmpty'));
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
@@ -238,6 +274,12 @@ const upgradeUnavailableReason = computed(() => {
   if (!canManage.value) {
     return t('update.center.release.managePermissionRequired');
   }
+  if (isDockerDiscovery.value && !composeCandidates.value.length) {
+    return t('update.center.composeRoot.noCandidates');
+  }
+  if (isDockerDiscovery.value && !hasSelectedCandidate.value) {
+    return t('update.center.composeRoot.selectionRequired');
+  }
   return '';
 });
 
@@ -251,6 +293,7 @@ onMounted(async () => {
 async function loadStatus() {
   loadError.value = '';
   await discoveryStore.ensureSnapshot();
+  syncCandidateSelection();
   if (discoveryStore.phase === 'error') {
     loadError.value = t('update.center.loadFailed');
   }
@@ -262,6 +305,7 @@ async function refreshStatus() {
   loadError.value = '';
   try {
     await discoveryStore.refreshSnapshot();
+    syncCandidateSelection();
     await loadHistory();
   } catch {
     loadError.value = t('update.center.checkRequestFailed');
@@ -280,6 +324,9 @@ async function loadHistory() {
 }
 
 function openConfirmation() {
+  if (!canStartUpgrade.value) {
+    return;
+  }
   confirmation.value = '';
   operationError.value = '';
   confirmationVisible.value = true;
@@ -292,13 +339,28 @@ async function submitUpgrade() {
   submitting.value = true;
   operationError.value = '';
   try {
-    await createUpdateOperation({ target_version: status.value.latest.version, confirmation: confirmation.value });
+    await createUpdateOperation({
+      target_version: status.value.latest.version,
+      confirmation: confirmation.value,
+      ...(isDockerDiscovery.value ? { compose_candidate_key: selectedCandidateKey.value } : {}),
+    });
     confirmationVisible.value = false;
     await loadHistory();
   } catch {
     operationError.value = t('update.center.confirmation.submitFailed');
   } finally {
     submitting.value = false;
+  }
+}
+
+function syncCandidateSelection() {
+  const candidates = status.value?.installation_profile.compose_candidates ?? [];
+  if (status.value?.installation_profile.compose_root_source !== 'docker_discovered') {
+    selectedCandidateKey.value = '';
+    return;
+  }
+  if (!candidates.some(({ key }) => key === selectedCandidateKey.value)) {
+    selectedCandidateKey.value = candidates.length === 1 ? candidates[0].key : '';
   }
 }
 
@@ -417,6 +479,31 @@ function formatDate(value: string) {
 
 .update-center__release-heading p {
   margin-bottom: 0;
+}
+
+.update-center__compose-root {
+  border-top: 1px solid var(--td-component-border);
+  margin-top: var(--td-comp-margin-l);
+  padding-top: var(--td-comp-paddingTB-l);
+}
+
+.update-center__compose-root-title {
+  color: var(--td-text-color-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+.update-center__candidate {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--td-comp-margin-xs);
+  margin-left: var(--td-comp-margin-xs);
+  vertical-align: top;
+}
+
+.update-center__candidate small {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
 }
 
 .update-center__notes {

@@ -42,12 +42,16 @@ describe('platform update api', () => {
     requestPost.mockResolvedValueOnce({ operation_id: 'update-1' } as never);
 
     await getUpdateOperations();
-    await createUpdateOperation({ target_version: '1.1.0', confirmation: '1.1.0' });
+    await createUpdateOperation({
+      target_version: '1.1.0',
+      confirmation: '1.1.0',
+      compose_candidate_key: 'candidate-1',
+    });
 
     expect(requestGet).toHaveBeenCalledWith({ url: UPDATE_API_PATH.OPERATIONS, params: { limit: 20 } });
     expect(requestPost).toHaveBeenCalledWith({
       url: UPDATE_API_PATH.OPERATIONS,
-      data: { target_version: '1.1.0', confirmation: '1.1.0' },
+      data: { target_version: '1.1.0', confirmation: '1.1.0', compose_candidate_key: 'candidate-1' },
     });
   });
 });

@@ -1540,7 +1540,7 @@ export interface paths {
     put?: never;
     /**
      * Confirm and start an official Compose update
-     * @description Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and never accepts commands, image references, or host paths from the request.
+     * @description Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and accepts only an opaque Compose root candidate key when Docker discovery is active; it never accepts commands, image references, or host paths from the request.
      */
     post: operations['postPlatformUpdateOperation'];
     delete?: never;
@@ -6156,6 +6156,19 @@ export interface components {
       /** @description JSON value to store as the user override for the registered definition. */
       value: unknown;
     };
+    /** @enum {string} */
+    'platform-update-compose-root-source': 'explicit_env' | 'docker_discovered' | 'unavailable';
+    'platform-update-compose-root-candidate': {
+      /** @description Opaque server-issued candidate identifier. */
+      key: string;
+      /** @description Host path shown for administrator confirmation only. */
+      host_path: string;
+      compose_files: string[];
+      project_name?: string;
+      /** @enum {string} */
+      confidence: 'high' | 'medium' | 'low';
+      warning?: string;
+    };
     'platform-update-status': {
       current_version: string;
       /** @enum {string} */
@@ -6201,6 +6214,8 @@ export interface components {
           };
         }[];
         blocking_reason?: string;
+        compose_root_source: components['schemas']['platform-update-compose-root-source'];
+        compose_candidates: components['schemas']['platform-update-compose-root-candidate'][];
       };
       /** Format: date-time */
       checked_at?: string;
@@ -6259,6 +6274,8 @@ export interface components {
       target_version: string;
       /** @description Exact target_version typed by the administrator. */
       confirmation: string;
+      /** @description Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery. */
+      compose_candidate_key?: string;
     };
     'enveloped-platform-update-operation': {
       success: boolean;

@@ -2,6 +2,23 @@ package moduleapi
 
 import "context"
 
+// UpdateComposeRuntimeCandidate 描述容器模块为平台更新推导出的宿主机 Compose 根目录候选。
+// Root 只在服务端模块间传递，HTTP 请求只能提交 CandidateKey；候选不写入持久配置。
+type UpdateComposeRuntimeCandidate struct {
+	CandidateKey string
+	Root         string
+	WorkingDir   string
+	ConfigFiles  []string
+	ProjectName  string
+	Confidence   string
+	Warnings     []string
+}
+
+// UpdateComposeRuntimeReader 暴露当前 server 容器的受限 Compose 运行时发现能力。
+type UpdateComposeRuntimeReader interface {
+	DiscoverCurrentServerCompose(ctx context.Context) ([]UpdateComposeRuntimeCandidate, error)
+}
+
 // ContainerProjectMember 描述 Project 模块可消费的单个容器窄化运行时投影。
 //
 // 它有意排除日志、事件、统计、Shell、inspect 载荷等容器详情，避免 Project 模块形成第二份运行时真相。

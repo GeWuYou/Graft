@@ -21,7 +21,7 @@ post:
   tags: [platform-update]
   summary: Confirm and start an official Compose update
   operationId: postPlatformUpdateOperation
-  description: Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and never accepts commands, image references, or host paths from the request.
+  description: Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and accepts only an opaque Compose root candidate key when Docker discovery is active; it never accepts commands, image references, or host paths from the request.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

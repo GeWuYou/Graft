@@ -1,11 +1,78 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"graft/server/modules/update"
 )
+
+func TestReadRunnerInputPrefersInlinePayload(t *testing.T) {
+	input := update.RunnerInput{ProtocolVersion: 1, OperationID: "inline-operation"}
+	contents, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("marshal runner input: %v", err)
+	}
+	t.Setenv("GRAFT_UPDATE_RUNNER_INPUT_B64", base64.RawStdEncoding.EncodeToString(contents))
+	t.Setenv("GRAFT_UPDATE_RUNNER_INPUT", filepath.Join(t.TempDir(), "missing.json"))
+	got, err := readRunnerInput()
+	if err != nil {
+		t.Fatalf("read inline runner input: %v", err)
+	}
+	if got.OperationID != input.OperationID {
+		t.Fatalf("operation ID = %q, want %q", got.OperationID, input.OperationID)
+	}
+}
+
+func TestReadRunnerInputRejectsInvalidInlinePayloadWithoutFileFallback(t *testing.T) {
+	t.Setenv("GRAFT_UPDATE_RUNNER_INPUT_B64", "not-base64")
+	path := filepath.Join(t.TempDir(), "input.json")
+	if err := os.WriteFile(path, []byte(`{"operation_id":"legacy-operation"}`), privateFilePermission); err != nil {
+		t.Fatalf("write legacy runner input: %v", err)
+	}
+	t.Setenv("GRAFT_UPDATE_RUNNER_INPUT", path)
+	if _, err := readRunnerInput(); err == nil || !strings.Contains(err.Error(), "decode inline runner input") {
+		t.Fatalf("invalid inline input error = %v", err)
+	}
+}
+
+func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
+	receipt := update.RunnerReceipt{ProtocolVersion: 1, OperationID: "receipt-operation", Succeeded: true}
+	var output bytes.Buffer
+	if err := writeRunnerReceiptLog(&output, receipt); err != nil {
+		t.Fatalf("write runner receipt log: %v", err)
+	}
+	line := strings.TrimSpace(output.String())
+	if !strings.HasPrefix(line, update.RunnerReceiptLogMarker) {
+		t.Fatalf("receipt marker missing: %q", line)
+	}
+	encoded := strings.TrimPrefix(line, update.RunnerReceiptLogMarker)
+	contents, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("decode receipt log: %v", err)
+	}
+	var got update.RunnerReceipt
+	if err := json.Unmarshal(contents, &got); err != nil {
+		t.Fatalf("decode receipt JSON: %v", err)
+	}
+	if got != receipt {
+		t.Fatalf("receipt = %#v, want %#v", got, receipt)
+	}
+}
+
+func TestComposeFileArgsPreservesEveryPreflightFileInOrder(t *testing.T) {
+	files := []string{"/opt/graft/compose.yaml", "/opt/graft/overrides/web.yml"}
+	want := []string{"-f", files[0], "-f", files[1]}
+	if got := composeFileArgs(files); !reflect.DeepEqual(got, want) {
+		t.Fatalf("compose file args = %#v, want %#v", got, want)
+	}
+}
 
 func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")

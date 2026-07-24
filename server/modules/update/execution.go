@@ -108,13 +108,86 @@ func validateComposeHost(value ComposePreflight) error {
 }
 
 func validateComposeTopology(value ComposePreflight) error {
-	if len(value.ComposeFiles) != 1 || filepath.Base(value.ComposeFiles[0]) != "compose.yml" {
-		return errors.New("compose overrides and non-official compose files are not supported")
+	if err := validateComposeFiles(value.ComposeRoot, value.ComposeFiles); err != nil {
+		return err
 	}
 	if !value.BundledPostgres {
 		return errors.New("external database deployments are not supported")
 	}
 	return nil
+}
+
+func validateComposeFiles(root string, composeFiles []string) error {
+	if err := validateComposeFileList(composeFiles); err != nil {
+		return err
+	}
+	firstFile := filepath.Clean(composeFiles[0])
+	baseName, err := validateFirstComposeFileName(firstFile)
+	if err != nil {
+		return err
+	}
+	realRoot := resolveComposePath(root)
+	for _, composeFile := range composeFiles {
+		if err := validateComposeFilePath(realRoot, composeFile); err != nil {
+			return err
+		}
+	}
+	return validateFirstComposeFileLocation(realRoot, firstFile, baseName)
+}
+
+func validateComposeFileList(composeFiles []string) error {
+	if len(composeFiles) == 0 {
+		return errors.New("at least one compose file is required")
+	}
+	return nil
+}
+
+func validateFirstComposeFileName(firstFile string) (string, error) {
+	baseName := filepath.Base(firstFile)
+	if baseName != "compose.yml" && baseName != "compose.yaml" {
+		return "", errors.New("the first compose file must be the official compose.yml or compose.yaml")
+	}
+	return baseName, nil
+}
+
+func validateComposeFilePath(realRoot string, composeFile string) error {
+	if !filepath.IsAbs(composeFile) {
+		return errors.New("compose files must be absolute host paths")
+	}
+	realFile := resolveComposePath(composeFile)
+	rel, err := filepath.Rel(realRoot, realFile)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return errors.New("compose files must be under the compose root")
+	}
+	return nil
+}
+
+func validateFirstComposeFileLocation(realRoot string, firstFile string, baseName string) error {
+	if resolveComposePath(firstFile) != filepath.Join(realRoot, baseName) {
+		return errors.New("the first compose file must be directly under the compose root")
+	}
+	return nil
+}
+
+func resolveComposePath(path string) string {
+	cleanPath := filepath.Clean(path)
+	current := cleanPath
+	var suffix []string
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			for index := len(suffix) - 1; index >= 0; index-- {
+				resolved = filepath.Join(resolved, suffix[index])
+			}
+			return filepath.Clean(resolved)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return cleanPath
+		}
+		suffix = append(suffix, filepath.Base(current))
+		current = parent
+	}
 }
 
 func validateComposeImages(value ComposePreflight) error {

@@ -74,6 +74,12 @@
         "emptyTitle": "No update available",
         "emptyDescription": "After an update check, a release compatible with this channel appears here."
       },
+      "composeRoot": {
+        "title": "Confirm the Compose project directory",
+        "description": "Docker mount metadata found these candidates. Confirm the host path to use for this upgrade.",
+        "noCandidates": "No confirmable Compose project directory was found. Automatic upgrade is unavailable.",
+        "selectionRequired": "Select a Compose project directory before continuing."
+      },
       "confirmation": {
         "title": "Confirm upgrade to {version}",
         "description": "Type the exact target version to start the controlled Compose rollout.",
