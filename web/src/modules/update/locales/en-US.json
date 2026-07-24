@@ -75,7 +75,7 @@
       },
       "confirmation": {
         "title": "Confirm upgrade to {version}",
-        "description": "Type the exact target version to start the controlled Compose rollout.",
+        "description": "Confirm to start the controlled Compose rollout.",
         "confirm": "Start upgrade",
         "cancel": "Cancel",
         "submitFailed": "The upgrade request could not be started."

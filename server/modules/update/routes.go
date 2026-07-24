@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -32,9 +33,11 @@ func registerRoutes(ctx *module.Context, service *Service, rollout *RolloutServi
 	group.Use(httpx.RequestIDMiddleware())
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	handlers := updateRouteHandlers{localizer: ctx.I18n, auth: auth, rollout: rollout}
-	group.GET(updatecontract.UpdateStatusRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), func(ginCtx *gin.Context) { httpx.WriteSuccess(ginCtx, http.StatusOK, service.Status()) })
+	group.GET(updatecontract.UpdateStatusRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), func(ginCtx *gin.Context) {
+		httpx.WriteSuccess(ginCtx, http.StatusOK, statusForUpdateViewer(ginCtx.Request.Context(), authorizer, service.Status()))
+	})
 	group.POST(updatecontract.UpdateCheckRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateCheckPermission.String()), func(ginCtx *gin.Context) {
-		httpx.WriteSuccess(ginCtx, http.StatusOK, service.Check(ginCtx.Request.Context()))
+		httpx.WriteSuccess(ginCtx, http.StatusOK, statusForUpdateViewer(ginCtx.Request.Context(), authorizer, service.Check(ginCtx.Request.Context())))
 	})
 	if rollout == nil {
 		return errors.New("platform-update rollout service is unavailable")
@@ -49,6 +52,20 @@ type updateRouteHandlers struct {
 	localizer *i18n.Service
 	auth      moduleapi.AuthService
 	rollout   *RolloutService
+}
+
+// mayViewComposeCandidates 将宿主机路径限定在已通过更新管理权限校验的请求中。
+// 读取状态失败时按拒绝处理，避免 read 权限意外获得升级配置细节。
+func mayViewComposeCandidates(ctx context.Context, authorizer moduleapi.Authorizer) bool {
+	requestAuth, ok := moduleapi.RequestAuthContextFromContext(ctx)
+	return ok && authorizer != nil && authorizer.Authorize(ctx, requestAuth, updatecontract.UpdateManagePermission.String()) == nil
+}
+
+func statusForUpdateViewer(ctx context.Context, authorizer moduleapi.Authorizer, status Status) Status {
+	if mayViewComposeCandidates(ctx, authorizer) {
+		return status
+	}
+	return status.withoutComposeCandidates()
 }
 
 func (h updateRouteHandlers) list(c *gin.Context) {
@@ -85,7 +102,6 @@ func (h updateRouteHandlers) get(c *gin.Context) {
 func (h updateRouteHandlers) start(c *gin.Context) {
 	var request struct {
 		TargetVersion string `json:"target_version"`
-		Confirmation  string `json:"confirmation"`
 		CandidateKey  string `json:"compose_candidate_key,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -97,7 +113,7 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusUnauthorized, "auth.unauthenticated", nil)
 		return
 	}
-	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.Confirmation, request.CandidateKey)
+	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.CandidateKey)
 	if err != nil {
 		switch {
 		case errors.Is(err, errRolloutInvalidArgument):

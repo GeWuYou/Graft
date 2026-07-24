@@ -34,6 +34,16 @@ describe('createViteConfig', () => {
     expect(pluginNames('development')).not.toContain('vite:mock');
   });
 
+  it('replaces development preview routes with the empty release module', () => {
+    const developmentConfig = createViteConfig('development');
+    const releaseConfig = createViteConfig('release');
+    const developmentAlias = developmentConfig.resolve?.alias?.['@/router/development-routes'];
+    const releaseAlias = releaseConfig.resolve?.alias?.['@/router/development-routes'];
+
+    expect(developmentAlias).toContain('development-routes.development.ts');
+    expect(releaseAlias).toContain('development-routes.release.ts');
+  });
+
   it('keeps explicit opt-in mock modes working', () => {
     expect(pluginNames('mock')).toContain('vite:mock');
 

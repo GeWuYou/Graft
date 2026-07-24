@@ -8571,7 +8571,7 @@
         ],
         "summary": "Read self-update discovery status",
         "operationId": "getPlatformUpdateStatus",
-        "description": "Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade.",
+        "description": "Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade. Docker-discovered Compose candidates, including host paths, are only returned to callers that also hold platform-update.manage.",
         "security": [
           {
             "bearerAuth": []
@@ -8620,7 +8620,7 @@
         ],
         "summary": "Refresh self-update release discovery",
         "operationId": "postPlatformUpdateCheck",
-        "description": "Reads and verifies upstream release manifests; it does not download artifacts or modify the installation.",
+        "description": "Reads and verifies upstream release manifests; it does not download artifacts or modify the installation. Docker-discovered Compose candidates, including host paths, are only returned to callers that also hold platform-update.manage.",
         "security": [
           {
             "bearerAuth": []
@@ -8717,7 +8717,7 @@
         ],
         "summary": "Confirm and start an official Compose update",
         "operationId": "postPlatformUpdateOperation",
-        "description": "Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and never accepts commands, image references, or host paths from the request.",
+        "description": "Starts a one-shot digest-pinned runner only for the currently verified target release. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.",
         "security": [
           {
             "bearerAuth": []
@@ -8753,7 +8753,7 @@
             }
           },
           "400": {
-            "description": "Invalid confirmation or request payload."
+            "description": "Invalid target version or request payload."
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -25700,6 +25700,56 @@
           }
         }
       },
+      "platform-update-compose-root-source": {
+        "type": "string",
+        "enum": [
+          "explicit_env",
+          "docker_discovered",
+          "unavailable"
+        ]
+      },
+      "platform-update-compose-root-candidate": {
+        "type": "object",
+        "required": [
+          "key",
+          "host_path",
+          "compose_files",
+          "confidence"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Opaque server-issued candidate identifier."
+          },
+          "host_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Host path shown for administrator confirmation only."
+          },
+          "compose_files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "warning": {
+            "type": "string"
+          }
+        }
+      },
       "platform-update-status": {
         "type": "object",
         "required": [
@@ -25786,7 +25836,9 @@
               "declared_mode",
               "detected_mode",
               "capability",
-              "guidance"
+              "guidance",
+              "compose_root_source",
+              "compose_candidates"
             ],
             "properties": {
               "declared_mode": {
@@ -25853,6 +25905,16 @@
               },
               "blocking_reason": {
                 "type": "string"
+              },
+              "compose_root_source": {
+                "$ref": "#/components/schemas/platform-update-compose-root-source"
+              },
+              "compose_candidates": {
+                "type": "array",
+                "description": "Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array.",
+                "items": {
+                  "$ref": "#/components/schemas/platform-update-compose-root-candidate"
+                }
               }
             }
           },
@@ -26004,8 +26066,7 @@
       "create-platform-update-operation-request": {
         "type": "object",
         "required": [
-          "target_version",
-          "confirmation"
+          "target_version"
         ],
         "properties": {
           "target_version": {
@@ -26013,11 +26074,11 @@
             "minLength": 1,
             "maxLength": 128
           },
-          "confirmation": {
+          "compose_candidate_key": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 128,
-            "description": "Exact target_version typed by the administrator."
+            "maxLength": 256,
+            "description": "Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery."
           }
         }
       },

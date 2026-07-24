@@ -60,41 +60,15 @@
               </div>
               <t-button
                 theme="primary"
-                :disabled="!canStartUpgrade"
-                :title="canStartUpgrade ? '' : upgradeUnavailableReason"
+                :disabled="!canOpenUpgradeFlow"
+                :title="canOpenUpgradeFlow ? '' : upgradeUnavailableReason"
                 data-testid="update-center-upgrade"
                 @click="openConfirmation"
               >
                 {{ t('update.center.release.upgrade') }}
               </t-button>
             </div>
-            <div v-if="isDockerDiscovery" class="update-center__compose-root">
-              <t-alert
-                v-if="!composeCandidates.length"
-                theme="warning"
-                :message="t('update.center.composeRoot.noCandidates')"
-              />
-              <template v-else>
-                <p class="update-center__compose-root-title">
-                  {{ t('update.center.composeRoot.title') }}
-                </p>
-                <p class="update-center__card-description">
-                  {{ t('update.center.composeRoot.description') }}
-                </p>
-                <t-radio-group v-model="selectedCandidateKey" direction="vertical">
-                  <t-radio v-for="candidate in composeCandidates" :key="candidate.key" :value="candidate.key">
-                    <span class="update-center__candidate">
-                      <strong>{{ candidate.host_path }}</strong>
-                      <small>
-                        {{ candidate.compose_files.join(', ') }}
-                        <template v-if="candidate.project_name"> · {{ candidate.project_name }} </template>
-                      </small>
-                    </span>
-                  </t-radio>
-                </t-radio-group>
-              </template>
-            </div>
-            <t-alert v-if="!canStartUpgrade" theme="info" :message="upgradeUnavailableReason" />
+            <t-alert v-if="!canOpenUpgradeFlow" theme="info" :message="upgradeUnavailableReason" />
             <div class="update-center__notes graft-scrollbar">
               <markdown-viewer :source="releaseNotes" />
             </div>
@@ -170,13 +144,33 @@
         content: t('update.center.confirmation.confirm'),
         theme: 'danger',
         loading: submitting,
-        disabled: !isExactConfirmation,
+        disabled: !canSubmitUpgrade,
       }"
       :cancel-btn="{ content: t('update.center.confirmation.cancel') }"
       @confirm="submitUpgrade"
     >
       <p>{{ t('update.center.confirmation.description', { version: status?.latest?.version }) }}</p>
-      <t-input v-model="confirmation" :placeholder="status?.latest?.version" autofocus />
+      <template v-if="isDockerDiscovery">
+        <p class="update-center__compose-root-title">{{ t('update.center.composeRoot.title') }}</p>
+        <p class="update-center__card-description">{{ t('update.center.composeRoot.description') }}</p>
+        <t-radio-group v-model="selectedCandidateKey" direction="vertical">
+          <t-radio v-for="candidate in composeCandidates" :key="candidate.key" :value="candidate.key">
+            <span class="update-center__candidate">
+              <strong>{{ candidate.host_path }}</strong>
+              <small>
+                {{ candidate.compose_files.join(', ') }}
+                <template v-if="candidate.project_name"> · {{ candidate.project_name }} </template>
+              </small>
+            </span>
+          </t-radio>
+        </t-radio-group>
+        <t-alert
+          v-if="!hasSelectedCandidate"
+          class="update-center__candidate-selection"
+          theme="warning"
+          :message="t('update.center.composeRoot.selectionRequired')"
+        />
+      </template>
       <t-alert
         v-if="operationError"
         class="update-center__confirmation-error"
@@ -187,9 +181,9 @@
   </div>
 </template>
 <script setup lang="ts">
-// 更新管理页复用壳层 discovery snapshot，仅为历史和精确版本确认保留自身的 Update API 调用。
+// 更新管理页复用壳层 discovery snapshot，仅为历史和受控升级提交保留自身的 Update API 调用。
 import type { PrimaryTableCol } from 'tdesign-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
@@ -202,25 +196,34 @@ import { createUpdateOperation, getUpdateOperations } from '../../api/update';
 import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
+import type { UpdateCenterDataSource } from '../../types/preview';
 import type { UpdateChannel, UpdateOperation, UpdateStatus } from '../../types/update';
+
+const props = defineProps<{
+  dataSource?: UpdateCenterDataSource;
+}>();
 
 const { locale, t } = useI18n();
 const route = useRoute();
 const permissionStore = usePermissionStore();
 const discoveryStore = useUpdateDiscoveryStore();
-const status = computed<UpdateStatus | null>(() => discoveryStore.status);
-const loading = computed(() => discoveryStore.phase === 'loading');
+const previewStatus = ref<UpdateStatus | null>(null);
+const status = computed<UpdateStatus | null>(() => (props.dataSource ? previewStatus.value : discoveryStore.status));
+const loading = computed(() => (props.dataSource ? !previewStatus.value : discoveryStore.phase === 'loading'));
 const checking = ref(false);
 const loadError = ref('');
 const historyError = ref('');
 const operations = ref<UpdateOperation[]>([]);
 const confirmationVisible = ref(false);
-const confirmation = ref('');
 const submitting = ref(false);
 const operationError = ref('');
 const selectedCandidateKey = ref('');
-const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
-const canManage = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE));
+const canCheck = computed(() =>
+  props.dataSource ? props.dataSource.permissions.check : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK),
+);
+const canManage = computed(() =>
+  props.dataSource ? props.dataSource.permissions.manage : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
+);
 const isDockerDiscovery = computed(
   () => status.value?.installation_profile.compose_root_source === 'docker_discovered',
 );
@@ -228,10 +231,12 @@ const composeCandidates = computed(() => status.value?.installation_profile.comp
 const hasSelectedCandidate = computed(
   () => !isDockerDiscovery.value || composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
 );
-const canStartUpgrade = computed(() => isUpgradeEligible(status.value, canManage.value) && hasSelectedCandidate.value);
-const isExactConfirmation = computed(
-  () => confirmation.value === status.value?.latest?.version && hasSelectedCandidate.value,
+const canOpenUpgradeFlow = computed(
+  () =>
+    isUpgradeEligible(status.value, canManage.value) &&
+    (!isDockerDiscovery.value || composeCandidates.value.length > 0),
 );
+const canSubmitUpgrade = computed(() => canOpenUpgradeFlow.value && hasSelectedCandidate.value);
 const releaseNotes = computed(() => status.value?.latest?.notes || t('update.center.release.notesEmpty'));
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
@@ -277,21 +282,35 @@ const upgradeUnavailableReason = computed(() => {
   if (isDockerDiscovery.value && !composeCandidates.value.length) {
     return t('update.center.composeRoot.noCandidates');
   }
-  if (isDockerDiscovery.value && !hasSelectedCandidate.value) {
-    return t('update.center.composeRoot.selectionRequired');
-  }
   return '';
 });
 
 onMounted(async () => {
   await loadStatus();
-  if (route.query.upgrade === '1' && canStartUpgrade.value) {
-    openConfirmation();
-  }
 });
+
+watch(
+  [() => route.query.upgrade, canOpenUpgradeFlow],
+  ([upgradeRequested, eligible]) => {
+    if (upgradeRequested === '1' && eligible && !confirmationVisible.value) {
+      openConfirmation();
+    }
+  },
+  { immediate: true },
+);
 
 async function loadStatus() {
   loadError.value = '';
+  if (props.dataSource) {
+    try {
+      previewStatus.value = await props.dataSource.getStatus();
+      syncCandidateSelection();
+    } catch {
+      loadError.value = t('update.center.loadFailed');
+    }
+    await loadHistory();
+    return;
+  }
   await discoveryStore.ensureSnapshot();
   syncCandidateSelection();
   if (discoveryStore.phase === 'error') {
@@ -304,7 +323,11 @@ async function refreshStatus() {
   checking.value = true;
   loadError.value = '';
   try {
-    await discoveryStore.refreshSnapshot();
+    if (props.dataSource) {
+      previewStatus.value = await props.dataSource.checkForUpdates();
+    } else {
+      await discoveryStore.refreshSnapshot();
+    }
     syncCandidateSelection();
     await loadHistory();
   } catch {
@@ -317,33 +340,36 @@ async function refreshStatus() {
 async function loadHistory() {
   historyError.value = '';
   try {
-    operations.value = await getUpdateOperations();
+    operations.value = props.dataSource ? await props.dataSource.getOperations() : await getUpdateOperations();
   } catch {
     historyError.value = t('update.center.history.loadFailed');
   }
 }
 
 function openConfirmation() {
-  if (!canStartUpgrade.value) {
+  if (!canOpenUpgradeFlow.value) {
     return;
   }
-  confirmation.value = '';
   operationError.value = '';
   confirmationVisible.value = true;
 }
 
 async function submitUpgrade() {
-  if (!status.value?.latest || !isExactConfirmation.value) {
+  if (!status.value?.latest || !canSubmitUpgrade.value) {
     return;
   }
   submitting.value = true;
   operationError.value = '';
   try {
-    await createUpdateOperation({
+    const payload = {
       target_version: status.value.latest.version,
-      confirmation: confirmation.value,
       ...(isDockerDiscovery.value ? { compose_candidate_key: selectedCandidateKey.value } : {}),
-    });
+    };
+    if (props.dataSource) {
+      await props.dataSource.createOperation(payload);
+    } else {
+      await createUpdateOperation(payload);
+    }
     confirmationVisible.value = false;
     await loadHistory();
   } catch {
@@ -360,7 +386,8 @@ function syncCandidateSelection() {
     return;
   }
   if (!candidates.some(({ key }) => key === selectedCandidateKey.value)) {
-    selectedCandidateKey.value = candidates.length === 1 ? candidates[0].key : '';
+    const highConfidenceCandidates = candidates.filter(({ confidence }) => confidence === 'high');
+    selectedCandidateKey.value = highConfidenceCandidates.length === 1 ? highConfidenceCandidates[0].key : '';
   }
 }
 
@@ -481,12 +508,6 @@ function formatDate(value: string) {
   margin-bottom: 0;
 }
 
-.update-center__compose-root {
-  border-top: 1px solid var(--td-component-border);
-  margin-top: var(--td-comp-margin-l);
-  padding-top: var(--td-comp-paddingTB-l);
-}
-
 .update-center__compose-root-title {
   color: var(--td-text-color-primary);
   font-weight: 600;
@@ -539,6 +560,10 @@ function formatDate(value: string) {
 }
 
 .update-center__confirmation-error {
+  margin-top: var(--td-comp-margin-l);
+}
+
+.update-center__candidate-selection {
   margin-top: var(--td-comp-margin-l);
 }
 

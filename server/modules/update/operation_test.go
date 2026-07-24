@@ -87,7 +87,7 @@ func TestRunnerReceiptDoesNotSerializeBackupStorageReferences(t *testing.T) {
 	}
 }
 
-func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing.T) {
+func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
 	discovery := NewService(nil)
@@ -105,10 +105,10 @@ func TestRolloutRequiresExactConfirmationAndPersistsLauncherOperation(t *testing
 	launcher := &recordingLauncher{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
 	rollout.newOperation = func() string { return "update-77" }
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "wrong"); err == nil {
-		t.Fatal("expected confirmation rejection")
+	if _, err := rollout.Start(t.Context(), 9, "1.0.9"); err == nil {
+		t.Fatal("expected target version rejection")
 	}
-	operation, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0")
+	operation, err := rollout.Start(t.Context(), 9, "1.1.0")
 	if err != nil {
 		t.Fatalf("start rollout: %v", err)
 	}

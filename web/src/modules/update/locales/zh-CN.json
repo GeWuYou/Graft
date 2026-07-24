@@ -75,7 +75,7 @@
       },
       "confirmation": {
         "title": "确认升级到 {version}",
-        "description": "输入精确目标版本以启动受控 Compose 升级。",
+        "description": "确认后将启动受控 Compose 升级。",
         "confirm": "开始升级",
         "cancel": "取消",
         "submitFailed": "升级请求未能启动。"

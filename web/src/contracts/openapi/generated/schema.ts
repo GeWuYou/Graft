@@ -1497,7 +1497,7 @@ export interface paths {
     };
     /**
      * Read self-update discovery status
-     * @description Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade.
+     * @description Returns the current build, the latest verified release snapshot, and installation capability without executing an upgrade. Docker-discovered Compose candidates, including host paths, are only returned to callers that also hold platform-update.manage.
      */
     get: operations['getPlatformUpdateStatus'];
     put?: never;
@@ -1519,7 +1519,7 @@ export interface paths {
     put?: never;
     /**
      * Refresh self-update release discovery
-     * @description Reads and verifies upstream release manifests; it does not download artifacts or modify the installation.
+     * @description Reads and verifies upstream release manifests; it does not download artifacts or modify the installation. Docker-discovered Compose candidates, including host paths, are only returned to callers that also hold platform-update.manage.
      */
     post: operations['postPlatformUpdateCheck'];
     delete?: never;
@@ -1540,7 +1540,7 @@ export interface paths {
     put?: never;
     /**
      * Confirm and start an official Compose update
-     * @description Requires an exact confirmation of the currently verified target release. It starts a one-shot digest-pinned runner and accepts only an opaque Compose root candidate key when Docker discovery is active; it never accepts commands, image references, or host paths from the request.
+     * @description Starts a one-shot digest-pinned runner only for the currently verified target release. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.
      */
     post: operations['postPlatformUpdateOperation'];
     delete?: never;
@@ -6215,6 +6215,7 @@ export interface components {
         }[];
         blocking_reason?: string;
         compose_root_source: components['schemas']['platform-update-compose-root-source'];
+        /** @description Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array. */
         compose_candidates: components['schemas']['platform-update-compose-root-candidate'][];
       };
       /** Format: date-time */
@@ -6272,8 +6273,6 @@ export interface components {
     };
     'create-platform-update-operation-request': {
       target_version: string;
-      /** @description Exact target_version typed by the administrator. */
-      confirmation: string;
       /** @description Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery. */
       compose_candidate_key?: string;
     };
@@ -13350,7 +13349,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-platform-update-operation'];
         };
       };
-      /** @description Invalid confirmation or request payload. */
+      /** @description Invalid target version or request payload. */
       400: {
         headers: {
           [name: string]: unknown;

@@ -25,6 +25,13 @@ type Status struct {
 	CheckError       string              `json:"check_error,omitempty"`
 }
 
+// withoutComposeCandidates 为只读调用方移除仅供升级管理员确认的宿主机候选路径。
+// 它只操作当前响应副本，不能影响本进程后续升级预检使用的 Docker 发现结果。
+func (s Status) withoutComposeCandidates() Status {
+	s.Profile.ComposeCandidates = []ComposeRootCandidate{}
+	return s
+}
+
 // Service 持有最近检查快照，并在配置缓存时恢复最近一次成功的已验证结果。
 type Service struct {
 	provider         ReleaseProvider

@@ -2965,22 +2965,22 @@ func (e ErrorResponseSuccess) Valid() bool {
 
 // Defines values for EvidenceLinkLinkState.
 const (
-	Available   EvidenceLinkLinkState = "available"
-	Empty       EvidenceLinkLinkState = "empty"
-	Unavailable EvidenceLinkLinkState = "unavailable"
-	Unsupported EvidenceLinkLinkState = "unsupported"
+	EvidenceLinkLinkStateAvailable   EvidenceLinkLinkState = "available"
+	EvidenceLinkLinkStateEmpty       EvidenceLinkLinkState = "empty"
+	EvidenceLinkLinkStateUnavailable EvidenceLinkLinkState = "unavailable"
+	EvidenceLinkLinkStateUnsupported EvidenceLinkLinkState = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the EvidenceLinkLinkState enum.
 func (e EvidenceLinkLinkState) Valid() bool {
 	switch e {
-	case Available:
+	case EvidenceLinkLinkStateAvailable:
 		return true
-	case Empty:
+	case EvidenceLinkLinkStateEmpty:
 		return true
-	case Unavailable:
+	case EvidenceLinkLinkStateUnavailable:
 		return true
-	case Unsupported:
+	case EvidenceLinkLinkStateUnsupported:
 		return true
 	default:
 		return false
@@ -3275,6 +3275,48 @@ func (e NotificationTargetType) Valid() bool {
 	case NotificationTargetTypeSYSTEM:
 		return true
 	case NotificationTargetTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateComposeRootCandidateConfidence.
+const (
+	High   PlatformUpdateComposeRootCandidateConfidence = "high"
+	Low    PlatformUpdateComposeRootCandidateConfidence = "low"
+	Medium PlatformUpdateComposeRootCandidateConfidence = "medium"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateComposeRootCandidateConfidence enum.
+func (e PlatformUpdateComposeRootCandidateConfidence) Valid() bool {
+	switch e {
+	case High:
+		return true
+	case Low:
+		return true
+	case Medium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateComposeRootSource.
+const (
+	PlatformUpdateComposeRootSourceDockerDiscovered PlatformUpdateComposeRootSource = "docker_discovered"
+	PlatformUpdateComposeRootSourceExplicitEnv      PlatformUpdateComposeRootSource = "explicit_env"
+	PlatformUpdateComposeRootSourceUnavailable      PlatformUpdateComposeRootSource = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateComposeRootSource enum.
+func (e PlatformUpdateComposeRootSource) Valid() bool {
+	switch e {
+	case PlatformUpdateComposeRootSourceDockerDiscovered:
+		return true
+	case PlatformUpdateComposeRootSourceExplicitEnv:
+		return true
+	case PlatformUpdateComposeRootSourceUnavailable:
 		return true
 	default:
 		return false
@@ -7808,9 +7850,9 @@ type CreateAnnouncementRequest struct {
 
 // CreatePlatformUpdateOperationRequest defines model for create-platform-update-operation-request.
 type CreatePlatformUpdateOperationRequest struct {
-	// Confirmation Exact target_version typed by the administrator.
-	Confirmation  string `json:"confirmation"`
-	TargetVersion string `json:"target_version"`
+	// ComposeCandidateKey Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery.
+	ComposeCandidateKey *string `json:"compose_candidate_key,omitempty"`
+	TargetVersion       string  `json:"target_version"`
 }
 
 // CreateRoleRequest defines model for create-role-request.
@@ -10942,6 +10984,26 @@ type PersonalAccessTokenSummary struct {
 	TokenPrefix string `json:"token_prefix"`
 }
 
+// PlatformUpdateComposeRootCandidate defines model for platform-update-compose-root-candidate.
+type PlatformUpdateComposeRootCandidate struct {
+	ComposeFiles []string                                     `json:"compose_files"`
+	Confidence   PlatformUpdateComposeRootCandidateConfidence `json:"confidence"`
+
+	// HostPath Host path shown for administrator confirmation only.
+	HostPath string `json:"host_path"`
+
+	// Key Opaque server-issued candidate identifier.
+	Key         string  `json:"key"`
+	ProjectName *string `json:"project_name,omitempty"`
+	Warning     *string `json:"warning,omitempty"`
+}
+
+// PlatformUpdateComposeRootCandidateConfidence defines model for PlatformUpdateComposeRootCandidate.Confidence.
+type PlatformUpdateComposeRootCandidateConfidence string
+
+// PlatformUpdateComposeRootSource defines model for platform-update-compose-root-source.
+type PlatformUpdateComposeRootSource string
+
 // PlatformUpdateOperation defines model for platform-update-operation.
 type PlatformUpdateOperation struct {
 	BackupId          *int64                        `json:"backup_id,omitempty"`
@@ -10972,13 +11034,17 @@ type PlatformUpdateStatus struct {
 	CheckedAt           *time.Time                  `json:"checked_at,omitempty"`
 	CurrentVersion      string                      `json:"current_version"`
 	InstallationProfile struct {
-		BinaryPath     *string                                             `json:"binary_path,omitempty"`
-		BlockingReason *string                                             `json:"blocking_reason,omitempty"`
-		Capability     PlatformUpdateStatusInstallationProfileCapability   `json:"capability"`
-		DeclaredMode   PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
-		DetectedMode   PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
-		Guidance       string                                              `json:"guidance"`
-		ManualSteps    *[]struct {
+		BinaryPath     *string                                           `json:"binary_path,omitempty"`
+		BlockingReason *string                                           `json:"blocking_reason,omitempty"`
+		Capability     PlatformUpdateStatusInstallationProfileCapability `json:"capability"`
+
+		// ComposeCandidates Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array.
+		ComposeCandidates []PlatformUpdateComposeRootCandidate                `json:"compose_candidates"`
+		ComposeRootSource PlatformUpdateComposeRootSource                     `json:"compose_root_source"`
+		DeclaredMode      PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
+		DetectedMode      PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
+		Guidance          string                                              `json:"guidance"`
+		ManualSteps       *[]struct {
 			Key    string             `json:"key"`
 			Params *map[string]string `json:"params,omitempty"`
 		} `json:"manual_steps,omitempty"`

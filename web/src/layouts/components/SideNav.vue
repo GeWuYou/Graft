@@ -19,7 +19,7 @@
             :label="t('common.appName')"
             @click="goHome"
           />
-          <component :is="updateVersionEntry" v-if="!logoLabelHidden" />
+          <component :is="updateVersionEntry" v-if="!logoLabelHidden" :center-path="updateCenterPath" />
         </span>
       </template>
       <menu-content :nav-data="menu" :show-sections="!renderCompact" />
@@ -87,6 +87,10 @@ const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motion
   motionPhase: {
     type: String as PropType<SidebarMotionPhase>,
     default: 'expanded',
+  },
+  updateCenterPath: {
+    type: String,
+    default: undefined,
   },
 });
 

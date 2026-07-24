@@ -49,8 +49,8 @@
         <template v-if="hasAvailableRelease">
           <t-button
             v-if="canStartUpgrade"
+            class="update-version-preview__upgrade"
             data-testid="update-preview-upgrade"
-            size="small"
             theme="primary"
             @click.stop="startUpgrade"
           >
@@ -94,8 +94,16 @@ import { useI18n } from 'vue-i18n';
 import { usePermissionStore } from '@/store';
 
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
+import { UPDATE_ROUTE_PATH } from '../contract/paths';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
+
+const props = withDefaults(
+  defineProps<{
+    centerPath?: string;
+  }>(),
+  { centerPath: UPDATE_ROUTE_PATH.CENTER },
+);
 
 const { t } = useI18n();
 const permissionStore = usePermissionStore();
@@ -107,7 +115,7 @@ const previewCheckFailed = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
-const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible);
+const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible, props.centerPath);
 const hasAvailableRelease = computed(
   () =>
     Boolean(discoveryStore.status?.latest) &&
@@ -219,6 +227,12 @@ async function refreshStatus() {
   gap: var(--td-comp-margin-s);
   justify-content: flex-end;
   padding-top: var(--td-comp-paddingTB-s);
+}
+
+.update-version-preview__upgrade {
+  justify-self: center;
+  min-height: 36px;
+  width: min(184px, 100%);
 }
 
 .update-version-preview__up-to-date {

@@ -180,6 +180,33 @@ describe('UpdateVersionEntry', () => {
     expect(routerMocks.push).toHaveBeenCalledWith(UPDATE_ROUTE_PATH.CENTER);
   });
 
+  it('uses an injected development preview path for the details action', async () => {
+    const discovery = useUpdateDiscoveryStore();
+    discovery.replaceSnapshot(
+      status({
+        latest: {
+          version: '1.1.0',
+          notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v1.1.0',
+        },
+      }),
+    );
+    const wrapper = mount(UpdateVersionEntry, {
+      props: { centerPath: '/mock/platform/updates' },
+      global: {
+        stubs: {
+          't-popup': popupStub,
+          't-tooltip': passthrough,
+          't-button': buttonStub,
+          'refresh-icon': defineComponent({ template: '<span data-testid="refresh-icon" />' }),
+        },
+      },
+    });
+
+    await wrapper.get('[data-testid="update-preview-detail"]').trigger('click');
+
+    expect(routerMocks.push).toHaveBeenCalledWith('/mock/platform/updates');
+  });
+
   it('starts the controlled upgrade flow from the primary quick action', async () => {
     const permissions = usePermissionStore();
     permissions.setBootstrapSnapshot({
