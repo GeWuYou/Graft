@@ -45,7 +45,11 @@ closeout:
 - Batch 3: container batch start/stop/restart submit one independent `container.lifecycle.{action}.v1` Task per accepted item; the HTTP response remains an ordered partial-result projection with explicit `accepted`, `task_id`, `status`, and failure fields.
 - Batch 4: container batch remove submits one independent `container.lifecycle.remove.v1` Task per accepted item. The frozen plan retains `force`; the existing `container.remove` route and Task owner authorizer both enforce remove-specific authorization. Docker interruption resolves through Task Runtime `unknown` / `needs_attention` and manual reconciliation, never automatic replay.
 - Guardrail: compare with `origin/main` and stop or split before 80 changed files.
-- Next step: assess Backup only after a product-facing execution entry exists.
+- Backup execution contract: the first public entry is a Platform capability at
+  `/platform/backups`; it submits a frozen, manual-reconcile Backup Task and
+  excludes restore, artifact download, scheduled backups, and cleanup.
+- Next step: implement the bounded Backup artifact writer and public Task-backed
+  create/list/detail contract from `backup-execution-contract.md`.
 
 ## Task Checklist
 
@@ -53,7 +57,10 @@ closeout:
 - [x] Migrate single-container start/stop/restart to Tasks.
 - [x] Migrate Container batch start/stop/restart to independent Tasks while preserving partial-result semantics.
 - [x] Migrate Container batch remove to independent Tasks while preserving ordered partial-result and manual-reconcile semantics.
-- [ ] Assess Backup after a product execution entry exists.
+- [x] Define the first Backup product execution entry and Task contract.
+- [ ] Implement the bounded Backup artifact writer and Task executor.
+- [ ] Add the canonical Backup OpenAPI contract, Platform navigation, and web
+  history page after the backend contract is executable.
 
 ## Acceptance Conditions
 
@@ -67,9 +74,9 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption"],
-  "pending_batches": ["backup-execution-entry"],
-  "current_batch": "container-batch-removal-task-adoption",
-  "next_batch": "backup-execution-entry",
-  "closeout_status": "validation-pending"
+  "pending_batches": ["backup-task-executor", "backup-public-surface"],
+  "current_batch": "backup-execution-contract",
+  "next_batch": "backup-task-executor",
+  "closeout_status": "contract-defined"
 }
 ```

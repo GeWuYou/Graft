@@ -32,15 +32,21 @@
 - Remove keeps `max_attempts=1` and `manual_reconcile`: Docker interruption can leave the external result unknown, so the Task drawer is the authority for failure, `unknown`, and `needs_attention` rather than optimistic list removal.
 - The web list opens the first accepted remove Task in the shared drawer, retains selections at receipt time, and refreshes only after observed Task success.
 
+## 2026-07-25 Backup Execution Contract
+
+- Classified Backup history as a `platform-backup` Platform capability with the stable visible route `/platform/backups`; it is neither a runtime nor an Update child entry.
+- The initial public operation is manual Backup creation only. It freezes a two-stage, one-attempt Task plan, preserves `manual_reconcile` for interruption ambiguity, and exposes only safe Backup summaries.
+- Restore, artifact download/browsing, cleanup, scheduled execution, path/DSN/command inputs, and automatic replay remain excluded. Existing Update runner handoffs remain a narrow Update integration and are not reused as the public Backup execution API.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption"],
-  "pending_batches": ["backup-execution-entry"],
-  "current_batch": "container-batch-removal-task-adoption",
-  "next_batch": "backup-execution-entry",
-  "closeout_status": "validated"
+  "pending_batches": ["backup-task-executor", "backup-public-surface"],
+  "current_batch": "backup-execution-contract",
+  "next_batch": "backup-task-executor",
+  "closeout_status": "contract-defined"
 }
 ```
