@@ -494,11 +494,13 @@
         "skipInapplicable": "Some Containers Are Not Applicable Because of Their Current State or Permissions and Will Be Skipped.",
         "skipSourceRestricted": "{count} Containers Were Skipped Because Their Source Policy Disallows Batch Dangerous Actions.",
         "confirmRemoveRunning": "{count} Selected Containers Are Running. The Default Delete Will Be Rejected; Select Force to Continue.",
-        "success": "Batch Action Completed. {count} Succeeded.",
+        "submitted": "{count} Container Tasks Submitted. They Are Running.",
         "partialTitle": "Batch Action Partially Succeeded",
         "failed": "Batch Action Failed.",
         "failureDetailTitle": "View Failure Details",
-        "noFailureDetail": "No Failure Details."
+        "noFailureDetail": "No Failure Details.",
+        "tasksTitle": "Submitted Container Tasks",
+        "taskEntry": "View {action} Task: {id}"
       },
       "detail": {
         "title": "Container Detail",

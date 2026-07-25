@@ -171,7 +171,9 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.batch.startHint': '启动选中的 {count} 个容器。',
   'container.list.batch.stop': '批量停止',
   'container.list.batch.stopHint': '停止选中的 {count} 个容器。',
-  'container.list.batch.success': '批量操作已完成，成功 {count} 个。',
+  'container.list.batch.submitted': '已提交 {count} 个容器任务，正在执行。',
+  'container.list.batch.tasksTitle': '已提交的容器任务',
+  'container.list.batch.taskEntry': '查看{action}任务：{id}',
   'container.list.clearFilters': '清除筛选',
   'container.list.columnSettings': '列设置',
   'container.list.columns.cpu': 'CPU',
@@ -608,7 +610,7 @@ describe('container list page', () => {
     apiMocks.batchContainerActions.mockResolvedValue({
       failed_count: 0,
       items: [],
-      success_count: 2,
+      accepted_count: 2,
       total: 2,
     });
     composeApplicationMocks.resolveComposeApplicationReferences.mockResolvedValue({
@@ -1615,16 +1617,17 @@ describe('container list page', () => {
           action: 'restart',
           id: 'container-1',
           name: 'graft-web',
-          success: true,
+          accepted: true,
+          task_id: 201,
         },
         {
           action: 'restart',
           id: 'container-2',
           message: 'runtime rejected restart',
-          success: false,
+          accepted: false,
         },
       ],
-      success_count: 1,
+      accepted_count: 1,
       total: 2,
     });
     const wrapper = mountPage();
@@ -1665,6 +1668,9 @@ describe('container list page', () => {
         title: '批量操作部分成功',
       }),
     );
+    expect(wrapper.text()).toContain('已提交的容器任务');
+    expect(wrapper.text()).toContain('查看重启任务：container-1');
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledWith(201, expect.any(Object));
     expect(dialogMocks.instances.at(-1)?.setConfirmLoading).toHaveBeenLastCalledWith(false);
   });
 
@@ -1679,16 +1685,16 @@ describe('container list page', () => {
           action: 'remove',
           id: 'container-1',
           name: 'graft-web',
-          success: true,
+          accepted: true,
         },
         {
           action: 'remove',
           id: 'container-2',
           message: 'runtime rejected removal',
-          success: false,
+          accepted: false,
         },
       ],
-      success_count: 1,
+      accepted_count: 1,
       total: 2,
     });
     const wrapper = mountPage();
@@ -1744,8 +1750,8 @@ describe('container list page', () => {
     apiMocks.batchContainerActions.mockResolvedValue({
       action: 'start',
       failed_count: 0,
-      items: [{ action: 'start', id: 'container-2', name: 'graft-extra-2', success: true }],
-      success_count: 1,
+      items: [{ action: 'start', id: 'container-2', name: 'graft-extra-2', accepted: true, task_id: 202 }],
+      accepted_count: 1,
       total: 1,
     });
     const wrapper = mountPage();
@@ -1781,7 +1787,8 @@ describe('container list page', () => {
       force: false,
       ids: ['container-2'],
     });
-    expect(messageMocks.success).toHaveBeenCalledWith('批量操作已完成，成功 1 个。');
+    expect(messageMocks.success).toHaveBeenCalledWith('已提交 1 个容器任务，正在执行。');
+    expect(wrapper.text()).toContain('查看启动任务：container-2');
 
     await wrapper.get('[data-testid="container-batch-stop"]').trigger('click');
     await flushPromises();

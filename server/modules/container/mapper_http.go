@@ -600,18 +600,52 @@ func toContainerBatchAction(result BatchActionResult) containergen.ContainerBatc
 			Id:         item.ID,
 			Name:       optionalString(item.Name),
 			Action:     containergen.ContainerBatchActionItemAction(item.Action),
-			Success:    item.Success,
+			Accepted:   item.Success,
+			Success:    optionalBool(item.Success),
 			ErrorCode:  optionalString(item.ErrorCode),
 			MessageKey: optionalString(item.MessageKey),
 			Message:    optionalString(item.Message),
 		})
 	}
 	return containergen.ContainerBatchActionResponse{
-		Total:        result.Total,
-		SuccessCount: result.SuccessCount,
-		FailedCount:  result.FailedCount,
-		RequestId:    optionalString(result.RequestID),
-		Items:        items,
+		Total:         result.Total,
+		AcceptedCount: result.SuccessCount,
+		SuccessCount:  result.SuccessCount,
+		FailedCount:   result.FailedCount,
+		RequestId:     optionalString(result.RequestID),
+		Items:         items,
+	}
+}
+
+func toContainerBatchLifecycleAction(result BatchLifecycleActionResult) containergen.ContainerBatchActionResponse {
+	items := make([]containergen.ContainerBatchActionItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		var taskID *int64
+		var status *containergen.TaskStatus
+		if item.Accepted {
+			id := int64(item.TaskID) // #nosec G115 -- PostgreSQL task IDs fit signed bigint.
+			taskID = &id
+			value := containergen.TaskStatus(item.Status)
+			status = &value
+		}
+		items = append(items, containergen.ContainerBatchActionItem{
+			Id:         item.ID,
+			Action:     containergen.ContainerBatchActionItemAction(item.Action),
+			Accepted:   item.Accepted,
+			TaskId:     taskID,
+			Status:     status,
+			ErrorCode:  optionalString(item.ErrorCode),
+			MessageKey: optionalString(item.MessageKey),
+			Message:    optionalString(item.Message),
+		})
+	}
+	return containergen.ContainerBatchActionResponse{
+		Total:         result.Total,
+		AcceptedCount: result.AcceptedCount,
+		SuccessCount:  result.AcceptedCount,
+		FailedCount:   result.FailedCount,
+		RequestId:     optionalString(result.RequestID),
+		Items:         items,
 	}
 }
 

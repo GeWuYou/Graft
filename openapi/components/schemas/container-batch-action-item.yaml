@@ -1,8 +1,8 @@
 type: object
 required:
   - id
+  - accepted
   - action
-  - success
 properties:
   id:
     type: string
@@ -16,8 +16,20 @@ properties:
       - ContainerBatchActionItemActionStop
       - ContainerBatchActionItemActionRestart
       - ContainerBatchActionItemActionRemove
+  accepted:
+    type: boolean
+    description: Whether this item was accepted as an independent Container lifecycle Task.
+  task_id:
+    type: integer
+    format: int64
+    minimum: 1
+    description: Independent lifecycle Task identifier when accepted is true.
+  status:
+    $ref: ./task-status.yaml
+    description: Initial Task Runtime status when accepted is true.
   success:
     type: boolean
+    description: Synchronous remove result. Present for the remove action; not used for lifecycle Task submission.
   error_code:
     type: string
   message_key:

@@ -141,7 +141,7 @@ describe('container api', () => {
     const requestPost = vi.mocked(request.post);
     requestPost.mockResolvedValue({
       total: 2,
-      success_count: 2,
+      accepted_count: 2,
       failed_count: 0,
       items: [],
     } as never);

@@ -597,11 +597,25 @@ func (r routeRuntime) handleBatchAction(ginCtx *gin.Context) {
 	if !r.authorizeBatchAction(ginCtx, string(request.Action)) {
 		return
 	}
-	result, err := r.service.BatchAction(ginCtx.Request.Context(), BatchActionCommand{
+	command := BatchActionCommand{
 		Action: string(request.Action),
 		IDs:    request.Ids,
 		Force:  boolPtrValue(request.Force),
-	})
+	}
+	if isContainerLifecycleTaskAction(command.Action) {
+		requestedBy := uint64(0)
+		if auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok && auth.User != nil {
+			requestedBy = auth.User.ID
+		}
+		result, err := r.service.BatchLifecycleAction(ginCtx.Request.Context(), command, requestedBy, ginCtx.GetHeader("Idempotency-Key"))
+		if err != nil {
+			r.writeRouteError(ginCtx, err)
+			return
+		}
+		httpx.WriteSuccess(ginCtx, http.StatusAccepted, toContainerBatchLifecycleAction(result))
+		return
+	}
+	result, err := r.service.BatchAction(ginCtx.Request.Context(), command)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return

@@ -212,8 +212,8 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 	authorizer.reset()
 	response := httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["abc123"]}`))
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected batch start 200, got %d: %s", response.Code, response.Body.String())
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch start 202, got %d: %s", response.Code, response.Body.String())
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerStartPermission.String()) {
 		t.Fatalf("expected batch start permission, got %#v", authorizer.permissions)
@@ -227,6 +227,44 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
+	}
+	if !strings.Contains(response.Body.String(), `"success":true`) {
+		t.Fatalf("expected synchronous remove result, got %s", response.Body.String())
+	}
+}
+
+func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	tasks := &containerTaskRuntimeStub{}
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		tasks:                   tasks,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	request := authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["container-1","bad/id"]}`)
+	request.Header.Set("Idempotency-Key", "batch-start")
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch lifecycle 202, got %d: %s", response.Code, response.Body.String())
+	}
+	if len(tasks.submissions) != 1 || tasks.submissions[0].Owner.ID != "container-1" || tasks.submissions[0].IdempotencyKey != "batch-start:start:container-1:0" {
+		t.Fatalf("unexpected lifecycle submissions: %#v", tasks.submissions)
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"accepted_count":1`) || !strings.Contains(body, `"failed_count":1`) ||
+		!strings.Contains(body, `"task_id":1`) || !strings.Contains(body, `"accepted":false`) || !strings.Contains(body, `"id":"bad/id"`) {
+		t.Fatalf("expected ordered task partial result, got %s", body)
 	}
 }
 

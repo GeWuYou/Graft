@@ -5,7 +5,6 @@ import { request } from '@/utils/request';
 import type {
   ContainerActionResponse,
   ContainerBatchActionRequest,
-  ContainerBatchActionResponse,
   ContainerDetailRecord,
   ContainerListQueryWithOrchestrator,
   ContainerLogQuery,
@@ -325,5 +324,5 @@ export function batchContainerActions(body: ContainerBatchActionRequest & PostCo
   return request.post<PostContainerBatchActionsData>({
     url: OPENAPI_RUNTIME_PATH.postContainerBatchActions,
     data: body,
-  }) as Promise<ContainerBatchActionResponse>;
+  }) as Promise<PostContainerBatchActionsData>;
 }

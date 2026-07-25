@@ -18,15 +18,22 @@
 - Lifecycle Task owner types remain action-specific so Task detail, cancellation, and retry preserve `container.start`, `container.stop`, or `container.restart` authorization instead of widening to a read or generic dangerous-action permission.
 - Batch actions and removal remain synchronous and are explicitly deferred because batch partial-result semantics and removal lifecycle behavior need their own bounded authority review.
 
+## 2026-07-25 Container Batch Lifecycle Task Adoption
+
+- Migrated batch `start`, `stop`, and `restart` to one independently submitted lifecycle Task per accepted container.
+- Preserved the ordered partial-result contract: each item reports `accepted`, optional `task_id`/initial `status`, or explicit submission failure fields.
+- Reused the existing action-specific Container permission and Task owner authorizer; batch `remove` remains synchronous and was not sent through Task Runtime.
+- The web Container page observes every accepted Task, opens the shared Task detail drawer for the first item, and exposes the remaining accepted tasks as drawer entries; list refresh follows Task success rather than receipt acceptance.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption"],
-  "pending_batches": ["container-batch-actions-or-removal"],
-  "current_batch": "container-single-lifecycle-task-adoption",
-  "next_batch": "container-batch-actions-or-removal",
-  "closeout_status": "validation-pending"
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption"],
+  "pending_batches": ["container-batch-removal-or-backup-entry"],
+  "current_batch": "container-batch-lifecycle-task-adoption",
+  "next_batch": "container-batch-removal-or-backup-entry",
+  "closeout_status": "validated"
 }
 ```

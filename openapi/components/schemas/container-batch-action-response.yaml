@@ -4,6 +4,7 @@ description: >
   preserves the request id order so callers can correlate each result by position as well as by id.
 required:
   - total
+  - accepted_count
   - success_count
   - failed_count
   - items
@@ -14,6 +15,11 @@ properties:
   success_count:
     type: integer
     minimum: 0
+    description: Retained synchronous success count for remove and equal to accepted_count for lifecycle submissions.
+  accepted_count:
+    type: integer
+    minimum: 0
+    description: Number of start, stop, or restart items accepted as independent Tasks.
   failed_count:
     type: integer
     minimum: 0

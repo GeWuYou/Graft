@@ -920,6 +920,86 @@ func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (
 	return result, nil
 }
 
+// BatchLifecycleActionResult 表示容器生命周期批量提交的有序聚合结果；它只记录 Task 接收事实，不代表外部动作已完成。
+type BatchLifecycleActionResult struct {
+	Action        string
+	Total         int
+	AcceptedCount int
+	FailedCount   int
+	RequestID     string
+	Items         []BatchLifecycleActionItem
+}
+
+// BatchLifecycleActionItem 保留单个容器的 Task receipt 或可展示的提交失败，避免批量部分失败被整体错误遮蔽。
+type BatchLifecycleActionItem struct {
+	ID         string
+	Action     string
+	Accepted   bool
+	TaskID     uint64
+	Status     moduleapi.TaskStatus
+	ErrorCode  string
+	MessageKey string
+	Message    string
+}
+
+// BatchLifecycleAction 为 start、stop、restart 逐项提交独立 Task，并把单项解析、策略或提交失败保留在对应 item 中。
+func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionCommand, requestedBy uint64, idempotencyKey string) (BatchLifecycleActionResult, error) {
+	normalized, err := normalizeBatchActionCommand(command)
+	if err != nil || !isContainerLifecycleTaskAction(normalized.Action) {
+		return BatchLifecycleActionResult{}, errInvalidBatchAction
+	}
+	if err := s.requireRuntimeAccess(ctx); err != nil {
+		return BatchLifecycleActionResult{}, err
+	}
+	if !s.dangerousActionsAllowed(ctx) {
+		return BatchLifecycleActionResult{}, errDangerousActionsDisabled
+	}
+	result := BatchLifecycleActionResult{
+		Action:    normalized.Action,
+		Total:     len(normalized.IDs),
+		RequestID: requestIDFromContext(ctx),
+		Items:     make([]BatchLifecycleActionItem, 0, len(normalized.IDs)),
+	}
+	for index, rawID := range normalized.IDs {
+		ref, parseErr := parseRef(rawID)
+		if parseErr != nil {
+			item := batchLifecycleActionFailure(rawID, normalized.Action, parseErr)
+			result.Items = append(result.Items, item)
+			result.FailedCount++
+			continue
+		}
+		if blockedItem, blocked := s.batchActionPolicyFailure(ctx, ref, normalized.Action, ActionOptions{}); blocked {
+			result.Items = append(result.Items, BatchLifecycleActionItem{
+				ID: blockedItem.ID, Action: blockedItem.Action, ErrorCode: blockedItem.ErrorCode,
+				MessageKey: blockedItem.MessageKey, Message: blockedItem.Message,
+			})
+			result.FailedCount++
+			continue
+		}
+		receipt, submitErr := s.SubmitContainerLifecycleAction(ctx, ref, normalized.Action, requestedBy, batchTaskIdempotencyKey(idempotencyKey, normalized.Action, ref.Value, index))
+		if submitErr != nil {
+			result.Items = append(result.Items, batchLifecycleActionFailure(ref.Value, normalized.Action, submitErr))
+			result.FailedCount++
+			continue
+		}
+		result.Items = append(result.Items, BatchLifecycleActionItem{ID: ref.Value, Action: normalized.Action, Accepted: true, TaskID: receipt.TaskID, Status: receipt.Status})
+		result.AcceptedCount++
+	}
+	return result, nil
+}
+
+func batchLifecycleActionFailure(id string, action string, err error) BatchLifecycleActionItem {
+	messageKey := messageKeyForError(err).String()
+	return BatchLifecycleActionItem{ID: id, Action: action, ErrorCode: messageKey, MessageKey: messageKey, Message: fallbackMessageForError(err)}
+}
+
+func batchTaskIdempotencyKey(base string, action string, ref string, index int) string {
+	if strings.TrimSpace(base) == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%s:%s:%d", base, action, ref, index)
+}
+
 func (s *service) runAction(
 	ctx context.Context,
 	ref Ref,

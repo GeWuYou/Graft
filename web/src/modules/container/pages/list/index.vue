@@ -208,6 +208,26 @@
       :resolve-task-type="resolveLifecycleTaskType"
       @update:visible="lifecycleTaskDrawerVisible = $event"
     />
+
+    <t-alert
+      v-if="batchTaskEntries.length"
+      class="container-batch-tasks"
+      theme="info"
+      :title="t('container.list.batch.tasksTitle')"
+    >
+      <div class="container-batch-tasks__list">
+        <t-button
+          v-for="entry in batchTaskEntries"
+          :key="entry.taskId"
+          class="container-batch-tasks__item"
+          variant="text"
+          theme="primary"
+          @click="openLifecycleTask(entry.taskId)"
+        >
+          {{ t('container.list.batch.taskEntry', { action: actionLabel(entry.action), id: entry.containerId }) }}
+        </t-button>
+      </div>
+    </t-alert>
   </div>
 </template>
 <script setup lang="ts">
@@ -335,6 +355,7 @@ const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
 const lifecycleTaskDrawerVisible = ref(false);
 const lifecycleTaskId = ref<number | null>(null);
+const batchTaskEntries = ref<Array<{ taskId: number; containerId: string; action: LifecycleContainerAction }>>([]);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   deploymentType: 'all',
@@ -358,6 +379,7 @@ const listRealtimeActive = ref(false);
 let listRealtimeSubscribed = false;
 // 生命周期 Task 的 receipt 不代表 Docker 已变更，列表只能在成功终态后刷新实际运行时快照。
 let lifecycleTaskObserver: TaskObserver | null = null;
+const batchTaskObservers = new Map<number, TaskObserver>();
 function hasCommittedFilters(activeFilters: ContainerFilters) {
   return (
     Boolean(activeFilters.keyword.trim()) ||
@@ -435,6 +457,7 @@ async function loadRuntimeTargets() {
 
 onUnmounted(() => {
   stopLifecycleTaskObserver();
+  stopBatchTaskObservers();
   listRealtimeActive.value = false;
   releaseListRealtimeSubscription();
 });
@@ -1003,6 +1026,15 @@ async function executeDangerousAction(row: ContainerSummaryRecord, action: Dange
   }
 }
 
+function actionLabel(action: LifecycleContainerAction) {
+  return t(`container.list.actions.${action}`);
+}
+
+function openLifecycleTask(taskId: number) {
+  lifecycleTaskId.value = taskId;
+  lifecycleTaskDrawerVisible.value = true;
+}
+
 function isLifecycleTaskAction(action: DangerousContainerAction): action is LifecycleContainerAction {
   return action === 'start' || action === 'stop' || action === 'restart';
 }
@@ -1051,6 +1083,24 @@ function observeLifecycleTask(taskId: number) {
       if (task.status === 'success') void refreshContainers();
     },
   });
+}
+
+function stopBatchTaskObservers() {
+  batchTaskObservers.forEach((observer) => observer.stop());
+  batchTaskObservers.clear();
+}
+
+function observeBatchTask(taskId: number) {
+  const observer = observeTask(taskId, {
+    onError: (error) => logger.warn('container batch lifecycle task observation failed', { error, taskId }),
+    onTask: (task) => {
+      if (!isTerminalTaskStatus(task.status)) return;
+      batchTaskObservers.get(taskId)?.stop();
+      batchTaskObservers.delete(taskId);
+      if (task.status === 'success') void refreshContainers();
+    },
+  });
+  batchTaskObservers.set(taskId, observer);
 }
 
 function isDangerousActionDisabled(row: ContainerSummaryRecord, action: DangerousContainerAction) {
@@ -1217,10 +1267,27 @@ async function executeBatchAction(
 
   batchActionLoading.value = action;
   try {
-    const response = await batchContainerActions({ action, ids, force: action === 'remove' ? force : false });
+    const response = await batchContainerActions({
+      action,
+      ids,
+      force: action === 'remove' ? force : false,
+    });
     syncSelectionAfterBatchAction(action, response, ids);
+    if (isLifecycleTaskAction(action)) {
+      const acceptedItems = response.items.filter((item) => item.accepted && item.task_id);
+      batchTaskEntries.value = acceptedItems.map((item) => ({
+        taskId: item.task_id as number,
+        containerId: item.id,
+        action,
+      }));
+      acceptedItems.forEach((item, index) => {
+        const taskId = item.task_id as number;
+        observeBatchTask(taskId);
+        if (index === 0) openLifecycleTask(taskId);
+      });
+    }
     handleBatchActionResult(response);
-    await refreshContainers();
+    if (action === 'remove') await refreshContainers();
     return true;
   } catch (error) {
     logger.warn(`failed to batch ${action} containers`, error);
@@ -1242,7 +1309,7 @@ function syncSelectionAfterBatchAction(
 
   const removedIds = new Set(
     response.items
-      .filter((item) => item.success)
+      .filter((item) => item.accepted)
       .map((item) => item.id)
       .filter((id): id is string => Boolean(id)),
   );
@@ -1259,11 +1326,11 @@ function syncSelectionAfterBatchAction(
 
 function handleBatchActionResult(response: ContainerBatchActionResponse) {
   if (response.failed_count === 0) {
-    MessagePlugin.success(t('container.list.batch.success', { count: response.success_count }));
+    MessagePlugin.success(t('container.list.batch.submitted', { count: response.accepted_count }));
     return;
   }
 
-  if (response.success_count > 0) {
+  if (response.accepted_count > 0) {
     void NotifyPlugin.warning({
       title: t('container.list.batch.partialTitle'),
       content: batchFailureSummary(response.items),
@@ -1283,7 +1350,7 @@ function handleBatchActionResult(response: ContainerBatchActionResponse) {
 }
 
 function batchFailureSummary(items: ContainerBatchActionItem[]) {
-  const failedItems = items.filter((item) => !item.success);
+  const failedItems = items.filter((item) => !item.accepted);
   if (!failedItems.length) {
     return t('container.list.batch.noFailureDetail');
   }

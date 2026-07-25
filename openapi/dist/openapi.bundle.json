@@ -11768,7 +11768,7 @@
         ],
         "summary": "Execute container actions in batch",
         "operationId": "postContainerBatchActions",
-        "description": "Executes one container action for selected containers and returns per-item success or failure.",
+        "description": "Submits start, stop, or restart independently per container and returns ordered partial results. Remove remains synchronous and returns its existing per-item result semantics.",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11794,7 +11794,22 @@
         },
         "responses": {
           "200": {
-            "description": "Container batch action result.",
+            "description": "Synchronous container remove batch result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-container-batch-action-response"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Container lifecycle actions accepted independently as Tasks; item failures remain explicit.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -28493,8 +28508,8 @@
         "type": "object",
         "required": [
           "id",
-          "action",
-          "success"
+          "accepted",
+          "action"
         ],
         "properties": {
           "id": {
@@ -28518,8 +28533,23 @@
               "ContainerBatchActionItemActionRemove"
             ]
           },
+          "accepted": {
+            "type": "boolean",
+            "description": "Whether this item was accepted as an independent Container lifecycle Task."
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Independent lifecycle Task identifier when accepted is true."
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status",
+            "description": "Initial Task Runtime status when accepted is true."
+          },
           "success": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Synchronous remove result. Present for the remove action; not used for lifecycle Task submission."
           },
           "error_code": {
             "type": "string"
@@ -28538,6 +28568,7 @@
         "description": "Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id.\n",
         "required": [
           "total",
+          "accepted_count",
           "success_count",
           "failed_count",
           "items"
@@ -28549,7 +28580,13 @@
           },
           "success_count": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Retained synchronous success count for remove and equal to accepted_count for lifecycle submissions."
+          },
+          "accepted_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of start, stop, or restart items accepted as independent Tasks."
           },
           "failed_count": {
             "type": "integer",

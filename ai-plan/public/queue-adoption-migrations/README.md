@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`
 - Intake summary: long-running refactor using the existing Task Runtime and queue-adoption design.
 - Canonical authority: Task Runtime, Container module, and `openapi/**` shared wire contract.
-- Completed so far: Docker image pull and single-container start/stop/restart now submit Tasks.
-- Not started yet: Container batch actions, container removal, and Backup execution entry.
+- Completed so far: Docker image pull, single-container lifecycle actions, and Container batch start/stop/restart now submit Tasks.
+- Not started yet: Container removal and Backup execution entry.
 
 ## Recovery Receipt
 
@@ -35,8 +35,8 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 2 migrates single-container start/stop/restart while retaining their action-specific authorization boundary.
-- Next step: complete cross-boundary validation, then select the batch-action or removal candidate without changing its synchronous partial-result contract implicitly.
+- Batch 3 migrates Container batch start/stop/restart to independently submitted lifecycle Tasks while retaining ordered per-item partial results and action-specific authorization.
+- Next step: select the batch-removal or Backup candidate; do not extend the current lifecycle contract implicitly.
 
 ## Work Intake
 

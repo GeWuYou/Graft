@@ -42,14 +42,16 @@ closeout:
 
 - Batch 1: Docker image pull submits `container.docker-image-pull.v1` and opens Task details.
 - Batch 2: container start/stop/restart submit `container.lifecycle.{action}.v1`, retain the existing action-specific permission boundary, and open shared Task details.
+- Batch 3: container batch start/stop/restart submit one independent `container.lifecycle.{action}.v1` Task per accepted item; the HTTP response remains an ordered partial-result projection with explicit `accepted`, `task_id`, `status`, and failure fields. Batch remove remains synchronous.
 - Guardrail: compare with `origin/main` and stop or split before 80 changed files.
-- Next step: complete cross-boundary validation and assess batch actions or removal as the next bounded Container candidate.
+- Next step: assess Container batch removal as the next bounded migration candidate.
 
 ## Task Checklist
 
 - [x] Validate and close Batch 1 Docker image pull Task adoption.
 - [x] Migrate single-container start/stop/restart to Tasks.
-- [ ] Assess Container batch actions or removal as the next bounded migration.
+- [x] Migrate Container batch start/stop/restart to independent Tasks while preserving partial-result semantics.
+- [ ] Assess Container batch removal as the next bounded migration.
 - [ ] Assess Backup after a product execution entry exists.
 
 ## Acceptance Conditions
