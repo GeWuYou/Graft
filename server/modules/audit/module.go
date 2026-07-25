@@ -225,7 +225,11 @@ func consumeAuditRecordEvent(
 		return nil
 	}
 
-	if err := recordEvent(eventCtx, logger, recorder, notifier, event.ID, payload); err != nil {
+	idempotencyKey := strings.TrimSpace(event.IdempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = event.ID
+	}
+	if err := recordEvent(eventCtx, logger, recorder, notifier, idempotencyKey, payload); err != nil {
 		logger.Error("write active audit log failed",
 			zap.String("module", moduleID),
 			zap.String("event", string(moduleapi.AuditRecordEventName)),

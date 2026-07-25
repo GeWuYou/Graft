@@ -84,16 +84,12 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 	if r == nil || r.db == nil {
 		return auditstore.AuditLog{}, errors.New("audit repository is unavailable")
 	}
-	metadata, err := attachAuditIdempotencyKey(input.Metadata, input.IdempotencyKey)
+	idempotencyKey := strings.TrimSpace(input.IdempotencyKey)
+	metadata, err := attachAuditIdempotencyKey(input.Metadata, idempotencyKey)
 	if err != nil {
 		return auditstore.AuditLog{}, err
 	}
 	input.Metadata = metadata
-	if existing, found, err := r.readAuditLogByIdempotencyKey(ctx, input.IdempotencyKey); err != nil {
-		return auditstore.AuditLog{}, err
-	} else if found {
-		return existing, nil
-	}
 
 	metadata = cloneRawMessage(input.Metadata)
 	record := auditstore.AuditLog{
@@ -120,24 +116,7 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 
 	row := r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO audit_logs (
-			actor_user_id,
-			actor_username,
-			actor_display_name,
-			action,
-			visibility,
-			resource_type,
-			resource_id,
-			resource_name,
-			success,
-			request_id,
-			ip,
-			user_agent,
-			message,
-			metadata,
-			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		RETURNING id`,
+		auditLogInsertQuery(idempotencyKey),
 		actorUserID,
 		input.ActorUsername,
 		input.ActorDisplayName,
@@ -155,12 +134,52 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 		input.CreatedAt,
 	)
 	var id int64
-	if err := row.Scan(&id); err != nil {
+	err = row.Scan(&id)
+	if err == nil {
+		record.ID = toStoreID(id)
+		return record, nil
+	}
+	if idempotencyKey == "" || !errors.Is(err, sql.ErrNoRows) {
 		return auditstore.AuditLog{}, fmt.Errorf("create audit log: %w", err)
 	}
-	record.ID = toStoreID(id)
+	return r.readAuditLogAfterIdempotencyConflict(ctx, idempotencyKey)
+}
 
-	return record, nil
+func auditLogInsertQuery(idempotencyKey string) string {
+	query := `INSERT INTO audit_logs (
+			actor_user_id,
+			actor_username,
+			actor_display_name,
+			action,
+			visibility,
+			resource_type,
+			resource_id,
+			resource_name,
+			success,
+			request_id,
+			ip,
+			user_agent,
+			message,
+			metadata,
+			created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
+	if idempotencyKey != "" {
+		query += ` ON CONFLICT ((metadata ->> 'eventId')) WHERE metadata ->> 'eventId' IS NOT NULL DO NOTHING RETURNING id`
+	} else {
+		query += ` RETURNING id`
+	}
+	return query
+}
+
+func (r *repository) readAuditLogAfterIdempotencyConflict(ctx context.Context, idempotencyKey string) (auditstore.AuditLog, error) {
+	existing, found, err := r.readAuditLogByIdempotencyKey(ctx, idempotencyKey)
+	if err != nil {
+		return auditstore.AuditLog{}, err
+	}
+	if !found {
+		return auditstore.AuditLog{}, errors.New("audit log idempotency conflict did not return an existing record")
+	}
+	return existing, nil
 }
 
 // attachAuditIdempotencyKey 将 durable delivery 标识写入审计元数据，使后续重试能查询到既有记录。
@@ -184,7 +203,6 @@ func attachAuditIdempotencyKey(metadata json.RawMessage, key string) (json.RawMe
 }
 
 // readAuditLogByIdempotencyKey 返回同一 durable delivery 已写入的审计记录。
-// dispatcher 对同一 delivery 串行重试，因此查询后插入足以消除提交成功但调用方收到错误时的重复写入。
 func (r *repository) readAuditLogByIdempotencyKey(ctx context.Context, key string) (auditstore.AuditLog, bool, error) {
 	key = strings.TrimSpace(key)
 	if key == "" {

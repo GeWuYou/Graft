@@ -100,7 +100,10 @@ func openTestDB(t *testing.T) *sql.DB {
 		updated_by INTEGER NULL,
 		updated_by_name TEXT NOT NULL DEFAULT '',
 		UNIQUE(source, action_key)
-	);`
+	);
+	CREATE UNIQUE INDEX audit_logs_event_id_unique
+		ON audit_logs ((metadata ->> 'eventId'))
+		WHERE metadata ->> 'eventId' IS NOT NULL;`
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("create audit schema: %v", err)
 	}

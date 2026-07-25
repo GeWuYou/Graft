@@ -82,7 +82,7 @@ func resolveCandidateMetadataFields(candidate auditstore.AuditCandidate, metadat
 // applyCanonicalCandidateMetadata 将候选审计信息写入统一的规范化元数据字段中。
 // 其中包括审计来源、请求标识、追踪标识、请求方法、路径、路由、状态码，以及可选的 actor、事件和目标信息。
 func applyCanonicalCandidateMetadata(metadata map[string]any, candidate auditstore.AuditCandidate, resolved resolvedCandidateMetadata) {
-	assignOptionalMetadataString(metadata, "eventId", candidate.IdempotencyKey)
+	assignOptionalMetadataString(metadata, "eventId", strings.TrimSpace(candidate.IdempotencyKey))
 	metadata["auditSource"] = string(candidate.Source)
 	metadata["requestId"] = resolved.requestID
 	metadata["traceId"] = resolved.traceID

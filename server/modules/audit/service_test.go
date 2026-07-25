@@ -738,3 +738,15 @@ func TestClassifyCandidateRiskLevelMarksContainerDangerousActionsHigh(t *testing
 		t.Fatalf("expected container dangerous action to be high risk, got %q", got)
 	}
 }
+
+func TestCandidateMetadataTrimsIdempotencyKey(t *testing.T) {
+	metadata, ok := candidateMetadata(auditstore.AuditCandidate{
+		IdempotencyKey: "  audit-event-id  ",
+	}, auditstore.AuditPolicyDecision{}).(map[string]any)
+	if !ok {
+		t.Fatalf("expected normalized metadata map, got %#v", metadata)
+	}
+	if metadata["eventId"] != "audit-event-id" {
+		t.Fatalf("expected trimmed event id, got %#v", metadata["eventId"])
+	}
+}

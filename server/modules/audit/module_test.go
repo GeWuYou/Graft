@@ -1665,3 +1665,46 @@ func TestConsumeAuditRecordEventReturnsRecordCandidateError(t *testing.T) {
 		t.Fatalf("expected record candidate error, got %v", err)
 	}
 }
+
+func TestConsumeAuditRecordEventUsesNormalizedEnvelopeIdempotencyKey(t *testing.T) {
+	repository := &memoryAuditRepository{rules: []store.AuditPolicyRule{{
+		Name:      "include.test.audit.write",
+		Source:    store.AuditSourceDomainEvent,
+		Enabled:   true,
+		Priority:  1,
+		Effect:    store.AuditPolicyEffectInclude,
+		EventType: "test.audit.write",
+		MatchType: store.AuditPolicyMatchTypeExact,
+	}}}
+	recorder, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new audit service: %v", err)
+	}
+	payload, err := json.Marshal(moduleapi.AuditEvent{
+		Kind:    moduleapi.AuditEventKindDomain,
+		Action:  "test.audit.write",
+		Success: true,
+	})
+	if err != nil {
+		t.Fatalf("marshal audit event: %v", err)
+	}
+
+	err = consumeAuditRecordEvent(context.Background(), zap.NewNop(), recorder, nil, event.Event{
+		ID:             "event-fallback-id",
+		IdempotencyKey: "  request-idempotency-key  ",
+		Payload:        payload,
+	})
+	if err != nil {
+		t.Fatalf("consume audit event: %v", err)
+	}
+	if len(repository.items) != 1 {
+		t.Fatalf("expected one audit record, got %#v", repository.items)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(repository.items[0].Metadata, &metadata); err != nil {
+		t.Fatalf("decode audit metadata: %v", err)
+	}
+	if metadata["eventId"] != "request-idempotency-key" {
+		t.Fatalf("expected normalized envelope idempotency key, got %#v", metadata["eventId"])
+	}
+}
