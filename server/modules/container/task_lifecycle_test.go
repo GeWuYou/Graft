@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
@@ -90,6 +92,56 @@ func TestBatchTaskIdempotencyKeyIsStablePerActionAndContainer(t *testing.T) {
 	}
 	if key == batchTaskIdempotencyKey("batch-key", containerActionStart, "container-2") {
 		t.Fatal("expected different containers to use distinct idempotency keys")
+	}
+	longKey := batchTaskIdempotencyKey(strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes), containerActionStart, "container-1")
+	if utf8.RuneCountInString(longKey) > moduleapi.TaskIdempotencyKeyMaxRunes {
+		t.Fatalf("expected bounded idempotency key, got %d characters", utf8.RuneCountInString(longKey))
+	}
+	if longKey != batchTaskIdempotencyKey(strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes), containerActionStart, "container-1") {
+		t.Fatal("expected long batch key derivation to be stable")
+	}
+	if longKey == batchTaskIdempotencyKey(strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes), containerActionStart, "container-2") {
+		t.Fatal("expected distinct containers to retain distinct derived keys")
+	}
+}
+
+func TestBatchLifecycleActionKeepsItemKeysIndependentOfRequestOrder(t *testing.T) {
+	keysFor := func(ids []string) map[string]string {
+		tasks := &containerTaskRuntimeStub{}
+		service, err := newRouteTestService(containerServiceOptions{
+			runtime:                 fakeRuntime{},
+			enabled:                 true,
+			dangerousActionsEnabled: true,
+			tasks:                   tasks,
+			defaultTail:             defaultContainerLogsDefaultTail,
+			maxTail:                 defaultContainerLogsMaxTail,
+		})
+		if err != nil {
+			t.Fatalf("new service: %v", err)
+		}
+		result, err := service.BatchLifecycleAction(context.Background(), BatchActionCommand{Action: containerActionStart, IDs: ids}, 7, "batch-key")
+		if err != nil {
+			t.Fatalf("submit batch lifecycle action: %v", err)
+		}
+		if result.AcceptedCount != len(ids) {
+			t.Fatalf("unexpected batch result %#v", result)
+		}
+		keys := make(map[string]string, len(tasks.submissions))
+		for _, submission := range tasks.submissions {
+			keys[submission.Owner.ID] = submission.IdempotencyKey
+		}
+		return keys
+	}
+
+	first := keysFor([]string{"container-1", "container-2"})
+	second := keysFor([]string{"container-2", "container-1"})
+	if len(first) != len(second) {
+		t.Fatalf("unexpected idempotency key sets %#v %#v", first, second)
+	}
+	for ref, key := range first {
+		if second[ref] != key {
+			t.Fatalf("container %q received order-dependent keys %q and %q", ref, key, second[ref])
+		}
 	}
 }
 

@@ -26,8 +26,8 @@ func (m *Module) Register(ctx *module.Context) error {
 	if ctx.PermissionRegistry == nil {
 		return errors.New("backup permission registry is unavailable")
 	}
-	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupReadPermission, Module: moduleID})
-	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupCreatePermission, Module: moduleID})
+	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupReadPermission, DisplayKey: "rbac.permissionCatalog.platformBackupRead.display", DescriptionKey: "rbac.permissionCatalog.platformBackupRead.description", Module: moduleID})
+	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupCreatePermission, DisplayKey: "rbac.permissionCatalog.platformBackupCreate.display", DescriptionKey: "rbac.permissionCatalog.platformBackupCreate.description", Module: moduleID})
 	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
 	if err != nil {
 		return err

@@ -497,6 +497,17 @@ function mockTwoFileSyntaxFixture() {
           items: [
             {
               editable: true,
+              file_kind: 'env',
+              has_children: false,
+              language_hint: 'dotenv',
+              name: '.env',
+              node_type: 'file',
+              readable: true,
+              relative_path: 'config/.env',
+              size_bytes: 0,
+            },
+            {
+              editable: true,
               file_kind: 'config',
               has_children: false,
               language_hint: 'yaml',
@@ -544,11 +555,13 @@ function mockTwoFileSyntaxFixture() {
         ? 'services:\n  api:\n    image: app\n'
         : query.path === 'config/app.yaml'
           ? 'name: demo\nenabled: true\n'
-          : '',
+          : query.path === 'config/.env'
+            ? 'APP_ENV=development\n'
+            : '',
     editable: true,
     encoding: 'utf-8',
-    file_kind: query.path === 'docker-compose.yml' ? 'compose' : 'config',
-    language_hint: 'yaml',
+    file_kind: query.path === 'docker-compose.yml' ? 'compose' : query.path === 'config/.env' ? 'env' : 'config',
+    language_hint: query.path === 'config/.env' ? 'dotenv' : 'yaml',
     readable: true,
     relative_path: query.path,
     size_bytes: 32,

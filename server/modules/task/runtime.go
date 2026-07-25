@@ -121,6 +121,7 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 }
 
 // Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
+//
 //nolint:cyclop // 提交必须在同一事务边界内校验冻结计划、幂等身份并持久化阶段。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
@@ -172,7 +173,7 @@ func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (
 	if input.IdempotencyKey == "" {
 		return nil, nil, nil
 	}
-	if strings.TrimSpace(input.IdempotencyKey) == "" || utf8.RuneCountInString(input.IdempotencyKey) > 128 {
+	if strings.TrimSpace(input.IdempotencyKey) == "" || utf8.RuneCountInString(input.IdempotencyKey) > moduleapi.TaskIdempotencyKeyMaxRunes {
 		return nil, nil, fmt.Errorf("%w: idempotency key must be non-blank and at most 128 characters", taskstore.ErrInvalidInput)
 	}
 	canonicalInput, err := canonicalSubmissionJSON(input.Input)

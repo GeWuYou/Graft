@@ -144,3 +144,7 @@ rbac.permissionCatalog.platformUpdateCheck.display: 检查平台更新
 rbac.permissionCatalog.platformUpdateCheck.description: 允许刷新经过验证的发行发现结果。
 rbac.permissionCatalog.platformUpdateManage.display: 管理平台更新
 rbac.permissionCatalog.platformUpdateManage.description: 预留给后续经确认的升级和恢复操作。
+rbac.permissionCatalog.platformBackupRead.display: 查看平台备份
+rbac.permissionCatalog.platformBackupRead.description: 允许读取备份历史和工件元数据。
+rbac.permissionCatalog.platformBackupCreate.display: 创建平台备份
+rbac.permissionCatalog.platformBackupCreate.description: 允许创建手动备份并控制其恢复 Task。

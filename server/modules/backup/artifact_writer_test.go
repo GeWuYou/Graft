@@ -44,6 +44,35 @@ func TestFileArtifactWriterWritesSanitizedConfigSnapshot(t *testing.T) {
 	}
 }
 
+func TestFileArtifactWriterReplacesCorruptSnapshotOnRetry(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, "backup-42")
+	if err := os.MkdirAll(directory, backupDirectoryPermission); err != nil {
+		t.Fatalf("create backup artifact directory: %v", err)
+	}
+	configRef := filepath.Join(directory, "config.snapshot")
+	if err := os.WriteFile(configRef, []byte(`{"schema_version":`), backupFilePermission); err != nil {
+		t.Fatalf("write corrupt config snapshot: %v", err)
+	}
+	writer := newTestArtifactWriter(root)
+	writer.dumpCommand = successfulDumpCommand("complete dump")
+	if _, err := writer.Create(t.Context(), testBackupTaskInput()); err != nil {
+		t.Fatalf("retry backup artifact creation: %v", err)
+	}
+	// #nosec G304 -- path is composed from this test's t.TempDir and a fixed operation ID.
+	contents, err := os.ReadFile(configRef)
+	if err != nil {
+		t.Fatalf("read repaired config snapshot: %v", err)
+	}
+	var snapshot backupConfigSnapshot
+	if err := json.Unmarshal(contents, &snapshot); err != nil {
+		t.Fatalf("expected repaired config snapshot to be valid JSON: %v", err)
+	}
+	if snapshot.SchemaVersion != 1 {
+		t.Fatalf("unexpected repaired schema version %d", snapshot.SchemaVersion)
+	}
+}
+
 func TestFileArtifactWriterPublishesOnlySuccessfulDatabaseDump(t *testing.T) {
 	root := t.TempDir()
 	writer := newTestArtifactWriter(root)

@@ -1949,6 +1949,14 @@ function confirmServiceBatchAction(action: ProjectContainerAction) {
   }
 
   const actionableRows = serviceBatchActionableRows(action);
+  let idempotencyKey: string;
+  try {
+    idempotencyKey = createServiceBatchIdempotencyKey(action);
+  } catch (error) {
+    logger.warn(`failed to create ${action} service batch idempotency key`, error);
+    MessagePlugin.error(t('project.detail.services.batch.failed'));
+    return;
+  }
   const dialog = DialogPlugin.confirm({
     header: t(`project.detail.services.batch.confirm${capitalizeAction(action)}Title`),
     body: t(`project.detail.services.batch.confirm${capitalizeAction(action)}`, {
@@ -1960,14 +1968,17 @@ function confirmServiceBatchAction(action: ProjectContainerAction) {
     onConfirm: async () => {
       dialog.setConfirmLoading(true);
       try {
-        await runServiceContainerAction(
+        const submitted = await runServiceContainerAction(
           action,
           actionableRows.map((row) => row.raw),
           `batch:${action}`,
+          idempotencyKey,
         );
+        if (submitted) {
+          dialog.destroy();
+        }
       } finally {
         dialog.setConfirmLoading(false);
-        dialog.destroy();
       }
     },
   });
@@ -1977,6 +1988,7 @@ async function runServiceContainerAction(
   action: ProjectContainerAction,
   services: ApplicationServiceItem[],
   actionKey: string,
+  idempotencyKey = createServiceBatchIdempotencyKey(action),
 ) {
   const ids = Array.from(
     new Set(
@@ -1999,7 +2011,7 @@ async function runServiceContainerAction(
         force: false,
         ids,
       } satisfies ProjectContainerActionSubmission,
-      createServiceBatchIdempotencyKey(action),
+      idempotencyKey,
     );
     handleServiceBatchActionResult(response);
     try {
@@ -2008,9 +2020,11 @@ async function runServiceContainerAction(
       logger.warn('failed to refresh project runtime surface after service action', error);
       MessagePlugin.warning(t('project.detail.services.batch.refreshWarning'));
     }
+    return true;
   } catch (error) {
     logger.warn(`failed to ${action} service containers`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.batch.failed')));
+    return false;
   } finally {
     if (actionKey.startsWith('batch:')) {
       serviceBatchActionLoading.value = '';
@@ -2025,8 +2039,11 @@ function createServiceBatchIdempotencyKey(action: ProjectContainerAction) {
   const uuid = crypto?.randomUUID?.();
   if (uuid) return uuid;
 
+  if (!crypto?.getRandomValues) {
+    throw new Error('Web Crypto API is unavailable');
+  }
   const entropy = new Uint32Array(4);
-  crypto?.getRandomValues?.(entropy);
+  crypto.getRandomValues(entropy);
   serviceBatchIdempotencySequence += 1;
   return `project-service-batch-${action}-${Date.now()}-${serviceBatchIdempotencySequence}-${Array.from(
     entropy,

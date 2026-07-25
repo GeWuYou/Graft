@@ -13,6 +13,11 @@ var (
 	ErrTaskSubmissionConflict = errors.New("task submission conflict")
 )
 
+const (
+	// TaskIdempotencyKeyMaxRunes 是 Task Runtime 接受的幂等提交键最大字符数。
+	TaskIdempotencyKeyMaxRunes = 128
+)
+
 // TaskType 标识一种由消费者拥有的 Task 计划类型。
 type TaskType string
 

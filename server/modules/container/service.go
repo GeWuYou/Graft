@@ -2,11 +2,13 @@ package container
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 
@@ -930,7 +932,11 @@ func batchTaskIdempotencyKey(base string, action string, ref string) string {
 	if strings.TrimSpace(base) == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s:%s:%s", base, action, ref)
+	key := fmt.Sprintf("%s:%s:%s", base, action, ref)
+	if utf8.RuneCountInString(key) <= moduleapi.TaskIdempotencyKeyMaxRunes {
+		return key
+	}
+	return fmt.Sprintf("container-batch:%x", sha256.Sum256([]byte(key)))
 }
 
 func (s *service) runAction(

@@ -78,14 +78,8 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	}
 	configRef := filepath.Join(directory, "config.snapshot")
 	dumpRef := filepath.Join(directory, "database.dump")
-	if _, err := os.Stat(configRef); os.IsNotExist(err) {
-		contents, marshalErr := json.Marshal(backupConfigMetadata(w.cfg))
-		if marshalErr != nil {
-			return moduleapi.CreateBackupInput{}, fmt.Errorf("marshal backup config snapshot: %w", marshalErr)
-		}
-		if writeErr := os.WriteFile(configRef, contents, backupFilePermission); writeErr != nil {
-			return moduleapi.CreateBackupInput{}, fmt.Errorf("write backup config snapshot: %w", writeErr)
-		}
+	if err := w.ensureConfigSnapshot(configRef); err != nil {
+		return moduleapi.CreateBackupInput{}, err
 	}
 	if _, err := os.Stat(dumpRef); os.IsNotExist(err) {
 		if err := w.createDatabaseDump(ctx, dumpRef); err != nil {
@@ -104,6 +98,48 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	}
 	actor := input.RequestedBy
 	return moduleapi.CreateBackupInput{Purpose: backupTaskPurpose, ConfigSnapshot: configArtifact, DatabaseDump: dumpArtifact, RetainUntil: input.RetainUntil, CreatedBy: &actor}, nil
+}
+
+func (w *fileArtifactWriter) ensureConfigSnapshot(target string) error {
+	// #nosec G304 -- target is derived only from the configured Backup root and validated operation identity.
+	if contents, err := os.ReadFile(target); err == nil {
+		var snapshot backupConfigSnapshot
+		if json.Unmarshal(contents, &snapshot) == nil {
+			return nil
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("read backup config snapshot: %w", err)
+	}
+	contents, err := json.Marshal(backupConfigMetadata(w.cfg))
+	if err != nil {
+		return fmt.Errorf("marshal backup config snapshot: %w", err)
+	}
+	return writeBackupArtifact(target, contents)
+}
+
+func writeBackupArtifact(target string, contents []byte) error {
+	temporary, err := os.CreateTemp(filepath.Dir(target), ".config.snapshot-*")
+	if err != nil {
+		return fmt.Errorf("create temporary backup config snapshot: %w", err)
+	}
+	temporaryRef := temporary.Name()
+	// 写入或发布失败时清理临时文件，避免下次重试误用未完成工件。
+	defer func() { _ = os.Remove(temporaryRef) }()
+	if err := temporary.Chmod(backupFilePermission); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("set backup config snapshot permissions: %w", err)
+	}
+	if _, err := temporary.Write(contents); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("write backup config snapshot: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("close backup config snapshot: %w", err)
+	}
+	if err := os.Rename(temporaryRef, target); err != nil {
+		return fmt.Errorf("publish backup config snapshot: %w", err)
+	}
+	return nil
 }
 
 func (w *fileArtifactWriter) createDatabaseDump(ctx context.Context, target string) error {
