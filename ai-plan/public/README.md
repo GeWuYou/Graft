@@ -39,6 +39,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/tanstack-adoption-followups/README.md`
 - `cross-boundary-contract-projection-convergence`
   - Recovery entry: `ai-plan/public/cross-boundary-contract-projection-convergence/README.md`
+- `user-auth-transaction-ownership`
+  - Recovery entry: `ai-plan/public/user-auth-transaction-ownership/README.md`
 ## Archive Location
 
 - Archived topic evidence lives under `ai-plan/public/archive/`.
