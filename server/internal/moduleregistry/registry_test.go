@@ -57,7 +57,6 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"internal/logger/migrations",
 		"internal/drilldown/migrations",
 		"internal/event/migrations",
-		"modules/backup/migrations",
 		"modules/user/migrations",
 		"modules/auth/migrations",
 		"modules/rbac/migrations",
@@ -69,6 +68,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/system-config/migrations",
 		"modules/scheduler/migrations",
 		"modules/task/migrations",
+		"modules/backup/migrations",
 		"modules/update/migrations",
 		"modules/project/migrations",
 	}
