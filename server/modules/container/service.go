@@ -2,11 +2,13 @@ package container
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 
@@ -855,69 +857,86 @@ func (s *service) Remove(ctx context.Context, ref Ref, options RemoveOptions) (A
 	return s.runAction(ctx, ref, containerActionRemove, ActionOptions(options))
 }
 
-func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (BatchActionResult, error) {
+// BatchLifecycleActionResult 表示容器生命周期批量提交的有序聚合结果；它只记录 Task 接收事实，不代表外部动作已完成。
+type BatchLifecycleActionResult struct {
+	Action        string
+	Total         int
+	AcceptedCount int
+	FailedCount   int
+	RequestID     string
+	Items         []BatchLifecycleActionItem
+}
+
+// BatchLifecycleActionItem 保留单个容器的 Task receipt 或可展示的提交失败，避免批量部分失败被整体错误遮蔽。
+type BatchLifecycleActionItem struct {
+	ID         string
+	Action     string
+	Accepted   bool
+	TaskID     uint64
+	Status     moduleapi.TaskStatus
+	ErrorCode  string
+	MessageKey string
+	Message    string
+}
+
+// BatchLifecycleAction 为 start、stop、restart 逐项提交独立 Task，并把单项解析、策略或提交失败保留在对应 item 中。
+func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionCommand, requestedBy uint64, idempotencyKey string) (BatchLifecycleActionResult, error) {
 	normalized, err := normalizeBatchActionCommand(command)
-	if err != nil {
-		return BatchActionResult{}, err
+	if err != nil || !isContainerLifecycleTaskAction(normalized.Action) {
+		return BatchLifecycleActionResult{}, errInvalidBatchAction
 	}
 	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return BatchActionResult{}, err
+		return BatchLifecycleActionResult{}, err
 	}
-	policy := s.effectiveActionPolicy(ctx)
-	if !policy.dangerousAllowed {
-		blocked := BatchActionResult{
-			Action:    normalized.Action,
-			Total:     len(normalized.IDs),
-			RequestID: requestIDFromContext(ctx),
-			Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
-		}
-		for _, ref := range normalized.IDs {
-			result := ActionResult{ID: ref, Action: normalized.Action, Runtime: runtimeNameDocker}
-			s.publishActionAudit(ctx, result, ActionOptions{Force: normalized.Force}, errDangerousActionsDisabled)
-			blocked.Items = append(blocked.Items, batchActionFailure(ref, normalized.Action, errDangerousActionsDisabled))
-		}
-		blocked.FailedCount = len(blocked.Items)
-		blocked = withBatchActionMessage(blocked)
-		s.publishBatchActionAudit(ctx, blocked, ActionOptions{Force: normalized.Force})
-		return BatchActionResult{}, errDangerousActionsDisabled
+	if !s.dangerousActionsAllowed(ctx) {
+		return BatchLifecycleActionResult{}, errDangerousActionsDisabled
 	}
-	result := BatchActionResult{
+	result := BatchLifecycleActionResult{
 		Action:    normalized.Action,
 		Total:     len(normalized.IDs),
 		RequestID: requestIDFromContext(ctx),
-		Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
+		Items:     make([]BatchLifecycleActionItem, 0, len(normalized.IDs)),
 	}
 	for _, rawID := range normalized.IDs {
 		ref, parseErr := parseRef(rawID)
 		if parseErr != nil {
-			item := batchActionFailure(rawID, normalized.Action, parseErr)
+			item := batchLifecycleActionFailure(rawID, normalized.Action, parseErr)
 			result.Items = append(result.Items, item)
 			result.FailedCount++
-			s.publishActionAudit(ctx, item.Result, ActionOptions{Force: normalized.Force}, parseErr)
+			s.publishLifecycleTaskSubmissionAudit(ctx, Ref{Value: rawID}, normalized.Action, ActionOptions{Force: normalized.Force}, moduleapi.TaskReceipt{}, parseErr)
 			continue
 		}
-		if blockedItem, blocked := s.batchActionPolicyFailure(
-			ctx,
-			ref,
-			normalized.Action,
-			ActionOptions{Force: normalized.Force},
-		); blocked {
+		if blockedItem, blocked := s.lifecycleActionPolicyFailure(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}); blocked {
 			result.Items = append(result.Items, blockedItem)
 			result.FailedCount++
 			continue
 		}
-		actionResult, actionErr := s.runAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force})
-		item := batchActionItem(ref.Value, normalized.Action, actionResult, actionErr)
-		result.Items = append(result.Items, item)
-		if actionErr != nil {
+		receipt, submitErr := s.SubmitContainerLifecycleAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}, requestedBy, batchTaskIdempotencyKey(idempotencyKey, normalized.Action, ref.Value))
+		if submitErr != nil {
+			result.Items = append(result.Items, batchLifecycleActionFailure(ref.Value, normalized.Action, submitErr))
 			result.FailedCount++
 			continue
 		}
-		result.SuccessCount++
+		result.Items = append(result.Items, BatchLifecycleActionItem{ID: ref.Value, Action: normalized.Action, Accepted: true, TaskID: receipt.TaskID, Status: receipt.Status})
+		result.AcceptedCount++
 	}
-	result = withBatchActionMessage(result)
-	s.publishBatchActionAudit(ctx, result, ActionOptions{Force: normalized.Force})
 	return result, nil
+}
+
+func batchLifecycleActionFailure(id string, action string, err error) BatchLifecycleActionItem {
+	messageKey := messageKeyForError(err).String()
+	return BatchLifecycleActionItem{ID: id, Action: action, ErrorCode: messageKey, MessageKey: messageKey, Message: fallbackMessageForError(err)}
+}
+
+func batchTaskIdempotencyKey(base string, action string, ref string) string {
+	if strings.TrimSpace(base) == "" {
+		return ""
+	}
+	key := fmt.Sprintf("%s:%s:%s", base, action, ref)
+	if utf8.RuneCountInString(key) <= moduleapi.TaskIdempotencyKeyMaxRunes {
+		return key
+	}
+	return fmt.Sprintf("container-batch:%x", sha256.Sum256([]byte(key)))
 }
 
 func (s *service) runAction(

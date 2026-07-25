@@ -74,6 +74,20 @@ services:
     volumes:
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
 
+  backup-root-init:
+    image: ${GRAFT_SERVER_IMAGE_REPOSITORY:?GRAFT_SERVER_IMAGE_REPOSITORY is required; migrate legacy GRAFT_SERVER_IMAGE/GRAFT_IMAGE_TAG to the release-manifest repository and digest}@${GRAFT_SERVER_IMAGE_DIGEST:?GRAFT_SERVER_IMAGE_DIGEST is required; migrate legacy image variables to the release-manifest digest}
+    restart: "no"
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        set -eu
+        mkdir -p "${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}"
+        chown 10001:10001 "${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}"
+        chmod 0700 "${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}"
+    volumes:
+      - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
+
   server:
     image: ${GRAFT_SERVER_IMAGE_REPOSITORY:?GRAFT_SERVER_IMAGE_REPOSITORY is required; migrate legacy GRAFT_SERVER_IMAGE/GRAFT_IMAGE_TAG to the release-manifest repository and digest}@${GRAFT_SERVER_IMAGE_DIGEST:?GRAFT_SERVER_IMAGE_DIGEST is required; migrate legacy image variables to the release-manifest digest}
     restart: unless-stopped
@@ -99,6 +113,8 @@ services:
         condition: service_completed_successfully
       application-root-init:
         condition: service_completed_successfully
+      backup-root-init:
+        condition: service_completed_successfully
     environment:
       GRAFT_APP_ENV: ${GRAFT_APP_ENV:-production}
       GRAFT_HTTP_ADDR: ${GRAFT_HTTP_ADDR:-:8080}
@@ -114,6 +130,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+      - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
 
   web:
     image: ${GRAFT_WEB_IMAGE_REPOSITORY:?GRAFT_WEB_IMAGE_REPOSITORY is required; migrate legacy GRAFT_WEB_IMAGE/GRAFT_IMAGE_TAG to the release-manifest repository and digest}@${GRAFT_WEB_IMAGE_DIGEST:?GRAFT_WEB_IMAGE_DIGEST is required; migrate legacy image variables to the release-manifest digest}

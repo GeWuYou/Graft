@@ -7164,13 +7164,20 @@ type ContainerActionResponseResult string
 
 // ContainerBatchActionItem defines model for container-batch-action-item.
 type ContainerBatchActionItem struct {
+	// Accepted Whether this item was accepted as an independent Container lifecycle Task.
+	Accepted   bool                           `json:"accepted"`
 	Action     ContainerBatchActionItemAction `json:"action"`
 	ErrorCode  *string                        `json:"error_code,omitempty"`
 	Id         string                         `json:"id"`
 	Message    *string                        `json:"message,omitempty"`
 	MessageKey *string                        `json:"message_key,omitempty"`
 	Name       *string                        `json:"name,omitempty"`
-	Success    bool                           `json:"success"`
+
+	// Status Initial Task Runtime status when accepted is true.
+	Status *TaskStatus `json:"status,omitempty"`
+
+	// TaskId Independent lifecycle Task identifier when accepted is true.
+	TaskId *int64 `json:"task_id,omitempty"`
 }
 
 // ContainerBatchActionItemAction defines model for ContainerBatchActionItem.Action.
@@ -7190,13 +7197,14 @@ type ContainerBatchActionRequestAction string
 
 // ContainerBatchActionResponse Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id.
 type ContainerBatchActionResponse struct {
-	FailedCount int `json:"failed_count"`
+	// AcceptedCount Number of items accepted as independent container lifecycle Tasks.
+	AcceptedCount int `json:"accepted_count"`
+	FailedCount   int `json:"failed_count"`
 
 	// Items Per-container action results in the same order as the requested container ids, with one response item per requested id. OpenAPI cannot express equality with the request array length, so clients should rely on this contract text plus each item's id for correlation.
-	Items        []ContainerBatchActionItem `json:"items"`
-	RequestId    *string                    `json:"request_id,omitempty"`
-	SuccessCount int                        `json:"success_count"`
-	Total        int                        `json:"total"`
+	Items     []ContainerBatchActionItem `json:"items"`
+	RequestId *string                    `json:"request_id,omitempty"`
+	Total     int                        `json:"total"`
 }
 
 // ContainerDashboardAnomalyItem defines model for container-dashboard-anomaly-item.
@@ -14155,6 +14163,9 @@ type GetContainersParamsDeploymentType string
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -14250,6 +14261,9 @@ type PostContainerRemoveParams struct {
 
 // PostContainerRestartParams defines parameters for PostContainerRestart.
 type PostContainerRestartParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -14280,6 +14294,9 @@ type GetContainerShellWebSocketParams struct {
 
 // PostContainerStartParams defines parameters for PostContainerStart.
 type PostContainerStartParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -14290,6 +14307,9 @@ type PostContainerStartParams struct {
 
 // PostContainerStopParams defines parameters for PostContainerStop.
 type PostContainerStopParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

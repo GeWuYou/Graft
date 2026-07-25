@@ -945,6 +945,37 @@ func TestValidateRejectsUnsafeCookieMode(t *testing.T) {
 	assertValidateError(t, cfg, "")
 }
 
+func TestValidateBackupConfigDefaultsAndNormalizesAbsoluteRoot(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{}
+	if err := validateBackupConfig(cfg); err != nil {
+		t.Fatalf("validate default backup root: %v", err)
+	}
+	if cfg.Backup.ArtifactRoot != defaultBackupArtifactRoot {
+		t.Fatalf("expected default backup root %q, got %q", defaultBackupArtifactRoot, cfg.Backup.ArtifactRoot)
+	}
+
+	cfg.Backup.ArtifactRoot = "  /var/lib/graft/backups/../archive/  "
+	if err := validateBackupConfig(cfg); err != nil {
+		t.Fatalf("normalize absolute backup root: %v", err)
+	}
+	if cfg.Backup.ArtifactRoot != "/var/lib/graft/archive" {
+		t.Fatalf("expected cleaned backup root, got %q", cfg.Backup.ArtifactRoot)
+	}
+}
+
+func TestValidateBackupConfigRejectsRelativeRootAndConfigValidateWiresIt(t *testing.T) {
+	t.Parallel()
+
+	if err := validateBackupConfig(&Config{Backup: BackupConfig{ArtifactRoot: "backups"}}); err == nil {
+		t.Fatal("expected relative backup root rejection")
+	}
+	cfg := validConfigForValidateTests()
+	cfg.Backup.ArtifactRoot = "backups"
+	assertValidateError(t, cfg, "GRAFT_BACKUP_ARTIFACT_ROOT must be an absolute path")
+}
+
 func chdir(t *testing.T, dir string) {
 	t.Helper()
 

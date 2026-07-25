@@ -63,6 +63,42 @@ func (s *service) publishActionAudit(ctx context.Context, result ActionResult, o
 	s.publishAuditEvent(detached.ctx, event, "publish container audit event failed")
 }
 
+func (s *service) publishLifecycleTaskSubmissionAudit(ctx context.Context, ref Ref, action string, options ActionOptions, receipt moduleapi.TaskReceipt, err error) {
+	detached := startDetachedAuditContext(ctx, s)
+	if !detached.ok {
+		return
+	}
+	defer detached.cancel()
+	auditAction := actionAuditContract(action).String()
+	messageKey, message := auditErrorMessageFields(err)
+	metadata := map[string]any{
+		"container_id":    ref.Value,
+		"action":          auditAction,
+		"runtime":         runtimeNameDocker,
+		"endpoint":        safeEndpointLabel(s.runtimeOptions.endpoint),
+		"force":           options.Force,
+		"submission":      auditResult(err),
+		"task_id":         receipt.TaskID,
+		"task_status":     receipt.Status,
+		"execution_state": "not_started",
+		"error":           messageKey,
+	}
+	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, "")
+	s.publishAuditEvent(detached.ctx, moduleapi.AuditEvent{
+		Kind:         moduleapi.AuditEventKindDomain,
+		Operator:     currentAuditOperator(detached.ctx),
+		Action:       auditAction,
+		ResourceType: containerResourceType,
+		ResourceID:   ref.Value,
+		ResourceName: ref.Value,
+		StatusCode:   auditStatusCode(err),
+		Success:      err == nil,
+		MessageKey:   messageKey,
+		Message:      message,
+		Metadata:     metadata,
+	}, "publish container lifecycle task submission audit event failed")
+}
+
 func (s *service) publishDockerImageAudit(ctx context.Context, action containercontract.AuditAction, imageID, target string, force bool, err error) {
 	detached := startDetachedAuditContext(ctx, s)
 	if !detached.ok {
@@ -132,50 +168,16 @@ func batchDockerImageAuditStatus(result DockerImageBatchRemoveResult) int {
 	return http.StatusOK
 }
 
-func (s *service) publishBatchActionAudit(ctx context.Context, result BatchActionResult, options ActionOptions) {
-	detached := startDetachedAuditContext(ctx, s)
-	if !detached.ok {
-		return
-	}
-	defer detached.cancel()
-
-	requestID := firstNonEmpty(strings.TrimSpace(result.RequestID), requestIDFromContext(ctx))
-	resourceID := requestID
-	if resourceID == "" {
-		resourceID = batchAuditResourceID(result.Action, detached.now)
-	}
-	metadata := map[string]any{
-		"batch":           true,
-		"batch_action":    batchActionAuditContract(result.Action).String(),
-		"requested_total": result.Total,
-		"requested_ids":   batchRequestedIDs(result.Items),
-		"success_count":   result.SuccessCount,
-		"failed_count":    result.FailedCount,
-		"failed_ids":      batchFailedIDs(result.Items),
-		"force":           options.Force,
-	}
-	enrichAuditMetadataWithRequestContext(detached.ctx, metadata, requestID)
-	event := moduleapi.AuditEvent{
-		Kind:         moduleapi.AuditEventKindDomain,
-		Operator:     currentAuditOperator(detached.ctx),
-		Action:       batchActionAuditContract(result.Action).String(),
-		ResourceType: containerBatchResourceType,
-		ResourceID:   resourceID,
-		ResourceName: strings.TrimSpace(result.Action) + " x" + strconv.Itoa(result.Total),
-		StatusCode:   batchAuditStatusCode(result),
-		Success:      result.FailedCount == 0,
-		MessageKey:   strings.TrimSpace(result.MessageKey),
-		Message:      strings.TrimSpace(result.Message),
-		Metadata:     metadata,
-	}
-	s.publishAuditEvent(detached.ctx, event, "publish container batch audit event failed")
-}
-
 type detachedAuditRuntime struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	ok     bool
 	now    time.Time
+}
+
+// batchAuditResourceID 在请求没有关联 ID 时生成可追溯的批量审计资源标识。
+func batchAuditResourceID(action string, now time.Time) string {
+	return "batch:" + strings.TrimSpace(action) + ":" + strconv.FormatInt(now.UnixNano(), 10)
 }
 
 // startDetachedAuditContext 创建用于审计发布的独立上下文。
@@ -191,12 +193,6 @@ func startDetachedAuditContext(ctx context.Context, s *service) detachedAuditRun
 		ok:     true,
 		now:    time.Now().UTC(),
 	}
-}
-
-// batchAuditResourceID 生成批量审计资源 ID。
-// 返回格式为 `batch:<action>:<unixNano>`，其中 `action` 会去除首尾空白。
-func batchAuditResourceID(action string, now time.Time) string {
-	return "batch:" + strings.TrimSpace(action) + ":" + strconv.FormatInt(now.UnixNano(), 10)
 }
 
 // enrichAuditMetadataWithRequestContext 补充审计元数据中的请求和追踪标识。
@@ -242,28 +238,11 @@ func (s *service) publishAuditEvent(ctx context.Context, event moduleapi.AuditEv
 // actionAuditContract 将容器动作字符串映射为审计动作类型。
 // 预定义动作会转换为对应的容器审计动作；其他值会按原字符串生成审计动作。
 func actionAuditContract(action string) containercontract.AuditAction {
-	return auditActionContract(action, false)
+	return auditActionContract(action)
 }
 
-// 对已知动作返回对应的批量审计动作；其他值返回去除首尾空白后的原始动作。
-func batchActionAuditContract(action string) containercontract.AuditAction {
-	return auditActionContract(action, true)
-}
-
-func auditActionContract(action string, batch bool) containercontract.AuditAction {
+func auditActionContract(action string) containercontract.AuditAction {
 	normalized := strings.TrimSpace(action)
-	if batch {
-		switch normalized {
-		case containerActionStart:
-			return containercontract.ContainerAuditActionBatchStart
-		case containerActionStop:
-			return containercontract.ContainerAuditActionBatchStop
-		case containerActionRemove:
-			return containercontract.ContainerAuditActionBatchRemove
-		default:
-			return containercontract.AuditAction(normalized)
-		}
-	}
 	switch normalized {
 	case containerActionStart:
 		return containercontract.ContainerAuditActionStart
@@ -274,38 +253,6 @@ func auditActionContract(action string, batch bool) containercontract.AuditActio
 	default:
 		return containercontract.AuditAction(normalized)
 	}
-}
-
-// batchRequestedIDs 提取批量动作中每个条目的请求资源 ID。
-// 返回的每个 ID 优先使用条目结果中的 ID，若为空则使用条目自身的 ID。
-func batchRequestedIDs(items []BatchActionItem) []string {
-	ids := make([]string, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, firstNonEmpty(item.Result.ID, item.ID))
-	}
-	return ids
-}
-
-// batchFailedIDs 返回批量动作中执行失败项的 ID 列表。
-// 每个失败项优先使用结果中的 ID，必要时使用请求中的 ID。
-func batchFailedIDs(items []BatchActionItem) []string {
-	ids := make([]string, 0, len(items))
-	for _, item := range items {
-		if item.Success {
-			continue
-		}
-		ids = append(ids, firstNonEmpty(item.Result.ID, item.ID))
-	}
-	return ids
-}
-
-// batchAuditStatusCode 根据批量动作结果返回审计状态码。
-// 当存在失败项时返回 `409 Conflict`，否则返回 `200 OK`。
-func batchAuditStatusCode(result BatchActionResult) int {
-	if result.FailedCount > 0 {
-		return http.StatusConflict
-	}
-	return http.StatusOK
 }
 
 // currentAuditOperator 提取当前请求中的审计操作者信息。

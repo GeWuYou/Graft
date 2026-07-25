@@ -11768,8 +11768,19 @@
         ],
         "summary": "Execute container actions in batch",
         "operationId": "postContainerBatchActions",
-        "description": "Executes one container action for selected containers and returns per-item success or failure.",
+        "description": "Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.",
         "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
           {
             "$ref": "#/components/parameters/locale-header"
           },
@@ -11793,8 +11804,8 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Container batch action result.",
+          "202": {
+            "description": "Container lifecycle actions accepted independently as Tasks; item failures remain explicit.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12529,10 +12540,21 @@
         "tags": [
           "container"
         ],
-        "summary": "Start container",
+        "summary": "Submit a container start Task",
         "operationId": "postContainerStart",
-        "description": "Starts one stopped container when dangerous actions are enabled.",
+        "description": "Submits one stopped container start action for asynchronous execution when dangerous actions are enabled.",
         "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
           {
             "$ref": "#/components/parameters/locale-header"
           },
@@ -12549,8 +12571,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Container action result.",
+          "202": {
+            "description": "Container start Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12559,7 +12581,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-container-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12601,7 +12623,7 @@
             }
           },
           "409": {
-            "description": "Container state does not allow this action.",
+            "description": "Container state does not allow this action, or Idempotency-Key was previously used with different submission input.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12626,10 +12648,21 @@
         "tags": [
           "container"
         ],
-        "summary": "Stop container",
+        "summary": "Submit a container stop Task",
         "operationId": "postContainerStop",
-        "description": "Stops one running container when dangerous actions are enabled.",
+        "description": "Submits one running container stop action for asynchronous execution when dangerous actions are enabled.",
         "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
           {
             "$ref": "#/components/parameters/locale-header"
           },
@@ -12646,8 +12679,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Container action result.",
+          "202": {
+            "description": "Container stop Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12656,7 +12689,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-container-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12698,7 +12731,7 @@
             }
           },
           "409": {
-            "description": "Container state does not allow this action.",
+            "description": "Container state does not allow this action, or Idempotency-Key was previously used with different submission input.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12735,9 +12768,9 @@
         "tags": [
           "container"
         ],
-        "summary": "Restart container",
+        "summary": "Submit a container restart Task",
         "operationId": "postContainerRestart",
-        "description": "Restarts one container when dangerous actions are enabled.",
+        "description": "Submits one container restart action for asynchronous execution when dangerous actions are enabled.",
         "x-graft-mcp": {
           "resource_uri_templates": [
             "graft://docker/containers/{id}"
@@ -12759,6 +12792,17 @@
         },
         "parameters": [
           {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
             "$ref": "#/components/parameters/locale-header"
           },
           {
@@ -12774,8 +12818,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Container action result.",
+          "202": {
+            "description": "Container restart Task accepted.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -12784,7 +12828,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-container-action-response"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -12826,7 +12870,7 @@
             }
           },
           "409": {
-            "description": "Container state does not allow this action.",
+            "description": "Container state does not allow this action, or Idempotency-Key was previously used with different submission input.",
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
@@ -28460,8 +28504,8 @@
         "type": "object",
         "required": [
           "id",
-          "action",
-          "success"
+          "accepted",
+          "action"
         ],
         "properties": {
           "id": {
@@ -28485,8 +28529,19 @@
               "ContainerBatchActionItemActionRemove"
             ]
           },
-          "success": {
-            "type": "boolean"
+          "accepted": {
+            "type": "boolean",
+            "description": "Whether this item was accepted as an independent Container lifecycle Task."
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Independent lifecycle Task identifier when accepted is true."
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status",
+            "description": "Initial Task Runtime status when accepted is true."
           },
           "error_code": {
             "type": "string"
@@ -28505,7 +28560,7 @@
         "description": "Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id.\n",
         "required": [
           "total",
-          "success_count",
+          "accepted_count",
           "failed_count",
           "items"
         ],
@@ -28514,9 +28569,10 @@
             "type": "integer",
             "minimum": 0
           },
-          "success_count": {
+          "accepted_count": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "description": "Number of items accepted as independent container lifecycle Tasks."
           },
           "failed_count": {
             "type": "integer",
@@ -29283,6 +29339,97 @@
           }
         ]
       },
+      "task-receipt": {
+        "type": "object",
+        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status"
+          }
+        }
+      },
+      "enveloped-task-receipt": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-receipt"
+              }
+            }
+          }
+        ]
+      },
+      "container-stop-error-response": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ],
+            "x-enum-varnames": [
+              "ContainerStopErrorResponseSuccessFalse"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "description": "Existing canonical error response code."
+          },
+          "message": {
+            "type": "string",
+            "description": "Existing runtime fallback text paired with messageKey for compatibility."
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Stable error localization key. Consumers should prefer this key and use message only as fallback text."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale used to resolve the fallback message text in this response."
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Optional structured error details preserved from the current runtime."
+          }
+        }
+      },
+      "container-remove-request": {
+        "type": "object",
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Force remove a running container. Defaults to false and must be explicitly enabled by the caller."
+          }
+        },
+        "additionalProperties": false
+      },
       "container-action-response": {
         "type": "object",
         "required": [
@@ -29362,61 +29509,6 @@
             }
           }
         ]
-      },
-      "container-stop-error-response": {
-        "type": "object",
-        "required": [
-          "success",
-          "code",
-          "message",
-          "traceId"
-        ],
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "enum": [
-              false
-            ],
-            "x-enum-varnames": [
-              "ContainerStopErrorResponseSuccessFalse"
-            ]
-          },
-          "code": {
-            "type": "string",
-            "description": "Existing canonical error response code."
-          },
-          "message": {
-            "type": "string",
-            "description": "Existing runtime fallback text paired with messageKey for compatibility."
-          },
-          "messageKey": {
-            "type": "string",
-            "description": "Stable error localization key. Consumers should prefer this key and use message only as fallback text."
-          },
-          "locale": {
-            "type": "string",
-            "description": "Locale used to resolve the fallback message text in this response."
-          },
-          "traceId": {
-            "type": "string"
-          },
-          "data": {
-            "type": "object",
-            "additionalProperties": true,
-            "description": "Optional structured error details preserved from the current runtime."
-          }
-        }
-      },
-      "container-remove-request": {
-        "type": "object",
-        "properties": {
-          "force": {
-            "type": "boolean",
-            "default": false,
-            "description": "Force remove a running container. Defaults to false and must be explicitly enabled by the caller."
-          }
-        },
-        "additionalProperties": false
       },
       "docker-image-container-reference": {
         "type": "object",
@@ -29591,42 +29683,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "task-receipt": {
-        "type": "object",
-        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
-        "required": [
-          "task_id",
-          "status"
-        ],
-        "properties": {
-          "task_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "status": {
-            "$ref": "#/components/schemas/task-status"
-          }
-        }
-      },
-      "enveloped-task-receipt": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/task-receipt"
-              }
-            }
-          }
-        ]
       },
       "enveloped-docker-image": {
         "allOf": [

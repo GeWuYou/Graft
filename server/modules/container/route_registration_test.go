@@ -3,6 +3,7 @@ package container
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -211,9 +212,11 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 
 	authorizer.reset()
 	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["abc123"]}`))
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected batch start 200, got %d: %s", response.Code, response.Body.String())
+	request := authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["abc123"]}`)
+	request.Header.Set("Idempotency-Key", "batch-start")
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch start 202, got %d: %s", response.Code, response.Body.String())
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerStartPermission.String()) {
 		t.Fatalf("expected batch start permission, got %#v", authorizer.permissions)
@@ -221,12 +224,68 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 
 	authorizer.reset()
 	response = httptest.NewRecorder()
-	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["abc123"],"force":true}`))
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected batch remove 200, got %d: %s", response.Code, response.Body.String())
+	request = authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["abc123"],"force":true}`)
+	request.Header.Set("Idempotency-Key", "batch-remove")
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch remove 202, got %d: %s", response.Code, response.Body.String())
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
+	}
+	if !strings.Contains(response.Body.String(), `"accepted":true`) {
+		t.Fatalf("expected task submission result, got %s", response.Body.String())
+	}
+}
+
+//nolint:gocyclo,cyclop // 该测试集中验证有序部分结果与 remove 的冻结输入，避免拆散 HTTP 契约断言。
+func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	tasks := &containerTaskRuntimeStub{}
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		tasks:                   tasks,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	request := authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"start","ids":["container-1","bad/id"]}`)
+	request.Header.Set("Idempotency-Key", "batch-start")
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch lifecycle 202, got %d: %s", response.Code, response.Body.String())
+	}
+	if len(tasks.submissions) != 1 || tasks.submissions[0].Owner.ID != "container-1" || tasks.submissions[0].IdempotencyKey != "batch-start:start:container-1" {
+		t.Fatalf("unexpected lifecycle submissions: %#v", tasks.submissions)
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"accepted_count":1`) || !strings.Contains(body, `"failed_count":1`) ||
+		!strings.Contains(body, `"task_id":1`) || !strings.Contains(body, `"accepted":false`) || !strings.Contains(body, `"id":"bad/id"`) {
+		t.Fatalf("expected ordered task partial result, got %s", body)
+	}
+
+	request = authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["container-2"],"force":true}`)
+	request.Header.Set("Idempotency-Key", "batch-remove")
+	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch remove 202, got %d: %s", response.Code, response.Body.String())
+	}
+	if len(tasks.submissions) != 2 || tasks.submissions[1].Type != containerLifecycleTaskType(containerActionRemove) || tasks.submissions[1].Owner.Type != containerLifecycleTaskOwnerType(containerActionRemove) {
+		t.Fatalf("unexpected remove task submission: %#v", tasks.submissions)
+	}
+	var removeInput containerLifecycleTaskInput
+	if err := json.Unmarshal(tasks.submissions[1].Plan.Stages[0].Input, &removeInput); err != nil || removeInput.Ref != "container-2" || !removeInput.Force {
+		t.Fatalf("expected frozen force remove input, got %s: %v", tasks.submissions[1].Plan.Stages[0].Input, err)
 	}
 }
 
@@ -344,6 +403,73 @@ func TestDockerImagePullRouteReturnsConflictForReusedIdempotencyKey(t *testing.T
 	engine.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestContainerLifecycleRoutesAcceptTaskSubmission(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name   string
+		path   string
+		action string
+	}{
+		{name: "start", path: "/api/ops/containers/container-1/start", action: containerActionStart},
+		{name: "stop", path: "/api/ops/containers/container-1/stop", action: containerActionStop},
+		{name: "restart", path: "/api/ops/containers/container-1/restart", action: containerActionRestart},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+			tasks := &containerTaskRuntimeStub{}
+			service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true, tasks: tasks})
+			if err != nil {
+				t.Fatalf("new service: %v", err)
+			}
+			if err := registerRoutes(ctx, moduleID, service); err != nil {
+				t.Fatalf("register routes: %v", err)
+			}
+
+			response := httptest.NewRecorder()
+			request := authorizedRequest(http.MethodPost, testCase.path)
+			request.Header.Set("Idempotency-Key", "lifecycle-"+testCase.action)
+			engine.ServeHTTP(response, request)
+			if response.Code != http.StatusAccepted {
+				t.Fatalf("expected 202, got %d: %s", response.Code, response.Body.String())
+			}
+			if len(tasks.submissions) != 1 || tasks.submissions[0].Type != containerLifecycleTaskType(testCase.action) {
+				t.Fatalf("unexpected task submission: %#v", tasks.submissions)
+			}
+		})
+	}
+}
+
+func TestContainerLifecycleRouteRequiresIdempotencyKey(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	for _, path := range []string{
+		"/api/ops/containers/container-1/start",
+		"/api/ops/containers/container-1/stop",
+		"/api/ops/containers/container-1/restart",
+		"/api/ops/containers/batch-actions",
+	} {
+		response := httptest.NewRecorder()
+		request := authorizedRequest(http.MethodPost, path)
+		if path == "/api/ops/containers/batch-actions" {
+			request = authorizedJSONRequest(http.MethodPost, path, `{"action":"start","ids":["container-1"]}`)
+		}
+		engine.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("expected %s to reject missing idempotency key with 400, got %d: %s", path, response.Code, response.Body.String())
+		}
 	}
 }
 

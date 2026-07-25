@@ -503,30 +503,6 @@ type BatchActionCommand struct {
 	Force  bool
 }
 
-// BatchActionResult aggregates per-container action outcomes without hiding partial failures.
-type BatchActionResult struct {
-	Action       string
-	Total        int
-	SuccessCount int
-	FailedCount  int
-	MessageKey   string
-	Message      string
-	RequestID    string
-	Items        []BatchActionItem
-}
-
-// BatchActionItem carries one container action outcome.
-type BatchActionItem struct {
-	ID         string
-	Name       string
-	Action     string
-	Success    bool
-	ErrorCode  string
-	MessageKey string
-	Message    string
-	Result     ActionResult
-}
-
 // parseRef validates and normalizes a container reference from a raw string. It returns a Ref containing the normalized reference on success, or an error if the input is invalid.
 func parseRef(raw string) (Ref, error) {
 	unescaped, err := url.PathUnescape(raw)

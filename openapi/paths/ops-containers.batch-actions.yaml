@@ -2,8 +2,16 @@ post:
   tags: [container]
   summary: Execute container actions in batch
   operationId: postContainerBatchActions
-  description: Executes one container action for selected containers and returns per-item success or failure.
+  description: Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.
   parameters:
+    - name: Idempotency-Key
+      in: header
+      required: true
+      description: Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
   security:
@@ -15,8 +23,8 @@ post:
         schema:
           $ref: ../components/schemas/container-batch-action-request.yaml
   responses:
-    '200':
-      description: Container batch action result.
+    '202':
+      description: Container lifecycle actions accepted independently as Tasks; item failures remain explicit.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml

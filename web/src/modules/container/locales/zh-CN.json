@@ -494,11 +494,13 @@
         "skipInapplicable": "部分容器因当前状态或权限不适用，将被跳过。",
         "skipSourceRestricted": "其中 {count} 个容器因来源策略不允许参与批量高危操作而被跳过。",
         "confirmRemoveRunning": "其中 {count} 个容器正在运行。默认删除会被拒绝，如需强制删除必须显式勾选。",
-        "success": "批量操作已完成，成功 {count} 个。",
+        "submitted": "已提交 {count} 个容器任务，正在执行。",
         "partialTitle": "批量操作部分成功",
         "failed": "批量操作失败。",
         "failureDetailTitle": "查看失败明细",
-        "noFailureDetail": "暂无失败明细。"
+        "noFailureDetail": "暂无失败明细。",
+        "tasksTitle": "已提交的容器任务",
+        "taskEntry": "查看{action}任务：{id}"
       },
       "detail": {
         "title": "容器详情",

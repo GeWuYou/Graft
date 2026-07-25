@@ -4,16 +4,17 @@ description: >
   preserves the request id order so callers can correlate each result by position as well as by id.
 required:
   - total
-  - success_count
+  - accepted_count
   - failed_count
   - items
 properties:
   total:
     type: integer
     minimum: 0
-  success_count:
+  accepted_count:
     type: integer
     minimum: 0
+    description: Number of items accepted as independent container lifecycle Tasks.
   failed_count:
     type: integer
     minimum: 0

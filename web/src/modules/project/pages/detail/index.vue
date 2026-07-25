@@ -1001,6 +1001,7 @@ let projectLogsRealtimeTopic = '';
 let projectLogsSubscriptionSequence = 0;
 let pendingApplicationLogSnapshot: ApplicationLogResponse | null = null;
 let projectLogsLoadSequence = 0;
+let serviceBatchIdempotencySequence = 0;
 const projectLogRealtimeBatcher = new ApplicationLogRealtimeBatcher({
   lineLimit: projectLogTail.value,
   onCommit: (snapshot) => {
@@ -1948,6 +1949,14 @@ function confirmServiceBatchAction(action: ProjectContainerAction) {
   }
 
   const actionableRows = serviceBatchActionableRows(action);
+  let idempotencyKey: string;
+  try {
+    idempotencyKey = createServiceBatchIdempotencyKey(action);
+  } catch (error) {
+    logger.warn(`failed to create ${action} service batch idempotency key`, error);
+    MessagePlugin.error(t('project.detail.services.batch.failed'));
+    return;
+  }
   const dialog = DialogPlugin.confirm({
     header: t(`project.detail.services.batch.confirm${capitalizeAction(action)}Title`),
     body: t(`project.detail.services.batch.confirm${capitalizeAction(action)}`, {
@@ -1959,14 +1968,17 @@ function confirmServiceBatchAction(action: ProjectContainerAction) {
     onConfirm: async () => {
       dialog.setConfirmLoading(true);
       try {
-        await runServiceContainerAction(
+        const submitted = await runServiceContainerAction(
           action,
           actionableRows.map((row) => row.raw),
           `batch:${action}`,
+          idempotencyKey,
         );
+        if (submitted) {
+          dialog.destroy();
+        }
       } finally {
         dialog.setConfirmLoading(false);
-        dialog.destroy();
       }
     },
   });
@@ -1976,6 +1988,7 @@ async function runServiceContainerAction(
   action: ProjectContainerAction,
   services: ApplicationServiceItem[],
   actionKey: string,
+  idempotencyKey = createServiceBatchIdempotencyKey(action),
 ) {
   const ids = Array.from(
     new Set(
@@ -1992,11 +2005,14 @@ async function runServiceContainerAction(
     serviceActionKey.value = actionKey;
   }
   try {
-    const response = await batchContainerActions({
-      action,
-      force: false,
-      ids,
-    } satisfies ProjectContainerActionSubmission);
+    const response = await batchContainerActions(
+      {
+        action,
+        force: false,
+        ids,
+      } satisfies ProjectContainerActionSubmission,
+      idempotencyKey,
+    );
     handleServiceBatchActionResult(response);
     try {
       await refreshApplicationRuntimeSurface();
@@ -2004,9 +2020,11 @@ async function runServiceContainerAction(
       logger.warn('failed to refresh project runtime surface after service action', error);
       MessagePlugin.warning(t('project.detail.services.batch.refreshWarning'));
     }
+    return true;
   } catch (error) {
     logger.warn(`failed to ${action} service containers`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.batch.failed')));
+    return false;
   } finally {
     if (actionKey.startsWith('batch:')) {
       serviceBatchActionLoading.value = '';
@@ -2016,13 +2034,30 @@ async function runServiceContainerAction(
   }
 }
 
+function createServiceBatchIdempotencyKey(action: ProjectContainerAction) {
+  const crypto = globalThis.crypto;
+  const uuid = crypto?.randomUUID?.();
+  if (uuid) return uuid;
+
+  if (!crypto?.getRandomValues) {
+    throw new Error('Web Crypto API is unavailable');
+  }
+  const entropy = new Uint32Array(4);
+  crypto.getRandomValues(entropy);
+  serviceBatchIdempotencySequence += 1;
+  return `project-service-batch-${action}-${Date.now()}-${serviceBatchIdempotencySequence}-${Array.from(
+    entropy,
+    (value) => value.toString(36),
+  ).join('')}`;
+}
+
 function handleServiceBatchActionResult(response: ProjectContainerActionResult) {
   if (response.failed_count === 0) {
-    MessagePlugin.success(t('project.detail.services.batch.success', { count: response.success_count }));
+    MessagePlugin.success(t('project.detail.services.batch.success', { count: response.accepted_count }));
     return;
   }
 
-  if (response.success_count > 0) {
+  if (response.accepted_count > 0) {
     void NotifyPlugin.warning({
       closeBtn: true,
       content: batchFailureSummary(response.items),
@@ -2042,7 +2077,7 @@ function handleServiceBatchActionResult(response: ProjectContainerActionResult) 
 }
 
 function batchFailureSummary(items: ProjectContainerActionResultItem[]) {
-  const failedItems = items.filter((item) => !item.success);
+  const failedItems = items.filter((item) => !item.accepted);
   if (!failedItems.length) {
     return t('project.detail.services.batch.noFailureDetail');
   }

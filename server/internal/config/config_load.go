@@ -86,6 +86,9 @@ func readConfig(reader *viper.Viper) *Config {
 			Runtime:        reader.GetString("ops.container.runtime"),
 			DockerEndpoint: reader.GetString("ops.container.docker.endpoint"),
 		},
+		Backup: BackupConfig{
+			ArtifactRoot: reader.GetString("backup.artifact_root"),
+		},
 		Project: ProjectConfig{
 			LogDebug:           reader.GetBool("project.log_debug"),
 			ManagedCreateDebug: reader.GetBool("project.managed_create_debug"),

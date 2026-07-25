@@ -2139,7 +2139,7 @@ export interface paths {
     put?: never;
     /**
      * Execute container actions in batch
-     * @description Executes one container action for selected containers and returns per-item success or failure.
+     * @description Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.
      */
     post: operations['postContainerBatchActions'];
     delete?: never;
@@ -2298,8 +2298,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Start container
-     * @description Starts one stopped container when dangerous actions are enabled.
+     * Submit a container start Task
+     * @description Submits one stopped container start action for asynchronous execution when dangerous actions are enabled.
      */
     post: operations['postContainerStart'];
     delete?: never;
@@ -2318,8 +2318,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Stop container
-     * @description Stops one running container when dangerous actions are enabled.
+     * Submit a container stop Task
+     * @description Submits one running container stop action for asynchronous execution when dangerous actions are enabled.
      */
     post: operations['postContainerStop'];
     delete?: never;
@@ -2338,8 +2338,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Restart container
-     * @description Restarts one container when dangerous actions are enabled.
+     * Submit a container restart Task
+     * @description Submits one container restart action for asynchronous execution when dangerous actions are enabled.
      */
     post: operations['postContainerRestart'];
     delete?: never;
@@ -6975,7 +6975,15 @@ export interface components {
       name?: string;
       /** @enum {string} */
       action: 'start' | 'stop' | 'restart' | 'remove';
-      success: boolean;
+      /** @description Whether this item was accepted as an independent Container lifecycle Task. */
+      accepted: boolean;
+      /**
+       * Format: int64
+       * @description Independent lifecycle Task identifier when accepted is true.
+       */
+      task_id?: number;
+      /** @description Initial Task Runtime status when accepted is true. */
+      status?: components['schemas']['task-status'];
       error_code?: string;
       message_key?: string;
       message?: string;
@@ -6983,7 +6991,8 @@ export interface components {
     /** @description Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id. */
     'container-batch-action-response': {
       total: number;
-      success_count: number;
+      /** @description Number of items accepted as independent container lifecycle Tasks. */
+      accepted_count: number;
       failed_count: number;
       request_id?: string;
       /** @description Per-container action results in the same order as the requested container ids, with one response item per requested id. OpenAPI cannot express equality with the request array length, so clients should rely on this contract text plus each item's id for correlation. */
@@ -7247,22 +7256,14 @@ export interface components {
     'enveloped-container-shell-session-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-shell-session-response'];
     };
-    'container-action-response': {
-      id: string;
-      name?: string;
-      /** @enum {string} */
-      action: 'start' | 'stop' | 'restart' | 'remove';
-      /** @description Container runtime adapter key. */
-      runtime: string;
-      /** @enum {string} */
-      result: 'accepted' | 'completed' | 'unchanged';
-      status_before?: string;
-      status_after: string;
-      message_key?: string;
-      message?: string;
+    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
+    'task-receipt': {
+      /** Format: int64 */
+      task_id: number;
+      status: components['schemas']['task-status'];
     };
-    'enveloped-container-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['container-action-response'];
+    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-receipt'];
     };
     'container-stop-error-response': {
       /** @enum {boolean} */
@@ -7287,6 +7288,23 @@ export interface components {
        * @default false
        */
       force: boolean;
+    };
+    'container-action-response': {
+      id: string;
+      name?: string;
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      /** @description Container runtime adapter key. */
+      runtime: string;
+      /** @enum {string} */
+      result: 'accepted' | 'completed' | 'unchanged';
+      status_before?: string;
+      status_after: string;
+      message_key?: string;
+      message?: string;
+    };
+    'enveloped-container-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-action-response'];
     };
     'docker-image-container-reference': {
       id: string;
@@ -7331,15 +7349,6 @@ export interface components {
     'docker-image-pull-request': {
       /** @description Complete image reference resolved by the configured Docker daemon credential store. */
       reference: string;
-    };
-    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
-    'task-receipt': {
-      /** Format: int64 */
-      task_id: number;
-      status: components['schemas']['task-status'];
-    };
-    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
-      data: components['schemas']['task-receipt'];
     };
     'enveloped-docker-image': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image'];
@@ -15078,7 +15087,9 @@ export interface operations {
   postContainerBatchActions: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15096,8 +15107,8 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Container batch action result. */
-      200: {
+      /** @description Container lifecycle actions accepted independently as Tasks; item failures remain explicit. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
@@ -15563,7 +15574,9 @@ export interface operations {
   postContainerStart: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15580,14 +15593,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container start Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference. */
@@ -15612,7 +15625,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Container state does not allow this action, or Idempotency-Key was previously used with different submission input. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15628,7 +15641,9 @@ export interface operations {
   postContainerStop: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15645,14 +15660,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container stop Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference. */
@@ -15677,7 +15692,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Container state does not allow this action, or Idempotency-Key was previously used with different submission input. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15702,7 +15717,9 @@ export interface operations {
   postContainerRestart: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15719,14 +15736,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container restart Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference. */
@@ -15751,7 +15768,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Container state does not allow this action, or Idempotency-Key was previously used with different submission input. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

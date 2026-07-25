@@ -1056,7 +1056,7 @@ describe('Application detail service tab', () => {
     containerApiMocks.batchContainerActions.mockResolvedValue({
       failed_count: 0,
       items: [],
-      success_count: 2,
+      accepted_count: 2,
     });
     containerApiMocks.getContainerEvents.mockResolvedValue({ items: [] });
     containerApiMocks.getContainerLogs.mockResolvedValue({ entries: [] });
@@ -1530,13 +1530,46 @@ describe('Application detail service tab', () => {
     await dialogOptions.onConfirm?.();
     await flushPromises();
 
-    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith({
-      action: 'restart',
-      force: false,
-      ids: ['container-1', 'container-2'],
-    });
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith(
+      {
+        action: 'restart',
+        force: false,
+        ids: ['container-1', 'container-2'],
+      },
+      expect.stringMatching(/^.{1,128}$/),
+    );
     expect(dialogInstance.setConfirmLoading).toHaveBeenNthCalledWith(1, true);
     expect(dialogInstance.setConfirmLoading).toHaveBeenNthCalledWith(2, false);
+    expect(dialogInstance.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses a batch idempotency key when the confirmation is retried', async () => {
+    const dialogInstance = {
+      destroy: vi.fn(),
+      setConfirmLoading: vi.fn(),
+    };
+    dialogMocks.confirm.mockReturnValueOnce(dialogInstance);
+    containerApiMocks.batchContainerActions.mockRejectedValueOnce(new Error('network unavailable'));
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-select-row="app"]').trigger('click');
+    await wrapper.get('[data-testid="project-service-batch-restart"]').trigger('click');
+    const [dialogOptions] = dialogMocks.confirm.mock.calls[0] as [
+      {
+        onConfirm?: () => Promise<void> | void;
+      },
+    ];
+
+    await dialogOptions.onConfirm?.();
+    await flushPromises();
+    expect(dialogInstance.destroy).not.toHaveBeenCalled();
+    const firstKey = containerApiMocks.batchContainerActions.mock.calls[0][1];
+
+    await dialogOptions.onConfirm?.();
+    await flushPromises();
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledTimes(2);
+    expect(containerApiMocks.batchContainerActions.mock.calls[1][1]).toBe(firstKey);
     expect(dialogInstance.destroy).toHaveBeenCalledTimes(1);
   });
 
@@ -1613,11 +1646,14 @@ describe('Application detail service tab', () => {
     await wrapper.find('[data-row="app"] [data-action="stop"]').trigger('click');
     await flushPromises();
 
-    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith({
-      action: 'stop',
-      force: false,
-      ids: ['container-1', 'container-2'],
-    });
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith(
+      {
+        action: 'stop',
+        force: false,
+        ids: ['container-1', 'container-2'],
+      },
+      expect.stringMatching(/^.{1,128}$/),
+    );
     expect(projectApiMocks.getApplication).toHaveBeenCalledTimes(2);
     expect(projectApiMocks.getApplicationOverview).toHaveBeenCalledTimes(2);
     expect(projectApiMocks.getApplicationServices).toHaveBeenCalledTimes(2);

@@ -144,3 +144,7 @@ rbac.permissionCatalog.platformUpdateCheck.display: Check Platform Updates
 rbac.permissionCatalog.platformUpdateCheck.description: Allows refreshing verified release discovery.
 rbac.permissionCatalog.platformUpdateManage.display: Manage Platform Updates
 rbac.permissionCatalog.platformUpdateManage.description: Reserved for future confirmed upgrade and recovery operations.
+rbac.permissionCatalog.platformBackupRead.display: View Platform Backups
+rbac.permissionCatalog.platformBackupRead.description: Allows reading backup history and artifact metadata.
+rbac.permissionCatalog.platformBackupCreate.display: Create Platform Backups
+rbac.permissionCatalog.platformBackupCreate.description: Allows creating manual backups and controlling their recovery Tasks.
