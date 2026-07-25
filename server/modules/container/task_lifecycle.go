@@ -126,7 +126,7 @@ func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, a
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal container lifecycle task input: %w", err)
 	}
-	return s.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
+	receipt, submitErr := s.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
 		Type:           containerLifecycleTaskType(action),
 		Owner:          moduleapi.TaskOwner{Type: containerLifecycleTaskOwnerType(action), ID: ref.Value},
 		RequestedBy:    requestedBy,
@@ -140,6 +140,8 @@ func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, a
 			RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
 		}}},
 	})
+	s.publishLifecycleTaskSubmissionAudit(ctx, ref, action, options, receipt, submitErr)
+	return receipt, submitErr
 }
 
 func containerLifecycleTaskActions() []string {

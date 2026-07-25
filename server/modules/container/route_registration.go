@@ -602,25 +602,21 @@ func (r routeRuntime) handleBatchAction(ginCtx *gin.Context) {
 		IDs:    request.Ids,
 		Force:  boolPtrValue(request.Force),
 	}
-	if isContainerLifecycleTaskAction(command.Action) {
-		requestedBy := uint64(0)
-		if auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok && auth.User != nil {
-			requestedBy = auth.User.ID
-		}
-		result, err := r.service.BatchLifecycleAction(ginCtx.Request.Context(), command, requestedBy, ginCtx.GetHeader("Idempotency-Key"))
-		if err != nil {
-			r.writeRouteError(ginCtx, err)
-			return
-		}
-		httpx.WriteSuccess(ginCtx, http.StatusAccepted, toContainerBatchLifecycleAction(result))
+	idempotencyKey := ginCtx.GetHeader("Idempotency-Key")
+	if strings.TrimSpace(idempotencyKey) == "" || utf8.RuneCountInString(idempotencyKey) > 128 {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
-	result, err := r.service.BatchAction(ginCtx.Request.Context(), command)
+	requestedBy := uint64(0)
+	if auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok && auth.User != nil {
+		requestedBy = auth.User.ID
+	}
+	result, err := r.service.BatchLifecycleAction(ginCtx.Request.Context(), command, requestedBy, idempotencyKey)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerBatchAction(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, toContainerBatchLifecycleAction(result))
 }
 
 func (r routeRuntime) authorizeBatchAction(ginCtx *gin.Context, action string) bool {

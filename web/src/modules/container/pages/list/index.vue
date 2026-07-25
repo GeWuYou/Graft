@@ -378,8 +378,8 @@ const pagination = reactive({
 const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
 let listRealtimeSubscribed = false;
-// 生命周期 Task 的 receipt 不代表 Docker 已变更，列表只能在成功终态后刷新实际运行时快照。
-let lifecycleTaskObserver: TaskObserver | null = null;
+// 生命周期 Task 的 receipt 不代表 Docker 已变更；每个任务独立观察，并且只在成功终态后刷新实际运行时快照。
+const lifecycleTaskObservers = new Map<number, TaskObserver>();
 const batchTaskObservers = new Map<number, TaskObserver>();
 function hasCommittedFilters(activeFilters: ContainerFilters) {
   return (
@@ -457,7 +457,7 @@ async function loadRuntimeTargets() {
 }
 
 onUnmounted(() => {
-  stopLifecycleTaskObserver();
+  stopLifecycleTaskObservers();
   stopBatchTaskObservers();
   listRealtimeActive.value = false;
   releaseListRealtimeSubscription();
@@ -1065,6 +1065,19 @@ function createLifecycleIdempotencyKey(containerId: string, action: LifecycleCon
   ).join('')}`;
 }
 
+function createBatchIdempotencyKey(action: DangerousContainerAction) {
+  const crypto = globalThis.crypto;
+  const uuid = crypto?.randomUUID?.();
+  if (uuid) return uuid;
+
+  const entropy = new Uint32Array(4);
+  crypto?.getRandomValues?.(entropy);
+  lifecycleIdempotencySequence += 1;
+  return `container-batch-${action}-${Date.now()}-${lifecycleIdempotencySequence}-${Array.from(entropy, (value) =>
+    value.toString(36),
+  ).join('')}`;
+}
+
 function resolveLifecycleTaskType(taskType: string) {
   if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_START) return t('container.list.actions.start');
   if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_STOP) return t('container.list.actions.stop');
@@ -1073,22 +1086,28 @@ function resolveLifecycleTaskType(taskType: string) {
   return undefined;
 }
 
-function stopLifecycleTaskObserver() {
-  if (!lifecycleTaskObserver) return;
-  lifecycleTaskObserver.stop();
-  lifecycleTaskObserver = null;
+function stopLifecycleTaskObserver(taskId: number) {
+  lifecycleTaskObservers.get(taskId)?.stop();
+  lifecycleTaskObservers.delete(taskId);
+}
+
+function stopLifecycleTaskObservers() {
+  lifecycleTaskObservers.forEach((observer) => observer.stop());
+  lifecycleTaskObservers.clear();
 }
 
 function observeLifecycleTask(taskId: number) {
-  stopLifecycleTaskObserver();
-  lifecycleTaskObserver = observeTask(taskId, {
+  if (lifecycleTaskObservers.has(taskId)) return;
+
+  const observer = observeTask(taskId, {
     onError: (error) => logger.warn('container lifecycle task observation failed', { error, taskId }),
     onTask: (task) => {
       if (!isTerminalTaskStatus(task.status)) return;
-      stopLifecycleTaskObserver();
+      stopLifecycleTaskObserver(taskId);
       if (task.status === 'success') void refreshContainers();
     },
   });
+  lifecycleTaskObservers.set(taskId, observer);
 }
 
 function stopBatchTaskObservers() {
@@ -1097,6 +1116,8 @@ function stopBatchTaskObservers() {
 }
 
 function observeBatchTask(taskId: number) {
+  if (batchTaskObservers.has(taskId)) return;
+
   const observer = observeTask(taskId, {
     onError: (error) => logger.warn('container batch lifecycle task observation failed', { error, taskId }),
     onTask: (task) => {
@@ -1273,18 +1294,24 @@ async function executeBatchAction(
 
   batchActionLoading.value = action;
   try {
-    const response = await batchContainerActions({
-      action,
-      ids,
-      force: action === 'remove' ? force : false,
-    });
+    const response = await batchContainerActions(
+      {
+        action,
+        ids,
+        force: action === 'remove' ? force : false,
+      },
+      createBatchIdempotencyKey(action),
+    );
     if (isBatchTaskAction(action)) {
       const acceptedItems = response.items.filter((item) => item.accepted && item.task_id);
-      batchTaskEntries.value = acceptedItems.map((item) => ({
-        taskId: item.task_id as number,
-        containerId: item.id,
-        action,
-      }));
+      const submittedTaskIds = new Set(batchTaskEntries.value.map((entry) => entry.taskId));
+      const newEntries = acceptedItems.flatMap((item) => {
+        const taskId = item.task_id as number;
+        if (submittedTaskIds.has(taskId)) return [];
+        submittedTaskIds.add(taskId);
+        return [{ taskId, containerId: item.id, action }];
+      });
+      batchTaskEntries.value = [...batchTaskEntries.value, ...newEntries];
       acceptedItems.forEach((item, index) => {
         const taskId = item.task_id as number;
         observeBatchTask(taskId);

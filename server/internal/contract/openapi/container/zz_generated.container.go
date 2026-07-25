@@ -3637,6 +3637,9 @@ type PostContainerBatchActionsJSONBody struct {
 
 // PostContainerBatchActionsParams defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
 

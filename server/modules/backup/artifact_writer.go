@@ -26,15 +26,45 @@ const (
 )
 
 type fileArtifactWriter struct {
-	root string
-	cfg  *config.Config
+	root        string
+	cfg         *config.Config
+	dumpCommand func(context.Context, string, string) (*exec.Cmd, error)
 }
 
 func newFileArtifactWriter(cfg *config.Config) (*fileArtifactWriter, error) {
 	if cfg == nil || cfg.Backup.ArtifactRoot == "" || cfg.Database.URL == "" {
 		return nil, moduleapi.ErrBackupInvalidInput
 	}
-	return &fileArtifactWriter{root: cfg.Backup.ArtifactRoot, cfg: cfg}, nil
+	return &fileArtifactWriter{root: cfg.Backup.ArtifactRoot, cfg: cfg, dumpCommand: databaseDumpCommand}, nil
+}
+
+// backupConfigSnapshot 只保留恢复审计所需的非敏感部署元数据，禁止将运行时完整配置写入工件。
+type backupConfigSnapshot struct {
+	SchemaVersion  int                   `json:"schema_version"`
+	Application    backupApplicationInfo `json:"application"`
+	EnabledModules []string              `json:"enabled_modules"`
+	Database       backupDatabaseInfo    `json:"database"`
+}
+
+type backupApplicationInfo struct {
+	Name        string `json:"name"`
+	Environment string `json:"environment"`
+}
+
+type backupDatabaseInfo struct {
+	Driver string `json:"driver"`
+}
+
+func backupConfigMetadata(cfg *config.Config) backupConfigSnapshot {
+	return backupConfigSnapshot{
+		SchemaVersion: 1,
+		Application: backupApplicationInfo{
+			Name:        cfg.App.Name,
+			Environment: cfg.App.Env,
+		},
+		EnabledModules: append([]string(nil), cfg.Modules.Enabled...),
+		Database:       backupDatabaseInfo{Driver: cfg.Database.Driver},
+	}
 }
 
 //nolint:cyclop // Artifact creation keeps every storage boundary visible in one owner method.
@@ -49,7 +79,7 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	configRef := filepath.Join(directory, "config.snapshot")
 	dumpRef := filepath.Join(directory, "database.dump")
 	if _, err := os.Stat(configRef); os.IsNotExist(err) {
-		contents, marshalErr := json.Marshal(w.cfg)
+		contents, marshalErr := json.Marshal(backupConfigMetadata(w.cfg))
 		if marshalErr != nil {
 			return moduleapi.CreateBackupInput{}, fmt.Errorf("marshal backup config snapshot: %w", marshalErr)
 		}
@@ -58,13 +88,11 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 		}
 	}
 	if _, err := os.Stat(dumpRef); os.IsNotExist(err) {
-		command, commandErr := databaseDumpCommand(ctx, dumpRef, w.cfg.Database.URL)
-		if commandErr != nil {
-			return moduleapi.CreateBackupInput{}, commandErr
+		if err := w.createDatabaseDump(ctx, dumpRef); err != nil {
+			return moduleapi.CreateBackupInput{}, err
 		}
-		if runErr := command.Run(); runErr != nil {
-			return moduleapi.CreateBackupInput{}, fmt.Errorf("run database dump: %w", runErr)
-		}
+	} else if err != nil {
+		return moduleapi.CreateBackupInput{}, fmt.Errorf("stat database dump: %w", err)
 	}
 	configArtifact, err := digestBackupArtifact(configRef)
 	if err != nil {
@@ -76,6 +104,37 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	}
 	actor := input.RequestedBy
 	return moduleapi.CreateBackupInput{Purpose: backupTaskPurpose, ConfigSnapshot: configArtifact, DatabaseDump: dumpArtifact, RetainUntil: input.RetainUntil, CreatedBy: &actor}, nil
+}
+
+func (w *fileArtifactWriter) createDatabaseDump(ctx context.Context, target string) error {
+	if w == nil || w.dumpCommand == nil {
+		return moduleapi.ErrBackupInvalidInput
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(target), ".database.dump-*")
+	if err != nil {
+		return fmt.Errorf("create temporary database dump: %w", err)
+	}
+	temporaryRef := temporary.Name()
+	if err := temporary.Close(); err != nil {
+		_ = os.Remove(temporaryRef)
+		return fmt.Errorf("close temporary database dump: %w", err)
+	}
+	// pg_dump 失败或发布失败时绝不留下可被下一次重试当作完成工件的半成品。
+	defer func() { _ = os.Remove(temporaryRef) }()
+	command, err := w.dumpCommand(ctx, temporaryRef, w.cfg.Database.URL)
+	if err != nil {
+		return err
+	}
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("run database dump: %w", err)
+	}
+	if err := os.Chmod(temporaryRef, backupFilePermission); err != nil {
+		return fmt.Errorf("set database dump permissions: %w", err)
+	}
+	if err := os.Rename(temporaryRef, target); err != nil {
+		return fmt.Errorf("publish database dump: %w", err)
+	}
+	return nil
 }
 
 // databaseDumpCommand keeps database credentials in the child environment and

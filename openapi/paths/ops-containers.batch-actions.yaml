@@ -4,6 +4,14 @@ post:
   operationId: postContainerBatchActions
   description: Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.
   parameters:
+    - name: Idempotency-Key
+      in: header
+      required: true
+      description: Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
   security:

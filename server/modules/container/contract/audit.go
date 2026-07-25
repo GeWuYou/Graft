@@ -31,14 +31,6 @@ const (
 	DockerImageAuditActionRemove AuditAction = "ops.container.image.remove"
 	// DockerImageAuditActionBatchRemove 表示 Docker 镜像批量删除汇总审计。
 	DockerImageAuditActionBatchRemove AuditAction = "ops.container.image.remove.batch"
-	// ContainerAuditActionBatchStart 表示批量启动汇总审计。
-	ContainerAuditActionBatchStart AuditAction = "ops.container.action.batch.start"
-	// ContainerAuditActionBatchStop 表示批量停止汇总审计。
-	ContainerAuditActionBatchStop AuditAction = "ops.container.action.batch.stop"
-	// ContainerAuditActionBatchRestart 表示批量重启汇总审计。
-	ContainerAuditActionBatchRestart AuditAction = "ops.container.action.batch.restart"
-	// ContainerAuditActionBatchRemove 表示批量移除汇总审计。
-	ContainerAuditActionBatchRemove AuditAction = "ops.container.action.batch.remove"
 	// ContainerAuditActionShellSessionRequested 表示 Shell 会话请求审计。
 	ContainerAuditActionShellSessionRequested AuditAction = "ops.container.shell.session.requested"
 	// ContainerAuditActionShellTicketIssued 表示 Shell 票据签发审计。

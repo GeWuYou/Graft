@@ -855,71 +855,6 @@ func (s *service) Remove(ctx context.Context, ref Ref, options RemoveOptions) (A
 	return s.runAction(ctx, ref, containerActionRemove, ActionOptions(options))
 }
 
-func (s *service) BatchAction(ctx context.Context, command BatchActionCommand) (BatchActionResult, error) {
-	normalized, err := normalizeBatchActionCommand(command)
-	if err != nil {
-		return BatchActionResult{}, err
-	}
-	if err := s.requireRuntimeAccess(ctx); err != nil {
-		return BatchActionResult{}, err
-	}
-	policy := s.effectiveActionPolicy(ctx)
-	if !policy.dangerousAllowed {
-		blocked := BatchActionResult{
-			Action:    normalized.Action,
-			Total:     len(normalized.IDs),
-			RequestID: requestIDFromContext(ctx),
-			Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
-		}
-		for _, ref := range normalized.IDs {
-			result := ActionResult{ID: ref, Action: normalized.Action, Runtime: runtimeNameDocker}
-			s.publishActionAudit(ctx, result, ActionOptions{Force: normalized.Force}, errDangerousActionsDisabled)
-			blocked.Items = append(blocked.Items, batchActionFailure(ref, normalized.Action, errDangerousActionsDisabled))
-		}
-		blocked.FailedCount = len(blocked.Items)
-		blocked = withBatchActionMessage(blocked)
-		s.publishBatchActionAudit(ctx, blocked, ActionOptions{Force: normalized.Force})
-		return BatchActionResult{}, errDangerousActionsDisabled
-	}
-	result := BatchActionResult{
-		Action:    normalized.Action,
-		Total:     len(normalized.IDs),
-		RequestID: requestIDFromContext(ctx),
-		Items:     make([]BatchActionItem, 0, len(normalized.IDs)),
-	}
-	for _, rawID := range normalized.IDs {
-		ref, parseErr := parseRef(rawID)
-		if parseErr != nil {
-			item := batchActionFailure(rawID, normalized.Action, parseErr)
-			result.Items = append(result.Items, item)
-			result.FailedCount++
-			s.publishActionAudit(ctx, item.Result, ActionOptions{Force: normalized.Force}, parseErr)
-			continue
-		}
-		if blockedItem, blocked := s.batchActionPolicyFailure(
-			ctx,
-			ref,
-			normalized.Action,
-			ActionOptions{Force: normalized.Force},
-		); blocked {
-			result.Items = append(result.Items, blockedItem)
-			result.FailedCount++
-			continue
-		}
-		actionResult, actionErr := s.runAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force})
-		item := batchActionItem(ref.Value, normalized.Action, actionResult, actionErr)
-		result.Items = append(result.Items, item)
-		if actionErr != nil {
-			result.FailedCount++
-			continue
-		}
-		result.SuccessCount++
-	}
-	result = withBatchActionMessage(result)
-	s.publishBatchActionAudit(ctx, result, ActionOptions{Force: normalized.Force})
-	return result, nil
-}
-
 // BatchLifecycleActionResult 表示容器生命周期批量提交的有序聚合结果；它只记录 Task 接收事实，不代表外部动作已完成。
 type BatchLifecycleActionResult struct {
 	Action        string
@@ -966,13 +901,11 @@ func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionC
 			item := batchLifecycleActionFailure(rawID, normalized.Action, parseErr)
 			result.Items = append(result.Items, item)
 			result.FailedCount++
+			s.publishLifecycleTaskSubmissionAudit(ctx, Ref{Value: rawID}, normalized.Action, ActionOptions{Force: normalized.Force}, moduleapi.TaskReceipt{}, parseErr)
 			continue
 		}
-		if blockedItem, blocked := s.batchActionPolicyFailure(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}); blocked {
-			result.Items = append(result.Items, BatchLifecycleActionItem{
-				ID: blockedItem.ID, Action: blockedItem.Action, ErrorCode: blockedItem.ErrorCode,
-				MessageKey: blockedItem.MessageKey, Message: blockedItem.Message,
-			})
+		if blockedItem, blocked := s.lifecycleActionPolicyFailure(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}); blocked {
+			result.Items = append(result.Items, blockedItem)
 			result.FailedCount++
 			continue
 		}

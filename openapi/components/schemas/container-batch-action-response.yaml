@@ -5,21 +5,16 @@ description: >
 required:
   - total
   - accepted_count
-  - success_count
   - failed_count
   - items
 properties:
   total:
     type: integer
     minimum: 0
-  success_count:
-    type: integer
-    minimum: 0
-    description: Retained synchronous success count for remove and equal to accepted_count for lifecycle submissions.
   accepted_count:
     type: integer
     minimum: 0
-    description: Number of start, stop, or restart items accepted as independent Tasks.
+    description: Number of items accepted as independent container lifecycle Tasks.
   failed_count:
     type: integer
     minimum: 0

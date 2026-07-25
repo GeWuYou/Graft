@@ -1549,6 +1549,35 @@ describe('container list page', () => {
     expect(observer?.stop).toHaveBeenCalledTimes(1);
   });
 
+  it('observes concurrent lifecycle Tasks independently and refreshes only successful Tasks', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-action-stop"]').trigger('click');
+    await flushPromises();
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-action-restart"]').trigger('click');
+    await flushPromises();
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledWith(102, expect.any(Object));
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledWith(103, expect.any(Object));
+    expect(taskObserverMocks.observers[0]?.stop).not.toHaveBeenCalled();
+
+    taskObserverMocks.observers[0]?.onTask({ status: 'success' });
+    await flushPromises();
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+
+    taskObserverMocks.observers[1]?.onTask({ status: 'failed' });
+    await flushPromises();
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
+    expect(taskObserverMocks.observers[0]?.stop).toHaveBeenCalledTimes(1);
+    expect(taskObserverMocks.observers[1]?.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps dangerous action confirmation dialogs idempotent while one is open', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -1656,11 +1685,14 @@ describe('container list page', () => {
     await flushPromises();
 
     expect(dialogMocks.instances.at(-1)?.setConfirmLoading).toHaveBeenNthCalledWith(1, true);
-    expect(apiMocks.batchContainerActions).toHaveBeenCalledWith({
-      action: 'restart',
-      force: false,
-      ids: ['container-1', 'container-2'],
-    });
+    expect(apiMocks.batchContainerActions).toHaveBeenCalledWith(
+      {
+        action: 'restart',
+        force: false,
+        ids: ['container-1', 'container-2'],
+      },
+      expect.any(String),
+    );
     expect(notifyMocks.warning).toHaveBeenCalledWith(
       expect.objectContaining({
         content: expect.stringContaining('container-2: runtime rejected restart'),
@@ -1751,11 +1783,14 @@ describe('container list page', () => {
     await startDialog?.onConfirm();
     await flushPromises();
 
-    expect(apiMocks.batchContainerActions).toHaveBeenCalledWith({
-      action: 'start',
-      force: false,
-      ids: ['container-2'],
-    });
+    expect(apiMocks.batchContainerActions).toHaveBeenCalledWith(
+      {
+        action: 'start',
+        force: false,
+        ids: ['container-2'],
+      },
+      expect.any(String),
+    );
     expect(messageMocks.success).toHaveBeenCalledWith('已提交 1 个容器任务，正在执行。');
     expect(wrapper.text()).toContain('查看启动任务：container-2');
 
@@ -1765,6 +1800,55 @@ describe('container list page', () => {
 
     expect(dialogMocks.instances.at(-1)?.hide).toHaveBeenCalled();
     expect(apiMocks.batchContainerActions).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps submitted batch Task entries across later submissions and deduplicates task IDs', async () => {
+    apiMocks.batchContainerActions
+      .mockResolvedValueOnce({
+        failed_count: 0,
+        items: [{ action: 'restart', id: 'container-1', name: 'graft-web', accepted: true, task_id: 401 }],
+        accepted_count: 1,
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        failed_count: 0,
+        items: [{ action: 'stop', id: 'container-1', name: 'graft-web', accepted: true, task_id: 402 }],
+        accepted_count: 1,
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        failed_count: 0,
+        items: [{ action: 'restart', id: 'container-1', name: 'graft-web', accepted: true, task_id: 401 }],
+        accepted_count: 1,
+        total: 1,
+      });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-table-select-first-two"]').trigger('click');
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-batch-restart"]').trigger('click');
+    await flushPromises();
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-batch-stop"]').trigger('click');
+    await flushPromises();
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-batch-restart"]').trigger('click');
+    await flushPromises();
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('查看重启任务：container-1');
+    expect(wrapper.text()).toContain('查看停止任务：container-1');
+    expect(wrapper.findAll('.container-batch-tasks__item')).toHaveLength(2);
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledWith(401, expect.any(Object));
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledWith(402, expect.any(Object));
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledTimes(2);
   });
 
   it('keeps batch confirmation dialogs idempotent while one is open', async () => {

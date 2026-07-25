@@ -6984,8 +6984,6 @@ export interface components {
       task_id?: number;
       /** @description Initial Task Runtime status when accepted is true. */
       status?: components['schemas']['task-status'];
-      /** @description Synchronous remove result. Present for the remove action; not used for lifecycle Task submission. */
-      success?: boolean;
       error_code?: string;
       message_key?: string;
       message?: string;
@@ -6993,9 +6991,7 @@ export interface components {
     /** @description Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id. */
     'container-batch-action-response': {
       total: number;
-      /** @description Retained synchronous success count for remove and equal to accepted_count for lifecycle submissions. */
-      success_count: number;
-      /** @description Number of start, stop, or restart items accepted as independent Tasks. */
+      /** @description Number of items accepted as independent container lifecycle Tasks. */
       accepted_count: number;
       failed_count: number;
       request_id?: string;
@@ -15091,7 +15087,9 @@ export interface operations {
   postContainerBatchActions: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**

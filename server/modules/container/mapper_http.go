@@ -593,30 +593,6 @@ func toContainerAction(result ActionResult) containergen.ContainerActionResponse
 	}
 }
 
-func toContainerBatchAction(result BatchActionResult) containergen.ContainerBatchActionResponse {
-	items := make([]containergen.ContainerBatchActionItem, 0, len(result.Items))
-	for _, item := range result.Items {
-		items = append(items, containergen.ContainerBatchActionItem{
-			Id:         item.ID,
-			Name:       optionalString(item.Name),
-			Action:     containergen.ContainerBatchActionItemAction(item.Action),
-			Accepted:   item.Success,
-			Success:    optionalBool(item.Success),
-			ErrorCode:  optionalString(item.ErrorCode),
-			MessageKey: optionalString(item.MessageKey),
-			Message:    optionalString(item.Message),
-		})
-	}
-	return containergen.ContainerBatchActionResponse{
-		Total:         result.Total,
-		AcceptedCount: result.SuccessCount,
-		SuccessCount:  result.SuccessCount,
-		FailedCount:   result.FailedCount,
-		RequestId:     optionalString(result.RequestID),
-		Items:         items,
-	}
-}
-
 func toContainerBatchLifecycleAction(result BatchLifecycleActionResult) containergen.ContainerBatchActionResponse {
 	items := make([]containergen.ContainerBatchActionItem, 0, len(result.Items))
 	for _, item := range result.Items {
@@ -642,7 +618,6 @@ func toContainerBatchLifecycleAction(result BatchLifecycleActionResult) containe
 	return containergen.ContainerBatchActionResponse{
 		Total:         result.Total,
 		AcceptedCount: result.AcceptedCount,
-		SuccessCount:  result.AcceptedCount,
 		FailedCount:   result.FailedCount,
 		RequestId:     optionalString(result.RequestID),
 		Items:         items,

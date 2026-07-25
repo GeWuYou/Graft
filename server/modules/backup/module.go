@@ -28,6 +28,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupReadPermission, Module: moduleID})
 	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupCreatePermission, Module: moduleID})
+	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+	if err != nil {
+		return err
+	}
+	m.service.setTaskService(tasks)
 	registrar, err := module.ResolveService[moduleapi.TaskRuntimeRegistrar](ctx.Services, (*moduleapi.TaskRuntimeRegistrar)(nil))
 	if err != nil {
 		return err

@@ -11771,6 +11771,17 @@
         "description": "Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.",
         "parameters": [
           {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay each accepted Task receipt safely. Reusing a key with different submission input returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
             "$ref": "#/components/parameters/locale-header"
           },
           {
@@ -28532,10 +28543,6 @@
             "$ref": "#/components/schemas/task-status",
             "description": "Initial Task Runtime status when accepted is true."
           },
-          "success": {
-            "type": "boolean",
-            "description": "Synchronous remove result. Present for the remove action; not used for lifecycle Task submission."
-          },
           "error_code": {
             "type": "string"
           },
@@ -28554,7 +28561,6 @@
         "required": [
           "total",
           "accepted_count",
-          "success_count",
           "failed_count",
           "items"
         ],
@@ -28563,15 +28569,10 @@
             "type": "integer",
             "minimum": 0
           },
-          "success_count": {
-            "type": "integer",
-            "minimum": 0,
-            "description": "Retained synchronous success count for remove and equal to accepted_count for lifecycle submissions."
-          },
           "accepted_count": {
             "type": "integer",
             "minimum": 0,
-            "description": "Number of start, stop, or restart items accepted as independent Tasks."
+            "description": "Number of items accepted as independent container lifecycle Tasks."
           },
           "failed_count": {
             "type": "integer",

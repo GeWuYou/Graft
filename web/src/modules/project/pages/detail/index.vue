@@ -1001,6 +1001,7 @@ let projectLogsRealtimeTopic = '';
 let projectLogsSubscriptionSequence = 0;
 let pendingApplicationLogSnapshot: ApplicationLogResponse | null = null;
 let projectLogsLoadSequence = 0;
+let serviceBatchIdempotencySequence = 0;
 const projectLogRealtimeBatcher = new ApplicationLogRealtimeBatcher({
   lineLimit: projectLogTail.value,
   onCommit: (snapshot) => {
@@ -1992,11 +1993,14 @@ async function runServiceContainerAction(
     serviceActionKey.value = actionKey;
   }
   try {
-    const response = await batchContainerActions({
-      action,
-      force: false,
-      ids,
-    } satisfies ProjectContainerActionSubmission);
+    const response = await batchContainerActions(
+      {
+        action,
+        force: false,
+        ids,
+      } satisfies ProjectContainerActionSubmission,
+      createServiceBatchIdempotencyKey(action),
+    );
     handleServiceBatchActionResult(response);
     try {
       await refreshApplicationRuntimeSurface();
@@ -2016,13 +2020,27 @@ async function runServiceContainerAction(
   }
 }
 
+function createServiceBatchIdempotencyKey(action: ProjectContainerAction) {
+  const crypto = globalThis.crypto;
+  const uuid = crypto?.randomUUID?.();
+  if (uuid) return uuid;
+
+  const entropy = new Uint32Array(4);
+  crypto?.getRandomValues?.(entropy);
+  serviceBatchIdempotencySequence += 1;
+  return `project-service-batch-${action}-${Date.now()}-${serviceBatchIdempotencySequence}-${Array.from(
+    entropy,
+    (value) => value.toString(36),
+  ).join('')}`;
+}
+
 function handleServiceBatchActionResult(response: ProjectContainerActionResult) {
   if (response.failed_count === 0) {
-    MessagePlugin.success(t('project.detail.services.batch.success', { count: response.success_count }));
+    MessagePlugin.success(t('project.detail.services.batch.success', { count: response.accepted_count }));
     return;
   }
 
-  if (response.success_count > 0) {
+  if (response.accepted_count > 0) {
     void NotifyPlugin.warning({
       closeBtn: true,
       content: batchFailureSummary(response.items),
@@ -2042,7 +2060,7 @@ function handleServiceBatchActionResult(response: ProjectContainerActionResult) 
 }
 
 function batchFailureSummary(items: ProjectContainerActionResultItem[]) {
-  const failedItems = items.filter((item) => !item.success);
+  const failedItems = items.filter((item) => !item.accepted);
   if (!failedItems.length) {
     return t('project.detail.services.batch.noFailureDetail');
   }

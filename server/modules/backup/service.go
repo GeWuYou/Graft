@@ -17,8 +17,16 @@ type Service struct {
 // NewService 创建备份服务。
 func NewService(repository store.Repository) *Service { return &Service{repository: repository} }
 
-func newTaskService(repository store.Repository, tasks moduleapi.TaskService, writer backupArtifactWriter) *Service {
-	return &Service{repository: repository, tasks: tasks, writer: writer}
+func (s *Service) setTaskService(tasks moduleapi.TaskService) {
+	if s != nil {
+		s.tasks = tasks
+	}
+}
+
+func (s *Service) setArtifactWriter(writer backupArtifactWriter) {
+	if s != nil {
+		s.writer = writer
+	}
 }
 
 // Create 写入已经创建并校验过的配置快照和数据库 dump 元数据。

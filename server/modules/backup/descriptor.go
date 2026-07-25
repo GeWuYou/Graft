@@ -6,7 +6,6 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/module"
-	"graft/server/internal/moduleapi"
 	"graft/server/modules/backup/store"
 )
 
@@ -35,11 +34,9 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build backup artifact writer: %w", err)
 			}
-			tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
-			if err != nil {
-				return nil, fmt.Errorf("resolve task service: %w", err)
-			}
-			return NewModule(newTaskService(repository, tasks, writer)), nil
+			service := NewService(repository)
+			service.setArtifactWriter(writer)
+			return NewModule(service), nil
 		}),
 	}
 }

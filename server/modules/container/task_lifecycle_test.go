@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
 )
@@ -44,6 +45,110 @@ func TestSubmitContainerLifecycleActionFreezesSingleManualReconcileStage(t *test
 				t.Fatalf("unexpected frozen stage input %s: %v", stage.Input, err)
 			}
 		})
+	}
+}
+
+func TestSubmitContainerLifecycleActionPublishesAcceptedTaskAudit(t *testing.T) {
+	t.Parallel()
+
+	bus, eventsPtr := newAuditCaptureBus(t, 1)
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:     fakeRuntime{},
+		auditBus:    bus,
+		moduleName:  moduleID,
+		enabled:     true,
+		tasks:       &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}},
+		defaultTail: defaultContainerLogsDefaultTail,
+		maxTail:     defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "req-lifecycle-submit"})
+	if _, err := service.SubmitContainerLifecycleAction(ctx, Ref{Value: "container-1"}, containerActionStart, ActionOptions{}, 7, "submit-key"); err != nil {
+		t.Fatalf("submit lifecycle task: %v", err)
+	}
+	events := *eventsPtr
+	if len(events) != 1 {
+		t.Fatalf("expected one task submission audit, got %#v", events)
+	}
+	event := events[0]
+	if event.Action != containercontract.ContainerAuditActionStart.String() || !event.Success || event.Metadata["submission"] != "success" || event.Metadata["task_id"] != uint64(42) || event.Metadata["execution_state"] != "not_started" || event.Metadata["requestId"] != "req-lifecycle-submit" {
+		t.Fatalf("unexpected task submission audit %#v", event)
+	}
+}
+
+func TestBatchLifecycleActionPublishesParseAndSubmissionFailureAudits(t *testing.T) {
+	t.Parallel()
+
+	bus, eventsPtr := newAuditCaptureBus(t, 2)
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		tasks:                   &containerTaskRuntimeStub{err: moduleapi.ErrTaskSubmissionConflict},
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := service.BatchLifecycleAction(context.Background(), BatchActionCommand{Action: containerActionStart, IDs: []string{"bad/id", "container-1"}}, 7, "batch-key")
+	if err != nil {
+		t.Fatalf("batch lifecycle action: %v", err)
+	}
+	if result.FailedCount != 2 || len(result.Items) != 2 {
+		t.Fatalf("unexpected batch result %#v", result)
+	}
+	events := *eventsPtr
+	if len(events) != 2 {
+		t.Fatalf("expected parse and submission failure audits, got %#v", events)
+	}
+	for _, event := range events {
+		if event.Action != containercontract.ContainerAuditActionStart.String() || event.Success || event.Metadata["submission"] != "failed" || event.Metadata["execution_state"] != "not_started" {
+			t.Fatalf("unexpected failed task submission audit %#v", event)
+		}
+	}
+}
+
+func TestBatchLifecycleActionPublishesPolicyFailureAudit(t *testing.T) {
+	t.Parallel()
+
+	bus, eventsPtr := newAuditCaptureBus(t, 1)
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime: &managedActionRuntime{detail: Detail{Summary: Summary{
+			ID: "web", Name: "graft-web", Image: "graft/web:latest", Runtime: runtimeNameDocker,
+			Orchestrator: OrchestratorInfo{Type: containerOrchestratorCompose, Managed: true, GroupScopeKind: composeProjectScopeKind, GroupValue: "graft", MemberScopeKind: composeServiceScopeKind, MemberValue: "web"},
+		}}},
+		systemConfig: serviceTestPolicyConfig{
+			serviceTestSystemConfig: serviceTestSystemConfig{values: map[string]bool{
+				containercontract.ContainerRuntimeEnabledConfig.String():          true,
+				containercontract.ContainerDangerousActionsEnabledConfig.String(): true,
+			}},
+			values: map[string]string{containercontract.ContainerComposeActionLevelConfig.String(): string(mustRawJSON("warn"))},
+		},
+		auditBus:                bus,
+		moduleName:              moduleID,
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	result, err := service.BatchLifecycleAction(context.Background(), BatchActionCommand{Action: containerActionRemove, IDs: []string{"web"}, Force: true}, 7, "batch-key")
+	if err != nil {
+		t.Fatalf("batch lifecycle action: %v", err)
+	}
+	if result.FailedCount != 1 || len(result.Items) != 1 || result.Items[0].ErrorCode != containercontract.ContainerDangerousActionsDisabled.String() {
+		t.Fatalf("unexpected policy result %#v", result)
+	}
+	events := *eventsPtr
+	if len(events) != 1 || events[0].Action != containercontract.ContainerAuditActionRemove.String() || events[0].Success || events[0].Metadata["result"] != "failed" || events[0].Metadata["force"] != true {
+		t.Fatalf("unexpected policy failure audit %#v", events)
 	}
 }
 

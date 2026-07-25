@@ -27,9 +27,6 @@ properties:
   status:
     $ref: ./task-status.yaml
     description: Initial Task Runtime status when accepted is true.
-  success:
-    type: boolean
-    description: Synchronous remove result. Present for the remove action; not used for lifecycle Task submission.
   error_code:
     type: string
   message_key:

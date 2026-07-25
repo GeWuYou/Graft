@@ -320,8 +320,12 @@ export function removeContainer(
   }) as Promise<ContainerActionResponse>;
 }
 
-export function batchContainerActions(body: ContainerBatchActionRequest & PostContainerBatchActionsRequest) {
+export function batchContainerActions(
+  body: ContainerBatchActionRequest & PostContainerBatchActionsRequest,
+  idempotencyKey: string,
+) {
   return request.post<PostContainerBatchActionsData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
     url: OPENAPI_RUNTIME_PATH.postContainerBatchActions,
     data: body,
   }) as Promise<PostContainerBatchActionsData>;

@@ -146,9 +146,10 @@ describe('container api', () => {
       items: [],
     } as never);
 
-    await batchContainerActions({ action: 'remove', ids: ['web/api', 'worker'], force: false });
+    await batchContainerActions({ action: 'remove', ids: ['web/api', 'worker'], force: false }, 'batch-remove-key');
 
     expect(requestPost).toHaveBeenCalledWith({
+      headers: { 'Idempotency-Key': 'batch-remove-key' },
       url: OPENAPI_RUNTIME_PATH.postContainerBatchActions,
       data: { action: 'remove', ids: ['web/api', 'worker'], force: false },
     });

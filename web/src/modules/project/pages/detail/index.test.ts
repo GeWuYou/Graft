@@ -1056,7 +1056,7 @@ describe('Application detail service tab', () => {
     containerApiMocks.batchContainerActions.mockResolvedValue({
       failed_count: 0,
       items: [],
-      success_count: 2,
+      accepted_count: 2,
     });
     containerApiMocks.getContainerEvents.mockResolvedValue({ items: [] });
     containerApiMocks.getContainerLogs.mockResolvedValue({ entries: [] });
@@ -1530,11 +1530,14 @@ describe('Application detail service tab', () => {
     await dialogOptions.onConfirm?.();
     await flushPromises();
 
-    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith({
-      action: 'restart',
-      force: false,
-      ids: ['container-1', 'container-2'],
-    });
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith(
+      {
+        action: 'restart',
+        force: false,
+        ids: ['container-1', 'container-2'],
+      },
+      expect.any(String),
+    );
     expect(dialogInstance.setConfirmLoading).toHaveBeenNthCalledWith(1, true);
     expect(dialogInstance.setConfirmLoading).toHaveBeenNthCalledWith(2, false);
     expect(dialogInstance.destroy).toHaveBeenCalledTimes(1);
@@ -1613,11 +1616,14 @@ describe('Application detail service tab', () => {
     await wrapper.find('[data-row="app"] [data-action="stop"]').trigger('click');
     await flushPromises();
 
-    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith({
-      action: 'stop',
-      force: false,
-      ids: ['container-1', 'container-2'],
-    });
+    expect(containerApiMocks.batchContainerActions).toHaveBeenCalledWith(
+      {
+        action: 'stop',
+        force: false,
+        ids: ['container-1', 'container-2'],
+      },
+      expect.any(String),
+    );
     expect(projectApiMocks.getApplication).toHaveBeenCalledTimes(2);
     expect(projectApiMocks.getApplicationOverview).toHaveBeenCalledTimes(2);
     expect(projectApiMocks.getApplicationServices).toHaveBeenCalledTimes(2);

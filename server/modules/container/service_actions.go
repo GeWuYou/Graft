@@ -5,21 +5,24 @@ import (
 	"strings"
 
 	"graft/server/internal/httpx"
+	"graft/server/internal/moduleapi"
 	containercontract "graft/server/modules/container/contract"
 )
 
-func (s *service) batchActionPolicyFailure(
+func (s *service) lifecycleActionPolicyFailure(
 	ctx context.Context,
 	ref Ref,
 	action string,
 	options ActionOptions,
-) (BatchActionItem, bool) {
+) (BatchLifecycleActionItem, bool) {
 	if !isSupportedAction(action) {
-		return BatchActionItem{}, false
+		return BatchLifecycleActionItem{}, false
 	}
 	runtime, err := s.runtimeForRequest()
 	if err != nil {
-		return batchActionFailure(ref.Value, action, err), true
+		item := batchLifecycleActionFailure(ref.Value, action, err)
+		s.publishLifecycleTaskSubmissionAudit(ctx, ref, action, options, moduleapi.TaskReceipt{}, err)
+		return item, true
 	}
 	policy := s.effectiveActionPolicy(ctx)
 	detail, detailErr := runtime.Detail(ctx, ref)
@@ -28,9 +31,9 @@ func (s *service) batchActionPolicyFailure(
 	if policy.singleBlockedFor(orchestratorType) || policy.batchBlockedFor(orchestratorType) {
 		result := blockedActionAuditResult(ref, detail, action, orchestrator)
 		s.publishActionAudit(ctx, result, options, errDangerousActionsDisabled)
-		return batchActionItem(ref.Value, action, result, errDangerousActionsDisabled), true
+		return batchLifecycleActionFailure(ref.Value, action, errDangerousActionsDisabled), true
 	}
-	return BatchActionItem{}, false
+	return BatchLifecycleActionItem{}, false
 }
 
 // actionAuditOrchestrator 在详情获取失败时返回空的编排器信息，否则返回容器详情中的编排器信息。
@@ -145,63 +148,6 @@ func isSupportedAction(action string) bool {
 	default:
 		return false
 	}
-}
-
-func batchActionFailure(id string, action string, err error) BatchActionItem {
-	messageKey := messageKeyForError(err).String()
-	return BatchActionItem{
-		ID:         id,
-		Action:     action,
-		Success:    false,
-		ErrorCode:  messageKey,
-		MessageKey: messageKey,
-		Message:    fallbackMessageForError(err),
-		Result: ActionResult{
-			ID:      id,
-			Action:  action,
-			Runtime: runtimeNameDocker,
-		},
-	}
-}
-
-func batchActionItem(id string, action string, result ActionResult, err error) BatchActionItem {
-	if err != nil {
-		if result.ID == "" {
-			result.ID = id
-		}
-		if result.Action == "" {
-			result.Action = action
-		}
-		if result.Runtime == "" {
-			result.Runtime = runtimeNameDocker
-		}
-		item := batchActionFailure(firstNonEmpty(result.ID, id), result.Action, err)
-		item.Name = result.Name
-		item.Result = result
-		return item
-	}
-	return BatchActionItem{
-		ID:         firstNonEmpty(result.ID, id),
-		Name:       result.Name,
-		Action:     result.Action,
-		Success:    true,
-		MessageKey: result.MessageKey,
-		Message:    result.Message,
-		Result:     result,
-	}
-}
-
-func withBatchActionMessage(result BatchActionResult) BatchActionResult {
-	key := containercontract.ContainerBatchActionCompleted
-	switch {
-	case result.SuccessCount == 0:
-		key = containercontract.ContainerBatchActionFailed
-	case result.FailedCount > 0:
-		key = containercontract.ContainerBatchActionPartial
-	}
-	result.MessageKey = key.String()
-	result.Message = key.String()
-	return result
 }
 
 func requestIDFromContext(ctx context.Context) string {
