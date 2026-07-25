@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -43,16 +44,7 @@ func (s authService) ChangeCurrentUserPassword(ctx context.Context, currentPassw
 		return fmt.Errorf("hash new password: %w", err)
 	}
 	changedAt := s.nowUTC()
-	if s.passwordChanges == nil {
-		return errors.New("auth repository does not support atomic password change")
-	}
-	if err := s.passwordChanges.ChangePasswordAndRevokeOtherRefreshSessions(ctx, authstore.ChangePasswordAndRevokeOtherRefreshSessionsInput{
-		UserID:             actor.credential.UserID,
-		PasswordHash:       hash,
-		MustChangePassword: false,
-		ChangedAt:          changedAt,
-		CurrentTokenID:     actor.requestAuth.Claims.SessionID,
-	}); err != nil {
+	if err := s.updatePasswordAndRevokeSessions(ctx, actor.credential.UserID, hash, false, changedAt, actor.requestAuth.Claims.SessionID); err != nil {
 		return fmt.Errorf("change current user password: %w", err)
 	}
 
@@ -79,20 +71,33 @@ func (s authService) CompleteRequiredPasswordChange(ctx context.Context, newPass
 		return fmt.Errorf("hash new password: %w", err)
 	}
 	changedAt := s.nowUTC()
-	if s.passwordChanges == nil {
-		return errors.New("auth repository does not support atomic password change")
-	}
-	if err := s.passwordChanges.ChangePasswordAndRevokeOtherRefreshSessions(ctx, authstore.ChangePasswordAndRevokeOtherRefreshSessionsInput{
-		UserID:             actor.credential.UserID,
-		PasswordHash:       hash,
-		MustChangePassword: false,
-		ChangedAt:          changedAt,
-		CurrentTokenID:     actor.requestAuth.Claims.SessionID,
-	}); err != nil {
+	if err := s.updatePasswordAndRevokeSessions(ctx, actor.credential.UserID, hash, false, changedAt, actor.requestAuth.Claims.SessionID); err != nil {
 		return fmt.Errorf("complete required password change: %w", err)
 	}
 
 	return nil
+}
+
+// updatePasswordAndRevokeSessions 在 auth 服务拥有的单个事务范围内更新凭据并吊销会话。
+func (s authService) updatePasswordAndRevokeSessions(ctx context.Context, userID uint64, hash string, mustChange bool, changedAt time.Time, currentTokenID string) error {
+	if s.transactions == nil {
+		return errors.New("auth transaction runner is unavailable")
+	}
+	return s.transactions.RunInTransaction(ctx, func(txCtx context.Context, credentials authstore.CredentialStore, sessions authstore.SessionStore) error {
+		if err := credentials.SetPasswordHash(txCtx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChange, ChangedAt: &changedAt}); err != nil {
+			return fmt.Errorf("update password hash: %w", err)
+		}
+		if currentTokenID == "" {
+			if err := sessions.RevokeRefreshSessionsByUserID(txCtx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: changedAt}); err != nil {
+				return fmt.Errorf("revoke refresh sessions: %w", err)
+			}
+			return nil
+		}
+		if err := sessions.RevokeOtherRefreshSessionsByUserID(txCtx, authstore.RevokeOtherRefreshSessionsInput{UserID: userID, CurrentTokenID: currentTokenID, RevokedAt: changedAt}); err != nil {
+			return fmt.Errorf("revoke other refresh sessions: %w", err)
+		}
+		return nil
+	})
 }
 
 // requireRequestAuth 从 ctx 读取已认证请求上下文；上下文、用户或 claims 缺失时返回未认证错误。

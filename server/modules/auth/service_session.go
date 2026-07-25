@@ -262,12 +262,20 @@ func (s authService) rotateRefreshSession(
 	currentTokenID string,
 	now time.Time,
 ) (authstore.RefreshSession, error) {
-	nextSession, err := s.sessions.RotateRefreshSession(ctx, authstore.RotateRefreshSessionInput{
-		CurrentTokenID: currentTokenID,
-		NewTokenID:     uuid.NewString(),
-		Now:            now,
-		RevokedAt:      now,
-		NewExpiresAt:   now.Add(s.refreshTokens.ttl),
+	if s.transactions == nil {
+		return authstore.RefreshSession{}, errors.New("auth transaction runner is unavailable")
+	}
+	var nextSession authstore.RefreshSession
+	err := s.transactions.RunInTransaction(ctx, func(txCtx context.Context, _ authstore.CredentialStore, sessions authstore.SessionStore) error {
+		var rotateErr error
+		nextSession, rotateErr = sessions.RotateRefreshSession(txCtx, authstore.RotateRefreshSessionInput{
+			CurrentTokenID: currentTokenID,
+			NewTokenID:     uuid.NewString(),
+			Now:            now,
+			RevokedAt:      now,
+			NewExpiresAt:   now.Add(s.refreshTokens.ttl),
+		})
+		return rotateErr
 	})
 	if err != nil {
 		return authstore.RefreshSession{}, mapRefreshSessionRepositoryError(err)

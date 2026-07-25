@@ -32,23 +32,6 @@ type SetPasswordHashInput struct {
 	ChangedAt          *time.Time
 }
 
-// ResetPasswordAndRevokeSessionsInput 描述管理员重置密码的原子操作输入，要求同时吊销用户现有 refresh session。
-type ResetPasswordAndRevokeSessionsInput struct {
-	UserID             uint64
-	PasswordHash       string
-	MustChangePassword bool
-	ChangedAt          time.Time
-}
-
-// ChangePasswordAndRevokeOtherRefreshSessionsInput 描述自助改密的原子操作输入；CurrentTokenID 对应 session 会被保留。
-type ChangePasswordAndRevokeOtherRefreshSessionsInput struct {
-	UserID             uint64
-	PasswordHash       string
-	MustChangePassword bool
-	ChangedAt          time.Time
-	CurrentTokenID     string
-}
-
 // EnsureUserCredentialInput 描述首次创建 credential 的输入；user profile 必须已由 identity owner 创建。
 type EnsureUserCredentialInput struct {
 	Username           string
@@ -118,16 +101,16 @@ type RotateRefreshSessionInput struct {
 	NewExpiresAt   time.Time
 }
 
-// PasswordChangeRepository 暴露自助改密所需的原子写入契约，避免密码已更新而旧 session 仍可用。
-type PasswordChangeRepository interface {
-	ChangePasswordAndRevokeOtherRefreshSessions(
-		ctx context.Context,
-		input ChangePasswordAndRevokeOtherRefreshSessionsInput,
-	) error
+// TransactionRunner 是 auth 模块的本地事务边界。服务定义 callback 内的业务写入范围；
+// 实现负责一次 Begin、失败回滚和成功提交，并只向 callback 提供绑定同一事务的 store。
+// callback 不得自行提交、回滚或将这些 store 保留到 callback 返回之后。
+type TransactionRunner interface {
+	RunInTransaction(ctx context.Context, callback func(context.Context, CredentialStore, SessionStore) error) error
 }
 
 // AuthRepository 暴露开发重置等完整 auth 持久化操作；运行时优先依赖更窄的 CredentialStore 或 SessionStore。
 type AuthRepository interface {
+	TransactionRunner
 	GetUserCredentialByUsername(ctx context.Context, username string) (UserCredential, error)
 	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error
 	EnsureUserCredential(ctx context.Context, input EnsureUserCredentialInput) (UserCredential, error)
@@ -139,7 +122,6 @@ type AuthRepository interface {
 	RevokeRefreshSessionByUserID(ctx context.Context, input RevokeRefreshSessionByUserIDInput) error
 	ListActiveRefreshSessionsByUserID(ctx context.Context, input ListActiveRefreshSessionsByUserIDInput) ([]RefreshSession, error)
 	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)
-	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
 }
 
 // CredentialStore 负责 auth credential 持久化；它与 user profile identity 分离，使 auth runtime 不依赖 user 的存储实现。
@@ -147,7 +129,6 @@ type CredentialStore interface {
 	GetUserCredentialByUsername(ctx context.Context, username string) (UserCredential, error)
 	SetPasswordHash(ctx context.Context, input SetPasswordHashInput) error
 	EnsureUserCredential(ctx context.Context, input EnsureUserCredentialInput) (UserCredential, error)
-	ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input ResetPasswordAndRevokeSessionsInput) error
 }
 
 // SessionStore 负责 refresh session 的创建、轮换、查询和吊销，令 token 生命周期与 JWT 本身分离。

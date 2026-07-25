@@ -91,20 +91,6 @@ func (r *credentialStore) EnsureUserCredential(ctx context.Context, input store.
 	return credential, nil
 }
 
-func (r *credentialStore) ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input store.ResetPasswordAndRevokeSessionsInput) error {
-	if _, err := r.identity.GetCurrentUserByID(ctx, input.UserID); err != nil {
-		return err
-	}
-	return r.updatePasswordAndRevokeSessions(ctx, input.UserID, input.PasswordHash, input.MustChangePassword, input.ChangedAt, "")
-}
-
-func (r *credentialStore) ChangePasswordAndRevokeOtherRefreshSessions(ctx context.Context, input store.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
-	if _, err := r.identity.GetCurrentUserByID(ctx, input.UserID); err != nil {
-		return err
-	}
-	return r.updatePasswordAndRevokeSessions(ctx, input.UserID, input.PasswordHash, input.MustChangePassword, input.ChangedAt, input.CurrentTokenID)
-}
-
 func (r *credentialStore) queryByUserID(ctx context.Context, userID uint64) (store.UserCredential, error) {
 	record, err := r.client.AuthCredential.Query().Where(authcredentialent.UserIDEQ(userID)).Only(ctx)
 	if err != nil {
@@ -117,7 +103,7 @@ func (r *credentialStore) queryByUserID(ctx context.Context, userID uint64) (sto
 }
 
 func (r *credentialStore) upsertPasswordHash(ctx context.Context, userID uint64, hash string, mustChange bool, changedAt *time.Time) error {
-	// 事务写入集中在 auth_repository_helpers.go，避免凭据更新路径分散事务边界。
+	// 凭据写入集中在 helper，事务边界由 auth service 注入的 TransactionRunner 统一拥有。
 	return r.savePasswordHash(ctx, userID, hash, mustChange, changedAt)
 }
 
@@ -132,5 +118,5 @@ func toStoreUserCredential(record *authent.AuthCredential) store.UserCredential 
 }
 
 var _ store.AuthRepository = (*authRepository)(nil)
-var _ store.PasswordChangeRepository = (*credentialStore)(nil)
 var _ store.CredentialStore = (*credentialStore)(nil)
+var _ store.TransactionRunner = (*credentialStore)(nil)

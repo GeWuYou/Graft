@@ -109,13 +109,7 @@ func (r *sessionStore) ListActiveRefreshSessionsByUserID(ctx context.Context, in
 }
 
 func (r *sessionStore) RotateRefreshSession(ctx context.Context, input store.RotateRefreshSessionInput) (store.RefreshSession, error) {
-	tx, err := r.client.Tx(ctx)
-	if err != nil {
-		return store.RefreshSession{}, fmt.Errorf("begin auth refresh-session rotation: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	current, err := tx.AuthRefreshSession.Query().Where(authrefreshsessionent.TokenIDEQ(input.CurrentTokenID)).Only(ctx)
+	current, err := r.client.AuthRefreshSession.Query().Where(authrefreshsessionent.TokenIDEQ(input.CurrentTokenID)).Only(ctx)
 	if err != nil {
 		if authent.IsNotFound(err) {
 			return store.RefreshSession{}, store.ErrRefreshSessionNotFound
@@ -125,7 +119,7 @@ func (r *sessionStore) RotateRefreshSession(ctx context.Context, input store.Rot
 	if current.RevokedAt != nil || !current.ExpiresAt.After(input.Now) {
 		return store.RefreshSession{}, store.ErrRefreshSessionNotFound
 	}
-	affected, err := tx.AuthRefreshSession.Update().Where(
+	affected, err := r.client.AuthRefreshSession.Update().Where(
 		authrefreshsessionent.IDEQ(current.ID),
 		authrefreshsessionent.RevokedAtIsNil(),
 		authrefreshsessionent.ExpiresAtGT(input.Now),
@@ -136,12 +130,9 @@ func (r *sessionStore) RotateRefreshSession(ctx context.Context, input store.Rot
 	if affected == 0 {
 		return store.RefreshSession{}, store.ErrRefreshSessionNotFound
 	}
-	next, err := tx.AuthRefreshSession.Create().SetUserID(current.UserID).SetTokenID(input.NewTokenID).SetExpiresAt(input.NewExpiresAt).Save(ctx)
+	next, err := r.client.AuthRefreshSession.Create().SetUserID(current.UserID).SetTokenID(input.NewTokenID).SetExpiresAt(input.NewExpiresAt).Save(ctx)
 	if err != nil {
 		return store.RefreshSession{}, fmt.Errorf("create rotated auth refresh session: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return store.RefreshSession{}, fmt.Errorf("commit auth refresh-session rotation: %w", err)
 	}
 	return toStoreRefreshSession(next), nil
 }

@@ -38,3 +38,6 @@
 * `storeent/`：auth-owned Ent-backed persistence
 * `contract/`：`/auth/*` 契约 owner 占位
 * `migrations/`：auth-owned credential 和 refresh session schema 与数据前向迁移
+
+多写认证用例由 auth service 通过模块本地 `TransactionRunner` 定义事务范围；
+`storeent` 只在 runner 中创建、回滚和提交 Ent transaction，普通 credential/session store 方法不自行开启事务。

@@ -45,13 +45,15 @@ func resetDefaultAdminPasswordAndSessions(ctx context.Context, repository authst
 		return fmt.Errorf("hash default admin password: %w", err)
 	}
 	now := time.Now().UTC()
-	if err := repository.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: &now}); err != nil {
-		return fmt.Errorf("reset default admin password hash: %w", err)
-	}
-	if err := repository.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: now}); err != nil {
-		return fmt.Errorf("revoke default admin refresh sessions: %w", err)
-	}
-	return nil
+	return repository.RunInTransaction(ctx, func(txCtx context.Context, credentials authstore.CredentialStore, sessions authstore.SessionStore) error {
+		if err := credentials.SetPasswordHash(txCtx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: &now}); err != nil {
+			return fmt.Errorf("reset default admin password hash: %w", err)
+		}
+		if err := sessions.RevokeRefreshSessionsByUserID(txCtx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: userID, RevokedAt: now}); err != nil {
+			return fmt.Errorf("revoke default admin refresh sessions: %w", err)
+		}
+		return nil
+	})
 }
 
 // isDevelopmentResetEnv 判断当前环境是否允许执行开发用管理员重置。

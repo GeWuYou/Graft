@@ -40,13 +40,13 @@ closeout:
 
 ## Current Recovery Point
 
-- Current state: bootstrap complete; no implementation batch started.
-- Risk: auth credential persistence performs independent user identity reads and cannot participate in an uncommitted user transaction without a tx-bound adapter.
-- Next step: Batch 1, auth-native transaction ownership.
+- Current state: Batch 1 complete and validated; auth service now owns its multi-write use-case boundary through a module-local transaction runner.
+- Risk: user lifecycle writes still commit independently and auth credential persistence still performs independent user identity reads; no user/auth composite transaction exists yet.
+- Next step: Batch 2, user ownership and session revocation convergence.
 
 ## Task Checklist
 
-- [ ] Batch 1: move auth multi-write transaction lifecycle out of repositories and prove local rollback.
+- [x] Batch 1: move auth multi-write transaction lifecycle out of repositories and prove local rollback.
 - [ ] Batch 2: establish user ownership rules and remove partial multi-session revocation behavior.
 - [ ] Batch 3: add the minimum transaction-scoped cross-module capability contract.
 - [ ] Batch 4: bind auth to the user-owned composite transaction and remove compensation.
@@ -65,16 +65,24 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
+  "completed_batches": [
+    "auth-native-transaction-ownership"
+  ],
   "pending_batches": [
-    "auth-native-transaction-ownership",
     "user-ownership-and-session-revocation",
     "user-auth-transaction-contract",
     "user-auth-transaction-adapter",
     "transaction-consistency-proof"
   ],
-  "current_batch": "auth-native-transaction-ownership",
+  "current_batch": "user-ownership-and-session-revocation",
   "next_batch": "user-ownership-and-session-revocation",
-  "closeout_status": "not-started"
+  "closeout_status": "batch-1-completed"
 }
 ```
+
+## Batch 1 Evidence
+
+- Auth service now defines password/session reset, password change, development reset, and refresh rotation transaction scope through `store.TransactionRunner`.
+- `storeent` creates one Ent transaction, defers rollback until successful commit, and passes transaction-scoped credential/session stores to the callback.
+- Repository methods no longer create, commit, or roll back transactions.
+- Validation passed: `go test ./modules/auth/...`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, and `git diff --check`.

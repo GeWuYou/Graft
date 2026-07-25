@@ -64,7 +64,7 @@ func (s authService) ResetPassword(ctx context.Context, userID uint64, password 
 	if err != nil {
 		return fmt.Errorf("hash reset password: %w", err)
 	}
-	return s.credentials.ResetPasswordAndRevokeRefreshSessions(ctx, authstore.ResetPasswordAndRevokeSessionsInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: s.nowUTC()})
+	return s.updatePasswordAndRevokeSessions(ctx, userID, hash, true, s.nowUTC(), "")
 }
 
 // RevokeSessions 在 user profile 生命周期结束或身份状态变化时吊销全部 refresh session。

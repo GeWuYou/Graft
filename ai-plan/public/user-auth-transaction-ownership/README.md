@@ -10,8 +10,8 @@
   - `AGENTS.md`
   - `server/AGENTS.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
-- Completed so far: transaction audit and implementation design.
-- Not started yet: module-local transaction boundaries.
+- Completed so far: transaction audit, implementation design, and auth-native transaction boundary.
+- Current focus: user-owned profile lifecycle and session revocation convergence.
 
 ## Recovery Receipt
 
@@ -47,9 +47,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 1 is ready for dispatch.
-- Adapter implementation is blocked until module-local boundaries and the shared contract are accepted.
-- Next step: establish auth-native transaction ownership.
+- Batch 1 established auth-native transaction ownership and rollback proof.
+- Adapter implementation remains blocked until user module boundaries and the shared contract are accepted.
+- Next step: establish user ownership and session revocation convergence.
 
 ## Work Intake
 

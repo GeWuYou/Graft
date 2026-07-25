@@ -241,18 +241,8 @@ func (s *runtimeAuthStores) EnsureUserCredential(_ context.Context, input authst
 	return credential, nil
 }
 
-func (s *runtimeAuthStores) ResetPasswordAndRevokeRefreshSessions(ctx context.Context, input authstore.ResetPasswordAndRevokeSessionsInput) error {
-	if err := s.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: input.UserID, PasswordHash: input.PasswordHash, MustChangePassword: input.MustChangePassword, ChangedAt: &input.ChangedAt}); err != nil {
-		return err
-	}
-	return s.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{UserID: input.UserID, RevokedAt: input.ChangedAt})
-}
-
-func (s *runtimeAuthStores) ChangePasswordAndRevokeOtherRefreshSessions(ctx context.Context, input authstore.ChangePasswordAndRevokeOtherRefreshSessionsInput) error {
-	if err := s.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: input.UserID, PasswordHash: input.PasswordHash, MustChangePassword: input.MustChangePassword, ChangedAt: &input.ChangedAt}); err != nil {
-		return err
-	}
-	return s.RevokeOtherRefreshSessionsByUserID(ctx, authstore.RevokeOtherRefreshSessionsInput{UserID: input.UserID, CurrentTokenID: input.CurrentTokenID, RevokedAt: input.ChangedAt})
+func (s *runtimeAuthStores) RunInTransaction(ctx context.Context, callback func(context.Context, authstore.CredentialStore, authstore.SessionStore) error) error {
+	return callback(ctx, s, s)
 }
 
 func (s *runtimeAuthStores) CreateRefreshSession(_ context.Context, input authstore.CreateRefreshSessionInput) (authstore.RefreshSession, error) {
@@ -336,4 +326,4 @@ func (s *runtimeAuthStores) RotateRefreshSession(ctx context.Context, input auth
 
 var _ authstore.CredentialStore = (*runtimeAuthStores)(nil)
 var _ authstore.SessionStore = (*runtimeAuthStores)(nil)
-var _ authstore.PasswordChangeRepository = (*runtimeAuthStores)(nil)
+var _ authstore.TransactionRunner = (*runtimeAuthStores)(nil)
