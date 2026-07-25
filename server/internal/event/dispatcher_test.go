@@ -82,7 +82,9 @@ func (s *memoryOutboxStore) Complete(_ context.Context, delivery ClaimedDelivery
 	item.delivery.claimOwner = ""
 	item.leaseExpires = time.Time{}
 	s.mu.Unlock()
-	s.completed <- delivery
+	if s.completed != nil {
+		s.completed <- delivery
+	}
 	return nil
 }
 
