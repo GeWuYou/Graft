@@ -126,7 +126,7 @@ func (r *repository) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDel
 	}
 
 	now := time.Now().UTC()
-	result, execErr := r.db.ExecContext(
+	result, execErr := r.executor(ctx).ExecContext(
 		ctx,
 		`UPDATE roles
 		SET deleted_at = COALESCE(NULLIF(deleted_at, 0), $2),
@@ -195,7 +195,7 @@ func (r *repository) ListRoles(ctx context.Context, filter rbacstore.RoleFilter)
 	}
 	return queryAndScanRows(
 		ctx,
-		r.db,
+		r.executor(ctx),
 		"list roles",
 		fmt.Sprintf(`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
@@ -218,7 +218,7 @@ func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int6
 	}
 
 	updatedAt := time.Now().UTC()
-	record, err := scanRole(r.db.QueryRowContext(
+	record, err := scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`UPDATE roles
 		SET disabled_at = 0, updated_at = $2, updated_by = 0
@@ -249,7 +249,7 @@ func (r *repository) disableRole(ctx context.Context, inputID uint64, roleID int
 
 	disabledAt := time.Now().UTC().Unix()
 	updatedAt := time.Now().UTC()
-	record, err = scanRole(r.db.QueryRowContext(
+	record, err = scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`UPDATE roles
 		SET disabled_at = CASE WHEN disabled_at = 0 THEN $2 ELSE disabled_at END,
@@ -301,7 +301,7 @@ func (r *repository) ensureSoftDeletableRole(ctx context.Context, inputID uint64
 }
 
 func (r *repository) updateRoleRecord(ctx context.Context, roleID int64, record rbacstore.Role) (rbacstore.Role, error) {
-	return scanRole(r.db.QueryRowContext(
+	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`UPDATE roles
 		SET name = $2, display = $3, description = $4, updated_at = $5, updated_by = 0

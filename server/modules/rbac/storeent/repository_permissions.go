@@ -99,6 +99,15 @@ func (r *repository) addPermissionsToRole(
 		return err
 	}
 
+	if tx, ok := transactionFromContext(ctx); ok {
+		for _, permissionID := range dbPermissionIDs {
+			if err := insertRolePermission(ctx, boundRoleID, permissionID, execQuerier{tx: tx}); err != nil {
+				return fmt.Errorf("%s permission %d to role %d: %w", action, permissionID, roleID, err)
+			}
+		}
+		return nil
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("start %s role permissions tx for role %d: %w", action, roleID, err)
@@ -136,7 +145,7 @@ func (r *repository) RemovePermissionsFromRole(ctx context.Context, input rbacst
 	}
 
 	query, args := buildDeleteBindingsQuery("DELETE FROM role_permissions WHERE role_id = ?", roleID, "permission_id", permissionIDs)
-	_, execErr := r.db.ExecContext(ctx, query, args...)
+	_, execErr := r.executor(ctx).ExecContext(ctx, query, args...)
 	if execErr != nil {
 		return fmt.Errorf("remove permissions from role %d: %w", input.RoleID, execErr)
 	}

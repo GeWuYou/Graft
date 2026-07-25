@@ -183,7 +183,9 @@ func scanPermissionRows(rows *sql.Rows) ([]rbacstore.Permission, error) {
 
 func queryAndScanRows[T any](
 	ctx context.Context,
-	db *sql.DB,
+	db interface {
+		QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	},
 	contextLabel string,
 	query string,
 	scan func(*sql.Rows) ([]T, error),
@@ -279,7 +281,7 @@ func countEnabledRolesByIDs(ctx context.Context, tx *sql.Tx, ids []int64) (int, 
 }
 
 func (r *repository) ensurePermissionsExist(ctx context.Context, permissionIDs []int64) error {
-	count, err := countExistingRecords(ctx, r.db, "permissions", permissionIDs)
+	count, err := countExistingRecords(ctx, r.executor(ctx), "permissions", permissionIDs)
 	if err != nil {
 		return fmt.Errorf("count permissions: %w", err)
 	}
@@ -290,7 +292,7 @@ func (r *repository) ensurePermissionsExist(ctx context.Context, permissionIDs [
 }
 
 func (r *repository) ensureAssignableRoles(ctx context.Context, roleIDs []int64) error {
-	rows, err := queryRoleAssignmentStates(ctx, r.db, roleIDs)
+	rows, err := queryRoleAssignmentStates(ctx, r.executor(ctx), roleIDs)
 	if err != nil {
 		return err
 	}
@@ -326,7 +328,9 @@ type roleAssignmentState struct {
 	deletedAt  int64
 }
 
-func queryRoleAssignmentStates(ctx context.Context, db *sql.DB, roleIDs []int64) ([]roleAssignmentState, error) {
+func queryRoleAssignmentStates(ctx context.Context, db interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, roleIDs []int64) ([]roleAssignmentState, error) {
 	if len(roleIDs) == 0 {
 		return []roleAssignmentState{}, nil
 	}
@@ -373,7 +377,9 @@ func scanRoleAssignmentStates(rows *sql.Rows) ([]roleAssignmentState, error) {
 	return result, nil
 }
 
-func countExistingRecords(ctx context.Context, db *sql.DB, table string, ids []int64) (int, error) {
+func countExistingRecords(ctx context.Context, db interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}, table string, ids []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}

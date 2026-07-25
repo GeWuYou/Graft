@@ -22,7 +22,7 @@ func (r *repository) AssignRoleToUser(ctx context.Context, input rbacstore.Assig
 		return err
 	}
 
-	if err := insertUserRole(ctx, userID, roleID, execQuerier{db: r.db}); err != nil {
+	if err := insertUserRole(ctx, userID, roleID, r.execQuerier(ctx)); err != nil {
 		if isUniqueViolation(err) {
 			return nil
 		}
@@ -98,7 +98,7 @@ func (r *repository) AddRolesToUser(ctx context.Context, input rbacstore.AddRole
 		return err
 	}
 	for _, roleID := range roleIDs {
-		if err := insertUserRole(ctx, userID, roleID, execQuerier{db: r.db}); err != nil {
+		if err := insertUserRole(ctx, userID, roleID, r.execQuerier(ctx)); err != nil {
 			if isUniqueViolation(err) {
 				continue
 			}
@@ -150,7 +150,7 @@ func (r *repository) RemoveRolesFromUser(ctx context.Context, input rbacstore.Re
 	}
 
 	query, args := buildDeleteBindingsQuery("DELETE FROM user_roles WHERE user_id = ?", userID, "role_id", roleIDs)
-	_, execErr := r.db.ExecContext(ctx, query, args...)
+	_, execErr := r.executor(ctx).ExecContext(ctx, query, args...)
 	if execErr != nil {
 		return fmt.Errorf("remove roles from user %d: %w", input.UserID, execErr)
 	}

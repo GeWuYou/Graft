@@ -2,9 +2,18 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 )
+
+// TransactionRunner 为需要把 RBAC 业务事实与 durable event 一起提交的调用方提供受限事务边界。
+//
+// callback 收到的 context 已绑定当前事务；Repository 的写入方法必须复用它，调用方则只可将 tx
+// 传给 event.TransactionalPublisher，不能自行提交或回滚。
+type TransactionRunner interface {
+	RunInTransaction(ctx context.Context, callback func(context.Context, *sql.Tx) error) error
+}
 
 var (
 	// ErrRoleNotFound 表示请求的角色不存在。

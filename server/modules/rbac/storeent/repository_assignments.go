@@ -42,6 +42,10 @@ func (r *repository) replaceStableAssignments(
 		return err
 	}
 
+	if tx, ok := transactionFromContext(ctx); ok {
+		return replaceStableAssignmentsTx(ctx, tx, targetID, relationIDs, config)
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("%s: %w", config.startContext, err)

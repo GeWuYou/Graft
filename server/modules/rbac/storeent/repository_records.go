@@ -10,7 +10,7 @@ import (
 )
 
 func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Role, error) {
-	return scanRole(r.db.QueryRowContext(
+	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
@@ -22,7 +22,7 @@ func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Rol
 }
 
 func (r *repository) queryRoleByIDIncludingDisabled(ctx context.Context, id int64) (rbacstore.Role, error) {
-	return scanRole(r.db.QueryRowContext(
+	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
@@ -34,7 +34,7 @@ func (r *repository) queryRoleByIDIncludingDisabled(ctx context.Context, id int6
 }
 
 func (r *repository) findRoleByName(ctx context.Context, name string) (rbacstore.Role, error) {
-	return scanRole(r.db.QueryRowContext(
+	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
@@ -47,7 +47,7 @@ func (r *repository) findRoleByName(ctx context.Context, name string) (rbacstore
 
 func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.EnsureRoleInput) (rbacstore.Role, error) {
 	now := time.Now().UTC()
-	return scanRole(r.db.QueryRowContext(
+	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`INSERT INTO roles (name, display, description, builtin, created_at, created_by, updated_at, updated_by, disabled_at, deleted_at, deleted_by)
 		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0, 0)
@@ -69,7 +69,7 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 		return rbacstore.Role{}, err
 	}
 
-	record, err := scanRole(r.db.QueryRowContext(
+	record, err := scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`UPDATE roles
 		SET builtin = $2, updated_at = $3, updated_by = 0
@@ -88,7 +88,7 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 }
 
 func (r *repository) findPermissionByCode(ctx context.Context, code string) (rbacstore.Permission, error) {
-	return scanPermission(r.db.QueryRowContext(
+	return scanPermission(r.executor(ctx).QueryRowContext(
 		ctx,
 		`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at, 0 AS role_binding_count
 		FROM permissions
@@ -98,7 +98,7 @@ func (r *repository) findPermissionByCode(ctx context.Context, code string) (rba
 }
 
 func (r *repository) queryPermissionByID(ctx context.Context, id int64) (rbacstore.Permission, error) {
-	return scanPermission(r.db.QueryRowContext(
+	return scanPermission(r.executor(ctx).QueryRowContext(
 		ctx,
 		`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
@@ -110,7 +110,7 @@ func (r *repository) queryPermissionByID(ctx context.Context, id int64) (rbacsto
 
 func (r *repository) createPermissionRecord(ctx context.Context, input rbacstore.EnsurePermissionInput) (rbacstore.Permission, error) {
 	now := time.Now().UTC()
-	return scanPermission(r.db.QueryRowContext(
+	return scanPermission(r.executor(ctx).QueryRowContext(
 		ctx,
 		`INSERT INTO permissions (code, display, display_key, description, description_key, module, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, 0, 0, 0)
@@ -192,7 +192,7 @@ func (r *repository) updatePermissionMetadata(
 	metadata permissionMetadata,
 ) error {
 	now := time.Now().UTC()
-	result, err := r.db.ExecContext(
+	result, err := r.executor(ctx).ExecContext(
 		ctx,
 		`UPDATE permissions
 		SET display = $1, display_key = $2, description = $3, description_key = $4, module = $5, updated_at = $6, updated_by = 0
