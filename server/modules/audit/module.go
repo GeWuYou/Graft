@@ -14,6 +14,7 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/drilldown"
 	"graft/server/internal/event"
+	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
@@ -100,7 +101,12 @@ func (p *Module) Register(ctx *module.Context) error {
 		return errors.New("event registry is unavailable")
 	}
 
-	return registerAuditRecordHandler(ctx.EventRegistry, logger, p.recorder, func() moduleapi.NotificationPublisher {
+	if err := registerAuditRecordHandler(ctx.EventRegistry, logger, p.recorder, func() moduleapi.NotificationPublisher {
+		return p.notifier
+	}); err != nil {
+		return err
+	}
+	return registerLegacyAuditRecordHandler(ctx.EventBus, logger, p.recorder, func() moduleapi.NotificationPublisher {
 		return p.notifier
 	})
 }
@@ -149,6 +155,39 @@ func registerAuditRecordHandler(
 	return registry.Register(auditRecordHandler{logger: logger, recorder: recorder, notifier: notifier})
 }
 
+// COMPAT(owner=legacy audit event publishers, cleanup=all publishers use EventTxPublisher in their business transaction)
+// registerLegacyAuditRecordHandler 保留旧进程内主动审计发布契约。
+// 新发布方应在自己的业务事务中使用 EventTxPublisher；这里不能在提交后补写 durable event。
+func registerLegacyAuditRecordHandler(
+	bus eventbus.Bus,
+	logger *zap.Logger,
+	recorder *Service,
+	notifier func() moduleapi.NotificationPublisher,
+) error {
+	if bus == nil {
+		return errors.New("event bus is unavailable")
+	}
+	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(ctx context.Context, legacy eventbus.Event) error {
+		payload, ok := legacyAuditEventPayload(legacy.Payload)
+		if !ok {
+			return fmt.Errorf("legacy audit event payload has type %T", legacy.Payload)
+		}
+		return recordEvent(ctx, logger, recorder, notifier, "", payload)
+	})
+}
+
+func legacyAuditEventPayload(raw any) (moduleapi.AuditEvent, bool) {
+	switch payload := raw.(type) {
+	case moduleapi.AuditEvent:
+		return payload, true
+	case *moduleapi.AuditEvent:
+		if payload != nil {
+			return *payload, true
+		}
+	}
+	return moduleapi.AuditEvent{}, false
+}
+
 type auditRecordHandler struct {
 	logger   *zap.Logger
 	recorder *Service
@@ -182,7 +221,7 @@ func consumeAuditRecordEvent(
 		return nil
 	}
 
-	if err := recordEvent(eventCtx, logger, recorder, notifier, payload); err != nil {
+	if err := recordEvent(eventCtx, logger, recorder, notifier, event.ID, payload); err != nil {
 		logger.Error("write active audit log failed",
 			zap.String("module", moduleID),
 			zap.String("event", string(moduleapi.AuditRecordEventName)),
@@ -291,9 +330,10 @@ func recordEvent(
 	logger *zap.Logger,
 	recorder *Service,
 	notifier func() moduleapi.NotificationPublisher,
+	idempotencyKey string,
 	payload moduleapi.AuditEvent,
 ) error {
-	candidate := eventAuditCandidate(ctx, payload)
+	candidate := eventAuditCandidate(ctx, idempotencyKey, payload)
 	record, recorded, err := recorder.RecordCandidate(ctx, candidate)
 	if err != nil {
 		return err
@@ -355,28 +395,29 @@ func requestAuditCandidate(ctx *gin.Context) auditstore.AuditCandidate {
 	return candidate
 }
 
-func eventAuditCandidate(ctx context.Context, payload moduleapi.AuditEvent) auditstore.AuditCandidate {
+func eventAuditCandidate(ctx context.Context, idempotencyKey string, payload moduleapi.AuditEvent) auditstore.AuditCandidate {
 	requestAudit := resolveRequestAuditContext(ctx)
 	operator := resolveEventOperator(ctx, payload)
 
 	candidate := auditstore.AuditCandidate{
-		Source:        auditSourceFromEvent(payload),
-		Action:        strings.TrimSpace(payload.Action),
-		EventType:     strings.TrimSpace(payload.Action),
-		ResourceType:  strings.TrimSpace(payload.ResourceType),
-		ResourceID:    strings.TrimSpace(payload.ResourceID),
-		ResourceName:  strings.TrimSpace(payload.ResourceName),
-		RequestMethod: firstNonEmptyTrimmed(payload.RequestMethod, requestAudit.Method),
-		RequestPath:   firstNonEmptyTrimmed(payload.RequestPath, requestAudit.Route),
-		StatusCode:    payload.StatusCode,
-		RequestID:     firstNonEmptyTrimmed(payload.RequestID, requestAudit.RequestID),
-		TraceID:       firstNonEmptyTrimmed(payload.RequestID, requestAudit.TraceID, requestAudit.RequestID),
-		IP:            firstNonEmptyTrimmed(payload.IP, requestAudit.ClientIP),
-		UserAgent:     firstNonEmptyTrimmed(payload.UserAgent, requestAudit.UserAgent),
-		Success:       payload.Success,
-		Message:       strings.TrimSpace(payload.Message),
-		Metadata:      mustMarshalAuditEventMetadata(eventMetadata(payload)),
-		CreatedAt:     payload.CreatedAt,
+		IdempotencyKey: strings.TrimSpace(idempotencyKey),
+		Source:         auditSourceFromEvent(payload),
+		Action:         strings.TrimSpace(payload.Action),
+		EventType:      strings.TrimSpace(payload.Action),
+		ResourceType:   strings.TrimSpace(payload.ResourceType),
+		ResourceID:     strings.TrimSpace(payload.ResourceID),
+		ResourceName:   strings.TrimSpace(payload.ResourceName),
+		RequestMethod:  firstNonEmptyTrimmed(payload.RequestMethod, requestAudit.Method),
+		RequestPath:    firstNonEmptyTrimmed(payload.RequestPath, requestAudit.Route),
+		StatusCode:     payload.StatusCode,
+		RequestID:      firstNonEmptyTrimmed(payload.RequestID, requestAudit.RequestID),
+		TraceID:        firstNonEmptyTrimmed(payload.RequestID, requestAudit.TraceID, requestAudit.RequestID),
+		IP:             firstNonEmptyTrimmed(payload.IP, requestAudit.ClientIP),
+		UserAgent:      firstNonEmptyTrimmed(payload.UserAgent, requestAudit.UserAgent),
+		Success:        payload.Success,
+		Message:        strings.TrimSpace(payload.Message),
+		Metadata:       mustMarshalAuditEventMetadata(eventMetadata(payload)),
+		CreatedAt:      payload.CreatedAt,
 	}
 	if operator != nil {
 		candidate.ActorUserID = &operator.ID

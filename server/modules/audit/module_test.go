@@ -434,7 +434,7 @@ func newModuleTestContextWithAuthorizer(
 		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
-		EventRegistry:      testEventRegistry{bus: bus},
+		EventRegistry:      testEventRegistry{},
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -466,28 +466,9 @@ func newModuleTestContextWithAuthorizer(
 	return ctx, engine, bus
 }
 
-type testEventRegistry struct{ bus eventbus.Bus }
+type testEventRegistry struct{}
 
-func (r testEventRegistry) Register(handler event.Handler) error {
-	for _, eventType := range handler.Types() {
-		typeForHandler := eventType
-		if err := r.bus.Subscribe(string(eventType), func(ctx context.Context, legacy eventbus.Event) error {
-			payload, err := json.Marshal(legacy.Payload)
-			if err != nil {
-				return err
-			}
-			id, err := event.NewID()
-			if err != nil {
-				return err
-			}
-			return handler.Handle(ctx, event.Event{
-				ID: id, Type: typeForHandler, Version: 1, Source: legacy.Source,
-				Payload: payload, OccurredAt: legacy.OccurredAt, CreatedAt: legacy.OccurredAt,
-			})
-		}); err != nil {
-			return err
-		}
-	}
+func (testEventRegistry) Register(event.Handler) error {
 	return nil
 }
 
@@ -525,7 +506,7 @@ func newModuleTestContextWithDrilldown(
 		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
-		EventRegistry:      testEventRegistry{bus: bus},
+		EventRegistry:      testEventRegistry{},
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),

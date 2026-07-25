@@ -4,6 +4,7 @@ package storeent
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -83,8 +84,18 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 	if r == nil || r.db == nil {
 		return auditstore.AuditLog{}, errors.New("audit repository is unavailable")
 	}
+	metadata, err := attachAuditIdempotencyKey(input.Metadata, input.IdempotencyKey)
+	if err != nil {
+		return auditstore.AuditLog{}, err
+	}
+	input.Metadata = metadata
+	if existing, found, err := r.readAuditLogByIdempotencyKey(ctx, input.IdempotencyKey); err != nil {
+		return auditstore.AuditLog{}, err
+	} else if found {
+		return existing, nil
+	}
 
-	metadata := cloneRawMessage(input.Metadata)
+	metadata = cloneRawMessage(input.Metadata)
 	record := auditstore.AuditLog{
 		ActorUserID:      input.ActorUserID,
 		ActorUsername:    input.ActorUsername,
@@ -150,6 +161,50 @@ func (r *repository) CreateAuditLog(ctx context.Context, input auditstore.Create
 	record.ID = toStoreID(id)
 
 	return record, nil
+}
+
+// attachAuditIdempotencyKey 将 durable delivery 标识写入审计元数据，使后续重试能查询到既有记录。
+func attachAuditIdempotencyKey(metadata json.RawMessage, key string) (json.RawMessage, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return cloneRawMessage(metadata), nil
+	}
+	values := map[string]any{}
+	if len(metadata) > 0 {
+		if err := json.Unmarshal(metadata, &values); err != nil {
+			return nil, fmt.Errorf("decode audit log metadata for idempotency: %w", err)
+		}
+	}
+	values["eventId"] = key
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return nil, fmt.Errorf("encode audit log metadata for idempotency: %w", err)
+	}
+	return encoded, nil
+}
+
+// readAuditLogByIdempotencyKey 返回同一 durable delivery 已写入的审计记录。
+// dispatcher 对同一 delivery 串行重试，因此查询后插入足以消除提交成功但调用方收到错误时的重复写入。
+func (r *repository) readAuditLogByIdempotencyKey(ctx context.Context, key string) (auditstore.AuditLog, bool, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return auditstore.AuditLog{}, false, nil
+	}
+
+	var id int64
+	err := r.db.QueryRowContext(ctx, `SELECT id FROM audit_logs WHERE metadata ->> 'eventId' = $1 LIMIT 1`, key).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return auditstore.AuditLog{}, false, nil
+	}
+	if err != nil {
+		return auditstore.AuditLog{}, false, fmt.Errorf("read audit log idempotency key: %w", err)
+	}
+	record, err := r.readAuditLogByID(ctx, toStoreID(id))
+	if err != nil {
+		return auditstore.AuditLog{}, false, fmt.Errorf("read existing audit log: %w", err)
+	}
+
+	return record, true, nil
 }
 
 // ListAuditLogs 返回稳定分页的审计记录及总数；默认查询只读取可见记录。

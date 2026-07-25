@@ -29,7 +29,6 @@ import (
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
-	"graft/server/internal/moduleapi"
 	"graft/server/internal/moduleregistry"
 	moduleruntimelocales "graft/server/internal/moduleruntime/locales"
 	"graft/server/internal/permission"
@@ -463,9 +462,6 @@ func (r *Runtime) prepareModules(
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
 		return nil, err
 	}
-	if err := r.registerLegacyAuditEventBridge(); err != nil {
-		return nil, r.cleanupAfterFailure(moduleCtx, booted, err)
-	}
 	if err := r.startEventDispatcher(); err != nil {
 		return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("start event dispatcher: %w", err))
 	}
@@ -473,25 +469,6 @@ func (r *Runtime) prepareModules(
 		return nil, err
 	}
 	return r.bootModules(moduleCtx, ordered, booted)
-}
-
-// registerLegacyAuditEventBridge 保留旧 eventbus 发布契约，并把审计记录转入 durable event dispatcher。
-func (r *Runtime) registerLegacyAuditEventBridge() error {
-	if r == nil || r.eventBus == nil || r.eventDispatcher == nil {
-		return nil
-	}
-	return r.eventBus.Subscribe(string(moduleapi.AuditRecordEventName), func(ctx context.Context, legacy eventbus.Event) error {
-		payload, ok := legacy.Payload.(moduleapi.AuditEvent)
-		if !ok {
-			return fmt.Errorf("legacy audit event payload has type %T", legacy.Payload)
-		}
-		envelope, err := httpx.NewAuditEvent(legacy.Source, payload)
-		if err != nil {
-			return err
-		}
-		_, err = r.eventDispatcher.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
-		return err
-	})
 }
 
 // startEventDispatcher 使用独立于模块生命周期的上下文启动 worker。

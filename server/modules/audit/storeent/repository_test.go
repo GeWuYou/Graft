@@ -192,6 +192,39 @@ func TestRepositoryCreateAndListAuditLogs(t *testing.T) {
 	}
 }
 
+func TestRepositoryCreateAuditLogReusesDurableEventRecord(t *testing.T) {
+	db := openTestDB(t)
+	repo, err := NewRepository(db, newTestLocalizer(), nil)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	input := auditstore.CreateAuditLogInput{
+		IdempotencyKey: "event-audit-retry-1",
+		Action:         "test.audit.write",
+		Success:        true,
+		Metadata:       json.RawMessage(`{"reason":"retry"}`),
+		CreatedAt:      time.Now().UTC(),
+	}
+	first, err := repo.CreateAuditLog(context.Background(), input)
+	if err != nil {
+		t.Fatalf("create first audit log: %v", err)
+	}
+	second, err := repo.CreateAuditLog(context.Background(), input)
+	if err != nil {
+		t.Fatalf("reuse durable audit log: %v", err)
+	}
+	if second.ID != first.ID {
+		t.Fatalf("expected retry to reuse id %d, got %d", first.ID, second.ID)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_logs`).Scan(&count); err != nil {
+		t.Fatalf("count audit logs: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one audit log after retry, got %d", count)
+	}
+}
+
 func TestRepositoryListAuditLogsDoesNotApplyImplicitTimePreset(t *testing.T) {
 	db := openTestDB(t)
 	repo, err := NewRepository(db, newTestLocalizer(), nil)
