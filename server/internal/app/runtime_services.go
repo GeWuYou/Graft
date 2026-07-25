@@ -407,9 +407,6 @@ func (r *Runtime) closeCoreResources() error {
 }
 
 func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeModule) error {
-	coreShutdownCtx, cancelCore := withModuleShutdownContext(ctx)
-	defer cancelCore()
-
 	var shutdownErr error
 	if r.mcpRuntime != nil {
 		if err := r.mcpRuntime.Close(); err != nil {
@@ -418,14 +415,18 @@ func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeMo
 		r.mcpRuntime = nil
 	}
 	if r.server != nil {
-		if err := r.server.Shutdown(coreShutdownCtx.LifecycleContext); err != nil {
+		httpShutdownCtx, cancelHTTP := withModuleShutdownContext(ctx)
+		if err := r.server.Shutdown(httpShutdownCtx.LifecycleContext); err != nil {
 			shutdownErr = errors.Join(shutdownErr, err)
 		}
+		cancelHTTP()
 	}
 	if r.eventDispatcher != nil {
-		if err := r.eventDispatcher.Shutdown(coreShutdownCtx.LifecycleContext); err != nil {
+		dispatcherShutdownCtx, cancelDispatcher := withModuleShutdownContext(ctx)
+		if err := r.eventDispatcher.Shutdown(dispatcherShutdownCtx.LifecycleContext); err != nil {
 			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown event dispatcher: %w", err))
 		}
+		cancelDispatcher()
 	}
 	moduleShutdownCtx, cancelModules := withModuleShutdownContext(ctx)
 	defer cancelModules()

@@ -425,9 +425,6 @@ func newOptionalAppLogRepository(
 // 返回：
 //   - error: 返回注册、启动、监听、关闭阶段的首个失败，并按需要聚合模块关闭或 core 资源回收错误。
 func (r *Runtime) Run(runCtx context.Context) error {
-	if r.eventDispatcher == nil {
-		r.eventDispatcher = event.NewDispatcher(r.logger, event.Options{})
-	}
 	moduleCtx := r.newModuleContext(runCtx)
 
 	ordered, err := r.moduleManager.Ordered()

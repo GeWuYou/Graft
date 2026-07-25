@@ -999,6 +999,7 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           runtimeEventBus,
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -1087,6 +1088,7 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -1142,6 +1144,15 @@ func TestWithModuleShutdownContextRefreshesModuleDeadline(t *testing.T) {
 	}
 }
 
+// TestStartEventDispatcherRejectsMissingDispatcher 验证 Runtime 缺少事件管线装配时会显式失败，
+// 避免把 durable 发布隐式降级为没有 Outbox 的 dispatcher。
+func TestStartEventDispatcherRejectsMissingDispatcher(t *testing.T) {
+	runtime := &Runtime{logger: zap.NewNop()}
+	if err := runtime.startEventDispatcher(); err == nil {
+		t.Fatal("expected missing event dispatcher to fail")
+	}
+}
+
 // TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled 验证启动上下文已经取消时，
 // Runtime 不会继续进入会访问数据库或外部资源的模块 Boot 阶段。
 func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
@@ -1164,6 +1175,7 @@ func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
 		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -1209,6 +1221,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -1280,6 +1293,7 @@ func TestRunPrereRegistersEmbeddedLocaleResourcesBeforeModuleRegister(t *testing
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
