@@ -71,6 +71,17 @@ func (s *memoryOutboxStore) Claim(_ context.Context, owner string, now time.Time
 	return claimed, nil
 }
 
+func (s *memoryOutboxStore) Renew(_ context.Context, delivery ClaimedDelivery, now time.Time, lease time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item, ok := s.deliveries[memoryDeliveryKey(delivery.Event.ID, delivery.ConsumerID)]
+	if !ok || !memoryDeliveryClaimMatches(item, delivery) {
+		return ErrClaimLost
+	}
+	item.leaseExpires = now.Add(lease)
+	return nil
+}
+
 func (s *memoryOutboxStore) Complete(_ context.Context, delivery ClaimedDelivery) error {
 	s.mu.Lock()
 	item, ok := s.deliveries[memoryDeliveryKey(delivery.Event.ID, delivery.ConsumerID)]
@@ -457,6 +468,58 @@ func TestDurableDispatcherDoesNotHandleRecoveredAttemptBeyondMaximum(t *testing.
 	store.mu.Unlock()
 	if !terminal {
 		t.Fatal("expected exhausted recovered delivery to be terminally failed")
+	}
+}
+
+func TestDurableDispatcherRenewsLeaseWhileHandlerRuns(t *testing.T) {
+	store := &memoryOutboxStore{}
+	dispatcher, err := NewDurableDispatcher(zap.NewNop(), Options{HandlerTimeout: 100 * time.Millisecond, LeaseDuration: 10 * time.Millisecond}, store)
+	if err != nil {
+		t.Fatalf("new durable dispatcher: %v", err)
+	}
+	started := make(chan struct{})
+	finish := make(chan struct{})
+	if err := dispatcher.Register(testHandler{id: "slow-handler", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		close(started)
+		<-finish
+		return nil
+	}}); err != nil {
+		t.Fatalf("register handler: %v", err)
+	}
+
+	now := time.Now().UTC()
+	event := newTestEvent(t, "renewed-lease")
+	event.CreatedAt = now
+	if _, err := store.Append(context.Background(), event, []string{"slow-handler"}); err != nil {
+		t.Fatalf("append durable delivery: %v", err)
+	}
+	claimed, err := store.Claim(context.Background(), "worker-a", now, 10*time.Millisecond, 1)
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("claim durable delivery: %#v, %v", claimed, err)
+	}
+
+	dispatcher.work.Add(1)
+	delivered := make(chan struct{})
+	go func() {
+		dispatcher.deliverDurable(context.Background(), claimed[0])
+		close(delivered)
+	}()
+	<-started
+	time.Sleep(15 * time.Millisecond)
+	reclaimed, err := store.Claim(context.Background(), "worker-b", time.Now().UTC(), 10*time.Millisecond, 1)
+	if err != nil || len(reclaimed) != 0 {
+		close(finish)
+		<-delivered
+		t.Fatalf("renewed delivery was reclaimed: %#v, %v", reclaimed, err)
+	}
+	close(finish)
+	<-delivered
+
+	store.mu.Lock()
+	status := store.deliveries[memoryDeliveryKey(event.ID, "slow-handler")].status
+	store.mu.Unlock()
+	if status != deliveryDelivered {
+		t.Fatalf("delivery status = %q, want %q", status, deliveryDelivered)
 	}
 }
 

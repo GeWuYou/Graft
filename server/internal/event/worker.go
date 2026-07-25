@@ -10,6 +10,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const leaseRenewalDivisor = 2
+
 func (d *Dispatcher) runWorker(ctx context.Context) {
 	defer d.workers.Done()
 	for {
@@ -101,6 +103,8 @@ func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDeliver
 		d.failDurable(ctx, delivery, fmt.Errorf("%w: consumer %s", ErrNoHandlers, delivery.ConsumerID))
 		return
 	}
+	stopRenewing := d.renewDurableLease(ctx, delivery)
+	defer stopRenewing()
 	handlerCtx, cancel := context.WithTimeout(ctx, d.options.HandlerTimeout)
 	err := d.invoke(handlerCtx, handler, delivery.Event)
 	cancel()
@@ -122,6 +126,37 @@ func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDeliver
 	d.logger.Warn("durable event delivery failed and was rescheduled",
 		zap.String("event_id", delivery.Event.ID), zap.String("event_type", string(delivery.Event.Type)),
 		zap.String("consumer", delivery.ConsumerID), zap.Int("attempt", delivery.Attempt), zap.Error(err))
+}
+
+// renewDurableLease 在 handler 执行期间续租，避免初始 claim 租约到期时其他 worker 抢占仍在处理的投递。
+func (d *Dispatcher) renewDurableLease(ctx context.Context, delivery ClaimedDelivery) func() {
+	interval := d.options.LeaseDuration / leaseRenewalDivisor
+	if interval <= 0 {
+		interval = time.Millisecond
+	}
+	stopped := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopped:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := d.store.Renew(ctx, delivery, time.Now().UTC(), d.options.LeaseDuration); err != nil && !errors.Is(err, ErrClaimLost) && ctx.Err() == nil {
+					d.logger.Error("renew durable event delivery lease", zap.String("event_id", delivery.Event.ID), zap.String("consumer", delivery.ConsumerID), zap.Error(err))
+				}
+			}
+		}
+	}()
+	return func() {
+		close(stopped)
+		<-done
+	}
 }
 
 func (d *Dispatcher) failDurable(ctx context.Context, delivery ClaimedDelivery, cause error) {

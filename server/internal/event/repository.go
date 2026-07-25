@@ -24,6 +24,7 @@ const (
 type OutboxStore interface {
 	Append(context.Context, Event, []string) (Receipt, error)
 	Claim(context.Context, string, time.Time, time.Duration, int) ([]ClaimedDelivery, error)
+	Renew(context.Context, ClaimedDelivery, time.Time, time.Duration) error
 	Complete(context.Context, ClaimedDelivery) error
 	Retry(context.Context, ClaimedDelivery, time.Time, error) error
 	Fail(context.Context, ClaimedDelivery, error) error
@@ -176,6 +177,24 @@ FROM claimed c JOIN event_outbox o ON o.event_id = c.event_id`,
 		return nil, fmt.Errorf("iterate claimed event deliveries: %w", err)
 	}
 	return claimed, nil
+}
+
+// Renew 延长当前 owner 的 processing 租约，处理中的 handler 不应因正常执行超出初始租约而被重复 claim。
+func (r *SQLRepository) Renew(ctx context.Context, delivery ClaimedDelivery, now time.Time, lease time.Duration) error {
+	result, err := r.db.ExecContext(ctx, `
+UPDATE event_deliveries
+SET lease_expires_at = $1, updated_at = $2
+WHERE event_id = $3 AND consumer_id = $4 AND status = $5 AND attempt_count = $6 AND lease_owner = $7`,
+		now.Add(lease), now, delivery.Event.ID, delivery.ConsumerID, deliveryProcessing, delivery.Attempt, delivery.claimOwner)
+	if err != nil {
+		return fmt.Errorf("renew event delivery lease: %w", err)
+	}
+	if changed, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("inspect renewed event delivery lease: %w", err)
+	} else if changed != 1 {
+		return ErrClaimLost
+	}
+	return nil
 }
 
 // Complete 只接受仍属于当前 claim 的 processing delivery，避免过期 worker 覆盖新 owner 的结果。
