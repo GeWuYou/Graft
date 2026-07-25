@@ -2,11 +2,10 @@ package rbac
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"testing"
-
-	"go.uber.org/zap"
 
 	"graft/server/internal/event"
 	"graft/server/internal/moduleapi"
@@ -20,6 +19,11 @@ type recordingPublisher struct {
 }
 
 func (p *recordingPublisher) Publish(_ context.Context, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	p.published = append(p.published, current)
+	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryDurable}, p.publishErr
+}
+
+func (p *recordingPublisher) PublishTx(_ context.Context, _ *sql.Tx, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
 	p.published = append(p.published, current)
 	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryDurable}, p.publishErr
 }
@@ -48,7 +52,6 @@ func TestManagementWriterCreateRolePublishesAuditEvent(t *testing.T) {
 		users:  testUserService{},
 		rbac:   testRBACRepository{},
 		events: bus,
-		logger: zap.NewNop(),
 	}
 	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{
 		User: &moduleapi.CurrentUser{ID: 7, Username: "admin", DisplayName: "Admin"},
@@ -112,7 +115,6 @@ func TestManagementWriterRolePermissionMutationsPublishAuditMessageKeys(t *testi
 					permissions: []rbacstore.Permission{{ID: 9, Code: "system.read"}},
 				},
 				events: bus,
-				logger: zap.NewNop(),
 			}
 
 			if err := tc.mutate(writer, context.Background()); err != nil {
@@ -129,8 +131,10 @@ func TestManagementWriterRolePermissionMutationsPublishAuditMessageKeys(t *testi
 	}
 }
 
-func TestManagementWriterReplaceRolesForUserAuditFailureDoesNotBlock(t *testing.T) {
+func TestManagementWriterReplaceRolesForUserRollsBackWhenAuditPublishFails(t *testing.T) {
 	bus := &recordingPublisher{publishErr: errors.New("audit down")}
+	var mutationRan bool
+	var committed bool
 	writer := managementWriter{
 		users: testUserService{users: map[uint64]moduleapi.UserSummary{
 			11: {ID: 11, Username: "alice", Display: "Alice"},
@@ -142,17 +146,33 @@ func TestManagementWriterReplaceRolesForUserAuditFailureDoesNotBlock(t *testing.
 			roleByID: map[uint64]rbacstore.Role{
 				3: {ID: 3, Name: "editor", Status: rbacstore.RoleStatusEnabled},
 			},
+			replaceUserRoles: func(context.Context, rbacstore.ReplaceRolesForUserInput) error {
+				mutationRan = true
+				return nil
+			},
+			runInTransaction: func(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
+				err := callback(ctx, nil)
+				if err == nil {
+					committed = true
+				}
+				return err
+			},
 		},
 		events: bus,
-		logger: zap.NewNop(),
 	}
 
 	err := writer.ReplaceRolesForUser(context.Background(), rbacstore.ReplaceRolesForUserInput{
 		UserID:  11,
 		RoleIDs: []uint64{3},
 	})
-	if err != nil {
-		t.Fatalf("replace roles for user: %v", err)
+	if !errors.Is(err, bus.publishErr) {
+		t.Fatalf("expected audit error %v, got %v", bus.publishErr, err)
+	}
+	if !mutationRan {
+		t.Fatal("expected role mutation before audit publication")
+	}
+	if committed {
+		t.Fatal("expected audit failure to prevent transaction commit")
 	}
 	if len(bus.published) != 1 {
 		t.Fatalf("expected audit publish attempt, got %d", len(bus.published))

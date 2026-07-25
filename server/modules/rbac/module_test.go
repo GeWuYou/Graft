@@ -3,6 +3,7 @@ package rbac
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -54,6 +55,7 @@ type testRBACRepository struct {
 	replaceUserRolesBatch func(ctx context.Context, input store.BatchUserRoleMutationInput) error
 	addUserRolesBatch     func(ctx context.Context, input store.BatchUserRoleMutationInput) error
 	removeUserRolesBatch  func(ctx context.Context, input store.BatchUserRoleMutationInput) error
+	runInTransaction      func(ctx context.Context, callback func(context.Context, *sql.Tx) error) error
 	listRolesErr          error
 	listPermissionsErr    error
 	permissionsErr        error
@@ -61,6 +63,13 @@ type testRBACRepository struct {
 
 type testUserService struct {
 	users map[uint64]moduleapi.UserSummary
+}
+
+func (r testRBACRepository) RunInTransaction(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
+	if r.runInTransaction != nil {
+		return r.runInTransaction(ctx, callback)
+	}
+	return callback(ctx, nil)
 }
 
 func TestRegisterMessagesIncludesRolePermissionAuditKeys(t *testing.T) {

@@ -2,11 +2,10 @@ package rbac
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strconv"
 	"strings"
-
-	"go.uber.org/zap"
 
 	"graft/server/internal/event"
 	"graft/server/internal/httpx"
@@ -21,6 +20,7 @@ var (
 	errInvalidPermissionIDs      = errors.New("invalid permission ids")
 	errInvalidRoleIDs            = errors.New("invalid role ids")
 	errAtomicBatchWriterMissing  = errors.New("rbac atomic batch writer is unavailable")
+	errAtomicAuditWriterMissing  = errors.New("rbac atomic audit writer is unavailable")
 	errProtectedUserRoleMutation = errors.New("protected user role mutation is forbidden")
 )
 
@@ -51,11 +51,31 @@ type batchUserRoleAtomicWriter interface {
 type managementWriter struct {
 	users  moduleapi.UserService
 	rbac   rbacstore.Repository
-	events event.Publisher
-	logger *zap.Logger
+	events event.TransactionalPublisher
 }
 
 type rolePermissionAuditLabels struct {
+	action     string
+	messageKey string
+	message    string
+}
+
+type roleAuditLabels struct {
+	action     string
+	messageKey string
+	message    string
+	metadata   func(rbacstore.Role) map[string]any
+}
+
+type bindingReplacement struct {
+	run        func(context.Context) error
+	validate   func(context.Context) error
+	isMissing  func(error) bool
+	fallback   error
+	auditEvent moduleapi.AuditEvent
+}
+
+type batchRoleAuditLabels struct {
 	action     string
 	messageKey string
 	message    string
@@ -66,27 +86,11 @@ func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.Create
 		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
-	role, err := w.rbac.CreateRole(ctx, input)
-	if err != nil {
-		return rbacstore.Role{}, err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.role.create",
-		ResourceType: "role",
-		ResourceID:   formatRBACAuditID(role.ID),
-		ResourceName: role.Name,
-		Success:      true,
-		MessageKey:   "rbac.audit.roleCreated",
-		Message:      "role created",
-		Metadata: map[string]any{
-			"display_name": role.Display,
-			"builtin":      role.Builtin,
-			"status":       role.Status,
-		},
+	return w.runRoleMutation(ctx, func(txCtx context.Context) (rbacstore.Role, error) {
+		return w.rbac.CreateRole(txCtx, input)
+	}, roleAuditLabels{
+		action: "rbac.role.create", messageKey: "rbac.audit.roleCreated", message: "role created", metadata: roleAuditMetadata,
 	})
-
-	return role, nil
 }
 
 func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
@@ -102,27 +106,11 @@ func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.Update
 		return rbacstore.Role{}, errBuiltinRoleNameImmutable
 	}
 
-	role, err := w.rbac.UpdateRole(ctx, input)
-	if err != nil {
-		return rbacstore.Role{}, err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.role.update",
-		ResourceType: "role",
-		ResourceID:   formatRBACAuditID(role.ID),
-		ResourceName: role.Name,
-		Success:      true,
-		MessageKey:   "rbac.audit.roleUpdated",
-		Message:      "role updated",
-		Metadata: map[string]any{
-			"display_name": role.Display,
-			"builtin":      role.Builtin,
-			"status":       role.Status,
-		},
+	return w.runRoleMutation(ctx, func(txCtx context.Context) (rbacstore.Role, error) {
+		return w.rbac.UpdateRole(txCtx, input)
+	}, roleAuditLabels{
+		action: "rbac.role.update", messageKey: "rbac.audit.roleUpdated", message: "role updated", metadata: roleAuditMetadata,
 	})
-
-	return role, nil
 }
 
 func (w managementWriter) SetRoleStatus(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error) {
@@ -130,25 +118,12 @@ func (w managementWriter) SetRoleStatus(ctx context.Context, input rbacstore.Set
 		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
 	}
 
-	role, err := w.rbac.SetRoleStatus(ctx, input)
-	if err != nil {
-		return rbacstore.Role{}, err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.role.status.update",
-		ResourceType: "role",
-		ResourceID:   formatRBACAuditID(role.ID),
-		ResourceName: role.Name,
-		Success:      true,
-		MessageKey:   "rbac.audit.roleStatusUpdated",
-		Message:      "role status updated",
-		Metadata: map[string]any{
-			"status": role.Status,
-		},
+	return w.runRoleMutation(ctx, func(txCtx context.Context) (rbacstore.Role, error) {
+		return w.rbac.SetRoleStatus(txCtx, input)
+	}, roleAuditLabels{
+		action: "rbac.role.status.update", messageKey: "rbac.audit.roleStatusUpdated", message: "role status updated",
+		metadata: func(role rbacstore.Role) map[string]any { return map[string]any{"status": role.Status} },
 	})
-
-	return role, nil
 }
 
 func (w managementWriter) SoftDeleteRole(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error {
@@ -160,21 +135,15 @@ func (w managementWriter) SoftDeleteRole(ctx context.Context, input rbacstore.So
 	if err != nil {
 		return err
 	}
-	if err := w.rbac.SoftDeleteRole(ctx, input); err != nil {
-		return err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.role.delete",
-		ResourceType: "role",
-		ResourceID:   formatRBACAuditID(role.ID),
-		ResourceName: role.Name,
-		Success:      true,
-		MessageKey:   "rbac.audit.roleDeleted",
-		Message:      "role deleted",
+	return w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		if err := w.rbac.SoftDeleteRole(txCtx, input); err != nil {
+			return err
+		}
+		return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
+			Action: "rbac.role.delete", ResourceType: "role", ResourceID: formatRBACAuditID(role.ID), ResourceName: role.Name,
+			Success: true, MessageKey: "rbac.audit.roleDeleted", Message: "role deleted",
+		})
 	})
-
-	return nil
 }
 
 func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input rbacstore.ReplacePermissionsForRoleInput) error {
@@ -193,32 +162,13 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 		return err
 	}
 
-	if err := w.rbac.ReplacePermissionsForRole(ctx, input); err != nil {
-		if errors.Is(err, rbacstore.ErrPermissionNotFound) {
-			if validationErr := ensurePermissionIDsExist(ctx, w.rbac, input.PermissionIDs); validationErr != nil {
-				return validationErr
-			}
-
-			return errInvalidPermissionIDs
-		}
-
-		return err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.role.permissions.replace",
-		ResourceType: "role",
-		ResourceID:   formatRBACAuditID(input.RoleID),
-		ResourceName: role.Name,
-		Success:      true,
-		MessageKey:   "rbac.audit.rolePermissionsReplaced",
-		Message:      "role permissions replaced",
-		Metadata: map[string]any{
-			"permission_ids": append([]uint64(nil), input.PermissionIDs...),
-		},
-	})
-
-	return nil
+	return w.runBindingReplacement(ctx, newBindingReplacement(
+		func(txCtx context.Context) error { return w.rbac.ReplacePermissionsForRole(txCtx, input) },
+		func(txCtx context.Context) error { return ensurePermissionIDsExist(txCtx, w.rbac, input.PermissionIDs) },
+		func(err error) bool { return errors.Is(err, rbacstore.ErrPermissionNotFound) },
+		errInvalidPermissionIDs,
+		permissionReplacementAuditEvent(input, role),
+	))
 }
 
 func (w managementWriter) AddPermissionsToRole(ctx context.Context, input rbacstore.AddPermissionsToRoleInput) error {
@@ -273,24 +223,16 @@ func (w managementWriter) mutateRolePermissions(
 	if err := ensurePermissionIDsExist(ctx, w.rbac, permissionIDs); err != nil {
 		return err
 	}
-	if err := run(ctx); err != nil {
-		return err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       auditLabels.action,
-		ResourceType: "role",
-		ResourceID:   formatRBACAuditID(roleID),
-		ResourceName: role.Name,
-		Success:      true,
-		MessageKey:   auditLabels.messageKey,
-		Message:      auditLabels.message,
-		Metadata: map[string]any{
-			"permission_ids": append([]uint64(nil), permissionIDs...),
-		},
+	return w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		if err := run(txCtx); err != nil {
+			return err
+		}
+		return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
+			Action: auditLabels.action, ResourceType: "role", ResourceID: formatRBACAuditID(roleID), ResourceName: role.Name,
+			Success: true, MessageKey: auditLabels.messageKey, Message: auditLabels.message,
+			Metadata: map[string]any{"permission_ids": append([]uint64(nil), permissionIDs...)},
+		})
 	})
-
-	return nil
 }
 
 func isBuiltinAdminRole(role rbacstore.Role) bool {
@@ -315,32 +257,13 @@ func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacsto
 		return err
 	}
 
-	if err := w.rbac.ReplaceRolesForUser(ctx, input); err != nil {
-		if errors.Is(err, rbacstore.ErrRoleNotFound) {
-			if validationErr := ensureRoleIDsExist(ctx, w.rbac, input.RoleIDs); validationErr != nil {
-				return validationErr
-			}
-
-			return errInvalidRoleIDs
-		}
-
-		return err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.user.roles.replace",
-		ResourceType: "user",
-		ResourceID:   formatRBACAuditID(input.UserID),
-		ResourceName: user.Username,
-		Success:      true,
-		MessageKey:   "rbac.audit.userRolesReplaced",
-		Message:      "user roles replaced",
-		Metadata: map[string]any{
-			"role_ids": append([]uint64(nil), input.RoleIDs...),
-		},
-	})
-
-	return nil
+	return w.runBindingReplacement(ctx, newBindingReplacement(
+		func(txCtx context.Context) error { return w.rbac.ReplaceRolesForUser(txCtx, input) },
+		func(txCtx context.Context) error { return ensureRoleIDsExist(txCtx, w.rbac, input.RoleIDs) },
+		func(err error) bool { return errors.Is(err, rbacstore.ErrRoleNotFound) },
+		errInvalidRoleIDs,
+		userRoleReplacementAuditEvent(input, user),
+	))
 }
 
 func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
@@ -348,24 +271,16 @@ func (w managementWriter) AddRolesToUser(ctx context.Context, input rbacstore.Ad
 	if err != nil {
 		return err
 	}
-	if err := w.rbac.AddRolesToUser(ctx, input); err != nil {
-		return err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.user.roles.add",
-		ResourceType: "user",
-		ResourceID:   formatRBACAuditID(input.UserID),
-		ResourceName: user.Username,
-		Success:      true,
-		MessageKey:   "rbac.audit.userRolesAdded",
-		Message:      "user roles added",
-		Metadata: map[string]any{
-			"role_ids": append([]uint64(nil), input.RoleIDs...),
-		},
+	return w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		if err := w.rbac.AddRolesToUser(txCtx, input); err != nil {
+			return err
+		}
+		return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
+			Action: "rbac.user.roles.add", ResourceType: "user", ResourceID: formatRBACAuditID(input.UserID), ResourceName: user.Username,
+			Success: true, MessageKey: "rbac.audit.userRolesAdded", Message: "user roles added",
+			Metadata: map[string]any{"role_ids": append([]uint64(nil), input.RoleIDs...)},
+		})
 	})
-
-	return nil
 }
 
 func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
@@ -376,30 +291,23 @@ func (w managementWriter) RemoveRolesFromUser(ctx context.Context, input rbacsto
 	if err := w.ensureActorCanRemoveRoles(ctx, input.UserID, input.RoleIDs); err != nil {
 		return err
 	}
-	if err := w.rbac.RemoveRolesFromUser(ctx, input); err != nil {
-		return err
-	}
-
-	w.publishAudit(ctx, moduleapi.AuditEvent{
-		Action:       "rbac.user.roles.remove",
-		ResourceType: "user",
-		ResourceID:   formatRBACAuditID(input.UserID),
-		ResourceName: user.Username,
-		Success:      true,
-		MessageKey:   "rbac.audit.userRolesRemoved",
-		Message:      "user roles removed",
-		Metadata: map[string]any{
-			"role_ids": append([]uint64(nil), input.RoleIDs...),
-		},
+	return w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		if err := w.rbac.RemoveRolesFromUser(txCtx, input); err != nil {
+			return err
+		}
+		return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
+			Action: "rbac.user.roles.remove", ResourceType: "user", ResourceID: formatRBACAuditID(input.UserID), ResourceName: user.Username,
+			Success: true, MessageKey: "rbac.audit.userRolesRemoved", Message: "user roles removed",
+			Metadata: map[string]any{"role_ids": append([]uint64(nil), input.RoleIDs...)},
+		})
 	})
-
-	return nil
 }
 
 func (w managementWriter) ReplaceRolesForUsers(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
 	return w.runBatchRoleMutation(
 		ctx,
 		input,
+		batchRoleAuditLabels{action: "rbac.user.roles.replace.batch", messageKey: "rbac.audit.userRolesReplaced", message: "user roles replaced in batch"},
 		w.ensureActorCanReplaceRoles,
 		func(batchWriter batchUserRoleAtomicWriter, ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
 			return batchWriter.ReplaceRolesForUsersAtomically(ctx, input)
@@ -411,6 +319,7 @@ func (w managementWriter) AddRolesToUsers(ctx context.Context, input rbacstore.B
 	return w.runBatchRoleMutation(
 		ctx,
 		input,
+		batchRoleAuditLabels{action: "rbac.user.roles.add.batch", messageKey: "rbac.audit.userRolesAdded", message: "user roles added in batch"},
 		func(context.Context, uint64, []uint64) error { return nil },
 		func(batchWriter batchUserRoleAtomicWriter, ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
 			return batchWriter.AddRolesToUsersAtomically(ctx, input)
@@ -422,6 +331,7 @@ func (w managementWriter) RemoveRolesFromUsers(ctx context.Context, input rbacst
 	return w.runBatchRoleMutation(
 		ctx,
 		input,
+		batchRoleAuditLabels{action: "rbac.user.roles.remove.batch", messageKey: "rbac.audit.userRolesRemoved", message: "user roles removed in batch"},
 		w.ensureActorCanRemoveRoles,
 		func(batchWriter batchUserRoleAtomicWriter, ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
 			return batchWriter.RemoveRolesFromUsersAtomically(ctx, input)
@@ -556,6 +466,7 @@ func (w managementWriter) ensureBatchRoleMutationAllowed(
 func (w managementWriter) runBatchRoleMutation(
 	ctx context.Context,
 	input rbacstore.BatchUserRoleMutationInput,
+	auditLabels batchRoleAuditLabels,
 	check func(context.Context, uint64, []uint64) error,
 	runAtomic func(batchUserRoleAtomicWriter, context.Context, rbacstore.BatchUserRoleMutationInput) error,
 ) error {
@@ -566,7 +477,15 @@ func (w managementWriter) runBatchRoleMutation(
 		return err
 	}
 	if batchWriter, ok := w.rbac.(batchUserRoleAtomicWriter); ok {
-		return runAtomic(batchWriter, ctx, input)
+		return w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+			if err := runAtomic(batchWriter, txCtx, input); err != nil {
+				return err
+			}
+			return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
+				Action: auditLabels.action, ResourceType: "user_role_batch", Success: true, MessageKey: auditLabels.messageKey, Message: auditLabels.message,
+				Metadata: map[string]any{"user_ids": append([]uint64(nil), input.UserIDs...), "role_ids": append([]uint64(nil), input.RoleIDs...)},
+			})
+		})
 	}
 	return errAtomicBatchWriterMissing
 }
@@ -581,23 +500,97 @@ func findBuiltinAdminRole(roles []rbacstore.Role) (rbacstore.Role, bool) {
 	return rbacstore.Role{}, false
 }
 
-func (w managementWriter) publishAudit(ctx context.Context, payload moduleapi.AuditEvent) {
-	if w.events == nil {
-		return
+func (w managementWriter) runRoleMutation(
+	ctx context.Context,
+	mutate func(context.Context) (rbacstore.Role, error),
+	auditLabels roleAuditLabels,
+) (rbacstore.Role, error) {
+	var role rbacstore.Role
+	err := w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		updated, err := mutate(txCtx)
+		if err != nil {
+			return err
+		}
+		role = updated
+		return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
+			Action: auditLabels.action, ResourceType: "role", ResourceID: formatRBACAuditID(role.ID), ResourceName: role.Name,
+			Success: true, MessageKey: auditLabels.messageKey, Message: auditLabels.message, Metadata: auditLabels.metadata(role),
+		})
+	})
+	if err != nil {
+		return rbacstore.Role{}, err
 	}
+	return role, nil
+}
 
+func roleAuditMetadata(role rbacstore.Role) map[string]any {
+	return map[string]any{"display_name": role.Display, "builtin": role.Builtin, "status": role.Status}
+}
+
+func newBindingReplacement(
+	run func(context.Context) error,
+	validate func(context.Context) error,
+	isMissing func(error) bool,
+	fallback error,
+	auditEvent moduleapi.AuditEvent,
+) bindingReplacement {
+	return bindingReplacement{
+		run: run, validate: validate, isMissing: isMissing, fallback: fallback, auditEvent: auditEvent,
+	}
+}
+
+func permissionReplacementAuditEvent(input rbacstore.ReplacePermissionsForRoleInput, role rbacstore.Role) moduleapi.AuditEvent {
+	return moduleapi.AuditEvent{
+		Action: "rbac.role.permissions.replace", ResourceType: "role", ResourceID: formatRBACAuditID(input.RoleID), ResourceName: role.Name,
+		Success: true, MessageKey: "rbac.audit.rolePermissionsReplaced", Message: "role permissions replaced",
+		Metadata: map[string]any{"permission_ids": append([]uint64(nil), input.PermissionIDs...)},
+	}
+}
+
+func userRoleReplacementAuditEvent(input rbacstore.ReplaceRolesForUserInput, user moduleapi.UserSummary) moduleapi.AuditEvent {
+	return moduleapi.AuditEvent{
+		Action: "rbac.user.roles.replace", ResourceType: "user", ResourceID: formatRBACAuditID(input.UserID), ResourceName: user.Username,
+		Success: true, MessageKey: "rbac.audit.userRolesReplaced", Message: "user roles replaced",
+		Metadata: map[string]any{"role_ids": append([]uint64(nil), input.RoleIDs...)},
+	}
+}
+
+func (w managementWriter) runBindingReplacement(ctx context.Context, replacement bindingReplacement) error {
+	return w.runAtomicAudit(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		if err := replacement.run(txCtx); err != nil {
+			if !replacement.isMissing(err) {
+				return err
+			}
+			if validationErr := replacement.validate(txCtx); validationErr != nil {
+				return validationErr
+			}
+			return replacement.fallback
+		}
+		return w.publishAuditTx(txCtx, tx, replacement.auditEvent)
+	})
+}
+
+// runAtomicAudit 将 RBAC 写入与 durable audit event 固定在同一事务中，发布失败必须触发回滚。
+func (w managementWriter) runAtomicAudit(ctx context.Context, mutation func(context.Context, *sql.Tx) error) error {
+	runner, ok := w.rbac.(rbacstore.TransactionRunner)
+	if !ok {
+		return errAtomicAuditWriterMissing
+	}
+	return runner.RunInTransaction(ctx, mutation)
+}
+
+// publishAuditTx 只在已经由 RBAC repository 创建的事务内写入 durable audit event。
+func (w managementWriter) publishAuditTx(ctx context.Context, tx *sql.Tx, payload moduleapi.AuditEvent) error {
+	if w.events == nil {
+		return nil
+	}
 	payload.Operator = currentRBACAuditOperator(ctx)
 	envelope, err := httpx.NewAuditEvent(moduleID, payload)
-	if err == nil {
-		_, err = w.events.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
+	if err != nil {
+		return err
 	}
-	if err != nil && w.logger != nil {
-		w.logger.Warn("publish rbac audit event failed",
-			zap.String("module", moduleID),
-			zap.String("action", strings.TrimSpace(payload.Action)),
-			zap.Error(err),
-		)
-	}
+	_, err = w.events.PublishTx(ctx, tx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
+	return err
 }
 
 func currentRBACAuditOperator(ctx context.Context) *moduleapi.CurrentUser {
