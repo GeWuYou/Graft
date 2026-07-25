@@ -337,6 +337,7 @@ type ListErrorState = {
 };
 type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 'start' | 'stop'>;
 type LifecycleContainerAction = Exclude<DangerousContainerAction, 'remove'>;
+type BatchTaskAction = DangerousContainerAction;
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -355,7 +356,7 @@ const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
 const lifecycleTaskDrawerVisible = ref(false);
 const lifecycleTaskId = ref<number | null>(null);
-const batchTaskEntries = ref<Array<{ taskId: number; containerId: string; action: LifecycleContainerAction }>>([]);
+const batchTaskEntries = ref<Array<{ taskId: number; containerId: string; action: BatchTaskAction }>>([]);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   deploymentType: 'all',
@@ -1026,7 +1027,7 @@ async function executeDangerousAction(row: ContainerSummaryRecord, action: Dange
   }
 }
 
-function actionLabel(action: LifecycleContainerAction) {
+function actionLabel(action: DangerousContainerAction) {
   return t(`container.list.actions.${action}`);
 }
 
@@ -1037,6 +1038,10 @@ function openLifecycleTask(taskId: number) {
 
 function isLifecycleTaskAction(action: DangerousContainerAction): action is LifecycleContainerAction {
   return action === 'start' || action === 'stop' || action === 'restart';
+}
+
+function isBatchTaskAction(action: DangerousContainerAction): action is BatchTaskAction {
+  return isLifecycleTaskAction(action) || action === 'remove';
 }
 
 function submitLifecycleTask(containerId: string, action: LifecycleContainerAction) {
@@ -1064,6 +1069,7 @@ function resolveLifecycleTaskType(taskType: string) {
   if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_START) return t('container.list.actions.start');
   if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_STOP) return t('container.list.actions.stop');
   if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_RESTART) return t('container.list.actions.restart');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_REMOVE) return t('container.list.actions.remove');
   return undefined;
 }
 
@@ -1272,8 +1278,7 @@ async function executeBatchAction(
       ids,
       force: action === 'remove' ? force : false,
     });
-    syncSelectionAfterBatchAction(action, response, ids);
-    if (isLifecycleTaskAction(action)) {
+    if (isBatchTaskAction(action)) {
       const acceptedItems = response.items.filter((item) => item.accepted && item.task_id);
       batchTaskEntries.value = acceptedItems.map((item) => ({
         taskId: item.task_id as number,
@@ -1287,7 +1292,6 @@ async function executeBatchAction(
       });
     }
     handleBatchActionResult(response);
-    if (action === 'remove') await refreshContainers();
     return true;
   } catch (error) {
     logger.warn(`failed to batch ${action} containers`, error);
@@ -1296,32 +1300,6 @@ async function executeBatchAction(
   } finally {
     batchActionLoading.value = '';
   }
-}
-
-function syncSelectionAfterBatchAction(
-  action: DangerousContainerAction,
-  response: ContainerBatchActionResponse,
-  attemptedIds: string[],
-) {
-  if (action !== 'remove') {
-    return;
-  }
-
-  const removedIds = new Set(
-    response.items
-      .filter((item) => item.accepted)
-      .map((item) => item.id)
-      .filter((id): id is string => Boolean(id)),
-  );
-  if (!removedIds.size && response.failed_count === 0) {
-    attemptedIds.forEach((id) => removedIds.add(id));
-  }
-  if (!removedIds.size) {
-    return;
-  }
-
-  selectedRowKeys.value = selectedRowKeys.value.filter((key) => !removedIds.has(String(key)));
-  selectedRowRecords.value = selectedRowRecords.value.filter((row) => !removedIds.has(row.id));
 }
 
 function handleBatchActionResult(response: ContainerBatchActionResponse) {

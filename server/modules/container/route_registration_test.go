@@ -3,6 +3,7 @@ package container
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -222,17 +223,18 @@ func assertBatchActionRoutePermission(t *testing.T, engine *gin.Engine, authoriz
 	authorizer.reset()
 	response = httptest.NewRecorder()
 	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["abc123"],"force":true}`))
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected batch remove 200, got %d: %s", response.Code, response.Body.String())
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch remove 202, got %d: %s", response.Code, response.Body.String())
 	}
 	if !slices.Contains(authorizer.permissions, containercontract.ContainerRemovePermission.String()) {
 		t.Fatalf("expected batch remove to require remove permission, got %#v", authorizer.permissions)
 	}
 	if !strings.Contains(response.Body.String(), `"success":true`) {
-		t.Fatalf("expected synchronous remove result, got %s", response.Body.String())
+		t.Fatalf("expected task submission result, got %s", response.Body.String())
 	}
 }
 
+//nolint:gocyclo,cyclop // 该测试集中验证有序部分结果与 remove 的冻结输入，避免拆散 HTTP 契约断言。
 func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
 	t.Parallel()
 
@@ -265,6 +267,21 @@ func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
 	if !strings.Contains(body, `"accepted_count":1`) || !strings.Contains(body, `"failed_count":1`) ||
 		!strings.Contains(body, `"task_id":1`) || !strings.Contains(body, `"accepted":false`) || !strings.Contains(body, `"id":"bad/id"`) {
 		t.Fatalf("expected ordered task partial result, got %s", body)
+	}
+
+	request = authorizedJSONRequest(http.MethodPost, "/api/ops/containers/batch-actions", `{"action":"remove","ids":["container-2"],"force":true}`)
+	request.Header.Set("Idempotency-Key", "batch-remove")
+	response = httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected batch remove 202, got %d: %s", response.Code, response.Body.String())
+	}
+	if len(tasks.submissions) != 2 || tasks.submissions[1].Type != containerLifecycleTaskType(containerActionRemove) || tasks.submissions[1].Owner.Type != containerLifecycleTaskOwnerType(containerActionRemove) {
+		t.Fatalf("unexpected remove task submission: %#v", tasks.submissions)
+	}
+	var removeInput containerLifecycleTaskInput
+	if err := json.Unmarshal(tasks.submissions[1].Plan.Stages[0].Input, &removeInput); err != nil || removeInput.Ref != "container-2" || !removeInput.Force {
+		t.Fatalf("expected frozen force remove input, got %s: %v", tasks.submissions[1].Plan.Stages[0].Input, err)
 	}
 }
 

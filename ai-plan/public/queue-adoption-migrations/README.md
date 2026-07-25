@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`
 - Intake summary: long-running refactor using the existing Task Runtime and queue-adoption design.
 - Canonical authority: Task Runtime, Container module, and `openapi/**` shared wire contract.
-- Completed so far: Docker image pull, single-container lifecycle actions, and Container batch start/stop/restart now submit Tasks.
-- Not started yet: Container removal and Backup execution entry.
+- Completed so far: Docker image pull, single-container lifecycle actions, and all Container batch lifecycle actions now submit Tasks.
+- Not started yet: Backup execution entry.
 
 ## Recovery Receipt
 
@@ -35,8 +35,8 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 3 migrates Container batch start/stop/restart to independently submitted lifecycle Tasks while retaining ordered per-item partial results and action-specific authorization.
-- Next step: select the batch-removal or Backup candidate; do not extend the current lifecycle contract implicitly.
+- Batch 4 migrates Container batch remove to independently submitted lifecycle Tasks while retaining ordered per-item partial results, frozen force input, and action-specific authorization.
+- Next step: assess Backup only after a product-facing execution entry exists; do not extend the Container lifecycle contract implicitly.
 
 ## Work Intake
 
@@ -45,7 +45,6 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Container batch actions and removal.
 - Backup execution after a product-facing entry is available.
 
 ## Loop Entry

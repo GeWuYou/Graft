@@ -25,15 +25,22 @@
 - Reused the existing action-specific Container permission and Task owner authorizer; batch `remove` remains synchronous and was not sent through Task Runtime.
 - The web Container page observes every accepted Task, opens the shared Task detail drawer for the first item, and exposes the remaining accepted tasks as drawer entries; list refresh follows Task success rather than receipt acceptance.
 
+## 2026-07-25 Container Batch Remove Task Adoption
+
+- Migrated batch `remove` to one independently submitted `container.lifecycle.remove.v1` Task per accepted container; the canonical OpenAPI operation now returns only `202 Accepted` ordered partial submission results.
+- The frozen Task input contains both the validated container reference and `force`. The existing `container.remove` authorization remains the HTTP guard and is reused by the action-specific Task owner authorizer for detail, cancellation, and retry.
+- Remove keeps `max_attempts=1` and `manual_reconcile`: Docker interruption can leave the external result unknown, so the Task drawer is the authority for failure, `unknown`, and `needs_attention` rather than optimistic list removal.
+- The web list opens the first accepted remove Task in the shared drawer, retains selections at receipt time, and refreshes only after observed Task success.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption"],
-  "pending_batches": ["container-batch-removal-or-backup-entry"],
-  "current_batch": "container-batch-lifecycle-task-adoption",
-  "next_batch": "container-batch-removal-or-backup-entry",
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption"],
+  "pending_batches": ["backup-execution-entry"],
+  "current_batch": "container-batch-removal-task-adoption",
+  "next_batch": "backup-execution-entry",
   "closeout_status": "validated"
 }
 ```

@@ -13,7 +13,8 @@ import (
 const containerLifecycleTaskOwnerPrefix = "container_lifecycle_"
 
 type containerLifecycleTaskInput struct {
-	Ref string `json:"ref"`
+	Ref   string `json:"ref"`
+	Force bool   `json:"force"`
 }
 
 type containerLifecycleTaskExecutor struct {
@@ -49,7 +50,7 @@ func (e *containerLifecycleTaskExecutor) Execute(ctx context.Context, run module
 		e.mu.Unlock()
 		cancel()
 	}()
-	_, err = e.service.runAction(actionCtx, ref, e.action, ActionOptions{})
+	_, err = e.service.runAction(actionCtx, ref, e.action, ActionOptions{Force: input.Force})
 	return err
 }
 
@@ -111,7 +112,7 @@ func registerContainerLifecycleTasks(registrar moduleapi.TaskRuntimeRegistrar, s
 }
 
 // SubmitContainerLifecycleAction 提交单阶段、人工对账恢复的容器生命周期 Task，实际副作用仍由 runAction 持有。
-func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, action string, requestedBy uint64, idempotencyKey string) (moduleapi.TaskReceipt, error) {
+func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, action string, options ActionOptions, requestedBy uint64, idempotencyKey string) (moduleapi.TaskReceipt, error) {
 	if s == nil || s.tasks == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task service is unavailable")
 	}
@@ -121,7 +122,7 @@ func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, a
 	if _, err := parseRef(ref.Value); err != nil {
 		return moduleapi.TaskReceipt{}, err
 	}
-	input, err := json.Marshal(containerLifecycleTaskInput{Ref: ref.Value})
+	input, err := json.Marshal(containerLifecycleTaskInput{Ref: ref.Value, Force: options.Force})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal container lifecycle task input: %w", err)
 	}
@@ -142,7 +143,7 @@ func (s *service) SubmitContainerLifecycleAction(ctx context.Context, ref Ref, a
 }
 
 func containerLifecycleTaskActions() []string {
-	return []string{containerActionStart, containerActionStop, containerActionRestart}
+	return []string{containerActionStart, containerActionStop, containerActionRestart, containerActionRemove}
 }
 
 func isContainerLifecycleTaskAction(action string) bool {

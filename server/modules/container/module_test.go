@@ -42,7 +42,7 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 		t.Fatalf("resolve task runtime registrar: %v", err)
 	}
 	tasks, ok := resolved.(*containerTaskRuntimeStub)
-	if !ok || len(tasks.executors) != 4 || len(tasks.authorizers) != 4 {
+	if !ok || len(tasks.executors) != 5 || len(tasks.authorizers) != 5 {
 		t.Fatalf("expected Docker image and lifecycle task registrations, got %#v", resolved)
 	}
 	for _, action := range containerLifecycleTaskActions() {

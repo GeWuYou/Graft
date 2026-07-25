@@ -2139,7 +2139,7 @@ export interface paths {
     put?: never;
     /**
      * Execute container actions in batch
-     * @description Submits start, stop, or restart independently per container and returns ordered partial results. Remove remains synchronous and returns its existing per-item result semantics.
+     * @description Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.
      */
     post: operations['postContainerBatchActions'];
     delete?: never;
@@ -15109,16 +15109,6 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Synchronous container remove batch result. */
-      200: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['enveloped-container-batch-action-response'];
-        };
-      };
       /** @description Container lifecycle actions accepted independently as Tasks; item failures remain explicit. */
       202: {
         headers: {

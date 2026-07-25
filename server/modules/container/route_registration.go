@@ -697,7 +697,7 @@ func (r routeRuntime) handleLifecycleTaskAction(ginCtx *gin.Context, action stri
 	if auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok && auth.User != nil {
 		requestedBy = auth.User.ID
 	}
-	receipt, err := r.service.SubmitContainerLifecycleAction(ginCtx.Request.Context(), ref, action, requestedBy, idempotencyKey)
+	receipt, err := r.service.SubmitContainerLifecycleAction(ginCtx.Request.Context(), ref, action, ActionOptions{}, requestedBy, idempotencyKey)
 	if err != nil {
 		if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
 			httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)

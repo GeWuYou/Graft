@@ -358,16 +358,16 @@ func (e PostContainerBatchActionsJSONBodyAction) Valid() bool {
 	}
 }
 
-// Defines values for PostContainerBatchActions200JSONResponseBodyDataItemsAction.
+// Defines values for PostContainerBatchActions202JSONResponseBodyDataItemsAction.
 const (
-	ContainerBatchActionItemActionRemove  PostContainerBatchActions200JSONResponseBodyDataItemsAction = "remove"
-	ContainerBatchActionItemActionRestart PostContainerBatchActions200JSONResponseBodyDataItemsAction = "restart"
-	ContainerBatchActionItemActionStart   PostContainerBatchActions200JSONResponseBodyDataItemsAction = "start"
-	ContainerBatchActionItemActionStop    PostContainerBatchActions200JSONResponseBodyDataItemsAction = "stop"
+	ContainerBatchActionItemActionRemove  PostContainerBatchActions202JSONResponseBodyDataItemsAction = "remove"
+	ContainerBatchActionItemActionRestart PostContainerBatchActions202JSONResponseBodyDataItemsAction = "restart"
+	ContainerBatchActionItemActionStart   PostContainerBatchActions202JSONResponseBodyDataItemsAction = "start"
+	ContainerBatchActionItemActionStop    PostContainerBatchActions202JSONResponseBodyDataItemsAction = "stop"
 )
 
-// Valid indicates whether the value is a known member of the PostContainerBatchActions200JSONResponseBodyDataItemsAction enum.
-func (e PostContainerBatchActions200JSONResponseBodyDataItemsAction) Valid() bool {
+// Valid indicates whether the value is a known member of the PostContainerBatchActions202JSONResponseBodyDataItemsAction enum.
+func (e PostContainerBatchActions202JSONResponseBodyDataItemsAction) Valid() bool {
 	switch e {
 	case ContainerBatchActionItemActionRemove:
 		return true
@@ -376,6 +376,39 @@ func (e PostContainerBatchActions200JSONResponseBodyDataItemsAction) Valid() boo
 	case ContainerBatchActionItemActionStart:
 		return true
 	case ContainerBatchActionItemActionStop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerBatchActions202JSONResponseBodyDataItemsStatus.
+const (
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusCancelled      PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "cancelled"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusFailed         PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "failed"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusNeedsAttention PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "needs_attention"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusPending        PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "pending"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusRunning        PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "running"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusScheduled      PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "scheduled"
+	PostContainerBatchActions202JSONResponseBodyDataItemsStatusSuccess        PostContainerBatchActions202JSONResponseBodyDataItemsStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the PostContainerBatchActions202JSONResponseBodyDataItemsStatus enum.
+func (e PostContainerBatchActions202JSONResponseBodyDataItemsStatus) Valid() bool {
+	switch e {
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusCancelled:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusFailed:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusNeedsAttention:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusPending:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusRunning:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusScheduled:
+		return true
+	case PostContainerBatchActions202JSONResponseBodyDataItemsStatusSuccess:
 		return true
 	default:
 		return false
@@ -2391,31 +2424,31 @@ func (e PostDockerImageBatchRemove500JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostDockerImagePull202JSONResponseBodyDataStatus.
 const (
-	Cancelled      PostDockerImagePull202JSONResponseBodyDataStatus = "cancelled"
-	Failed         PostDockerImagePull202JSONResponseBodyDataStatus = "failed"
-	NeedsAttention PostDockerImagePull202JSONResponseBodyDataStatus = "needs_attention"
-	Pending        PostDockerImagePull202JSONResponseBodyDataStatus = "pending"
-	Running        PostDockerImagePull202JSONResponseBodyDataStatus = "running"
-	Scheduled      PostDockerImagePull202JSONResponseBodyDataStatus = "scheduled"
-	Success        PostDockerImagePull202JSONResponseBodyDataStatus = "success"
+	PostDockerImagePull202JSONResponseBodyDataStatusCancelled      PostDockerImagePull202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerImagePull202JSONResponseBodyDataStatusFailed         PostDockerImagePull202JSONResponseBodyDataStatus = "failed"
+	PostDockerImagePull202JSONResponseBodyDataStatusNeedsAttention PostDockerImagePull202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerImagePull202JSONResponseBodyDataStatusPending        PostDockerImagePull202JSONResponseBodyDataStatus = "pending"
+	PostDockerImagePull202JSONResponseBodyDataStatusRunning        PostDockerImagePull202JSONResponseBodyDataStatus = "running"
+	PostDockerImagePull202JSONResponseBodyDataStatusScheduled      PostDockerImagePull202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerImagePull202JSONResponseBodyDataStatusSuccess        PostDockerImagePull202JSONResponseBodyDataStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the PostDockerImagePull202JSONResponseBodyDataStatus enum.
 func (e PostDockerImagePull202JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case Cancelled:
+	case PostDockerImagePull202JSONResponseBodyDataStatusCancelled:
 		return true
-	case Failed:
+	case PostDockerImagePull202JSONResponseBodyDataStatusFailed:
 		return true
-	case NeedsAttention:
+	case PostDockerImagePull202JSONResponseBodyDataStatusNeedsAttention:
 		return true
-	case Pending:
+	case PostDockerImagePull202JSONResponseBodyDataStatusPending:
 		return true
-	case Running:
+	case PostDockerImagePull202JSONResponseBodyDataStatusRunning:
 		return true
-	case Scheduled:
+	case PostDockerImagePull202JSONResponseBodyDataStatusScheduled:
 		return true
-	case Success:
+	case PostDockerImagePull202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -3615,8 +3648,11 @@ type PostContainerBatchActionsParams struct {
 // PostContainerBatchActionsJSONBodyAction defines parameters for PostContainerBatchActions.
 type PostContainerBatchActionsJSONBodyAction string
 
-// PostContainerBatchActions200JSONResponseBodyDataItemsAction defines parameters for PostContainerBatchActions.
-type PostContainerBatchActions200JSONResponseBodyDataItemsAction string
+// PostContainerBatchActions202JSONResponseBodyDataItemsAction defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions202JSONResponseBodyDataItemsAction string
+
+// PostContainerBatchActions202JSONResponseBodyDataItemsStatus defines parameters for PostContainerBatchActions.
+type PostContainerBatchActions202JSONResponseBodyDataItemsStatus string
 
 // PostContainerBatchActions400JSONResponseBodySuccess defines parameters for PostContainerBatchActions.
 type PostContainerBatchActions400JSONResponseBodySuccess bool

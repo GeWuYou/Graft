@@ -968,7 +968,7 @@ func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionC
 			result.FailedCount++
 			continue
 		}
-		if blockedItem, blocked := s.batchActionPolicyFailure(ctx, ref, normalized.Action, ActionOptions{}); blocked {
+		if blockedItem, blocked := s.batchActionPolicyFailure(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}); blocked {
 			result.Items = append(result.Items, BatchLifecycleActionItem{
 				ID: blockedItem.ID, Action: blockedItem.Action, ErrorCode: blockedItem.ErrorCode,
 				MessageKey: blockedItem.MessageKey, Message: blockedItem.Message,
@@ -976,7 +976,7 @@ func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionC
 			result.FailedCount++
 			continue
 		}
-		receipt, submitErr := s.SubmitContainerLifecycleAction(ctx, ref, normalized.Action, requestedBy, batchTaskIdempotencyKey(idempotencyKey, normalized.Action, ref.Value, index))
+		receipt, submitErr := s.SubmitContainerLifecycleAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}, requestedBy, batchTaskIdempotencyKey(idempotencyKey, normalized.Action, ref.Value, index))
 		if submitErr != nil {
 			result.Items = append(result.Items, batchLifecycleActionFailure(ref.Value, normalized.Action, submitErr))
 			result.FailedCount++

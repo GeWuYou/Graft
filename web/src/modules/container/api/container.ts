@@ -93,7 +93,7 @@ type PostContainerRemoveRequest = NonNullable<
 type ContainerBatchActionsPath = typeof OPENAPI_RUNTIME_PATH.postContainerBatchActions;
 type PostContainerBatchActionsOperation = paths[ContainerBatchActionsPath]['post'];
 type PostContainerBatchActionsEnvelope =
-  PostContainerBatchActionsOperation['responses'][200]['content']['application/json'];
+  PostContainerBatchActionsOperation['responses'][202]['content']['application/json'];
 type PostContainerBatchActionsData = NonNullable<PostContainerBatchActionsEnvelope['data']>;
 type PostContainerBatchActionsRequest = NonNullable<
   PostContainerBatchActionsOperation['requestBody']

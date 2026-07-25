@@ -10,7 +10,7 @@ import (
 	containercontract "graft/server/modules/container/contract"
 )
 
-//nolint:gocognit,gocyclo // 该测试在单一场景中集中断言每个生命周期动作的所有不可变 TaskPlan 字段。
+//nolint:gocognit,gocyclo,cyclop // 该测试在单一场景中集中断言每个生命周期动作的所有不可变 TaskPlan 字段。
 func TestSubmitContainerLifecycleActionFreezesSingleManualReconcileStage(t *testing.T) {
 	t.Parallel()
 
@@ -21,7 +21,7 @@ func TestSubmitContainerLifecycleActionFreezesSingleManualReconcileStage(t *test
 			if err != nil {
 				t.Fatalf("new service: %v", err)
 			}
-			receipt, err := service.SubmitContainerLifecycleAction(context.Background(), Ref{Value: "container-1"}, action, 7, "lifecycle-"+action)
+			receipt, err := service.SubmitContainerLifecycleAction(context.Background(), Ref{Value: "container-1"}, action, ActionOptions{Force: action == containerActionRemove}, 7, "lifecycle-"+action)
 			if err != nil {
 				t.Fatalf("submit lifecycle task: %v", err)
 			}
@@ -40,7 +40,7 @@ func TestSubmitContainerLifecycleActionFreezesSingleManualReconcileStage(t *test
 				t.Fatalf("unexpected stage plan: %#v", stage)
 			}
 			var input containerLifecycleTaskInput
-			if err := json.Unmarshal(stage.Input, &input); err != nil || input.Ref != "container-1" {
+			if err := json.Unmarshal(stage.Input, &input); err != nil || input.Ref != "container-1" || input.Force != (action == containerActionRemove) {
 				t.Fatalf("unexpected frozen stage input %s: %v", stage.Input, err)
 			}
 		})
@@ -111,7 +111,7 @@ func TestContainerLifecycleTaskOwnerAuthorizerUsesActionPermission(t *testing.T)
 func TestContainerLifecycleTaskPermissionsStayActionSpecific(t *testing.T) {
 	t.Parallel()
 
-	if permissionForAction(containerActionStart) != containercontract.ContainerStartPermission.String() || permissionForAction(containerActionStop) != containercontract.ContainerStopPermission.String() || permissionForAction(containerActionRestart) != containercontract.ContainerRestartPermission.String() {
+	if permissionForAction(containerActionStart) != containercontract.ContainerStartPermission.String() || permissionForAction(containerActionStop) != containercontract.ContainerStopPermission.String() || permissionForAction(containerActionRestart) != containercontract.ContainerRestartPermission.String() || permissionForAction(containerActionRemove) != containercontract.ContainerRemovePermission.String() {
 		t.Fatal("expected action-specific lifecycle permissions")
 	}
 }

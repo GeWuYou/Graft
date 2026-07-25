@@ -2,7 +2,7 @@ post:
   tags: [container]
   summary: Execute container actions in batch
   operationId: postContainerBatchActions
-  description: Submits start, stop, or restart independently per container and returns ordered partial results. Remove remains synchronous and returns its existing per-item result semantics.
+  description: Submits start, stop, restart, or remove independently per container as Tasks and returns ordered partial submission results. A remove Task freezes force, requires the remove permission, and defaults to manual reconciliation because Docker state may be unknown after interruption.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
@@ -17,15 +17,6 @@ post:
   responses:
     '202':
       description: Container lifecycle actions accepted independently as Tasks; item failures remain explicit.
-      headers:
-        X-Request-Id:
-          $ref: ../components/headers/request-id.yaml
-      content:
-        application/json:
-          schema:
-            $ref: ../components/schemas/enveloped-container-batch-action-response.yaml
-    '200':
-      description: Synchronous container remove batch result.
       headers:
         X-Request-Id:
           $ref: ../components/headers/request-id.yaml
