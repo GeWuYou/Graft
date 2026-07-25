@@ -97,10 +97,14 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := p.registerHTTP(ctx, logger); err != nil {
 		return err
 	}
+	return p.registerEventHandlers(ctx, logger)
+}
+
+// registerEventHandlers 将 durable event 与受控 legacy eventbus 订阅集中在 Audit 模块边界。
+func (p *Module) registerEventHandlers(ctx *module.Context, logger *zap.Logger) error {
 	if ctx.EventRegistry == nil {
 		return errors.New("event registry is unavailable")
 	}
-
 	if err := registerAuditRecordHandler(ctx.EventRegistry, logger, p.recorder, func() moduleapi.NotificationPublisher {
 		return p.notifier
 	}); err != nil {
