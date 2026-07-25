@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"
@@ -193,7 +194,13 @@ type Context struct {
 	//
 	// 模块应只依赖显式 Subscribe / Publish 语义，不应假设存在消息持久化、
 	// 重试队列或异步工作流编排等当前阶段并未提供的行为。
-	EventBus           eventbus.Bus
+	EventBus eventbus.Bus
+	// EventPublisher 提供通用异步事件发布边界；DeliveryDurable 由 Runtime 的 Outbox 提供跨重启恢复。
+	EventPublisher event.Publisher
+	// EventTxPublisher 仅供已持有业务 SQL transaction 的模块原子写入 durable event。
+	EventTxPublisher event.TransactionalPublisher
+	// EventRegistry 仅用于 Register 阶段声明事件消费者，Runtime 负责 worker 生命周期。
+	EventRegistry      event.Registry
 	Realtime           realtime.Hub
 	Router             gin.IRouter
 	Services           *container.Container

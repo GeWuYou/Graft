@@ -2,38 +2,58 @@ package rbac
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"testing"
 
-	"go.uber.org/zap"
-
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
 	"graft/server/internal/moduleapi"
 	rbaccontract "graft/server/modules/rbac/contract"
 	rbacstore "graft/server/modules/rbac/store"
 )
 
-type recordingBus struct {
-	published  []eventbus.Event
-	publishErr error
+type recordingPublisher struct {
+	published     []event.Event
+	publishedInTx bool
+	publishErr    error
 }
 
-func (b *recordingBus) Subscribe(string, eventbus.Handler) error {
-	return nil
+func (p *recordingPublisher) Publish(_ context.Context, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	p.published = append(p.published, current)
+	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryDurable}, p.publishErr
 }
 
-func (b *recordingBus) Publish(_ context.Context, event eventbus.Event) error {
-	b.published = append(b.published, event)
-	return b.publishErr
+func (p *recordingPublisher) PublishTx(_ context.Context, _ *sql.Tx, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	p.publishedInTx = true
+	p.published = append(p.published, current)
+	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryDurable}, p.publishErr
+}
+
+func (p *recordingPublisher) PublishAsync(current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	return p.Publish(context.Background(), current, event.PublishOptions{Delivery: event.DeliveryBestEffort})
+}
+
+func (p *recordingPublisher) PublishBatch(context.Context, []event.Event, event.PublishOptions) event.BatchReceipt {
+	return event.BatchReceipt{}
+}
+
+func decodeRecordedAuditEvent(t *testing.T, current event.Event) moduleapi.AuditEvent {
+	t.Helper()
+	var decoded moduleapi.AuditEvent
+	err := json.Unmarshal(current.Payload, &decoded)
+	if err != nil {
+		t.Fatalf("decode audit event: %v", err)
+	}
+	return decoded
 }
 
 func TestManagementWriterCreateRolePublishesAuditEvent(t *testing.T) {
-	bus := &recordingBus{}
+	bus := &recordingPublisher{}
 	writer := managementWriter{
-		users:    testUserService{},
-		rbac:     testRBACRepository{},
-		auditBus: bus,
-		logger:   zap.NewNop(),
+		users:  testUserService{},
+		rbac:   testRBACRepository{},
+		events: bus,
 	}
 	ctx := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{
 		User: &moduleapi.CurrentUser{ID: 7, Username: "admin", DisplayName: "Admin"},
@@ -53,15 +73,44 @@ func TestManagementWriterCreateRolePublishesAuditEvent(t *testing.T) {
 		t.Fatalf("expected 1 published event, got %d", len(bus.published))
 	}
 
-	event, ok := bus.published[0].Payload.(moduleapi.AuditEvent)
-	if !ok {
-		t.Fatalf("expected audit event payload, got %T", bus.published[0].Payload)
+	payload := decodeRecordedAuditEvent(t, bus.published[0])
+	if payload.Action != "rbac.role.create" || payload.ResourceID != "1" || payload.ResourceName != "editor" {
+		t.Fatalf("unexpected event payload: %#v", payload)
 	}
-	if event.Action != "rbac.role.create" || event.ResourceID != "1" || event.ResourceName != "editor" {
-		t.Fatalf("unexpected event payload: %#v", event)
+	if payload.Operator == nil || payload.Operator.ID != 7 {
+		t.Fatalf("expected operator id 7, got %#v", payload.Operator)
 	}
-	if event.Operator == nil || event.Operator.ID != 7 {
-		t.Fatalf("expected operator id 7, got %#v", event.Operator)
+}
+
+func TestManagementWriterRoleMutationAllowsNilAuditMetadata(t *testing.T) {
+	bus := &recordingPublisher{}
+	writer := managementWriter{
+		rbac:   testRBACRepository{},
+		events: bus,
+	}
+
+	_, err := writer.runRoleMutation(context.Background(), func(context.Context) (rbacstore.Role, error) {
+		return rbacstore.Role{ID: 3, Name: "editor"}, nil
+	}, roleAuditLabels{
+		action: "rbac.role.create", messageKey: "rbac.audit.roleCreated", message: "role created",
+	})
+	if err != nil {
+		t.Fatalf("run role mutation with nil audit metadata: %v", err)
+	}
+	if len(bus.published) != 1 {
+		t.Fatalf("expected one audit event, got %d", len(bus.published))
+	}
+	if payload := decodeRecordedAuditEvent(t, bus.published[0]); payload.Metadata != nil {
+		t.Fatalf("expected nil audit metadata, got %#v", payload.Metadata)
+	}
+}
+
+func TestManagementWriterRejectsMissingTransactionalAuditPublisher(t *testing.T) {
+	writer := managementWriter{rbac: testRBACRepository{}}
+
+	_, err := writer.CreateRole(context.Background(), rbacstore.CreateRoleInput{Name: "editor", Display: "Editor"})
+	if !errors.Is(err, errAtomicAuditPublisherMissing) {
+		t.Fatalf("expected %v, got %v", errAtomicAuditPublisherMissing, err)
 	}
 }
 
@@ -90,7 +139,7 @@ func TestManagementWriterRolePermissionMutationsPublishAuditMessageKeys(t *testi
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			bus := &recordingBus{}
+			bus := &recordingPublisher{}
 			writer := managementWriter{
 				users: testUserService{},
 				rbac: testRBACRepository{
@@ -99,8 +148,7 @@ func TestManagementWriterRolePermissionMutationsPublishAuditMessageKeys(t *testi
 					},
 					permissions: []rbacstore.Permission{{ID: 9, Code: "system.read"}},
 				},
-				auditBus: bus,
-				logger:   zap.NewNop(),
+				events: bus,
 			}
 
 			if err := tc.mutate(writer, context.Background()); err != nil {
@@ -109,19 +157,18 @@ func TestManagementWriterRolePermissionMutationsPublishAuditMessageKeys(t *testi
 			if len(bus.published) != 1 {
 				t.Fatalf("expected 1 published event, got %d", len(bus.published))
 			}
-			event, ok := bus.published[0].Payload.(moduleapi.AuditEvent)
-			if !ok {
-				t.Fatalf("expected audit event payload, got %T", bus.published[0].Payload)
-			}
-			if event.Action != tc.action || event.MessageKey != tc.messageKey {
-				t.Fatalf("unexpected audit event: %#v", event)
+			payload := decodeRecordedAuditEvent(t, bus.published[0])
+			if payload.Action != tc.action || payload.MessageKey != tc.messageKey {
+				t.Fatalf("unexpected audit event: %#v", payload)
 			}
 		})
 	}
 }
 
-func TestManagementWriterReplaceRolesForUserAuditFailureDoesNotBlock(t *testing.T) {
-	bus := &recordingBus{publishErr: errors.New("audit down")}
+func TestManagementWriterReplaceRolesForUserRollsBackWhenAuditPublishFails(t *testing.T) {
+	bus := &recordingPublisher{publishErr: errors.New("audit down")}
+	var mutationRan bool
+	var committed bool
 	writer := managementWriter{
 		users: testUserService{users: map[uint64]moduleapi.UserSummary{
 			11: {ID: 11, Username: "alice", Display: "Alice"},
@@ -133,17 +180,33 @@ func TestManagementWriterReplaceRolesForUserAuditFailureDoesNotBlock(t *testing.
 			roleByID: map[uint64]rbacstore.Role{
 				3: {ID: 3, Name: "editor", Status: rbacstore.RoleStatusEnabled},
 			},
+			replaceUserRoles: func(context.Context, rbacstore.ReplaceRolesForUserInput) error {
+				mutationRan = true
+				return nil
+			},
+			runInTransaction: func(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
+				err := callback(ctx, nil)
+				if err == nil {
+					committed = true
+				}
+				return err
+			},
 		},
-		auditBus: bus,
-		logger:   zap.NewNop(),
+		events: bus,
 	}
 
 	err := writer.ReplaceRolesForUser(context.Background(), rbacstore.ReplaceRolesForUserInput{
 		UserID:  11,
 		RoleIDs: []uint64{3},
 	})
-	if err != nil {
-		t.Fatalf("replace roles for user: %v", err)
+	if !errors.Is(err, bus.publishErr) {
+		t.Fatalf("expected audit error %v, got %v", bus.publishErr, err)
+	}
+	if !mutationRan {
+		t.Fatal("expected role mutation before audit publication")
+	}
+	if committed {
+		t.Fatal("expected audit failure to prevent transaction commit")
 	}
 	if len(bus.published) != 1 {
 		t.Fatalf("expected audit publish attempt, got %d", len(bus.published))

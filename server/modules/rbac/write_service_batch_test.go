@@ -2,12 +2,52 @@ package rbac
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
 	"graft/server/internal/moduleapi"
 	rbacstore "graft/server/modules/rbac/store"
 )
+
+type batchTransactionMarker struct{}
+
+func TestManagementWriterBatchMutationUsesOuterTransactionContext(t *testing.T) {
+	marker := batchTransactionMarker{}
+	var observedTransactionContext bool
+	bus := &recordingPublisher{}
+	repo := testRBACRepository{
+		roles: []rbacstore.Role{{ID: 3, Name: "editor", Status: rbacstore.RoleStatusEnabled}},
+		roleByID: map[uint64]rbacstore.Role{
+			3: {ID: 3, Name: "editor", Status: rbacstore.RoleStatusEnabled},
+		},
+		runInTransaction: func(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
+			return callback(context.WithValue(ctx, marker, true), nil)
+		},
+		replaceUserRolesBatch: func(ctx context.Context, _ rbacstore.BatchUserRoleMutationInput) error {
+			observedTransactionContext, _ = ctx.Value(marker).(bool)
+			return nil
+		},
+	}
+	writer := managementWriter{
+		users:  testUserService{users: map[uint64]moduleapi.UserSummary{11: {ID: 11}}},
+		rbac:   repo,
+		events: bus,
+	}
+
+	if err := writer.ReplaceRolesForUsers(context.Background(), rbacstore.BatchUserRoleMutationInput{
+		UserIDs: []uint64{11},
+		RoleIDs: []uint64{3},
+	}); err != nil {
+		t.Fatalf("replace roles for users: %v", err)
+	}
+	if !observedTransactionContext {
+		t.Fatal("expected batch mutation to reuse the outer transaction context")
+	}
+	if !bus.publishedInTx || len(bus.published) != 1 {
+		t.Fatalf("expected one transactional audit event, got publishedInTx=%t events=%d", bus.publishedInTx, len(bus.published))
+	}
+}
 
 func TestManagementWriterAtomicBatchWriterUsesAtomicPath(t *testing.T) {
 	testCases := []atomicBatchMutationTestCase{{mode: "replace"}, {mode: "add"}}
@@ -48,7 +88,8 @@ func TestManagementWriterRemoveRolesFromUsersUsesAtomicBatchWriter(t *testing.T)
 			11: {ID: 11},
 			22: {ID: 22},
 		}},
-		rbac: repo,
+		rbac:   repo,
+		events: &recordingPublisher{},
 	}
 
 	if err := writer.RemoveRolesFromUsers(context.Background(), rbacstore.BatchUserRoleMutationInput{
@@ -208,7 +249,8 @@ func testManagementWriterAtomicBatchPath(t *testing.T, tc atomicBatchMutationTes
 				11: {ID: 11},
 				22: {ID: 22},
 			}},
-			rbac: configureAtomicBatchRepo(t, repo, tc.mode, &called),
+			rbac:   configureAtomicBatchRepo(t, repo, tc.mode, &called),
+			events: &recordingPublisher{},
 		}
 
 		if err := runAtomicBatchMutation(context.Background(), writer, tc.mode, rbacstore.BatchUserRoleMutationInput{

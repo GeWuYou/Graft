@@ -16,7 +16,7 @@ import (
 	"go.uber.org/zap"
 
 	generated "graft/server/internal/contract/openapi/generated"
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
 	"graft/server/internal/realtimeauth"
@@ -459,7 +459,7 @@ type Service struct {
 	lifecycleConfigTopicStreamer *projectLifecycleConfigTopicStreamer
 	logTopicStreamer             *projectLogTopicStreamer
 	inspectCache                 *importInspectionCache
-	auditBus                     eventbus.Bus
+	auditPublisher               event.Publisher
 	logger                       *zap.Logger
 	appLogger                    logger.AppLogger
 	moduleName                   string
@@ -630,11 +630,11 @@ func (s *Service) SetRealtime(
 }
 
 // SetAuditPublisher 在模块注册后注入审计事件发布依赖。
-func (s *Service) SetAuditPublisher(bus eventbus.Bus, logger *zap.Logger, moduleName string) {
+func (s *Service) SetAuditPublisher(publisher event.Publisher, logger *zap.Logger, moduleName string) {
 	if s == nil {
 		return
 	}
-	s.auditBus = bus
+	s.auditPublisher = publisher
 	s.logger = logger
 	s.moduleName = strings.TrimSpace(moduleName)
 }

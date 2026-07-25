@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -23,8 +24,76 @@ type LocalDockerProbe struct {
 // SQLRepository 持久化运行时目标记录，并将已软删除记录排除在公开查询之外。
 type SQLRepository struct{ db *sql.DB }
 
+type transactionContextKey struct{}
+
+type sqlExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// TransactionRunner 为需要将运行时目标事实和 durable event 一起提交的调用方提供受限事务边界。
+//
+// callback 收到的 context 已绑定当前事务；仓储写入会复用该事务，调用方只能将 tx
+// 交给 event.TransactionalPublisher，不能自行提交或回滚。
+type TransactionRunner interface {
+	RunInTransaction(context.Context, func(context.Context, *sql.Tx) error) error
+}
+
 // NewSQLRepository 创建由模块拥有的 SQL 仓储。
 func NewSQLRepository(db *sql.DB) *SQLRepository { return &SQLRepository{db: db} }
+
+// RunInTransaction 将使用同一仓储的写入与 durable event 固定在同一个 SQL transaction 中。
+// callback 失败会回滚；只有业务写入与事件写入均成功时才提交。嵌套调用会复用
+// context 中的外层事务，避免内层独立提交。
+func (r *SQLRepository) RunInTransaction(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
+	if r == nil || r.db == nil {
+		return errors.New("runtime target repository is unavailable")
+	}
+	if callback == nil {
+		return errors.New("runtime target transaction callback is required")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if tx := transactionFromContext(ctx); tx != nil {
+		return callback(ctx, tx)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin runtime target transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := callback(context.WithValue(ctx, transactionContextKey{}, tx), tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit runtime target transaction: %w", err)
+	}
+	committed = true
+	return nil
+}
+
+func (r *SQLRepository) executor(ctx context.Context) sqlExecutor {
+	if tx := transactionFromContext(ctx); tx != nil {
+		return tx
+	}
+	return r.db
+}
+
+func transactionFromContext(ctx context.Context) *sql.Tx {
+	if ctx == nil {
+		return nil
+	}
+	tx, _ := ctx.Value(transactionContextKey{}).(*sql.Tx)
+	return tx
+}
 
 // Target 是运行时目标的持久化读取投影；Capabilities 是 provider-neutral 的能力集合，供上层筛选可执行能力。
 type Target struct {
@@ -58,7 +127,7 @@ func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 	if r == nil || r.db == nil {
 		return []Target{}, nil
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id`)
+	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +140,10 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 		return Page{Items: []Target{}}, nil
 	}
 	var summary Summary
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE availability = true), COUNT(*) FILTER (WHERE availability = false) FROM runtime_targets WHERE deleted_at = 0`).Scan(&summary.Total, &summary.Healthy, &summary.Unavailable); err != nil {
+	if err := r.executor(ctx).QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE availability = true), COUNT(*) FILTER (WHERE availability = false) FROM runtime_targets WHERE deleted_at = 0`).Scan(&summary.Total, &summary.Healthy, &summary.Unavailable); err != nil {
 		return Page{}, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id LIMIT $1 OFFSET $2`, limit, offset)
+	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return Page{}, err
 	}
@@ -113,7 +182,7 @@ func (r *SQLRepository) FindSystemLocalDocker(ctx context.Context) (Target, erro
 	}
 	var item Target
 	var capabilities []byte
-	err := r.db.QueryRowContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE provider = 'docker' AND endpoint = 'unix:///var/run/docker.sock' AND system_managed = true AND deleted_at = 0`).Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt)
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE provider = 'docker' AND endpoint = 'unix:///var/run/docker.sock' AND system_managed = true AND deleted_at = 0`).Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Target{}, ErrNotFound
 	}
@@ -133,7 +202,7 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 	}
 	var item Target
 	var capabilities []byte
-	err := r.db.QueryRowContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE id = $1 AND deleted_at = 0`, id).Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt)
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE id = $1 AND deleted_at = 0`, id).Scan(&item.ID, &item.Provider, &item.DisplayName, &item.EndpointLabel, &item.ConnectionKind, &capabilities, &item.Availability, &item.LastError, &item.CheckedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Target{}, ErrNotFound
 	}
@@ -151,6 +220,6 @@ func (r *SQLRepository) UpsertLocalDocker(ctx context.Context, probe LocalDocker
 	if r == nil || r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO runtime_targets (provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at, system_managed, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by) VALUES ('docker', $1, 'Local Docker', 'unix:///var/run/docker.sock', 'unix_socket', '["containers","compose_execution","workspace_access"]'::jsonb, $2, $3, $4, true, NOW(), 0, NOW(), 0, 0, 0) ON CONFLICT (provider, endpoint) WHERE deleted_at = 0 DO UPDATE SET capabilities_json = EXCLUDED.capabilities_json, availability = EXCLUDED.availability, last_error = EXCLUDED.last_error, checked_at = EXCLUDED.checked_at, updated_at = NOW(), updated_by = 0`, probe.Endpoint, probe.Available, probe.Error, probe.CheckedAt)
+	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_targets (provider, endpoint, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at, system_managed, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by) VALUES ('docker', $1, 'Local Docker', 'unix:///var/run/docker.sock', 'unix_socket', '["containers","compose_execution","workspace_access"]'::jsonb, $2, $3, $4, true, NOW(), 0, NOW(), 0, 0, 0) ON CONFLICT (provider, endpoint) WHERE deleted_at = 0 DO UPDATE SET capabilities_json = EXCLUDED.capabilities_json, availability = EXCLUDED.availability, last_error = EXCLUDED.last_error, checked_at = EXCLUDED.checked_at, updated_at = NOW(), updated_by = 0`, probe.Endpoint, probe.Available, probe.Error, probe.CheckedAt)
 	return err
 }

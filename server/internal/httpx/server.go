@@ -56,7 +56,9 @@ type AccessLogOptions struct {
 // ServerOptions 承载 NewServerWithOptions 使用的可选 HTTP runtime 行为。
 type ServerOptions struct {
 	AccessLog AccessLogOptions
-	I18n      *i18n.Service
+	// AccessLogSink 优先于 NewServerWithOptions 的 repository 参数；提供时访问日志由该 sink 提交。
+	AccessLogSink AccessLogPersistSink
+	I18n          *i18n.Service
 }
 
 // NewServer 创建 MVP 运行时使用的最小 Gin 服务外壳。
@@ -88,10 +90,17 @@ func NewServerWithOptions(logger *zap.Logger, options ServerOptions, repo ...Acc
 
 	engine.Use(
 		RequestIDMiddleware(),
-		newAccessLogMiddleware(logger, accessLogRepo, activeRequests, options.AccessLog),
+		newAccessLogMiddleware(logger, firstAccessLogTarget(options.AccessLogSink, accessLogRepo), activeRequests, options.AccessLog),
 		newRecoveryMiddleware(logger, options.I18n),
 	)
 	return &Server{engine: engine, repo: accessLogRepo, activeRequests: activeRequests}
+}
+
+func firstAccessLogTarget(sink AccessLogPersistSink, repo AccessLogRepository) any {
+	if sink != nil {
+		return sink
+	}
+	return repo
 }
 
 func newRecoveryMiddleware(runtimeLogger *zap.Logger, localizer *i18n.Service) gin.HandlerFunc {

@@ -12,17 +12,19 @@ import (
 	"go.uber.org/zap"
 
 	"graft/server/internal/config"
+	"graft/server/internal/event"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/moduleapi"
 )
 
 const httpStatusBadRequest = 400
 
-func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, activeRequests *activeRequestTracker, options AccessLogOptions) gin.HandlerFunc {
+func newAccessLogMiddleware(logger *zap.Logger, target any, activeRequests *activeRequestTracker, options AccessLogOptions) gin.HandlerFunc {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	options = normalizeAccessLogOptions(options)
+	sink := accessLogPersistSinkFromTarget(target)
 
 	return func(ctx *gin.Context) {
 		if ctx.Request != nil && !websocket.IsWebSocketUpgrade(ctx.Request) {
@@ -63,7 +65,7 @@ func newAccessLogMiddleware(logger *zap.Logger, repo AccessLogRepository, active
 		}
 		fields = append(fields, zap.Time("occurredAt", record.OccurredAt))
 
-		persistAccessLog(ctx, logger, repo, record, options.PersistTimeout)
+		persistAccessLog(ctx, logger, sink, record, options.PersistTimeout)
 		if shouldLogAccessToConsole(record, options) {
 			logAccess(logger, ctx.Writer.Status(), fields...)
 		}
@@ -139,8 +141,8 @@ func currentAccessLogConnectionType(ctx *gin.Context) AccessLogConnectionType {
 }
 
 // persistAccessLog 将访问日志记录持久化到仓储；写入受独立 deadline 约束，失败不会改变原始 HTTP 响应。
-func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogRepository, record CreateAccessLogInput, timeout time.Duration) {
-	if repo == nil {
+func persistAccessLog(ctx *gin.Context, logger *zap.Logger, sink AccessLogPersistSink, record CreateAccessLogInput, timeout time.Duration) {
+	if sink == nil {
 		return
 	}
 
@@ -148,7 +150,7 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 	persistCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx.Request.Context()), timeout)
 	defer cancel()
 
-	if _, err := repo.CreateAccessLog(persistCtx, record); err != nil {
+	if err := sink.PersistAccessLog(persistCtx, record); err != nil {
 		failureType := "error"
 		if errors.Is(err, context.DeadlineExceeded) {
 			failureType = "timeout"
@@ -164,6 +166,50 @@ func persistAccessLog(ctx *gin.Context, logger *zap.Logger, repo AccessLogReposi
 			zap.Error(err),
 		)
 	}
+}
+
+// AccessLogPersistSink 是 HTTP runtime 提交规范访问日志事实的窄边界。
+// 实现可以把事实交给 Runtime event publisher；middleware 不拥有队列、worker 或重试生命周期。
+type AccessLogPersistSink interface {
+	PersistAccessLog(context.Context, CreateAccessLogInput) error
+}
+
+func accessLogPersistSinkFromTarget(target any) AccessLogPersistSink {
+	if sink, ok := target.(AccessLogPersistSink); ok {
+		return sink
+	}
+	if repo, ok := target.(AccessLogRepository); ok && repo != nil {
+		// COMPAT(owner=server/internal/app, cleanup=所有 Runtime 调用方改为注入 NewAccessLogEventPersistSink)
+		// 兼容直接传 AccessLogRepository 的旧构造路径；NewServer/NewServerWithOptions 的既有调用方仍依赖同步写入。
+		// Runtime 正式装配优先注入事件 sink。覆盖事件 sink 与旧 repository 直传的测试共同保护该过渡边界。
+		return accessLogRepositoryPersistSink{repo: repo}
+	}
+	return nil
+}
+
+type accessLogRepositoryPersistSink struct {
+	repo AccessLogRepository
+}
+
+func (s accessLogRepositoryPersistSink) PersistAccessLog(ctx context.Context, record CreateAccessLogInput) error {
+	if s.repo == nil {
+		return nil
+	}
+	_, err := s.repo.CreateAccessLog(ctx, record)
+	return err
+}
+
+// NewAccessLogEventPersistSink 创建基于 Runtime event publisher 的访问日志 sink。
+// sink 只负责 best-effort 入队；持久化、重试和 shutdown drain 由 Runtime event dispatcher 管理。
+func NewAccessLogEventPersistSink(publisher event.Publisher, fallback ...AccessLogRepository) AccessLogPersistSink {
+	if publisher == nil {
+		return nil
+	}
+	var repo AccessLogRepository
+	if len(fallback) > 0 {
+		repo = fallback[0]
+	}
+	return accessLogEventPersistSink{publisher: publisher, fallback: repo}
 }
 
 func logAccess(logger *zap.Logger, status int, fields ...zap.Field) {

@@ -104,7 +104,7 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	m.service.SetRuntimeTargetReader(runtimeTargets)
 	m.service.SetAuthorizer(authorizer)
 	m.service.SetRealtime(realtimeDeps.tickets, realtimeDeps.hub, realtimeDeps.issuers)
-	m.service.SetAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
+	m.service.SetAuditPublisher(ctx.EventPublisher, ctx.Logger, moduleID)
 	return taskRegistrar, nil
 }
 

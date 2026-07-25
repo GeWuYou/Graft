@@ -110,6 +110,7 @@ func normalizeAuditRecordInput(input RecordInput) (auditstore.CreateAuditLogInpu
 	}
 
 	return auditstore.CreateAuditLogInput{
+		IdempotencyKey:   strings.TrimSpace(input.IdempotencyKey),
 		ActorUserID:      input.ActorUserID,
 		ActorUsername:    strings.TrimSpace(input.ActorUsername),
 		ActorDisplayName: strings.TrimSpace(input.ActorDisplayName),

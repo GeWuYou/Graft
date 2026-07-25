@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 
+	"graft/server/internal/event"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger/logsafe"
 )
@@ -21,6 +23,27 @@ type appLoggerSinkRecorder struct {
 	err     error
 	block   chan struct{}
 	seen    chan struct{}
+}
+
+type appLogEventPublisherRecorder struct {
+	event event.Event
+	err   error
+}
+
+func (r *appLogEventPublisherRecorder) Publish(context.Context, event.Event, event.PublishOptions) (event.Receipt, error) {
+	return event.Receipt{}, errors.New("unexpected blocking publish")
+}
+
+func (r *appLogEventPublisherRecorder) PublishAsync(current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	r.event = current
+	if r.err != nil {
+		return event.Receipt{}, r.err
+	}
+	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryBestEffort}, nil
+}
+
+func (r *appLogEventPublisherRecorder) PublishBatch(context.Context, []event.Event, event.PublishOptions) event.BatchReceipt {
+	return event.BatchReceipt{}
 }
 
 func newAppLoggerSinkRecorder() *appLoggerSinkRecorder {
@@ -232,6 +255,54 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 	}
 }
 
+func TestAppLoggerPublishesJSONEventForPersistence(t *testing.T) {
+	publisher := &appLogEventPublisherRecorder{}
+	appLogger := NewAppLogger(zap.NewNop(), WithAppLogEventPublisher(publisher)).Named("core.app")
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "request-1"})
+
+	appLogger.Error(ctx, "database unavailable", ErrorField(errors.New("connection refused")))
+
+	if publisher.event.Type != AppLogPersistEventType {
+		t.Fatalf("expected event type %q, got %q", AppLogPersistEventType, publisher.event.Type)
+	}
+	if publisher.event.Version != appLogPersistEventVersion || publisher.event.Source != appLogPersistEventSource {
+		t.Fatalf("expected stable event envelope, got %#v", publisher.event)
+	}
+	var payload appLogPersistEventPayload
+	if err := json.Unmarshal(publisher.event.Payload, &payload); err != nil {
+		t.Fatalf("decode app log event payload: %v", err)
+	}
+	if payload.Record.Component != "core.app" || payload.Record.Error != "connection refused" {
+		t.Fatalf("expected canonical record in event payload, got %#v", payload.Record)
+	}
+	if publisher.event.CorrelationID != "request-1" || publisher.event.IdempotencyKey != "request-1" {
+		t.Fatalf("expected request correlation keys, got %#v", publisher.event)
+	}
+}
+
+func TestAppLogEventHandlerPersistsDecodedRecord(t *testing.T) {
+	repo := newAppLoggerSinkRecorder()
+	payload, err := json.Marshal(appLogPersistEventPayload{Record: CreateAppLogInput{
+		OccurredAt: time.Date(2026, time.July, 23, 10, 0, 0, 0, time.UTC),
+		Severity:   AppLogSeverityWarn,
+		Category:   CategoryApplication,
+		Component:  "core.app",
+		Message:    "degraded",
+	}})
+	if err != nil {
+		t.Fatalf("encode app log event payload: %v", err)
+	}
+
+	err = NewAppLogEventHandler(repo).Handle(context.Background(), event.Event{Payload: payload})
+	if err != nil {
+		t.Fatalf("handle app log event: %v", err)
+	}
+	record := repo.waitRecord(t)
+	if record.Severity != AppLogSeverityWarn || record.Message != "degraded" {
+		t.Fatalf("expected decoded app log record, got %#v", record)
+	}
+}
+
 func TestAppLoggerCategoryPersistsRegisteredCategory(t *testing.T) {
 	sink := newAppLoggerSinkRecorder()
 	core, _ := observer.New(zapcore.InfoLevel)
@@ -325,7 +396,25 @@ func TestAppLoggerPersistenceDoesNotBlockCaller(t *testing.T) {
 	core, observed := observer.New(zapcore.InfoLevel)
 	sink := newAppLoggerSinkRecorder()
 	sink.block = make(chan struct{})
-	logger := NewAppLogger(zap.New(core), WithAppLogRepository(sink)).Named("core.app")
+	dispatcher := event.NewDispatcher(zap.NewNop(), event.Options{WorkerCount: 1})
+	if err := dispatcher.Register(NewAppLogEventHandler(sink)); err != nil {
+		t.Fatalf("register app log event handler: %v", err)
+	}
+	if err := dispatcher.Start(context.Background()); err != nil {
+		t.Fatalf("start event dispatcher: %v", err)
+	}
+	blockClosed := false
+	defer func() {
+		if !blockClosed {
+			close(sink.block)
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := dispatcher.Shutdown(shutdownCtx); err != nil {
+			t.Fatalf("shutdown event dispatcher: %v", err)
+		}
+	}()
+	logger := NewAppLogger(zap.New(core), WithAppLogEventPublisher(dispatcher)).Named("core.app")
 
 	started := time.Now()
 	logger.Info(context.Background(), "request complete", StringField(FieldOperation, "request"))
@@ -341,5 +430,6 @@ func TestAppLoggerPersistenceDoesNotBlockCaller(t *testing.T) {
 	}
 
 	close(sink.block)
+	blockClosed = true
 	_ = sink.waitRecord(t)
 }

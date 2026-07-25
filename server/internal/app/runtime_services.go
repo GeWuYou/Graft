@@ -15,6 +15,7 @@ import (
 	"graft/server/internal/configregistry"
 	"graft/server/internal/container"
 	"graft/server/internal/database"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -98,6 +99,33 @@ func (r *Runtime) foundationServiceRegistrations() []serviceRegistration {
 			key: (*eventbus.Bus)(nil),
 			provider: func() (any, error) {
 				return r.eventBus, nil
+			},
+		},
+		{
+			key: (*event.Publisher)(nil),
+			provider: func() (any, error) {
+				if r.eventDispatcher == nil {
+					return nil, errors.New("event dispatcher is unavailable")
+				}
+				return event.Publisher(r.eventDispatcher), nil
+			},
+		},
+		{
+			key: (*event.TransactionalPublisher)(nil),
+			provider: func() (any, error) {
+				if r.eventDispatcher == nil {
+					return nil, errors.New("event dispatcher is unavailable")
+				}
+				return event.TransactionalPublisher(r.eventDispatcher), nil
+			},
+		},
+		{
+			key: (*event.Registry)(nil),
+			provider: func() (any, error) {
+				if r.eventDispatcher == nil {
+					return nil, errors.New("event dispatcher is unavailable")
+				}
+				return event.Registry(r.eventDispatcher), nil
 			},
 		},
 		{
@@ -267,7 +295,13 @@ func (r *Runtime) newAppLogger() logger.AppLogger {
 		r.canonicalAppLogger = logger.NewAppLogger(r.logger)
 		return r.canonicalAppLogger
 	}
-	r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+	if r.eventDispatcher == nil {
+		// 手工构造的最小 Runtime 不具备 dispatcher 生命周期；保留直连 seam，
+		// 使其不会发布到永远无法启动的队列。标准 Runtime 必须走事件管线。
+		r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogRepository(r.appLogRepository))
+		return r.canonicalAppLogger
+	}
+	r.canonicalAppLogger = logger.NewAppLogger(r.logger, logger.WithAppLogEventPublisher(r.eventDispatcher))
 	return r.canonicalAppLogger
 }
 
@@ -304,7 +338,7 @@ func (r *Runtime) registerSingleton(key any, provider func() (any, error)) error
 
 // 这里不在首个失败处提前返回，因为关闭阶段的目标是尽最大努力释放资源，
 // shutdownModules 按启动顺序的逆序关闭模块，并汇总关闭过程中出现的错误。
-// 它会为模块停机创建一个带超时的上下文，并继续关闭后续模块，即使前面的模块关闭失败。
+// 调用方为模块停机提供独立的有界上下文；即使前面的模块关闭失败，也会继续关闭后续模块。
 // 返回聚合后的关闭错误；如果全部关闭成功，则返回 nil。
 func shutdownModules(ctx *module.Context, ordered []module.RuntimeModule) error {
 	var shutdownErr error
@@ -373,9 +407,6 @@ func (r *Runtime) closeCoreResources() error {
 }
 
 func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeModule) error {
-	shutdownCtx, cancel := withModuleShutdownContext(ctx)
-	defer cancel()
-
 	var shutdownErr error
 	if r.mcpRuntime != nil {
 		if err := r.mcpRuntime.Close(); err != nil {
@@ -384,11 +415,22 @@ func (r *Runtime) shutdownRuntime(ctx *module.Context, booted []module.RuntimeMo
 		r.mcpRuntime = nil
 	}
 	if r.server != nil {
-		if err := r.server.Shutdown(shutdownCtx.LifecycleContext); err != nil {
+		httpShutdownCtx, cancelHTTP := withModuleShutdownContext(ctx)
+		if err := r.server.Shutdown(httpShutdownCtx.LifecycleContext); err != nil {
 			shutdownErr = errors.Join(shutdownErr, err)
 		}
+		cancelHTTP()
 	}
-	if err := shutdownModules(shutdownCtx, booted); err != nil {
+	if r.eventDispatcher != nil {
+		dispatcherShutdownCtx, cancelDispatcher := withModuleShutdownContext(ctx)
+		if err := r.eventDispatcher.Shutdown(dispatcherShutdownCtx.LifecycleContext); err != nil {
+			shutdownErr = errors.Join(shutdownErr, fmt.Errorf("shutdown event dispatcher: %w", err))
+		}
+		cancelDispatcher()
+	}
+	moduleShutdownCtx, cancelModules := withModuleShutdownContext(ctx)
+	defer cancelModules()
+	if err := shutdownModules(moduleShutdownCtx, booted); err != nil {
 		shutdownErr = errors.Join(shutdownErr, err)
 	}
 	if err := r.closeCoreResources(); err != nil {

@@ -16,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	generated "graft/server/internal/contract/openapi/generated"
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -166,24 +166,20 @@ func ensureStubApplicationAggregateDefaults(aggregate projectstore.ApplicationAg
 	return aggregate
 }
 
-type capturedAuditBus struct {
+type capturedAuditPublisher struct {
 	mu        sync.Mutex
 	events    []moduleapi.AuditEvent
 	published chan struct{}
 	blocked   <-chan struct{}
 }
 
-func (b *capturedAuditBus) Subscribe(string, eventbus.Handler) error {
-	return nil
-}
-
-func (b *capturedAuditBus) Publish(_ context.Context, event eventbus.Event) error {
+func (b *capturedAuditPublisher) Publish(_ context.Context, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
 	if b.blocked != nil {
 		<-b.blocked
 	}
-	auditEvent, ok := event.Payload.(moduleapi.AuditEvent)
-	if !ok {
-		return nil
+	var auditEvent moduleapi.AuditEvent
+	if err := json.Unmarshal(current.Payload, &auditEvent); err != nil {
+		return event.Receipt{}, err
 	}
 	b.mu.Lock()
 	b.events = append(b.events, auditEvent)
@@ -194,16 +190,33 @@ func (b *capturedAuditBus) Publish(_ context.Context, event eventbus.Event) erro
 		default:
 		}
 	}
-	return nil
+	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryDurable}, nil
 }
 
-func (b *capturedAuditBus) snapshot() []moduleapi.AuditEvent {
+func (b *capturedAuditPublisher) PublishAsync(current event.Event, options event.PublishOptions) (event.Receipt, error) {
+	return b.Publish(context.Background(), current, options)
+}
+
+func (b *capturedAuditPublisher) PublishBatch(ctx context.Context, events []event.Event, options event.PublishOptions) event.BatchReceipt {
+	result := event.BatchReceipt{Rejected: make(map[string]error)}
+	for _, current := range events {
+		receipt, err := b.Publish(ctx, current, options)
+		if err != nil {
+			result.Rejected[current.ID] = err
+			continue
+		}
+		result.Accepted = append(result.Accepted, receipt)
+	}
+	return result
+}
+
+func (b *capturedAuditPublisher) snapshot() []moduleapi.AuditEvent {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return append([]moduleapi.AuditEvent(nil), b.events...)
 }
 
-func (b *capturedAuditBus) waitForEvents(t *testing.T, count int, timeout time.Duration) []moduleapi.AuditEvent {
+func (b *capturedAuditPublisher) waitForEvents(t *testing.T, count int, timeout time.Duration) []moduleapi.AuditEvent {
 	t.Helper()
 	deadline := time.After(timeout)
 	for {
@@ -525,8 +538,8 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new service: %v", err)
 	}
-	auditBus := &capturedAuditBus{}
-	service.SetAuditPublisher(auditBus, nil, moduleID)
+	auditPublisher := &capturedAuditPublisher{}
+	service.SetAuditPublisher(auditPublisher, nil, moduleID)
 
 	result, err := service.Unregister(authenticatedApplicationActionContext(), 1, nil)
 	if err != nil {
@@ -538,7 +551,7 @@ func TestUnregisterUsesRequestActorAndPublishesAudit(t *testing.T) {
 	if repo.unregisterInput == nil || repo.unregisterInput.ActorID == nil || *repo.unregisterInput.ActorID != 7 {
 		t.Fatalf("expected unregister actor id 7, got %#v", repo.unregisterInput)
 	}
-	events := auditBus.snapshot()
+	events := auditPublisher.snapshot()
 	if len(events) != 1 {
 		t.Fatalf("expected one audit event, got %d", len(events))
 	}
@@ -926,11 +939,11 @@ func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
 		t.Fatalf("new service: %v", err)
 	}
 	releaseAudit := make(chan struct{})
-	auditBus := &capturedAuditBus{
+	auditPublisher := &capturedAuditPublisher{
 		published: make(chan struct{}, 1),
 		blocked:   releaseAudit,
 	}
-	service.SetAuditPublisher(auditBus, nil, moduleID)
+	service.SetAuditPublisher(auditPublisher, nil, moduleID)
 
 	resultCh := make(chan BatchActionResult, 1)
 	errCh := make(chan error, 1)
@@ -956,7 +969,7 @@ func TestBatchActionDoesNotWaitForBatchAuditPublish(t *testing.T) {
 	}
 
 	close(releaseAudit)
-	events := auditBus.waitForEvents(t, 1, time.Second)
+	events := auditPublisher.waitForEvents(t, 1, time.Second)
 	if events[0].Action != projectcontract.ApplicationAuditActionBatchStart.String() {
 		t.Fatalf("expected batch-start audit action, got %#v", events[0])
 	}

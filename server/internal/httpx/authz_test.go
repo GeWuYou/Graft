@@ -71,6 +71,19 @@ func newAuthenticatedUser() *moduleapi.CurrentUser {
 	return &moduleapi.CurrentUser{ID: 7, Username: "alice", DisplayName: "Alice"}
 }
 
+func TestNewAuditEventUsesEnvelopeIDForIdempotency(t *testing.T) {
+	event, err := NewAuditEvent("test", moduleapi.AuditEvent{RequestID: "request-1", Action: "test.audit"})
+	if err != nil {
+		t.Fatalf("new audit event: %v", err)
+	}
+	if event.IdempotencyKey != event.ID {
+		t.Fatalf("expected envelope ID as idempotency key, got id=%q key=%q", event.ID, event.IdempotencyKey)
+	}
+	if event.CorrelationID != "request-1" {
+		t.Fatalf("expected request ID to remain correlation ID, got %q", event.CorrelationID)
+	}
+}
+
 func newAuthenticatedAuthService() testAuthService {
 	return testAuthService{
 		parseAccessToken: func(context.Context, string) (*moduleapi.AccessTokenClaims, error) {

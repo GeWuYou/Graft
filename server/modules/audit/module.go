@@ -13,6 +13,7 @@ import (
 
 	"graft/server/internal/container"
 	"graft/server/internal/drilldown"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger/logsafe"
@@ -96,11 +97,20 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := p.registerHTTP(ctx, logger); err != nil {
 		return err
 	}
-	if ctx.EventBus == nil {
-		return errors.New("event bus is unavailable")
-	}
+	return p.registerEventHandlers(ctx, logger)
+}
 
-	return subscribeAuditRecordEvents(ctx.EventBus, logger, p.recorder, func() moduleapi.NotificationPublisher {
+// registerEventHandlers 将 durable event 与受控 legacy eventbus 订阅集中在 Audit 模块边界。
+func (p *Module) registerEventHandlers(ctx *module.Context, logger *zap.Logger) error {
+	if ctx.EventRegistry == nil {
+		return errors.New("event registry is unavailable")
+	}
+	if err := registerAuditRecordHandler(ctx.EventRegistry, logger, p.recorder, func() moduleapi.NotificationPublisher {
+		return p.notifier
+	}); err != nil {
+		return err
+	}
+	return registerLegacyAuditRecordHandler(ctx.EventBus, logger, p.recorder, func() moduleapi.NotificationPublisher {
 		return p.notifier
 	})
 }
@@ -140,15 +150,62 @@ func (p *Module) registerHTTP(ctx *module.Context, logger *zap.Logger) error {
 	return nil
 }
 
-func subscribeAuditRecordEvents(
+func registerAuditRecordHandler(
+	registry event.Registry,
+	logger *zap.Logger,
+	recorder *Service,
+	notifier func() moduleapi.NotificationPublisher,
+) error {
+	return registry.Register(auditRecordHandler{logger: logger, recorder: recorder, notifier: notifier})
+}
+
+// COMPAT(owner=legacy audit event publishers, cleanup=all publishers use EventTxPublisher in their business transaction)
+// registerLegacyAuditRecordHandler 保留旧进程内主动审计发布契约。
+// 新发布方应在自己的业务事务中使用 EventTxPublisher；这里不能在提交后补写 durable event。
+func registerLegacyAuditRecordHandler(
 	bus eventbus.Bus,
 	logger *zap.Logger,
 	recorder *Service,
 	notifier func() moduleapi.NotificationPublisher,
 ) error {
-	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
-		return consumeAuditRecordEvent(eventCtx, logger, recorder, notifier, event)
+	if bus == nil {
+		return errors.New("event bus is unavailable")
+	}
+	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(ctx context.Context, legacy eventbus.Event) error {
+		payload, ok := legacyAuditEventPayload(legacy.Payload)
+		if !ok {
+			return fmt.Errorf("legacy audit event payload has type %T", legacy.Payload)
+		}
+		return recordEvent(ctx, logger, recorder, notifier, "", payload)
 	})
+}
+
+func legacyAuditEventPayload(raw any) (moduleapi.AuditEvent, bool) {
+	switch payload := raw.(type) {
+	case moduleapi.AuditEvent:
+		return payload, true
+	case *moduleapi.AuditEvent:
+		if payload != nil {
+			return *payload, true
+		}
+	}
+	return moduleapi.AuditEvent{}, false
+}
+
+type auditRecordHandler struct {
+	logger   *zap.Logger
+	recorder *Service
+	notifier func() moduleapi.NotificationPublisher
+}
+
+func (h auditRecordHandler) ID() string { return string(moduleapi.AuditRecordEventName) }
+
+func (h auditRecordHandler) Types() []event.Type {
+	return []event.Type{event.Type(moduleapi.AuditRecordEventName)}
+}
+
+func (h auditRecordHandler) Handle(ctx context.Context, envelope event.Event) error {
+	return consumeAuditRecordEvent(ctx, h.logger, h.recorder, h.notifier, envelope)
 }
 
 func consumeAuditRecordEvent(
@@ -156,10 +213,10 @@ func consumeAuditRecordEvent(
 	logger *zap.Logger,
 	recorder *Service,
 	notifier func() moduleapi.NotificationPublisher,
-	event eventbus.Event,
+	event event.Event,
 ) error {
-	payload, err := resolveAuditEventPayload(event.Payload)
-	if err != nil {
+	var payload moduleapi.AuditEvent
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
 		logger.Error("drop malformed audit event payload",
 			zap.String("module", moduleID),
 			zap.String("event", string(moduleapi.AuditRecordEventName)),
@@ -168,13 +225,18 @@ func consumeAuditRecordEvent(
 		return nil
 	}
 
-	if err := recordEvent(eventCtx, logger, recorder, notifier, payload); err != nil {
+	idempotencyKey := strings.TrimSpace(event.IdempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = event.ID
+	}
+	if err := recordEvent(eventCtx, logger, recorder, notifier, idempotencyKey, payload); err != nil {
 		logger.Error("write active audit log failed",
 			zap.String("module", moduleID),
 			zap.String("event", string(moduleapi.AuditRecordEventName)),
 			zap.String("action", strings.TrimSpace(payload.Action)),
 			zap.Error(err),
 		)
+		return err
 	}
 
 	return nil
@@ -276,9 +338,10 @@ func recordEvent(
 	logger *zap.Logger,
 	recorder *Service,
 	notifier func() moduleapi.NotificationPublisher,
+	idempotencyKey string,
 	payload moduleapi.AuditEvent,
 ) error {
-	candidate := eventAuditCandidate(ctx, payload)
+	candidate := eventAuditCandidate(ctx, idempotencyKey, payload)
 	record, recorded, err := recorder.RecordCandidate(ctx, candidate)
 	if err != nil {
 		return err
@@ -340,28 +403,29 @@ func requestAuditCandidate(ctx *gin.Context) auditstore.AuditCandidate {
 	return candidate
 }
 
-func eventAuditCandidate(ctx context.Context, payload moduleapi.AuditEvent) auditstore.AuditCandidate {
+func eventAuditCandidate(ctx context.Context, idempotencyKey string, payload moduleapi.AuditEvent) auditstore.AuditCandidate {
 	requestAudit := resolveRequestAuditContext(ctx)
 	operator := resolveEventOperator(ctx, payload)
 
 	candidate := auditstore.AuditCandidate{
-		Source:        auditSourceFromEvent(payload),
-		Action:        strings.TrimSpace(payload.Action),
-		EventType:     strings.TrimSpace(payload.Action),
-		ResourceType:  strings.TrimSpace(payload.ResourceType),
-		ResourceID:    strings.TrimSpace(payload.ResourceID),
-		ResourceName:  strings.TrimSpace(payload.ResourceName),
-		RequestMethod: firstNonEmptyTrimmed(payload.RequestMethod, requestAudit.Method),
-		RequestPath:   firstNonEmptyTrimmed(payload.RequestPath, requestAudit.Route),
-		StatusCode:    payload.StatusCode,
-		RequestID:     firstNonEmptyTrimmed(payload.RequestID, requestAudit.RequestID),
-		TraceID:       firstNonEmptyTrimmed(payload.RequestID, requestAudit.TraceID, requestAudit.RequestID),
-		IP:            firstNonEmptyTrimmed(payload.IP, requestAudit.ClientIP),
-		UserAgent:     firstNonEmptyTrimmed(payload.UserAgent, requestAudit.UserAgent),
-		Success:       payload.Success,
-		Message:       strings.TrimSpace(payload.Message),
-		Metadata:      mustMarshalAuditEventMetadata(eventMetadata(payload)),
-		CreatedAt:     payload.CreatedAt,
+		IdempotencyKey: strings.TrimSpace(idempotencyKey),
+		Source:         auditSourceFromEvent(payload),
+		Action:         strings.TrimSpace(payload.Action),
+		EventType:      strings.TrimSpace(payload.Action),
+		ResourceType:   strings.TrimSpace(payload.ResourceType),
+		ResourceID:     strings.TrimSpace(payload.ResourceID),
+		ResourceName:   strings.TrimSpace(payload.ResourceName),
+		RequestMethod:  firstNonEmptyTrimmed(payload.RequestMethod, requestAudit.Method),
+		RequestPath:    firstNonEmptyTrimmed(payload.RequestPath, requestAudit.Route),
+		StatusCode:     payload.StatusCode,
+		RequestID:      firstNonEmptyTrimmed(payload.RequestID, requestAudit.RequestID),
+		TraceID:        firstNonEmptyTrimmed(payload.RequestID, requestAudit.TraceID, requestAudit.RequestID),
+		IP:             firstNonEmptyTrimmed(payload.IP, requestAudit.ClientIP),
+		UserAgent:      firstNonEmptyTrimmed(payload.UserAgent, requestAudit.UserAgent),
+		Success:        payload.Success,
+		Message:        strings.TrimSpace(payload.Message),
+		Metadata:       mustMarshalAuditEventMetadata(eventMetadata(payload)),
+		CreatedAt:      payload.CreatedAt,
 	}
 	if operator != nil {
 		candidate.ActorUserID = &operator.ID
@@ -506,18 +570,4 @@ func mustMarshalAuditEventMetadata(metadata map[string]any) json.RawMessage {
 	}
 
 	return json.RawMessage(payload)
-}
-
-func resolveAuditEventPayload(payload any) (moduleapi.AuditEvent, error) {
-	switch typed := payload.(type) {
-	case moduleapi.AuditEvent:
-		return typed, nil
-	case *moduleapi.AuditEvent:
-		if typed == nil {
-			return moduleapi.AuditEvent{}, errors.New("nil audit event payload")
-		}
-		return *typed, nil
-	default:
-		return moduleapi.AuditEvent{}, fmt.Errorf("unexpected audit event payload type %T", payload)
-	}
 }

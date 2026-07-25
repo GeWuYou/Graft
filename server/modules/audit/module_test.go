@@ -21,6 +21,7 @@ import (
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/drilldown"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -433,6 +434,7 @@ func newModuleTestContextWithAuthorizer(
 		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
+		EventRegistry:      testEventRegistry{},
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -462,6 +464,12 @@ func newModuleTestContextWithAuthorizer(
 	}
 
 	return ctx, engine, bus
+}
+
+type testEventRegistry struct{}
+
+func (testEventRegistry) Register(event.Handler) error {
+	return nil
 }
 
 type stubScopeMetadataRepo struct {
@@ -498,6 +506,7 @@ func newModuleTestContextWithDrilldown(
 		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
+		EventRegistry:      testEventRegistry{},
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -1404,7 +1413,7 @@ func TestRegisterSubscribesActiveAuditEventPointers(t *testing.T) {
 	}
 }
 
-func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
+func TestRegisterReturnsActiveAuditWriteErrors(t *testing.T) {
 	ctx, _, bus := newModuleTestContext(t, failingAuditRepository{})
 
 	if err := ctx.EventBus.Subscribe("noop", func(context.Context, eventbus.Event) error { return nil }); err != nil {
@@ -1421,8 +1430,8 @@ func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
 			Success:      true,
 		},
 	})
-	if err != nil {
-		t.Fatalf("expected active audit failure to be swallowed, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "visibility override lookup failed") {
+		t.Fatalf("expected active audit write failure to be returned, got %v", err)
 	}
 }
 
@@ -1623,4 +1632,79 @@ func TestAbortAuditReadInternalWithNilModuleContext(t *testing.T) {
 	}
 	response := testassert.DecodeErrorResponse(t, recorder)
 	testassert.AssertContractErrorPayload(t, response, messagecontract.CommonInternalError, "zh-CN")
+}
+
+func TestConsumeAuditRecordEventReturnsRecordCandidateError(t *testing.T) {
+	want := errors.New("audit persistence failed")
+	recorder, err := NewService(&stubAuditRepository{
+		createErr: want,
+		policyRules: []store.AuditPolicyRule{{
+			Name:      "include.test.audit.write",
+			Source:    store.AuditSourceDomainEvent,
+			Enabled:   true,
+			Priority:  1,
+			Effect:    store.AuditPolicyEffectInclude,
+			EventType: "test.audit.write",
+			MatchType: store.AuditPolicyMatchTypeExact,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("new audit service: %v", err)
+	}
+	envelope, err := httpx.NewAuditEvent("test", moduleapi.AuditEvent{
+		Kind:    moduleapi.AuditEventKindDomain,
+		Action:  "test.audit.write",
+		Success: true,
+	})
+	if err != nil {
+		t.Fatalf("new audit event: %v", err)
+	}
+
+	err = consumeAuditRecordEvent(context.Background(), zap.NewNop(), recorder, nil, envelope)
+	if !errors.Is(err, want) {
+		t.Fatalf("expected record candidate error, got %v", err)
+	}
+}
+
+func TestConsumeAuditRecordEventUsesNormalizedEnvelopeIdempotencyKey(t *testing.T) {
+	repository := &memoryAuditRepository{rules: []store.AuditPolicyRule{{
+		Name:      "include.test.audit.write",
+		Source:    store.AuditSourceDomainEvent,
+		Enabled:   true,
+		Priority:  1,
+		Effect:    store.AuditPolicyEffectInclude,
+		EventType: "test.audit.write",
+		MatchType: store.AuditPolicyMatchTypeExact,
+	}}}
+	recorder, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new audit service: %v", err)
+	}
+	payload, err := json.Marshal(moduleapi.AuditEvent{
+		Kind:    moduleapi.AuditEventKindDomain,
+		Action:  "test.audit.write",
+		Success: true,
+	})
+	if err != nil {
+		t.Fatalf("marshal audit event: %v", err)
+	}
+
+	err = consumeAuditRecordEvent(context.Background(), zap.NewNop(), recorder, nil, event.Event{
+		ID:             "event-fallback-id",
+		IdempotencyKey: "  request-idempotency-key  ",
+		Payload:        payload,
+	})
+	if err != nil {
+		t.Fatalf("consume audit event: %v", err)
+	}
+	if len(repository.items) != 1 {
+		t.Fatalf("expected one audit record, got %#v", repository.items)
+	}
+	var metadata map[string]any
+	if err := json.Unmarshal(repository.items[0].Metadata, &metadata); err != nil {
+		t.Fatalf("decode audit metadata: %v", err)
+	}
+	if metadata["eventId"] != "request-idempotency-key" {
+		t.Fatalf("expected normalized envelope idempotency key, got %#v", metadata["eventId"])
+	}
 }

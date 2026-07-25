@@ -3,6 +3,7 @@ package runtimetarget
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -41,6 +42,7 @@ type Module struct {
 	collector       *runtimeTargetSummaryCollector
 	runtimeLogger   *zap.Logger
 	i18n            *i18n.Service
+	events          event.TransactionalPublisher
 }
 
 // NewModule 构造 runtime-target 模块实例。
@@ -58,6 +60,10 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	m.runtimeLogger = ctx.Logger
 	m.i18n = ctx.I18n
+	if ctx.EventTxPublisher == nil {
+		return errors.New("runtime target event transaction publisher is unavailable")
+	}
+	m.events = ctx.EventTxPublisher
 	auth, err := module.ResolveService[moduleapi.AuthService](ctx.Services, (*moduleapi.AuthService)(nil))
 	if err != nil {
 		return err
@@ -346,8 +352,9 @@ func (m *Module) handleRefresh(moduleCtx *module.Context) gin.HandlerFunc {
 		if !ok {
 			return
 		}
-		refreshed, err := refreshTarget(c.Request.Context(), m.repository, target.ID)
-		m.publishRefreshAudit(c.Request.Context(), moduleCtx, target, err)
+		refreshed, err := m.runRefreshAuditTransaction(c.Request.Context(), func(txCtx context.Context) (store.Target, error) {
+			return refreshTarget(txCtx, m.repository, target.ID)
+		})
 		if err != nil {
 			httpx.AbortAppError(c, moduleCtx.I18n, m.runtimeLogger, err)
 			return
@@ -359,21 +366,16 @@ func (m *Module) handleRefresh(moduleCtx *module.Context) gin.HandlerFunc {
 
 func (m *Module) handleDiscoverLocal(moduleCtx *module.Context) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if err := discoverLocalDocker(c.Request.Context(), m.repository); err != nil {
-			httpx.AbortAppError(c, moduleCtx.I18n, m.runtimeLogger, err)
-			return
-		}
-		target, err := m.repository.FindSystemLocalDocker(c.Request.Context())
-		if errors.Is(err, store.ErrNotFound) {
-			httpx.WriteSuccess[any](c, http.StatusOK, nil)
-			return
-		}
+		target, found, err := m.discoverAndPublishAudit(c.Request.Context())
 		if err != nil {
 			httpx.AbortAppError(c, moduleCtx.I18n, m.runtimeLogger, err)
 			return
 		}
+		if !found {
+			httpx.WriteSuccess[any](c, http.StatusOK, nil)
+			return
+		}
 		m.summaries.invalidate(target.ID)
-		m.publishRefreshAudit(c.Request.Context(), moduleCtx, target, nil)
 		httpx.WriteSuccess(c, http.StatusOK, m.toHTTP(c.Request.Context(), target))
 	}
 }
@@ -497,14 +499,55 @@ func toHTTPUsageMetric(metric targetUsageMetric) generated.RuntimeTargetUsageMet
 	return generated.RuntimeTargetUsageMetric{Available: metric.Available, UsedBytes: metric.UsedBytes, TotalBytes: metric.TotalBytes, UsagePercent: metric.UsagePercent, UnavailableReason: metric.UnavailableReason}
 }
 
-func (m *Module) publishRefreshAudit(ctx context.Context, moduleCtx *module.Context, target store.Target, refreshErr error) {
-	if moduleCtx == nil || moduleCtx.EventBus == nil {
-		return
+func (m *Module) discoverAndPublishAudit(ctx context.Context) (store.Target, bool, error) {
+	target, err := m.runRefreshAuditTransaction(ctx, func(txCtx context.Context) (store.Target, error) {
+		if err := discoverLocalDocker(txCtx, m.repository); err != nil {
+			return store.Target{}, err
+		}
+		current, err := m.repository.FindSystemLocalDocker(txCtx)
+		if errors.Is(err, store.ErrNotFound) {
+			return store.Target{}, nil
+		}
+		return current, err
+	})
+	return target, target.ID != 0, err
+}
+
+// runRefreshAuditTransaction 将 runtime-target 刷新事实与 durable audit event 固定在同一个事务中。
+func (m *Module) runRefreshAuditTransaction(ctx context.Context, refresh func(context.Context) (store.Target, error)) (store.Target, error) {
+	if m == nil || m.repository == nil {
+		return store.Target{}, errors.New("runtime target repository is unavailable")
 	}
-	event := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.refresh", ResourceType: "runtime_target", ResourceID: strconv.FormatUint(target.ID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: refreshErr == nil, Metadata: map[string]any{"provider": target.Provider, "result": map[bool]string{true: "success", false: "failure"}[refreshErr == nil]}}
-	if refreshErr != nil {
-		event.StatusCode = http.StatusInternalServerError
-		event.MessageKey = messagecontract.CommonInternalError.String()
+	if m.events == nil {
+		return store.Target{}, errors.New("runtime target event transaction publisher is unavailable")
 	}
-	_ = moduleCtx.EventBus.Publish(ctx, eventbus.Event{Name: string(moduleapi.AuditRecordEventName), Source: moduleID, Payload: event})
+	var refreshed store.Target
+	err := m.repository.RunInTransaction(ctx, func(txCtx context.Context, tx *sql.Tx) error {
+		target, err := refresh(txCtx)
+		if err != nil {
+			return err
+		}
+		if target.ID == 0 {
+			return nil
+		}
+		if err := m.publishRefreshAuditTx(txCtx, tx, target); err != nil {
+			return err
+		}
+		refreshed = target
+		return nil
+	})
+	if err != nil {
+		return store.Target{}, err
+	}
+	return refreshed, nil
+}
+
+func (m *Module) publishRefreshAuditTx(ctx context.Context, tx *sql.Tx, target store.Target) error {
+	payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.refresh", ResourceType: "runtime_target", ResourceID: strconv.FormatUint(target.ID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: true, Metadata: map[string]any{"provider": target.Provider, "result": "success"}}
+	envelope, err := httpx.NewAuditEvent(moduleID, payload)
+	if err != nil {
+		return err
+	}
+	_, err = m.events.PublishTx(ctx, tx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
+	return err
 }

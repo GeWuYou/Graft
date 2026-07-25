@@ -22,7 +22,7 @@ func (r *repository) AssignRoleToUser(ctx context.Context, input rbacstore.Assig
 		return err
 	}
 
-	if err := insertUserRole(ctx, userID, roleID, execQuerier{db: r.db}); err != nil {
+	if err := insertUserRole(ctx, userID, roleID, r.execQuerier(ctx)); err != nil {
 		if isUniqueViolation(err) {
 			return nil
 		}
@@ -66,22 +66,17 @@ func (r *repository) ReplaceRolesForUser(ctx context.Context, input rbacstore.Re
 }
 
 func (r *repository) ReplaceRolesForUsersAtomically(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
-	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, "start replace user roles batch tx")
-	if err != nil {
-		return err
-	}
-	defer rollbackUncommitted(tx, &committed)
-
-	for _, userID := range input.UserIDs {
-		if err := r.replaceRolesForUserTx(ctx, tx, rbacstore.ReplaceRolesForUserInput{
-			UserID:  userID,
-			RoleIDs: input.RoleIDs,
-		}); err != nil {
-			return err
+	return r.runBatchUserRoleMutation(ctx, "start replace user roles batch tx", "commit replace user roles batch", func(tx *sql.Tx) error {
+		for _, userID := range input.UserIDs {
+			if err := r.replaceRolesForUserTx(ctx, tx, rbacstore.ReplaceRolesForUserInput{
+				UserID:  userID,
+				RoleIDs: input.RoleIDs,
+			}); err != nil {
+				return err
+			}
 		}
-	}
-
-	return commitBatchUserRoleMutationTx(tx, &committed, "commit replace user roles batch")
+		return nil
+	})
 }
 
 func (r *repository) AddRolesToUser(ctx context.Context, input rbacstore.AddRolesToUserInput) error {
@@ -98,7 +93,7 @@ func (r *repository) AddRolesToUser(ctx context.Context, input rbacstore.AddRole
 		return err
 	}
 	for _, roleID := range roleIDs {
-		if err := insertUserRole(ctx, userID, roleID, execQuerier{db: r.db}); err != nil {
+		if err := insertUserRole(ctx, userID, roleID, r.execQuerier(ctx)); err != nil {
 			if isUniqueViolation(err) {
 				continue
 			}
@@ -110,30 +105,21 @@ func (r *repository) AddRolesToUser(ctx context.Context, input rbacstore.AddRole
 }
 
 func (r *repository) AddRolesToUsersAtomically(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
-	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, "start add user roles batch tx")
-	if err != nil {
-		return err
-	}
-	defer rollbackUncommitted(tx, &committed)
-
-	roleIDs, err := toUniqueDBIDs(input.RoleIDs)
-	if err != nil {
-		return err
-	}
-	if err := ensureAssignableRolesTx(ctx, tx, roleIDs); err != nil {
-		return err
-	}
-
-	for _, userID := range input.UserIDs {
-		if err := addRolesToUserTx(ctx, tx, rbacstore.AddRolesToUserInput{
-			UserID:  userID,
-			RoleIDs: input.RoleIDs,
-		}); err != nil {
+	return r.runBatchUserRoleMutation(ctx, "start add user roles batch tx", "commit add user roles batch", func(tx *sql.Tx) error {
+		roleIDs, err := toUniqueDBIDs(input.RoleIDs)
+		if err != nil {
 			return err
 		}
-	}
-
-	return commitBatchUserRoleMutationTx(tx, &committed, "commit add user roles batch")
+		if err := ensureAssignableRolesTx(ctx, tx, roleIDs); err != nil {
+			return err
+		}
+		for _, userID := range input.UserIDs {
+			if err := addRolesToUserTx(ctx, tx, userID, roleIDs); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (r *repository) RemoveRolesFromUser(ctx context.Context, input rbacstore.RemoveRolesFromUserInput) error {
@@ -150,7 +136,7 @@ func (r *repository) RemoveRolesFromUser(ctx context.Context, input rbacstore.Re
 	}
 
 	query, args := buildDeleteBindingsQuery("DELETE FROM user_roles WHERE user_id = ?", userID, "role_id", roleIDs)
-	_, execErr := r.db.ExecContext(ctx, query, args...)
+	_, execErr := r.executor(ctx).ExecContext(ctx, query, args...)
 	if execErr != nil {
 		return fmt.Errorf("remove roles from user %d: %w", input.UserID, execErr)
 	}
@@ -158,22 +144,38 @@ func (r *repository) RemoveRolesFromUser(ctx context.Context, input rbacstore.Re
 }
 
 func (r *repository) RemoveRolesFromUsersAtomically(ctx context.Context, input rbacstore.BatchUserRoleMutationInput) error {
-	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, "start remove user roles batch tx")
+	return r.runBatchUserRoleMutation(ctx, "start remove user roles batch tx", "commit remove user roles batch", func(tx *sql.Tx) error {
+		for _, userID := range input.UserIDs {
+			if err := removeRolesFromUserTx(ctx, tx, rbacstore.RemoveRolesFromUserInput{
+				UserID:  userID,
+				RoleIDs: input.RoleIDs,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// runBatchUserRoleMutation 复用外层业务事务；独立调用才创建并提交批量写入事务。
+func (r *repository) runBatchUserRoleMutation(
+	ctx context.Context,
+	startContext string,
+	commitContext string,
+	run func(*sql.Tx) error,
+) error {
+	if tx, ok := transactionFromContext(ctx); ok {
+		return run(tx)
+	}
+	tx, committed, err := r.beginBatchUserRoleMutationTx(ctx, startContext)
 	if err != nil {
 		return err
 	}
 	defer rollbackUncommitted(tx, &committed)
-
-	for _, userID := range input.UserIDs {
-		if err := removeRolesFromUserTx(ctx, tx, rbacstore.RemoveRolesFromUserInput{
-			UserID:  userID,
-			RoleIDs: input.RoleIDs,
-		}); err != nil {
-			return err
-		}
+	if err := run(tx); err != nil {
+		return err
 	}
-
-	return commitBatchUserRoleMutationTx(tx, &committed, "commit remove user roles batch")
+	return commitBatchUserRoleMutationTx(tx, &committed, commitContext)
 }
 
 func (r *repository) ListRolesByUserID(ctx context.Context, userID uint64) ([]rbacstore.Role, error) {

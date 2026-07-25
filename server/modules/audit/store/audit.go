@@ -163,6 +163,8 @@ type AuditTarget struct {
 
 // CreateAuditLogInput 描述持久化审计事实所需的最小输入。
 type CreateAuditLogInput struct {
+	// IdempotencyKey 标识 durable delivery 的稳定事件 ID；为空表示调用方不要求去重。
+	IdempotencyKey   string
 	ActorUserID      *uint64
 	ActorUsername    string
 	ActorDisplayName string
@@ -182,6 +184,8 @@ type CreateAuditLogInput struct {
 
 // AuditCandidate 是写入审计记录前经过来源和字段归一化、等待策略评估的候选事实。
 type AuditCandidate struct {
+	// IdempotencyKey 标识一个可重试事件的稳定投递 ID，供持久化层避免重复写入。
+	IdempotencyKey   string
 	Source           AuditSource
 	Visibility       AuditVisibilityStrategy
 	ActorUserID      *uint64

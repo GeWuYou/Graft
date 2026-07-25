@@ -14,7 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"graft/server/internal/eventbus"
+	"go.uber.org/zap"
+
+	"graft/server/internal/event"
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 )
 
@@ -25,7 +28,8 @@ type RolloutService struct {
 	coordinator       *ComposeExecutionCoordinator
 	launcher          ComposeRunnerLauncher
 	newOperation      func() string
-	auditBus          eventbus.Bus
+	auditPublisher    event.Publisher
+	logger            *zap.Logger
 	receiptPollMu     sync.Mutex
 	receiptPollCancel context.CancelFunc
 	receiptPollDone   chan struct{}
@@ -47,8 +51,14 @@ var (
 	errRolloutPrecondition    = errors.New("compose update precondition is not met")
 )
 
-// SetAuditBus 注入审计事件发布端；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
-func (s *RolloutService) SetAuditBus(bus eventbus.Bus) { s.auditBus = bus }
+// SetAuditPublisher 注入 durable 审计事件发布端和失败日志器；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
+func (s *RolloutService) SetAuditPublisher(publisher event.Publisher, logger *zap.Logger) {
+	if s == nil {
+		return
+	}
+	s.auditPublisher = publisher
+	s.logger = logger
+}
 
 func newOperationID() string { return fmt.Sprintf("update-%d", time.Now().UTC().UnixNano()) }
 
@@ -241,7 +251,7 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 }
 
 func (s *RolloutService) publishAudit(ctx context.Context, operation ComposeUpdateOperation, success bool, message string) {
-	if s == nil || s.auditBus == nil {
+	if s == nil || s.auditPublisher == nil {
 		return
 	}
 	requestAuth, _ := moduleapi.RequestAuthContextFromContext(ctx)
@@ -249,7 +259,27 @@ func (s *RolloutService) publishAudit(ctx context.Context, operation ComposeUpda
 	if requestAuth.User != nil {
 		operator = requestAuth.User
 	}
-	_ = s.auditBus.Publish(ctx, eventbus.Event{Name: string(moduleapi.AuditRecordEventName), Source: moduleID, Payload: moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: operator, Action: "platform.update.compose", ResourceType: "platform_update", ResourceID: operation.OperationID, ResourceName: operation.TargetVersion, StatusCode: http.StatusAccepted, Success: success, Message: strings.TrimSpace(message), Metadata: map[string]any{"source_version": operation.SourceVersion, "target_version": operation.TargetVersion, "task_id": operation.TaskID, "status": operation.Outcome}}, OccurredAt: time.Now().UTC()})
+	requestAudit, _ := httpx.RequestAuditContextFromContext(ctx)
+	payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: operator, Action: "platform.update.compose", ResourceType: "platform_update", ResourceID: operation.OperationID, ResourceName: operation.TargetVersion, RequestID: requestAudit.RequestID, RequestMethod: requestAudit.Method, RequestPath: requestAudit.Route, IP: requestAudit.ClientIP, UserAgent: requestAudit.UserAgent, StatusCode: http.StatusAccepted, Success: success, Message: strings.TrimSpace(message), Metadata: map[string]any{"source_version": operation.SourceVersion, "target_version": operation.TargetVersion, "task_id": operation.TaskID, "status": operation.Outcome}, CreatedAt: time.Now().UTC()}
+	envelope, err := httpx.NewAuditEvent(moduleID, payload)
+	if err != nil {
+		s.logAuditPublishFailure(operation, err)
+		return
+	}
+	if _, err := s.auditPublisher.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable}); err != nil {
+		s.logAuditPublishFailure(operation, err)
+	}
+}
+
+func (s *RolloutService) logAuditPublishFailure(operation ComposeUpdateOperation, err error) {
+	if s == nil || s.logger == nil {
+		return
+	}
+	s.logger.Error("publish update rollout audit event failed",
+		zap.String("module", moduleID),
+		zap.String("operation_id", operation.OperationID),
+		zap.Error(err),
+	)
 }
 
 func isTerminalOutcome(outcome ExecutionOutcome) bool {

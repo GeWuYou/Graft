@@ -22,6 +22,7 @@ import (
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -37,7 +38,7 @@ import (
 
 const moduleShutdownTimeout = 5 * time.Second
 const appRuntimeLogComponent = "internal.app.runtime"
-const coreServiceRegistrationCapacity = 13
+const coreServiceRegistrationCapacity = 16
 const (
 	coreModuleRuntimeHealthWidgetOrder = 10
 	moduleRuntimeHealthTitleKey        = "dashboard.widget.moduleRuntimeHealth.title"
@@ -88,6 +89,7 @@ type Runtime struct {
 	openapiDocs               *openAPIDocsAssets
 	mcpDocs                   []byte
 	eventBus                  eventbus.Bus
+	eventDispatcher           *event.Dispatcher
 	realtimeHub               realtime.Hub
 	realtimeTopicIssuers      realtime.TopicIssuerRegistry
 	services                  *container.Container
@@ -259,14 +261,6 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		return nil, fmt.Errorf("create access log repository: %w", err)
 	}
 
-	appLogRepo, err := newOptionalAppLogRepository(cfg, deps, databaseResources.SQL)
-	if err != nil {
-		_ = redisClient.Close()
-		_ = database.Close(databaseResources)
-		_ = logger.Close(runtimeLogger)
-		return nil, err
-	}
-
 	cacheManager, err := newRuntimeCacheManager(cfg, redisClient)
 	if err != nil {
 		_ = redisClient.Close()
@@ -275,7 +269,14 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		return nil, fmt.Errorf("create cache manager: %w", err)
 	}
 
-	runtimeAppLogger := logger.NewAppLogger(runtimeLogger, logger.WithAppLogRepository(appLogRepo))
+	appLogRepo, eventDispatcher, err := newRuntimeEventPipeline(cfg, deps, databaseResources.SQL, runtimeLogger, accessLogRepo)
+	if err != nil {
+		_ = redisClient.Close()
+		_ = database.Close(databaseResources)
+		_ = logger.Close(runtimeLogger)
+		return nil, err
+	}
+	runtimeAppLogger := logger.NewAppLogger(runtimeLogger, logger.WithAppLogEventPublisher(eventDispatcher))
 	runtime := &Runtime{
 		config:       cfg,
 		logger:       runtimeLogger,
@@ -289,9 +290,11 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 				SlowThreshold:  time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
 				PersistTimeout: time.Duration(cfg.HTTPX.AccessLogPersistTimeoutMS) * time.Millisecond,
 			},
-			I18n: localizer,
+			AccessLogSink: httpx.NewAccessLogEventPersistSink(eventDispatcher, accessLogRepo),
+			I18n:          localizer,
 		}, accessLogRepo),
 		eventBus:             eventbus.New(runtimeLogger),
+		eventDispatcher:      eventDispatcher,
 		realtimeHub:          realtime.NewHub(),
 		realtimeTopicIssuers: realtime.NewTopicIssuerRegistry(),
 		services:             container.New(),
@@ -311,6 +314,38 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 	}
 
 	return runtime, nil
+}
+
+// newRuntimeEventPipeline 组装可选 App Log consumer 与 durable event dispatcher，
+// 让 Runtime 构造函数只负责编排 core 资源的失败回收。
+func newRuntimeEventPipeline(
+	cfg *config.Config,
+	deps runtimeCoreDeps,
+	db *sql.DB,
+	runtimeLogger *zap.Logger,
+	accessLogRepo httpx.AccessLogRepository,
+) (logger.AppLogRepository, *event.Dispatcher, error) {
+	appLogRepo, err := newOptionalAppLogRepository(cfg, deps, db)
+	if err != nil {
+		return nil, nil, err
+	}
+	eventOutbox, err := event.NewSQLRepository(db)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create event outbox repository: %w", err)
+	}
+	dispatcher, err := event.NewDurableDispatcher(runtimeLogger, event.Options{}, eventOutbox)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create durable event dispatcher: %w", err)
+	}
+	if appLogRepo != nil {
+		if err := dispatcher.Register(logger.NewAppLogEventHandler(appLogRepo)); err != nil {
+			return nil, nil, fmt.Errorf("register app log event handler: %w", err)
+		}
+	}
+	if err := dispatcher.Register(httpx.NewAccessLogEventHandler(accessLogRepo)); err != nil {
+		return nil, nil, fmt.Errorf("register access log event handler: %w", err)
+	}
+	return appLogRepo, dispatcher, nil
 }
 
 // normalizeRuntimeCoreDeps 为缺失的构造函数和打开函数填充默认实现。
@@ -424,10 +459,22 @@ func (r *Runtime) prepareModules(
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
 		return nil, err
 	}
+	if err := r.startEventDispatcher(); err != nil {
+		return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("start event dispatcher: %w", err))
+	}
 	if err := r.prepareCoreRegistries(runCtx, moduleCtx, booted); err != nil {
 		return nil, err
 	}
 	return r.bootModules(moduleCtx, ordered, booted)
+}
+
+// startEventDispatcher 使用独立于模块生命周期的上下文启动 worker。
+// runCtx 取消后 Runtime 仍需先 drain 已接收事件，直到 shutdownRuntime 显式停止 dispatcher。
+func (r *Runtime) startEventDispatcher() error {
+	if r.eventDispatcher == nil {
+		return errors.New("runtime event dispatcher is not initialized")
+	}
+	return r.eventDispatcher.Start(context.Background())
 }
 
 func (r *Runtime) prepareCoreRegistries(
@@ -601,6 +648,9 @@ func (r *Runtime) newModuleContext(runCtx context.Context) *module.Context {
 		AppLogger:          r.injectedAppLogger(),
 		I18n:               r.i18n,
 		EventBus:           r.eventBus,
+		EventPublisher:     r.eventDispatcher,
+		EventTxPublisher:   r.eventDispatcher,
+		EventRegistry:      r.eventDispatcher,
 		Realtime:           r.realtimeHub,
 		Router:             r.server.Engine().Group("/api"),
 		Services:           r.services,

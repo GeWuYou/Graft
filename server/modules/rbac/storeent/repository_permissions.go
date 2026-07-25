@@ -99,6 +99,10 @@ func (r *repository) addPermissionsToRole(
 		return err
 	}
 
+	if tx, ok := transactionFromContext(ctx); ok {
+		return insertRolePermissions(ctx, tx, boundRoleID, roleID, dbPermissionIDs, action)
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("start %s role permissions tx for role %d: %w", action, roleID, err)
@@ -106,16 +110,31 @@ func (r *repository) addPermissionsToRole(
 	committed := false
 	defer rollbackUncommitted(tx, &committed)
 
-	for _, permissionID := range dbPermissionIDs {
-		if err := insertRolePermission(ctx, boundRoleID, permissionID, execQuerier{tx: tx}); err != nil {
-			return fmt.Errorf("%s permission %d to role %d: %w", action, permissionID, roleID, err)
-		}
+	if err := insertRolePermissions(ctx, tx, boundRoleID, roleID, dbPermissionIDs, action); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit %s role permissions for role %d: %w", action, roleID, err)
 	}
 	committed = true
+	return nil
+}
+
+// insertRolePermissions 复用调用方持有的事务写入权限绑定，避免嵌套事务破坏外层原子边界。
+func insertRolePermissions(
+	ctx context.Context,
+	tx *sql.Tx,
+	boundRoleID int64,
+	roleID uint64,
+	permissionIDs []int64,
+	action string,
+) error {
+	for _, permissionID := range permissionIDs {
+		if err := insertRolePermission(ctx, boundRoleID, permissionID, execQuerier{tx: tx}); err != nil {
+			return fmt.Errorf("%s permission %d to role %d: %w", action, permissionID, roleID, err)
+		}
+	}
 	return nil
 }
 
@@ -136,7 +155,7 @@ func (r *repository) RemovePermissionsFromRole(ctx context.Context, input rbacst
 	}
 
 	query, args := buildDeleteBindingsQuery("DELETE FROM role_permissions WHERE role_id = ?", roleID, "permission_id", permissionIDs)
-	_, execErr := r.db.ExecContext(ctx, query, args...)
+	_, execErr := r.executor(ctx).ExecContext(ctx, query, args...)
 	if execErr != nil {
 		return fmt.Errorf("remove permissions from role %d: %w", input.RoleID, execErr)
 	}

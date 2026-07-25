@@ -28,6 +28,7 @@ var (
 
 // RecordInput 描述服务边界接收的一条审计记录写入请求。
 type RecordInput struct {
+	IdempotencyKey   string
 	ActorUserID      *uint64
 	ActorUsername    string
 	ActorDisplayName string
@@ -361,6 +362,7 @@ func (s *Service) RecordCandidate(ctx context.Context, candidate auditstore.Audi
 	candidate.Visibility = strategy
 
 	record, err := s.Record(ctx, RecordInput{
+		IdempotencyKey:   candidate.IdempotencyKey,
 		ActorUserID:      candidate.ActorUserID,
 		ActorUsername:    candidate.ActorUsername,
 		ActorDisplayName: candidate.ActorDisplayName,

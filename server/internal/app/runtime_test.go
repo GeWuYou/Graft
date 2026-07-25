@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/database"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -288,6 +290,14 @@ func TestInjectedAppLoggerFallsBackToRuntimeLoggerWhenServicesMissing(t *testing
 	assertEventuallyAppLogRecord(t, repo, "runtime fallback log", "")
 }
 
+func TestStartEventDispatcherRequiresInitializedDispatcher(t *testing.T) {
+	runtime := &Runtime{}
+
+	if err := runtime.startEventDispatcher(); err == nil || !strings.Contains(err.Error(), "not initialized") {
+		t.Fatalf("expected an initialized-dispatcher error, got %v", err)
+	}
+}
+
 func assertEventuallyAppLogRecord(t *testing.T, repo *runtimeAppLogRecorderRepo, message string, moduleName string) {
 	t.Helper()
 
@@ -329,6 +339,67 @@ func (p *eventBusRecorderModule) Boot(ctx *module.Context) error {
 }
 
 func (p *eventBusRecorderModule) Shutdown(_ *module.Context) error { return nil }
+
+const runtimeEventPipelineTestType event.Type = "runtime.event-pipeline.test"
+
+type eventPipelineRecorderModule struct {
+	registerPublisher event.Publisher
+	registerRegistry  event.Registry
+	bootPublisher     event.Publisher
+	delivered         atomic.Int32
+	shutdownDelivered atomic.Bool
+	cancelOnBoot      context.CancelFunc
+	handleStartedOnce sync.Once
+	handleStarted     chan struct{}
+	releaseHandle     chan struct{}
+}
+
+func (p *eventPipelineRecorderModule) ID() string { return "runtime-event-pipeline-recorder" }
+
+func (p *eventPipelineRecorderModule) Types() []event.Type {
+	return []event.Type{runtimeEventPipelineTestType}
+}
+
+func (p *eventPipelineRecorderModule) Handle(ctx context.Context, _ event.Event) error {
+	p.handleStartedOnce.Do(func() { close(p.handleStarted) })
+	<-p.releaseHandle
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	p.delivered.Add(1)
+	return nil
+}
+
+func (p *eventPipelineRecorderModule) Register(ctx *module.Context) error {
+	p.registerPublisher = ctx.EventPublisher
+	p.registerRegistry = ctx.EventRegistry
+	return ctx.EventRegistry.Register(p)
+}
+
+func (p *eventPipelineRecorderModule) Boot(ctx *module.Context) error {
+	p.bootPublisher = ctx.EventPublisher
+	_, err := ctx.EventPublisher.Publish(ctx.LifecycleContext, event.Event{
+		ID:      "runtime-event-pipeline-event",
+		Type:    runtimeEventPipelineTestType,
+		Version: 1,
+		Source:  "runtime-test",
+		Payload: json.RawMessage(`{"value":"test"}`),
+	}, event.PublishOptions{})
+	if err != nil {
+		return err
+	}
+	<-p.handleStarted
+	if p.cancelOnBoot != nil {
+		p.cancelOnBoot()
+	}
+	close(p.releaseHandle)
+	return nil
+}
+
+func (p *eventPipelineRecorderModule) Shutdown(_ *module.Context) error {
+	p.shutdownDelivered.Store(p.delivered.Load() == 1)
+	return nil
+}
 
 type lifecycleContextRecorderModule struct {
 	registerLifecycleContext     context.Context
@@ -447,6 +518,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	})
 	runtimeLogger := zap.NewNop()
 	runtimeEventBus := eventbus.New(runtimeLogger)
+	runtimeEventDispatcher := event.NewDispatcher(runtimeLogger, event.Options{})
 	sqlDB := &sql.DB{}
 
 	cfg := &config.Config{
@@ -488,6 +560,7 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 		cacheManager:     cacheManager,
 		server:           httpx.NewServer(runtimeLogger, accessLogRepository),
 		eventBus:         runtimeEventBus,
+		eventDispatcher:  runtimeEventDispatcher,
 		services:         container.New(),
 		appLogRepository: &runtimeAppLogRecorderRepo{},
 	}
@@ -500,6 +573,8 @@ func TestRegisterCoreServicesExposesRuntimeSingletons(t *testing.T) {
 	assertResolvedService(t, runtime.services, (*zap.Logger)(nil), runtimeLogger, "logger")
 	assertResolvedService(t, runtime.services, (*i18n.Service)(nil), localizer, "i18n service")
 	assertResolvedService(t, runtime.services, (*eventbus.Bus)(nil), runtimeEventBus, "event bus")
+	assertResolvedService(t, runtime.services, (*event.Publisher)(nil), event.Publisher(runtimeEventDispatcher), "event publisher")
+	assertResolvedService(t, runtime.services, (*event.Registry)(nil), event.Registry(runtimeEventDispatcher), "event registry")
 	assertResolvedService(t, runtime.services, (*sql.DB)(nil), sqlDB, "sql db")
 	assertResolvedService(t, runtime.services, (*cachex.Manager)(nil), cacheManager, "cache manager")
 	assertAppLoggerRegistered(t, runtime.services)
@@ -641,6 +716,22 @@ func mustPreregisterRuntimeOwnerLocales(t *testing.T, runtime *Runtime) {
 	}
 }
 
+func newLifecycleRuntimeTest(manager *module.Manager) *Runtime {
+	return &Runtime{
+		config:             &config.Config{HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"}},
+		logger:             zap.NewNop(),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      manager,
+	}
+}
+
 func runtimeTestConfig() *config.Config {
 	return &config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
@@ -745,12 +836,19 @@ func TestPrepareModulesAssertsOwnerLocaleResourcesAlreadyRegistered(t *testing.T
 		FallbackLocale:   "en-US",
 		SupportedLocales: []string{"zh-CN", "en-US"},
 	})
+	runtimeEventDispatcher := event.NewDispatcher(zap.NewNop(), event.Options{})
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = runtimeEventDispatcher.Shutdown(shutdownCtx)
+	})
 	runtime := &Runtime{
 		config:             runtimeTestConfig(),
 		logger:             zap.NewNop(),
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    runtimeEventDispatcher,
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -923,6 +1021,7 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           runtimeEventBus,
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -942,6 +1041,52 @@ func TestRunPassesEventBusIntoModuleContext(t *testing.T) {
 	}
 }
 
+func TestRunStartsEventPipelineAfterRegisterAndDrainsBeforeModuleShutdown(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	recorder := &eventPipelineRecorderModule{
+		cancelOnBoot:  cancel,
+		handleStarted: make(chan struct{}),
+		releaseHandle: make(chan struct{}),
+	}
+	manager := module.NewManager()
+	if err := manager.RegisterModule(mustDescribeRuntimeTestModule(module.Spec{ID: "event-pipeline-recorder"}, recorder)); err != nil {
+		t.Fatalf("register module: %v", err)
+	}
+
+	dispatcher := event.NewDispatcher(zap.NewNop(), event.Options{WorkerCount: 1})
+	runtime := &Runtime{
+		config:             &config.Config{HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"}},
+		logger:             zap.NewNop(),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    dispatcher,
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      manager,
+	}
+	mustPreregisterRuntimeOwnerLocales(t, runtime)
+
+	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled runtime lifecycle, got %v", err)
+	}
+	if recorder.registerPublisher != dispatcher || recorder.bootPublisher != dispatcher {
+		t.Fatal("expected Register and Boot to receive the runtime event publisher")
+	}
+	if recorder.registerRegistry != dispatcher {
+		t.Fatal("expected Register to receive the runtime event registry")
+	}
+	if recorder.delivered.Load() != 1 || !recorder.shutdownDelivered.Load() {
+		t.Fatal("expected accepted event delivery to drain before module shutdown")
+	}
+}
+
 // TestRunPassesLifecycleContextIntoModulePhases 验证 Runtime 会在模块生命周期内
 // 注入显式上下文，并在 Shutdown 阶段切换到独立的有界关闭上下文。
 func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
@@ -957,20 +1102,7 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 		t.Fatalf("register module: %v", err)
 	}
 
-	runtime := &Runtime{
-		config: &config.Config{
-			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
-		},
-		logger:             zap.NewNop(),
-		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		server:             httpx.NewServer(zap.NewNop()),
-		eventBus:           eventbus.New(zap.NewNop()),
-		services:           container.New(),
-		menuRegistry:       menu.NewRegistry(),
-		permissionRegistry: permission.NewRegistry(),
-		cronRegistry:       cronx.NewRegistry(),
-		moduleManager:      manager,
-	}
+	runtime := newLifecycleRuntimeTest(manager)
 	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
@@ -1002,6 +1134,33 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	}
 }
 
+func TestWithModuleShutdownContextRefreshesModuleDeadline(t *testing.T) {
+	original := &module.Context{LifecycleContext: context.Background()}
+	first, cancelFirst := withModuleShutdownContext(original)
+	cancelFirst()
+	<-first.LifecycleContext.Done()
+
+	second, cancelSecond := withModuleShutdownContext(original)
+	defer cancelSecond()
+	if err := second.LifecycleContext.Err(); err != nil {
+		t.Fatalf("expected a fresh module shutdown budget, got %v", err)
+	}
+	firstDeadline, firstOK := first.LifecycleContext.Deadline()
+	secondDeadline, secondOK := second.LifecycleContext.Deadline()
+	if !firstOK || !secondOK || !secondDeadline.After(firstDeadline) {
+		t.Fatalf("expected refreshed module shutdown deadline after %v, got %v", firstDeadline, secondDeadline)
+	}
+}
+
+// TestStartEventDispatcherRejectsMissingDispatcher 验证 Runtime 缺少事件管线装配时会显式失败，
+// 避免把 durable 发布隐式降级为没有 Outbox 的 dispatcher。
+func TestStartEventDispatcherRejectsMissingDispatcher(t *testing.T) {
+	runtime := &Runtime{logger: zap.NewNop()}
+	if err := runtime.startEventDispatcher(); err == nil {
+		t.Fatal("expected missing event dispatcher to fail")
+	}
+}
+
 // TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled 验证启动上下文已经取消时，
 // Runtime 不会继续进入会访问数据库或外部资源的模块 Boot 阶段。
 func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
@@ -1016,20 +1175,7 @@ func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
 		t.Fatalf("register module: %v", err)
 	}
 
-	runtime := &Runtime{
-		config: &config.Config{
-			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
-		},
-		logger:             zap.NewNop(),
-		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		server:             httpx.NewServer(zap.NewNop()),
-		eventBus:           eventbus.New(zap.NewNop()),
-		services:           container.New(),
-		menuRegistry:       menu.NewRegistry(),
-		permissionRegistry: permission.NewRegistry(),
-		cronRegistry:       cronx.NewRegistry(),
-		moduleManager:      manager,
-	}
+	runtime := newLifecycleRuntimeTest(manager)
 	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	runCtx, cancel := context.WithCancel(context.Background())
@@ -1069,6 +1215,7 @@ func TestRunFreezesI18nRegistryAfterRegisterBeforeBoot(t *testing.T) {
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -1140,6 +1287,7 @@ func TestRunPrereRegistersEmbeddedLocaleResourcesBeforeModuleRegister(t *testing
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
