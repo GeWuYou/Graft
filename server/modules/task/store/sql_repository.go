@@ -40,6 +40,7 @@ func NewSQLRepository(db *sql.DB, dialect SQLDialect) (*SQLRepository, error) {
 
 // Create 原子保存冻结的 Task、按序 Stage 计划和创建事件，避免提交出不完整的执行计划。
 // 返回的第三个值表示同一幂等提交已存在，调用方不应重复发布创建事件。
+//
 //nolint:gocognit,gocyclo,cyclop,funlen,revive // 事务必须原子处理幂等查询、插入竞争恢复、阶段和初始事件。
 func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, bool, error) {
 	input, err := normalizeCreateInput(input)
@@ -279,6 +280,50 @@ func (r *SQLRepository) ListLogs(ctx context.Context, taskID uint64, afterSequen
 	}
 	defer closeRows(rows)
 	return scanLogs(rows)
+}
+
+// ListLogsBefore 返回指定游标之前的日志页，并保持调用方使用的正序展示语义。
+func (r *SQLRepository) ListLogsBefore(ctx context.Context, taskID uint64, beforeSequence int64, limit int) ([]taskmodel.Log, error) {
+	if taskID == 0 || beforeSequence <= 0 {
+		return nil, ErrInvalidInput
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+logColumns()+`
+		FROM task_logs WHERE task_id = ? AND sequence < ? ORDER BY sequence DESC LIMIT ?`), taskID, beforeSequence, normalizeLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list task logs before cursor: %w", err)
+	}
+	defer closeRows(rows)
+	logs, err := scanLogs(rows)
+	if err != nil {
+		return nil, err
+	}
+	reverseLogs(logs)
+	return logs, nil
+}
+
+// ListLatestLogs 返回最近一页日志，并保持调用方使用的正序展示语义。
+func (r *SQLRepository) ListLatestLogs(ctx context.Context, taskID uint64, limit int) ([]taskmodel.Log, error) {
+	if taskID == 0 {
+		return nil, ErrInvalidInput
+	}
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+logColumns()+`
+		FROM task_logs WHERE task_id = ? ORDER BY sequence DESC LIMIT ?`), taskID, normalizeLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list latest task logs: %w", err)
+	}
+	defer closeRows(rows)
+	logs, err := scanLogs(rows)
+	if err != nil {
+		return nil, err
+	}
+	reverseLogs(logs)
+	return logs, nil
+}
+
+func reverseLogs(logs []taskmodel.Log) {
+	for left, right := 0, len(logs)-1; left < right; left, right = left+1, right-1 {
+		logs[left], logs[right] = logs[right], logs[left]
+	}
 }
 
 // TransitionTask 应用已校验的 compare-and-swap Task 状态迁移，状态冲突时不修改任何记录。

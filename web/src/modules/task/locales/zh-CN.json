@@ -61,6 +61,7 @@
       "empty": "尚未记录执行日志。",
       "importantFields": "重要字段",
       "jumpBottom": "跳至底部",
+      "jumpTop": "回到顶部",
       "level": "级别",
       "levelFilter": "级别",
       "loadFailed": "无法加载任务日志。",

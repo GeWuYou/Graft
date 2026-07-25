@@ -73,6 +73,54 @@ func TestTaskListFilterRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestTaskLogPageSupportsLegacyTailAndBeforeQueries(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name       string
+		query      string
+		wantMode   taskLogPageMode
+		wantCursor int64
+		wantLimit  int
+	}{
+		{name: "legacy forward cursor", query: "after_sequence=5&limit=20", wantMode: taskLogPageAfter, wantCursor: 5, wantLimit: 20},
+		{name: "tail", query: "tail=true&limit=10", wantMode: taskLogPageTail, wantLimit: 10},
+		{name: "before cursor", query: "before_sequence=5&limit=10", wantMode: taskLogPageBefore, wantCursor: 5, wantLimit: 10},
+		{name: "false tail is absent", query: "tail=false&after_sequence=5", wantMode: taskLogPageAfter, wantCursor: 5, wantLimit: defaultTaskLogLimit},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			context, _ := gin.CreateTestContext(httptest.NewRecorder())
+			context.Request = httptest.NewRequest(http.MethodGet, "/tasks/1/logs?"+testCase.query, nil)
+			page, err := taskLogPage(context, defaultTaskLogLimit, maxTaskLogLimit)
+			if err != nil {
+				t.Fatalf("parse task log page: %v", err)
+			}
+			if page.mode != testCase.wantMode || page.cursor != testCase.wantCursor || page.limit != testCase.wantLimit {
+				t.Fatalf("page = %#v", page)
+			}
+		})
+	}
+}
+
+func TestTaskLogPageRejectsConflictingCursorQueries(t *testing.T) {
+	t.Parallel()
+	for _, query := range []string{
+		"after_sequence=1&before_sequence=2",
+		"after_sequence=1&tail=true",
+		"before_sequence=2&tail=true",
+		"before_sequence=0",
+		"tail=not-a-bool",
+	} {
+		t.Run(query, func(t *testing.T) {
+			context, _ := gin.CreateTestContext(httptest.NewRecorder())
+			context.Request = httptest.NewRequest(http.MethodGet, "/tasks/1/logs?"+query, nil)
+			if _, err := taskLogPage(context, defaultTaskLogLimit, maxTaskLogLimit); !errors.Is(err, errTaskInvalidArgument) {
+				t.Fatalf("query %q error = %v, want invalid argument", query, err)
+			}
+		})
+	}
+}
+
 func TestTaskRouteWritesNotFoundContract(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()

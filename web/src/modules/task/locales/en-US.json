@@ -61,6 +61,7 @@
       "empty": "No execution logs have been recorded.",
       "importantFields": "Important Fields",
       "jumpBottom": "Jump to Bottom",
+      "jumpTop": "Jump to Top",
       "level": "Level",
       "levelFilter": "Level",
       "loadFailed": "Task logs could not be loaded.",

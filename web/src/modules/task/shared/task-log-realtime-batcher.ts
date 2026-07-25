@@ -2,169 +2,114 @@ import { normalizeStructuredLogEntry, type StructuredLogEntry } from '@/shared/o
 
 import type { TaskLogEntry, TaskLogResponse } from '../types/task';
 
-const TASK_LOG_COMMIT_INTERVAL_MS = 100;
-const TASK_LOG_NORMALIZATION_CHUNK_SIZE = 25;
+const TASK_LOG_VIEW_CAPACITY = 10_000;
 
 export type TaskLogRealtimeSnapshot = Readonly<{
   contentVersion: number;
   entries: readonly StructuredLogEntry[];
+  oldestSequence: number;
   nextAfterSequence: number;
   truncated: boolean;
 }>;
 
 type TaskLogRealtimeBatcherOptions = Readonly<{
   capacity?: number;
-  commitIntervalMs?: number;
   onCommit: (snapshot: TaskLogRealtimeSnapshot) => void;
 }>;
 
 /**
- * 通过分片合并持久化回放页；默认保留全部已加载日志，由调用方按序游标决定何时继续加载。
+ * 按持久化 sequence 合并任务日志分页，让向前读取历史和向后追加实时日志共用一个有界视图。
  */
 export class TaskLogRealtimeBatcher {
-  readonly #capacity: number | null;
-  readonly #commitIntervalMs: number;
+  readonly #capacity: number;
   readonly #onCommit: (snapshot: TaskLogRealtimeSnapshot) => void;
-  #entries: StructuredLogEntry[] = [];
+  #entries = new Map<number, StructuredLogEntry>();
   #contentVersion = 0;
   #nextAfterSequence = 0;
   #truncated = false;
-  #commitTimer: ReturnType<typeof setTimeout> | null = null;
-  #generation = 0;
 
   constructor(options: TaskLogRealtimeBatcherOptions) {
-    this.#capacity = options.capacity ?? null;
-    this.#commitIntervalMs = options.commitIntervalMs ?? TASK_LOG_COMMIT_INTERVAL_MS;
+    this.#capacity = options.capacity ?? TASK_LOG_VIEW_CAPACITY;
     this.#onCommit = options.onCommit;
   }
 
   seed(response: TaskLogResponse) {
-    this.#generation += 1;
-    this.#entries = [];
+    this.#entries.clear();
     this.#contentVersion = 0;
     this.#nextAfterSequence = 0;
     this.#truncated = false;
     this.#append(response.items);
     this.#nextAfterSequence = response.next_after_sequence;
-    this.#emitImmediately();
+    this.#emit();
   }
 
   append(response: TaskLogResponse) {
-    const entryVersion = this.#contentVersion;
+    const entryVersion = this.#entries.size;
     const currentCursor = this.#nextAfterSequence;
     this.#append(response.items);
     this.#nextAfterSequence = Math.max(currentCursor, response.next_after_sequence);
 
     // 空轮询且游标未推进时不创建新的响应式快照，避免日志视图无意义重渲染。
-    if (this.#contentVersion === entryVersion && this.#nextAfterSequence === currentCursor) {
+    if (this.#entries.size === entryVersion && this.#nextAfterSequence === currentCursor) {
       return;
     }
 
-    this.#scheduleEmit();
+    this.#emit();
   }
 
-  /**
-   * 分片处理首屏日志，避免大任务的历史回放阻塞抽屉打开或关闭动画。
-   */
-  async seedDeferred(response: TaskLogResponse) {
-    const generation = ++this.#generation;
-    this.#entries = [];
-    this.#contentVersion = 0;
-    this.#nextAfterSequence = 0;
-    this.#truncated = false;
-    await this.#appendDeferred(response.items, generation);
-    if (generation !== this.#generation) return false;
-    this.#nextAfterSequence = response.next_after_sequence;
-    this.#emitImmediately();
-    return true;
-  }
-
-  /**
-   * 分片合并实时增量，确保高频日志不会长时间占用主线程。
-   */
-  async appendDeferred(response: TaskLogResponse) {
-    const generation = this.#generation;
-    const entryVersion = this.#contentVersion;
-    const currentCursor = this.#nextAfterSequence;
-    await this.#appendDeferred(response.items, generation);
-    if (generation !== this.#generation) return false;
-    this.#nextAfterSequence = Math.max(currentCursor, response.next_after_sequence);
-
-    if (this.#contentVersion === entryVersion && this.#nextAfterSequence === currentCursor) {
-      return true;
-    }
-
-    this.#scheduleEmit();
-    return true;
+  prepend(response: TaskLogResponse) {
+    const entryVersion = this.#entries.size;
+    this.#append(response.items);
+    if (this.#entries.size === entryVersion) return;
+    this.#emit();
   }
 
   nextAfterSequence() {
     return this.#nextAfterSequence;
   }
 
-  clear() {
-    this.#generation += 1;
-    this.#clearCommitTimer();
-    this.#entries = [];
-    this.#contentVersion += 1;
-    this.#nextAfterSequence = 0;
-    this.#truncated = false;
+  oldestSequence() {
+    if (!this.#entries.size) return 0;
+    return Math.min(...this.#entries.keys());
   }
 
-  destroy() {
-    this.clear();
+  clear(resetCursor = true) {
+    this.#entries.clear();
+    this.#contentVersion += 1;
+    if (resetCursor) this.#nextAfterSequence = 0;
+    this.#truncated = false;
+    this.#emit();
   }
 
   #append(entries: readonly TaskLogEntry[]) {
     for (const entry of entries) {
       const normalized = normalizeStructuredLogEntry(entry);
       if (!normalized) continue;
-      this.#appendNormalized(normalized);
+      if (!this.#entries.has(entry.sequence)) {
+        this.#entries.set(entry.sequence, normalized);
+        this.#contentVersion += 1;
+      }
     }
+    this.#trim();
   }
 
-  async #appendDeferred(entries: readonly TaskLogEntry[], generation: number) {
-    for (let index = 0; index < entries.length; index += 1) {
-      if (generation !== this.#generation) return;
-      const normalized = normalizeStructuredLogEntry(entries[index]);
-      if (normalized) this.#appendNormalized(normalized);
-      if ((index + 1) % TASK_LOG_NORMALIZATION_CHUNK_SIZE === 0) await yieldToBrowser();
-    }
-  }
-
-  #scheduleEmit() {
-    if (this.#commitTimer !== null) return;
-    this.#commitTimer = setTimeout(() => {
-      this.#commitTimer = null;
-      this.#emitImmediately();
-    }, this.#commitIntervalMs);
-  }
-
-  #clearCommitTimer() {
-    if (this.#commitTimer === null) return;
-    clearTimeout(this.#commitTimer);
-    this.#commitTimer = null;
-  }
-
-  #emitImmediately() {
-    this.#clearCommitTimer();
+  #emit() {
+    const entries = [...this.#entries.entries()].sort(([left], [right]) => left - right);
     this.#onCommit({
       contentVersion: this.#contentVersion,
-      entries: this.#entries.slice(),
+      entries: entries.map(([, entry]) => entry),
+      oldestSequence: entries[0]?.[0] ?? 0,
       nextAfterSequence: this.#nextAfterSequence,
       truncated: this.#truncated,
     });
   }
 
-  #appendNormalized(entry: StructuredLogEntry) {
-    this.#entries.push(entry);
-    this.#contentVersion += 1;
-    if (this.#capacity === null || this.#entries.length <= this.#capacity) return;
-    this.#entries.splice(0, this.#entries.length - this.#capacity);
-    this.#truncated = true;
+  #trim() {
+    while (this.#entries.size > this.#capacity) {
+      const oldestSequence = Math.min(...this.#entries.keys());
+      this.#entries.delete(oldestSequence);
+      this.#contentVersion += 1;
+      this.#truncated = true;
+    }
   }
-}
-
-function yieldToBrowser() {
-  return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }

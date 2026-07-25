@@ -12356,7 +12356,12 @@ export interface operations {
   listTaskLogs: {
     parameters: {
       query?: {
+        /** @description Return entries with a sequence strictly greater than this cursor. Mutually exclusive with before_sequence and tail=true. */
         after_sequence?: number;
+        /** @description Return entries with a sequence strictly earlier than this cursor. Results remain in ascending sequence order and this parameter is mutually exclusive with after_sequence and tail=true. */
+        before_sequence?: number;
+        /** @description Return the latest page of entries in ascending sequence order. Mutually exclusive with after_sequence and before_sequence when true. */
+        tail?: boolean;
         limit?: number;
       };
       header?: {
@@ -12383,6 +12388,16 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-task-log-response'];
+        };
+      };
+      /** @description Log cursor parameters are invalid or mutually exclusive. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
         };
       };
       401: components['responses']['unauthorized'];
