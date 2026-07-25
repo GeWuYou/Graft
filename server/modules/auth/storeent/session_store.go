@@ -68,12 +68,12 @@ func (r *sessionStore) RevokeRefreshSessionsByUserID(ctx context.Context, input 
 	return nil
 }
 
-func (r *sessionStore) RevokeOtherRefreshSessionsByUserID(ctx context.Context, input store.RevokeOtherRefreshSessionsInput) error {
-	_, err := r.client.AuthRefreshSession.Update().Where(authrefreshsessionent.UserIDEQ(input.UserID), authrefreshsessionent.RevokedAtIsNil(), authrefreshsessionent.TokenIDNEQ(input.CurrentTokenID)).SetRevokedAt(input.RevokedAt).Save(ctx)
+func (r *sessionStore) RevokeOtherRefreshSessionsByUserID(ctx context.Context, input store.RevokeOtherRefreshSessionsInput) (int, error) {
+	affected, err := r.client.AuthRefreshSession.Update().Where(authrefreshsessionent.UserIDEQ(input.UserID), authrefreshsessionent.RevokedAtIsNil(), authrefreshsessionent.TokenIDNEQ(input.CurrentTokenID)).SetRevokedAt(input.RevokedAt).Save(ctx)
 	if err != nil {
-		return fmt.Errorf("revoke other auth refresh sessions by user id: %w", err)
+		return 0, fmt.Errorf("revoke other auth refresh sessions by user id: %w", err)
 	}
-	return nil
+	return affected, nil
 }
 
 func (r *sessionStore) RevokeRefreshSessionByUserID(ctx context.Context, input store.RevokeRefreshSessionByUserIDInput) error {

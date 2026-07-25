@@ -10,8 +10,8 @@
   - `AGENTS.md`
   - `server/AGENTS.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
-- Completed so far: transaction audit, implementation design, and auth-native transaction boundary.
-- Current focus: user-owned profile lifecycle and session revocation convergence.
+- Completed so far: transaction audit, module-local ownership boundaries, and the narrow cross-module transaction contract.
+- Current focus: bind the auth participant to the user-owned composite transaction.
 
 ## Recovery Receipt
 
@@ -48,8 +48,9 @@ Out of scope:
 ## Current Recovery Point
 
 - Batch 1 established auth-native transaction ownership and rollback proof.
-- Adapter implementation remains blocked until user module boundaries and the shared contract are accepted.
-- Next step: establish user ownership and session revocation convergence.
+- Batch 2 established user profile ownership without compensation.
+- Batch 3 froze the transaction-scoped cross-module contract; the adapter itself remains intentionally unimplemented.
+- Next step: replace the user profile-only runner with the user-owned composite transaction and bind auth to it.
 
 ## Work Intake
 

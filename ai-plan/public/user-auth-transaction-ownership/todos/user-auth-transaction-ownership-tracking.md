@@ -40,15 +40,15 @@ closeout:
 
 ## Current Recovery Point
 
-- Current state: Batch 2 complete and validated; user service owns an explicit profile-only transaction runner for create, disable, and delete writes.
-- Risk: credential provisioning and session revocation remain separate auth commits until the user-owned composite transaction can bind an auth participant. Their post-profile-commit failures are now explicit and are not compensated by profile writes.
-- Next step: Batch 3, introduce the minimum transaction-scoped cross-module capability contract.
+- Current state: Batch 3 complete and validated; `moduleapi.AuthTransactionAdapterFactory` accepts only a caller-owned `*sql.Tx` and returns an auth-only participant that cannot own transaction completion.
+- Risk: the current user runner still starts an Ent transaction internally, so it cannot yet expose the raw transaction required by the new contract. Credential provisioning and session revocation therefore remain separate auth commits until Batch 4 replaces that runner with the composite boundary.
+- Next step: Batch 4, make the user lifecycle workflow create the raw transaction, bind user and auth Ent clients to it, and remove the remaining explicit partial-commit errors.
 
 ## Task Checklist
 
 - [x] Batch 1: move auth multi-write transaction lifecycle out of repositories and prove local rollback.
 - [x] Batch 2: establish user ownership rules and record the remaining auth-owned multi-session revocation blocker.
-- [ ] Batch 3: add the minimum transaction-scoped cross-module capability contract.
+- [x] Batch 3: add the minimum transaction-scoped cross-module capability contract.
 - [ ] Batch 4: bind auth to the user-owned composite transaction and remove compensation.
 - [ ] Batch 5: add cross-module atomicity and failure-injection tests; run final validation.
 
@@ -67,16 +67,16 @@ closeout:
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "auth-native-transaction-ownership",
-    "user-ownership-and-session-revocation"
+    "user-ownership-and-session-revocation",
+    "user-auth-transaction-contract"
   ],
   "pending_batches": [
-    "user-auth-transaction-contract",
     "user-auth-transaction-adapter",
     "transaction-consistency-proof"
   ],
-  "current_batch": "user-ownership-and-session-revocation",
-  "next_batch": "user-auth-transaction-contract",
-  "closeout_status": "batch-2-completed"
+  "current_batch": "user-auth-transaction-contract",
+  "next_batch": "user-auth-transaction-adapter",
+  "closeout_status": "batch-3-completed"
 }
 ```
 
@@ -94,3 +94,10 @@ closeout:
 - The user module cannot change the current auth `RevokeOtherSessionsByUserID` implementation because it is an auth-owned `moduleapi` capability. Although the auth store already has a collection update, the service capability still iterates sessions; Batch 3/4 must decide and implement its stable collection-oriented contract without user reaching into auth internals.
 - Added an Ent-backed rollback proof for profile creation and a service-level assertion that credential-provision failure leaves the committed profile visible to the caller.
 - Validation passed: `go test ./modules/user/...`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, and `git diff --check`.
+
+## Batch 3 Evidence
+
+- Added `moduleapi.AuthTransactionAdapterFactory` and `AuthTransactionAdapter`. The factory receives a caller-owned `*sql.Tx`; its adapter surface contains only auth-owned credential provisioning and session revocation writes. Neither interface exposes Begin, Commit, Rollback, context propagation, or a generic UnitOfWork.
+- The contract deliberately is not registered or implemented in this batch. The current user Ent transaction runner cannot prove it is binding the same raw SQL transaction, so an implementation here would violate lifecycle ownership.
+- `RevokeOtherSessionsByUserID` and the current-user equivalent now use one auth collection update. The auth store returns the affected count so the stable `Revoked` result remains accurate without a list-then-loop write pattern.
+- Validation passed: `go test ./modules/auth/... ./internal/moduleapi/...`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, and `git diff --check`.

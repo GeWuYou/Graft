@@ -118,7 +118,7 @@ type AuthRepository interface {
 	GetRefreshSessionByTokenID(ctx context.Context, tokenID string) (RefreshSession, error)
 	RevokeRefreshSession(ctx context.Context, input RevokeRefreshSessionInput) error
 	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
-	RevokeOtherRefreshSessionsByUserID(ctx context.Context, input RevokeOtherRefreshSessionsInput) error
+	RevokeOtherRefreshSessionsByUserID(ctx context.Context, input RevokeOtherRefreshSessionsInput) (int, error)
 	RevokeRefreshSessionByUserID(ctx context.Context, input RevokeRefreshSessionByUserIDInput) error
 	ListActiveRefreshSessionsByUserID(ctx context.Context, input ListActiveRefreshSessionsByUserIDInput) ([]RefreshSession, error)
 	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)
@@ -137,7 +137,7 @@ type SessionStore interface {
 	GetRefreshSessionByTokenID(ctx context.Context, tokenID string) (RefreshSession, error)
 	RevokeRefreshSession(ctx context.Context, input RevokeRefreshSessionInput) error
 	RevokeRefreshSessionsByUserID(ctx context.Context, input RevokeRefreshSessionsByUserIDInput) error
-	RevokeOtherRefreshSessionsByUserID(ctx context.Context, input RevokeOtherRefreshSessionsInput) error
+	RevokeOtherRefreshSessionsByUserID(ctx context.Context, input RevokeOtherRefreshSessionsInput) (int, error)
 	RevokeRefreshSessionByUserID(ctx context.Context, input RevokeRefreshSessionByUserIDInput) error
 	ListActiveRefreshSessionsByUserID(ctx context.Context, input ListActiveRefreshSessionsByUserIDInput) ([]RefreshSession, error)
 	RotateRefreshSession(ctx context.Context, input RotateRefreshSessionInput) (RefreshSession, error)

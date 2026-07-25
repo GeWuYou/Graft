@@ -94,6 +94,42 @@ func TestAuthRuntimeLogoutAndTargetedSessionRevokeInvalidateAccessTokens(t *test
 	}
 }
 
+func TestAuthRuntimeRevokeOtherSessionsUsesCollectionWrite(t *testing.T) {
+	service, stores, user := newRuntimeRegressionService(t, false)
+	current, err := service.LoginWithRefresh(context.Background(), user.Username, runtimeTestPassword)
+	if err != nil {
+		t.Fatalf("login current session: %v", err)
+	}
+	other, err := service.LoginWithRefresh(context.Background(), user.Username, runtimeTestPassword)
+	if err != nil {
+		t.Fatalf("login other session: %v", err)
+	}
+	currentClaims, err := service.tokens.Parse(current.AccessToken)
+	if err != nil {
+		t.Fatalf("parse current access token: %v", err)
+	}
+	otherClaims, err := service.tokens.Parse(other.AccessToken)
+	if err != nil {
+		t.Fatalf("parse other access token: %v", err)
+	}
+
+	requestContext := moduleapi.WithRequestAuthContext(context.Background(), moduleapi.RequestAuthContext{User: &user, Claims: currentClaims})
+	if err := service.RevokeOtherCurrentUserSessions(requestContext); err != nil {
+		t.Fatalf("revoke other sessions: %v", err)
+	}
+	if stores.sessions[currentClaims.SessionID].RevokedAt != nil {
+		t.Fatal("current session must remain active")
+	}
+	if stores.sessions[otherClaims.SessionID].RevokedAt == nil {
+		t.Fatal("other session must be revoked by the collection write")
+	}
+
+	result, err := service.RevokeOtherSessionsByUserID(context.Background(), user.ID, currentClaims.SessionID)
+	if err != nil || result.Revoked {
+		t.Fatalf("repeat collection revoke = %#v, %v; want no affected sessions", result, err)
+	}
+}
+
 func TestAuthRuntimeRestrictedPasswordChangeAndBootstrapState(t *testing.T) {
 	service, stores, user := newRuntimeRegressionService(t, true)
 	login, err := service.LoginWithRefresh(context.Background(), user.Username, runtimeTestPassword)
@@ -283,14 +319,16 @@ func (s *runtimeAuthStores) RevokeRefreshSessionsByUserID(_ context.Context, inp
 	return nil
 }
 
-func (s *runtimeAuthStores) RevokeOtherRefreshSessionsByUserID(_ context.Context, input authstore.RevokeOtherRefreshSessionsInput) error {
+func (s *runtimeAuthStores) RevokeOtherRefreshSessionsByUserID(_ context.Context, input authstore.RevokeOtherRefreshSessionsInput) (int, error) {
+	affected := 0
 	for tokenID, session := range s.sessions {
 		if session.UserID == input.UserID && tokenID != input.CurrentTokenID && session.RevokedAt == nil {
 			session.RevokedAt = &input.RevokedAt
 			s.sessions[tokenID] = session
+			affected++
 		}
 	}
-	return nil
+	return affected, nil
 }
 
 func (s *runtimeAuthStores) RevokeRefreshSessionByUserID(_ context.Context, input authstore.RevokeRefreshSessionByUserIDInput) error {

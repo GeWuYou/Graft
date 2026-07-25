@@ -93,7 +93,7 @@ func (s authService) updatePasswordAndRevokeSessions(ctx context.Context, userID
 			}
 			return nil
 		}
-		if err := sessions.RevokeOtherRefreshSessionsByUserID(txCtx, authstore.RevokeOtherRefreshSessionsInput{UserID: userID, CurrentTokenID: currentTokenID, RevokedAt: changedAt}); err != nil {
+		if _, err := sessions.RevokeOtherRefreshSessionsByUserID(txCtx, authstore.RevokeOtherRefreshSessionsInput{UserID: userID, CurrentTokenID: currentTokenID, RevokedAt: changedAt}); err != nil {
 			return fmt.Errorf("revoke other refresh sessions: %w", err)
 		}
 		return nil

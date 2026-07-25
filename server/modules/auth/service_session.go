@@ -345,24 +345,8 @@ func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
 		return moduleapi.ErrUnauthenticated
 	}
 
-	sessions, err := s.ListUserSessions(ctx, requestAuth.Claims.UserID, sessionListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, session := range sessions {
-		if session.SessionID == requestAuth.Claims.SessionID {
-			continue
-		}
-		if err := s.RevokeUserSession(ctx, requestAuth.Claims.UserID, session.SessionID); err != nil {
-			if errors.Is(err, errSessionNotFound) {
-				continue
-			}
-			return err
-		}
-	}
-
-	return nil
+	_, err := s.revokeOtherSessions(ctx, requestAuth.Claims.UserID, requestAuth.Claims.SessionID)
+	return err
 }
 
 func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) error {

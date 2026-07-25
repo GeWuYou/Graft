@@ -125,20 +125,22 @@ func (s authService) RevokeSessionsByUserID(ctx context.Context, userID uint64) 
 	return moduleapi.AuthSessionRevokeResult{Revoked: true}, nil
 }
 func (s authService) RevokeOtherSessionsByUserID(ctx context.Context, userID uint64, currentSessionID string) (moduleapi.AuthSessionRevokeResult, error) {
-	sessions, err := s.ListUserSessions(ctx, userID, sessionListOptions{})
+	return s.revokeOtherSessions(ctx, userID, currentSessionID)
+}
+
+func (s authService) revokeOtherSessions(ctx context.Context, userID uint64, currentSessionID string) (moduleapi.AuthSessionRevokeResult, error) {
+	if s.sessions == nil {
+		return moduleapi.AuthSessionRevokeResult{}, errors.New("session store is unavailable")
+	}
+	affected, err := s.sessions.RevokeOtherRefreshSessionsByUserID(ctx, authstore.RevokeOtherRefreshSessionsInput{
+		UserID:         userID,
+		CurrentTokenID: currentSessionID,
+		RevokedAt:      s.nowUTC(),
+	})
 	if err != nil {
 		return moduleapi.AuthSessionRevokeResult{}, err
 	}
-	revoked := false
-	for _, session := range sessions {
-		if session.SessionID != currentSessionID {
-			if err := s.RevokeUserSession(ctx, userID, session.SessionID); err != nil {
-				return moduleapi.AuthSessionRevokeResult{}, err
-			}
-			revoked = true
-		}
-	}
-	return moduleapi.AuthSessionRevokeResult{Revoked: revoked}, nil
+	return moduleapi.AuthSessionRevokeResult{Revoked: affected > 0}, nil
 }
 
 var _ moduleapi.AuthService = authService{}

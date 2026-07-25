@@ -29,6 +29,13 @@
 - Recorded a scope blocker instead of changing auth internals: user-facing `RevokeOtherSessionsByUserID` still loops through auth service calls despite auth store support for one collection update. Its stable contract and implementation belong to the later shared-capability/auth batch.
 - Validation passed: `go test ./modules/user/...`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, and `git diff --check`.
 
+## 2026-07-25 Batch 3: Narrow Transaction Contract
+
+- Added the stable `moduleapi.AuthTransactionAdapterFactory` contract, whose only input is a caller-owned `*sql.Tx`. Its returned auth participant can provision a password credential or revoke all sessions, but has no Begin, Commit, Rollback, or context propagation method.
+- Did not register or implement the adapter. The current user runner owns an opaque Ent transaction and cannot prove that a separately created auth client shares it. Batch 4 must make the user lifecycle workflow own the raw transaction and construct both Ent module clients from it before binding the factory.
+- Replaced auth's list-then-loop implementation for revoke-other sessions with its existing collection-write store path. The store now returns affected rows, preserving truthful `AuthSessionRevokeResult.Revoked` semantics.
+- Validation passed: `go test ./modules/auth/... ./internal/moduleapi/...`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, and `git diff --check`.
+
 ## Loop Batch State
 
 ```json
@@ -36,15 +43,15 @@
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
     "auth-native-transaction-ownership",
-    "user-ownership-and-session-revocation"
+    "user-ownership-and-session-revocation",
+    "user-auth-transaction-contract"
   ],
   "pending_batches": [
-    "user-auth-transaction-contract",
     "user-auth-transaction-adapter",
     "transaction-consistency-proof"
   ],
-  "current_batch": "user-ownership-and-session-revocation",
-  "next_batch": "user-auth-transaction-contract",
-  "closeout_status": "batch-2-completed"
+  "current_batch": "user-auth-transaction-contract",
+  "next_batch": "user-auth-transaction-adapter",
+  "closeout_status": "batch-3-completed"
 }
 ```
