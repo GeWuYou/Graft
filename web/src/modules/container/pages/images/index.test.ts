@@ -4,12 +4,14 @@ import cleanupSourceText from '../../shared/cleanup/use-docker-cleanup.ts?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker image list page', () => {
-  it('keeps image actions and pull logs inside the container module page', () => {
+  it('submits image pulls through the Task Runtime inside the container module page', () => {
     expect(sourceText).toContain('useDockerImageQuery');
     expect(sourceText).toContain('pullDockerImage');
-    expect(sourceText).toContain('LogBatchBuffer');
-    expect(sourceText).toContain('LogRingBuffer');
-    expect(sourceText).toContain('<log-viewer');
+    expect(sourceText).toContain('<task-detail-drawer');
+    expect(sourceText).toContain('observeTask');
+    expect(sourceText).not.toContain('LogBatchBuffer');
+    expect(sourceText).not.toContain('LogRingBuffer');
+    expect(sourceText).not.toContain('<log-viewer');
   });
 
   it('uses the shared server-paged table and summary contract', () => {
@@ -55,11 +57,14 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('lastColon > lastSlash ? reference.slice(0, lastColon) : reference');
   });
 
-  it('requires a completed pull event and rejects error events before refresh or success', () => {
-    expect(sourceText).toContain('if (event.error)');
-    expect(sourceText).toContain("throw new Error(event.status || 'Docker image pull failed.')");
-    expect(sourceText).toContain('if (!pullCompleted) throw new Error');
-    expect(sourceText).toContain("MessagePlugin.success(t('container.images.pull.success'))");
+  it('opens the accepted pull Task and refreshes only after a successful terminal state', () => {
+    expect(sourceText).toContain('crypto.randomUUID()');
+    expect(sourceText).toContain('pullTaskId.value = receipt.task_id;');
+    expect(sourceText).toContain('pullTaskDrawerVisible.value = true;');
+    expect(sourceText).toContain('observePullTask(receipt.task_id);');
+    expect(sourceText).toContain('if (!isTerminalTaskStatus(task.status)) return;');
+    expect(sourceText).toContain("if (task.status === 'success') void refresh();");
+    expect(sourceText).toContain('stopPullTaskObserver();');
   });
 
   it('supports cross-page selection and chunked batch removal', () => {

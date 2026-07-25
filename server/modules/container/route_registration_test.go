@@ -64,6 +64,9 @@ func newRouteTestService(options containerServiceOptions) (*service, error) {
 	if options.authorizer == nil {
 		options.authorizer = fakeAuthorizer{}
 	}
+	if options.tasks == nil {
+		options.tasks = &containerTaskRuntimeStub{}
+	}
 	return newService(options)
 }
 
@@ -267,7 +270,7 @@ func TestRoutesRejectInvalidRef(t *testing.T) {
 	}
 }
 
-func TestDockerImagePullRouteUsesServiceAndDoesNotDuplicateDaemonError(t *testing.T) {
+func TestDockerImagePullRouteAcceptsTaskSubmission(t *testing.T) {
 	t.Parallel()
 
 	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
@@ -286,12 +289,61 @@ func TestDockerImagePullRouteUsesServiceAndDoesNotDuplicateDaemonError(t *testin
 	}
 
 	response := httptest.NewRecorder()
-	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"registry.example.com/app@sha256:abc"}`))
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", response.Code, response.Body.String())
+	request := authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"registry.example.com/app@sha256:abc"}`)
+	request.Header.Set("Idempotency-Key", "pull-image")
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", response.Code, response.Body.String())
 	}
-	if got := strings.Count(response.Body.String(), `"error":true`); got != 1 {
-		t.Fatalf("expected one daemon error event, got %d: %s", got, response.Body.String())
+	if !strings.Contains(response.Body.String(), `"task_id":1`) {
+		t.Fatalf("expected task receipt, got %s", response.Body.String())
+	}
+}
+
+func TestDockerImagePullRouteRequiresIdempotencyKey(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"alpine:3.20"}`))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestDockerImagePullRouteReturnsConflictForReusedIdempotencyKey(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime:                 fakeRuntime{},
+		enabled:                 true,
+		dangerousActionsEnabled: true,
+		defaultTail:             defaultContainerLogsDefaultTail,
+		maxTail:                 defaultContainerLogsMaxTail,
+		tasks:                   &containerTaskRuntimeStub{err: moduleapi.ErrTaskSubmissionConflict},
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	request := authorizedJSONRequest(http.MethodPost, "/api/ops/docker/images/pull", `{"reference":"alpine:3.20"}`)
+	request.Header.Set("Idempotency-Key", "reused-key")
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", response.Code, response.Body.String())
 	}
 }
 

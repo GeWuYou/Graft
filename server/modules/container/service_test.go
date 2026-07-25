@@ -1650,6 +1650,11 @@ func TestNewContainerServiceUsesEffectiveStartupRuntimeConfig(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register authorizer: %v", err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.TaskService)(nil), func(containerdi.Resolver) (any, error) {
+		return &containerTaskRuntimeStub{}, nil
+	}); err != nil {
+		t.Fatalf("register task service: %v", err)
+	}
 	service, err := newContainerService(&module.Context{
 		LifecycleContext: context.Background(),
 		Services:         services,

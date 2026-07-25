@@ -2,13 +2,16 @@ package task
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
@@ -118,6 +121,7 @@ func (r *Runtime) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuth
 }
 
 // Submit 校验执行器引用并原子保存不可变 TaskPlan；成功 receipt 只证明 PostgreSQL 已提交，不代表任务已执行完成。
+//nolint:cyclop // 提交必须在同一事务边界内校验冻结计划、幂等身份并持久化阶段。
 func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
 	if r == nil || r.repository == nil {
 		return moduleapi.TaskReceipt{}, errors.New("task runtime repository is unavailable")
@@ -129,6 +133,10 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal task plan: %w", err)
 	}
+	keyHash, fingerprint, err := submissionIdentity(input, plan)
+	if err != nil {
+		return moduleapi.TaskReceipt{}, err
+	}
 	status := moduleapi.TaskStatusPending
 	if input.ScheduledAt != nil && input.ScheduledAt.After(time.Now().UTC()) {
 		status = moduleapi.TaskStatusScheduled
@@ -136,7 +144,8 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 	task := taskmodel.Task{
 		Type: input.Type, Owner: input.Owner, Status: status, Input: input.Input,
 		Metadata: input.Metadata, Plan: plan, State: json.RawMessage(`{}`),
-		CreatedBy: nullableRequestedBy(input.RequestedBy), ScheduledAt: input.ScheduledAt,
+		CreatedBy: nullableRequestedBy(input.RequestedBy), IdempotencyKeyHash: keyHash,
+		SubmissionFingerprint: fingerprint, ScheduledAt: input.ScheduledAt,
 	}
 	stages := make([]taskmodel.Stage, 0, len(input.Plan.Stages))
 	for index, stage := range input.Plan.Stages {
@@ -147,13 +156,78 @@ func (r *Runtime) Submit(ctx context.Context, input moduleapi.SubmitTaskInput) (
 			RecoveryPolicy: stage.RecoveryPolicy, Result: json.RawMessage(`{}`),
 		})
 	}
-	created, _, err := r.repository.Create(ctx, taskstore.CreateInput{Task: task, Stages: stages})
+	created, _, idempotent, err := r.repository.Create(ctx, taskstore.CreateInput{Task: task, Stages: stages})
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("create task: %w", err)
+	}
+	if idempotent {
+		return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
 	}
 	r.signalWake()
 	r.publishTask(created.ID, taskcontract.TaskRealtimeEventCreated)
 	return moduleapi.TaskReceipt{TaskID: created.ID, Status: created.Status}, nil
+}
+
+func submissionIdentity(input moduleapi.SubmitTaskInput, plan json.RawMessage) (*string, *string, error) {
+	if input.IdempotencyKey == "" {
+		return nil, nil, nil
+	}
+	if strings.TrimSpace(input.IdempotencyKey) == "" || utf8.RuneCountInString(input.IdempotencyKey) > 128 {
+		return nil, nil, fmt.Errorf("%w: idempotency key must be non-blank and at most 128 characters", taskstore.ErrInvalidInput)
+	}
+	canonicalInput, err := canonicalSubmissionJSON(input.Input)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: canonicalize task input: %v", taskstore.ErrInvalidInput, err)
+	}
+	canonicalMetadata, err := canonicalSubmissionJSON(input.Metadata)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: canonicalize task metadata: %v", taskstore.ErrInvalidInput, err)
+	}
+	canonicalPlan, err := canonicalSubmissionJSON(plan)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: canonicalize task plan: %v", taskstore.ErrInvalidInput, err)
+	}
+	var scheduledAt *string
+	if input.ScheduledAt != nil {
+		formatted := input.ScheduledAt.UTC().Format(time.RFC3339Nano)
+		scheduledAt = &formatted
+	}
+	payload := struct {
+		Type        moduleapi.TaskType  `json:"type"`
+		Owner       moduleapi.TaskOwner `json:"owner"`
+		RequestedBy uint64              `json:"requested_by"`
+		Input       json.RawMessage     `json:"input"`
+		Metadata    json.RawMessage     `json:"metadata"`
+		Plan        json.RawMessage     `json:"plan"`
+		ScheduledAt *string             `json:"scheduled_at"`
+	}{Type: input.Type, Owner: input.Owner, RequestedBy: input.RequestedBy, Input: canonicalInput, Metadata: canonicalMetadata, Plan: canonicalPlan, ScheduledAt: scheduledAt}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: marshal task submission fingerprint: %v", taskstore.ErrInvalidInput, err)
+	}
+	keyDigest := fmt.Sprintf("%x", sha256.Sum256([]byte(input.IdempotencyKey)))
+	fingerprint := fmt.Sprintf("%x", sha256.Sum256(encoded))
+	return &keyDigest, &fingerprint, nil
+}
+
+func canonicalSubmissionJSON(raw json.RawMessage) (json.RawMessage, error) {
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		return json.RawMessage(`null`), nil
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return nil, errors.New("multiple JSON values")
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(encoded), nil
 }
 
 // SettleExternalReceipt 通过 Task Runtime 边界接收短生命周期外部执行器的已绑定、无秘密回执。

@@ -39,25 +39,41 @@ func NewSQLRepository(db *sql.DB, dialect SQLDialect) (*SQLRepository, error) {
 }
 
 // Create 原子保存冻结的 Task、按序 Stage 计划和创建事件，避免提交出不完整的执行计划。
-func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, error) {
+// 返回的第三个值表示同一幂等提交已存在，调用方不应重复发布创建事件。
+//nolint:gocognit,gocyclo,cyclop,funlen,revive // 事务必须原子处理幂等查询、插入竞争恢复、阶段和初始事件。
+func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmodel.Task, []taskmodel.Stage, bool, error) {
 	input, err := normalizeCreateInput(input)
 	if err != nil {
-		return taskmodel.Task{}, nil, err
+		return taskmodel.Task{}, nil, false, err
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return taskmodel.Task{}, nil, fmt.Errorf("begin create task transaction: %w", err)
+		return taskmodel.Task{}, nil, false, fmt.Errorf("begin create task transaction: %w", err)
 	}
 	defer rollback(tx)
+	//nolint:nestif // 必须在写入任何 Task 前检查现有的带键提交。
+	if input.Task.IdempotencyKeyHash != nil {
+		existing, found, findErr := r.findIdempotentTask(ctx, tx, input.Task)
+		if findErr != nil {
+			return taskmodel.Task{}, nil, false, findErr
+		}
+		if found {
+			if existing.SubmissionFingerprint == nil || input.Task.SubmissionFingerprint == nil || *existing.SubmissionFingerprint != *input.Task.SubmissionFingerprint {
+				return taskmodel.Task{}, nil, false, moduleapi.ErrTaskSubmissionConflict
+			}
+			return existing, nil, true, nil
+		}
+	}
 
 	now := time.Now().UTC()
 	input.Task.CreatedAt = now
 	input.Task.UpdatedAt = now
+	//nolint:nestif // 唯一索引竞争必须先解析为既有幂等 Task，再返回错误。
 	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`INSERT INTO tasks (
 		task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json,
-		current_stage_key, created_by, scheduled_at, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
+		current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`),
 		input.Task.Type,
 		input.Task.Owner.Type,
 		input.Task.Owner.ID,
@@ -68,11 +84,28 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		input.Task.State,
 		input.Task.CurrentStageKey,
 		input.Task.CreatedBy,
+		input.Task.IdempotencyKeyHash,
+		input.Task.SubmissionFingerprint,
 		input.Task.ScheduledAt,
 		now,
 		now,
 	).Scan(&input.Task.ID); err != nil {
-		return taskmodel.Task{}, nil, fmt.Errorf("insert task: %w", err)
+		if input.Task.IdempotencyKeyHash != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				return taskmodel.Task{}, nil, false, fmt.Errorf("rollback duplicate task submission: %w", rollbackErr)
+			}
+			existing, found, findErr := r.findIdempotentTask(ctx, r.db, input.Task)
+			if findErr != nil {
+				return taskmodel.Task{}, nil, false, findErr
+			}
+			if found {
+				if existing.SubmissionFingerprint == nil || input.Task.SubmissionFingerprint == nil || *existing.SubmissionFingerprint != *input.Task.SubmissionFingerprint {
+					return taskmodel.Task{}, nil, false, moduleapi.ErrTaskSubmissionConflict
+				}
+				return existing, nil, true, nil
+			}
+		}
+		return taskmodel.Task{}, nil, false, fmt.Errorf("insert task: %w", err)
 	}
 
 	stages := make([]taskmodel.Stage, 0, len(input.Stages))
@@ -99,7 +132,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 			now,
 			now,
 		).Scan(&current.ID); err != nil {
-			return taskmodel.Task{}, nil, fmt.Errorf("insert task stage %q: %w", current.Key, err)
+			return taskmodel.Task{}, nil, false, fmt.Errorf("insert task stage %q: %w", current.Key, err)
 		}
 		stages = append(stages, current)
 	}
@@ -114,13 +147,35 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		createdPayload,
 		now,
 	).Scan(new(uint64)); err != nil {
-		return taskmodel.Task{}, nil, fmt.Errorf("insert task created event: %w", err)
+		return taskmodel.Task{}, nil, false, fmt.Errorf("insert task created event: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return taskmodel.Task{}, nil, fmt.Errorf("commit create task transaction: %w", err)
+		return taskmodel.Task{}, nil, false, fmt.Errorf("commit create task transaction: %w", err)
 	}
-	return input.Task, stages, nil
+	return input.Task, stages, false, nil
+}
+
+type taskQueryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func (r *SQLRepository) findIdempotentTask(ctx context.Context, queryer taskQueryer, task taskmodel.Task) (taskmodel.Task, bool, error) {
+	requestedBy := uint64(0)
+	if task.CreatedBy != nil {
+		requestedBy = *task.CreatedBy
+	}
+	item, err := scanTask(queryer.QueryRowContext(ctx, r.placeholder.rebind(`SELECT `+taskColumns()+`
+		FROM tasks
+		WHERE task_type = ? AND owner_type = ? AND owner_id = ? AND COALESCE(created_by, 0) = ?
+			AND idempotency_key_hash = ?`), task.Type, task.Owner.Type, task.Owner.ID, requestedBy, task.IdempotencyKeyHash))
+	if errors.Is(err, sql.ErrNoRows) {
+		return taskmodel.Task{}, false, nil
+	}
+	if err != nil {
+		return taskmodel.Task{}, false, fmt.Errorf("find idempotent task: %w", err)
+	}
+	return item, true, nil
 }
 
 // Get 按稳定 ID 读取一个 Task。

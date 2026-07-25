@@ -1004,8 +1004,6 @@ components:
       $ref: ./components/schemas/docker-image-batch-remove-item.yaml
     DockerImageBatchRemoveResponse:
       $ref: ./components/schemas/docker-image-batch-remove-response.yaml
-    DockerImagePullEvent:
-      $ref: ./components/schemas/docker-image-pull-event.yaml
     DockerNetwork:
       $ref: ./components/schemas/docker-network.yaml
     DockerNetworkContainerReference:

@@ -3,6 +3,7 @@ package task
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -139,6 +140,60 @@ func TestRuntimeSettlesExternalReceiptAfterCrashRecovery(t *testing.T) {
 			t.Parallel()
 			assertExternalReceiptSettlement(t, testCase.outcome, testCase.failureCode, testCase.wantTask, testCase.wantStage)
 		})
+	}
+}
+
+func TestRuntimeSubmitReplaysMatchingIdempotencyKeyAndRejectsChangedSubmission(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.RequestedBy = 42
+	input.IdempotencyKey = "docker-image-pull-001"
+	input.Input = json.RawMessage(`{"image":"redis:7","options":{"quiet":true}}`)
+	first, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("first submit: %v", err)
+	}
+	replayed := input
+	replayed.Input = json.RawMessage(`{"options":{"quiet":true},"image":"redis:7"}`)
+	second, err := runtime.Submit(context.Background(), replayed)
+	if err != nil {
+		t.Fatalf("replay submit: %v", err)
+	}
+	if first != second {
+		t.Fatalf("replayed receipt = %#v, want %#v", second, first)
+	}
+	stored := mustTask(t, repository, first.TaskID)
+	if stored.IdempotencyKeyHash == nil || stored.SubmissionFingerprint == nil || *stored.IdempotencyKeyHash == input.IdempotencyKey {
+		t.Fatalf("idempotency submission storage = %#v", stored)
+	}
+	conflict := input
+	conflict.Input = json.RawMessage(`{"image":"redis:8"}`)
+	if _, err := runtime.Submit(context.Background(), conflict); !errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
+		t.Fatalf("changed idempotency submission error = %v", err)
+	}
+}
+
+func TestRuntimeSubmitWithoutIdempotencyKeyRemainsNonIdempotent(t *testing.T) {
+	t.Parallel()
+	runtime, _ := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	first, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("first submit: %v", err)
+	}
+	second, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("second submit: %v", err)
+	}
+	if first.TaskID == second.TaskID {
+		t.Fatalf("legacy submissions unexpectedly replayed: %#v", first)
 	}
 }
 

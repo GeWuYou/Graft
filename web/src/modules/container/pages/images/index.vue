@@ -544,28 +544,25 @@
       :header="t('container.images.pull.title')"
       size="720px"
       placement="right"
-      :close-btn="!pulling"
     >
       <t-form label-align="top" @submit.prevent="startPull">
-        <t-form-item :label="t('container.images.pull.reference')"
-          ><t-input v-model="pullReference" :disabled="pulling" :placeholder="t('container.images.pull.placeholder')"
-        /></t-form-item>
+        <t-form-item :label="t('container.images.pull.reference')">
+          <t-input v-model="pullReference" :disabled="pulling" :placeholder="t('container.images.pull.placeholder')" />
+        </t-form-item>
         <t-space>
           <t-button theme="primary" :loading="pulling" @click="startPull">{{
             t('container.images.actions.pull')
           }}</t-button>
-          <t-button v-if="pulling" theme="danger" variant="outline" @click="cancelPull">{{
-            t('container.images.actions.cancelPull')
-          }}</t-button>
         </t-space>
       </t-form>
-      <log-viewer
-        v-bind="pullLogViewerBindings"
-        class="docker-images-pull-log"
-        :entries="pullLogEntries"
-        :content-version="pullLogVersion"
-      />
     </t-drawer>
+
+    <task-detail-drawer
+      :visible="pullTaskDrawerVisible"
+      :task-id="pullTaskId"
+      :resolve-task-type="resolveTaskType"
+      @update:visible="pullTaskDrawerVisible = $event"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -590,22 +587,16 @@ import {
   TableViewToolbar,
 } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import {
-  formatBytes,
-  formatLocaleDateTime,
-  LogBatchBuffer,
-  LogRingBuffer,
-  LogViewer,
-  type StructuredLogEntry,
-} from '@/shared/observability';
+import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
+import { isTerminalTaskStatus, observeTask, type TaskObserver } from '../../../task/contract/task-observer';
+import { TaskDetailDrawer } from '../../../task/contract/task-ui';
 import { type DockerImageRecord, getDockerImage, getDockerImages } from '../../api/container';
 import {
   batchRemoveDockerImages,
   type DockerImageBatchResult,
-  type DockerImagePullEvent,
   pullDockerImage,
   removeDockerImage,
   tagDockerImage,
@@ -652,6 +643,8 @@ const batchFailureDetails = ref<BatchFailureDetail[]>([]);
 const batchResultSuccessCount = ref(0);
 const batchResultUnknown = ref(false);
 const pullDrawerVisible = ref(false);
+const pullTaskDrawerVisible = ref(false);
+const pullTaskId = ref<number | null>(null);
 const tagging = ref(false);
 const removing = ref(false);
 const forceRemove = ref(false);
@@ -662,11 +655,8 @@ const cleanupDialogStyle = { maxHeight: '70vh' };
 const tagForm = reactive({ repository: '', tag: '' });
 const pullReference = ref('');
 const pulling = ref(false);
-const pullLogEntries = ref<readonly StructuredLogEntry[]>([]);
-const pullLogVersion = ref(0);
-let pullController: AbortController | null = null;
-const pullLogBuffer = new LogRingBuffer<StructuredLogEntry>(1000);
-const pullLogBatcher = new LogBatchBuffer<StructuredLogEntry>({ onFlush: commitPullLog });
+// 拉取进度由 Task Runtime 统一呈现，页面只保留可在卸载时释放的状态观察订阅。
+let pullTaskObserver: TaskObserver | null = null;
 const cleanup = useDockerCleanup<DockerImage>({
   fetchCandidates: fetchCleanupCandidates,
   execute: (ids) => removeImageIds(ids, false),
@@ -681,50 +671,6 @@ const tagTarget = computed(() => {
   const tag = tagForm.tag.trim();
   return repository && tag ? `${repository}:${tag}` : '';
 });
-const pullLogViewerBindings = computed(() => ({
-  allLevelsLabel: pullLogLabel('allLevels'),
-  autoScrollLabel: pullLogLabel('autoScroll'),
-  autoScrollTooltipLabel: pullLogLabel('autoScrollTooltip'),
-  basicInfoLabel: pullLogLabel('basicInfo'),
-  clearLabel: pullLogLabel('clear'),
-  collapseDetailLabel: pullLogLabel('collapseDetail'),
-  copyErrorLabel: pullLogLabel('copyError'),
-  copyJsonLabel: pullLogLabel('copyJson'),
-  copyLabel: pullLogLabel('copy'),
-  copyLineLabel: pullLogLabel('copyLine'),
-  copyMessageLabel: pullLogLabel('copyMessage'),
-  copySuccessLabel: pullLogLabel('copySuccess'),
-  detailTitleLabel: pullLogLabel('detailTitle'),
-  downloadLabel: pullLogLabel('download'),
-  emptyLabel: t('container.images.pull.emptyLog'),
-  importantFieldsLabel: pullLogLabel('importantFields'),
-  jumpBottomLabel: pullLogLabel('jumpBottom'),
-  levelFilterLabel: pullLogLabel('levelFilter'),
-  levelLabel: pullLogLabel('level'),
-  matchCountLabel: pullLogLabel('matchCount'),
-  messageLabel: pullLogLabel('message'),
-  metadataLabel: pullLogLabel('metadata'),
-  operationLabel: pullLogLabel('operation'),
-  pauseLabel: pullLogLabel('pause'),
-  rawLabel: pullLogLabel('raw'),
-  reconnectLabel: pullLogLabel('reconnect'),
-  resumeLabel: pullLogLabel('resume'),
-  retryLabel: pullLogLabel('retry'),
-  searchPlaceholder: pullLogLabel('search'),
-  sourceLabel: pullLogLabel('source'),
-  stderrLabel: pullLogLabel('stderr'),
-  stdoutLabel: pullLogLabel('stdout'),
-  streamLabel: pullLogLabel('stream'),
-  timeLabel: pullLogLabel('time'),
-  truncatedLabel: pullLogLabel('truncated'),
-  viewDetailLabel: pullLogLabel('viewDetail'),
-  wrapLabel: pullLogLabel('wrap'),
-}));
-
-function pullLogLabel(key: string) {
-  return t(`task.logs.${key}`);
-}
-
 const images = computed(() => query.data.value?.items ?? []);
 const total = computed(() => query.data.value?.total ?? 0);
 const summary = computed(() => query.data.value?.summary);
@@ -1115,60 +1061,41 @@ function nextCleanupPage() {
 }
 async function startPull() {
   if (!pullReference.value.trim() || pulling.value) return;
-  pullLogBuffer.clear();
-  pullLogEntries.value = [];
-  pullLogVersion.value = 0;
   pulling.value = true;
-  pullController = new AbortController();
-  let pullCompleted = false;
-  let pullEventFailed = false;
   try {
-    await pullDockerImage({ reference: pullReference.value.trim() }, pullController.signal, (event) => {
-      appendPullEvent(event);
-      if (event.error) {
-        pullEventFailed = true;
-        throw new Error(event.status || 'Docker image pull failed.');
-      }
-      if (event.status === 'completed') pullCompleted = true;
-    });
-    if (!pullCompleted) throw new Error('Docker image pull did not reach a terminal state.');
-    pullLogBatcher.flush();
-    await refresh();
-    MessagePlugin.success(t('container.images.pull.success'));
-  } catch (error) {
-    if (!pullController?.signal.aborted) {
-      if (!pullEventFailed) {
-        appendPullEvent({ error: true, status: error instanceof Error ? error.message : String(error) });
-      }
-      pullLogBatcher.flush();
-      MessagePlugin.error(t('container.images.pull.failed'));
-    }
+    const receipt = await pullDockerImage({ reference: pullReference.value.trim() }, crypto.randomUUID());
+    pullDrawerVisible.value = false;
+    pullTaskId.value = receipt.task_id;
+    pullTaskDrawerVisible.value = true;
+    observePullTask(receipt.task_id);
+    MessagePlugin.success(t('container.images.pull.accepted'));
+  } catch {
+    MessagePlugin.error(t('container.images.pull.failed'));
   } finally {
     pulling.value = false;
-    pullController = null;
   }
 }
-function appendPullEvent(event: DockerImagePullEvent) {
-  const line = [event.id, event.status, event.progress].filter(Boolean).join(' ') || JSON.stringify(event);
-  pullLogBatcher.append({
-    line,
-    occurredAt: new Date().toISOString(),
-    stream: event.error ? 'stderr' : 'stdout',
-    ...(event.error ? { level: 'error' as const } : {}),
+function resolveTaskType(taskType: string) {
+  return taskType === 'container.docker-image-pull.v1' ? t('container.images.pull.taskType') : undefined;
+}
+function stopPullTaskObserver() {
+  if (!pullTaskObserver) return;
+  pullTaskObserver.stop();
+  pullTaskObserver = null;
+}
+function observePullTask(taskId: number) {
+  stopPullTaskObserver();
+  pullTaskObserver = observeTask(taskId, {
+    onError: (error) => logger.warn('docker image pull task observation failed', { error, taskId }),
+    onTask: (task) => {
+      if (!isTerminalTaskStatus(task.status)) return;
+      stopPullTaskObserver();
+      if (task.status === 'success') void refresh();
+    },
   });
 }
-function commitPullLog(entries: readonly StructuredLogEntry[]) {
-  for (const entry of entries) pullLogBuffer.append(entry);
-  const view = pullLogBuffer.snapshot();
-  pullLogEntries.value = view.toArray();
-  pullLogVersion.value = view.version;
-}
-function cancelPull() {
-  pullController?.abort();
-}
 onUnmounted(() => {
-  pullController?.abort();
-  pullLogBatcher.destroy();
+  stopPullTaskObserver();
 });
 </script>
 <style scoped lang="less">
@@ -1583,10 +1510,6 @@ onUnmounted(() => {
 
 :deep(.docker-images-cleanup-dialog .t-dialog__footer) {
   padding-top: 0;
-}
-
-.docker-images-pull-log {
-  margin-top: var(--graft-density-gap-16);
 }
 
 @media (width <= 768px) {

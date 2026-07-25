@@ -1,7 +1,16 @@
 post:
   tags: [container]
   operationId: postDockerImagePull
-  summary: Pull a Docker image through the configured daemon
+  summary: Submit a Docker image pull Task
+  parameters:
+    - name: Idempotency-Key
+      in: header
+      required: true
+      description: Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
   requestBody:
     required: true
     content:
@@ -9,16 +18,18 @@ post:
         schema:
           $ref: ../components/schemas/docker-image-pull-request.yaml
   responses:
-    '200':
-      description: Sanitized Docker pull progress as newline-delimited JSON.
+    '202':
+      description: Docker image pull Task accepted.
       content:
-        application/x-ndjson:
+        application/json:
           schema:
-            $ref: ../components/schemas/docker-image-pull-event.yaml
+            $ref: ../components/schemas/enveloped-task-receipt.yaml
     '400': { description: Invalid image reference }
     '401':
       $ref: ../components/responses/unauthorized.yaml
     '403':
       $ref: ../components/responses/forbidden.yaml
+    '409':
+      description: Idempotency-Key was previously used with different Docker image pull input.
     '500':
       $ref: ../components/responses/internal-server-error.yaml

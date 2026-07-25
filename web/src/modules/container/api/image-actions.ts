@@ -9,7 +9,9 @@ type DockerImageRemoveOperation = paths['/api/ops/docker/images/{id}/remove']['p
 type DockerImageBatchRemoveOperation = paths['/api/ops/docker/images/batch-remove']['post'];
 
 export type DockerImagePullRequest = DockerImagePullOperation['requestBody']['content']['application/json'];
-export type DockerImagePullEvent = DockerImagePullOperation['responses'][200]['content']['application/x-ndjson'];
+export type DockerImagePullReceipt = NonNullable<
+  DockerImagePullOperation['responses'][202]['content']['application/json']['data']
+>;
 export type DockerImageTagRequest = DockerImageTagOperation['requestBody']['content']['application/json'];
 export type DockerImageUntagRequest = DockerImageUntagOperation['requestBody']['content']['application/json'];
 export type DockerImageRemoveRequest = NonNullable<
@@ -24,25 +26,13 @@ type DockerImageActionResponse = NonNullable<
   DockerImageTagOperation['responses'][200]['content']['application/json']['data']
 >;
 
-/** 拉取流的认证、locale 与错误语义由平台 request 边界统一处理。 */
-export async function pullDockerImage(
-  payload: DockerImagePullRequest,
-  signal: AbortSignal,
-  onEvent: (event: DockerImagePullEvent) => void,
-) {
-  let pending = '';
-  await request.postNdjson({
+/** 拉取命令只提交 Task；后续日志与状态由 Task Runtime 统一提供。 */
+export function pullDockerImage(payload: DockerImagePullRequest, idempotencyKey: string) {
+  return request.post<DockerImagePullReceipt>({
     data: payload,
-    onChunk: (chunk) => {
-      pending += chunk;
-      const lines = pending.split('\n');
-      pending = lines.pop() ?? '';
-      for (const line of lines) emitPullEvent(line, onEvent);
-    },
-    signal,
+    headers: { 'Idempotency-Key': idempotencyKey },
     url: OPENAPI_RUNTIME_PATH.postDockerImagePull,
   });
-  emitPullEvent(pending, onEvent);
 }
 
 export function tagDockerImage(imageId: string, payload: DockerImageTagRequest) {
@@ -73,14 +63,4 @@ export function batchRemoveDockerImages(payload: DockerImageBatchRemoveRequest) 
     url: OPENAPI_RUNTIME_PATH.postDockerImageBatchRemove,
     data: payload,
   });
-}
-
-function emitPullEvent(line: string, onEvent: (event: DockerImagePullEvent) => void) {
-  const normalized = line.trim();
-  if (!normalized) return;
-  try {
-    onEvent(JSON.parse(normalized) as DockerImagePullEvent);
-  } catch {
-    onEvent({ status: normalized });
-  }
 }

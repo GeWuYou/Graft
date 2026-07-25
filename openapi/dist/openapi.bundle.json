@@ -13015,7 +13015,20 @@
           "container"
         ],
         "operationId": "postDockerImagePull",
-        "summary": "Pull a Docker image through the configured daemon",
+        "summary": "Submit a Docker image pull Task",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13027,12 +13040,12 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Sanitized Docker pull progress as newline-delimited JSON.",
+          "202": {
+            "description": "Docker image pull Task accepted.",
             "content": {
-              "application/x-ndjson": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/docker-image-pull-event"
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
                 }
               }
             }
@@ -13045,6 +13058,9 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Idempotency-Key was previously used with different Docker image pull input."
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -18995,9 +19011,6 @@
       },
       "DockerImageBatchRemoveResponse": {
         "$ref": "#/components/schemas/docker-image-batch-remove-response"
-      },
-      "DockerImagePullEvent": {
-        "$ref": "#/components/schemas/docker-image-pull-event"
       },
       "DockerNetwork": {
         "$ref": "#/components/schemas/docker-network"
@@ -29579,26 +29592,41 @@
         },
         "additionalProperties": false
       },
-      "docker-image-pull-event": {
+      "task-receipt": {
         "type": "object",
+        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
         "required": [
+          "task_id",
           "status"
         ],
         "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
           "status": {
-            "type": "string"
-          },
-          "id": {
-            "type": "string"
-          },
-          "progress": {
-            "type": "string"
-          },
-          "error": {
-            "type": "boolean",
-            "description": "Indicates a sanitized daemon error. Raw daemon error text is never returned."
+            "$ref": "#/components/schemas/task-status"
           }
         }
+      },
+      "enveloped-task-receipt": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-receipt"
+              }
+            }
+          }
+        ]
       },
       "enveloped-docker-image": {
         "allOf": [
@@ -35215,42 +35243,6 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/application-action-response"
-              }
-            }
-          }
-        ]
-      },
-      "task-receipt": {
-        "type": "object",
-        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
-        "required": [
-          "task_id",
-          "status"
-        ],
-        "properties": {
-          "task_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "status": {
-            "$ref": "#/components/schemas/task-status"
-          }
-        }
-      },
-      "enveloped-task-receipt": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/task-receipt"
               }
             }
           }

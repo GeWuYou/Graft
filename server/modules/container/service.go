@@ -52,6 +52,7 @@ type service struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	authorizer              moduleapi.Authorizer
 	runtimeTargets          moduleapi.RuntimeTargetReader
+	tasks                   moduleapi.TaskService
 	statsCollector          *statsCollector
 	runtimeEventManagerMu   sync.RWMutex
 	runtimeEventManager     *runtimeEventManager
@@ -84,6 +85,7 @@ type containerServiceOptions struct {
 	topicIssuers                         realtime.TopicIssuerRegistry
 	authorizer                           moduleapi.Authorizer
 	runtimeTargets                       moduleapi.RuntimeTargetReader
+	tasks                                moduleapi.TaskService
 	logTopicStreamerFactory              func(realtime.Hub, *zap.Logger, func() (Runtime, error)) (*logTopicStreamer, error)
 }
 
@@ -116,6 +118,10 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		return nil, fmt.Errorf("resolve container authorizer: %w", err)
 	}
 	runtimeTargets, _ := module.ResolveService[moduleapi.RuntimeTargetReader](ctx.Services, (*moduleapi.RuntimeTargetReader)(nil))
+	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve task service: %w", err)
+	}
 	return newService(containerServiceOptions{
 		runtime:                 runtime,
 		runtimeOptions:          options,
@@ -136,6 +142,7 @@ func newContainerService(ctx *module.Context, moduleName string) (*service, erro
 		topicIssuers:            topicIssuers,
 		authorizer:              authorizer,
 		runtimeTargets:          runtimeTargets,
+		tasks:                   tasks,
 	})
 }
 
@@ -193,6 +200,7 @@ func newService(options containerServiceOptions) (*service, error) {
 		topicIssuers:            options.topicIssuers,
 		authorizer:              options.authorizer,
 		runtimeTargets:          options.runtimeTargets,
+		tasks:                   options.tasks,
 		logTopicStreamerFactory: options.logTopicStreamerFactory,
 	}, nil
 }
