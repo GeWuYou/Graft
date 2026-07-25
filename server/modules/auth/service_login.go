@@ -53,7 +53,7 @@ func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uin
 	return s.credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
 }
 
-func (s authService) prepareTransactionCredential(ctx context.Context, input moduleapi.AuthCredentialProvisionInput) (string, time.Time, error) {
+func (s authService) prepareTransactionCredential(_ context.Context, input moduleapi.AuthCredentialProvisionInput) (string, time.Time, error) {
 	if err := s.policy.ValidateNewPassword(input.Password); err != nil {
 		return "", time.Time{}, err
 	}

@@ -43,18 +43,10 @@ func (r *createUserRepository) RunInCompositeTransaction(ctx context.Context, ca
 	return callback(ctx, r, nil)
 }
 
-type failingCredentialManager struct{ provisionErr error }
-
-func (m failingCredentialManager) ProvisionPasswordCredential(context.Context, uint64, string, bool) error {
-	return m.provisionErr
-}
-func (failingCredentialManager) ResetPassword(context.Context, uint64, string) error { return nil }
-func (failingCredentialManager) RevokeSessions(context.Context, uint64) error        { return nil }
-
 type failingAuthTransactionFactory struct{ err error }
 
 func (f failingAuthTransactionFactory) BindAuthTransaction(*sql.Tx) (moduleapi.AuthTransactionAdapter, error) {
-	return failingAuthTransactionAdapter{err: f.err}, nil
+	return failingAuthTransactionAdapter(f), nil
 }
 
 type failingAuthTransactionAdapter struct{ err error }

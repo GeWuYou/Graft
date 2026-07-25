@@ -40,17 +40,17 @@ closeout:
 
 ## Current Recovery Point
 
-- Current state: Batch 3 complete and validated; `moduleapi.AuthTransactionAdapterFactory` accepts only a caller-owned `*sql.Tx` and returns an auth-only participant that cannot own transaction completion.
-- Risk: the current user runner still starts an Ent transaction internally, so it cannot yet expose the raw transaction required by the new contract. Credential provisioning and session revocation therefore remain separate auth commits until Batch 4 replaces that runner with the composite boundary.
-- Next step: Batch 4, make the user lifecycle workflow create the raw transaction, bind user and auth Ent clients to it, and remove the remaining explicit partial-commit errors.
+- Current state: Batch 5 complete and validated. User lifecycle workflows own one raw `*sql.Tx`, while the auth adapter binds only auth-owned writes to that same transaction.
+- Risk: no user/auth composite transaction blocker remains. Default-admin boot and development reset remain deliberately retryable initialization workflows outside this lifecycle boundary.
+- Next step: run the topic archive-readiness check and move this completed topic to the historical router.
 
 ## Task Checklist
 
 - [x] Batch 1: move auth multi-write transaction lifecycle out of repositories and prove local rollback.
 - [x] Batch 2: establish user ownership rules and record the remaining auth-owned multi-session revocation blocker.
 - [x] Batch 3: add the minimum transaction-scoped cross-module capability contract.
-- [ ] Batch 4: bind auth to the user-owned composite transaction and remove compensation.
-- [ ] Batch 5: add cross-module atomicity and failure-injection tests; run final validation.
+- [x] Batch 4: bind auth to the user-owned composite transaction and remove compensation.
+- [x] Batch 5: add cross-module atomicity and failure-injection tests; run final validation.
 
 ## Acceptance Conditions
 
@@ -68,15 +68,14 @@ closeout:
   "completed_batches": [
     "auth-native-transaction-ownership",
     "user-ownership-and-session-revocation",
-    "user-auth-transaction-contract"
-  ],
-  "pending_batches": [
+    "user-auth-transaction-contract",
     "user-auth-transaction-adapter",
     "transaction-consistency-proof"
   ],
-  "current_batch": "user-auth-transaction-contract",
-  "next_batch": "user-auth-transaction-adapter",
-  "closeout_status": "batch-3-completed"
+  "pending_batches": [],
+  "current_batch": "transaction-consistency-proof",
+  "next_batch": null,
+  "closeout_status": "archive-readiness-required"
 }
 ```
 
@@ -101,3 +100,15 @@ closeout:
 - The contract deliberately is not registered or implemented in this batch. The current user Ent transaction runner cannot prove it is binding the same raw SQL transaction, so an implementation here would violate lifecycle ownership.
 - `RevokeOtherSessionsByUserID` and the current-user equivalent now use one auth collection update. The auth store returns the affected count so the stable `Revoked` result remains accurate without a list-then-loop write pattern.
 - Validation passed: `go test ./modules/auth/... ./internal/moduleapi/...`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, and `git diff --check`.
+
+## Batch 4 Evidence
+
+- User's composite transaction runner creates the only raw `*sql.Tx` for create, disable, and delete workflows. It binds the user Ent client to that transaction, calls the auth adapter factory with the same handle, and alone commits or rolls back.
+- The auth adapter constructs an auth-only Ent client bound to the caller-owned transaction. It receives prepared hashes from auth service policy and does not query the independent user identity provider, which cannot see an uncommitted profile.
+- Ent's implicit transaction requests are converted to no-op commits only inside each module's transaction-bound private client. Statements still execute on the raw caller-owned transaction, so the user composite runner remains the sole completion owner.
+
+## Batch 5 Evidence
+
+- A real shared SQLite database now proves cross-module commit for profile plus credential creation.
+- SQLite write triggers inject failures at the auth credential insert and refresh-session update boundaries. Create leaves neither profile nor credential; disable and delete leave the profile enabled and visible, with the session still active.
+- Validation passed: `go test ./modules/user/... ./modules/auth/... -count=1`, `go run ./cmd/graft validate backend --stage lint`, `go build ./cmd/graft`, `git diff --check`, and `python3 scripts/validate_ai_plan_structure.py`.

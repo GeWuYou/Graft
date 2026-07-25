@@ -44,14 +44,25 @@
   "completed_batches": [
     "auth-native-transaction-ownership",
     "user-ownership-and-session-revocation",
-    "user-auth-transaction-contract"
-  ],
-  "pending_batches": [
+    "user-auth-transaction-contract",
     "user-auth-transaction-adapter",
     "transaction-consistency-proof"
   ],
-  "current_batch": "user-auth-transaction-contract",
-  "next_batch": "user-auth-transaction-adapter",
-  "closeout_status": "batch-3-completed"
+  "pending_batches": [],
+  "current_batch": "transaction-consistency-proof",
+  "next_batch": null,
+  "closeout_status": "archive-readiness-required"
 }
 ```
+
+## 2026-07-25 Batch 4: User-Owned Composite Transaction
+
+- Replaced the opaque user Ent composite boundary with a raw `*sql.Tx` owned by the user lifecycle workflow. The runner binds a user Ent client to that transaction and passes the same handle to the narrow auth adapter factory.
+- Registered auth's adapter factory during auth module setup. Its adapter uses auth's password-policy preparation callback and writes credentials or refresh-session revocations only through the caller-owned transaction.
+- Added transaction-bound Ent drivers in each module's private `storeent` boundary. Ent's internal single-write transaction completion is a no-op there, so it cannot commit or roll back the outer lifecycle transaction; all SQL remains on the supplied raw transaction.
+
+## 2026-07-25 Batch 5: Cross-Module Consistency Proof
+
+- Added shared SQLite/Ent integration tests for the complete user/auth boundary. A successful create commits both user profile and auth credential.
+- Injected real auth-table failures through SQLite triggers. Credential insert failure rolls back the newly created profile; session-revocation failure rolls back both disable and delete profile mutations and leaves the existing session active.
+- Focused user/auth tests passed. Final lint, build, diff, and topic-structure validation are recorded in the batch closeout.

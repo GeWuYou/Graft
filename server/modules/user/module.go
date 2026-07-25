@@ -507,14 +507,6 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 	return nil
 }
 
-// runProfileTransaction 要求 user service 在 profile 写入前拥有本地事务生命周期。
-func (s userService) runProfileTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository) error) error {
-	if s.transactions == nil {
-		return errors.New("user profile transaction runner is unavailable")
-	}
-	return s.transactions.RunInTransaction(ctx, callback)
-}
-
 func (s userService) runCompositeTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository, moduleapi.AuthTransactionAdapter) error) error {
 	if s.composites == nil || s.authTx == nil {
 		return errors.New("user/auth composite transaction is unavailable")

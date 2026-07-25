@@ -6,9 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	entsql "entgo.io/ent/dialect/sql"
-
-	ent "graft/server/modules/user/ent"
 	userstore "graft/server/modules/user/store"
 )
 
@@ -61,7 +58,7 @@ func (r *userRepository) RunInCompositeTransaction(ctx context.Context, callback
 			_ = tx.Rollback()
 		}
 	}()
-	txClient := ent.NewClient(ent.Driver(entsql.NewDriver("postgres", entsql.Conn{ExecQuerier: tx})))
+	txClient := newCallerTransactionClient(tx)
 	profiles := &userRepository{client: txClient}
 	if err := callback(ctx, profiles, tx); err != nil {
 		return err

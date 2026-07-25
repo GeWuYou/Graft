@@ -7,10 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	entsql "entgo.io/ent/dialect/sql"
-
 	"graft/server/internal/moduleapi"
-	authent "graft/server/modules/auth/ent"
 	authstore "graft/server/modules/auth/store"
 )
 
@@ -23,6 +20,7 @@ type TransactionAdapterFactory struct {
 	prepare PasswordCredentialPreparer
 }
 
+// NewTransactionAdapterFactory creates a factory for caller-owned transactions.
 func NewTransactionAdapterFactory(prepare PasswordCredentialPreparer) (*TransactionAdapterFactory, error) {
 	if prepare == nil {
 		return nil, errors.New("auth transaction adapter requires a password credential preparer")
@@ -30,11 +28,12 @@ func NewTransactionAdapterFactory(prepare PasswordCredentialPreparer) (*Transact
 	return &TransactionAdapterFactory{prepare: prepare}, nil
 }
 
+// BindAuthTransaction returns an auth participant bound to tx without owning its completion.
 func (f *TransactionAdapterFactory) BindAuthTransaction(tx *sql.Tx) (moduleapi.AuthTransactionAdapter, error) {
 	if tx == nil {
 		return nil, errors.New("auth transaction adapter requires a caller-owned sql transaction")
 	}
-	client := authent.NewClient(authent.Driver(entsql.NewDriver("postgres", entsql.Conn{ExecQuerier: tx})))
+	client := newCallerTransactionClient(tx)
 	return &transactionAdapter{
 		credentials: &credentialStore{client: client},
 		sessions:    &sessionStore{client: client},
