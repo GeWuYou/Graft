@@ -2,13 +2,13 @@ package container
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 
@@ -194,21 +194,26 @@ func (r routeRuntime) handleDockerImagePull(c *gin.Context) {
 		r.writeRouteError(c, err)
 		return
 	}
-	c.Header("Content-Type", "application/x-ndjson")
-	c.Status(http.StatusOK)
-	emittedError := false
-	err := r.service.PullDockerImage(c.Request.Context(), request.Reference, func(event DockerImagePullEvent) error {
-		emittedError = emittedError || event.Error
-		return writeDockerImagePullEvent(c, event)
-	})
-	if err != nil && !emittedError {
-		_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "error", Error: true})
-	} else {
-		if err == nil {
-			_ = writeDockerImagePullEvent(c, DockerImagePullEvent{Status: "completed"})
-		}
+	idempotencyKey := c.GetHeader("Idempotency-Key")
+	if strings.TrimSpace(idempotencyKey) == "" || utf8.RuneCountInString(idempotencyKey) > 128 {
+		httpx.WriteLocalizedError(c, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
 	}
+	requestedBy := uint64(0)
+	if auth, ok := moduleapi.RequestAuthContextFromContext(c.Request.Context()); ok && auth.User != nil {
+		requestedBy = auth.User.ID
+	}
+	receipt, err := r.service.SubmitDockerImagePull(c.Request.Context(), request.Reference, requestedBy, idempotencyKey)
 	r.service.publishDockerImageAudit(c.Request.Context(), containercontract.DockerImageAuditActionPull, request.Reference, request.Reference, false, err)
+	if err != nil {
+		if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
+			httpx.WriteLocalizedError(c, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
+			return
+		}
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerImageTag(c *gin.Context) {
@@ -288,18 +293,6 @@ func readDockerImageRef(c *gin.Context, r routeRuntime) (string, bool) {
 		return "", false
 	}
 	return value, true
-}
-
-func writeDockerImagePullEvent(c *gin.Context, event DockerImagePullEvent) error {
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return err
-	}
-	if _, err := c.Writer.Write(append(payload, '\n')); err != nil {
-		return err
-	}
-	c.Writer.Flush()
-	return nil
 }
 
 func (r routeRuntime) handleDockerNetworks(c *gin.Context) {

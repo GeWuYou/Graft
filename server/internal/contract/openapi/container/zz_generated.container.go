@@ -1416,34 +1416,34 @@ func (e GetContainerMountUsage500JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostContainerMountUsageRefresh200JSONResponseBodyDataStatus.
 const (
-	Error            PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "error"
-	Measured         PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "measured"
-	NotFound         PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "not_found"
-	NotMeasured      PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "not_measured"
-	Pending          PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "pending"
-	PermissionDenied PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "permission_denied"
-	Timeout          PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "timeout"
-	Unsupported      PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "unsupported"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusError            PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "error"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusMeasured         PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "measured"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusNotFound         PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "not_found"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusNotMeasured      PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "not_measured"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusPending          PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "pending"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusPermissionDenied PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "permission_denied"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusTimeout          PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "timeout"
+	PostContainerMountUsageRefresh200JSONResponseBodyDataStatusUnsupported      PostContainerMountUsageRefresh200JSONResponseBodyDataStatus = "unsupported"
 )
 
 // Valid indicates whether the value is a known member of the PostContainerMountUsageRefresh200JSONResponseBodyDataStatus enum.
 func (e PostContainerMountUsageRefresh200JSONResponseBodyDataStatus) Valid() bool {
 	switch e {
-	case Error:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusError:
 		return true
-	case Measured:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusMeasured:
 		return true
-	case NotFound:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusNotFound:
 		return true
-	case NotMeasured:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusNotMeasured:
 		return true
-	case Pending:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusPending:
 		return true
-	case PermissionDenied:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusPermissionDenied:
 		return true
-	case Timeout:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusTimeout:
 		return true
-	case Unsupported:
+	case PostContainerMountUsageRefresh200JSONResponseBodyDataStatusUnsupported:
 		return true
 	default:
 		return false
@@ -2419,6 +2419,39 @@ const (
 func (e PostDockerImageBatchRemove500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PostDockerImageBatchRemove500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImagePull202JSONResponseBodyDataStatus.
+const (
+	PostDockerImagePull202JSONResponseBodyDataStatusCancelled      PostDockerImagePull202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerImagePull202JSONResponseBodyDataStatusFailed         PostDockerImagePull202JSONResponseBodyDataStatus = "failed"
+	PostDockerImagePull202JSONResponseBodyDataStatusNeedsAttention PostDockerImagePull202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerImagePull202JSONResponseBodyDataStatusPending        PostDockerImagePull202JSONResponseBodyDataStatus = "pending"
+	PostDockerImagePull202JSONResponseBodyDataStatusRunning        PostDockerImagePull202JSONResponseBodyDataStatus = "running"
+	PostDockerImagePull202JSONResponseBodyDataStatusScheduled      PostDockerImagePull202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerImagePull202JSONResponseBodyDataStatusSuccess        PostDockerImagePull202JSONResponseBodyDataStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImagePull202JSONResponseBodyDataStatus enum.
+func (e PostDockerImagePull202JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case PostDockerImagePull202JSONResponseBodyDataStatusCancelled:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusFailed:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusRunning:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerImagePull202JSONResponseBodyDataStatusSuccess:
 		return true
 	default:
 		return false
@@ -4151,6 +4184,15 @@ type PostDockerImagePullJSONBody struct {
 	// Reference Complete image reference resolved by the configured Docker daemon credential store.
 	Reference string `json:"reference"`
 }
+
+// PostDockerImagePullParams defines parameters for PostDockerImagePull.
+type PostDockerImagePullParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// PostDockerImagePull202JSONResponseBodyDataStatus defines parameters for PostDockerImagePull.
+type PostDockerImagePull202JSONResponseBodyDataStatus string
 
 // PostDockerImagePull401JSONResponseBodySuccess defines parameters for PostDockerImagePull.
 type PostDockerImagePull401JSONResponseBodySuccess bool

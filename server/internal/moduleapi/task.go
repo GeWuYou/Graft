@@ -4,7 +4,13 @@ package moduleapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
+)
+
+var (
+	// ErrTaskSubmissionConflict 表示同一幂等键被用于内容不同的 Task 提交。
+	ErrTaskSubmissionConflict = errors.New("task submission conflict")
 )
 
 // TaskType 标识一种由消费者拥有的 Task 计划类型。
@@ -139,10 +145,12 @@ type SubmitTaskInput struct {
 	Type        TaskType
 	Owner       TaskOwner
 	RequestedBy uint64
-	Input       json.RawMessage
-	Metadata    json.RawMessage
-	Plan        TaskPlan
-	ScheduledAt *time.Time
+	// IdempotencyKey 是调用方提供的不透明提交键；为空时保持历史的非幂等提交语义。
+	IdempotencyKey string
+	Input          json.RawMessage
+	Metadata       json.RawMessage
+	Plan           TaskPlan
+	ScheduledAt    *time.Time
 }
 
 // TaskReceipt 标识已接受的异步 Task 提交。

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	authstore "graft/server/modules/auth/store"
@@ -52,6 +53,18 @@ func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uin
 	return s.credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
 }
 
+// prepareTransactionCredential 仅校验和散列凭据；调用方拥有的共享 transaction 负责持久化产物。
+func (s authService) prepareTransactionCredential(_ context.Context, input moduleapi.AuthCredentialProvisionInput) (string, time.Time, error) {
+	if err := s.policy.ValidateNewPassword(input.Password); err != nil {
+		return "", time.Time{}, err
+	}
+	hash, err := s.passwords.Hash(input.Password)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("hash initial password: %w", err)
+	}
+	return hash, s.nowUTC(), nil
+}
+
 // ResetPassword 按管理员重置策略更新密码，并原子吊销该用户的全部 refresh session，使旧 access token 失效。
 func (s authService) ResetPassword(ctx context.Context, userID uint64, password string) error {
 	if s.credentials == nil {
@@ -64,7 +77,7 @@ func (s authService) ResetPassword(ctx context.Context, userID uint64, password 
 	if err != nil {
 		return fmt.Errorf("hash reset password: %w", err)
 	}
-	return s.credentials.ResetPasswordAndRevokeRefreshSessions(ctx, authstore.ResetPasswordAndRevokeSessionsInput{UserID: userID, PasswordHash: hash, MustChangePassword: true, ChangedAt: s.nowUTC()})
+	return s.updatePasswordAndRevokeSessions(ctx, userID, hash, true, s.nowUTC(), "")
 }
 
 // RevokeSessions 在 user profile 生命周期结束或身份状态变化时吊销全部 refresh session。

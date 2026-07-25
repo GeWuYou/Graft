@@ -3,6 +3,7 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,6 +30,7 @@ type Module struct {
 	bootstrapAccess  *deferredRBACAccessService
 	userRepo         userstore.UserRepository
 	userCredentials  *deferredCredentialManagementService
+	authTransactions *deferredAuthTransactionFactory
 	authCapabilities *deferredAuthCapabilities
 }
 
@@ -84,10 +86,24 @@ func (p *Module) Boot(ctx *module.Context) error {
 	if err := p.bindCredentialManagement(ctx); err != nil {
 		return err
 	}
+	if err := p.bindAuthTransactions(ctx); err != nil {
+		return err
+	}
 	if err := p.bindAuthCapabilities(ctx); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (p *Module) bindAuthTransactions(ctx *module.Context) error {
+	if p.authTransactions == nil {
+		return errors.New("auth transaction adapter proxy is unavailable")
+	}
+	factory, err := resolveService[moduleapi.AuthTransactionAdapterFactory](ctx, (*moduleapi.AuthTransactionAdapterFactory)(nil), "auth transaction adapter factory")
+	if err != nil {
+		return err
+	}
+	return p.authTransactions.SetTarget(factory)
 }
 
 func (p *Module) bindAuthCapabilities(ctx *module.Context) error {
@@ -186,11 +202,14 @@ func resolveService[T any](ctx *module.Context, key any, label string) (T, error
 
 // userService 把用户模块内部仓储读取收敛为跨模块稳定用户摘要服务。
 type userService struct {
-	users       userstore.UserRepository
-	rbac        moduleapi.RBACAccessService
-	auditBus    eventbus.Bus
-	logger      *zap.Logger
-	credentials moduleapi.AuthCredentialManagementService
+	users        userstore.UserRepository
+	rbac         moduleapi.RBACAccessService
+	auditBus     eventbus.Bus
+	logger       *zap.Logger
+	credentials  moduleapi.AuthCredentialManagementService
+	transactions userstore.TransactionRunner
+	composites   userstore.CompositeTransactionRunner
+	authTx       moduleapi.AuthTransactionAdapterFactory
 }
 
 // GetUserByID 通过稳定仓储契约读取用户，并收敛为跨模块 DTO。
@@ -288,15 +307,19 @@ func (s userService) CreateUser(
 		ActorID:  command.ActorID,
 	}
 
-	created, err := s.users.Create(ctx, input)
-	if err != nil {
+	var created userstore.User
+	if err := s.runCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, auth moduleapi.AuthTransactionAdapter) error {
+		var err error
+		created, err = profiles.Create(txCtx, input)
+		if err != nil {
+			return fmt.Errorf("create user profile: %w", err)
+		}
+		if err := auth.ProvisionPasswordCredential(txCtx, moduleapi.AuthCredentialProvisionInput{UserID: created.ID, Password: command.Password, MustChangePassword: true}); err != nil {
+			return fmt.Errorf("provision user password credential: %w", err)
+		}
+		return nil
+	}); err != nil {
 		return userstore.User{}, err
-	}
-	if s.credentials == nil {
-		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, errors.New("auth credential management service is unavailable"))
-	}
-	if err := s.credentials.ProvisionPasswordCredential(ctx, created.ID, command.Password, true); err != nil {
-		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, err)
 	}
 
 	s.publishAudit(ctx, moduleapi.AuditEvent{
@@ -316,20 +339,6 @@ func (s userService) CreateUser(
 	})
 
 	return created, nil
-}
-
-// rollbackCreatedUser 补偿凭据配置失败导致的用户创建，并在清理用户资料也失败时保留两类错误原因。
-func (s userService) rollbackCreatedUser(ctx context.Context, userID, actorID uint64, provisionErr error) error {
-	rollbackErr := s.users.Delete(ctx, userstore.DeleteUserInput{
-		ID:        userID,
-		DeletedAt: time.Now().UTC(),
-		ActorID:   actorID,
-	})
-	if rollbackErr == nil {
-		return provisionErr
-	}
-
-	return errors.Join(provisionErr, fmt.Errorf("rollback created user: %w", rollbackErr))
 }
 
 func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) (userstore.User, error) {
@@ -384,7 +393,7 @@ func (s userService) SetUserStatus(
 	if s.users == nil {
 		return userstore.User{}, errors.New("user repository is unavailable")
 	}
-	if s.credentials == nil {
+	if s.authTx == nil {
 		return userstore.User{}, errors.New("auth repository is unavailable")
 	}
 
@@ -399,14 +408,21 @@ func (s userService) SetUserStatus(
 		ActorID: command.ActorID,
 	}
 
-	updated, err := s.users.SetStatus(ctx, input)
-	if err != nil {
-		return userstore.User{}, err
-	}
-	if status == usercontract.UserStatusDisabled {
-		if err := s.credentials.RevokeSessions(ctx, input.ID); err != nil {
-			return userstore.User{}, err
+	var updated userstore.User
+	if err := s.runCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, auth moduleapi.AuthTransactionAdapter) error {
+		var err error
+		updated, err = profiles.SetStatus(txCtx, input)
+		if err != nil {
+			return fmt.Errorf("set user profile status: %w", err)
 		}
+		if status == usercontract.UserStatusDisabled {
+			if err := auth.RevokeSessions(txCtx, input.ID); err != nil {
+				return fmt.Errorf("revoke user sessions after disabling profile: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return userstore.User{}, err
 	}
 
 	s.publishAudit(ctx, moduleapi.AuditEvent{
@@ -453,7 +469,7 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 	if s.users == nil {
 		return errors.New("user repository is unavailable")
 	}
-	if s.credentials == nil {
+	if s.authTx == nil {
 		return errors.New("auth repository is unavailable")
 	}
 	if requestActorOwnsUser(ctx, userID) {
@@ -467,15 +483,19 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 		return errProtectedDefaultAdminImmutable
 	}
 
-	if err := s.users.Delete(ctx, userstore.DeleteUserInput{
-		ID:        userID,
-		DeletedAt: time.Now().UTC(),
-		ActorID:   requestActorID(ctx),
+	if err := s.runCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, auth moduleapi.AuthTransactionAdapter) error {
+		if err := profiles.Delete(txCtx, userstore.DeleteUserInput{
+			ID:        userID,
+			DeletedAt: time.Now().UTC(),
+			ActorID:   requestActorID(ctx),
+		}); err != nil {
+			return fmt.Errorf("delete user profile: %w", err)
+		}
+		if err := auth.RevokeSessions(txCtx, userID); err != nil {
+			return fmt.Errorf("revoke user sessions after deleting profile: %w", err)
+		}
+		return nil
 	}); err != nil {
-		return err
-	}
-
-	if err := s.credentials.RevokeSessions(ctx, userID); err != nil {
 		return err
 	}
 
@@ -488,6 +508,26 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 		Message:      "user deleted",
 	})
 
+	return nil
+}
+
+func (s userService) runCompositeTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository, moduleapi.AuthTransactionAdapter) error) error {
+	if s.composites == nil || s.authTx == nil {
+		return errors.New("user/auth composite transaction is unavailable")
+	}
+	err := s.composites.RunInCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, tx *sql.Tx) error {
+		auth, err := s.authTx.BindAuthTransaction(tx)
+		if err != nil {
+			return fmt.Errorf("bind auth transaction adapter: %w", err)
+		}
+		if err := callback(txCtx, profiles, auth); err != nil {
+			return fmt.Errorf("run user/auth composite operation: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("run user/auth composite transaction: %w", err)
+	}
 	return nil
 }
 

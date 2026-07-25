@@ -18,7 +18,7 @@ func TestSQLRepositoryCreatePersistsFrozenTaskPlanAndCreatedEvent(t *testing.T) 
 	t.Parallel()
 
 	repository, _ := newTestSQLRepository(t)
-	created, stages, err := repository.Create(context.Background(), validCreateInput())
+	created, stages, _, err := repository.Create(context.Background(), validCreateInput())
 	if err != nil {
 		t.Fatalf("create task: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestSQLRepositoryTransitionsUseCompareAndSwap(t *testing.T) {
 	t.Parallel()
 
 	repository, _ := newTestSQLRepository(t)
-	created, stages, err := repository.Create(context.Background(), validCreateInput())
+	created, stages, _, err := repository.Create(context.Background(), validCreateInput())
 	if err != nil {
 		t.Fatalf("create task: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestSQLRepositoryReplaysEventsAndLogsBySequence(t *testing.T) {
 	t.Parallel()
 
 	repository, _ := newTestSQLRepository(t)
-	created, stages, err := repository.Create(context.Background(), validCreateInput())
+	created, stages, _, err := repository.Create(context.Background(), validCreateInput())
 	if err != nil {
 		t.Fatalf("create task: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
 	for _, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
 		input := validCreateInput()
 		input.Task.Owner = moduleapi.TaskOwner{Type: "application", ID: ownerID}
-		if _, _, err := repository.Create(context.Background(), input); err != nil {
+		if _, _, _, err := repository.Create(context.Background(), input); err != nil {
 			t.Fatalf("create %q task: %v", ownerID, err)
 		}
 	}
@@ -188,7 +188,7 @@ func TestSQLRepositoryListsOwnerScopedTypeAndStatusFilter(t *testing.T) {
 	for _, spec := range inputs {
 		input := validCreateInput()
 		input.Task.Owner = moduleapi.TaskOwner{Type: "application", ID: "owner-filtered"}
-		created, _, err := repository.Create(context.Background(), input)
+		created, _, _, err := repository.Create(context.Background(), input)
 		if err != nil {
 			t.Fatalf("create task: %v", err)
 		}
@@ -251,12 +251,12 @@ func TestSQLRepositoryRejectsNonSerialOrDuplicateStagePlan(t *testing.T) {
 	repository, _ := newTestSQLRepository(t)
 	input := validCreateInput()
 	input.Stages[1].Sequence = 3
-	if _, _, err := repository.Create(context.Background(), input); !errors.Is(err, ErrInvalidInput) {
+	if _, _, _, err := repository.Create(context.Background(), input); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected invalid serial plan, got %v", err)
 	}
 	input = validCreateInput()
 	input.Stages[1].Key = input.Stages[0].Key
-	if _, _, err := repository.Create(context.Background(), input); !errors.Is(err, ErrInvalidInput) {
+	if _, _, _, err := repository.Create(context.Background(), input); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("expected duplicate stage key rejection, got %v", err)
 	}
 }

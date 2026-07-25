@@ -2,6 +2,7 @@ package container
 
 import (
 	"errors"
+	"fmt"
 
 	containerdi "graft/server/internal/container"
 	"graft/server/internal/module"
@@ -19,6 +20,7 @@ func NewModule() *Module {
 }
 
 // Register declares container menu, permissions, messages, config definitions, and routes.
+//nolint:cyclop // Explicit dependency resolution and declaration ordering keep module wiring auditable.
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil {
 		return errors.New("container module is unavailable")
@@ -40,6 +42,13 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	if err := service.registerRealtimeTopics(); err != nil {
+		return err
+	}
+	taskRegistrar, err := module.ResolveService[moduleapi.TaskRuntimeRegistrar](ctx.Services, (*moduleapi.TaskRuntimeRegistrar)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task runtime registrar: %w", err)
+	}
+	if err := registerDockerImagePullTask(taskRegistrar, service); err != nil {
 		return err
 	}
 	if err := registerModuleServices(ctx, service); err != nil {

@@ -262,12 +262,20 @@ func (s authService) rotateRefreshSession(
 	currentTokenID string,
 	now time.Time,
 ) (authstore.RefreshSession, error) {
-	nextSession, err := s.sessions.RotateRefreshSession(ctx, authstore.RotateRefreshSessionInput{
-		CurrentTokenID: currentTokenID,
-		NewTokenID:     uuid.NewString(),
-		Now:            now,
-		RevokedAt:      now,
-		NewExpiresAt:   now.Add(s.refreshTokens.ttl),
+	if s.transactions == nil {
+		return authstore.RefreshSession{}, errors.New("auth transaction runner is unavailable")
+	}
+	var nextSession authstore.RefreshSession
+	err := s.transactions.RunInTransaction(ctx, func(txCtx context.Context, _ authstore.CredentialStore, sessions authstore.SessionStore) error {
+		var rotateErr error
+		nextSession, rotateErr = sessions.RotateRefreshSession(txCtx, authstore.RotateRefreshSessionInput{
+			CurrentTokenID: currentTokenID,
+			NewTokenID:     uuid.NewString(),
+			Now:            now,
+			RevokedAt:      now,
+			NewExpiresAt:   now.Add(s.refreshTokens.ttl),
+		})
+		return rotateErr
 	})
 	if err != nil {
 		return authstore.RefreshSession{}, mapRefreshSessionRepositoryError(err)
@@ -337,24 +345,8 @@ func (s authService) RevokeOtherCurrentUserSessions(ctx context.Context) error {
 		return moduleapi.ErrUnauthenticated
 	}
 
-	sessions, err := s.ListUserSessions(ctx, requestAuth.Claims.UserID, sessionListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, session := range sessions {
-		if session.SessionID == requestAuth.Claims.SessionID {
-			continue
-		}
-		if err := s.RevokeUserSession(ctx, requestAuth.Claims.UserID, session.SessionID); err != nil {
-			if errors.Is(err, errSessionNotFound) {
-				continue
-			}
-			return err
-		}
-	}
-
-	return nil
+	_, err := s.revokeOtherSessions(ctx, requestAuth.Claims.UserID, requestAuth.Claims.SessionID)
+	return err
 }
 
 func (s authService) RevokeAllUserSessions(ctx context.Context, userID uint64) error {

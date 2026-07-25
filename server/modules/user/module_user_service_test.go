@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -9,10 +10,7 @@ import (
 	userstore "graft/server/modules/user/store"
 )
 
-type createUserRepository struct {
-	deleteErr error
-	deleteIn  []userstore.DeleteUserInput
-}
+type createUserRepository struct{}
 
 func (*createUserRepository) GetByID(context.Context, uint64) (userstore.User, error) {
 	return userstore.User{}, nil
@@ -34,37 +32,45 @@ func (*createUserRepository) SetStatus(context.Context, userstore.SetUserStatusI
 func (*createUserRepository) Create(context.Context, userstore.CreateUserInput) (userstore.User, error) {
 	return userstore.User{ID: 19, Username: "new-user", Display: "New User"}, nil
 }
-func (r *createUserRepository) Delete(_ context.Context, input userstore.DeleteUserInput) error {
-	r.deleteIn = append(r.deleteIn, input)
-	return r.deleteErr
+func (*createUserRepository) Delete(context.Context, userstore.DeleteUserInput) error {
+	return nil
 }
 
-type failingCredentialManager struct{ provisionErr error }
-
-func (m failingCredentialManager) ProvisionPasswordCredential(context.Context, uint64, string, bool) error {
-	return m.provisionErr
+func (r *createUserRepository) RunInTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository) error) error {
+	return callback(ctx, r)
 }
-func (failingCredentialManager) ResetPassword(context.Context, uint64, string) error { return nil }
-func (failingCredentialManager) RevokeSessions(context.Context, uint64) error        { return nil }
+func (r *createUserRepository) RunInCompositeTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository, *sql.Tx) error) error {
+	return callback(ctx, r, nil)
+}
 
-var _ moduleapi.AuthCredentialManagementService = failingCredentialManager{}
+type failingAuthTransactionFactory struct{ err error }
 
-func TestCreateUserRetainsProvisionAndRollbackFailures(t *testing.T) {
+func (f failingAuthTransactionFactory) BindAuthTransaction(*sql.Tx) (moduleapi.AuthTransactionAdapter, error) {
+	return failingAuthTransactionAdapter(f), nil
+}
+
+type failingAuthTransactionAdapter struct{ err error }
+
+func (a failingAuthTransactionAdapter) ProvisionPasswordCredential(context.Context, moduleapi.AuthCredentialProvisionInput) error {
+	return a.err
+}
+func (failingAuthTransactionAdapter) RevokeSessions(context.Context, uint64) error { return nil }
+
+func TestCreateUserRollsBackWhenCredentialProvisionFails(t *testing.T) {
 	provisionErr := errors.New("credential provisioning failed")
-	rollbackErr := errors.New("profile rollback failed")
-	repo := &createUserRepository{deleteErr: rollbackErr}
-	service := userService{users: repo, credentials: failingCredentialManager{provisionErr: provisionErr}}
+	repo := &createUserRepository{}
+	service := userService{users: repo, transactions: repo, composites: repo, authTx: failingAuthTransactionFactory{err: provisionErr}}
 
-	_, err := service.CreateUser(context.Background(), CreateUserCommand{
+	created, err := service.CreateUser(context.Background(), CreateUserCommand{
 		Username: "new-user",
 		Display:  "New User",
 		Password: "Password1234",
 		ActorID:  5,
 	})
-	if !errors.Is(err, provisionErr) || !errors.Is(err, rollbackErr) {
-		t.Fatalf("CreateUser() error = %v, want joined provisioning and rollback errors", err)
+	if !errors.Is(err, provisionErr) {
+		t.Fatalf("CreateUser() error = %v, want provisioning failure", err)
 	}
-	if len(repo.deleteIn) != 1 || repo.deleteIn[0].ID != 19 || repo.deleteIn[0].ActorID != 5 {
-		t.Fatalf("Delete() inputs = %#v", repo.deleteIn)
+	if created.ID != 0 {
+		t.Fatalf("CreateUser() user = %#v, want zero result", created)
 	}
 }

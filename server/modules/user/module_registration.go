@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	usercontract "graft/server/modules/user/contract"
+	userstore "graft/server/modules/user/store"
 )
 
 const userMenuOrderList = 3
@@ -126,18 +128,30 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	if userRepo == nil {
 		return registeredServices{}, errors.New("user repository is unavailable")
 	}
+	transactions, ok := userRepo.(userstore.TransactionRunner)
+	if !ok {
+		return registeredServices{}, errors.New("user repository does not support profile transactions")
+	}
+	composites, ok := userRepo.(userstore.CompositeTransactionRunner)
+	if !ok {
+		return registeredServices{}, errors.New("user repository does not support composite transactions")
+	}
 	logger := ctx.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 	p.bootstrapAccess = newDeferredRBACAccessService()
 	p.userCredentials = newDeferredCredentialManagementService()
+	p.authTransactions = newDeferredAuthTransactionFactory()
 	userSvc := userService{
-		users:       userRepo,
-		rbac:        p.bootstrapAccess,
-		credentials: p.userCredentials,
-		auditBus:    ctx.EventBus,
-		logger:      logger,
+		users:        userRepo,
+		transactions: transactions,
+		composites:   composites,
+		authTx:       p.authTransactions,
+		rbac:         p.bootstrapAccess,
+		credentials:  p.userCredentials,
+		auditBus:     ctx.EventBus,
+		logger:       logger,
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil
@@ -173,6 +187,35 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 		bootstrap:    bootstrapSvc,
 	}, nil
 }
+
+type deferredAuthTransactionFactory struct {
+	mu     sync.RWMutex
+	target moduleapi.AuthTransactionAdapterFactory
+}
+
+func newDeferredAuthTransactionFactory() *deferredAuthTransactionFactory {
+	return &deferredAuthTransactionFactory{}
+}
+func (f *deferredAuthTransactionFactory) SetTarget(target moduleapi.AuthTransactionAdapterFactory) error {
+	if target == nil {
+		return errors.New("auth transaction adapter factory is required")
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.target = target
+	return nil
+}
+func (f *deferredAuthTransactionFactory) BindAuthTransaction(tx *sql.Tx) (moduleapi.AuthTransactionAdapter, error) {
+	f.mu.RLock()
+	target := f.target
+	f.mu.RUnlock()
+	if target == nil {
+		return nil, errors.New("auth transaction adapter factory is unavailable")
+	}
+	return target.BindAuthTransaction(tx)
+}
+
+var _ moduleapi.AuthTransactionAdapterFactory = (*deferredAuthTransactionFactory)(nil)
 
 type deferredCredentialManagementService struct {
 	mu     sync.RWMutex

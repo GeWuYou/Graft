@@ -10,25 +10,27 @@ import (
 
 // Task 表示消费模块提交的一次持久化 TaskPlan 执行；状态和结果字段由 Runtime 持续更新。
 type Task struct {
-	ID                uint64
-	Type              moduleapi.TaskType
-	Owner             moduleapi.TaskOwner
-	Status            moduleapi.TaskStatus
-	Input             json.RawMessage
-	Metadata          json.RawMessage
-	Plan              json.RawMessage
-	State             json.RawMessage
-	CurrentStageKey   *string
-	CreatedBy         *uint64
-	ScheduledAt       *time.Time
-	CancelRequestedAt *time.Time
-	StartedAt         *time.Time
-	FinishedAt        *time.Time
-	DurationMS        *int64
-	FailureCode       *string
-	FailureMessage    *string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	ID                    uint64
+	Type                  moduleapi.TaskType
+	Owner                 moduleapi.TaskOwner
+	Status                moduleapi.TaskStatus
+	Input                 json.RawMessage
+	Metadata              json.RawMessage
+	Plan                  json.RawMessage
+	State                 json.RawMessage
+	CurrentStageKey       *string
+	CreatedBy             *uint64
+	IdempotencyKeyHash    *string
+	SubmissionFingerprint *string
+	ScheduledAt           *time.Time
+	CancelRequestedAt     *time.Time
+	StartedAt             *time.Time
+	FinishedAt            *time.Time
+	DurationMS            *int64
+	FailureCode           *string
+	FailureMessage        *string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 // Stage 表示冻结计划中的一个阶段及其当前执行状态；计划字段创建后不因重试而重写。

@@ -82,14 +82,14 @@ func (r *SQLRepository) timestampValuePlaceholder() string {
 // taskColumns 返回任务表的固定列名列表。
 func taskColumns() string {
 	return `id, task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json,
-		current_stage_key, created_by, scheduled_at, cancel_requested_at, started_at, finished_at, duration_ms,
+		current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, cancel_requested_at, started_at, finished_at, duration_ms,
 		failure_code, failure_message, created_at, updated_at`
 }
 
 // taskColumnsFor 返回带指定表别名的任务表列名列表。
 func taskColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_type, ` + alias + `.owner_type, ` + alias + `.owner_id, ` + alias + `.status, ` + alias + `.input_json, ` + alias + `.metadata_json, ` + alias + `.plan_json, ` + alias + `.state_json,
-		` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
+		` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.idempotency_key_hash, ` + alias + `.submission_fingerprint, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
 		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
@@ -123,13 +123,13 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	var taskType string
 	var status string
 	var input, metadata, plan, state []byte
-	var currentStageKey, failureCode, failureMessage sql.NullString
+	var currentStageKey, idempotencyKeyHash, submissionFingerprint, failureCode, failureMessage sql.NullString
 	var createdBy sql.NullInt64
 	var scheduledAt, cancelRequestedAt, startedAt, finishedAt sql.NullTime
 	var durationMS sql.NullInt64
 	if err := scanner.Scan(
 		&item.ID, &taskType, &item.Owner.Type, &item.Owner.ID, &status, &input, &metadata, &plan, &state,
-		&currentStageKey, &createdBy, &scheduledAt, &cancelRequestedAt, &startedAt, &finishedAt, &durationMS,
+		&currentStageKey, &createdBy, &idempotencyKeyHash, &submissionFingerprint, &scheduledAt, &cancelRequestedAt, &startedAt, &finishedAt, &durationMS,
 		&failureCode, &failureMessage, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return taskmodel.Task{}, err
@@ -142,6 +142,8 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	item.State = normalizeJSON(state)
 	item.CurrentStageKey = nullableString(currentStageKey)
 	item.CreatedBy = nullableUint64(createdBy)
+	item.IdempotencyKeyHash = nullableString(idempotencyKeyHash)
+	item.SubmissionFingerprint = nullableString(submissionFingerprint)
 	item.ScheduledAt = nullableTime(scheduledAt)
 	item.CancelRequestedAt = nullableTime(cancelRequestedAt)
 	item.StartedAt = nullableTime(startedAt)
@@ -158,7 +160,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	var claim StageClaim
 	var taskType, taskStatus string
 	var taskInput, taskMetadata, taskPlan, taskState []byte
-	var taskCurrentStageKey, taskFailureCode, taskFailureMessage sql.NullString
+	var taskCurrentStageKey, taskIdempotencyKeyHash, taskSubmissionFingerprint, taskFailureCode, taskFailureMessage sql.NullString
 	var taskCreatedBy sql.NullInt64
 	var taskScheduledAt, taskCancelRequestedAt, taskStartedAt, taskFinishedAt sql.NullTime
 	var taskDurationMS sql.NullInt64
@@ -169,7 +171,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	var stageDurationMS sql.NullInt64
 	if err := scanner.Scan(
 		&claim.Task.ID, &taskType, &claim.Task.Owner.Type, &claim.Task.Owner.ID, &taskStatus, &taskInput, &taskMetadata, &taskPlan, &taskState,
-		&taskCurrentStageKey, &taskCreatedBy, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
+		&taskCurrentStageKey, &taskCreatedBy, &taskIdempotencyKeyHash, &taskSubmissionFingerprint, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
 		&taskFailureCode, &taskFailureMessage, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
 		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,
 		&stageNextRetryAt, &stageInput, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageStartedAt,
@@ -185,6 +187,8 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	claim.Task.State = normalizeJSON(taskState)
 	claim.Task.CurrentStageKey = nullableString(taskCurrentStageKey)
 	claim.Task.CreatedBy = nullableUint64(taskCreatedBy)
+	claim.Task.IdempotencyKeyHash = nullableString(taskIdempotencyKeyHash)
+	claim.Task.SubmissionFingerprint = nullableString(taskSubmissionFingerprint)
 	claim.Task.ScheduledAt = nullableTime(taskScheduledAt)
 	claim.Task.CancelRequestedAt = nullableTime(taskCancelRequestedAt)
 	claim.Task.StartedAt = nullableTime(taskStartedAt)

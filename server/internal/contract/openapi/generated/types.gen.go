@@ -8071,15 +8071,6 @@ type DockerImageListSummary struct {
 	Total     int   `json:"total"`
 }
 
-// DockerImagePullEvent defines model for docker-image-pull-event.
-type DockerImagePullEvent struct {
-	// Error Indicates a sanitized daemon error. Raw daemon error text is never returned.
-	Error    *bool   `json:"error,omitempty"`
-	Id       *string `json:"id,omitempty"`
-	Progress *string `json:"progress,omitempty"`
-	Status   string  `json:"status"`
-}
-
 // DockerImagePullRequest defines model for docker-image-pull-request.
 type DockerImagePullRequest struct {
 	// Reference Complete image reference resolved by the configured Docker daemon credential store.
@@ -14337,6 +14328,12 @@ type PostDockerImageBatchRemoveParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerImagePullParams defines parameters for PostDockerImagePull.
+type PostDockerImagePullParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
 // GetDockerNetworksParams defines parameters for GetDockerNetworks.

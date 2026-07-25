@@ -12,13 +12,19 @@ func CreateSQLite(db *sql.DB) error {
 		`CREATE TABLE tasks (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_type TEXT NOT NULL, owner_type TEXT NOT NULL, owner_id TEXT NOT NULL,
 			status TEXT NOT NULL, input_json BLOB NOT NULL, metadata_json BLOB NOT NULL, plan_json BLOB NOT NULL, state_json BLOB NOT NULL,
-			current_stage_key TEXT NULL, created_by INTEGER NULL, scheduled_at TIMESTAMP NULL, cancel_requested_at TIMESTAMP NULL,
+			current_stage_key TEXT NULL, created_by INTEGER NULL, idempotency_key_hash TEXT NULL, submission_fingerprint TEXT NULL,
+			scheduled_at TIMESTAMP NULL, cancel_requested_at TIMESTAMP NULL,
 			started_at TIMESTAMP NULL, finished_at TIMESTAMP NULL, duration_ms INTEGER NULL, failure_code TEXT NULL, failure_message TEXT NULL,
 			created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL,
 			CHECK (trim(task_type) <> ''), CHECK (trim(owner_type) <> ''), CHECK (trim(owner_id) <> ''),
 			CHECK (status IN ('pending', 'scheduled', 'running', 'success', 'failed', 'cancelled', 'needs_attention')),
+			CHECK (idempotency_key_hash IS NULL OR (length(idempotency_key_hash) = 64 AND idempotency_key_hash NOT GLOB '*[^0-9a-f]*')),
+			CHECK (submission_fingerprint IS NULL OR (length(submission_fingerprint) = 64 AND submission_fingerprint NOT GLOB '*[^0-9a-f]*')),
 			CHECK (duration_ms IS NULL OR duration_ms >= 0)
 		)`,
+		`CREATE UNIQUE INDEX uq_tasks_idempotency_submission
+			ON tasks (task_type, owner_type, owner_id, COALESCE(created_by, 0), idempotency_key_hash)
+			WHERE idempotency_key_hash IS NOT NULL`,
 		`CREATE TABLE task_stages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_key TEXT NOT NULL, sequence INTEGER NOT NULL,
 			executor_type TEXT NOT NULL, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL,

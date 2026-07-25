@@ -2,6 +2,7 @@ package storeent
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	usercontract "graft/server/modules/user/contract"
@@ -12,19 +13,24 @@ import (
 
 type userRepository struct {
 	client *ent.Client
+	db     *sql.DB
 }
 
 // NewUserRepository 构建 user 模块基于 Ent 的用户仓储；客户端为空时返回错误。
-func NewUserRepository(client *ent.Client) (userstore.UserRepository, error) {
-	return newUserRepository(client)
+func NewUserRepository(client *ent.Client, db ...*sql.DB) (userstore.UserRepository, error) {
+	return newUserRepository(client, db...)
 }
 
-func newUserRepository(client *ent.Client) (*userRepository, error) {
+func newUserRepository(client *ent.Client, db ...*sql.DB) (*userRepository, error) {
 	if client == nil {
 		return nil, fmt.Errorf("user storeent requires a non-nil ent client")
 	}
 
-	return &userRepository{client: client}, nil
+	repository := &userRepository{client: client}
+	if len(db) > 0 {
+		repository.db = db[0]
+	}
+	return repository, nil
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uint64) (userstore.User, error) {

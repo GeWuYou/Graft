@@ -37,6 +37,14 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 	assertMenu(t, ctx.MenuRegistry)
 	assertModuleMessages(t, ctx.I18n)
 	assertConfigDefinitions(t, ctx.ConfigRegistry, ctx.I18n)
+	resolved, err := ctx.Services.Resolve((*moduleapi.TaskRuntimeRegistrar)(nil))
+	if err != nil {
+		t.Fatalf("resolve task runtime registrar: %v", err)
+	}
+	tasks, ok := resolved.(*containerTaskRuntimeStub)
+	if !ok || len(tasks.executors) != 1 || len(tasks.authorizers) != 1 {
+		t.Fatalf("expected Docker image task registrations, got %#v", resolved)
+	}
 }
 
 func TestDescriptorDeclaresContainerModule(t *testing.T) {
@@ -44,7 +52,7 @@ func TestDescriptorDeclaresContainerModule(t *testing.T) {
 	if spec.Name() != moduleID {
 		t.Fatalf("expected module id %q, got %q", moduleID, spec.Name())
 	}
-	for _, dependency := range []string{"user", "auth", "rbac", "system-config"} {
+	for _, dependency := range []string{"user", "auth", "rbac", "system-config", "task"} {
 		if !slices.Contains(spec.DependsOn(), dependency) {
 			t.Fatalf("expected dependency %s in %#v", dependency, spec.DependsOn())
 		}
@@ -199,6 +207,17 @@ func newTestContext() *module.Context {
 	}); err != nil {
 		panic(fmt.Sprintf("register system config resolver: %v", err))
 	}
+	tasks := &containerTaskRuntimeStub{}
+	if err := services.RegisterSingleton((*moduleapi.TaskService)(nil), func(containerdi.Resolver) (any, error) {
+		return tasks, nil
+	}); err != nil {
+		panic(fmt.Sprintf("register task service: %v", err))
+	}
+	if err := services.RegisterSingleton((*moduleapi.TaskRuntimeRegistrar)(nil), func(containerdi.Resolver) (any, error) {
+		return tasks, nil
+	}); err != nil {
+		panic(fmt.Sprintf("register task runtime registrar: %v", err))
+	}
 	return &module.Context{
 		I18n:               localizer,
 		MenuRegistry:       menu.NewRegistry(),
@@ -211,6 +230,43 @@ func newTestContext() *module.Context {
 type moduleAuthorizerStub struct{}
 
 func (moduleAuthorizerStub) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
+	return nil
+}
+
+type containerTaskRuntimeStub struct {
+	receipt     moduleapi.TaskReceipt
+	err         error
+	submissions []moduleapi.SubmitTaskInput
+	executors   []moduleapi.StageExecutor
+	authorizers []moduleapi.TaskOwnerAuthorizer
+}
+
+func (s *containerTaskRuntimeStub) Submit(_ context.Context, input moduleapi.SubmitTaskInput) (moduleapi.TaskReceipt, error) {
+	s.submissions = append(s.submissions, input)
+	if s.err != nil {
+		return moduleapi.TaskReceipt{}, s.err
+	}
+	if s.receipt.TaskID == 0 {
+		s.receipt = moduleapi.TaskReceipt{TaskID: uint64(len(s.submissions)), Status: moduleapi.TaskStatusPending}
+	}
+	return s.receipt, nil
+}
+
+func (*containerTaskRuntimeStub) SettleExternalReceipt(context.Context, moduleapi.ExternalTaskReceipt) (moduleapi.ExternalReceiptSettlement, error) {
+	return moduleapi.ExternalReceiptSettlement{}, nil
+}
+
+func (*containerTaskRuntimeStub) Cancel(context.Context, uint64) error { return nil }
+
+func (*containerTaskRuntimeStub) RetryStage(context.Context, uint64, uint64) error { return nil }
+
+func (s *containerTaskRuntimeStub) RegisterStageExecutor(executor moduleapi.StageExecutor) error {
+	s.executors = append(s.executors, executor)
+	return nil
+}
+
+func (s *containerTaskRuntimeStub) RegisterTaskOwnerAuthorizer(authorizer moduleapi.TaskOwnerAuthorizer) error {
+	s.authorizers = append(s.authorizers, authorizer)
 	return nil
 }
 

@@ -2397,7 +2397,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Pull a Docker image through the configured daemon */
+    /** Submit a Docker image pull Task */
     post: operations['postDockerImagePull'];
     delete?: never;
     options?: never;
@@ -3865,7 +3865,6 @@ export interface components {
     DockerImageBatchRemoveRequest: components['schemas']['docker-image-batch-remove-request'];
     DockerImageBatchRemoveItem: components['schemas']['docker-image-batch-remove-item'];
     DockerImageBatchRemoveResponse: components['schemas']['docker-image-batch-remove-response'];
-    DockerImagePullEvent: components['schemas']['docker-image-pull-event'];
     DockerNetwork: components['schemas']['docker-network'];
     DockerNetworkContainerReference: components['schemas']['docker-network-container-reference'];
     DockerResourceContext: components['schemas']['docker-resource-context'];
@@ -7333,12 +7332,14 @@ export interface components {
       /** @description Complete image reference resolved by the configured Docker daemon credential store. */
       reference: string;
     };
-    'docker-image-pull-event': {
-      status: string;
-      id?: string;
-      progress?: string;
-      /** @description Indicates a sanitized daemon error. Raw daemon error text is never returned. */
-      error?: boolean;
+    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
+    'task-receipt': {
+      /** Format: int64 */
+      task_id: number;
+      status: components['schemas']['task-status'];
+    };
+    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-receipt'];
     };
     'enveloped-docker-image': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image'];
@@ -8719,15 +8720,6 @@ export interface components {
     };
     'enveloped-application-action-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-action-response'];
-    };
-    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
-    'task-receipt': {
-      /** Format: int64 */
-      task_id: number;
-      status: components['schemas']['task-status'];
-    };
-    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
-      data: components['schemas']['task-receipt'];
     };
     'application-batch-action-request': {
       /** @enum {string} */
@@ -15884,7 +15876,10 @@ export interface operations {
   postDockerImagePull: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -15894,13 +15889,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description Sanitized Docker pull progress as newline-delimited JSON. */
-      200: {
+      /** @description Docker image pull Task accepted. */
+      202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/x-ndjson': components['schemas']['docker-image-pull-event'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid image reference */
@@ -15912,6 +15907,13 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      /** @description Idempotency-Key was previously used with different Docker image pull input. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       500: components['responses']['internal-server-error'];
     };
   };
