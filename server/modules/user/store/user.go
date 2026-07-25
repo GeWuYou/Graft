@@ -73,6 +73,13 @@ type UserRepository interface {
 	Delete(ctx context.Context, input DeleteUserInput) error
 }
 
+// TransactionRunner 是 user 模块资料生命周期的本地事务边界。服务定义 callback 内的 profile 写入范围；
+// 实现负责一次 Begin、失败回滚和成功提交，并只向 callback 提供绑定同一事务的仓储。
+// callback 不得自行提交、回滚或在返回后继续使用该仓储。
+type TransactionRunner interface {
+	RunInTransaction(ctx context.Context, callback func(context.Context, UserRepository) error) error
+}
+
 // IsProtectedDefaultAdminUsername 判断用户名是否属于内置的受保护默认管理员账号。
 // 如果用户名等于内置默认管理员用户名，则返回 `true`，否则返回 `false`。
 func IsProtectedDefaultAdminUsername(username string) bool {

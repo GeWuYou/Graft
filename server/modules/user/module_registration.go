@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	usercontract "graft/server/modules/user/contract"
+	userstore "graft/server/modules/user/store"
 )
 
 const userMenuOrderList = 3
@@ -126,6 +127,10 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	if userRepo == nil {
 		return registeredServices{}, errors.New("user repository is unavailable")
 	}
+	transactions, ok := userRepo.(userstore.TransactionRunner)
+	if !ok {
+		return registeredServices{}, errors.New("user repository does not support profile transactions")
+	}
 	logger := ctx.Logger
 	if logger == nil {
 		logger = zap.NewNop()
@@ -133,11 +138,12 @@ func (p *Module) registerServices(ctx *module.Context) (registeredServices, erro
 	p.bootstrapAccess = newDeferredRBACAccessService()
 	p.userCredentials = newDeferredCredentialManagementService()
 	userSvc := userService{
-		users:       userRepo,
-		rbac:        p.bootstrapAccess,
-		credentials: p.userCredentials,
-		auditBus:    ctx.EventBus,
-		logger:      logger,
+		users:        userRepo,
+		transactions: transactions,
+		rbac:         p.bootstrapAccess,
+		credentials:  p.userCredentials,
+		auditBus:     ctx.EventBus,
+		logger:       logger,
 	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.UserService)(nil), func(_ container.Resolver) (any, error) {
 		return userSvc, nil

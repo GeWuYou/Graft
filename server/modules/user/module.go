@@ -186,11 +186,12 @@ func resolveService[T any](ctx *module.Context, key any, label string) (T, error
 
 // userService 把用户模块内部仓储读取收敛为跨模块稳定用户摘要服务。
 type userService struct {
-	users       userstore.UserRepository
-	rbac        moduleapi.RBACAccessService
-	auditBus    eventbus.Bus
-	logger      *zap.Logger
-	credentials moduleapi.AuthCredentialManagementService
+	users        userstore.UserRepository
+	rbac         moduleapi.RBACAccessService
+	auditBus     eventbus.Bus
+	logger       *zap.Logger
+	credentials  moduleapi.AuthCredentialManagementService
+	transactions userstore.TransactionRunner
 }
 
 // GetUserByID 通过稳定仓储契约读取用户，并收敛为跨模块 DTO。
@@ -288,15 +289,19 @@ func (s userService) CreateUser(
 		ActorID:  command.ActorID,
 	}
 
-	created, err := s.users.Create(ctx, input)
-	if err != nil {
+	var created userstore.User
+	if err := s.runProfileTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository) error {
+		var err error
+		created, err = profiles.Create(txCtx, input)
+		return err
+	}); err != nil {
 		return userstore.User{}, err
 	}
 	if s.credentials == nil {
-		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, errors.New("auth credential management service is unavailable"))
+		return created, profileCommittedCredentialProvisionError(errors.New("auth credential management service is unavailable"))
 	}
 	if err := s.credentials.ProvisionPasswordCredential(ctx, created.ID, command.Password, true); err != nil {
-		return userstore.User{}, s.rollbackCreatedUser(ctx, created.ID, command.ActorID, err)
+		return created, profileCommittedCredentialProvisionError(err)
 	}
 
 	s.publishAudit(ctx, moduleapi.AuditEvent{
@@ -318,18 +323,11 @@ func (s userService) CreateUser(
 	return created, nil
 }
 
-// rollbackCreatedUser 补偿凭据配置失败导致的用户创建，并在清理用户资料也失败时保留两类错误原因。
-func (s userService) rollbackCreatedUser(ctx context.Context, userID, actorID uint64, provisionErr error) error {
-	rollbackErr := s.users.Delete(ctx, userstore.DeleteUserInput{
-		ID:        userID,
-		DeletedAt: time.Now().UTC(),
-		ActorID:   actorID,
-	})
-	if rollbackErr == nil {
-		return provisionErr
-	}
-
-	return errors.Join(provisionErr, fmt.Errorf("rollback created user: %w", rollbackErr))
+// profileCommittedCredentialProvisionError 保留当前跨模块非原子流程的真实结果。
+// 在 auth adapter 可绑定 user 原始事务前，profile 已提交时绝不通过删除补偿伪造原子性。
+// COMPAT(owner=user/auth composite lifecycle, cleanup=Batch 4 binds the auth transaction adapter).
+func profileCommittedCredentialProvisionError(err error) error {
+	return fmt.Errorf("user profile committed but credential provisioning failed: %w", err)
 }
 
 func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) (userstore.User, error) {
@@ -399,13 +397,17 @@ func (s userService) SetUserStatus(
 		ActorID: command.ActorID,
 	}
 
-	updated, err := s.users.SetStatus(ctx, input)
-	if err != nil {
+	var updated userstore.User
+	if err := s.runProfileTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository) error {
+		var err error
+		updated, err = profiles.SetStatus(txCtx, input)
+		return err
+	}); err != nil {
 		return userstore.User{}, err
 	}
 	if status == usercontract.UserStatusDisabled {
 		if err := s.credentials.RevokeSessions(ctx, input.ID); err != nil {
-			return userstore.User{}, err
+			return updated, profileCommittedSessionRevocationError(err)
 		}
 	}
 
@@ -467,16 +469,18 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 		return errProtectedDefaultAdminImmutable
 	}
 
-	if err := s.users.Delete(ctx, userstore.DeleteUserInput{
-		ID:        userID,
-		DeletedAt: time.Now().UTC(),
-		ActorID:   requestActorID(ctx),
+	if err := s.runProfileTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository) error {
+		return profiles.Delete(txCtx, userstore.DeleteUserInput{
+			ID:        userID,
+			DeletedAt: time.Now().UTC(),
+			ActorID:   requestActorID(ctx),
+		})
 	}); err != nil {
 		return err
 	}
 
 	if err := s.credentials.RevokeSessions(ctx, userID); err != nil {
-		return err
+		return profileCommittedSessionRevocationError(err)
 	}
 
 	s.publishAudit(ctx, moduleapi.AuditEvent{
@@ -489,6 +493,20 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 	})
 
 	return nil
+}
+
+// runProfileTransaction 要求 user service 在 profile 写入前拥有本地事务生命周期。
+func (s userService) runProfileTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository) error) error {
+	if s.transactions == nil {
+		return errors.New("user profile transaction runner is unavailable")
+	}
+	return s.transactions.RunInTransaction(ctx, callback)
+}
+
+// profileCommittedSessionRevocationError 表示 profile 写入已经提交而 auth session 写入失败。
+// 该结果在跨模块 adapter 引入前必须显式暴露，调用方可据此重试会话吊销，不得执行补偿性 profile 写入。
+func profileCommittedSessionRevocationError(err error) error {
+	return fmt.Errorf("user profile committed but session revocation failed: %w", err)
 }
 
 func (s userService) ResetUserPassword(
