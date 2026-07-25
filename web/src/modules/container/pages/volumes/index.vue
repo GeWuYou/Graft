@@ -254,8 +254,11 @@
       size="520px"
       :footer="false"
     >
-      <t-loading :loading="detailLoading">
-        <t-alert v-if="detailError" theme="error" :message="detailError" />
+      <div class="docker-volume-page__detail-loading-host">
+        <div v-if="detailLoading" class="docker-volume-page__detail-loading-host__indicator">
+          <t-loading :loading="true" size="large" />
+        </div>
+        <t-alert v-else-if="detailError" theme="error" :message="detailError" />
         <template v-else-if="selectedVolume">
           <section class="docker-volume-page__section">
             <h3>{{ t('container.resourceContext.overview') }}</h3>
@@ -322,7 +325,7 @@
             :description="t('container.volume.detail.emptyDescription')"
           />
         </div>
-      </t-loading>
+      </div>
     </t-drawer>
   </div>
 </template>
@@ -786,6 +789,28 @@ function confirmRemove(row: VolumeRow) {
   justify-content: center;
   min-height: 240px;
   padding: var(--graft-density-gap-24) var(--graft-density-gap-16);
+}
+
+.docker-volume-page__detail-loading-host {
+  min-height: 240px;
+}
+
+.docker-volume-page__detail-loading-host__indicator {
+  display: grid;
+  min-height: inherit;
+  place-items: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docker-volume-page__detail-loading-host__indicator :deep(.t-icon-loading) {
+    animation: docker-volume-detail-loading-spin 1s linear infinite;
+  }
+}
+
+@keyframes docker-volume-detail-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .docker-volume-page__section h3,

@@ -145,8 +145,11 @@
       size="640px"
       placement="right"
     >
-      <t-loading :loading="detailLoading">
-        <div v-if="detailError" class="docker-images-detail-error">
+      <div class="docker-images-detail-loading-host">
+        <div v-if="detailLoading" class="docker-images-detail-loading-host__indicator">
+          <t-loading :loading="true" size="large" />
+        </div>
+        <div v-else-if="detailError" class="docker-images-detail-error">
           <t-alert theme="error" :message="detailError" />
         </div>
         <div v-else-if="selectedImage" class="docker-images-detail">
@@ -256,7 +259,7 @@
             }}</t-button>
           </template>
         </t-alert>
-      </t-loading>
+      </div>
       <template #footer>
         <t-space v-if="selectedImage">
           <t-button variant="outline" @click="openTagManager(selectedImage)">{{
@@ -1143,6 +1146,28 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-16);
+}
+
+.docker-images-detail-loading-host {
+  min-height: 240px;
+}
+
+.docker-images-detail-loading-host__indicator {
+  display: grid;
+  min-height: inherit;
+  place-items: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docker-images-detail-loading-host__indicator :deep(.t-icon-loading) {
+    animation: docker-images-detail-loading-spin 1s linear infinite;
+  }
+}
+
+@keyframes docker-images-detail-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .docker-images-detail-state {

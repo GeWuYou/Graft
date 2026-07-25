@@ -16,4 +16,12 @@ describe('TagManagerDrawer', () => {
     expect(sourceText).toContain('copy(image.id)');
     expect(sourceText).toContain('copy(reference)');
   });
+
+  it('centers a standalone loading indicator before the image record arrives', () => {
+    expect(sourceText).toContain('class="tag-manager-loading-host"');
+    expect(sourceText).toContain('.tag-manager-loading-host {\n  min-height: 240px;');
+    expect(sourceText).toContain('class="tag-manager-loading-host__indicator"');
+    expect(sourceText).toContain('place-items: center;');
+    expect(sourceText).toContain('tag-manager-loading-spin 1s linear infinite');
+  });
 });

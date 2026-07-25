@@ -123,8 +123,10 @@
           :class="['log-viewer__viewport graft-scrollbar', { 'log-viewer__viewport--wrap': wrapLines }]"
           @pointercancel="endViewportInteraction"
           @pointerdown="beginViewportInteraction"
+          @pointermove="markUserScrollIntent"
           @pointerup="endViewportInteraction"
           @scroll="handleViewportScroll"
+          @wheel.passive="markUserScrollIntent"
         >
           <stream-viewport-state-surface
             v-if="shouldRenderViewportStateSurface"
@@ -736,6 +738,7 @@ const emit = defineEmits<{
   pause: [];
   resume: [];
   reconnect: [];
+  'reach-bottom': [];
   'update:lineLimit': [value: number];
 }>();
 
@@ -795,6 +798,7 @@ const viewportCommitScheduler = new LogViewportCommitScheduler<{
 });
 let scrollToBottomFrameId: number | null = null;
 let viewportInteractionStarted = false;
+let userScrollIntentPending = false;
 
 const levelOptions = computed<SelectOption[]>(() => [
   { label: `${props.levelFilterLabel}: ${props.allLevelsLabel}`, value: 'ALL' },
@@ -1044,8 +1048,17 @@ function handleViewportScroll(event: Event) {
 
   viewportScrollTop.value = node.scrollTop;
   viewportHeight.value = node.clientHeight || DEFAULT_VIRTUAL_VIEWPORT_HEIGHT;
-  viewportPinnedToBottom.value = isViewportNearBottom(node);
+  const isNearBottom = isViewportNearBottom(node);
+  viewportPinnedToBottom.value = isNearBottom;
+  if (isNearBottom && userScrollIntentPending) {
+    userScrollIntentPending = false;
+    emit('reach-bottom');
+  }
   if (event.isTrusted) viewportCommitScheduler.noteUserScroll();
+}
+
+function markUserScrollIntent() {
+  userScrollIntentPending = true;
 }
 
 function beginViewportInteraction(event: PointerEvent) {

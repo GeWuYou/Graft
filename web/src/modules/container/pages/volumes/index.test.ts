@@ -4,6 +4,14 @@ import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker volume list page', () => {
+  it('centers a standalone detail loading indicator before the request resolves', () => {
+    expect(sourceText).toContain('class="docker-volume-page__detail-loading-host"');
+    expect(sourceText).toContain('.docker-volume-page__detail-loading-host {\n  min-height: 240px;');
+    expect(sourceText).toContain('class="docker-volume-page__detail-loading-host__indicator"');
+    expect(sourceText).toContain('place-items: center;');
+    expect(sourceText).toContain('docker-volume-detail-loading-spin 1s linear infinite');
+  });
+
   it('keeps volume detail content in a drawer while allowing reference navigation', () => {
     expect(sourceText).toContain('<t-drawer');
     expect(sourceText).toContain('getDockerVolume');

@@ -13,6 +13,13 @@ export function buildTaskRealtimeTopicName(taskId: number) {
 }
 
 /**
+ * 判断实时通知是否只代表日志持久化，避免无关的任务详情刷新。
+ */
+export function isTaskLogAppendedNotification(notification: TaskRealtimeNotification) {
+  return notification.type === TASK_REALTIME_EVENT.LOG_APPENDED;
+}
+
+/**
  * 解析原始数据中的任务实时通知。
  *
  * @param raw - 待解析的原始数据

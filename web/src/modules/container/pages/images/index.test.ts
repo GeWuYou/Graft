@@ -5,6 +5,14 @@ import cleanupSourceText from '../../shared/cleanup/use-docker-cleanup.ts?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker image list page', () => {
+  it('centers a standalone detail loading indicator before the request resolves', () => {
+    expect(sourceText).toContain('class="docker-images-detail-loading-host"');
+    expect(sourceText).toContain('.docker-images-detail-loading-host {\n  min-height: 240px;');
+    expect(sourceText).toContain('class="docker-images-detail-loading-host__indicator"');
+    expect(sourceText).toContain('place-items: center;');
+    expect(sourceText).toContain('docker-images-detail-loading-spin 1s linear infinite');
+  });
+
   it('submits image pulls through the Task Runtime inside the container module page', () => {
     expect(sourceText).toContain('useDockerImageQuery');
     expect(sourceText).toContain('pullDockerImage');

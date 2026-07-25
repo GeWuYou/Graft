@@ -332,6 +332,22 @@ describe('LogViewer', () => {
     wrapper.unmount();
   });
 
+  it('does not request another page for programmatic bottom scrolling', async () => {
+    const wrapper = mount(LogViewer, {
+      props: { ...labels, entries: createEntries(8) },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+    const viewport = wrapper.get('.log-viewer__viewport').element as HTMLDivElement;
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 240 });
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 1000 });
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, value: 760 });
+
+    await wrapper.get('.log-viewer__viewport').trigger('scroll');
+
+    expect(wrapper.emitted('reach-bottom')).toBeUndefined();
+    wrapper.unmount();
+  });
+
   it('auto-scrolls to the bottom on the first non-empty render by default', async () => {
     const wrapper = mount(LogViewer, {
       attachTo: document.body,
@@ -423,7 +439,7 @@ describe('LogViewer', () => {
     expect(wrapper.find('.stream-viewport-state-surface').exists()).toBe(false);
   });
 
-  it('renders the default viewport state surface with empty copy', () => {
+  it('renders a compact empty state after loading completes without any logs', () => {
     const wrapper = mount(LogViewer, {
       props: {
         ...labels,
@@ -433,9 +449,11 @@ describe('LogViewer', () => {
     });
 
     expect(wrapper.find('.stream-viewport-state-surface--empty').exists()).toBe(true);
+    expect(wrapper.find('.stream-viewport-state-surface__empty').exists()).toBe(true);
+    expect(wrapper.find('.stream-viewport-state-surface__faux-lines').exists()).toBe(false);
     expect(wrapper.text()).toContain('暂无日志');
     expect(wrapper.text()).toContain('等待容器输出...');
-    expect(wrapper.find('.legacy-empty-placeholder').exists()).toBe(false);
+    expect(wrapper.find('.legacy-empty-placeholder').exists()).toBe(true);
   });
 });
 

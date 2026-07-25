@@ -12,52 +12,60 @@
     aria-live="polite"
     role="status"
   >
-    <div class="stream-viewport-state-surface__chrome" aria-hidden="true">
-      <div class="stream-viewport-state-surface__chrome-lights">
-        <span class="stream-viewport-state-surface__chrome-light"></span>
-        <span class="stream-viewport-state-surface__chrome-light"></span>
-        <span class="stream-viewport-state-surface__chrome-light"></span>
-      </div>
-      <span class="stream-viewport-state-surface__chrome-channel"></span>
-    </div>
-
-    <div class="stream-viewport-state-surface__viewport">
-      <div class="stream-viewport-state-surface__faux-lines" aria-hidden="true">
-        <div
-          v-for="(width, index) in fauxLineWidths"
-          :key="`${state}-${index}`"
-          class="stream-viewport-state-surface__faux-line"
-        >
-          <span class="stream-viewport-state-surface__faux-line-marker"></span>
-          <span class="stream-viewport-state-surface__faux-line-bar" :style="{ width }"></span>
+    <t-empty
+      v-if="isStaticEmptyState"
+      class="stream-viewport-state-surface__empty"
+      :description="description"
+      :title="title"
+    />
+    <template v-else>
+      <div class="stream-viewport-state-surface__chrome" aria-hidden="true">
+        <div class="stream-viewport-state-surface__chrome-lights">
+          <span class="stream-viewport-state-surface__chrome-light"></span>
+          <span class="stream-viewport-state-surface__chrome-light"></span>
+          <span class="stream-viewport-state-surface__chrome-light"></span>
         </div>
+        <span class="stream-viewport-state-surface__chrome-channel"></span>
       </div>
 
-      <div class="stream-viewport-state-surface__panel">
-        <div v-if="badgeLabel || (effectiveShowBusy && busyLabel)" class="stream-viewport-state-surface__status-row">
-          <span v-if="badgeLabel" class="stream-viewport-state-surface__badge">
-            <span class="stream-viewport-state-surface__badge-dot"></span>
-            {{ badgeLabel }}
-          </span>
-          <span v-if="effectiveShowBusy && busyLabel" class="stream-viewport-state-surface__busy-copy">
-            <span class="stream-viewport-state-surface__busy-indicator"></span>
-            {{ busyLabel }}
-          </span>
+      <div class="stream-viewport-state-surface__viewport">
+        <div class="stream-viewport-state-surface__faux-lines" aria-hidden="true">
+          <div
+            v-for="(width, index) in fauxLineWidths"
+            :key="`${state}-${index}`"
+            class="stream-viewport-state-surface__faux-line"
+          >
+            <span class="stream-viewport-state-surface__faux-line-marker"></span>
+            <span class="stream-viewport-state-surface__faux-line-bar" :style="{ width }"></span>
+          </div>
         </div>
 
-        <div v-if="title || effectiveShowCursor" class="stream-viewport-state-surface__title-row">
-          <h3 v-if="title" class="stream-viewport-state-surface__title">{{ title }}</h3>
-          <span v-if="effectiveShowCursor" class="stream-viewport-state-surface__cursor" aria-hidden="true"></span>
-        </div>
+        <div class="stream-viewport-state-surface__panel">
+          <div v-if="badgeLabel || (effectiveShowBusy && busyLabel)" class="stream-viewport-state-surface__status-row">
+            <span v-if="badgeLabel" class="stream-viewport-state-surface__badge">
+              <span class="stream-viewport-state-surface__badge-dot"></span>
+              {{ badgeLabel }}
+            </span>
+            <span v-if="effectiveShowBusy && busyLabel" class="stream-viewport-state-surface__busy-copy">
+              <span class="stream-viewport-state-surface__busy-indicator"></span>
+              {{ busyLabel }}
+            </span>
+          </div>
 
-        <p v-if="description" class="stream-viewport-state-surface__description">{{ description }}</p>
+          <div v-if="title || effectiveShowCursor" class="stream-viewport-state-surface__title-row">
+            <h3 v-if="title" class="stream-viewport-state-surface__title">{{ title }}</h3>
+            <span v-if="effectiveShowCursor" class="stream-viewport-state-surface__cursor" aria-hidden="true"></span>
+          </div>
 
-        <div v-if="hint" class="stream-viewport-state-surface__hint-row">
-          <span class="stream-viewport-state-surface__prompt-marker" aria-hidden="true"></span>
-          <span class="stream-viewport-state-surface__hint">{{ hint }}</span>
+          <p v-if="description" class="stream-viewport-state-surface__description">{{ description }}</p>
+
+          <div v-if="hint" class="stream-viewport-state-surface__hint-row">
+            <span class="stream-viewport-state-surface__prompt-marker" aria-hidden="true"></span>
+            <span class="stream-viewport-state-surface__hint">{{ hint }}</span>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </section>
 </template>
 <script setup lang="ts">
@@ -100,6 +108,7 @@ const fauxLinePattern = [100, 98, 94, 100, 90, 100, 86, 96] as const;
 
 const effectiveShowBusy = computed(() => props.showBusy ?? isStreamViewportBusyState(props.state));
 const effectiveShowCursor = computed(() => props.showCursor ?? isStreamViewportCursorState(props.state));
+const isStaticEmptyState = computed(() => props.state === 'empty' || props.state === 'idle');
 const fauxLineWidths = computed(() =>
   Array.from({ length: normalizeFauxLineCount(props.fauxLineCount) }, (_, index) => {
     return `${fauxLinePattern[index % fauxLinePattern.length]}%`;
@@ -169,6 +178,11 @@ function normalizeFauxLineCount(value: number) {
 .stream-viewport-state-surface--error {
   --stream-viewport-accent: var(--td-error-color-6);
   --stream-viewport-accent-soft: color-mix(in srgb, var(--stream-viewport-accent) 48%, var(--td-text-color-anti));
+}
+
+.stream-viewport-state-surface__empty {
+  align-self: center;
+  margin: auto;
 }
 
 .stream-viewport-state-surface__chrome {
