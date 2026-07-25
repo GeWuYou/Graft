@@ -117,6 +117,23 @@ func TestAccessLogEventPersistSinkFallbackRespectsPersistenceDeadline(t *testing
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expected fallback to respect persistence deadline, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "persist access log through fallback repository") {
+		t.Fatalf("expected fallback error context, got %v", err)
+	}
+}
+
+func TestAccessLogEventPersistSinkWrapsFallbackRepositoryFailure(t *testing.T) {
+	expectedErr := errors.New("database unavailable")
+	publisher := &accessLogEventPublisherRecorder{err: event.ErrDispatcherStopped}
+	sink := NewAccessLogEventPersistSink(publisher, &stubAccessLogRepository{createErr: expectedErr})
+
+	err := sink.PersistAccessLog(context.Background(), CreateAccessLogInput{OccurredAt: time.Now().UTC()})
+	if !errors.Is(err, expectedErr) {
+		t.Fatalf("expected fallback repository error to remain inspectable, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "persist access log through fallback repository") {
+		t.Fatalf("expected fallback error context, got %v", err)
+	}
 }
 
 func TestAccessLogEventHandlerPersistsDecodedRecord(t *testing.T) {

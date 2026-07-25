@@ -46,7 +46,10 @@ func (s accessLogEventPersistSink) PersistAccessLog(ctx context.Context, record 
 	}, event.PublishOptions{Delivery: event.DeliveryBestEffort})
 	if errors.Is(err, event.ErrDispatcherStopped) && s.fallback != nil {
 		_, fallbackErr := s.fallback.CreateAccessLog(ctx, record)
-		return fallbackErr
+		if fallbackErr != nil {
+			return fmt.Errorf("persist access log through fallback repository: %w", fallbackErr)
+		}
+		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("publish access log persistence event: %w", err)
