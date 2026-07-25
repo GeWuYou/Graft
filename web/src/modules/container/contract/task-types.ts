@@ -1,5 +1,8 @@
 export const CONTAINER_TASK_TYPE = {
   DOCKER_IMAGE_PULL: 'container.docker-image-pull.v1',
+  LIFECYCLE_RESTART: 'container.lifecycle.restart.v1',
+  LIFECYCLE_START: 'container.lifecycle.start.v1',
+  LIFECYCLE_STOP: 'container.lifecycle.stop.v1',
 } as const;
 
 export type ContainerTaskType = (typeof CONTAINER_TASK_TYPE)[keyof typeof CONTAINER_TASK_TYPE];

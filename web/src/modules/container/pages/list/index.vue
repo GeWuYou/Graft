@@ -201,6 +201,13 @@
       :reset-label="t('container.list.resetColumns')"
       :title="t('container.list.columnSettings')"
     />
+
+    <task-detail-drawer
+      :visible="lifecycleTaskDrawerVisible"
+      :task-id="lifecycleTaskId"
+      :resolve-task-type="resolveLifecycleTaskType"
+      @update:visible="lifecycleTaskDrawerVisible = $event"
+    />
   </div>
 </template>
 <script setup lang="ts">
@@ -219,6 +226,8 @@ import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { PROJECT_BOOTSTRAP_ROUTE } from '@/modules/project/contract/bootstrap';
 import { resolveComposeApplicationReferences } from '@/modules/project/contract/compose-context-references';
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
+import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
+import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import {
   ManagementBatchBar,
   ManagementPageHeader,
@@ -244,6 +253,7 @@ import {
 } from '../../api/container';
 import ContainerResourceTable from '../../components/ContainerResourceTable.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
 import {
   buildContainerResourceColumnSettingOptions,
   CONTAINER_RESOURCE_ALL_COLUMN_KEYS,
@@ -300,11 +310,13 @@ const healthOptions = ['healthy', 'unhealthy', 'starting', 'none', 'unavailable'
 const deploymentTypeOptions = ['standalone', 'compose'] as const;
 const CONTAINER_RUNTIME_DISABLED_MESSAGE_KEY = 'ops.container.error.runtimeDisabled';
 const CONTAINER_DEFAULT_PAGE_SIZE = 20;
+let lifecycleIdempotencySequence = 0;
 type ListErrorState = {
   title: string;
   hint: string;
 };
 type DangerousContainerAction = Extract<ContainerAction, 'remove' | 'restart' | 'start' | 'stop'>;
+type LifecycleContainerAction = Exclude<DangerousContainerAction, 'remove'>;
 
 const tableLoading = ref(false);
 const refreshing = ref(false);
@@ -321,6 +333,8 @@ const composeApplicationReferences = ref(new Map<string, { applicationId: string
 const batchActionLoading = ref<DangerousContainerAction | ''>('');
 const activeDangerousDialog = ref<DialogInstance | null>(null);
 const dangerousDialogOpen = ref(false);
+const lifecycleTaskDrawerVisible = ref(false);
+const lifecycleTaskId = ref<number | null>(null);
 const filters = reactive<ContainerFilters>({
   keyword: '',
   deploymentType: 'all',
@@ -342,6 +356,8 @@ const pagination = reactive({
 const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
 let listRealtimeSubscribed = false;
+// 生命周期 Task 的 receipt 不代表 Docker 已变更，列表只能在成功终态后刷新实际运行时快照。
+let lifecycleTaskObserver: TaskObserver | null = null;
 function hasCommittedFilters(activeFilters: ContainerFilters) {
   return (
     Boolean(activeFilters.keyword.trim()) ||
@@ -418,6 +434,7 @@ async function loadRuntimeTargets() {
 }
 
 onUnmounted(() => {
+  stopLifecycleTaskObserver();
   listRealtimeActive.value = false;
   releaseListRealtimeSubscription();
 });
@@ -963,14 +980,18 @@ function closeConfirmDialog<T>(
 
 async function executeDangerousAction(row: ContainerSummaryRecord, action: DangerousContainerAction, force: boolean) {
   try {
-    const response =
-      action === 'start'
-        ? await startContainer(row.id)
-        : action === 'stop'
-          ? await stopContainer(row.id)
-          : action === 'restart'
-            ? await restartContainer(row.id)
-            : await removeContainer(row.id, { force });
+    if (isLifecycleTaskAction(action)) {
+      const receipt = await submitLifecycleTask(row.id, action);
+      lifecycleTaskId.value = receipt.task_id;
+      lifecycleTaskDrawerVisible.value = true;
+      observeLifecycleTask(receipt.task_id);
+      selectedRowKeys.value = selectedRowKeys.value.filter((key) => String(key) !== row.id);
+      selectedRowRecords.value = selectedRowRecords.value.filter((selectedRow) => selectedRow.id !== row.id);
+      MessagePlugin.success(t('container.list.actionSuccess'));
+      return;
+    }
+
+    const response = await removeContainer(row.id, { force });
     const messageKey = response.message_key;
     MessagePlugin.success(messageKey ? t(messageKey) : response.message || t('container.list.actionSuccess'));
     selectedRowKeys.value = selectedRowKeys.value.filter((key) => String(key) !== row.id);
@@ -980,6 +1001,56 @@ async function executeDangerousAction(row: ContainerSummaryRecord, action: Dange
     logger.warn(`failed to ${action} container`, error);
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.actionFailed')));
   }
+}
+
+function isLifecycleTaskAction(action: DangerousContainerAction): action is LifecycleContainerAction {
+  return action === 'start' || action === 'stop' || action === 'restart';
+}
+
+function submitLifecycleTask(containerId: string, action: LifecycleContainerAction) {
+  const idempotencyKey = createLifecycleIdempotencyKey(containerId, action);
+  if (action === 'start') return startContainer(containerId, idempotencyKey);
+  if (action === 'stop') return stopContainer(containerId, idempotencyKey);
+  return restartContainer(containerId, idempotencyKey);
+}
+
+function createLifecycleIdempotencyKey(containerId: string, action: LifecycleContainerAction) {
+  const crypto = globalThis.crypto;
+  const uuid = crypto?.randomUUID?.();
+  if (uuid) return uuid;
+
+  const entropy = new Uint32Array(4);
+  crypto?.getRandomValues?.(entropy);
+  lifecycleIdempotencySequence += 1;
+  return `container-lifecycle-${action}-${containerId}-${Date.now()}-${lifecycleIdempotencySequence}-${Array.from(
+    entropy,
+    (value) => value.toString(36),
+  ).join('')}`;
+}
+
+function resolveLifecycleTaskType(taskType: string) {
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_START) return t('container.list.actions.start');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_STOP) return t('container.list.actions.stop');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_RESTART) return t('container.list.actions.restart');
+  return undefined;
+}
+
+function stopLifecycleTaskObserver() {
+  if (!lifecycleTaskObserver) return;
+  lifecycleTaskObserver.stop();
+  lifecycleTaskObserver = null;
+}
+
+function observeLifecycleTask(taskId: number) {
+  stopLifecycleTaskObserver();
+  lifecycleTaskObserver = observeTask(taskId, {
+    onError: (error) => logger.warn('container lifecycle task observation failed', { error, taskId }),
+    onTask: (task) => {
+      if (!isTerminalTaskStatus(task.status)) return;
+      stopLifecycleTaskObserver();
+      if (task.status === 'success') void refreshContainers();
+    },
+  });
 }
 
 function isDangerousActionDisabled(row: ContainerSummaryRecord, action: DangerousContainerAction) {

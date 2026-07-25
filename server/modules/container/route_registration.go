@@ -555,15 +555,15 @@ func (r routeRuntime) handleMountUsageRefresh(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleStart(ginCtx *gin.Context) {
-	r.handleAction(ginCtx, r.service.Start)
+	r.handleLifecycleTaskAction(ginCtx, containerActionStart)
 }
 
 func (r routeRuntime) handleStop(ginCtx *gin.Context) {
-	r.handleAction(ginCtx, r.service.Stop)
+	r.handleLifecycleTaskAction(ginCtx, containerActionStop)
 }
 
 func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
-	r.handleAction(ginCtx, r.service.Restart)
+	r.handleLifecycleTaskAction(ginCtx, containerActionRestart)
 }
 
 func (r routeRuntime) handleRemove(ginCtx *gin.Context) {
@@ -669,17 +669,30 @@ func permissionForAction(action string) string {
 	}
 }
 
-func (r routeRuntime) handleAction(ginCtx *gin.Context, action func(context.Context, Ref) (ActionResult, error)) {
+func (r routeRuntime) handleLifecycleTaskAction(ginCtx *gin.Context, action string) {
 	ref, ok := readRef(ginCtx, r)
 	if !ok {
 		return
 	}
-	result, err := action(ginCtx.Request.Context(), ref)
+	idempotencyKey := ginCtx.GetHeader("Idempotency-Key")
+	if strings.TrimSpace(idempotencyKey) == "" || utf8.RuneCountInString(idempotencyKey) > 128 {
+		httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	requestedBy := uint64(0)
+	if auth, ok := moduleapi.RequestAuthContextFromContext(ginCtx.Request.Context()); ok && auth.User != nil {
+		requestedBy = auth.User.ID
+	}
+	receipt, err := r.service.SubmitContainerLifecycleAction(ginCtx.Request.Context(), ref, action, requestedBy, idempotencyKey)
 	if err != nil {
+		if errors.Is(err, moduleapi.ErrTaskSubmissionConflict) {
+			httpx.WriteLocalizedError(ginCtx, r.ctx.I18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
+			return
+		}
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, toContainerAction(result))
+	httpx.WriteSuccess(ginCtx, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func readRef(ginCtx *gin.Context, r routeRuntime) (Ref, bool) {

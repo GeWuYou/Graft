@@ -41,13 +41,15 @@ closeout:
 ## Current Recovery Point
 
 - Batch 1: Docker image pull submits `container.docker-image-pull.v1` and opens Task details.
+- Batch 2: container start/stop/restart submit `container.lifecycle.{action}.v1`, retain the existing action-specific permission boundary, and open shared Task details.
 - Guardrail: compare with `origin/main` and stop or split before 80 changed files.
-- Next step: complete cross-boundary validation and choose the next Container candidate.
+- Next step: complete cross-boundary validation and assess batch actions or removal as the next bounded Container candidate.
 
 ## Task Checklist
 
-- [ ] Validate and close Batch 1 Docker image pull Task adoption.
-- [ ] Migrate one bounded Container lifecycle or batch action.
+- [x] Validate and close Batch 1 Docker image pull Task adoption.
+- [x] Migrate single-container start/stop/restart to Tasks.
+- [ ] Assess Container batch actions or removal as the next bounded migration.
 - [ ] Assess Backup after a product execution entry exists.
 
 ## Acceptance Conditions
@@ -61,10 +63,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
-  "pending_batches": ["docker-image-pull-task-adoption", "container-lifecycle-or-batch-action"],
-  "current_batch": "docker-image-pull-task-adoption",
-  "next_batch": "container-lifecycle-or-batch-action",
-  "closeout_status": "in-progress"
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption"],
+  "pending_batches": ["container-batch-actions-or-removal"],
+  "current_batch": "container-single-lifecycle-task-adoption",
+  "next_batch": "container-batch-actions-or-removal",
+  "closeout_status": "validation-pending"
 }
 ```

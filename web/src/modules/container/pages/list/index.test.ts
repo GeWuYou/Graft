@@ -67,6 +67,18 @@ const notifyMocks = vi.hoisted(() => ({
   warning: vi.fn(),
 }));
 
+const taskObserverMocks = vi.hoisted(() => ({
+  observers: [] as Array<{
+    onTask: (task: { status: string }) => void;
+    stop: ReturnType<typeof vi.fn>;
+  }>,
+  observeTask: vi.fn((_: number, options: { onTask: (task: { status: string }) => void }) => {
+    const observer = { onTask: options.onTask, stop: vi.fn() };
+    taskObserverMocks.observers.push(observer);
+    return { refresh: vi.fn(), stop: observer.stop };
+  }),
+}));
+
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
   resolve: vi.fn((target: { name?: string; params?: { id?: string }; query?: { tab?: string } }) => {
@@ -350,6 +362,11 @@ vi.mock('@/modules/project/contract/compose-context-references', () => ({
   resolveComposeApplicationReferences: composeApplicationMocks.resolveComposeApplicationReferences,
 }));
 
+vi.mock('@/modules/task/contract/task-observer', () => ({
+  isTerminalTaskStatus: (status: string) => ['success', 'failed', 'cancelled', 'needs_attention'].includes(status),
+  observeTask: taskObserverMocks.observeTask,
+}));
+
 vi.mock('tdesign-vue-next/es/dialog', () => ({
   DialogPlugin: dialogMocks,
 }));
@@ -426,6 +443,7 @@ describe('container list page', () => {
     vi.clearAllMocks();
     mountedWrappers = [];
     realtimeMocks.controllers = [];
+    taskObserverMocks.observers = [];
     resetContainerStatsManager();
     tabsRouterStoreMock.activeTabKey = '/ops/containers';
     tabsRouterStoreMock.tabRouters = [
@@ -568,28 +586,16 @@ describe('container list page', () => {
       lines: ['server started'],
     });
     apiMocks.startContainer.mockResolvedValue({
-      action: 'start',
-      id: 'container-2',
-      runtime: 'first-adapter',
-      message_key: 'ops.container.action.start.completed',
-      result: 'completed',
-      status_after: 'running',
+      task_id: 101,
+      status: 'pending',
     });
     apiMocks.stopContainer.mockResolvedValue({
-      action: 'stop',
-      id: 'container-1',
-      runtime: 'first-adapter',
-      message_key: 'ops.container.action.stop.completed',
-      result: 'completed',
-      status_after: 'exited',
+      task_id: 102,
+      status: 'pending',
     });
     apiMocks.restartContainer.mockResolvedValue({
-      action: 'restart',
-      id: 'container-1',
-      runtime: 'first-adapter',
-      message_key: 'ops.container.action.restart.completed',
-      result: 'completed',
-      status_after: 'running',
+      task_id: 103,
+      status: 'pending',
     });
     apiMocks.removeContainer.mockResolvedValue({
       action: 'remove',
@@ -1494,7 +1500,7 @@ describe('container list page', () => {
     });
   });
 
-  it('builds dangerous actions from row availability and submits confirmed runtime actions', async () => {
+  it('submits confirmed lifecycle actions as Tasks and refreshes only after success', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
@@ -1515,10 +1521,31 @@ describe('container list page', () => {
     await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
     await flushPromises();
 
-    expect(apiMocks.stopContainer).toHaveBeenCalledWith('container-1');
-    expect(messageMocks.success).toHaveBeenCalledWith('容器停止操作已完成');
+    expect(apiMocks.stopContainer).toHaveBeenCalledWith('container-1', expect.any(String));
+    expect(messageMocks.success).toHaveBeenCalledWith('容器操作已提交。');
+    expect(taskObserverMocks.observeTask).toHaveBeenCalledWith(102, expect.any(Object));
+    expect(apiMocks.getContainers).toHaveBeenCalledTimes(1);
+
+    taskObserverMocks.observers[0]?.onTask({ status: 'success' });
+    await flushPromises();
+
     expect(apiMocks.getContainers).toHaveBeenCalledTimes(2);
     expect(dialogMocks.instances.at(-1)?.hide).toHaveBeenCalled();
+  });
+
+  it('stops lifecycle Task observation when the page unmounts', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-action-stop"]').trigger('click');
+    await flushPromises();
+    await dialogMocks.confirm.mock.calls.at(-1)?.[0].onConfirm();
+    await flushPromises();
+
+    const observer = taskObserverMocks.observers[0];
+    wrapper.unmount();
+
+    expect(observer?.stop).toHaveBeenCalledTimes(1);
   });
 
   it('keeps dangerous action confirmation dialogs idempotent while one is open', async () => {

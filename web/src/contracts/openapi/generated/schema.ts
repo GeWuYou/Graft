@@ -2298,8 +2298,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Start container
-     * @description Starts one stopped container when dangerous actions are enabled.
+     * Submit a container start Task
+     * @description Submits one stopped container start action for asynchronous execution when dangerous actions are enabled.
      */
     post: operations['postContainerStart'];
     delete?: never;
@@ -2318,8 +2318,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Stop container
-     * @description Stops one running container when dangerous actions are enabled.
+     * Submit a container stop Task
+     * @description Submits one running container stop action for asynchronous execution when dangerous actions are enabled.
      */
     post: operations['postContainerStop'];
     delete?: never;
@@ -2338,8 +2338,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Restart container
-     * @description Restarts one container when dangerous actions are enabled.
+     * Submit a container restart Task
+     * @description Submits one container restart action for asynchronous execution when dangerous actions are enabled.
      */
     post: operations['postContainerRestart'];
     delete?: never;
@@ -7247,22 +7247,14 @@ export interface components {
     'enveloped-container-shell-session-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-shell-session-response'];
     };
-    'container-action-response': {
-      id: string;
-      name?: string;
-      /** @enum {string} */
-      action: 'start' | 'stop' | 'restart' | 'remove';
-      /** @description Container runtime adapter key. */
-      runtime: string;
-      /** @enum {string} */
-      result: 'accepted' | 'completed' | 'unchanged';
-      status_before?: string;
-      status_after: string;
-      message_key?: string;
-      message?: string;
+    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
+    'task-receipt': {
+      /** Format: int64 */
+      task_id: number;
+      status: components['schemas']['task-status'];
     };
-    'enveloped-container-action-response': components['schemas']['api-envelope'] & {
-      data: components['schemas']['container-action-response'];
+    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-receipt'];
     };
     'container-stop-error-response': {
       /** @enum {boolean} */
@@ -7287,6 +7279,23 @@ export interface components {
        * @default false
        */
       force: boolean;
+    };
+    'container-action-response': {
+      id: string;
+      name?: string;
+      /** @enum {string} */
+      action: 'start' | 'stop' | 'restart' | 'remove';
+      /** @description Container runtime adapter key. */
+      runtime: string;
+      /** @enum {string} */
+      result: 'accepted' | 'completed' | 'unchanged';
+      status_before?: string;
+      status_after: string;
+      message_key?: string;
+      message?: string;
+    };
+    'enveloped-container-action-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['container-action-response'];
     };
     'docker-image-container-reference': {
       id: string;
@@ -7331,15 +7340,6 @@ export interface components {
     'docker-image-pull-request': {
       /** @description Complete image reference resolved by the configured Docker daemon credential store. */
       reference: string;
-    };
-    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
-    'task-receipt': {
-      /** Format: int64 */
-      task_id: number;
-      status: components['schemas']['task-status'];
-    };
-    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
-      data: components['schemas']['task-receipt'];
     };
     'enveloped-docker-image': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image'];
@@ -15563,7 +15563,9 @@ export interface operations {
   postContainerStart: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15580,14 +15582,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container start Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference. */
@@ -15612,7 +15614,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Container state does not allow this action, or Idempotency-Key was previously used with different submission input. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15628,7 +15630,9 @@ export interface operations {
   postContainerStop: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15645,14 +15649,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container stop Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference. */
@@ -15677,7 +15681,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Container state does not allow this action, or Idempotency-Key was previously used with different submission input. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
@@ -15702,7 +15706,9 @@ export interface operations {
   postContainerRestart: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different submission input returns 409. */
+        'Idempotency-Key': string;
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -15719,14 +15725,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Container action result. */
-      200: {
+      /** @description Container restart Task accepted. */
+      202: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-container-action-response'];
+          'application/json': components['schemas']['enveloped-task-receipt'];
         };
       };
       /** @description Invalid container reference. */
@@ -15751,7 +15757,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description Container state does not allow this action. */
+      /** @description Container state does not allow this action, or Idempotency-Key was previously used with different submission input. */
       409: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];

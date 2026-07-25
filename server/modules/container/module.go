@@ -20,6 +20,7 @@ func NewModule() *Module {
 }
 
 // Register declares container menu, permissions, messages, config definitions, and routes.
+//
 //nolint:cyclop // Explicit dependency resolution and declaration ordering keep module wiring auditable.
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil {
@@ -49,6 +50,9 @@ func (m *Module) Register(ctx *module.Context) error {
 		return fmt.Errorf("resolve task runtime registrar: %w", err)
 	}
 	if err := registerDockerImagePullTask(taskRegistrar, service); err != nil {
+		return err
+	}
+	if err := registerContainerLifecycleTasks(taskRegistrar, service); err != nil {
 		return err
 	}
 	if err := registerModuleServices(ctx, service); err != nil {

@@ -347,6 +347,62 @@ func TestDockerImagePullRouteReturnsConflictForReusedIdempotencyKey(t *testing.T
 	}
 }
 
+func TestContainerLifecycleRoutesAcceptTaskSubmission(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name   string
+		path   string
+		action string
+	}{
+		{name: "start", path: "/api/ops/containers/container-1/start", action: containerActionStart},
+		{name: "stop", path: "/api/ops/containers/container-1/stop", action: containerActionStop},
+		{name: "restart", path: "/api/ops/containers/container-1/restart", action: containerActionRestart},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+			tasks := &containerTaskRuntimeStub{}
+			service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true, tasks: tasks})
+			if err != nil {
+				t.Fatalf("new service: %v", err)
+			}
+			if err := registerRoutes(ctx, moduleID, service); err != nil {
+				t.Fatalf("register routes: %v", err)
+			}
+
+			response := httptest.NewRecorder()
+			request := authorizedRequest(http.MethodPost, testCase.path)
+			request.Header.Set("Idempotency-Key", "lifecycle-"+testCase.action)
+			engine.ServeHTTP(response, request)
+			if response.Code != http.StatusAccepted {
+				t.Fatalf("expected 202, got %d: %s", response.Code, response.Body.String())
+			}
+			if len(tasks.submissions) != 1 || tasks.submissions[0].Type != containerLifecycleTaskType(testCase.action) {
+				t.Fatalf("unexpected task submission: %#v", tasks.submissions)
+			}
+		})
+	}
+}
+
+func TestContainerLifecycleRouteRequiresIdempotencyKey(t *testing.T) {
+	t.Parallel()
+
+	ctx, engine := newRouteTestContext(&recordingAuthorizer{})
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if err := registerRoutes(ctx, moduleID, service); err != nil {
+		t.Fatalf("register routes: %v", err)
+	}
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, authorizedRequest(http.MethodPost, "/api/ops/containers/container-1/start"))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestDashboardSummaryRouteUsesViewPermission(t *testing.T) {
 	t.Parallel()
 

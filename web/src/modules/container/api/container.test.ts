@@ -91,22 +91,25 @@ describe('container api', () => {
     });
   });
 
-  it('posts high-risk actions through encoded canonical action paths', async () => {
+  it('submits lifecycle actions through encoded canonical paths with idempotency keys', async () => {
     const requestPost = vi.mocked(request.post);
-    requestPost.mockResolvedValue({ id: 'web/api', action: 'start', result: 'completed' } as never);
+    requestPost.mockResolvedValue({ task_id: 42, status: 'pending' } as never);
 
-    await startContainer('web/api');
-    await stopContainer('web/api');
-    await restartContainer('web/api');
+    await startContainer('web/api', 'start-key');
+    await stopContainer('web/api', 'stop-key');
+    await restartContainer('web/api', 'restart-key');
     await removeContainer('web/api', { force: true });
 
     expect(requestPost).toHaveBeenNthCalledWith(1, {
+      headers: { 'Idempotency-Key': 'start-key' },
       url: buildOpenApiRuntimePath('postContainerStart', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(2, {
+      headers: { 'Idempotency-Key': 'stop-key' },
       url: buildOpenApiRuntimePath('postContainerStop', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(3, {
+      headers: { 'Idempotency-Key': 'restart-key' },
       url: buildOpenApiRuntimePath('postContainerRestart', { id: 'web/api' }),
     });
     expect(requestPost).toHaveBeenNthCalledWith(4, {

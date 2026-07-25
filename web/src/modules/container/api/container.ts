@@ -66,19 +66,19 @@ type PostContainerShellSessionRequest = NonNullable<
 
 type ContainerStartPath = typeof OPENAPI_RUNTIME_PATH.postContainerStart;
 type PostContainerStartOperation = paths[ContainerStartPath]['post'];
-type PostContainerStartEnvelope = PostContainerStartOperation['responses'][200]['content']['application/json'];
+type PostContainerStartEnvelope = PostContainerStartOperation['responses'][202]['content']['application/json'];
 type PostContainerStartData = NonNullable<PostContainerStartEnvelope['data']>;
 type PostContainerStartPathParams = PostContainerStartOperation['parameters']['path'];
 
 type ContainerStopPath = typeof OPENAPI_RUNTIME_PATH.postContainerStop;
 type PostContainerStopOperation = paths[ContainerStopPath]['post'];
-type PostContainerStopEnvelope = PostContainerStopOperation['responses'][200]['content']['application/json'];
+type PostContainerStopEnvelope = PostContainerStopOperation['responses'][202]['content']['application/json'];
 type PostContainerStopData = NonNullable<PostContainerStopEnvelope['data']>;
 type PostContainerStopPathParams = PostContainerStopOperation['parameters']['path'];
 
 type ContainerRestartPath = typeof OPENAPI_RUNTIME_PATH.postContainerRestart;
 type PostContainerRestartOperation = paths[ContainerRestartPath]['post'];
-type PostContainerRestartEnvelope = PostContainerRestartOperation['responses'][200]['content']['application/json'];
+type PostContainerRestartEnvelope = PostContainerRestartOperation['responses'][202]['content']['application/json'];
 type PostContainerRestartData = NonNullable<PostContainerRestartEnvelope['data']>;
 type PostContainerRestartPathParams = PostContainerRestartOperation['parameters']['path'];
 
@@ -288,24 +288,27 @@ export function postContainerShellSession(
  * 启动容器。
  *
  * @param containerId - 容器 ID
- * @returns 容器操作响应
+ * @returns 已受理的 Task receipt
  */
-export function startContainer(containerId: PostContainerStartPathParams['id']) {
+export function startContainer(containerId: PostContainerStartPathParams['id'], idempotencyKey: string) {
   return request.post<PostContainerStartData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
     url: buildOpenApiRuntimePath('postContainerStart', { id: containerId }),
-  }) as Promise<ContainerActionResponse>;
+  }) as Promise<PostContainerStartData>;
 }
 
-export function stopContainer(containerId: PostContainerStopPathParams['id']) {
+export function stopContainer(containerId: PostContainerStopPathParams['id'], idempotencyKey: string) {
   return request.post<PostContainerStopData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
     url: buildOpenApiRuntimePath('postContainerStop', { id: containerId }),
-  }) as Promise<ContainerActionResponse>;
+  }) as Promise<PostContainerStopData>;
 }
 
-export function restartContainer(containerId: PostContainerRestartPathParams['id']) {
+export function restartContainer(containerId: PostContainerRestartPathParams['id'], idempotencyKey: string) {
   return request.post<PostContainerRestartData>({
+    headers: { 'Idempotency-Key': idempotencyKey },
     url: buildOpenApiRuntimePath('postContainerRestart', { id: containerId }),
-  }) as Promise<ContainerActionResponse>;
+  }) as Promise<PostContainerRestartData>;
 }
 
 export function removeContainer(

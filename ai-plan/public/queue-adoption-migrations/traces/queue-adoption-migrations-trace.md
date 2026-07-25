@@ -11,15 +11,22 @@
 - Do not retain a parallel NDJSON endpoint or frontend streaming fallback.
 - Keep each migration wave below the 80-file local change cap.
 
+## 2026-07-25 Single-Container Lifecycle Task Adoption
+
+- Migrated `start`, `stop`, and `restart` to accepted Task receipts with caller-provided idempotency keys.
+- Container remains the business executor owner: lifecycle executors reuse the existing dangerous-action policy, orchestrator policy, audit publication, and Docker runtime boundary.
+- Lifecycle Task owner types remain action-specific so Task detail, cancellation, and retry preserve `container.start`, `container.stop`, or `container.restart` authorization instead of widening to a read or generic dangerous-action permission.
+- Batch actions and removal remain synchronous and are explicitly deferred because batch partial-result semantics and removal lifecycle behavior need their own bounded authority review.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
-  "pending_batches": ["docker-image-pull-task-adoption", "container-lifecycle-or-batch-action"],
-  "current_batch": "docker-image-pull-task-adoption",
-  "next_batch": "container-lifecycle-or-batch-action",
-  "closeout_status": "in-progress"
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption"],
+  "pending_batches": ["container-batch-actions-or-removal"],
+  "current_batch": "container-single-lifecycle-task-adoption",
+  "next_batch": "container-batch-actions-or-removal",
+  "closeout_status": "validation-pending"
 }
 ```

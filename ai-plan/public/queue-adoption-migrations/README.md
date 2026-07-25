@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`
 - Intake summary: long-running refactor using the existing Task Runtime and queue-adoption design.
 - Canonical authority: Task Runtime, Container module, and `openapi/**` shared wire contract.
-- Completed so far: first-wave Docker image pull migration is in progress.
-- Not started yet: Container lifecycle/batch actions and Backup execution entry.
+- Completed so far: Docker image pull and single-container start/stop/restart now submit Tasks.
+- Not started yet: Container batch actions, container removal, and Backup execution entry.
 
 ## Recovery Receipt
 
@@ -35,8 +35,8 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Batch 1 migrates Docker image pull and establishes idempotent Task submission.
-- Next step: validate the cross-boundary slice, then select the next Container candidate.
+- Batch 2 migrates single-container start/stop/restart while retaining their action-specific authorization boundary.
+- Next step: complete cross-boundary validation, then select the batch-action or removal candidate without changing its synchronous partial-result contract implicitly.
 
 ## Work Intake
 
@@ -45,7 +45,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Container lifecycle and batch actions.
+- Container batch actions and removal.
 - Backup execution after a product-facing entry is available.
 
 ## Loop Entry
