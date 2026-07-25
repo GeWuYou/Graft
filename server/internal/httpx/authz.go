@@ -31,7 +31,7 @@ func NewAuditEvent(source string, payload moduleapi.AuditEvent) (event.Event, er
 	}
 	id, err := event.NewID()
 	if err != nil {
-		return event.Event{}, err
+		return event.Event{}, fmt.Errorf("generate audit event id: %w", err)
 	}
 	now := time.Now().UTC()
 	occurredAt := payload.CreatedAt

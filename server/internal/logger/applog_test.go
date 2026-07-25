@@ -258,8 +258,9 @@ func TestAppLoggerPersistsCanonicalRecordWhenRepositoryConfigured(t *testing.T) 
 func TestAppLoggerPublishesJSONEventForPersistence(t *testing.T) {
 	publisher := &appLogEventPublisherRecorder{}
 	appLogger := NewAppLogger(zap.NewNop(), WithAppLogEventPublisher(publisher)).Named("core.app")
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{RequestID: "request-1"})
 
-	appLogger.Error(context.Background(), "database unavailable", ErrorField(errors.New("connection refused")))
+	appLogger.Error(ctx, "database unavailable", ErrorField(errors.New("connection refused")))
 
 	if publisher.event.Type != AppLogPersistEventType {
 		t.Fatalf("expected event type %q, got %q", AppLogPersistEventType, publisher.event.Type)
@@ -273,6 +274,9 @@ func TestAppLoggerPublishesJSONEventForPersistence(t *testing.T) {
 	}
 	if payload.Record.Component != "core.app" || payload.Record.Error != "connection refused" {
 		t.Fatalf("expected canonical record in event payload, got %#v", payload.Record)
+	}
+	if publisher.event.CorrelationID != "request-1" || publisher.event.IdempotencyKey != "request-1" {
+		t.Fatalf("expected request correlation keys, got %#v", publisher.event)
 	}
 }
 

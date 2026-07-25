@@ -290,6 +290,14 @@ func TestInjectedAppLoggerFallsBackToRuntimeLoggerWhenServicesMissing(t *testing
 	assertEventuallyAppLogRecord(t, repo, "runtime fallback log", "")
 }
 
+func TestStartEventDispatcherRequiresInitializedDispatcher(t *testing.T) {
+	runtime := &Runtime{}
+
+	if err := runtime.startEventDispatcher(); err == nil || !strings.Contains(err.Error(), "not initialized") {
+		t.Fatalf("expected an initialized-dispatcher error, got %v", err)
+	}
+}
+
 func assertEventuallyAppLogRecord(t *testing.T, repo *runtimeAppLogRecorderRepo, message string, moduleName string) {
 	t.Helper()
 
@@ -818,6 +826,7 @@ func TestPrepareModulesAssertsOwnerLocaleResourcesAlreadyRegistered(t *testing.T
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),
@@ -1112,6 +1121,24 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 	}
 	if !recorder.shutdownLifecycleDeadline.Before(time.Now().Add(time.Minute)) {
 		t.Fatalf("expected bounded shutdown deadline, got %v", recorder.shutdownLifecycleDeadline)
+	}
+}
+
+func TestWithModuleShutdownContextRefreshesModuleDeadline(t *testing.T) {
+	original := &module.Context{LifecycleContext: context.Background()}
+	first, cancelFirst := withModuleShutdownContext(original)
+	cancelFirst()
+	<-first.LifecycleContext.Done()
+
+	second, cancelSecond := withModuleShutdownContext(original)
+	defer cancelSecond()
+	if err := second.LifecycleContext.Err(); err != nil {
+		t.Fatalf("expected a fresh module shutdown budget, got %v", err)
+	}
+	firstDeadline, firstOK := first.LifecycleContext.Deadline()
+	secondDeadline, secondOK := second.LifecycleContext.Deadline()
+	if !firstOK || !secondOK || !secondDeadline.After(firstDeadline) {
+		t.Fatalf("expected refreshed module shutdown deadline after %v, got %v", firstDeadline, secondDeadline)
 	}
 }
 

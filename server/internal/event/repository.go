@@ -14,6 +14,7 @@ const (
 	deliveryPending    = "pending"
 	deliveryProcessing = "processing"
 	deliveryDelivered  = "delivered"
+	deliveryFailed     = "failed"
 )
 
 // OutboxStore 持有 durable event 和按 consumer 独立恢复的 delivery 状态。
@@ -25,6 +26,7 @@ type OutboxStore interface {
 	Claim(context.Context, string, time.Time, time.Duration, int) ([]ClaimedDelivery, error)
 	Complete(context.Context, ClaimedDelivery) error
 	Retry(context.Context, ClaimedDelivery, time.Time, error) error
+	Fail(context.Context, ClaimedDelivery, error) error
 }
 
 // TransactionalOutboxStore 支持把 Outbox 写入调用方已有的业务事务。
@@ -211,6 +213,29 @@ WHERE event_id = $4 AND consumer_id = $5 AND status = $6 AND attempt_count = $7 
 	}
 	if changed, err := result.RowsAffected(); err != nil {
 		return fmt.Errorf("inspect retried event delivery: %w", err)
+	} else if changed != 1 {
+		return ErrClaimLost
+	}
+	return nil
+}
+
+// Fail 将仍归当前 claim 的 delivery 记录为最终失败，后续轮询不会再次执行它。
+func (r *SQLRepository) Fail(ctx context.Context, delivery ClaimedDelivery, cause error) error {
+	message := ""
+	if cause != nil {
+		message = cause.Error()
+	}
+	result, err := r.db.ExecContext(ctx, `
+UPDATE event_deliveries
+SET status = $1, lease_owner = NULL, lease_expires_at = NULL, last_error = $2,
+    failed_at = NOW(), updated_at = NOW()
+WHERE event_id = $3 AND consumer_id = $4 AND status = $5 AND attempt_count = $6 AND lease_owner = $7`,
+		deliveryFailed, message, delivery.Event.ID, delivery.ConsumerID, deliveryProcessing, delivery.Attempt, delivery.claimOwner)
+	if err != nil {
+		return fmt.Errorf("fail event delivery: %w", err)
+	}
+	if changed, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("inspect failed event delivery: %w", err)
 	} else if changed != 1 {
 		return ErrClaimLost
 	}

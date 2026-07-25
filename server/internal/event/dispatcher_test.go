@@ -21,40 +21,113 @@ type testHandler struct {
 }
 
 type memoryOutboxStore struct {
-	mu        sync.Mutex
-	pending   []ClaimedDelivery
-	completed chan ClaimedDelivery
+	mu         sync.Mutex
+	deliveries map[string]*memoryOutboxDelivery
+	completed  chan ClaimedDelivery
+}
+
+type memoryOutboxDelivery struct {
+	delivery     ClaimedDelivery
+	status       string
+	availableAt  time.Time
+	leaseExpires time.Time
+	failedAt     time.Time
 }
 
 func (s *memoryOutboxStore) Append(_ context.Context, event Event, consumerIDs []string) (Receipt, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.deliveries == nil {
+		s.deliveries = make(map[string]*memoryOutboxDelivery)
+	}
 	for _, consumerID := range consumerIDs {
-		s.pending = append(s.pending, ClaimedDelivery{Event: event, ConsumerID: consumerID})
+		key := memoryDeliveryKey(event.ID, consumerID)
+		if _, exists := s.deliveries[key]; exists {
+			continue
+		}
+		s.deliveries[key] = &memoryOutboxDelivery{
+			delivery:    ClaimedDelivery{Event: event, ConsumerID: consumerID},
+			status:      deliveryPending,
+			availableAt: event.CreatedAt,
+		}
 	}
 	return Receipt{EventID: event.ID, Delivery: DeliveryDurable}, nil
 }
 
-func (s *memoryOutboxStore) Claim(_ context.Context, _ string, _ time.Time, _ time.Duration, limit int) ([]ClaimedDelivery, error) {
+func (s *memoryOutboxStore) Claim(_ context.Context, owner string, now time.Time, lease time.Duration, limit int) ([]ClaimedDelivery, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if limit > len(s.pending) {
-		limit = len(s.pending)
-	}
-	claimed := append([]ClaimedDelivery(nil), s.pending[:limit]...)
-	s.pending = s.pending[limit:]
-	for index := range claimed {
-		claimed[index].Attempt++
+	claimed := make([]ClaimedDelivery, 0, limit)
+	for _, item := range s.deliveries {
+		if len(claimed) == limit || !memoryDeliveryClaimable(item, now) {
+			continue
+		}
+		item.status = deliveryProcessing
+		item.delivery.Attempt++
+		item.delivery.claimOwner = owner
+		item.leaseExpires = now.Add(lease)
+		claimed = append(claimed, item.delivery)
 	}
 	return claimed, nil
 }
 
 func (s *memoryOutboxStore) Complete(_ context.Context, delivery ClaimedDelivery) error {
+	s.mu.Lock()
+	item, ok := s.deliveries[memoryDeliveryKey(delivery.Event.ID, delivery.ConsumerID)]
+	if !ok || !memoryDeliveryClaimMatches(item, delivery) {
+		s.mu.Unlock()
+		return ErrClaimLost
+	}
+	item.status = deliveryDelivered
+	item.delivery.claimOwner = ""
+	item.leaseExpires = time.Time{}
+	s.mu.Unlock()
 	s.completed <- delivery
 	return nil
 }
 
-func (*memoryOutboxStore) Retry(context.Context, ClaimedDelivery, time.Time, error) error { return nil }
+func (s *memoryOutboxStore) Retry(_ context.Context, delivery ClaimedDelivery, availableAt time.Time, _ error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item, ok := s.deliveries[memoryDeliveryKey(delivery.Event.ID, delivery.ConsumerID)]
+	if !ok || !memoryDeliveryClaimMatches(item, delivery) {
+		return ErrClaimLost
+	}
+	item.status = deliveryPending
+	item.delivery.claimOwner = ""
+	item.availableAt = availableAt
+	item.leaseExpires = time.Time{}
+	return nil
+}
+
+func (s *memoryOutboxStore) Fail(_ context.Context, delivery ClaimedDelivery, _ error) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	item, ok := s.deliveries[memoryDeliveryKey(delivery.Event.ID, delivery.ConsumerID)]
+	if !ok || !memoryDeliveryClaimMatches(item, delivery) {
+		return ErrClaimLost
+	}
+	item.status = deliveryFailed
+	item.delivery.claimOwner = ""
+	item.leaseExpires = time.Time{}
+	item.failedAt = time.Now().UTC()
+	return nil
+}
+
+func memoryDeliveryKey(eventID, consumerID string) string {
+	return eventID + "\x00" + consumerID
+}
+
+func memoryDeliveryClaimable(item *memoryOutboxDelivery, now time.Time) bool {
+	return (item.status == deliveryPending && !item.availableAt.After(now)) ||
+		(item.status == deliveryProcessing && !item.leaseExpires.After(now))
+}
+
+func memoryDeliveryClaimMatches(item *memoryOutboxDelivery, delivery ClaimedDelivery) bool {
+	return item.status == deliveryProcessing &&
+		item.delivery.Attempt == delivery.Attempt &&
+		item.delivery.claimOwner == delivery.claimOwner
+}
 
 func (h testHandler) ID() string { return h.id }
 
@@ -178,6 +251,189 @@ func TestDurableDispatcherRecoversPerConsumerDelivery(t *testing.T) {
 	shutdownDispatcher(t, dispatcher)
 }
 
+func TestMemoryOutboxStoreReclaimsExpiredLease(t *testing.T) {
+	store := &memoryOutboxStore{}
+	now := time.Now().UTC()
+	event := newTestEvent(t, "lease-recovery")
+	event.CreatedAt = now
+	if _, err := store.Append(context.Background(), event, []string{"stable-consumer"}); err != nil {
+		t.Fatalf("append event: %v", err)
+	}
+	first, err := store.Claim(context.Background(), "worker-a", now, time.Second, 1)
+	if err != nil || len(first) != 1 || first[0].Attempt != 1 {
+		t.Fatalf("unexpected initial claim: %#v, %v", first, err)
+	}
+	beforeExpiry, err := store.Claim(context.Background(), "worker-b", now.Add(500*time.Millisecond), time.Second, 1)
+	if err != nil || len(beforeExpiry) != 0 {
+		t.Fatalf("lease was claimed before expiry: %#v, %v", beforeExpiry, err)
+	}
+	recovered, err := store.Claim(context.Background(), "worker-b", now.Add(time.Second), time.Second, 1)
+	if err != nil || len(recovered) != 1 || recovered[0].Attempt != 2 || recovered[0].claimOwner != "worker-b" {
+		t.Fatalf("unexpected recovered claim: %#v, %v", recovered, err)
+	}
+}
+
+func TestDurableDispatcherRecoversAfterRestartWithStableHandlerID(t *testing.T) {
+	store := &memoryOutboxStore{completed: make(chan ClaimedDelivery, 1)}
+	firstAttempt := make(chan struct{}, 1)
+	first, err := NewDurableDispatcher(zap.NewNop(), Options{WorkerCount: 1, OutboxPoll: time.Millisecond, RetryDelay: time.Hour}, store)
+	if err != nil {
+		t.Fatalf("new first durable dispatcher: %v", err)
+	}
+	if err := first.Register(testHandler{id: "stable-consumer", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		firstAttempt <- struct{}{}
+		return errors.New("temporary failure")
+	}}); err != nil {
+		t.Fatalf("register first handler: %v", err)
+	}
+	if err := first.Start(context.Background()); err != nil {
+		t.Fatalf("start first dispatcher: %v", err)
+	}
+	if _, err := first.Publish(context.Background(), newTestEvent(t, "restart-recovery"), PublishOptions{Delivery: DeliveryDurable}); err != nil {
+		t.Fatalf("publish durable event: %v", err)
+	}
+	select {
+	case <-firstAttempt:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for failed first delivery")
+	}
+	shutdownDispatcher(t, first)
+	store.mu.Lock()
+	store.deliveries[memoryDeliveryKey("restart-recovery", "stable-consumer")].availableAt = time.Now().UTC()
+	store.mu.Unlock()
+
+	second, err := NewDurableDispatcher(zap.NewNop(), Options{WorkerCount: 1, OutboxPoll: time.Millisecond}, store)
+	if err != nil {
+		t.Fatalf("new second durable dispatcher: %v", err)
+	}
+	if err := second.Register(testHandler{id: "stable-consumer", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		return nil
+	}}); err != nil {
+		t.Fatalf("register second handler: %v", err)
+	}
+	if err := second.Start(context.Background()); err != nil {
+		t.Fatalf("start second dispatcher: %v", err)
+	}
+	select {
+	case completed := <-store.completed:
+		if completed.ConsumerID != "stable-consumer" || completed.Attempt != 2 {
+			t.Fatalf("unexpected recovered delivery: %+v", completed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for recovered durable delivery")
+	}
+	shutdownDispatcher(t, second)
+}
+
+func TestDurableDispatcherTerminalizesAfterMaxAttempts(t *testing.T) {
+	store := &memoryOutboxStore{}
+	dispatcher, err := NewDurableDispatcher(zap.NewNop(), Options{
+		WorkerCount: 1, OutboxPoll: time.Millisecond, MaxAttempts: 2, RetryDelay: time.Millisecond,
+	}, store)
+	if err != nil {
+		t.Fatalf("new durable dispatcher: %v", err)
+	}
+	if err := dispatcher.Register(testHandler{id: "always-fails", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		return errors.New("permanent failure")
+	}}); err != nil {
+		t.Fatalf("register handler: %v", err)
+	}
+	if err := dispatcher.Start(context.Background()); err != nil {
+		t.Fatalf("start dispatcher: %v", err)
+	}
+	if _, err := dispatcher.Publish(context.Background(), newTestEvent(t, "terminal-failure"), PublishOptions{Delivery: DeliveryDurable}); err != nil {
+		t.Fatalf("publish durable event: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		store.mu.Lock()
+		item := store.deliveries[memoryDeliveryKey("terminal-failure", "always-fails")]
+		terminal := item != nil && item.status == deliveryFailed && item.delivery.Attempt == 2 && !item.failedAt.IsZero()
+		store.mu.Unlock()
+		if terminal {
+			claimed, err := store.Claim(context.Background(), "next-worker", time.Now().UTC(), time.Second, 1)
+			if err != nil || len(claimed) != 0 {
+				shutdownDispatcher(t, dispatcher)
+				t.Fatalf("failed delivery was claimable again: %#v, %v", claimed, err)
+			}
+			shutdownDispatcher(t, dispatcher)
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	shutdownDispatcher(t, dispatcher)
+	t.Fatal("durable delivery did not enter failed terminal state")
+}
+
+func TestDurableDispatcherTerminalizesMissingHandler(t *testing.T) {
+	store := &memoryOutboxStore{}
+	event := newTestEvent(t, "missing-handler")
+	event.CreatedAt = time.Now().UTC()
+	if _, err := store.Append(context.Background(), event, []string{"removed-consumer"}); err != nil {
+		t.Fatalf("append durable delivery: %v", err)
+	}
+	dispatcher, err := NewDurableDispatcher(zap.NewNop(), Options{WorkerCount: 1, OutboxPoll: time.Millisecond}, store)
+	if err != nil {
+		t.Fatalf("new durable dispatcher: %v", err)
+	}
+	if err := dispatcher.Start(context.Background()); err != nil {
+		t.Fatalf("start dispatcher: %v", err)
+	}
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		store.mu.Lock()
+		item := store.deliveries[memoryDeliveryKey("missing-handler", "removed-consumer")]
+		terminal := item != nil && item.status == deliveryFailed && item.delivery.Attempt == 1 && !item.failedAt.IsZero()
+		store.mu.Unlock()
+		if terminal {
+			shutdownDispatcher(t, dispatcher)
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	shutdownDispatcher(t, dispatcher)
+	t.Fatal("missing durable handler did not enter failed terminal state")
+}
+
+func TestDispatcherCapsRetryDelay(t *testing.T) {
+	dispatcher := NewDispatcher(zap.NewNop(), Options{RetryDelay: 100 * time.Millisecond, MaxRetryDelay: 250 * time.Millisecond})
+	for attempt, want := range map[int]time.Duration{1: 100 * time.Millisecond, 2: 200 * time.Millisecond, 3: 250 * time.Millisecond, 4: 250 * time.Millisecond} {
+		if got := dispatcher.retryDelay(attempt); got != want {
+			t.Fatalf("retry delay for attempt %d: got %s want %s", attempt, got, want)
+		}
+	}
+}
+
+func TestDispatcherShutdownReturnsAtDeadlineWhenHandlerBlocks(t *testing.T) {
+	dispatcher := NewDispatcher(zap.NewNop(), Options{WorkerCount: 1, HandlerTimeout: time.Second})
+	started := make(chan struct{}, 1)
+	blocked := make(chan struct{})
+	if err := dispatcher.Register(testHandler{id: "blocking", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		started <- struct{}{}
+		<-blocked
+		return nil
+	}}); err != nil {
+		t.Fatalf("register handler: %v", err)
+	}
+	if err := dispatcher.Start(context.Background()); err != nil {
+		t.Fatalf("start dispatcher: %v", err)
+	}
+	if _, err := dispatcher.Publish(context.Background(), newTestEvent(t, "shutdown-deadline"), PublishOptions{}); err != nil {
+		t.Fatalf("publish event: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("blocking handler did not start")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := dispatcher.Shutdown(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("shutdown error: got %v want deadline exceeded", err)
+	}
+	close(blocked)
+}
+
 func TestDispatcherShutdownDrainsAcceptedEvents(t *testing.T) {
 	dispatcher := NewDispatcher(zap.NewNop(), Options{WorkerCount: 1})
 	var delivered atomic.Int32
@@ -221,6 +477,14 @@ func TestDispatcherRejectsConcurrentDuplicateHandler(t *testing.T) {
 	group.Wait()
 	if actual := successful.Load(); actual != 1 {
 		t.Fatalf("expected one successful registration, got %d", actual)
+	}
+}
+
+func TestDispatcherRejectsHandlerIDWithSurroundingWhitespace(t *testing.T) {
+	dispatcher := NewDispatcher(zap.NewNop(), Options{})
+	err := dispatcher.Register(testHandler{id: " stable-consumer ", types: []Type{testEventType}, handle: func(context.Context, Event) error { return nil }})
+	if err == nil {
+		t.Fatal("expected handler ID whitespace to be rejected")
 	}
 }
 

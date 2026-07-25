@@ -15,6 +15,6 @@ Runtime 负责启动、停止接收和有界 drain。handler 必须幂等：best
 
 ## Durable Outbox
 
-`event_outbox` 保存不可变 envelope，`event_deliveries` 以 `(event_id, consumer_id)` 保存 `pending`、`processing` 或 `delivered` 状态。worker 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` claim pending 或过期租约，多个实例可安全并发恢复。
+`event_outbox` 保存不可变 envelope，`event_deliveries` 以 `(event_id, consumer_id)` 保存 `pending`、`processing`、`delivered` 或 `failed` 状态。worker 使用 PostgreSQL `FOR UPDATE SKIP LOCKED` claim pending 或过期租约，多个实例可安全并发恢复。durable delivery 在达到 `MaxAttempts` 或运行时不再有对应 consumer 时进入 `failed` 终态；`failed_at` 和 `last_error` 保留诊断事实，不会被轮询再次 claim。重试延迟按尝试次数递增，但永远不会超过 `MaxRetryDelay`。
 
 当前 `Publisher` API 保持不变。`DeliveryDurable` 原子写入 Outbox event 和当前注册 consumer 的 delivery；业务事实与 Outbox 必须共用事务时，业务 owner 应使用 Runtime 注入的 `TransactionalPublisher.PublishTx`，不能在业务提交后调用 Publisher 补写。

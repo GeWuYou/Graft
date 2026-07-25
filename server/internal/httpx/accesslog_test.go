@@ -106,6 +106,19 @@ func TestAccessLogEventPersistSinkPublishesWithoutRepositoryWrite(t *testing.T) 
 	}
 }
 
+func TestAccessLogEventPersistSinkFallbackRespectsPersistenceDeadline(t *testing.T) {
+	publisher := &accessLogEventPublisherRecorder{err: event.ErrDispatcherStopped}
+	repo := &stubAccessLogRepository{waitForCreateContext: true}
+	sink := NewAccessLogEventPersistSink(publisher, repo)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	err := sink.PersistAccessLog(ctx, CreateAccessLogInput{OccurredAt: time.Now().UTC()})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected fallback to respect persistence deadline, got %v", err)
+	}
+}
+
 func TestAccessLogEventHandlerPersistsDecodedRecord(t *testing.T) {
 	repo := &stubAccessLogRepository{}
 	record := CreateAccessLogInput{RequestID: "request-2", Method: http.MethodPost}

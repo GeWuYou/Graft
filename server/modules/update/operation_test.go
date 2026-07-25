@@ -14,7 +14,11 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 	"graft/server/internal/buildinfo"
+	"graft/server/internal/event"
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 )
 
@@ -390,8 +394,57 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	}
 }
 
+func TestRolloutAuditCarriesRequestIDAndLogsPublishFailure(t *testing.T) {
+	observed, logs := observer.New(zap.ErrorLevel)
+	publisher := &rolloutAuditPublisher{err: errors.New("outbox unavailable")}
+	rollout := NewRolloutService(nil, nil, nil, nil, nil)
+	rollout.SetAuditPublisher(publisher, zap.New(observed))
+	ctx := httpx.WithRequestAuditContext(context.Background(), httpx.RequestAuditContext{
+		RequestID: "req-update-1",
+		Method:    "POST",
+		Route:     "/api/platform/update/compose",
+		ClientIP:  "198.51.100.7",
+		UserAgent: "update-test",
+	})
+
+	rollout.publishAudit(ctx, ComposeUpdateOperation{OperationID: "update-audit-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 7, Outcome: ExecutionOutcomePulling}, true, "")
+	if publisher.options.Delivery != event.DeliveryDurable {
+		t.Fatalf("expected durable audit delivery, got %q", publisher.options.Delivery)
+	}
+	var payload moduleapi.AuditEvent
+	if err := json.Unmarshal(publisher.event.Payload, &payload); err != nil {
+		t.Fatalf("decode audit payload: %v", err)
+	}
+	if payload.RequestID != "req-update-1" || payload.RequestMethod != "POST" || payload.RequestPath != "/api/platform/update/compose" || payload.IP != "198.51.100.7" || payload.UserAgent != "update-test" {
+		t.Fatalf("expected request correlation in audit payload, got %#v", payload)
+	}
+	if entries := logs.FilterMessage("publish update rollout audit event failed").All(); len(entries) != 1 {
+		t.Fatalf("expected one audit publish failure log, got %#v", entries)
+	}
+}
+
 type memoryOperationStore struct {
 	items map[string]ComposeUpdateOperation
+}
+
+type rolloutAuditPublisher struct {
+	event   event.Event
+	options event.PublishOptions
+	err     error
+}
+
+func (p *rolloutAuditPublisher) Publish(_ context.Context, current event.Event, options event.PublishOptions) (event.Receipt, error) {
+	p.event = current
+	p.options = options
+	return event.Receipt{}, p.err
+}
+
+func (p *rolloutAuditPublisher) PublishAsync(current event.Event, options event.PublishOptions) (event.Receipt, error) {
+	return p.Publish(context.Background(), current, options)
+}
+
+func (*rolloutAuditPublisher) PublishBatch(context.Context, []event.Event, event.PublishOptions) event.BatchReceipt {
+	return event.BatchReceipt{}
 }
 
 func (s *memoryOperationStore) Create(_ context.Context, item ComposeUpdateOperation) error {

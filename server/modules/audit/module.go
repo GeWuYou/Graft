@@ -189,6 +189,7 @@ func consumeAuditRecordEvent(
 			zap.String("action", strings.TrimSpace(payload.Action)),
 			zap.Error(err),
 		)
+		return err
 	}
 
 	return nil

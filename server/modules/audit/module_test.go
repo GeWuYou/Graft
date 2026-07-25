@@ -1432,7 +1432,7 @@ func TestRegisterSubscribesActiveAuditEventPointers(t *testing.T) {
 	}
 }
 
-func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
+func TestRegisterReturnsActiveAuditWriteErrors(t *testing.T) {
 	ctx, _, bus := newModuleTestContext(t, failingAuditRepository{})
 
 	if err := ctx.EventBus.Subscribe("noop", func(context.Context, eventbus.Event) error { return nil }); err != nil {
@@ -1449,8 +1449,8 @@ func TestRegisterSwallowsActiveAuditWriteErrors(t *testing.T) {
 			Success:      true,
 		},
 	})
-	if err != nil {
-		t.Fatalf("expected active audit failure to be swallowed, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "visibility override lookup failed") {
+		t.Fatalf("expected active audit write failure to be returned, got %v", err)
 	}
 }
 
@@ -1651,4 +1651,36 @@ func TestAbortAuditReadInternalWithNilModuleContext(t *testing.T) {
 	}
 	response := testassert.DecodeErrorResponse(t, recorder)
 	testassert.AssertContractErrorPayload(t, response, messagecontract.CommonInternalError, "zh-CN")
+}
+
+func TestConsumeAuditRecordEventReturnsRecordCandidateError(t *testing.T) {
+	want := errors.New("audit persistence failed")
+	recorder, err := NewService(&stubAuditRepository{
+		createErr: want,
+		policyRules: []store.AuditPolicyRule{{
+			Name:      "include.test.audit.write",
+			Source:    store.AuditSourceDomainEvent,
+			Enabled:   true,
+			Priority:  1,
+			Effect:    store.AuditPolicyEffectInclude,
+			EventType: "test.audit.write",
+			MatchType: store.AuditPolicyMatchTypeExact,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("new audit service: %v", err)
+	}
+	envelope, err := httpx.NewAuditEvent("test", moduleapi.AuditEvent{
+		Kind:    moduleapi.AuditEventKindDomain,
+		Action:  "test.audit.write",
+		Success: true,
+	})
+	if err != nil {
+		t.Fatalf("new audit event: %v", err)
+	}
+
+	err = consumeAuditRecordEvent(context.Background(), zap.NewNop(), recorder, nil, envelope)
+	if !errors.Is(err, want) {
+		t.Fatalf("expected record candidate error, got %v", err)
+	}
 }

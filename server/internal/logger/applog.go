@@ -321,12 +321,14 @@ func (s appLogEventPublisherSink) CreateAppLog(_ context.Context, record CreateA
 		return AppLogRecord{}, fmt.Errorf("create app log persistence event id: %w", err)
 	}
 	_, err = s.publisher.PublishAsync(event.Event{
-		ID:         eventID,
-		Type:       AppLogPersistEventType,
-		Version:    appLogPersistEventVersion,
-		Source:     appLogPersistEventSource,
-		Payload:    payload,
-		OccurredAt: record.OccurredAt,
+		ID:             eventID,
+		Type:           AppLogPersistEventType,
+		Version:        appLogPersistEventVersion,
+		Source:         appLogPersistEventSource,
+		Payload:        payload,
+		OccurredAt:     record.OccurredAt,
+		CorrelationID:  record.RequestID,
+		IdempotencyKey: record.RequestID,
 	}, event.PublishOptions{Delivery: event.DeliveryBestEffort})
 	if err != nil {
 		return AppLogRecord{}, fmt.Errorf("publish app log persistence event: %w", err)

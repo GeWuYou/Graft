@@ -179,7 +179,9 @@ func accessLogPersistSinkFromTarget(target any) AccessLogPersistSink {
 		return sink
 	}
 	if repo, ok := target.(AccessLogRepository); ok && repo != nil {
-		// 兼容旧构造路径：直接传 repository 时保留同步写入，Runtime 正式装配会优先注入事件 sink。
+		// COMPAT(owner=server/internal/app, cleanup=所有 Runtime 调用方改为注入 NewAccessLogEventPersistSink)
+		// 兼容直接传 AccessLogRepository 的旧构造路径；NewServer/NewServerWithOptions 的既有调用方仍依赖同步写入。
+		// Runtime 正式装配优先注入事件 sink。覆盖事件 sink 与旧 repository 直传的测试共同保护该过渡边界。
 		return accessLogRepositoryPersistSink{repo: repo}
 	}
 	return nil

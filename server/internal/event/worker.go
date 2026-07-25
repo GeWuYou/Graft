@@ -80,7 +80,7 @@ func (d *Dispatcher) deliver(ctx context.Context, event Event) {
 			)
 			return
 		}
-		timer := time.NewTimer(time.Duration(attempt) * d.options.RetryDelay)
+		timer := time.NewTimer(d.retryDelay(attempt))
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -94,7 +94,7 @@ func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDeliver
 	defer d.work.Done()
 	handler := d.handlerFor(delivery.Event.Type, delivery.ConsumerID)
 	if handler == nil {
-		_ = d.store.Retry(ctx, delivery, time.Now().UTC().Add(d.options.RetryDelay), fmt.Errorf("%w: consumer %s", ErrNoHandlers, delivery.ConsumerID))
+		d.failDurable(ctx, delivery, fmt.Errorf("%w: consumer %s", ErrNoHandlers, delivery.ConsumerID))
 		return
 	}
 	handlerCtx, cancel := context.WithTimeout(ctx, d.options.HandlerTimeout)
@@ -106,7 +106,11 @@ func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDeliver
 		}
 		return
 	}
-	retryAt := time.Now().UTC().Add(time.Duration(delivery.Attempt) * d.options.RetryDelay)
+	if delivery.Attempt >= d.options.MaxAttempts {
+		d.failDurable(ctx, delivery, err)
+		return
+	}
+	retryAt := time.Now().UTC().Add(d.retryDelay(delivery.Attempt))
 	if retryErr := d.store.Retry(ctx, delivery, retryAt, err); retryErr != nil {
 		d.logger.Error("reschedule durable event delivery", zap.String("event_id", delivery.Event.ID), zap.String("consumer", delivery.ConsumerID), zap.Error(retryErr))
 		return
@@ -114,6 +118,26 @@ func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDeliver
 	d.logger.Warn("durable event delivery failed and was rescheduled",
 		zap.String("event_id", delivery.Event.ID), zap.String("event_type", string(delivery.Event.Type)),
 		zap.String("consumer", delivery.ConsumerID), zap.Int("attempt", delivery.Attempt), zap.Error(err))
+}
+
+func (d *Dispatcher) failDurable(ctx context.Context, delivery ClaimedDelivery, cause error) {
+	if failErr := d.store.Fail(ctx, delivery, cause); failErr != nil {
+		d.logger.Error("terminally fail durable event delivery", zap.String("event_id", delivery.Event.ID), zap.String("consumer", delivery.ConsumerID), zap.Error(failErr))
+		return
+	}
+	d.logger.Error("durable event delivery failed permanently",
+		zap.String("event_id", delivery.Event.ID), zap.String("event_type", string(delivery.Event.Type)),
+		zap.String("consumer", delivery.ConsumerID), zap.Int("attempt", delivery.Attempt), zap.Error(cause))
+}
+
+func (d *Dispatcher) retryDelay(attempt int) time.Duration {
+	if attempt <= 0 || d.options.RetryDelay >= d.options.MaxRetryDelay {
+		return d.options.MaxRetryDelay
+	}
+	if attempt > int(d.options.MaxRetryDelay/d.options.RetryDelay) {
+		return d.options.MaxRetryDelay
+	}
+	return time.Duration(attempt) * d.options.RetryDelay
 }
 
 func (d *Dispatcher) handle(ctx context.Context, event Event) error {

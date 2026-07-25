@@ -17,17 +17,19 @@ const (
 	defaultWorkerCount    = 2
 	defaultMaxAttempts    = 3
 	defaultRetryDelay     = 100 * time.Millisecond
+	defaultMaxRetryDelay  = 5 * time.Second
 	defaultHandlerTimeout = 5 * time.Second
 	defaultOutboxPoll     = 100 * time.Millisecond
 	defaultLeaseDuration  = 30 * time.Second
 )
 
-// Options 控制 dispatcher 的内存资源上限、处理超时和 Outbox claim 租约。
+// Options 控制 dispatcher 的内存资源上限、处理超时、重试上限和 Outbox claim 租约。
 type Options struct {
 	BufferSize     int
 	WorkerCount    int
 	MaxAttempts    int
 	RetryDelay     time.Duration
+	MaxRetryDelay  time.Duration
 	HandlerTimeout time.Duration
 	OutboxPoll     time.Duration
 	LeaseDuration  time.Duration
@@ -45,6 +47,9 @@ func (o Options) normalized() Options {
 	}
 	if o.RetryDelay <= 0 {
 		o.RetryDelay = defaultRetryDelay
+	}
+	if o.MaxRetryDelay <= 0 {
+		o.MaxRetryDelay = defaultMaxRetryDelay
 	}
 	if o.HandlerTimeout <= 0 {
 		o.HandlerTimeout = defaultHandlerTimeout
@@ -115,9 +120,13 @@ func (d *Dispatcher) Register(handler Handler) error {
 	if d == nil || handler == nil {
 		return errors.New("event handler is required")
 	}
-	id := strings.TrimSpace(handler.ID())
+	handlerID := handler.ID()
+	id := strings.TrimSpace(handlerID)
 	if id == "" {
 		return errors.New("event handler id is required")
+	}
+	if handlerID != id {
+		return errors.New("event handler id must not include surrounding whitespace")
 	}
 	types := handler.Types()
 	if len(types) == 0 {
@@ -345,8 +354,8 @@ func (d *Dispatcher) Shutdown(ctx context.Context) error {
 		d.workers.Wait()
 		return nil
 	case <-ctx.Done():
+		// Handler 可能忽略 context；调用方 deadline 不能变成无限等待该 worker goroutine。
 		cancel()
-		d.workers.Wait()
 		return ctx.Err()
 	}
 }

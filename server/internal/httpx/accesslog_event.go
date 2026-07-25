@@ -25,7 +25,7 @@ type accessLogEventPersistSink struct {
 	fallback  AccessLogRepository
 }
 
-func (s accessLogEventPersistSink) PersistAccessLog(_ context.Context, record CreateAccessLogInput) error {
+func (s accessLogEventPersistSink) PersistAccessLog(ctx context.Context, record CreateAccessLogInput) error {
 	payload, err := json.Marshal(accessLogPersistEventPayload{Record: record})
 	if err != nil {
 		return fmt.Errorf("encode access log persistence event: %w", err)
@@ -45,7 +45,7 @@ func (s accessLogEventPersistSink) PersistAccessLog(_ context.Context, record Cr
 		IdempotencyKey: record.RequestID,
 	}, event.PublishOptions{Delivery: event.DeliveryBestEffort})
 	if errors.Is(err, event.ErrDispatcherStopped) && s.fallback != nil {
-		_, fallbackErr := s.fallback.CreateAccessLog(context.Background(), record)
+		_, fallbackErr := s.fallback.CreateAccessLog(ctx, record)
 		return fallbackErr
 	}
 	if err != nil {
