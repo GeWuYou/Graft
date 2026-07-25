@@ -29,6 +29,7 @@ import (
 	"graft/server/internal/logger"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/moduleregistry"
 	moduleruntimelocales "graft/server/internal/moduleruntime/locales"
 	"graft/server/internal/permission"
@@ -269,7 +270,7 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 		return nil, fmt.Errorf("create cache manager: %w", err)
 	}
 
-	appLogRepo, eventDispatcher, err := newRuntimeEventPipeline(cfg, deps, databaseResources.SQL, runtimeLogger)
+	appLogRepo, eventDispatcher, err := newRuntimeEventPipeline(cfg, deps, databaseResources.SQL, runtimeLogger, accessLogRepo)
 	if err != nil {
 		_ = redisClient.Close()
 		_ = database.Close(databaseResources)
@@ -290,7 +291,8 @@ func newRuntimeCoreWithDeps(startupCtx context.Context, cfg *config.Config, deps
 				SlowThreshold:  time.Duration(cfg.HTTPX.AccessLogSlowThresholdMS) * time.Millisecond,
 				PersistTimeout: time.Duration(cfg.HTTPX.AccessLogPersistTimeoutMS) * time.Millisecond,
 			},
-			I18n: localizer,
+			AccessLogSink: httpx.NewAccessLogEventPersistSink(eventDispatcher, accessLogRepo),
+			I18n:          localizer,
 		}, accessLogRepo),
 		eventBus:             eventbus.New(runtimeLogger),
 		eventDispatcher:      eventDispatcher,
@@ -322,6 +324,7 @@ func newRuntimeEventPipeline(
 	deps runtimeCoreDeps,
 	db *sql.DB,
 	runtimeLogger *zap.Logger,
+	accessLogRepo httpx.AccessLogRepository,
 ) (logger.AppLogRepository, *event.Dispatcher, error) {
 	appLogRepo, err := newOptionalAppLogRepository(cfg, deps, db)
 	if err != nil {
@@ -339,6 +342,9 @@ func newRuntimeEventPipeline(
 		if err := dispatcher.Register(logger.NewAppLogEventHandler(appLogRepo)); err != nil {
 			return nil, nil, fmt.Errorf("register app log event handler: %w", err)
 		}
+	}
+	if err := dispatcher.Register(httpx.NewAccessLogEventHandler(accessLogRepo)); err != nil {
+		return nil, nil, fmt.Errorf("register access log event handler: %w", err)
 	}
 	return appLogRepo, dispatcher, nil
 }
@@ -454,6 +460,9 @@ func (r *Runtime) prepareModules(
 	if err := r.registerModules(moduleCtx, ordered, booted); err != nil {
 		return nil, err
 	}
+	if err := r.registerLegacyAuditEventBridge(); err != nil {
+		return nil, r.cleanupAfterFailure(moduleCtx, booted, err)
+	}
 	if err := r.startEventDispatcher(); err != nil {
 		return nil, r.cleanupAfterFailure(moduleCtx, booted, fmt.Errorf("start event dispatcher: %w", err))
 	}
@@ -461,6 +470,25 @@ func (r *Runtime) prepareModules(
 		return nil, err
 	}
 	return r.bootModules(moduleCtx, ordered, booted)
+}
+
+// registerLegacyAuditEventBridge 保留旧 eventbus 发布契约，并把审计记录转入 durable event dispatcher。
+func (r *Runtime) registerLegacyAuditEventBridge() error {
+	if r == nil || r.eventBus == nil || r.eventDispatcher == nil {
+		return nil
+	}
+	return r.eventBus.Subscribe(string(moduleapi.AuditRecordEventName), func(ctx context.Context, legacy eventbus.Event) error {
+		payload, ok := legacy.Payload.(moduleapi.AuditEvent)
+		if !ok {
+			return fmt.Errorf("legacy audit event payload has type %T", legacy.Payload)
+		}
+		envelope, err := httpx.NewAuditEvent(legacy.Source, payload)
+		if err != nil {
+			return err
+		}
+		_, err = r.eventDispatcher.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
+		return err
+	})
 }
 
 // startEventDispatcher 使用独立于模块生命周期的上下文启动 worker。

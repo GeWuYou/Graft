@@ -16,7 +16,7 @@ import (
 
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -498,13 +498,22 @@ func toHTTPUsageMetric(metric targetUsageMetric) generated.RuntimeTargetUsageMet
 }
 
 func (m *Module) publishRefreshAudit(ctx context.Context, moduleCtx *module.Context, target store.Target, refreshErr error) {
-	if moduleCtx == nil || moduleCtx.EventBus == nil {
+	if moduleCtx == nil || moduleCtx.EventPublisher == nil {
 		return
 	}
-	event := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.refresh", ResourceType: "runtime_target", ResourceID: strconv.FormatUint(target.ID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: refreshErr == nil, Metadata: map[string]any{"provider": target.Provider, "result": map[bool]string{true: "success", false: "failure"}[refreshErr == nil]}}
+	payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Action: "runtime_target.refresh", ResourceType: "runtime_target", ResourceID: strconv.FormatUint(target.ID, 10), ResourceName: strings.TrimSpace(target.DisplayName), StatusCode: http.StatusOK, Success: refreshErr == nil, Metadata: map[string]any{"provider": target.Provider, "result": map[bool]string{true: "success", false: "failure"}[refreshErr == nil]}}
 	if refreshErr != nil {
-		event.StatusCode = http.StatusInternalServerError
-		event.MessageKey = messagecontract.CommonInternalError.String()
+		payload.StatusCode = http.StatusInternalServerError
+		payload.MessageKey = messagecontract.CommonInternalError.String()
 	}
-	_ = moduleCtx.EventBus.Publish(ctx, eventbus.Event{Name: string(moduleapi.AuditRecordEventName), Source: moduleID, Payload: event})
+	envelope, err := httpx.NewAuditEvent(moduleID, payload)
+	if err != nil {
+		if moduleCtx.Logger != nil {
+			moduleCtx.Logger.Error("encode runtime target audit event failed", zap.Error(err))
+		}
+		return
+	}
+	if _, err := moduleCtx.EventPublisher.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable}); err != nil && moduleCtx.Logger != nil {
+		moduleCtx.Logger.Error("publish runtime target audit event failed", zap.Error(err))
+	}
 }

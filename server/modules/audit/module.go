@@ -13,7 +13,7 @@ import (
 
 	"graft/server/internal/container"
 	"graft/server/internal/drilldown"
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
@@ -96,11 +96,11 @@ func (p *Module) Register(ctx *module.Context) error {
 	if err := p.registerHTTP(ctx, logger); err != nil {
 		return err
 	}
-	if ctx.EventBus == nil {
-		return errors.New("event bus is unavailable")
+	if ctx.EventRegistry == nil {
+		return errors.New("event registry is unavailable")
 	}
 
-	return subscribeAuditRecordEvents(ctx.EventBus, logger, p.recorder, func() moduleapi.NotificationPublisher {
+	return registerAuditRecordHandler(ctx.EventRegistry, logger, p.recorder, func() moduleapi.NotificationPublisher {
 		return p.notifier
 	})
 }
@@ -140,15 +140,29 @@ func (p *Module) registerHTTP(ctx *module.Context, logger *zap.Logger) error {
 	return nil
 }
 
-func subscribeAuditRecordEvents(
-	bus eventbus.Bus,
+func registerAuditRecordHandler(
+	registry event.Registry,
 	logger *zap.Logger,
 	recorder *Service,
 	notifier func() moduleapi.NotificationPublisher,
 ) error {
-	return bus.Subscribe(string(moduleapi.AuditRecordEventName), func(eventCtx context.Context, event eventbus.Event) error {
-		return consumeAuditRecordEvent(eventCtx, logger, recorder, notifier, event)
-	})
+	return registry.Register(auditRecordHandler{logger: logger, recorder: recorder, notifier: notifier})
+}
+
+type auditRecordHandler struct {
+	logger   *zap.Logger
+	recorder *Service
+	notifier func() moduleapi.NotificationPublisher
+}
+
+func (h auditRecordHandler) ID() string { return string(moduleapi.AuditRecordEventName) }
+
+func (h auditRecordHandler) Types() []event.Type {
+	return []event.Type{event.Type(moduleapi.AuditRecordEventName)}
+}
+
+func (h auditRecordHandler) Handle(ctx context.Context, envelope event.Event) error {
+	return consumeAuditRecordEvent(ctx, h.logger, h.recorder, h.notifier, envelope)
 }
 
 func consumeAuditRecordEvent(
@@ -156,10 +170,10 @@ func consumeAuditRecordEvent(
 	logger *zap.Logger,
 	recorder *Service,
 	notifier func() moduleapi.NotificationPublisher,
-	event eventbus.Event,
+	event event.Event,
 ) error {
-	payload, err := resolveAuditEventPayload(event.Payload)
-	if err != nil {
+	var payload moduleapi.AuditEvent
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
 		logger.Error("drop malformed audit event payload",
 			zap.String("module", moduleID),
 			zap.String("event", string(moduleapi.AuditRecordEventName)),
@@ -506,18 +520,4 @@ func mustMarshalAuditEventMetadata(metadata map[string]any) json.RawMessage {
 	}
 
 	return json.RawMessage(payload)
-}
-
-func resolveAuditEventPayload(payload any) (moduleapi.AuditEvent, error) {
-	switch typed := payload.(type) {
-	case moduleapi.AuditEvent:
-		return typed, nil
-	case *moduleapi.AuditEvent:
-		if typed == nil {
-			return moduleapi.AuditEvent{}, errors.New("nil audit event payload")
-		}
-		return *typed, nil
-	default:
-		return moduleapi.AuditEvent{}, fmt.Errorf("unexpected audit event payload type %T", payload)
-	}
 }

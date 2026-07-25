@@ -21,6 +21,7 @@ import (
 	"graft/server/internal/cronx"
 	"graft/server/internal/dashboard"
 	"graft/server/internal/drilldown"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -433,6 +434,7 @@ func newModuleTestContextWithAuthorizer(
 		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
+		EventRegistry:      testEventRegistry{bus: bus},
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),
@@ -462,6 +464,31 @@ func newModuleTestContextWithAuthorizer(
 	}
 
 	return ctx, engine, bus
+}
+
+type testEventRegistry struct{ bus eventbus.Bus }
+
+func (r testEventRegistry) Register(handler event.Handler) error {
+	for _, eventType := range handler.Types() {
+		typeForHandler := eventType
+		if err := r.bus.Subscribe(string(eventType), func(ctx context.Context, legacy eventbus.Event) error {
+			payload, err := json.Marshal(legacy.Payload)
+			if err != nil {
+				return err
+			}
+			id, err := event.NewID()
+			if err != nil {
+				return err
+			}
+			return handler.Handle(ctx, event.Event{
+				ID: id, Type: typeForHandler, Version: 1, Source: legacy.Source,
+				Payload: payload, OccurredAt: legacy.OccurredAt, CreatedAt: legacy.OccurredAt,
+			})
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type stubScopeMetadataRepo struct {
@@ -498,6 +525,7 @@ func newModuleTestContextWithDrilldown(
 		Config:             &config.Config{Audit: config.AuditConfig{}},
 		I18n:               localizer,
 		EventBus:           bus,
+		EventRegistry:      testEventRegistry{bus: bus},
 		Router:             engine.Group("/api"),
 		Services:           container.New(),
 		MenuRegistry:       menu.NewRegistry(),

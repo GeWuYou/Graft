@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +16,30 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/config"
+	"graft/server/internal/event"
 	"graft/server/internal/moduleapi"
 )
+
+type accessLogEventPublisherRecorder struct {
+	event event.Event
+	err   error
+}
+
+func (r *accessLogEventPublisherRecorder) Publish(context.Context, event.Event, event.PublishOptions) (event.Receipt, error) {
+	return event.Receipt{}, errors.New("unexpected blocking publish")
+}
+
+func (r *accessLogEventPublisherRecorder) PublishAsync(current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	r.event = current
+	if r.err != nil {
+		return event.Receipt{}, r.err
+	}
+	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryBestEffort}, nil
+}
+
+func (r *accessLogEventPublisherRecorder) PublishBatch(context.Context, []event.Event, event.PublishOptions) event.BatchReceipt {
+	return event.BatchReceipt{}
+}
 
 type stubAccessLogRepository struct {
 	created              []CreateAccessLogInput
@@ -54,6 +77,49 @@ func TestAccessLogPersistenceErrorIsNotMisclassifiedAfterDeadline(t *testing.T) 
 	}
 	if failureType := entries[0].ContextMap()["failureType"]; failureType != "error" {
 		t.Fatalf("expected error failure type, got %#v", failureType)
+	}
+}
+
+func TestAccessLogEventPersistSinkPublishesWithoutRepositoryWrite(t *testing.T) {
+	publisher := &accessLogEventPublisherRecorder{}
+	record := CreateAccessLogInput{RequestID: "request-1", OccurredAt: time.Now().UTC()}
+	sink := NewAccessLogEventPersistSink(publisher)
+
+	if err := sink.PersistAccessLog(context.Background(), record); err != nil {
+		t.Fatalf("persist access log event: %v", err)
+	}
+	if publisher.event.Type != AccessLogPersistEventType {
+		t.Fatalf("expected event type %q, got %q", AccessLogPersistEventType, publisher.event.Type)
+	}
+	if publisher.event.Version != accessLogPersistEventVersion {
+		t.Fatalf("expected event version %d, got %d", accessLogPersistEventVersion, publisher.event.Version)
+	}
+	if publisher.event.Source != accessLogPersistEventSource {
+		t.Fatalf("expected event source %q, got %q", accessLogPersistEventSource, publisher.event.Source)
+	}
+	var payload accessLogPersistEventPayload
+	if err := json.Unmarshal(publisher.event.Payload, &payload); err != nil {
+		t.Fatalf("decode event payload: %v", err)
+	}
+	if payload.Record.RequestID != record.RequestID {
+		t.Fatalf("expected request id %q, got %q", record.RequestID, payload.Record.RequestID)
+	}
+}
+
+func TestAccessLogEventHandlerPersistsDecodedRecord(t *testing.T) {
+	repo := &stubAccessLogRepository{}
+	record := CreateAccessLogInput{RequestID: "request-2", Method: http.MethodPost}
+	payload, err := json.Marshal(accessLogPersistEventPayload{Record: record})
+	if err != nil {
+		t.Fatalf("encode event payload: %v", err)
+	}
+
+	handler := NewAccessLogEventHandler(repo)
+	if err := handler.Handle(context.Background(), event.Event{Payload: payload}); err != nil {
+		t.Fatalf("handle access log event: %v", err)
+	}
+	if len(repo.created) != 1 || repo.created[0].RequestID != record.RequestID {
+		t.Fatalf("expected decoded record to be persisted, got %#v", repo.created)
 	}
 }
 

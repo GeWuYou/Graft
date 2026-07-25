@@ -2,10 +2,13 @@ package httpx
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -13,10 +16,40 @@ import (
 	authcontract "graft/server/internal/contract/auth"
 	"graft/server/internal/contract/httpheader"
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/event"
 	"graft/server/internal/eventbus"
 	"graft/server/internal/i18n"
 	"graft/server/internal/moduleapi"
 )
+
+// NewAuditEvent 将稳定的审计 DTO 编码为 Runtime 事件 envelope。
+// 发布方只负责生成 envelope；投递模式和 handler 生命周期仍由 Runtime 管理。
+func NewAuditEvent(source string, payload moduleapi.AuditEvent) (event.Event, error) {
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		return event.Event{}, fmt.Errorf("encode audit event: %w", err)
+	}
+	id, err := event.NewID()
+	if err != nil {
+		return event.Event{}, err
+	}
+	now := time.Now().UTC()
+	occurredAt := payload.CreatedAt
+	if occurredAt.IsZero() {
+		occurredAt = now
+	}
+	return event.Event{
+		ID:             id,
+		Type:           event.Type(moduleapi.AuditRecordEventName),
+		Version:        1,
+		Source:         strings.TrimSpace(source),
+		Payload:        encoded,
+		OccurredAt:     occurredAt.UTC(),
+		CreatedAt:      now,
+		CorrelationID:  strings.TrimSpace(payload.RequestID),
+		IdempotencyKey: strings.TrimSpace(payload.RequestID),
+	}, nil
+}
 
 type securityAuditEventType string
 
