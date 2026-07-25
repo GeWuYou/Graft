@@ -359,6 +359,7 @@ func newModuleTestContext(t *testing.T, repo store.Repository) (*module.Context,
 	ctx := &module.Context{
 		LifecycleContext:   context.Background(),
 		Logger:             zap.NewNop(),
+		EventTxPublisher:   &recordingPublisher{},
 		Config:             &config.Config{},
 		I18n:               localizer,
 		Router:             engine.Group("/api"),
@@ -392,6 +393,16 @@ func newModuleTestContext(t *testing.T, repo store.Repository) (*module.Context,
 	}
 
 	return ctx, engine
+}
+
+func TestRegisterRequiresTransactionalAuditPublisher(t *testing.T) {
+	ctx, _ := newModuleTestContext(t, testRBACRepository{})
+	ctx.EventTxPublisher = nil
+
+	err := NewModule(testRBACRepository{}).Register(ctx)
+	if !errors.Is(err, errAtomicAuditPublisherMissing) {
+		t.Fatalf("expected %v, got %v", errAtomicAuditPublisherMissing, err)
+	}
 }
 
 func newAuthorizedRequest(path string) *http.Request {

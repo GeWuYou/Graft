@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -44,6 +45,37 @@ func TestSQLRepositoryListReturnsEveryLiveTargetWhileListPageRemainsBounded(t *t
 	}
 	if page.Summary != (Summary{Total: 101, Healthy: 100, Unavailable: 1}) {
 		t.Fatalf("ListPage summary = %+v, want total=101 healthy=100 unavailable=1", page.Summary)
+	}
+}
+
+func TestSQLRepositoryRunInTransactionReusesContextTransaction(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("open sql mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository := NewSQLRepository(db)
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	var outerTx *sql.Tx
+	err = repository.RunInTransaction(context.Background(), func(ctx context.Context, tx *sql.Tx) error {
+		outerTx = tx
+		return repository.RunInTransaction(ctx, func(nestedCtx context.Context, nestedTx *sql.Tx) error {
+			if nestedCtx != ctx {
+				t.Fatal("nested transaction callback received a different context")
+			}
+			if nestedTx != outerTx {
+				t.Fatal("nested transaction callback received a different transaction")
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		t.Fatalf("run nested transaction: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("nested transaction should not begin or commit independently: %v", err)
 	}
 }
 

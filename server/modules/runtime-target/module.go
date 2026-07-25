@@ -500,7 +500,6 @@ func toHTTPUsageMetric(metric targetUsageMetric) generated.RuntimeTargetUsageMet
 }
 
 func (m *Module) discoverAndPublishAudit(ctx context.Context) (store.Target, bool, error) {
-	found := false
 	target, err := m.runRefreshAuditTransaction(ctx, func(txCtx context.Context) (store.Target, error) {
 		if err := discoverLocalDocker(txCtx, m.repository); err != nil {
 			return store.Target{}, err
@@ -509,12 +508,9 @@ func (m *Module) discoverAndPublishAudit(ctx context.Context) (store.Target, boo
 		if errors.Is(err, store.ErrNotFound) {
 			return store.Target{}, nil
 		}
-		if err == nil {
-			found = true
-		}
 		return current, err
 	})
-	return target, found, err
+	return target, target.ID != 0, err
 }
 
 // runRefreshAuditTransaction 将 runtime-target 刷新事实与 durable audit event 固定在同一个事务中。

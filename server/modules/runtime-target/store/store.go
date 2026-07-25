@@ -44,7 +44,8 @@ type TransactionRunner interface {
 func NewSQLRepository(db *sql.DB) *SQLRepository { return &SQLRepository{db: db} }
 
 // RunInTransaction 将使用同一仓储的写入与 durable event 固定在同一个 SQL transaction 中。
-// callback 失败会回滚；只有业务写入与事件写入均成功时才提交。
+// callback 失败会回滚；只有业务写入与事件写入均成功时才提交。嵌套调用会复用
+// context 中的外层事务，避免内层独立提交。
 func (r *SQLRepository) RunInTransaction(ctx context.Context, callback func(context.Context, *sql.Tx) error) error {
 	if r == nil || r.db == nil {
 		return errors.New("runtime target repository is unavailable")
@@ -54,6 +55,9 @@ func (r *SQLRepository) RunInTransaction(ctx context.Context, callback func(cont
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if tx := transactionFromContext(ctx); tx != nil {
+		return callback(ctx, tx)
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -77,10 +81,18 @@ func (r *SQLRepository) RunInTransaction(ctx context.Context, callback func(cont
 }
 
 func (r *SQLRepository) executor(ctx context.Context) sqlExecutor {
-	if tx, ok := ctx.Value(transactionContextKey{}).(*sql.Tx); ok && tx != nil {
+	if tx := transactionFromContext(ctx); tx != nil {
 		return tx
 	}
 	return r.db
+}
+
+func transactionFromContext(ctx context.Context) *sql.Tx {
+	if ctx == nil {
+		return nil
+	}
+	tx, _ := ctx.Value(transactionContextKey{}).(*sql.Tx)
+	return tx
 }
 
 // Target 是运行时目标的持久化读取投影；Capabilities 是 provider-neutral 的能力集合，供上层筛选可执行能力。

@@ -32,7 +32,11 @@ func NewModule(repository rbacstore.Repository) *Module {
 // Register 注册跨模块可复用的授权服务。
 //
 // Register 阶段只做稳定能力暴露与管理只读路由装配，不执行任何后台行为或耗时初始化。
+// 缺少事务审计发布器时返回错误，避免模块注册后只提交业务事实而丢失审计事件。
 func (p *Module) Register(ctx *module.Context) error {
+	if ctx.EventTxPublisher == nil {
+		return errAtomicAuditPublisherMissing
+	}
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
 	}

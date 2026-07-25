@@ -14,8 +14,9 @@ import (
 )
 
 type recordingPublisher struct {
-	published  []event.Event
-	publishErr error
+	published     []event.Event
+	publishedInTx bool
+	publishErr    error
 }
 
 func (p *recordingPublisher) Publish(_ context.Context, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
@@ -24,6 +25,7 @@ func (p *recordingPublisher) Publish(_ context.Context, current event.Event, _ e
 }
 
 func (p *recordingPublisher) PublishTx(_ context.Context, _ *sql.Tx, current event.Event, _ event.PublishOptions) (event.Receipt, error) {
+	p.publishedInTx = true
 	p.published = append(p.published, current)
 	return event.Receipt{EventID: current.ID, Delivery: event.DeliveryDurable}, p.publishErr
 }
@@ -77,6 +79,38 @@ func TestManagementWriterCreateRolePublishesAuditEvent(t *testing.T) {
 	}
 	if payload.Operator == nil || payload.Operator.ID != 7 {
 		t.Fatalf("expected operator id 7, got %#v", payload.Operator)
+	}
+}
+
+func TestManagementWriterRoleMutationAllowsNilAuditMetadata(t *testing.T) {
+	bus := &recordingPublisher{}
+	writer := managementWriter{
+		rbac:   testRBACRepository{},
+		events: bus,
+	}
+
+	_, err := writer.runRoleMutation(context.Background(), func(context.Context) (rbacstore.Role, error) {
+		return rbacstore.Role{ID: 3, Name: "editor"}, nil
+	}, roleAuditLabels{
+		action: "rbac.role.create", messageKey: "rbac.audit.roleCreated", message: "role created",
+	})
+	if err != nil {
+		t.Fatalf("run role mutation with nil audit metadata: %v", err)
+	}
+	if len(bus.published) != 1 {
+		t.Fatalf("expected one audit event, got %d", len(bus.published))
+	}
+	if payload := decodeRecordedAuditEvent(t, bus.published[0]); payload.Metadata != nil {
+		t.Fatalf("expected nil audit metadata, got %#v", payload.Metadata)
+	}
+}
+
+func TestManagementWriterRejectsMissingTransactionalAuditPublisher(t *testing.T) {
+	writer := managementWriter{rbac: testRBACRepository{}}
+
+	_, err := writer.CreateRole(context.Background(), rbacstore.CreateRoleInput{Name: "editor", Display: "Editor"})
+	if !errors.Is(err, errAtomicAuditPublisherMissing) {
+		t.Fatalf("expected %v, got %v", errAtomicAuditPublisherMissing, err)
 	}
 }
 

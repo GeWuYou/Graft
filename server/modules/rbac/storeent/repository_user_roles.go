@@ -114,10 +114,7 @@ func (r *repository) AddRolesToUsersAtomically(ctx context.Context, input rbacst
 			return err
 		}
 		for _, userID := range input.UserIDs {
-			if err := addRolesToUserTx(ctx, tx, rbacstore.AddRolesToUserInput{
-				UserID:  userID,
-				RoleIDs: input.RoleIDs,
-			}); err != nil {
+			if err := addRolesToUserTx(ctx, tx, userID, roleIDs); err != nil {
 				return err
 			}
 		}

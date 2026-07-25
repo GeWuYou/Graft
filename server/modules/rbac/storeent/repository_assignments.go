@@ -158,12 +158,8 @@ func (r *repository) replaceRolesForUserTx(ctx context.Context, tx *sql.Tx, inpu
 	)
 }
 
-func addRolesToUserTx(ctx context.Context, tx *sql.Tx, input rbacstore.AddRolesToUserInput) error {
-	roleIDs, err := toUniqueDBIDs(input.RoleIDs)
-	if err != nil {
-		return err
-	}
-	userID, err := toDBID(input.UserID)
+func addRolesToUserTx(ctx context.Context, tx *sql.Tx, userID uint64, roleIDs []int64) error {
+	dbUserID, err := toDBID(userID)
 	if err != nil {
 		return err
 	}
@@ -172,14 +168,14 @@ func addRolesToUserTx(ctx context.Context, tx *sql.Tx, input rbacstore.AddRolesT
 			ctx,
 			`INSERT INTO user_roles (user_id, role_id, created_at)
 			VALUES ($1, $2, $3)`,
-			userID,
+			dbUserID,
 			roleID,
 			time.Now().UTC(),
 		)
 		if execErr == nil || isUniqueViolation(execErr) {
 			continue
 		}
-		return fmt.Errorf("add role %d to user %d: %w", roleID, input.UserID, execErr)
+		return fmt.Errorf("add role %d to user %d: %w", roleID, userID, execErr)
 	}
 	return nil
 }

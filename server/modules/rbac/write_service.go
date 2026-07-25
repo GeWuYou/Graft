@@ -15,13 +15,14 @@ import (
 )
 
 var (
-	errBuiltinRoleNameImmutable  = errors.New("builtin role name is immutable")
-	errCannotRemoveOwnAdminRole  = errors.New("cannot remove own admin role")
-	errInvalidPermissionIDs      = errors.New("invalid permission ids")
-	errInvalidRoleIDs            = errors.New("invalid role ids")
-	errAtomicBatchWriterMissing  = errors.New("rbac atomic batch writer is unavailable")
-	errAtomicAuditWriterMissing  = errors.New("rbac atomic audit writer is unavailable")
-	errProtectedUserRoleMutation = errors.New("protected user role mutation is forbidden")
+	errBuiltinRoleNameImmutable    = errors.New("builtin role name is immutable")
+	errCannotRemoveOwnAdminRole    = errors.New("cannot remove own admin role")
+	errInvalidPermissionIDs        = errors.New("invalid permission ids")
+	errInvalidRoleIDs              = errors.New("invalid role ids")
+	errAtomicBatchWriterMissing    = errors.New("rbac atomic batch writer is unavailable")
+	errAtomicAuditWriterMissing    = errors.New("rbac atomic audit writer is unavailable")
+	errAtomicAuditPublisherMissing = errors.New("rbac transactional audit publisher is unavailable")
+	errProtectedUserRoleMutation   = errors.New("protected user role mutation is forbidden")
 )
 
 const builtinAdminRoleName = "admin"
@@ -512,9 +513,13 @@ func (w managementWriter) runRoleMutation(
 			return err
 		}
 		role = updated
+		metadata := map[string]any(nil)
+		if auditLabels.metadata != nil {
+			metadata = auditLabels.metadata(role)
+		}
 		return w.publishAuditTx(txCtx, tx, moduleapi.AuditEvent{
 			Action: auditLabels.action, ResourceType: "role", ResourceID: formatRBACAuditID(role.ID), ResourceName: role.Name,
-			Success: true, MessageKey: auditLabels.messageKey, Message: auditLabels.message, Metadata: auditLabels.metadata(role),
+			Success: true, MessageKey: auditLabels.messageKey, Message: auditLabels.message, Metadata: metadata,
 		})
 	})
 	if err != nil {
@@ -580,9 +585,10 @@ func (w managementWriter) runAtomicAudit(ctx context.Context, mutation func(cont
 }
 
 // publishAuditTx 只在已经由 RBAC repository 创建的事务内写入 durable audit event。
+// 缺少发布器同样返回错误，确保业务写入不会脱离审计事实单独提交。
 func (w managementWriter) publishAuditTx(ctx context.Context, tx *sql.Tx, payload moduleapi.AuditEvent) error {
 	if w.events == nil {
-		return nil
+		return errAtomicAuditPublisherMissing
 	}
 	payload.Operator = currentRBACAuditOperator(ctx)
 	envelope, err := httpx.NewAuditEvent(moduleID, payload)

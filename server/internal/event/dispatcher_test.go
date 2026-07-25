@@ -83,7 +83,10 @@ func (s *memoryOutboxStore) Complete(_ context.Context, delivery ClaimedDelivery
 	item.leaseExpires = time.Time{}
 	s.mu.Unlock()
 	if s.completed != nil {
-		s.completed <- delivery
+		select {
+		case s.completed <- delivery:
+		default:
+		}
 	}
 	return nil
 }
@@ -251,6 +254,51 @@ func TestDurableDispatcherRecoversPerConsumerDelivery(t *testing.T) {
 		t.Fatal("timed out waiting for durable delivery")
 	}
 	shutdownDispatcher(t, dispatcher)
+}
+
+func TestMemoryOutboxStoreCompleteDoesNotBlockWithoutCompletionObserver(t *testing.T) {
+	for _, testCase := range []struct {
+		name      string
+		completed chan ClaimedDelivery
+	}{
+		{name: "no receiver", completed: make(chan ClaimedDelivery)},
+		{name: "full buffer", completed: func() chan ClaimedDelivery {
+			channel := make(chan ClaimedDelivery, 1)
+			channel <- ClaimedDelivery{}
+			return channel
+		}()},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			store := &memoryOutboxStore{completed: testCase.completed}
+			event := newTestEvent(t, "complete-without-observer")
+			event.CreatedAt = time.Now().UTC()
+			if _, err := store.Append(context.Background(), event, []string{"stable-consumer"}); err != nil {
+				t.Fatalf("append durable delivery: %v", err)
+			}
+			claimed, err := store.Claim(context.Background(), "worker-a", event.CreatedAt, time.Second, 1)
+			if err != nil || len(claimed) != 1 {
+				t.Fatalf("claim durable delivery: %#v, %v", claimed, err)
+			}
+
+			completed := make(chan error, 1)
+			go func() { completed <- store.Complete(context.Background(), claimed[0]) }()
+			select {
+			case err := <-completed:
+				if err != nil {
+					t.Fatalf("complete durable delivery: %v", err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("complete blocked without a completion observer")
+			}
+
+			store.mu.Lock()
+			status := store.deliveries[memoryDeliveryKey(event.ID, "stable-consumer")].status
+			store.mu.Unlock()
+			if status != deliveryDelivered {
+				t.Fatalf("delivery status = %q, want %q", status, deliveryDelivered)
+			}
+		})
+	}
 }
 
 func TestMemoryOutboxStoreReclaimsExpiredLease(t *testing.T) {
