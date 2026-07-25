@@ -23,7 +23,8 @@ import (
 )
 
 // NewAuditEvent 将稳定的审计 DTO 编码为 Runtime 事件 envelope。
-// 发布方只负责生成 envelope；投递模式和 handler 生命周期仍由 Runtime 管理。
+// 发布方只负责生成 envelope；每次调用都以事件 ID 作为 durable 写入幂等键，
+// 请求 ID 仅用于关联同一请求内的多条审计事实。投递模式和 handler 生命周期仍由 Runtime 管理。
 func NewAuditEvent(source string, payload moduleapi.AuditEvent) (event.Event, error) {
 	encoded, err := json.Marshal(payload)
 	if err != nil {
@@ -47,7 +48,7 @@ func NewAuditEvent(source string, payload moduleapi.AuditEvent) (event.Event, er
 		OccurredAt:     occurredAt.UTC(),
 		CreatedAt:      now,
 		CorrelationID:  strings.TrimSpace(payload.RequestID),
-		IdempotencyKey: strings.TrimSpace(payload.RequestID),
+		IdempotencyKey: id,
 	}, nil
 }
 

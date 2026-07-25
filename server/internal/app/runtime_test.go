@@ -836,13 +836,19 @@ func TestPrepareModulesAssertsOwnerLocaleResourcesAlreadyRegistered(t *testing.T
 		FallbackLocale:   "en-US",
 		SupportedLocales: []string{"zh-CN", "en-US"},
 	})
+	runtimeEventDispatcher := event.NewDispatcher(zap.NewNop(), event.Options{})
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = runtimeEventDispatcher.Shutdown(shutdownCtx)
+	})
 	runtime := &Runtime{
 		config:             runtimeTestConfig(),
 		logger:             zap.NewNop(),
 		i18n:               localizer,
 		server:             httpx.NewServer(zap.NewNop()),
 		eventBus:           eventbus.New(zap.NewNop()),
-		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
+		eventDispatcher:    runtimeEventDispatcher,
 		services:           container.New(),
 		menuRegistry:       menu.NewRegistry(),
 		permissionRegistry: permission.NewRegistry(),

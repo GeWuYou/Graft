@@ -367,6 +367,51 @@ func TestDurableDispatcherTerminalizesAfterMaxAttempts(t *testing.T) {
 	t.Fatal("durable delivery did not enter failed terminal state")
 }
 
+func TestDurableDispatcherDoesNotHandleRecoveredAttemptBeyondMaximum(t *testing.T) {
+	store := &memoryOutboxStore{}
+	dispatcher, err := NewDurableDispatcher(zap.NewNop(), Options{MaxAttempts: 2}, store)
+	if err != nil {
+		t.Fatalf("new durable dispatcher: %v", err)
+	}
+	var handled atomic.Int32
+	if err := dispatcher.Register(testHandler{id: "final-attempt", types: []Type{testEventType}, handle: func(context.Context, Event) error {
+		handled.Add(1)
+		return nil
+	}}); err != nil {
+		t.Fatalf("register handler: %v", err)
+	}
+
+	now := time.Now().UTC()
+	event := newTestEvent(t, "recovered-final-attempt")
+	event.CreatedAt = now
+	if _, err := store.Append(context.Background(), event, []string{"final-attempt"}); err != nil {
+		t.Fatalf("append durable delivery: %v", err)
+	}
+	if _, err := store.Claim(context.Background(), "worker-a", now, time.Second, 1); err != nil {
+		t.Fatalf("claim initial attempt: %v", err)
+	}
+	if _, err := store.Claim(context.Background(), "worker-b", now.Add(time.Second), time.Second, 1); err != nil {
+		t.Fatalf("claim final permitted attempt: %v", err)
+	}
+	recovered, err := store.Claim(context.Background(), "worker-c", now.Add(2*time.Second), time.Second, 1)
+	if err != nil || len(recovered) != 1 || recovered[0].Attempt != 3 {
+		t.Fatalf("unexpected final recovered attempt: %#v, %v", recovered, err)
+	}
+
+	dispatcher.work.Add(1)
+	dispatcher.deliverDurable(context.Background(), recovered[0])
+	if got := handled.Load(); got != 0 {
+		t.Fatalf("expected exhausted delivery to skip handler, got %d calls", got)
+	}
+	store.mu.Lock()
+	item := store.deliveries[memoryDeliveryKey(event.ID, "final-attempt")]
+	terminal := item != nil && item.status == deliveryFailed && !item.failedAt.IsZero()
+	store.mu.Unlock()
+	if !terminal {
+		t.Fatal("expected exhausted recovered delivery to be terminally failed")
+	}
+}
+
 func TestDurableDispatcherTerminalizesMissingHandler(t *testing.T) {
 	store := &memoryOutboxStore{}
 	event := newTestEvent(t, "missing-handler")

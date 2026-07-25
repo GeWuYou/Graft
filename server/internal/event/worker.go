@@ -92,6 +92,10 @@ func (d *Dispatcher) deliver(ctx context.Context, event Event) {
 
 func (d *Dispatcher) deliverDurable(ctx context.Context, delivery ClaimedDelivery) {
 	defer d.work.Done()
+	if delivery.Attempt > d.options.MaxAttempts {
+		d.failDurable(ctx, delivery, errors.New("durable delivery reached maximum attempts before handling"))
+		return
+	}
 	handler := d.handlerFor(delivery.Event.Type, delivery.ConsumerID)
 	if handler == nil {
 		d.failDurable(ctx, delivery, fmt.Errorf("%w: consumer %s", ErrNoHandlers, delivery.ConsumerID))
