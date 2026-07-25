@@ -602,6 +602,7 @@ import {
   tagDockerImage,
 } from '../../api/image-actions';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
+import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 
@@ -615,6 +616,7 @@ type BatchFailureGroup = {
 };
 
 const dockerImageReferencedByMultipleTagsMessageKey = 'ops.container.error.imageReferencedByMultipleTags';
+let pullIdempotencySequence = 0;
 
 const { locale, t } = useI18n();
 const logger = createLogger('container.images');
@@ -1063,7 +1065,7 @@ async function startPull() {
   if (!pullReference.value.trim() || pulling.value) return;
   pulling.value = true;
   try {
-    const receipt = await pullDockerImage({ reference: pullReference.value.trim() }, crypto.randomUUID());
+    const receipt = await pullDockerImage({ reference: pullReference.value.trim() }, createPullIdempotencyKey());
     pullDrawerVisible.value = false;
     pullTaskId.value = receipt.task_id;
     pullTaskDrawerVisible.value = true;
@@ -1075,8 +1077,19 @@ async function startPull() {
     pulling.value = false;
   }
 }
+function createPullIdempotencyKey() {
+  const crypto = globalThis.crypto;
+  const uuid = crypto?.randomUUID?.();
+  if (uuid) return uuid;
+
+  const entropy = new Uint32Array(4);
+  crypto?.getRandomValues?.(entropy);
+  // 不安全上下文可能不暴露 randomUUID；序号保证同一毫秒内的提交不会复用幂等键。
+  pullIdempotencySequence += 1;
+  return `container-image-pull-${Date.now()}-${pullIdempotencySequence}-${Array.from(entropy, (value) => value.toString(36)).join('')}`;
+}
 function resolveTaskType(taskType: string) {
-  return taskType === 'container.docker-image-pull.v1' ? t('container.images.pull.taskType') : undefined;
+  return taskType === CONTAINER_TASK_TYPE.DOCKER_IMAGE_PULL ? t('container.images.pull.taskType') : undefined;
 }
 function stopPullTaskObserver() {
   if (!pullTaskObserver) return;

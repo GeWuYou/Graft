@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import taskTypesSourceText from '../../contract/task-types.ts?raw';
 import cleanupSourceText from '../../shared/cleanup/use-docker-cleanup.ts?raw';
 import sourceText from './index.vue?raw';
 
@@ -58,13 +59,25 @@ describe('docker image list page', () => {
   });
 
   it('opens the accepted pull Task and refreshes only after a successful terminal state', () => {
-    expect(sourceText).toContain('crypto.randomUUID()');
+    expect(sourceText).toContain('createPullIdempotencyKey()');
+    expect(sourceText).toContain('const crypto = globalThis.crypto;');
+    expect(sourceText).toContain('crypto?.randomUUID?.()');
+    expect(sourceText).toContain('crypto?.getRandomValues?.(entropy);');
+    expect(sourceText).toContain('pullIdempotencySequence += 1;');
+    expect(sourceText).toContain('container-image-pull-${Date.now()}-${pullIdempotencySequence}');
     expect(sourceText).toContain('pullTaskId.value = receipt.task_id;');
     expect(sourceText).toContain('pullTaskDrawerVisible.value = true;');
     expect(sourceText).toContain('observePullTask(receipt.task_id);');
     expect(sourceText).toContain('if (!isTerminalTaskStatus(task.status)) return;');
     expect(sourceText).toContain("if (task.status === 'success') void refresh();");
     expect(sourceText).toContain('stopPullTaskObserver();');
+  });
+
+  it('owns the Docker image pull Task type in the container contract', () => {
+    expect(taskTypesSourceText).toContain("DOCKER_IMAGE_PULL: 'container.docker-image-pull.v1'");
+    expect(sourceText).toContain("import { CONTAINER_TASK_TYPE } from '../../contract/task-types';");
+    expect(sourceText).toContain('CONTAINER_TASK_TYPE.DOCKER_IMAGE_PULL');
+    expect(sourceText).not.toContain("taskType === 'container.docker-image-pull.v1'");
   });
 
   it('supports cross-page selection and chunked batch removal', () => {

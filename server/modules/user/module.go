@@ -312,9 +312,12 @@ func (s userService) CreateUser(
 		var err error
 		created, err = profiles.Create(txCtx, input)
 		if err != nil {
-			return err
+			return fmt.Errorf("create user profile: %w", err)
 		}
-		return auth.ProvisionPasswordCredential(txCtx, moduleapi.AuthCredentialProvisionInput{UserID: created.ID, Password: command.Password, MustChangePassword: true})
+		if err := auth.ProvisionPasswordCredential(txCtx, moduleapi.AuthCredentialProvisionInput{UserID: created.ID, Password: command.Password, MustChangePassword: true}); err != nil {
+			return fmt.Errorf("provision user password credential: %w", err)
+		}
+		return nil
 	}); err != nil {
 		return userstore.User{}, err
 	}
@@ -337,10 +340,6 @@ func (s userService) CreateUser(
 
 	return created, nil
 }
-
-// profileCommittedCredentialProvisionError 保留当前跨模块非原子流程的真实结果。
-// 在 auth adapter 可绑定 user 原始事务前，profile 已提交时绝不通过删除补偿伪造原子性。
-// COMPAT(owner=user/auth composite lifecycle, cleanup=Batch 4 binds the auth transaction adapter).
 
 func (s userService) UpdateUser(ctx context.Context, command UpdateUserCommand) (userstore.User, error) {
 	if s.users == nil {
@@ -414,10 +413,12 @@ func (s userService) SetUserStatus(
 		var err error
 		updated, err = profiles.SetStatus(txCtx, input)
 		if err != nil {
-			return err
+			return fmt.Errorf("set user profile status: %w", err)
 		}
 		if status == usercontract.UserStatusDisabled {
-			return auth.RevokeSessions(txCtx, input.ID)
+			if err := auth.RevokeSessions(txCtx, input.ID); err != nil {
+				return fmt.Errorf("revoke user sessions after disabling profile: %w", err)
+			}
 		}
 		return nil
 	}); err != nil {
@@ -488,9 +489,12 @@ func (s userService) DeleteUser(ctx context.Context, userID uint64) error {
 			DeletedAt: time.Now().UTC(),
 			ActorID:   requestActorID(ctx),
 		}); err != nil {
-			return err
+			return fmt.Errorf("delete user profile: %w", err)
 		}
-		return auth.RevokeSessions(txCtx, userID)
+		if err := auth.RevokeSessions(txCtx, userID); err != nil {
+			return fmt.Errorf("revoke user sessions after deleting profile: %w", err)
+		}
+		return nil
 	}); err != nil {
 		return err
 	}
@@ -511,17 +515,21 @@ func (s userService) runCompositeTransaction(ctx context.Context, callback func(
 	if s.composites == nil || s.authTx == nil {
 		return errors.New("user/auth composite transaction is unavailable")
 	}
-	return s.composites.RunInCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, tx *sql.Tx) error {
+	err := s.composites.RunInCompositeTransaction(ctx, func(txCtx context.Context, profiles userstore.UserRepository, tx *sql.Tx) error {
 		auth, err := s.authTx.BindAuthTransaction(tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("bind auth transaction adapter: %w", err)
 		}
-		return callback(txCtx, profiles, auth)
+		if err := callback(txCtx, profiles, auth); err != nil {
+			return fmt.Errorf("run user/auth composite operation: %w", err)
+		}
+		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("run user/auth composite transaction: %w", err)
+	}
+	return nil
 }
-
-// profileCommittedSessionRevocationError 表示 profile 写入已经提交而 auth session 写入失败。
-// 该结果在跨模块 adapter 引入前必须显式暴露，调用方可据此重试会话吊销，不得执行补偿性 profile 写入。
 
 func (s userService) ResetUserPassword(
 	ctx context.Context,

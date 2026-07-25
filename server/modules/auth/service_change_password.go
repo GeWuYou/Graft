@@ -79,6 +79,7 @@ func (s authService) CompleteRequiredPasswordChange(ctx context.Context, newPass
 }
 
 // updatePasswordAndRevokeSessions 在 auth 服务拥有的单个事务范围内更新凭据并吊销会话。
+// currentTokenID 为空时吊销全部 refresh session；非空时保留该当前会话，仅吊销其他会话。
 func (s authService) updatePasswordAndRevokeSessions(ctx context.Context, userID uint64, hash string, mustChange bool, changedAt time.Time, currentTokenID string) error {
 	if s.transactions == nil {
 		return errors.New("auth transaction runner is unavailable")

@@ -40,6 +40,25 @@ assets:
     validation_commands:
       - "cd server && go run ./cmd/graft validate backend --stage lint"
 
+  - name: "caller-transaction-ent-driver"
+    type: "backend-runtime-helper"
+    path: "server/internal/store/entstore/caller_transaction_driver.go"
+    owner: "server/internal/store/entstore"
+    purpose: "Adapts a caller-owned SQL transaction into an Ent driver whose nested single-write transaction completion is a no-op, preserving the caller's sole commit and rollback authority."
+    use_when:
+      - "A backend module must bind an Ent client to a transaction whose lifecycle is owned by another explicitly documented service boundary."
+    do_not_use_when:
+      - "The module owns its own transaction lifecycle or needs a cross-module business capability contract."
+    examples:
+      - "server/modules/auth/storeent/caller_transaction_client.go"
+      - "server/modules/user/storeent/caller_transaction_client.go"
+    related_assets:
+      - "moduleapi-contracts"
+    validation_commands:
+      - "cd server && go test ./modules/auth/... ./modules/user/..."
+      - "cd server && go run ./cmd/graft validate backend --stage lint"
+      - "cd server && go build ./cmd/graft"
+
   - name: "httpx-runtime"
     type: "backend-runtime-helper"
     path: "server/internal/httpx"

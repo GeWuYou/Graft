@@ -10,8 +10,8 @@
   - `AGENTS.md`
   - `server/AGENTS.md`
   - `ai-plan/design/architecture/模块与依赖注入设计.md`
-- Completed so far: transaction audit, module-local ownership boundaries, and the narrow cross-module transaction contract.
-- Current focus: bind the auth participant to the user-owned composite transaction.
+- Completed so far: transaction audit, module-local ownership boundaries, the narrow cross-module transaction contract, the user-owned composite transaction adapter, and the Batch 5 commit/rollback proof suite.
+- Current focus: archive readiness for the completed topic.
 
 ## Recovery Receipt
 
@@ -38,19 +38,14 @@ Out of scope:
 2. Cross-module user/auth writes use one explicitly owned SQL transaction only after both modules expose transaction-scoped stores.
 3. No post-commit Delete/Undo compensation may claim atomicity.
 
-## Phase Plan
-
-- Establish auth and user module-local transaction boundaries.
-- Freeze transaction ownership and add the minimum shared capability contract.
-- Bind the auth adapter to the user-owned composite transaction.
-- Prove commit and rollback behavior with focused integration tests.
-
 ## Current Recovery Point
 
 - Batch 1 established auth-native transaction ownership and rollback proof.
 - Batch 2 established user profile ownership without compensation.
-- Batch 3 froze the transaction-scoped cross-module contract; the adapter itself remains intentionally unimplemented.
-- Next step: replace the user profile-only runner with the user-owned composite transaction and bind auth to it.
+- Batch 3 froze the transaction-scoped cross-module contract.
+- Batch 4 bound auth to the user-owned composite transaction and removed compensation-based atomicity claims.
+- Batch 5 completed focused cross-module commit and rollback proof.
+- Next step: perform the archive-readiness check, then move the completed topic to the historical router when its acceptance evidence remains current.
 
 ## Work Intake
 
@@ -59,11 +54,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Batch 1: auth native transaction ownership.
-- Batch 2: user ownership and session revocation convergence.
-- Batch 3: narrow user/auth transaction contract.
-- Batch 4: transaction adapter and composite atomic writes.
-- Batch 5: rollback and commit proof suite.
+- No implementation batches remain. The pending direction is archive readiness.
 
 ## Loop Entry
 

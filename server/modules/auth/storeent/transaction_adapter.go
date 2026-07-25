@@ -53,7 +53,7 @@ func (a *transactionAdapter) ProvisionPasswordCredential(ctx context.Context, in
 	}
 	hash, changedAt, err := a.prepare(ctx, input)
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare transaction-bound auth credential: %w", err)
 	}
 	// user 已在同一个 caller-owned transaction 中创建；独立 identity provider 无法观察未提交资料。
 	if err := a.credentials.savePasswordHash(ctx, input.UserID, hash, input.MustChangePassword, &changedAt); err != nil {
@@ -66,10 +66,13 @@ func (a *transactionAdapter) RevokeSessions(ctx context.Context, userID uint64) 
 	if userID == 0 {
 		return errors.New("auth session user id is required")
 	}
-	return a.sessions.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{
+	if err := a.sessions.RevokeRefreshSessionsByUserID(ctx, authstore.RevokeRefreshSessionsByUserIDInput{
 		UserID:    userID,
 		RevokedAt: time.Now().UTC(),
-	})
+	}); err != nil {
+		return fmt.Errorf("revoke transaction-bound auth sessions: %w", err)
+	}
+	return nil
 }
 
 var _ moduleapi.AuthTransactionAdapterFactory = (*TransactionAdapterFactory)(nil)

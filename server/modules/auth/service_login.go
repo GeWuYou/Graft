@@ -53,6 +53,7 @@ func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uin
 	return s.credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
 }
 
+// prepareTransactionCredential 仅校验和散列凭据；调用方拥有的共享 transaction 负责持久化产物。
 func (s authService) prepareTransactionCredential(_ context.Context, input moduleapi.AuthCredentialProvisionInput) (string, time.Time, error) {
 	if err := s.policy.ValidateNewPassword(input.Password); err != nil {
 		return "", time.Time{}, err
