@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ const (
 	defaultRefreshCookieSameSite    = "lax"
 	defaultContainerRuntime         = "first-adapter"
 	defaultContainerDockerEndpoint  = "unix:///var/run/docker.sock"
+	defaultBackupArtifactRoot       = "/var/lib/graft/backups"
 	defaultContainerLogsDefaultTail = 200
 	defaultContainerLogsMaxTail     = 2000
 	defaultRealtimeAllowedOrigins   = ""
@@ -146,6 +148,7 @@ type Config struct {
 	Auth      AuthConfig
 	MCP       MCPConfig
 	Container ContainerConfig
+	Backup    BackupConfig
 	Project   ProjectConfig
 }
 
@@ -265,6 +268,13 @@ type ContainerConfig struct {
 	DockerEndpoint string
 }
 
+// BackupConfig 描述 Backup 模块可写入的受控工件根目录。
+//
+// 该目录由部署层挂载和权限控制，不能由 HTTP 请求或 System Config 覆盖。
+type BackupConfig struct {
+	ArtifactRoot string
+}
+
 // ProjectConfig 描述随 core 配置快照加载的 project 模块诊断开关。
 type ProjectConfig struct {
 	LogDebug           bool
@@ -348,12 +358,25 @@ func (c *Config) Validate() error {
 		validateAuthConfig,
 		validateMCPConfig,
 		validateContainerConfig,
+		validateBackupConfig,
 	}
 	for _, validate := range validators {
 		if err := validate(c); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func validateBackupConfig(c *Config) error {
+	root := strings.TrimSpace(c.Backup.ArtifactRoot)
+	if root == "" {
+		root = defaultBackupArtifactRoot
+	}
+	if !filepath.IsAbs(root) {
+		return errors.New("GRAFT_BACKUP_ARTIFACT_ROOT must be an absolute path")
+	}
+	c.Backup.ArtifactRoot = filepath.Clean(root)
 	return nil
 }
 
