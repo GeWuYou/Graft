@@ -716,6 +716,22 @@ func mustPreregisterRuntimeOwnerLocales(t *testing.T, runtime *Runtime) {
 	}
 }
 
+func newLifecycleRuntimeTest(manager *module.Manager) *Runtime {
+	return &Runtime{
+		config:             &config.Config{HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"}},
+		logger:             zap.NewNop(),
+		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
+		server:             httpx.NewServer(zap.NewNop()),
+		eventBus:           eventbus.New(zap.NewNop()),
+		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
+		services:           container.New(),
+		menuRegistry:       menu.NewRegistry(),
+		permissionRegistry: permission.NewRegistry(),
+		cronRegistry:       cronx.NewRegistry(),
+		moduleManager:      manager,
+	}
+}
+
 func runtimeTestConfig() *config.Config {
 	return &config.Config{
 		App: config.AppConfig{Name: "graft", Env: "test"},
@@ -1080,21 +1096,7 @@ func TestRunPassesLifecycleContextIntoModulePhases(t *testing.T) {
 		t.Fatalf("register module: %v", err)
 	}
 
-	runtime := &Runtime{
-		config: &config.Config{
-			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
-		},
-		logger:             zap.NewNop(),
-		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		server:             httpx.NewServer(zap.NewNop()),
-		eventBus:           eventbus.New(zap.NewNop()),
-		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
-		services:           container.New(),
-		menuRegistry:       menu.NewRegistry(),
-		permissionRegistry: permission.NewRegistry(),
-		cronRegistry:       cronx.NewRegistry(),
-		moduleManager:      manager,
-	}
+	runtime := newLifecycleRuntimeTest(manager)
 	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	if err := runtime.Run(runCtx); !errors.Is(err, context.Canceled) {
@@ -1167,21 +1169,7 @@ func TestRunStopsBeforeBootWhenLifecycleContextAlreadyCanceled(t *testing.T) {
 		t.Fatalf("register module: %v", err)
 	}
 
-	runtime := &Runtime{
-		config: &config.Config{
-			HTTP: config.HTTPConfig{Addr: "127.0.0.1:0"},
-		},
-		logger:             zap.NewNop(),
-		i18n:               i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "en-US", SupportedLocales: []string{"zh-CN", "en-US"}}),
-		server:             httpx.NewServer(zap.NewNop()),
-		eventBus:           eventbus.New(zap.NewNop()),
-		eventDispatcher:    event.NewDispatcher(zap.NewNop(), event.Options{}),
-		services:           container.New(),
-		menuRegistry:       menu.NewRegistry(),
-		permissionRegistry: permission.NewRegistry(),
-		cronRegistry:       cronx.NewRegistry(),
-		moduleManager:      manager,
-	}
+	runtime := newLifecycleRuntimeTest(manager)
 	mustPreregisterRuntimeOwnerLocales(t, runtime)
 
 	runCtx, cancel := context.WithCancel(context.Background())
