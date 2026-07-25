@@ -264,7 +264,7 @@ func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("expected batch lifecycle 202, got %d: %s", response.Code, response.Body.String())
 	}
-	if len(tasks.submissions) != 1 || tasks.submissions[0].Owner.ID != "container-1" || tasks.submissions[0].IdempotencyKey != "batch-start:start:container-1:0" {
+	if len(tasks.submissions) != 1 || tasks.submissions[0].Owner.ID != "container-1" || tasks.submissions[0].IdempotencyKey != "batch-start:start:container-1" {
 		t.Fatalf("unexpected lifecycle submissions: %#v", tasks.submissions)
 	}
 	body := response.Body.String()

@@ -895,7 +895,7 @@ func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionC
 		RequestID: requestIDFromContext(ctx),
 		Items:     make([]BatchLifecycleActionItem, 0, len(normalized.IDs)),
 	}
-	for index, rawID := range normalized.IDs {
+	for _, rawID := range normalized.IDs {
 		ref, parseErr := parseRef(rawID)
 		if parseErr != nil {
 			item := batchLifecycleActionFailure(rawID, normalized.Action, parseErr)
@@ -909,7 +909,7 @@ func (s *service) BatchLifecycleAction(ctx context.Context, command BatchActionC
 			result.FailedCount++
 			continue
 		}
-		receipt, submitErr := s.SubmitContainerLifecycleAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}, requestedBy, batchTaskIdempotencyKey(idempotencyKey, normalized.Action, ref.Value, index))
+		receipt, submitErr := s.SubmitContainerLifecycleAction(ctx, ref, normalized.Action, ActionOptions{Force: normalized.Force}, requestedBy, batchTaskIdempotencyKey(idempotencyKey, normalized.Action, ref.Value))
 		if submitErr != nil {
 			result.Items = append(result.Items, batchLifecycleActionFailure(ref.Value, normalized.Action, submitErr))
 			result.FailedCount++
@@ -926,11 +926,11 @@ func batchLifecycleActionFailure(id string, action string, err error) BatchLifec
 	return BatchLifecycleActionItem{ID: id, Action: action, ErrorCode: messageKey, MessageKey: messageKey, Message: fallbackMessageForError(err)}
 }
 
-func batchTaskIdempotencyKey(base string, action string, ref string, index int) string {
+func batchTaskIdempotencyKey(base string, action string, ref string) string {
 	if strings.TrimSpace(base) == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s:%s:%s:%d", base, action, ref, index)
+	return fmt.Sprintf("%s:%s:%s", base, action, ref)
 }
 
 func (s *service) runAction(

@@ -78,6 +78,21 @@ func TestSubmitContainerLifecycleActionPublishesAcceptedTaskAudit(t *testing.T) 
 	}
 }
 
+func TestBatchTaskIdempotencyKeyIsStablePerActionAndContainer(t *testing.T) {
+	t.Parallel()
+
+	key := batchTaskIdempotencyKey("batch-key", containerActionStart, "container-1")
+	if key != "batch-key:start:container-1" {
+		t.Fatalf("unexpected batch task idempotency key %q", key)
+	}
+	if key != batchTaskIdempotencyKey("batch-key", containerActionStart, "container-1") {
+		t.Fatal("expected duplicate batch item to reuse its idempotency key")
+	}
+	if key == batchTaskIdempotencyKey("batch-key", containerActionStart, "container-2") {
+		t.Fatal("expected different containers to use distinct idempotency keys")
+	}
+}
+
 func TestBatchLifecycleActionPublishesParseAndSubmissionFailureAudits(t *testing.T) {
 	t.Parallel()
 
