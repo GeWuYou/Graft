@@ -89,6 +89,15 @@ func (p *Module) registerCapabilitiesAndRoutes(ctx *module.Context, authService 
 	}); err != nil {
 		return fmt.Errorf("register auth credential management service: %w", err)
 	}
+	adapterFactory, err := storeent.NewTransactionAdapterFactory(authService.prepareTransactionCredential)
+	if err != nil {
+		return fmt.Errorf("create auth transaction adapter factory: %w", err)
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.AuthTransactionAdapterFactory)(nil), func(container.Resolver) (any, error) {
+		return adapterFactory, nil
+	}); err != nil {
+		return fmt.Errorf("register auth transaction adapter factory: %w", err)
+	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.PersonalAccessTokenService)(nil), func(container.Resolver) (any, error) {
 		return authService, nil
 	}); err != nil {

@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -38,6 +39,9 @@ func (*createUserRepository) Delete(context.Context, userstore.DeleteUserInput) 
 func (r *createUserRepository) RunInTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository) error) error {
 	return callback(ctx, r)
 }
+func (r *createUserRepository) RunInCompositeTransaction(ctx context.Context, callback func(context.Context, userstore.UserRepository, *sql.Tx) error) error {
+	return callback(ctx, r, nil)
+}
 
 type failingCredentialManager struct{ provisionErr error }
 
@@ -47,12 +51,23 @@ func (m failingCredentialManager) ProvisionPasswordCredential(context.Context, u
 func (failingCredentialManager) ResetPassword(context.Context, uint64, string) error { return nil }
 func (failingCredentialManager) RevokeSessions(context.Context, uint64) error        { return nil }
 
-var _ moduleapi.AuthCredentialManagementService = failingCredentialManager{}
+type failingAuthTransactionFactory struct{ err error }
 
-func TestCreateUserRetainsCommittedProfileWhenCredentialProvisionFails(t *testing.T) {
+func (f failingAuthTransactionFactory) BindAuthTransaction(*sql.Tx) (moduleapi.AuthTransactionAdapter, error) {
+	return failingAuthTransactionAdapter{err: f.err}, nil
+}
+
+type failingAuthTransactionAdapter struct{ err error }
+
+func (a failingAuthTransactionAdapter) ProvisionPasswordCredential(context.Context, moduleapi.AuthCredentialProvisionInput) error {
+	return a.err
+}
+func (failingAuthTransactionAdapter) RevokeSessions(context.Context, uint64) error { return nil }
+
+func TestCreateUserRollsBackWhenCredentialProvisionFails(t *testing.T) {
 	provisionErr := errors.New("credential provisioning failed")
 	repo := &createUserRepository{}
-	service := userService{users: repo, transactions: repo, credentials: failingCredentialManager{provisionErr: provisionErr}}
+	service := userService{users: repo, transactions: repo, composites: repo, authTx: failingAuthTransactionFactory{err: provisionErr}}
 
 	created, err := service.CreateUser(context.Background(), CreateUserCommand{
 		Username: "new-user",
@@ -63,10 +78,7 @@ func TestCreateUserRetainsCommittedProfileWhenCredentialProvisionFails(t *testin
 	if !errors.Is(err, provisionErr) {
 		t.Fatalf("CreateUser() error = %v, want provisioning failure", err)
 	}
-	if created.ID != 19 {
-		t.Fatalf("CreateUser() user = %#v, want committed profile", created)
-	}
-	if got := err.Error(); got != "user profile committed but credential provisioning failed: credential provisioning failed" {
-		t.Fatalf("CreateUser() error = %q", got)
+	if created.ID != 0 {
+		t.Fatalf("CreateUser() user = %#v, want zero result", created)
 	}
 }

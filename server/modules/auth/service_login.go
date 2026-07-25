@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	authstore "graft/server/modules/auth/store"
@@ -50,6 +51,17 @@ func (s authService) ProvisionPasswordCredential(ctx context.Context, userID uin
 	}
 	changedAt := s.nowUTC()
 	return s.credentials.SetPasswordHash(ctx, authstore.SetPasswordHashInput{UserID: userID, PasswordHash: hash, MustChangePassword: mustChangePassword, ChangedAt: &changedAt})
+}
+
+func (s authService) prepareTransactionCredential(ctx context.Context, input moduleapi.AuthCredentialProvisionInput) (string, time.Time, error) {
+	if err := s.policy.ValidateNewPassword(input.Password); err != nil {
+		return "", time.Time{}, err
+	}
+	hash, err := s.passwords.Hash(input.Password)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("hash initial password: %w", err)
+	}
+	return hash, s.nowUTC(), nil
 }
 
 // ResetPassword 按管理员重置策略更新密码，并原子吊销该用户的全部 refresh session，使旧 access token 失效。

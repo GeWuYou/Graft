@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 )
@@ -78,6 +79,13 @@ type UserRepository interface {
 // callback 不得自行提交、回滚或在返回后继续使用该仓储。
 type TransactionRunner interface {
 	RunInTransaction(ctx context.Context, callback func(context.Context, UserRepository) error) error
+}
+
+// CompositeTransactionRunner 是 user/auth 复合生命周期的唯一事务边界。实现创建原始 SQL
+// transaction 并把同一 transaction 绑定到 profile repository；callback 的 auth 参与者由 user
+// service 另外绑定，但不得提交或回滚该 transaction。
+type CompositeTransactionRunner interface {
+	RunInCompositeTransaction(context.Context, func(context.Context, UserRepository, *sql.Tx) error) error
 }
 
 // IsProtectedDefaultAdminUsername 判断用户名是否属于内置的受保护默认管理员账号。
