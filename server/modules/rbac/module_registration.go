@@ -58,10 +58,10 @@ func (p *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	writeService := managementWriter{
-		users:    userService,
-		rbac:     repository,
-		auditBus: ctx.EventBus,
-		logger:   ctx.Logger,
+		users:  userService,
+		rbac:   repository,
+		events: ctx.EventPublisher,
+		logger: ctx.Logger,
 	}
 
 	resolved, err := ctx.Services.Resolve((*moduleapi.AuthService)(nil))

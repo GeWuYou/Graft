@@ -8,7 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 	rbaccontract "graft/server/modules/rbac/contract"
 	rbacstore "graft/server/modules/rbac/store"
@@ -48,10 +49,10 @@ type batchUserRoleAtomicWriter interface {
 }
 
 type managementWriter struct {
-	users    moduleapi.UserService
-	rbac     rbacstore.Repository
-	auditBus eventbus.Bus
-	logger   *zap.Logger
+	users  moduleapi.UserService
+	rbac   rbacstore.Repository
+	events event.Publisher
+	logger *zap.Logger
 }
 
 type rolePermissionAuditLabels struct {
@@ -580,20 +581,20 @@ func findBuiltinAdminRole(roles []rbacstore.Role) (rbacstore.Role, bool) {
 	return rbacstore.Role{}, false
 }
 
-func (w managementWriter) publishAudit(ctx context.Context, event moduleapi.AuditEvent) {
-	if w.auditBus == nil {
+func (w managementWriter) publishAudit(ctx context.Context, payload moduleapi.AuditEvent) {
+	if w.events == nil {
 		return
 	}
 
-	event.Operator = currentRBACAuditOperator(ctx)
-	if err := w.auditBus.Publish(ctx, eventbus.Event{
-		Name:    string(moduleapi.AuditRecordEventName),
-		Source:  moduleID,
-		Payload: event,
-	}); err != nil && w.logger != nil {
+	payload.Operator = currentRBACAuditOperator(ctx)
+	envelope, err := httpx.NewAuditEvent(moduleID, payload)
+	if err == nil {
+		_, err = w.events.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable})
+	}
+	if err != nil && w.logger != nil {
 		w.logger.Warn("publish rbac audit event failed",
 			zap.String("module", moduleID),
-			zap.String("action", strings.TrimSpace(event.Action)),
+			zap.String("action", strings.TrimSpace(payload.Action)),
 			zap.Error(err),
 		)
 	}

@@ -20,7 +20,7 @@ func (s *Service) publishDetachedAuditEvent(
 	if cancel == nil {
 		return
 	}
-	if s == nil || s.auditBus == nil {
+	if s == nil || s.auditPublisher == nil {
 		cancel()
 		return
 	}
@@ -32,7 +32,7 @@ func (s *Service) publishDetachedAuditEvent(
 }
 
 func (s *Service) prepareAuditContext(ctx context.Context) (context.Context, context.CancelFunc, bool) {
-	if s == nil || s.auditBus == nil {
+	if s == nil || s.auditPublisher == nil {
 		return nil, nil, false
 	}
 	auditCtx, cancel := s.detachedAuditContext(ctx)

@@ -83,7 +83,7 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 		return err
 	}
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
-	m.rollout.SetAuditBus(ctx.EventBus)
+	m.rollout.SetAuditPublisher(ctx.EventPublisher)
 	return nil
 }
 

@@ -11,7 +11,8 @@ import (
 	"go.uber.org/zap"
 
 	generated "graft/server/internal/contract/openapi/generated"
-	"graft/server/internal/eventbus"
+	"graft/server/internal/event"
+	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
@@ -269,18 +270,25 @@ func resolveAuditAction[T ~string](action T, mappings map[T]projectcontract.Audi
 	return projectcontract.AuditAction(strings.TrimSpace(string(action)))
 }
 
-func (s *Service) publishAuditEvent(ctx context.Context, event moduleapi.AuditEvent, failureMessage string) {
-	if s == nil || s.auditBus == nil {
+func (s *Service) publishAuditEvent(ctx context.Context, payload moduleapi.AuditEvent, failureMessage string) {
+	if s == nil || s.auditPublisher == nil {
 		return
 	}
-	if publishErr := s.auditBus.Publish(ctx, eventbus.Event{
-		Name:    string(moduleapi.AuditRecordEventName),
-		Source:  s.auditModuleName(),
-		Payload: event,
-	}); publishErr != nil && s.logger != nil {
+	envelope, encodeErr := httpx.NewAuditEvent(s.auditModuleName(), payload)
+	if encodeErr != nil {
+		if s.logger != nil {
+			s.logger.Warn(failureMessage,
+				zap.String("module", s.auditModuleName()),
+				zap.String("action", payload.Action),
+				zap.Error(encodeErr),
+			)
+		}
+		return
+	}
+	if _, publishErr := s.auditPublisher.Publish(ctx, envelope, event.PublishOptions{Delivery: event.DeliveryDurable}); publishErr != nil && s.logger != nil {
 		s.logger.Warn(failureMessage,
 			zap.String("module", s.auditModuleName()),
-			zap.String("action", event.Action),
+			zap.String("action", payload.Action),
 			zap.Error(publishErr),
 		)
 	}
