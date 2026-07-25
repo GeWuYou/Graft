@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 
+	"graft/server/internal/config"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/modules/backup/store"
 )
 
@@ -14,6 +16,7 @@ const moduleID = "platform-backup"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:            moduleID,
+		Dependencies:  []string{"user", "rbac", "task"},
 		MigrationPath: []string{"modules/backup/migrations"},
 		Builder: module.BuilderFunc(func(ctx module.BuildContext) (module.Module, error) {
 			db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
@@ -24,7 +27,19 @@ func NewModuleSpec() module.Spec {
 			if err != nil {
 				return nil, fmt.Errorf("build backup repository: %w", err)
 			}
-			return NewModule(NewService(repository)), nil
+			runtimeConfig, err := module.ResolveService[*config.Config](ctx.Services, (*config.Config)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve runtime config: %w", err)
+			}
+			writer, err := newFileArtifactWriter(runtimeConfig)
+			if err != nil {
+				return nil, fmt.Errorf("build backup artifact writer: %w", err)
+			}
+			tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+			if err != nil {
+				return nil, fmt.Errorf("resolve task service: %w", err)
+			}
+			return NewModule(newTaskService(repository, tasks, writer)), nil
 		}),
 	}
 }

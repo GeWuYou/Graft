@@ -8,10 +8,18 @@ import (
 )
 
 // Service 收敛 backup 模块拥有的工件事实，并避免消费者直接访问持久化实现。
-type Service struct{ repository store.Repository }
+type Service struct {
+	repository store.Repository
+	tasks      moduleapi.TaskService
+	writer     backupArtifactWriter
+}
 
 // NewService 创建备份服务。
 func NewService(repository store.Repository) *Service { return &Service{repository: repository} }
+
+func newTaskService(repository store.Repository, tasks moduleapi.TaskService, writer backupArtifactWriter) *Service {
+	return &Service{repository: repository, tasks: tasks, writer: writer}
+}
 
 // Create 写入已经创建并校验过的配置快照和数据库 dump 元数据。
 func (s *Service) Create(ctx context.Context, input moduleapi.CreateBackupInput) (moduleapi.Backup, error) {
