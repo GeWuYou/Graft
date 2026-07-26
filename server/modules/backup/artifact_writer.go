@@ -100,6 +100,29 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	return moduleapi.CreateBackupInput{Purpose: backupTaskPurpose, ConfigSnapshot: configArtifact, DatabaseDump: dumpArtifact, RetainUntil: input.RetainUntil, CreatedBy: &actor}, nil
 }
 
+// Verify 只读取冻结工件进行校验，绝不创建、修复或发布文件。
+func (w *fileArtifactWriter) Verify(input backupTaskInput) (moduleapi.CreateBackupInput, error) {
+	if w == nil || w.cfg == nil || !backupOperationID.MatchString(input.OperationID) {
+		return moduleapi.CreateBackupInput{}, moduleapi.ErrBackupInvalidInput
+	}
+	directory := filepath.Join(w.root, input.OperationID)
+	configRef := filepath.Join(directory, "config.snapshot")
+	dumpRef := filepath.Join(directory, "database.dump")
+	if err := validateConfigSnapshot(configRef); err != nil {
+		return moduleapi.CreateBackupInput{}, err
+	}
+	configArtifact, err := digestBackupArtifact(configRef)
+	if err != nil {
+		return moduleapi.CreateBackupInput{}, err
+	}
+	dumpArtifact, err := digestBackupArtifact(dumpRef)
+	if err != nil {
+		return moduleapi.CreateBackupInput{}, err
+	}
+	actor := input.RequestedBy
+	return moduleapi.CreateBackupInput{Purpose: backupTaskPurpose, ConfigSnapshot: configArtifact, DatabaseDump: dumpArtifact, RetainUntil: input.RetainUntil, CreatedBy: &actor}, nil
+}
+
 func (w *fileArtifactWriter) ensureConfigSnapshot(target string) error {
 	// #nosec G304 -- target is derived only from the configured Backup root and validated operation identity.
 	if contents, err := os.ReadFile(target); err == nil {
@@ -115,6 +138,19 @@ func (w *fileArtifactWriter) ensureConfigSnapshot(target string) error {
 		return fmt.Errorf("marshal backup config snapshot: %w", err)
 	}
 	return writeBackupArtifact(target, contents)
+}
+
+func validateConfigSnapshot(target string) error {
+	// #nosec G304 -- target is derived only from the configured Backup root and validated operation identity.
+	contents, err := os.ReadFile(target)
+	if err != nil {
+		return fmt.Errorf("read backup config snapshot: %w", err)
+	}
+	var snapshot backupConfigSnapshot
+	if err := json.Unmarshal(contents, &snapshot); err != nil {
+		return fmt.Errorf("validate backup config snapshot: %w", err)
+	}
+	return nil
 }
 
 func writeBackupArtifact(target string, contents []byte) error {

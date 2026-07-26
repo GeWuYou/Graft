@@ -1,4 +1,5 @@
 import activity from '@iconify-icons/lucide/activity';
+import archive from '@iconify-icons/lucide/archive';
 import roles from '@iconify-icons/lucide/badge-check';
 import bell from '@iconify-icons/lucide/bell';
 import boxes from '@iconify-icons/lucide/boxes';
@@ -65,6 +66,7 @@ const menuIcons = {
   'platform-configuration': settings,
   'system-maintenance': wrench,
   'platform-update': downloadCloud,
+  backup: archive,
   'announcement-publishing': megaphone,
   notification: bell,
   time: clock,

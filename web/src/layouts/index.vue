@@ -165,9 +165,7 @@ const shouldRenderSidebar = computed(
 const shouldRenderPersistentSidebar = computed(
   () => shouldRenderSidebar.value && sidebarPresentation.value !== 'drawer',
 );
-const shouldRenderMobileNavigation = computed(
-  () => shouldRenderSidebar.value && sidebarPresentation.value === 'drawer',
-);
+const shouldRenderMobileNavigation = computed(() => sidebarPresentation.value === 'drawer');
 const mobileNavigationMenu = computed(() => permissionStore.routers as MenuRoute[]);
 
 const mainLayoutCls = computed(() => [

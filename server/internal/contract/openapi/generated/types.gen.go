@@ -2591,6 +2591,27 @@ func (e ContainerSummaryState) Valid() bool {
 	}
 }
 
+// Defines values for CreatePlatformBackupRequestRetention.
+const (
+	N1d  CreatePlatformBackupRequestRetention = "1d"
+	N30d CreatePlatformBackupRequestRetention = "30d"
+	N7d  CreatePlatformBackupRequestRetention = "7d"
+)
+
+// Valid indicates whether the value is a known member of the CreatePlatformBackupRequestRetention enum.
+func (e CreatePlatformBackupRequestRetention) Valid() bool {
+	switch e {
+	case N1d:
+		return true
+	case N30d:
+		return true
+	case N7d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DashboardWidgetCategory.
 const (
 	DashboardWidgetCategoryBusiness  DashboardWidgetCategory = "business"
@@ -3275,6 +3296,27 @@ func (e NotificationTargetType) Valid() bool {
 	case NotificationTargetTypeSYSTEM:
 		return true
 	case NotificationTargetTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformBackupSummaryStatus.
+const (
+	AVAILABLE PlatformBackupSummaryStatus = "AVAILABLE"
+	EXPIRED   PlatformBackupSummaryStatus = "EXPIRED"
+	RESTORED  PlatformBackupSummaryStatus = "RESTORED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformBackupSummaryStatus enum.
+func (e PlatformBackupSummaryStatus) Valid() bool {
+	switch e {
+	case AVAILABLE:
+		return true
+	case EXPIRED:
+		return true
+	case RESTORED:
 		return true
 	default:
 		return false
@@ -7856,6 +7898,15 @@ type CreateAnnouncementRequest struct {
 	Title     string     `json:"title"`
 }
 
+// CreatePlatformBackupRequest defines model for create-platform-backup-request.
+type CreatePlatformBackupRequest struct {
+	// Retention Retention selected for this user-created Backup only; Update pre-backup retention remains fixed by its own policy.
+	Retention *CreatePlatformBackupRequestRetention `json:"retention,omitempty"`
+}
+
+// CreatePlatformBackupRequestRetention Retention selected for this user-created Backup only; Update pre-backup retention remains fixed by its own policy.
+type CreatePlatformBackupRequestRetention string
+
 // CreatePlatformUpdateOperationRequest defines model for create-platform-update-operation-request.
 type CreatePlatformUpdateOperationRequest struct {
 	// ComposeCandidateKey Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery.
@@ -9981,6 +10032,48 @@ type EnvelopedPersonalAccessTokenListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformBackupListResponse defines model for enveloped-platform-backup-list-response.
+type EnvelopedPlatformBackupListResponse struct {
+	// Code Existing canonical response code.
+	Code string                     `json:"code"`
+	Data PlatformBackupListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedPlatformBackupSummary defines model for enveloped-platform-backup-summary.
+type EnvelopedPlatformBackupSummary struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.
+	Data PlatformBackupSummary `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateOperation defines model for enveloped-platform-update-operation.
 type EnvelopedPlatformUpdateOperation struct {
 	Code    string                  `json:"code"`
@@ -10982,6 +11075,29 @@ type PersonalAccessTokenSummary struct {
 	// TokenPrefix Non-secret display prefix used to identify the credential.
 	TokenPrefix string `json:"token_prefix"`
 }
+
+// PlatformBackupListResponse defines model for platform-backup-list-response.
+type PlatformBackupListResponse struct {
+	Items  []PlatformBackupSummary `json:"items"`
+	Limit  int                     `json:"limit"`
+	Offset int                     `json:"offset"`
+	Total  int64                   `json:"total"`
+}
+
+// PlatformBackupSummary Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.
+type PlatformBackupSummary struct {
+	CreatedAt   time.Time                   `json:"created_at"`
+	Id          int64                       `json:"id"`
+	Purpose     string                      `json:"purpose"`
+	RestoreAt   *time.Time                  `json:"restore_at,omitempty"`
+	RestoreCode string                      `json:"restore_code"`
+	RetainUntil time.Time                   `json:"retain_until"`
+	Status      PlatformBackupSummaryStatus `json:"status"`
+	TaskId      *int64                      `json:"task_id,omitempty"`
+}
+
+// PlatformBackupSummaryStatus defines model for PlatformBackupSummary.Status.
+type PlatformBackupSummaryStatus string
 
 // PlatformUpdateComposeRootCandidate defines model for platform-update-compose-root-candidate.
 type PlatformUpdateComposeRootCandidate struct {
@@ -14487,6 +14603,42 @@ type GetPermissionParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// ListPlatformBackupsParams defines parameters for ListPlatformBackups.
+type ListPlatformBackupsParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPlatformBackupParams defines parameters for PostPlatformBackup.
+type PostPlatformBackupParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different retention returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformBackupParams defines parameters for GetPlatformBackup.
+type GetPlatformBackupParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostPlatformUpdateCheckParams defines parameters for PostPlatformUpdateCheck.
 type PostPlatformUpdateCheckParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15340,6 +15492,9 @@ type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest
+
+// PostPlatformBackupJSONRequestBody defines body for PostPlatformBackup for application/json ContentType.
+type PostPlatformBackupJSONRequestBody = CreatePlatformBackupRequest
 
 // PostPlatformUpdateOperationJSONRequestBody defines body for PostPlatformUpdateOperation for application/json ContentType.
 type PostPlatformUpdateOperationJSONRequestBody = CreatePlatformUpdateOperationRequest

@@ -99,6 +99,7 @@
         "tasks",
         "system-config",
         "platform-update",
+        "platform-backup",
         "dashboard",
         "notifications",
         "announcements"
@@ -192,6 +193,10 @@
     {
       "name": "platform-update",
       "description": "Self-hosted platform release discovery and installation capability preflight."
+    },
+    {
+      "name": "platform-backup",
+      "description": "User-created Backup Task history and submission without artifact access."
     },
     {
       "name": "access-log"
@@ -8853,6 +8858,196 @@
           },
           "404": {
             "description": "Update operation not found."
+          }
+        }
+      }
+    },
+    "/api/platform/backups": {
+      "get": {
+        "tags": [
+          "platform-backup"
+        ],
+        "summary": "List safe Backup history",
+        "operationId": "listPlatformBackups",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safe Backup metadata without artifact locations or contents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-backup-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "platform-backup"
+        ],
+        "summary": "Submit a user-created Backup Task",
+        "operationId": "postPlatformBackup",
+        "description": "Accepts a manual Backup Task. The retention choice applies only to this manual Backup and never changes Update pre-backup policy.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different retention returns 409.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/create-platform-backup-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Manual Backup Task accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid retention or idempotency key."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Idempotency-Key was previously used with a different submission input."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/platform/backups/{id}": {
+      "get": {
+        "tags": [
+          "platform-backup"
+        ],
+        "summary": "Read safe Backup metadata",
+        "operationId": "getPlatformBackup",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Safe Backup metadata without artifact locations or contents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-backup-summary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Backup id."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Backup was not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       }
@@ -18905,6 +19100,21 @@
       "EnvelopedTaskReceipt": {
         "$ref": "#/components/schemas/enveloped-task-receipt"
       },
+      "CreatePlatformBackupRequest": {
+        "$ref": "#/components/schemas/create-platform-backup-request"
+      },
+      "PlatformBackupSummary": {
+        "$ref": "#/components/schemas/platform-backup-summary"
+      },
+      "PlatformBackupListResponse": {
+        "$ref": "#/components/schemas/platform-backup-list-response"
+      },
+      "EnvelopedPlatformBackupSummary": {
+        "$ref": "#/components/schemas/enveloped-platform-backup-summary"
+      },
+      "EnvelopedPlatformBackupListResponse": {
+        "$ref": "#/components/schemas/enveloped-platform-backup-list-response"
+      },
       "CreateAnnouncementRequest": {
         "$ref": "#/components/schemas/create-announcement-request"
       },
@@ -26201,6 +26411,176 @@
           }
         }
       },
+      "platform-backup-summary": {
+        "type": "object",
+        "description": "Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.",
+        "required": [
+          "id",
+          "purpose",
+          "status",
+          "retain_until",
+          "created_at",
+          "restore_code"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "nullable": true
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "EXPIRED",
+              "RESTORED"
+            ]
+          },
+          "retain_until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "restore_code": {
+            "type": "string"
+          },
+          "restore_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "platform-backup-list-response": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-backup-summary"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "enveloped-platform-backup-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/platform-backup-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "create-platform-backup-request": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "retention": {
+            "type": "string",
+            "description": "Retention selected for this user-created Backup only; Update pre-backup retention remains fixed by its own policy.",
+            "enum": [
+              "1d",
+              "7d",
+              "30d"
+            ],
+            "default": "30d"
+          }
+        }
+      },
+      "task-receipt": {
+        "type": "object",
+        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "status": {
+            "$ref": "#/components/schemas/task-status"
+          }
+        }
+      },
+      "enveloped-task-receipt": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/task-receipt"
+              }
+            }
+          }
+        ]
+      },
+      "enveloped-platform-backup-summary": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/platform-backup-summary"
+              }
+            }
+          }
+        ]
+      },
       "access-log-detail-response": {
         "type": "object",
         "required": [
@@ -29369,42 +29749,6 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/container-shell-session-response"
-              }
-            }
-          }
-        ]
-      },
-      "task-receipt": {
-        "type": "object",
-        "description": "Receipt returned when a business action accepts asynchronous Task submission.",
-        "required": [
-          "task_id",
-          "status"
-        ],
-        "properties": {
-          "task_id": {
-            "type": "integer",
-            "format": "int64",
-            "minimum": 1
-          },
-          "status": {
-            "$ref": "#/components/schemas/task-status"
-          }
-        }
-      },
-      "enveloped-task-receipt": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/api-envelope"
-          },
-          {
-            "type": "object",
-            "required": [
-              "data"
-            ],
-            "properties": {
-              "data": {
-                "$ref": "#/components/schemas/task-receipt"
               }
             }
           }

@@ -36,11 +36,14 @@ func (r *SQLRepository) Create(ctx context.Context, input moduleapi.CreateBackup
 		return moduleapi.Backup{}, err
 	}
 	var item moduleapi.Backup
+	if input.TaskID != 0 {
+		return r.createForTask(ctx, input)
+	}
 	err = r.db.QueryRowContext(ctx, `INSERT INTO backups (
 		purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
 		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at
 	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-	RETURNING id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+	RETURNING id, task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
 		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at, restore_code, restore_at`,
 		input.Purpose, moduleapi.BackupStatusAvailable, input.ConfigSnapshot.StorageRef, input.ConfigSnapshot.SHA256, input.ConfigSnapshot.SizeBytes,
 		input.DatabaseDump.StorageRef, input.DatabaseDump.SHA256, input.DatabaseDump.SizeBytes, input.RetainUntil.UTC(), input.CreatedBy,
@@ -51,13 +54,63 @@ func (r *SQLRepository) Create(ctx context.Context, input moduleapi.CreateBackup
 	return item, nil
 }
 
+func (r *SQLRepository) createForTask(ctx context.Context, input moduleapi.CreateBackupInput) (moduleapi.Backup, error) {
+	var item moduleapi.Backup
+	err := r.db.QueryRowContext(ctx, `INSERT INTO backups (
+		task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at
+	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+	ON CONFLICT (task_id) DO NOTHING
+	RETURNING id, task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at, restore_code, restore_at`,
+		input.TaskID, input.Purpose, moduleapi.BackupStatusAvailable, input.ConfigSnapshot.StorageRef, input.ConfigSnapshot.SHA256, input.ConfigSnapshot.SizeBytes,
+		input.DatabaseDump.StorageRef, input.DatabaseDump.SHA256, input.DatabaseDump.SizeBytes, input.RetainUntil.UTC(), input.CreatedBy,
+	).Scan(scanBackup(&item)...)
+	if err == nil {
+		return item, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.Backup{}, fmt.Errorf("create task backup: %w", err)
+	}
+	item, err = r.getByTaskID(ctx, input.TaskID)
+	if err != nil {
+		return moduleapi.Backup{}, err
+	}
+	if !matchesCreateInput(item, input) {
+		return moduleapi.Backup{}, moduleapi.ErrBackupInvalidInput
+	}
+	return item, nil
+}
+
+func matchesCreateInput(item moduleapi.Backup, input moduleapi.CreateBackupInput) bool {
+	return matchesTaskBackupIdentity(item, input) && matchesTaskBackupArtifacts(item, input) && matchesTaskBackupCreator(item.CreatedBy, input.CreatedBy)
+
+}
+
+func matchesTaskBackupIdentity(item moduleapi.Backup, input moduleapi.CreateBackupInput) bool {
+	return item.TaskID != nil && *item.TaskID == input.TaskID && item.Purpose == input.Purpose && item.Status == moduleapi.BackupStatusAvailable && item.RetainUntil.Equal(input.RetainUntil.UTC())
+}
+
+func matchesTaskBackupArtifacts(item moduleapi.Backup, input moduleapi.CreateBackupInput) bool {
+	return item.ConfigSnapshot == input.ConfigSnapshot && item.DatabaseDump == input.DatabaseDump
+}
+
+func matchesTaskBackupCreator(createdBy *uint64, inputCreatedBy *uint64) bool {
+	if createdBy == nil || inputCreatedBy == nil {
+		return createdBy == nil && inputCreatedBy == nil
+	}
+	return *createdBy == *inputCreatedBy
+}
+
 // Get 返回一个未软删除的内部备份事实。
+//
+//nolint:dupl // Full and safe summary reads intentionally retain distinct SQL projections.
 func (r *SQLRepository) Get(ctx context.Context, id uint64) (moduleapi.Backup, error) {
 	if id == 0 {
 		return moduleapi.Backup{}, moduleapi.ErrBackupInvalidInput
 	}
 	var item moduleapi.Backup
-	err := r.db.QueryRowContext(ctx, `SELECT id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+	err := r.db.QueryRowContext(ctx, `SELECT id, task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
 		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at, restore_code, restore_at
 		FROM backups WHERE id = $1 AND deleted_at = 0`, id).Scan(scanBackup(&item)...)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -65,6 +118,68 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (moduleapi.Backup, e
 	}
 	if err != nil {
 		return moduleapi.Backup{}, fmt.Errorf("get backup: %w", err)
+	}
+	return item, nil
+}
+
+// GetSummary 返回不含工件引用和内容的安全备份摘要。
+//
+//nolint:dupl // Full and safe summary reads intentionally retain distinct SQL projections.
+func (r *SQLRepository) GetSummary(ctx context.Context, id uint64) (moduleapi.BackupSummary, error) {
+	if id == 0 {
+		return moduleapi.BackupSummary{}, moduleapi.ErrBackupInvalidInput
+	}
+	var item moduleapi.BackupSummary
+	err := r.db.QueryRowContext(ctx, `SELECT id, task_id, purpose, status, retain_until, created_at, restore_code, restore_at
+		FROM backups WHERE id = $1 AND deleted_at = 0`, id).Scan(scanBackupSummary(&item)...)
+	if errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.BackupSummary{}, moduleapi.ErrBackupNotFound
+	}
+	if err != nil {
+		return moduleapi.BackupSummary{}, fmt.Errorf("get backup summary: %w", err)
+	}
+	return item, nil
+}
+
+// ListSummaries 返回按最新创建时间排序的安全备份摘要分页。
+func (r *SQLRepository) ListSummaries(ctx context.Context, limit, offset int) ([]moduleapi.BackupSummary, int64, error) {
+	if limit < 1 || offset < 0 {
+		return nil, 0, moduleapi.ErrBackupInvalidInput
+	}
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM backups WHERE deleted_at = 0`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count backup summaries: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id, task_id, purpose, status, retain_until, created_at, restore_code, restore_at
+		FROM backups WHERE deleted_at = 0 ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list backup summaries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]moduleapi.BackupSummary, 0)
+	for rows.Next() {
+		var item moduleapi.BackupSummary
+		if err := rows.Scan(scanBackupSummary(&item)...); err != nil {
+			return nil, 0, fmt.Errorf("scan backup summary: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate backup summaries: %w", err)
+	}
+	return items, total, nil
+}
+
+func (r *SQLRepository) getByTaskID(ctx context.Context, taskID uint64) (moduleapi.Backup, error) {
+	var item moduleapi.Backup
+	err := r.db.QueryRowContext(ctx, `SELECT id, task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at, restore_code, restore_at
+		FROM backups WHERE task_id = $1 AND deleted_at = 0`, taskID).Scan(scanBackup(&item)...)
+	if errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.Backup{}, moduleapi.ErrBackupNotFound
+	}
+	if err != nil {
+		return moduleapi.Backup{}, fmt.Errorf("get task backup: %w", err)
 	}
 	return item, nil
 }
@@ -78,7 +193,7 @@ func (r *SQLRepository) RecordRestoreEvidence(ctx context.Context, input modulea
 	var item moduleapi.Backup
 	err = r.db.QueryRowContext(ctx, `UPDATE backups SET status = $1, restore_code = $2, restore_at = $3, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $4 AND deleted_at = 0
-		RETURNING id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+		RETURNING id, task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
 			database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at, restore_code, restore_at`,
 		input.Status, input.RestoreCode, input.RecordedAt.UTC(), input.ID,
 	).Scan(scanBackup(&item)...)
@@ -139,9 +254,13 @@ func validSHA256(value string) bool {
 
 func scanBackup(item *moduleapi.Backup) []any {
 	return []any{
-		&item.ID, &item.Purpose, &item.Status,
+		&item.ID, &item.TaskID, &item.Purpose, &item.Status,
 		&item.ConfigSnapshot.StorageRef, &item.ConfigSnapshot.SHA256, &item.ConfigSnapshot.SizeBytes,
 		&item.DatabaseDump.StorageRef, &item.DatabaseDump.SHA256, &item.DatabaseDump.SizeBytes,
 		&item.RetainUntil, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt, &item.RestoreCode, &item.RestoreAt,
 	}
+}
+
+func scanBackupSummary(item *moduleapi.BackupSummary) []any {
+	return []any{&item.ID, &item.TaskID, &item.Purpose, &item.Status, &item.RetainUntil, &item.CreatedAt, &item.RestoreCode, &item.RestoreAt}
 }

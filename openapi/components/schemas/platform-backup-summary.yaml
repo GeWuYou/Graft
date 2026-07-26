@@ -1,0 +1,12 @@
+type: object
+description: Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.
+required: [id, purpose, status, retain_until, created_at, restore_code]
+properties:
+  id: { type: integer, format: int64, minimum: 1 }
+  task_id: { type: integer, format: int64, minimum: 1, nullable: true }
+  purpose: { type: string }
+  status: { type: string, enum: [AVAILABLE, EXPIRED, RESTORED] }
+  retain_until: { type: string, format: date-time }
+  created_at: { type: string, format: date-time }
+  restore_code: { type: string }
+  restore_at: { type: string, format: date-time, nullable: true }

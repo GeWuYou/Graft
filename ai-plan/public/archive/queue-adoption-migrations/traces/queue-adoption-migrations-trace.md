@@ -38,15 +38,34 @@
 - The initial public operation is manual Backup creation only. It freezes a two-stage, one-attempt Task plan, preserves `manual_reconcile` for interruption ambiguity, and exposes only safe Backup summaries.
 - Restore, artifact download/browsing, cleanup, scheduled execution, path/DSN/command inputs, and automatic replay remain excluded. Existing Update runner handoffs remain a narrow Update integration and are not reused as the public Backup execution API.
 
+## 2026-07-26 Backup Task Executor Authority Repair
+
+- Added a forward-only Backup-owned `task_id` association, backfilled only completed runner handoffs, and refreshed the embedded live migration registry.
+- The artifact creation Stage remains the sole writer. The record Stage now only verifies the frozen artifacts before persisting metadata, so verification cannot repair snapshots, create directories, or invoke `pg_dump`.
+- A unique Task association makes manual record-stage retries return the existing Backup after validating the frozen metadata instead of creating a second record.
+- Validated the Backup package, migration comment/version gates, Atlas checksum, generated registry freshness, and the full backend entrypoint. The next batch remains the bounded public Backup surface.
+
+## 2026-07-26 Backup Public Retention Decision
+
+- User-requested Backup Tasks use the canonical public retention enum `1d`, `7d`, or `30d`, with `30d` as the default.
+- This decision applies only to manual Backup creation. The Update module retains its existing independent fixed 30-day pre-update Backup policy and does not consume the manual policy.
+
+## 2026-07-26 Backup Public Surface
+
+- Added canonical `POST /api/platform/backups` Task submission with the manual retention enum, safe history list/detail reads, and the visible `platform-backup` Platform navigation entry.
+- The Web history page uses the `list-form-detail` master, opens the shared Task drawer from a create receipt or associated history record, and refreshes history only after observed Task success.
+- No restore, artifact download/browse, automatic cleanup, scheduling, path/DSN/command inputs, or compatibility endpoint was added.
+- Completed validation: `just openapi-check`, `go run ./cmd/graft validate backend`, `bun run check`, `python3 scripts/validate_ai_plan_structure.py`, and `git diff --check`.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption"],
-  "pending_batches": ["backup-task-executor", "backup-public-surface"],
-  "current_batch": "backup-execution-contract",
-  "next_batch": "backup-task-executor",
-  "closeout_status": "contract-defined"
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption", "backup-task-executor-authority", "backup-public-surface"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

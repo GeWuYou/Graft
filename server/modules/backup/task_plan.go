@@ -2,13 +2,56 @@ package backup
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"graft/server/internal/moduleapi"
 )
+
+// ManualRetention 是用户主动创建 Backup 可选的保留期限。
+type ManualRetention string
+
+const (
+	// ManualRetentionOneDay 保留用户主动创建 Backup 一天。
+	ManualRetentionOneDay ManualRetention = "1d"
+	// ManualRetentionSevenDays 保留用户主动创建 Backup 七天。
+	ManualRetentionSevenDays ManualRetention = "7d"
+	// ManualRetentionThirtyDays 保留用户主动创建 Backup 三十天。
+	ManualRetentionThirtyDays ManualRetention = "30d"
+
+	manualRetentionOneDayDuration     = 24 * time.Hour
+	manualRetentionSevenDaysDuration  = 7 * manualRetentionOneDayDuration
+	manualRetentionThirtyDaysDuration = 30 * manualRetentionOneDayDuration
+)
+
+// ManualRetentionDeadline 将公开保留期转换为从提交时刻起算的冻结截止时间。
+func ManualRetentionDeadline(retention ManualRetention, now time.Time) (time.Time, error) {
+	var duration time.Duration
+	switch retention {
+	case ManualRetentionOneDay:
+		duration = manualRetentionOneDayDuration
+	case ManualRetentionSevenDays:
+		duration = manualRetentionSevenDaysDuration
+	case ManualRetentionThirtyDays:
+		duration = manualRetentionThirtyDaysDuration
+	default:
+		return time.Time{}, moduleapi.ErrBackupInvalidInput
+	}
+	return now.UTC().Add(duration), nil
+}
+
+func manualBackupOperationID(idempotencyKey string, now time.Time) string {
+	key := strings.TrimSpace(idempotencyKey)
+	if key == "" {
+		return fmt.Sprintf("backup-%d", now.UTC().UnixNano())
+	}
+	digest := sha256.Sum256([]byte(key))
+	return fmt.Sprintf("backup-%x", digest[:16])
+}
 
 const (
 	backupTaskType         = moduleapi.TaskType("platform.backup.create.v1")
@@ -43,6 +86,7 @@ func (s *Service) SubmitManualBackup(ctx context.Context, operationID string, re
 
 type backupArtifactWriter interface {
 	Create(context.Context, backupTaskInput) (moduleapi.CreateBackupInput, error)
+	Verify(backupTaskInput) (moduleapi.CreateBackupInput, error)
 }
 
 type backupArtifactTaskExecutor struct{ service *Service }
@@ -74,10 +118,11 @@ func (e backupRecordTaskExecutor) Execute(ctx context.Context, run moduleapi.Sta
 	if err != nil {
 		return err
 	}
-	artifacts, err := e.service.writer.Create(ctx, input)
+	artifacts, err := e.service.writer.Verify(input)
 	if err != nil {
 		return fmt.Errorf("verify backup artifacts: %w", err)
 	}
+	artifacts.TaskID = run.TaskID()
 	if _, err = e.service.Create(ctx, artifacts); err != nil {
 		return fmt.Errorf("record backup artifacts: %w", err)
 	}

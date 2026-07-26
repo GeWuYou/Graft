@@ -28,17 +28,19 @@
       :header="t('layout.header.language')"
       width="360px"
     >
-      <t-radio-group class="language-dialog__options" :value="locale" @change="(value) => changeLang(String(value))">
-        <t-radio v-for="(lang, index) in languageList" :key="index" :value="String(lang.value)">
-          {{ lang.content }}
-        </t-radio>
-      </t-radio-group>
+      <t-select
+        v-model="selectedLanguage"
+        data-testid="language-dialog-select"
+        filterable
+        :options="languageOptions"
+        :placeholder="t('layout.header.language')"
+      />
     </t-dialog>
   </template>
 </template>
 <script setup lang="ts">
 import { TranslateIcon } from 'tdesign-icons-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { languageList, t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
@@ -49,6 +51,13 @@ const { mode = 'dropdown', showTrigger = true } = defineProps<{
   showTrigger?: boolean;
 }>();
 const dialogVisible = ref(false);
+const languageOptions = computed(() =>
+  languageList.value.map((lang) => ({ label: lang.content, value: String(lang.value) })),
+);
+const selectedLanguage = computed({
+  get: () => String(locale.value),
+  set: (value: string) => changeLang(value),
+});
 
 const changeLang = (lang: string) => {
   changeLocale(lang);

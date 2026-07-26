@@ -21,16 +21,14 @@ Work contract summary:
 Locked decisions:
 
 1. Repair canonical Task Runtime, module, and OpenAPI authorities together.
-2. Stop and split before the local change set reaches 80 files.
+2. Compare with `origin/main`; reassess and split at 80 changed files, and never exceed 90 changed files.
 
 Current batch plan:
 
-1. Validate Docker image pull Task adoption and record the batch outcome.
-2. Select the next bounded Container operation from the pending backlog.
+1. Re-run startup preflight and inspect the committed topic state before any new work.
+2. This topic is archive-ready; do not extend it without a new bounded migration authority decision.
 
 Loop instructions:
 
-- Advance one bounded batch.
-- Update the topic tracking and trace files in the same change.
 - Do not add a dual NDJSON/Task endpoint or consumer fallback.
-- Evaluate `$graft-commit` only after validation and confirmable ownership.
+- Archive only after the validated scoped commit is available for developer review.

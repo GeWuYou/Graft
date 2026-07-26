@@ -128,10 +128,10 @@ func getRunnerHandoffTx(ctx context.Context, tx *sql.Tx, operationID string, tas
 func createRunnerBackup(ctx context.Context, tx *sql.Tx, plan moduleapi.BackupRunnerHandoffPlan, input moduleapi.CompleteBackupRunnerHandoffInput) (moduleapi.Backup, error) {
 	var backup moduleapi.Backup
 	err := tx.QueryRowContext(ctx, `INSERT INTO backups (
-		purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
+		task_id, purpose, status, config_snapshot_ref, config_snapshot_sha256, config_snapshot_bytes,
 		database_dump_ref, database_dump_sha256, database_dump_bytes, retain_until, created_by, created_at, updated_at
-	) VALUES ($1,'AVAILABLE',$2,$3,$4,$5,$6,$7,$8,$9,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-	RETURNING id`, plan.Purpose, plan.ConfigSnapshotRef, input.ConfigSnapshotSHA256, input.ConfigSnapshotBytes,
+	) VALUES ($1,$2,'AVAILABLE',$3,$4,$5,$6,$7,$8,$9,$10,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+	RETURNING id`, plan.TaskID, plan.Purpose, plan.ConfigSnapshotRef, input.ConfigSnapshotSHA256, input.ConfigSnapshotBytes,
 		plan.DatabaseDumpRef, input.DatabaseDumpSHA256, input.DatabaseDumpBytes, plan.RetainUntil.UTC(), plan.CreatedBy).Scan(&backup.ID)
 	if err != nil {
 		return moduleapi.Backup{}, fmt.Errorf("create runner backup: %w", err)
