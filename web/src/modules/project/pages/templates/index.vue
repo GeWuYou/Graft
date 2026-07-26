@@ -183,6 +183,7 @@ import {
 } from '@/shared/components/management';
 import { useResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { formatLocaleDateTime } from '@/shared/observability/time';
 
 import {
   deleteApplicationTemplate,
@@ -419,7 +420,7 @@ function statusTheme(template: ApplicationTemplate) {
 }
 
 function updatedAtLabel(template: ApplicationTemplate) {
-  const value = new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(template.updated_at));
+  const value = formatLocaleDateTime(template.updated_at, locale.value, { dateStyle: 'medium' });
   return t('project.templates.updatedAt', { value });
 }
 </script>

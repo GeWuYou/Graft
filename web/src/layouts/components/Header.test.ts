@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
 import { useSettingStore } from '@/store';
 
@@ -34,7 +34,7 @@ vi.mock('@/locales', () => ({
   t: (key: string) => key,
 }));
 vi.mock('@/locales/useLocale', () => ({
-  useLocale: () => ({ changeLocale: vi.fn(), locale: { value: 'zh-CN' } }),
+  useLocale: () => ({ changeLocale: vi.fn(), locale: ref('zh-CN') }),
 }));
 vi.mock('@/modules/auth/store', () => ({
   useAuthSessionStore: () => ({ logout: vi.fn(), userInfo: { name: 'Graft Admin' } }),
@@ -197,10 +197,10 @@ describe('Header', () => {
     wrapper.unmount();
   });
 
-  it('hides the redundant narrow-screen navigation trigger when bottom navigation is available', () => {
-    const wrapper = mountHeader({ navigationPresentation: 'drawer', showNavigationToggle: false });
+  it('renders the narrow-screen navigation trigger for drawer navigation', () => {
+    const wrapper = mountHeader({ navigationPresentation: 'drawer' });
 
-    expect(wrapper.find('[data-testid="header-navigation-toggle"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="header-navigation-toggle"]').exists()).toBe(true);
     wrapper.unmount();
   });
 

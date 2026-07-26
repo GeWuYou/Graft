@@ -26,6 +26,7 @@
             v-else
             class="query-filter-builder__compact-toggle"
             data-testid="query-filter-builder-compact-toggle"
+            :aria-expanded="compactExpanded"
             theme="default"
             variant="outline"
             @click="compactExpanded = !compactExpanded"

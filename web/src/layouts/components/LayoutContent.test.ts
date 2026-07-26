@@ -120,7 +120,8 @@ vi.mock('@/shared/observability/copy', () => ({
   copyText: vi.fn(),
 }));
 
-vi.mock('@/shared/composables', () => ({
+vi.mock('@/shared/composables', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/composables')>()),
   useResponsiveVariant: () => computed(() => ({ density: responsiveState.density })),
 }));
 
@@ -475,6 +476,7 @@ describe('LayoutContent', () => {
 
   it('reveals the active tab after a route-tab change', async () => {
     const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
       value: scrollIntoView,
@@ -489,6 +491,12 @@ describe('LayoutContent', () => {
 
     expect(wrapper.find('[data-tab-key="/security/audit"]').exists()).toBe(true);
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    wrapper.unmount();
+    if (originalScrollIntoView) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView);
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    }
   });
 
   it('renders non-cached route tabs even when their page instance is not alive', () => {

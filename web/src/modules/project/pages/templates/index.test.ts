@@ -33,7 +33,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
     useI18n: () => ({ locale: { value: 'zh-CN' }, t: (key: string) => key }),
   };
 });
-vi.mock('@/shared/composables', () => ({
+vi.mock('@/shared/composables', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/composables')>()),
   useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
 }));
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: vi.fn() } }));

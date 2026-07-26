@@ -438,7 +438,8 @@ vi.mock('@/utils/route/title', () => ({
   }),
 }));
 
-vi.mock('@/shared/composables', () => ({
+vi.mock('@/shared/composables', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/composables')>()),
   useResponsiveVariant: () => ({ value: { density: 'spacious' } }),
 }));
 

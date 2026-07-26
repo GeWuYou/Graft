@@ -128,7 +128,7 @@ const isActive = (item: MenuRoute) => {
 const navigate = (item: MenuRoute) => {
   const { frameBlank, frameSrc } = item.meta ?? {};
   if (frameBlank && frameSrc) {
-    window.open(frameSrc);
+    window.open(frameSrc, '_blank', 'noopener,noreferrer');
     return;
   }
 

@@ -2,7 +2,7 @@
   <div :class="layoutCls">
     <t-head-menu :class="menuCls" :theme="menuTheme" expand-type="popup" :value="active">
       <template #logo>
-        <div v-if="isNarrowHeader && showNavigationToggle" class="header-operate-left">
+        <div v-if="isNarrowHeader" class="header-operate-left">
           <t-tooltip placement="bottom" :content="navigationToggleLabel">
             <t-button
               data-testid="header-navigation-toggle"
@@ -176,8 +176,6 @@
     <t-dialog
       v-model:visible="languageDialogVisible"
       attach="body"
-      :cancel-btn="null"
-      :confirm-btn="null"
       :footer="false"
       :header="t('layout.header.language')"
       width="360px"
@@ -257,10 +255,6 @@ const { theme, layout, showLogo, menu, isFixed, isCompact, navigationPresentatio
     default: 'desktop',
   },
   sidebarVisible: {
-    type: Boolean,
-    default: true,
-  },
-  showNavigationToggle: {
     type: Boolean,
     default: true,
   },

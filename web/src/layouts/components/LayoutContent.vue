@@ -575,7 +575,7 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 :global(.app-shell[data-sidebar-presentation='drawer'])
   .t-layout[data-page-type]
   :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-scroll) {
-  overflow: hidden auto;
+  overflow: auto hidden;
   touch-action: pan-x;
 }
 

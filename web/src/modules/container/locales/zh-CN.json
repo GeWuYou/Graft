@@ -238,7 +238,7 @@
         "usage": "状态",
         "allUsage": "全部状态",
         "more": "筛选",
-        "title": "筛选容器",
+        "title": "筛选数据卷",
         "query": "查询",
         "reset": "重置"
       },

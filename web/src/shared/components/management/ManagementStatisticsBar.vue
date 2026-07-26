@@ -96,7 +96,7 @@ withDefaults(
     text-align: center;
   }
 
-  .management-statistics-bar--summary .management-statistics-bar__item + .management-statistics-bar__item {
+  .management-statistics-bar--summary .management-statistics-bar__item ~ .management-statistics-bar__item {
     border-left: 1px solid var(--td-component-stroke);
   }
 

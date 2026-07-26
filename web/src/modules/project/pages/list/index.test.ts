@@ -355,9 +355,10 @@ vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
   listRuntimeTargets: runtimeTargetMocks.listRuntimeTargets,
 }));
 
-vi.mock('@/shared/composables', async () => {
+vi.mock('@/shared/composables', async (importOriginal) => {
   const { computed } = await import('vue');
   return {
+    ...(await importOriginal<typeof import('@/shared/composables')>()),
     useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
   };
 });

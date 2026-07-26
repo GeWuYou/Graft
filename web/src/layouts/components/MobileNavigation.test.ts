@@ -1,11 +1,17 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, reactive } from 'vue';
 
 import MobileNavigation from './MobileNavigation.vue';
 
 const pushMock = vi.fn();
 const route = reactive({ fullPath: '/applications/projects/alpha', path: '/applications/projects/alpha' });
+
+beforeEach(() => {
+  route.fullPath = '/applications/projects/alpha';
+  route.path = '/applications/projects/alpha';
+  pushMock.mockClear();
+});
 
 vi.mock('vue-router', () => ({
   useRoute: () => route,

@@ -221,7 +221,7 @@ describe('App layout route effects', () => {
     scrollToMock.mockClear();
     shellContainerSize.width = 1200;
     shellContainerSize.height = 800;
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 });
+    vi.stubGlobal('innerWidth', 1200);
     ResizeObserverMock.instances = [];
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => shellContainerSize.width);
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => shellContainerSize.height);
@@ -411,7 +411,7 @@ describe('App layout route effects', () => {
   });
 
   it('uses the viewport fallback for drawer navigation before the shell container is measured', () => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 563 });
+    vi.stubGlobal('innerWidth', 563);
     shellContainerSize.width = 0;
     const wrapper = mountAppLayout();
 

@@ -238,7 +238,7 @@
         "usage": "Status",
         "allUsage": "All usage",
         "more": "Filters",
-        "title": "Filter Containers",
+        "title": "Filter Volumes",
         "query": "Query",
         "reset": "Reset"
       },

@@ -39,7 +39,7 @@
   --graft-mobile-navigation-height: 60px;
   --graft-mobile-navigation-offset: var(--graft-density-gap-18);
   --graft-mobile-navigation-safe-area: calc(
-    var(--graft-mobile-navigation-height) + var(--graft-mobile-navigation-offset) + env(safe-area-inset-bottom)
+    var(--graft-mobile-navigation-height) + var(--graft-mobile-navigation-offset) + env(safe-area-inset-bottom, 0px)
   );
   --graft-page-footer-height: var(--graft-footer-height);
   --graft-page-bottom-safe-area: calc(
@@ -421,9 +421,9 @@
   align-items: center;
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
-  border-radius: 14px;
-  bottom: max(var(--graft-mobile-navigation-offset), env(safe-area-inset-bottom));
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  border-radius: var(--td-radius-large);
+  bottom: max(var(--graft-mobile-navigation-offset), env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--td-shadow-1);
   box-sizing: border-box;
   display: grid;
   gap: 0;

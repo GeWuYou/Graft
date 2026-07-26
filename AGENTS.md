@@ -626,20 +626,21 @@ Automatic commits are allowed only after ownership is classified:
 Explicit commit trigger:
 
 - when the user explicitly invokes a repository commit trigger such as `$graft-commit`, treat it as persistent
-  authorization to finish the changes present in the working tree when the workflow starts: inventory them, divide
-  them into logical task-class slices, validate, and create scoped commits until the worktree is clean
-- `$graft-commit` includes permission to commit user-authored changes already present in that initial inventory; it
-  does not permit broad staging, later-arriving unknown changes, or changes outside the recorded worktree inventory
+  authorization only for explicitly user-confirmed, currently owned logical slices captured in the initial working-tree
+  inventory: inventory them, validate, and create scoped commits for those slices
+- the initial inventory is an upper boundary, not commit authority: presence in that inventory, user authorship,
+  classifiability, or task relevance does not authorize a change that is not explicitly user-confirmed and currently
+  owned; the trigger does not permit broad staging, later-arriving changes, or changes outside the recorded inventory
 - do not ask for repeated confirmation between batches or for a concrete, bounded gate, test, formatting, generated
-  artifact, static-analysis, style, or build repair inside an inventoried slice; diagnose, repair, rerun the required
-  validation, and continue the batch
+  artifact, static-analysis, style, or build repair inside an explicitly user-confirmed, currently owned captured
+  slice; diagnose, repair, rerun the required validation, and continue that slice
 - each resulting commit must still satisfy ownership classification, task-class validation, exact staging, and message
   rules; split independent logical slices into separate commits rather than bundling them for convenience
-- stop and report only when a slice cannot be classified from the inventory, a required repair lacks safe ownership,
-  required validation is infeasible, or the repair would expand into a new unsafe task; do not use an intermediate
-  commit to conceal such a blocker
-- after each commit, re-inspect `git status --short` and continue with the remaining inventoried slices until no
-  changes remain; batching is not a compatibility escape hatch or a reason to bypass validation
+- stop and report when a captured change is not explicitly user-confirmed and currently owned, a required repair lacks
+  safe ownership, required validation is infeasible, or the repair would expand into a new unsafe task; do not use an
+  intermediate commit to conceal such a blocker
+- after each commit, re-inspect `git status --short` and continue only with the remaining explicitly user-confirmed,
+  currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
 
 Closeout-driven commit evaluation:
 

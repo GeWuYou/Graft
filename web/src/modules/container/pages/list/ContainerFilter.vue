@@ -1,6 +1,7 @@
 <template>
   <section class="container-filter">
     <t-input
+      class="container-filter__keyword"
       :value="modelValue.keyword"
       clearable
       :placeholder="t('container.list.filters.searchPlaceholder')"
@@ -83,6 +84,10 @@ function applyFromDrawer() {
   }
 
   .container-filter__desktop {
+    display: none;
+  }
+
+  .container-filter__keyword {
     display: none;
   }
 }
