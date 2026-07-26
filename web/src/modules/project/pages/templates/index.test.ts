@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { computed, nextTick } from 'vue';
 
 import { TableActionMenu } from '@/shared/components/management';
 
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   postApplicationTemplateWithdraw: vi.fn(),
   push: vi.fn(),
 }));
+const responsiveVariantMocks = vi.hoisted(() => ({ density: 'compact' }));
 
 vi.mock('../../api/project', () => ({
   getApplicationManagedTemplates: mocks.getApplicationManagedTemplates,
@@ -28,15 +30,18 @@ vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>();
   return {
     ...actual,
-    useI18n: () => ({ t: (key: string) => key }),
+    useI18n: () => ({ locale: { value: 'zh-CN' }, t: (key: string) => key }),
   };
 });
+vi.mock('@/shared/composables', () => ({
+  useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
+}));
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: vi.fn() } }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
 
-const WrapperStub = { template: '<div><slot /><slot name="actions" /></div>' };
+const WrapperStub = { template: '<div><slot /><slot name="meta" /><slot name="actions" /></div>' };
 
 function mountPage() {
   return mount(ApplicationTemplateListIndex, {
@@ -84,6 +89,7 @@ describe('ApplicationTemplateListIndex', () => {
     mocks.postApplicationTemplatePublish.mockReset();
     mocks.postApplicationTemplateWithdraw.mockReset();
     mocks.push.mockReset();
+    responsiveVariantMocks.density = 'compact';
   });
 
   it('loads the management catalog instead of the published creator catalog', async () => {
@@ -94,6 +100,7 @@ describe('ApplicationTemplateListIndex', () => {
           display_name: 'Draft',
           description: '',
           deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
           version: {
             template_version_id: 'tplv_1',
             version_number: 1,
@@ -111,6 +118,53 @@ describe('ApplicationTemplateListIndex', () => {
     expect(mocks.getApplicationManagedTemplates).toHaveBeenCalledTimes(1);
   });
 
+  it('renders cards without a table below the spacious content threshold', async () => {
+    mocks.getApplicationManagedTemplates.mockResolvedValue({
+      items: [
+        {
+          template_id: 'tpl_1',
+          display_name: 'Uptime Kuma',
+          description: '',
+          deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
+          version: {
+            template_version_id: 'tplv_1',
+            version_number: 1,
+            status: 'published',
+            definition_schema_version: 1,
+            definition: {},
+          },
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="template-card-items"]').text()).toContain('Uptime Kuma');
+    expect(wrapper.find('.application-template-list__table').exists()).toBe(false);
+  });
+
+  it('keeps the desktop table at the spacious content threshold', async () => {
+    responsiveVariantMocks.density = 'spacious';
+    mocks.getApplicationManagedTemplates.mockResolvedValue({ items: [] });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.application-template-list__table').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="template-card-items"]').exists()).toBe(false);
+  });
+
+  it('shows card-shaped skeletons while the management catalog is loading', async () => {
+    mocks.getApplicationManagedTemplates.mockReturnValue(new Promise(() => undefined));
+
+    const wrapper = mountPage();
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="template-card-skeletons"]').exists()).toBe(true);
+  });
+
   it('shows draft actions without the removed legacy import entry', async () => {
     mocks.getApplicationManagedTemplates.mockResolvedValue({
       items: [
@@ -119,6 +173,7 @@ describe('ApplicationTemplateListIndex', () => {
           display_name: 'Draft',
           description: '',
           deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
           version: {
             template_version_id: 'tplv_1',
             version_number: 1,
@@ -144,7 +199,7 @@ describe('ApplicationTemplateListIndex', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.findAll('button').find((button) => button.text() === 'project.templates.create')?.trigger('click');
+    await wrapper.get('[aria-label="project.templates.create"]').trigger('click');
 
     expect(mocks.push).toHaveBeenCalledWith({ name: 'ApplicationTemplateCreateWizardIndex' });
   });
@@ -157,6 +212,7 @@ describe('ApplicationTemplateListIndex', () => {
           display_name: 'Published',
           description: '',
           deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
           version: {
             template_version_id: 'tplv_published',
             version_number: 1,
@@ -182,6 +238,7 @@ describe('ApplicationTemplateListIndex', () => {
           description: '',
           archived_at: '2026-07-17T00:00:00Z',
           deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
           version: {
             template_version_id: 'tplv_archived',
             version_number: 1,
