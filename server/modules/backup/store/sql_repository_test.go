@@ -35,6 +35,23 @@ func TestSQLRepositoryStoresMetadataWithoutArtifactContent(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryListsSafeSummaries(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestRepository(t)
+	created, err := repository.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatalf("create backup: %v", err)
+	}
+	item, err := repository.GetSummary(context.Background(), created.ID)
+	if err != nil || item.ID != created.ID || item.Purpose != created.Purpose {
+		t.Fatalf("get summary=%#v err=%v", item, err)
+	}
+	items, total, err := repository.ListSummaries(context.Background(), 20, 0)
+	if err != nil || total != 1 || len(items) != 1 || items[0].ID != created.ID {
+		t.Fatalf("list summaries=%#v total=%d err=%v", items, total, err)
+	}
+}
+
 func TestSQLRepositoryCreatesTaskBackedBackupIdempotently(t *testing.T) {
 	t.Parallel()
 	repository, db := newTestRepository(t)

@@ -7,9 +7,11 @@ import (
 
 	"graft/server/internal/config"
 	"graft/server/internal/container"
+	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	backupcontract "graft/server/modules/backup/contract"
 )
 
 func TestModuleSpecBuildDoesNotRequireTaskServiceBeforeRegister(t *testing.T) {
@@ -41,11 +43,27 @@ func TestModuleRegisterInjectsTaskServiceAfterTaskModuleRegistration(t *testing.
 	}
 	service := NewService(&serviceTestRepository{})
 	service.setArtifactWriter(testArtifactWriter{})
-	if err := NewModule(service).Register(&module.Context{Services: services, PermissionRegistry: permission.NewRegistry()}); err != nil {
+	if err := NewModule(service).Register(&module.Context{Services: services, PermissionRegistry: permission.NewRegistry(), MenuRegistry: menu.NewRegistry()}); err != nil {
 		t.Fatalf("register backup module: %v", err)
 	}
 	if service.tasks != tasks || len(tasks.executors) != 2 || len(tasks.authorizers) != 1 {
 		t.Fatalf("expected TaskService injection and registrations, service=%#v executors=%d authorizers=%d", service, len(tasks.executors), len(tasks.authorizers))
+	}
+}
+
+func TestRegisterMenuGroupsBackupUnderPlatformMaintenance(t *testing.T) {
+	registry := menu.NewRegistry()
+	menu.RegisterDomainGroups(registry)
+	if err := registerMenu(registry); err != nil {
+		t.Fatalf("register backup menu: %v", err)
+	}
+	items := map[string]menu.Item{}
+	for _, item := range registry.Items() {
+		items[item.Code] = item
+	}
+	backup := items["platform-backup.history"]
+	if backup.ParentCode != "platform-maintenance" || backup.Path != backupcontract.BackupMenuPath || backup.Permission != backupcontract.BackupReadPermission || backup.Icon != "backup" {
+		t.Fatalf("unexpected backup menu: %#v", backup)
 	}
 }
 

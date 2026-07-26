@@ -8,7 +8,7 @@
 - Intake summary: long-running refactor using the existing Task Runtime and queue-adoption design.
 - Canonical authority: Task Runtime, Container module, and `openapi/**` shared wire contract.
 - Completed so far: Docker image pull, single-container lifecycle actions, all Container batch lifecycle actions, and the Backup Task executor authority repair.
-- Not started yet: the Backup public API, Platform navigation, and web history page.
+- Completed: the Backup public API, Platform navigation, and web history page.
 
 ## Recovery Receipt
 
@@ -36,16 +36,16 @@ Out of scope:
 ## Current Recovery Point
 
 - Batch 5 repairs the Backup executor authority: `backups.task_id` binds each recorded Backup to its Task, the record Stage only verifies frozen artifacts, and Task-backed records are idempotent.
-- Next step: implement the bounded Backup public surface only after a fresh `origin/main` file-count check confirms it remains below the 80-file review threshold.
+- Batch 6 completed the bounded Backup public surface: the canonical API returns Task receipts, safe history remains artifact-free, and the Platform page observes the shared Task drawer. User-requested Backup Tasks accept `1d`, `7d`, or `30d` retention, defaulting to `30d`; Update pre-backup remains an independent fixed 30-day policy.
 
 ## Work Intake
 
 - This topic was created through Work Intake.
 - The full Work Contract is persisted in `todos/queue-adoption-migrations-tracking.md`.
 
-## Pending Batch Direction
+## Topic State
 
-- Backup public surface: canonical OpenAPI, Platform navigation, and web history projection.
+- The current planned migration batches are complete. The topic is `archive-ready` after its validated scoped commit.
 
 ## Loop Entry
 

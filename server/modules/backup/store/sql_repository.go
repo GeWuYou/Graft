@@ -103,6 +103,8 @@ func matchesTaskBackupCreator(createdBy *uint64, inputCreatedBy *uint64) bool {
 }
 
 // Get 返回一个未软删除的内部备份事实。
+//
+//nolint:dupl // Full and safe summary reads intentionally retain distinct SQL projections.
 func (r *SQLRepository) Get(ctx context.Context, id uint64) (moduleapi.Backup, error) {
 	if id == 0 {
 		return moduleapi.Backup{}, moduleapi.ErrBackupInvalidInput
@@ -118,6 +120,54 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (moduleapi.Backup, e
 		return moduleapi.Backup{}, fmt.Errorf("get backup: %w", err)
 	}
 	return item, nil
+}
+
+// GetSummary 返回不含工件引用和内容的安全备份摘要。
+//
+//nolint:dupl // Full and safe summary reads intentionally retain distinct SQL projections.
+func (r *SQLRepository) GetSummary(ctx context.Context, id uint64) (moduleapi.BackupSummary, error) {
+	if id == 0 {
+		return moduleapi.BackupSummary{}, moduleapi.ErrBackupInvalidInput
+	}
+	var item moduleapi.BackupSummary
+	err := r.db.QueryRowContext(ctx, `SELECT id, task_id, purpose, status, retain_until, created_at, restore_code, restore_at
+		FROM backups WHERE id = $1 AND deleted_at = 0`, id).Scan(scanBackupSummary(&item)...)
+	if errors.Is(err, sql.ErrNoRows) {
+		return moduleapi.BackupSummary{}, moduleapi.ErrBackupNotFound
+	}
+	if err != nil {
+		return moduleapi.BackupSummary{}, fmt.Errorf("get backup summary: %w", err)
+	}
+	return item, nil
+}
+
+// ListSummaries 返回按最新创建时间排序的安全备份摘要分页。
+func (r *SQLRepository) ListSummaries(ctx context.Context, limit, offset int) ([]moduleapi.BackupSummary, int64, error) {
+	if limit < 1 || offset < 0 {
+		return nil, 0, moduleapi.ErrBackupInvalidInput
+	}
+	var total int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM backups WHERE deleted_at = 0`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count backup summaries: %w", err)
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id, task_id, purpose, status, retain_until, created_at, restore_code, restore_at
+		FROM backups WHERE deleted_at = 0 ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list backup summaries: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]moduleapi.BackupSummary, 0)
+	for rows.Next() {
+		var item moduleapi.BackupSummary
+		if err := rows.Scan(scanBackupSummary(&item)...); err != nil {
+			return nil, 0, fmt.Errorf("scan backup summary: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate backup summaries: %w", err)
+	}
+	return items, total, nil
 }
 
 func (r *SQLRepository) getByTaskID(ctx context.Context, taskID uint64) (moduleapi.Backup, error) {
@@ -209,4 +259,8 @@ func scanBackup(item *moduleapi.Backup) []any {
 		&item.DatabaseDump.StorageRef, &item.DatabaseDump.SHA256, &item.DatabaseDump.SizeBytes,
 		&item.RetainUntil, &item.CreatedBy, &item.CreatedAt, &item.UpdatedAt, &item.RestoreCode, &item.RestoreAt,
 	}
+}
+
+func scanBackupSummary(item *moduleapi.BackupSummary) []any {
+	return []any{&item.ID, &item.TaskID, &item.Purpose, &item.Status, &item.RetainUntil, &item.CreatedAt, &item.RestoreCode, &item.RestoreAt}
 }

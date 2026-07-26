@@ -15,5 +15,7 @@ type Repository interface {
 	GetRunnerHandoff(context.Context, string, uint64) (moduleapi.BackupRunnerHandoffPlan, uint64, error)
 	CompleteRunnerHandoff(context.Context, moduleapi.CompleteBackupRunnerHandoffInput) (moduleapi.BackupRunnerHandoffCompletion, error)
 	Get(context.Context, uint64) (moduleapi.Backup, error)
+	GetSummary(context.Context, uint64) (moduleapi.BackupSummary, error)
+	ListSummaries(context.Context, int, int) ([]moduleapi.BackupSummary, int64, error)
 	RecordRestoreEvidence(context.Context, moduleapi.RecordBackupRestoreInput) (moduleapi.Backup, error)
 }

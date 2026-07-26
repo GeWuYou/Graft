@@ -34,7 +34,10 @@ runtime implementation entry.
 
 `POST /api/platform/backups` accepts a manual backup request and returns `202
 Accepted` with a Task receipt. The request carries only an idempotency key and
-the bounded retention choice defined by the canonical OpenAPI schema. It never
+the bounded retention choice defined by the canonical OpenAPI schema: `1d`,
+`7d`, or `30d`, with `30d` as the default. This policy applies only to
+user-requested Backup Tasks; the Update module retains its independent fixed
+30-day pre-update backup policy. The request never
 accepts host paths, database DSNs, commands, environment values, artifact
 references, or restore inputs.
 

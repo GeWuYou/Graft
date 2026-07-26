@@ -15,6 +15,7 @@ x-tagGroups:
       - tasks
       - system-config
       - platform-update
+      - platform-backup
       - dashboard
       - notifications
       - announcements
@@ -59,6 +60,8 @@ tags:
   - name: system-config
   - name: platform-update
     description: Self-hosted platform release discovery and installation capability preflight.
+  - name: platform-backup
+    description: User-created Backup Task history and submission without artifact access.
   - name: access-log
   - name: app-log
   - name: dashboard
@@ -225,6 +228,10 @@ paths:
     $ref: ./paths/platform-updates.operations.yaml
   /api/platform/updates/operations/{operationID}:
     $ref: ./paths/platform-updates.operation.yaml
+  /api/platform/backups:
+    $ref: ./paths/platform-backups.collection.yaml
+  /api/platform/backups/{id}:
+    $ref: ./paths/platform-backups.detail.yaml
   /api/access-log:
     $ref: ./paths/access-log.logs.yaml
   /api/access-log/{id}:
@@ -880,6 +887,16 @@ components:
       $ref: ./components/schemas/enveloped-task-log-response.yaml
     EnvelopedTaskReceipt:
       $ref: ./components/schemas/enveloped-task-receipt.yaml
+    CreatePlatformBackupRequest:
+      $ref: ./components/schemas/create-platform-backup-request.yaml
+    PlatformBackupSummary:
+      $ref: ./components/schemas/platform-backup-summary.yaml
+    PlatformBackupListResponse:
+      $ref: ./components/schemas/platform-backup-list-response.yaml
+    EnvelopedPlatformBackupSummary:
+      $ref: ./components/schemas/enveloped-platform-backup-summary.yaml
+    EnvelopedPlatformBackupListResponse:
+      $ref: ./components/schemas/enveloped-platform-backup-list-response.yaml
     CreateAnnouncementRequest:
       $ref: ./components/schemas/create-announcement-request.yaml
     UpdateAnnouncementRequest:

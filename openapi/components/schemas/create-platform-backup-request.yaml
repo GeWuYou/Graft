@@ -1,0 +1,8 @@
+type: object
+additionalProperties: false
+properties:
+  retention:
+    type: string
+    description: Retention selected for this user-created Backup only; Update pre-backup retention remains fixed by its own policy.
+    enum: [1d, 7d, 30d]
+    default: 30d

@@ -1,3 +1,4 @@
+import archive from '@iconify-icons/lucide/archive';
 import container from '@iconify-icons/lucide/container';
 import downloadCloud from '@iconify-icons/lucide/download-cloud';
 import hardDrive from '@iconify-icons/lucide/hard-drive';
@@ -28,6 +29,10 @@ describe('resolveMenuIcon', () => {
   it('uses maintenance and release icons for platform update navigation', () => {
     expect(resolveMenuIcon('system-maintenance')).toEqual(wrench);
     expect(resolveMenuIcon('platform-update')).toEqual(downloadCloud);
+  });
+
+  it('uses an archive icon for Backup history navigation', () => {
+    expect(resolveMenuIcon('backup')).toEqual(archive);
   });
 
   it('keeps application and runtime targets semantically distinct', () => {
@@ -81,6 +86,7 @@ describe('resolveMenuIcon', () => {
       'platform-configuration',
       'system-maintenance',
       'platform-update',
+      'backup',
       'announcement-publishing',
     ];
 

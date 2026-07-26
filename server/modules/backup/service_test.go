@@ -30,6 +30,12 @@ func (r *serviceTestRepository) Create(_ context.Context, input moduleapi.Create
 func (r *serviceTestRepository) Get(_ context.Context, _ uint64) (moduleapi.Backup, error) {
 	return r.item, nil
 }
+func (r *serviceTestRepository) GetSummary(_ context.Context, _ uint64) (moduleapi.BackupSummary, error) {
+	return ToSummary(r.item), nil
+}
+func (r *serviceTestRepository) ListSummaries(context.Context, int, int) ([]moduleapi.BackupSummary, int64, error) {
+	return []moduleapi.BackupSummary{ToSummary(r.item)}, 1, nil
+}
 func (r *serviceTestRepository) RecordRestoreEvidence(_ context.Context, input moduleapi.RecordBackupRestoreInput) (moduleapi.Backup, error) {
 	r.restored = input
 	return r.item, nil
@@ -84,6 +90,25 @@ func TestServiceRejectsUnavailableRepositoryAndInvalidID(t *testing.T) {
 	}
 	if _, err := NewService(&serviceTestRepository{}).Get(context.Background(), 0); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
 		t.Fatalf("expected invalid id error, got %v", err)
+	}
+}
+
+func TestManualRetentionDeadlineUsesOnlyManualBackupPolicy(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.July, 26, 12, 0, 0, 0, time.UTC)
+	cases := map[ManualRetention]time.Duration{
+		ManualRetentionOneDay:     24 * time.Hour,
+		ManualRetentionSevenDays:  7 * 24 * time.Hour,
+		ManualRetentionThirtyDays: 30 * 24 * time.Hour,
+	}
+	for retention, duration := range cases {
+		deadline, err := ManualRetentionDeadline(retention, now)
+		if err != nil || !deadline.Equal(now.Add(duration)) {
+			t.Fatalf("retention %q deadline=%s err=%v", retention, deadline, err)
+		}
+	}
+	if _, err := ManualRetentionDeadline("14d", now); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected invalid retention error, got %v", err)
 	}
 }
 

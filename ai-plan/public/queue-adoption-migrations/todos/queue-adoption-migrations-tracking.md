@@ -50,8 +50,11 @@ closeout:
   excludes restore, artifact download, scheduled backups, and cleanup.
 - Backup executor authority is complete: its record stage verifies instead of
   creating artifacts, and every recorded Backup keeps its originating Task ID.
-- Next step: implement only the public Task-backed create/list/detail contract
-  from `backup-execution-contract.md` after the file-count gate permits it.
+- Manual Backup retention is a public enum: `1d`, `7d`, or `30d`, defaulting
+  to `30d`. It applies only to user-requested Backup Tasks; Update pre-backup
+  remains an independent fixed 30-day policy.
+- Backup public surface is complete: canonical Task-backed create/list/detail,
+  Platform navigation, and the web history page are validated.
 
 ## Task Checklist
 
@@ -61,7 +64,7 @@ closeout:
 - [x] Migrate Container batch remove to independent Tasks while preserving ordered partial-result and manual-reconcile semantics.
 - [x] Define the first Backup product execution entry and Task contract.
 - [x] Repair the bounded Backup artifact writer and Task executor authority.
-- [ ] Add the canonical Backup OpenAPI contract, Platform navigation, and web
+- [x] Add the canonical Backup OpenAPI contract, Platform navigation, and web
   history page after the backend contract is executable.
 
 ## Acceptance Conditions
@@ -75,10 +78,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption", "backup-task-executor-authority"],
-  "pending_batches": ["backup-public-surface"],
-  "current_batch": "backup-task-executor-authority",
-  "next_batch": "backup-public-surface",
-  "closeout_status": "executor-authority-validated"
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption", "backup-task-executor-authority", "backup-public-surface"],
+  "pending_batches": [],
+  "current_batch": null,
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

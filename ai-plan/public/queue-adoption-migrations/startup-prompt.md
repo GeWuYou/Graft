@@ -25,12 +25,10 @@ Locked decisions:
 
 Current batch plan:
 
-1. Re-run startup preflight and compare the current branch with `origin/main` before extending the topic.
-2. Implement only the bounded Backup public surface after the file-count gate permits it.
+1. Re-run startup preflight and inspect the committed topic state before any new work.
+2. This topic is archive-ready; do not extend it without a new bounded migration authority decision.
 
 Loop instructions:
 
-- Advance one bounded batch.
-- Update the topic tracking and trace files in the same change.
 - Do not add a dual NDJSON/Task endpoint or consumer fallback.
-- Evaluate `$graft-commit` only after validation and confirmable ownership.
+- Archive only after the validated scoped commit is available for developer review.
