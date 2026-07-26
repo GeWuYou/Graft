@@ -5,9 +5,10 @@ description: Repository-specific scoped commit workflow for Graft. Use when the 
 
 # Graft Commit
 
-Use this skill when the user explicitly asks to commit the current `Graft` task slice, for example with
+Use this skill when the user explicitly asks to commit the current `Graft` worktree, for example with
 `$graft-commit`, `commit this slice`, or `提交当前这次改动`, or when `graft-task-closeout` concludes that the current
-validated owned scope should be committed before handoff.
+validated owned scope should be committed before handoff. An explicit `$graft-commit` authorizes continuous, scoped
+batch completion for the worktree inventory captured at workflow start.
 
 Treat root `AGENTS.md` as the commit-governance source of truth. This skill does not loosen ownership, staging, or
 validation rules.
@@ -26,8 +27,8 @@ validation rules.
      mandatory review scope, not optional follow-up
    - do not use an intermediate commit to imply PR-review closure while any verified finding from that inventory is
      still unclassified, including outside-diff findings
-6. When the user explicitly triggers `$graft-commit`, treat it as permission to finish the current owned slice end to
-   end:
+6. When the user explicitly triggers `$graft-commit`, capture the initial working-tree inventory and finish every
+   classifiable slice in it end to end without repeated confirmation:
    - if required validation fails on a concrete issue inside the current owned scope and the fix is reasonably bounded,
      fix that issue first, rerun validation, and continue the commit workflow without waiting for another user reminder
    - if the current slice is blocked by a local generated-artifact drift, stale snapshot, test expectation drift, or
@@ -38,8 +39,10 @@ validation rules.
    - when the failure has a concrete, bounded repair with clear ownership, fix it, rerun the failing check and the
      required completion validation, then commit the repair in a separate scoped commit when it is logically distinct
      from the requested slice
-   - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
-     confirmed scope, or the necessary repair would widen into a new unsafe slice
+   - after every commit, re-check `git status --short`, classify the remaining inventoried changes, and continue until
+     the worktree is clean
+   - stop and report instead of auto-fixing only when a slice cannot be classified, ownership becomes ambiguous, the
+     required validation is infeasible, or the necessary repair would widen into a new unsafe slice
 
 ## Workflow
 
@@ -55,9 +58,10 @@ validation rules.
    - do not treat IDE changelist checkboxes, selected files, or review UI state as proof that changes are staged;
      confirm staging from Git itself before continuing
 2. Define the commit scope before staging:
-   - include only files or hunks owned by the current task slice
-   - exclude unrelated files, unknown edits, and user-owned changes
-   - never treat task relevance alone as commit permission
+   - capture the complete initial worktree inventory, then group it into independently validated logical slices
+   - include only files or hunks belonging to one current slice; an explicit `$graft-commit` authorizes user-authored
+     changes from that initial inventory, but never files that appear after the inventory was captured
+   - never treat task relevance alone as justification to merge unrelated logical slices into one commit
    - when the confirmed owned scope contains multiple independently validated logical slices, or one safe commit cannot
      cover the confirmed scope cleanly, split it into a batch plan of separate scoped commits
    - do not use batching to bypass mixed ownership, missing validation, broad staging, or an invalid commit message
@@ -87,7 +91,8 @@ validation rules.
    - default to one scoped commit for the current logical slice
    - if a batch plan is required, create each commit sequentially and re-check `git status --short` plus
      `git diff --cached --name-only` before each commit
-   - stop before any batch whose ownership or validation is ambiguous, and report the committed batches plus the
+   - continue through every classifiable, validated slice in the captured inventory without asking for another commit
+     confirmation; stop only at an ambiguous, unvalidated, or unsafe batch and report the committed batches plus the
      uncommitted blocker
 7. Report:
    - the committed scope
