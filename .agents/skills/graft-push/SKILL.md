@@ -34,6 +34,9 @@ validation rules.
      repair and its subsequent commit or push
    - report when the branch or destination is ambiguous, the failure has no concrete repair proposal, or the required
      validation is infeasible
+7. When the push follows PR-review remediation, do not reply to a PR thread or update the managed review ledger before
+   the remote branch ref has been verified to resolve to the exact local `HEAD`. A local commit, successful pre-push
+   hook, or accepted `git push` process is not publication proof.
 
 ## Workflow
 
@@ -87,10 +90,17 @@ validation rules.
    - otherwise use an explicit `git push --set-upstream origin <branch>`
    - do not auto-delete the old remote branch after a rename unless the user explicitly asks
    - do not use force push unless the user explicitly asks and the repository state justifies it
-7. Report:
+7. Verify remote publication before any PR-review write:
+   - run `git ls-remote --exit-code origin refs/heads/<current-branch>` and compare the returned SHA with `git rev-parse HEAD`
+   - only an exact match proves that the fixing commit is visible to reviewers; a mismatch, missing ref, or transport
+     failure leaves PR threads and the managed ledger untouched
+   - after exact-match confirmation, return to `$graft-pr-review` to reply to fixed findings and append the disposition
+     ledger; never reverse this order
+8. Report:
    - what blocked the push or what was pushed
    - whether a branch-name check ran, what commit range it used, and whether a rename happened
    - the branch and upstream involved
+   - the remote ref and SHA used to prove publication before any PR-review write
    - any hook or remote command that was reproduced
    - the exact next retry command when the push is not completed
 
@@ -106,6 +116,8 @@ Do not push when any of these are true:
 * the only available path would require force push without explicit user approval
 * the push would be used to imply closure of a `$graft-pr-review` run whose latest finding inventory still leaves
   `Outside diff range comments`, `Nitpick comments`, or other folded latest-review findings unclassified
+* a PR-review reply or ledger write would occur before `git ls-remote --exit-code origin refs/heads/<current-branch>`
+  proves the remote ref resolves exactly to `HEAD`
 
 In these cases, explain the blocker and stop at the smallest safe next step.
 

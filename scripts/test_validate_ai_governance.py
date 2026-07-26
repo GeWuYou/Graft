@@ -180,6 +180,27 @@ class PushBranchGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_push_branch_governance(), [])
 
 
+class PRReplyPublicationGovernanceTests(unittest.TestCase):
+    def test_pr_reply_publication_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_pr_reply_publication_governance(), [])
+
+    def test_pr_reply_publication_governance_rejects_local_commit_as_reply_proof(self) -> None:
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(MODULE.PR_REVIEW_SKILL)
+        mutated_text = current_text.replace("require its SHA to equal `git rev-parse HEAD`", "accept a local commit", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.PR_REVIEW_SKILL:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_pr_reply_publication_governance()
+
+        self.assertTrue(any(finding.path == MODULE.PR_REVIEW_SKILL for finding in findings))
+
+
 class CommitCompletionGovernanceTests(unittest.TestCase):
     def test_bare_graft_commit_requires_clean_worktree(self) -> None:
         self.assertEqual(MODULE.validate_commit_completion_governance(), [])

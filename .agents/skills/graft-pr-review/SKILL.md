@@ -141,21 +141,27 @@ Fail-closed rule for this skill:
    - choose `$graft-multi-agent-loop` for one deeper finding or one bounded repair thread that benefits from a worker
      subagent owning iterative implementation and closeout
    - do not leave verified actionable findings untouched just because the current main-agent slice would become long
-15. When a verified AI finding is `noise` or a clear misread, reply directly on the PR review thread instead of only carrying a local note:
+15. Before any PR-thread reply or managed review-ledger write, prove the current branch is published: run
+    `git ls-remote --exit-code origin refs/heads/<current-branch>` and require its SHA to equal `git rev-parse HEAD`.
+    If a remediation commit is not yet published, run `$graft-push` first; a local commit, successful pre-push hook,
+    or unverified push command is insufficient. On any publication failure, leave PR threads and the ledger untouched
+    and report the exact retry command.
+16. When a verified AI finding is `noise` or a clear misread, reply directly on the PR review thread instead of only carrying a local note:
     - use `--reply-comment-id <id>` plus `--reply-body` or `--reply-body-file`
     - if the reply body is still being drafted, use `--reply-dry-run` first
     - do not wait in the same run for the AI to answer back; a later `graft-pr-review` run should classify the thread as `resolved_after_reply`, `pending_ai_followup`, or `contested`
-16. When a verified AI finding is fixed locally but the PR thread is still open, reply on that thread after the fixing commit exists:
+17. When a verified AI finding is fixed locally but the PR thread is still open, reply on that thread only after the
+    fixing commit is confirmed on the remote branch:
     - state that the finding has been fixed
     - include the fixing commit SHA or short SHA
     - name the touched file or location when useful
     - do not wait in the same run for the AI reviewer to auto-close the thread
     - in later `$graft-pr-review` runs, if the thread is still open and the latest follow-up is from the AI reviewer, classify it as `contested` and either reply once more with the newer fixing commit or request human review
-17. When a verified finding needs human judgment before deciding whether to fix or reject it, do not reply on the PR thread in the same `$graft-pr-review` run:
+18. When a verified finding needs human judgment before deciding whether to fix or reject it, do not reply on the PR thread in the same `$graft-pr-review` run:
     - report it as `blocked`; if earlier notes used `needs-human-review`, map that state to the canonical `blocked` disposition at closeout
     - include the concrete local verification reason and the tradeoff
     - leave the AI thread unreplied until the user explicitly decides whether to fix it or manually reply
-18. At task closeout, list every verified finding and its disposition:
+19. At task closeout, list every verified finding and its disposition:
     - `fixed`
     - `delegated`
     - `blocked`
@@ -163,7 +169,7 @@ Fail-closed rule for this skill:
     - `noise`
    - A narrow `--section failed-checks` or `--section open-threads` query is not a complete review run; follow the
      helper's pre-merge and folded-section notices or run the default complete output before making any closeout claim.
-19. At task closeout, always include one reviewer-inventory summary block that is easy to compare across runs:
+20. At task closeout, always include one reviewer-inventory summary block that is easy to compare across runs:
     - `coderabbit_handled`
       - how many CodeRabbit findings from the rebuilt inventory ended this run as `fixed`, `delegated`, `blocked`, `stale`, or `noise`
     - `coderabbit_outside_diff_range`
@@ -178,20 +184,20 @@ Fail-closed rule for this skill:
       - total, status counts, source head commit, and each `Warning` decision / `Inconclusive` disposition
     - when another AI reviewer is present, keep it in the normal finding inventory, but the five fields above are still mandatory
     - append that same summary block to the managed PR issue comment ledger so the next `$graft-pr-review` run can confirm deltas incrementally instead of re-auditing prior handled rows by memory
-20. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
-21. Do not ignore any verified suggestion. If the repair grows large:
+21. If any finding is left as `noise` or `stale`, include the concrete local verification reason in the closeout. If a finding is `blocked`, explain the blocker and the next safe startup prompt instead of calling it ignored.
+22. Do not ignore any verified suggestion. If the repair grows large:
    - prefer `$graft-multi-agent-batch` when the work splits into disjoint reviewable slices
    - prefer `$graft-multi-agent-loop` when the work needs to be repeated in bounded rounds
    - if neither is justified yet, report the finding as `blocked` with the reason
    - never collapse a still-valid large suggestion into a stale/noise label just to end the thread quickly
-22. If any finding is reported as `noise` or AI misjudgment, explicitly record:
+23. If any finding is reported as `noise` or AI misjudgment, explicitly record:
     - which finding it was
     - the concrete local verification reason
     - why it was not adopted
     - wording suitable for replying on the PR
-23. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
+24. If a replied AI thread stays open and the latest follow-up comment comes from the AI reviewer again, mark that thread
     `contested` and carry both sides' reasoning into the final summary for human judgment.
-24. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
+25. If code is changed, run the smallest validation that satisfies `AGENTS.md`. Prefer `graft-validation-runner` when the correct validation scope is not obvious.
 
 ## Commands
 
@@ -300,8 +306,9 @@ The script should produce:
   states for this skill.
 - When a finding is left as `noise` or AI misjudgment, the closeout must name the exact suggestion and give a concrete
   non-adoption reason that the user can reuse in the PR reply.
-- When a finding was fixed but the AI thread did not auto-close, reply once with the fixing commit SHA and location, then
-  leave the thread alone until a later `graft-pr-review` run shows either resolution or a fresh AI follow-up.
+- When a finding was fixed but the AI thread did not auto-close, first verify that the remote branch ref resolves exactly
+  to `HEAD`, then reply once with the fixing commit SHA and location. Leave the thread alone until a later
+  `graft-pr-review` run shows either resolution or a fresh AI follow-up.
 - When a finding still needs human judgment on whether to fix or reject it, do not auto-reply; surface the reason to the
   user and wait for an explicit decision before any PR-thread response.
 - If the agent has already replied to an AI finding and a later run still sees the thread open with a fresh AI counterargument, mark that thread `contested` and leave the final decision to a human reviewer instead of auto-closing it.

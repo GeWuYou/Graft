@@ -716,6 +716,38 @@ def validate_push_branch_governance() -> list[Finding]:
     return findings
 
 
+def validate_pr_reply_publication_governance() -> list[Finding]:
+    """Require PR-review replies to wait for exact remote branch publication."""
+    findings: list[Finding] = []
+    checks = (
+        (
+            PR_REVIEW_SKILL,
+            (
+                "git ls-remote --exit-code origin refs/heads/<current-branch>",
+                "require its SHA to equal `git rev-parse HEAD`",
+                "leave PR threads and the ledger untouched",
+            ),
+        ),
+        (
+            PUSH_SKILL,
+            (
+                "git ls-remote --exit-code origin refs/heads/<current-branch>",
+                "compare the returned SHA with `git rev-parse HEAD`",
+                "never reverse this order",
+            ),
+        ),
+    )
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "PR reply publication governance skill is missing"))
+            continue
+        text = read_text(path)
+        for term in terms:
+            if term not in text:
+                findings.append(Finding(path, f"missing PR reply publication governance term {term!r}"))
+    return findings
+
+
 def validate_commit_completion_governance() -> list[Finding]:
     """Ensure a bare graft-commit closes every captured worktree change."""
     checks = (
@@ -1080,6 +1112,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_agents_skill_list())
     findings.extend(validate_subagent_model_governance())
     findings.extend(validate_push_branch_governance())
+    findings.extend(validate_pr_reply_publication_governance())
     findings.extend(validate_commit_completion_governance())
     findings.extend(validate_repair_confirmation_interaction_contract())
     findings.extend(validate_backend_guardrail_governance())
