@@ -398,6 +398,18 @@ describe('App layout route effects', () => {
     expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
   });
 
+  it('keeps mobile navigation available for the top layout without rendering a persistent sidebar', async () => {
+    shellContainerSize.width = 480;
+    settingStoreProxy.value!.layout = { value: 'top' };
+    settingStoreProxy.value!.showSidebar = false;
+    const wrapper = mountAppLayout();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
+    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
+    expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(false);
+  });
+
   it('uses the viewport fallback for drawer navigation before the shell container is measured', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 563 });
     shellContainerSize.width = 0;

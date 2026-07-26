@@ -112,8 +112,13 @@
                   <t-icon name="help-circle" />
                   {{ t('layout.header.help') }}
                 </t-dropdown-item>
-                <t-dropdown-item class="operations-dropdown-container-item header-more-tools-language">
-                  <language-switcher />
+                <t-dropdown-item
+                  data-testid="header-language-selector"
+                  class="operations-dropdown-container-item"
+                  @click="openLanguageDialog"
+                >
+                  <t-icon name="translate" />
+                  {{ t('layout.header.language') }}
                 </t-dropdown-item>
                 <t-dropdown-item class="operations-dropdown-container-item" @click="toggleSettingPanel">
                   <palette-icon />
@@ -168,6 +173,25 @@
         </div>
       </template>
     </t-head-menu>
+    <t-dialog
+      v-model:visible="languageDialogVisible"
+      attach="body"
+      :cancel-btn="null"
+      :confirm-btn="null"
+      :footer="false"
+      :header="t('layout.header.language')"
+      width="360px"
+    >
+      <t-radio-group
+        class="language-dialog__options"
+        :value="locale"
+        @change="(value) => changeLanguage(String(value))"
+      >
+        <t-radio v-for="language in languageList" :key="String(language.value)" :value="String(language.value)">
+          {{ language.content }}
+        </t-radio>
+      </t-radio-group>
+    </t-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -181,12 +205,13 @@ import {
   UserCircleIcon,
 } from 'tdesign-icons-vue-next';
 import type { PropType } from 'vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
-import { t } from '@/locales';
+import { languageList, t } from '@/locales';
+import { useLocale } from '@/locales/useLocale';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
@@ -253,10 +278,12 @@ const router = useRouter();
 const settingStore = useSettingStore();
 const user = useAuthSessionStore();
 const { goHome } = useShellNavigation();
+const { changeLocale, locale } = useLocale();
 const documentFullscreen = useDocumentFullscreen();
 const isDocumentFullscreen = computed(() => documentFullscreen.isFullscreen.value);
 const isDocumentFullscreenSupported = computed(() => documentFullscreen.isSupported.value);
 const isNarrowHeader = computed(() => navigationPresentation === 'drawer');
+const languageDialogVisible = ref(false);
 
 const documentFullscreenLabel = computed(() =>
   t(isDocumentFullscreen.value ? 'layout.header.exitFullscreen' : 'layout.header.enterFullscreen'),
@@ -283,6 +310,15 @@ useKeyboardShortcut('Control+Meta+KeyF', toggleDocumentFullscreen, {
 
 const toggleSettingPanel = () => {
   settingStore.openThemeWorkbench('overview');
+};
+
+const openLanguageDialog = () => {
+  languageDialogVisible.value = true;
+};
+
+const changeLanguage = (language: string) => {
+  changeLocale(language);
+  languageDialogVisible.value = false;
 };
 
 const active = computed(() => getActive());
@@ -579,9 +615,14 @@ const navToHelper = () => {
   }
 }
 
-.header-more-tools-search,
-.header-more-tools-language {
+.header-more-tools-search {
   cursor: default;
+}
+
+.language-dialog__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
 }
 </style>
 <!-- eslint-disable-next-line vue-scoped-css/enforce-style-type -->

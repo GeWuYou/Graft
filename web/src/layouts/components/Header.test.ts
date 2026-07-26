@@ -27,7 +27,14 @@ vi.mock('@/config/global', () => ({ prefix: 'graft' }));
 vi.mock('@/layouts/useShellNavigation', () => ({ useShellNavigation: () => ({ goHome: vi.fn() }) }));
 vi.mock('@/locales', () => ({
   i18n: { global: { getLocaleMessage: () => ({}) } },
+  languageList: [
+    { content: '简体中文', value: 'zh-CN' },
+    { content: 'English', value: 'en-US' },
+  ],
   t: (key: string) => key,
+}));
+vi.mock('@/locales/useLocale', () => ({
+  useLocale: () => ({ changeLocale: vi.fn(), locale: { value: 'zh-CN' } }),
 }));
 vi.mock('@/modules/auth/store', () => ({
   useAuthSessionStore: () => ({ logout: vi.fn(), userInfo: { name: 'Graft Admin' } }),
@@ -126,8 +133,14 @@ function mountHeader(props: Record<string, unknown> = {}) {
         't-head-menu': headMenuStub,
         't-button': buttonStub,
         't-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
-        't-dropdown-item': { template: '<button type="button"><slot /></button>' },
+        't-dialog': {
+          props: { visible: { type: Boolean, default: false } },
+          template: '<section data-testid="language-dialog" :data-visible="String(visible)"><slot /></section>',
+        },
+        't-dropdown-item': { template: '<button v-bind="$attrs" type="button"><slot /></button>' },
         't-icon': { template: '<i />' },
+        't-radio': true,
+        't-radio-group': true,
         't-tooltip': tooltipStub,
         BrandIdentity: true,
         LanguageSwitcher: true,
@@ -174,6 +187,10 @@ describe('Header', () => {
     expect(wrapper.find('.header-more-tools-search [data-testid="header-search"]').exists()).toBe(true);
     expect(wrapper.find('.header-user-account').exists()).toBe(false);
     expect(wrapper.get('[data-testid="header-user-menu"]').classes()).toContain('header-user-btn--compact');
+
+    expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('false');
+    await wrapper.get('[data-testid="header-language-selector"]').trigger('click');
+    expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('true');
 
     await wrapper.get('[data-testid="header-navigation-toggle"]').trigger('click');
     expect(wrapper.emitted('open-navigation')).toHaveLength(1);
