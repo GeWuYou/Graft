@@ -115,7 +115,7 @@
                 <t-dropdown-item
                   data-testid="header-language-selector"
                   class="operations-dropdown-container-item"
-                  @click="openLanguageDialog"
+                  @click="languageSwitcherRef?.open()"
                 >
                   <t-icon name="translate" />
                   {{ t('layout.header.language') }}
@@ -173,23 +173,7 @@
         </div>
       </template>
     </t-head-menu>
-    <t-dialog
-      v-model:visible="languageDialogVisible"
-      attach="body"
-      :footer="false"
-      :header="t('layout.header.language')"
-      width="360px"
-    >
-      <t-radio-group
-        class="language-dialog__options"
-        :value="locale"
-        @change="(value) => changeLanguage(String(value))"
-      >
-        <t-radio v-for="language in languageList" :key="String(language.value)" :value="String(language.value)">
-          {{ language.content }}
-        </t-radio>
-      </t-radio-group>
-    </t-dialog>
+    <language-switcher ref="languageSwitcherRef" mode="dialog" :show-trigger="false" />
   </div>
 </template>
 <script setup lang="ts">
@@ -208,8 +192,7 @@ import { useRouter } from 'vue-router';
 
 import { prefix } from '@/config/global';
 import { useShellNavigation } from '@/layouts/useShellNavigation';
-import { languageList, t } from '@/locales';
-import { useLocale } from '@/locales/useLocale';
+import { t } from '@/locales';
 import { AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes';
 import { useAuthSessionStore } from '@/modules/auth/store';
 import { USER_ROUTE_PATH } from '@/modules/user/contract/paths';
@@ -272,12 +255,11 @@ const router = useRouter();
 const settingStore = useSettingStore();
 const user = useAuthSessionStore();
 const { goHome } = useShellNavigation();
-const { changeLocale, locale } = useLocale();
 const documentFullscreen = useDocumentFullscreen();
 const isDocumentFullscreen = computed(() => documentFullscreen.isFullscreen.value);
 const isDocumentFullscreenSupported = computed(() => documentFullscreen.isSupported.value);
 const isNarrowHeader = computed(() => navigationPresentation === 'drawer');
-const languageDialogVisible = ref(false);
+const languageSwitcherRef = ref<{ open: () => void } | null>(null);
 
 const documentFullscreenLabel = computed(() =>
   t(isDocumentFullscreen.value ? 'layout.header.exitFullscreen' : 'layout.header.enterFullscreen'),
@@ -304,15 +286,6 @@ useKeyboardShortcut('Control+Meta+KeyF', toggleDocumentFullscreen, {
 
 const toggleSettingPanel = () => {
   settingStore.openThemeWorkbench('overview');
-};
-
-const openLanguageDialog = () => {
-  languageDialogVisible.value = true;
-};
-
-const changeLanguage = (language: string) => {
-  changeLocale(language);
-  languageDialogVisible.value = false;
 };
 
 const active = computed(() => getActive());

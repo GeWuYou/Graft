@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
 import ResponsiveCardList from './ResponsiveCardList.vue';
@@ -12,7 +13,29 @@ import ResponsivePage from './ResponsivePage.vue';
 import ResponsiveTable from './ResponsiveTable.vue';
 import ResponsiveToolbar from './ResponsiveToolbar.vue';
 
+class ResizeObserverMock {
+  static instances: ResizeObserverMock[] = [];
+
+  callback: ResizeObserverCallback;
+  disconnect = vi.fn();
+  observe = vi.fn();
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    ResizeObserverMock.instances.push(this);
+  }
+
+  emit(width: number) {
+    this.callback([{ contentRect: { height: 0, width } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+  }
+}
+
 describe('responsive primitives', () => {
+  afterEach(() => {
+    ResizeObserverMock.instances = [];
+    vi.unstubAllGlobals();
+  });
+
   it('keeps page, content and header composition semantic while preserving slots', () => {
     const page = mount(ResponsivePage, { props: { layout: 'grid' }, slots: { default: '<p>content</p>' } });
     const content = mount(ResponsiveContent, { props: { layout: 'split' }, slots: { default: '<p>detail</p>' } });
@@ -51,14 +74,21 @@ describe('responsive primitives', () => {
     expect(cards.text()).toContain('entity');
   });
 
-  it('allows entity cards to remain available through the comfortable density', () => {
+  it('allows entity cards to remain available through the comfortable density', async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
     const wrapper = mount(ResponsiveTable, {
       props: { entityCardLayout: 'adaptive', presentation: 'entity' },
       slots: { cards: '<article>card</article>', default: '<table><tbody><tr><td>row</td></tr></tbody></table>' },
     });
+    await nextTick();
+    ResizeObserverMock.instances[0]?.emit(800);
+    await nextTick();
 
     expect(wrapper.attributes('data-responsive-entity-card-layout')).toBe('adaptive');
+    expect(wrapper.attributes('data-responsive-density')).toBe('comfortable');
     expect(wrapper.classes()).toContain('responsive-table--adaptive');
+    expect(wrapper.find('.responsive-table__cards').text()).toContain('card');
+    expect(wrapper.find('.responsive-table__scroll').exists()).toBe(false);
   });
 
   it('provides named toolbar and empty-state slots without business props', () => {

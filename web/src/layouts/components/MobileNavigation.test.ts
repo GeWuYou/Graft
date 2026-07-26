@@ -10,7 +10,7 @@ const route = reactive({ fullPath: '/applications/projects/alpha', path: '/appli
 beforeEach(() => {
   route.fullPath = '/applications/projects/alpha';
   route.path = '/applications/projects/alpha';
-  pushMock.mockClear();
+  pushMock.mockReset();
 });
 
 vi.mock('vue-router', () => ({

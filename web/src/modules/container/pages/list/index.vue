@@ -18,16 +18,6 @@
           @apply="applyFilters"
           @reset="resetFilters"
         >
-          <t-input
-            v-model="filters.keyword"
-            class="management-list-search"
-            clearable
-            data-testid="container-filter-keyword"
-            :placeholder="t('container.list.filters.searchPlaceholder')"
-            @enter="applyFilters"
-          >
-            <template #prefix-icon><search-icon /></template>
-          </t-input>
           <t-select
             v-model="filters.status"
             class="management-toolbar__select"
@@ -123,18 +113,24 @@
             @refresh="handleManualRefresh"
           />
           <t-button-group class="container-view-switch" variant="outline">
-            <t-button
-              data-testid="container-presentation-card"
-              :theme="listPresentation === 'card' ? 'primary' : 'default'"
-              @click="setListPresentation('card')"
-              >▦</t-button
-            >
-            <t-button
-              data-testid="container-presentation-table"
-              :theme="listPresentation === 'table' ? 'primary' : 'default'"
-              @click="setListPresentation('table')"
-              >☷</t-button
-            >
+            <t-tooltip :content="t('container.list.presentation.card')">
+              <t-button
+                data-testid="container-presentation-card"
+                :aria-label="t('container.list.presentation.card')"
+                :theme="listPresentation === 'card' ? 'primary' : 'default'"
+                @click="setListPresentation('card')"
+                >▦</t-button
+              >
+            </t-tooltip>
+            <t-tooltip :content="t('container.list.presentation.table')">
+              <t-button
+                data-testid="container-presentation-table"
+                :aria-label="t('container.list.presentation.table')"
+                :theme="listPresentation === 'table' ? 'primary' : 'default'"
+                @click="setListPresentation('table')"
+                >☷</t-button
+              >
+            </t-tooltip>
           </t-button-group>
         </div>
       </template>
@@ -256,7 +252,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { DialogInstance } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';

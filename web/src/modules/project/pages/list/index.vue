@@ -257,6 +257,7 @@
                 :actions="buildMobileRowActions(row)"
                 :more-label="t('project.list.actions.operationMenu')"
                 :more-label-fallback="t('project.list.actions.operationMenu')"
+                @click.stop
                 @action="(action) => handleRowAction(action, row)"
               />
             </article>

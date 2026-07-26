@@ -362,6 +362,10 @@
         "summary": "第 {start}-{end} 条 / 共 {total} 条",
         "empty": "暂无记录"
       },
+      "presentation": {
+        "card": "卡片视图",
+        "table": "表格视图"
+      },
       "filters": {
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",

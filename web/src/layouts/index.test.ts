@@ -389,6 +389,7 @@ describe('App layout route effects', () => {
     expect(wrapper.get('.app-shell__main').classes()).not.toContain('t-layout--with-sider');
 
     await wrapper.get('[data-test-id="layout-header"]').trigger('click');
+    await wrapper.vm.$nextTick();
     expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('true');
 
     routeProxy.value!.fullPath = '/observability/service-status';
@@ -398,7 +399,7 @@ describe('App layout route effects', () => {
     expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
   });
 
-  it('keeps mobile navigation available for the top layout without rendering a persistent sidebar', async () => {
+  it('does not render mobile navigation when the top layout disables the sidebar', async () => {
     shellContainerSize.width = 480;
     settingStoreProxy.value!.layout = { value: 'top' };
     settingStoreProxy.value!.showSidebar = false;
@@ -406,7 +407,7 @@ describe('App layout route effects', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
-    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
+    expect(wrapper.find('[data-test-id="mobile-navigation"]').exists()).toBe(false);
     expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(false);
   });
 

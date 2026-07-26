@@ -686,6 +686,12 @@ describe('Application list page', () => {
     expect(routerMocks.push).toHaveBeenCalledWith(
       expect.objectContaining({ name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName }),
     );
+
+    routerMocks.push.mockClear();
+    await alphaCard.get('[data-testid="row-action-stop"]').trigger('click');
+    await flushPromises();
+
+    expect(routerMocks.push).not.toHaveBeenCalled();
   });
 
   it('opens the shared saved-view dialog from the query builder', async () => {

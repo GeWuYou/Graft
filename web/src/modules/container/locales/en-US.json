@@ -362,6 +362,10 @@
         "summary": "{start}-{end} of {total}",
         "empty": "No Records"
       },
+      "presentation": {
+        "card": "Card View",
+        "table": "Table View"
+      },
       "filters": {
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",

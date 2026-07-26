@@ -65,6 +65,13 @@ const tooltipStub = defineComponent({
     return () => h('div', { 'data-tooltip-content': props.content }, slots.default?.());
   },
 });
+const languageSwitcherOpenMock = vi.fn();
+const languageSwitcherStub = defineComponent({
+  setup(_, { expose }) {
+    expose({ open: languageSwitcherOpenMock });
+    return () => h('div', { 'data-testid': 'language-switcher' });
+  },
+});
 
 const originalFullscreenElement = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
 const originalExitFullscreen = Object.getOwnPropertyDescriptor(document, 'exitFullscreen');
@@ -133,17 +140,11 @@ function mountHeader(props: Record<string, unknown> = {}) {
         't-head-menu': headMenuStub,
         't-button': buttonStub,
         't-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
-        't-dialog': {
-          props: { visible: { type: Boolean, default: false } },
-          template: '<section data-testid="language-dialog" :data-visible="String(visible)"><slot /></section>',
-        },
         't-dropdown-item': { template: '<button v-bind="$attrs" type="button"><slot /></button>' },
         't-icon': { template: '<i />' },
-        't-radio': true,
-        't-radio-group': true,
         't-tooltip': tooltipStub,
         BrandIdentity: true,
-        LanguageSwitcher: true,
+        LanguageSwitcher: languageSwitcherStub,
         MenuContent: true,
         Notice: true,
         Search: defineComponent({ template: '<div data-testid="header-search" />' }),
@@ -155,6 +156,7 @@ function mountHeader(props: Record<string, unknown> = {}) {
 describe('Header', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    languageSwitcherOpenMock.mockClear();
   });
 
   afterEach(() => {
@@ -188,9 +190,8 @@ describe('Header', () => {
     expect(wrapper.find('.header-user-account').exists()).toBe(false);
     expect(wrapper.get('[data-testid="header-user-menu"]').classes()).toContain('header-user-btn--compact');
 
-    expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('false');
     await wrapper.get('[data-testid="header-language-selector"]').trigger('click');
-    expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('true');
+    expect(languageSwitcherOpenMock).toHaveBeenCalledTimes(1);
 
     await wrapper.get('[data-testid="header-navigation-toggle"]').trigger('click');
     expect(wrapper.emitted('open-navigation')).toHaveLength(1);

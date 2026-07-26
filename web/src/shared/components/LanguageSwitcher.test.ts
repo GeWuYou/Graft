@@ -43,4 +43,26 @@ describe('LanguageSwitcher', () => {
     expect(wrapper.get('[data-tooltip-content]').attributes('data-tooltip-content')).toBe('layout.header.language');
     expect(wrapper.get('button').attributes('aria-label')).toBe('layout.header.language');
   });
+
+  it('opens the dialog presentation from its trigger', async () => {
+    const wrapper = mount(LanguageSwitcher, {
+      props: { mode: 'dialog' },
+      global: {
+        stubs: {
+          't-button': buttonStub,
+          't-dialog': {
+            props: { visible: { type: Boolean, default: false } },
+            template: '<section data-testid="language-dialog" :data-visible="String(visible)"><slot /></section>',
+          },
+          't-radio': true,
+          't-radio-group': true,
+          't-tooltip': tooltipStub,
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('false');
+    await wrapper.get('button').trigger('click');
+    expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('true');
+  });
 });

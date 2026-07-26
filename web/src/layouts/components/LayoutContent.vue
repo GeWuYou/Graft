@@ -4,7 +4,7 @@
       v-if="showRouteTabs"
       drag-sort
       theme="card"
-      :class="`${prefix}-layout-tabs-nav`"
+      :class="[`${prefix}-layout-tabs-nav`, 'graft-scrollbar']"
       :value="activeTabKey"
       :style="{ position: 'sticky', top: 0, width: '100%' }"
       @change="(value) => handleChangeCurrentTab(value as string)"
@@ -40,7 +40,14 @@
                 <span class="route-tabs-label__text">{{ renderTabTitle(routeItem) }}</span>
               </span>
             </template>
-            <t-icon v-else name="home" />
+            <span
+              v-else
+              :ref="(element) => setTabLabelRef(getTabKey(routeItem), element)"
+              class="route-tabs-label"
+              :data-tab-key="getTabKey(routeItem)"
+            >
+              <t-icon name="home" />
+            </span>
             <template #dropdown>
               <t-dropdown-menu>
                 <t-dropdown-item @click="() => handleRefresh(routeItem)">
@@ -229,7 +236,7 @@ const setTabLabelRef = (tabKey: string, element: Element | ComponentPublicInstan
 // 使用壳层导航轨道的原生滚动能力时，路由切换仍须将当前标签带回可视区域。
 const revealActiveTab = () => {
   const activeTab = tabLabelRefs.get(activeTabKey.value);
-  activeTab?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  activeTab?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 };
 
 watch([activeTabKey, tabRouters], () => {
@@ -564,37 +571,27 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   min-width: 0;
 }
 
-/* stylelint-disable selector-pseudo-class-no-unknown -- Vue SFC deep selectors need the ancestor shell state. */
-:global(.app-shell[data-sidebar-presentation='drawer'])
-  .t-layout[data-page-type]
-  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-container) {
+/* stylelint-disable selector-pseudo-class-no-unknown -- Vue SFC deep selectors target TDesign internals. */
+:deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-container) {
   max-width: 100%;
   overflow: hidden;
 }
 
-:global(.app-shell[data-sidebar-presentation='drawer'])
-  .t-layout[data-page-type]
-  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-scroll) {
+:deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-scroll) {
   overflow: auto hidden;
   touch-action: pan-x;
 }
 
-:global(.app-shell[data-sidebar-presentation='drawer'])
-  .t-layout[data-page-type]
-  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-wrap) {
+:deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-wrap) {
   min-width: max-content;
   width: max-content;
 }
 
-:global(.app-shell[data-sidebar-presentation='drawer'])
-  .t-layout[data-page-type]
-  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav) {
+:deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav) {
   flex-wrap: nowrap;
 }
 
-:global(.app-shell[data-sidebar-presentation='drawer'])
-  .t-layout[data-page-type]
-  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-item) {
+:deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-item) {
   flex: 0 0 auto;
   max-width: 72vw;
 }

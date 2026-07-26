@@ -2,6 +2,7 @@
   <section class="container-filter">
     <t-input
       class="container-filter__keyword"
+      data-testid="container-filter-keyword"
       :value="modelValue.keyword"
       clearable
       :placeholder="t('container.list.filters.searchPlaceholder')"
@@ -61,10 +62,6 @@ function applyFromDrawer() {
   display: contents;
 }
 
-.container-filter__desktop :deep(.management-list-search) {
-  display: none;
-}
-
 .container-filter__trigger {
   display: none;
 }
@@ -84,10 +81,6 @@ function applyFromDrawer() {
   }
 
   .container-filter__desktop {
-    display: none;
-  }
-
-  .container-filter__keyword {
     display: none;
   }
 }

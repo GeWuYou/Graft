@@ -251,6 +251,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.filters.reset': '重置',
   'container.list.filters.searchPlaceholder': '搜索名称、镜像、ID 或端口',
   'container.list.filters.status': '容器状态',
+  'container.list.presentation.card': '卡片视图',
+  'container.list.presentation.table': '表格视图',
   'container.list.loadFailed': '容器列表加载失败。',
   'container.list.labelCount': '{count} 个标签',
   'container.list.logs.autoRefresh': '自动刷新',
@@ -690,6 +692,10 @@ describe('container list page', () => {
   it('switches the container list to cards when the user selects the card presentation', async () => {
     const wrapper = mountPage();
     await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-presentation-card"]').attributes('aria-label')).toBe('卡片视图');
+    expect(wrapper.get('[data-testid="container-presentation-table"]').attributes('aria-label')).toBe('表格视图');
+    expect(wrapper.findAll('[data-testid="container-filter-keyword"]')).toHaveLength(1);
 
     await wrapper.get('[data-testid="container-presentation-card"]').trigger('click');
     await nextTick();
