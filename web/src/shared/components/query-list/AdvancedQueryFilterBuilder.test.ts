@@ -14,8 +14,16 @@ vi.mock('@/shared/components/management', () => ({
 const { default: AdvancedQueryFilterBuilder } = await import('./AdvancedQueryFilterBuilder.vue');
 
 const passthroughStub = defineComponent({
-  setup(_, { slots }) {
-    return () => h('div', slots.default?.());
+  emits: ['click'],
+  setup(_, { attrs, emit, slots }) {
+    return () => h('button', { ...attrs, onClick: () => emit('click') }, slots.default?.());
+  },
+});
+
+const inputStub = defineComponent({
+  emits: ['enter'],
+  setup(_props, { attrs, emit }) {
+    return () => h('input', { ...attrs, onKeyup: (event: KeyboardEvent) => event.key === 'Enter' && emit('enter') });
   },
 });
 
@@ -65,7 +73,7 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
-          't-input': passthroughStub,
+          't-input': inputStub,
           't-tag': tagStub,
         },
       },
@@ -74,5 +82,39 @@ describe('AdvancedQueryFilterBuilder', () => {
     await wrapper.get('[data-testid="close-filter-tag"]').trigger('click');
 
     expect(wrapper.emitted('reset')).toHaveLength(1);
+  });
+
+  it('keeps compact filters collapsed until the filter entry is opened', async () => {
+    const wrapper = mount(AdvancedQueryFilterBuilder, {
+      props: {
+        ...defaultProps,
+        compactMode: true,
+        compactToggleLabel: 'Filter',
+      },
+      slots: {
+        'saved-query-views': '<span data-testid="saved-view">saved</span>',
+      },
+      global: {
+        stubs: {
+          't-button': passthroughStub,
+          't-input': inputStub,
+          't-tag': tagStub,
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-testid="saved-view"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('Keyword: active');
+
+    await wrapper.get('[data-testid="query-filter-builder-compact-toggle"]').trigger('click');
+
+    expect(wrapper.get('[data-testid="saved-view"]').text()).toBe('saved');
+    expect(wrapper.text()).toContain('Keyword: active');
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().trim() === 'Search')
+      ?.trigger('click');
+    expect(wrapper.emitted('search')).toHaveLength(1);
   });
 });

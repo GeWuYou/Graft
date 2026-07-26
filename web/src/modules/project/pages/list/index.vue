@@ -1,7 +1,8 @@
 <template>
-  <div class="project-page" data-page-type="list-form-detail">
+  <div ref="projectPageRef" class="project-page" data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header
+        :compact="usesCompactApplicationList"
         title-key="project.list.title"
         description-key="project.list.description"
         :source="{ labelKey: 'project.list.eyebrow', fallback: t('project.list.eyebrow') }"
@@ -35,6 +36,8 @@
         :add-sorter-label="t('project.list.filters.sortAdd')"
         :builder-hint="t('project.list.description')"
         :builder-title="t('project.list.filters.query')"
+        :compact-mode="usesCompactApplicationList"
+        :compact-toggle-label="t('project.list.filters.filter')"
         :field-values="projectFilterFieldValues"
         :fields="projectFilterDefinitions"
         :filters-group-label="t('project.list.filters.query')"
@@ -83,6 +86,7 @@
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
         :columns="visibleColumns"
+        :cards-visible="usesCompactApplicationList"
         :empty-description="
           hasActiveFilters ? t('project.list.emptyFilteredDescription') : t('project.list.emptyDescription')
         "
@@ -103,11 +107,13 @@
               <p class="project-table-head__summary" data-testid="project-table-summary">
                 {{ t('project.list.tableSummary', { count: summaryTotalCount }) }}
               </p>
-              <p class="project-table-head__hint">{{ t('project.list.tableHint') }}</p>
+              <p v-if="!usesCompactApplicationList" class="project-table-head__hint">
+                {{ t('project.list.tableHint') }}
+              </p>
             </div>
           </div>
         </template>
-        <template #toolbar>
+        <template v-if="!usesCompactApplicationList" #toolbar>
           <div class="project-list-toolbar">
             <table-view-toolbar
               :column-settings-label="t('project.list.columnSettings')"
@@ -115,7 +121,7 @@
             />
           </div>
         </template>
-        <template v-if="selectedRows.length > 0" #batch>
+        <template v-if="!usesCompactApplicationList && selectedRows.length > 0" #batch>
           <management-batch-bar
             :selected-label="t('project.list.batch.selected', { count: selectedRows.length })"
             :clear-label="t('project.list.batch.cancelSelection')"
@@ -209,6 +215,52 @@
             :title="t('project.list.title')"
             :description="errorMessage"
           />
+        </template>
+        <template #cards>
+          <responsive-card-list class="project-mobile-list">
+            <article
+              v-for="row in rows"
+              :key="row.application_id"
+              class="project-mobile-card"
+              role="button"
+              tabindex="0"
+              :data-testid="`project-mobile-card-${row.application_id}`"
+              @click="navigateToDetail(row)"
+              @keydown.enter.prevent="navigateToDetail(row)"
+              @keydown.space.prevent="navigateToDetail(row)"
+            >
+              <div class="project-mobile-card__main">
+                <strong class="project-mobile-card__title">{{ row.display_name }}</strong>
+                <div class="project-mobile-card__meta">
+                  <t-tag theme="primary" variant="light-outline" size="small">
+                    {{ deploymentAdapterLabel(row.deployment_adapter_kind) }}
+                  </t-tag>
+                  <button
+                    type="button"
+                    :class="[
+                      'project-runtime-badge',
+                      `project-runtime-badge--${normalizeRuntimeStatus(row.runtime_status)}`,
+                      { 'project-runtime-badge--loading': isRowActionPending(row.application_id) },
+                    ]"
+                    :aria-busy="isRowActionPending(row.application_id)"
+                    :aria-label="runtimeStatusActionTooltip(row)"
+                    :disabled="openingTaskRowIds.has(row.application_id)"
+                    @click.stop="openApplicationTask(row)"
+                  >
+                    <span v-if="isRowActionPending(row.application_id)" class="project-runtime-badge__spinner" />
+                    <template v-else>{{ runtimeStatusLabel(row.runtime_status) }}</template>
+                  </button>
+                </div>
+              </div>
+              <table-action-menu
+                class="project-mobile-card__actions"
+                :actions="buildMobileRowActions(row)"
+                :more-label="t('project.list.actions.operationMenu')"
+                :more-label-fallback="t('project.list.actions.operationMenu')"
+                @action="(action) => handleRowAction(action, row)"
+              />
+            </article>
+          </responsive-card-list>
         </template>
         <template #name="{ row }">
           <div class="project-identity">
@@ -359,6 +411,7 @@
       </management-paged-table>
 
       <t-drawer
+        v-if="!usesCompactApplicationList"
         v-model:visible="columnDrawerVisible"
         :header="t('project.list.columnDrawerTitle')"
         size="420px"
@@ -414,6 +467,8 @@ import {
   useAdvancedQuerySorterUiState,
   useSavedQueryViews,
 } from '@/shared/components/query-list';
+import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
+import { useResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   assignEncodedSorters,
@@ -491,6 +546,9 @@ const router = useRouter();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
 const logger = createLogger('project.list');
+const projectPageRef = ref<HTMLElement | null>(null);
+const projectPageVariant = useResponsiveVariant(projectPageRef, { presentation: 'entity' });
+const usesCompactApplicationList = computed(() => projectPageVariant.value.density === 'compact');
 const activeTaskId = ref<number | null>(null);
 const taskDrawerVisible = ref(false);
 const openingTaskRowIds = ref(new Set<string>());
@@ -540,6 +598,13 @@ const filters = ref<ApplicationFilterState>(createDefaultFilters());
 const runtimeTargets = ref<RuntimeTarget[]>([]);
 const columnDrawerVisible = ref(false);
 const selectedApplicationFilterField = ref<ApplicationBuilderFieldKey>('deploymentAdapterKind');
+
+watch(usesCompactApplicationList, (usesCompact) => {
+  if (usesCompact) {
+    clearSelection();
+    columnDrawerVisible.value = false;
+  }
+});
 
 const sourceTypeOptions: ApplicationSourceType[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ApplicationDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
@@ -1593,6 +1658,21 @@ function buildRowActions(row: ApplicationListItemWithLifecycle) {
   ];
 }
 
+function buildMobileRowActions(row: ApplicationListItemWithLifecycle) {
+  const actions = buildRowActions(row);
+  const primaryAction =
+    actions.find((action) => action.value === 'stop') ?? actions.find((action) => action.value === 'up');
+
+  if (!primaryAction) {
+    return actions;
+  }
+
+  return [
+    primaryAction,
+    ...actions.filter((action) => action.value !== primaryAction.value && action.value !== 'detail'),
+  ];
+}
+
 function actionConfirmTitleKey(action: 'up' | 'stop' | 'restart' | 'unregister' | 'redeploy' | 'destroy') {
   return `project.list.actions.confirm${action.charAt(0).toUpperCase()}${action.slice(1)}Title`;
 }
@@ -2363,10 +2443,78 @@ button.project-runtime-badge:disabled {
   flex-direction: column;
 }
 
+.project-mobile-list {
+  width: 100%;
+}
+
+.project-mobile-card {
+  align-items: center;
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  cursor: pointer;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-height: 104px;
+  padding: var(--graft-density-gap-14);
+}
+
+.project-mobile-card:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+
+.project-mobile-card__main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-10);
+  min-width: 0;
+}
+
+.project-mobile-card__title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-mobile-card__meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-10);
+}
+
+.project-mobile-card__actions {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.project-mobile-card__actions :deep(.table-action-menu) {
+  width: auto;
+}
+
 @media (width <= 768px) {
   .project-table-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .project-mobile-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .project-mobile-card__actions,
+  .project-mobile-card__actions :deep(.table-action-menu) {
+    width: 100%;
+  }
+
+  .project-mobile-card__actions :deep(.t-button) {
+    flex: 1 1 0;
   }
 }
 </style>

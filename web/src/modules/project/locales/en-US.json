@@ -247,6 +247,7 @@
         "allRuntimeStatuses": "All Runtime Statuses",
         "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
+        "filter": "Filter",
         "query": "Query",
         "reset": "Reset",
         "sorterBuilder": "Sort By",

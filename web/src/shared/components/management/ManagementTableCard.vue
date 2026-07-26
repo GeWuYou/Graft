@@ -149,6 +149,11 @@ const hasHead = computed(() => Boolean(slots.head || slots.toolbar || props.titl
     justify-content: flex-start;
   }
 
+  .management-table-card__head-main {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
   .management-table-card__body {
     padding: 0 var(--graft-density-gap-16) var(--graft-density-gap-16);
   }

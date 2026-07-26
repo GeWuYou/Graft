@@ -51,6 +51,7 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 
 const dialogConfirmMock = vi.hoisted(() => vi.fn());
 const dialogAlertMock = vi.hoisted(() => vi.fn());
+const responsiveVariantMocks = vi.hoisted(() => ({ density: 'spacious' }));
 
 type BatchActionResponseMock = {
   blocked_count: number;
@@ -100,6 +101,8 @@ const listMessages = {
   'project.list.clearFilters': 'Clear Filters',
   'project.list.runtimeTargetsLoadFailed': 'Failed to load runtime targets.',
   'project.list.columnSettings': 'Column Settings',
+  'project.list.deploymentAdapterKind.compose': 'Compose',
+  'project.list.filters.filter': 'Filter',
   'project.list.columns.selection': 'Select',
   'project.list.columns.drift': 'Sync Status',
   'project.list.columns.name': 'Application',
@@ -352,6 +355,13 @@ vi.mock('@/modules/runtime-target/api/runtime-target', () => ({
   listRuntimeTargets: runtimeTargetMocks.listRuntimeTargets,
 }));
 
+vi.mock('@/shared/composables', async () => {
+  const { computed } = await import('vue');
+  return {
+    useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
+  };
+});
+
 vi.mock('../../shared/list-realtime', () => ({
   acquireApplicationListRealtime: projectRealtimeMocks.acquireApplicationListRealtime,
   releaseApplicationListRealtime: projectRealtimeMocks.releaseApplicationListRealtime,
@@ -572,6 +582,7 @@ describe('Application list page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    responsiveVariantMocks.density = 'spacious';
     projectRealtimeMocks.acquireApplicationListRealtime.mockImplementation(() => undefined);
     projectRealtimeMocks.releaseApplicationListRealtime.mockImplementation(() => undefined);
     runtimeTargetMocks.listRuntimeTargets.mockResolvedValue([]);
@@ -654,6 +665,26 @@ describe('Application list page', () => {
 
     expect(wrapper.get('.management-statistics-bar').text()).toContain('Total42');
     expect(wrapper.get('[data-testid="project-table-summary"]').text()).toBe('Total 42');
+  });
+
+  it('renders compact application cards without mounting the desktop table', async () => {
+    responsiveVariantMocks.density = 'compact';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const alphaCard = wrapper.get('[data-testid="project-mobile-card-1"]');
+    expect(alphaCard.text()).toContain('Alpha');
+    expect(alphaCard.text()).toContain('Compose');
+    expect(alphaCard.text()).toContain('Running');
+    expect(alphaCard.find('[data-testid="row-action-stop"]').exists()).toBe(true);
+    expect(alphaCard.find('[data-testid="row-action-detail"]').exists()).toBe(false);
+    expect(wrapper.find('.t-table-stub').exists()).toBe(false);
+    expect(alphaCard.text()).not.toContain('/srv/alpha');
+
+    await alphaCard.trigger('click');
+    expect(routerMocks.push).toHaveBeenCalledWith(
+      expect.objectContaining({ name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName }),
+    );
   });
 
   it('opens the shared saved-view dialog from the query builder', async () => {

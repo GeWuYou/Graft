@@ -247,6 +247,7 @@
         "allRuntimeStatuses": "全部运行状态",
         "allDriftStatuses": "全部同步状态",
         "allRefreshStatuses": "全部刷新状态",
+        "filter": "筛选",
         "query": "查询",
         "reset": "重置",
         "sorterBuilder": "排序方式",

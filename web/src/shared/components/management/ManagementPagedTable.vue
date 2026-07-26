@@ -18,7 +18,11 @@
     <slot name="feedback" />
 
     <responsive-table presentation="data">
+      <div v-if="props.cardsVisible && $slots.cards" class="management-paged-table__cards">
+        <slot name="cards" />
+      </div>
       <div
+        v-else
         ref="tableHostRef"
         class="management-paged-table__table-host graft-scrollbar"
         :data-table-mode="tableWidthPolicy.mode"
@@ -89,6 +93,7 @@ import { useTableHostWidth } from './use-table-host-width';
 
 const RESERVED_SLOT_NAMES = new Set([
   'batch',
+  'cards',
   'default',
   'empty',
   'empty-action',
@@ -102,6 +107,7 @@ const RESERVED_SLOT_NAMES = new Set([
 const props = withDefaults(
   defineProps<{
     cellSlotNames?: string[];
+    cardsVisible?: boolean;
     columns: TdBaseTableProps['columns'];
     description?: string;
     emptyDescription: string;
@@ -123,6 +129,7 @@ const props = withDefaults(
   }>(),
   {
     cellSlotNames: () => [],
+    cardsVisible: false,
     description: '',
     headLabel: '',
     loading: false,
@@ -190,6 +197,10 @@ function emitSortChange(sort: TableSort) {
 
 .management-paged-table__empty {
   padding: var(--graft-density-gap-24) 0 var(--graft-density-gap-8);
+}
+
+.management-paged-table__cards {
+  min-width: 0;
 }
 
 .management-paged-table__table-host {

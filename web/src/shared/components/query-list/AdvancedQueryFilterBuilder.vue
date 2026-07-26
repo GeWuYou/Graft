@@ -8,8 +8,34 @@
             class="query-filter-builder__keyword management-query-search"
             clearable
             :placeholder="keywordPlaceholder"
+            @enter="$emit('search')"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
+          <template v-if="!compactMode">
+            <slot name="saved-query-views" />
+            <div class="query-filter-builder__actions">
+              <t-button theme="primary" :loading="loading" @click="$emit('search')">
+                {{ searchLabel }}
+              </t-button>
+              <t-button theme="default" variant="outline" @click="$emit('reset')">
+                {{ resetLabel }}
+              </t-button>
+            </div>
+          </template>
+          <t-button
+            v-else
+            class="query-filter-builder__compact-toggle"
+            data-testid="query-filter-builder-compact-toggle"
+            theme="default"
+            variant="outline"
+            @click="compactExpanded = !compactExpanded"
+          >
+            <template #suffix><t-icon :name="compactExpanded ? 'chevron-up' : 'filter'" /></template>
+            {{ compactToggleLabel || addFilterLabel }}
+          </t-button>
+        </div>
+
+        <div v-if="compactMode && compactExpanded" class="query-filter-builder__compact-actions">
           <slot name="saved-query-views" />
           <div class="query-filter-builder__actions">
             <t-button theme="primary" :loading="loading" @click="$emit('search')">
@@ -21,7 +47,7 @@
           </div>
         </div>
 
-        <section v-if="availableFields.length" class="query-filter-builder__group">
+        <section v-if="(!compactMode || compactExpanded) && availableFields.length" class="query-filter-builder__group">
           <div class="query-filter-builder__group-header">
             <span class="query-filter-builder__group-title">{{ filtersGroupLabel }}</span>
           </div>
@@ -201,7 +227,7 @@
           </div>
         </section>
 
-        <div v-if="presets.length" class="query-filter-builder__preset-row">
+        <div v-if="(!compactMode || compactExpanded) && presets.length" class="query-filter-builder__preset-row">
           <span class="query-filter-builder__preset-label">{{ presetLabel }}</span>
           <t-button
             v-for="preset in presets"
@@ -215,7 +241,7 @@
           </t-button>
         </div>
 
-        <div v-if="tags.length" class="query-filter-builder__tag-row">
+        <div v-if="(!compactMode || compactExpanded) && tags.length" class="query-filter-builder__tag-row">
           <t-tag
             v-for="tag in tags"
             :key="tag.key"
@@ -234,7 +260,7 @@
   </management-toolbar>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { ManagementToolbar } from '@/shared/components/management';
 
@@ -247,40 +273,50 @@ import type {
   AdvancedQueryTimeRangeField,
 } from './query-filter-builder';
 
-const props = defineProps<{
-  activePreset: string;
-  addFilterLabel: string;
-  addSorterLabel: string;
-  builderHint: string;
-  builderTitle: string;
-  fieldValues: Record<string, string | string[]>;
-  fields: AdvancedQueryFilterFieldDefinition[];
-  filtersGroupLabel: string;
-  keyword: string;
-  keywordPlaceholder: string;
-  loading?: boolean;
-  moveDownLabel: string;
-  moveUpLabel: string;
-  presetLabel: string;
-  presets: AdvancedQueryFilterPreset[];
-  removeSorterLabel: string;
-  resetLabel: string;
-  searchLabel: string;
-  selectedFieldKey: string;
-  sortAddDisabled?: boolean;
-  sortDirectionOptions: AdvancedQuerySortOption[];
-  sortDirectionPlaceholder: string;
-  sortFieldOptionsByIndex: AdvancedQuerySortOption[][];
-  sortFieldKey: string;
-  sortFieldPlaceholder: string;
-  sortMoveDownDisabled?: boolean[];
-  sortMoveUpDisabled?: boolean[];
-  sorters: AdvancedQuerySortItem[];
-  showSorterBuilder?: boolean;
-  tags: AdvancedQueryFilterTag[];
-  timeFieldKey: string;
-  timeFields: AdvancedQueryTimeRangeField[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    activePreset: string;
+    addFilterLabel: string;
+    addSorterLabel: string;
+    builderHint: string;
+    builderTitle: string;
+    compactMode?: boolean;
+    compactToggleLabel?: string;
+    fieldValues: Record<string, string | string[]>;
+    fields: AdvancedQueryFilterFieldDefinition[];
+    filtersGroupLabel: string;
+    keyword: string;
+    keywordPlaceholder: string;
+    loading?: boolean;
+    moveDownLabel: string;
+    moveUpLabel: string;
+    presetLabel: string;
+    presets: AdvancedQueryFilterPreset[];
+    removeSorterLabel: string;
+    resetLabel: string;
+    searchLabel: string;
+    selectedFieldKey: string;
+    sortAddDisabled?: boolean;
+    sortDirectionOptions: AdvancedQuerySortOption[];
+    sortDirectionPlaceholder: string;
+    sortFieldOptionsByIndex: AdvancedQuerySortOption[][];
+    sortFieldKey: string;
+    sortFieldPlaceholder: string;
+    sortMoveDownDisabled?: boolean[];
+    sortMoveUpDisabled?: boolean[];
+    sorters: AdvancedQuerySortItem[];
+    showSorterBuilder?: boolean;
+    tags: AdvancedQueryFilterTag[];
+    timeFieldKey: string;
+    timeFields: AdvancedQueryTimeRangeField[];
+  }>(),
+  {
+    compactMode: false,
+    compactToggleLabel: '',
+    sortMoveDownDisabled: () => [],
+    sortMoveUpDisabled: () => [],
+  },
+);
 
 defineEmits<{
   (e: 'add-sorter'): void;
@@ -306,6 +342,16 @@ defineEmits<{
 }>();
 
 const builderVisible = ref(false);
+const compactExpanded = ref(false);
+
+watch(
+  () => props.compactMode,
+  (compactMode) => {
+    if (compactMode) {
+      compactExpanded.value = false;
+    }
+  },
+);
 
 const availableFields = computed(() =>
   props.fields.filter((field) => {
@@ -362,7 +408,8 @@ function normalizeRange(value: string[] | undefined) {
 
 .query-filter-builder__top-row,
 .query-filter-builder__group-body,
-.query-filter-builder__preset-row {
+.query-filter-builder__preset-row,
+.query-filter-builder__compact-actions {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -376,6 +423,14 @@ function normalizeRange(value: string[] | undefined) {
 .query-filter-builder__actions {
   display: flex;
   gap: var(--graft-density-gap-12);
+}
+
+.query-filter-builder__compact-toggle {
+  flex: 0 0 auto;
+}
+
+.query-filter-builder__compact-actions {
+  align-items: center;
 }
 
 .query-filter-builder__group {
@@ -509,7 +564,12 @@ function normalizeRange(value: string[] | undefined) {
 }
 
 @media (width <= 768px) {
+  .query-filter-builder__top-row {
+    flex-wrap: nowrap;
+  }
+
   .query-filter-builder__keyword {
+    flex: 1 1 auto;
     min-width: 0;
   }
 }
