@@ -65,6 +65,16 @@ const tooltipStub = defineComponent({
     return () => h('div', { 'data-tooltip-content': props.content }, slots.default?.());
   },
 });
+const dropdownStub = defineComponent({
+  setup(_, { slots }) {
+    const visible = ref(false);
+    return () =>
+      h('div', { 'data-testid': 'dropdown' }, [
+        h('div', { onClick: () => (visible.value = true) }, slots.default?.()),
+        visible.value ? h('div', { 'data-testid': 'dropdown-panel' }, slots.dropdown?.()) : null,
+      ]);
+  },
+});
 const languageSwitcherOpenMock = vi.fn();
 const languageSwitcherStub = defineComponent({
   setup(_, { expose }) {
@@ -139,7 +149,7 @@ function mountHeader(props: Record<string, unknown> = {}) {
       stubs: {
         't-head-menu': headMenuStub,
         't-button': buttonStub,
-        't-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
+        't-dropdown': dropdownStub,
         't-dropdown-item': { template: '<button v-bind="$attrs" type="button"><slot /></button>' },
         't-icon': { template: '<i />' },
         't-tooltip': tooltipStub,
@@ -147,7 +157,7 @@ function mountHeader(props: Record<string, unknown> = {}) {
         LanguageSwitcher: languageSwitcherStub,
         MenuContent: true,
         Notice: true,
-        Search: defineComponent({ template: '<div data-testid="header-search" />' }),
+        Search: defineComponent({ template: '<input data-testid="header-search" />' }),
       },
     },
   });
@@ -186,9 +196,16 @@ describe('Header', () => {
     expect(wrapper.find('.header-menu').exists()).toBe(false);
     expect(wrapper.find('[data-testid="header-document-fullscreen-toggle"]').exists()).toBe(false);
     expect(wrapper.get('[data-testid="header-more-tools"]').attributes('aria-label')).toBe('layout.header.moreTools');
-    expect(wrapper.find('.header-more-tools-search [data-testid="header-search"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="dropdown-panel"]').exists()).toBe(false);
     expect(wrapper.find('.header-user-account').exists()).toBe(false);
     expect(wrapper.get('[data-testid="header-user-menu"]').classes()).toContain('header-user-btn--compact');
+
+    await wrapper.get('[data-testid="header-more-tools"]').trigger('click');
+    await wrapper.vm.$nextTick();
+    const search = wrapper.get('.header-more-tools-search [data-testid="header-search"]');
+    await search.trigger('focus');
+    await search.setValue('runtime target');
+    expect((search.element as HTMLInputElement).value).toBe('runtime target');
 
     await wrapper.get('[data-testid="header-language-selector"]').trigger('click');
     expect(languageSwitcherOpenMock).toHaveBeenCalledTimes(1);
