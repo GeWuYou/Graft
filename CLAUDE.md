@@ -30,9 +30,11 @@ just migrate-up     # Apply database migrations
 
 ### Backend (Go)
 
-`graft dev`, `graft serve`, and `graft migrate up` are manual-only commands;
-they are prohibited in numbered agent worktrees. Use `graft validate backend`
-or `graft migrate validate` there instead.
+`cd server && go run ./cmd/graft dev`, `cd server && go run ./cmd/graft serve`,
+and `cd server && go run ./cmd/graft migrate up` are manual-only commands; they
+are prohibited in numbered agent worktrees. Use `cd server && go run ./cmd/graft
+validate backend` or `cd server && go run ./cmd/graft migrate validate` there
+instead.
 
 ```bash
 cd server
@@ -103,7 +105,7 @@ Cross-module sharing is handled through `web/src/shared/` (components, composabl
 
 ### OpenAPI Contract
 
-`openapi/openapi.yaml` is the canonical API definition. It is the source of truth for both backend routing (`server/internal/contract/`) and frontend types (`web/src/contracts/openapi/generated/schema.ts`). After changing the OpenAPI spec, run `just generate` or `bun run openapi:types` (frontend).
+`openapi/openapi.yaml` is the canonical API definition. It is the source of truth for both backend routing (`server/internal/contract/`) and frontend types (`web/src/contracts/openapi/generated/schema.ts`). After changing the OpenAPI spec, run both `just generate` and `just openapi-check`; `bun run openapi:types` is an additional frontend-only generation command, not a replacement for the required checks.
 
 ### Key Infrastructure (`server/internal/`)
 

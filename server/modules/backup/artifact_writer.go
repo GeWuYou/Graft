@@ -74,13 +74,22 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	if w == nil || w.cfg == nil || !backupOperationID.MatchString(input.OperationID) {
 		return moduleapi.CreateBackupInput{}, moduleapi.ErrBackupInvalidInput
 	}
+	if err := ctx.Err(); err != nil {
+		return moduleapi.CreateBackupInput{}, err
+	}
 	directory := filepath.Join(w.root, input.OperationID)
 	if err := os.MkdirAll(directory, backupDirectoryPermission); err != nil {
 		return moduleapi.CreateBackupInput{}, fmt.Errorf("create backup artifact directory: %w", err)
 	}
 	configRef := filepath.Join(directory, "config.snapshot")
 	dumpRef := filepath.Join(directory, "database.dump")
+	if err := ctx.Err(); err != nil {
+		return moduleapi.CreateBackupInput{}, err
+	}
 	if err := w.ensureConfigSnapshot(configRef); err != nil {
+		return moduleapi.CreateBackupInput{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return moduleapi.CreateBackupInput{}, err
 	}
 	if _, err := os.Stat(dumpRef); os.IsNotExist(err) {

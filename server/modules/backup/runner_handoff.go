@@ -2,9 +2,6 @@ package backup
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,11 +41,11 @@ func (s *Service) CompleteRunnerHandoff(ctx context.Context, input moduleapi.Com
 	if !runnerArtifactPathsAllowed(plan) {
 		return moduleapi.BackupRunnerHandoffCompletion{}, moduleapi.ErrBackupInvalidInput
 	}
-	config, err := verifyRunnerArtifact(plan.ArtifactRoot, plan.ConfigSnapshotRef)
+	config, err := verifyRunnerArtifact(ctx, plan.ArtifactRoot, plan.ConfigSnapshotRef)
 	if err != nil {
 		return moduleapi.BackupRunnerHandoffCompletion{}, err
 	}
-	dump, err := verifyRunnerArtifact(plan.ArtifactRoot, plan.DatabaseDumpRef)
+	dump, err := verifyRunnerArtifact(ctx, plan.ArtifactRoot, plan.DatabaseDumpRef)
 	if err != nil {
 		return moduleapi.BackupRunnerHandoffCompletion{}, err
 	}
@@ -74,7 +71,10 @@ func pathWithinRoot(root string, artifact string) bool {
 	return err == nil && relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
-func verifyRunnerArtifact(root string, ref string) (moduleapi.BackupArtifact, error) {
+func verifyRunnerArtifact(ctx context.Context, root string, ref string) (moduleapi.BackupArtifact, error) {
+	if err := ctx.Err(); err != nil {
+		return moduleapi.BackupArtifact{}, err
+	}
 	canonicalRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		return moduleapi.BackupArtifact{}, moduleapi.ErrBackupInvalidInput
@@ -88,12 +88,11 @@ func verifyRunnerArtifact(root string, ref string) (moduleapi.BackupArtifact, er
 		return moduleapi.BackupArtifact{}, moduleapi.ErrBackupInvalidInput
 	}
 	defer func() { _ = file.Close() }()
-	hash := sha256.New()
-	size, err := io.Copy(hash, file)
+	sha256Value, size, err := digestBackupArtifactReader(ctx, file)
 	if err != nil {
-		return moduleapi.BackupArtifact{}, moduleapi.ErrBackupInvalidInput
+		return moduleapi.BackupArtifact{}, err
 	}
-	return moduleapi.BackupArtifact{StorageRef: ref, SHA256: hex.EncodeToString(hash.Sum(nil)), SizeBytes: size}, nil
+	return moduleapi.BackupArtifact{StorageRef: ref, SHA256: sha256Value, SizeBytes: size}, nil
 }
 
 func matchesRunnerArtifact(actual moduleapi.BackupArtifact, claimedSHA256 string, claimedBytes int64) bool {

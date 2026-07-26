@@ -121,6 +121,19 @@ func TestFileArtifactWriterVerifyHonorsCanceledContext(t *testing.T) {
 	}
 }
 
+func TestFileArtifactWriterCreateHonorsCanceledContextBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	writer := newTestArtifactWriter(root)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := writer.Create(ctx, testBackupTaskInput()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled creation, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "backup-42")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("canceled creation wrote artifact directory: %v", err)
+	}
+}
+
 func TestDigestBackupArtifactReaderHonorsCancellationDuringRead(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	reader := cancelAfterFirstRead{reader: bytes.NewReader(bytes.Repeat([]byte("backup"), 20_000)), cancel: cancel}

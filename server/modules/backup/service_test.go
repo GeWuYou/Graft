@@ -164,6 +164,23 @@ func TestServiceCompletesRunnerHandoffAfterVerifyingFrozenArtifacts(t *testing.T
 	}
 }
 
+func TestServiceCompleteRunnerHandoffHonorsCanceledContextBeforeReadingArtifacts(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	configRef := filepath.Join(root, "config.snapshot")
+	dumpRef := filepath.Join(root, "database.dump")
+	writeRunnerArtifact(t, configRef, []byte("CONFIG=redacted\n"))
+	writeRunnerArtifact(t, dumpRef, []byte("postgres dump"))
+	service := NewService(&serviceTestRepository{plan: moduleapi.BackupRunnerHandoffPlan{
+		OperationID: "update-44", TaskID: 44, ArtifactRoot: root, ConfigSnapshotRef: configRef, DatabaseDumpRef: dumpRef,
+	}})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := service.CompleteRunnerHandoff(ctx, moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "update-44", TaskID: 44}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled handoff, got %v", err)
+	}
+}
+
 func TestServiceRejectsRunnerArtifactOutsideFrozenRoot(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
