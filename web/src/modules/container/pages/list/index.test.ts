@@ -251,6 +251,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.list.filters.reset': '重置',
   'container.list.filters.searchPlaceholder': '搜索名称、镜像、ID 或端口',
   'container.list.filters.status': '容器状态',
+  'container.list.presentation.card': '卡片视图',
+  'container.list.presentation.table': '表格视图',
   'container.list.loadFailed': '容器列表加载失败。',
   'container.list.labelCount': '{count} 个标签',
   'container.list.logs.autoRefresh': '自动刷新',
@@ -436,6 +438,11 @@ vi.mock('@/utils/route/title', () => ({
     [LOCALE.ZH_CN]: translations[titleKey] ?? titleKey,
     [LOCALE.EN_US]: titleKey === 'container.detail.title' ? 'Container Detail' : (translations[titleKey] ?? titleKey),
   }),
+}));
+
+vi.mock('@/shared/composables', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/composables')>()),
+  useResponsiveVariant: () => ({ value: { density: 'spacious' } }),
 }));
 
 describe('container list page', () => {
@@ -649,8 +656,9 @@ describe('container list page', () => {
     });
     expect(wrapper.text()).toContain('基础设施');
     expect(wrapper.text()).toContain('容器管理');
-    expect(wrapper.text()).toContain('总数 25');
-    expect(wrapper.text()).toContain('不健康 0');
+    const pageText = wrapper.text().replace(/\s+/gu, ' ');
+    expect(pageText).toContain('总数 25');
+    expect(pageText).toContain('不健康 0');
     expect(wrapper.text()).toContain('graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('Compose 应用');
@@ -679,6 +687,21 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
     wrapper.unmount();
+  });
+
+  it('switches the container list to cards when the user selects the card presentation', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="container-presentation-card"]').attributes('aria-label')).toBe('卡片视图');
+    expect(wrapper.get('[data-testid="container-presentation-table"]').attributes('aria-label')).toBe('表格视图');
+    expect(wrapper.findAll('[data-testid="container-filter-keyword"]')).toHaveLength(1);
+
+    await wrapper.get('[data-testid="container-presentation-card"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="container-card-container-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="container-action-stop"]').exists()).toBe(false);
   });
 
   it('opens the associated Compose application detail instead of searching the application list', async () => {

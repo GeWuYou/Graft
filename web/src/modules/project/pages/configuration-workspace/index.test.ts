@@ -1550,7 +1550,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
@@ -1584,7 +1584,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1638,7 +1638,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1662,7 +1662,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1701,7 +1701,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1728,7 +1728,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
@@ -1736,7 +1736,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1855,7 +1855,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushPromises();
+    await flushDiffViewerFrames();
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 

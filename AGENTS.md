@@ -625,20 +625,87 @@ Automatic commits are allowed only after ownership is classified:
 
 Explicit commit trigger:
 
-- when the user explicitly invokes a repository commit trigger such as `$graft-commit`, treat it as permission to
-  create one scoped commit for the current validated task slice, but still apply the ownership and mixed-change rules
-  above before staging anything
-- if the confirmed owned scope contains multiple independently validated logical slices, or one safe commit cannot
-  cover the confirmed scope cleanly, `$graft-commit` may split the work into multiple scoped commits without asking for
-  repeated permission; each commit must still satisfy ownership, validation, staging, and message rules on its own
-- the trigger grants permission to commit the confirmed owned scope only; it does not permit bundling unrelated files,
-  unknown changes, or all current working tree changes by default
-- if the current slice is not yet validated to the level required by its task class, finish the required validation
-  before committing or explain why that validation cannot be completed yet
-- if the working tree is mixed and the owned scope cannot be separated confidently, the trigger does not override the
-  fail-closed rule; stop and report the ambiguity instead of forcing a commit
-- batching is not a compatibility escape hatch; stop at the first ambiguous, unvalidated, or unsafe batch instead of
-  force-staging the remaining changes
+- when the user explicitly invokes a repository commit trigger such as `$graft-commit`, treat it as persistent
+  authorization only for explicitly user-confirmed, currently owned logical slices captured in the initial working-tree
+  inventory: inventory them, validate, and create scoped commits for those slices
+- the initial inventory is an upper boundary, not commit authority: presence in that inventory, user authorship,
+  classifiability, or task relevance does not authorize a change that is not explicitly user-confirmed and currently
+  owned; the trigger does not permit broad staging, later-arriving changes, or changes outside the recorded inventory
+- an explicit commit trigger authorizes validation and commits for the confirmed captured slices, but does not authorize
+  new source edits or a repair commit after validation fails; diagnose the blocker first, then request confirmation for
+  the exact repair scope before making any repair edit, staging that repair, or committing it
+- use the `Repair Confirmation Interaction Contract` below whenever validation fails, a repair needs a file outside the
+  currently authorized slice, an extra repair commit is necessary, or the repair would expand the change range; do not
+  replace it with a binary question such as `Approve?`, `Should I fix this?`, or `Confirm repair?`
+- each resulting commit must still satisfy ownership classification, task-class validation, exact staging, and message
+  rules; split independent logical slices into separate commits rather than bundling them for convenience
+- request a repair confirmation when a captured change is not explicitly user-confirmed and currently owned, a required
+  repair lacks safe ownership, or the repair would expand into a new unsafe task; report only when no concrete repair
+  proposal can be formed or required validation is infeasible, and do not use an intermediate commit to conceal either
+  condition
+- after each commit, re-inspect `git status --short` and continue only with the remaining explicitly user-confirmed,
+  currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
+
+Repair Confirmation Interaction Contract:
+
+- before any repair edit, staging, repair commit, or repair push, present one structured `Repair required` proposal,
+  then invoke the host's native structured-choice interaction (for example, `request_user_input`); users select an
+  option in that control and never need to restate the repair intent
+- the proposal must contain all of the following:
+  - `Reason`: the failed command and root-cause analysis
+  - `Changes`: every exact repository-relative file path, line number or hunk range, and the proposed content change
+  - `Impact`: ownership judgment and blast-radius assessment
+  - `Validation`: every command to rerun after the repair
+  - `Commit strategy`: whether the repair is a separate commit or is combined with the current commit, with rationale
+- render the proposal in this interaction shape, substituting the concrete evidence rather than omitting a field. The
+  option labels and descriptions are the payload for the native structured-choice interaction, not a numbered menu in
+  a normal assistant message:
+
+  ```text
+  Repair required
+
+  Reason:
+  - Failed command: <command>
+  - Root cause: <analysis>
+
+  Changes:
+  - <path>:<line-or-hunk> - <proposed change>
+
+  Impact:
+  - Ownership: <judgment>
+  - Blast radius: <assessment>
+
+  Validation:
+  - <command>
+
+  Commit strategy:
+  - <separate repair commit or current commit, with rationale>
+
+  Native choices:
+  - `execute_repair`: Execute repair (recommended)
+    Apply only the proposed files and hunks, rerun validation, then resume the current commit/push workflow.
+  - `continue_current_scope`: Continue current scope only
+    Do not repair or modify extra files. Report the blocker when the current workflow cannot complete.
+  - `show_detailed_diff`: Show detailed diff
+    Show the proposed patch without modifying files, then display this same native choice control again.
+  - `cancel_workflow`: Cancel
+    Stop the current workflow and preserve the working tree.
+  ```
+
+- use the four stable option ids shown above. Do not end a normal assistant message with `Please choose`, `请选择`, or
+  `reply 1-4`; do not ask the user to type a number, and do not substitute a binary confirmation prompt
+- only `execute_repair` is authorization for the declared repair. Apply, stage, commit, and push only the listed files
+  and hunks; if implementation discovers a different file, hunk, root cause, validation command, or commit strategy,
+  stop and issue a new proposal
+- `continue_current_scope` forbids the repair. Continue only with the already authorized scope, and report the concrete blocker if
+  the validation, commit, or push path cannot finish without it
+- `show_detailed_diff` must show a concrete unified diff or equivalent hunk patch without changing files, then invoke
+  the unchanged proposal and the same native choice control again
+- `cancel_workflow` stops the current workflow without modifying, staging, committing, or pushing the repair
+- when the host cannot present a native structured-choice interaction, report that capability blocker and preserve the
+  working tree; never fall back to a prose menu or manual numeric reply
+- a repair proposal is required even when the suspected repair is a one-line test synchronization; a prior
+  `$graft-commit`, `$graft-push`, or `$graft-pr-review` trigger does not substitute for `execute_repair`
 
 Closeout-driven commit evaluation:
 

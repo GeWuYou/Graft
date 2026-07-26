@@ -67,6 +67,11 @@ function mountPage() {
         'management-page-content': passthrough('ManagementPageContent'),
         'management-page-header': passthrough('ManagementPageHeader'),
         'management-table-pagination': passthrough('ManagementTablePagination'),
+        'responsive-table': defineComponent({
+          name: 'ResponsiveTable',
+          template: '<div data-testid="runtime-target-responsive-table"><slot name="cards" /><slot /></div>',
+        }),
+        'router-link': defineComponent({ name: 'RouterLink', template: '<a><slot /></a>' }),
         't-loading': passthrough('TLoading'),
         't-row': passthrough('TRow'),
         't-col': passthrough('TCol'),
@@ -133,12 +138,34 @@ describe('RuntimeTargetListPage', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="runtime-target-discover-local"]').trigger('click');
+    await wrapper.get('[data-testid="runtime-target-discover-local-empty"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.discoverLocalDocker).toHaveBeenCalledOnce();
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledTimes(2);
     expect(messageMocks.success).toHaveBeenCalledWith('runtimeTarget.list.discoverSuccess:');
+  });
+
+  it('keeps every runtime resource metric and the detail link in the card presentation', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(7)],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      summary: { total: 1, healthy: 1, unavailable: 0 },
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const card = wrapper.get('[data-testid="runtime-target-card-7"]');
+    expect(card.text()).toContain('Target 7');
+    expect(card.text()).toContain('unix:///target-7.sock');
+    expect(card.text()).toContain('runtimeTarget.metrics.workloads:');
+    expect(card.text()).toContain('runtimeTarget.metrics.cpu:');
+    expect(card.text()).toContain('runtimeTarget.metrics.memory:');
+    expect(card.text()).toContain('runtimeTarget.metrics.storage:');
+    expect(card.text()).toContain('runtimeTarget.list.viewDetail:');
+    expect(wrapper.get('[data-testid="runtime-target-discover-local"]').text()).toBe('');
   });
 
   it('patches the current page from a realtime snapshot without reloading the table', async () => {

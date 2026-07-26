@@ -6,6 +6,7 @@
       :title-fallback="title"
       :description-key="descriptionKey"
       :description-fallback="description"
+      :action-layout="actionLayout"
     >
       <template v-if="$slots.meta" #extra>
         <slot name="meta" />
@@ -25,6 +26,7 @@ defineProps<{
   titleKey?: string;
   descriptionKey?: string;
   compact?: boolean;
+  actionLayout?: 'responsive' | 'inline';
   source?: PageHeaderSource;
 }>();
 </script>

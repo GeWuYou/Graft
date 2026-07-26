@@ -33,6 +33,15 @@ describe('debug runtime', () => {
     expect(isDebugFlagEnabled('project.monaco')).toBe(true);
   });
 
+  it('resolves the navigation diagnostic flag through the debug store', () => {
+    vi.stubEnv('VITE_DEBUG_NAVIGATION', 'true');
+
+    const debugStore = useDebugStore(store);
+    debugStore.recompute();
+
+    expect(isDebugFlagEnabled('navigation')).toBe(true);
+  });
+
   it('resolves the project log diagnostic flag through the debug store', () => {
     vi.stubEnv('VITE_DEBUG_PROJECT_LOGS', 'true');
 

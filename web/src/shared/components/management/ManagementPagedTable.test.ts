@@ -82,4 +82,33 @@ describe('ManagementPagedTable', () => {
 
     expect(wrapper.emitted('page-change')?.[0]).toEqual([{ current: 2, pageSize: 20, previous: 1 }]);
   });
+
+  it('replaces the table with an explicit card slot without changing the shared frame', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: {
+        stubs: {
+          't-pagination': TPaginationStub,
+          't-table': TTableStub,
+        },
+      },
+      props: {
+        cardsVisible: true,
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        rows: [{ id: 'application-1', name: 'web' }],
+        total: 1,
+      },
+      slots: {
+        cards: '<article data-testid="application-card">web</article>',
+      },
+    });
+
+    expect(wrapper.get('[data-testid="application-card"]').text()).toBe('web');
+    expect(wrapper.find('[data-testid="paged-table"]').exists()).toBe(false);
+    expect(wrapper.find('.management-table-pagination').exists()).toBe(true);
+  });
 });

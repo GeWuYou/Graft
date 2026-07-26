@@ -29,4 +29,14 @@ describe('ManagementStatisticsBar', () => {
     expect(wrapper.text()).toContain('🟢Running18');
     expect(wrapper.find('.t-card').exists()).toBe(false);
   });
+
+  it('exposes the compact summary layout without changing the item structure', () => {
+    const wrapper = mount(ManagementStatisticsBar, {
+      global: { components: { 't-divider': DividerStub } },
+      props: { items: [{ label: 'Targets', value: 1 }], layout: 'summary' },
+    });
+
+    expect(wrapper.classes()).toContain('management-statistics-bar--summary');
+    expect(wrapper.findAll('.management-statistics-bar__item')).toHaveLength(1);
+  });
 });

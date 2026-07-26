@@ -52,6 +52,8 @@ AI 在当前任务中不得：
 - 有直接验证
 - closeout 明确列出
 
+当验证或提交链路暴露出未被用户明确授权的新修复时，Agent 必须遵循根 `AGENTS.md` 的 `Repair Confirmation Interaction Contract`，形成结构化 `Repair required` proposal，而不是只写“暂停”或询问 `Approve?`、`Should I fix this?`、`Confirm repair?` 要求用户重新说明方向。proposal 必须包括失败命令和根因、精确文件路径与行号或 hunk、拟改内容、ownership 与 blast radius、将重跑的验证，以及独立 repair commit 或合并当前 commit 的策略。Agent 必须通过宿主原生 structured-choice interaction（例如 `request_user_input`）提供 `execute_repair`、`continue_current_scope`、`show_detailed_diff`、`cancel_workflow` 四个选项，不能在普通回复中要求用户输入编号；只有 `execute_repair` 才允许修改、暂存、提交或推送已展示的 repair，`show_detailed_diff` 必须展示 patch 后重新调用同一控件，且新文件或 hunk 必须重新提案。宿主缺少该交互能力时必须报告阻塞，不能退化为手工输入选项。
+
 ## 5. 禁止 TODO 泄漏
 
 完成态代码不得新增以下内容作为未交付占位：

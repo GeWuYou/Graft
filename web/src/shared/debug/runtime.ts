@@ -121,6 +121,7 @@ export function initDebugRuntime() {
       [
         'window.__GRAFT_DEBUG__.list()',
         'window.__GRAFT_DEBUG__.state()',
+        'window.__GRAFT_DEBUG__.enable("navigation")',
         'window.__GRAFT_DEBUG__.enable("tabs")',
         'window.__GRAFT_DEBUG__.enable("project.logs")',
         'window.__GRAFT_DEBUG__.enable("project.templates")',

@@ -9,6 +9,7 @@ import { AUTH_ROUTE_NAME, AUTH_ROUTE_PATH } from '@/modules/auth/contract/routes
 import { useAuthSessionStore } from '@/modules/auth/store';
 import router from '@/router';
 import { finishRouteLoadingAfterRender, hideRouteLoading, startRouteLoading } from '@/router/route-loading';
+import { emitDebugLog } from '@/shared/debug/runtime';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { getPermissionStore } from '@/store';
 import { isRootEntryPath, resolveRuntimeHomePath, RUNTIME_ENTRY_FALLBACK_PATH } from '@/utils/route';
@@ -95,6 +96,14 @@ export function registerRouteGuards(targetRouter: Router = router) {
     }
 
     const userStore = useAuthSessionStore();
+    emitDebugLog('navigation', 'guard-enter', {
+      fromName: String(from.name ?? ''),
+      fromPath: from.path,
+      routesInitialized: permissionStore.routesInitialized,
+      toName: String(to.name ?? ''),
+      toPath: to.path,
+      tokenPresent: Boolean(userStore.token),
+    });
 
     // initializeRoutes 只在拿到最新 bootstrap 菜单快照后调用，确保动态路由
     // 与当前会话的后端菜单/权限结果保持一致，而不是复用旧的 demo 路由树。
@@ -132,7 +141,12 @@ export function registerRouteGuards(targetRouter: Router = router) {
         const { routesInitialized } = permissionStore;
 
         if (!routesInitialized) {
+          emitDebugLog('navigation', 'dynamic-routes-initialize', { targetPath: to.path });
           await initializeRoutes();
+          emitDebugLog('navigation', 'dynamic-routes-initialized', {
+            asyncRouteCount: permissionStore.asyncRoutes.length,
+            globalRouteCount: permissionStore.globalRoutes.length,
+          });
 
           if (isRestrictedSession()) {
             redirectToRestrictedSession();
@@ -145,6 +159,10 @@ export function registerRouteGuards(targetRouter: Router = router) {
             return;
           } else {
             const redirect = decodeURIComponent((from.query.redirect || to.path) as string);
+            emitDebugLog('navigation', 'redirect-after-route-initialization', {
+              redirectPath: redirect,
+              targetPath: to.path,
+            });
             next(to.path === redirect ? { ...to, replace: true } : { path: redirect, query: to.query });
             return;
           }
@@ -157,6 +175,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
           }
 
           if (to.path === AUTH_ROUTE_PATH.LOGIN) {
+            emitDebugLog('navigation', 'redirect-authenticated-login', { targetPath: to.path });
             next({ path: resolveRuntimeHomePath(permissionStore.asyncRoutes), replace: true });
             return;
           }
@@ -178,6 +197,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         if (to.name && targetRouter.hasRoute(to.name)) {
           next();
         } else {
+          emitDebugLog('navigation', 'redirect-route-not-mounted', { targetPath: to.path });
           next({ path: RUNTIME_ENTRY_FALLBACK_PATH, replace: true });
         }
       } catch (error) {
@@ -188,6 +208,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         removeMountedBootstrapRoutes(targetRouter, [...permissionStore.asyncRoutes, ...permissionStore.globalRoutes]);
         userStore.clearSessionState();
         permissionStore.restoreRoutes();
+        emitDebugLog('navigation', 'redirect-bootstrap-failed', { targetPath: to.path });
         next({
           path: AUTH_ROUTE_PATH.LOGIN,
           query: { redirect: encodeURIComponent(to.fullPath) },
@@ -203,6 +224,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
         permissionStore.setBootstrapSnapshot(bootstrap);
 
         if (!permissionStore.routesInitialized) {
+          emitDebugLog('navigation', 'dynamic-routes-initialize-after-refresh', { targetPath: to.path });
           await initializeRoutes();
         }
 
@@ -213,6 +235,7 @@ export function registerRouteGuards(targetRouter: Router = router) {
 
         if (to.path === AUTH_ROUTE_PATH.LOGIN || isRootEntryPath(to.path)) {
           if (to.path === AUTH_ROUTE_PATH.LOGIN) {
+            emitDebugLog('navigation', 'redirect-refreshed-login', { targetPath: to.path });
             next({ path: resolveRuntimeHomePath(permissionStore.asyncRoutes), replace: true });
             return;
           }
@@ -222,16 +245,20 @@ export function registerRouteGuards(targetRouter: Router = router) {
         }
 
         if (to.name === PAGE_NOT_FOUND_ROUTE.name) {
+          emitDebugLog('navigation', 'retry-not-found-after-refresh', { targetPath: to.path });
           next({ path: to.path, replace: true, query: to.query, hash: to.hash });
         } else {
+          emitDebugLog('navigation', 'retry-target-after-refresh', { targetPath: to.path });
           next({ ...to, replace: true });
         }
         return;
       } catch {
         // 无法静默恢复时，仅保留白名单路径直达，其它路径统一回登录页重建会话。
         if (whiteListRouters.includes(to.path)) {
+          emitDebugLog('navigation', 'allow-whitelist-without-session', { targetPath: to.path });
           next();
         } else {
+          emitDebugLog('navigation', 'redirect-login-without-session', { targetPath: to.path });
           next({
             path: AUTH_ROUTE_PATH.LOGIN,
             query: { redirect: encodeURIComponent(to.fullPath) },
@@ -243,6 +270,12 @@ export function registerRouteGuards(targetRouter: Router = router) {
   });
 
   targetRouter.afterEach((to, from) => {
+    emitDebugLog('navigation', 'guard-complete', {
+      fromName: String(from?.name ?? ''),
+      fromPath: from?.path ?? '',
+      toName: String(to?.name ?? ''),
+      toPath: to?.path ?? '',
+    });
     if (to.path === AUTH_ROUTE_PATH.LOGIN) {
       const userStore = useAuthSessionStore();
       const permissionStore = getPermissionStore();

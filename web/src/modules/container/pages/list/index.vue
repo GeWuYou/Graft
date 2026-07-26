@@ -8,76 +8,76 @@
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     />
 
-    <management-statistics-bar
-      :items="containerStatistics"
-      :label="t('container.list.tableSummary', { count: listTotal })"
-    />
+    <container-stats :items="containerStatistics" :label="t('container.list.tableSummary', { count: listTotal })" />
 
     <management-toolbar class="container-toolbar">
       <template #filters>
-        <t-input
-          v-model="filters.keyword"
-          class="management-list-search"
-          clearable
-          data-testid="container-filter-keyword"
-          :placeholder="t('container.list.filters.searchPlaceholder')"
-          @enter="applyFilters"
+        <container-filter
+          :model-value="filters"
+          @update:model-value="Object.assign(filters, $event)"
+          @apply="applyFilters"
+          @reset="resetFilters"
         >
-          <template #prefix-icon><search-icon /></template>
-        </t-input>
-        <t-select
-          v-model="filters.status"
-          class="management-toolbar__select"
-          data-testid="container-filter-status"
-          :placeholder="t('container.list.filters.status')"
-        >
-          <t-option value="all" :label="t('container.list.filters.allStatuses')" />
-          <t-option v-for="status in statusOptions" :key="status" :value="status" :label="stateLabel(status)" />
-        </t-select>
-        <t-select
-          v-model="filters.deploymentType"
-          class="management-toolbar__select"
-          data-testid="container-filter-deployment-type"
-          :placeholder="t('container.list.filters.deploymentType')"
-        >
-          <t-option value="all" :label="t('container.list.filters.allDeploymentTypes')" />
-          <t-option
-            v-for="deploymentType in deploymentTypeOptions"
-            :key="deploymentType"
-            :value="deploymentType"
-            :label="deploymentTypeLabel(deploymentType)"
-          />
-        </t-select>
-        <t-select
-          v-model="filters.runtimeTargetId"
-          class="management-toolbar__select"
-          data-testid="container-filter-runtime-target"
-          :placeholder="t('container.list.filters.runtimeTarget')"
-        >
-          <t-option value="all" :label="t('container.list.filters.allRuntimeTargets')" />
-          <t-option v-for="target in runtimeTargets" :key="target.id" :value="target.id" :label="target.displayName" />
-        </t-select>
-        <t-select
-          v-model="filters.health"
-          class="management-toolbar__select"
-          data-testid="container-filter-health"
-          :placeholder="t('container.list.filters.health')"
-        >
-          <t-option value="all" :label="t('container.list.filters.allHealth')" />
-          <t-option v-for="health in healthOptions" :key="health" :value="health" :label="healthLabel(health)" />
-        </t-select>
-        <t-button data-testid="container-filter-apply" theme="primary" @click="applyFilters">
-          {{ t('container.list.filters.query') }}
-        </t-button>
-        <t-button data-testid="container-filter-reset" theme="default" variant="text" @click="resetFilters">
-          {{ t('container.list.filters.reset') }}
-        </t-button>
+          <t-select
+            v-model="filters.status"
+            class="management-toolbar__select"
+            data-testid="container-filter-status"
+            :placeholder="t('container.list.filters.status')"
+          >
+            <t-option value="all" :label="t('container.list.filters.allStatuses')" />
+            <t-option v-for="status in statusOptions" :key="status" :value="status" :label="stateLabel(status)" />
+          </t-select>
+          <t-select
+            v-model="filters.deploymentType"
+            class="management-toolbar__select"
+            data-testid="container-filter-deployment-type"
+            :placeholder="t('container.list.filters.deploymentType')"
+          >
+            <t-option value="all" :label="t('container.list.filters.allDeploymentTypes')" />
+            <t-option
+              v-for="deploymentType in deploymentTypeOptions"
+              :key="deploymentType"
+              :value="deploymentType"
+              :label="deploymentTypeLabel(deploymentType)"
+            />
+          </t-select>
+          <t-select
+            v-model="filters.runtimeTargetId"
+            class="management-toolbar__select"
+            data-testid="container-filter-runtime-target"
+            :placeholder="t('container.list.filters.runtimeTarget')"
+          >
+            <t-option value="all" :label="t('container.list.filters.allRuntimeTargets')" />
+            <t-option
+              v-for="target in runtimeTargets"
+              :key="target.id"
+              :value="target.id"
+              :label="target.displayName"
+            />
+          </t-select>
+          <t-select
+            v-model="filters.health"
+            class="management-toolbar__select"
+            data-testid="container-filter-health"
+            :placeholder="t('container.list.filters.health')"
+          >
+            <t-option value="all" :label="t('container.list.filters.allHealth')" />
+            <t-option v-for="health in healthOptions" :key="health" :value="health" :label="healthLabel(health)" />
+          </t-select>
+          <t-button data-testid="container-filter-apply" theme="primary" @click="applyFilters">
+            {{ t('container.list.filters.query') }}
+          </t-button>
+          <t-button data-testid="container-filter-reset" theme="default" variant="text" @click="resetFilters">
+            {{ t('container.list.filters.reset') }}
+          </t-button>
+        </container-filter>
       </template>
     </management-toolbar>
 
-    <container-resource-table
-      v-model:current="pagination.current"
-      v-model:page-size="pagination.pageSize"
+    <container-list
+      :presentation="listPresentation"
+      :current="pagination.current"
+      :page-size="pagination.pageSize"
       :always-visible-column-keys="CONTAINER_RESOURCE_ALWAYS_VISIBLE_COLUMNS"
       :compose-application-references="composeApplicationReferences"
       :empty-description="
@@ -95,6 +95,7 @@
       :table-density="tableDensity"
       :total="listTotal"
       :visible-column-keys="visibleColumnKeys"
+      @detail="openDetail"
       @action="handleTableAction"
       @page-change="handlePageChange"
       @application-context="openComposeApplicationContext"
@@ -111,6 +112,26 @@
             @density="toggleTableDensity"
             @refresh="handleManualRefresh"
           />
+          <t-button-group class="container-view-switch" variant="outline">
+            <t-tooltip :content="t('container.list.presentation.card')">
+              <t-button
+                data-testid="container-presentation-card"
+                :aria-label="t('container.list.presentation.card')"
+                :theme="listPresentation === 'card' ? 'primary' : 'default'"
+                @click="setListPresentation('card')"
+                >▦</t-button
+              >
+            </t-tooltip>
+            <t-tooltip :content="t('container.list.presentation.table')">
+              <t-button
+                data-testid="container-presentation-table"
+                :aria-label="t('container.list.presentation.table')"
+                :theme="listPresentation === 'table' ? 'primary' : 'default'"
+                @click="setListPresentation('table')"
+                >☷</t-button
+              >
+            </t-tooltip>
+          </t-button-group>
         </div>
       </template>
       <template v-if="selectedRowKeys.length > 0" #batch>
@@ -190,7 +211,7 @@
           {{ t('container.list.clearFilters') }}
         </t-button>
       </template>
-    </container-resource-table>
+    </container-list>
 
     <advanced-query-column-drawer
       v-model:visible="columnDrawerVisible"
@@ -231,7 +252,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { DialogInstance } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
@@ -251,8 +271,6 @@ import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import {
   ManagementBatchBar,
   ManagementPageHeader,
-  type ManagementStatisticItem,
-  ManagementStatisticsBar,
   ManagementToolbar,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -271,7 +289,6 @@ import {
   startContainer,
   stopContainer,
 } from '../../api/container';
-import ContainerResourceTable from '../../components/ContainerResourceTable.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
 import {
@@ -301,6 +318,9 @@ import type {
   ContainerState,
   ContainerSummaryRecord,
 } from '../../types/container';
+import ContainerFilter from './ContainerFilter.vue';
+import ContainerList from './ContainerList.vue';
+import ContainerStats from './ContainerStats.vue';
 
 defineOptions({
   name: 'ContainerListIndex',
@@ -330,6 +350,7 @@ const healthOptions = ['healthy', 'unhealthy', 'starting', 'none', 'unavailable'
 const deploymentTypeOptions = ['standalone', 'compose'] as const;
 const CONTAINER_RUNTIME_DISABLED_MESSAGE_KEY = 'ops.container.error.runtimeDisabled';
 const CONTAINER_DEFAULT_PAGE_SIZE = 20;
+const CONTAINER_LIST_PRESENTATION_STORAGE_KEY = 'graft.container.list.presentation';
 let lifecycleIdempotencySequence = 0;
 type ListErrorState = {
   title: string;
@@ -348,6 +369,7 @@ const runtimeTargets = ref<RuntimeTarget[]>([]);
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref<string[]>(loadVisibleColumnKeys());
 const tableDensity = ref<'medium' | 'small'>('medium');
+const listPresentation = ref<'table' | 'card'>(loadListPresentation());
 const selectedRowKeys = ref<Array<string | number>>([]);
 const selectedRowRecords = ref<ContainerSummaryRecord[]>([]);
 const composeApplicationReferences = ref(new Map<string, { applicationId: string; displayName: string }>());
@@ -397,12 +419,12 @@ const runningCount = computed(() => listSummary.value?.running ?? 0);
 const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
 const errorCount = computed(() => listSummary.value?.error ?? 0);
 const unhealthyCount = computed(() => listSummary.value?.unhealthy ?? 0);
-const containerStatistics = computed<ManagementStatisticItem[]>(() => [
-  { label: t('container.list.totalLabel'), value: totalCount.value },
-  { label: t('container.list.runningLabel'), marker: '🟢', value: runningCount.value },
-  { label: t('container.list.stoppedLabel'), marker: '🟠', value: stoppedCount.value },
-  { label: t('container.list.errorLabel'), marker: '🔴', value: errorCount.value },
-  { label: t('container.list.unhealthyLabel'), marker: '🔴', value: unhealthyCount.value },
+const containerStatistics = computed(() => [
+  { label: t('container.list.totalLabel'), theme: 'default' as const, value: totalCount.value },
+  { label: t('container.list.runningLabel'), theme: 'success' as const, value: runningCount.value },
+  { label: t('container.list.stoppedLabel'), theme: 'warning' as const, value: stoppedCount.value },
+  { label: t('container.list.errorLabel'), theme: 'danger' as const, value: errorCount.value },
+  { label: t('container.list.unhealthyLabel'), theme: 'danger' as const, value: unhealthyCount.value },
 ]);
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
@@ -1438,6 +1460,24 @@ function isBatchActionEligible(row: ContainerSummaryRecord, action: DangerousCon
 
 function toggleTableDensity() {
   tableDensity.value = tableDensity.value === 'medium' ? 'small' : 'medium';
+}
+
+function setListPresentation(presentation: 'table' | 'card') {
+  listPresentation.value = presentation;
+  try {
+    window.localStorage.setItem(CONTAINER_LIST_PRESENTATION_STORAGE_KEY, presentation);
+  } catch {
+    /* preference storage is optional */
+  }
+}
+
+function loadListPresentation(): 'table' | 'card' {
+  if (typeof window === 'undefined') return 'table';
+  try {
+    return window.localStorage.getItem(CONTAINER_LIST_PRESENTATION_STORAGE_KEY) === 'card' ? 'card' : 'table';
+  } catch {
+    return 'table';
+  }
 }
 
 function loadVisibleColumnKeys() {

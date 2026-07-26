@@ -5,13 +5,15 @@
     "list": {
       "eyebrow": "Infrastructure",
       "title": "Runtime Targets",
-      "description": "Compare the health and resource capacity of discovered runtime targets.",
+      "description": "Manage Docker, Kubernetes, and other runtime environments.",
       "reload": "Reload",
       "discoverLocalDocker": "Discover Local Docker",
       "discoverSuccess": "Local Docker discovery completed.",
       "discoverError": "Local Docker discovery failed.",
       "loadError": "Runtime targets could not be loaded.",
       "summary": "{count} Runtime Targets",
+      "targetCount": "Targets",
+      "viewDetail": "View Details",
       "emptyTitle": "No Runtime Targets",
       "emptyDescription": "Discover Local Docker when a local Docker socket is available."
     },

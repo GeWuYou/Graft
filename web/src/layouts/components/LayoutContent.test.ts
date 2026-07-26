@@ -3,9 +3,10 @@ import { join } from 'node:path';
 
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, nextTick, reactive } from 'vue';
+import { computed, defineComponent, h, nextTick, reactive } from 'vue';
 
 import { LOCALE, type LocalizedTitle, type SupportedLocale } from '@/contracts/i18n/locales';
+import type { ResponsiveVariant } from '@/shared/responsive';
 import type { AppRouteMeta } from '@/utils/types';
 
 import LayoutContent from './LayoutContent.vue';
@@ -94,6 +95,13 @@ const storeState = vi.hoisted(() => ({
 }));
 const localeState = reactive<{ value: SupportedLocale }>({ value: LOCALE.ZH_CN });
 const tabsRouterStoreProxy = reactive(storeState.tabsRouterStore);
+const responsiveState = vi.hoisted<ResponsiveVariant>(() => ({
+  density: 'spacious',
+  interaction: 'interactive',
+  layout: 'flow',
+  presentation: 'data',
+  surface: 'page',
+}));
 
 vi.mock('vue-router', () => ({
   useRoute: () => routeProxy,
@@ -117,6 +125,11 @@ vi.mock('@/locales/useLocale', () => ({
 
 vi.mock('@/shared/observability/copy', () => ({
   copyText: vi.fn(),
+}));
+
+vi.mock('@/shared/composables', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/composables')>()),
+  useResponsiveVariant: () => computed(() => responsiveState),
 }));
 
 vi.mock('@/store', async () => ({
@@ -242,7 +255,12 @@ const TTabsStub = defineComponent({
   name: 'TTabs',
   emits: ['change'],
   setup(_, { slots }) {
-    return () => h('div', { 'data-testid': 'tabs' }, slots.default?.());
+    return () =>
+      h('div', { 'data-testid': 'tabs' }, [
+        h('div', { class: 't-tabs__nav-container' }, [
+          h('div', { class: 't-tabs__nav-scroll' }, [h('div', { class: 't-tabs__nav-wrap' }, slots.default?.())]),
+        ]),
+      ]);
   },
 });
 
@@ -374,6 +392,7 @@ describe('LayoutContent', () => {
       meta: {},
     }));
     storeState.settingStore.isUseTabsRouter = true;
+    responsiveState.density = 'spacious';
     storeState.settingStore.showBreadcrumb = true;
     storeState.settingStore.showFooter = true;
     storeState.tabsRouterStore.activeTabKey = '/server/runtime';
@@ -451,6 +470,51 @@ describe('LayoutContent', () => {
     await wrapper.get('.tdesign-starter-page-container').trigger('scroll');
 
     expect(wrapper.emitted('page-scroll')).toHaveLength(1);
+  });
+
+  it('hides route tabs at compact widths while preserving the stored tab state', () => {
+    responsiveState.density = 'compact';
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.find('[data-testid="tab-panel"]').exists()).toBe(false);
+    expect(storeState.tabsRouterStore.tabRouters).toHaveLength(3);
+    wrapper.unmount();
+  });
+
+  it('reveals the active tab after a route-tab change', async () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const wrapper = mountLayoutContent();
+
+    try {
+      await nextTick();
+      scrollIntoView.mockClear();
+      tabsRouterStoreProxy.activeTabKey = '/security/audit';
+      await nextTick();
+      await nextTick();
+
+      expect(wrapper.find('[data-tab-key="/security/audit"]').exists()).toBe(true);
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+
+      scrollIntoView.mockClear();
+      tabsRouterStoreProxy.activeTabKey = '/';
+      await nextTick();
+      await nextTick();
+
+      expect(wrapper.find('[data-tab-key="/"]').exists()).toBe(true);
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    } finally {
+      wrapper.unmount();
+      if (originalScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScrollIntoView);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+      }
+    }
   });
 
   it('renders non-cached route tabs even when their page instance is not alive', () => {

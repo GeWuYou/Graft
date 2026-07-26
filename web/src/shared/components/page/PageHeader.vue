@@ -1,5 +1,8 @@
 <template>
-  <header class="page-header" :class="{ 'page-header--compact': compact }">
+  <header
+    class="page-header"
+    :class="{ 'page-header--compact': compact, 'page-header--inline-actions': actionLayout === 'inline' }"
+  >
     <div v-if="resolvedSource" class="page-header__source">
       <span class="page-header__source-dot" :style="{ background: resolvedSource.color || defaultSourceColor }" />
       <span>{{ resolveText(resolvedSource.labelKey, resolvedSource.fallback) }}</span>
@@ -30,6 +33,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { PageHeaderSource } from './types';
 
+/** PageHeader 只解析页面文案并编排操作 slots，容器内空间不足时由自身重排，不依赖壳层视口。 */
 const props = withDefaults(
   defineProps<{
     source?: PageHeaderSource;
@@ -38,9 +42,11 @@ const props = withDefaults(
     descriptionKey?: string;
     descriptionFallback?: string;
     compact?: boolean;
+    actionLayout?: 'responsive' | 'inline';
   }>(),
   {
     compact: false,
+    actionLayout: 'responsive',
     descriptionFallback: '',
     descriptionKey: '',
     source: undefined,
@@ -80,6 +86,7 @@ const resolvedDescription = computed(() => {
 </script>
 <style scoped lang="less">
 .page-header {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-6);
@@ -161,17 +168,26 @@ const resolvedDescription = computed(() => {
   font: var(--td-font-headline-small);
 }
 
-@media (width <= 768px) {
-  .page-header__main {
+@container (width < @screen-sm) {
+  .page-header:not(.page-header--inline-actions) .page-header__main {
     flex-direction: column;
   }
 
-  .page-header__side,
-  .page-header__actions,
-  .page-header__extra {
+  .page-header:not(.page-header--inline-actions) .page-header__side,
+  .page-header:not(.page-header--inline-actions) .page-header__actions,
+  .page-header:not(.page-header--inline-actions) .page-header__extra {
     align-items: stretch;
     justify-content: flex-start;
     width: 100%;
+  }
+
+  .page-header--inline-actions .page-header__side {
+    align-items: flex-end;
+  }
+
+  .page-header--inline-actions .page-header__actions,
+  .page-header--inline-actions .page-header__extra {
+    justify-content: flex-end;
   }
 }
 </style>

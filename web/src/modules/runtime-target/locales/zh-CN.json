@@ -5,13 +5,15 @@
     "list": {
       "eyebrow": "基础设施",
       "title": "运行目标",
-      "description": "对比已发现运行目标的健康状态与资源容量。",
+      "description": "管理 Docker、Kubernetes 等运行环境。",
       "reload": "重新加载",
       "discoverLocalDocker": "发现本机 Docker",
       "discoverSuccess": "本机 Docker 发现完成。",
       "discoverError": "本机 Docker 发现失败。",
       "loadError": "无法加载运行目标。",
       "summary": "共 {count} 个运行目标",
+      "targetCount": "目标",
+      "viewDetail": "查看详情",
       "emptyTitle": "暂无运行目标",
       "emptyDescription": "本机 Docker Socket 可用后，可发现本机 Docker。"
     },

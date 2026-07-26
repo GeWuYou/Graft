@@ -237,6 +237,8 @@
         "scope": "范围",
         "usage": "状态",
         "allUsage": "全部状态",
+        "more": "筛选",
+        "title": "筛选数据卷",
         "query": "查询",
         "reset": "重置"
       },
@@ -360,6 +362,10 @@
         "summary": "第 {start}-{end} 条 / 共 {total} 条",
         "empty": "暂无记录"
       },
+      "presentation": {
+        "card": "卡片视图",
+        "table": "表格视图"
+      },
       "filters": {
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
@@ -376,6 +382,8 @@
         "health": "健康状态",
         "allStatuses": "全部状态",
         "allHealth": "全部健康状态",
+        "more": "更多筛选",
+        "title": "筛选容器",
         "query": "查询",
         "reset": "重置"
       },

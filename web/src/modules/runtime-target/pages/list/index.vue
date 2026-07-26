@@ -2,23 +2,33 @@
   <div class="runtime-target-page" data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header
-        :source="{ labelKey: 'runtimeTarget.list.eyebrow', fallback: t('runtimeTarget.list.eyebrow') }"
+        action-layout="inline"
+        compact
         :title="t('runtimeTarget.list.title')"
         :description="t('runtimeTarget.list.description')"
       >
-        <template #actions>
-          <t-button
-            theme="default"
-            variant="outline"
-            :loading="discovering"
-            data-testid="runtime-target-discover-local"
-            @click="discoverLocal"
-          >
-            <template #icon><search-icon /></template>{{ t('runtimeTarget.list.discoverLocalDocker') }}
-          </t-button>
+        <template v-if="total > 0" #actions>
+          <t-tooltip :content="t('runtimeTarget.list.discoverLocalDocker')" placement="bottom">
+            <t-button
+              class="runtime-target-discover-button"
+              shape="square"
+              theme="default"
+              variant="outline"
+              :aria-label="t('runtimeTarget.list.discoverLocalDocker')"
+              :loading="discovering"
+              data-testid="runtime-target-discover-local"
+              @click="discoverLocal"
+            >
+              <template #icon><search-icon /></template>
+            </t-button>
+          </t-tooltip>
         </template>
       </management-page-header>
-      <management-statistics-bar :items="statistics" :label="t('runtimeTarget.list.summary', { count: total })" />
+      <management-statistics-bar
+        layout="summary"
+        :items="statistics"
+        :label="t('runtimeTarget.list.summary', { count: total })"
+      />
       <t-alert v-if="errorMessage" theme="error" :message="errorMessage" class="runtime-target-feedback" />
       <management-table-card>
         <template #toolbar>
@@ -26,20 +36,91 @@
             <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
           </t-button>
         </template>
-        <t-table row-key="id" :data="items" :columns="tableColumns" :loading="loading">
-          <template #empty>
+        <responsive-table entity-card-layout="adaptive" presentation="entity">
+          <template #cards>
             <t-empty
+              v-if="!items.length"
               :title="t('runtimeTarget.list.emptyTitle')"
               :description="t('runtimeTarget.list.emptyDescription')"
             >
               <template #action>
-                <t-button theme="primary" :loading="discovering" @click="discoverLocal">
+                <t-button
+                  theme="primary"
+                  :loading="discovering"
+                  data-testid="runtime-target-discover-local-empty"
+                  @click="discoverLocal"
+                >
                   {{ t('runtimeTarget.list.discoverLocalDocker') }}
                 </t-button>
               </template>
             </t-empty>
+            <article
+              v-for="row in items"
+              :key="row.id"
+              class="runtime-target-card"
+              :data-testid="`runtime-target-card-${row.id}`"
+            >
+              <header class="runtime-target-card__header">
+                <div class="runtime-target-card__identity">
+                  <router-link :to="runtimeTargetDetailPath(row.id)">{{ row.displayName }}</router-link>
+                  <span>{{ row.connection.endpoint }}</span>
+                </div>
+                <t-tag :theme="healthTheme(row)" variant="light">
+                  {{ healthLabel(row) }}
+                </t-tag>
+              </header>
+              <div class="runtime-target-card__provider">
+                <span>{{ t('runtimeTarget.columns.provider') }}</span>
+                <strong>{{ row.runtime.provider }}</strong>
+              </div>
+              <dl class="runtime-target-card__metrics">
+                <div class="runtime-target-card__metric">
+                  <dt>{{ t('runtimeTarget.metrics.workloads') }}</dt>
+                  <dd>
+                    <strong>{{ workloadValue(row) }}</strong>
+                    <span v-if="row.resources.workloads.available">
+                      {{ t('runtimeTarget.metrics.active') }} {{ row.resources.workloads.active }}
+                    </span>
+                  </dd>
+                </div>
+                <div v-for="metric in resourceMetrics(row)" :key="metric.key" class="runtime-target-card__metric">
+                  <dt>{{ metric.label }}</dt>
+                  <dd>
+                    <realtime-resource-metric-cell
+                      :available="metric.value.available"
+                      :change="changeFor(row.id, metric.key)"
+                      :percentage="metricPercentage(metric.value)"
+                      :tooltip="metricText(metric.value)"
+                      :value="metricValue(metric.value)"
+                    />
+                  </dd>
+                </div>
+              </dl>
+              <router-link class="runtime-target-card__detail" :to="runtimeTargetDetailPath(row.id)">
+                {{ t('runtimeTarget.list.viewDetail') }}
+              </router-link>
+            </article>
           </template>
-        </t-table>
+          <t-table row-key="id" :data="items" :columns="tableColumns" :loading="loading">
+            <template #empty>
+              <t-empty
+                :title="t('runtimeTarget.list.emptyTitle')"
+                :description="t('runtimeTarget.list.emptyDescription')"
+              >
+                <template #action>
+                  <t-button
+                    theme="primary"
+                    :loading="discovering"
+                    data-testid="runtime-target-discover-local-empty"
+                    @click="discoverLocal"
+                  >
+                    {{ t('runtimeTarget.list.discoverLocalDocker') }}
+                  </t-button>
+                </template>
+              </t-empty>
+            </template>
+          </t-table>
+        </responsive-table>
         <template #footer>
           <management-table-pagination :summary="t('runtimeTarget.list.summary', { count: total })">
             <t-pagination
@@ -73,6 +154,7 @@ import {
   ManagementTablePagination,
 } from '@/shared/components/management';
 import { RealtimeResourceMetricCell } from '@/shared/components/metrics';
+import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 import { formatBytes } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
@@ -97,7 +179,7 @@ const summary = ref({ total: 0, healthy: 0, unavailable: 0 });
 const pagination = reactive({ current: 1, pageSize: 10 });
 const changes = ref<Record<number, MetricChanges>>({});
 const statistics = computed(() => [
-  { label: t('runtimeTarget.list.summary', { count: '' }).trim(), value: summary.value.total },
+  { label: t('runtimeTarget.list.targetCount'), value: summary.value.total },
   {
     label: t('runtimeTarget.status.healthy'),
     marker: '🟢',
@@ -120,11 +202,17 @@ function metricText(metric: RuntimeTargetUsageMetric) {
     ? `${percent} · ${formatBytes(metric.usedBytes)} / ${formatBytes(metric.totalBytes)}`
     : percent;
 }
+function metricPercentage(metric: RuntimeTargetUsageMetric) {
+  return Math.max(0, Math.min(100, metric.usagePercent));
+}
+function metricValue(metric: RuntimeTargetUsageMetric) {
+  return metric.available ? `${metricPercentage(metric).toFixed(1)}%` : t('runtimeTarget.metrics.unavailable');
+}
 function changeFor(id: number, metric: keyof MetricChanges) {
   return changes.value[id]?.[metric] ?? 'none';
 }
 function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTargetUsageMetric) {
-  const percentage = Math.max(0, Math.min(100, value.usagePercent));
+  const percentage = metricPercentage(value);
   return h(RealtimeResourceMetricCell, {
     available: value.available,
     change: changeFor(id, metric),
@@ -132,8 +220,24 @@ function metricCell(id: number, metric: keyof MetricChanges, value: RuntimeTarge
     tooltip: value.available
       ? metricText(value)
       : value.unavailableReason || t('runtimeTarget.metrics.unavailableHint'),
-    value: value.available ? `${percentage.toFixed(1)}%` : t('runtimeTarget.metrics.unavailable'),
+    value: metricValue(value),
   });
+}
+function healthLabel(row: RuntimeTarget) {
+  return row.health.status === 'healthy' ? t('runtimeTarget.status.healthy') : t('runtimeTarget.status.unavailable');
+}
+function healthTheme(row: RuntimeTarget) {
+  return row.health.status === 'healthy' ? 'success' : 'danger';
+}
+function workloadValue(row: RuntimeTarget) {
+  return row.resources.workloads.available ? row.resources.workloads.total : t('runtimeTarget.metrics.unavailable');
+}
+function resourceMetrics(row: RuntimeTarget) {
+  return [
+    { key: 'cpu' as const, label: t('runtimeTarget.metrics.cpu'), value: row.resources.cpu },
+    { key: 'memory' as const, label: t('runtimeTarget.metrics.memory'), value: row.resources.memory },
+    { key: 'storage' as const, label: t('runtimeTarget.metrics.storage'), value: row.resources.storage },
+  ];
 }
 function workloadCell(row: RuntimeTarget) {
   const workloads = row.resources.workloads;
@@ -168,8 +272,7 @@ const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
       h(
         resolveComponent('t-tag'),
         { theme: row.health.status === 'healthy' ? 'success' : 'danger', variant: 'light' },
-        () =>
-          row.health.status === 'healthy' ? t('runtimeTarget.status.healthy') : t('runtimeTarget.status.unavailable'),
+        () => healthLabel(row),
       ),
   },
   {
@@ -298,6 +401,8 @@ onUnmounted(() => {
 });
 </script>
 <style scoped lang="less">
+@import '@/shared/components/card-surface.less';
+
 .runtime-target-feedback {
   margin-bottom: var(--td-comp-margin-l);
 }
@@ -332,5 +437,110 @@ onUnmounted(() => {
 :deep(.runtime-target-counts b) {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-small);
+}
+
+.runtime-target-discover-button {
+  min-height: var(--td-comp-size-xxxl);
+  min-width: var(--td-comp-size-xxxl);
+}
+
+.runtime-target-card {
+  .graft-entity-card-surface();
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-14);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.runtime-target-card__header {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.runtime-target-card__identity {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.runtime-target-card__identity a {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  overflow-wrap: anywhere;
+}
+
+.runtime-target-card__identity span,
+.runtime-target-card__provider span,
+.runtime-target-card__metric dt,
+.runtime-target-card__metric dd span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  overflow-wrap: anywhere;
+}
+
+.runtime-target-card__provider {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+}
+
+.runtime-target-card__provider strong,
+.runtime-target-card__metric dd strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+}
+
+.runtime-target-card__metrics {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.runtime-target-card__metric {
+  background: var(--td-bg-color-container-hover);
+  border-radius: var(--td-radius-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+  padding: var(--graft-density-gap-10);
+}
+
+.runtime-target-card__metric dt,
+.runtime-target-card__metric dd {
+  margin: 0;
+}
+
+.runtime-target-card__metric dd {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.runtime-target-card__detail {
+  align-items: center;
+  color: var(--td-brand-color);
+  display: inline-flex;
+  font: var(--td-font-body-medium);
+  justify-content: center;
+  min-height: var(--td-comp-size-xxxl);
+  padding: 0 var(--graft-density-gap-12);
+  text-decoration: none;
+}
+
+.runtime-target-card__detail:focus-visible {
+  border-radius: var(--td-radius-default);
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
 }
 </style>

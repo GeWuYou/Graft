@@ -1,29 +1,45 @@
 <template>
   <section
     ref="container"
-    :class="['responsive-table', `responsive-table--${presentation}`, `responsive-table--${variant.density}`]"
+    :class="[
+      'responsive-table',
+      `responsive-table--${presentation}`,
+      `responsive-table--${entityCardLayout}`,
+      `responsive-table--${variant.density}`,
+    ]"
     :data-responsive-density="variant.density"
+    :data-responsive-entity-card-layout="entityCardLayout"
     :data-responsive-presentation="presentation"
   >
-    <div
-      v-if="presentation === 'entity' && variant.density === 'compact' && $slots.cards"
-      class="responsive-table__cards"
-    >
+    <div v-if="showCards" class="responsive-table__cards">
       <slot name="cards" :variant="variant" />
     </div>
     <div v-else class="responsive-table__scroll graft-scrollbar"><slot :variant="variant" /></div>
   </section>
 </template>
+<script lang="ts">
+export type ResponsiveEntityCardLayout = 'compact' | 'adaptive';
+</script>
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref, useSlots } from 'vue';
 
 import { useResponsiveVariant } from '@/shared/composables';
 import type { ResponsivePresentation } from '@/shared/responsive';
 
 /** Table 只按数据/实体展示语义选择横向滚动或卡片槽位，不解释列与业务操作。 */
-const { presentation = 'data' } = defineProps<{ presentation?: ResponsivePresentation }>();
+const { entityCardLayout = 'compact', presentation = 'data' } = defineProps<{
+  entityCardLayout?: ResponsiveEntityCardLayout;
+  presentation?: ResponsivePresentation;
+}>();
 const container = ref<HTMLElement | null>(null);
 const variant = useResponsiveVariant(container, { presentation });
+const slots = useSlots();
+const showCards = computed(
+  () =>
+    presentation === 'entity' &&
+    Boolean(slots.cards) &&
+    (entityCardLayout === 'adaptive' ? variant.value.density !== 'spacious' : variant.value.density === 'compact'),
+);
 </script>
 <style scoped lang="less">
 .responsive-table {
@@ -43,5 +59,11 @@ const variant = useResponsiveVariant(container, { presentation });
   display: grid;
   gap: var(--graft-density-gap-12);
   min-width: 0;
+}
+
+@container (width >= 768px) {
+  .responsive-table--adaptive .responsive-table__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

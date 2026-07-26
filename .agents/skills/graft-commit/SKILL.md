@@ -5,9 +5,11 @@ description: Repository-specific scoped commit workflow for Graft. Use when the 
 
 # Graft Commit
 
-Use this skill when the user explicitly asks to commit the current `Graft` task slice, for example with
+Use this skill when the user explicitly asks to commit the current `Graft` worktree, for example with
 `$graft-commit`, `commit this slice`, or `提交当前这次改动`, or when `graft-task-closeout` concludes that the current
-validated owned scope should be committed before handoff.
+validated owned scope should be committed before handoff. An explicit `$graft-commit` authorizes continuous, scoped
+batch completion only for explicitly user-confirmed, currently owned slices captured in the initial worktree inventory;
+that inventory is an upper boundary, not commit authority.
 
 Treat root `AGENTS.md` as the commit-governance source of truth. This skill does not loosen ownership, staging, or
 validation rules.
@@ -15,7 +17,7 @@ validation rules.
 ## Preconditions
 
 1. Ensure the current turn already has the startup receipt required by `AGENTS.md`.
-2. Read `AGENTS.md` `13. Git Workflow Rules` before staging or committing anything.
+2. Read `AGENTS.md` `11. Git Workflow Rules` before staging or committing anything.
 3. Confirm the commit trigger is valid:
    - either the user explicitly requested a commit
    - or `graft-task-closeout` decided the validated owned scope should be committed
@@ -26,20 +28,20 @@ validation rules.
      mandatory review scope, not optional follow-up
    - do not use an intermediate commit to imply PR-review closure while any verified finding from that inventory is
      still unclassified, including outside-diff findings
-6. When the user explicitly triggers `$graft-commit`, treat it as permission to finish the current owned slice end to
-   end:
-   - if required validation fails on a concrete issue inside the current owned scope and the fix is reasonably bounded,
-     fix that issue first, rerun validation, and continue the commit workflow without waiting for another user reminder
-   - if the current slice is blocked by a local generated-artifact drift, stale snapshot, test expectation drift, or
-     similar commit-path issue that is clearly inside the owned scope and can be repaired safely in the same slice,
-     repair it first, rerun the required validation, and then continue to commit
+6. When the user explicitly triggers `$graft-commit`, capture the initial working-tree inventory as an upper boundary,
+   identify the explicitly user-confirmed, currently owned slices in it, and finish only those slices end to end without
+   repeated confirmation:
    - treat a hook, static-analysis, test, formatting, style, or build failure as a commit-path issue to diagnose before
-     refusing the commit; a failing file outside the initial diff is not, by itself, proof that its repair is unsafe
-   - when the failure has a concrete, bounded repair with clear ownership, fix it, rerun the failing check and the
-     required completion validation, then commit the repair in a separate scoped commit when it is logically distinct
-     from the requested slice
-   - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
-     confirmed scope, or the necessary repair would widen into a new unsafe slice
+     deciding whether a repair is safe; a failing file outside the initial diff is not, by itself, proof that its repair
+     is unsafe
+   - before any repair edit, staging, or repair commit, apply the root `AGENTS.md` `Repair Confirmation Interaction
+     Contract`; present its `Repair required` proposal through the native structured-choice interaction with the stable
+     option ids, never a binary approval question or a prose `reply 1-4` menu
+   - after every commit, re-check `git status --short` and continue only with remaining explicitly user-confirmed,
+     currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
+   - apply that contract when a captured change is not explicitly user-confirmed and currently owned, ownership becomes
+     ambiguous, a repair requires an extra commit, or the necessary repair widens the slice; report instead when
+     required validation is infeasible or no concrete repair proposal can be formed
 
 ## Workflow
 
@@ -55,9 +57,12 @@ validation rules.
    - do not treat IDE changelist checkboxes, selected files, or review UI state as proof that changes are staged;
      confirm staging from Git itself before continuing
 2. Define the commit scope before staging:
-   - include only files or hunks owned by the current task slice
-   - exclude unrelated files, unknown edits, and user-owned changes
-   - never treat task relevance alone as commit permission
+   - capture the complete initial worktree inventory as an upper boundary, then group only explicitly user-confirmed,
+     currently owned changes into independently validated logical slices
+   - include only files or hunks belonging to one explicitly user-confirmed, currently owned captured slice; presence
+     in the inventory, user authorship, classifiability, or task relevance does not grant commit authority, and files
+     that appear after the inventory was captured are never in scope
+   - never treat task relevance alone as justification to merge unrelated logical slices into one commit
    - when the confirmed owned scope contains multiple independently validated logical slices, or one safe commit cannot
      cover the confirmed scope cleanly, split it into a batch plan of separate scoped commits
    - do not use batching to bypass mixed ownership, missing validation, broad staging, or an invalid commit message
@@ -68,8 +73,9 @@ validation rules.
    - `docs/automation`: run the strongest honest structural checks available
    - if the commit belongs to a `$graft-pr-review` remediation batch, validation alone is not enough; the review run
      must still preserve exhaustive finding disposition coverage, including `Outside diff range comments`
-   - if validation fails on a bounded issue inside the current owned scope, repair that issue and rerun the required
-     validation before deciding whether to refuse the commit
+   - if validation fails, diagnose the concrete issue and use the root `Repair Confirmation Interaction Contract`
+     before changing code. Only `execute_repair` permits the declared repair; `show_detailed_diff` shows a patch and
+     invokes the same native choice control again, while the other choices forbid the repair
 4. Stage only the confirmed owned scope:
    - do not use `git add .`, `git add -A`, or `git commit -am` unless the user explicitly asks to commit everything
    - when one file contains mixed ownership, stage only the owned hunks if they can be reliably separated
@@ -87,8 +93,9 @@ validation rules.
    - default to one scoped commit for the current logical slice
    - if a batch plan is required, create each commit sequentially and re-check `git status --short` plus
      `git diff --cached --name-only` before each commit
-   - stop before any batch whose ownership or validation is ambiguous, and report the committed batches plus the
-     uncommitted blocker
+   - continue through every explicitly user-confirmed, currently owned, validated captured slice without asking for
+     another commit confirmation; stop after those slices are complete, or at an ambiguous, unvalidated, or unsafe batch,
+     and report the committed batches plus the uncommitted blocker
 7. Report:
    - the committed scope
    - the validation command(s) used

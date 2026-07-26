@@ -48,14 +48,11 @@
         </t-layout>
       </t-layout>
     </template>
-    <layout-side-nav
-      v-if="shouldRenderMobileDrawer"
-      :drawer-visible="mobileNavigationVisible"
-      presentation="drawer"
-      :render-compact="false"
-      :width-compact="false"
-      motion-phase="expanded"
-      @update:drawer-visible="mobileNavigationVisible = $event"
+    <mobile-navigation
+      v-if="shouldRenderMobileNavigation"
+      :menu="mobileNavigationMenu"
+      :visible="mobileNavigationVisible"
+      @update:visible="mobileNavigationVisible = $event"
     />
   </div>
   <component :is="updateProvider" />
@@ -72,16 +69,24 @@ import { prefix } from '@/config/global';
 import { LOCALE } from '@/contracts/i18n/locales';
 import { updateProvider } from '@/modules/update';
 import { useResponsiveVariant } from '@/shared/composables';
-import { useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
+import { emitDebugLog } from '@/shared/debug/runtime';
+import { resolveResponsiveVariant } from '@/shared/responsive';
+import { usePermissionStore, useRealtimeSchedulerStore, useSettingStore, useTabsRouterStore } from '@/store';
 import { resolveRouteLocalizedTitle, toLocalizedTitle } from '@/utils/route/meta';
 import { formatTabDebugTitle, formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
-import type { AppRouteMeta } from '@/utils/types';
+import type { AppRouteMeta, MenuRoute } from '@/utils/types';
 
 import ForcePasswordChangeDialog from './components/ForcePasswordChangeDialog.vue';
 import LayoutContent from './components/LayoutContent.vue';
 import LayoutHeader from './components/LayoutHeader.vue';
 import LayoutSideNav from './components/LayoutSideNav.vue';
-import { resolveSidebarMotionMode, resolveSidebarPresentation, type SidebarMotionPhase } from './layout-navigation';
+import MobileNavigation from './components/MobileNavigation.vue';
+import {
+  resolveSidebarMotionMode,
+  resolveSidebarPresentation,
+  type SidebarMotionPhase,
+  type SidebarPresentation,
+} from './layout-navigation';
 
 // 后台壳布局负责把菜单、tabs、侧栏动效和滚动状态接入统一容器；离开时必须释放所有动画与实时调度冻结。
 const SIDEBAR_WIDTH_TRANSITION_MS = 320;
@@ -89,9 +94,11 @@ const SIDEBAR_COLLAPSE_SUBMENU_DELAY_MS = 124;
 const SIDEBAR_COLLAPSE_TOPLEVEL_DELAY_MS = 208;
 const SIDEBAR_EXPAND_TOPLEVEL_DELAY_MS = 128;
 const SIDEBAR_EXPAND_SUBMENU_DELAY_MS = 224;
+const SIDEBAR_PRESENTATION_STABILIZATION_MS = 180;
 
 const route = useRoute();
 const router = useRouter();
+const permissionStore = usePermissionStore();
 const settingStore = useSettingStore();
 const realtimeSchedulerStore = useRealtimeSchedulerStore();
 const tabsRouterStore = useTabsRouterStore();
@@ -110,12 +117,22 @@ let sidebarResumeFrameId: number | null = null;
 let sidebarResumeNestedFrameId: number | null = null;
 let pageScrollFrameId: number | null = null;
 let pendingPageScrollTop = 0;
+let sidebarPresentationTimer: number | null = null;
+let sidebarPresentationMeasured = false;
 
-const sidebarPresentation = computed(() => {
-  // 初始挂载和 SSR 回退没有可测量容器宽度时，先维持桌面壳层，随后由 ResizeObserver 切换。
-  if (!shell.value?.clientWidth) return 'desktop';
+const resolveViewportSidebarPresentation = () => {
+  const width = typeof window === 'undefined' ? 0 : window.innerWidth;
+  return resolveSidebarPresentation(resolveResponsiveVariant(width).density);
+};
+
+const sidebarPresentationCandidate = computed(() => {
+  // 容器尚未挂载时沿用当前视口密度，避免窄屏先渲染桌面侧栏再由 ResizeObserver 撤销。
+  if (!shell.value?.clientWidth) {
+    return resolveViewportSidebarPresentation();
+  }
   return resolveSidebarPresentation(shellVariant.value.density);
 });
+const sidebarPresentation = ref<SidebarPresentation>(resolveViewportSidebarPresentation());
 const effectiveSidebarWidthCompact = computed(
   () =>
     sidebarPresentation.value === 'compact' || (sidebarPresentation.value === 'desktop' && sidebarWidthCompact.value),
@@ -148,7 +165,10 @@ const shouldRenderSidebar = computed(
 const shouldRenderPersistentSidebar = computed(
   () => shouldRenderSidebar.value && sidebarPresentation.value !== 'drawer',
 );
-const shouldRenderMobileDrawer = computed(() => shouldRenderSidebar.value && sidebarPresentation.value === 'drawer');
+const shouldRenderMobileNavigation = computed(
+  () => shouldRenderSidebar.value && sidebarPresentation.value === 'drawer',
+);
+const mobileNavigationMenu = computed(() => permissionStore.routers as MenuRoute[]);
 
 const mainLayoutCls = computed(() => [
   {
@@ -161,6 +181,14 @@ const clearSidebarMotionTimers = () => {
     window.clearTimeout(timerId);
   });
   sidebarMotionTimers.clear();
+};
+
+const clearSidebarPresentationTimer = () => {
+  if (sidebarPresentationTimer === null) {
+    return;
+  }
+  window.clearTimeout(sidebarPresentationTimer);
+  sidebarPresentationTimer = null;
 };
 
 const clearSidebarMotionFrames = () => {
@@ -195,6 +223,24 @@ const releaseSidebarFreeze = () => {
   }
   realtimeSchedulerStore.release(sidebarFreezeToken);
   sidebarFreezeToken = null;
+};
+
+const stabilizeSidebarPresentation = (presentation: ReturnType<typeof resolveSidebarPresentation>) => {
+  clearSidebarMotionTimers();
+  clearSidebarMotionFrames();
+  clearSidebarResumeFrames();
+  releaseSidebarFreeze();
+
+  if (presentation === 'desktop') {
+    sidebarRenderCompact.value = settingStore.isSidebarCompact;
+    sidebarWidthCompact.value = settingStore.isSidebarCompact;
+    sidebarMotionPhase.value = settingStore.isSidebarCompact ? 'compact' : 'expanded';
+    return;
+  }
+
+  sidebarRenderCompact.value = presentation === 'compact';
+  sidebarWidthCompact.value = presentation === 'compact';
+  sidebarMotionPhase.value = presentation === 'compact' ? 'compact' : 'expanded';
 };
 
 const scheduleSidebarFreezeRelease = () => {
@@ -373,6 +419,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  clearSidebarPresentationTimer();
   clearSidebarMotionTimers();
   clearSidebarMotionFrames();
   clearSidebarResumeFrames();
@@ -388,6 +435,11 @@ watch(
   (_, previousFullPath) => {
     const previousPath = previousFullPath ? router.resolve(previousFullPath).path : '';
     appendNewRoute();
+    emitDebugLog('navigation', 'shell-route-observed', {
+      currentPath: route.path,
+      previousPath,
+      sidebarPresentation: sidebarPresentation.value,
+    });
     if (previousPath && previousPath !== route.path) {
       pageScrollTop.value = 0;
       document.querySelector(`.${prefix}-page-container`)?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -402,7 +454,39 @@ watch(
   },
 );
 
-watch(sidebarPresentation, (presentation) => {
+// 外层布局偶发溢出时会短暂放大 ResizeObserver 的宽度；只有稳定候选值才允许重建侧栏形态。
+watch(sidebarPresentationCandidate, (candidate) => {
+  if (!shell.value?.clientWidth) {
+    return;
+  }
+
+  if (!sidebarPresentationMeasured) {
+    sidebarPresentationMeasured = true;
+    sidebarPresentation.value = candidate;
+    return;
+  }
+
+  if (candidate === sidebarPresentation.value) {
+    clearSidebarPresentationTimer();
+    return;
+  }
+
+  clearSidebarPresentationTimer();
+  sidebarPresentationTimer = window.setTimeout(() => {
+    sidebarPresentationTimer = null;
+    sidebarPresentation.value = candidate;
+  }, SIDEBAR_PRESENTATION_STABILIZATION_MS);
+});
+
+watch(sidebarPresentation, (presentation, previousPresentation) => {
+  emitDebugLog('navigation', 'shell-presentation-changed', {
+    current: presentation,
+    previous: previousPresentation ?? 'initial',
+    shellWidth: shell.value?.clientWidth ?? 0,
+    viewportWidth: typeof window === 'undefined' ? 0 : window.innerWidth,
+  });
+  stabilizeSidebarPresentation(presentation);
+
   if (presentation !== 'drawer') {
     mobileNavigationVisible.value = false;
   }
@@ -415,6 +499,10 @@ watch(
       return;
     }
 
+    if (sidebarPresentation.value !== 'desktop') {
+      return;
+    }
+
     startSidebarMotion(nextCompact);
   },
 );
@@ -423,7 +511,6 @@ watch(
 .app-shell {
   --graft-shell-sidebar-width: 232px;
   --graft-shell-sidebar-width-compact: 72px;
-  --graft-shell-mobile-drawer-width: min(20rem, 84vw);
   --graft-shell-sidebar-current-width: var(--graft-shell-sidebar-width);
   --graft-shell-sidebar-reserved-width: var(--graft-shell-sidebar-current-width);
   --graft-shell-sidebar-surface-width: var(--graft-shell-sidebar-current-width);
@@ -434,8 +521,11 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
+  max-width: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
+  width: 100%;
 }
 
 .app-shell[data-sidebar-width-compact='true'] {
@@ -467,6 +557,8 @@ watch(
   background: transparent;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .app-shell__content {
@@ -475,6 +567,7 @@ watch(
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
 .app-shell__header {

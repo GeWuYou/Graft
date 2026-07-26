@@ -21,7 +21,7 @@
       <l-side-nav
         :show-logo="settingStore.showSidebarLogo"
         :layout="settingStore.layout"
-        :is-fixed="settingStore.isSidebarFixed"
+        drawer-mode
         :menu="sideMenu"
         :theme="settingStore.displaySideMode"
         :is-compact="false"

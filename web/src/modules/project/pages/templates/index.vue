@@ -1,24 +1,69 @@
 <template>
-  <div class="application-template-list" data-page-type="list-form-detail">
+  <div ref="pageRef" class="application-template-list" data-page-type="list-form-detail">
     <management-page-content>
       <management-page-header
         title-key="project.route.templates.title"
         description-key="project.templates.description"
-        :source="{ labelKey: 'project.templates.eyebrow', fallback: t('project.templates.eyebrow') }"
+        action-layout="inline"
+        :source="headerSource"
       >
         <template #actions>
-          <t-space size="small">
-			<t-button theme="primary" @click="openCreateDialog">
-              {{ t('project.templates.create') }}
+          <t-tooltip v-if="isCompact" :content="t('project.templates.create')" placement="bottom">
+            <t-button
+              :aria-label="t('project.templates.create')"
+              class="application-template-list__create-button"
+              shape="square"
+              theme="primary"
+              @click="openCreateDialog"
+            >
+              <template #icon><add-icon /></template>
             </t-button>
-          </t-space>
+          </t-tooltip>
+          <t-button v-else theme="primary" @click="openCreateDialog">
+              {{ t('project.templates.create') }}
+          </t-button>
+        </template>
+        <template #meta>
+          <management-statistics-bar
+            :items="templateSummaryItems"
+            :label="t('project.templates.summaryLabel')"
+            layout="summary"
+          />
         </template>
       </management-page-header>
 
       <management-toolbar>
         <template #filters>
-          <t-input v-model="keyword" clearable :placeholder="t('project.templates.searchPlaceholder')" />
-          <t-select v-model="status" :options="statusOptions" :placeholder="t('project.templates.status')" clearable />
+          <t-input
+            v-model="keyword"
+            clearable
+            class="application-template-list__search"
+            :placeholder="t('project.templates.searchPlaceholder')"
+          >
+            <template #prefix-icon><search-icon /></template>
+          </t-input>
+          <t-select
+            v-model="status"
+            clearable
+            class="application-template-list__status"
+            :options="statusOptions"
+            :placeholder="t('project.templates.status')"
+          />
+        </template>
+        <template v-if="!isTablePresentation" #actions>
+          <t-tooltip :content="t('project.templates.refresh')" placement="top">
+            <t-button
+              :aria-label="t('project.templates.refresh')"
+              :loading="loading"
+              class="application-template-list__refresh-button"
+              shape="square"
+              theme="default"
+              variant="outline"
+              @click="loadTemplates"
+            >
+              <template #icon><refresh-icon /></template>
+            </t-button>
+          </t-tooltip>
         </template>
       </management-toolbar>
 
@@ -30,7 +75,7 @@
         >
       </t-alert>
 
-      <management-table-card v-else>
+      <management-table-card v-else-if="isTablePresentation">
         <template #toolbar>
           <table-view-toolbar :refresh-label="t('project.templates.refresh')" :refresh-loading="loading" @refresh="loadTemplates" />
         </template>
@@ -64,9 +109,36 @@
         <template #empty
           ><t-empty :title="t('project.templates.emptyTitle')" :description="t('project.templates.emptyDescription')"
         /></template>
-		</t-table>
+        </t-table>
       </management-table-card>
-	  </management-page-content>
+      <template-card-list
+        v-else
+        :actions-for="templateActions"
+        :adapter-label="t('project.templates.adapterCompose')"
+        :empty-description="t('project.templates.emptyDescription')"
+        :empty-title="t('project.templates.emptyTitle')"
+        :loading="loading"
+        :no-description-label="t('project.templates.noDescription')"
+        :status-label="statusLabel"
+        :status-theme="statusTheme"
+        :templates="filteredTemplates"
+        :updated-at-label="updatedAtLabel"
+        @action="handleTemplateAction"
+        @open="openTemplate"
+      />
+      <section v-if="showQuickActions" class="application-template-list__quick-actions">
+        <t-button theme="primary" @click="openCreateDialog">
+          <template #icon><add-icon /></template>
+          {{ t('project.templates.create') }}
+        </t-button>
+        <t-button variant="outline" @click="openComposeImport">
+          {{ t('project.templates.importCompose') }}
+        </t-button>
+        <t-button variant="outline" @click="browseTemplates">
+          {{ t('project.templates.browseTemplates') }}
+        </t-button>
+      </section>
+    </management-page-content>
 
 	  <t-dialog
       v-model:visible="cloneVisible"
@@ -93,6 +165,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import { AddIcon, RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
@@ -102,12 +175,15 @@ import { useRouter } from 'vue-router';
 import {
   ManagementPageContent,
   ManagementPageHeader,
+  ManagementStatisticsBar,
   ManagementTableCard,
   ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import { useResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
+import { formatLocaleDateTime } from '@/shared/observability/time';
 
 import {
   deleteApplicationTemplate,
@@ -120,13 +196,16 @@ import {
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { emitApplicationTemplateDebug } from '../../shared/project-template-debug';
 import type { ApplicationTemplate } from '../../types/project';
+import TemplateCardList from './TemplateCardList.vue';
 
 defineOptions({ name: 'ApplicationTemplateListIndex' });
 
 // 模板目录只消费管理端完整快照；发布模板选择仍留在 Application 创建向导，避免混入草稿或归档版本。
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
+const pageRef = ref<HTMLElement | null>(null);
+const responsiveVariant = useResponsiveVariant(pageRef, { layout: 'flow', presentation: 'data' });
 const templates = ref<ApplicationTemplate[]>([]);
 const loading = ref(false);
 const cloning = ref(false);
@@ -138,6 +217,26 @@ const cloneVisible = ref(false);
 const deleteVisible = ref(false);
 const selectedTemplate = ref<ApplicationTemplate | null>(null);
 const cloneDisplayName = ref('');
+
+const isTablePresentation = computed(() => responsiveVariant.value.density === 'spacious');
+const isCompact = computed(() => responsiveVariant.value.density === 'compact');
+const headerSource = computed(() =>
+  isCompact.value ? undefined : { labelKey: 'project.templates.eyebrow', fallback: t('project.templates.eyebrow') },
+);
+const templateSummaryItems = computed(() => [
+  { label: t('project.templates.total'), value: templates.value.length },
+  { label: t('project.templates.statusPublished'), value: templates.value.filter((template) => isPublished(template)).length },
+  { label: t('project.templates.statusDraft'), value: templates.value.filter((template) => isDraft(template)).length },
+]);
+const showQuickActions = computed(
+  () =>
+    !isTablePresentation.value &&
+    !loading.value &&
+    !errorMessage.value &&
+    !keyword.value &&
+    !status.value &&
+    templates.value.length <= 2,
+);
 
 const statusOptions = computed(() => [
   { label: t('project.templates.statusDraft'), value: 'draft' },
@@ -212,6 +311,14 @@ function openTemplate(template: ApplicationTemplate) {
     name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
     params: { templateId: template.template_id },
   });
+}
+
+function openComposeImport() {
+  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE_IMPORT.pageRouteName });
+}
+
+function browseTemplates() {
+  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.CREATE_TEMPLATE.pageRouteName });
 }
 
 function isArchived(template: ApplicationTemplate) {
@@ -311,6 +418,11 @@ function statusTheme(template: ApplicationTemplate) {
   if (isArchived(template)) return 'default';
   return isDraft(template) ? 'warning' : 'success';
 }
+
+function updatedAtLabel(template: ApplicationTemplate) {
+  const value = formatLocaleDateTime(template.updated_at, locale.value, { dateStyle: 'medium' });
+  return t('project.templates.updatedAt', { value });
+}
 </script>
 <style scoped>
 .application-template-list__feedback,
@@ -337,4 +449,82 @@ function statusTheme(template: ApplicationTemplate) {
   white-space: nowrap;
 }
 
+.application-template-list__quick-actions {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.application-template-list__quick-actions :deep(.t-button) {
+  min-height: 44px;
+  min-width: 0;
+}
+
+@media (width <= 991px) {
+  .application-template-list :deep(.management-toolbar) {
+    min-height: 0;
+  }
+
+  .application-template-list :deep(.management-toolbar__filters) {
+    width: 100%;
+  }
+
+  .application-template-list__search,
+  .application-template-list__status {
+    flex-basis: 100%;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .application-template-list__search :deep(.t-input),
+  .application-template-list__status :deep(.t-input) {
+    min-height: 44px;
+  }
+}
+
+@media (width <= 767px) {
+  .application-template-list :deep(.management-page-header) {
+    padding: var(--graft-density-gap-16);
+  }
+
+  .application-template-list :deep(.page-header__main) {
+    align-items: center;
+    flex-flow: row wrap;
+    gap: var(--graft-density-gap-12);
+  }
+
+  .application-template-list :deep(.page-header__side) {
+    display: contents;
+  }
+
+  .application-template-list :deep(.page-header__actions) {
+    align-items: center;
+    order: 2;
+    width: auto;
+  }
+
+  .application-template-list :deep(.page-header__extra) {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .application-template-list__create-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .application-template-list :deep(.management-toolbar__actions) {
+    flex: 0 0 auto;
+  }
+
+  .application-template-list__refresh-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .application-template-list__quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+}
 </style>
