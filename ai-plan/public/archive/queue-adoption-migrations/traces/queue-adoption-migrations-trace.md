@@ -55,7 +55,8 @@
 - Added canonical `POST /api/platform/backups` Task submission with the manual retention enum, safe history list/detail reads, and the visible `platform-backup` Platform navigation entry.
 - The Web history page uses the `list-form-detail` master, opens the shared Task drawer from a create receipt or associated history record, and refreshes history only after observed Task success.
 - No restore, artifact download/browse, automatic cleanup, scheduling, path/DSN/command inputs, or compatibility endpoint was added.
-- Completed validation: `just openapi-check`, `go run ./cmd/graft validate backend`, `bun run check`, `python3 scripts/validate_ai_plan_structure.py`, and `git diff --check`.
+- Completion validation recorded for the implementation batch: `just openapi-check`, `go run ./cmd/graft validate backend`, `bun run check`, `python3 scripts/validate_ai_plan_structure.py`, and `git diff --check`.
+- Evidence gap: this archived trace retains command-level outcomes only, not the original command output. The archive relocation itself did not rerun the implementation validation chain.
 
 ## Loop Batch State
 

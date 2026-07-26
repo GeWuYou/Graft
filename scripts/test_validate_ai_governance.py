@@ -221,6 +221,26 @@ class RepairConfirmationInteractionTests(unittest.TestCase):
 
         self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
 
+    def test_repair_confirmation_rejects_native_approval_bypass(self) -> None:
+        current_text = MODULE.read_text(MODULE.AGENTS)
+        mutated_text = current_text.replace(
+            "numeric fallback is unavailable while native structured approval is available",
+            "numeric fallback may replace the native choice control",
+            1,
+        )
+        self.assertNotEqual(current_text, mutated_text)
+        original_read_text = MODULE.read_text
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.AGENTS:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_repair_confirmation_interaction_contract()
+
+        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
+
 
 class BackendGuardrailGovernanceTests(unittest.TestCase):
     def test_backend_guardrail_governance_is_currently_satisfied(self) -> None:

@@ -10,6 +10,12 @@ Graft is a self-hosted application platform for teams running Docker Compose app
 
 All top-level developer recipes use [Just](https://github.com/casey/just):
 
+> Runtime service and migration commands are manual-only: do not run them from
+> numbered agent worktrees. In those worktrees, use `just check`,
+> `just check-server`, or `just check-web` for code validation, and use
+> `just migrate-validate` or `just migration-check` for migration assets
+> without applying them to a live database.
+
 ```bash
 just setup          # Install all dependencies
 just check          # Full validation (server + web)
@@ -23,6 +29,10 @@ just migrate-up     # Apply database migrations
 ```
 
 ### Backend (Go)
+
+`graft dev`, `graft serve`, and `graft migrate up` are manual-only commands;
+they are prohibited in numbered agent worktrees. Use `graft validate backend`
+or `graft migrate validate` there instead.
 
 ```bash
 cd server
@@ -52,6 +62,10 @@ bun run openapi:types   # Regenerate OpenAPI TypeScript types from openapi/opena
 ```
 
 ### Docker Compose
+
+Docker Compose lifecycle commands are manual-only and prohibited in numbered
+agent worktrees. Use the validation commands above instead of starting a local
+stack from an agent workspace.
 
 ```bash
 docker compose up -d    # Start all services (postgres, redis, server, web)

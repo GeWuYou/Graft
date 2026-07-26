@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: migrate selected high-value request-blocking operations to the Task Runtime.
-- Current status: `active`
+- Current status: `archive-ready`
 - Task class: `cross-boundary`
 - Intake summary: long-running refactor using the existing Task Runtime and queue-adoption design.
 - Canonical authority: Task Runtime, Container module, and `openapi/**` shared wire contract.
