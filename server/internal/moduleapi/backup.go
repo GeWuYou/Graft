@@ -37,7 +37,9 @@ type BackupArtifact struct {
 
 // Backup 是 backup 模块拥有的完整内部备份事实。
 type Backup struct {
-	ID             uint64
+	ID uint64
+	// TaskID 为空表示历史或非 Task Runtime 创建的备份事实。
+	TaskID         *uint64
 	Purpose        string
 	Status         BackupStatus
 	ConfigSnapshot BackupArtifact
@@ -52,7 +54,9 @@ type Backup struct {
 
 // BackupSummary 是未来 HTTP 查询可安全映射的只读投影；它明确不含存储位置和工件内容。
 type BackupSummary struct {
-	ID          uint64
+	ID uint64
+	// TaskID 为空表示该安全摘要对应的备份没有 Task Runtime 来源。
+	TaskID      *uint64
 	Purpose     string
 	Status      BackupStatus
 	RetainUntil time.Time
@@ -63,6 +67,8 @@ type BackupSummary struct {
 
 // CreateBackupInput 描述完成配置快照和数据库 dump 后要记录的元数据。
 type CreateBackupInput struct {
+	// TaskID 为零时创建不关联 Task 的备份；非零值要求持久化层按 Task 幂等。
+	TaskID         uint64
 	Purpose        string
 	ConfigSnapshot BackupArtifact
 	DatabaseDump   BackupArtifact

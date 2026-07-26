@@ -73,6 +73,39 @@ func TestFileArtifactWriterReplacesCorruptSnapshotOnRetry(t *testing.T) {
 	}
 }
 
+func TestFileArtifactWriterVerifyDoesNotRepairOrWriteArtifacts(t *testing.T) {
+	root := t.TempDir()
+	writer := newTestArtifactWriter(root)
+	writer.dumpCommand = func(context.Context, string, string) (*exec.Cmd, error) {
+		t.Fatal("Verify must not invoke pg_dump")
+		return nil, nil
+	}
+	directory := filepath.Join(root, "backup-42")
+	if err := os.MkdirAll(directory, backupDirectoryPermission); err != nil {
+		t.Fatalf("create artifact directory: %v", err)
+	}
+	configRef := filepath.Join(directory, "config.snapshot")
+	if err := os.WriteFile(configRef, []byte(`{"schema_version":`), backupFilePermission); err != nil {
+		t.Fatalf("write corrupt config snapshot: %v", err)
+	}
+	// #nosec G304 -- path is composed from this test's t.TempDir and a fixed operation ID.
+	before, err := os.ReadFile(configRef)
+	if err != nil {
+		t.Fatalf("read corrupt config snapshot: %v", err)
+	}
+	if _, err := writer.Verify(testBackupTaskInput()); err == nil {
+		t.Fatal("expected frozen artifact verification failure")
+	}
+	// #nosec G304 -- path is composed from this test's t.TempDir and a fixed operation ID.
+	after, err := os.ReadFile(configRef)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("Verify mutated config snapshot: before=%q after=%q err=%v", before, after, err)
+	}
+	if _, err := os.Stat(filepath.Join(directory, "database.dump")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Verify created database dump: %v", err)
+	}
+}
+
 func TestFileArtifactWriterPublishesOnlySuccessfulDatabaseDump(t *testing.T) {
 	root := t.TempDir()
 	writer := newTestArtifactWriter(root)

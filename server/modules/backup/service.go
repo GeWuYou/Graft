@@ -55,5 +55,5 @@ func (s *Service) RecordRestoreEvidence(ctx context.Context, input moduleapi.Rec
 
 // ToSummary 将内部工件事实投影为可用于未来 HTTP 读取面的安全摘要。
 func ToSummary(item moduleapi.Backup) moduleapi.BackupSummary {
-	return moduleapi.BackupSummary{ID: item.ID, Purpose: item.Purpose, Status: item.Status, RetainUntil: item.RetainUntil, CreatedAt: item.CreatedAt, RestoreCode: item.RestoreCode, RestoreAt: item.RestoreAt}
+	return moduleapi.BackupSummary{ID: item.ID, TaskID: item.TaskID, Purpose: item.Purpose, Status: item.Status, RetainUntil: item.RetainUntil, CreatedAt: item.CreatedAt, RestoreCode: item.RestoreCode, RestoreAt: item.RestoreAt}
 }

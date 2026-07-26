@@ -21,12 +21,12 @@ Work contract summary:
 Locked decisions:
 
 1. Repair canonical Task Runtime, module, and OpenAPI authorities together.
-2. Stop and split before the local change set reaches 80 files.
+2. Compare with `origin/main`; reassess and split at 80 changed files, and never exceed 90 changed files.
 
 Current batch plan:
 
-1. Validate Docker image pull Task adoption and record the batch outcome.
-2. Select the next bounded Container operation from the pending backlog.
+1. Re-run startup preflight and compare the current branch with `origin/main` before extending the topic.
+2. Implement only the bounded Backup public surface after the file-count gate permits it.
 
 Loop instructions:
 

@@ -43,6 +43,7 @@ func (s *Service) SubmitManualBackup(ctx context.Context, operationID string, re
 
 type backupArtifactWriter interface {
 	Create(context.Context, backupTaskInput) (moduleapi.CreateBackupInput, error)
+	Verify(backupTaskInput) (moduleapi.CreateBackupInput, error)
 }
 
 type backupArtifactTaskExecutor struct{ service *Service }
@@ -74,10 +75,11 @@ func (e backupRecordTaskExecutor) Execute(ctx context.Context, run moduleapi.Sta
 	if err != nil {
 		return err
 	}
-	artifacts, err := e.service.writer.Create(ctx, input)
+	artifacts, err := e.service.writer.Verify(input)
 	if err != nil {
 		return fmt.Errorf("verify backup artifacts: %w", err)
 	}
+	artifacts.TaskID = run.TaskID()
 	if _, err = e.service.Create(ctx, artifacts); err != nil {
 		return fmt.Errorf("record backup artifacts: %w", err)
 	}

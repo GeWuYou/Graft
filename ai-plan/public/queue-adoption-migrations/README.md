@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`
 - Intake summary: long-running refactor using the existing Task Runtime and queue-adoption design.
 - Canonical authority: Task Runtime, Container module, and `openapi/**` shared wire contract.
-- Completed so far: Docker image pull, single-container lifecycle actions, and all Container batch lifecycle actions now submit Tasks.
-- Not started yet: Backup execution entry.
+- Completed so far: Docker image pull, single-container lifecycle actions, all Container batch lifecycle actions, and the Backup Task executor authority repair.
+- Not started yet: the Backup public API, Platform navigation, and web history page.
 
 ## Recovery Receipt
 
@@ -31,12 +31,12 @@ Out of scope:
 ## Locked Decisions
 
 1. Docker image pull accepts a Task submission receipt rather than holding an NDJSON response open.
-2. Each batch must stay below the repository file-change cap; split before the branch reaches 80 changed files.
+2. Compare every batch with `origin/main`: reassess and split at 80 changed files, and never exceed 90 changed files.
 
 ## Current Recovery Point
 
-- Batch 4 migrates Container batch remove to independently submitted lifecycle Tasks while retaining ordered per-item partial results, frozen force input, and action-specific authorization.
-- Next step: assess Backup only after a product-facing execution entry exists; do not extend the Container lifecycle contract implicitly.
+- Batch 5 repairs the Backup executor authority: `backups.task_id` binds each recorded Backup to its Task, the record Stage only verifies frozen artifacts, and Task-backed records are idempotent.
+- Next step: implement the bounded Backup public surface only after a fresh `origin/main` file-count check confirms it remains below the 80-file review threshold.
 
 ## Work Intake
 
@@ -45,7 +45,7 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Backup execution after a product-facing entry is available.
+- Backup public surface: canonical OpenAPI, Platform navigation, and web history projection.
 
 ## Loop Entry
 

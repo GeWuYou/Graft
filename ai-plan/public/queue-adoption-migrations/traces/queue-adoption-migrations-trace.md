@@ -38,15 +38,22 @@
 - The initial public operation is manual Backup creation only. It freezes a two-stage, one-attempt Task plan, preserves `manual_reconcile` for interruption ambiguity, and exposes only safe Backup summaries.
 - Restore, artifact download/browsing, cleanup, scheduled execution, path/DSN/command inputs, and automatic replay remain excluded. Existing Update runner handoffs remain a narrow Update integration and are not reused as the public Backup execution API.
 
+## 2026-07-26 Backup Task Executor Authority Repair
+
+- Added a forward-only Backup-owned `task_id` association, backfilled only completed runner handoffs, and refreshed the embedded live migration registry.
+- The artifact creation Stage remains the sole writer. The record Stage now only verifies the frozen artifacts before persisting metadata, so verification cannot repair snapshots, create directories, or invoke `pg_dump`.
+- A unique Task association makes manual record-stage retries return the existing Backup after validating the frozen metadata instead of creating a second record.
+- Validated the Backup package, migration comment/version gates, Atlas checksum, generated registry freshness, and the full backend entrypoint. The next batch remains the bounded public Backup surface.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption"],
-  "pending_batches": ["backup-task-executor", "backup-public-surface"],
-  "current_batch": "backup-execution-contract",
-  "next_batch": "backup-task-executor",
-  "closeout_status": "contract-defined"
+  "completed_batches": ["docker-image-pull-task-adoption", "container-single-lifecycle-task-adoption", "container-batch-lifecycle-task-adoption", "container-batch-removal-task-adoption", "backup-task-executor-authority"],
+  "pending_batches": ["backup-public-surface"],
+  "current_batch": "backup-task-executor-authority",
+  "next_batch": "backup-public-surface",
+  "closeout_status": "executor-authority-validated"
 }
 ```

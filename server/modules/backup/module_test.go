@@ -82,3 +82,7 @@ type testArtifactWriter struct{}
 func (testArtifactWriter) Create(context.Context, backupTaskInput) (moduleapi.CreateBackupInput, error) {
 	return moduleapi.CreateBackupInput{}, nil
 }
+
+func (testArtifactWriter) Verify(backupTaskInput) (moduleapi.CreateBackupInput, error) {
+	return moduleapi.CreateBackupInput{}, nil
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func TestSQLRepositoryStoresMetadataWithoutArtifactContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create backup: %v", err)
 	}
-	if created.ID == 0 || created.Status != moduleapi.BackupStatusAvailable || created.ConfigSnapshot.SHA256 != input.ConfigSnapshot.SHA256 || created.DatabaseDump.SizeBytes != input.DatabaseDump.SizeBytes {
+	if created.ID == 0 || created.TaskID != nil || created.Status != moduleapi.BackupStatusAvailable || created.ConfigSnapshot.SHA256 != input.ConfigSnapshot.SHA256 || created.DatabaseDump.SizeBytes != input.DatabaseDump.SizeBytes {
 		t.Fatalf("created backup mismatch: %#v", created)
 	}
 
@@ -31,6 +32,67 @@ func TestSQLRepositoryStoresMetadataWithoutArtifactContent(t *testing.T) {
 	found, err := repository.Get(context.Background(), created.ID)
 	if err != nil || found.ConfigSnapshot.StorageRef != input.ConfigSnapshot.StorageRef || found.DatabaseDump.StorageRef != input.DatabaseDump.StorageRef {
 		t.Fatalf("get backup mismatch: %#v err=%v", found, err)
+	}
+}
+
+func TestSQLRepositoryCreatesTaskBackedBackupIdempotently(t *testing.T) {
+	t.Parallel()
+	repository, db := newTestRepository(t)
+	input := validCreateInput()
+	input.TaskID = 73
+	first, err := repository.Create(context.Background(), input)
+	if err != nil || first.TaskID == nil || *first.TaskID != input.TaskID {
+		t.Fatalf("create task backup: backup=%#v err=%v", first, err)
+	}
+	second, err := repository.Create(context.Background(), input)
+	if err != nil || second.ID != first.ID {
+		t.Fatalf("replay task backup: backup=%#v err=%v", second, err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM backups WHERE task_id = ?`, input.TaskID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("expected one task-backed backup, count=%d err=%v", count, err)
+	}
+	input.DatabaseDump.SizeBytes++
+	if _, err := repository.Create(context.Background(), input); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected changed replay rejection, got %v", err)
+	}
+}
+
+func TestSQLRepositoryCreatesOneBackupForConcurrentTaskReplay(t *testing.T) {
+	repository, db := newTestRepository(t)
+	db.SetMaxOpenConns(1)
+	input := validCreateInput()
+	input.TaskID = 74
+	results := make(chan moduleapi.Backup, 2)
+	errs := make(chan error, 2)
+	var group sync.WaitGroup
+	for range 2 {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			item, err := repository.Create(context.Background(), input)
+			results <- item
+			errs <- err
+		}()
+	}
+	group.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent task replay: %v", err)
+		}
+	}
+	var ids []uint64
+	for item := range results {
+		ids = append(ids, item.ID)
+	}
+	if len(ids) != 2 || ids[0] == 0 || ids[0] != ids[1] {
+		t.Fatalf("expected replayed task to return one backup ID, got %v", ids)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM backups WHERE task_id = ?`, input.TaskID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("expected one task-backed row, count=%d err=%v", count, err)
 	}
 }
 
@@ -95,6 +157,10 @@ func TestSQLRepositorySettlesRunnerHandoffIdempotently(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM backups`).Scan(&backups); err != nil || backups != 1 {
 		t.Fatalf("expected exactly one backup, count=%d err=%v", backups, err)
 	}
+	var taskID uint64
+	if err := db.QueryRow(`SELECT task_id FROM backups WHERE id = ?`, first.BackupID).Scan(&taskID); err != nil || taskID != plan.TaskID {
+		t.Fatalf("expected runner backup task association, task_id=%d err=%v", taskID, err)
+	}
 	input.ConfigSnapshotBytes++
 	if _, err := repository.CompleteRunnerHandoff(context.Background(), input); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
 		t.Fatalf("expected altered replay rejection, got %v", err)
@@ -147,6 +213,7 @@ func newTestRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 		database_dump_ref TEXT NOT NULL, database_dump_sha256 TEXT NOT NULL, database_dump_bytes INTEGER NOT NULL,
 		retain_until DATETIME NOT NULL, created_by INTEGER NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, restore_code TEXT NOT NULL DEFAULT '', restore_at DATETIME NULL,
+		task_id INTEGER NULL UNIQUE,
 		deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NULL
 	)`); err != nil {
 		t.Fatalf("create backups table: %v", err)
