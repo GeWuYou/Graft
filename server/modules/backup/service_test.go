@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -29,6 +30,12 @@ func (r *serviceTestRepository) Create(_ context.Context, input moduleapi.Create
 }
 func (r *serviceTestRepository) Get(_ context.Context, _ uint64) (moduleapi.Backup, error) {
 	return r.item, nil
+}
+func (r *serviceTestRepository) GetSummary(_ context.Context, _ uint64) (moduleapi.BackupSummary, error) {
+	return ToSummary(r.item), nil
+}
+func (r *serviceTestRepository) ListSummaries(context.Context, int, int) ([]moduleapi.BackupSummary, int64, error) {
+	return []moduleapi.BackupSummary{ToSummary(r.item)}, 1, nil
 }
 func (r *serviceTestRepository) RecordRestoreEvidence(_ context.Context, input moduleapi.RecordBackupRestoreInput) (moduleapi.Backup, error) {
 	r.restored = input
@@ -75,15 +82,51 @@ func TestServiceForwardsBackupCapabilityAndProjectsSafeSummary(t *testing.T) {
 	if summary.ID != created.ID || summary.Purpose != created.Purpose || summary.Status != created.Status {
 		t.Fatalf("summary mismatch: %#v", summary)
 	}
+	encodedSummary, err := json.Marshal(summary)
+	if err != nil || strings.Contains(string(encodedSummary), "manual_restore_verified") || strings.Contains(string(encodedSummary), "restore_code") {
+		t.Fatalf("summary exposed restore evidence: json=%s err=%v", encodedSummary, err)
+	}
 }
 
 func TestServiceRejectsUnavailableRepositoryAndInvalidID(t *testing.T) {
 	t.Parallel()
-	if _, err := (*Service)(nil).Create(context.Background(), moduleapi.CreateBackupInput{}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
-		t.Fatalf("expected unavailable service error, got %v", err)
+	service := (*Service)(nil)
+	if _, err := service.Create(context.Background(), moduleapi.CreateBackupInput{}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable create service error, got %v", err)
+	}
+	if _, err := service.Get(context.Background(), 1); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable get service error, got %v", err)
+	}
+	if _, err := service.GetSummary(context.Background(), 1); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable summary service error, got %v", err)
+	}
+	if _, _, err := service.ListSummaries(context.Background(), 1, 0); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable list service error, got %v", err)
+	}
+	if _, err := service.RecordRestoreEvidence(context.Background(), moduleapi.RecordBackupRestoreInput{}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable restore service error, got %v", err)
 	}
 	if _, err := NewService(&serviceTestRepository{}).Get(context.Background(), 0); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
 		t.Fatalf("expected invalid id error, got %v", err)
+	}
+}
+
+func TestManualRetentionDeadlineUsesOnlyManualBackupPolicy(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.July, 26, 12, 0, 0, 0, time.UTC)
+	cases := map[ManualRetention]time.Duration{
+		ManualRetentionOneDay:     24 * time.Hour,
+		ManualRetentionSevenDays:  7 * 24 * time.Hour,
+		ManualRetentionThirtyDays: 30 * 24 * time.Hour,
+	}
+	for retention, duration := range cases {
+		deadline, err := ManualRetentionDeadline(retention, now)
+		if err != nil || !deadline.Equal(now.Add(duration)) {
+			t.Fatalf("retention %q deadline=%s err=%v", retention, deadline, err)
+		}
+	}
+	if _, err := ManualRetentionDeadline("14d", now); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected invalid retention error, got %v", err)
 	}
 }
 
@@ -118,6 +161,23 @@ func TestServiceCompletesRunnerHandoffAfterVerifyingFrozenArtifacts(t *testing.T
 		DatabaseDumpSHA256: dumpSHA, DatabaseDumpBytes: dumpSize,
 	}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
 		t.Fatalf("expected forged checksum rejection, got %v", err)
+	}
+}
+
+func TestServiceCompleteRunnerHandoffHonorsCanceledContextBeforeReadingArtifacts(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	configRef := filepath.Join(root, "config.snapshot")
+	dumpRef := filepath.Join(root, "database.dump")
+	writeRunnerArtifact(t, configRef, []byte("CONFIG=redacted\n"))
+	writeRunnerArtifact(t, dumpRef, []byte("postgres dump"))
+	service := NewService(&serviceTestRepository{plan: moduleapi.BackupRunnerHandoffPlan{
+		OperationID: "update-44", TaskID: 44, ArtifactRoot: root, ConfigSnapshotRef: configRef, DatabaseDumpRef: dumpRef,
+	}})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := service.CompleteRunnerHandoff(ctx, moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "update-44", TaskID: 44}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled handoff, got %v", err)
 	}
 }
 

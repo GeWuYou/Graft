@@ -80,17 +80,19 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
+import { useTabsRouterStore } from '@/store/modules/tabs-router';
 
 import kubernetesIcon from '../../assets/runtime/kubernetes.svg?url';
 import nomadIcon from '../../assets/runtime/nomad.svg?url';
 import { PROJECT_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
-import { useApplicationCreateRouteNavigation } from '../../shared/navigation';
+import { navigateToApplicationList, useApplicationCreateRouteNavigation } from '../../shared/navigation';
 
 defineOptions({ name: 'ApplicationDeploymentAdapterIndex' });
 // 此页选择定义格式适配器；运行目标在下一页按其能力过滤，不能把 Provider 或 Swarm 当作适配器。
 
 const { t } = useI18n();
 const router = useRouter();
+const tabsRouterStore = useTabsRouterStore();
 const navigateApplicationCreateRoute = useApplicationCreateRouteNavigation(router);
 const deploymentAdapters = [
   {
@@ -156,7 +158,7 @@ const deploymentAdapters = [
 type DeploymentAdapter = (typeof deploymentAdapters)[number]['key'];
 
 function goToApplicationList() {
-  void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.LIST.routeName });
+  navigateToApplicationList(router, tabsRouterStore);
 }
 
 function selectDeployment(deployment: DeploymentAdapter) {

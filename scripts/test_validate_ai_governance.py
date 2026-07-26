@@ -180,13 +180,75 @@ class PushBranchGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_push_branch_governance(), [])
 
 
+class PRReplyPublicationGovernanceTests(unittest.TestCase):
+    def test_pr_reply_publication_governance_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_pr_reply_publication_governance(), [])
+
+    def test_pr_reply_publication_governance_rejects_local_commit_as_reply_proof(self) -> None:
+        original_read_text = MODULE.read_text
+        current_text = original_read_text(MODULE.PR_REVIEW_SKILL)
+        mutated_text = current_text.replace("require its SHA to equal `git rev-parse HEAD`", "accept a local commit", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.PR_REVIEW_SKILL:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_pr_reply_publication_governance()
+
+        self.assertTrue(any(finding.path == MODULE.PR_REVIEW_SKILL for finding in findings))
+
+
+class CommitCompletionGovernanceTests(unittest.TestCase):
+    def test_bare_graft_commit_requires_clean_worktree(self) -> None:
+        self.assertEqual(MODULE.validate_commit_completion_governance(), [])
+
+    def test_bare_graft_commit_rejects_missing_clean_worktree_rule(self) -> None:
+        current_text = MODULE.read_text(MODULE.AGENTS)
+        mutated_text = current_text.replace("must finish with an empty `git status --short`", "may stop early", 1)
+        self.assertNotEqual(current_text, mutated_text)
+        original_read_text = MODULE.read_text
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.AGENTS:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_commit_completion_governance()
+
+        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
+
+
 class RepairConfirmationInteractionTests(unittest.TestCase):
     def test_repair_confirmation_interaction_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_repair_confirmation_interaction_contract(), [])
 
-    def test_repair_confirmation_rejects_missing_native_choice(self) -> None:
+    def test_repair_confirmation_rejects_missing_fallback_option_descriptions(self) -> None:
         current_text = MODULE.read_text(MODULE.AGENTS)
-        mutated_text = current_text.replace("Do not end a normal assistant message", "manual reply", 1)
+        mutated_text = current_text.replace("Fallback choices:", "manual reply", 1)
+        self.assertNotEqual(current_text, mutated_text)
+        original_read_text = MODULE.read_text
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.AGENTS:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_repair_confirmation_interaction_contract()
+
+        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
+
+    def test_repair_confirmation_rejects_native_approval_bypass(self) -> None:
+        current_text = MODULE.read_text(MODULE.AGENTS)
+        mutated_text = current_text.replace(
+            "numeric fallback is unavailable while native structured approval is available",
+            "numeric fallback may replace the native choice control",
+            1,
+        )
         self.assertNotEqual(current_text, mutated_text)
         original_read_text = MODULE.read_text
 

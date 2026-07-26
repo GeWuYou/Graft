@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import isBoolean from 'lodash/isBoolean';
 import isUndefined from 'lodash/isUndefined';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
@@ -32,6 +32,7 @@ import { t } from '@/locales';
 import { routeLoading } from '@/router/route-loading';
 import { useTabsRouterStore } from '@/store';
 import { resolvePageSurfaceType } from '@/utils/route/meta';
+import { formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 
 const emit = defineEmits<{
   'page-surface-ready': [surface: ReturnType<typeof resolvePageSurfaceType>];
@@ -80,6 +81,38 @@ const isFramePage = computed(() => {
 const handleAfterLeave = () => {
   emit('page-surface-ready', resolvePageSurfaceType(route.meta));
 };
+
+// 仅在 tabs.layout 调试开关开启时输出，定位动态路由与标签激活不同步导致的视图空白问题。
+watch(
+  [() => route.fullPath, activeTabRoute, shouldKeepActiveViewAlive, activeViewKey],
+  () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const activeTab = activeTabRoute.value;
+    logTabsDebug(
+      'tabs.layout',
+      () =>
+        `tabs debug: content route=[path=${sanitizeDebugPath(route.path)} fullPath=${sanitizeDebugPath(route.fullPath)} name=${String(
+          route.name || '',
+        )}] active=[key=${tabsRouterStore.activeTabKey} path=${activeTab?.path || ''} fullPath=${sanitizeDebugPath(
+          activeTab?.fullPath,
+        )} name=${String(activeTab?.name || '')}] keepAlive=${String(shouldKeepActiveViewAlive.value)} viewKey=${sanitizeDebugPath(
+          activeViewKey.value,
+        )} ${formatTabsDebugSummary(
+          tabsRouterStore.tabRouters.map((tabRoute) => ({
+            ...tabRoute,
+            path: sanitizeDebugPath(tabRoute.path),
+            fullPath: sanitizeDebugPath(tabRoute.fullPath),
+          })),
+        )}`,
+    );
+  },
+  { immediate: true },
+);
+
+// 调试日志不应记录路由 query 或 hash，其中可能包含令牌、筛选条件或临时回跳信息。
+function sanitizeDebugPath(path?: string) {
+  return path?.split(/[?#]/, 1)[0] || '';
+}
 </script>
 <style lang="less" scoped>
 .fade-leave-active,

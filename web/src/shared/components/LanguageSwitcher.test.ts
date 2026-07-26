@@ -1,16 +1,19 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
 import LanguageSwitcher from './LanguageSwitcher.vue';
 
 vi.mock('@/locales', () => ({
-  languageList: [],
+  languageList: ref([
+    { content: 'English', value: 'en-US' },
+    { content: '简体中文', value: 'zh-CN' },
+  ]),
   t: (key: string) => key,
 }));
 
 vi.mock('@/locales/useLocale', () => ({
-  useLocale: () => ({ changeLocale: vi.fn() }),
+  useLocale: () => ({ changeLocale: vi.fn(), locale: ref('zh-CN') }),
 }));
 
 const tooltipStub = defineComponent({
@@ -54,8 +57,11 @@ describe('LanguageSwitcher', () => {
             props: { visible: { type: Boolean, default: false } },
             template: '<section data-testid="language-dialog" :data-visible="String(visible)"><slot /></section>',
           },
-          't-radio': true,
-          't-radio-group': true,
+          't-select': {
+            props: ['filterable', 'options', 'placeholder', 'modelValue'],
+            template:
+              '<div data-testid="language-dialog-select" :data-filterable="String(filterable)" :data-options="options.map((item) => item.label).join(\',\')" />',
+          },
           't-tooltip': tooltipStub,
         },
       },
@@ -64,5 +70,7 @@ describe('LanguageSwitcher', () => {
     expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('false');
     await wrapper.get('button').trigger('click');
     expect(wrapper.get('[data-testid="language-dialog"]').attributes('data-visible')).toBe('true');
+    expect(wrapper.get('[data-testid="language-dialog-select"]').attributes('data-filterable')).toBeDefined();
+    expect(wrapper.get('[data-testid="language-dialog-select"]').attributes('data-options')).toBe('English,简体中文');
   });
 });

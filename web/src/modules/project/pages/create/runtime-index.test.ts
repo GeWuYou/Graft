@@ -5,6 +5,7 @@ import ApplicationRuntimeIndex from './runtime-index.vue';
 
 const push = vi.fn();
 const resolve = vi.fn((target) => target);
+const navigateToApplicationList = vi.fn();
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push, resolve }),
@@ -19,6 +20,7 @@ vi.mock('@/store/modules/tabs-router', () => ({
 }));
 vi.mock('@/utils/route/title', () => ({ localizeRouteTitleKey: (key: string) => key }));
 vi.mock('../../shared/navigation', () => ({
+  navigateToApplicationList: (...args: unknown[]) => navigateToApplicationList(...args),
   useApplicationCreateRouteNavigation: () => (target: unknown) => push(target),
 }));
 
@@ -74,7 +76,10 @@ describe('ApplicationRuntimeIndex', () => {
 
     await wrapper.get('[data-testid="project-deployment-back"]').trigger('click');
 
-    expect(push).toHaveBeenCalledWith({ name: 'ApplicationList' });
+    expect(navigateToApplicationList).toHaveBeenCalledWith(
+      expect.objectContaining({ push, resolve }),
+      expect.objectContaining({ appendTabRouterList: expect.any(Function), setActiveTabKey: expect.any(Function) }),
+    );
   });
 
   it('makes only Compose actionable and routes to runtime target selection', async () => {

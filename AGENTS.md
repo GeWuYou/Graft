@@ -625,12 +625,15 @@ Automatic commits are allowed only after ownership is classified:
 
 Explicit commit trigger:
 
-- when the user explicitly invokes a repository commit trigger such as `$graft-commit`, treat it as persistent
-  authorization only for explicitly user-confirmed, currently owned logical slices captured in the initial working-tree
-  inventory: inventory them, validate, and create scoped commits for those slices
-- the initial inventory is an upper boundary, not commit authority: presence in that inventory, user authorship,
-  classifiability, or task relevance does not authorize a change that is not explicitly user-confirmed and currently
-  owned; the trigger does not permit broad staging, later-arriving changes, or changes outside the recorded inventory
+- a bare `$graft-commit` means commit the complete initial working-tree inventory: treat every commit-eligible tracked
+  and untracked entry captured at invocation as explicitly user-confirmed and currently owned, then validate and commit
+  all entries in independently understandable logical slices
+- the initial inventory remains an upper boundary: do not commit later-arriving changes. For a bare `$graft-commit`, it
+  is also the complete commit authority for its captured entries; `commit this slice` and other scoped prose requests
+  retain their explicitly stated narrow scope
+- a bare `$graft-commit` must finish with an empty `git status --short`. Continue through every captured logical slice;
+  do not leave captured entries uncommitted merely because they are unrelated to an earlier slice. Only a concrete
+  safety, policy, ownership, or validation blocker may prevent the clean-worktree result, and it must be reported
 - an explicit commit trigger authorizes validation and commits for the confirmed captured slices, but does not authorize
   new source edits or a repair commit after validation fails; diagnose the blocker first, then request confirmation for
   the exact repair scope before making any repair edit, staging that repair, or committing it
@@ -639,12 +642,11 @@ Explicit commit trigger:
   replace it with a binary question such as `Approve?`, `Should I fix this?`, or `Confirm repair?`
 - each resulting commit must still satisfy ownership classification, task-class validation, exact staging, and message
   rules; split independent logical slices into separate commits rather than bundling them for convenience
-- request a repair confirmation when a captured change is not explicitly user-confirmed and currently owned, a required
-  repair lacks safe ownership, or the repair would expand into a new unsafe task; report only when no concrete repair
-  proposal can be formed or required validation is infeasible, and do not use an intermediate commit to conceal either
-  condition
-- after each commit, re-inspect `git status --short` and continue only with the remaining explicitly user-confirmed,
-  currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
+- request a repair confirmation when a required repair lacks safe ownership or expands into a new unsafe task; report
+  only when no concrete repair proposal can be formed or required validation is infeasible, and do not use an
+  intermediate commit to conceal either condition
+- after each commit, re-inspect `git status --short` and continue until every captured bare `$graft-commit` entry is
+  committed and the worktree is clean
 
 Repair Confirmation Interaction Contract:
 
@@ -702,8 +704,30 @@ Repair Confirmation Interaction Contract:
 - `show_detailed_diff` must show a concrete unified diff or equivalent hunk patch without changing files, then invoke
   the unchanged proposal and the same native choice control again
 - `cancel_workflow` stops the current workflow without modifying, staging, committing, or pushing the repair
-- when the host cannot present a native structured-choice interaction, report that capability blocker and preserve the
-  working tree; never fall back to a prose menu or manual numeric reply
+- approval transport priority is mandatory:
+  1. when the runtime supports a native structured-choice interaction, use it
+  2. only when the runtime cannot present that interaction, output the complete `Repair required` proposal and the
+     four visible fallback option descriptions, then stop all execution and wait for the user's next-turn numeric
+     reply. Each description must state the number, stable option id, action, and consequence. End that fallback
+     proposal with exactly:
+
+     ```text
+     Fallback choices:
+     - `1`: `execute_repair` - Execute repair (recommended). Apply only the proposed repair, rerun validation, and resume the current workflow.
+     - `2`: `continue_current_scope` - Do not repair. Continue only the authorized scope and report any blocker.
+     - `3`: `show_detailed_diff` - Show the proposed patch without modifying files, then repeat this proposal.
+     - `4`: `cancel_workflow` - Stop the workflow and preserve the working tree.
+     ```
+
+     ```text
+     请输入：
+     1 / 2 / 3 / 4
+     ```
+
+     The user need not restate the repair intent. For `3`, show the patch without mutation and repeat the same
+     fallback proposal and prompt; for `1`, apply only the declared scope.
+- the numeric fallback is unavailable while native structured approval is available; do not use it for convenience or
+  substitute another binary confirmation prompt
 - a repair proposal is required even when the suspected repair is a one-line test synchronization; a prior
   `$graft-commit`, `$graft-push`, or `$graft-pr-review` trigger does not substitute for `execute_repair`
 

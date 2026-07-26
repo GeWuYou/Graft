@@ -1,0 +1,53 @@
+get:
+  tags: [platform-backup]
+  summary: List safe Backup history
+  operationId: listPlatformBackups
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    - name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+  responses:
+    '200':
+      description: Safe Backup metadata without artifact locations or contents.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-backup-list-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
+post:
+  tags: [platform-backup]
+  summary: Submit a user-created Backup Task
+  operationId: postPlatformBackup
+  description: Accepts a manual Backup Task. The retention choice applies only to this manual Backup and never changes Update pre-backup policy.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - name: Idempotency-Key
+      in: header
+      required: true
+      description: Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different retention returns 409.
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/create-platform-backup-request.yaml }
+  responses:
+    '202':
+      description: Manual Backup Task accepted.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-task-receipt.yaml }
+    '400': { description: Invalid retention or idempotency key. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Idempotency-Key was previously used with a different submission input. }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

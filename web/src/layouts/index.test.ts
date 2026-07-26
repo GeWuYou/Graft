@@ -399,7 +399,7 @@ describe('App layout route effects', () => {
     expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
   });
 
-  it('does not render mobile navigation when the top layout disables the sidebar', async () => {
+  it('keeps drawer navigation available when the top layout disables the persistent sidebar', async () => {
     shellContainerSize.width = 480;
     settingStoreProxy.value!.layout = { value: 'top' };
     settingStoreProxy.value!.showSidebar = false;
@@ -407,8 +407,11 @@ describe('App layout route effects', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
-    expect(wrapper.find('[data-test-id="mobile-navigation"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test-id="mobile-navigation"]').exists()).toBe(true);
     expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(false);
+
+    await wrapper.get('[data-test-id="layout-header"]').trigger('click');
+    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('true');
   });
 
   it('uses the viewport fallback for drawer navigation before the shell container is measured', () => {

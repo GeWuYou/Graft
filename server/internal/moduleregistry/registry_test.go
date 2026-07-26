@@ -16,6 +16,7 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 	expected := map[string]map[i18n.LocaleTag]struct{}{
 		"announcement":   {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"audit":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"backup":         {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"container":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"monitor":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"project":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},

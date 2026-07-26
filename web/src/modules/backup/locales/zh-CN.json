@@ -1,0 +1,62 @@
+{
+  "menu": {
+    "platform": {
+      "backup": "备份"
+    }
+  },
+  "backup": {
+    "route": {
+      "list": {
+        "title": "备份",
+        "breadcrumb": "备份"
+      }
+    },
+    "list": {
+      "eyebrow": "平台",
+      "title": "备份",
+      "description": "创建手动平台备份并查看安全历史记录。",
+      "create": "创建备份",
+      "refresh": "刷新",
+      "loadFailed": "备份历史加载失败。",
+      "empty": "暂无备份记录。",
+      "columns": {
+        "id": "备份 ID",
+        "purpose": "用途",
+        "status": "状态",
+        "retention": "保留至",
+        "createdAt": "创建时间",
+        "task": "任务",
+        "actions": "操作"
+      },
+      "actions": {
+        "view": "查看"
+      }
+    },
+    "createDialog": {
+      "title": "创建备份",
+      "description": "备份将作为后台任务创建。",
+      "retention": "保留时间",
+      "retentionOptions": {
+        "1d": "1 天",
+        "7d": "7 天",
+        "30d": "30 天"
+      },
+      "cancel": "取消",
+      "confirm": "创建备份",
+      "submitFailed": "备份任务提交失败。"
+    },
+    "detail": {
+      "title": "备份详情"
+    },
+    "purpose": {
+      "manual": "手动备份",
+      "platformUpdate": "平台更新"
+    },
+    "status": {
+      "available": "可用",
+      "expired": "已过期",
+      "restored": "已恢复",
+      "unknown": "未知"
+    }
+  }
+}

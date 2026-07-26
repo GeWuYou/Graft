@@ -1566,6 +1566,44 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/backups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List safe Backup history */
+    get: operations['listPlatformBackups'];
+    put?: never;
+    /**
+     * Submit a user-created Backup Task
+     * @description Accepts a manual Backup Task. The retention choice applies only to this manual Backup and never changes Update pre-backup policy.
+     */
+    post: operations['postPlatformBackup'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/backups/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read safe Backup metadata */
+    get: operations['getPlatformBackup'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/access-log': {
     parameters: {
       query?: never;
@@ -3803,6 +3841,11 @@ export interface components {
     EnvelopedTaskEventListResponse: components['schemas']['enveloped-task-event-list-response'];
     EnvelopedTaskLogResponse: components['schemas']['enveloped-task-log-response'];
     EnvelopedTaskReceipt: components['schemas']['enveloped-task-receipt'];
+    CreatePlatformBackupRequest: components['schemas']['create-platform-backup-request'];
+    PlatformBackupSummary: components['schemas']['platform-backup-summary'];
+    PlatformBackupListResponse: components['schemas']['platform-backup-list-response'];
+    EnvelopedPlatformBackupSummary: components['schemas']['enveloped-platform-backup-summary'];
+    EnvelopedPlatformBackupListResponse: components['schemas']['enveloped-platform-backup-list-response'];
     CreateAnnouncementRequest: components['schemas']['create-announcement-request'];
     UpdateAnnouncementRequest: components['schemas']['update-announcement-request'];
     PublishAnnouncementRequest: components['schemas']['publish-announcement-request'];
@@ -6282,6 +6325,50 @@ export interface components {
       traceId: string;
       data: components['schemas']['platform-update-operation'];
     };
+    /** @description Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned. */
+    'platform-backup-summary': {
+      /** Format: int64 */
+      id: number;
+      /** Format: int64 */
+      task_id?: number | null;
+      purpose: string;
+      /** @enum {string} */
+      status: 'AVAILABLE' | 'EXPIRED';
+      /** Format: date-time */
+      retain_until: string;
+      /** Format: date-time */
+      created_at: string;
+    };
+    'platform-backup-list-response': {
+      items: components['schemas']['platform-backup-summary'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
+    };
+    'enveloped-platform-backup-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['platform-backup-list-response'];
+    };
+    'create-platform-backup-request': {
+      /**
+       * @description Retention selected for this user-created Backup only; Update pre-backup retention remains fixed by its own policy.
+       * @default 30d
+       * @enum {string}
+       */
+      retention: '1d' | '7d' | '30d';
+    };
+    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
+    'task-receipt': {
+      /** Format: int64 */
+      task_id: number;
+      status: components['schemas']['task-status'];
+    };
+    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
+      data: components['schemas']['task-receipt'];
+    };
+    'enveloped-platform-backup-summary': components['schemas']['api-envelope'] & {
+      data: components['schemas']['platform-backup-summary'];
+    };
     'access-log-detail-response': {
       /** Format: int64 */
       id: number;
@@ -7255,15 +7342,6 @@ export interface components {
     };
     'enveloped-container-shell-session-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['container-shell-session-response'];
-    };
-    /** @description Receipt returned when a business action accepts asynchronous Task submission. */
-    'task-receipt': {
-      /** Format: int64 */
-      task_id: number;
-      status: components['schemas']['task-status'];
-    };
-    'enveloped-task-receipt': components['schemas']['api-envelope'] & {
-      data: components['schemas']['task-receipt'];
     };
     'container-stop-error-response': {
       /** @enum {boolean} */
@@ -13429,6 +13507,138 @@ export interface operations {
         };
         content?: never;
       };
+    };
+  };
+  listPlatformBackups: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Safe Backup metadata without artifact locations or contents. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-backup-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postPlatformBackup: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Opaque caller-generated key used to replay the accepted Task receipt safely. Reusing a key with different retention returns 409. */
+        'Idempotency-Key': string;
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['create-platform-backup-request'];
+      };
+    };
+    responses: {
+      /** @description Manual Backup Task accepted. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-receipt'];
+        };
+      };
+      /** @description Invalid retention or idempotency key. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Idempotency-Key was previously used with a different submission input. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getPlatformBackup: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Safe Backup metadata without artifact locations or contents. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-backup-summary'];
+        };
+      };
+      /** @description Invalid Backup id. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Backup was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
     };
   };
   getAccessLogs: {

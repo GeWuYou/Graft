@@ -4,10 +4,15 @@ import (
 	"errors"
 
 	"graft/server/internal/container"
+	"graft/server/internal/menu"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	backupcontract "graft/server/modules/backup/contract"
+)
+
+const (
+	platformBackupMenuOrder = 104
 )
 
 // Module 注册 backup owner 的跨模块 capability；菜单、HTTP 读取面和恢复操作留待对应阶段实现。
@@ -28,6 +33,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupReadPermission, DisplayKey: "rbac.permissionCatalog.platformBackupRead.display", DescriptionKey: "rbac.permissionCatalog.platformBackupRead.description", Module: moduleID})
 	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupCreatePermission, DisplayKey: "rbac.permissionCatalog.platformBackupCreate.display", DescriptionKey: "rbac.permissionCatalog.platformBackupCreate.description", Module: moduleID})
+	if err := registerMenu(ctx.MenuRegistry); err != nil {
+		return err
+	}
 	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
 	if err != nil {
 		return err
@@ -50,9 +58,20 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registrar.RegisterTaskOwnerAuthorizer(backupTaskOwnerAuthorizer{authorizer: authorizer}); err != nil {
 		return err
 	}
+	if err := registerRoutes(ctx, m.service); err != nil {
+		return err
+	}
 	return ctx.Services.RegisterSingleton((*moduleapi.BackupService)(nil), func(container.Resolver) (any, error) {
 		return m.service, nil
 	})
+}
+
+func registerMenu(registry *menu.Registry) error {
+	if registry == nil {
+		return errors.New("backup menu registry is unavailable")
+	}
+	registry.Register(menu.Item{Code: "platform-backup.history", ParentCode: "platform-maintenance", Kind: menu.NodeKindEntry, TitleKey: backupcontract.BackupMenuTitle, Path: backupcontract.BackupMenuPath, Icon: "backup", Order: platformBackupMenuOrder, Permission: backupcontract.BackupReadPermission, Module: moduleID})
+	return nil
 }
 
 // Boot 当前没有常驻备份执行器或清理任务。

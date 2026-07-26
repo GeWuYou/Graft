@@ -1,0 +1,62 @@
+{
+  "menu": {
+    "platform": {
+      "backup": "Backups"
+    }
+  },
+  "backup": {
+    "route": {
+      "list": {
+        "title": "Backups",
+        "breadcrumb": "Backups"
+      }
+    },
+    "list": {
+      "eyebrow": "Platform",
+      "title": "Backups",
+      "description": "Create manual platform backups and review their safe history.",
+      "create": "Create Backup",
+      "refresh": "Refresh",
+      "loadFailed": "Backup history could not be loaded.",
+      "empty": "No backups are available.",
+      "columns": {
+        "id": "Backup ID",
+        "purpose": "Purpose",
+        "status": "Status",
+        "retention": "Retain Until",
+        "createdAt": "Created At",
+        "task": "Task",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View"
+      }
+    },
+    "createDialog": {
+      "title": "Create Backup",
+      "description": "The backup is created as a background task.",
+      "retention": "Retention",
+      "retentionOptions": {
+        "1d": "1 Day",
+        "7d": "7 Days",
+        "30d": "30 Days"
+      },
+      "cancel": "Cancel",
+      "confirm": "Create Backup",
+      "submitFailed": "Backup task could not be submitted."
+    },
+    "detail": {
+      "title": "Backup Details"
+    },
+    "purpose": {
+      "manual": "Manual Backup",
+      "platformUpdate": "Platform Update"
+    },
+    "status": {
+      "available": "Available",
+      "expired": "Expired",
+      "restored": "Restored",
+      "unknown": "Unknown"
+    }
+  }
+}

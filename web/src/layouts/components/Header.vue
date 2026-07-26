@@ -88,9 +88,9 @@
           <div v-if="isNarrowHeader" class="header-operation-item">
             <t-dropdown :min-column-width="160" trigger="click">
               <template #dropdown>
-                <t-dropdown-item class="operations-dropdown-container-item header-more-tools-search">
+                <div class="header-more-tools-search" @click.stop>
                   <search />
-                </t-dropdown-item>
+                </div>
                 <t-dropdown-item
                   class="operations-dropdown-container-item"
                   :disabled="!isDocumentFullscreenSupported"
@@ -584,6 +584,7 @@ const navToHelper = () => {
 
 .header-more-tools-search {
   cursor: default;
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-12);
 }
 
 .language-dialog__options {

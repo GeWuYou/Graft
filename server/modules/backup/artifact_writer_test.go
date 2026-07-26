@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -73,6 +74,94 @@ func TestFileArtifactWriterReplacesCorruptSnapshotOnRetry(t *testing.T) {
 	}
 }
 
+func TestFileArtifactWriterVerifyDoesNotRepairOrWriteArtifacts(t *testing.T) {
+	root := t.TempDir()
+	writer := newTestArtifactWriter(root)
+	writer.dumpCommand = func(context.Context, string, string) (*exec.Cmd, error) {
+		t.Fatal("Verify must not invoke pg_dump")
+		return nil, nil
+	}
+	directory := filepath.Join(root, "backup-42")
+	if err := os.MkdirAll(directory, backupDirectoryPermission); err != nil {
+		t.Fatalf("create artifact directory: %v", err)
+	}
+	configRef := filepath.Join(directory, "config.snapshot")
+	if err := os.WriteFile(configRef, []byte(`{"schema_version":`), backupFilePermission); err != nil {
+		t.Fatalf("write corrupt config snapshot: %v", err)
+	}
+	// #nosec G304 -- path is composed from this test's t.TempDir and a fixed operation ID.
+	before, err := os.ReadFile(configRef)
+	if err != nil {
+		t.Fatalf("read corrupt config snapshot: %v", err)
+	}
+	if _, err := writer.Verify(t.Context(), testBackupTaskInput()); err == nil {
+		t.Fatal("expected frozen artifact verification failure")
+	}
+	// #nosec G304 -- path is composed from this test's t.TempDir and a fixed operation ID.
+	after, err := os.ReadFile(configRef)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("Verify mutated config snapshot: before=%q after=%q err=%v", before, after, err)
+	}
+	if _, err := os.Stat(filepath.Join(directory, "database.dump")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Verify created database dump: %v", err)
+	}
+}
+
+func TestFileArtifactWriterVerifyHonorsCanceledContext(t *testing.T) {
+	root := t.TempDir()
+	writer := newTestArtifactWriter(root)
+	writer.dumpCommand = successfulDumpCommand("complete dump")
+	if _, err := writer.Create(t.Context(), testBackupTaskInput()); err != nil {
+		t.Fatalf("create backup artifacts: %v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := writer.Verify(ctx, testBackupTaskInput()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled verification, got %v", err)
+	}
+}
+
+func TestFileArtifactWriterCreateHonorsCanceledContextBeforeWriting(t *testing.T) {
+	root := t.TempDir()
+	writer := newTestArtifactWriter(root)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := writer.Create(ctx, testBackupTaskInput()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected canceled creation, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "backup-42")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("canceled creation wrote artifact directory: %v", err)
+	}
+}
+
+func TestDigestBackupArtifactReaderHonorsCancellationDuringRead(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	reader := cancelAfterFirstRead{reader: bytes.NewReader(bytes.Repeat([]byte("backup"), 20_000)), cancel: cancel}
+	if _, _, err := digestBackupArtifactReader(ctx, &reader); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected in-progress digest cancellation, got %v", err)
+	}
+}
+
+func TestFileArtifactWriterReplacesSemanticallyIncompleteSnapshotOnRetry(t *testing.T) {
+	root := t.TempDir()
+	directory := filepath.Join(root, "backup-42")
+	if err := os.MkdirAll(directory, backupDirectoryPermission); err != nil {
+		t.Fatalf("create backup artifact directory: %v", err)
+	}
+	configRef := filepath.Join(directory, "config.snapshot")
+	if err := os.WriteFile(configRef, []byte(`{"schema_version":1}`), backupFilePermission); err != nil {
+		t.Fatalf("write incomplete config snapshot: %v", err)
+	}
+	writer := newTestArtifactWriter(root)
+	writer.dumpCommand = successfulDumpCommand("complete dump")
+	if _, err := writer.Create(t.Context(), testBackupTaskInput()); err != nil {
+		t.Fatalf("retry backup artifact creation: %v", err)
+	}
+	if err := validateConfigSnapshot(configRef); err != nil {
+		t.Fatalf("expected complete replacement snapshot: %v", err)
+	}
+}
+
 func TestFileArtifactWriterPublishesOnlySuccessfulDatabaseDump(t *testing.T) {
 	root := t.TempDir()
 	writer := newTestArtifactWriter(root)
@@ -127,4 +216,19 @@ func successfulDumpCommand(contents string) func(context.Context, string, string
 func failingDumpCommand(ctx context.Context, target string, _ string) (*exec.Cmd, error) {
 	// #nosec G204 -- test command and shell program are fixed; target is passed as a quoted positional argument.
 	return exec.CommandContext(ctx, "sh", "-c", "printf partial > \"$1\"; exit 1", "backup-test", target), nil
+}
+
+type cancelAfterFirstRead struct {
+	reader *bytes.Reader
+	cancel context.CancelFunc
+	reads  int
+}
+
+func (r *cancelAfterFirstRead) Read(buffer []byte) (int, error) {
+	read, err := r.reader.Read(buffer)
+	r.reads++
+	if r.reads == 1 {
+		r.cancel()
+	}
+	return read, err
 }

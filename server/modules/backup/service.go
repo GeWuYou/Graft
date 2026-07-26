@@ -45,6 +45,22 @@ func (s *Service) Get(ctx context.Context, id uint64) (moduleapi.Backup, error) 
 	return s.repository.Get(ctx, id)
 }
 
+// GetSummary 返回供 HTTP 读取面使用的无工件引用摘要。
+func (s *Service) GetSummary(ctx context.Context, id uint64) (moduleapi.BackupSummary, error) {
+	if s == nil || s.repository == nil || id == 0 {
+		return moduleapi.BackupSummary{}, moduleapi.ErrBackupInvalidInput
+	}
+	return s.repository.GetSummary(ctx, id)
+}
+
+// ListSummaries 返回供 HTTP 读取面使用的无工件引用分页摘要。
+func (s *Service) ListSummaries(ctx context.Context, limit, offset int) ([]moduleapi.BackupSummary, int64, error) {
+	if s == nil || s.repository == nil {
+		return nil, 0, moduleapi.ErrBackupInvalidInput
+	}
+	return s.repository.ListSummaries(ctx, limit, offset)
+}
+
 // RecordRestoreEvidence 写入恢复结论的稳定代码，不接收或持久化配置和 dump 内容。
 func (s *Service) RecordRestoreEvidence(ctx context.Context, input moduleapi.RecordBackupRestoreInput) (moduleapi.Backup, error) {
 	if s == nil || s.repository == nil {
@@ -55,5 +71,5 @@ func (s *Service) RecordRestoreEvidence(ctx context.Context, input moduleapi.Rec
 
 // ToSummary 将内部工件事实投影为可用于未来 HTTP 读取面的安全摘要。
 func ToSummary(item moduleapi.Backup) moduleapi.BackupSummary {
-	return moduleapi.BackupSummary{ID: item.ID, Purpose: item.Purpose, Status: item.Status, RetainUntil: item.RetainUntil, CreatedAt: item.CreatedAt, RestoreCode: item.RestoreCode, RestoreAt: item.RestoreAt}
+	return moduleapi.BackupSummary{ID: item.ID, TaskID: item.TaskID, Purpose: item.Purpose, Status: item.Status, RetainUntil: item.RetainUntil, CreatedAt: item.CreatedAt}
 }

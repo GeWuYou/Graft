@@ -31,6 +31,7 @@ AI_PLAN_GOVERNANCE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-ai-plan-gov
 WORK_INTAKE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-work-intake" / "SKILL.md"
 WORKTREE_MANAGER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-worktree-manager" / "SKILL.md"
 PUSH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-push" / "SKILL.md"
+COMMIT_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-commit" / "SKILL.md"
 TABLE_DESIGN_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-table-design" / "SKILL.md"
 SQL_MIGRATION_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-sql-migration" / "SKILL.md"
 SHARED_ASSET_REUSE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-shared-asset-reuse" / "SKILL.md"
@@ -715,6 +716,70 @@ def validate_push_branch_governance() -> list[Finding]:
     return findings
 
 
+def validate_pr_reply_publication_governance() -> list[Finding]:
+    """Require PR-review replies to wait for exact remote branch publication."""
+    findings: list[Finding] = []
+    checks = (
+        (
+            PR_REVIEW_SKILL,
+            (
+                "git ls-remote --exit-code origin refs/heads/<current-branch>",
+                "require its SHA to equal `git rev-parse HEAD`",
+                "leave PR threads and the ledger untouched",
+            ),
+        ),
+        (
+            PUSH_SKILL,
+            (
+                "git ls-remote --exit-code origin refs/heads/<current-branch>",
+                "compare the returned SHA with `git rev-parse HEAD`",
+                "never reverse this order",
+            ),
+        ),
+    )
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "PR reply publication governance skill is missing"))
+            continue
+        text = read_text(path)
+        for term in terms:
+            if term not in text:
+                findings.append(Finding(path, f"missing PR reply publication governance term {term!r}"))
+    return findings
+
+
+def validate_commit_completion_governance() -> list[Finding]:
+    """Ensure a bare graft-commit closes every captured worktree change."""
+    checks = (
+        (
+            AGENTS,
+            (
+                "a bare `$graft-commit` means commit the complete initial working-tree inventory",
+                "complete commit authority for its captured entries",
+                "must finish with an empty `git status --short`",
+                "committed and the worktree is clean",
+            ),
+        ),
+        (
+            COMMIT_SKILL,
+            (
+                "every commit-eligible tracked and untracked entry",
+                "complete commit authority for its captured",
+                "must finish with an empty `git status --short`",
+                "continue until every captured entry is committed",
+                "worktree is clean",
+            ),
+        ),
+    )
+    findings: list[Finding] = []
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "graft-commit completion governance source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, "graft-commit completion governance", terms))
+    return findings
+
+
 def validate_repair_confirmation_interaction_contract() -> list[Finding]:
     """Ensure repair authorization is a structured numbered decision, not a binary prompt."""
     checks = (
@@ -729,7 +794,7 @@ def validate_repair_confirmation_interaction_contract() -> list[Finding]:
                 "Impact:",
                 "Validation:",
                 "Commit strategy:",
-                "native structured-choice interaction",
+                "native structured approval",
                 "`execute_repair`: Execute repair (recommended)",
                 "`continue_current_scope`: Continue current scope only",
                 "`show_detailed_diff`: Show detailed diff",
@@ -737,8 +802,17 @@ def validate_repair_confirmation_interaction_contract() -> list[Finding]:
                 "Approve?",
                 "Should I fix this?",
                 "Confirm repair?",
-                "Do not end a normal assistant message",
-                "never fall back to a prose menu or manual numeric reply",
+                "approval transport priority is mandatory:",
+                "when the runtime supports a native structured-choice interaction, use it",
+                "four visible fallback option descriptions",
+                "Fallback choices:",
+                "`1`: `execute_repair` - Execute repair (recommended)",
+                "`2`: `continue_current_scope` - Do not repair",
+                "`3`: `show_detailed_diff` - Show the proposed patch",
+                "`4`: `cancel_workflow` - Stop the workflow",
+                "请输入：",
+                "1 / 2 / 3 / 4",
+                "numeric fallback is unavailable while native structured approval is available",
             ),
         ),
         (
@@ -746,8 +820,9 @@ def validate_repair_confirmation_interaction_contract() -> list[Finding]:
             (
                 "Repair Confirmation Interaction Contract",
                 "Repair required",
-                "native structured-choice interaction",
-                "prose `reply 1-4` menu",
+                "native structured approval",
+                "next-turn `1 / 2 / 3 / 4` fallback",
+                "four visible option descriptions",
                 "Only `execute_repair`",
             ),
         ),
@@ -756,9 +831,10 @@ def validate_repair_confirmation_interaction_contract() -> list[Finding]:
             (
                 "Repair Confirmation Interaction Contract",
                 "Repair required",
-                "native structured-choice interaction",
-                "prose",
-                "only `execute_repair` authorizes",
+                "native structured approval",
+                "next-turn `1 / 2 / 3 / 4` fallback",
+                "all four visible",
+                "Only `execute_repair` authorizes",
             ),
         ),
         (
@@ -771,7 +847,8 @@ def validate_repair_confirmation_interaction_contract() -> list[Finding]:
                 "`continue_current_scope`",
                 "`show_detailed_diff`",
                 "`cancel_workflow`",
-                "不能在普通回复中要求用户输入编号",
+                "四个数字选项各自的说明与后果",
+                "下一轮用户仅回复 `1 / 2 / 3 / 4`",
                 "Approve?",
             ),
         ),
@@ -1035,6 +1112,8 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_agents_skill_list())
     findings.extend(validate_subagent_model_governance())
     findings.extend(validate_push_branch_governance())
+    findings.extend(validate_pr_reply_publication_governance())
+    findings.extend(validate_commit_completion_governance())
     findings.extend(validate_repair_confirmation_interaction_contract())
     findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())
