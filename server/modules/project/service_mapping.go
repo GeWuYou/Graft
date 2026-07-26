@@ -56,6 +56,17 @@ func toProjectListItemWithManagedRoot(
 	}
 }
 
+func toGeneratedApplicationRuntimeTarget(target *moduleapi.ComposeRuntimeTargetSummary) *generated.ApplicationRuntimeTargetSummary {
+	if target == nil || target.ID < 1 {
+		return nil
+	}
+	return &generated.ApplicationRuntimeTargetSummary{
+		Id:          target.ID,
+		DisplayName: target.DisplayName,
+		Provider:    generated.ApplicationRuntimeTargetSummaryProvider(target.Provider),
+	}
+}
+
 // toProjectDetailResponse 将项目聚合数据转换为详情响应。
 //
 // toProjectDetailResponse 将项目聚合转换为详情响应，并在提供运行时汇总时填充容器运行与停止数量。

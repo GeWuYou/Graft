@@ -31381,7 +31381,9 @@
               "provider",
               "type",
               "version",
-              "apiVersion"
+              "apiVersion",
+              "operatingSystem",
+              "hostName"
             ],
             "properties": {
               "provider": {
@@ -31400,6 +31402,12 @@
                 "type": "string"
               },
               "apiVersion": {
+                "type": "string"
+              },
+              "operatingSystem": {
+                "type": "string"
+              },
+              "hostName": {
                 "type": "string"
               }
             }

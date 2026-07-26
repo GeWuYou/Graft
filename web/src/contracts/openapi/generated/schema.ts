@@ -7800,6 +7800,8 @@ export interface components {
         type: 'container_runtime';
         version: string;
         apiVersion: string;
+        operatingSystem: string;
+        hostName: string;
       };
       connection: {
         /** @description Masked connection endpoint. It never contains credentials. */

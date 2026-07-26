@@ -53,6 +53,10 @@ const projectApiMocks = vi.hoisted(() => ({
   putApplicationLifecycleConfiguration: vi.fn(),
 }));
 
+const runtimeTargetContractMocks = vi.hoisted(() => ({
+  getApplicationRuntimeTargetDetail: vi.fn(),
+}));
+
 const routeState = vi.hoisted(() => ({
   value: {
     fullPath: '/applications/app_7',
@@ -144,6 +148,19 @@ const detailMessages = {
   'project.detail.overview.notCollected': 'Not Collected',
   'project.detail.overview.realtimeLabel': 'Current Value',
   'project.detail.overview.resourceTitle': 'Resource Usage',
+  'project.detail.overview.runtimeTargetDescription': 'Not yet confirmed from runtime resources',
+  'project.detail.overview.runtimeTargetDockerDescription': 'Local Container Runtime',
+  'project.detail.overview.runtimeTargetDockerEngine': 'Docker Engine',
+  'project.detail.overview.runtimeTargetEndpoint': 'Endpoint',
+  'project.detail.overview.runtimeTargetHost': 'Host',
+  'project.detail.overview.runtimeTargetOperatingSystem': 'Operating System',
+  'project.detail.overview.runtimeTargetStatusHealthy': 'Online',
+  'project.detail.overview.runtimeTargetStatusUnavailable': 'Unavailable',
+  'project.detail.overview.runtimeTargetTitle': 'Runtime Target',
+  'project.detail.overview.runtimeTargetType': 'Type',
+  'project.detail.overview.runtimeTargetUnavailable': 'No bound runtime target found',
+  'project.detail.overview.runtimeTargetValueUnavailable': 'Unavailable',
+  'project.detail.overview.runtimeTargetVersion': 'Version',
   'project.detail.overview.serviceHealthAttention': 'Attention',
   'project.detail.overview.serviceHealthHealthy': 'Healthy',
   'project.detail.overview.serviceHealthUnknown': 'Unknown',
@@ -736,6 +753,10 @@ vi.mock('../../api/project', () => ({
   putApplicationLifecycleConfiguration: projectApiMocks.putApplicationLifecycleConfiguration,
 }));
 
+vi.mock('@/modules/runtime-target/contract/application-target-detail', () => ({
+  getApplicationRuntimeTargetDetail: runtimeTargetContractMocks.getApplicationRuntimeTargetDetail,
+}));
+
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>();
   const locale = ref('en-US');
@@ -1042,6 +1063,16 @@ describe('Application detail service tab', () => {
     ];
     tabsRouterStoreMock.setActiveTabKey.mockReset();
     projectApiMocks.getApplication.mockResolvedValue(buildApplicationDetail());
+    runtimeTargetContractMocks.getApplicationRuntimeTargetDetail.mockResolvedValue({
+      displayName: 'Local Docker',
+      endpoint: 'unix:///var/run/docker.sock',
+      healthStatus: 'healthy',
+      hostName: 'docker-host',
+      operatingSystem: 'Linux 5.15.0-88-generic',
+      provider: 'docker',
+      runtimeType: 'container_runtime',
+      version: '26.1.4',
+    });
     projectApiMocks.getApplicationConfiguration.mockResolvedValue({
       compose_files: [],
       diagnostics_summary: [],
@@ -1070,6 +1101,44 @@ describe('Application detail service tab', () => {
 
     expect(projectApiMocks.getApplication).toHaveBeenCalledTimes(1);
     expect(routerMocks.replace).not.toHaveBeenCalled();
+  });
+
+  it('renders the runtime target profile from the application target reference', async () => {
+    projectApiMocks.getApplication.mockResolvedValueOnce({
+      ...buildApplicationDetail(),
+      runtime_target: { display_name: 'Local Docker', id: 7, provider: 'docker' },
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(runtimeTargetContractMocks.getApplicationRuntimeTargetDetail).toHaveBeenCalledWith(7);
+    const card = wrapper.get('[data-testid="project-detail-runtime-target"]');
+    expect(card.text()).toContain('Local Docker');
+    expect(card.text()).toContain('Docker Engine');
+    expect(card.text()).toContain('/var/run/docker.sock');
+    expect(card.text()).toContain('26.1.4');
+    expect(card.text()).toContain('Linux 5.15.0-88-generic');
+    expect(card.text()).toContain('docker-host');
+    expect(card.text()).toContain('Online');
+    expect(card.find('img').attributes('src')).toContain('docker.svg');
+  });
+
+  it('keeps the application target summary and neutral values when target detail loading fails', async () => {
+    projectApiMocks.getApplication.mockResolvedValueOnce({
+      ...buildApplicationDetail(),
+      runtime_target: { display_name: 'Local Docker', id: 7, provider: 'docker' },
+    });
+    runtimeTargetContractMocks.getApplicationRuntimeTargetDetail.mockRejectedValueOnce(new Error('target unavailable'));
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const card = wrapper.get('[data-testid="project-detail-runtime-target"]');
+    expect(card.text()).toContain('Local Docker');
+    expect(card.text()).toContain('Docker Engine');
+    expect(card.text()).toContain('Unavailable');
+    expect(messageMocks.error).not.toHaveBeenCalledWith('target unavailable');
   });
 
   it('does not mount task history for an invalid route ID', async () => {

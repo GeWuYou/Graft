@@ -11323,10 +11323,12 @@ type RuntimeTarget struct {
 		Workloads RuntimeTargetCountMetric `json:"workloads"`
 	} `json:"resources"`
 	Runtime struct {
-		ApiVersion string                       `json:"apiVersion"`
-		Provider   RuntimeTargetRuntimeProvider `json:"provider"`
-		Type       RuntimeTargetRuntimeType     `json:"type"`
-		Version    string                       `json:"version"`
+		ApiVersion      string                       `json:"apiVersion"`
+		HostName        string                       `json:"hostName"`
+		OperatingSystem string                       `json:"operatingSystem"`
+		Provider        RuntimeTargetRuntimeProvider `json:"provider"`
+		Type            RuntimeTargetRuntimeType     `json:"type"`
+		Version         string                       `json:"version"`
 	} `json:"runtime"`
 }
 
@@ -11395,10 +11397,12 @@ type RuntimeTargetSummary struct {
 		Workloads RuntimeTargetCountMetric `json:"workloads"`
 	} `json:"resources"`
 	Runtime struct {
-		ApiVersion string                              `json:"apiVersion"`
-		Provider   RuntimeTargetSummaryRuntimeProvider `json:"provider"`
-		Type       RuntimeTargetSummaryRuntimeType     `json:"type"`
-		Version    string                              `json:"version"`
+		ApiVersion      string                              `json:"apiVersion"`
+		HostName        string                              `json:"hostName"`
+		OperatingSystem string                              `json:"operatingSystem"`
+		Provider        RuntimeTargetSummaryRuntimeProvider `json:"provider"`
+		Type            RuntimeTargetSummaryRuntimeType     `json:"type"`
+		Version         string                              `json:"version"`
 	} `json:"runtime"`
 }
 

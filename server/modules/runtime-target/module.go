@@ -439,6 +439,8 @@ func (m *Module) toHTTPSummary(ctx context.Context, target store.Target) generat
 	response.Runtime.Type = generated.RuntimeTargetSummaryRuntimeTypeContainerRuntime
 	response.Runtime.Version = snapshot.Version
 	response.Runtime.ApiVersion = snapshot.APIVersion
+	response.Runtime.OperatingSystem = snapshot.OperatingSystem
+	response.Runtime.HostName = snapshot.HostName
 	response.Connection.Endpoint = target.EndpointLabel
 	response.Connection.Kind = generated.RuntimeTargetSummaryConnectionKindUnixSocket
 	response.Health.LastCheckedAt = &checkedAt
@@ -465,6 +467,8 @@ func (m *Module) toHTTP(ctx context.Context, target store.Target) generated.Runt
 	response.Runtime.Type = generated.RuntimeTargetRuntimeTypeContainerRuntime
 	response.Runtime.Version = snapshot.Version
 	response.Runtime.ApiVersion = snapshot.APIVersion
+	response.Runtime.OperatingSystem = snapshot.OperatingSystem
+	response.Runtime.HostName = snapshot.HostName
 	response.Connection.Endpoint = target.EndpointLabel
 	response.Connection.Kind = generated.RuntimeTargetConnectionKindUnixSocket
 	response.Health.LastCheckedAt = &checkedAt

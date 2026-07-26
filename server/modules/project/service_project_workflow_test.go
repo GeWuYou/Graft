@@ -38,6 +38,28 @@ type stubProjectRepository struct {
 	getCalls         int
 }
 
+type stubComposeRuntimeTargetReader struct {
+	target moduleapi.ComposeRuntimeTargetSummary
+	readID *int64
+	err    error
+}
+
+func (s *stubComposeRuntimeTargetReader) ReadComposeTarget(_ context.Context, id *int64) (moduleapi.ComposeRuntimeTargetSummary, error) {
+	if id != nil {
+		value := *id
+		s.readID = &value
+	}
+	return s.target, s.err
+}
+
+func (s *stubComposeRuntimeTargetReader) ListComposeTargets(context.Context) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	return []moduleapi.ComposeRuntimeTargetSummary{s.target}, nil
+}
+
+func (s *stubComposeRuntimeTargetReader) CheckComposeProjectName(context.Context, int64, string) (moduleapi.ComposeProjectNameAvailability, error) {
+	return moduleapi.ComposeProjectNameAvailability{}, nil
+}
+
 func (s *stubProjectRepository) List(_ context.Context, query projectstore.ListQuery) (projectstore.ListResult, error) {
 	recorded := query
 	s.listInput = &recorded
@@ -164,6 +186,65 @@ func ensureStubApplicationAggregateDefaults(aggregate projectstore.ApplicationAg
 		}
 	}
 	return aggregate
+}
+
+func TestGetMapsRuntimeTargetWithoutContainerRuntimeReader(t *testing.T) {
+	t.Parallel()
+
+	targetID := uint64(7)
+	reader := &stubComposeRuntimeTargetReader{target: moduleapi.ComposeRuntimeTargetSummary{
+		ID:          7,
+		DisplayName: "Local Docker",
+		Provider:    "docker",
+	}}
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ApplicationAggregate{Application: projectstore.Application{
+		ApplicationRecordID: 1,
+		ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+		DisplayName:         "Uptime Kuma",
+		ComposeProjectName:  "uptime-kuma",
+		RuntimeTargetID:     &targetID,
+	}}}, WithRuntimeTargetReader(reader))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	response, err := service.Get(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("get application: %v", err)
+	}
+	if response.RuntimeTarget == nil || response.RuntimeTarget.Id != 7 || response.RuntimeTarget.DisplayName != "Local Docker" || response.RuntimeTarget.Provider != generated.ApplicationRuntimeTargetSummaryProviderDocker {
+		t.Fatalf("runtime target = %#v", response.RuntimeTarget)
+	}
+	if reader.readID == nil || *reader.readID != 7 {
+		t.Fatalf("runtime target reader id = %#v", reader.readID)
+	}
+}
+
+func TestGetPreservesDetailWhenRuntimeTargetLookupFails(t *testing.T) {
+	t.Parallel()
+
+	targetID := uint64(7)
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ApplicationAggregate{Application: projectstore.Application{
+		ApplicationRecordID: 1,
+		ApplicationID:       "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+		DisplayName:         "Uptime Kuma",
+		ComposeProjectName:  "uptime-kuma",
+		RuntimeTargetID:     &targetID,
+	}}}, WithRuntimeTargetReader(&stubComposeRuntimeTargetReader{err: errors.New("runtime target unavailable")}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	response, err := service.Get(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("get application: %v", err)
+	}
+	if response.RuntimeTarget != nil {
+		t.Fatalf("runtime target = %#v, want nil", response.RuntimeTarget)
+	}
+	if response.ApplicationId != "app_01ARZ3NDEKTSV4RRFFQ69G5FAV" {
+		t.Fatalf("application id = %q", response.ApplicationId)
+	}
 }
 
 type capturedAuditPublisher struct {

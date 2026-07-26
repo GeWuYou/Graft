@@ -738,7 +738,7 @@ func (s *Service) mapProjectListItems(
 		mapped.DeploymentAdapterKind = generated.DeploymentAdapterKindCompose
 		if item.Application.RuntimeTargetID != nil {
 			if target, ok := targetByID[*item.Application.RuntimeTargetID]; ok {
-				mapped.RuntimeTarget = &generated.ApplicationRuntimeTargetSummary{Id: target.ID, DisplayName: target.DisplayName, Provider: generated.ApplicationRuntimeTargetSummaryProvider(target.Provider)}
+				mapped.RuntimeTarget = toGeneratedApplicationRuntimeTarget(&target)
 			}
 		}
 		if runtimeStatus != "" && (mapped.RuntimeStatus == nil || string(*mapped.RuntimeStatus) != runtimeStatus) {
@@ -754,6 +754,18 @@ func (s *Service) listComposeTargets(ctx context.Context) ([]moduleapi.ComposeRu
 		return []moduleapi.ComposeRuntimeTargetSummary{}, nil
 	}
 	return s.runtimeTargets.ListComposeTargets(ctx)
+}
+
+func (s *Service) readComposeRuntimeTarget(ctx context.Context, id *uint64) *moduleapi.ComposeRuntimeTargetSummary {
+	if s == nil || s.runtimeTargets == nil || id == nil || *id == 0 || *id > uint64(^uint64(0)>>1) {
+		return nil
+	}
+	targetID := int64(*id) // #nosec G115 -- 上方已验证该 ID 不超过 int64 最大值。
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, &targetID)
+	if err != nil {
+		return nil
+	}
+	return &target
 }
 
 func runtimeTargetLookup(targets []moduleapi.ComposeRuntimeTargetSummary) map[uint64]moduleapi.ComposeRuntimeTargetSummary {
@@ -791,8 +803,11 @@ func (s *Service) Get(ctx context.Context, projectID uint64) (generated.Applicat
 	if err != nil {
 		return generated.ApplicationDetailResponse{}, err
 	}
+	target := s.readComposeRuntimeTarget(ctx, aggregate.Application.RuntimeTargetID)
 	runtimeSummary, runtimeErr := s.runtimeSummary(ctx, aggregate)
-	return toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), &runtimeSummary, runtimeErr), nil
+	response := toProjectDetailResponseWithManagedRoot(aggregate, s.readyManagedRootDirectory(ctx), &runtimeSummary, runtimeErr)
+	response.RuntimeTarget = toGeneratedApplicationRuntimeTarget(target)
+	return response, nil
 }
 
 // ValidateImport 解析静态 Compose 输入并返回有界的导入校验结果，不写入注册表。

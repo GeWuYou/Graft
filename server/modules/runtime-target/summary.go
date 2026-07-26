@@ -39,15 +39,15 @@ type targetUsageMetric struct {
 }
 
 type targetRuntimeSummary struct {
-	Version, APIVersion string
-	Healthy             bool
-	CheckedAt           time.Time
-	Diagnostic          string
-	Workloads           targetCountMetric
-	Images              targetImageMetric
-	Volumes             targetImageMetric
-	Networks            targetImageMetric
-	CPU, Memory, Disk   targetUsageMetric
+	Version, APIVersion, OperatingSystem, HostName string
+	Healthy                                        bool
+	CheckedAt                                      time.Time
+	Diagnostic                                     string
+	Workloads                                      targetCountMetric
+	Images                                         targetImageMetric
+	Volumes                                        targetImageMetric
+	Networks                                       targetImageMetric
+	CPU, Memory, Disk                              targetUsageMetric
 }
 
 type runtimeTargetSnapshotCollector interface {
@@ -168,12 +168,17 @@ func (dockerTargetSnapshotCollector) Collect(ctx context.Context, target store.T
 		return unavailableTargetSummary("Docker target is unavailable", checkedAt)
 	}
 	result := targetRuntimeSummary{Healthy: true, CheckedAt: checkedAt, Version: version.Version, APIVersion: version.APIVersion}
+	info, infoErr := client.Info(collectCtx, mobyclient.InfoOptions{})
+	if infoErr == nil {
+		result.OperatingSystem = info.Info.OperatingSystem
+		result.HostName = info.Info.Name
+	}
 	result.Workloads = collectContainerMetric(collectCtx, client)
 	result.Images = collectImageMetric(collectCtx, client)
 	result.Volumes = collectVolumeMetric(collectCtx, client)
 	result.Networks = collectNetworkMetric(collectCtx, client)
 	result.CPU, result.Memory = collectHostUsage(collectCtx, collectHostCPUUsage, collectHostMemoryUsage)
-	result.Disk = collectDockerFilesystemUsage(collectCtx, client)
+	result.Disk = collectDockerFilesystemUsage(info, infoErr)
 	return result
 }
 
@@ -227,11 +232,7 @@ func collectNetworkMetric(ctx context.Context, client *mobyclient.Client) target
 
 // collectDockerFilesystemUsage 采集 Docker 数据目录文件系统的使用指标；
 // 无法获取 Docker 信息或文件系统统计时将指标标记为不可用。
-func collectDockerFilesystemUsage(ctx context.Context, client *mobyclient.Client) targetUsageMetric {
-	if err := ctx.Err(); err != nil {
-		return targetUsageMetric{UnavailableReason: "Docker data directory filesystem is unavailable"}
-	}
-	info, infoErr := client.Info(ctx, mobyclient.InfoOptions{})
+func collectDockerFilesystemUsage(info mobyclient.SystemInfoResult, infoErr error) targetUsageMetric {
 	var fs syscall.Statfs_t
 	if infoErr == nil && info.Info.DockerRootDir != "" && syscall.Statfs(info.Info.DockerRootDir, &fs) == nil {
 		return filesystemUsageMetric(fs.Blocks, fs.Bfree, fs.Bsize)
