@@ -31,22 +31,17 @@ validation rules.
 6. When the user explicitly triggers `$graft-commit`, capture the initial working-tree inventory as an upper boundary,
    identify the explicitly user-confirmed, currently owned slices in it, and finish only those slices end to end without
    repeated confirmation:
-   - if required validation fails on a concrete issue inside an explicitly user-confirmed owned slice and the fix is
-     reasonably bounded,
-     fix that issue first, rerun validation, and continue the commit workflow without waiting for another user reminder
-   - if the current slice is blocked by a local generated-artifact drift, stale snapshot, test expectation drift, or
-     similar commit-path issue that is clearly inside an explicitly user-confirmed owned slice and can be repaired
-     safely in the same slice,
-     repair it first, rerun the required validation, and then continue to commit
    - treat a hook, static-analysis, test, formatting, style, or build failure as a commit-path issue to diagnose before
-     refusing the commit; a failing file outside the initial diff is not, by itself, proof that its repair is unsafe
-   - when the failure has a concrete, bounded repair with clear ownership, fix it, rerun the failing check and the
-     required completion validation, then commit the repair in a separate scoped commit when it is logically distinct
-     from the requested slice
+     deciding whether a repair is safe; a failing file outside the initial diff is not, by itself, proof that its repair
+     is unsafe
+   - before any repair edit, staging, or repair commit, apply the root `AGENTS.md` `Repair Confirmation Interaction
+     Contract`; present its `Repair required` proposal through the native structured-choice interaction with the stable
+     option ids, never a binary approval question or a prose `reply 1-4` menu
    - after every commit, re-check `git status --short` and continue only with remaining explicitly user-confirmed,
      currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
-   - stop and report instead of auto-fixing when a captured change is not explicitly user-confirmed and currently owned,
-     ownership becomes ambiguous, the required validation is infeasible, or the necessary repair would widen into a new unsafe slice
+   - apply that contract when a captured change is not explicitly user-confirmed and currently owned, ownership becomes
+     ambiguous, a repair requires an extra commit, or the necessary repair widens the slice; report instead when
+     required validation is infeasible or no concrete repair proposal can be formed
 
 ## Workflow
 
@@ -78,8 +73,9 @@ validation rules.
    - `docs/automation`: run the strongest honest structural checks available
    - if the commit belongs to a `$graft-pr-review` remediation batch, validation alone is not enough; the review run
      must still preserve exhaustive finding disposition coverage, including `Outside diff range comments`
-   - if validation fails on a bounded issue inside the current owned scope, repair that issue and rerun the required
-     validation before deciding whether to refuse the commit
+   - if validation fails, diagnose the concrete issue and use the root `Repair Confirmation Interaction Contract`
+     before changing code. Only `execute_repair` permits the declared repair; `show_detailed_diff` shows a patch and
+     invokes the same native choice control again, while the other choices forbid the repair
 4. Stage only the confirmed owned scope:
    - do not use `git add .`, `git add -A`, or `git commit -am` unless the user explicitly asks to commit everything
    - when one file contains mixed ownership, stage only the owned hunks if they can be reliably separated

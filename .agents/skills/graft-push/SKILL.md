@@ -26,11 +26,13 @@ validation rules.
    latest-review sections in scope; do not treat push as permission to leave those findings informal or unclassified.
 6. When the user explicitly triggers `$graft-push`, treat it as permission to finish the local push path end to end:
    - if the branch is blocked on a bounded local issue inside the current owned scope, such as missing commit,
-     generated-artifact drift, stale snapshots, local validation failure, or hook failure, repair that blocker first,
-     rerun the relevant validation or hook, and continue the push workflow without waiting for another user reminder
-   - stop and report instead of auto-fixing only when ownership becomes ambiguous, the failure points outside the
-     confirmed scope, the branch / destination becomes ambiguous, or the necessary repair would widen into a new unsafe
-     slice
+     generated-artifact drift, stale snapshots, local validation failure, or hook failure, diagnose it and apply the
+     root `AGENTS.md` `Repair Confirmation Interaction Contract` before any edit, staging, or repair commit
+   - invoke the contract's `Repair required` proposal through the native structured-choice interaction instead of a
+     binary confirmation question or prose numbered menu; only `execute_repair` authorizes the declared repair and its
+     subsequent commit or push
+   - report when the branch or destination is ambiguous, the failure has no concrete repair proposal, or the required
+     validation is infeasible
 
 ## Workflow
 
@@ -69,9 +71,12 @@ validation rules.
 5. Reuse repository truth before diagnosing remote issues:
    - if a commit is missing, use `graft-commit`
    - if local validation is the real blocker, use `graft-validation-runner`
-   - if the failure is a local hook, reproduce the exact hook and fix that path first
-   - if a bounded local blocker sits inside the current owned scope, repair it first and then resume the same
-     push workflow instead of stopping at diagnosis-only
+   - if the failure is a local hook, reproduce the exact hook and diagnose its repair before presenting the required
+     structured proposal
+   - if a bounded local blocker sits inside the current owned scope, diagnose it and use the root `Repair Confirmation
+     Interaction Contract` before any repair edit. `show_detailed_diff` shows the patch and repeats the native choice
+     control; `continue_current_scope` and `cancel_workflow` stop repair work, and `execute_repair` resumes this push
+     workflow only for the declared scope
    - if the branch contains `$graft-pr-review` fixes, preserve the review run's exhaustive finding-disposition
      requirement; a successful push does not downgrade `Outside diff range comments` or other folded review findings to
      optional

@@ -715,6 +715,76 @@ def validate_push_branch_governance() -> list[Finding]:
     return findings
 
 
+def validate_repair_confirmation_interaction_contract() -> list[Finding]:
+    """Ensure repair authorization is a structured numbered decision, not a binary prompt."""
+    checks = (
+        (
+            AGENTS,
+            (
+                "Repair Confirmation Interaction Contract:",
+                "Repair required",
+                "Failed command:",
+                "Root cause:",
+                "Changes:",
+                "Impact:",
+                "Validation:",
+                "Commit strategy:",
+                "native structured-choice interaction",
+                "`execute_repair`: Execute repair (recommended)",
+                "`continue_current_scope`: Continue current scope only",
+                "`show_detailed_diff`: Show detailed diff",
+                "`cancel_workflow`: Cancel",
+                "Approve?",
+                "Should I fix this?",
+                "Confirm repair?",
+                "Do not end a normal assistant message",
+                "never fall back to a prose menu or manual numeric reply",
+            ),
+        ),
+        (
+            REPO_ROOT / ".agents" / "skills" / "graft-commit" / "SKILL.md",
+            (
+                "Repair Confirmation Interaction Contract",
+                "Repair required",
+                "native structured-choice interaction",
+                "prose `reply 1-4` menu",
+                "Only `execute_repair`",
+            ),
+        ),
+        (
+            PUSH_SKILL,
+            (
+                "Repair Confirmation Interaction Contract",
+                "Repair required",
+                "native structured-choice interaction",
+                "prose",
+                "only `execute_repair` authorizes",
+            ),
+        ),
+        (
+            AI_CODE_REVIEW_DOC,
+            (
+                "Repair Confirmation Interaction Contract",
+                "Repair required",
+                "structured-choice interaction",
+                "`execute_repair`",
+                "`continue_current_scope`",
+                "`show_detailed_diff`",
+                "`cancel_workflow`",
+                "不能在普通回复中要求用户输入编号",
+                "Approve?",
+            ),
+        ),
+    )
+    findings: list[Finding] = []
+    for path, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, "repair confirmation governance source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, "repair confirmation interaction", terms))
+    return findings
+
+
 def validate_backend_guardrail_governance() -> list[Finding]:
     """
     验证后端治理守护栏文档及其引用是否完整。
@@ -965,6 +1035,7 @@ def run_validation() -> list[Finding]:
     findings.extend(validate_agents_skill_list())
     findings.extend(validate_subagent_model_governance())
     findings.extend(validate_push_branch_governance())
+    findings.extend(validate_repair_confirmation_interaction_contract())
     findings.extend(validate_backend_guardrail_governance())
     findings.extend(validate_environment_inventory())
     findings.extend(validate_no_private_config_tracked(tracked))

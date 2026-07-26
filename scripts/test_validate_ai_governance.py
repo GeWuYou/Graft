@@ -180,6 +180,27 @@ class PushBranchGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_push_branch_governance(), [])
 
 
+class RepairConfirmationInteractionTests(unittest.TestCase):
+    def test_repair_confirmation_interaction_is_currently_satisfied(self) -> None:
+        self.assertEqual(MODULE.validate_repair_confirmation_interaction_contract(), [])
+
+    def test_repair_confirmation_rejects_missing_native_choice(self) -> None:
+        current_text = MODULE.read_text(MODULE.AGENTS)
+        mutated_text = current_text.replace("Do not end a normal assistant message", "manual reply", 1)
+        self.assertNotEqual(current_text, mutated_text)
+        original_read_text = MODULE.read_text
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.AGENTS:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_repair_confirmation_interaction_contract()
+
+        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
+
+
 class BackendGuardrailGovernanceTests(unittest.TestCase):
     def test_backend_guardrail_governance_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_backend_guardrail_governance(), [])
