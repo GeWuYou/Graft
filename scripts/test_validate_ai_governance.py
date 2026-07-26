@@ -180,6 +180,27 @@ class PushBranchGovernanceTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_push_branch_governance(), [])
 
 
+class CommitCompletionGovernanceTests(unittest.TestCase):
+    def test_bare_graft_commit_requires_clean_worktree(self) -> None:
+        self.assertEqual(MODULE.validate_commit_completion_governance(), [])
+
+    def test_bare_graft_commit_rejects_missing_clean_worktree_rule(self) -> None:
+        current_text = MODULE.read_text(MODULE.AGENTS)
+        mutated_text = current_text.replace("must finish with an empty `git status --short`", "may stop early", 1)
+        self.assertNotEqual(current_text, mutated_text)
+        original_read_text = MODULE.read_text
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == MODULE.AGENTS:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_commit_completion_governance()
+
+        self.assertTrue(any(finding.path == MODULE.AGENTS for finding in findings))
+
+
 class RepairConfirmationInteractionTests(unittest.TestCase):
     def test_repair_confirmation_interaction_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_repair_confirmation_interaction_contract(), [])

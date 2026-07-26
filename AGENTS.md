@@ -625,12 +625,15 @@ Automatic commits are allowed only after ownership is classified:
 
 Explicit commit trigger:
 
-- when the user explicitly invokes a repository commit trigger such as `$graft-commit`, treat it as persistent
-  authorization only for explicitly user-confirmed, currently owned logical slices captured in the initial working-tree
-  inventory: inventory them, validate, and create scoped commits for those slices
-- the initial inventory is an upper boundary, not commit authority: presence in that inventory, user authorship,
-  classifiability, or task relevance does not authorize a change that is not explicitly user-confirmed and currently
-  owned; the trigger does not permit broad staging, later-arriving changes, or changes outside the recorded inventory
+- a bare `$graft-commit` means commit the complete initial working-tree inventory: treat every commit-eligible tracked
+  and untracked entry captured at invocation as explicitly user-confirmed and currently owned, then validate and commit
+  all entries in independently understandable logical slices
+- the initial inventory remains an upper boundary: do not commit later-arriving changes. For a bare `$graft-commit`, it
+  is also the complete commit authority for its captured entries; `commit this slice` and other scoped prose requests
+  retain their explicitly stated narrow scope
+- a bare `$graft-commit` must finish with an empty `git status --short`. Continue through every captured logical slice;
+  do not leave captured entries uncommitted merely because they are unrelated to an earlier slice. Only a concrete
+  safety, policy, ownership, or validation blocker may prevent the clean-worktree result, and it must be reported
 - an explicit commit trigger authorizes validation and commits for the confirmed captured slices, but does not authorize
   new source edits or a repair commit after validation fails; diagnose the blocker first, then request confirmation for
   the exact repair scope before making any repair edit, staging that repair, or committing it
@@ -639,12 +642,11 @@ Explicit commit trigger:
   replace it with a binary question such as `Approve?`, `Should I fix this?`, or `Confirm repair?`
 - each resulting commit must still satisfy ownership classification, task-class validation, exact staging, and message
   rules; split independent logical slices into separate commits rather than bundling them for convenience
-- request a repair confirmation when a captured change is not explicitly user-confirmed and currently owned, a required
-  repair lacks safe ownership, or the repair would expand into a new unsafe task; report only when no concrete repair
-  proposal can be formed or required validation is infeasible, and do not use an intermediate commit to conceal either
-  condition
-- after each commit, re-inspect `git status --short` and continue only with the remaining explicitly user-confirmed,
-  currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
+- request a repair confirmation when a required repair lacks safe ownership or expands into a new unsafe task; report
+  only when no concrete repair proposal can be formed or required validation is infeasible, and do not use an
+  intermediate commit to conceal either condition
+- after each commit, re-inspect `git status --short` and continue until every captured bare `$graft-commit` entry is
+  committed and the worktree is clean
 
 Repair Confirmation Interaction Contract:
 
