@@ -237,6 +237,8 @@
         "scope": "Scope",
         "usage": "Status",
         "allUsage": "All usage",
+        "more": "Filters",
+        "title": "Filter Containers",
         "query": "Query",
         "reset": "Reset"
       },
@@ -376,6 +378,8 @@
         "health": "Health",
         "allStatuses": "All Statuses",
         "allHealth": "All Health",
+        "more": "More Filters",
+        "title": "Filter Containers",
         "query": "Query",
         "reset": "Reset"
       },

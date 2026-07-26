@@ -438,6 +438,10 @@ vi.mock('@/utils/route/title', () => ({
   }),
 }));
 
+vi.mock('@/shared/composables', () => ({
+  useResponsiveVariant: () => ({ value: { density: 'spacious' } }),
+}));
+
 describe('container list page', () => {
   beforeEach(() => {
     vi.useRealTimers();
@@ -649,8 +653,9 @@ describe('container list page', () => {
     });
     expect(wrapper.text()).toContain('基础设施');
     expect(wrapper.text()).toContain('容器管理');
-    expect(wrapper.text()).toContain('总数 25');
-    expect(wrapper.text()).toContain('不健康 0');
+    const pageText = wrapper.text().replace(/\s+/gu, ' ');
+    expect(pageText).toContain('总数 25');
+    expect(pageText).toContain('不健康 0');
     expect(wrapper.text()).toContain('graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).toContain('Compose 应用');
@@ -679,6 +684,17 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('第 1-20 条 / 共 25 条');
     expect(wrapper.text()).not.toContain('graft-extra-21');
     wrapper.unmount();
+  });
+
+  it('switches the container list to cards when the user selects the card presentation', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="container-presentation-card"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="container-card-container-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="container-action-stop"]').exists()).toBe(false);
   });
 
   it('opens the associated Compose application detail instead of searching the application list', async () => {
