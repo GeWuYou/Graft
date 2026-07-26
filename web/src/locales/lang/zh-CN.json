@@ -25,6 +25,11 @@
     }
   },
   "layout": {
+    "mobileNavigation": {
+      "all": "全部菜单",
+      "label": "移动端导航",
+      "open": "打开全部菜单"
+    },
     "header": {
       "code": "代码仓库",
       "apiDocs": "API 文档",
@@ -33,6 +38,7 @@
       "expandNavigation": "展开导航",
       "exitFullscreen": "退出全屏",
       "help": "帮助文档",
+      "moreTools": "更多工具",
       "openNavigation": "打开导航",
       "user": "个人中心",
       "signOut": "退出登录",

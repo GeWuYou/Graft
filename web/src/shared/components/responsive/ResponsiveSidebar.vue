@@ -7,6 +7,7 @@
     :visible="visible"
     attach="body"
     :close-btn="true"
+    drawer-class-name="graft-mobile-navigation-drawer"
     :footer="false"
     header
     placement="left"

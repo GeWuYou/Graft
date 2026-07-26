@@ -9,6 +9,7 @@
     :is-compact="renderCompact"
     :navigation-presentation="presentation"
     :sidebar-visible="presentation !== 'drawer'"
+    :show-navigation-toggle="presentation !== 'drawer'"
     @open-navigation="emit('open-navigation')"
   />
 </template>

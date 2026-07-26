@@ -33,10 +33,15 @@ describe('useContainerSize', () => {
     const size = scope.run(() => useContainerSize(target));
 
     target.value = document.createElement('section');
+    Object.defineProperties(target.value, {
+      clientHeight: { configurable: true, value: 320 },
+      clientWidth: { configurable: true, value: 480 },
+    });
     await nextTick();
 
     const observer = ResizeObserverMock.instances[0];
     expect(observer?.observe).toHaveBeenCalledWith(target.value);
+    expect(size?.value).toEqual({ height: 320, width: 480 });
     observer?.emit(480, 320);
     expect(size?.value).toEqual({ height: 320, width: 480 });
 
@@ -52,6 +57,21 @@ describe('useContainerSize', () => {
     await nextTick();
 
     expect(size?.value).toEqual({ height: 0, width: 0 });
+    scope.stop();
+  });
+
+  it('reads the mounted container size before the first observer notification', async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const target = ref<HTMLElement | null>(document.createElement('section'));
+    Object.defineProperties(target.value, {
+      clientHeight: { configurable: true, value: 640 },
+      clientWidth: { configurable: true, value: 480 },
+    });
+    const scope = effectScope();
+    const size = scope.run(() => useContainerSize(target));
+    await nextTick();
+
+    expect(size?.value).toEqual({ height: 640, width: 480 });
     scope.stop();
   });
 });

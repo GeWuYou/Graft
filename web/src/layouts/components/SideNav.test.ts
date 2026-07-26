@@ -134,11 +134,12 @@ const menuStub = defineComponent({
     value: { type: String, default: '' },
     width: { type: Array, default: () => [] },
   },
-  setup(props, { slots }) {
+  setup(props, { attrs, slots }) {
     return () =>
       h(
         'div',
         {
+          ...attrs,
           'data-menu-collapsed': String(props.collapsed),
           'data-menu-expanded': JSON.stringify(props.expanded),
           'data-menu-value': props.value,
@@ -269,6 +270,8 @@ describe('SideNav', () => {
     expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('false');
     expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('false');
     expect(wrapper.get('[data-testid="update-version-entry"]').text()).toBe('dev');
+    expect(wrapper.find('.graft-side-nav-placeholder').exists()).toBe(false);
+    expect(wrapper.get('.tdesign-starter-side-nav').classes()).toContain('tdesign-starter-side-nav-no-fixed');
 
     await wrapper.setProps({
       motionPhase: 'collapsing-width',
@@ -286,6 +289,30 @@ describe('SideNav', () => {
     expect(wrapper.get('[data-menu-collapsed]').attributes('data-menu-collapsed')).toBe('true');
     expect(wrapper.get('[data-brand-compact]').attributes('data-brand-compact')).toBe('true');
     expect(wrapper.get('[data-brand-label-hidden]').attributes('data-brand-label-hidden')).toBe('true');
+  });
+
+  it('uses a full-width non-fixed surface without a desktop placeholder inside the mobile drawer', () => {
+    const wrapper = mount(SideNav, {
+      props: {
+        drawerMode: true,
+        isCompact: false,
+        isFixed: true,
+        layout: 'side',
+        menu: [],
+        motionPhase: 'expanded',
+        showLogo: true,
+        theme: 'light',
+      },
+      global: {
+        stubs: {
+          't-menu': menuStub,
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-menu-width]').attributes('data-menu-width')).toBe('"100%"');
+    expect(wrapper.get('[data-menu-collapsed]').attributes('data-menu-collapsed')).toBe('false');
+    expect(wrapper.find('.graft-side-nav-placeholder').exists()).toBe(false);
   });
 
   it('collapses expanded groups during text fade and restores them on expand', async () => {

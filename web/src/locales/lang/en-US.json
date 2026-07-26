@@ -25,6 +25,11 @@
     }
   },
   "layout": {
+    "mobileNavigation": {
+      "all": "All Menus",
+      "label": "Mobile Navigation",
+      "open": "Open All Menus"
+    },
     "header": {
       "code": "Code Repository",
       "apiDocs": "API Docs",
@@ -33,6 +38,7 @@
       "expandNavigation": "Expand Navigation",
       "exitFullscreen": "Exit Fullscreen",
       "help": "Document",
+      "moreTools": "More Tools",
       "openNavigation": "Open Navigation",
       "user": "Profile",
       "signOut": "Sign Out",

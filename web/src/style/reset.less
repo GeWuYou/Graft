@@ -5,6 +5,14 @@ body,
   min-height: 100%;
 }
 
+#app {
+  contain: inline-size;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  width: 100%;
+}
+
 // 对部分样式进行重置
 body {
   background: var(--td-bg-color-page);
@@ -13,6 +21,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, var(--td-font-family);
   -webkit-font-smoothing: antialiased;
   margin: 0;
+  overflow-x: clip;
   padding: 0;
 }
 

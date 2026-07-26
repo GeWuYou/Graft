@@ -2,7 +2,21 @@
   <div :class="layoutCls">
     <t-head-menu :class="menuCls" :theme="menuTheme" expand-type="popup" :value="active">
       <template #logo>
-        <span v-if="showLogo" class="header-logo-container" @click="goHome">
+        <div v-if="isNarrowHeader && showNavigationToggle" class="header-operate-left">
+          <t-tooltip placement="bottom" :content="navigationToggleLabel">
+            <t-button
+              data-testid="header-navigation-toggle"
+              :aria-label="navigationToggleLabel"
+              theme="default"
+              shape="square"
+              variant="text"
+              @click="handleNavigationToggle"
+            >
+              <t-icon class="collapsed-icon" name="menu" />
+            </t-button>
+          </t-tooltip>
+        </div>
+        <span v-else-if="showLogo" class="header-logo-container" @click="goHome">
           <brand-identity class="t-logo" :label="t('common.appName')" />
         </span>
         <div v-else class="header-operate-left">
@@ -20,18 +34,18 @@
           <search />
         </div>
       </template>
-      <template v-if="layout !== 'side'" #default>
+      <template v-if="layout !== 'side' && !isNarrowHeader" #default>
         <menu-content class="header-menu" :nav-data="menu" />
       </template>
       <template #operations>
         <div class="operations-container">
-          <div v-if="layout !== 'side'" class="header-operation-search">
+          <div v-if="layout !== 'side' && !isNarrowHeader" class="header-operation-search">
             <search />
           </div>
 
           <notice />
 
-          <div class="header-operation-item">
+          <div v-if="!isNarrowHeader" class="header-operation-item">
             <t-tooltip placement="bottom" :content="documentFullscreenLabel">
               <t-button
                 data-testid="header-document-fullscreen-toggle"
@@ -47,29 +61,77 @@
               </t-button>
             </t-tooltip>
           </div>
-          <div class="header-operation-item">
+          <div v-if="!isNarrowHeader" class="header-operation-item">
             <t-tooltip placement="bottom" :content="t('layout.header.code')">
               <t-button theme="default" shape="square" variant="text" @click="navToGitHub">
                 <t-icon name="logo-github" />
               </t-button>
             </t-tooltip>
           </div>
-          <div class="header-operation-item">
+          <div v-if="!isNarrowHeader" class="header-operation-item">
             <t-tooltip placement="bottom" :content="t('layout.header.apiDocs')">
               <t-button theme="default" shape="square" variant="text" @click="navToDocs">
                 <t-icon name="book-open" />
               </t-button>
             </t-tooltip>
           </div>
-          <div class="header-operation-item">
+          <div v-if="!isNarrowHeader" class="header-operation-item">
             <t-tooltip placement="bottom" :content="t('layout.header.help')">
               <t-button theme="default" shape="square" variant="text" @click="navToHelper">
                 <t-icon name="help-circle" />
               </t-button>
             </t-tooltip>
           </div>
-          <div class="header-operation-item">
+          <div v-if="!isNarrowHeader" class="header-operation-item">
             <language-switcher />
+          </div>
+          <div v-if="isNarrowHeader" class="header-operation-item">
+            <t-dropdown :min-column-width="160" trigger="click">
+              <template #dropdown>
+                <t-dropdown-item class="operations-dropdown-container-item header-more-tools-search">
+                  <search />
+                </t-dropdown-item>
+                <t-dropdown-item
+                  class="operations-dropdown-container-item"
+                  :disabled="!isDocumentFullscreenSupported"
+                  @click="toggleDocumentFullscreen"
+                >
+                  <fullscreen-exit-icon v-if="isDocumentFullscreen" />
+                  <fullscreen-icon v-else />
+                  {{ documentFullscreenLabel }}
+                </t-dropdown-item>
+                <t-dropdown-item class="operations-dropdown-container-item" @click="navToGitHub">
+                  <t-icon name="logo-github" />
+                  {{ t('layout.header.code') }}
+                </t-dropdown-item>
+                <t-dropdown-item class="operations-dropdown-container-item" @click="navToDocs">
+                  <t-icon name="book-open" />
+                  {{ t('layout.header.apiDocs') }}
+                </t-dropdown-item>
+                <t-dropdown-item class="operations-dropdown-container-item" @click="navToHelper">
+                  <t-icon name="help-circle" />
+                  {{ t('layout.header.help') }}
+                </t-dropdown-item>
+                <t-dropdown-item class="operations-dropdown-container-item header-more-tools-language">
+                  <language-switcher />
+                </t-dropdown-item>
+                <t-dropdown-item class="operations-dropdown-container-item" @click="toggleSettingPanel">
+                  <palette-icon />
+                  {{ t('layout.header.personalization') }}
+                </t-dropdown-item>
+              </template>
+              <t-tooltip placement="bottom" :content="t('layout.header.moreTools')">
+                <t-button
+                  data-testid="header-more-tools"
+                  :aria-label="t('layout.header.moreTools')"
+                  theme="default"
+                  shape="square"
+                  variant="text"
+                >
+                  <ellipsis-icon />
+                </t-button>
+              </t-tooltip>
+            </t-dropdown>
           </div>
           <div class="header-operation-user">
             <t-dropdown :min-column-width="120" trigger="click">
@@ -81,16 +143,22 @@
                   <poweroff-icon />{{ t('layout.header.signOut') }}
                 </t-dropdown-item>
               </template>
-              <t-button class="header-user-btn" theme="default" variant="text">
+              <t-button
+                data-testid="header-user-menu"
+                :class="['header-user-btn', { 'header-user-btn--compact': isNarrowHeader }]"
+                :aria-label="t('layout.header.user')"
+                theme="default"
+                variant="text"
+              >
                 <template #icon>
                   <t-icon class="header-user-avatar" name="user-circle" />
                 </template>
-                <div class="header-user-account">{{ user.userInfo.name }}</div>
-                <template #suffix><chevron-down-icon /></template>
+                <div v-if="!isNarrowHeader" class="header-user-account">{{ user.userInfo.name }}</div>
+                <template v-if="!isNarrowHeader" #suffix><chevron-down-icon /></template>
               </t-button>
             </t-dropdown>
           </div>
-          <div class="header-operation-item">
+          <div v-if="!isNarrowHeader" class="header-operation-item">
             <t-tooltip placement="bottom" :content="t('layout.header.personalization')">
               <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
                 <palette-icon />
@@ -105,6 +173,7 @@
 <script setup lang="ts">
 import {
   ChevronDownIcon,
+  EllipsisIcon,
   FullscreenExitIcon,
   FullscreenIcon,
   PaletteIcon,
@@ -132,6 +201,7 @@ import MenuContent from './MenuContent.vue';
 import Notice from './Notice.vue';
 import Search from './Search.vue';
 
+// 统一壳层导航、通知与账户入口；drawer 表现态仅保留高频入口以避免窄屏横向溢出。
 const { theme, layout, showLogo, menu, isFixed, isCompact, navigationPresentation, sidebarVisible } = defineProps({
   theme: {
     type: String,
@@ -165,6 +235,10 @@ const { theme, layout, showLogo, menu, isFixed, isCompact, navigationPresentatio
     type: Boolean,
     default: true,
   },
+  showNavigationToggle: {
+    type: Boolean,
+    default: true,
+  },
   maxLevel: {
     type: Number,
     default: 3,
@@ -182,6 +256,7 @@ const { goHome } = useShellNavigation();
 const documentFullscreen = useDocumentFullscreen();
 const isDocumentFullscreen = computed(() => documentFullscreen.isFullscreen.value);
 const isDocumentFullscreenSupported = computed(() => documentFullscreen.isSupported.value);
+const isNarrowHeader = computed(() => navigationPresentation === 'drawer');
 
 const documentFullscreenLabel = computed(() =>
   t(isDocumentFullscreen.value ? 'layout.header.exitFullscreen' : 'layout.header.enterFullscreen'),
@@ -374,6 +449,11 @@ const navToHelper = () => {
 
 .header-user-btn {
   padding-inline: var(--td-comp-paddingLR-s);
+
+  &--compact {
+    min-width: var(--td-comp-size-m);
+    padding-inline: 0;
+  }
 }
 
 .header-operate-left {
@@ -497,6 +577,11 @@ const navToHelper = () => {
       margin-bottom: var(--graft-density-gap-8);
     }
   }
+}
+
+.header-more-tools-search,
+.header-more-tools-language {
+  cursor: default;
 }
 </style>
 <!-- eslint-disable-next-line vue-scoped-css/enforce-style-type -->

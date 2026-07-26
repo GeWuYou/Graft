@@ -15,6 +15,7 @@ vi.mock('@/utils/color', () => ({
 
 vi.mock('tdesign-icons-vue-next', () => ({
   ChevronDownIcon: defineComponent({ template: '<i />' }),
+  EllipsisIcon: defineComponent({ template: '<i data-testid="ellipsis-icon" />' }),
   FullscreenExitIcon: defineComponent({ template: '<i data-testid="fullscreen-exit-icon" />' }),
   FullscreenIcon: defineComponent({ template: '<i data-testid="fullscreen-icon" />' }),
   PaletteIcon: defineComponent({ name: 'PaletteIcon', template: '<i data-testid="palette-icon" />' }),
@@ -31,7 +32,7 @@ vi.mock('@/locales', () => ({
 vi.mock('@/modules/auth/store', () => ({
   useAuthSessionStore: () => ({ logout: vi.fn(), userInfo: { name: 'Graft Admin' } }),
 }));
-vi.mock('@/router', () => ({ getActive: () => '' }));
+vi.mock('@/router', () => ({ getActive: () => '', useRouter: () => ({ push: vi.fn() }) }));
 
 const headMenuStub = defineComponent({
   setup(_, { slots }) {
@@ -117,9 +118,9 @@ function installUnsupportedFullscreenApi() {
   });
 }
 
-function mountHeader() {
+function mountHeader(props: Record<string, unknown> = {}) {
   return mount(Header, {
-    props: { layout: 'side' },
+    props: { layout: 'side', ...props },
     global: {
       stubs: {
         't-head-menu': headMenuStub,
@@ -132,7 +133,7 @@ function mountHeader() {
         LanguageSwitcher: true,
         MenuContent: true,
         Notice: true,
-        Search: true,
+        Search: defineComponent({ template: '<div data-testid="header-search" />' }),
       },
     },
   });
@@ -157,6 +158,32 @@ describe('Header', () => {
 
     await personalizationEntry.get('button').trigger('click');
     expect(openWorkbench).toHaveBeenCalledWith('overview');
+    wrapper.unmount();
+  });
+
+  it('collects header tools into the drawer presentation while preserving navigation, notices, and account access', async () => {
+    const wrapper = mountHeader({ layout: 'top', navigationPresentation: 'drawer', showLogo: true });
+
+    expect(wrapper.get('[data-testid="header-navigation-toggle"]').attributes('aria-label')).toBe(
+      'layout.header.openNavigation',
+    );
+    expect(wrapper.find('.header-logo-container').exists()).toBe(false);
+    expect(wrapper.find('.header-menu').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="header-document-fullscreen-toggle"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="header-more-tools"]').attributes('aria-label')).toBe('layout.header.moreTools');
+    expect(wrapper.find('.header-more-tools-search [data-testid="header-search"]').exists()).toBe(true);
+    expect(wrapper.find('.header-user-account').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="header-user-menu"]').classes()).toContain('header-user-btn--compact');
+
+    await wrapper.get('[data-testid="header-navigation-toggle"]').trigger('click');
+    expect(wrapper.emitted('open-navigation')).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it('hides the redundant narrow-screen navigation trigger when bottom navigation is available', () => {
+    const wrapper = mountHeader({ navigationPresentation: 'drawer', showNavigationToggle: false });
+
+    expect(wrapper.find('[data-testid="header-navigation-toggle"]').exists()).toBe(false);
     wrapper.unmount();
   });
 

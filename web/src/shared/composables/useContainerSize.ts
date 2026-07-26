@@ -22,7 +22,13 @@ export function useContainerSize(
       observer = undefined;
       size.value = { ...EMPTY_RESPONSIVE_CONTAINER_SIZE };
 
-      if (!element || typeof ResizeObserver === 'undefined') {
+      if (!element) {
+        return;
+      }
+
+      size.value = normalizeResponsiveContainerSize(element.clientWidth, element.clientHeight);
+
+      if (typeof ResizeObserver === 'undefined') {
         return;
       }
 

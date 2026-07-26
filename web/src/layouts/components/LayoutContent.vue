@@ -31,7 +31,11 @@
             }"
           >
             <template v-if="!routeItem.isHome">
-              <span class="route-tabs-label">
+              <span
+                :ref="(element) => setTabLabelRef(getTabKey(routeItem), element)"
+                class="route-tabs-label"
+                :data-tab-key="getTabKey(routeItem)"
+              >
                 <t-icon v-if="routeItem.isPinned" class="route-tabs-label__pin" name="pin" size="14px" />
                 <span class="route-tabs-label__text">{{ renderTabTitle(routeItem) }}</span>
               </span>
@@ -129,7 +133,7 @@
 <script setup lang="ts">
 import type { PopupVisibleChangeContext } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, nextTick, ref, watch } from 'vue';
+import { type ComponentPublicInstance, computed, nextTick, ref, watch } from 'vue';
 import type { LocationQueryRaw, RouteLocationRaw } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -158,6 +162,7 @@ const emit = defineEmits<{
 const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
 const tabRouters = computed(() => tabsRouterStore.tabRouters);
+const tabLabelRefs = new Map<string, HTMLElement>();
 const activeTabKeyForMenu = ref<string | null>('');
 const closeAllDialogVisible = ref(false);
 const pendingCloseAllDialog = ref(false);
@@ -199,6 +204,25 @@ const footerText = computed(() => {
 
 const { locale } = useLocale();
 const renderTitle = (title?: LocalizedTitle) => renderLocalizedTitle(title, locale.value);
+
+const setTabLabelRef = (tabKey: string, element: Element | ComponentPublicInstance | null) => {
+  if (element instanceof HTMLElement) {
+    tabLabelRefs.set(tabKey, element);
+    return;
+  }
+
+  tabLabelRefs.delete(tabKey);
+};
+
+// 使用壳层导航轨道的原生滚动能力时，路由切换仍须将当前标签带回可视区域。
+const revealActiveTab = () => {
+  const activeTab = tabLabelRefs.get(activeTabKey.value);
+  activeTab?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+};
+
+watch([activeTabKey, tabRouters], () => {
+  void nextTick(revealActiveTab);
+});
 
 const hasSameLocalizedTitle = (left?: LocalizedTitle, right?: LocalizedTitle) =>
   left === right ||
@@ -514,14 +538,55 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   display: flex;
   flex: 1;
   flex-direction: column;
+  max-width: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
+  width: 100%;
 }
 
 .t-layout[data-page-type] :deep(.tdesign-starter-layout-tabs-nav) {
   background: var(--td-bg-color-container);
   border-bottom: 1px solid var(--td-component-stroke);
+  max-width: 100%;
+  min-width: 0;
 }
+
+/* stylelint-disable selector-pseudo-class-no-unknown -- Vue SFC deep selectors need the ancestor shell state. */
+:global(.app-shell[data-sidebar-presentation='drawer'])
+  .t-layout[data-page-type]
+  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-container) {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+:global(.app-shell[data-sidebar-presentation='drawer'])
+  .t-layout[data-page-type]
+  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-scroll) {
+  overflow: hidden auto;
+  touch-action: pan-x;
+}
+
+:global(.app-shell[data-sidebar-presentation='drawer'])
+  .t-layout[data-page-type]
+  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-wrap) {
+  min-width: max-content;
+  width: max-content;
+}
+
+:global(.app-shell[data-sidebar-presentation='drawer'])
+  .t-layout[data-page-type]
+  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav) {
+  flex-wrap: nowrap;
+}
+
+:global(.app-shell[data-sidebar-presentation='drawer'])
+  .t-layout[data-page-type]
+  :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-item) {
+  flex: 0 0 auto;
+  max-width: 72vw;
+}
+/* stylelint-enable selector-pseudo-class-no-unknown */
 
 .route-tabs-label {
   align-items: center;
@@ -546,6 +611,7 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
 .t-layout[data-page-type] :deep(.tdesign-starter-content-layout) {

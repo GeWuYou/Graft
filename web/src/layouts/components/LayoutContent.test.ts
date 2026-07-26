@@ -11,6 +11,7 @@ import type { AppRouteMeta } from '@/utils/types';
 import LayoutContent from './LayoutContent.vue';
 
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
+const layoutContentSource = readFileSync(join(process.cwd(), 'src/layouts/components/LayoutContent.vue'), 'utf8');
 
 type DropdownPopupProps = {
   onVisibleChange: (visible: boolean, context: { trigger: string }) => void;
@@ -242,7 +243,12 @@ const TTabsStub = defineComponent({
   name: 'TTabs',
   emits: ['change'],
   setup(_, { slots }) {
-    return () => h('div', { 'data-testid': 'tabs' }, slots.default?.());
+    return () =>
+      h('div', { 'data-testid': 'tabs' }, [
+        h('div', { class: 't-tabs__nav-container' }, [
+          h('div', { class: 't-tabs__nav-scroll' }, [h('div', { class: 't-tabs__nav-wrap' }, slots.default?.())]),
+        ]),
+      ]);
   },
 });
 
@@ -451,6 +457,39 @@ describe('LayoutContent', () => {
     await wrapper.get('.tdesign-starter-page-container').trigger('scroll');
 
     expect(wrapper.emitted('page-scroll')).toHaveLength(1);
+  });
+
+  it('uses the shell drawer presentation to render tabs as one touch-scrollable rail', () => {
+    const wrapper = mountLayoutContent();
+
+    expect(wrapper.find('.t-tabs__nav-container .t-tabs__nav-scroll .t-tabs__nav-wrap').exists()).toBe(true);
+    expect(layoutContentSource).toContain(".app-shell[data-sidebar-presentation='drawer']");
+    expect(layoutContentSource).toContain('.t-tabs__nav-scroll) {\n  overflow: hidden auto;');
+    expect(layoutContentSource).toContain('touch-action: pan-x;');
+    expect(layoutContentSource).toContain('.t-tabs__nav-wrap) {\n  min-width: max-content;');
+    expect(layoutContentSource).toContain('.t-tabs__nav) {\n  flex-wrap: nowrap;');
+    expect(layoutContentSource).toContain('.t-layout[data-page-type] {\n  background: transparent;');
+    expect(layoutContentSource).toContain('max-width: 100%;');
+    expect(layoutContentSource).toContain('overflow: hidden;');
+    expect(layoutContentSource).toContain('width: 100%;');
+  });
+
+  it('reveals the active tab after a route-tab change', async () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const wrapper = mountLayoutContent();
+
+    await nextTick();
+    scrollIntoView.mockClear();
+    tabsRouterStoreProxy.activeTabKey = '/security/audit';
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.find('[data-tab-key="/security/audit"]').exists()).toBe(true);
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
   });
 
   it('renders non-cached route tabs even when their page instance is not alive', () => {

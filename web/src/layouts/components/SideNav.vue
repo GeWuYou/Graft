@@ -24,7 +24,10 @@
       </template>
       <menu-content :nav-data="menu" :show-sections="!renderCompact" />
     </t-menu>
-    <div :class="`${prefix}-side-nav-placeholder${isCompact ? '-hidden' : ''}`"></div>
+    <div
+      v-if="!drawerMode && layout !== 'side'"
+      :class="`${prefix}-side-nav-placeholder${isCompact ? '-hidden' : ''}`"
+    ></div>
   </div>
 </template>
 <script setup lang="ts">
@@ -49,9 +52,7 @@ import type { MenuRoute, ModeType } from '@/utils/types';
 import MenuContent from './MenuContent.vue';
 
 // 侧栏以当前路由和后端菜单快照为输入，并在折叠动效期间暂缓展开态同步，避免菜单状态与过渡阶段互相覆盖。
-const menuWidth = ['var(--graft-shell-sidebar-surface-width)', 'var(--graft-shell-sidebar-surface-width)'];
-
-const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase } = defineProps({
+const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motionPhase, drawerMode } = defineProps({
   menu: {
     type: Array as PropType<MenuRoute[]>,
     default: () => [],
@@ -87,6 +88,10 @@ const { menu, showLogo, isFixed, layout, theme, isCompact, renderCompact, motion
   motionPhase: {
     type: String as PropType<SidebarMotionPhase>,
     default: 'expanded',
+  },
+  drawerMode: {
+    type: Boolean as PropType<boolean>,
+    default: false,
   },
   updateCenterPath: {
     type: String,
@@ -213,6 +218,7 @@ const sideNavCls = computed(() => {
     `${prefix}-sidebar-layout`,
     {
       [`${prefix}-sidebar-compact`]: isCompact,
+      [`${prefix}-sidebar-layout-drawer`]: drawerMode,
     },
   ];
 });
@@ -238,10 +244,15 @@ const menuCls = computed(() => {
     `${prefix}-side-nav`,
     {
       [`${prefix}-side-nav-no-logo`]: !showLogo,
-      [`${prefix}-side-nav-no-fixed`]: !isFixed,
-      [`${prefix}-side-nav-mix-fixed`]: layout === 'mix' && isFixed,
+      [`${prefix}-side-nav-no-fixed`]: !isFixed || drawerMode || layout === 'side',
+      [`${prefix}-side-nav-mix-fixed`]: layout === 'mix' && isFixed && !drawerMode,
+      [`${prefix}-side-nav-drawer`]: drawerMode,
     },
   ];
+});
+
+const menuWidth = computed(() => {
+  return drawerMode ? '100%' : ['var(--graft-shell-sidebar-surface-width)', 'var(--graft-shell-sidebar-surface-width)'];
 });
 
 const shellNavigation = useShellNavigation();

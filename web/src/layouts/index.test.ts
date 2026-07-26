@@ -41,6 +41,9 @@ const settingStoreProxy = vi.hoisted(() => ({
 }));
 
 const storeState = vi.hoisted(() => ({
+  permissionStore: {
+    routers: [],
+  },
   realtimeSchedulerStore: {
     freeze: vi.fn(() => 1),
     release: vi.fn(),
@@ -61,6 +64,25 @@ const storeState = vi.hoisted(() => ({
 }));
 
 const scrollToMock = vi.hoisted(() => vi.fn());
+const shellContainerSize = vi.hoisted(() => ({ height: 800, width: 1200 }));
+const mountedLayouts: Array<{ unmount: () => void }> = [];
+
+class ResizeObserverMock {
+  static instances: ResizeObserverMock[] = [];
+
+  callback: ResizeObserverCallback;
+  disconnect = vi.fn();
+  observe = vi.fn();
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    ResizeObserverMock.instances.push(this);
+  }
+
+  emit(width: number, height: number) {
+    this.callback([{ contentRect: { height, width } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+  }
+}
 
 vi.mock('vue-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-router')>();
@@ -87,11 +109,33 @@ vi.mock('./components/LayoutContent.vue', () => ({
 }));
 
 vi.mock('./components/LayoutHeader.vue', () => ({
-  default: { name: 'LayoutHeader', template: '<div />' },
+  default: {
+    name: 'LayoutHeader',
+    emits: ['open-navigation'],
+    props: ['presentation'],
+    template:
+      '<button data-test-id="layout-header" :data-presentation="presentation" @click="$emit(\'open-navigation\')" />',
+  },
 }));
 
 vi.mock('./components/LayoutSideNav.vue', () => ({
-  default: { name: 'LayoutSideNav', template: '<div data-test-id="layout-side-nav" />' },
+  default: {
+    name: 'LayoutSideNav',
+    emits: ['update:drawer-visible'],
+    props: ['drawerVisible', 'presentation'],
+    template:
+      '<div data-test-id="layout-side-nav" :data-drawer-visible="String(drawerVisible)" :data-presentation="presentation" />',
+  },
+}));
+
+vi.mock('./components/MobileNavigation.vue', () => ({
+  default: {
+    name: 'MobileNavigation',
+    emits: ['update:visible'],
+    props: ['menu', 'visible'],
+    template:
+      '<button data-test-id="mobile-navigation" :data-visible="String(visible)" @click="$emit(\'update:visible\', true)" />',
+  },
 }));
 
 vi.mock('pinia', async (importOriginal) => ({
@@ -100,6 +144,7 @@ vi.mock('pinia', async (importOriginal) => ({
 }));
 
 vi.mock('@/store', () => ({
+  usePermissionStore: () => storeState.permissionStore,
   useRealtimeSchedulerStore: () => storeState.realtimeSchedulerStore,
   useSettingStore: () => {
     if (!settingStoreProxy.value) {
@@ -136,11 +181,10 @@ const PlainStub = defineComponent({
 });
 
 function mountAppLayout() {
-  return mount(AppLayout, {
+  const wrapper = mount(AppLayout, {
     global: {
       stubs: {
         ForcePasswordChangeDialog: true,
-        LayoutHeader: true,
         TAside: PlainStub,
         TContent: PlainStub,
         THeader: PlainStub,
@@ -148,6 +192,8 @@ function mountAppLayout() {
       },
     },
   });
+  mountedLayouts.push(wrapper);
+  return wrapper;
 }
 
 describe('App layout route effects', () => {
@@ -173,13 +219,22 @@ describe('App layout route effects', () => {
     storeState.realtimeSchedulerStore.release.mockClear();
     routerMock.resolve.mockClear();
     scrollToMock.mockClear();
+    shellContainerSize.width = 1200;
+    shellContainerSize.height = 800;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 });
+    ResizeObserverMock.instances = [];
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(() => shellContainerSize.width);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => shellContainerSize.height);
     document.body.innerHTML = '<div class="tdesign-starter-page-container"></div>';
     const pageContainer = document.querySelector('.tdesign-starter-page-container') as HTMLDivElement;
     pageContainer.scrollTo = scrollToMock;
   });
 
   afterEach(() => {
+    mountedLayouts.splice(0).forEach((wrapper) => wrapper.unmount());
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('updates tab route state without scrolling for same-page query changes', async () => {
@@ -321,6 +376,94 @@ describe('App layout route effects', () => {
 
     expect(wrapper.find('[data-test-id="layout-side-nav"]').exists()).toBe(true);
     expect(wrapper.get('.app-shell__main').classes()).toContain('t-layout--with-sider');
+  });
+
+  it('renders narrow shell navigation as a drawer and closes it after route navigation', async () => {
+    shellContainerSize.width = 480;
+    const wrapper = mountAppLayout();
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
+    expect(wrapper.get('[data-test-id="layout-header"]').attributes('data-presentation')).toBe('drawer');
+    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
+    expect(wrapper.get('.app-shell__main').classes()).not.toContain('t-layout--with-sider');
+
+    await wrapper.get('[data-test-id="layout-header"]').trigger('click');
+    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('true');
+
+    routeProxy.value!.fullPath = '/observability/service-status';
+    routeProxy.value!.path = '/observability/service-status';
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
+  });
+
+  it('uses the viewport fallback for drawer navigation before the shell container is measured', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 563 });
+    shellContainerSize.width = 0;
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
+  });
+
+  it('keeps drawer navigation stable when the persisted desktop compact preference changes', async () => {
+    shellContainerSize.width = 480;
+    const wrapper = mountAppLayout();
+    await wrapper.vm.$nextTick();
+    storeState.realtimeSchedulerStore.freeze.mockClear();
+    storeState.realtimeSchedulerStore.release.mockClear();
+
+    settingStoreProxy.value!.isSidebarCompact = true;
+    await wrapper.vm.$nextTick();
+    vi.advanceTimersByTime(320);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('expanded');
+    expect(wrapper.get('[data-test-id="mobile-navigation"]').attributes('data-visible')).toBe('false');
+    expect(storeState.realtimeSchedulerStore.freeze).not.toHaveBeenCalled();
+    expect(storeState.realtimeSchedulerStore.release).not.toHaveBeenCalled();
+  });
+
+  it('restores the persisted desktop compact state after leaving drawer navigation', async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    shellContainerSize.width = 480;
+    const wrapper = mountAppLayout();
+    await wrapper.vm.$nextTick();
+    await wrapper.get('[data-test-id="layout-header"]').trigger('click');
+    settingStoreProxy.value!.isSidebarCompact = true;
+    await wrapper.vm.$nextTick();
+
+    shellContainerSize.width = 1200;
+    ResizeObserverMock.instances[0]?.emit(1200, 800);
+    await wrapper.vm.$nextTick();
+    vi.advanceTimersByTime(180);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('desktop');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-compact')).toBe('true');
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
+    expect(wrapper.find('[data-test-id="mobile-navigation"]').exists()).toBe(false);
+  });
+
+  it('keeps drawer navigation when transient overflow reports a desktop-sized shell', async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    shellContainerSize.width = 480;
+    const wrapper = mountAppLayout();
+    await wrapper.vm.$nextTick();
+
+    ResizeObserverMock.instances[0]?.emit(3553, 800);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
+
+    vi.advanceTimersByTime(90);
+    shellContainerSize.width = 674;
+    ResizeObserverMock.instances[0]?.emit(674, 800);
+    await wrapper.vm.$nextTick();
+    vi.advanceTimersByTime(180);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-sidebar-presentation')).toBe('drawer');
   });
 
   it('runs the reverse sidebar motion when expanding back out', async () => {

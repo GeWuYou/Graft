@@ -1,4 +1,5 @@
 export type DebugFlagId =
+  | 'navigation'
   | 'tabs'
   | 'tabs.layout'
   | 'tabs.store'
@@ -20,6 +21,14 @@ export type DebugFlagDefinition = {
 };
 
 export const DEBUG_FLAG_REGISTRY = [
+  {
+    flagId: 'navigation',
+    envKeys: ['VITE_DEBUG_NAVIGATION'],
+    owner: 'router guard and responsive shell runtime',
+    summary: '路由守卫重定向、动态路由初始化与窄屏壳层展示模式变更诊断日志。',
+    relatedPaths: ['src/app/bootstrap/route-guards.ts', 'src/layouts/index.vue'],
+    defaultEnabled: false,
+  },
   {
     flagId: 'tabs',
     envKeys: ['VITE_DEBUG_TABS'],

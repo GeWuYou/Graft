@@ -30,6 +30,7 @@ import { useI18n } from 'vue-i18n';
 
 import type { PageHeaderSource } from './types';
 
+/** PageHeader 只解析页面文案并编排操作 slots，容器内空间不足时由自身重排，不依赖壳层视口。 */
 const props = withDefaults(
   defineProps<{
     source?: PageHeaderSource;
@@ -80,6 +81,7 @@ const resolvedDescription = computed(() => {
 </script>
 <style scoped lang="less">
 .page-header {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-6);
@@ -161,7 +163,7 @@ const resolvedDescription = computed(() => {
   font: var(--td-font-headline-small);
 }
 
-@media (width <= 768px) {
+@container (width < @screen-sm) {
   .page-header__main {
     flex-direction: column;
   }
