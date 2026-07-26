@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 import { request } from '@/utils/request';
 
-import { BACKUP_API_PATH } from '../contract/paths';
 import { getBackup, listBackups, submitBackup } from './backup';
 
 vi.mock('@/utils/request', () => ({
@@ -25,10 +25,12 @@ describe('platform backup api', () => {
     await getBackup(42);
 
     expect(requestGet).toHaveBeenNthCalledWith(1, {
-      url: BACKUP_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.listPlatformBackups,
       params: { limit: 20, offset: 0 },
     });
-    expect(requestGet).toHaveBeenNthCalledWith(2, { url: '/api/platform/backups/42' });
+    expect(requestGet).toHaveBeenNthCalledWith(2, {
+      url: buildOpenApiRuntimePath('getPlatformBackup', { id: 42 }),
+    });
   });
 
   it('submits the selected manual retention with a caller-generated idempotency key', async () => {
@@ -38,7 +40,7 @@ describe('platform backup api', () => {
     await submitBackup({ retention: '30d' }, 'backup-request-1');
 
     expect(requestPost).toHaveBeenCalledWith({
-      url: BACKUP_API_PATH.LIST,
+      url: OPENAPI_RUNTIME_PATH.postPlatformBackup,
       data: { retention: '30d' },
       headers: { 'Idempotency-Key': 'backup-request-1' },
     });

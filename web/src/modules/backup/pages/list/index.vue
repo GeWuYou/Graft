@@ -35,7 +35,7 @@
       </template>
       <t-table
         row-key="id"
-        :columns="tableColumns"
+        :columns="columns"
         :data="backups"
         :loading="loading"
         :pagination="pagination"
@@ -171,6 +171,8 @@ const total = ref(0);
 const current = ref(1);
 const pageSize = ref(20);
 let submittedTaskObserver: TaskObserver | null = null;
+let listRequestSequence = 0;
+let detailRequestSequence = 0;
 
 const retentionOptions: readonly BackupRetention[] = ['1d', '7d', '30d'];
 const pagination = computed(() => ({
@@ -178,7 +180,7 @@ const pagination = computed(() => ({
   pageSize: pageSize.value,
   total: total.value,
 }));
-const columns = computed<PrimaryTableCol<BackupSummary>[]>(() => [
+const columns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'id', title: t('backup.list.columns.id'), width: 112 },
   { colKey: 'purpose', title: t('backup.list.columns.purpose'), minWidth: 160 },
   { colKey: 'status', title: t('backup.list.columns.status'), width: 130 },
@@ -187,22 +189,24 @@ const columns = computed<PrimaryTableCol<BackupSummary>[]>(() => [
   { colKey: 'task_id', title: t('backup.list.columns.task'), width: 100 },
   { colKey: 'actions', title: t('backup.list.columns.actions'), width: 96, fixed: 'right' },
 ]);
-const tableColumns = columns as unknown as PrimaryTableCol[];
 
 onMounted(() => void loadBackups());
 onUnmounted(() => submittedTaskObserver?.stop());
 
 async function loadBackups() {
+  const requestSequence = ++listRequestSequence;
   loading.value = true;
   errorMessage.value = '';
   try {
     const response = await listBackups({ limit: pageSize.value, offset: (current.value - 1) * pageSize.value });
+    if (requestSequence !== listRequestSequence) return;
     backups.value = response.items;
     total.value = response.total;
   } catch (error) {
+    if (requestSequence !== listRequestSequence) return;
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('backup.list.loadFailed'));
   } finally {
-    loading.value = false;
+    if (requestSequence === listRequestSequence) loading.value = false;
   }
 }
 
@@ -213,18 +217,22 @@ function handlePageChange(pageInfo: PageInfo) {
 }
 
 function openBackup(backup: BackupSummary) {
+  const requestSequence = ++detailRequestSequence;
   backupDrawerVisible.value = true;
   selectedBackup.value = null;
   detailLoading.value = true;
   detailError.value = '';
   void getBackup(backup.id)
     .then((detail) => {
+      if (requestSequence !== detailRequestSequence) return;
       selectedBackup.value = detail;
     })
     .catch((error: unknown) => {
+      if (requestSequence !== detailRequestSequence) return;
       detailError.value = resolveLocalizedErrorMessage(t, error, t('backup.list.loadFailed'));
     })
     .finally(() => {
+      if (requestSequence !== detailRequestSequence) return;
       detailLoading.value = false;
     });
 }
@@ -266,7 +274,14 @@ function createIdempotencyKey() {
   const uuid = crypto?.randomUUID?.();
   if (uuid) return uuid;
   const entropy = new Uint32Array(4);
-  crypto?.getRandomValues?.(entropy);
+  if (crypto?.getRandomValues) {
+    crypto.getRandomValues(entropy);
+  } else {
+    // 幂等键只用于避免同毫秒提交碰撞；非浏览器运行时以本地随机值保持可提交性，不承担密钥用途。
+    for (let index = 0; index < entropy.length; index += 1) {
+      entropy[index] = Math.floor(Math.random() * 0x1_0000_0000);
+    }
+  }
   return `platform-backup-${Date.now()}-${Array.from(entropy, (value) => value.toString(36)).join('')}`;
 }
 
@@ -286,7 +301,7 @@ function purposeLabel(value: string) {
 
 function statusLabel(value: string) {
   const key = value.toLowerCase();
-  if (key === 'available' || key === 'restored') return t(`backup.status.${key}`);
+  if (key === 'available' || key === 'expired' || key === 'restored') return t(`backup.status.${key}`);
   return t('backup.status.unknown');
 }
 

@@ -1,7 +1,7 @@
 {
   "menu": {
-    "backup": {
-      "title": "Backups"
+    "platform": {
+      "backup": "Backups"
     }
   },
   "backup": {
@@ -54,6 +54,7 @@
     },
     "status": {
       "available": "Available",
+      "expired": "Expired",
       "restored": "Restored",
       "unknown": "Unknown"
     }

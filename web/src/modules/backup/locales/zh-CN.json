@@ -1,7 +1,7 @@
 {
   "menu": {
-    "backup": {
-      "title": "备份"
+    "platform": {
+      "backup": "备份"
     }
   },
   "backup": {
@@ -54,6 +54,7 @@
     },
     "status": {
       "available": "可用",
+      "expired": "已过期",
       "restored": "已恢复",
       "unknown": "未知"
     }

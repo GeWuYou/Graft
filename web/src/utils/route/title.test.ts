@@ -20,6 +20,10 @@ describe('localizeRouteTitle', () => {
       'zh-CN': '镜像',
       'en-US': 'Images',
     });
+    expect(localizeRouteTitle('', 'menu.platform.backup')).toEqual({
+      'zh-CN': '备份',
+      'en-US': 'Backups',
+    });
   });
 
   it('falls back to bootstrap title when title_key is missing or untranslated', () => {

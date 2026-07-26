@@ -91,17 +91,28 @@ watch(
     logTabsDebug(
       'tabs.layout',
       () =>
-        `tabs debug: content route=[path=${route.path} fullPath=${route.fullPath} name=${String(
+        `tabs debug: content route=[path=${sanitizeDebugPath(route.path)} fullPath=${sanitizeDebugPath(route.fullPath)} name=${String(
           route.name || '',
-        )}] active=[key=${tabsRouterStore.activeTabKey} path=${activeTab?.path || ''} fullPath=${
-          activeTab?.fullPath || ''
-        } name=${String(activeTab?.name || '')}] keepAlive=${String(shouldKeepActiveViewAlive.value)} viewKey=${
-          activeViewKey.value
-        } ${formatTabsDebugSummary(tabsRouterStore.tabRouters)}`,
+        )}] active=[key=${tabsRouterStore.activeTabKey} path=${activeTab?.path || ''} fullPath=${sanitizeDebugPath(
+          activeTab?.fullPath,
+        )} name=${String(activeTab?.name || '')}] keepAlive=${String(shouldKeepActiveViewAlive.value)} viewKey=${sanitizeDebugPath(
+          activeViewKey.value,
+        )} ${formatTabsDebugSummary(
+          tabsRouterStore.tabRouters.map((tabRoute) => ({
+            ...tabRoute,
+            path: sanitizeDebugPath(tabRoute.path),
+            fullPath: sanitizeDebugPath(tabRoute.fullPath),
+          })),
+        )}`,
     );
   },
   { immediate: true },
 );
+
+// 调试日志不应记录路由 query 或 hash，其中可能包含令牌、筛选条件或临时回跳信息。
+function sanitizeDebugPath(path?: string) {
+  return path?.split(/[?#]/, 1)[0] || '';
+}
 </script>
 <style lang="less" scoped>
 .fade-leave-active,

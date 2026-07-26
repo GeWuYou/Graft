@@ -6333,14 +6333,11 @@ export interface components {
       task_id?: number | null;
       purpose: string;
       /** @enum {string} */
-      status: 'AVAILABLE' | 'EXPIRED' | 'RESTORED';
+      status: 'AVAILABLE' | 'EXPIRED';
       /** Format: date-time */
       retain_until: string;
       /** Format: date-time */
       created_at: string;
-      restore_code: string;
-      /** Format: date-time */
-      restore_at?: string | null;
     };
     'platform-backup-list-response': {
       items: components['schemas']['platform-backup-summary'][];
