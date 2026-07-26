@@ -70,7 +70,10 @@ function mountNavigation() {
         {
           path: 'applications',
           meta: { icon: 'application-portfolio', orderNo: 20, title: { 'en-US': 'Applications', 'zh-CN': '应用' } },
-          children: [{ path: 'projects', meta: { title: { 'en-US': 'Projects', 'zh-CN': '项目' } } }],
+          children: [
+            { path: 'projects', meta: { title: { 'en-US': 'Projects', 'zh-CN': '项目' } } },
+            { path: 'templates', meta: { title: { 'en-US': 'Templates', 'zh-CN': '应用模板' } } },
+          ],
         },
         {
           path: 'hidden',
@@ -108,6 +111,13 @@ describe('MobileNavigation', () => {
 
     await shortcuts[0]?.trigger('click');
     expect(pushMock).toHaveBeenLastCalledWith('/applications/projects');
+  });
+
+  it('keeps Application Templates inside the Application shortcut instead of creating a top-level shortcut', () => {
+    const wrapper = mountNavigation();
+
+    expect(wrapper.findAll('.graft-mobile-navigation__item').map((item) => item.text())).not.toContain('应用模板');
+    expect(wrapper.get('[data-menu-count]').attributes('data-menu-count')).toBe('5');
   });
 
   it('opens the full menu sheet from the permanent center action', async () => {

@@ -51,6 +51,16 @@ describe('responsive primitives', () => {
     expect(cards.text()).toContain('entity');
   });
 
+  it('allows entity cards to remain available through the comfortable density', () => {
+    const wrapper = mount(ResponsiveTable, {
+      props: { entityCardLayout: 'adaptive', presentation: 'entity' },
+      slots: { cards: '<article>card</article>', default: '<table><tbody><tr><td>row</td></tr></tbody></table>' },
+    });
+
+    expect(wrapper.attributes('data-responsive-entity-card-layout')).toBe('adaptive');
+    expect(wrapper.classes()).toContain('responsive-table--adaptive');
+  });
+
   it('provides named toolbar and empty-state slots without business props', () => {
     const toolbar = mount(ResponsiveToolbar, {
       slots: {

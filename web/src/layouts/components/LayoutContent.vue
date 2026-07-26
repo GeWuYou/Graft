@@ -1,7 +1,7 @@
 <template>
-  <t-layout :class="layoutSurfaceCls" :data-page-type="pageSurfaceType">
+  <t-layout ref="layoutRoot" :class="layoutSurfaceCls" :data-page-type="pageSurfaceType">
     <t-tabs
-      v-if="settingStore.isUseTabsRouter"
+      v-if="showRouteTabs"
       drag-sort
       theme="card"
       :class="`${prefix}-layout-tabs-nav`"
@@ -143,6 +143,7 @@ import type { LocalizedTitle } from '@/contracts/i18n/locales';
 import { LOCALE } from '@/contracts/i18n/locales';
 import { t } from '@/locales';
 import { useLocale } from '@/locales/useLocale';
+import { useResponsiveVariant } from '@/shared/composables';
 import { copyText } from '@/shared/observability/copy';
 import { useSettingStore, useTabsRouterStore } from '@/store';
 import { type PageSurfaceType, renderLocalizedTitle, resolvePageSurfaceType } from '@/utils/route/meta';
@@ -161,6 +162,17 @@ const emit = defineEmits<{
 
 const settingStore = useSettingStore();
 const tabsRouterStore = useTabsRouterStore();
+const layoutRoot = ref<ComponentPublicInstance | HTMLElement | null>(null);
+const layoutRootElement = computed(() => {
+  if (layoutRoot.value instanceof HTMLElement) {
+    return layoutRoot.value;
+  }
+
+  return layoutRoot.value?.$el instanceof HTMLElement ? layoutRoot.value.$el : null;
+});
+const layoutVariant = useResponsiveVariant(layoutRootElement);
+// 窄宽度优先保留页面首屏和底部领域导航，标签状态仍由 tabs store 持续维护。
+const showRouteTabs = computed(() => settingStore.isUseTabsRouter && layoutVariant.value.density === 'spacious');
 const tabRouters = computed(() => tabsRouterStore.tabRouters);
 const tabLabelRefs = new Map<string, HTMLElement>();
 const activeTabKeyForMenu = ref<string | null>('');

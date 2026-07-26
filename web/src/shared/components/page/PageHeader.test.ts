@@ -42,4 +42,13 @@ describe('PageHeader', () => {
     expect(PAGE_HEADER_SOURCE).toContain('@container (width < @screen-sm)');
     expect(PAGE_HEADER_SOURCE).not.toContain('@media (width <= 768px)');
   });
+
+  it('supports compact icon actions that remain alongside the title', () => {
+    const wrapper = mount(PageHeader, {
+      props: { actionLayout: 'inline', titleFallback: 'Runtime Targets' },
+      slots: { actions: '<button type="button">Discover</button>' },
+    });
+
+    expect(wrapper.classes()).toContain('page-header--inline-actions');
+  });
 });

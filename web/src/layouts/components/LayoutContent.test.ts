@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, nextTick, reactive } from 'vue';
+import { computed, defineComponent, h, nextTick, reactive } from 'vue';
 
 import { LOCALE, type LocalizedTitle, type SupportedLocale } from '@/contracts/i18n/locales';
 import type { AppRouteMeta } from '@/utils/types';
@@ -11,7 +11,6 @@ import type { AppRouteMeta } from '@/utils/types';
 import LayoutContent from './LayoutContent.vue';
 
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
-const layoutContentSource = readFileSync(join(process.cwd(), 'src/layouts/components/LayoutContent.vue'), 'utf8');
 
 type DropdownPopupProps = {
   onVisibleChange: (visible: boolean, context: { trigger: string }) => void;
@@ -95,6 +94,7 @@ const storeState = vi.hoisted(() => ({
 }));
 const localeState = reactive<{ value: SupportedLocale }>({ value: LOCALE.ZH_CN });
 const tabsRouterStoreProxy = reactive(storeState.tabsRouterStore);
+const responsiveState = vi.hoisted(() => ({ density: 'spacious' }));
 
 vi.mock('vue-router', () => ({
   useRoute: () => routeProxy,
@@ -118,6 +118,10 @@ vi.mock('@/locales/useLocale', () => ({
 
 vi.mock('@/shared/observability/copy', () => ({
   copyText: vi.fn(),
+}));
+
+vi.mock('@/shared/composables', () => ({
+  useResponsiveVariant: () => computed(() => ({ density: responsiveState.density })),
 }));
 
 vi.mock('@/store', async () => ({
@@ -380,6 +384,7 @@ describe('LayoutContent', () => {
       meta: {},
     }));
     storeState.settingStore.isUseTabsRouter = true;
+    responsiveState.density = 'spacious';
     storeState.settingStore.showBreadcrumb = true;
     storeState.settingStore.showFooter = true;
     storeState.tabsRouterStore.activeTabKey = '/server/runtime';
@@ -459,19 +464,13 @@ describe('LayoutContent', () => {
     expect(wrapper.emitted('page-scroll')).toHaveLength(1);
   });
 
-  it('uses the shell drawer presentation to render tabs as one touch-scrollable rail', () => {
+  it('hides route tabs at compact widths while preserving the stored tab state', () => {
+    responsiveState.density = 'compact';
     const wrapper = mountLayoutContent();
 
-    expect(wrapper.find('.t-tabs__nav-container .t-tabs__nav-scroll .t-tabs__nav-wrap').exists()).toBe(true);
-    expect(layoutContentSource).toContain(".app-shell[data-sidebar-presentation='drawer']");
-    expect(layoutContentSource).toContain('.t-tabs__nav-scroll) {\n  overflow: hidden auto;');
-    expect(layoutContentSource).toContain('touch-action: pan-x;');
-    expect(layoutContentSource).toContain('.t-tabs__nav-wrap) {\n  min-width: max-content;');
-    expect(layoutContentSource).toContain('.t-tabs__nav) {\n  flex-wrap: nowrap;');
-    expect(layoutContentSource).toContain('.t-layout[data-page-type] {\n  background: transparent;');
-    expect(layoutContentSource).toContain('max-width: 100%;');
-    expect(layoutContentSource).toContain('overflow: hidden;');
-    expect(layoutContentSource).toContain('width: 100%;');
+    expect(wrapper.find('[data-testid="tab-panel"]').exists()).toBe(false);
+    expect(storeState.tabsRouterStore.tabRouters).toHaveLength(3);
+    wrapper.unmount();
   });
 
   it('reveals the active tab after a route-tab change', async () => {

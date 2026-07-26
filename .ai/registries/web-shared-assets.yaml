@@ -35,6 +35,21 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "card-surface-mixins"
+    type: "frontend-utility"
+    path: "web/src/shared/components/card-surface.less"
+    owner: "web/shared"
+    purpose: "Token-driven base and entity card-surface LESS mixins for shared and module-owned operational cards."
+    use_when:
+      - "A card surface is reused by multiple modules and needs the standard Graft token border and background treatment."
+    do_not_use_when:
+      - "The surface has module-private visual semantics that cannot share a base card treatment."
+    examples:
+      - "web/src/modules/container/pages/list/ContainerCard.vue"
+      - "web/src/modules/runtime-target/pages/list/index.vue"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "query-list-components"
     type: "frontend-component-suite"
     path: "web/src/shared/components/query-list"
