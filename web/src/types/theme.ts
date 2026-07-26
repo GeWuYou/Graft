@@ -3,11 +3,14 @@ import type { ModeType } from '@/utils/types';
 
 export type SettingStyleConfig = typeof STYLE_CONFIG;
 
-export type ThemeWorkbenchGroupKey = 'overview' | 'appearance' | 'layout' | 'typography' | 'style' | 'advanced';
+export type ThemeWorkbenchGroupKey =
+  'overview' | 'presets' | 'appearance' | 'layout' | 'typography' | 'style' | 'advanced';
 
 export type ThemeTokenGroupKey = 'brand' | 'text' | 'background' | 'border' | 'component';
 
 export type ThemeSourceType = 'preset' | 'customized';
+
+export type ThemePresetCategory = 'balanced' | 'focused' | 'operations' | 'night';
 
 export type ThemeTokenMap = Record<string, string>;
 
@@ -77,6 +80,8 @@ export interface ThemePresetDefinition {
   id: string;
   labelKey: string;
   descriptionKey: string;
+  category: ThemePresetCategory;
+  featured?: boolean;
   brandTheme: string;
   mode?: ModeType | 'auto';
   tokenOverrides?: Partial<ThemeModeTokenState>;

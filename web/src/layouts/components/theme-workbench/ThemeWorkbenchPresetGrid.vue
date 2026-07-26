@@ -7,6 +7,7 @@
       class="preset-card"
       :class="{ 'preset-card--active': activePresetId === preset.id }"
       :style="thumbnailStyle(preset)"
+      :aria-pressed="activePresetId === preset.id"
       @click="$emit('select', preset.id)"
     >
       <span class="preset-card__thumbnail">
@@ -33,6 +34,11 @@
             </span>
           </span>
         </span>
+      </span>
+      <span class="preset-card__meta">
+        <span class="preset-card__category">{{
+          t(`layout.setting.workbench.presets.categories.${preset.category}`)
+        }}</span>
       </span>
       <span class="preset-card__title">{{ t(preset.labelKey) }}</span>
       <span class="preset-card__desc">{{ t(preset.descriptionKey) }}</span>
@@ -266,6 +272,26 @@ const thumbnailStyle = (preset: ThemePresetDefinition): CSSProperties => {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
   font-weight: 700;
+}
+
+.preset-card__meta {
+  align-items: center;
+  display: flex;
+  min-width: 0;
+}
+
+.preset-card__category {
+  background: color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--preset-brand-color, var(--td-brand-color)) 22%, transparent);
+  border-radius: 999px;
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  line-height: 20px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 var(--graft-density-gap-8);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preset-card__desc {

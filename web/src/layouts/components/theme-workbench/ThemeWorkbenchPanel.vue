@@ -54,16 +54,6 @@
               </div>
             </div>
 
-            <theme-workbench-preset-section
-              class="overview-layout__presets"
-              :class="resetFeedbackClass"
-              :title="t('layout.setting.workbench.presets.title')"
-              :description="t('layout.setting.workbench.presets.description')"
-              :presets="presetDefinitions"
-              :active-preset-id="effectivePresetId"
-              @select="settingStore.selectThemePreset"
-            />
-
             <div class="section overview-layout__quick">
               <div class="section-title">{{ t('layout.setting.workbench.overview.quickAdjustments') }}</div>
               <div class="section-desc">{{ t('layout.setting.workbench.overview.quickAdjustmentsDescription') }}</div>
@@ -123,6 +113,14 @@
                 </button>
               </div>
             </div>
+          </div>
+
+          <div v-else-if="activeGroup === 'presets'" class="settings-layout settings-layout--presets">
+            <theme-workbench-preset-catalog
+              :presets="presetDefinitions"
+              :active-preset-id="effectivePresetId"
+              @select="settingStore.selectThemePreset"
+            />
           </div>
 
           <div v-else-if="activeGroup === 'appearance'" class="settings-layout settings-layout--appearance">
@@ -254,16 +252,6 @@
                 </button>
               </div>
             </div>
-
-            <theme-workbench-preset-section
-              class="settings-layout__presets"
-              :class="resetFeedbackClass"
-              :title="t('layout.setting.workbench.presets.title')"
-              :description="t('layout.setting.workbench.presets.description')"
-              :presets="presetDefinitions"
-              :active-preset-id="effectivePresetId"
-              @select="settingStore.selectThemePreset"
-            />
           </div>
 
           <div v-else-if="activeGroup === 'layout'" class="settings-layout settings-layout--layout">
@@ -687,7 +675,7 @@ import type {
 import type { ModeType } from '@/utils/types';
 
 import ThemeTokenEditor from './ThemeTokenEditor.vue';
-import ThemeWorkbenchPresetSection from './ThemeWorkbenchPresetSection.vue';
+import ThemeWorkbenchPresetCatalog from './ThemeWorkbenchPresetCatalog.vue';
 
 const settingStore = useSettingStore();
 const route = useRoute();
@@ -699,6 +687,7 @@ const resetButtonLockedWidth = ref<number>();
 
 const groupIconMap: Record<ThemeWorkbenchGroupKey, string> = {
   overview: 'palette',
+  presets: 'template',
   appearance: 'fill-color',
   layout: 'view-list',
   typography: 'text',
@@ -2594,36 +2583,6 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   white-space: nowrap;
 }
 
-.overview-layout :deep(.preset-grid),
-.settings-layout--appearance :deep(.preset-grid) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.overview-layout :deep(.preset-card),
-.settings-layout--appearance :deep(.preset-card) {
-  gap: var(--graft-density-gap-10);
-  padding: var(--graft-density-gap-12);
-}
-
-.overview-layout :deep(.preset-card__thumb-shell),
-.settings-layout--appearance :deep(.preset-card__thumb-shell) {
-  min-height: 112px;
-}
-
-.overview-layout :deep(.preset-card__thumbnail),
-.settings-layout--appearance :deep(.preset-card__thumbnail) {
-  padding: var(--graft-density-gap-8);
-}
-
-.overview-layout :deep(.preset-card__desc),
-.settings-layout--appearance :deep(.preset-card__desc) {
-  -webkit-box-orient: vertical;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-height: 1.45;
-  overflow: hidden;
-}
-
 .theme-workbench-panel__footer {
   align-items: center;
   background: var(--td-bg-color-container);
@@ -2730,11 +2689,6 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
   .settings-layout--layout .choice-grid,
   .style-preview-grid,
   .appearance-summary-grid,
-  .overview-layout :deep(.preset-grid),
-  .settings-layout--appearance :deep(.preset-grid) {
-    grid-template-columns: 1fr;
-  }
-
   .config-summary-card {
     grid-template-columns: 1fr;
   }

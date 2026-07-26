@@ -95,6 +95,7 @@ export const GRAFT_BASE_THEME_TOKENS: ThemeModeTokenState = {
 
 export const THEME_WORKBENCH_GROUPS: ThemeWorkbenchGroupDefinition[] = [
   { key: 'overview', labelKey: 'layout.setting.workbench.groups.overview' },
+  { key: 'presets', labelKey: 'layout.setting.workbench.groups.presets' },
   { key: 'appearance', labelKey: 'layout.setting.workbench.groups.appearance' },
   { key: 'layout', labelKey: 'layout.setting.workbench.groups.layout' },
   { key: 'typography', labelKey: 'layout.setting.workbench.groups.typography' },
@@ -332,12 +333,14 @@ const SOURCE_HAN_ROUNDED_AUTHORITY_PATCH: ThemeWorkbenchAuthorityPatch = {
   densityPreset: 'comfortable',
 };
 
-// 推荐主题保持为纯前端本地配置，先服务当前工作台预览，不与后端契约耦合。
+// 内置预设保持为纯前端本地配置，先服务当前工作台预览，不与后端契约耦合。
 export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
   {
     id: 'tdesign-default',
     labelKey: 'layout.setting.workbench.presets.tdesignDefault.label',
     descriptionKey: 'layout.setting.workbench.presets.tdesignDefault.description',
+    category: 'balanced',
+    featured: true,
     brandTheme: '#0052D9',
     authorityPatch: STANDARD_SYSTEM_AUTHORITY_PATCH,
     stylePatch: SIDE_LAYOUT_STYLE_PATCH,
@@ -346,6 +349,8 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'tencent-cloud',
     labelKey: 'layout.setting.workbench.presets.tencentCloud.label',
     descriptionKey: 'layout.setting.workbench.presets.tencentCloud.description',
+    category: 'operations',
+    featured: true,
     brandTheme: '#0064FF',
     authorityPatch: {
       fontFamilyPreset: 'inter',
@@ -360,6 +365,7 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'mountain-green',
     labelKey: 'layout.setting.workbench.presets.mountainGreen.label',
     descriptionKey: 'layout.setting.workbench.presets.mountainGreen.description',
+    category: 'focused',
     brandTheme: '#2BA471',
     authorityPatch: SOURCE_HAN_ROUNDED_AUTHORITY_PATCH,
     stylePatch: SIDE_LAYOUT_STYLE_PATCH,
@@ -368,6 +374,8 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'midnight-blue',
     labelKey: 'layout.setting.workbench.presets.midnightBlue.label',
     descriptionKey: 'layout.setting.workbench.presets.midnightBlue.description',
+    category: 'night',
+    featured: true,
     brandTheme: '#3B82F6',
     mode: 'dark',
     authorityPatch: {
@@ -383,6 +391,7 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'graphite-slate',
     labelKey: 'layout.setting.workbench.presets.graphiteSlate.label',
     descriptionKey: 'layout.setting.workbench.presets.graphiteSlate.description',
+    category: 'operations',
     brandTheme: '#4F6B8A',
     mode: 'dark',
     authorityPatch: {
@@ -407,6 +416,7 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'sunset-amber',
     labelKey: 'layout.setting.workbench.presets.sunsetAmber.label',
     descriptionKey: 'layout.setting.workbench.presets.sunsetAmber.description',
+    category: 'focused',
     brandTheme: '#D97706',
     authorityPatch: {
       mode: 'light',
@@ -422,6 +432,7 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'ocean-teal',
     labelKey: 'layout.setting.workbench.presets.oceanTeal.label',
     descriptionKey: 'layout.setting.workbench.presets.oceanTeal.description',
+    category: 'balanced',
     brandTheme: '#0F8A83',
     authorityPatch: {
       mode: 'light',
@@ -437,6 +448,7 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     id: 'frost-silver',
     labelKey: 'layout.setting.workbench.presets.frostSilver.label',
     descriptionKey: 'layout.setting.workbench.presets.frostSilver.description',
+    category: 'focused',
     brandTheme: '#7A8CA5',
     authorityPatch: {
       mode: 'light',
