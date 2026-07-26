@@ -15,7 +15,7 @@ validation rules.
 ## Preconditions
 
 1. Ensure the current turn already has the startup receipt required by `AGENTS.md`.
-2. Read `AGENTS.md` `13. Git Workflow Rules` before staging or committing anything.
+2. Read `AGENTS.md` `11. Git Workflow Rules` before staging or committing anything.
 3. Confirm the commit trigger is valid:
    - either the user explicitly requested a commit
    - or `graft-task-closeout` decided the validated owned scope should be committed
