@@ -107,7 +107,11 @@ import { formatLocaleDateTime, LogViewer, type StructuredLogEntry } from '@/shar
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import { cancelTask, getTask, getTaskLogs, retryTaskStage } from '../api/task';
-import { buildTaskRealtimeTopicName, parseTaskRealtimeNotification } from '../contract/realtime';
+import {
+  buildTaskRealtimeTopicName,
+  isTaskLogAppendedNotification,
+  parseTaskRealtimeNotification,
+} from '../contract/realtime';
 import { taskStatusTheme } from '../shared/presentation';
 import { TaskRealtimeRefreshScheduler } from '../shared/realtime-refresh-scheduler';
 import { TaskLogRealtimeBatcher } from '../shared/task-log-realtime-batcher';
@@ -221,11 +225,11 @@ async function loadInitialLogs(epoch = viewEpoch) {
     if (epoch !== viewEpoch || taskId !== props.taskId) return;
     taskLogRealtimeBatcher.seed(response);
     hasOlderLogs.value = response.items.length === TASK_LOG_PAGE_SIZE;
+    hasLoadedLogs.value = true;
   } catch (error) {
     logsError.value = resolveLocalizedErrorMessage(t, error, t('task.logs.loadFailed'));
   } finally {
     logsLoading.value = false;
-    if (epoch === viewEpoch && taskId === props.taskId) hasLoadedLogs.value = true;
   }
 }
 
@@ -247,14 +251,14 @@ async function appendLatestLogs(epoch = viewEpoch) {
   }
 }
 
-async function loadOlderLogs() {
+async function loadOlderLogs(epoch = viewEpoch) {
   const taskId = props.taskId;
   const oldestSequence = taskLogRealtimeBatcher.oldestSequence();
   if (!taskId || !hasOlderLogs.value || !oldestSequence || loadingOlderLogs.value) return;
   loadingOlderLogs.value = true;
   try {
     const response = await getTaskLogs(taskId, { before_sequence: oldestSequence, limit: TASK_LOG_PAGE_SIZE });
-    if (taskId !== props.taskId) return;
+    if (epoch !== viewEpoch || taskId !== props.taskId) return;
     taskLogRealtimeBatcher.prepend(response);
     hasOlderLogs.value = response.items.length === TASK_LOG_PAGE_SIZE;
   } catch (error) {
@@ -289,7 +293,13 @@ function openRealtime() {
     topic: buildTaskRealtimeTopicName(taskId),
     parseMessage: parseTaskRealtimeNotification,
     onMessage: (event) => {
-      if (event.task_id === taskId) void realtimeRefreshScheduler.request();
+      if (event.task_id !== taskId) return;
+      if (isTaskLogAppendedNotification(event)) {
+        if (hasLoadedLogs.value) void appendLatestLogs();
+        else void realtimeRefreshScheduler.request();
+        return;
+      }
+      void realtimeRefreshScheduler.request();
     },
     onStateChange: (state) => {
       socketState.value = state;

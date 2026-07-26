@@ -46,6 +46,7 @@
   </div>
 </template>
 <script setup lang="ts">
+/** 预设网格仅渲染卡片及其选中交互，分类和精选筛选由上层预设目录负责。 */
 import type { CSSProperties } from 'vue';
 
 import { t } from '@/locales';

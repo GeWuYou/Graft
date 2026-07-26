@@ -27,7 +27,7 @@ describe('StreamViewportStateSurface', () => {
     expect(wrapper.findAll('.stream-viewport-state-surface__faux-line')).toHaveLength(7);
   });
 
-  it('keeps copy empty when optional props are omitted and still renders the console scaffold', () => {
+  it('keeps copy empty when optional props are omitted and renders the static empty state', () => {
     const wrapper = mount(StreamViewportStateSurface, {
       props: {
         state: 'empty',
@@ -39,7 +39,8 @@ describe('StreamViewportStateSurface', () => {
     expect(wrapper.text()).toBe('');
     expect(wrapper.find('.stream-viewport-state-surface__busy-indicator').exists()).toBe(false);
     expect(wrapper.find('.stream-viewport-state-surface__cursor').exists()).toBe(false);
-    expect(wrapper.findAll('.stream-viewport-state-surface__faux-line')).toHaveLength(5);
+    expect(wrapper.find('.stream-viewport-state-surface__empty').exists()).toBe(true);
+    expect(wrapper.findAll('.stream-viewport-state-surface__faux-line')).toHaveLength(0);
   });
 
   it('allows explicit cursor and busy overrides for paused snapshots', () => {

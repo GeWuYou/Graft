@@ -421,14 +421,19 @@ func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	if after < 0 {
 		after = 0
 	}
+	return after, taskLogLimit(c, defaultLimit, maxLimit)
+}
+
+// taskLogLimit 解析并限制任务日志页大小，供每种游标方向共用。
+func taskLogLimit(c *gin.Context, defaultLimit, maxLimit int) int {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)))
 	if limit < 1 {
-		limit = defaultLimit
+		return defaultLimit
 	}
 	if limit > maxLimit {
-		limit = maxLimit
+		return maxLimit
 	}
-	return after, limit
+	return limit
 }
 
 type taskLogPageMode uint8
@@ -455,7 +460,7 @@ func taskLogPage(c *gin.Context, defaultLimit, maxLimit int) (taskLogPageQuery, 
 		return taskLogPageQuery{}, errTaskInvalidArgument
 	}
 	if tail {
-		_, limit := taskSequencePage(c, defaultLimit, maxLimit)
+		limit := taskLogLimit(c, defaultLimit, maxLimit)
 		return taskLogPageQuery{mode: taskLogPageTail, limit: limit}, nil
 	}
 	if hasBefore {
@@ -463,7 +468,7 @@ func taskLogPage(c *gin.Context, defaultLimit, maxLimit int) (taskLogPageQuery, 
 		if err != nil || before < 1 {
 			return taskLogPageQuery{}, errTaskInvalidArgument
 		}
-		_, limit := taskSequencePage(c, defaultLimit, maxLimit)
+		limit := taskLogLimit(c, defaultLimit, maxLimit)
 		return taskLogPageQuery{mode: taskLogPageBefore, cursor: before, limit: limit}, nil
 	}
 	after, limit := taskSequencePage(c, defaultLimit, maxLimit)

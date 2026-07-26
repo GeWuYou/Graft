@@ -1339,8 +1339,7 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
 .overview-layout__summary,
 .overview-layout__quick,
-.overview-layout__scenarios,
-.overview-layout__presets {
+.overview-layout__scenarios {
   gap: var(--graft-density-gap-10);
 }
 

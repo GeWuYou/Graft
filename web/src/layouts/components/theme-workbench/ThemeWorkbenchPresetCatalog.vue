@@ -151,6 +151,7 @@ function handleCategoryChange(value: string | number | boolean) {
   align-items: center;
   display: grid;
   gap: var(--graft-density-gap-10);
+  grid-auto-flow: dense;
   grid-template-columns: minmax(180px, 1fr) auto;
 }
 
