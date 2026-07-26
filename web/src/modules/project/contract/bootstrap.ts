@@ -3,6 +3,7 @@ import { APPLICATION_ROUTE_PATH } from './paths';
 export const PROJECT_BOOTSTRAP_ROUTE = {
   LIST: {
     menuPath: APPLICATION_ROUTE_PATH.LIST,
+    pageRouteName: 'ApplicationListIndex',
     routeName: 'ApplicationList',
   },
   CREATE_IMPORT: {

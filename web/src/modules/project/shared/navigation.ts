@@ -21,6 +21,19 @@ export function navigateToApplicationCreateSource(router: ApplicationCreateRoute
 }
 
 /**
+ * 返回应用管理列表，并在路由过渡前同步列表标签，避免动态 bootstrap 列表页在标签状态切换间隙失去渲染宿主。
+ */
+export function navigateToApplicationList(
+  router: ApplicationRouteRouter,
+  tabs: { appendTabRouterList: (route: TRouterInfo) => void; setActiveTabKey: (key: string) => void },
+) {
+  const target = { name: PROJECT_BOOTSTRAP_ROUTE.LIST.pageRouteName };
+  const resolved = router.resolve(target);
+  appendResolvedTab(tabs, resolved, localizeRouteTitleKey('project.route.list.title'));
+  void router.push(target);
+}
+
+/**
  * 追加项目创建流程标签并导航至目标页面。
  */
 function navigateApplicationCreateRoute(

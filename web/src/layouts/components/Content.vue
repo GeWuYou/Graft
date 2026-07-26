@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import isBoolean from 'lodash/isBoolean';
 import isUndefined from 'lodash/isUndefined';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
@@ -32,6 +32,7 @@ import { t } from '@/locales';
 import { routeLoading } from '@/router/route-loading';
 import { useTabsRouterStore } from '@/store';
 import { resolvePageSurfaceType } from '@/utils/route/meta';
+import { formatTabsDebugSummary, logTabsDebug } from '@/utils/tabs-debug';
 
 const emit = defineEmits<{
   'page-surface-ready': [surface: ReturnType<typeof resolvePageSurfaceType>];
@@ -80,6 +81,27 @@ const isFramePage = computed(() => {
 const handleAfterLeave = () => {
   emit('page-surface-ready', resolvePageSurfaceType(route.meta));
 };
+
+// 仅在 tabs.layout 调试开关开启时输出，定位动态路由与标签激活不同步导致的视图空白问题。
+watch(
+  [() => route.fullPath, activeTabRoute, shouldKeepActiveViewAlive, activeViewKey],
+  () => {
+    const tabsRouterStore = useTabsRouterStore();
+    const activeTab = activeTabRoute.value;
+    logTabsDebug(
+      'tabs.layout',
+      () =>
+        `tabs debug: content route=[path=${route.path} fullPath=${route.fullPath} name=${String(
+          route.name || '',
+        )}] active=[key=${tabsRouterStore.activeTabKey} path=${activeTab?.path || ''} fullPath=${
+          activeTab?.fullPath || ''
+        } name=${String(activeTab?.name || '')}] keepAlive=${String(shouldKeepActiveViewAlive.value)} viewKey=${
+          activeViewKey.value
+        } ${formatTabsDebugSummary(tabsRouterStore.tabRouters)}`,
+    );
+  },
+  { immediate: true },
+);
 </script>
 <style lang="less" scoped>
 .fade-leave-active,
