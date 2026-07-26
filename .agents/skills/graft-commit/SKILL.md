@@ -35,8 +35,9 @@ validation rules.
      deciding whether a repair is safe; a failing file outside the initial diff is not, by itself, proof that its repair
      is unsafe
    - before any repair edit, staging, or repair commit, apply the root `AGENTS.md` `Repair Confirmation Interaction
-     Contract`; present its `Repair required` proposal through the native structured-choice interaction with the stable
-     option ids, never a binary approval question or a prose `reply 1-4` menu
+     Contract`; present its `Repair required` proposal through native structured approval when available. When the
+     runtime lacks that control, use the root contract's stopped next-turn `1 / 2 / 3 / 4` fallback, including its
+     four visible option descriptions; never ask a binary approval question
    - after every commit, re-check `git status --short` and continue only with remaining explicitly user-confirmed,
      currently owned captured slices; stop after those slices are complete even when other changes remain in the worktree
    - apply that contract when a captured change is not explicitly user-confirmed and currently owned, ownership becomes

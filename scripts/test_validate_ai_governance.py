@@ -184,9 +184,9 @@ class RepairConfirmationInteractionTests(unittest.TestCase):
     def test_repair_confirmation_interaction_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_repair_confirmation_interaction_contract(), [])
 
-    def test_repair_confirmation_rejects_missing_native_choice(self) -> None:
+    def test_repair_confirmation_rejects_missing_fallback_option_descriptions(self) -> None:
         current_text = MODULE.read_text(MODULE.AGENTS)
-        mutated_text = current_text.replace("Do not end a normal assistant message", "manual reply", 1)
+        mutated_text = current_text.replace("Fallback choices:", "manual reply", 1)
         self.assertNotEqual(current_text, mutated_text)
         original_read_text = MODULE.read_text
 

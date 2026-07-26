@@ -28,9 +28,10 @@ validation rules.
    - if the branch is blocked on a bounded local issue inside the current owned scope, such as missing commit,
      generated-artifact drift, stale snapshots, local validation failure, or hook failure, diagnose it and apply the
      root `AGENTS.md` `Repair Confirmation Interaction Contract` before any edit, staging, or repair commit
-   - invoke the contract's `Repair required` proposal through the native structured-choice interaction instead of a
-     binary confirmation question or prose numbered menu; only `execute_repair` authorizes the declared repair and its
-     subsequent commit or push
+   - invoke the contract's `Repair required` proposal through native structured approval when available. If the runtime
+     lacks that control, stop and use the root contract's next-turn `1 / 2 / 3 / 4` fallback with all four visible
+     option descriptions; never use a binary confirmation question. Only `execute_repair` authorizes the declared
+     repair and its subsequent commit or push
    - report when the branch or destination is ambiguous, the failure has no concrete repair proposal, or the required
      validation is infeasible
 

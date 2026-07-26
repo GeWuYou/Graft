@@ -702,8 +702,30 @@ Repair Confirmation Interaction Contract:
 - `show_detailed_diff` must show a concrete unified diff or equivalent hunk patch without changing files, then invoke
   the unchanged proposal and the same native choice control again
 - `cancel_workflow` stops the current workflow without modifying, staging, committing, or pushing the repair
-- when the host cannot present a native structured-choice interaction, report that capability blocker and preserve the
-  working tree; never fall back to a prose menu or manual numeric reply
+- approval transport priority is mandatory:
+  1. when the runtime supports a native structured-choice interaction, use it
+  2. only when the runtime cannot present that interaction, output the complete `Repair required` proposal and the
+     four visible fallback option descriptions, then stop all execution and wait for the user's next-turn numeric
+     reply. Each description must state the number, stable option id, action, and consequence. End that fallback
+     proposal with exactly:
+
+     ```text
+     Fallback choices:
+     - `1`: `execute_repair` - Execute repair (recommended). Apply only the proposed repair, rerun validation, and resume the current workflow.
+     - `2`: `continue_current_scope` - Do not repair. Continue only the authorized scope and report any blocker.
+     - `3`: `show_detailed_diff` - Show the proposed patch without modifying files, then repeat this proposal.
+     - `4`: `cancel_workflow` - Stop the workflow and preserve the working tree.
+     ```
+
+     ```text
+     请输入：
+     1 / 2 / 3 / 4
+     ```
+
+     The user need not restate the repair intent. For `3`, show the patch without mutation and repeat the same
+     fallback proposal and prompt; for `1`, apply only the declared scope.
+- the numeric fallback is unavailable while native structured approval is available; do not use it for convenience or
+  substitute another binary confirmation prompt
 - a repair proposal is required even when the suspected repair is a one-line test synchronization; a prior
   `$graft-commit`, `$graft-push`, or `$graft-pr-review` trigger does not substitute for `execute_repair`
 
