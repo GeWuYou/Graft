@@ -154,6 +154,56 @@ func TestSQLRepositoryReplaysEventsAndLogsBySequence(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryListsLogPagesInAscendingSequence(t *testing.T) {
+	t.Parallel()
+
+	repository, _ := newTestSQLRepository(t)
+	first, _, _, err := repository.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatalf("create first task: %v", err)
+	}
+	secondInput := validCreateInput()
+	secondInput.Task.Owner.ID = "another-owner"
+	second, _, _, err := repository.Create(context.Background(), secondInput)
+	if err != nil {
+		t.Fatalf("create second task: %v", err)
+	}
+	for _, sequence := range []int64{1, 2, 3, 4, 5} {
+		if _, err := repository.AppendLog(context.Background(), AppendLogInput{TaskID: first.ID, Sequence: sequence, Stream: "stdout", Level: "info", Line: fmt.Sprintf("first-%d", sequence)}); err != nil {
+			t.Fatalf("append first task log %d: %v", sequence, err)
+		}
+	}
+	if _, err := repository.AppendLog(context.Background(), AppendLogInput{TaskID: second.ID, Sequence: 1, Stream: "stdout", Level: "info", Line: "other-task"}); err != nil {
+		t.Fatalf("append second task log: %v", err)
+	}
+
+	logs, err := repository.ListLogs(context.Background(), first.ID, 2, 2)
+	assertLogSequences(t, logs, err, []int64{3, 4})
+	logs, err = repository.ListLatestLogs(context.Background(), first.ID, 2)
+	assertLogSequences(t, logs, err, []int64{4, 5})
+	logs, err = repository.ListLogsBefore(context.Background(), first.ID, 4, 3)
+	assertLogSequences(t, logs, err, []int64{1, 2, 3})
+	logs, err = repository.ListLatestLogs(context.Background(), second.ID, 10)
+	assertLogSequences(t, logs, err, []int64{1})
+}
+
+func assertLogSequences(t *testing.T, logs []taskmodel.Log, err error, want []int64) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("list logs: %v", err)
+	}
+	if len(logs) != len(want) {
+		t.Fatalf("log count = %d, want %d: %#v", len(logs), len(want), logs)
+		return
+	}
+	for index := 0; index < len(logs) && index < len(want); index += 1 {
+		log := logs[index]
+		if log.Sequence != want[index] {
+			t.Fatalf("log sequence[%d] = %d, want %d", index, log.Sequence, want[index])
+		}
+	}
+}
+
 func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)

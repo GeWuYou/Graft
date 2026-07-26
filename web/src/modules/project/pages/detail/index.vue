@@ -116,14 +116,57 @@
               </div>
 
               <div class="project-overview-grid">
-                <t-card size="small" :title="t('project.detail.overview.runtimeTargetTitle')">
+                <t-card size="small">
                   <div class="project-runtime-target-card" data-testid="project-detail-runtime-target">
-                    <strong>{{
-                      projectRuntimeTarget?.display_name || t('project.detail.overview.runtimeTargetUnavailable')
-                    }}</strong>
-                    <span>{{
-                      projectRuntimeTarget?.provider || t('project.detail.overview.runtimeTargetDescription')
-                    }}</span>
+                    <header class="project-runtime-target-card__header">
+                      <img
+                        v-if="runtimeTargetUsesDocker"
+                        alt=""
+                        class="project-runtime-target-card__icon"
+                        src="../../assets/runtime/docker.svg"
+                      />
+                      <div class="project-runtime-target-card__identity">
+                        <div>
+                          <strong>{{ runtimeTargetName }}</strong>
+                          <p>{{ runtimeTargetDescription }}</p>
+                        </div>
+                        <t-tag
+                          v-if="runtimeTargetHealthStatus"
+                          :theme="runtimeTargetHealthTheme"
+                          size="small"
+                          variant="light"
+                        >
+                          {{ runtimeTargetHealthLabel }}
+                        </t-tag>
+                      </div>
+                    </header>
+                    <div class="project-runtime-target-card__content">
+                      <dl v-if="projectRuntimeTarget" class="project-runtime-target-card__facts">
+                        <div>
+                          <dt>{{ t('project.detail.overview.runtimeTargetType') }}</dt>
+                          <dd>{{ runtimeTargetType }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('project.detail.overview.runtimeTargetVersion') }}</dt>
+                          <dd>{{ runtimeTargetVersion }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('project.detail.overview.runtimeTargetOperatingSystem') }}</dt>
+                          <dd>{{ runtimeTargetOperatingSystem }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ t('project.detail.overview.runtimeTargetHost') }}</dt>
+                          <dd>{{ runtimeTargetHost }}</dd>
+                        </div>
+                      </dl>
+                      <div v-if="projectRuntimeTarget" class="project-runtime-target-card__endpoint">
+                        <span>{{ t('project.detail.overview.runtimeTargetEndpoint') }}</span>
+                        <t-tooltip v-if="runtimeTargetDetail?.endpoint" :content="runtimeTargetDetail.endpoint">
+                          <strong :title="runtimeTargetDetail.endpoint">{{ runtimeTargetEndpoint }}</strong>
+                        </t-tooltip>
+                        <strong v-else>{{ runtimeTargetEndpoint }}</strong>
+                      </div>
+                    </div>
                   </div>
                 </t-card>
                 <t-card size="small" :title="t('project.detail.overview.resourceTitle')">
@@ -779,6 +822,10 @@ import {
   type ProjectContainerActionSubmission,
   type ProjectContainerSummary,
 } from '@/modules/container/contract/project';
+import {
+  type ApplicationRuntimeTargetDetail,
+  getApplicationRuntimeTargetDetail,
+} from '@/modules/runtime-target/contract/application-target-detail';
 import { TaskDetailDrawer, TaskHistoryTable } from '@/modules/task/contract/task-ui';
 import CodeBlock from '@/shared/components/code/CodeBlock.vue';
 import {
@@ -941,7 +988,8 @@ const serviceActionKey = ref('');
 const serviceBatchActionLoading = ref<ProjectContainerAction | ''>('');
 const serviceLoading = ref(false);
 const serviceRuntimePortSummaries = ref<Record<string, string>>({});
-const projectRuntimeTarget = ref<ProjectContainerSummary['runtime_target'] | null>(null);
+const runtimeTargetDetail = ref<ApplicationRuntimeTargetDetail | null>(null);
+let runtimeTargetDetailRequestId = 0;
 const serviceRuntimePortsRequestId = ref(0);
 const serviceTableCurrent = ref(1);
 const serviceTablePageSize = ref(20);
@@ -1056,6 +1104,47 @@ const fallbackCanonicalName = computed(() => fallbackDisplayName.value);
 const pageTitle = computed(
   () => detailRecord.value?.display_name || fallbackDisplayName.value || t('project.detail.titleFallback'),
 );
+const projectRuntimeTarget = computed(() => detailRecord.value?.runtime_target ?? null);
+const runtimeTargetName = computed(
+  () =>
+    runtimeTargetDetail.value?.displayName ||
+    projectRuntimeTarget.value?.display_name ||
+    t('project.detail.overview.runtimeTargetUnavailable'),
+);
+const runtimeTargetDescription = computed(() =>
+  runtimeTargetUsesDocker.value
+    ? t('project.detail.overview.runtimeTargetDockerDescription')
+    : t('project.detail.overview.runtimeTargetDescription'),
+);
+const runtimeTargetUsesDocker = computed(() => {
+  const provider = runtimeTargetDetail.value?.provider || projectRuntimeTarget.value?.provider || '';
+  return provider.toLowerCase() === 'docker';
+});
+const runtimeTargetType = computed(() => {
+  const provider = runtimeTargetDetail.value?.provider || projectRuntimeTarget.value?.provider || '';
+  if (provider.toLowerCase() === 'docker') {
+    return t('project.detail.overview.runtimeTargetDockerEngine');
+  }
+  return runtimeTargetDetail.value?.runtimeType || provider || runtimeTargetUnavailable.value;
+});
+const runtimeTargetEndpoint = computed(() => {
+  const endpoint = runtimeTargetDetail.value?.endpoint;
+  if (!endpoint) return runtimeTargetUnavailable.value;
+  return endpoint.startsWith('unix://') ? endpoint.slice('unix://'.length) : endpoint;
+});
+const runtimeTargetVersion = computed(() => runtimeTargetDetail.value?.version || runtimeTargetUnavailable.value);
+const runtimeTargetOperatingSystem = computed(
+  () => runtimeTargetDetail.value?.operatingSystem || runtimeTargetUnavailable.value,
+);
+const runtimeTargetHost = computed(() => runtimeTargetDetail.value?.hostName || runtimeTargetUnavailable.value);
+const runtimeTargetHealthStatus = computed(() => runtimeTargetDetail.value?.healthStatus || '');
+const runtimeTargetHealthTheme = computed(() => (runtimeTargetHealthStatus.value === 'healthy' ? 'success' : 'danger'));
+const runtimeTargetHealthLabel = computed(() =>
+  runtimeTargetHealthStatus.value === 'healthy'
+    ? t('project.detail.overview.runtimeTargetStatusHealthy')
+    : t('project.detail.overview.runtimeTargetStatusUnavailable'),
+);
+const runtimeTargetUnavailable = computed(() => t('project.detail.overview.runtimeTargetValueUnavailable'));
 const lifecycleActionVisibility = computed(() => projectLifecycleActionVisibility(detailRecord.value?.runtime_status));
 const lifecycleReviewStatus = computed<ApplicationLifecycleReviewStatus>(() => {
   if (!detailRecord.value) {
@@ -1501,7 +1590,12 @@ async function refreshDetail() {
     detailRecord.value = await getApplication(applicationId.value);
     syncLifecycleState(detailRecord.value);
     updateCurrentTabTitle(buildDetailTitle(detailRecord.value.display_name));
-    await Promise.all([loadConfigurationSummary(), loadApplicationServices(true), loadApplicationOverview(true)]);
+    await Promise.all([
+      loadApplicationRuntimeTarget(detailRecord.value.runtime_target?.id),
+      loadConfigurationSummary(),
+      loadApplicationServices(true),
+      loadApplicationOverview(true),
+    ]);
     if (activeDetailTab.value === 'logs' && projectLogsHasSnapshot.value) {
       await loadApplicationLogs();
     }
@@ -1511,6 +1605,7 @@ async function refreshDetail() {
   } catch (error) {
     logger.error('failed to load project detail', error);
     detailRecord.value = null;
+    runtimeTargetDetail.value = null;
     resetApplicationLogsState();
     projectOverview.value = null;
     projectOverviewLoaded.value = false;
@@ -1593,7 +1688,6 @@ async function loadApplicationServices(forceRefresh = false) {
   if (!applicationId.value) {
     serviceRows.value = [];
     serviceRuntimePortSummaries.value = {};
-    projectRuntimeTarget.value = null;
     servicesLoaded.value = false;
     return [];
   }
@@ -1613,12 +1707,27 @@ async function loadApplicationServices(forceRefresh = false) {
     logger.error('failed to load project services', error);
     serviceRows.value = [];
     serviceRuntimePortSummaries.value = {};
-    projectRuntimeTarget.value = null;
     servicesLoaded.value = false;
     MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('project.detail.services.loadFailed')));
     return [];
   } finally {
     serviceLoading.value = false;
+  }
+}
+
+async function loadApplicationRuntimeTarget(runtimeTargetId?: number) {
+  const requestId = runtimeTargetDetailRequestId + 1;
+  runtimeTargetDetailRequestId = requestId;
+  runtimeTargetDetail.value = null;
+  if (!runtimeTargetId) return;
+
+  try {
+    const detail = await getApplicationRuntimeTargetDetail(runtimeTargetId);
+    if (requestId === runtimeTargetDetailRequestId) {
+      runtimeTargetDetail.value = detail;
+    }
+  } catch (error) {
+    logger.warn('failed to load application runtime target detail', error);
   }
 }
 
@@ -2471,7 +2580,6 @@ async function syncServiceRuntimePortSummaries(services: ApplicationServiceItem[
   if (!composeProjectName || services.length === 0) {
     if (requestId === serviceRuntimePortsRequestId.value) {
       serviceRuntimePortSummaries.value = {};
-      projectRuntimeTarget.value = null;
     }
     return;
   }
@@ -2482,12 +2590,10 @@ async function syncServiceRuntimePortSummaries(services: ApplicationServiceItem[
       return;
     }
     serviceRuntimePortSummaries.value = buildServiceRuntimePortSummaries(services, containers);
-    projectRuntimeTarget.value = containers.find((container) => container.runtime_target)?.runtime_target ?? null;
   } catch (error) {
     logger.warn('failed to load runtime ports for project services', error);
     if (requestId === serviceRuntimePortsRequestId.value) {
       serviceRuntimePortSummaries.value = {};
-      projectRuntimeTarget.value = null;
     }
   }
 }
@@ -2838,6 +2944,103 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 .project-network-io-card__summary em {
   color: var(--td-text-color-placeholder);
   font-style: normal;
+}
+
+.project-runtime-target-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+}
+
+.project-runtime-target-card__header,
+.project-runtime-target-card__identity {
+  align-items: flex-start;
+  display: flex;
+}
+
+.project-runtime-target-card__header {
+  gap: var(--graft-density-gap-12);
+}
+
+.project-runtime-target-card__identity {
+  flex: 1;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.project-runtime-target-card__icon {
+  flex: none;
+  height: 30px;
+  width: 30px;
+}
+
+.project-runtime-target-card__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+}
+
+.project-runtime-target-card__identity strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+}
+
+.project-runtime-target-card__identity p,
+.project-runtime-target-card__facts dt,
+.project-runtime-target-card__endpoint > span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin: var(--graft-density-gap-2) 0 0;
+}
+
+.project-runtime-target-card__facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-8);
+  margin: 0;
+}
+
+.project-runtime-target-card__facts div {
+  align-items: baseline;
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.project-runtime-target-card__facts dt,
+.project-runtime-target-card__facts dd {
+  margin: 0;
+}
+
+.project-runtime-target-card__facts dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  min-width: 0;
+}
+
+.project-runtime-target-card__endpoint {
+  border-top: 1px solid var(--td-border-level-1-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  padding-top: var(--graft-density-gap-12);
+}
+
+.project-runtime-target-card__endpoint > span {
+  margin: 0;
+}
+
+.project-runtime-target-card__endpoint strong {
+  color: var(--td-text-color-primary);
+  display: block;
+  font: var(--td-font-body-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-overview-card-footer {
@@ -3220,6 +3423,10 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 
   .project-service-card__metrics {
     grid-template-columns: 1fr;
+  }
+
+  .project-runtime-target-card__facts div {
+    grid-template-columns: 64px minmax(0, 1fr);
   }
 }
 </style>

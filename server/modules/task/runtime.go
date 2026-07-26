@@ -371,6 +371,22 @@ func (r *Runtime) ListTasks(ctx context.Context, filter moduleapi.TaskListFilter
 // ListTaskLogs 返回按持久化序列游标读取的 Task 日志重放分页。
 func (r *Runtime) ListTaskLogs(ctx context.Context, taskID uint64, after int64, limit int) ([]moduleapi.TaskLogView, error) {
 	logs, err := r.repository.ListLogs(ctx, taskID, after, limit)
+	return taskLogViews(logs, err)
+}
+
+// ListTaskLogsBefore 返回指定序列游标之前的日志，并按序列升序排列。
+func (r *Runtime) ListTaskLogsBefore(ctx context.Context, taskID uint64, before int64, limit int) ([]moduleapi.TaskLogView, error) {
+	logs, err := r.repository.ListLogsBefore(ctx, taskID, before, limit)
+	return taskLogViews(logs, err)
+}
+
+// ListLatestTaskLogs 返回最近一页日志，并按序列升序排列。
+func (r *Runtime) ListLatestTaskLogs(ctx context.Context, taskID uint64, limit int) ([]moduleapi.TaskLogView, error) {
+	logs, err := r.repository.ListLatestLogs(ctx, taskID, limit)
+	return taskLogViews(logs, err)
+}
+
+func taskLogViews(logs []taskmodel.Log, err error) ([]moduleapi.TaskLogView, error) {
 	if err != nil {
 		return nil, err
 	}

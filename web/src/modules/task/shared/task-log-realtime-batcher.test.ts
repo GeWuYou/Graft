@@ -55,4 +55,20 @@ describe('TaskLogRealtimeBatcher', () => {
 
     expect(commits).toEqual([1]);
   });
+
+  it('merges an older page ahead of the tail without duplicating a raced realtime entry', () => {
+    const snapshots: string[][] = [];
+    const batcher = new TaskLogRealtimeBatcher({
+      capacity: 10,
+      onCommit: (snapshot) => snapshots.push(snapshot.entries.map((item) => item.line)),
+    });
+
+    batcher.seed(response([entry(4), entry(5)], 5));
+    batcher.prepend(response([entry(2), entry(3), entry(4)], 4));
+    batcher.append(response([entry(6)], 6));
+
+    expect(snapshots.at(-1)).toEqual(['line-2', 'line-3', 'line-4', 'line-5', 'line-6']);
+    expect(batcher.oldestSequence()).toBe(2);
+    expect(batcher.nextAfterSequence()).toBe(6);
+  });
 });

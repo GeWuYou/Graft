@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { TASK_REALTIME_EVENT, TASK_REALTIME_TOPIC } from '@/contracts/generated/modules/task';
 
-import { buildTaskRealtimeTopicName, parseTaskRealtimeNotification, type TaskRealtimeEventType } from './realtime';
+import {
+  buildTaskRealtimeTopicName,
+  isTaskLogAppendedNotification,
+  parseTaskRealtimeNotification,
+  type TaskRealtimeEventType,
+} from './realtime';
 
 describe('task realtime contract', () => {
   it('builds the canonical task topic and parses its persisted-fact notification', () => {
@@ -13,6 +18,11 @@ describe('task realtime contract', () => {
       task_id: 42,
       type: TASK_REALTIME_EVENT.LOG_APPENDED,
     });
+  });
+
+  it('identifies log-only updates without treating other task events as log refreshes', () => {
+    expect(isTaskLogAppendedNotification({ task_id: 42, type: TASK_REALTIME_EVENT.LOG_APPENDED })).toBe(true);
+    expect(isTaskLogAppendedNotification({ task_id: 42, type: TASK_REALTIME_EVENT.STAGE_STARTED })).toBe(false);
   });
 
   it('rejects malformed task notifications before they can trigger a durable backfill', () => {

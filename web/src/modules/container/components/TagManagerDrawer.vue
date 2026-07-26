@@ -6,8 +6,11 @@
     placement="right"
     @update:visible="emit('update:visible', $event)"
   >
-    <t-loading :loading="loading">
-      <template v-if="image">
+    <div class="tag-manager-loading-host">
+      <div v-if="loading" class="tag-manager-loading-host__indicator">
+        <t-loading :loading="true" size="large" />
+      </div>
+      <template v-else-if="image">
         <div class="tag-manager-summary">
           <div>
             <span>{{ t('container.images.tagManager.tagCount', { count: tags.length }) }}</span>
@@ -81,8 +84,8 @@
           </t-list>
         </section>
       </template>
-      <t-empty v-else-if="!loading" :title="t('container.images.detail.loadFailed')" />
-    </t-loading>
+      <t-empty v-else :title="t('container.images.detail.loadFailed')" />
+    </div>
 
     <t-dialog
       v-model:visible="removeDialogVisible"
@@ -171,6 +174,28 @@ watch(
 );
 </script>
 <style scoped lang="less">
+.tag-manager-loading-host {
+  min-height: 240px;
+}
+
+.tag-manager-loading-host__indicator {
+  display: grid;
+  min-height: inherit;
+  place-items: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tag-manager-loading-host__indicator :deep(.t-icon-loading) {
+    animation: tag-manager-loading-spin 1s linear infinite;
+  }
+}
+
+@keyframes tag-manager-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .tag-manager-summary {
   display: grid;
   gap: var(--td-comp-margin-l);

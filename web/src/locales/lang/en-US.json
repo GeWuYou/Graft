@@ -98,6 +98,7 @@
         },
         "groups": {
           "overview": "Overview",
+          "presets": "Presets",
           "appearance": "Appearance",
           "layout": "Layout",
           "typography": "Typography",
@@ -131,10 +132,25 @@
           "notIntegrated": "Not integrated yet"
         },
         "presets": {
-          "title": "Official Themes",
-          "description": "Choose an official theme as the starting point for the current appearance mix.",
+          "title": "Built-in Presets",
+          "description": "Presets update appearance, layout, and reading density together. Preview the complete result before applying.",
+          "featured": "Featured Presets",
+          "all": "All Presets",
+          "more": "More Presets",
+          "searchPlaceholder": "Search preset names or descriptions",
+          "resultCount": "{count} presets",
+          "empty": "No matching presets",
+          "filters": {
+            "all": "All"
+          },
+          "categories": {
+            "balanced": "Balanced",
+            "focused": "Focused Reading",
+            "operations": "Operations",
+            "night": "Night Watch"
+          },
           "customized": {
-            "label": "Customized Theme"
+            "label": "Custom Configuration"
           },
           "tdesignDefault": {
             "label": "Default",
@@ -171,7 +187,7 @@
         },
         "overview": {
           "currentConfig": "Current Configuration",
-          "currentTheme": "Current Theme",
+          "currentTheme": "Current Preset",
           "description": "Review the appearance settings currently in effect.",
           "quickAdjustments": "Quick Adjustments",
           "quickAdjustmentsDescription": "Keep only high-frequency shortcuts for theme mode, navigation layout, and density.",
@@ -197,7 +213,7 @@
           }
         },
         "appearance": {
-          "description": "Choose theme mode, theme color, and preset themes.",
+          "description": "Choose theme mode, theme color, and navigation appearance.",
           "colorDescription": "Pick a theme color and preview it immediately.",
           "customBrandColor": "Custom brand color",
           "navigationAppearance": "Navigation Appearance",

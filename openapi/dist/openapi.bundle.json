@@ -7158,7 +7158,27 @@
               "format": "int64",
               "minimum": 0,
               "default": 0
-            }
+            },
+            "description": "Return entries with a sequence strictly greater than this cursor. Mutually exclusive with before_sequence and tail=true."
+          },
+          {
+            "in": "query",
+            "name": "before_sequence",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            },
+            "description": "Return entries with a sequence strictly earlier than this cursor. Results remain in ascending sequence order and this parameter is mutually exclusive with after_sequence and tail=true."
+          },
+          {
+            "in": "query",
+            "name": "tail",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Return the latest page of entries in ascending sequence order. Mutually exclusive with after_sequence and before_sequence when true."
           },
           {
             "in": "query",
@@ -7188,6 +7208,21 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/enveloped-task-log-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Log cursor parameters are invalid or mutually exclusive.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
                 }
               }
             }
@@ -31346,7 +31381,9 @@
               "provider",
               "type",
               "version",
-              "apiVersion"
+              "apiVersion",
+              "operatingSystem",
+              "hostName"
             ],
             "properties": {
               "provider": {
@@ -31365,6 +31402,12 @@
                 "type": "string"
               },
               "apiVersion": {
+                "type": "string"
+              },
+              "operatingSystem": {
+                "type": "string"
+              },
+              "hostName": {
                 "type": "string"
               }
             }

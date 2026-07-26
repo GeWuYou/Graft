@@ -29,16 +29,20 @@ func TestSummaryHealthDoesNotDependOnOptionalMetrics(t *testing.T) {
 	checkedAt := time.Now().UTC()
 	cache.entries[1] = summaryCacheEntry{
 		summary: targetRuntimeSummary{
-			Healthy:   true,
-			CheckedAt: checkedAt,
-			Workloads: targetCountMetric{Available: true, Total: 4, Active: 2},
-			CPU:       targetUsageMetric{UnavailableReason: "CPU probe failed"},
-			Memory:    targetUsageMetric{Available: true, UsedBytes: 2, TotalBytes: 4, UsagePercent: 50},
-			Disk:      targetUsageMetric{UnavailableReason: "Storage probe failed"},
+			Healthy:         true,
+			CheckedAt:       checkedAt,
+			OperatingSystem: "Ubuntu 24.04.2 LTS",
+			HostName:        "docker-host",
+			Workloads:       targetCountMetric{Available: true, Total: 4, Active: 2},
+			CPU:             targetUsageMetric{UnavailableReason: "CPU probe failed"},
+			Memory:          targetUsageMetric{Available: true, UsedBytes: 2, TotalBytes: 4, UsagePercent: 50},
+			Disk:            targetUsageMetric{UnavailableReason: "Storage probe failed"},
 		},
 		expiresAt: time.Now().Add(time.Minute),
 	}
-	response := (&Module{summaries: cache}).toHTTPSummary(context.Background(), store.Target{ID: 1, DisplayName: "Local Docker", EndpointLabel: "unix:///var/run/docker.sock"})
+	module := &Module{summaries: cache}
+	target := store.Target{ID: 1, DisplayName: "Local Docker", EndpointLabel: "unix:///var/run/docker.sock"}
+	response := module.toHTTPSummary(context.Background(), target)
 	if response.Health.Status != generated.RuntimeTargetSummaryHealthStatusHealthy {
 		t.Fatalf("health status = %q", response.Health.Status)
 	}
@@ -47,6 +51,13 @@ func TestSummaryHealthDoesNotDependOnOptionalMetrics(t *testing.T) {
 	}
 	if !response.Resources.Workloads.Available || response.Resources.Workloads.Active != 2 {
 		t.Fatalf("workload metric = %#v", response.Resources.Workloads)
+	}
+	if response.Runtime.OperatingSystem != "Ubuntu 24.04.2 LTS" || response.Runtime.HostName != "docker-host" {
+		t.Fatalf("runtime identity = %#v", response.Runtime)
+	}
+	detail := module.toHTTP(context.Background(), target)
+	if detail.Runtime.OperatingSystem != "Ubuntu 24.04.2 LTS" || detail.Runtime.HostName != "docker-host" {
+		t.Fatalf("runtime detail identity = %#v", detail.Runtime)
 	}
 }
 

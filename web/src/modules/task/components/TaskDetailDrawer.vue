@@ -56,27 +56,27 @@
           </t-space>
         </section>
 
-        <section>
+        <section class="task-detail__logs">
           <div class="task-detail__section-heading">
             <h4>{{ t('task.detail.logs') }}</h4>
-            <t-button
-              v-if="task.capabilities.download_log"
-              size="small"
-              theme="default"
-              variant="text"
-              @click="downloadLogs"
-            >
-              {{ t('task.actions.downloadLog') }}
-            </t-button>
           </div>
           <log-viewer
             v-bind="logViewerBindings"
             :entries="structuredLogs"
             :content-version="projectLogContentVersion"
+            compact-rows
+            :history-loading="loadingOlderLogs"
+            :initial-wrap-lines="false"
             :loading="logsLoading && !hasLoadedLogs"
             :error="logsError"
+            :paused="logsPaused"
             :truncated="logsTruncated"
+            viewport-height="var(--task-detail-log-viewport-height)"
+            @clear="clearLogs"
+            @pause="pauseLogs"
+            @reach-top="loadOlderLogs"
             @refresh="reload"
+            @resume="resumeLogs"
           />
         </section>
 
@@ -107,7 +107,11 @@ import { formatLocaleDateTime, LogViewer, type StructuredLogEntry } from '@/shar
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import { cancelTask, getTask, getTaskLogs, retryTaskStage } from '../api/task';
-import { buildTaskRealtimeTopicName, parseTaskRealtimeNotification } from '../contract/realtime';
+import {
+  buildTaskRealtimeTopicName,
+  isTaskLogAppendedNotification,
+  parseTaskRealtimeNotification,
+} from '../contract/realtime';
 import { taskStatusTheme } from '../shared/presentation';
 import { TaskRealtimeRefreshScheduler } from '../shared/realtime-refresh-scheduler';
 import { TaskLogRealtimeBatcher } from '../shared/task-log-realtime-batcher';
@@ -130,7 +134,10 @@ const projectLogContentVersion = ref(0);
 const logsTruncated = ref(false);
 const loading = ref(false);
 const logsLoading = ref(false);
+const loadingOlderLogs = ref(false);
 const hasLoadedLogs = ref(false);
+const hasOlderLogs = ref(false);
+const logsPaused = ref(false);
 const cancelling = ref(false);
 const retryingStageId = ref<number | null>(null);
 const errorMessage = ref('');
@@ -138,6 +145,7 @@ const logsError = ref('');
 const socketState = ref<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
 let realtimeController: RealtimeTopicSocketController | null = null;
 let viewEpoch = 0;
+const TASK_LOG_PAGE_SIZE = 200;
 
 const taskLogRealtimeBatcher = new TaskLogRealtimeBatcher({
   onCommit: (snapshot) => {
@@ -178,6 +186,7 @@ const logViewerBindings = computed(() => ({
   emptyLabel: t('task.logs.empty'),
   importantFieldsLabel: t('task.logs.importantFields'),
   jumpBottomLabel: t('task.logs.jumpBottom'),
+  jumpTopLabel: t('task.logs.jumpTop'),
   levelLabel: t('task.logs.level'),
   levelFilterLabel: t('task.logs.levelFilter'),
   matchCountLabel: t('task.logs.matchCount'),
@@ -206,21 +215,56 @@ function closeRealtime() {
   socketState.value = 'idle';
 }
 
-async function loadLogs(afterSequence?: number, epoch = viewEpoch) {
+async function loadInitialLogs(epoch = viewEpoch) {
   const taskId = props.taskId;
   if (!taskId) return;
   logsLoading.value = true;
   logsError.value = '';
   try {
-    const response = await getTaskLogs(taskId, { after_sequence: afterSequence, limit: 1000 });
+    const response = await getTaskLogs(taskId, { tail: true, limit: TASK_LOG_PAGE_SIZE });
     if (epoch !== viewEpoch || taskId !== props.taskId) return;
-    if (afterSequence === undefined) taskLogRealtimeBatcher.seed(response);
-    else taskLogRealtimeBatcher.append(response);
+    taskLogRealtimeBatcher.seed(response);
+    hasOlderLogs.value = response.items.length === TASK_LOG_PAGE_SIZE;
+    hasLoadedLogs.value = true;
   } catch (error) {
     logsError.value = resolveLocalizedErrorMessage(t, error, t('task.logs.loadFailed'));
   } finally {
     logsLoading.value = false;
-    if (epoch === viewEpoch && taskId === props.taskId) hasLoadedLogs.value = true;
+  }
+}
+
+async function appendLatestLogs(epoch = viewEpoch) {
+  const taskId = props.taskId;
+  if (!taskId || logsPaused.value || !hasLoadedLogs.value) return;
+  logsLoading.value = true;
+  try {
+    const response = await getTaskLogs(taskId, {
+      after_sequence: taskLogRealtimeBatcher.nextAfterSequence(),
+      limit: TASK_LOG_PAGE_SIZE,
+    });
+    if (epoch !== viewEpoch || taskId !== props.taskId) return;
+    taskLogRealtimeBatcher.append(response);
+  } catch (error) {
+    logsError.value = resolveLocalizedErrorMessage(t, error, t('task.logs.loadFailed'));
+  } finally {
+    logsLoading.value = false;
+  }
+}
+
+async function loadOlderLogs(epoch = viewEpoch) {
+  const taskId = props.taskId;
+  const oldestSequence = taskLogRealtimeBatcher.oldestSequence();
+  if (!taskId || !hasOlderLogs.value || !oldestSequence || loadingOlderLogs.value) return;
+  loadingOlderLogs.value = true;
+  try {
+    const response = await getTaskLogs(taskId, { before_sequence: oldestSequence, limit: TASK_LOG_PAGE_SIZE });
+    if (epoch !== viewEpoch || taskId !== props.taskId) return;
+    taskLogRealtimeBatcher.prepend(response);
+    hasOlderLogs.value = response.items.length === TASK_LOG_PAGE_SIZE;
+  } catch (error) {
+    logsError.value = resolveLocalizedErrorMessage(t, error, t('task.logs.loadFailed'));
+  } finally {
+    loadingOlderLogs.value = false;
   }
 }
 
@@ -228,10 +272,11 @@ async function refreshFromDurableState() {
   if (!props.taskId || !props.visible) return;
   const epoch = viewEpoch;
   try {
-    const afterSequence = hasLoadedLogs.value ? taskLogRealtimeBatcher.nextAfterSequence() : undefined;
-    const [nextTask] = await Promise.all([getTask(props.taskId), loadLogs(afterSequence, epoch)]);
+    const nextTask = await getTask(props.taskId);
     if (epoch !== viewEpoch || !props.visible) return;
     task.value = nextTask;
+    if (!hasLoadedLogs.value) await loadInitialLogs(epoch);
+    else await appendLatestLogs(epoch);
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(t, error, t('task.detail.loadFailed'));
   }
@@ -248,7 +293,13 @@ function openRealtime() {
     topic: buildTaskRealtimeTopicName(taskId),
     parseMessage: parseTaskRealtimeNotification,
     onMessage: (event) => {
-      if (event.task_id === taskId) void realtimeRefreshScheduler.request();
+      if (event.task_id !== taskId) return;
+      if (isTaskLogAppendedNotification(event)) {
+        if (hasLoadedLogs.value) void appendLatestLogs();
+        else void realtimeRefreshScheduler.request();
+        return;
+      }
+      void realtimeRefreshScheduler.request();
     },
     onStateChange: (state) => {
       socketState.value = state;
@@ -258,6 +309,21 @@ function openRealtime() {
       logsError.value = message;
     },
   });
+}
+
+function pauseLogs() {
+  logsPaused.value = true;
+  realtimeRefreshScheduler.cancel();
+}
+
+function resumeLogs() {
+  logsPaused.value = false;
+  void realtimeRefreshScheduler.request(true);
+}
+
+function clearLogs() {
+  taskLogRealtimeBatcher.clear(false);
+  hasOlderLogs.value = false;
 }
 
 async function reload() {
@@ -297,16 +363,6 @@ async function retry(stageId: number) {
   } finally {
     retryingStageId.value = null;
   }
-}
-
-function downloadLogs() {
-  const text = structuredLogs.value.map((entry) => `[${entry.occurredAt}] ${entry.stream}: ${entry.line}`).join('\n');
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `task-${props.taskId}-logs.txt`;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 function taskStatusLabel(status: TaskDetail['status']) {
@@ -351,6 +407,8 @@ watch(
     projectLogContentVersion.value = 0;
     logsTruncated.value = false;
     hasLoadedLogs.value = false;
+    hasOlderLogs.value = false;
+    logsPaused.value = false;
     if (visible && taskId) void reload();
   },
   { immediate: true },
@@ -367,6 +425,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-24);
+}
+
+.task-detail__logs {
+  --task-detail-log-viewport-height: clamp(500px, 58dvh, 560px);
+
+  min-width: 0;
 }
 
 .task-detail h3,
@@ -387,5 +451,11 @@ onUnmounted(() => {
 .task-detail__summary p {
   color: var(--td-text-color-secondary);
   margin-top: var(--graft-density-gap-4);
+}
+
+@media (width <= 760px) {
+  .task-detail__logs {
+    --task-detail-log-viewport-height: max(320px, calc(100dvh - 360px));
+  }
 }
 </style>

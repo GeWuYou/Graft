@@ -98,6 +98,7 @@
         },
         "groups": {
           "overview": "概览",
+          "presets": "预设",
           "appearance": "外观",
           "layout": "布局",
           "typography": "字体",
@@ -131,10 +132,25 @@
           "notIntegrated": "暂未接入"
         },
         "presets": {
-          "title": "官方主题",
-          "description": "选择官方推荐主题，作为当前外观组合的起点。",
+          "title": "内置预设",
+          "description": "预设会同时调整外观、布局和阅读密度，可在应用前预览完整效果。",
+          "featured": "精选预设",
+          "all": "全部预设",
+          "more": "更多预设",
+          "searchPlaceholder": "搜索预设名称或描述",
+          "resultCount": "共 {count} 个预设",
+          "empty": "未找到匹配的预设",
+          "filters": {
+            "all": "全部"
+          },
+          "categories": {
+            "balanced": "均衡",
+            "focused": "专注阅读",
+            "operations": "运维操作",
+            "night": "夜间值守"
+          },
           "customized": {
-            "label": "自定义主题"
+            "label": "自定义配置"
           },
           "tdesignDefault": {
             "label": "默认",
@@ -171,7 +187,7 @@
         },
         "overview": {
           "currentConfig": "当前配置",
-          "currentTheme": "当前主题",
+          "currentTheme": "当前预设",
           "description": "查看当前正在生效的外观配置。",
           "quickAdjustments": "快捷调整",
           "quickAdjustmentsDescription": "仅保留高频入口，快速切换主题模式、导航布局和信息密度。",
@@ -197,7 +213,7 @@
           }
         },
         "appearance": {
-          "description": "选择主题模式、主题色和预设主题。",
+          "description": "选择主题模式、主题色和导航外观。",
           "colorDescription": "选择主题色并立即预览。",
           "customBrandColor": "自定义主题颜色",
           "navigationAppearance": "导航外观",

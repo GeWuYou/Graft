@@ -11323,10 +11323,12 @@ type RuntimeTarget struct {
 		Workloads RuntimeTargetCountMetric `json:"workloads"`
 	} `json:"resources"`
 	Runtime struct {
-		ApiVersion string                       `json:"apiVersion"`
-		Provider   RuntimeTargetRuntimeProvider `json:"provider"`
-		Type       RuntimeTargetRuntimeType     `json:"type"`
-		Version    string                       `json:"version"`
+		ApiVersion      string                       `json:"apiVersion"`
+		HostName        string                       `json:"hostName"`
+		OperatingSystem string                       `json:"operatingSystem"`
+		Provider        RuntimeTargetRuntimeProvider `json:"provider"`
+		Type            RuntimeTargetRuntimeType     `json:"type"`
+		Version         string                       `json:"version"`
 	} `json:"runtime"`
 }
 
@@ -11395,10 +11397,12 @@ type RuntimeTargetSummary struct {
 		Workloads RuntimeTargetCountMetric `json:"workloads"`
 	} `json:"resources"`
 	Runtime struct {
-		ApiVersion string                              `json:"apiVersion"`
-		Provider   RuntimeTargetSummaryRuntimeProvider `json:"provider"`
-		Type       RuntimeTargetSummaryRuntimeType     `json:"type"`
-		Version    string                              `json:"version"`
+		ApiVersion      string                              `json:"apiVersion"`
+		HostName        string                              `json:"hostName"`
+		OperatingSystem string                              `json:"operatingSystem"`
+		Provider        RuntimeTargetSummaryRuntimeProvider `json:"provider"`
+		Type            RuntimeTargetSummaryRuntimeType     `json:"type"`
+		Version         string                              `json:"version"`
 	} `json:"runtime"`
 }
 
@@ -14950,8 +14954,15 @@ type ListTaskEventsParams struct {
 
 // ListTaskLogsParams defines parameters for ListTaskLogs.
 type ListTaskLogsParams struct {
+	// AfterSequence Return entries with a sequence strictly greater than this cursor. Mutually exclusive with before_sequence and tail=true.
 	AfterSequence *int64 `form:"after_sequence,omitempty" json:"after_sequence,omitempty"`
-	Limit         *int   `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// BeforeSequence Return entries with a sequence strictly earlier than this cursor. Results remain in ascending sequence order and this parameter is mutually exclusive with after_sequence and tail=true.
+	BeforeSequence *int64 `form:"before_sequence,omitempty" json:"before_sequence,omitempty"`
+
+	// Tail Return the latest page of entries in ascending sequence order. Mutually exclusive with after_sequence and before_sequence when true.
+	Tail  *bool `form:"tail,omitempty" json:"tail,omitempty"`
+	Limit *int  `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`

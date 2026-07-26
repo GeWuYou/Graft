@@ -1,12 +1,13 @@
-import { LogRingBuffer, normalizeStructuredLogEntry, type StructuredLogEntry } from '@/shared/observability';
+import { normalizeStructuredLogEntry, type StructuredLogEntry } from '@/shared/observability';
 
 import type { TaskLogEntry, TaskLogResponse } from '../types/task';
 
-const TASK_LOG_VIEW_CAPACITY = 1000;
+const TASK_LOG_VIEW_CAPACITY = 10_000;
 
 export type TaskLogRealtimeSnapshot = Readonly<{
   contentVersion: number;
   entries: readonly StructuredLogEntry[];
+  oldestSequence: number;
   nextAfterSequence: number;
   truncated: boolean;
 }>;
@@ -17,23 +18,24 @@ type TaskLogRealtimeBatcherOptions = Readonly<{
 }>;
 
 /**
- * 限制任务日志视图的容量，并只在完成一次持久化回放页后提交视图快照。
+ * 按持久化 sequence 合并任务日志分页，让向前读取历史和向后追加实时日志共用一个有界视图。
  */
 export class TaskLogRealtimeBatcher {
   readonly #capacity: number;
   readonly #onCommit: (snapshot: TaskLogRealtimeSnapshot) => void;
-  #entries: LogRingBuffer<StructuredLogEntry>;
+  #entries = new Map<number, StructuredLogEntry>();
+  #contentVersion = 0;
   #nextAfterSequence = 0;
   #truncated = false;
 
   constructor(options: TaskLogRealtimeBatcherOptions) {
     this.#capacity = options.capacity ?? TASK_LOG_VIEW_CAPACITY;
-    this.#entries = new LogRingBuffer<StructuredLogEntry>(this.#capacity);
     this.#onCommit = options.onCommit;
   }
 
   seed(response: TaskLogResponse) {
-    this.#entries = new LogRingBuffer<StructuredLogEntry>(this.#capacity);
+    this.#entries.clear();
+    this.#contentVersion = 0;
     this.#nextAfterSequence = 0;
     this.#truncated = false;
     this.#append(response.items);
@@ -42,16 +44,23 @@ export class TaskLogRealtimeBatcher {
   }
 
   append(response: TaskLogResponse) {
-    const entryVersion = this.#entries.version();
+    const entryVersion = this.#entries.size;
     const currentCursor = this.#nextAfterSequence;
     this.#append(response.items);
     this.#nextAfterSequence = Math.max(currentCursor, response.next_after_sequence);
 
     // 空轮询且游标未推进时不创建新的响应式快照，避免日志视图无意义重渲染。
-    if (this.#entries.version() === entryVersion && this.#nextAfterSequence === currentCursor) {
+    if (this.#entries.size === entryVersion && this.#nextAfterSequence === currentCursor) {
       return;
     }
 
+    this.#emit();
+  }
+
+  prepend(response: TaskLogResponse) {
+    const entryVersion = this.#entries.size;
+    this.#append(response.items);
+    if (this.#entries.size === entryVersion) return;
     this.#emit();
   }
 
@@ -59,27 +68,48 @@ export class TaskLogRealtimeBatcher {
     return this.#nextAfterSequence;
   }
 
-  clear() {
+  oldestSequence() {
+    if (!this.#entries.size) return 0;
+    return Math.min(...this.#entries.keys());
+  }
+
+  clear(resetCursor = true) {
     this.#entries.clear();
-    this.#nextAfterSequence = 0;
+    this.#contentVersion += 1;
+    if (resetCursor) this.#nextAfterSequence = 0;
     this.#truncated = false;
+    this.#emit();
   }
 
   #append(entries: readonly TaskLogEntry[]) {
     for (const entry of entries) {
       const normalized = normalizeStructuredLogEntry(entry);
       if (!normalized) continue;
-      if (this.#entries.append(normalized).overwritten !== undefined) this.#truncated = true;
+      if (!this.#entries.has(entry.sequence)) {
+        this.#entries.set(entry.sequence, normalized);
+        this.#contentVersion += 1;
+      }
     }
+    this.#trim();
   }
 
   #emit() {
-    const entryView = this.#entries.snapshot();
+    const entries = [...this.#entries.entries()].sort(([left], [right]) => left - right);
     this.#onCommit({
-      contentVersion: entryView.version,
-      entries: entryView.toArray(),
+      contentVersion: this.#contentVersion,
+      entries: entries.map(([, entry]) => entry),
+      oldestSequence: entries[0]?.[0] ?? 0,
       nextAfterSequence: this.#nextAfterSequence,
       truncated: this.#truncated,
     });
+  }
+
+  #trim() {
+    while (this.#entries.size > this.#capacity) {
+      const oldestSequence = Math.min(...this.#entries.keys());
+      this.#entries.delete(oldestSequence);
+      this.#contentVersion += 1;
+      this.#truncated = true;
+    }
   }
 }

@@ -28,6 +28,8 @@ type Repository interface {
 	ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error)
 	ListEvents(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Event, error)
 	ListLogs(ctx context.Context, taskID uint64, afterSequence int64, limit int) ([]taskmodel.Log, error)
+	ListLogsBefore(ctx context.Context, taskID uint64, beforeSequence int64, limit int) ([]taskmodel.Log, error)
+	ListLatestLogs(ctx context.Context, taskID uint64, limit int) ([]taskmodel.Log, error)
 	TransitionTask(ctx context.Context, input TaskTransitionInput) error
 	TransitionStage(ctx context.Context, input StageTransitionInput) error
 	AppendEvent(ctx context.Context, input AppendEventInput) (taskmodel.Event, error)

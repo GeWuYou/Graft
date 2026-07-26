@@ -102,7 +102,33 @@ func (r taskRoutes) events(c *gin.Context) {
 }
 
 func (r taskRoutes) logs(c *gin.Context) {
-	r.replay(c, taskReplayLogs, defaultTaskLogLimit, maxTaskLogLimit)
+	task, ok := r.get(c, moduleapi.TaskOwnerActionView)
+	if !ok {
+		return
+	}
+	page, err := taskLogPage(c, defaultTaskLogLimit, maxTaskLogLimit)
+	if err != nil {
+		r.writeError(c, http.StatusBadRequest, err)
+		return
+	}
+	var items []moduleapi.TaskLogView
+	switch page.mode {
+	case taskLogPageTail:
+		items, err = r.runtime.ListLatestTaskLogs(c.Request.Context(), task.ID, page.limit)
+	case taskLogPageBefore:
+		items, err = r.runtime.ListTaskLogsBefore(c.Request.Context(), task.ID, page.cursor, page.limit)
+	default:
+		items, err = r.runtime.ListTaskLogs(c.Request.Context(), task.ID, page.cursor, page.limit)
+	}
+	if err != nil {
+		r.writeError(c, taskHTTPStatus(err), err)
+		return
+	}
+	next := page.cursor
+	if len(items) > 0 {
+		next = items[len(items)-1].Sequence
+	}
+	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": taskLogResponses(items), "next_after_sequence": next})
 }
 
 type taskReplayKind uint8
@@ -395,14 +421,69 @@ func taskSequencePage(c *gin.Context, defaultLimit, maxLimit int) (int64, int) {
 	if after < 0 {
 		after = 0
 	}
+	return after, taskLogLimit(c, defaultLimit, maxLimit)
+}
+
+// taskLogLimit 解析并限制任务日志页大小，供每种游标方向共用。
+func taskLogLimit(c *gin.Context, defaultLimit, maxLimit int) int {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)))
 	if limit < 1 {
-		limit = defaultLimit
+		return defaultLimit
 	}
 	if limit > maxLimit {
-		limit = maxLimit
+		return maxLimit
 	}
-	return after, limit
+	return limit
+}
+
+type taskLogPageMode uint8
+
+const (
+	taskLogPageAfter taskLogPageMode = iota
+	taskLogPageBefore
+	taskLogPageTail
+)
+
+type taskLogPageQuery struct {
+	mode   taskLogPageMode
+	cursor int64
+	limit  int
+}
+
+// taskLogPage 解析任务日志的单一游标方向，保留旧 after_sequence 的宽松解析语义。
+func taskLogPage(c *gin.Context, defaultLimit, maxLimit int) (taskLogPageQuery, error) {
+	_, hasAfter := c.GetQuery("after_sequence")
+	beforeValue, hasBefore := c.GetQuery("before_sequence")
+	tailValue, hasTail := c.GetQuery("tail")
+	tail, err := taskLogTailQuery(tailValue, hasTail)
+	if err != nil || taskLogCursorsConflict(hasAfter, hasBefore, tail) {
+		return taskLogPageQuery{}, errTaskInvalidArgument
+	}
+	if tail {
+		limit := taskLogLimit(c, defaultLimit, maxLimit)
+		return taskLogPageQuery{mode: taskLogPageTail, limit: limit}, nil
+	}
+	if hasBefore {
+		before, err := strconv.ParseInt(beforeValue, 10, 64)
+		if err != nil || before < 1 {
+			return taskLogPageQuery{}, errTaskInvalidArgument
+		}
+		limit := taskLogLimit(c, defaultLimit, maxLimit)
+		return taskLogPageQuery{mode: taskLogPageBefore, cursor: before, limit: limit}, nil
+	}
+	after, limit := taskSequencePage(c, defaultLimit, maxLimit)
+	return taskLogPageQuery{mode: taskLogPageAfter, cursor: after, limit: limit}, nil
+}
+
+func taskLogTailQuery(value string, present bool) (bool, error) {
+	if !present {
+		return false, nil
+	}
+	return strconv.ParseBool(value)
+}
+
+func taskLogCursorsConflict(hasAfter, hasBefore, tail bool) bool {
+	return (hasAfter && hasBefore) || (tail && (hasAfter || hasBefore))
 }
 
 // taskListPage 从请求查询参数解析并限制任务列表分页参数，返回条数上限和偏移量。

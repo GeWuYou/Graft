@@ -8,7 +8,7 @@ properties:
     type: string
   runtime:
     type: object
-    required: [provider, type, version, apiVersion]
+    required: [provider, type, version, apiVersion, operatingSystem, hostName]
     properties:
       provider:
         type: string
@@ -19,6 +19,10 @@ properties:
       version:
         type: string
       apiVersion:
+        type: string
+      operatingSystem:
+        type: string
+      hostName:
         type: string
   connection:
     type: object
