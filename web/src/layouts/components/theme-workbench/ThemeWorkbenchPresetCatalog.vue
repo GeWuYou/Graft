@@ -226,7 +226,7 @@ function handleCategoryChange(value: string | number | boolean) {
   text-align: center;
 }
 
-@media screen and (width <= 640px) {
+@media screen and (width <= 768px) {
   .preset-catalog__toolbar {
     grid-template-columns: minmax(0, 1fr);
   }

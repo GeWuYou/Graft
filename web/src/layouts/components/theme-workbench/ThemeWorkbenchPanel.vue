@@ -4,7 +4,7 @@
     class="theme-workbench-panel"
     destroy-on-close
     placement="right"
-    size="720px"
+    size="min(720px, 100vw)"
     :close-btn="false"
     :footer="false"
     :header="false"
@@ -654,6 +654,7 @@
   </t-drawer>
 </template>
 <script setup lang="ts">
+/** 主题工作台仅编排本地预览交互，主题草稿与持久化状态统一由 setting store 管理。 */
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -2650,9 +2651,14 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 }
 
 @media (width <= 768px) {
+  .theme-workbench-panel__header {
+    padding: var(--graft-density-gap-14) var(--graft-density-gap-16) var(--graft-density-gap-12);
+  }
+
   .theme-workbench-panel__body {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    padding: var(--graft-density-gap-12);
   }
 
   .theme-workbench-panel__nav {
@@ -2729,6 +2735,16 @@ const handleResetDefaultTheme = async (event: MouseEvent) => {
 
   .font-size-preview {
     grid-template-columns: 1fr;
+  }
+
+  .theme-workbench-panel__footer {
+    align-items: stretch;
+    flex-direction: column;
+    padding-inline: var(--graft-density-gap-12);
+  }
+
+  .theme-workbench-panel__footer-actions {
+    justify-content: flex-end;
   }
 }
 </style>
