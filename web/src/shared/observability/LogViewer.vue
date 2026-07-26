@@ -1557,7 +1557,6 @@ function isViewportNearBottom(node: HTMLElement) {
   overflow: auto;
   padding: var(--graft-density-gap-8);
   position: relative;
-  scrollbar-gutter: stable;
 }
 
 .log-viewer__viewport--compact {
