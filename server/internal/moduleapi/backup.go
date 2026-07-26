@@ -61,8 +61,6 @@ type BackupSummary struct {
 	Status      BackupStatus
 	RetainUntil time.Time
 	CreatedAt   time.Time
-	RestoreCode string
-	RestoreAt   *time.Time
 }
 
 // CreateBackupInput 描述完成配置快照和数据库 dump 后要记录的元数据。

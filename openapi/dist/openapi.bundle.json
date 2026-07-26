@@ -26419,8 +26419,7 @@
           "purpose",
           "status",
           "retain_until",
-          "created_at",
-          "restore_code"
+          "created_at"
         ],
         "properties": {
           "id": {
@@ -26441,8 +26440,7 @@
             "type": "string",
             "enum": [
               "AVAILABLE",
-              "EXPIRED",
-              "RESTORED"
+              "EXPIRED"
             ]
           },
           "retain_until": {
@@ -26452,14 +26450,6 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
-          },
-          "restore_code": {
-            "type": "string"
-          },
-          "restore_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
           }
         }
       },

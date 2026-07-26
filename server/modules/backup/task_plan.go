@@ -62,6 +62,8 @@ const (
 	backupTaskPurpose      = "platform_manual"
 )
 
+var errBackupArtifactsUnavailable = errors.New("backup artifacts unavailable")
+
 type backupTaskInput struct {
 	OperationID string    `json:"operation_id"`
 	RetainUntil time.Time `json:"retain_until"`
@@ -85,8 +87,8 @@ func (s *Service) SubmitManualBackup(ctx context.Context, operationID string, re
 }
 
 type backupArtifactWriter interface {
-	Create(context.Context, backupTaskInput) (moduleapi.CreateBackupInput, error)
-	Verify(backupTaskInput) (moduleapi.CreateBackupInput, error)
+	Create(ctx context.Context, input backupTaskInput) (moduleapi.CreateBackupInput, error)
+	Verify(ctx context.Context, input backupTaskInput) (moduleapi.CreateBackupInput, error)
 }
 
 type backupArtifactTaskExecutor struct{ service *Service }
@@ -101,7 +103,7 @@ func (e backupArtifactTaskExecutor) Execute(ctx context.Context, run moduleapi.S
 		return err
 	}
 	if _, err = e.service.writer.Create(ctx, input); err != nil {
-		return fmt.Errorf("create backup artifacts: %w", err)
+		return backupArtifactExecutionError(err)
 	}
 	return run.AppendLog(ctx, moduleapi.TaskLogEntry{Stream: "system", Level: "info", Line: "backup artifacts created"})
 }
@@ -118,9 +120,9 @@ func (e backupRecordTaskExecutor) Execute(ctx context.Context, run moduleapi.Sta
 	if err != nil {
 		return err
 	}
-	artifacts, err := e.service.writer.Verify(input)
+	artifacts, err := e.service.writer.Verify(ctx, input)
 	if err != nil {
-		return fmt.Errorf("verify backup artifacts: %w", err)
+		return backupArtifactExecutionError(err)
 	}
 	artifacts.TaskID = run.TaskID()
 	if _, err = e.service.Create(ctx, artifacts); err != nil {
@@ -129,6 +131,14 @@ func (e backupRecordTaskExecutor) Execute(ctx context.Context, run moduleapi.Sta
 	return run.AppendLog(ctx, moduleapi.TaskLogEntry{Stream: "system", Level: "info", Line: "backup metadata recorded"})
 }
 func (backupRecordTaskExecutor) Cancel(context.Context, moduleapi.StageRun) error { return nil }
+
+// backupArtifactExecutionError 过滤会持久化到 Task 历史的工件错误，避免泄露受控存储路径或数据库连接细节。
+func backupArtifactExecutionError(err error) error {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	return errBackupArtifactsUnavailable
+}
 
 func decodeBackupTaskInput(raw json.RawMessage) (backupTaskInput, error) {
 	var input backupTaskInput

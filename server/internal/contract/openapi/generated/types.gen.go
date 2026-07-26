@@ -3306,7 +3306,6 @@ func (e NotificationTargetType) Valid() bool {
 const (
 	AVAILABLE PlatformBackupSummaryStatus = "AVAILABLE"
 	EXPIRED   PlatformBackupSummaryStatus = "EXPIRED"
-	RESTORED  PlatformBackupSummaryStatus = "RESTORED"
 )
 
 // Valid indicates whether the value is a known member of the PlatformBackupSummaryStatus enum.
@@ -3315,8 +3314,6 @@ func (e PlatformBackupSummaryStatus) Valid() bool {
 	case AVAILABLE:
 		return true
 	case EXPIRED:
-		return true
-	case RESTORED:
 		return true
 	default:
 		return false
@@ -11089,8 +11086,6 @@ type PlatformBackupSummary struct {
 	CreatedAt   time.Time                   `json:"created_at"`
 	Id          int64                       `json:"id"`
 	Purpose     string                      `json:"purpose"`
-	RestoreAt   *time.Time                  `json:"restore_at,omitempty"`
-	RestoreCode string                      `json:"restore_code"`
 	RetainUntil time.Time                   `json:"retain_until"`
 	Status      PlatformBackupSummaryStatus `json:"status"`
 	TaskId      *int64                      `json:"task_id,omitempty"`

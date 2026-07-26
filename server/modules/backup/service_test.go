@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -81,12 +82,29 @@ func TestServiceForwardsBackupCapabilityAndProjectsSafeSummary(t *testing.T) {
 	if summary.ID != created.ID || summary.Purpose != created.Purpose || summary.Status != created.Status {
 		t.Fatalf("summary mismatch: %#v", summary)
 	}
+	encodedSummary, err := json.Marshal(summary)
+	if err != nil || strings.Contains(string(encodedSummary), "manual_restore_verified") || strings.Contains(string(encodedSummary), "restore_code") {
+		t.Fatalf("summary exposed restore evidence: json=%s err=%v", encodedSummary, err)
+	}
 }
 
 func TestServiceRejectsUnavailableRepositoryAndInvalidID(t *testing.T) {
 	t.Parallel()
-	if _, err := (*Service)(nil).Create(context.Background(), moduleapi.CreateBackupInput{}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
-		t.Fatalf("expected unavailable service error, got %v", err)
+	service := (*Service)(nil)
+	if _, err := service.Create(context.Background(), moduleapi.CreateBackupInput{}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable create service error, got %v", err)
+	}
+	if _, err := service.Get(context.Background(), 1); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable get service error, got %v", err)
+	}
+	if _, err := service.GetSummary(context.Background(), 1); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable summary service error, got %v", err)
+	}
+	if _, _, err := service.ListSummaries(context.Background(), 1, 0); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable list service error, got %v", err)
+	}
+	if _, err := service.RecordRestoreEvidence(context.Background(), moduleapi.RecordBackupRestoreInput{}); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
+		t.Fatalf("expected unavailable restore service error, got %v", err)
 	}
 	if _, err := NewService(&serviceTestRepository{}).Get(context.Background(), 0); !errors.Is(err, moduleapi.ErrBackupInvalidInput) {
 		t.Fatalf("expected invalid id error, got %v", err)

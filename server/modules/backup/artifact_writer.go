@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"graft/server/internal/config"
@@ -23,6 +24,7 @@ var backupOperationID = regexp.MustCompile(`^[a-zA-Z0-9-]{1,128}$`)
 const (
 	backupDirectoryPermission = 0o700
 	backupFilePermission      = 0o600
+	backupDigestBufferSize    = 32 * 1024
 )
 
 type fileArtifactWriter struct {
@@ -88,11 +90,11 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 	} else if err != nil {
 		return moduleapi.CreateBackupInput{}, fmt.Errorf("stat database dump: %w", err)
 	}
-	configArtifact, err := digestBackupArtifact(configRef)
+	configArtifact, err := digestBackupArtifact(ctx, configRef)
 	if err != nil {
 		return moduleapi.CreateBackupInput{}, err
 	}
-	dumpArtifact, err := digestBackupArtifact(dumpRef)
+	dumpArtifact, err := digestBackupArtifact(ctx, dumpRef)
 	if err != nil {
 		return moduleapi.CreateBackupInput{}, err
 	}
@@ -101,9 +103,12 @@ func (w *fileArtifactWriter) Create(ctx context.Context, input backupTaskInput) 
 }
 
 // Verify 只读取冻结工件进行校验，绝不创建、修复或发布文件。
-func (w *fileArtifactWriter) Verify(input backupTaskInput) (moduleapi.CreateBackupInput, error) {
+func (w *fileArtifactWriter) Verify(ctx context.Context, input backupTaskInput) (moduleapi.CreateBackupInput, error) {
 	if w == nil || w.cfg == nil || !backupOperationID.MatchString(input.OperationID) {
 		return moduleapi.CreateBackupInput{}, moduleapi.ErrBackupInvalidInput
+	}
+	if err := ctx.Err(); err != nil {
+		return moduleapi.CreateBackupInput{}, err
 	}
 	directory := filepath.Join(w.root, input.OperationID)
 	configRef := filepath.Join(directory, "config.snapshot")
@@ -111,11 +116,11 @@ func (w *fileArtifactWriter) Verify(input backupTaskInput) (moduleapi.CreateBack
 	if err := validateConfigSnapshot(configRef); err != nil {
 		return moduleapi.CreateBackupInput{}, err
 	}
-	configArtifact, err := digestBackupArtifact(configRef)
+	configArtifact, err := digestBackupArtifact(ctx, configRef)
 	if err != nil {
 		return moduleapi.CreateBackupInput{}, err
 	}
-	dumpArtifact, err := digestBackupArtifact(dumpRef)
+	dumpArtifact, err := digestBackupArtifact(ctx, dumpRef)
 	if err != nil {
 		return moduleapi.CreateBackupInput{}, err
 	}
@@ -127,7 +132,7 @@ func (w *fileArtifactWriter) ensureConfigSnapshot(target string) error {
 	// #nosec G304 -- target is derived only from the configured Backup root and validated operation identity.
 	if contents, err := os.ReadFile(target); err == nil {
 		var snapshot backupConfigSnapshot
-		if json.Unmarshal(contents, &snapshot) == nil {
+		if json.Unmarshal(contents, &snapshot) == nil && validBackupConfigSnapshot(snapshot) {
 			return nil
 		}
 	} else if !os.IsNotExist(err) {
@@ -147,10 +152,17 @@ func validateConfigSnapshot(target string) error {
 		return fmt.Errorf("read backup config snapshot: %w", err)
 	}
 	var snapshot backupConfigSnapshot
-	if err := json.Unmarshal(contents, &snapshot); err != nil {
-		return fmt.Errorf("validate backup config snapshot: %w", err)
+	if err := json.Unmarshal(contents, &snapshot); err != nil || !validBackupConfigSnapshot(snapshot) {
+		if err != nil {
+			return fmt.Errorf("validate backup config snapshot: %w", err)
+		}
+		return moduleapi.ErrBackupInvalidInput
 	}
 	return nil
+}
+
+func validBackupConfigSnapshot(snapshot backupConfigSnapshot) bool {
+	return snapshot.SchemaVersion == 1 && strings.TrimSpace(snapshot.Application.Name) != "" && strings.TrimSpace(snapshot.Application.Environment) != "" && strings.TrimSpace(snapshot.Database.Driver) != ""
 }
 
 func writeBackupArtifact(target string, contents []byte) error {
@@ -225,17 +237,45 @@ func databaseDumpCommand(ctx context.Context, target string, databaseURL string)
 	return command, nil
 }
 
-func digestBackupArtifact(ref string) (moduleapi.BackupArtifact, error) {
+func digestBackupArtifact(ctx context.Context, ref string) (moduleapi.BackupArtifact, error) {
+	if err := ctx.Err(); err != nil {
+		return moduleapi.BackupArtifact{}, err
+	}
 	// #nosec G304 -- ref is derived only from the configured Backup root and validated operation identity.
 	file, err := os.Open(ref)
 	if err != nil {
 		return moduleapi.BackupArtifact{}, fmt.Errorf("open backup artifact: %w", err)
 	}
 	defer func() { _ = file.Close() }()
-	hash := sha256.New()
-	size, err := io.Copy(hash, file)
+	sha256Value, size, err := digestBackupArtifactReader(ctx, file)
 	if err != nil {
-		return moduleapi.BackupArtifact{}, fmt.Errorf("digest backup artifact: %w", err)
+		return moduleapi.BackupArtifact{}, err
 	}
-	return moduleapi.BackupArtifact{StorageRef: ref, SHA256: hex.EncodeToString(hash.Sum(nil)), SizeBytes: size}, nil
+	return moduleapi.BackupArtifact{StorageRef: ref, SHA256: sha256Value, SizeBytes: size}, nil
+}
+
+func digestBackupArtifactReader(ctx context.Context, reader io.Reader) (string, int64, error) {
+	hash := sha256.New()
+	buffer := make([]byte, backupDigestBufferSize)
+	var size int64
+	for {
+		if err := ctx.Err(); err != nil {
+			return "", 0, err
+		}
+		read, err := reader.Read(buffer)
+		if read > 0 {
+			written, writeErr := hash.Write(buffer[:read])
+			if writeErr != nil || written != read {
+				return "", 0, fmt.Errorf("digest backup artifact: short write")
+			}
+			size += int64(read)
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", 0, fmt.Errorf("digest backup artifact: %w", err)
+		}
+	}
+	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }

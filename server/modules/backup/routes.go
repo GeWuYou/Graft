@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	backupcontract "graft/server/modules/backup/contract"
@@ -38,7 +40,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	group := ctx.Router.Group(backupcontract.BackupGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
-	handlers := backupRouteHandlers{service: service, auth: auth, localizer: ctx.I18n}
+	handlers := backupRouteHandlers{service: service, auth: auth, localizer: ctx.I18n, logger: ctx.Logger}
 	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), handlers.list)
 	group.GET(backupcontract.BackupDetailRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), handlers.detail)
 	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupCreatePermission, publisher), handlers.create)
@@ -49,6 +51,7 @@ type backupRouteHandlers struct {
 	service   *Service
 	auth      moduleapi.AuthService
 	localizer *i18n.Service
+	logger    *zap.Logger
 }
 
 func (h backupRouteHandlers) create(c *gin.Context) {
@@ -83,7 +86,7 @@ func (h backupRouteHandlers) create(c *gin.Context) {
 		h.writeError(c, backupHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusAccepted, map[string]any{"task_id": receipt.TaskID, "status": receipt.Status})
+	httpx.WriteSuccess(c, http.StatusAccepted, backupTaskReceiptResponse{TaskID: receipt.TaskID, Status: receipt.Status})
 }
 
 func (h backupRouteHandlers) list(c *gin.Context) {
@@ -97,7 +100,7 @@ func (h backupRouteHandlers) list(c *gin.Context) {
 		h.writeError(c, backupHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": items, "total": total, "limit": limit, "offset": offset})
+	httpx.WriteSuccess(c, http.StatusOK, backupListResponse{Items: backupSummaryResponses(items), Total: total, Limit: limit, Offset: offset})
 }
 
 func (h backupRouteHandlers) detail(c *gin.Context) {
@@ -111,7 +114,7 @@ func (h backupRouteHandlers) detail(c *gin.Context) {
 		h.writeError(c, backupHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, item)
+	httpx.WriteSuccess(c, http.StatusOK, toBackupSummaryResponse(item))
 }
 
 func backupListPage(c *gin.Context) (int, int, error) {
@@ -146,16 +149,19 @@ func backupHTTPStatus(err error) int {
 	}
 }
 
-func (h backupRouteHandlers) writeError(c *gin.Context, status int, _ error) {
-	message := messagecontract.CommonInternalError.String()
-	if status == http.StatusBadRequest {
-		message = messagecontract.CommonInvalidArgument.String()
+func (h backupRouteHandlers) writeError(c *gin.Context, status int, err error) {
+	messageKey := messagecontract.CommonInternalError.String()
+	switch status {
+	case http.StatusBadRequest:
+		messageKey = messagecontract.CommonInvalidArgument.String()
+	case http.StatusNotFound:
+		messageKey = messagecontract.CommonNotFound.String()
+	case http.StatusUnauthorized:
+		messageKey = "auth.unauthenticated"
+	case http.StatusConflict:
+		messageKey = messagecontract.CommonInvalidArgument.String()
+	case http.StatusInternalServerError:
+		logsafe.Error(h.logger, "backup request failed", zap.Error(err))
 	}
-	if status == http.StatusNotFound {
-		message = messagecontract.CommonNotFound.String()
-	}
-	if status == http.StatusUnauthorized {
-		message = "auth.unauthenticated"
-	}
-	httpx.WriteLocalizedError(c, h.localizer, status, message, nil)
+	httpx.WriteLocalizedError(c, h.localizer, status, messageKey, nil)
 }

@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -21,8 +22,18 @@ func TestBackupRecordTaskExecutorVerifiesFrozenArtifactsAndAttachesTask(t *testi
 	if err := executor.Execute(context.Background(), &backupStageRun{taskID: 88, input: input}); err != nil {
 		t.Fatalf("record backup artifacts: %v", err)
 	}
-	if writer.createCalls != 0 || writer.verifyCalls != 1 || repository.created.TaskID != 88 {
+	if writer.createCalls != 0 || writer.verifyCalls != 1 || writer.verifyCtx == nil || repository.created.TaskID != 88 {
 		t.Fatalf("record stage must only verify and attach task: writer=%#v input=%#v", writer, repository.created)
+	}
+}
+
+func TestBackupArtifactExecutionErrorHidesArtifactReference(t *testing.T) {
+	artifactError := errors.New("open backup artifact: /var/lib/graft/backups/backup-42/database.dump: permission denied")
+	if got := backupArtifactExecutionError(artifactError); !errors.Is(got, errBackupArtifactsUnavailable) || got.Error() != "backup artifacts unavailable" {
+		t.Fatalf("expected sanitized artifact failure, got %v", got)
+	}
+	if got := backupArtifactExecutionError(context.Canceled); !errors.Is(got, context.Canceled) {
+		t.Fatalf("expected cancellation to propagate, got %v", got)
 	}
 }
 
@@ -30,6 +41,7 @@ type taskPlanWriter struct {
 	verified    moduleapi.CreateBackupInput
 	createCalls int
 	verifyCalls int
+	verifyCtx   context.Context
 }
 
 func (w *taskPlanWriter) Create(context.Context, backupTaskInput) (moduleapi.CreateBackupInput, error) {
@@ -37,8 +49,9 @@ func (w *taskPlanWriter) Create(context.Context, backupTaskInput) (moduleapi.Cre
 	return w.verified, nil
 }
 
-func (w *taskPlanWriter) Verify(backupTaskInput) (moduleapi.CreateBackupInput, error) {
+func (w *taskPlanWriter) Verify(ctx context.Context, _ backupTaskInput) (moduleapi.CreateBackupInput, error) {
 	w.verifyCalls++
+	w.verifyCtx = ctx
 	return w.verified, nil
 }
 

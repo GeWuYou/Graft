@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -78,7 +77,7 @@ func pathWithinRoot(root string, artifact string) bool {
 func verifyRunnerArtifact(root string, ref string) (moduleapi.BackupArtifact, error) {
 	canonicalRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
-		return moduleapi.BackupArtifact{}, fmt.Errorf("resolve backup artifact root: %w", err)
+		return moduleapi.BackupArtifact{}, moduleapi.ErrBackupInvalidInput
 	}
 	canonicalRef, err := filepath.EvalSymlinks(ref)
 	if err != nil || !pathWithinRoot(canonicalRoot, canonicalRef) {
@@ -86,13 +85,13 @@ func verifyRunnerArtifact(root string, ref string) (moduleapi.BackupArtifact, er
 	}
 	file, err := os.Open(canonicalRef)
 	if err != nil {
-		return moduleapi.BackupArtifact{}, fmt.Errorf("open backup artifact: %w", err)
+		return moduleapi.BackupArtifact{}, moduleapi.ErrBackupInvalidInput
 	}
 	defer func() { _ = file.Close() }()
 	hash := sha256.New()
 	size, err := io.Copy(hash, file)
 	if err != nil {
-		return moduleapi.BackupArtifact{}, fmt.Errorf("read backup artifact: %w", err)
+		return moduleapi.BackupArtifact{}, moduleapi.ErrBackupInvalidInput
 	}
 	return moduleapi.BackupArtifact{StorageRef: ref, SHA256: hex.EncodeToString(hash.Sum(nil)), SizeBytes: size}, nil
 }

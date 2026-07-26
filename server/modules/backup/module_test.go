@@ -105,6 +105,6 @@ func (testArtifactWriter) Create(context.Context, backupTaskInput) (moduleapi.Cr
 	return moduleapi.CreateBackupInput{}, nil
 }
 
-func (testArtifactWriter) Verify(backupTaskInput) (moduleapi.CreateBackupInput, error) {
+func (testArtifactWriter) Verify(context.Context, backupTaskInput) (moduleapi.CreateBackupInput, error) {
 	return moduleapi.CreateBackupInput{}, nil
 }
