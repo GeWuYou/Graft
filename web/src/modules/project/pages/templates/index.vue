@@ -20,17 +20,17 @@
             </t-button>
           </t-tooltip>
           <t-button v-else theme="primary" @click="openCreateDialog">
-              {{ t('project.templates.create') }}
+            {{ t('project.templates.create') }}
           </t-button>
         </template>
-        <template #meta>
-          <management-statistics-bar
-            :items="templateSummaryItems"
-            :label="t('project.templates.summaryLabel')"
-            layout="summary"
-          />
-        </template>
       </management-page-header>
+
+      <management-statistics-bar
+        class="application-template-list__summary"
+        :items="templateSummaryItems"
+        :label="t('project.templates.summaryLabel')"
+        layout="summary"
+      />
 
       <management-toolbar>
         <template #filters>
@@ -170,7 +170,7 @@ import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-router';
 
 import {
   ManagementPageContent,
@@ -273,7 +273,7 @@ function templateActions(template: ApplicationTemplate) {
 }
 
 function handleTemplateAction(action: string, template: ApplicationTemplate) {
-  if (action === 'detail') openTemplate(template);
+  if (action === 'detail') void openTemplate(template);
   else if (action === 'publish') void publishTemplate(template);
   else if (action === 'clone') openCloneDialog(template);
   else if (action === 'withdraw') void withdrawTemplate(template);
@@ -302,15 +302,31 @@ function openCreateDialog() {
 	void router.push({ name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_CREATE.pageRouteName });
 }
 
-function openTemplate(template: ApplicationTemplate) {
-	emitApplicationTemplateDebug('detail-navigation-requested', {
-	  routeName: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
-	  templateId: template.template_id,
-	});
-  void router.push({
+async function openTemplate(template: ApplicationTemplate) {
+  const target = {
     name: PROJECT_BOOTSTRAP_ROUTE.TEMPLATE_DETAIL.pageRouteName,
     params: { templateId: template.template_id },
+  };
+  emitApplicationTemplateDebug('detail-navigation-requested', {
+    routeName: target.name,
+    templateId: template.template_id,
   });
+
+  try {
+    const failure = await router.push(target);
+    if (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated)) {
+      emitApplicationTemplateDebug('detail-navigation-failed', {
+        templateId: template.template_id,
+      });
+      MessagePlugin.error(t('project.templates.detailNavigationFailed'));
+    }
+  } catch (error) {
+    emitApplicationTemplateDebug('detail-navigation-failed', {
+      errorName: error instanceof Error ? error.name : typeof error,
+      templateId: template.template_id,
+    });
+    MessagePlugin.error(t('project.templates.detailNavigationFailed'));
+  }
 }
 
 function openComposeImport() {
@@ -428,6 +444,10 @@ function updatedAtLabel(template: ApplicationTemplate) {
 .application-template-list__feedback,
 .application-template-list__table {
   margin-top: var(--graft-density-gap-16);
+}
+
+.application-template-list__summary {
+  min-width: 0;
 }
 
 .application-template-list__name {

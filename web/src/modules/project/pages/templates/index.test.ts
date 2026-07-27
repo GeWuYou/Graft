@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   postApplicationTemplatePublish: vi.fn(),
   postApplicationTemplateWithdraw: vi.fn(),
   push: vi.fn(),
+  messageError: vi.fn(),
 }));
 const responsiveVariantMocks = vi.hoisted(() => ({ density: 'compact' }));
 
@@ -25,7 +26,11 @@ vi.mock('../../api/project', () => ({
   postApplicationTemplatePublish: mocks.postApplicationTemplatePublish,
   postApplicationTemplateWithdraw: mocks.postApplicationTemplateWithdraw,
 }));
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }));
+vi.mock('vue-router', () => ({
+  isNavigationFailure: () => false,
+  NavigationFailureType: { duplicated: 16 },
+  useRouter: () => ({ push: mocks.push }),
+}));
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>();
   return {
@@ -37,19 +42,22 @@ vi.mock('@/shared/composables', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/composables')>()),
   useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
 }));
-vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: vi.fn() } }));
+vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: mocks.messageError } }));
 vi.mock('@/shared/localized-api-error', () => ({
   resolveLocalizedErrorMessage: (_t: unknown, _error: unknown, fallback: string) => fallback,
 }));
 
 const WrapperStub = { template: '<div><slot /><slot name="meta" /><slot name="actions" /></div>' };
+const ManagementPageHeaderStub = { template: '<header data-testid="template-page-header"><slot name="actions" /></header>' };
+const ManagementStatisticsBarStub = { template: '<section data-testid="template-summary" />' };
 
 function mountPage() {
   return mount(ApplicationTemplateListIndex, {
     global: {
       stubs: {
         'management-page-content': WrapperStub,
-        'management-page-header': WrapperStub,
+        'management-page-header': ManagementPageHeaderStub,
+        'management-statistics-bar': ManagementStatisticsBarStub,
         't-space': WrapperStub,
         't-card': WrapperStub,
         't-alert': WrapperStub,
@@ -90,6 +98,7 @@ describe('ApplicationTemplateListIndex', () => {
     mocks.postApplicationTemplatePublish.mockReset();
     mocks.postApplicationTemplateWithdraw.mockReset();
     mocks.push.mockReset();
+    mocks.messageError.mockReset();
     responsiveVariantMocks.density = 'compact';
   });
 
@@ -157,6 +166,16 @@ describe('ApplicationTemplateListIndex', () => {
     expect(wrapper.find('[data-testid="template-card-items"]').exists()).toBe(false);
   });
 
+  it('renders the template summary outside the page header', async () => {
+    mocks.getApplicationManagedTemplates.mockResolvedValue({ items: [] });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.html()).toContain('data-testid="template-summary"');
+    expect(wrapper.get('[data-testid="template-page-header"]').html()).not.toContain('template-summary');
+  });
+
   it('shows card-shaped skeletons while the management catalog is loading', async () => {
     mocks.getApplicationManagedTemplates.mockReturnValue(new Promise(() => undefined));
 
@@ -192,6 +211,68 @@ describe('ApplicationTemplateListIndex', () => {
     const actions = wrapper.findComponent(TableActionMenu).props('actions') as Array<{ value: string }>;
     expect(actions.map((action) => action.value)).toEqual(['detail', 'publish', 'clone', 'archive', 'delete']);
     expect(wrapper.text()).not.toContain('project.templates.importLegacy');
+  });
+
+  it('opens the selected template from the primary table action', async () => {
+    responsiveVariantMocks.density = 'spacious';
+    mocks.getApplicationManagedTemplates.mockResolvedValue({
+      items: [
+        {
+          template_id: 'tpl_1',
+          display_name: 'Draft',
+          description: '',
+          deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
+          version: {
+            template_version_id: 'tplv_1',
+            version_number: 1,
+            status: 'draft',
+            definition_schema_version: 1,
+            definition: {},
+          },
+        },
+      ],
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    wrapper.findComponent(TableActionMenu).vm.$emit('action', 'detail');
+    await flushPromises();
+
+    expect(mocks.push).toHaveBeenCalledWith({
+      name: 'ApplicationTemplateDetailIndex',
+      params: { templateId: 'tpl_1' },
+    });
+  });
+
+  it('shows feedback when template detail navigation fails', async () => {
+    responsiveVariantMocks.density = 'spacious';
+    mocks.getApplicationManagedTemplates.mockResolvedValue({
+      items: [
+        {
+          template_id: 'tpl_1',
+          display_name: 'Draft',
+          description: '',
+          deployment_adapter_kind: 'compose',
+          updated_at: '2026-07-18T00:00:00Z',
+          version: {
+            template_version_id: 'tplv_1',
+            version_number: 1,
+            status: 'draft',
+            definition_schema_version: 1,
+            definition: {},
+          },
+        },
+      ],
+    });
+    mocks.push.mockRejectedValueOnce(new Error('route is unavailable'));
+
+    const wrapper = mountPage();
+    await flushPromises();
+    wrapper.findComponent(TableActionMenu).vm.$emit('action', 'detail');
+    await flushPromises();
+
+    expect(mocks.messageError).toHaveBeenCalledWith('project.templates.detailNavigationFailed');
   });
 
   it('opens the template creation workflow without creating a draft', async () => {
