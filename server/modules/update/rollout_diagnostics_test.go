@@ -33,18 +33,36 @@ func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
 
 func TestWriteStartFailureLogsSanitizedCauseAndReturnsSafeResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	fixture := newStartFailureTestHandler(t)
+	cause := errors.New("docker create failed: token=private-token postgres://graft:db-password@postgres/graft")
+	err := newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", "update-91", cause)
+
+	fixture.handler.writeStartFailure(fixture.context, 7, "0.11.0-beta.9", "candidate-91", err)
+	assertSafeStartFailureResponse(t, fixture.recorder, cause)
+	assertSanitizedStartFailureLog(t, fixture.entries)
+}
+
+type startFailureTestFixture struct {
+	recorder *httptest.ResponseRecorder
+	context  *gin.Context
+	handler  updateRouteHandlers
+	entries  *observer.ObservedLogs
+}
+
+func newStartFailureTestHandler(t *testing.T) startFailureTestFixture {
+	t.Helper()
 	core, entries := observer.New(zap.ErrorLevel)
-	handler := updateRouteHandlers{logger: zap.New(core)}
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	request := httptest.NewRequest(http.MethodPost, "/api/platform/updates/operations", nil)
 	request.Header.Set(httpx.RequestIDHeader, "request-91")
 	request.Header.Set("X-Trace-Id", "trace-91")
 	ctx.Request = request
-	cause := errors.New("docker create failed: token=private-token postgres://graft:db-password@postgres/graft")
-	err := newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", "update-91", cause)
+	return startFailureTestFixture{recorder: recorder, context: ctx, handler: updateRouteHandlers{logger: zap.New(core)}, entries: entries}
+}
 
-	handler.writeStartFailure(ctx, 7, "0.11.0-beta.9", "candidate-91", err)
+func assertSafeStartFailureResponse(t *testing.T, recorder *httptest.ResponseRecorder, cause error) {
+	t.Helper()
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Fatalf("expected internal failure status, got %d", recorder.Code)
@@ -66,6 +84,10 @@ func TestWriteStartFailureLogsSanitizedCauseAndReturnsSafeResponse(t *testing.T)
 	if !ok || data["reason"] != rolloutFailureOperationStartFailed {
 		t.Fatalf("expected safe failure reason, got %#v", payload.Data)
 	}
+}
+
+func assertSanitizedStartFailureLog(t *testing.T, entries *observer.ObservedLogs) {
+	t.Helper()
 	logs := entries.FilterMessage("platform update rollout start failed").All()
 	if len(logs) != 1 {
 		t.Fatalf("expected one rollout failure log, got %#v", logs)
