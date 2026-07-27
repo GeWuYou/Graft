@@ -139,7 +139,7 @@ export function createViteConfig(mode: string): UserConfig {
     base,
     build: {
       // Monaco 与 YAML worker 代码需独立成 vendor chunk；Monaco 0.56 的已测产物约为 3962 KiB，保留 4000 KiB 预算以继续暴露后续增长。
-      chunkSizeWarningLimit: 4000,
+      chunkSizeWarningLimit: 4096,
       rollupOptions: {
         onwarn(warning, warn) {
           // `@vueuse/core` 当前版本产物会触发 Rollup 对 `#__PURE__` 注释位置的已知噪音，
