@@ -636,28 +636,29 @@ Explicit commit trigger:
   safety, policy, ownership, or validation blocker may prevent the clean-worktree result, and it must be reported
 - an explicit commit or push trigger authorizes validation, commits, and continuous repair for the confirmed task scope.
   This includes task-owned commits pending on the current branch, not only unstaged files captured at invocation.
-- a validation or hook failure may be repaired without another confirmation only when the root cause, ownership, files,
-  hunks, and behavior all remain inside that confirmed scope. The repair must directly address the failure, preserve the
-  task's authority and semantic boundary, and be revalidated before its repair commit or push resumes.
-- use the `Repair Confirmation Interaction Contract` below only when a repair needs a file or hunk outside the confirmed
-  scope, changes the task's authority or behavior, has ambiguous ownership, or cannot be tied to the diagnosed failure.
-  Do not replace that required confirmation with a binary question such as `Approve?`, `Should I fix this?`, or
-  `Confirm repair?`
+- a validation or hook failure may be repaired without another confirmation only when all of these conditions hold: its
+  root cause is diagnosed and directly addressed; ownership is unambiguous; every file and hunk remains inside the
+  confirmed scope; and the repair preserves the task's authority and behavior. Revalidate the repair before its commit
+  or push resumes.
+- every repair that does not satisfy all continuous-repair conditions above must use the `Repair Confirmation Interaction
+  Contract` below. This includes a file or hunk outside the confirmed scope, changed authority or behavior, ambiguous
+  ownership, or a failure that cannot be tied to the diagnosed root cause. Do not replace that required confirmation
+  with a binary question such as `Approve?`, `Should I fix this?`, or `Confirm repair?`
 - each resulting commit must still satisfy ownership classification, task-class validation, exact staging, and message
   rules; split independent logical slices into separate commits rather than bundling them for convenience
-- request a repair confirmation when a required repair leaves the confirmed scope or lacks safe ownership; report only
-  when no concrete repair proposal can be formed or required validation is infeasible, and do not use an intermediate
-  commit to conceal either condition
+- request a repair confirmation whenever a repair does not qualify for continuous repair; report only when no concrete
+  repair proposal can be formed or required validation is infeasible, and do not use an intermediate commit to conceal
+  either condition
 - after each commit, re-inspect `git status --short` and continue until every captured bare `$graft-commit` entry is
   committed and the worktree is clean
 
 Repair Confirmation Interaction Contract:
 
-- before a repair edit, staging, repair commit, or repair push that leaves the confirmed scope, present one structured
-  `Repair required` proposal, then invoke the host's native structured-choice interaction (for example,
-  `request_user_input`); users select an option in that control and never need to restate the repair intent. This
-  contract does not apply to a diagnosed, directly related repair that remains wholly inside the continuous repair
-  authorization above.
+- before a repair edit, staging, repair commit, or repair push that does not meet every continuous-repair condition,
+  present one structured `Repair required` proposal, then invoke the host's native structured-choice interaction (for
+  example, `request_user_input`); users select an option in that control and never need to restate the repair intent.
+  This contract does not apply only to a diagnosed, directly related repair that meets every continuous-repair condition
+  above.
 - the proposal must contain all of the following:
   - `Reason`: the failed command and root-cause analysis
   - `Changes`: every exact repository-relative file path, line number or hunk range, and the proposed content change

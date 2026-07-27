@@ -36,15 +36,14 @@ validation rules.
    - treat a hook, static-analysis, test, formatting, style, or build failure as a commit-path issue to diagnose before
      deciding whether a repair is safe; a failing file outside the initial diff is not, by itself, proof that its repair
      is unsafe
-   - repair a diagnosed failure continuously when its root cause, ownership, files, hunks, and behavior remain inside
-     the confirmed task scope. Apply the root `AGENTS.md` `Repair Confirmation Interaction Contract` only if the
-     repair leaves that scope, changes its authority or behavior, has ambiguous ownership, or cannot be tied to the
-     diagnosed failure. For that out-of-scope repair, present its `Repair required` proposal through native structured approval when available. When the runtime lacks that control, use the root contract's stopped next-turn `1 / 2 / 3 / 4` fallback, including its four visible option descriptions; never ask a binary approval question.
+   - repair continuously only when its root cause is diagnosed and directly addressed, ownership is unambiguous, every
+     file and hunk stays inside the confirmed scope, and authority and behavior are unchanged. Any repair that misses
+     one condition must use the root `AGENTS.md` `Repair Confirmation Interaction Contract`. Present its `Repair required` proposal through native structured approval when available. When the runtime lacks that control, use the root contract's stopped next-turn `1 / 2 / 3 / 4` fallback, including its four visible option descriptions; never ask a binary approval question.
    - after every commit, re-check `git status --short` and continue until every captured entry is committed and the
      worktree is clean
-   - apply that contract when ownership becomes ambiguous or the necessary repair widens the slice; an extra repair
-     commit alone does not require confirmation. Report instead when required validation is infeasible or no concrete
-     repair proposal can be formed
+   - apply that contract whenever any continuous-repair condition is not met; an extra repair commit alone does not
+     require confirmation. Report instead when required validation is infeasible or no concrete repair proposal can be
+     formed
 
 ## Workflow
 
@@ -75,10 +74,7 @@ validation rules.
    - `docs/automation`: run the strongest honest structural checks available
    - if the commit belongs to a `$graft-pr-review` remediation batch, validation alone is not enough; the review run
      must still preserve exhaustive finding disposition coverage, including `Outside diff range comments`
-   - if validation fails, diagnose the concrete issue. Repair continuously when it remains within the confirmed scope;
-     otherwise use the root `Repair Confirmation Interaction Contract` before changing code. Only `execute_repair`
-     permits an out-of-scope repair; `show_detailed_diff` shows a patch and invokes the same native choice control
-     again, while the other choices forbid that repair
+   - if validation fails, diagnose the concrete issue. Repair continuously only when every continuous-repair condition holds; otherwise use the root `Repair Confirmation Interaction Contract` before changing code. Only `execute_repair` permits the proposed repair; `show_detailed_diff` shows a patch and invokes the same native choice control again, while the other choices forbid that repair
 4. Stage only the captured logical slice:
    - a bare `$graft-commit` authorizes `git add .` or `git add -A` only after confirming no files appeared after the
      initial inventory; otherwise stage exact captured paths
