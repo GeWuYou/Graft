@@ -15,6 +15,22 @@ assets:
     validation_commands:
       - "cd web && bun run check"
 
+  - name: "responsive-layout-primitives"
+    type: "frontend-component-suite"
+    path: "web/src/shared/components/responsive"
+    owner: "web/shared"
+    purpose: "Container-first responsive page primitives, including an explicit shared viewport-density exception for resource tables whose product contract is defined by viewport breakpoints."
+    use_when:
+      - "A shared page primitive must select a token-driven layout without exposing device booleans to business modules."
+      - "A resource table has an explicit product viewport breakpoint that remains stable despite shell navigation consuming page width."
+    do_not_use_when:
+      - "A module page can use its own container density or needs page-local viewport detection."
+    examples:
+      - "web/src/shared/components/management/ManagementPagedTable.vue"
+      - "web/src/modules/container/pages/images/index.vue"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "management-components"
     type: "frontend-component-suite"
     path: "web/src/shared/components/management"

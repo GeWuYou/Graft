@@ -8,3 +8,4 @@ export type { UseKeyboardShortcutOptions } from './useKeyboardShortcut';
 export { useKeyboardShortcut } from './useKeyboardShortcut';
 export { useResponsiveVariant } from './useResponsiveVariant';
 export { useTabPageSnapshot } from './useTabPageSnapshot';
+export { useViewportResponsiveVariant } from './useViewportResponsiveVariant';

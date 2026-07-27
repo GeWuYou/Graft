@@ -23,16 +23,23 @@ export type ResponsiveEntityCardLayout = 'compact' | 'adaptive';
 <script setup lang="ts">
 import { computed, ref, useSlots } from 'vue';
 
-import { useResponsiveVariant } from '@/shared/composables';
+import { useResponsiveVariant, useViewportResponsiveVariant } from '@/shared/composables';
 import type { ResponsivePresentation } from '@/shared/responsive';
 
 /** Table 只按数据/实体展示语义选择横向滚动或卡片槽位，不解释列与业务操作。 */
-const { entityCardLayout = 'compact', presentation = 'data' } = defineProps<{
+const {
+  densityScope = 'container',
+  entityCardLayout = 'compact',
+  presentation = 'data',
+} = defineProps<{
+  densityScope?: 'container' | 'viewport';
   entityCardLayout?: ResponsiveEntityCardLayout;
   presentation?: ResponsivePresentation;
 }>();
 const container = ref<HTMLElement | null>(null);
-const variant = useResponsiveVariant(container, { presentation });
+const containerVariant = useResponsiveVariant(container, { presentation });
+const viewportVariant = useViewportResponsiveVariant({ presentation });
+const variant = computed(() => (densityScope === 'viewport' ? viewportVariant.value : containerVariant.value));
 const slots = useSlots();
 const showCards = computed(
   () =>

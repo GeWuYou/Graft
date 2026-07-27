@@ -39,4 +39,18 @@ describe('ManagementStatisticsBar', () => {
     expect(wrapper.classes()).toContain('management-statistics-bar--summary');
     expect(wrapper.findAll('.management-statistics-bar__item')).toHaveLength(1);
   });
+
+  it('accepts compact chip items without changing the full-width statistics source', () => {
+    const wrapper = mount(ManagementStatisticsBar, {
+      global: { components: { 't-divider': DividerStub } },
+      props: {
+        compactItems: [{ label: 'Images', value: 19 }],
+        items: [{ label: 'Total Images', value: 19 }],
+        layout: 'chips',
+      },
+    });
+
+    expect(wrapper.classes()).toContain('management-statistics-bar--chips');
+    expect(wrapper.find('.management-statistics-bar__compact-content').text()).toContain('Images');
+  });
 });

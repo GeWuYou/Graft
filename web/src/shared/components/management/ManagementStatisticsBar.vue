@@ -10,6 +10,17 @@
         </span>
       </template>
     </div>
+    <div v-if="compactItems.length" class="management-statistics-bar__compact-content">
+      <span
+        v-for="(item, index) in compactItems"
+        :key="`${item.label}-${index}`"
+        class="management-statistics-bar__item"
+      >
+        <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{ item.marker }}</span>
+        <strong class="management-statistics-bar__value">{{ item.value }}</strong>
+        <span class="management-statistics-bar__label">{{ item.label }}</span>
+      </span>
+    </div>
   </section>
 </template>
 <script lang="ts">
@@ -24,12 +35,14 @@ export type ManagementStatisticItem = {
 withDefaults(
   defineProps<{
     items: ManagementStatisticItem[];
+    compactItems?: ManagementStatisticItem[];
     label?: string;
-    layout?: 'inline' | 'summary';
+    layout?: 'chips' | 'inline' | 'summary';
   }>(),
   {
     label: '',
     layout: 'inline',
+    compactItems: () => [],
   },
 );
 </script>
@@ -50,6 +63,10 @@ withDefaults(
   padding: var(--graft-density-gap-4) 0;
   white-space: nowrap;
   width: 100%;
+}
+
+.management-statistics-bar__compact-content {
+  display: none;
 }
 
 .management-statistics-bar__item {
@@ -76,6 +93,34 @@ withDefaults(
 }
 
 @container (width < 768px) {
+  .management-statistics-bar--chips .management-statistics-bar__content {
+    display: none;
+  }
+
+  .management-statistics-bar--chips .management-statistics-bar__compact-content {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--graft-density-gap-8);
+    min-width: 0;
+  }
+
+  .management-statistics-bar--chips .management-statistics-bar__compact-content .management-statistics-bar__item {
+    align-items: baseline;
+    background: var(--td-bg-color-container);
+    border: solid 1px var(--td-component-stroke);
+    border-radius: var(--td-radius-medium);
+    gap: var(--graft-density-gap-4);
+    min-width: 0;
+    padding-block: var(--graft-density-gap-6);
+    padding-inline: var(--graft-density-gap-8);
+  }
+
+  .management-statistics-bar--chips .management-statistics-bar__compact-content .management-statistics-bar__label,
+  .management-statistics-bar--chips .management-statistics-bar__compact-content .management-statistics-bar__value {
+    font: var(--td-font-body-small);
+  }
+
   .management-statistics-bar--summary .management-statistics-bar__content {
     border: 1px solid var(--td-component-stroke);
     border-radius: var(--td-radius-medium);

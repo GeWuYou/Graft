@@ -1,5 +1,5 @@
 <template>
-  <responsive-toolbar class="management-toolbar">
+  <responsive-toolbar :class="['management-toolbar', { 'management-toolbar--sticky-compact': stickyCompact }]">
     <template #filters>
       <div class="management-toolbar__filters"><slot name="filters" /></div>
     </template>
@@ -10,6 +10,15 @@
 </template>
 <script setup lang="ts">
 import ResponsiveToolbar from '@/shared/components/responsive/ResponsiveToolbar.vue';
+
+withDefaults(
+  defineProps<{
+    stickyCompact?: boolean;
+  }>(),
+  {
+    stickyCompact: false,
+  },
+);
 </script>
 <style scoped lang="less">
 .management-toolbar,
@@ -69,6 +78,12 @@ import ResponsiveToolbar from '@/shared/components/responsive/ResponsiveToolbar.
 }
 
 @container (width < 48rem) {
+  .management-toolbar--sticky-compact {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
   .management-toolbar {
     padding: var(--graft-density-gap-16);
   }
@@ -85,6 +100,11 @@ import ResponsiveToolbar from '@/shared/components/responsive/ResponsiveToolbar.
     flex-basis: 100%;
     max-width: none;
     width: 100%;
+  }
+
+  .management-toolbar--sticky-compact :deep(.management-list-search .t-input),
+  .management-toolbar--sticky-compact :deep(.management-list-search .t-input__inner) {
+    min-height: 40px;
   }
 }
 </style>

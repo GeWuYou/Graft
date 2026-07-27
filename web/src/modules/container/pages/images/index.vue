@@ -18,17 +18,27 @@
           }}</t-button>
         </t-space>
       </template>
+      <template #compactActions>
+        <t-space>
+          <t-button theme="primary" @click="pullDrawerVisible = true">{{
+            t('container.images.actions.pull')
+          }}</t-button>
+          <t-dropdown :options="compactHeaderActions" trigger="click" @click="handleCompactHeaderAction">
+            <t-button variant="outline">{{ t('container.images.actions.more') }}</t-button>
+          </t-dropdown>
+        </t-space>
+      </template>
     </management-page-header>
 
-    <management-statistics-bar :items="metrics" aria-live="polite" />
+    <management-statistics-bar layout="chips" :items="metrics" :compact-items="compactMetrics" aria-live="polite" />
 
-    <management-toolbar>
+    <management-toolbar sticky-compact>
       <template #filters>
         <t-input
           v-model="keyword"
           class="management-list-search"
           clearable
-          :placeholder="t('container.images.search')"
+          :placeholder="t('container.images.searchCompact')"
           @clear="clearKeyword"
           @enter="applyKeyword"
         >
@@ -41,7 +51,11 @@
       v-model:current="pagination.current"
       v-model:page-size="pagination.pageSize"
       :columns="columns"
+      :column-sets="imageColumnSets"
+      density-scope="viewport"
+      entity-card-layout="compact"
       :rows="images"
+      presentation="entity"
       :loading="query.isFetching.value"
       :total="total"
       :footer-summary="footerSummary"
@@ -70,6 +84,94 @@
             {{ t('container.images.batch.remove') }}
           </t-button>
         </management-batch-bar>
+      </template>
+      <template #cards>
+        <t-empty
+          v-if="!images.length && !query.isFetching.value"
+          :title="t('container.images.emptyTitle')"
+          :description="
+            t(submittedKeyword ? 'container.images.filteredEmptyDescription' : 'container.images.emptyDescription')
+          "
+        >
+          <template #action>
+            <t-button v-if="submittedKeyword" variant="outline" @click="clearKeyword">
+              {{ t('container.images.clearFilter') }}
+            </t-button>
+          </template>
+        </t-empty>
+        <div v-else class="docker-images-card-list">
+          <article
+            v-for="image in images"
+            :key="image.id"
+            class="docker-images-card"
+            :class="{ 'docker-images-card--selected': isImageSelected(image) }"
+            :data-testid="`docker-image-card-${image.id}`"
+            role="button"
+            tabindex="0"
+            @click="handleCardClick(image)"
+            @keydown.enter.prevent="handleCardClick(image)"
+            @keydown.space.prevent="handleCardClick(image)"
+          >
+            <header class="docker-images-card__header">
+              <div class="docker-images-card__identity">
+                <strong>{{ imageReference(imageTags(image)[0] ?? '').repository || shortId(image.id) }}</strong>
+                <t-space v-if="imageTags(image).length" size="small" break-line>
+                  <t-tag v-for="tag in imageTags(image)" :key="tag" size="small" variant="light-outline">
+                    {{ imageReference(tag).tag }}
+                  </t-tag>
+                </t-space>
+                <span v-else class="docker-images-muted">{{ t('container.images.untagged') }}</span>
+              </div>
+              <t-checkbox
+                v-if="cardSelectionMode"
+                :checked="isImageSelected(image)"
+                :aria-label="t('container.images.selection.toggle', { image: shortId(image.id) })"
+                @click.stop
+                @change="toggleCardSelection(image, $event)"
+              />
+            </header>
+            <div class="docker-images-card__primary">
+              <strong>{{ formatBytes(image.size_bytes) }}</strong>
+              <t-tag :theme="imageStatus(image).theme" size="small" variant="light-outline">
+                {{ imageStatus(image).label }}
+              </t-tag>
+            </div>
+            <dl class="docker-images-card__details">
+              <div>
+                <dt>{{ t('container.images.fields.containers') }}</dt>
+                <dd>
+                  <t-space v-if="image.container_references?.length" size="small" break-line>
+                    <t-tag
+                      v-for="container in image.container_references"
+                      :key="container.id"
+                      size="small"
+                      variant="light-outline"
+                    >
+                      {{ container.name }}
+                    </t-tag>
+                  </t-space>
+                  <span v-else>{{ t('container.images.unused') }}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.createdAt') }}</dt>
+                <dd>{{ formatLocaleDateTime(image.created_at, locale) }}</dd>
+              </div>
+            </dl>
+            <footer class="docker-images-card__actions" @click.stop>
+              <t-button size="small" variant="outline" @click="openDetail(image)">
+                {{ t('container.images.actions.detail') }}
+              </t-button>
+              <t-dropdown
+                :options="cardMoreActions"
+                trigger="click"
+                @click="handleCardDropdownAction($event.value, image)"
+              >
+                <t-button size="small" variant="outline">{{ t('container.images.actions.more') }}</t-button>
+              </t-dropdown>
+            </footer>
+          </article>
+        </div>
       </template>
       <template #feedback>
         <t-alert
@@ -655,6 +757,7 @@ const removing = ref(false);
 const forceRemove = ref(false);
 const selectedRowKeys = ref<Array<string | number>>([]);
 const selectedImages = ref(new Map<string, DockerImage>());
+const cardSelectionMode = ref(false);
 const batchRemoving = ref(false);
 const cleanupDialogStyle = { maxHeight: '70vh' };
 const tagForm = reactive({ repository: '', tag: '' });
@@ -688,6 +791,17 @@ const metrics = computed(() => [
   { label: t('container.images.metrics.inUse'), value: summary.value ? summary.value.in_use : '--' },
   { label: t('container.images.metrics.dangling'), value: summary.value ? summary.value.dangling : '--' },
 ]);
+const compactMetrics = computed(() => [
+  { label: t('container.images.metrics.totalCompact'), value: summary.value ? summary.value.total : '--' },
+  {
+    label: t('container.images.metrics.sizeCompact'),
+    value: summary.value ? formatBytes(summary.value.size_bytes) : '--',
+  },
+  { label: t('container.images.metrics.inUseCompact'), value: summary.value ? summary.value.in_use : '--' },
+]);
+const compactHeaderActions = computed(() => [
+  { content: t('container.images.actions.cleanup'), theme: 'error' as const, value: 'cleanup' },
+]);
 const footerSummary = computed(() => {
   if (!total.value) return t('container.images.pagination.empty');
   const start = (pagination.current - 1) * pagination.pageSize + 1;
@@ -702,6 +816,16 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'status', title: t('container.images.fields.status'), width: 110 },
   { colKey: 'created_at', title: t('container.images.fields.createdAt'), width: 180 },
   { colKey: 'actions', title: t('container.images.fields.actions'), width: 150, fixed: 'right' as const },
+]);
+const imageColumnSets = computed(() => ({
+  comfortable: ['tags', 'size', 'status', 'actions'],
+  spacious: ['row-select', 'tags', 'size', 'containers', 'status', 'created_at', 'actions'],
+}));
+const cardMoreActions = computed(() => [
+  { content: t('container.images.actions.select'), value: 'select' },
+  { content: t('container.images.actions.manageTags'), value: 'manage-tags' },
+  { content: t('container.images.actions.tag'), value: 'tag' },
+  { content: t('container.images.actions.remove'), theme: 'error' as const, value: 'remove' },
 ]);
 const selectedBatchReferences = computed(() =>
   selectedRowKeys.value.flatMap((key) => selectedImages.value.get(String(key))?.container_references ?? []),
@@ -781,12 +905,46 @@ function handleSelectChange(rowKeys: Array<string | number>) {
 function clearSelection() {
   selectedRowKeys.value = [];
   selectedImages.value.clear();
+  cardSelectionMode.value = false;
 }
 function handleRowAction(action: string, image: DockerImage) {
   if (action === 'detail') openDetail(image);
   if (action === 'manage-tags') openTagManager(image);
   if (action === 'tag') openTag(image);
   if (action === 'remove') openRemove(image);
+}
+function handleCompactHeaderAction(action: { value?: string | number | Record<string, unknown> }) {
+  if (action.value === 'cleanup') void openCleanup();
+}
+function handleCardAction(action: string, image: DockerImage) {
+  if (action === 'select') {
+    cardSelectionMode.value = true;
+    setCardSelected(image, true);
+    return;
+  }
+  handleRowAction(action, image);
+}
+function handleCardDropdownAction(action: string | number | Record<string, unknown> | undefined, image: DockerImage) {
+  if (typeof action === 'string') handleCardAction(action, image);
+}
+function handleCardClick(image: DockerImage) {
+  if (cardSelectionMode.value) {
+    setCardSelected(image, !isImageSelected(image));
+    return;
+  }
+  void openDetail(image);
+}
+function isImageSelected(image: DockerImage) {
+  return selectedRowKeys.value.includes(image.id);
+}
+function toggleCardSelection(image: DockerImage, selected: boolean) {
+  setCardSelected(image, selected);
+}
+function setCardSelected(image: DockerImage, selected: boolean) {
+  selectedImages.value.set(image.id, image);
+  selectedRowKeys.value = selected
+    ? [...new Set([...selectedRowKeys.value, image.id])]
+    : selectedRowKeys.value.filter((key) => String(key) !== image.id);
 }
 function openTagManager(image: DockerImage) {
   restoreBatchResultAfterTagManager.value = false;
@@ -1140,6 +1298,97 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.docker-images-card-list {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+}
+
+.docker-images-card {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-14);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.docker-images-card:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+
+.docker-images-card--selected {
+  border-color: var(--td-brand-color);
+}
+
+.docker-images-card__header,
+.docker-images-card__primary,
+.docker-images-card__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.docker-images-card__identity {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.docker-images-card__identity strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  overflow-wrap: anywhere;
+}
+
+.docker-images-card__primary > strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+}
+
+.docker-images-card__details {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+  margin: 0;
+}
+
+.docker-images-card__details > div {
+  align-items: baseline;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
+  min-width: 0;
+}
+
+.docker-images-card__details dt,
+.docker-images-card__details dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.docker-images-card__details dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.docker-images-card__details dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-small);
+  overflow-wrap: anywhere;
+}
+
+.docker-images-card__actions > :first-child {
+  flex: 0 0 auto;
 }
 
 .docker-images-detail {

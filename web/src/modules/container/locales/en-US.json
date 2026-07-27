@@ -16,6 +16,7 @@
   "container.images.title": "Image Management",
   "container.images.description": "Review, pull, add tags to, and remove images from the current Local Docker runtime target.",
   "container.images.search": "Search image ID, tag, or digest",
+  "container.images.searchCompact": "Search images...",
   "container.images.emptyTitle": "No Docker Images",
   "container.images.emptyDescription": "No images are available in the current Docker runtime.",
   "container.images.filteredEmptyDescription": "No images match the current filter.",
@@ -31,6 +32,7 @@
   "container.images.actions.pull": "Pull image",
   "container.images.actions.detail": "Details",
   "container.images.actions.more": "More",
+  "container.images.actions.select": "Select image",
   "container.resourceContext.overview": "Overview",
   "container.resourceContext.context": "Context",
   "container.resourceContext.title": "Business Context",
@@ -69,6 +71,9 @@
   "container.images.metrics.size": "Total size",
   "container.images.metrics.inUse": "In-use images",
   "container.images.metrics.dangling": "Dangling images",
+  "container.images.metrics.totalCompact": "Images",
+  "container.images.metrics.sizeCompact": "Used",
+  "container.images.metrics.inUseCompact": "Referenced",
   "container.images.fields.id": "Image ID",
   "container.images.fields.name": "Image",
   "container.images.fields.repository": "Repository",
@@ -81,6 +86,7 @@
   "container.images.fields.labels": "Labels and metadata",
   "container.images.fields.status": "Status",
   "container.images.fields.actions": "Actions",
+  "container.images.selection.toggle": "Select image {image}",
   "container.images.detail.title": "Image details",
   "container.images.detail.overview": "Overview",
   "container.images.detail.basicInfo": "Basic Information",
@@ -589,6 +595,7 @@
       "remove": "Remove",
       "removeTitle": "Remove Docker Network",
       "removeDescription": "Enter network name {name} to confirm removal.",
+      "removeRisk": "Connected containers may lose network communication after removal.",
       "removeConfirmationMismatch": "The confirmation name must exactly match the network name.",
       "removeSuccess": "Docker network removed.",
       "removeFailed": "Docker network could not be removed.",
@@ -634,7 +641,11 @@
         "inUse": "In use",
         "unused": "Unused",
         "apply": "Search",
-        "reset": "Reset"
+        "reset": "Reset",
+        "advancedTitle": "More Filters"
+      },
+      "mobile": {
+        "moreActions": "More Actions"
       },
       "pagination": { "empty": "No Networks", "summary": "Showing {start}-{end} of {total}" },
       "cleanup": {
