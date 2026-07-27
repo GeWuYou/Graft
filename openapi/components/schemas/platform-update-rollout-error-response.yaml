@@ -1,0 +1,22 @@
+type: object
+required: [success, code, message, traceId, data]
+properties:
+  success:
+    type: boolean
+    enum: [false]
+  code:
+    $ref: ./platform-update-rollout-failure-code.yaml
+  message:
+    type: string
+    description: Localized safe fallback text for the failure code.
+  messageKey:
+    type: string
+    description: Stable localization key for the failure code.
+  locale:
+    type: string
+    description: Locale used to resolve the fallback message text.
+  traceId:
+    type: string
+    description: Stable request identifier for correlating server logs.
+  data:
+    $ref: ./platform-update-rollout-failure-data.yaml

@@ -202,6 +202,7 @@ import { isApiRequestError } from '@/utils/request';
 
 import { createUpdateOperation, getUpdateOperations } from '../../api/update';
 import { isUpgradeEligible } from '../../composables/updateEligibility';
+import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
@@ -408,19 +409,10 @@ function resolveOperationErrorMessage(error: unknown) {
     return t('update.center.confirmation.failure.generic');
   }
 
-  const key = updateOperationFailureMessageKeys[error.code];
-  return key ? t(key) : t('update.center.confirmation.failure.generic');
+  return isUpdateOperationFailureCode(error.code)
+    ? t(UPDATE_OPERATION_FAILURE_MESSAGE_KEY[error.code])
+    : t('update.center.confirmation.failure.generic');
 }
-
-const updateOperationFailureMessageKeys: Record<string, string> = {
-  PLATFORM_UPDATE_CATALOG_STALE: 'update.center.confirmation.failure.catalogStale',
-  PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE: 'update.center.confirmation.failure.executionUnavailable',
-  PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED: 'update.center.confirmation.failure.minimumSourceVersion',
-  PLATFORM_UPDATE_INVALID_TARGET: 'update.center.confirmation.failure.targetInvalid',
-  PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID: 'update.center.confirmation.failure.composeCandidateInvalid',
-  PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED: 'update.center.confirmation.failure.composePreflightFailed',
-  PLATFORM_UPDATE_OPERATION_START_FAILED: 'update.center.confirmation.failure.startFailed',
-};
 
 function capabilityRow(key: string, compose: string, binary: string) {
   return {

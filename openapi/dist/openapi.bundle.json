@@ -8793,7 +8793,14 @@
             }
           },
           "400": {
-            "description": "Invalid target version or request payload. The error data.reason contains a stable safe failure code."
+            "description": "Invalid target version or request payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform-update-rollout-error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -8802,10 +8809,29 @@
             "$ref": "#/components/responses/forbidden"
           },
           "412": {
-            "description": "The verified release catalog or installation preflight rejected execution. The error data.reason contains a stable safe failure code."
+            "description": "The verified release catalog or installation preflight rejected execution.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform-update-rollout-error-response"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Update preparation, persistence, or runner launch failed. The error data.reason contains a stable safe failure code and the X-Request-Id response header correlates server logs."
+            "description": "Update preparation, persistence, or runner launch failed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform-update-rollout-error-response"
+                }
+              }
+            }
           }
         }
       }
@@ -26423,6 +26449,71 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-update-operation"
+          }
+        }
+      },
+      "platform-update-rollout-failure-code": {
+        "type": "string",
+        "description": "Stable safe failure code returned when a confirmed platform update cannot start.",
+        "enum": [
+          "PLATFORM_UPDATE_CATALOG_STALE",
+          "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE",
+          "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED",
+          "PLATFORM_UPDATE_INVALID_TARGET",
+          "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID",
+          "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED",
+          "PLATFORM_UPDATE_OPERATION_START_FAILED"
+        ]
+      },
+      "platform-update-rollout-failure-data": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-code"
+          }
+        },
+        "additionalProperties": false
+      },
+      "platform-update-rollout-error-response": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "code": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Localized safe fallback text for the failure code."
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Stable localization key for the failure code."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale used to resolve the fallback message text."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Stable request identifier for correlating server logs."
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-data"
           }
         }
       },

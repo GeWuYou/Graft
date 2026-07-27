@@ -37,8 +37,22 @@ post:
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-update-operation.yaml }
-    '400': { description: Invalid target version or request payload. The error data.reason contains a stable safe failure code. }
-    '412': { description: The verified release catalog or installation preflight rejected execution. The error data.reason contains a stable safe failure code. }
-    '500': { description: "Update preparation, persistence, or runner launch failed. The error data.reason contains a stable safe failure code and the X-Request-Id response header correlates server logs." }
+    '400':
+      description: Invalid target version or request payload.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
+    '412':
+      description: The verified release catalog or installation preflight rejected execution.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
+    '500':
+      description: Update preparation, persistence, or runner launch failed.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

@@ -2971,13 +2971,13 @@ func (e EnvelopedSecurityOverviewResponseSuccess) Valid() bool {
 
 // Defines values for ErrorResponseSuccess.
 const (
-	False ErrorResponseSuccess = false
+	ErrorResponseSuccessFalse ErrorResponseSuccess = false
 )
 
 // Valid indicates whether the value is a known member of the ErrorResponseSuccess enum.
 func (e ErrorResponseSuccess) Valid() bool {
 	switch e {
-	case False:
+	case ErrorResponseSuccessFalse:
 		return true
 	default:
 		return false
@@ -3440,6 +3440,54 @@ func (e PlatformUpdateOperationStatus) Valid() bool {
 	case PlatformUpdateOperationStatusSUCCESS:
 		return true
 	case PlatformUpdateOperationStatusVERIFYING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateRolloutErrorResponseSuccess.
+const (
+	PlatformUpdateRolloutErrorResponseSuccessFalse PlatformUpdateRolloutErrorResponseSuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateRolloutErrorResponseSuccess enum.
+func (e PlatformUpdateRolloutErrorResponseSuccess) Valid() bool {
+	switch e {
+	case PlatformUpdateRolloutErrorResponseSuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateRolloutFailureCode.
+const (
+	PLATFORMUPDATECATALOGSTALE             PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_CATALOG_STALE"
+	PLATFORMUPDATECOMPOSECANDIDATEINVALID  PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID"
+	PLATFORMUPDATECOMPOSEPREFLIGHTFAILED   PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
+	PLATFORMUPDATEINSTALLATIONUNAVAILABLE  PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE"
+	PLATFORMUPDATEINVALIDTARGET            PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INVALID_TARGET"
+	PLATFORMUPDATEOPERATIONSTARTFAILED     PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_OPERATION_START_FAILED"
+	PLATFORMUPDATESOURCEVERSIONUNSUPPORTED PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateRolloutFailureCode enum.
+func (e PlatformUpdateRolloutFailureCode) Valid() bool {
+	switch e {
+	case PLATFORMUPDATECATALOGSTALE:
+		return true
+	case PLATFORMUPDATECOMPOSECANDIDATEINVALID:
+		return true
+	case PLATFORMUPDATECOMPOSEPREFLIGHTFAILED:
+		return true
+	case PLATFORMUPDATEINSTALLATIONUNAVAILABLE:
+		return true
+	case PLATFORMUPDATEINVALIDTARGET:
+		return true
+	case PLATFORMUPDATEOPERATIONSTARTFAILED:
+		return true
+	case PLATFORMUPDATESOURCEVERSIONUNSUPPORTED:
 		return true
 	default:
 		return false
@@ -11219,6 +11267,38 @@ type PlatformUpdateOperationStatus string
 
 // PlatformUpdateOperationList defines model for platform-update-operation-list.
 type PlatformUpdateOperationList = []PlatformUpdateOperation
+
+// PlatformUpdateRolloutErrorResponse defines model for platform-update-rollout-error-response.
+type PlatformUpdateRolloutErrorResponse struct {
+	// Code Stable safe failure code returned when a confirmed platform update cannot start.
+	Code PlatformUpdateRolloutFailureCode `json:"code"`
+	Data PlatformUpdateRolloutFailureData `json:"data"`
+
+	// Locale Locale used to resolve the fallback message text.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Localized safe fallback text for the failure code.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for the failure code.
+	MessageKey *string                                   `json:"messageKey,omitempty"`
+	Success    PlatformUpdateRolloutErrorResponseSuccess `json:"success"`
+
+	// TraceId Stable request identifier for correlating server logs.
+	TraceId string `json:"traceId"`
+}
+
+// PlatformUpdateRolloutErrorResponseSuccess defines model for PlatformUpdateRolloutErrorResponse.Success.
+type PlatformUpdateRolloutErrorResponseSuccess bool
+
+// PlatformUpdateRolloutFailureCode Stable safe failure code returned when a confirmed platform update cannot start.
+type PlatformUpdateRolloutFailureCode string
+
+// PlatformUpdateRolloutFailureData defines model for platform-update-rollout-failure-data.
+type PlatformUpdateRolloutFailureData struct {
+	// Reason Stable safe failure code returned when a confirmed platform update cannot start.
+	Reason PlatformUpdateRolloutFailureCode `json:"reason"`
+}
 
 // PlatformUpdateStatus defines model for platform-update-status.
 type PlatformUpdateStatus struct {

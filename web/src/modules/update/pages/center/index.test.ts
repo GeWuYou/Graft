@@ -6,6 +6,7 @@ import { defineComponent, h } from 'vue';
 import { usePermissionStore } from '@/store';
 
 import { createUpdateOperation } from '../../api/update';
+import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
@@ -176,7 +177,7 @@ describe('UpdateCenter', () => {
       status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
     );
     apiMocks.createUpdateOperation.mockRejectedValueOnce(
-      updateStartFailure('PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED'),
+      updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.COMPOSE_PREFLIGHT_FAILED),
     );
     const wrapper = mountCenter();
     await flushPromises();
