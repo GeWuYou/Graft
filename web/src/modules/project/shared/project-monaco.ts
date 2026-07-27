@@ -1,16 +1,16 @@
-import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution';
-import 'monaco-editor/esm/vs/basic-languages/hcl/hcl.contribution';
-import 'monaco-editor/esm/vs/basic-languages/ini/ini.contribution';
-import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution';
-import 'monaco-editor/esm/vs/basic-languages/powershell/powershell.contribution';
-import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution';
-import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution';
-import 'monaco-editor/esm/vs/basic-languages/xml/xml.contribution';
-import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
-import 'monaco-editor/esm/vs/language/json/monaco.contribution';
+import 'monaco-editor/languages/definitions/dockerfile/register.js';
+import 'monaco-editor/languages/definitions/hcl/register.js';
+import 'monaco-editor/languages/definitions/ini/register.js';
+import 'monaco-editor/languages/definitions/markdown/register.js';
+import 'monaco-editor/languages/definitions/powershell/register.js';
+import 'monaco-editor/languages/definitions/shell/register.js';
+import 'monaco-editor/languages/definitions/sql/register.js';
+import 'monaco-editor/languages/definitions/xml/register.js';
+import 'monaco-editor/languages/definitions/yaml/register.js';
+import 'monaco-editor/language/json/monaco.contribution.js';
 import 'monaco-editor/min/vs/editor/editor.main.css';
 
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import * as monaco from 'monaco-editor/editor/editor.api.js';
 import { configureMonacoYaml } from 'monaco-yaml';
 import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted } from 'vue';
 
