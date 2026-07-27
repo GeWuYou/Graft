@@ -43,24 +43,32 @@ validation rules.
    - `git status --short`
    - current branch or detached HEAD state
    - current upstream mapping when it exists
-   - the local commit range that would actually be pushed:
-     - prefer `git log --oneline @{upstream}..HEAD` when an upstream exists
-     - otherwise compare `HEAD` against the merge-base with the intended base branch, normally `main`
+   - in the developer-owned primary workspace, decide whether this is an incremental push to an existing PR:
+     - confirm the current branch has a remote upstream and its remote branch has an open PR
+     - when it does, use `git log --oneline @{upstream}..HEAD` as the incremental push scope and preserve the current
+       branch name
+     - otherwise fetch `origin/main` and use `git log --oneline origin/main..HEAD`; this complete range is the sole
+       branch-naming input, even when the current branch has an existing upstream
+     - when `origin/main..HEAD` is empty for a new publication, report that there is no local commit range to publish;
+       do not rename or push a new branch
+   - retain the appropriate local range/upstream inspection for a legal task branch; never push a `main-XX` pool marker
 2. Validate branch-name fit before pushing:
    - branch names must follow `<type>/<topic-or-scope>`
    - `type` should use an established repository prefix such as `feature`, `fix`, `refactor`, `docs`, `chore`, `build`,
      or `ci`
-   - `topic-or-scope` must be lowercase kebab-case and summarize the commits that are about to be pushed
+   - `topic-or-scope` must be lowercase kebab-case and summarize all commits in the selected branch-naming range
    - reject the push when the branch type is outside the established prefixes, the topic is not lowercase kebab-case,
      or the topic does not describe the local commit range being pushed
    - reject `feat/*`, `wt-*`, stale names, and unrelated names; generic `wt-*` placeholders are naming or scope
      failures, not advisory style suggestions
-   - compare the branch name with the commits selected in step 1 and reject the push when that relationship cannot be
-     established; report the mismatch before choosing a rename target
+   - for a new primary-workspace publication, compare the current branch name with all commits in `origin/main..HEAD`;
+     derive a concise matching name and rename before pushing when they differ, regardless of an existing upstream
+   - for an incremental push to an existing open PR, keep the established branch name; do not rename it solely because
+     the incremental commits have a narrower intent
    - reject local-only worktree pool marker branches such as `main-01`; push must run from the primary integration
      checkout or a legal task branch, never from a reusable pool marker
-   - if the current branch name does not fit the local-only commit range well, rename the local branch before pushing
-     and continue with the renamed branch as the only push target
+   - do not use a prior upstream as proof that a primary-workspace branch name is current; only its associated open PR
+     permits the incremental-push exception
 3. Classify the blocker or next action:
    - uncommitted or unstaged local scope
    - local Husky / hook failure
@@ -84,9 +92,10 @@ validation rules.
      requirement; a successful push does not downgrade `Outside diff range comments` or other folded review findings to
      optional
 6. Push safely:
-   - prefer the existing upstream when configured
-   - if the branch was renamed for push hygiene, use the renamed branch for the upstream mapping
-   - otherwise use an explicit `git push --set-upstream origin <branch>`
+   - for an incremental push to an existing open PR, push the existing upstream branch
+   - for a new primary-workspace publication, push only the derived branch with
+     `git push --set-upstream origin <derived-branch>`
+   - if a legal task branch needs a new upstream, use `git push --set-upstream origin <branch>`
    - do not auto-delete the old remote branch after a rename unless the user explicitly asks
    - do not use force push unless the user explicitly asks and the repository state justifies it
 7. Verify remote publication before any PR-review write:

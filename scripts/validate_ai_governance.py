@@ -687,8 +687,9 @@ def validate_push_branch_governance() -> list[Finding]:
         text = read_text(AGENTS)
         for term in (
             "For push-triggered branch-name hygiene:",
-            "`$graft-push` must inspect the commits that are about to be pushed",
+            "`$graft-push` in the developer-owned primary checkout must first distinguish an incremental push to an existing open",
             "`@{upstream}..HEAD`",
+            "`origin/main..HEAD`",
             "lowercase kebab-case",
             "do not rename branches during ordinary `$graft-commit` runs",
         ):
@@ -702,11 +703,13 @@ def validate_push_branch_governance() -> list[Finding]:
     text = read_text(PUSH_SKILL)
     for term in (
         "git log --oneline @{upstream}..HEAD",
-        "merge-base with the intended base branch, normally `main`",
+        "git log --oneline origin/main..HEAD",
+        "incremental push to an existing open PR",
+        "branch-naming input",
         "branch names must follow `<type>/<topic-or-scope>`",
         "lowercase kebab-case",
         "generic `wt-*` placeholders",
-        "rename the local branch before pushing",
+        "rename before pushing",
         "do not auto-delete the old remote branch after a rename unless the user explicitly asks",
         "whether a branch-name check ran, what commit range it used, and whether a rename happened",
     ):

@@ -767,10 +767,14 @@ Task handoff and pre-handoff commit rules:
 
 For push-triggered branch-name hygiene:
 
-- `$graft-push` must inspect the commits that are about to be pushed before choosing the final branch name
-- when an upstream exists, compare the local push scope from `@{upstream}..HEAD`; when no upstream exists, compare the
-  local-only scope from the merge-base with the intended base branch, normally `main`
-- if the current branch name no longer matches the dominant intent of that local-only commit range, rename the local
+- `$graft-push` in the developer-owned primary checkout must first distinguish an incremental push to an existing open
+  PR from a new publication
+- when the current branch has a remote upstream and that remote branch has an open PR, treat the push as incremental:
+  use `@{upstream}..HEAD` for the push scope and keep the existing branch name
+- otherwise, fetch `origin/main` and use the complete local-only range `origin/main..HEAD` as the sole branch-naming input;
+  an existing upstream does not make its branch name current
+- if `origin/main..HEAD` is empty for a new publication, do not rename or push a new branch
+- derive `<type>/<topic-or-scope>` from all commits in that range; if the current branch name differs, rename the local
   branch before pushing
 - the renamed branch must still follow `<type>/<topic-or-scope>`, where `type` matches the dominant change kind and
   `topic-or-scope` is a concise lowercase kebab-case summary of the commits being pushed
