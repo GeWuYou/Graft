@@ -129,56 +129,15 @@
           <section class="backup-detail__artifacts" :aria-label="t('backup.detail.contents.title')">
             <h3>{{ t('backup.detail.contents.title') }}</h3>
             <div class="backup-detail__artifact-grid">
-              <t-card size="small">
-                <template #title>{{ t('backup.detail.contents.configSnapshot') }}</template>
-                <template #actions>
-                  <t-tooltip :content="t('backup.detail.contents.copyChecksum')">
-                    <t-button
-                      shape="square"
-                      size="small"
-                      variant="text"
-                      :aria-label="t('backup.detail.contents.copyChecksum')"
-                      @click="copyChecksum(selectedBackup.config_snapshot.sha256)"
-                    >
-                      <template #icon><copy-icon /></template>
-                    </t-button>
-                  </t-tooltip>
-                </template>
-                <strong class="backup-detail__artifact-size">{{
-                  formatBytes(selectedBackup.config_snapshot.size_bytes)
-                }}</strong>
-                <p class="backup-detail__artifact-label">SHA-256</p>
-                <t-tooltip :content="selectedBackup.config_snapshot.sha256">
-                  <code class="backup-detail__checksum">{{
-                    truncateChecksum(selectedBackup.config_snapshot.sha256)
-                  }}</code>
-                </t-tooltip>
-              </t-card>
-              <t-card size="small">
-                <template #title>{{ t('backup.detail.contents.databaseDump') }}</template>
-                <template #actions>
-                  <t-tooltip :content="t('backup.detail.contents.copyChecksum')">
-                    <t-button
-                      shape="square"
-                      size="small"
-                      variant="text"
-                      :aria-label="t('backup.detail.contents.copyChecksum')"
-                      @click="copyChecksum(selectedBackup.database_dump.sha256)"
-                    >
-                      <template #icon><copy-icon /></template>
-                    </t-button>
-                  </t-tooltip>
-                </template>
-                <strong class="backup-detail__artifact-size">{{
-                  formatBytes(selectedBackup.database_dump.size_bytes)
-                }}</strong>
-                <p class="backup-detail__artifact-label">SHA-256</p>
-                <t-tooltip :content="selectedBackup.database_dump.sha256">
-                  <code class="backup-detail__checksum">{{
-                    truncateChecksum(selectedBackup.database_dump.sha256)
-                  }}</code>
-                </t-tooltip>
-              </t-card>
+              <backup-artifact-card
+                v-for="artifact in artifactCards"
+                :key="artifact.title"
+                :copy-label="t('backup.detail.contents.copyChecksum')"
+                :sha256="artifact.sha256"
+                :size-bytes="artifact.sizeBytes"
+                :title="t(artifact.title)"
+                @copy="copyChecksum"
+              />
             </div>
           </section>
 
@@ -216,7 +175,7 @@
 </template>
 <script setup lang="ts">
 // Backup 页面只消费安全资产投影；存储位置、工件内容和恢复执行权始终留在服务端边界。
-import { AddIcon, CopyIcon, RefreshIcon } from 'tdesign-icons-vue-next';
+import { AddIcon, RefreshIcon } from 'tdesign-icons-vue-next';
 import type { PageInfo, PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -228,6 +187,7 @@ import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { copyText, formatBytes, formatLocaleDateTime } from '@/shared/observability';
 
 import { getBackup, listBackups, submitBackup } from '../../api/backup';
+import BackupArtifactCard from '../../components/BackupArtifactCard.vue';
 import { BACKUP_PERMISSION_CODE as permissionCodes } from '../../contract/permissions';
 import type { BackupDetail, BackupRetention, BackupSummary } from '../../types/backup';
 
@@ -258,6 +218,22 @@ const pagination = computed(() => ({
   pageSize: pageSize.value,
   total: total.value,
 }));
+
+const artifactCards = computed(() => {
+  if (!selectedBackup.value) return [];
+  return [
+    {
+      title: 'backup.detail.contents.configSnapshot',
+      sizeBytes: selectedBackup.value.config_snapshot.size_bytes,
+      sha256: selectedBackup.value.config_snapshot.sha256,
+    },
+    {
+      title: 'backup.detail.contents.databaseDump',
+      sizeBytes: selectedBackup.value.database_dump.size_bytes,
+      sha256: selectedBackup.value.database_dump.sha256,
+    },
+  ];
+});
 const columns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'id', title: t('backup.list.columns.id'), width: 112 },
   { colKey: 'contents', title: t('backup.list.columns.contents'), minWidth: 190 },
@@ -395,10 +371,6 @@ function restoreEvidenceTitle(status: BackupDetail['restore_evidence']['status']
 
 function totalArtifactBytes(backup: BackupDetail) {
   return backup.config_snapshot.size_bytes + backup.database_dump.size_bytes;
-}
-
-function truncateChecksum(value: string) {
-  return value.length > 24 ? `${value.slice(0, 12)}...${value.slice(-8)}` : value;
 }
 
 function copyChecksum(value: string) {

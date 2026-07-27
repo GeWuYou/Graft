@@ -1,4 +1,5 @@
 type: object
+additionalProperties: false
 description: Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified.
 required: [id, purpose, status, retain_until, created_at, config_snapshot, database_dump, restore_evidence]
 properties:

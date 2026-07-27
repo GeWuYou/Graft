@@ -23,7 +23,7 @@ func TestBackupDetailResponseExposesSafeArtifactMetadataAndRestoreEvidence(t *te
 	}
 
 	response := toBackupDetailResponse(item)
-	if response.ConfigSnapshot.SizeBytes != 128 || response.ConfigSnapshot.SHA256 != strings.Repeat("a", 64) || response.DatabaseDump.SizeBytes != 256 || response.RestoreEvidence.Status != "RECORDED" || response.RestoreEvidence.ResultCode == nil || *response.RestoreEvidence.ResultCode != "manual_restore_verified" || response.RestoreEvidence.RecordedAt == nil {
+	if response.ConfigSnapshot.SizeBytes != 128 || response.ConfigSnapshot.SHA256 != strings.Repeat("a", 64) || response.DatabaseDump.SizeBytes != 256 || response.DatabaseDump.SHA256 != strings.Repeat("b", 64) || response.RestoreEvidence.Status != "RECORDED" || response.RestoreEvidence.ResultCode == nil || *response.RestoreEvidence.ResultCode != "manual_restore_verified" || response.RestoreEvidence.RecordedAt == nil {
 		t.Fatalf("detail response mismatch: %#v", response)
 	}
 	encoded, err := json.Marshal(response)

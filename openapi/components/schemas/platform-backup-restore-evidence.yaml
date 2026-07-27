@@ -1,4 +1,5 @@
 type: object
+additionalProperties: false
 description: Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable.
 required: [status]
 properties:

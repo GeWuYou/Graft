@@ -1269,7 +1269,10 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       clientX: 24,
       clientY: 24,
     });
-    await wrapper.findAll('[role="menuitem"]')[3].trigger('click');
+    await wrapper
+      .findAll('[role="menuitem"]')
+      .find((menuItem) => menuItem.text() === 'project.create.workspace.rename')
+      ?.trigger('click');
     await wrapper.find('input').setValue('runtime.yml');
     wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await flushPromises();
