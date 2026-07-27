@@ -1,0 +1,5 @@
+name: size_max_bytes
+in: query
+required: false
+description: Optional inclusive upper bound for known Docker volume usage in bytes.
+schema: { type: integer, format: int64, minimum: 0 }

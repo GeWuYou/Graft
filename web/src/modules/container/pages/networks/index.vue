@@ -479,12 +479,13 @@
               </p>
             </t-collapse-panel>
           </t-collapse>
-          <section v-if="canRemove" class="docker-network-page__danger-zone">
-            <h3>{{ t('container.resourceContext.dangerZone') }}</h3>
-            <t-button theme="danger" variant="outline" @click="openRemoveDialog(detailQuery.data.value)">{{
-              t('container.networks.remove')
-            }}</t-button>
-          </section>
+          <container-danger-zone
+            v-if="canRemove"
+            class="docker-network-page__danger-zone"
+            :action-label="t('container.networks.remove')"
+            :description="t('container.networks.removeRisk')"
+            @action="openRemoveDialog(detailQuery.data.value)"
+          />
         </template>
         <div v-else-if="!detailQuery.isFetching.value" class="docker-network-page__detail-state">
           <t-empty
@@ -559,6 +560,7 @@ import {
   getDockerNetworks,
   removeDockerNetwork,
 } from '../../api/container';
+import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
 import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -1038,9 +1040,7 @@ async function submitBatchRemove() {
 }
 
 .docker-network-page__danger-zone {
-  border-top: 1px solid var(--td-component-stroke);
   margin-top: var(--td-comp-margin-xl);
-  padding-top: var(--td-comp-paddingTB-l);
 }
 
 .docker-network-page__detail-fields,

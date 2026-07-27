@@ -115,6 +115,7 @@
   "container.images.untag.failed": "标签移除失败。",
   "container.images.remove.title": "确认删除镜像",
   "container.images.remove.confirm": "确认删除镜像 {image}？删除后不可恢复。",
+  "container.images.remove.risk": "删除镜像后，依赖该镜像的部署和容器重建可能失败。",
   "container.images.remove.inUse": "该镜像正被容器引用。必须显式确认强制删除。",
   "container.images.remove.force": "强制删除被容器引用的镜像",
   "container.images.remove.success": "镜像已删除。",
@@ -223,7 +224,7 @@
       }
     },
     "volume": {
-      "route": { "list": { "title": "数据卷管理" } },
+      "route": { "list": { "title": "数据卷管理" }, "detail": { "title": "数据卷详情" } },
       "list": {
         "title": "数据卷管理",
         "description": "查看和管理当前 Docker 运行时中的数据卷。",
@@ -235,6 +236,9 @@
         "inUse": "使用中",
         "unused": "未使用",
         "size": "总占用空间",
+        "abnormal": "异常",
+        "risk": "风险资源",
+        "abnormalNotice": "有 {count} 个数据卷的关联状态异常或暂不可确定。",
         "referenceUnknown": "有 {count} 个数据卷的关联状态暂不可确定。"
       },
       "filters": {
@@ -243,6 +247,7 @@
         "scope": "范围",
         "usage": "状态",
         "allUsage": "全部状态",
+        "abnormal": "异常",
         "more": "筛选",
         "title": "筛选数据卷",
         "query": "查询",
@@ -260,6 +265,8 @@
         "actions": "操作"
       },
       "types": { "anonymous": "匿名数据卷", "named": "命名数据卷" },
+      "card": { "containerCount": "{count} 个容器" },
+      "empty": { "title": "暂无 Docker 数据卷", "description": "创建容器或 Compose 服务后，持久化存储会显示在这里。" },
       "pagination": { "summary": "第 {start}-{end} 条 / 共 {total} 条", "empty": "暂无记录" },
       "actions": {
         "detail": "详情",
@@ -286,6 +293,7 @@
       },
       "cleanup": {
         "title": "清理未使用数据卷",
+        "confirmTitle": "确认清理数据卷",
         "candidateCount": "删除候选：{count} 个数据卷，预计释放",
         "selectedCount": "已选择 {count} 个数据卷",
         "warning": "删除后不可恢复。仅引用数为 0 的数据卷会进入候选列表。",
@@ -308,8 +316,16 @@
         "emptyDescription": "当前未返回该数据卷的详情数据。",
         "labels": "标签",
         "noLabels": "无标签",
-        "references": "引用容器"
+        "references": "引用容器",
+        "noContainers": "暂无挂载容器",
+        "safeCleanupHint": "当前可以安全评估清理。",
+        "storage": "存储信息",
+        "mountpoint": "挂载路径",
+        "actualUsage": "实际占用"
       },
+      "status": { "inUse": "正在使用", "unused": "未使用", "abnormal": "异常" },
+      "removal": { "risk": "删除后数据不可恢复，请确认资源信息后再继续。", "noContainers": "无" },
+      "notCollected": "暂未采集",
       "unavailable": "不可用"
     },
     "list": {

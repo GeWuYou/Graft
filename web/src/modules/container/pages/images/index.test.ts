@@ -62,6 +62,12 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('function setCardSelected(image: DockerImage, selected: boolean)');
   });
 
+  it('places image removal in the shared container danger zone', () => {
+    expect(sourceText).toContain('<container-danger-zone');
+    expect(sourceText).toContain(':description="t(\'container.images.remove.risk\')"');
+    expect(sourceText).toContain('@action="openRemove(selectedImage)"');
+  });
+
   it('keeps the pull action primary and moves cleanup into compact overflow', () => {
     expect(sourceText).toContain('<template #compactActions>');
     expect(sourceText).toContain('compactHeaderActions');
@@ -223,7 +229,7 @@ describe('docker image list page', () => {
     );
     expect(sourceText).toContain('theme="info"');
     expect(sourceText).toContain('<template #footer>');
-    expect(sourceText).toContain('@click="openRemove(selectedImage)"');
+    expect(sourceText).toContain('@action="openRemove(selectedImage)"');
   });
 
   it('previews a multi-tag Image delete failure without changing the remove request semantics', () => {

@@ -365,14 +365,17 @@
             }}</t-button>
           </template>
         </t-alert>
+        <container-danger-zone
+          v-if="selectedImage"
+          :action-label="t('container.images.actions.remove')"
+          :description="t('container.images.remove.risk')"
+          @action="openRemove(selectedImage)"
+        />
       </div>
       <template #footer>
         <t-space v-if="selectedImage">
           <t-button variant="outline" @click="openTagManager(selectedImage)">{{
             t('container.images.actions.manageTags')
-          }}</t-button>
-          <t-button theme="danger" variant="outline" @click="openRemove(selectedImage)">{{
-            t('container.images.actions.remove')
           }}</t-button>
         </t-space>
       </template>
@@ -711,6 +714,7 @@ import {
   removeDockerImage,
   tagDockerImage,
 } from '../../api/image-actions';
+import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
 import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';

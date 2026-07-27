@@ -1,0 +1,10 @@
+name: sort_by
+in: query
+required: false
+description: Optional Docker volume sort field. Defaults to size_bytes.
+schema:
+  type: string
+  enum: [size_bytes]
+  default: size_bytes
+  x-enum-varnames:
+    - DockerVolumeListSortBySizeBytes

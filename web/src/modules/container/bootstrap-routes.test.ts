@@ -72,7 +72,7 @@ describe('container bootstrap route registrations', () => {
   });
 
   it('registers the detail page as a menu-hidden global route', () => {
-    expect(containerGlobalRouteRegistrations).toHaveLength(2);
+    expect(containerGlobalRouteRegistrations).toHaveLength(3);
     const detailRoute = containerGlobalRouteRegistrations.find((route) => route.routeName === 'ContainerDetail');
     expect(detailRoute).toMatchObject({
       path: '/infrastructure/docker/containers/:id',
@@ -85,9 +85,20 @@ describe('container bootstrap route registrations', () => {
         titleKey: 'container.route.detail.title',
       },
     });
-    expect(containerGlobalRouteRegistrations).not.toContainEqual(
-      expect.objectContaining({ routeName: 'DockerVolumeDetail' }),
+    const volumeDetailRoute = containerGlobalRouteRegistrations.find(
+      (route) => route.routeName === 'DockerVolumeDetail',
     );
+    expect(volumeDetailRoute).toMatchObject({
+      path: '/infrastructure/docker/volumes/:name',
+      routeName: 'DockerVolumeDetail',
+      meta: {
+        hidden: false,
+        hiddenMenu: true,
+        pageKind: 'detail',
+        pageSurface: 'form-detail',
+        titleKey: 'container.volume.route.detail.title',
+      },
+    });
   });
 
   it('registers image management as a visible Docker child menu route', () => {

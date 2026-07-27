@@ -11,10 +11,12 @@
     :data-responsive-entity-card-layout="entityCardLayout"
     :data-responsive-presentation="presentation"
   >
-    <div v-if="showCards" class="responsive-table__cards">
+    <div v-if="$slots.cards && (showCards || preserveInactive)" v-show="showCards" class="responsive-table__cards">
       <slot name="cards" :variant="variant" />
     </div>
-    <div v-else class="responsive-table__scroll graft-scrollbar"><slot :variant="variant" /></div>
+    <div v-if="!showCards || preserveInactive" v-show="!showCards" class="responsive-table__scroll graft-scrollbar">
+      <slot :variant="variant" />
+    </div>
   </section>
 </template>
 <script lang="ts">
@@ -30,10 +32,12 @@ import type { ResponsivePresentation } from '@/shared/responsive';
 const {
   densityScope = 'container',
   entityCardLayout = 'compact',
+  preserveInactive = false,
   presentation = 'data',
 } = defineProps<{
   densityScope?: 'container' | 'viewport';
   entityCardLayout?: ResponsiveEntityCardLayout;
+  preserveInactive?: boolean;
   presentation?: ResponsivePresentation;
 }>();
 const container = ref<HTMLElement | null>(null);

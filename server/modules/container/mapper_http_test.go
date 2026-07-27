@@ -59,9 +59,12 @@ func TestToDockerImageMapsRequiredArraysAsEmptyArrays(t *testing.T) {
 		t.Fatalf("expected empty network container references array, got %#v", network.ContainerReferences)
 	}
 
-	volume := toDockerVolume(DockerVolume{Name: "volume-name"})
+	volume := toDockerVolume(DockerVolume{Name: "volume-name", Mountpoint: "/var/lib/docker/volumes/volume-name/_data"})
 	if volume.ContainerReferences == nil || len(volume.ContainerReferences) != 0 {
 		t.Fatalf("expected empty volume container references array, got %#v", volume.ContainerReferences)
+	}
+	if volume.Mountpoint == nil || *volume.Mountpoint != "/var/lib/docker/volumes/volume-name/_data" {
+		t.Fatalf("expected mountpoint HTTP mapping, got %#v", volume.Mountpoint)
 	}
 }
 

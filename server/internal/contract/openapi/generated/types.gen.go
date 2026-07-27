@@ -4820,15 +4820,51 @@ func (e DockerNetworkListUsage) Valid() bool {
 	}
 }
 
+// Defines values for DockerVolumeListSortBy.
+const (
+	DockerVolumeListSortByDockerVolumeListSortBySizeBytes DockerVolumeListSortBy = "size_bytes"
+)
+
+// Valid indicates whether the value is a known member of the DockerVolumeListSortBy enum.
+func (e DockerVolumeListSortBy) Valid() bool {
+	switch e {
+	case DockerVolumeListSortByDockerVolumeListSortBySizeBytes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DockerVolumeListSortOrder.
+const (
+	DockerVolumeListSortOrderDockerVolumeListSortOrderAsc  DockerVolumeListSortOrder = "asc"
+	DockerVolumeListSortOrderDockerVolumeListSortOrderDesc DockerVolumeListSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the DockerVolumeListSortOrder enum.
+func (e DockerVolumeListSortOrder) Valid() bool {
+	switch e {
+	case DockerVolumeListSortOrderDockerVolumeListSortOrderAsc:
+		return true
+	case DockerVolumeListSortOrderDockerVolumeListSortOrderDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DockerVolumeListUsage.
 const (
-	DockerVolumeListUsageDockerVolumeListUsageUnused DockerVolumeListUsage = "unused"
-	DockerVolumeListUsageDockerVolumeListUsageUsed   DockerVolumeListUsage = "used"
+	DockerVolumeListUsageDockerVolumeListUsageAbnormal DockerVolumeListUsage = "abnormal"
+	DockerVolumeListUsageDockerVolumeListUsageUnused   DockerVolumeListUsage = "unused"
+	DockerVolumeListUsageDockerVolumeListUsageUsed     DockerVolumeListUsage = "used"
 )
 
 // Valid indicates whether the value is a known member of the DockerVolumeListUsage enum.
 func (e DockerVolumeListUsage) Valid() bool {
 	switch e {
+	case DockerVolumeListUsageDockerVolumeListUsageAbnormal:
+		return true
 	case DockerVolumeListUsageDockerVolumeListUsageUnused:
 		return true
 	case DockerVolumeListUsageDockerVolumeListUsageUsed:
@@ -5419,16 +5455,52 @@ func (e GetDockerNetworksParamsUsage) Valid() bool {
 
 // Defines values for GetDockerVolumesParamsUsage.
 const (
-	GetDockerVolumesParamsUsageDockerVolumeListUsageUnused GetDockerVolumesParamsUsage = "unused"
-	GetDockerVolumesParamsUsageDockerVolumeListUsageUsed   GetDockerVolumesParamsUsage = "used"
+	GetDockerVolumesParamsUsageDockerVolumeListUsageAbnormal GetDockerVolumesParamsUsage = "abnormal"
+	GetDockerVolumesParamsUsageDockerVolumeListUsageUnused   GetDockerVolumesParamsUsage = "unused"
+	GetDockerVolumesParamsUsageDockerVolumeListUsageUsed     GetDockerVolumesParamsUsage = "used"
 )
 
 // Valid indicates whether the value is a known member of the GetDockerVolumesParamsUsage enum.
 func (e GetDockerVolumesParamsUsage) Valid() bool {
 	switch e {
+	case GetDockerVolumesParamsUsageDockerVolumeListUsageAbnormal:
+		return true
 	case GetDockerVolumesParamsUsageDockerVolumeListUsageUnused:
 		return true
 	case GetDockerVolumesParamsUsageDockerVolumeListUsageUsed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumesParamsSortBy.
+const (
+	GetDockerVolumesParamsSortByDockerVolumeListSortBySizeBytes GetDockerVolumesParamsSortBy = "size_bytes"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumesParamsSortBy enum.
+func (e GetDockerVolumesParamsSortBy) Valid() bool {
+	switch e {
+	case GetDockerVolumesParamsSortByDockerVolumeListSortBySizeBytes:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumesParamsSortOrder.
+const (
+	GetDockerVolumesParamsSortOrderDockerVolumeListSortOrderAsc  GetDockerVolumesParamsSortOrder = "asc"
+	GetDockerVolumesParamsSortOrderDockerVolumeListSortOrderDesc GetDockerVolumesParamsSortOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumesParamsSortOrder enum.
+func (e GetDockerVolumesParamsSortOrder) Valid() bool {
+	switch e {
+	case GetDockerVolumesParamsSortOrderDockerVolumeListSortOrderAsc:
+		return true
+	case GetDockerVolumesParamsSortOrderDockerVolumeListSortOrderDesc:
 		return true
 	default:
 		return false
@@ -8386,16 +8458,22 @@ type DockerResourceSource string
 
 // DockerVolume defines model for docker-volume.
 type DockerVolume struct {
+	// Anonymous Server-owned classification of Docker-generated anonymous volume names.
+	Anonymous bool `json:"anonymous"`
+
 	// ContainerReferences Containers currently referencing this volume, represented as sanitized display references.
 	ContainerReferences []DockerVolumeContainerReference `json:"container_references"`
 
 	// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
-	Context        DockerResourceContext `json:"context"`
-	CreatedAt      string                `json:"created_at"`
-	Driver         string                `json:"driver"`
-	Labels         *map[string]string    `json:"labels,omitempty"`
-	Name           string                `json:"name"`
-	ReferenceCount *int64                `json:"reference_count,omitempty"`
+	Context   DockerResourceContext `json:"context"`
+	CreatedAt string                `json:"created_at"`
+	Driver    string                `json:"driver"`
+	Labels    *map[string]string    `json:"labels,omitempty"`
+
+	// Mountpoint Host mount path reported by Docker for this volume.
+	Mountpoint     *string `json:"mountpoint,omitempty"`
+	Name           string  `json:"name"`
+	ReferenceCount *int64  `json:"reference_count,omitempty"`
 
 	// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
 	RelationshipStatus DockerResourceRelationshipStatus `json:"relationship_status"`
@@ -8444,7 +8522,10 @@ type DockerVolumeListResponse struct {
 
 // DockerVolumeListSummary defines model for docker-volume-list-summary.
 type DockerVolumeListSummary struct {
-	InUse            int    `json:"in_use"`
+	InUse int `json:"in_use"`
+
+	// Orphaned Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors.
+	Orphaned         int    `json:"orphaned"`
 	ReferenceUnknown int    `json:"reference_unknown"`
 	SizeBytes        *int64 `json:"size_bytes,omitempty"`
 	Total            int    `json:"total"`
@@ -13058,8 +13139,17 @@ type DockerNetworkListUsage string
 // DockerVolumeIdPath defines model for docker-volume-id-path.
 type DockerVolumeIdPath = string
 
+// DockerVolumeListAnonymous defines model for docker-volume-list-anonymous.
+type DockerVolumeListAnonymous = bool
+
 // DockerVolumeListComposeProject defines model for docker-volume-list-compose-project.
 type DockerVolumeListComposeProject = string
+
+// DockerVolumeListCreatedAfter defines model for docker-volume-list-created-after.
+type DockerVolumeListCreatedAfter = time.Time
+
+// DockerVolumeListCreatedBefore defines model for docker-volume-list-created-before.
+type DockerVolumeListCreatedBefore = time.Time
 
 // DockerVolumeListDriver defines model for docker-volume-list-driver.
 type DockerVolumeListDriver = string
@@ -13073,8 +13163,23 @@ type DockerVolumeListLimit = int
 // DockerVolumeListOffset defines model for docker-volume-list-offset.
 type DockerVolumeListOffset = int
 
+// DockerVolumeListOrphaned defines model for docker-volume-list-orphaned.
+type DockerVolumeListOrphaned = bool
+
 // DockerVolumeListScope defines model for docker-volume-list-scope.
 type DockerVolumeListScope = string
+
+// DockerVolumeListSizeMaxBytes defines model for docker-volume-list-size-max-bytes.
+type DockerVolumeListSizeMaxBytes = int64
+
+// DockerVolumeListSizeMinBytes defines model for docker-volume-list-size-min-bytes.
+type DockerVolumeListSizeMinBytes = int64
+
+// DockerVolumeListSortBy defines model for docker-volume-list-sort-by.
+type DockerVolumeListSortBy string
+
+// DockerVolumeListSortOrder defines model for docker-volume-list-sort-order.
+type DockerVolumeListSortOrder string
 
 // DockerVolumeListSource Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
 type DockerVolumeListSource = DockerResourceSource
@@ -14730,7 +14835,7 @@ type GetDockerVolumesParams struct {
 	// Scope Optional exact Docker volume scope filter.
 	Scope *DockerVolumeListScope `form:"scope,omitempty" json:"scope,omitempty"`
 
-	// Usage Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.
+	// Usage Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states.
 	Usage *GetDockerVolumesParamsUsage `form:"usage,omitempty" json:"usage,omitempty"`
 
 	// Source Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts.
@@ -14738,6 +14843,30 @@ type GetDockerVolumesParams struct {
 
 	// ComposeProject Optional exact Compose project filter. Only applies to volumes with source=compose.
 	ComposeProject *DockerVolumeListComposeProject `form:"compose_project,omitempty" json:"compose_project,omitempty"`
+
+	// CreatedAfter Optional inclusive RFC 3339 lower bound for a Docker volume creation time.
+	CreatedAfter *DockerVolumeListCreatedAfter `form:"created_after,omitempty" json:"created_after,omitempty"`
+
+	// CreatedBefore Optional inclusive RFC 3339 upper bound for a Docker volume creation time.
+	CreatedBefore *DockerVolumeListCreatedBefore `form:"created_before,omitempty" json:"created_before,omitempty"`
+
+	// SizeMinBytes Optional inclusive lower bound for known Docker volume usage in bytes.
+	SizeMinBytes *DockerVolumeListSizeMinBytes `form:"size_min_bytes,omitempty" json:"size_min_bytes,omitempty"`
+
+	// SizeMaxBytes Optional inclusive upper bound for known Docker volume usage in bytes.
+	SizeMaxBytes *DockerVolumeListSizeMaxBytes `form:"size_max_bytes,omitempty" json:"size_max_bytes,omitempty"`
+
+	// Anonymous Optional server-owned anonymous-volume classification filter.
+	Anonymous *DockerVolumeListAnonymous `form:"anonymous,omitempty" json:"anonymous,omitempty"`
+
+	// Orphaned Optional filter for volumes with a resolved zero-container reference count.
+	Orphaned *DockerVolumeListOrphaned `form:"orphaned,omitempty" json:"orphaned,omitempty"`
+
+	// SortBy Optional Docker volume sort field. Defaults to size_bytes.
+	SortBy *GetDockerVolumesParamsSortBy `form:"sort_by,omitempty" json:"sort_by,omitempty"`
+
+	// SortOrder Optional Docker volume sort direction. Defaults to descending.
+	SortOrder *GetDockerVolumesParamsSortOrder `form:"sort_order,omitempty" json:"sort_order,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -14749,6 +14878,12 @@ type GetDockerVolumesParams struct {
 
 // GetDockerVolumesParamsUsage defines parameters for GetDockerVolumes.
 type GetDockerVolumesParamsUsage string
+
+// GetDockerVolumesParamsSortBy defines parameters for GetDockerVolumes.
+type GetDockerVolumesParamsSortBy string
+
+// GetDockerVolumesParamsSortOrder defines parameters for GetDockerVolumes.
+type GetDockerVolumesParamsSortOrder string
 
 // PostDockerVolumeBatchRemoveParams defines parameters for PostDockerVolumeBatchRemove.
 type PostDockerVolumeBatchRemoveParams struct {

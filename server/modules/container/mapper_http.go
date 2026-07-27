@@ -152,7 +152,7 @@ func toDockerVolume(item DockerVolume) containergen.DockerVolume {
 	for _, ref := range item.ContainerReferences {
 		refs = append(refs, containergen.DockerVolumeContainerReference{Id: ref.ID, Name: ref.Name})
 	}
-	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Context: toDockerResourceContext(item.Context), RelationshipStatus: containergen.DockerResourceRelationshipStatus(dockerVolumeRelationshipStatus(item)), Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes, ContainerReferences: refs}
+	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Mountpoint: optionalString(item.Mountpoint), Anonymous: item.Anonymous, Context: toDockerResourceContext(item.Context), RelationshipStatus: containergen.DockerResourceRelationshipStatus(dockerVolumeRelationshipStatus(item)), Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes, ContainerReferences: refs}
 }
 
 // toDockerResourceContext 将服务端归一化的资源业务上下文映射到 HTTP 契约。
@@ -173,7 +173,7 @@ func toDockerVolumeList(result DockerVolumeListResult) containergen.DockerVolume
 	for _, item := range result.Items {
 		mapped = append(mapped, toDockerVolume(item))
 	}
-	return containergen.DockerVolumeListResponse{Items: mapped, Total: result.Total, Limit: result.Limit, Offset: result.Offset, Summary: containergen.DockerVolumeListSummary{Total: result.Summary.Total, InUse: result.Summary.InUse, Unused: result.Summary.Unused, ReferenceUnknown: result.Summary.ReferenceUnknown, SizeBytes: result.Summary.SizeBytes}}
+	return containergen.DockerVolumeListResponse{Items: mapped, Total: result.Total, Limit: result.Limit, Offset: result.Offset, Summary: containergen.DockerVolumeListSummary{Total: result.Summary.Total, InUse: result.Summary.InUse, Unused: result.Summary.Unused, Orphaned: result.Summary.Orphaned, ReferenceUnknown: result.Summary.ReferenceUnknown, SizeBytes: result.Summary.SizeBytes}}
 }
 
 // toDockerVolumeRemoveResponse 将完成的数据卷删除映射为 API 响应。

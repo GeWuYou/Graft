@@ -30,6 +30,24 @@ import (
 	containerlocales "graft/server/modules/container/locales"
 )
 
+func TestBindGetDockerVolumesParamsIncludesSortContract(t *testing.T) {
+	t.Parallel()
+
+	request := httptest.NewRequest(http.MethodGet, "/api/ops/docker/volumes?sort_by=size_bytes&sort_order=asc", nil)
+	response := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(response)
+	ginCtx.Request = request
+
+	params, ok := bindGetDockerVolumesParams(ginCtx, nil)
+	if !ok || params.SortBy == nil || string(*params.SortBy) != "size_bytes" || params.SortOrder == nil || string(*params.SortOrder) != "asc" {
+		t.Fatalf("unexpected sort query binding: ok=%v params=%#v", ok, params)
+	}
+	query := dockerVolumeListQueryFromParams(params)
+	if query.SortBy != "size_bytes" || query.SortOrder != "asc" {
+		t.Fatalf("unexpected service query mapping: %#v", query)
+	}
+}
+
 type pullErrorRuntime struct {
 	fakeRuntime
 }

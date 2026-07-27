@@ -7731,6 +7731,10 @@ export interface components {
       driver: string;
       scope: string;
       created_at: string;
+      /** @description Host mount path reported by Docker for this volume. */
+      readonly mountpoint: string;
+      /** @description Server-owned classification of Docker-generated anonymous volume names. */
+      anonymous: boolean;
       labels?: {
         [key: string]: string;
       };
@@ -7747,6 +7751,8 @@ export interface components {
       total: number;
       in_use: number;
       unused: number;
+      /** @description Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors. */
+      orphaned: number;
       reference_unknown: number;
       /** Format: int64 */
       size_bytes?: number | null;
@@ -9245,12 +9251,28 @@ export interface components {
     'docker-volume-list-driver': string;
     /** @description Optional exact Docker volume scope filter. */
     'docker-volume-list-scope': string;
-    /** @description Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server. */
-    'docker-volume-list-usage': 'used' | 'unused';
+    /** @description Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states. */
+    'docker-volume-list-usage': 'used' | 'unused' | 'abnormal';
     /** @description Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts. */
     'docker-volume-list-source': components['schemas']['docker-resource-source'];
     /** @description Optional exact Compose project filter. Only applies to volumes with source=compose. */
     'docker-volume-list-compose-project': string;
+    /** @description Optional inclusive RFC 3339 lower bound for a Docker volume creation time. */
+    'docker-volume-list-created-after': string;
+    /** @description Optional inclusive RFC 3339 upper bound for a Docker volume creation time. */
+    'docker-volume-list-created-before': string;
+    /** @description Optional inclusive lower bound for known Docker volume usage in bytes. */
+    'docker-volume-list-size-min-bytes': number;
+    /** @description Optional inclusive upper bound for known Docker volume usage in bytes. */
+    'docker-volume-list-size-max-bytes': number;
+    /** @description Optional server-owned anonymous-volume classification filter. */
+    'docker-volume-list-anonymous': boolean;
+    /** @description Optional filter for volumes with a resolved zero-container reference count. */
+    'docker-volume-list-orphaned': boolean;
+    /** @description Optional Docker volume sort field. Defaults to size_bytes. */
+    'docker-volume-list-sort-by': 'size_bytes';
+    /** @description Optional Docker volume sort direction. Defaults to descending. */
+    'docker-volume-list-sort-order': 'asc' | 'desc';
     /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
     'docker-volume-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
@@ -16777,12 +16799,28 @@ export interface operations {
         driver?: components['parameters']['docker-volume-list-driver'];
         /** @description Optional exact Docker volume scope filter. */
         scope?: components['parameters']['docker-volume-list-scope'];
-        /** @description Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server. */
+        /** @description Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states. */
         usage?: components['parameters']['docker-volume-list-usage'];
         /** @description Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts. */
         source?: components['parameters']['docker-volume-list-source'];
         /** @description Optional exact Compose project filter. Only applies to volumes with source=compose. */
         compose_project?: components['parameters']['docker-volume-list-compose-project'];
+        /** @description Optional inclusive RFC 3339 lower bound for a Docker volume creation time. */
+        created_after?: components['parameters']['docker-volume-list-created-after'];
+        /** @description Optional inclusive RFC 3339 upper bound for a Docker volume creation time. */
+        created_before?: components['parameters']['docker-volume-list-created-before'];
+        /** @description Optional inclusive lower bound for known Docker volume usage in bytes. */
+        size_min_bytes?: components['parameters']['docker-volume-list-size-min-bytes'];
+        /** @description Optional inclusive upper bound for known Docker volume usage in bytes. */
+        size_max_bytes?: components['parameters']['docker-volume-list-size-max-bytes'];
+        /** @description Optional server-owned anonymous-volume classification filter. */
+        anonymous?: components['parameters']['docker-volume-list-anonymous'];
+        /** @description Optional filter for volumes with a resolved zero-container reference count. */
+        orphaned?: components['parameters']['docker-volume-list-orphaned'];
+        /** @description Optional Docker volume sort field. Defaults to size_bytes. */
+        sort_by?: components['parameters']['docker-volume-list-sort-by'];
+        /** @description Optional Docker volume sort direction. Defaults to descending. */
+        sort_order?: components['parameters']['docker-volume-list-sort-order'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

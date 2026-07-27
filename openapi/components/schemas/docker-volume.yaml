@@ -1,10 +1,17 @@
 type: object
-required: [name, driver, scope, created_at, container_references, context, relationship_status]
+required: [name, driver, scope, created_at, mountpoint, anonymous, container_references, context, relationship_status]
 properties:
   name: { type: string }
   driver: { type: string }
   scope: { type: string }
   created_at: { type: string }
+  mountpoint:
+    type: string
+    readOnly: true
+    description: Host mount path reported by Docker for this volume.
+  anonymous:
+    type: boolean
+    description: Server-owned classification of Docker-generated anonymous volume names.
   labels: { type: object, additionalProperties: { type: string } }
   reference_count: { type: integer, format: int64, nullable: true }
   size_bytes: { type: integer, format: int64, nullable: true }

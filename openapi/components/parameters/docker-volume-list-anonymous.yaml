@@ -1,0 +1,5 @@
+name: anonymous
+in: query
+required: false
+description: Optional server-owned anonymous-volume classification filter.
+schema: { type: boolean }

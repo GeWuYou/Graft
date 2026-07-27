@@ -20,6 +20,7 @@
     <responsive-table
       :density-scope="densityScope"
       :entity-card-layout="entityCardLayout"
+      :preserve-inactive="preserveInactive"
       :presentation="responsivePresentation"
     >
       <template v-if="$slots.cards" #cards>
@@ -131,6 +132,7 @@ const props = withDefaults(
     paginationProps?: Partial<PaginationProps>;
     paginationVisible?: boolean;
     presentation?: ResponsivePresentation;
+    preserveInactive?: boolean;
     rowClassName?: TdBaseTableProps['rowClassName'];
     rowKey?: string;
     rows: TableRowData[];
@@ -153,6 +155,7 @@ const props = withDefaults(
     paginationProps: () => ({}),
     paginationVisible: true,
     presentation: 'data',
+    preserveInactive: false,
     rowClassName: undefined,
     rowKey: 'id',
     selectedRowKeys: () => [],

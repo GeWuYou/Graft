@@ -96,7 +96,8 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('<docker-resource-context-card');
     expect(sourceText).toContain("t('container.resourceContext.relations')");
     expect(sourceText).toContain('<t-collapse');
-    expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
+    expect(sourceText).toContain('<container-danger-zone');
+    expect(sourceText).toContain(':description="t(\'container.networks.removeRisk\')"');
     expect(sourceText).toContain('advancedFiltersVisible');
   });
 

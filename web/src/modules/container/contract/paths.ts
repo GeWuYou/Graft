@@ -5,4 +5,5 @@ export const CONTAINER_ROUTE_PATH = {
   NETWORKS: '/infrastructure/docker/networks',
   IMAGES: '/infrastructure/images',
   VOLUMES: '/infrastructure/docker/volumes',
+  VOLUME_DETAIL: '/infrastructure/docker/volumes/:name',
 } as const;
