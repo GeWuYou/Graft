@@ -137,6 +137,10 @@ export function createViteConfig(mode: string): UserConfig {
 
   return {
     base,
+    // Monaco worker 必须走 Vite 原生 worker 转换，避免依赖预构建把 `?worker` 入口写成失效的优化 URL。
+    optimizeDeps: {
+      exclude: ['monaco-editor'],
+    },
     build: {
       // Monaco 与 YAML worker 代码需独立成 vendor chunk；Monaco 0.56 的已测产物约为 3962 KiB，保留 4000 KiB 预算以继续暴露后续增长。
       chunkSizeWarningLimit: 4096,
