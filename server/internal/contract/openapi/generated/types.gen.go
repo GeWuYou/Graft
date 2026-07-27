@@ -2971,13 +2971,13 @@ func (e EnvelopedSecurityOverviewResponseSuccess) Valid() bool {
 
 // Defines values for ErrorResponseSuccess.
 const (
-	False ErrorResponseSuccess = false
+	ErrorResponseSuccessFalse ErrorResponseSuccess = false
 )
 
 // Valid indicates whether the value is a known member of the ErrorResponseSuccess enum.
 func (e ErrorResponseSuccess) Valid() bool {
 	switch e {
-	case False:
+	case ErrorResponseSuccessFalse:
 		return true
 	default:
 		return false
@@ -3302,18 +3302,60 @@ func (e NotificationTargetType) Valid() bool {
 	}
 }
 
+// Defines values for PlatformBackupDetailStatus.
+const (
+	PlatformBackupDetailStatusAVAILABLE PlatformBackupDetailStatus = "AVAILABLE"
+	PlatformBackupDetailStatusEXPIRED   PlatformBackupDetailStatus = "EXPIRED"
+	PlatformBackupDetailStatusRESTORED  PlatformBackupDetailStatus = "RESTORED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformBackupDetailStatus enum.
+func (e PlatformBackupDetailStatus) Valid() bool {
+	switch e {
+	case PlatformBackupDetailStatusAVAILABLE:
+		return true
+	case PlatformBackupDetailStatusEXPIRED:
+		return true
+	case PlatformBackupDetailStatusRESTORED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformBackupRestoreEvidenceStatus.
+const (
+	NOTVERIFIED PlatformBackupRestoreEvidenceStatus = "NOT_VERIFIED"
+	RECORDED    PlatformBackupRestoreEvidenceStatus = "RECORDED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformBackupRestoreEvidenceStatus enum.
+func (e PlatformBackupRestoreEvidenceStatus) Valid() bool {
+	switch e {
+	case NOTVERIFIED:
+		return true
+	case RECORDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformBackupSummaryStatus.
 const (
-	AVAILABLE PlatformBackupSummaryStatus = "AVAILABLE"
-	EXPIRED   PlatformBackupSummaryStatus = "EXPIRED"
+	PlatformBackupSummaryStatusAVAILABLE PlatformBackupSummaryStatus = "AVAILABLE"
+	PlatformBackupSummaryStatusEXPIRED   PlatformBackupSummaryStatus = "EXPIRED"
+	PlatformBackupSummaryStatusRESTORED  PlatformBackupSummaryStatus = "RESTORED"
 )
 
 // Valid indicates whether the value is a known member of the PlatformBackupSummaryStatus enum.
 func (e PlatformBackupSummaryStatus) Valid() bool {
 	switch e {
-	case AVAILABLE:
+	case PlatformBackupSummaryStatusAVAILABLE:
 		return true
-	case EXPIRED:
+	case PlatformBackupSummaryStatusEXPIRED:
+		return true
+	case PlatformBackupSummaryStatusRESTORED:
 		return true
 	default:
 		return false
@@ -3398,6 +3440,54 @@ func (e PlatformUpdateOperationStatus) Valid() bool {
 	case PlatformUpdateOperationStatusSUCCESS:
 		return true
 	case PlatformUpdateOperationStatusVERIFYING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateRolloutErrorResponseSuccess.
+const (
+	PlatformUpdateRolloutErrorResponseSuccessFalse PlatformUpdateRolloutErrorResponseSuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateRolloutErrorResponseSuccess enum.
+func (e PlatformUpdateRolloutErrorResponseSuccess) Valid() bool {
+	switch e {
+	case PlatformUpdateRolloutErrorResponseSuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateRolloutFailureCode.
+const (
+	PLATFORMUPDATECATALOGSTALE             PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_CATALOG_STALE"
+	PLATFORMUPDATECOMPOSECANDIDATEINVALID  PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID"
+	PLATFORMUPDATECOMPOSEPREFLIGHTFAILED   PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
+	PLATFORMUPDATEINSTALLATIONUNAVAILABLE  PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE"
+	PLATFORMUPDATEINVALIDTARGET            PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INVALID_TARGET"
+	PLATFORMUPDATEOPERATIONSTARTFAILED     PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_OPERATION_START_FAILED"
+	PLATFORMUPDATESOURCEVERSIONUNSUPPORTED PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateRolloutFailureCode enum.
+func (e PlatformUpdateRolloutFailureCode) Valid() bool {
+	switch e {
+	case PLATFORMUPDATECATALOGSTALE:
+		return true
+	case PLATFORMUPDATECOMPOSECANDIDATEINVALID:
+		return true
+	case PLATFORMUPDATECOMPOSEPREFLIGHTFAILED:
+		return true
+	case PLATFORMUPDATEINSTALLATIONUNAVAILABLE:
+		return true
+	case PLATFORMUPDATEINVALIDTARGET:
+		return true
+	case PLATFORMUPDATEOPERATIONSTARTFAILED:
+		return true
+	case PLATFORMUPDATESOURCEVERSIONUNSUPPORTED:
 		return true
 	default:
 		return false
@@ -10029,11 +10119,13 @@ type EnvelopedPersonalAccessTokenListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedPlatformBackupListResponse defines model for enveloped-platform-backup-list-response.
-type EnvelopedPlatformBackupListResponse struct {
+// EnvelopedPlatformBackupDetail defines model for enveloped-platform-backup-detail.
+type EnvelopedPlatformBackupDetail struct {
 	// Code Existing canonical response code.
-	Code string                     `json:"code"`
-	Data PlatformBackupListResponse `json:"data"`
+	Code string `json:"code"`
+
+	// Data Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified.
+	Data PlatformBackupDetail `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -10049,13 +10141,11 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
-// EnvelopedPlatformBackupSummary defines model for enveloped-platform-backup-summary.
-type EnvelopedPlatformBackupSummary struct {
+// EnvelopedPlatformBackupListResponse defines model for enveloped-platform-backup-list-response.
+type EnvelopedPlatformBackupListResponse struct {
 	// Code Existing canonical response code.
-	Code string `json:"code"`
-
-	// Data Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.
-	Data PlatformBackupSummary `json:"data"`
+	Code string                     `json:"code"`
+	Data PlatformBackupListResponse `json:"data"`
 
 	// Locale Present on localized error flows and omitted on normal success.
 	Locale *string `json:"locale,omitempty"`
@@ -11073,6 +11163,34 @@ type PersonalAccessTokenSummary struct {
 	TokenPrefix string `json:"token_prefix"`
 }
 
+// PlatformBackupArtifactMetadata Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned.
+type PlatformBackupArtifactMetadata struct {
+	// Sha256 SHA-256 checksum recorded when the artifact was created; it is not an independent restore verification.
+	Sha256    string `json:"sha256"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+// PlatformBackupDetail Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified.
+type PlatformBackupDetail struct {
+	// ConfigSnapshot Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned.
+	ConfigSnapshot PlatformBackupArtifactMetadata `json:"config_snapshot"`
+	CreatedAt      time.Time                      `json:"created_at"`
+
+	// DatabaseDump Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned.
+	DatabaseDump PlatformBackupArtifactMetadata `json:"database_dump"`
+	Id           int64                          `json:"id"`
+	Purpose      string                         `json:"purpose"`
+
+	// RestoreEvidence Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable.
+	RestoreEvidence PlatformBackupRestoreEvidence `json:"restore_evidence"`
+	RetainUntil     time.Time                     `json:"retain_until"`
+	Status          PlatformBackupDetailStatus    `json:"status"`
+	TaskId          *int64                        `json:"task_id,omitempty"`
+}
+
+// PlatformBackupDetailStatus defines model for PlatformBackupDetail.Status.
+type PlatformBackupDetailStatus string
+
 // PlatformBackupListResponse defines model for platform-backup-list-response.
 type PlatformBackupListResponse struct {
 	Items  []PlatformBackupSummary `json:"items"`
@@ -11081,6 +11199,21 @@ type PlatformBackupListResponse struct {
 	Total  int64                   `json:"total"`
 }
 
+// PlatformBackupRestoreEvidence Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable.
+type PlatformBackupRestoreEvidence struct {
+	// RecordedAt Time the latest controlled restore result was recorded.
+	RecordedAt *time.Time `json:"recorded_at,omitempty"`
+
+	// ResultCode Controlled restore result code when evidence is recorded.
+	ResultCode *string `json:"result_code,omitempty"`
+
+	// Status NOT_VERIFIED means no restore result has been recorded for this Backup.
+	Status PlatformBackupRestoreEvidenceStatus `json:"status"`
+}
+
+// PlatformBackupRestoreEvidenceStatus NOT_VERIFIED means no restore result has been recorded for this Backup.
+type PlatformBackupRestoreEvidenceStatus string
+
 // PlatformBackupSummary Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.
 type PlatformBackupSummary struct {
 	CreatedAt   time.Time                   `json:"created_at"`
@@ -11088,7 +11221,6 @@ type PlatformBackupSummary struct {
 	Purpose     string                      `json:"purpose"`
 	RetainUntil time.Time                   `json:"retain_until"`
 	Status      PlatformBackupSummaryStatus `json:"status"`
-	TaskId      *int64                      `json:"task_id,omitempty"`
 }
 
 // PlatformBackupSummaryStatus defines model for PlatformBackupSummary.Status.
@@ -11135,6 +11267,38 @@ type PlatformUpdateOperationStatus string
 
 // PlatformUpdateOperationList defines model for platform-update-operation-list.
 type PlatformUpdateOperationList = []PlatformUpdateOperation
+
+// PlatformUpdateRolloutErrorResponse defines model for platform-update-rollout-error-response.
+type PlatformUpdateRolloutErrorResponse struct {
+	// Code Stable safe failure code returned when a confirmed platform update cannot start.
+	Code PlatformUpdateRolloutFailureCode `json:"code"`
+	Data PlatformUpdateRolloutFailureData `json:"data"`
+
+	// Locale Locale used to resolve the fallback message text.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Localized safe fallback text for the failure code.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for the failure code.
+	MessageKey *string                                   `json:"messageKey,omitempty"`
+	Success    PlatformUpdateRolloutErrorResponseSuccess `json:"success"`
+
+	// TraceId Stable request identifier for correlating server logs.
+	TraceId string `json:"traceId"`
+}
+
+// PlatformUpdateRolloutErrorResponseSuccess defines model for PlatformUpdateRolloutErrorResponse.Success.
+type PlatformUpdateRolloutErrorResponseSuccess bool
+
+// PlatformUpdateRolloutFailureCode Stable safe failure code returned when a confirmed platform update cannot start.
+type PlatformUpdateRolloutFailureCode string
+
+// PlatformUpdateRolloutFailureData defines model for platform-update-rollout-failure-data.
+type PlatformUpdateRolloutFailureData struct {
+	// Reason Stable safe failure code returned when a confirmed platform update cannot start.
+	Reason PlatformUpdateRolloutFailureCode `json:"reason"`
+}
 
 // PlatformUpdateStatus defines model for platform-update-status.
 type PlatformUpdateStatus struct {

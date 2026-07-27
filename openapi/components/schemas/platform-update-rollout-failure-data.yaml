@@ -1,0 +1,6 @@
+type: object
+required: [reason]
+properties:
+  reason:
+    $ref: ./platform-update-rollout-failure-code.yaml
+additionalProperties: false

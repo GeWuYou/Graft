@@ -6,6 +6,7 @@ import { defineComponent, h } from 'vue';
 import { usePermissionStore } from '@/store';
 
 import { createUpdateOperation } from '../../api/update';
+import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
@@ -13,11 +14,23 @@ import UpdateCenter from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({ createUpdateOperation: vi.fn(), getUpdateOperations: vi.fn() }));
 
+const updateStartFailure = (code: string, traceId = 'request-update-42') =>
+  Object.assign(new Error('internal implementation detail'), {
+    code,
+    isApiRequestError: true as const,
+    status: 500,
+    traceId,
+  });
+
 vi.mock('../../api/update', () => apiMocks);
 vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }));
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
-  useI18n: () => ({ locale: { value: 'en-US' }, t: (key: string) => key }),
+  useI18n: () => ({
+    locale: { value: 'en-US' },
+    t: (key: string, params?: Record<string, unknown>) =>
+      params?.requestId ? `${key}:${String(params.requestId)}` : key,
+  }),
 }));
 vi.mock('@/shared/observability', () => ({ formatLocaleDateTime: (value: string) => value }));
 vi.mock('@/shared/components/markdown', () => ({
@@ -157,6 +170,42 @@ describe('UpdateCenter', () => {
     await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
     expect(wrapper.get('[data-testid="update-confirmation-submit"]').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('update.center.composeRoot.selectionRequired');
+  });
+
+  it('renders a safe failure reason and request ID for a rejected upgrade submission', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot(
+      status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
+    );
+    apiMocks.createUpdateOperation.mockRejectedValueOnce(
+      updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.COMPOSE_PREFLIGHT_FAILED),
+    );
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('update.center.confirmation.failure.composePreflightFailed');
+    expect(wrapper.get('[data-testid="update-operation-request-id"]').text()).toContain('request-update-42');
+    expect(wrapper.text()).not.toContain('internal implementation detail');
+  });
+
+  it('uses the generic failure text and hides the request ID for an unknown or network error', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot(
+      status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
+    );
+    apiMocks.createUpdateOperation.mockRejectedValueOnce(updateStartFailure('UNKNOWN_CODE'));
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('update.center.confirmation.failure.generic');
+    expect(wrapper.find('[data-testid="update-operation-request-id"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('internal implementation detail');
   });
 
   it('uses the injected data source for status, refresh, history, and upgrade submission', async () => {

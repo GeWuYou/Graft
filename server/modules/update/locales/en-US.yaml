@@ -2,3 +2,10 @@ menu.platform.maintenance: System Maintenance
 menu.platform.update: Updates
 scheduledTask.platformUpdateCheck.title: Check Platform Updates
 scheduledTask.platformUpdateCheck.description: Checks the release source for a newer verified platform version.
+update.operation.start.invalid_target: The target release is no longer valid. Refresh update information and try again.
+update.operation.start.catalog_stale: The update catalog is stale. Check for updates and try again.
+update.operation.start.installation_unavailable: This installation does not support managed updates.
+update.operation.start.source_version_unsupported: The current version does not meet the target release requirements.
+update.operation.start.compose_candidate_invalid: The selected Compose project is no longer valid. Refresh update information and select it again.
+update.operation.start.compose_preflight_failed: The installation did not pass the update preflight. Verify the deployment configuration.
+update.operation.start.operation_start_failed: The update request could not start. Check the server logs using the request ID.

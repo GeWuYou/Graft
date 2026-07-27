@@ -8793,7 +8793,14 @@
             }
           },
           "400": {
-            "description": "Invalid target version or request payload."
+            "description": "Invalid target version or request payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform-update-rollout-error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -8801,8 +8808,30 @@
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
-          "409": {
-            "description": "The installation profile or current release does not permit execution."
+          "412": {
+            "description": "The verified release catalog or installation preflight rejected execution.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform-update-rollout-error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Update preparation, persistence, or runner launch failed.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform-update-rollout-error-response"
+                }
+              }
+            }
           }
         }
       }
@@ -26423,6 +26452,71 @@
           }
         }
       },
+      "platform-update-rollout-failure-code": {
+        "type": "string",
+        "description": "Stable safe failure code returned when a confirmed platform update cannot start.",
+        "enum": [
+          "PLATFORM_UPDATE_CATALOG_STALE",
+          "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE",
+          "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED",
+          "PLATFORM_UPDATE_INVALID_TARGET",
+          "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID",
+          "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED",
+          "PLATFORM_UPDATE_OPERATION_START_FAILED"
+        ]
+      },
+      "platform-update-rollout-failure-data": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-code"
+          }
+        },
+        "additionalProperties": false
+      },
+      "platform-update-rollout-error-response": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "code": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-code"
+          },
+          "message": {
+            "type": "string",
+            "description": "Localized safe fallback text for the failure code."
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Stable localization key for the failure code."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Locale used to resolve the fallback message text."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Stable request identifier for correlating server logs."
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-data"
+          }
+        }
+      },
       "platform-backup-summary": {
         "type": "object",
         "description": "Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.",
@@ -26562,6 +26656,7 @@
       },
       "platform-backup-artifact-metadata": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned.",
         "required": [
           "size_bytes",
@@ -26582,6 +26677,7 @@
       },
       "platform-backup-restore-evidence": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable.",
         "required": [
           "status"
@@ -26610,6 +26706,7 @@
       },
       "platform-backup-detail": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified.",
         "required": [
           "id",

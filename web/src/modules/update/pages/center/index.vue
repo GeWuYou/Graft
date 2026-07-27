@@ -177,6 +177,13 @@
         theme="error"
         :message="operationError"
       />
+      <p
+        v-if="operationRequestId"
+        class="update-center__confirmation-request-id"
+        data-testid="update-operation-request-id"
+      >
+        {{ t('update.center.confirmation.requestId', { requestId: operationRequestId }) }}
+      </p>
     </t-dialog>
   </div>
 </template>
@@ -191,9 +198,11 @@ import { ManagementEmptyState } from '@/shared/components/management';
 import { MarkdownViewer } from '@/shared/components/markdown';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
+import { isApiRequestError } from '@/utils/request';
 
 import { createUpdateOperation, getUpdateOperations } from '../../api/update';
 import { isUpgradeEligible } from '../../composables/updateEligibility';
+import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
@@ -217,6 +226,7 @@ const operations = ref<UpdateOperation[]>([]);
 const confirmationVisible = ref(false);
 const submitting = ref(false);
 const operationError = ref('');
+const operationRequestId = ref('');
 const selectedCandidateKey = ref('');
 const canCheck = computed(() =>
   props.dataSource ? props.dataSource.permissions.check : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK),
@@ -351,6 +361,7 @@ function openConfirmation() {
     return;
   }
   operationError.value = '';
+  operationRequestId.value = '';
   confirmationVisible.value = true;
 }
 
@@ -360,6 +371,7 @@ async function submitUpgrade() {
   }
   submitting.value = true;
   operationError.value = '';
+  operationRequestId.value = '';
   try {
     const payload = {
       target_version: status.value.latest.version,
@@ -372,8 +384,10 @@ async function submitUpgrade() {
     }
     confirmationVisible.value = false;
     await loadHistory();
-  } catch {
-    operationError.value = t('update.center.confirmation.submitFailed');
+  } catch (error) {
+    operationError.value = resolveOperationErrorMessage(error);
+    operationRequestId.value =
+      isApiRequestError(error) && isUpdateOperationFailureCode(error.code) ? error.traceId.trim() : '';
   } finally {
     submitting.value = false;
   }
@@ -389,6 +403,16 @@ function syncCandidateSelection() {
     const highConfidenceCandidates = candidates.filter(({ confidence }) => confidence === 'high');
     selectedCandidateKey.value = highConfidenceCandidates.length === 1 ? highConfidenceCandidates[0].key : '';
   }
+}
+
+function resolveOperationErrorMessage(error: unknown) {
+  if (!isApiRequestError(error)) {
+    return t('update.center.confirmation.failure.generic');
+  }
+
+  return isUpdateOperationFailureCode(error.code)
+    ? t(UPDATE_OPERATION_FAILURE_MESSAGE_KEY[error.code])
+    : t('update.center.confirmation.failure.generic');
 }
 
 function capabilityRow(key: string, compose: string, binary: string) {

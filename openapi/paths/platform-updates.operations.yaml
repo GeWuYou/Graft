@@ -37,7 +37,22 @@ post:
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-update-operation.yaml }
-    '400': { description: Invalid target version or request payload. }
+    '400':
+      description: Invalid target version or request payload.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
+    '412':
+      description: The verified release catalog or installation preflight rejected execution.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
+    '500':
+      description: Update preparation, persistence, or runner launch failed.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/platform-update-rollout-error-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '409': { description: The installation profile or current release does not permit execution. }

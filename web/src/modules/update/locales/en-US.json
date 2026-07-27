@@ -78,7 +78,17 @@
         "description": "Confirm to start the controlled Compose rollout.",
         "confirm": "Start upgrade",
         "cancel": "Cancel",
-        "submitFailed": "The upgrade request could not be started."
+        "requestId": "Request ID: {requestId}",
+        "failure": {
+          "catalogStale": "The verified release catalog has expired. Check for updates and try again.",
+          "executionUnavailable": "This installation does not meet the runtime requirements for a controlled upgrade.",
+          "minimumSourceVersion": "The current version does not meet the target release's minimum upgrade requirement.",
+          "targetInvalid": "The target release is no longer valid. Refresh the update status and try again.",
+          "composeCandidateInvalid": "The selected Compose project directory is no longer valid. Select it again and retry.",
+          "composePreflightFailed": "The current Compose project did not pass the upgrade preflight check.",
+          "startFailed": "The upgrade task could not be started. Use the request ID to inspect the server logs.",
+          "generic": "The upgrade request could not be started. Try again later."
+        }
       },
       "history": {
         "title": "Update history",

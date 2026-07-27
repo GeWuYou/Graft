@@ -1,0 +1,4 @@
+password=private-value
+Authorization: Bearer bearer-secret-value
+authorization=Basic basic-secret-value
+token=private-token postgres://graft:db-password@postgres/graft

@@ -25,13 +25,12 @@ validation rules.
    exhaustively and still includes `Outside diff range comments (N)`, `Nitpick comments (N)`, and other folded
    latest-review sections in scope; do not treat push as permission to leave those findings informal or unclassified.
 6. When the user explicitly triggers `$graft-push`, treat it as permission to finish the local push path end to end:
-   - if the branch is blocked on a bounded local issue inside the current owned scope, such as missing commit,
-     generated-artifact drift, stale snapshots, local validation failure, or hook failure, diagnose it and apply the
-     root `AGENTS.md` `Repair Confirmation Interaction Contract` before any edit, staging, or repair commit
-   - invoke the contract's `Repair required` proposal through native structured approval when available. If the runtime
-     lacks that control, stop and use the root contract's next-turn `1 / 2 / 3 / 4` fallback with all four visible
-     option descriptions; never use a binary confirmation question. Only `execute_repair` authorizes the declared
-     repair and its subsequent commit or push
+   - if the branch is blocked on a bounded local issue, such as missing commit, generated-artifact drift, stale
+     snapshots, local validation failure, or hook failure, repair it continuously only when its root cause is diagnosed
+     and directly addressed, ownership is unambiguous, every file and hunk remains inside the confirmed scope, and
+     authority and behavior are unchanged
+   - invoke the root `AGENTS.md` `Repair Confirmation Interaction Contract` whenever a repair misses any
+     continuous-repair condition. Present its `Repair required` proposal through native structured approval when available; otherwise stop and use its next-turn `1 / 2 / 3 / 4` fallback with all four visible option descriptions. Only `execute_repair` authorizes that proposed repair and its subsequent commit or push
    - report when the branch or destination is ambiguous, the failure has no concrete repair proposal, or the required
      validation is infeasible
 7. When the push follows PR-review remediation, do not reply to a PR thread or update the managed review ledger before
@@ -75,12 +74,12 @@ validation rules.
 5. Reuse repository truth before diagnosing remote issues:
    - if a commit is missing, use `graft-commit`
    - if local validation is the real blocker, use `graft-validation-runner`
-   - if the failure is a local hook, reproduce the exact hook and diagnose its repair before presenting the required
-     structured proposal
-   - if a bounded local blocker sits inside the current owned scope, diagnose it and use the root `Repair Confirmation
-     Interaction Contract` before any repair edit. `show_detailed_diff` shows the patch and repeats the native choice
-     control; `continue_current_scope` and `cancel_workflow` stop repair work, and `execute_repair` resumes this push
-     workflow only for the declared scope
+   - if the failure is a local hook, reproduce the exact hook and diagnose its repair. Repair it continuously only
+     when every continuous-repair condition holds; otherwise present the required structured proposal
+   - use the root `Repair Confirmation Interaction Contract` for any bounded local blocker that does not meet every
+     continuous-repair condition. `show_detailed_diff` shows the patch and repeats the native choice control;
+     `continue_current_scope` and `cancel_workflow` stop repair work, and `execute_repair` resumes this push workflow
+     only for the declared scope
    - if the branch contains `$graft-pr-review` fixes, preserve the review run's exhaustive finding-disposition
      requirement; a successful push does not downgrade `Outside diff range comments` or other folded review findings to
      optional

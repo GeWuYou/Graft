@@ -8,9 +8,11 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
+	"graft/server/internal/logger/logsafe"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	updatecontract "graft/server/modules/update/contract"
@@ -32,7 +34,7 @@ func registerRoutes(ctx *module.Context, service *Service, rollout *RolloutServi
 	group := ctx.Router.Group(updatecontract.UpdateGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
-	handlers := updateRouteHandlers{localizer: ctx.I18n, auth: auth, rollout: rollout}
+	handlers := updateRouteHandlers{localizer: ctx.I18n, auth: auth, rollout: rollout, logger: ctx.Logger}
 	group.GET(updatecontract.UpdateStatusRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), func(ginCtx *gin.Context) {
 		httpx.WriteSuccess(ginCtx, http.StatusOK, statusForUpdateViewer(ginCtx.Request.Context(), authorizer, service.Status()))
 	})
@@ -52,6 +54,7 @@ type updateRouteHandlers struct {
 	localizer *i18n.Service
 	auth      moduleapi.AuthService
 	rollout   *RolloutService
+	logger    *zap.Logger
 }
 
 // mayViewComposeCandidates 将宿主机路径限定在已通过更新管理权限校验的请求中。
@@ -115,17 +118,31 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	}
 	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.CandidateKey)
 	if err != nil {
-		switch {
-		case errors.Is(err, errRolloutInvalidArgument):
-			httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		case errors.Is(err, errRolloutPrecondition):
-			httpx.WriteLocalizedError(c, h.localizer, http.StatusPreconditionFailed, messagecontract.CommonInvalidArgument.String(), nil)
-		default:
-			httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
-		}
+		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusAccepted, operation)
+}
+
+func (h updateRouteHandlers) writeStartFailure(c *gin.Context, actorID uint64, targetVersion, candidateKey string, err error) {
+	code, stage, operationID := rolloutFailureDetails(err)
+	status := rolloutFailureHTTPStatus(code)
+	requestAudit, _ := httpx.RequestAuditContextFromContext(c.Request.Context())
+	logsafe.Error(h.logger, "platform update rollout start failed",
+		zap.String("event", "platform_update.rollout_start_"+stage+"_failed"),
+		zap.String("request_id", httpx.EnsureRequestID(c)),
+		zap.String("trace_id", httpx.EnsureTraceID(c)),
+		zap.Uint64("actor_id", actorID),
+		zap.String("target_version", targetVersion),
+		zap.String("compose_candidate_key", candidateKey),
+		zap.Int("http_status", status),
+		zap.String("failure_code", code),
+		zap.String("failure_stage", stage),
+		zap.String("operation_id", operationID),
+		zap.String("route", requestAudit.Route),
+		zap.String("error", sanitizeRolloutError(err)),
+	)
+	httpx.WriteLocalizedErrorCode(c, h.localizer, status, code, rolloutFailureMessageKey(code), rolloutFailureResponseData(code))
 }
 
 func resolveAuth(ctx *module.Context) (moduleapi.AuthService, error) {

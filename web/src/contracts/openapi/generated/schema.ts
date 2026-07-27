@@ -6329,6 +6329,35 @@ export interface components {
       traceId: string;
       data: components['schemas']['platform-update-operation'];
     };
+    /**
+     * @description Stable safe failure code returned when a confirmed platform update cannot start.
+     * @enum {string}
+     */
+    'platform-update-rollout-failure-code':
+      | 'PLATFORM_UPDATE_CATALOG_STALE'
+      | 'PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE'
+      | 'PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED'
+      | 'PLATFORM_UPDATE_INVALID_TARGET'
+      | 'PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID'
+      | 'PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED'
+      | 'PLATFORM_UPDATE_OPERATION_START_FAILED';
+    'platform-update-rollout-failure-data': {
+      reason: components['schemas']['platform-update-rollout-failure-code'];
+    };
+    'platform-update-rollout-error-response': {
+      /** @enum {boolean} */
+      success: false;
+      code: components['schemas']['platform-update-rollout-failure-code'];
+      /** @description Localized safe fallback text for the failure code. */
+      message: string;
+      /** @description Stable localization key for the failure code. */
+      messageKey?: string;
+      /** @description Locale used to resolve the fallback message text. */
+      locale?: string;
+      /** @description Stable request identifier for correlating server logs. */
+      traceId: string;
+      data: components['schemas']['platform-update-rollout-failure-data'];
+    };
     /** @description Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned. */
     'platform-backup-summary': {
       /** Format: int64 */
@@ -13494,16 +13523,30 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['platform-update-rollout-error-response'];
+        };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description The installation profile or current release does not permit execution. */
-      409: {
+      /** @description The verified release catalog or installation preflight rejected execution. */
+      412: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['platform-update-rollout-error-response'];
+        };
+      };
+      /** @description Update preparation, persistence, or runner launch failed. */
+      500: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['platform-update-rollout-error-response'];
+        };
       };
     };
   };

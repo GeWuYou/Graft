@@ -47,8 +47,12 @@ type receiptPolling struct {
 }
 
 var (
-	errRolloutInvalidArgument = errors.New("compose update request is invalid")
-	errRolloutPrecondition    = errors.New("compose update precondition is not met")
+	errRolloutInvalidArgument          = errors.New("compose update request is invalid")
+	errRolloutCatalogStale             = errors.New("compose update release catalog is stale")
+	errRolloutInstallationUnavailable  = errors.New("compose update installation is unavailable")
+	errRolloutSourceVersionUnsupported = errors.New("compose update source version is unsupported")
+	errRolloutComposeCandidateInvalid  = errors.New("compose update candidate is invalid")
+	errRolloutComposePreflightFailed   = errors.New("compose update preflight failed")
 )
 
 // SetAuditPublisher 注入 durable 审计事件发布端和失败日志器；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
@@ -72,7 +76,7 @@ func NewRolloutService(discovery *Service, operations OperationStore, tasks modu
 //nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
 func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion string, candidateKeys ...string) (ComposeUpdateOperation, error) {
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || requestedBy == 0 {
-		return ComposeUpdateOperation{}, errors.New("compose update rollout is unavailable")
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
 	}
 	candidateKey := ""
 	if len(candidateKeys) > 0 {
@@ -80,13 +84,14 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 	}
 	status, preflight, err := s.confirmedPreflight(targetVersion, candidateKey)
 	if err != nil {
-		return ComposeUpdateOperation{}, err
+		code := classifyRolloutPreflightFailure(err)
+		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
 	operation := ComposeUpdateOperation{OperationID: s.newOperation(), SourceVersion: status.CurrentVersion, TargetVersion: targetVersion, RequestedBy: requestedBy, Outcome: ExecutionOutcomePlanning}
 	handoff := backupHandoff(operation.OperationID, requestedBy, preflight.ComposeRoot)
 	prepared, input, err := s.coordinator.Start(ctx, operation, requestedBy, handoff)
 	if err != nil {
-		return ComposeUpdateOperation{}, err
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "handoff", operation.OperationID, err)
 	}
 	prepared.RequestedBy, prepared.Outcome = requestedBy, ExecutionOutcomePulling
 	input.Preflight = preflight
@@ -100,16 +105,16 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey string) (Status, ComposePreflight, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
-		return Status{}, ComposePreflight{}, fmt.Errorf("%w: fresh verified release catalog is required", errRolloutPrecondition)
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: fresh verified release catalog is required", errRolloutCatalogStale)
 	}
 	if status.Profile.Capability != "compose_upgrade_available" || status.Latest == nil {
-		return Status{}, ComposePreflight{}, fmt.Errorf("%w: rollout is unavailable for this installation", errRolloutPrecondition)
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: rollout is unavailable for this installation", errRolloutInstallationUnavailable)
 	}
 	if minimum := strings.TrimSpace(status.Latest.MinimumSourceVersion); minimum != "" {
 		current, currentErr := ParseVersion(status.CurrentVersion)
 		minimumVersion, minimumErr := ParseVersion(minimum)
 		if currentErr != nil || minimumErr != nil || current.Compare(minimumVersion) < 0 {
-			return Status{}, ComposePreflight{}, fmt.Errorf("%w: current version does not meet the target minimum source version", errRolloutPrecondition)
+			return Status{}, ComposePreflight{}, fmt.Errorf("%w: current version does not meet the target minimum source version", errRolloutSourceVersionUnsupported)
 		}
 	}
 	if strings.TrimSpace(targetVersion) == "" || targetVersion != status.Latest.Version {
@@ -117,9 +122,26 @@ func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey string) 
 	}
 	preflight, err := composePreflight(status.Profile, *status.Latest, candidateKey)
 	if err != nil {
-		return Status{}, ComposePreflight{}, fmt.Errorf("%w: %w", errRolloutPrecondition, err)
+		return Status{}, ComposePreflight{}, fmt.Errorf("%w: %w", errRolloutComposePreflightFailed, err)
 	}
 	return status, preflight, nil
+}
+
+func classifyRolloutPreflightFailure(err error) string {
+	switch {
+	case errors.Is(err, errRolloutInvalidArgument):
+		return rolloutFailureInvalidTarget
+	case errors.Is(err, errRolloutCatalogStale):
+		return rolloutFailureCatalogStale
+	case errors.Is(err, errRolloutInstallationUnavailable):
+		return rolloutFailureInstallationUnavailable
+	case errors.Is(err, errRolloutSourceVersionUnsupported):
+		return rolloutFailureSourceVersionUnsupported
+	case errors.Is(err, errRolloutComposeCandidateInvalid):
+		return rolloutFailureComposeCandidateInvalid
+	default:
+		return rolloutFailureComposePreflightFailed
+	}
 }
 
 // Close 释放 rollout 持有的 Docker client，供模块关闭阶段调用。
@@ -207,7 +229,7 @@ func (s *RolloutService) runReceiptPolling(ctx context.Context, polling receiptP
 func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput) error {
 	if err := s.operations.Create(ctx, operation); err != nil {
 		s.publishAudit(ctx, operation, false, "operation_persist_failed")
-		return err
+		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "operation_persist", operation.OperationID, fmt.Errorf("persist update operation: %w", err))
 	}
 	if err := s.launcher.Launch(ctx, input); err != nil {
 		operation.Outcome, operation.FailureCode = ExecutionOutcomeFailed, "runner_launch_failed"
@@ -215,11 +237,11 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 			operation.FailureCode = "runner_launch_cleanup_failed"
 			_ = s.operations.Settle(ctx, operation)
 			s.publishAudit(ctx, operation, false, operation.FailureCode)
-			return fmt.Errorf("launch compose update runner: %w; reconcile launch handoff: %w", err, cleanupErr)
+			return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w; reconcile launch handoff: %w", err, cleanupErr))
 		}
 		_ = s.operations.Settle(ctx, operation)
 		s.publishAudit(ctx, operation, false, operation.FailureCode)
-		return fmt.Errorf("launch compose update runner: %w", err)
+		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w", err))
 	}
 	s.publishAudit(ctx, operation, true, "")
 	return nil
@@ -408,12 +430,12 @@ func composePreflight(profile InstallationProfile, release Release, candidateKey
 			}
 		}
 		if root == "" {
-			return ComposePreflight{}, errors.New("a confirmed compose root candidate is required")
+			return ComposePreflight{}, fmt.Errorf("%w: a confirmed compose root candidate is required", errRolloutComposeCandidateInvalid)
 		}
 	}
 	if len(composeFiles) == 0 {
 		if !explicitRoot {
-			return ComposePreflight{}, errors.New("the confirmed compose root candidate must include its compose file sequence")
+			return ComposePreflight{}, fmt.Errorf("%w: the confirmed compose root candidate must include its compose file sequence", errRolloutComposeCandidateInvalid)
 		}
 		composeFiles = []string{filepath.Join(root, "compose.yml")}
 	}
