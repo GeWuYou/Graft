@@ -1,1 +1,1 @@
-(^|.*/)server/modules/update/testdata/rollout-diagnostics/sensitive-inputs\.txt$
+^server/modules/update/rollout_diagnostics_test\.go$
