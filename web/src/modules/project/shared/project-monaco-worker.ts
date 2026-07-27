@@ -1,5 +1,5 @@
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
+import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker.js?worker';
 
 import { createLogger } from '@/utils/logger';
 

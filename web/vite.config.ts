@@ -14,6 +14,8 @@ import svgLoader from 'vite-svg-loader';
 
 const CWD = process.cwd();
 const lessVariablesFile = path.resolve(CWD, 'src/style/variables.less');
+const monacoEditorMainCssFile = path.resolve(CWD, 'node_modules/monaco-editor/min/vs/editor/editor.main.css');
+const monacoEditorEsmVsDirectory = path.resolve(CWD, 'node_modules/monaco-editor/esm/vs');
 const tdesignVueNextPackageName = 'tdesign-vue-next';
 const tdesignVueNextEsmEntry = `${tdesignVueNextPackageName}/esm`;
 const tdesignComponentPathOverrides: Record<string, string> = {
@@ -136,8 +138,8 @@ export function createViteConfig(mode: string): UserConfig {
   return {
     base,
     build: {
-      // Monaco 与 YAML worker 代码需独立成 vendor chunk；当前拆分会产生较大包体，因此保留可见的体积告警并提高阈值。
-      chunkSizeWarningLimit: 3900,
+      // Monaco 与 YAML worker 代码需独立成 vendor chunk；Monaco 0.56 的已测产物约为 3962 KiB，保留 4000 KiB 预算以继续暴露后续增长。
+      chunkSizeWarningLimit: 4096,
       rollupOptions: {
         onwarn(warning, warn) {
           // `@vueuse/core` 当前版本产物会触发 Rollup 对 `#__PURE__` 注释位置的已知噪音，
@@ -195,6 +197,8 @@ export function createViteConfig(mode: string): UserConfig {
       alias: {
         '@/router/development-routes': developmentRoutesModule,
         '@': path.resolve(__dirname, './src'),
+        'monaco-editor/esm/vs': monacoEditorEsmVsDirectory,
+        'monaco-editor/min/vs/editor/editor.main.css': monacoEditorMainCssFile,
       },
     },
     css: {
