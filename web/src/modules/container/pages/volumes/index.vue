@@ -248,11 +248,11 @@
         </t-space>
       </template>
     </t-dialog>
-    <t-drawer
+    <resource-detail-layout
       v-model:visible="detailDrawerVisible"
-      :header="selectedVolume?.name || t('container.volume.detail.title')"
-      size="520px"
-      :footer="false"
+      :title="selectedVolume?.name || t('container.volume.detail.title')"
+      :back-label="t('container.detail.back')"
+      size="compact"
     >
       <div class="docker-volume-page__detail-loading-host">
         <div v-if="detailLoading" class="docker-volume-page__detail-loading-host__indicator">
@@ -326,7 +326,7 @@
           />
         </div>
       </div>
-    </t-drawer>
+    </resource-detail-layout>
   </div>
 </template>
 <script setup lang="ts">
@@ -349,6 +349,7 @@ import {
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';

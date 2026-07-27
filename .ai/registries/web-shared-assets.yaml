@@ -28,6 +28,7 @@ assets:
     examples:
       - "web/src/shared/components/management/ManagementPagedTable.vue"
       - "web/src/modules/container/pages/images/index.vue"
+      - "web/src/shared/components/responsive/ResourceDetailLayout.vue"
     validation_commands:
       - "cd web && bun run check"
 

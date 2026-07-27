@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
+import ResourceDetailLayout from './ResourceDetailLayout.vue';
 import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
 import ResponsiveDialog from './ResponsiveDialog.vue';
@@ -133,5 +134,20 @@ describe('responsive primitives', () => {
     expect(wrapper.find('.responsive-dialog__footer').text()).toContain('save');
     expect(Object.keys(wrapper.props())).toEqual(expect.arrayContaining(['purpose', 'size']));
     expect(Object.keys(wrapper.props())).not.toContain('width');
+  });
+
+  it('uses a fullscreen detail surface below the compact breakpoint without an empty actions region', async () => {
+    vi.stubGlobal('innerWidth', 390);
+    const wrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', title: 'app-shared-postgres', visible: true },
+      slots: { default: '<p>IPAM configuration</p>' },
+      global: { stubs: { 't-dialog': { template: '<div class="dialog"><slot /></div>' } } },
+    });
+    await nextTick();
+
+    expect(wrapper.find('.dialog').exists()).toBe(true);
+    expect(wrapper.text()).toContain('app-shared-postgres');
+    expect(wrapper.find('.resource-detail-content__actions').exists()).toBe(false);
+    expect(Object.keys(wrapper.props())).not.toContain('isMobile');
   });
 });

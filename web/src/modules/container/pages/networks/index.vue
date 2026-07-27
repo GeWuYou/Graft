@@ -382,12 +382,11 @@
       </template>
     </t-drawer>
 
-    <t-drawer
+    <resource-detail-layout
       v-model:visible="detailDrawerVisible"
-      :header="detailQuery.data.value?.name || t('container.networks.detailTitle')"
-      size="720px"
-      destroy-on-close
-      :footer="false"
+      :title="detailQuery.data.value?.name || t('container.networks.detailTitle')"
+      :back-label="t('container.detail.back')"
+      size="medium"
     >
       <t-loading :loading="detailQuery.isFetching.value">
         <t-alert
@@ -416,44 +415,52 @@
             </t-space>
           </section>
           <docker-resource-context-card :context="detailQuery.data.value.context" resource-kind="network" />
-          <section class="docker-network-page__section">
+          <section class="docker-network-page__section docker-network-page__section--relations">
             <h3>{{ t('container.resourceContext.relations') }}</h3>
-            <t-space v-if="detailQuery.data.value.container_references?.length" break-line size="small">
-              <t-link
+            <div v-if="detailQuery.data.value.container_references?.length" class="docker-network-page__relation-cards">
+              <t-button
                 v-for="reference in detailQuery.data.value.container_references"
                 :key="reference.id"
-                theme="primary"
+                class="docker-network-page__relation-card"
+                variant="outline"
                 @click="openContainerReference(reference.id)"
-                >{{ reference.name || reference.id }}</t-link
               >
-            </t-space>
+                <strong>{{ reference.name || reference.id }}</strong>
+                <span>{{ t('container.networks.connectedContainers') }}</span>
+              </t-button>
+            </div>
             <span v-else class="docker-network-page__muted">{{
               relationEmptyLabel(detailQuery.data.value.relationship_status)
             }}</span>
           </section>
           <section class="docker-network-page__section">
             <h3>{{ t('container.resourceContext.configuration') }}</h3>
-            <t-descriptions :column="2">
-              <t-descriptions-item :label="t('container.networks.fields.driver')">{{
-                driverLabel(detailQuery.data.value.driver)
-              }}</t-descriptions-item>
-              <t-descriptions-item :label="t('container.networks.fields.scope')">{{
-                scopeLabel(detailQuery.data.value.scope)
-              }}</t-descriptions-item>
-            </t-descriptions>
+            <dl class="docker-network-page__detail-fields">
+              <div>
+                <dt>{{ t('container.networks.fields.driver') }}</dt>
+                <dd>{{ driverLabel(detailQuery.data.value.driver) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.networks.fields.scope') }}</dt>
+                <dd>{{ scopeLabel(detailQuery.data.value.scope) }}</dd>
+              </div>
+            </dl>
             <template v-if="detailQuery.data.value.ipam?.driver || detailQuery.data.value.ipam?.config?.length">
               <h4>{{ t('container.networks.ipam') }}</h4>
-              <t-descriptions :column="2">
-                <t-descriptions-item :label="t('container.networks.fields.driver')">{{
-                  detailQuery.data.value.ipam.driver || '-'
-                }}</t-descriptions-item>
-                <t-descriptions-item :label="t('container.networks.form.subnet')">{{
-                  detailQuery.data.value.ipam.config?.[0]?.subnet || '-'
-                }}</t-descriptions-item>
-                <t-descriptions-item :label="t('container.networks.form.gateway')">{{
-                  detailQuery.data.value.ipam.config?.[0]?.gateway || '-'
-                }}</t-descriptions-item>
-              </t-descriptions>
+              <dl class="docker-network-page__detail-fields">
+                <div>
+                  <dt>{{ t('container.networks.fields.driver') }}</dt>
+                  <dd>{{ detailQuery.data.value.ipam.driver || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('container.networks.form.subnet') }}</dt>
+                  <dd>{{ detailQuery.data.value.ipam.config?.[0]?.subnet || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('container.networks.form.gateway') }}</dt>
+                  <dd>{{ detailQuery.data.value.ipam.config?.[0]?.gateway || '-' }}</dd>
+                </div>
+              </dl>
             </template>
           </section>
           <t-collapse
@@ -461,11 +468,12 @@
             class="docker-network-page__section"
           >
             <t-collapse-panel :header="t('container.resourceContext.metadata')" value="metadata">
-              <t-space break-line size="small"
-                ><t-tag v-for="(value, key) in detailQuery.data.value.labels" :key="key" variant="light-outline"
-                  >{{ key }}={{ value }}</t-tag
-                ></t-space
-              >
+              <dl class="docker-network-page__metadata-list">
+                <div v-for="(value, key) in detailQuery.data.value.labels" :key="key">
+                  <dt>{{ key }}</dt>
+                  <dd>{{ value }}</dd>
+                </div>
+              </dl>
               <p class="docker-network-page__metadata-id">
                 {{ t('container.networks.fields.id') }}: {{ detailQuery.data.value.id }}
               </p>
@@ -486,7 +494,7 @@
           />
         </div>
       </t-loading>
-    </t-drawer>
+    </resource-detail-layout>
 
     <t-dialog
       v-model:visible="removeDialogVisible"
@@ -538,6 +546,7 @@ import {
   ManagementToolbar,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import { useViewportResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -1034,6 +1043,56 @@ async function submitBatchRemove() {
   padding-top: var(--td-comp-paddingTB-l);
 }
 
+.docker-network-page__detail-fields,
+.docker-network-page__metadata-list {
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.docker-network-page__detail-fields dt,
+.docker-network-page__metadata-list dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin-bottom: var(--graft-density-gap-4);
+}
+
+.docker-network-page__detail-fields dd,
+.docker-network-page__metadata-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.docker-network-page__metadata-list {
+  grid-template-columns: 1fr;
+}
+
+.docker-network-page__relation-cards {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.docker-network-page__relation-card {
+  align-items: flex-start;
+  block-size: auto;
+  display: grid;
+  justify-content: start;
+  min-inline-size: 0;
+  padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-m);
+  text-align: start;
+}
+
+.docker-network-page__relation-card strong {
+  overflow-wrap: anywhere;
+}
+
+.docker-network-page__relation-card span {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
 .docker-network-page__mobile-card {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
@@ -1095,6 +1154,15 @@ async function submitBatchRemove() {
 }
 
 @media (width < 768px) {
+  .docker-network-page__detail-fields,
+  .docker-network-page__relation-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .docker-network-page__danger-zone :deep(.t-button) {
+    width: 100%;
+  }
+
   .docker-network-page__toolbar :deep(.management-list-search) {
     flex-basis: 100%;
     width: 100%;

@@ -241,11 +241,15 @@
       </template>
     </management-paged-table>
 
-    <t-drawer
+    <resource-detail-layout
       v-model:visible="detailDrawerVisible"
-      :header="t('container.images.detail.title')"
-      size="640px"
-      placement="right"
+      :title="
+        selectedImage
+          ? imageReference(imageTags(selectedImage)[0] ?? '').repository || t('container.images.detail.title')
+          : t('container.images.detail.title')
+      "
+      :back-label="t('container.detail.back')"
+      size="medium"
     >
       <div class="docker-images-detail-loading-host">
         <div v-if="detailLoading" class="docker-images-detail-loading-host__indicator">
@@ -372,7 +376,7 @@
           }}</t-button>
         </t-space>
       </template>
-    </t-drawer>
+    </resource-detail-layout>
 
     <tag-manager-drawer
       :visible="tagManagerVisible"
@@ -691,6 +695,7 @@ import {
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
 import { createLogger } from '@/utils/logger';

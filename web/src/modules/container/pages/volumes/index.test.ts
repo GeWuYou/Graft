@@ -12,8 +12,9 @@ describe('docker volume list page', () => {
     expect(sourceText).toContain('docker-volume-detail-loading-spin 1s linear infinite');
   });
 
-  it('keeps volume detail content in a drawer while allowing reference navigation', () => {
-    expect(sourceText).toContain('<t-drawer');
+  it('uses the shared responsive detail layout while allowing reference navigation', () => {
+    expect(sourceText).toContain('<resource-detail-layout');
+    expect(sourceText).toContain('size="compact"');
     expect(sourceText).toContain('getDockerVolume');
     expect(sourceText).toContain('useRouter');
     expect(sourceText).toContain("query: { tab: 'storage' }");
