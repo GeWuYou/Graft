@@ -11,6 +11,8 @@ const (
 	UpdateOperationCollectionRoute = "/operations"
 	// UpdateOperationRoute 读取一条不含秘密部署数据的操作记录。
 	UpdateOperationRoute = "/operations/:operationID"
+	// UpdateFailureDiagnosticRoute 读取一次更新启动失败的受控诊断详情。
+	UpdateFailureDiagnosticRoute = "/diagnostics/:requestID"
 	// UpdateMenuPath 是 Update Center 的稳定前端路由。
 	UpdateMenuPath = "/platform/updates"
 )

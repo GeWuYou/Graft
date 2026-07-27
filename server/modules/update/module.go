@@ -23,20 +23,21 @@ const (
 
 // Module 拥有更新发现的注册、周期检查与 HTTP 读取面。
 type Module struct {
-	service    *Service
-	operations OperationStore
-	rollout    *RolloutService
+	service     *Service
+	operations  OperationStore
+	diagnostics FailureDiagnosticStore
+	rollout     *RolloutService
 }
 
 // NewModule 创建 platform-update 模块。
-func NewModule(operations OperationStore, cache DiscoveryCache) *Module {
-	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")}, cache), operations: operations}
+func NewModule(operations OperationStore, diagnostics FailureDiagnosticStore, cache DiscoveryCache) *Module {
+	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")}, cache), operations: operations, diagnostics: diagnostics}
 }
 
 // Register 注册权限、菜单、读/check 路由和默认每日发现任务。
 func (m *Module) Register(ctx *module.Context) error {
-	if ctx == nil || m.service == nil || m.operations == nil {
-		return errors.New("platform-update module context is unavailable")
+	if err := m.validateRegistration(ctx); err != nil {
+		return err
 	}
 	if err := registerMessages(ctx.I18n); err != nil {
 		return err
@@ -60,7 +61,14 @@ func (m *Module) Register(ctx *module.Context) error {
 			return cronx.JobRunResult{Summary: "platform update check completed", Stage: "completed", AffectedResource: "platform_update"}, nil
 		}})
 	}
-	return registerRoutes(ctx, m.service, m.rollout)
+	return registerRoutes(ctx, m.service, m.rollout, m.diagnostics)
+}
+
+func (m *Module) validateRegistration(ctx *module.Context) error {
+	if ctx == nil || m.service == nil || m.operations == nil || m.diagnostics == nil {
+		return errors.New("platform-update module context is unavailable")
+	}
+	return nil
 }
 
 func (m *Module) configureRuntimeReader(ctx *module.Context) {

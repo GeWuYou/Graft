@@ -83,6 +83,14 @@ InstallationProfile {
 
 所有阶段写入 Task Runtime、审计事件、不可变 target manifest digest、backup reference、migration 和 health receipt。权限分为 `platform-update.read`、`platform-update.check` 和 `platform-update.manage`；Phase 1 不暴露一个看似可执行但没有执行能力的 `execute` 权限。
 
+### 启动失败诊断
+
+更新启动在预检、操作持久化或 runner 交接失败时，Update 模块以 HTTP `request_id` 为唯一键保存一条不可变的受控诊断记录。记录包含稳定失败码、失败阶段、目标版本、已创建时的 operation/task 标识，以及最长 32 KiB 的错误链文本；文本必须在写入前过滤 password、token、secret、Authorization、Cookie 和 DSN 密码。诊断归 Update 所有，不属于 access log、App Log 或 audit 的替代品。
+
+标准 `POST /api/platform/updates/operations` 仍只返回稳定错误码、可本地化安全文案和 `traceId`，不得把原始错误、Docker stderr、命令、宿主机路径或凭证写入响应。持有 `platform-update.manage` 的管理员可通过 `GET /api/platform/updates/diagnostics/{requestId}` 读取相同请求的已脱敏详情；该读取本身写入审计事件。Update Center 只在启动失败后使用 `traceId` 请求该受保护端点，并保留按 request ID 跳转 App Log 的入口。
+
+失败处理必须同步尝试保存诊断，并通过注入的 `AppLogger` 写入带请求关联的 ERROR 应用日志；诊断保存或审计投递失败不得改变原始安全错误响应。一次启动失败仅发布一条失败审计事实，审计元数据不得携带诊断文本或 Compose 候选 key。
+
 ## Compose Execution Boundary
 
 官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标 digest、host compose root、受限 Compose 命令和 receipt 位置。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 后执行：备份、`docker compose pull`、bootstrap migration、受控 recreate、health check，并将 marker-bounded receipt 写入带 operation/protocol labels 的保留容器日志。server 通过 Docker API 读取、校验并结算 receipt 后才清理 runner。

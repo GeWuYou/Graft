@@ -83,6 +83,7 @@ export const OPENAPI_RUNTIME_PATH = {
   getPermission: '/api/permissions/{id}',
   getPermissions: '/api/permissions',
   getPlatformBackup: '/api/platform/backups/{id}',
+  getPlatformUpdateFailureDiagnostic: '/api/platform/updates/diagnostics/{requestId}',
   getPlatformUpdateOperation: '/api/platform/updates/operations/{operationID}',
   getPlatformUpdateOperations: '/api/platform/updates/operations',
   getPlatformUpdateStatus: '/api/platform/updates/status',

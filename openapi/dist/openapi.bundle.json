@@ -8836,6 +8836,70 @@
         }
       }
     },
+    "/api/platform/updates/diagnostics/{requestId}": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Read a sanitized self-update start failure diagnostic",
+        "operationId": "getPlatformUpdateFailureDiagnostic",
+        "description": "Returns the immutable, sanitized diagnostic retained for a failed update-start request. This protected evidence is available only to platform update managers and does not change the safe error envelope returned by the update-start request.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized update-start failure diagnostic.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-failure-diagnostic"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request identifier."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Update-start failure diagnostic not found."
+          },
+          "500": {
+            "description": "The diagnostic store could not be read."
+          }
+        }
+      }
+    },
     "/api/platform/updates/operations/{operationID}": {
       "get": {
         "tags": [
@@ -18901,6 +18965,12 @@
       "EnvelopedPlatformUpdateOperationList": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation-list"
       },
+      "PlatformUpdateFailureDiagnostic": {
+        "$ref": "#/components/schemas/platform-update-failure-diagnostic"
+      },
+      "EnvelopedPlatformUpdateFailureDiagnostic": {
+        "$ref": "#/components/schemas/enveloped-platform-update-failure-diagnostic"
+      },
       "AccessLogDetailResponse": {
         "$ref": "#/components/schemas/access-log-detail-response"
       },
@@ -26514,6 +26584,85 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-update-rollout-failure-data"
+          }
+        }
+      },
+      "platform-update-failure-diagnostic": {
+        "type": "object",
+        "description": "Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.",
+        "required": [
+          "request_id",
+          "target_version",
+          "failure_code",
+          "failure_stage",
+          "summary",
+          "detail",
+          "occurred_at"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "Request identifier that correlates this diagnostic with application and access logs."
+          },
+          "operation_id": {
+            "type": "string",
+            "description": "Update operation identifier when persistence completed before the failure."
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Task runtime identifier when one was created before the failure."
+          },
+          "target_version": {
+            "type": "string",
+            "description": "Requested release version."
+          },
+          "failure_code": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-code"
+          },
+          "failure_stage": {
+            "type": "string",
+            "description": "Server-side update-start stage that failed."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Controlled operator-facing failure summary."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC time at which the update start failed."
+          }
+        }
+      },
+      "enveloped-platform-update-failure-diagnostic": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-failure-diagnostic"
           }
         }
       },

@@ -79,6 +79,11 @@
         "confirm": "开始升级",
         "cancel": "取消",
         "requestId": "请求 ID：{requestId}",
+        "diagnosticTitle": "启动失败诊断（已脱敏）",
+        "diagnosticCode": "失败代码",
+        "diagnosticStage": "失败阶段",
+        "diagnosticUnavailable": "暂时无法读取本次启动失败的诊断详情，请使用请求 ID 查询应用日志。",
+        "viewAppLogs": "查看应用日志",
         "failure": {
           "catalogStale": "已验证的发行目录已过期，请重新检查更新后再试。",
           "executionUnavailable": "当前安装不满足受控升级的运行条件。",

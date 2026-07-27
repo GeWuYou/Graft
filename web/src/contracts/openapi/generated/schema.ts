@@ -1549,6 +1549,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/updates/diagnostics/{requestId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read a sanitized self-update start failure diagnostic
+     * @description Returns the immutable, sanitized diagnostic retained for a failed update-start request. This protected evidence is available only to platform update managers and does not change the safe error envelope returned by the update-start request.
+     */
+    get: operations['getPlatformUpdateFailureDiagnostic'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/platform/updates/operations/{operationID}': {
     parameters: {
       query?: never;
@@ -3765,6 +3785,8 @@ export interface components {
     CreatePlatformUpdateOperationRequest: components['schemas']['create-platform-update-operation-request'];
     EnvelopedPlatformUpdateOperation: components['schemas']['enveloped-platform-update-operation'];
     EnvelopedPlatformUpdateOperationList: components['schemas']['enveloped-platform-update-operation-list'];
+    PlatformUpdateFailureDiagnostic: components['schemas']['platform-update-failure-diagnostic'];
+    EnvelopedPlatformUpdateFailureDiagnostic: components['schemas']['enveloped-platform-update-failure-diagnostic'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
@@ -6357,6 +6379,39 @@ export interface components {
       /** @description Stable request identifier for correlating server logs. */
       traceId: string;
       data: components['schemas']['platform-update-rollout-failure-data'];
+    };
+    /** @description Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses. */
+    'platform-update-failure-diagnostic': {
+      /** @description Request identifier that correlates this diagnostic with application and access logs. */
+      request_id: string;
+      /** @description Update operation identifier when persistence completed before the failure. */
+      operation_id?: string;
+      /**
+       * Format: int64
+       * @description Task runtime identifier when one was created before the failure.
+       */
+      task_id?: number;
+      /** @description Requested release version. */
+      target_version: string;
+      failure_code: components['schemas']['platform-update-rollout-failure-code'];
+      /** @description Server-side update-start stage that failed. */
+      failure_stage: string;
+      /** @description Controlled operator-facing failure summary. */
+      summary: string;
+      /** @description Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted. */
+      detail: string;
+      /**
+       * Format: date-time
+       * @description UTC time at which the update start failed.
+       */
+      occurred_at: string;
+    };
+    'enveloped-platform-update-failure-diagnostic': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-failure-diagnostic'];
     };
     /** @description Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned. */
     'platform-backup-summary': {
@@ -13547,6 +13602,60 @@ export interface operations {
         content: {
           'application/json': components['schemas']['platform-update-rollout-error-response'];
         };
+      };
+    };
+  };
+  getPlatformUpdateFailureDiagnostic: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        requestId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized update-start failure diagnostic. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-failure-diagnostic'];
+        };
+      };
+      /** @description Invalid request identifier. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Update-start failure diagnostic not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The diagnostic store could not be read. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

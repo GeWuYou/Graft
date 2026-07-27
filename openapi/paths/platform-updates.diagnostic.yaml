@@ -1,0 +1,26 @@
+get:
+  tags: [platform-update]
+  summary: Read a sanitized self-update start failure diagnostic
+  operationId: getPlatformUpdateFailureDiagnostic
+  description: Returns the immutable, sanitized diagnostic retained for a failed update-start request. This protected evidence is available only to platform update managers and does not change the safe error envelope returned by the update-start request.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: requestId
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+  responses:
+    '200':
+      description: Sanitized update-start failure diagnostic.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-failure-diagnostic.yaml }
+    '400': { description: Invalid request identifier. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Update-start failure diagnostic not found. }
+    '500': { description: The diagnostic store could not be read. }

@@ -10161,6 +10161,17 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformUpdateFailureDiagnostic defines model for enveloped-platform-update-failure-diagnostic.
+type EnvelopedPlatformUpdateFailureDiagnostic struct {
+	Code string `json:"code"`
+
+	// Data Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.
+	Data    PlatformUpdateFailureDiagnostic `json:"data"`
+	Message string                          `json:"message"`
+	Success bool                            `json:"success"`
+	TraceId string                          `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateOperation defines model for enveloped-platform-update-operation.
 type EnvelopedPlatformUpdateOperation struct {
 	Code    string                  `json:"code"`
@@ -11245,6 +11256,36 @@ type PlatformUpdateComposeRootCandidateConfidence string
 
 // PlatformUpdateComposeRootSource defines model for platform-update-compose-root-source.
 type PlatformUpdateComposeRootSource string
+
+// PlatformUpdateFailureDiagnostic Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.
+type PlatformUpdateFailureDiagnostic struct {
+	// Detail Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted.
+	Detail string `json:"detail"`
+
+	// FailureCode Stable safe failure code returned when a confirmed platform update cannot start.
+	FailureCode PlatformUpdateRolloutFailureCode `json:"failure_code"`
+
+	// FailureStage Server-side update-start stage that failed.
+	FailureStage string `json:"failure_stage"`
+
+	// OccurredAt UTC time at which the update start failed.
+	OccurredAt time.Time `json:"occurred_at"`
+
+	// OperationId Update operation identifier when persistence completed before the failure.
+	OperationId *string `json:"operation_id,omitempty"`
+
+	// RequestId Request identifier that correlates this diagnostic with application and access logs.
+	RequestId string `json:"request_id"`
+
+	// Summary Controlled operator-facing failure summary.
+	Summary string `json:"summary"`
+
+	// TargetVersion Requested release version.
+	TargetVersion string `json:"target_version"`
+
+	// TaskId Task runtime identifier when one was created before the failure.
+	TaskId *int64 `json:"task_id,omitempty"`
+}
 
 // PlatformUpdateOperation defines model for platform-update-operation.
 type PlatformUpdateOperation struct {
@@ -14800,6 +14841,16 @@ type GetPlatformBackupParams struct {
 
 // PostPlatformUpdateCheckParams defines parameters for PostPlatformUpdateCheck.
 type PostPlatformUpdateCheckParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformUpdateFailureDiagnosticParams defines parameters for GetPlatformUpdateFailureDiagnostic.
+type GetPlatformUpdateFailureDiagnosticParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

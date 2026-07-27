@@ -226,6 +226,8 @@ paths:
     $ref: ./paths/platform-updates.check.yaml
   /api/platform/updates/operations:
     $ref: ./paths/platform-updates.operations.yaml
+  /api/platform/updates/diagnostics/{requestId}:
+    $ref: ./paths/platform-updates.diagnostic.yaml
   /api/platform/updates/operations/{operationID}:
     $ref: ./paths/platform-updates.operation.yaml
   /api/platform/backups:
@@ -735,6 +737,10 @@ components:
       $ref: ./components/schemas/enveloped-platform-update-operation.yaml
     EnvelopedPlatformUpdateOperationList:
       $ref: ./components/schemas/enveloped-platform-update-operation-list.yaml
+    PlatformUpdateFailureDiagnostic:
+      $ref: ./components/schemas/platform-update-failure-diagnostic.yaml
+    EnvelopedPlatformUpdateFailureDiagnostic:
+      $ref: ./components/schemas/enveloped-platform-update-failure-diagnostic.yaml
     AccessLogDetailResponse:
       $ref: ./components/schemas/access-log-detail-response.yaml
     AccessLogListResponse:
