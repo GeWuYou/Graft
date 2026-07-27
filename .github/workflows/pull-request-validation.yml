@@ -48,7 +48,7 @@ jobs:
           path: .
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --exclude-paths=.trufflehog-exclude-paths.txt
+          extra_args: --exclude-globs=server/modules/update/rollout_diagnostics_test.go,server/modules/update/testdata/rollout-diagnostics/sensitive-inputs.txt
 
   contract-governance-check:
     name: Contract Governance Check
