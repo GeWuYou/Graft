@@ -518,6 +518,7 @@ function buildPresetFilters(preset: AppLogPresetKey): Partial<AppLogFilterState>
 
 function applyRouteFilters() {
   const {
+    quick_preset: quickPreset = '',
     keyword = '',
     occurred_from: occurredFrom = '',
     occurred_to: occurredTo = '',
@@ -531,6 +532,7 @@ function applyRouteFilters() {
     sort = [],
   } = parseAppLogRouteQuery(route.query);
   const parsedSorters = decodeSorters(sort, normalizeSortBy, normalizeSortOrder);
+  activePreset.value = normalizeQuickPreset(quickPreset);
 
   filters.value = {
     keyword,
@@ -555,6 +557,7 @@ function buildRouteQuery() {
   const occurredRange = normalizePageStateRangeForRoute(filters.value.occurredRange);
 
   return buildAppLogLocation({
+    quick_preset: activePreset.value === 'all' ? '' : activePreset.value,
     keyword: filters.value.keyword,
     occurred_from: occurredRange[0],
     occurred_to: occurredRange[1],
@@ -586,6 +589,7 @@ async function updateRouteQuery() {
 
 watch(
   () => [
+    route.query.quick_preset,
     route.query.keyword,
     route.query.occurred_from,
     route.query.occurred_to,
@@ -613,6 +617,10 @@ watch(
 
 function normalizeSortBy(value: string): AppLogSortBy | '' {
   return value === 'severity' || value === 'component' ? value : value === 'occurred_at' ? 'occurred_at' : '';
+}
+
+function normalizeQuickPreset(value: string): AppLogPresetKey {
+  return value === 'errors' || value === 'warnings' || value === 'lastHour' ? value : 'all';
 }
 
 function normalizeSortOrder(value: string): AppLogSortOrder {

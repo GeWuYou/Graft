@@ -83,7 +83,11 @@ vi.mock('@/shared/observability', () => ({
   openLogDetailRow: vi.fn(),
   parseLogRouteQuery: vi.fn((query: Record<string, unknown>) => query),
   buildLogListLocation: vi.fn((_path: string, _keys: string[], query: Record<string, unknown>) => ({ query })),
-  restartLogListQuery: vi.fn(),
+  restartLogListQuery: vi.fn((config) => {
+    config.activePreset.value = config.preset ?? 'all';
+    config.pagination.value.current = 1;
+    return config.updateRouteQuery();
+  }),
 }));
 
 vi.mock('@/store', () => ({
@@ -106,7 +110,20 @@ vi.mock('../../api/app-log', () => ({
 }));
 
 vi.mock('../../components/AppLogDetailDrawer.vue', () => ({ default: defineComponent({ setup: () => () => null }) }));
-vi.mock('../../components/AppLogFilters.vue', () => ({ default: defineComponent({ setup: () => () => null }) }));
+vi.mock('../../components/AppLogFilters.vue', () => ({
+  default: defineComponent({
+    props: ['activePreset'],
+    emits: ['apply-preset', 'reset'],
+    setup(props, { emit }) {
+      return () =>
+        h('section', [
+          h('output', { 'data-testid': 'active-preset' }, props.activePreset),
+          h('button', { 'data-testid': 'apply-warnings', onClick: () => emit('apply-preset', 'warnings') }, 'warnings'),
+          h('button', { 'data-testid': 'reset-filters', onClick: () => emit('reset') }, 'reset'),
+        ]);
+    },
+  }),
+}));
 vi.mock('../../components/AppLogTable.vue', () => ({
   default: defineComponent({
     props: {
@@ -171,6 +188,10 @@ describe('AppLogListIndex', () => {
     queryClient.clear();
     queryClient.setDefaultOptions({ queries: { retry: false, staleTime: 0 } });
     routeState.query = {};
+    mocks.routerReplace.mockImplementation((location: { query: Record<string, unknown> }) => {
+      routeState.query = location.query;
+      return Promise.resolve();
+    });
   });
 
   it('clears list state and reports an initial-load failure', async () => {
@@ -230,5 +251,37 @@ describe('AppLogListIndex', () => {
     await flushPromises();
 
     expect(mocks.getAppLogs).toHaveBeenLastCalledWith(expect.not.objectContaining({ category: 'future.category' }));
+  });
+
+  it('restores the quick preset from the route and resets it when returning to the default route', async () => {
+    routeState.query = { quick_preset: 'warnings', severity: 'warn' };
+    mocks.getAppLogs.mockResolvedValue(response([]));
+
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(wrapper.get('[data-testid="active-preset"]').text()).toBe('warnings');
+
+    routeState.query = {};
+    await flushPromises();
+    expect(wrapper.get('[data-testid="active-preset"]').text()).toBe('all');
+  });
+
+  it('writes and clears the quick preset without sending it to the logs API', async () => {
+    mocks.getAppLogs.mockResolvedValue(response([]));
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="apply-warnings"]').trigger('click');
+    await flushPromises();
+    expect(mocks.routerReplace).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: expect.objectContaining({ quick_preset: 'warnings', severity: 'warn' }) }),
+    );
+    expect(mocks.getAppLogs).toHaveBeenLastCalledWith(expect.not.objectContaining({ quick_preset: 'warnings' }));
+
+    await wrapper.get('[data-testid="reset-filters"]').trigger('click');
+    await flushPromises();
+    expect(mocks.routerReplace).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: expect.objectContaining({ quick_preset: '' }) }),
+    );
   });
 });
