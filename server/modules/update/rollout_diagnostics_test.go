@@ -31,6 +31,24 @@ func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
 	}
 }
 
+func TestSanitizeRolloutErrorRedactsAuthorizationCredentials(t *testing.T) {
+	tests := []struct {
+		name       string
+		credential string
+	}{
+		{name: "bearer", credential: "Authorization: Bearer bearer-secret-value"},
+		{name: "basic", credential: "authorization=Basic basic-secret-value"},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := sanitizeRolloutError(errors.New("docker rejected " + testCase.credential))
+			if strings.Contains(got, "secret-value") || !strings.Contains(got, "[REDACTED]") {
+				t.Fatalf("expected authorization credential to be redacted, got %q", got)
+			}
+		})
+	}
+}
+
 func TestWriteStartFailureLogsSanitizedCauseAndReturnsSafeResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	fixture := newStartFailureTestHandler(t)

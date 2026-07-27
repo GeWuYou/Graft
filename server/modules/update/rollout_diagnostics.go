@@ -80,7 +80,7 @@ func rolloutFailureHTTPStatus(code string) int {
 	}
 }
 
-var rolloutSensitiveValuePattern = regexp.MustCompile(`(?i)(\b(?:password|passwd|pwd|token|secret|authorization|cookie|access_token|refresh_token|client_secret|api_key)\b\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^,;\s]+)`)
+var rolloutSensitiveValuePattern = regexp.MustCompile(`(?i)(\b(?:password|passwd|pwd|token|secret|authorization|cookie|access_token|refresh_token|client_secret|api_key)\b\s*[:=]\s*)(?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+[^,;\s]+|[^,;\s]+)`)
 var rolloutDSNUserInfoPattern = regexp.MustCompile(`([a-z][a-z0-9+.-]*://[^\s/@:]+:)[^@\s/]+(@)`)
 
 // sanitizeRolloutError 保留错误链可检索的文字，同时剔除常见凭证赋值与连接串密码。
