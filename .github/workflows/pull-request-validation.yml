@@ -152,7 +152,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Publish web test report
-        if: always()
+        if: always() && hashFiles('web/.tmp/test-results/ctrf-report.json') != ''
         uses: ctrf-io/github-test-reporter@e500b992f936420eb633c91644cf10d4d71df700
         with:
           report-path: ./web/.tmp/test-results/ctrf-report.json

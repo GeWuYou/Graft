@@ -35,8 +35,12 @@ import VolumeDetailPage from './detail.vue';
 const volume = (name: string): components['schemas']['docker-volume'] => ({
   anonymous: false,
   container_references: [],
+  context: { runtime: 'docker', source: 'docker' },
+  created_at: '2026-01-01T00:00:00Z',
+  driver: 'local',
   name,
   relationship_status: 'unused',
+  scope: 'local',
   size_bytes: 1024,
 });
 
@@ -88,8 +92,8 @@ describe('docker volume detail page', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('reloads for a changed volume route parameter and ignores stale responses', async () => {
-    let resolveFirst: (value: never) => void = () => undefined;
-    const firstRequest = new Promise<never>((resolve) => {
+    let resolveFirst: (value: components['schemas']['docker-volume']) => void = () => undefined;
+    const firstRequest = new Promise<components['schemas']['docker-volume']>((resolve) => {
       resolveFirst = resolve;
     });
     apiMocks.getDockerVolume.mockImplementationOnce(() => firstRequest).mockResolvedValueOnce(volume('volume-b'));
