@@ -1,0 +1,10 @@
+type: object
+additionalProperties: false
+description: Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned.
+required: [size_bytes, sha256]
+properties:
+  size_bytes: { type: integer, format: int64, minimum: 0 }
+  sha256:
+    type: string
+    pattern: '^[a-f0-9]{64}$'
+    description: SHA-256 checksum recorded when the artifact was created; it is not an independent restore verification.

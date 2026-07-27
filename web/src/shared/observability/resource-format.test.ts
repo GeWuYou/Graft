@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { formatBytes, formatNanosecondsAsDuration, formatPercent, toProgressPercent } from './resource-format';
 
 describe('resource-format', () => {
-  it('formats bytes as MiB and GiB', () => {
+  it('formats bytes using a readable unit without rounding small artifacts to zero', () => {
+    expect(formatBytes(129)).toBe('129 B');
+    expect(formatBytes(1536)).toBe('1.50 KiB');
     expect(formatBytes(9.3 * 1024 * 1024)).toBe('9.30 MiB');
     expect(formatBytes(32002.7 * 1024 * 1024)).toBe('31.25 GiB');
   });

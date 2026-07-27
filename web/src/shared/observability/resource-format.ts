@@ -1,4 +1,5 @@
-const BYTES_PER_MIB = 1024 * 1024;
+const BYTES_PER_KIB = 1024;
+const BYTES_PER_MIB = BYTES_PER_KIB * 1024;
 const BYTES_PER_GIB = 1024 * BYTES_PER_MIB;
 const NANOSECONDS_PER_MILLISECOND = 1_000_000;
 const NANOSECONDS_PER_SECOND = 1_000_000_000;
@@ -7,7 +8,7 @@ const DEFAULT_NUMBER_LOCALE = 'en-US';
 export type ResourceNumberFormatLocale = string | readonly string[];
 
 /**
- * 将字节数格式化为 MiB 或 GiB。
+ * 将字节数按量级格式化为 B、KiB、MiB 或 GiB。
  *
  * @param value - 要格式化的字节数
  * @param emptyText - 当值无效时返回的文本
@@ -24,8 +25,15 @@ export function formatBytes(value?: number | null, emptyText = '-') {
     return `${(normalizedValue / BYTES_PER_GIB).toFixed(2)} GiB`;
   }
 
-  const mib = normalizedValue / BYTES_PER_MIB;
-  return `${mib.toFixed(2)} MiB`;
+  if (absValue >= BYTES_PER_MIB) {
+    return `${(normalizedValue / BYTES_PER_MIB).toFixed(2)} MiB`;
+  }
+
+  if (absValue >= BYTES_PER_KIB) {
+    return `${(normalizedValue / BYTES_PER_KIB).toFixed(2)} KiB`;
+  }
+
+  return `${Math.round(normalizedValue)} B`;
 }
 
 /**

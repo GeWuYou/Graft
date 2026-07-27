@@ -798,8 +798,8 @@ describe('container detail page', () => {
     expect(resourceDetailText).not.toContain('50,468,370,000,000');
     expect(resourceDetailText).not.toContain('40401700');
     expect(resourceDetailText).not.toContain('10000000');
-    expect(wrapper.text()).toContain('接收0.00 MiB');
-    expect(wrapper.text()).toContain('发送0.00 MiB');
+    expect(wrapper.text()).toContain('接收1.50 KiB');
+    expect(wrapper.text()).toContain('发送126 B');
     expect(wrapper.text()).toContain('PIDs 当前数14');
     expect(wrapper.text()).toContain('暂未采集');
     expect(wrapper.text()).not.toContain('undefined');

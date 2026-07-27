@@ -14,7 +14,7 @@
     "list": {
       "eyebrow": "Platform",
       "title": "Backups",
-      "description": "Create manual platform backups and review their safe history.",
+      "description": "Create manual platform backups and review their auditable asset history.",
       "create": "Create Backup",
       "refresh": "Refresh",
       "loadFailed": "Backup history could not be loaded.",
@@ -22,14 +22,14 @@
       "columns": {
         "id": "Backup ID",
         "purpose": "Purpose",
+        "contents": "Contents",
         "status": "Status",
         "retention": "Retain Until",
         "createdAt": "Created At",
-        "task": "Task",
         "actions": "Actions"
       },
       "actions": {
-        "view": "View"
+        "view": "View Details"
       }
     },
     "createDialog": {
@@ -46,7 +46,39 @@
       "submitFailed": "Backup task could not be submitted."
     },
     "detail": {
-      "title": "Backup Details"
+      "title": "Backup Details",
+      "asset": {
+        "title": "Asset Information"
+      },
+      "identifier": "Backup #{id}",
+      "summary": {
+        "contents": "Includes {count} Artifacts"
+      },
+      "contents": {
+        "title": "Backup Contents",
+        "configSnapshot": "Configuration Snapshot",
+        "databaseDump": "PostgreSQL Database Dump",
+        "copyChecksum": "Copy Full Checksum"
+      },
+      "restore": {
+        "title": "Restore Status",
+        "notVerifiedTitle": "Restore Not Verified",
+        "notVerifiedMessage": "The backup files are complete, but no restore drill has been performed. Available only means the backup remains within its retention period.",
+        "recordedTitle": "Restore Verification Recorded",
+        "recordedMessage": "Verified at {time}. Result: {result}. Database migrations still follow the forward-only policy.",
+        "results": {
+          "manualRestoreVerified": "Manual Restore Verified",
+          "recorded": "Recorded"
+        }
+      },
+      "task": {
+        "title": "Related Task",
+        "view": "View execution log for Task #{id}",
+        "none": "This backup has no associated task."
+      }
+    },
+    "content": {
+      "summary": "2 Artifacts"
     },
     "purpose": {
       "manual": "Manual Backup",

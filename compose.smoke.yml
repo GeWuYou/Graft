@@ -9,6 +9,9 @@ services:
   application-root-init:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never
+  backup-root-init:
+    image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
   server:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never

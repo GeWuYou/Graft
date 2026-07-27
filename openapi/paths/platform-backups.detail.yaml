@@ -1,6 +1,6 @@
 get:
   tags: [platform-backup]
-  summary: Read safe Backup metadata
+  summary: Read safe Backup asset detail
   operationId: getPlatformBackup
   security: [{ bearerAuth: [] }]
   parameters:
@@ -12,10 +12,10 @@ get:
       schema: { type: integer, format: int64, minimum: 1 }
   responses:
     '200':
-      description: Safe Backup metadata without artifact locations or contents.
+      description: Safe Backup asset detail with integrity metadata and recovery evidence, without artifact locations or contents.
       content:
         application/json:
-          schema: { $ref: ../components/schemas/enveloped-platform-backup-summary.yaml }
+          schema: { $ref: ../components/schemas/enveloped-platform-backup-detail.yaml }
     '400': { description: Invalid Backup id. }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

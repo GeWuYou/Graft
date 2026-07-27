@@ -3,8 +3,7 @@ description: Safe Backup history projection. Artifact locations, configuration s
 required: [id, purpose, status, retain_until, created_at]
 properties:
   id: { type: integer, format: int64, minimum: 1 }
-  task_id: { type: integer, format: int64, minimum: 1, nullable: true }
   purpose: { type: string }
-  status: { type: string, enum: [AVAILABLE, EXPIRED] }
+  status: { type: string, enum: [AVAILABLE, EXPIRED, RESTORED] }
   retain_until: { type: string, format: date-time }
   created_at: { type: string, format: date-time }

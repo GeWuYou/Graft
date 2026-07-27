@@ -16,6 +16,7 @@ cleanup() {
   "${compose[@]}" ps -a > "${log_dir}/compose-ps.txt" 2>&1
   "${compose[@]}" logs bootstrap > "${log_dir}/compose-bootstrap.log" 2>&1
   "${compose[@]}" logs application-root-init > "${log_dir}/compose-application-root-init.log" 2>&1
+  "${compose[@]}" logs backup-root-init > "${log_dir}/compose-backup-root-init.log" 2>&1
   "${compose[@]}" logs postgres > "${log_dir}/compose-postgres.log" 2>&1
   "${compose[@]}" logs redis > "${log_dir}/compose-redis.log" 2>&1
   "${compose[@]}" logs server > "${log_dir}/compose-server.log" 2>&1
@@ -26,13 +27,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "${log_dir}" "${workspace}/apps"
+mkdir -p "${log_dir}" "${workspace}/apps" "${workspace}/backups"
 cp compose.yml compose.smoke.yml "${workspace}/"
 docker image inspect "${server_image}:${image_tag}" >/dev/null
 docker image inspect "${web_image}:${image_tag}" >/dev/null
 cat > "${workspace}/.env" <<EOF
-# Base Compose still requires digest-shaped values; compose.smoke.yml replaces
-# every application image with the local tag below before any service starts.
+# Base Compose still requires digest-shaped values. compose.smoke.yml replaces
+# bootstrap, application-root-init, backup-root-init, server, and web with the
+# local tags below before any service starts.
 GRAFT_SERVER_IMAGE_REPOSITORY=graft-release-smoke-placeholder
 GRAFT_SERVER_IMAGE_DIGEST=sha256:0000000000000000000000000000000000000000000000000000000000000000
 GRAFT_WEB_IMAGE_REPOSITORY=graft-release-smoke-placeholder
@@ -47,6 +49,7 @@ POSTGRES_PASSWORD=graft
 GRAFT_AUTH_JWT_SECRET=ci-compose-smoke-secret
 GRAFT_DOCS_ENABLED=true
 GRAFT_APPLICATION_ROOT_HOST_PATH=${workspace}/apps
+GRAFT_BACKUP_ARTIFACT_HOST_PATH=${workspace}/backups
 GRAFT_WEB_HOST_PORT=3000
 EOF
 
