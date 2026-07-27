@@ -1,0 +1,17 @@
+type: object
+description: Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable.
+required: [status]
+properties:
+  status:
+    type: string
+    enum: [NOT_VERIFIED, RECORDED]
+    description: NOT_VERIFIED means no restore result has been recorded for this Backup.
+  result_code:
+    type: string
+    nullable: true
+    description: Controlled restore result code when evidence is recorded.
+  recorded_at:
+    type: string
+    format: date-time
+    nullable: true
+    description: Time the latest controlled restore result was recorded.

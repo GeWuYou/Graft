@@ -109,12 +109,12 @@ func (h backupRouteHandlers) detail(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, err)
 		return
 	}
-	item, err := h.service.GetSummary(c.Request.Context(), id)
+	item, err := h.service.Get(c.Request.Context(), id)
 	if err != nil {
 		h.writeError(c, backupHTTPStatus(err), err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusOK, toBackupSummaryResponse(item))
+	httpx.WriteSuccess(c, http.StatusOK, toBackupDetailResponse(item))
 }
 
 func backupListPage(c *gin.Context) (int, int, error) {

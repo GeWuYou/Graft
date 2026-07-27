@@ -46,14 +46,9 @@
         <template #status="{ row }">
           <t-tag :theme="statusTheme(row.status)" variant="light-outline">{{ statusLabel(row.status) }}</t-tag>
         </template>
+        <template #contents>{{ t('backup.content.summary') }}</template>
         <template #retain_until="{ row }">{{ formatDate(row.retain_until) }}</template>
         <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
-        <template #task_id="{ row }">
-          <t-button v-if="row.task_id" size="small" variant="text" @click="openTask(row.task_id)">
-            #{{ row.task_id }}
-          </t-button>
-          <span v-else>-</span>
-        </template>
         <template #actions="{ row }">
           <t-button size="small" theme="primary" variant="text" @click="openBackup(row)">
             {{ t('backup.list.actions.view') }}
@@ -94,38 +89,121 @@
       :header="t('backup.detail.title')"
       :footer="false"
       placement="right"
-      size="560px"
+      size="min(680px, 92vw)"
     >
       <t-loading :loading="detailLoading">
         <t-alert v-if="detailError" theme="error" :message="detailError" />
-        <t-descriptions v-else-if="selectedBackup" bordered :column="1">
-          <t-descriptions-item :label="t('backup.list.columns.id')">#{{ selectedBackup.id }}</t-descriptions-item>
-          <t-descriptions-item :label="t('backup.list.columns.purpose')">
-            {{ purposeLabel(selectedBackup.purpose) }}
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('backup.list.columns.status')">
-            <t-tag :theme="statusTheme(selectedBackup.status)" variant="light-outline">
-              {{ statusLabel(selectedBackup.status) }}
-            </t-tag>
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('backup.list.columns.retention')">
-            {{ formatDate(selectedBackup.retain_until) }}
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('backup.list.columns.createdAt')">
-            {{ formatDate(selectedBackup.created_at) }}
-          </t-descriptions-item>
-          <t-descriptions-item :label="t('backup.list.columns.task')">
+        <div v-else-if="selectedBackup" class="backup-detail" data-testid="backup-detail-drawer">
+          <div class="backup-detail__summary">
+            <div>
+              <p class="backup-detail__identifier">{{ t('backup.detail.identifier', { id: selectedBackup.id }) }}</p>
+              <h3>{{ purposeLabel(selectedBackup.purpose) }}</h3>
+              <p>{{ t('backup.detail.summary.contents', { count: 2 }) }}</p>
+            </div>
+            <div class="backup-detail__summary-status">
+              <t-tag :theme="statusTheme(selectedBackup.status)" variant="light-outline">
+                {{ statusLabel(selectedBackup.status) }}
+              </t-tag>
+              <strong>{{ formatBytes(totalArtifactBytes(selectedBackup)) }}</strong>
+            </div>
+          </div>
+
+          <t-descriptions bordered :column="1" :title="t('backup.detail.asset.title')">
+            <t-descriptions-item :label="t('backup.list.columns.id')">#{{ selectedBackup.id }}</t-descriptions-item>
+            <t-descriptions-item :label="t('backup.list.columns.purpose')">
+              {{ purposeLabel(selectedBackup.purpose) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('backup.list.columns.status')">
+              <t-tag :theme="statusTheme(selectedBackup.status)" variant="light-outline">
+                {{ statusLabel(selectedBackup.status) }}
+              </t-tag>
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('backup.list.columns.retention')">
+              {{ formatDate(selectedBackup.retain_until) }}
+            </t-descriptions-item>
+            <t-descriptions-item :label="t('backup.list.columns.createdAt')">
+              {{ formatDate(selectedBackup.created_at) }}
+            </t-descriptions-item>
+          </t-descriptions>
+
+          <section class="backup-detail__artifacts" :aria-label="t('backup.detail.contents.title')">
+            <h3>{{ t('backup.detail.contents.title') }}</h3>
+            <div class="backup-detail__artifact-grid">
+              <t-card size="small">
+                <template #title>{{ t('backup.detail.contents.configSnapshot') }}</template>
+                <template #actions>
+                  <t-tooltip :content="t('backup.detail.contents.copyChecksum')">
+                    <t-button
+                      shape="square"
+                      size="small"
+                      variant="text"
+                      :aria-label="t('backup.detail.contents.copyChecksum')"
+                      @click="copyChecksum(selectedBackup.config_snapshot.sha256)"
+                    >
+                      <template #icon><copy-icon /></template>
+                    </t-button>
+                  </t-tooltip>
+                </template>
+                <strong class="backup-detail__artifact-size">{{
+                  formatBytes(selectedBackup.config_snapshot.size_bytes)
+                }}</strong>
+                <p class="backup-detail__artifact-label">SHA-256</p>
+                <t-tooltip :content="selectedBackup.config_snapshot.sha256">
+                  <code class="backup-detail__checksum">{{
+                    truncateChecksum(selectedBackup.config_snapshot.sha256)
+                  }}</code>
+                </t-tooltip>
+              </t-card>
+              <t-card size="small">
+                <template #title>{{ t('backup.detail.contents.databaseDump') }}</template>
+                <template #actions>
+                  <t-tooltip :content="t('backup.detail.contents.copyChecksum')">
+                    <t-button
+                      shape="square"
+                      size="small"
+                      variant="text"
+                      :aria-label="t('backup.detail.contents.copyChecksum')"
+                      @click="copyChecksum(selectedBackup.database_dump.sha256)"
+                    >
+                      <template #icon><copy-icon /></template>
+                    </t-button>
+                  </t-tooltip>
+                </template>
+                <strong class="backup-detail__artifact-size">{{
+                  formatBytes(selectedBackup.database_dump.size_bytes)
+                }}</strong>
+                <p class="backup-detail__artifact-label">SHA-256</p>
+                <t-tooltip :content="selectedBackup.database_dump.sha256">
+                  <code class="backup-detail__checksum">{{
+                    truncateChecksum(selectedBackup.database_dump.sha256)
+                  }}</code>
+                </t-tooltip>
+              </t-card>
+            </div>
+          </section>
+
+          <section class="backup-detail__restore" :aria-label="t('backup.detail.restore.title')">
+            <h3>{{ t('backup.detail.restore.title') }}</h3>
+            <t-alert
+              :theme="selectedBackup.restore_evidence.status === 'RECORDED' ? 'success' : 'info'"
+              :title="restoreEvidenceTitle(selectedBackup.restore_evidence.status)"
+              :message="restoreEvidenceMessage(selectedBackup.restore_evidence)"
+            />
+          </section>
+
+          <section class="backup-detail__task" :aria-label="t('backup.detail.task.title')">
+            <h3>{{ t('backup.detail.task.title') }}</h3>
             <t-button
               v-if="selectedBackup.task_id"
-              size="small"
+              theme="primary"
               variant="text"
               @click="openTask(selectedBackup.task_id)"
             >
-              #{{ selectedBackup.task_id }}
+              {{ t('backup.detail.task.view', { id: selectedBackup.task_id }) }}
             </t-button>
-            <span v-else>-</span>
-          </t-descriptions-item>
-        </t-descriptions>
+            <span v-else>{{ t('backup.detail.task.none') }}</span>
+          </section>
+        </div>
       </t-loading>
     </t-drawer>
 
@@ -137,8 +215,8 @@
   </section>
 </template>
 <script setup lang="ts">
-// Backup 页面只管理安全历史和 Task receipt，不读取工件、路径或恢复能力。
-import { AddIcon, RefreshIcon } from 'tdesign-icons-vue-next';
+// Backup 页面只消费安全资产投影；存储位置、工件内容和恢复执行权始终留在服务端边界。
+import { AddIcon, CopyIcon, RefreshIcon } from 'tdesign-icons-vue-next';
 import type { PageInfo, PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -147,7 +225,7 @@ import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/task-observer';
 import { ManagementPageHeader, ManagementTableCard, ManagementToolbar } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatLocaleDateTime } from '@/shared/observability';
+import { copyText, formatBytes, formatLocaleDateTime } from '@/shared/observability';
 
 import { getBackup, listBackups, submitBackup } from '../../api/backup';
 import { BACKUP_PERMISSION_CODE as permissionCodes } from '../../contract/permissions';
@@ -182,12 +260,11 @@ const pagination = computed(() => ({
 }));
 const columns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'id', title: t('backup.list.columns.id'), width: 112 },
-  { colKey: 'purpose', title: t('backup.list.columns.purpose'), minWidth: 160 },
+  { colKey: 'contents', title: t('backup.list.columns.contents'), minWidth: 190 },
   { colKey: 'status', title: t('backup.list.columns.status'), width: 130 },
   { colKey: 'retain_until', title: t('backup.list.columns.retention'), minWidth: 180 },
   { colKey: 'created_at', title: t('backup.list.columns.createdAt'), minWidth: 180 },
-  { colKey: 'task_id', title: t('backup.list.columns.task'), width: 100 },
-  { colKey: 'actions', title: t('backup.list.columns.actions'), width: 96, fixed: 'right' },
+  { colKey: 'actions', title: t('backup.list.columns.actions'), width: 112, fixed: 'right' },
 ]);
 
 onMounted(() => void loadBackups());
@@ -238,6 +315,7 @@ function openBackup(backup: BackupSummary) {
 }
 
 function openTask(taskId: number) {
+  backupDrawerVisible.value = false;
   selectedTaskId.value = taskId;
   taskDrawerVisible.value = true;
 }
@@ -311,6 +389,35 @@ function statusTheme(value: string) {
   return 'default';
 }
 
+function restoreEvidenceTitle(status: BackupDetail['restore_evidence']['status']) {
+  return status === 'RECORDED' ? t('backup.detail.restore.recordedTitle') : t('backup.detail.restore.notVerifiedTitle');
+}
+
+function totalArtifactBytes(backup: BackupDetail) {
+  return backup.config_snapshot.size_bytes + backup.database_dump.size_bytes;
+}
+
+function truncateChecksum(value: string) {
+  return value.length > 24 ? `${value.slice(0, 12)}...${value.slice(-8)}` : value;
+}
+
+function copyChecksum(value: string) {
+  void copyText(value);
+}
+
+function restoreEvidenceMessage(evidence: BackupDetail['restore_evidence']) {
+  if (evidence.status !== 'RECORDED' || !evidence.recorded_at) return t('backup.detail.restore.notVerifiedMessage');
+  return t('backup.detail.restore.recordedMessage', {
+    time: formatDate(evidence.recorded_at),
+    result: restoreResultLabel(evidence.result_code),
+  });
+}
+
+function restoreResultLabel(resultCode?: string | null) {
+  if (resultCode === 'manual_restore_verified') return t('backup.detail.restore.results.manualRestoreVerified');
+  return t('backup.detail.restore.results.recorded');
+}
+
 function resolveTaskType(taskType: string) {
   return taskType === 'platform.backup.create.v1' ? t('backup.list.create') : undefined;
 }
@@ -330,5 +437,85 @@ function resolveTaskType(taskType: string) {
 .backup-page__table-summary,
 .backup-page__dialog-description {
   color: var(--td-text-color-secondary);
+}
+
+.backup-detail {
+  display: grid;
+  gap: var(--td-comp-margin-xl);
+}
+
+.backup-detail__restore,
+.backup-detail__task,
+.backup-detail__artifacts {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+}
+
+.backup-detail h3,
+.backup-detail p {
+  margin: 0;
+}
+
+.backup-detail h3 {
+  font-size: var(--td-font-size-title-medium);
+  font-weight: var(--td-font-weight-medium);
+}
+
+.backup-detail__summary,
+.backup-detail__summary-status {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-s);
+  justify-content: space-between;
+}
+
+.backup-detail__summary {
+  border-bottom: 1px solid var(--td-component-stroke);
+  padding-bottom: var(--td-comp-paddingTB-xl);
+}
+
+.backup-detail__summary p,
+.backup-detail__artifact-label,
+.backup-detail__task span {
+  color: var(--td-text-color-secondary);
+}
+
+.backup-detail__identifier {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-body-small);
+}
+
+.backup-detail__summary-status {
+  align-items: flex-end;
+  flex-direction: column;
+}
+
+.backup-detail__artifact-grid {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.backup-detail__artifact-size {
+  display: block;
+  font-size: var(--td-font-size-title-large);
+}
+
+.backup-detail__artifact-label {
+  font-size: var(--td-font-size-body-small);
+  margin-top: var(--td-comp-margin-s) !important;
+}
+
+.backup-detail__checksum {
+  display: block;
+  font-size: var(--td-font-size-body-small);
+  margin-top: var(--td-comp-margin-xxs);
+  overflow-wrap: anywhere;
+}
+
+@media (width <= 600px) {
+  .backup-detail__artifact-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

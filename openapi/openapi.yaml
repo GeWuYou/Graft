@@ -891,10 +891,18 @@ components:
       $ref: ./components/schemas/create-platform-backup-request.yaml
     PlatformBackupSummary:
       $ref: ./components/schemas/platform-backup-summary.yaml
+    PlatformBackupDetail:
+      $ref: ./components/schemas/platform-backup-detail.yaml
+    PlatformBackupArtifactMetadata:
+      $ref: ./components/schemas/platform-backup-artifact-metadata.yaml
+    PlatformBackupRestoreEvidence:
+      $ref: ./components/schemas/platform-backup-restore-evidence.yaml
     PlatformBackupListResponse:
       $ref: ./components/schemas/platform-backup-list-response.yaml
     EnvelopedPlatformBackupSummary:
       $ref: ./components/schemas/enveloped-platform-backup-summary.yaml
+    EnvelopedPlatformBackupDetail:
+      $ref: ./components/schemas/enveloped-platform-backup-detail.yaml
     EnvelopedPlatformBackupListResponse:
       $ref: ./components/schemas/enveloped-platform-backup-list-response.yaml
     CreateAnnouncementRequest:

@@ -1594,7 +1594,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Read safe Backup metadata */
+    /** Read safe Backup asset detail */
     get: operations['getPlatformBackup'];
     put?: never;
     post?: never;
@@ -3843,8 +3843,12 @@ export interface components {
     EnvelopedTaskReceipt: components['schemas']['enveloped-task-receipt'];
     CreatePlatformBackupRequest: components['schemas']['create-platform-backup-request'];
     PlatformBackupSummary: components['schemas']['platform-backup-summary'];
+    PlatformBackupDetail: components['schemas']['platform-backup-detail'];
+    PlatformBackupArtifactMetadata: components['schemas']['platform-backup-artifact-metadata'];
+    PlatformBackupRestoreEvidence: components['schemas']['platform-backup-restore-evidence'];
     PlatformBackupListResponse: components['schemas']['platform-backup-list-response'];
     EnvelopedPlatformBackupSummary: components['schemas']['enveloped-platform-backup-summary'];
+    EnvelopedPlatformBackupDetail: components['schemas']['enveloped-platform-backup-detail'];
     EnvelopedPlatformBackupListResponse: components['schemas']['enveloped-platform-backup-list-response'];
     CreateAnnouncementRequest: components['schemas']['create-announcement-request'];
     UpdateAnnouncementRequest: components['schemas']['update-announcement-request'];
@@ -6329,11 +6333,9 @@ export interface components {
     'platform-backup-summary': {
       /** Format: int64 */
       id: number;
-      /** Format: int64 */
-      task_id?: number | null;
       purpose: string;
       /** @enum {string} */
-      status: 'AVAILABLE' | 'EXPIRED';
+      status: 'AVAILABLE' | 'EXPIRED' | 'RESTORED';
       /** Format: date-time */
       retain_until: string;
       /** Format: date-time */
@@ -6366,8 +6368,47 @@ export interface components {
     'enveloped-task-receipt': components['schemas']['api-envelope'] & {
       data: components['schemas']['task-receipt'];
     };
-    'enveloped-platform-backup-summary': components['schemas']['api-envelope'] & {
-      data: components['schemas']['platform-backup-summary'];
+    /** @description Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned. */
+    'platform-backup-artifact-metadata': {
+      /** Format: int64 */
+      size_bytes: number;
+      /** @description SHA-256 checksum recorded when the artifact was created; it is not an independent restore verification. */
+      sha256: string;
+    };
+    /** @description Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable. */
+    'platform-backup-restore-evidence': {
+      /**
+       * @description NOT_VERIFIED means no restore result has been recorded for this Backup.
+       * @enum {string}
+       */
+      status: 'NOT_VERIFIED' | 'RECORDED';
+      /** @description Controlled restore result code when evidence is recorded. */
+      result_code?: string | null;
+      /**
+       * Format: date-time
+       * @description Time the latest controlled restore result was recorded.
+       */
+      recorded_at?: string | null;
+    };
+    /** @description Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified. */
+    'platform-backup-detail': {
+      /** Format: int64 */
+      id: number;
+      /** Format: int64 */
+      task_id?: number | null;
+      purpose: string;
+      /** @enum {string} */
+      status: 'AVAILABLE' | 'EXPIRED' | 'RESTORED';
+      /** Format: date-time */
+      retain_until: string;
+      /** Format: date-time */
+      created_at: string;
+      config_snapshot: components['schemas']['platform-backup-artifact-metadata'];
+      database_dump: components['schemas']['platform-backup-artifact-metadata'];
+      restore_evidence: components['schemas']['platform-backup-restore-evidence'];
+    };
+    'enveloped-platform-backup-detail': components['schemas']['api-envelope'] & {
+      data: components['schemas']['platform-backup-detail'];
     };
     'access-log-detail-response': {
       /** Format: int64 */
@@ -8949,6 +8990,9 @@ export interface components {
        * @example 0
        */
       abnormal_services?: number;
+    };
+    'enveloped-platform-backup-summary': components['schemas']['api-envelope'] & {
+      data: components['schemas']['platform-backup-summary'];
     };
     'enveloped-docker-network': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-network'];
@@ -13613,13 +13657,13 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Safe Backup metadata without artifact locations or contents. */
+      /** @description Safe Backup asset detail with integrity metadata and recovery evidence, without artifact locations or contents. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-platform-backup-summary'];
+          'application/json': components['schemas']['enveloped-platform-backup-detail'];
         };
       };
       /** @description Invalid Backup id. */

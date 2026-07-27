@@ -8,6 +8,8 @@
 - 更新是管理员确认后的受治理操作：自动检查可以启用，自动安装不在当前承诺范围内。
 - `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用 tag 或 mutable tag 作为升级事实。
 - `server/modules/update` 和 `server/modules/backup` 是两个独立模块。Update 消费 Backup capability；Atlas migration 仍由 core CLI 拥有，不创建 migration 业务模块。
+- Backup 是可审计资产，Task 是其生成过程。Backup Detail 负责说明资产覆盖范围、工件大小、完整性摘要、保留状态和恢复证据；关联 Task 只负责展示阶段与执行日志。安全读取面可以公开配置快照和 PostgreSQL 转储的大小、SHA-256 与恢复证据，但绝不公开存储位置、配置或转储内容、执行命令和密钥。
+- `AVAILABLE` 仅表示备份工件已记录且仍在保留期，不表示恢复已验证或承诺可自动回滚。恢复验证必须有受控流程写入的证据；数据库 migration 仍遵循 forward-only 策略。
 
 ## Release Authority And Manifest
 

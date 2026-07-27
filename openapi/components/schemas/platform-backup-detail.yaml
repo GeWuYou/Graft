@@ -1,0 +1,13 @@
+type: object
+description: Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified.
+required: [id, purpose, status, retain_until, created_at, config_snapshot, database_dump, restore_evidence]
+properties:
+  id: { type: integer, format: int64, minimum: 1 }
+  task_id: { type: integer, format: int64, minimum: 1, nullable: true }
+  purpose: { type: string }
+  status: { type: string, enum: [AVAILABLE, EXPIRED, RESTORED] }
+  retain_until: { type: string, format: date-time }
+  created_at: { type: string, format: date-time }
+  config_snapshot: { $ref: ./platform-backup-artifact-metadata.yaml }
+  database_dump: { $ref: ./platform-backup-artifact-metadata.yaml }
+  restore_evidence: { $ref: ./platform-backup-restore-evidence.yaml }

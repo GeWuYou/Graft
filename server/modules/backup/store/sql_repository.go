@@ -130,7 +130,7 @@ func (r *SQLRepository) GetSummary(ctx context.Context, id uint64) (moduleapi.Ba
 		return moduleapi.BackupSummary{}, moduleapi.ErrBackupInvalidInput
 	}
 	var item moduleapi.BackupSummary
-	err := r.db.QueryRowContext(ctx, `SELECT id, task_id, purpose, status, retain_until, created_at
+	err := r.db.QueryRowContext(ctx, `SELECT id, purpose, status, retain_until, created_at
 		FROM backups WHERE id = $1 AND deleted_at = 0`, id).Scan(scanBackupSummary(&item)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return moduleapi.BackupSummary{}, moduleapi.ErrBackupNotFound
@@ -150,7 +150,7 @@ func (r *SQLRepository) ListSummaries(ctx context.Context, limit, offset int) ([
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM backups WHERE deleted_at = 0`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count backup summaries: %w", err)
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, task_id, purpose, status, retain_until, created_at
+	rows, err := r.db.QueryContext(ctx, `SELECT id, purpose, status, retain_until, created_at
 		FROM backups WHERE deleted_at = 0 ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list backup summaries: %w", err)
@@ -262,5 +262,5 @@ func scanBackup(item *moduleapi.Backup) []any {
 }
 
 func scanBackupSummary(item *moduleapi.BackupSummary) []any {
-	return []any{&item.ID, &item.TaskID, &item.Purpose, &item.Status, &item.RetainUntil, &item.CreatedAt}
+	return []any{&item.ID, &item.Purpose, &item.Status, &item.RetainUntil, &item.CreatedAt}
 }

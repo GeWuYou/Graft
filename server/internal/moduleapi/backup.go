@@ -28,7 +28,8 @@ const (
 // BackupArtifact 是备份工件的内部引用和完整性元数据。
 //
 // StorageRef 只能是受控存储位置或不透明标识，不承载 .env 或 dump 正文。该 DTO
-// 只供服务端模块协作使用，任何 HTTP 读取面都必须投影为 BackupSummary。
+// 只供服务端模块协作使用；HTTP 读取面只能映射为安全摘要或详情元数据，绝不返回
+// StorageRef 或工件内容。
 type BackupArtifact struct {
 	StorageRef string
 	SHA256     string
@@ -54,9 +55,7 @@ type Backup struct {
 
 // BackupSummary 是未来 HTTP 查询可安全映射的只读投影；它明确不含存储位置和工件内容。
 type BackupSummary struct {
-	ID uint64
-	// TaskID 为空表示该安全摘要对应的备份没有 Task Runtime 来源。
-	TaskID      *uint64
+	ID          uint64
 	Purpose     string
 	Status      BackupStatus
 	RetainUntil time.Time
