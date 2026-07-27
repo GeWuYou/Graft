@@ -2,6 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, reactive } from 'vue';
 
+import type { components } from '@/contracts/openapi/generated/schema';
+
 const apiMocks = vi.hoisted(() => ({
   getDockerVolume: vi.fn(),
   removeDockerVolume: vi.fn(),
@@ -30,13 +32,13 @@ vi.mock('vue-i18n', () => ({
 
 import VolumeDetailPage from './detail.vue';
 
-const volume = (name: string) =>
-  ({
-    container_references: [],
-    name,
-    relationship_status: 'unused',
-    size_bytes: 1024,
-  }) as never;
+const volume = (name: string): components['schemas']['docker-volume'] => ({
+  anonymous: false,
+  container_references: [],
+  name,
+  relationship_status: 'unused',
+  size_bytes: 1024,
+});
 
 function mountPage() {
   return mount(VolumeDetailPage, {

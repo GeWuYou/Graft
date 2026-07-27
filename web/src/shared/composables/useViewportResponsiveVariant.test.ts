@@ -20,6 +20,8 @@ describe('useViewportResponsiveVariant', () => {
       },
     });
 
-    expect(mount(Probe).text()).toBe('spacious');
+    const wrapper = mount(Probe);
+    expect(wrapper.text()).toBe('spacious');
+    wrapper.unmount();
   });
 });
