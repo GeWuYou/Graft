@@ -386,7 +386,8 @@ async function submitUpgrade() {
     await loadHistory();
   } catch (error) {
     operationError.value = resolveOperationErrorMessage(error);
-    operationRequestId.value = isApiRequestError(error) ? error.traceId.trim() : '';
+    operationRequestId.value =
+      isApiRequestError(error) && isUpdateOperationFailureCode(error.code) ? error.traceId.trim() : '';
   } finally {
     submitting.value = false;
   }

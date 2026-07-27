@@ -52,7 +52,7 @@ AI 在当前任务中不得：
 - 有直接验证
 - closeout 明确列出
 
-当验证或提交链路暴露出修复时，Agent 仅可在根因已诊断且被直接修复、归属明确、全部文件/hunk 均留在用户已确认 task scope 内、并且 authority 与行为均不变时连续完成修复，并重跑受影响验证。任一条件不满足时，必须遵循根 `AGENTS.md` 的 `Repair Confirmation Interaction Contract`，形成结构化 `Repair required` proposal，而不是只写“暂停”或询问 `Approve?`、`Should I fix this?`、`Confirm repair?` 要求用户重新说明方向。proposal 必须包括失败命令和根因、精确文件路径与行号或 hunk、拟改内容、ownership 与 blast radius、将重跑的验证，以及独立 repair commit 或合并当前 commit 的策略。Agent 必须优先通过宿主原生 structured-choice interaction（例如 `request_user_input`）提供 `execute_repair`、`continue_current_scope`、`show_detailed_diff`、`cancel_workflow` 四个选项，不能在普通回复中要求用户输入编号；只有 `execute_repair` 才允许修改、暂存、提交或推送结构化提案中展示的 repair，`show_detailed_diff` 必须展示 patch 后重新调用同一控件，且新文件或 hunk 必须重新提案。只有宿主确认不支持原生交互时，才允许输出完整 proposal、四个数字选项各自的说明与后果后停止，并等待下一轮用户仅回复 `1 / 2 / 3 / 4`；该 fallback 必须映射到同一四个选项，不能用于方便起见的降级或二元确认。
+当验证或提交链路暴露出需要修复的问题时，Agent 仅可在根因已诊断且被直接修复、归属明确、全部文件/hunk 均留在用户已确认 task scope 内、并且 authority 与行为均不变时连续完成修复，并重跑受影响验证。任一条件不满足时，必须遵循根 `AGENTS.md` 的 `Repair Confirmation Interaction Contract`，形成结构化 `Repair required` proposal，而不是只写“暂停”或询问 `Approve?`、`Should I fix this?`、`Confirm repair?` 要求用户重新说明方向。proposal 必须包括失败命令和根因、精确文件路径与行号或 hunk、拟改内容、ownership 与 blast radius、将重跑的验证，以及独立 repair commit 或合并当前 commit 的策略。Agent 必须优先通过宿主原生 structured-choice interaction（例如 `request_user_input`）提供 `execute_repair`、`continue_current_scope`、`show_detailed_diff`、`cancel_workflow` 四个选项，不能在普通回复中要求用户输入编号；只有 `execute_repair` 才允许修改、暂存、提交或推送结构化提案中展示的 repair，`show_detailed_diff` 必须展示 patch 后重新调用同一控件，且新文件或 hunk 必须重新提案。只有宿主确认不支持原生交互时，才允许输出完整 proposal、四个数字选项各自的说明与后果后停止，并等待下一轮用户仅回复 `1 / 2 / 3 / 4`；该 fallback 必须映射到同一四个选项，不能用于方便起见的降级或二元确认。
 
 ## 5. 禁止 TODO 泄漏
 

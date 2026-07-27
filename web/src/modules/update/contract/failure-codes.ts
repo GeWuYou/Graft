@@ -3,6 +3,7 @@ import type { components } from '@/contracts/openapi/generated/schema';
 /** 更新启动失败码由 OpenAPI 定义；此处只提供模块内安全提示的派生映射。 */
 export type UpdateOperationFailureCode = components['schemas']['platform-update-rollout-failure-code'];
 
+/** 提供与 OpenAPI 失败码枚举一致的稳定值，供模块消费者避免重复书写 wire code。 */
 export const UPDATE_OPERATION_FAILURE_CODE = {
   CATALOG_STALE: 'PLATFORM_UPDATE_CATALOG_STALE',
   INSTALLATION_UNAVAILABLE: 'PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE',
@@ -13,6 +14,7 @@ export const UPDATE_OPERATION_FAILURE_CODE = {
   OPERATION_START_FAILED: 'PLATFORM_UPDATE_OPERATION_START_FAILED',
 } as const satisfies Record<string, UpdateOperationFailureCode>;
 
+/** 将已知失败码映射为安全的本地化消息 key；未知服务端值不得通过此映射展示。 */
 export const UPDATE_OPERATION_FAILURE_MESSAGE_KEY: Record<UpdateOperationFailureCode, string> = {
   [UPDATE_OPERATION_FAILURE_CODE.CATALOG_STALE]: 'update.center.confirmation.failure.catalogStale',
   [UPDATE_OPERATION_FAILURE_CODE.INSTALLATION_UNAVAILABLE]: 'update.center.confirmation.failure.executionUnavailable',
@@ -24,6 +26,7 @@ export const UPDATE_OPERATION_FAILURE_MESSAGE_KEY: Record<UpdateOperationFailure
   [UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED]: 'update.center.confirmation.failure.startFailed',
 };
 
+/** 仅接受映射表自有的 OpenAPI 失败码，避免原型属性被误当作可展示的服务端错误。 */
 export function isUpdateOperationFailureCode(code: string): code is UpdateOperationFailureCode {
-  return code in UPDATE_OPERATION_FAILURE_MESSAGE_KEY;
+  return Object.prototype.hasOwnProperty.call(UPDATE_OPERATION_FAILURE_MESSAGE_KEY, code);
 }

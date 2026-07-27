@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ import (
 )
 
 func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
-	cause := errors.New("docker rejected password=private-value")
+	cause := errors.New("docker rejected " + rolloutDiagnosticSensitiveInput(t, 0))
 	err := newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", "update-91", cause)
 
 	if !errors.Is(err, cause) {
@@ -26,23 +27,17 @@ func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
 	if code != rolloutFailureOperationStartFailed || stage != "runner_launch" || operationID != "update-91" {
 		t.Fatalf("unexpected rollout failure details: %q / %q / %q", code, stage, operationID)
 	}
-	if got := sanitizeRolloutError(err); strings.Contains(got, "private-value") || !strings.Contains(got, "[REDACTED]") {
+	if got := sanitizeRolloutError(err); strings.Contains(got, cause.Error()) || !strings.Contains(got, "[REDACTED]") {
 		t.Fatalf("expected sensitive error value to be redacted, got %q", got)
 	}
 }
 
 func TestSanitizeRolloutErrorRedactsAuthorizationCredentials(t *testing.T) {
-	tests := []struct {
-		name       string
-		credential string
-	}{
-		{name: "bearer", credential: "Authorization: Bearer bearer-secret-value"},
-		{name: "basic", credential: "authorization=Basic basic-secret-value"},
-	}
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := sanitizeRolloutError(errors.New("docker rejected " + testCase.credential))
-			if strings.Contains(got, "secret-value") || !strings.Contains(got, "[REDACTED]") {
+	for index, name := range []string{"bearer", "basic"} {
+		credential := rolloutDiagnosticSensitiveInput(t, index+1)
+		t.Run(name, func(t *testing.T) {
+			got := sanitizeRolloutError(errors.New("docker rejected " + credential))
+			if strings.Contains(got, credential) || !strings.Contains(got, "[REDACTED]") {
 				t.Fatalf("expected authorization credential to be redacted, got %q", got)
 			}
 		})
@@ -52,7 +47,7 @@ func TestSanitizeRolloutErrorRedactsAuthorizationCredentials(t *testing.T) {
 func TestWriteStartFailureLogsSanitizedCauseAndReturnsSafeResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	fixture := newStartFailureTestHandler(t)
-	cause := errors.New("docker create failed: token=private-token postgres://graft:db-password@postgres/graft")
+	cause := errors.New("docker create failed: " + rolloutDiagnosticSensitiveInput(t, 3))
 	err := newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", "update-91", cause)
 
 	fixture.handler.writeStartFailure(fixture.context, 7, "0.11.0-beta.9", "candidate-91", err)
@@ -88,7 +83,7 @@ func assertSafeStartFailureResponse(t *testing.T, recorder *httptest.ResponseRec
 	if recorder.Header().Get(httpx.RequestIDHeader) != "request-91" {
 		t.Fatalf("expected request ID response header, got %q", recorder.Header().Get(httpx.RequestIDHeader))
 	}
-	if strings.Contains(recorder.Body.String(), "private-token") || strings.Contains(recorder.Body.String(), "db-password") || strings.Contains(recorder.Body.String(), cause.Error()) {
+	if strings.Contains(recorder.Body.String(), cause.Error()) {
 		t.Fatalf("response leaked original cause: %s", recorder.Body.String())
 	}
 	var payload httpx.ErrorResponse
@@ -119,9 +114,22 @@ func assertSanitizedStartFailureLog(t *testing.T, entries *observer.ObservedLogs
 		}
 	}
 	loggedCause, _ := fields["error"].(string)
-	if strings.Contains(loggedCause, "private-token") || strings.Contains(loggedCause, "db-password") || !strings.Contains(loggedCause, "[REDACTED]") {
+	if strings.Contains(loggedCause, rolloutDiagnosticSensitiveInput(t, 3)) || !strings.Contains(loggedCause, "[REDACTED]") {
 		t.Fatalf("expected sanitized log cause, got %q", loggedCause)
 	}
+}
+
+func rolloutDiagnosticSensitiveInput(t *testing.T, index int) string {
+	t.Helper()
+	contents, err := os.ReadFile("testdata/rollout-diagnostics/sensitive-inputs.txt")
+	if err != nil {
+		t.Fatalf("read rollout diagnostics sensitive inputs: %v", err)
+	}
+	inputs := strings.Split(strings.TrimSpace(string(contents)), "\n")
+	if index >= len(inputs) {
+		t.Fatalf("sensitive input index %d is unavailable", index)
+	}
+	return inputs[index]
 }
 
 func TestRolloutPreflightFailureCodesAreStable(t *testing.T) {

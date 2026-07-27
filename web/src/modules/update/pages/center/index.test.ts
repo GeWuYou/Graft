@@ -195,7 +195,7 @@ describe('UpdateCenter', () => {
     useUpdateDiscoveryStore().replaceSnapshot(
       status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
     );
-    apiMocks.createUpdateOperation.mockRejectedValueOnce(new Error('network unavailable'));
+    apiMocks.createUpdateOperation.mockRejectedValueOnce(updateStartFailure('UNKNOWN_CODE'));
     const wrapper = mountCenter();
     await flushPromises();
 
@@ -205,7 +205,7 @@ describe('UpdateCenter', () => {
 
     expect(wrapper.text()).toContain('update.center.confirmation.failure.generic');
     expect(wrapper.find('[data-testid="update-operation-request-id"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toContain('network unavailable');
+    expect(wrapper.text()).not.toContain('internal implementation detail');
   });
 
   it('uses the injected data source for status, refresh, history, and upgrade submission', async () => {
