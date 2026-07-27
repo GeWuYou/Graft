@@ -80,7 +80,14 @@
           clear-test-id="docker-images-batch-clear"
           @clear="clearSelection"
         >
-          <t-button size="small" theme="danger" variant="outline" :loading="batchRemoving" @click="openBatchRemove">
+          <t-button
+            v-if="canRemove"
+            size="small"
+            theme="danger"
+            variant="outline"
+            :loading="batchRemoving"
+            @click="openBatchRemove"
+          >
             {{ t('container.images.batch.remove') }}
           </t-button>
         </management-batch-bar>
@@ -233,7 +240,7 @@
             { value: 'detail', label: 'container.images.actions.detail' },
             { value: 'manage-tags', label: 'container.images.actions.manageTags' },
             { value: 'tag', label: 'container.images.actions.tag' },
-            { value: 'remove', label: 'container.images.actions.remove' },
+            ...(canRemove ? [{ value: 'remove', label: 'container.images.actions.remove' }] : []),
           ]"
           :more-label="t('container.images.actions.more')"
           @action="handleRowAction($event, row)"
@@ -366,7 +373,7 @@
           </template>
         </t-alert>
         <container-danger-zone
-          v-if="selectedImage"
+          v-if="selectedImage && canRemove"
           :action-label="t('container.images.actions.remove')"
           :description="t('container.images.remove.risk')"
           @action="openRemove(selectedImage)"
@@ -686,6 +693,7 @@ import { computed, onUnmounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  CONTAINER_PERMISSION_CODE,
   DOCKER_IMAGE_REMOVE_ERROR_CODES,
   type DockerImageRemoveErrorCode,
 } from '@/contracts/generated/modules/container';
@@ -701,6 +709,7 @@ import {
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
+import { usePermissionStore } from '@/store';
 import { createLogger } from '@/utils/logger';
 import { isApiRequestError } from '@/utils/request';
 
@@ -734,6 +743,7 @@ let pullIdempotencySequence = 0;
 
 const { locale, t } = useI18n();
 const logger = createLogger('container.images');
+const permissionStore = usePermissionStore();
 const pagination = reactive({ current: 1, pageSize: 20 });
 const keyword = ref('');
 const submittedKeyword = ref('');
@@ -766,6 +776,7 @@ const removing = ref(false);
 const forceRemove = ref(false);
 const selectedRowKeys = ref<Array<string | number>>([]);
 const selectedImages = ref(new Map<string, DockerImage>());
+const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.IMAGE_REMOVE));
 const cardSelectionMode = ref(false);
 const batchRemoving = ref(false);
 const cleanupDialogStyle = { maxHeight: '70vh' };
@@ -834,7 +845,9 @@ const cardMoreActions = computed(() => [
   { content: t('container.images.actions.select'), value: 'select' },
   { content: t('container.images.actions.manageTags'), value: 'manage-tags' },
   { content: t('container.images.actions.tag'), value: 'tag' },
-  { content: t('container.images.actions.remove'), theme: 'error' as const, value: 'remove' },
+  ...(canRemove.value
+    ? [{ content: t('container.images.actions.remove'), theme: 'error' as const, value: 'remove' }]
+    : []),
 ]);
 const selectedBatchReferences = computed(() =>
   selectedRowKeys.value.flatMap((key) => selectedImages.value.get(String(key))?.container_references ?? []),
@@ -920,7 +933,7 @@ function handleRowAction(action: string, image: DockerImage) {
   if (action === 'detail') openDetail(image);
   if (action === 'manage-tags') openTagManager(image);
   if (action === 'tag') openTag(image);
-  if (action === 'remove') openRemove(image);
+  if (action === 'remove' && canRemove.value) openRemove(image);
 }
 function handleCompactHeaderAction(action: { value?: string | number | Record<string, unknown> }) {
   if (action.value === 'cleanup') void openCleanup();
@@ -1007,6 +1020,7 @@ async function submitTag() {
   }
 }
 function openRemove(image: DockerImage) {
+  if (!canRemove.value) return;
   selectedImage.value = image;
   forceRemove.value = false;
   removeDialogVisible.value = true;

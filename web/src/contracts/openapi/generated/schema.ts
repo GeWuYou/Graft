@@ -7731,8 +7731,6 @@ export interface components {
       driver: string;
       scope: string;
       created_at: string;
-      /** @description Host mount path reported by Docker for this volume. */
-      readonly mountpoint: string;
       /** @description Server-owned classification of Docker-generated anonymous volume names. */
       anonymous: boolean;
       labels?: {

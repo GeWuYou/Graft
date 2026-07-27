@@ -64,8 +64,10 @@ describe('docker image list page', () => {
 
   it('places image removal in the shared container danger zone', () => {
     expect(sourceText).toContain('<container-danger-zone');
+    expect(sourceText).toContain('v-if="selectedImage && canRemove"');
     expect(sourceText).toContain(':description="t(\'container.images.remove.risk\')"');
     expect(sourceText).toContain('@action="openRemove(selectedImage)"');
+    expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.IMAGE_REMOVE');
   });
 
   it('keeps the pull action primary and moves cleanup into compact overflow', () => {

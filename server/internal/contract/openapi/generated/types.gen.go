@@ -8465,15 +8465,12 @@ type DockerVolume struct {
 	ContainerReferences []DockerVolumeContainerReference `json:"container_references"`
 
 	// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
-	Context   DockerResourceContext `json:"context"`
-	CreatedAt string                `json:"created_at"`
-	Driver    string                `json:"driver"`
-	Labels    *map[string]string    `json:"labels,omitempty"`
-
-	// Mountpoint Host mount path reported by Docker for this volume.
-	Mountpoint     *string `json:"mountpoint,omitempty"`
-	Name           string  `json:"name"`
-	ReferenceCount *int64  `json:"reference_count,omitempty"`
+	Context        DockerResourceContext `json:"context"`
+	CreatedAt      string                `json:"created_at"`
+	Driver         string                `json:"driver"`
+	Labels         *map[string]string    `json:"labels,omitempty"`
+	Name           string                `json:"name"`
+	ReferenceCount *int64                `json:"reference_count,omitempty"`
 
 	// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
 	RelationshipStatus DockerResourceRelationshipStatus `json:"relationship_status"`

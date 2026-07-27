@@ -31072,7 +31072,6 @@
           "driver",
           "scope",
           "created_at",
-          "mountpoint",
           "anonymous",
           "container_references",
           "context",
@@ -31090,11 +31089,6 @@
           },
           "created_at": {
             "type": "string"
-          },
-          "mountpoint": {
-            "type": "string",
-            "readOnly": true,
-            "description": "Host mount path reported by Docker for this volume."
           },
           "anonymous": {
             "type": "boolean",

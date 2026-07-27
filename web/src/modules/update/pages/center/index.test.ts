@@ -257,6 +257,7 @@ describe('UpdateCenter', () => {
           status([{ key: 'preview', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
         ),
       getOperations: vi.fn().mockResolvedValue([]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(null),
       createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation' }),
     };
     const wrapper = mountCenter(dataSource);
@@ -278,5 +279,41 @@ describe('UpdateCenter', () => {
       compose_candidate_key: 'preview',
     });
     expect(dataSource.getOperations).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses the injected data source for diagnostics after an injected update submission fails', async () => {
+    const diagnostic = {
+      request_id: 'request-update-42',
+      target_version: '1.1.0',
+      failure_code: UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED,
+      failure_stage: 'runner_launch',
+      summary: 'platform update rollout start failed',
+      detail: 'preview diagnostic',
+      occurred_at: '2026-07-27T10:00:00Z',
+    };
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi
+        .fn()
+        .mockResolvedValue(
+          status([{ key: 'preview', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+        ),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(diagnostic),
+      createOperation: vi
+        .fn()
+        .mockRejectedValue(updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED)),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(dataSource.getFailureDiagnostic).toHaveBeenCalledWith('request-update-42');
+    expect(getUpdateFailureDiagnostic).not.toHaveBeenCalled();
+    expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain('preview diagnostic');
   });
 });

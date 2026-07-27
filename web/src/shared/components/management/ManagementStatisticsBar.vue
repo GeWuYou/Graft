@@ -10,9 +10,9 @@
         </span>
       </template>
     </div>
-    <div v-if="compactItems.length" class="management-statistics-bar__compact-content">
+    <div v-if="layout === 'chips'" class="management-statistics-bar__compact-content">
       <span
-        v-for="(item, index) in compactItems"
+        v-for="(item, index) in compactItems.length ? compactItems : items"
         :key="`${item.label}-${index}`"
         class="management-statistics-bar__item"
       >

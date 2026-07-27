@@ -423,7 +423,9 @@ async function submitUpgrade() {
       isApiRequestError(error) && isUpdateOperationFailureCode(error.code) ? error.traceId.trim() : '';
     if (operationRequestId.value) {
       try {
-        operationDiagnostic.value = await getUpdateFailureDiagnostic(operationRequestId.value);
+        operationDiagnostic.value = props.dataSource
+          ? await props.dataSource.getFailureDiagnostic(operationRequestId.value)
+          : await getUpdateFailureDiagnostic(operationRequestId.value);
       } catch {
         diagnosticUnavailable.value = true;
       }

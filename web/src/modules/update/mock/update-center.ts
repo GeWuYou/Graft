@@ -54,6 +54,9 @@ export function createUpdateCenterPreviewDataSource(): UpdateCenterDataSource {
     async getOperations() {
       return operations;
     },
+    async getFailureDiagnostic() {
+      return null;
+    },
     async createOperation(payload: CreateUpdateOperationRequest) {
       const now = new Date().toISOString();
       const operation: UpdateOperation = {

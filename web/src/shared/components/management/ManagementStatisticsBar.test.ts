@@ -53,4 +53,13 @@ describe('ManagementStatisticsBar', () => {
     expect(wrapper.classes()).toContain('management-statistics-bar--chips');
     expect(wrapper.find('.management-statistics-bar__compact-content').text()).toContain('Images');
   });
+
+  it('falls back to the regular items when chips have no compact items', () => {
+    const wrapper = mount(ManagementStatisticsBar, {
+      global: { components: { 't-divider': DividerStub } },
+      props: { items: [{ label: 'Total Images', value: 19 }], layout: 'chips' },
+    });
+
+    expect(wrapper.find('.management-statistics-bar__compact-content').text()).toContain('Total Images');
+  });
 });

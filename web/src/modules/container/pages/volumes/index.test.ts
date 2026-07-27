@@ -60,6 +60,18 @@ describe('docker volume asset management page', () => {
     expect(sourceText).not.toContain("t('container.volume.unavailable'");
   });
 
+  it('restores filtered compact-card empty states through the existing filter reset action', () => {
+    expect(sourceText).toContain(":title=\"hasActiveFilters ? t('container.volume.pagination.empty')");
+    expect(sourceText).toContain("hasActiveFilters ? t('container.volume.filters.reset')");
+    expect(sourceText).toContain('<template v-if="hasActiveFilters" #action>');
+    expect(sourceText).toContain('@click="resetFilters"');
+  });
+
+  it('formats compact-card dates with the locale-safe date-only helper', () => {
+    expect(sourceText).toContain('formatLocaleDateOnly(value, locale)');
+    expect(sourceText).not.toContain("formatLocaleDateTime(value, locale).split(' ')");
+  });
+
   it('uses a compact drawer with shared detail content on desktop', () => {
     expect(sourceText).toContain('<resource-detail-layout');
     expect(sourceText).toContain('size="compact"');
@@ -74,8 +86,6 @@ describe('docker volume asset management page', () => {
     expect(detailContentText).toContain('volume.container_references.length');
     expect(detailContentText).toContain("t('container.volume.detail.noContainers')");
     expect(detailContentText).toContain('safeCleanupCandidate');
-    expect(detailContentText).toContain("t('container.volume.detail.mountpoint')");
-    expect(detailContentText).toContain('volume.mountpoint');
     expect(detailContentText).toContain("t('container.volume.detail.actualUsage')");
   });
 

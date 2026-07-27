@@ -49,11 +49,6 @@
     <section v-if="surface === 'page'" class="volume-detail-content__section">
       <h3>{{ t('container.volume.detail.storage') }}</h3>
       <t-descriptions :column="1" size="small">
-        <t-descriptions-item :label="t('container.volume.detail.mountpoint')">
-          <span class="volume-detail-content__breakable">
-            {{ volume.mountpoint || t('container.volume.notCollected') }}
-          </span>
-        </t-descriptions-item>
         <t-descriptions-item :label="t('container.volume.detail.actualUsage')">
           {{ displaySize }}
         </t-descriptions-item>

@@ -124,9 +124,15 @@
       <template #cards>
         <t-empty
           v-if="!rows.length && !loading"
-          :title="t('container.volume.empty.title')"
-          :description="t('container.volume.empty.description')"
-        />
+          :title="hasActiveFilters ? t('container.volume.pagination.empty') : t('container.volume.empty.title')"
+          :description="
+            hasActiveFilters ? t('container.volume.filters.reset') : t('container.volume.empty.description')
+          "
+        >
+          <template v-if="hasActiveFilters" #action>
+            <t-button variant="outline" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
+          </template>
+        </t-empty>
         <div v-else class="docker-volume-page__cards">
           <article v-for="row in rows" :key="row.name" class="docker-volume-page__card" @click="openDetailPage(row)">
             <header class="docker-volume-page__card-header">
@@ -361,7 +367,7 @@ import {
 } from '@/shared/components/management';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
+import { formatBytes, formatLocaleDateOnly, formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
 import {
@@ -726,7 +732,7 @@ function formatTime(value?: string) {
   return value ? formatLocaleDateTime(value, locale) : t('container.volume.notCollected');
 }
 function formatCardDate(value?: string) {
-  return value ? formatLocaleDateTime(value, locale).split(' ')[0] : t('container.volume.notCollected');
+  return value ? formatLocaleDateOnly(value, locale) : t('container.volume.notCollected');
 }
 function confirmRemove(row: VolumeRow) {
   openVolumeRemovalConfirmation({

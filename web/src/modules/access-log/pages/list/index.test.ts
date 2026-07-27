@@ -148,7 +148,9 @@ describe('AccessLogListIndex', () => {
     expect(mocks.routerReplace).toHaveBeenLastCalledWith(
       expect.objectContaining({ query: expect.objectContaining({ quick_preset: 'status5xx', status_group: '5xx' }) }),
     );
-    expect(mocks.getAccessLogs).toHaveBeenLastCalledWith(expect.not.objectContaining({ quick_preset: 'status5xx' }));
+    mocks.getAccessLogs.mock.calls.forEach(([params]) => {
+      expect(params).not.toHaveProperty('quick_preset');
+    });
 
     await wrapper.get('[data-testid="reset-filters"]').trigger('click');
     await flushPromises();

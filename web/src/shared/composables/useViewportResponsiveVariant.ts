@@ -6,7 +6,7 @@ import { resolveResponsiveVariant, type ResponsiveVariant, type ResponsiveVarian
  * 将全局视口宽度转换为共享响应式语义，仅供需要遵循产品视口断点的 shared 组件使用。
  */
 export function useViewportResponsiveVariant(options: ResponsiveVariantOptions = {}): ComputedRef<ResponsiveVariant> {
-  const viewportWidth = ref(0);
+  const viewportWidth = ref(window.innerWidth);
 
   function updateViewportWidth() {
     viewportWidth.value = window.innerWidth;

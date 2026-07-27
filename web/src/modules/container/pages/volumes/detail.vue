@@ -30,7 +30,7 @@
 </template>
 <script setup lang="ts">
 // 独立详情路由为窄屏提供完整页面，同时保持桌面直接访问时可用。
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -59,17 +59,29 @@ const statusPresentation = computed(() =>
     : { label: '', theme: 'default' as const },
 );
 
-onMounted(loadVolume);
+watch(
+  () => String(route.params.name ?? ''),
+  (volumeName) => void loadVolume(volumeName),
+  { immediate: true },
+);
 
-async function loadVolume() {
+async function loadVolume(volumeName: string) {
   loading.value = true;
   error.value = '';
+  volume.value = null;
   try {
-    volume.value = await getDockerVolume(String(route.params.name));
+    const result = await getDockerVolume(volumeName);
+    if (volumeName === String(route.params.name ?? '')) {
+      volume.value = result;
+    }
   } catch (cause) {
-    error.value = resolveLocalizedErrorMessage(t, cause, t('container.volume.detail.loadFailed'));
+    if (volumeName === String(route.params.name ?? '')) {
+      error.value = resolveLocalizedErrorMessage(t, cause, t('container.volume.detail.loadFailed'));
+    }
   } finally {
-    loading.value = false;
+    if (volumeName === String(route.params.name ?? '')) {
+      loading.value = false;
+    }
   }
 }
 

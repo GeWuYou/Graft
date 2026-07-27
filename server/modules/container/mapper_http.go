@@ -146,13 +146,13 @@ func toDockerNetworkList(result DockerNetworkListResult) containergen.DockerNetw
 	return containergen.DockerNetworkListResponse{Items: mapped, Total: result.Total, Limit: result.Limit, Offset: result.Offset, Summary: containergen.DockerNetworkListSummary{Total: result.Summary.Total, InUse: result.Summary.InUse, Unused: result.Summary.Unused}}
 }
 
-// toDockerVolume converts a Docker volume into its API response representation.
+// toDockerVolume 将 Docker 数据卷映射为不包含主机挂载路径的 API 响应。
 func toDockerVolume(item DockerVolume) containergen.DockerVolume {
 	refs := make([]containergen.DockerVolumeContainerReference, 0, len(item.ContainerReferences))
 	for _, ref := range item.ContainerReferences {
 		refs = append(refs, containergen.DockerVolumeContainerReference{Id: ref.ID, Name: ref.Name})
 	}
-	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Mountpoint: optionalString(item.Mountpoint), Anonymous: item.Anonymous, Context: toDockerResourceContext(item.Context), RelationshipStatus: containergen.DockerResourceRelationshipStatus(dockerVolumeRelationshipStatus(item)), Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes, ContainerReferences: refs}
+	return containergen.DockerVolume{Name: item.Name, Driver: item.Driver, Scope: item.Scope, CreatedAt: item.CreatedAt, Anonymous: item.Anonymous, Context: toDockerResourceContext(item.Context), RelationshipStatus: containergen.DockerResourceRelationshipStatus(dockerVolumeRelationshipStatus(item)), Labels: optionalStringMap(item.Labels), ReferenceCount: item.ReferenceCount, SizeBytes: item.SizeBytes, ContainerReferences: refs}
 }
 
 // toDockerResourceContext 将服务端归一化的资源业务上下文映射到 HTTP 契约。

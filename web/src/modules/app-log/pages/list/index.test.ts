@@ -276,7 +276,9 @@ describe('AppLogListIndex', () => {
     expect(mocks.routerReplace).toHaveBeenLastCalledWith(
       expect.objectContaining({ query: expect.objectContaining({ quick_preset: 'warnings', severity: 'warn' }) }),
     );
-    expect(mocks.getAppLogs).toHaveBeenLastCalledWith(expect.not.objectContaining({ quick_preset: 'warnings' }));
+    mocks.getAppLogs.mock.calls.forEach(([params]) => {
+      expect(params).not.toHaveProperty('quick_preset');
+    });
 
     await wrapper.get('[data-testid="reset-filters"]').trigger('click');
     await flushPromises();
