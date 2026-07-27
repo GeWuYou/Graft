@@ -17,7 +17,8 @@ import (
 )
 
 func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
-	cause := errors.New("docker rejected " + rolloutDiagnosticSensitiveInput(t, 0))
+	sensitiveInput := rolloutDiagnosticSensitiveInput(t, 0)
+	cause := errors.New("docker rejected " + sensitiveInput)
 	err := newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", "update-91", cause)
 
 	if !errors.Is(err, cause) {
@@ -27,7 +28,7 @@ func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
 	if code != rolloutFailureOperationStartFailed || stage != "runner_launch" || operationID != "update-91" {
 		t.Fatalf("unexpected rollout failure details: %q / %q / %q", code, stage, operationID)
 	}
-	if got := sanitizeRolloutError(err); strings.Contains(got, cause.Error()) || !strings.Contains(got, "[REDACTED]") {
+	if got := sanitizeRolloutError(err); strings.Contains(got, sensitiveInput) || !strings.Contains(got, "[REDACTED]") {
 		t.Fatalf("expected sensitive error value to be redacted, got %q", got)
 	}
 }
@@ -47,11 +48,12 @@ func TestSanitizeRolloutErrorRedactsAuthorizationCredentials(t *testing.T) {
 func TestWriteStartFailureLogsSanitizedCauseAndReturnsSafeResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	fixture := newStartFailureTestHandler(t)
-	cause := errors.New("docker create failed: " + rolloutDiagnosticSensitiveInput(t, 3))
+	sensitiveInput := rolloutDiagnosticSensitiveInput(t, 3)
+	cause := errors.New("docker create failed: " + sensitiveInput)
 	err := newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", "update-91", cause)
 
 	fixture.handler.writeStartFailure(fixture.context, 7, "0.11.0-beta.9", "candidate-91", err)
-	assertSafeStartFailureResponse(t, fixture.recorder, cause)
+	assertSafeStartFailureResponse(t, fixture.recorder, sensitiveInput)
 	assertSanitizedStartFailureLog(t, fixture.entries)
 }
 
@@ -74,7 +76,7 @@ func newStartFailureTestHandler(t *testing.T) startFailureTestFixture {
 	return startFailureTestFixture{recorder: recorder, context: ctx, handler: updateRouteHandlers{logger: zap.New(core)}, entries: entries}
 }
 
-func assertSafeStartFailureResponse(t *testing.T, recorder *httptest.ResponseRecorder, cause error) {
+func assertSafeStartFailureResponse(t *testing.T, recorder *httptest.ResponseRecorder, sensitiveInput string) {
 	t.Helper()
 
 	if recorder.Code != http.StatusInternalServerError {
@@ -83,7 +85,7 @@ func assertSafeStartFailureResponse(t *testing.T, recorder *httptest.ResponseRec
 	if recorder.Header().Get(httpx.RequestIDHeader) != "request-91" {
 		t.Fatalf("expected request ID response header, got %q", recorder.Header().Get(httpx.RequestIDHeader))
 	}
-	if strings.Contains(recorder.Body.String(), cause.Error()) {
+	if strings.Contains(recorder.Body.String(), sensitiveInput) {
 		t.Fatalf("response leaked original cause: %s", recorder.Body.String())
 	}
 	var payload httpx.ErrorResponse
