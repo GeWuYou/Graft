@@ -117,6 +117,13 @@ func registerMessages(localizer *i18n.Service) error {
 			"menu.platform.update",
 			"scheduledTask.platformUpdateCheck.title",
 			"scheduledTask.platformUpdateCheck.description",
+			"update.operation.start.invalid_target",
+			"update.operation.start.catalog_stale",
+			"update.operation.start.installation_unavailable",
+			"update.operation.start.source_version_unsupported",
+			"update.operation.start.compose_candidate_invalid",
+			"update.operation.start.compose_preflight_failed",
+			"update.operation.start.operation_start_failed",
 		} {
 			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
 				return fmt.Errorf("platform-update locale resource missing %s for %s", key, locale)

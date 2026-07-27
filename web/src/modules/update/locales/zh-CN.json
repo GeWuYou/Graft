@@ -78,7 +78,17 @@
         "description": "确认后将启动受控 Compose 升级。",
         "confirm": "开始升级",
         "cancel": "取消",
-        "submitFailed": "升级请求未能启动。"
+        "requestId": "请求 ID：{requestId}",
+        "failure": {
+          "catalogStale": "已验证的发行目录已过期，请重新检查更新后再试。",
+          "executionUnavailable": "当前安装不满足受控升级的运行条件。",
+          "minimumSourceVersion": "当前运行版本不满足目标版本的最低升级要求。",
+          "targetInvalid": "目标发行版本已失效，请刷新更新状态后再试。",
+          "composeCandidateInvalid": "所选 Compose 项目目录已失效，请重新选择后再试。",
+          "composePreflightFailed": "当前 Compose 项目未通过升级前检查。",
+          "startFailed": "升级任务未能启动，请根据请求 ID 查询服务端日志。",
+          "generic": "升级请求未能启动，请稍后重试。"
+        }
       },
       "history": {
         "title": "更新历史",

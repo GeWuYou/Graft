@@ -8793,7 +8793,7 @@
             }
           },
           "400": {
-            "description": "Invalid target version or request payload."
+            "description": "Invalid target version or request payload. The error data.reason contains a stable safe failure code."
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -8801,8 +8801,11 @@
           "403": {
             "$ref": "#/components/responses/forbidden"
           },
-          "409": {
-            "description": "The installation profile or current release does not permit execution."
+          "412": {
+            "description": "The verified release catalog or installation preflight rejected execution. The error data.reason contains a stable safe failure code."
+          },
+          "500": {
+            "description": "Update preparation, persistence, or runner launch failed. The error data.reason contains a stable safe failure code and the X-Request-Id response header correlates server logs."
           }
         }
       }
@@ -26562,6 +26565,7 @@
       },
       "platform-backup-artifact-metadata": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Safe integrity metadata for one Backup artifact. Artifact locations and contents are never returned.",
         "required": [
           "size_bytes",
@@ -26582,6 +26586,7 @@
       },
       "platform-backup-restore-evidence": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Latest recorded result from a controlled restore process. A missing record does not claim that the Backup is restorable.",
         "required": [
           "status"
@@ -26610,6 +26615,7 @@
       },
       "platform-backup-detail": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Safe Backup asset detail. It exposes asset metadata, integrity records, recovery evidence, and an optional associated Task without exposing artifact locations, contents, commands, secrets, or creator identity. AVAILABLE only means retained within its current retention window; it does not mean independently restore-verified.",
         "required": [
           "id",

@@ -13489,7 +13489,7 @@ export interface operations {
           'application/json': components['schemas']['enveloped-platform-update-operation'];
         };
       };
-      /** @description Invalid target version or request payload. */
+      /** @description Invalid target version or request payload. The error data.reason contains a stable safe failure code. */
       400: {
         headers: {
           [name: string]: unknown;
@@ -13498,8 +13498,15 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
-      /** @description The installation profile or current release does not permit execution. */
-      409: {
+      /** @description The verified release catalog or installation preflight rejected execution. The error data.reason contains a stable safe failure code. */
+      412: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Update preparation, persistence, or runner launch failed. The error data.reason contains a stable safe failure code and the X-Request-Id response header correlates server logs. */
+      500: {
         headers: {
           [name: string]: unknown;
         };

@@ -2,3 +2,10 @@ menu.platform.maintenance: 系统维护
 menu.platform.update: 更新中心
 scheduledTask.platformUpdateCheck.title: 检查平台更新
 scheduledTask.platformUpdateCheck.description: 检查发布源中是否存在经过验证的较新平台版本。
+update.operation.start.invalid_target: 目标版本已失效，请刷新更新信息后重试。
+update.operation.start.catalog_stale: 更新目录已过期，请检查更新后重试。
+update.operation.start.installation_unavailable: 当前安装环境不支持受控升级。
+update.operation.start.source_version_unsupported: 当前版本不满足目标版本的升级要求。
+update.operation.start.compose_candidate_invalid: 选择的 Compose 项目已失效，请刷新更新信息后重新选择。
+update.operation.start.compose_preflight_failed: 当前安装环境未通过升级预检，请确认部署配置。
+update.operation.start.operation_start_failed: 升级请求未能启动，请查看请求 ID 对应的服务端日志。
