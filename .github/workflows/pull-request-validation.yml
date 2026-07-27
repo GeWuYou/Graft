@@ -48,6 +48,7 @@ jobs:
           path: .
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --exclude-paths=.trufflehog-exclude-paths.txt
 
   contract-governance-check:
     name: Contract Governance Check
