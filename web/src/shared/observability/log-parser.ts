@@ -1,3 +1,4 @@
+import { stripAnsiControlSequences } from './ansi';
 import type { LogStream, StructuredLogEntry } from './log-entry';
 import type { LogLevel, LogToken } from './log-highlight';
 import { detectLogLevel, getLogLevelTone, normalizeLogLevel, tokenizeLogLine } from './log-highlight';
@@ -34,6 +35,7 @@ export type ParsedLogLine = {
   message: string;
   metadata: ParsedLogMetadata | null;
   raw: string;
+  displayRaw: string;
   tone: ReturnType<typeof getLogLevelTone>;
   parsed: ParsedContainerLog;
 };
@@ -90,7 +92,7 @@ const LOW_SIGNAL_METADATA_PATTERNS = [/^legacy_/i, /^service$/i, /^env$/i];
  * @returns 包含识别格式、提取字段和计算元数据的解析结果
  */
 export function parseContainerLogLine(rawLine: string): ParsedContainerLog {
-  const raw = rawLine ?? '';
+  const raw = stripAnsiControlSequences(rawLine ?? '');
   const trimmed = raw.trim();
   if (!trimmed) {
     return buildParsedLog({ raw, message: raw, format: 'plain', fields: {} });
@@ -140,10 +142,10 @@ export function parseLogLine(entry: StructuredLogEntry, lineNo: number): ParsedL
     message: parsed.message || parsed.raw,
     metadata: hasFields(parsed.fields) ? parsed.fields : null,
     raw: entry.line,
+    displayRaw: parsed.raw,
     tone: getLogLevelTone(level),
     parsed: {
       ...parsed,
-      raw: entry.line,
       time: timestamp,
     },
   };
@@ -168,8 +170,8 @@ export function buildDisplayLogLine(line: ParsedLogLine, keyword = ''): DisplayL
   return {
     ...line,
     messageTokens: tokenizeLogLine(line.message, keyword),
-    rawTokens: tokenizeLogLine(line.raw, keyword),
-    searchMatchCount: countKeywordMatches(line.raw, keyword),
+    rawTokens: tokenizeLogLine(line.displayRaw, keyword),
+    searchMatchCount: countKeywordMatches(line.displayRaw, keyword),
   };
 }
 

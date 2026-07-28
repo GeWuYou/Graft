@@ -7,9 +7,27 @@
     :fullscreen-label="fullscreenLabel"
     :exit-fullscreen-label="exitFullscreenLabel"
     :resize-handle-label="resizeHandleLabel"
+    :show-fullscreen-button="false"
     surface-padding="none"
     fullscreen-surface-padding="none"
   >
+    <template #header-actions="{ fullscreen, toggleFullscreen }">
+      <t-tooltip :content="fullscreen ? exitFullscreenLabel : fullscreenLabel" theme="light">
+        <t-button
+          :aria-label="fullscreen ? exitFullscreenLabel : fullscreenLabel"
+          class="log-viewer__fullscreen-action"
+          shape="square"
+          size="small"
+          theme="default"
+          variant="text"
+          @click="toggleFullscreen"
+        >
+          <template #icon>
+            <fullscreen-icon />
+          </template>
+        </t-button>
+      </t-tooltip>
+    </template>
     <template #toolbar>
       <div class="log-viewer__toolbar">
         <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
@@ -68,12 +86,12 @@
             :placeholder="searchPlaceholder"
           />
           <span v-if="normalizedSearchKeyword" class="log-viewer__match-count">
-            {{ matchCountLabel.replace('{count}', String(searchMatchCount)) }}
+            {{ matchCountLabel.replace('{count}', `${searchMatchCount}/${searchCandidateCount}`) }}
           </span>
         </div>
 
         <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
-          <label v-if="!compactRows" class="log-viewer__switch">
+          <label class="log-viewer__switch">
             <span>{{ wrapLabel }}</span>
             <t-switch v-model:value="wrapLines" size="small" />
           </label>
@@ -103,6 +121,13 @@
           >
             {{ reconnectLabel }}
           </t-button>
+          <div class="log-viewer__mobile-more">
+            <t-dropdown :options="moreActionOptions" trigger="click" @click="handleMoreAction">
+              <t-button size="small" theme="default" variant="outline">
+                {{ moreActionsLabel }}
+              </t-button>
+            </t-dropdown>
+          </div>
         </div>
       </div>
     </template>
@@ -142,13 +167,6 @@
               v-bind="viewportStateSurfaceModel"
             />
             <template v-else>
-              <div class="log-viewer__header-row">
-                <span class="log-viewer__header-cell">{{ timeLabel }}</span>
-                <span class="log-viewer__header-cell">{{ levelLabel }}</span>
-                <span class="log-viewer__header-cell">{{ streamLabel }}</span>
-                <span class="log-viewer__header-cell">{{ messageLabel }}</span>
-                <span class="log-viewer__header-cell log-viewer__header-cell--actions">{{ operationLabel }}</span>
-              </div>
               <ol class="log-viewer__lines" :style="virtualListStyle">
                 <li
                   v-for="(line, lineIndex) in renderedLines"
@@ -200,7 +218,13 @@
                         placement="top-left"
                         theme="light"
                       >
-                        <code class="log-viewer__message">
+                        <code
+                          :ref="(element) => setMessageRef(line.rowKey, element)"
+                          :class="[
+                            'log-viewer__message',
+                            { 'log-viewer__message--collapsed': isMessageCollapsed(line.rowKey) },
+                          ]"
+                        >
                           <span
                             v-for="(token, tokenIndex) in line.messageTokens"
                             :key="`${line.lineNo}-message-${tokenIndex}`"
@@ -209,7 +233,14 @@
                           >
                         </code>
                       </t-tooltip>
-                      <code v-else class="log-viewer__message">
+                      <code
+                        v-else
+                        :ref="(element) => setMessageRef(line.rowKey, element)"
+                        :class="[
+                          'log-viewer__message',
+                          { 'log-viewer__message--collapsed': isMessageCollapsed(line.rowKey) },
+                        ]"
+                      >
                         <span
                           v-for="(token, tokenIndex) in line.messageTokens"
                           :key="`${line.lineNo}-message-${tokenIndex}`"
@@ -218,6 +249,16 @@
                         >
                       </code>
                     </div>
+                    <t-button
+                      v-if="hasExpandableMessage(line.rowKey)"
+                      class="log-viewer__expand-action"
+                      size="small"
+                      theme="default"
+                      variant="text"
+                      @click.stop="toggleMessageExpansion(line.rowKey)"
+                    >
+                      {{ isMessageCollapsed(line.rowKey) ? expandLogLabel : collapseLogLabel }}
+                    </t-button>
                     <div
                       v-if="!compactRows && visibleMetadataTags(line).length"
                       class="log-viewer__metadata-tags"
@@ -351,12 +392,12 @@
           :placeholder="searchPlaceholder"
         />
         <span v-if="normalizedSearchKeyword" class="log-viewer__match-count">
-          {{ matchCountLabel.replace('{count}', String(searchMatchCount)) }}
+          {{ matchCountLabel.replace('{count}', `${searchMatchCount}/${searchCandidateCount}`) }}
         </span>
       </div>
 
       <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
-        <label v-if="!compactRows" class="log-viewer__switch">
+        <label class="log-viewer__switch">
           <span>{{ wrapLabel }}</span>
           <t-switch v-model:value="wrapLines" size="small" />
         </label>
@@ -386,6 +427,13 @@
         >
           {{ reconnectLabel }}
         </t-button>
+        <div class="log-viewer__mobile-more">
+          <t-dropdown :options="moreActionOptions" trigger="click" @click="handleMoreAction">
+            <t-button size="small" theme="default" variant="outline">
+              {{ moreActionsLabel }}
+            </t-button>
+          </t-dropdown>
+        </div>
       </div>
     </div>
 
@@ -422,13 +470,6 @@
           v-bind="viewportStateSurfaceModel"
         />
         <template v-else>
-          <div class="log-viewer__header-row">
-            <span class="log-viewer__header-cell">{{ timeLabel }}</span>
-            <span class="log-viewer__header-cell">{{ levelLabel }}</span>
-            <span class="log-viewer__header-cell">{{ streamLabel }}</span>
-            <span class="log-viewer__header-cell">{{ messageLabel }}</span>
-            <span class="log-viewer__header-cell log-viewer__header-cell--actions">{{ operationLabel }}</span>
-          </div>
           <ol class="log-viewer__lines" :style="virtualListStyle">
             <li
               v-for="(line, lineIndex) in renderedLines"
@@ -475,7 +516,13 @@
                     placement="top-left"
                     theme="light"
                   >
-                    <code class="log-viewer__message">
+                    <code
+                      :ref="(element) => setMessageRef(line.rowKey, element)"
+                      :class="[
+                        'log-viewer__message',
+                        { 'log-viewer__message--collapsed': isMessageCollapsed(line.rowKey) },
+                      ]"
+                    >
                       <span
                         v-for="(token, tokenIndex) in line.messageTokens"
                         :key="`${line.lineNo}-message-${tokenIndex}`"
@@ -484,7 +531,14 @@
                       >
                     </code>
                   </t-tooltip>
-                  <code v-else class="log-viewer__message">
+                  <code
+                    v-else
+                    :ref="(element) => setMessageRef(line.rowKey, element)"
+                    :class="[
+                      'log-viewer__message',
+                      { 'log-viewer__message--collapsed': isMessageCollapsed(line.rowKey) },
+                    ]"
+                  >
                     <span
                       v-for="(token, tokenIndex) in line.messageTokens"
                       :key="`${line.lineNo}-message-${tokenIndex}`"
@@ -493,6 +547,16 @@
                     >
                   </code>
                 </div>
+                <t-button
+                  v-if="hasExpandableMessage(line.rowKey)"
+                  class="log-viewer__expand-action"
+                  size="small"
+                  theme="default"
+                  variant="text"
+                  @click.stop="toggleMessageExpansion(line.rowKey)"
+                >
+                  {{ isMessageCollapsed(line.rowKey) ? expandLogLabel : collapseLogLabel }}
+                </t-button>
                 <div
                   v-if="!compactRows && visibleMetadataTags(line).length"
                   class="log-viewer__metadata-tags"
@@ -582,6 +646,19 @@
     @close="closeLineDetail"
   >
     <div v-if="selectedLine" class="log-viewer__detail-drawer">
+      <div class="log-viewer__detail-controls">
+        <label class="log-viewer__switch">
+          <span>{{ detailWrapLabel }}</span>
+          <t-switch v-model:value="wrapLines" size="small" />
+        </label>
+        <t-select
+          v-model:value="detailFontSize"
+          class="log-viewer__detail-font-size"
+          :aria-label="fontSizeLabel"
+          :options="detailFontSizeOptions"
+          size="small"
+        />
+      </div>
       <section class="log-viewer__summary">
         <div class="log-viewer__summary-main">
           <div class="log-viewer__summary-title">
@@ -697,8 +774,11 @@
           </t-button>
         </div>
         <pre class="log-viewer__code-block log-viewer__code-block--raw graft-scrollbar">
-          <code>{{ selectedLine.raw }}</code>
+          <code :class="`log-viewer__code-block--font-${detailFontSize}`">{{ selectedLine.displayRaw }}</code>
         </pre>
+        <t-button size="small" theme="default" variant="text" @click="downloadSelectedLine">
+          {{ downloadLogFragmentLabel }}
+        </t-button>
       </section>
     </div>
   </t-drawer>
@@ -707,8 +787,8 @@
 /** 负责将结构化日志渲染为可搜索、筛选、复制和受控滚动的日志视图。 */
 defineOptions({ inheritAttrs: false });
 
-import { BrowseIcon, CopyIcon } from 'tdesign-icons-vue-next';
-import type { SelectProps } from 'tdesign-vue-next';
+import { BrowseIcon, CopyIcon, FullscreenIcon } from 'tdesign-icons-vue-next';
+import type { DropdownProps, SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import {
   type ComponentPublicInstance,
@@ -793,6 +873,15 @@ const props = withDefaults(
     copyJsonLabel: string;
     copySuccessLabel: string;
     copyErrorLabel: string;
+    moreActionsLabel: string;
+    expandLogLabel: string;
+    collapseLogLabel: string;
+    downloadLogFragmentLabel: string;
+    detailWrapLabel: string;
+    fontSizeLabel: string;
+    fontSizeSmallLabel: string;
+    fontSizeMediumLabel: string;
+    fontSizeLargeLabel: string;
     paused?: boolean;
     showReconnect?: boolean;
     viewportState?: LogViewerViewportState | null;
@@ -865,6 +954,7 @@ const COMPACT_LOG_ROW_HEIGHT = 44;
 const DEFAULT_WRAPPED_LOG_ROW_HEIGHT = 88;
 const DEFAULT_VIRTUAL_OVERSCAN_PX = 240;
 const LOG_ROW_VERTICAL_MARGIN_PX = 2;
+const COLLAPSED_MESSAGE_MAX_HEIGHT_PX = 300;
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 32;
 const TIMESTAMP_YESTERDAY_DAY_OFFSET = -1;
 
@@ -880,6 +970,9 @@ const viewportPinnedToBottom = ref(true);
 const hasAutoScrolledSinceLastEmpty = ref(false);
 const selectedLineKey = ref<string | null>(null);
 const measuredHeights = shallowRef(new Map<string, number>());
+const expandableMessageKeys = ref(new Set<string>());
+const expandedMessageKeys = ref(new Set<string>());
+const detailFontSize = ref<'small' | 'medium' | 'large'>('medium');
 const logViewCache = new LogViewCache();
 const renderedEntries = shallowRef<readonly StructuredLogEntry[]>(props.entries);
 const renderedContentVersion = ref(props.contentVersion ?? props.entries.length);
@@ -906,6 +999,18 @@ const levelOptions = computed<SelectOption[]>(() => [
   { label: 'TRACE', value: 'TRACE' },
   { label: 'LOG', value: 'LOG' },
   { label: 'UNKNOWN', value: 'UNKNOWN' },
+]);
+const detailFontSizeOptions = computed<SelectOption[]>(() => [
+  { label: props.fontSizeSmallLabel, value: 'small' },
+  { label: props.fontSizeMediumLabel, value: 'medium' },
+  { label: props.fontSizeLargeLabel, value: 'large' },
+]);
+const moreActionOptions = computed<DropdownProps['options']>(() => [
+  { content: props.clearLabel, disabled: !displayLines.value.length, value: 'clear' },
+  { content: props.copyLabel, disabled: !displayLines.value.length, value: 'copy' },
+  { content: props.downloadLabel, disabled: !displayLines.value.length, value: 'download' },
+  { divider: true, content: props.paused ? props.resumeLabel : props.pauseLabel, value: 'pause' },
+  ...(props.showReconnect ? [{ content: props.reconnectLabel, value: 'reconnect' }] : []),
 ]);
 const lineLimitOptions = computed<SelectOption[]>(() =>
   props.lineLimits.map((value) => ({ label: String(value), value })),
@@ -978,6 +1083,7 @@ const virtualListStyle = computed(() => ({
   height: `${virtualMetrics.value.totalHeight}px`,
 }));
 const searchMatchCount = computed(() => logView.value.matchCount);
+const searchCandidateCount = computed(() => logView.value.totalCount);
 const selectedLine = computed(() => displayLines.value.find((line) => line.rowKey === selectedLineKey.value) ?? null);
 const shouldRenderViewportStateSurface = computed(() => !displayLines.value.length);
 const viewportStateSurfaceModel = computed<LogViewerViewportState>(() => {
@@ -1114,10 +1220,20 @@ async function copyJson(metadata: ParsedLogMetadata) {
 }
 
 function downloadContent() {
-  const blob = new Blob([displayLines.value.map((line) => line.raw).join('\n')], { type: 'text/plain;charset=utf-8' });
+  downloadText(displayLines.value.map((line) => line.raw).join('\n'));
+}
+
+function downloadSelectedLine() {
+  if (selectedLine.value) {
+    downloadText(selectedLine.value.raw, 'log-fragment');
+  }
+}
+
+function downloadText(content: string, prefix = 'container-logs') {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `container-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
+  link.download = `${prefix}-${new Date().toISOString().replace(/[:.]/g, '-')}.log`;
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -1129,6 +1245,25 @@ function togglePause() {
   }
 
   emit('pause');
+}
+
+async function handleMoreAction(item: { value?: unknown }) {
+  switch (item.value) {
+    case 'clear':
+      emit('clear');
+      return;
+    case 'copy':
+      await copyContent();
+      return;
+    case 'download':
+      downloadContent();
+      return;
+    case 'pause':
+      togglePause();
+      return;
+    case 'reconnect':
+      emit('reconnect');
+  }
 }
 
 function jumpBottom() {
@@ -1251,6 +1386,39 @@ function setRenderedLineRef(rowKey: string, element: Element | ComponentPublicIn
   triggerRef(measuredHeights);
 }
 
+function setMessageRef(rowKey: string, element: Element | ComponentPublicInstance | null) {
+  if (!(element instanceof HTMLElement) || expandableMessageKeys.value.has(rowKey)) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    if (element.scrollHeight <= COLLAPSED_MESSAGE_MAX_HEIGHT_PX) {
+      return;
+    }
+    expandableMessageKeys.value = new Set(expandableMessageKeys.value).add(rowKey);
+  });
+}
+
+function hasExpandableMessage(rowKey: string) {
+  return expandableMessageKeys.value.has(rowKey);
+}
+
+function isMessageCollapsed(rowKey: string) {
+  return hasExpandableMessage(rowKey) && !expandedMessageKeys.value.has(rowKey);
+}
+
+function toggleMessageExpansion(rowKey: string) {
+  const nextExpanded = new Set(expandedMessageKeys.value);
+  if (nextExpanded.has(rowKey)) {
+    nextExpanded.delete(rowKey);
+  } else {
+    nextExpanded.add(rowKey);
+  }
+  expandedMessageKeys.value = nextExpanded;
+  clearMeasuredHeights();
+  void nextTick(syncViewportMetrics);
+}
+
 function clearMeasuredHeights() {
   measuredHeights.value.clear();
   triggerRef(measuredHeights);
@@ -1265,6 +1433,13 @@ function pruneMeasuredHeights() {
     changed = true;
   }
   if (changed) triggerRef(measuredHeights);
+  const activeExpandableKeys = new Set(displayLines.value.map((line) => line.rowKey));
+  expandableMessageKeys.value = new Set(
+    [...expandableMessageKeys.value].filter((rowKey) => activeExpandableKeys.has(rowKey)),
+  );
+  expandedMessageKeys.value = new Set(
+    [...expandedMessageKeys.value].filter((rowKey) => activeExpandableKeys.has(rowKey)),
+  );
 }
 
 function scheduleScrollToBottom() {
@@ -1525,6 +1700,15 @@ function isViewportNearBottom(node: HTMLElement) {
   justify-content: flex-end;
 }
 
+.log-viewer__mobile-more {
+  display: none;
+}
+
+.log-viewer__fullscreen-action {
+  position: sticky;
+  right: 0;
+}
+
 .log-viewer__limit {
   width: 96px;
 }
@@ -1569,56 +1753,36 @@ function isViewportNearBottom(node: HTMLElement) {
   min-height: 100%;
 }
 
-.log-viewer__header-row {
-  backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--td-bg-color-container) 92%, transparent);
-  border-bottom: 1px solid var(--td-component-stroke);
-  column-gap: var(--graft-density-gap-6);
-  display: grid;
-  grid-template-columns: 19ch 72px 80px minmax(0, 1fr) 48px;
-  padding: 0 var(--graft-density-gap-6) var(--graft-density-gap-8);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.log-viewer__header-cell {
-  color: var(--td-text-color-placeholder);
-  font: var(--td-font-body-small);
-  font-weight: 600;
-  line-height: 24px;
-}
-
-.log-viewer__header-cell--actions {
-  text-align: right;
-}
-
 .log-viewer__lines {
   list-style: none;
   margin: 0;
-  min-width: max(100%, 760px);
-  padding: var(--graft-density-gap-8) 0 0;
+  min-width: 0;
+  padding: 0;
   position: relative;
 }
 
 .log-viewer__line {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
   border-left: var(--graft-density-gap-2) solid transparent;
-  border-radius: var(--td-radius-small);
-  column-gap: var(--graft-density-gap-6);
+  border-radius: var(--td-radius-medium);
+  column-gap: var(--graft-density-gap-8);
   display: grid;
-  grid-template-columns: 19ch 72px 80px minmax(0, 1fr) 48px;
+  grid-template-areas:
+    'timestamp level stream actions'
+    'content content content actions';
+  grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
   inset-inline: 0;
-  margin-block: var(--graft-density-gap-1);
-  min-height: 38px;
-  padding: var(--graft-density-gap-6);
+  margin-block: var(--graft-density-gap-8);
+  min-height: 0;
+  padding: var(--graft-density-gap-12);
   position: absolute;
 }
 
 .log-viewer__viewport--compact .log-viewer__line {
-  align-items: center;
   box-sizing: border-box;
-  height: 44px;
-  margin-block: 0;
+  height: auto;
+  margin-block: var(--graft-density-gap-8);
 }
 
 .log-viewer__viewport--compact .log-viewer__timestamp-cell,
@@ -1658,13 +1822,39 @@ function isViewportNearBottom(node: HTMLElement) {
   min-width: 0;
 }
 
+.log-viewer__timestamp-cell {
+  grid-area: timestamp;
+  width: 19ch;
+}
+
+.log-viewer__level-cell {
+  display: flex;
+  grid-area: level;
+  justify-content: flex-start;
+}
+
+.log-viewer__stream-cell {
+  grid-area: stream;
+}
+
+.log-viewer__content {
+  grid-area: content;
+}
+
+.log-viewer__row-actions {
+  align-items: center;
+  align-self: end;
+  display: flex;
+  gap: var(--graft-density-gap-2);
+  grid-area: actions;
+  justify-content: flex-end;
+  opacity: 1;
+  width: 48px;
+}
+
 .log-viewer__timestamp,
 .log-viewer__message {
   font-family: var(--td-font-family-monospace);
-}
-
-.log-viewer__timestamp-cell {
-  width: 19ch;
 }
 
 .log-viewer__timestamp {
@@ -1676,11 +1866,6 @@ function isViewportNearBottom(node: HTMLElement) {
 .log-viewer__message-tooltip {
   min-width: 0;
   overflow: hidden;
-}
-
-.log-viewer__level-cell {
-  display: flex;
-  justify-content: flex-start;
 }
 
 .log-viewer__level-cell :deep(.t-tag) {
@@ -1716,18 +1901,28 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__message-row {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   min-width: 0;
 }
 
 .log-viewer__message {
   color: var(--td-text-color-primary);
+  display: block;
   line-height: var(--td-line-height-body-medium);
   min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.log-viewer__message--collapsed {
+  max-height: 300px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.log-viewer__expand-action {
+  margin-top: var(--graft-density-gap-4);
+  padding-inline: 0;
 }
 
 .log-viewer__metadata-tags {
@@ -1757,15 +1952,6 @@ function isViewportNearBottom(node: HTMLElement) {
   padding-inline: var(--graft-density-gap-4);
 }
 
-.log-viewer__row-actions {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-2);
-  justify-content: flex-end;
-  opacity: 1;
-  width: 48px;
-}
-
 .log-viewer__icon-action {
   color: var(--td-text-color-secondary);
 }
@@ -1775,18 +1961,13 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__viewport--wrap .log-viewer__message {
-  overflow: visible;
-  overflow-wrap: anywhere;
-  text-overflow: unset;
   white-space: pre-wrap;
 }
 
 .log-viewer__viewport--compact .log-viewer__message,
 .log-viewer__viewport--compact.log-viewer__viewport--wrap .log-viewer__message {
-  overflow: hidden;
-  overflow-wrap: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .log-viewer__line--danger {
@@ -1842,6 +2023,19 @@ function isViewportNearBottom(node: HTMLElement) {
   margin-bottom: var(--graft-density-gap-18);
   min-width: 0;
   padding-bottom: var(--graft-density-gap-16);
+}
+
+.log-viewer__detail-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  margin-bottom: var(--graft-density-gap-12);
+}
+
+.log-viewer__detail-font-size {
+  width: 132px;
 }
 
 .log-viewer__summary-level,
@@ -2007,6 +2201,18 @@ function isViewportNearBottom(node: HTMLElement) {
   word-break: normal;
 }
 
+.log-viewer__code-block--font-small {
+  font: var(--td-font-body-small);
+}
+
+.log-viewer__code-block--font-medium {
+  font: var(--td-font-body-medium);
+}
+
+.log-viewer__code-block--font-large {
+  font: var(--td-font-title-small);
+}
+
 .log-viewer__token--keyword {
   background: color-mix(in srgb, var(--td-warning-color-5) 34%, transparent);
   border-radius: var(--td-radius-small);
@@ -2042,7 +2248,7 @@ function isViewportNearBottom(node: HTMLElement) {
   color: var(--td-text-color-placeholder);
 }
 
-@container (width <= 760px) {
+@media (width >= 768px) and (width <= 991px) {
   .log-viewer__toolbar {
     align-items: stretch;
   }
@@ -2062,16 +2268,101 @@ function isViewportNearBottom(node: HTMLElement) {
   }
 }
 
-@media (width <= 1024px) {
-  .log-viewer__header-row,
-  .log-viewer__line {
-    grid-template-columns: 17ch 68px 76px minmax(0, 1fr) 44px;
+@media (width < 768px) {
+  .log-viewer__toolbar {
+    align-items: stretch;
+    display: grid;
+    gap: var(--graft-density-gap-10);
+    grid-template-columns: minmax(0, 1fr);
   }
-}
 
-@media (width <= 760px) {
-  .log-viewer__lines {
-    min-width: 680px;
+  .log-viewer__toolbar-left {
+    display: none;
+  }
+
+  .log-viewer__toolbar-middle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    order: 1;
+  }
+
+  .log-viewer__search {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .log-viewer__match-count {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: end;
+    padding-right: var(--graft-density-gap-28);
+    pointer-events: none;
+  }
+
+  .log-viewer__limit,
+  .log-viewer__level-filter {
+    width: 100%;
+  }
+
+  .log-viewer__toolbar-right {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, max-content));
+    justify-content: space-between;
+    order: 2;
+  }
+
+  .log-viewer__toolbar-right > .t-button,
+  .log-viewer__toolbar-right > .t-tooltip,
+  .log-viewer__toolbar-right > .t-button + .t-button {
+    display: none;
+  }
+
+  .log-viewer__toolbar-right .log-viewer__switch {
+    align-items: center;
+    display: inline-flex;
+  }
+
+  .log-viewer__mobile-more {
+    display: inline-flex;
+  }
+
+  .log-viewer__line {
+    grid-template-areas:
+      'timestamp .'
+      'level stream'
+      'content content'
+      'actions actions';
+    grid-template-columns: max-content minmax(0, 1fr);
+    row-gap: var(--graft-density-gap-8);
+  }
+
+  .log-viewer__timestamp-cell {
+    width: auto;
+  }
+
+  .log-viewer__row-actions {
+    justify-content: flex-start;
+    width: auto;
+  }
+
+  .log-viewer__icon-action {
+    min-width: 0;
+  }
+
+  .log-viewer__metadata-tags {
+    display: none;
+  }
+
+  .log-viewer :deep(.log-viewer__drawer .t-drawer__body) {
+    padding: var(--graft-density-gap-16);
+  }
+
+  .log-viewer__detail-controls {
+    align-items: stretch;
+  }
+
+  .log-viewer__detail-font-size {
+    width: 100%;
   }
 }
 </style>

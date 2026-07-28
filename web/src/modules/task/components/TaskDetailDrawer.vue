@@ -186,7 +186,11 @@ const logViewerBindings = computed(() => ({
   copySuccessLabel: t('task.logs.copySuccess'),
   detailTitleLabel: t('task.logs.detailTitle'),
   downloadLabel: t('task.logs.download'),
+  downloadLogFragmentLabel: t('task.logs.downloadFragment'),
   emptyLabel: t('task.logs.empty'),
+  expandLogLabel: t('task.logs.expandLog'),
+  collapseLogLabel: t('task.logs.collapseLog'),
+  moreActionsLabel: t('task.logs.moreActions'),
   importantFieldsLabel: t('task.logs.importantFields'),
   jumpBottomLabel: t('task.logs.jumpBottom'),
   jumpTopLabel: t('task.logs.jumpTop'),
@@ -210,6 +214,11 @@ const logViewerBindings = computed(() => ({
   truncatedLabel: t('task.logs.truncated'),
   viewDetailLabel: t('task.logs.viewDetail'),
   wrapLabel: t('task.logs.wrap'),
+  detailWrapLabel: t('task.logs.detailWrap'),
+  fontSizeLabel: t('task.logs.fontSize'),
+  fontSizeSmallLabel: t('task.logs.fontSizeSmall'),
+  fontSizeMediumLabel: t('task.logs.fontSizeMedium'),
+  fontSizeLargeLabel: t('task.logs.fontSizeLarge'),
 }));
 
 function closeRealtime() {

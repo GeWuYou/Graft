@@ -134,6 +134,20 @@ describe('LogViewCache', () => {
     expect(result.displayLines.map((line) => line.lineNo)).toEqual([3, 4]);
   });
 
+  it('filters to matching lines while retaining the pre-search candidate count', () => {
+    const cache = new LogViewCache();
+    const result = cache.buildView({
+      entries: [createEntry('request accepted'), createEntry('connection closed'), createEntry('request failed')],
+      lineLimit: 3,
+      level: 'ALL',
+      keyword: 'request',
+    });
+
+    expect(result.totalCount).toBe(3);
+    expect(result.matchCount).toBe(2);
+    expect(result.displayLines.map((line) => line.message)).toEqual(['request accepted', 'request failed']);
+  });
+
   it('keeps row keys stable for retained rows after a tail append', () => {
     const cache = new LogViewCache();
     const first = cache.buildView({
