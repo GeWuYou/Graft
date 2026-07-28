@@ -107,6 +107,10 @@ const permissionStoreMock = vi.hoisted(() => ({
   hasPermission: vi.fn(() => true),
 }));
 
+const responsiveMocks = vi.hoisted(() => ({
+  density: 'spacious' as 'comfortable' | 'spacious',
+}));
+
 let mountedWrappers: Array<VueWrapper<unknown>> = [];
 
 const translations = vi.hoisted((): Record<string, string> => ({
@@ -442,13 +446,14 @@ vi.mock('@/utils/route/title', () => ({
 
 vi.mock('@/shared/composables', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/shared/composables')>()),
-  useResponsiveVariant: () => ({ value: { density: 'spacious' } }),
+  useResponsiveVariant: () => ({ value: { density: responsiveMocks.density } }),
 }));
 
 describe('container list page', () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    responsiveMocks.density = 'spacious';
     mountedWrappers = [];
     realtimeMocks.controllers = [];
     taskObserverMocks.observers = [];
@@ -702,6 +707,17 @@ describe('container list page', () => {
 
     expect(wrapper.find('[data-testid="container-card-container-1"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="container-action-stop"]').exists()).toBe(false);
+  });
+
+  it('hides the presentation switcher when the container is too narrow for table view', async () => {
+    responsiveMocks.density = 'comfortable';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('.container-view-switch').exists()).toBe(false);
+    expect(wrapper.find('.container-list').attributes('data-presentation')).toBe('card');
+    expect(wrapper.find('[data-testid="container-card-container-1"]').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'ContainerResourceTable' }).exists()).toBe(false);
   });
 
   it('opens the associated Compose application detail instead of searching the application list', async () => {

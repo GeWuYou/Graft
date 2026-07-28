@@ -165,18 +165,13 @@
                 <dd>{{ formatLocaleDateTime(image.created_at, locale) }}</dd>
               </div>
             </dl>
-            <footer class="docker-images-card__actions" @click.stop>
-              <t-button size="small" variant="outline" @click="openDetail(image)">
-                {{ t('container.images.actions.detail') }}
-              </t-button>
-              <t-dropdown
-                :options="cardMoreActions"
-                trigger="click"
-                @click="handleCardDropdownAction($event.value, image)"
-              >
-                <t-button size="small" variant="outline">{{ t('container.images.actions.more') }}</t-button>
-              </t-dropdown>
-            </footer>
+            <docker-resource-card-actions
+              :detail-label="t('container.images.actions.detail')"
+              :more-actions="cardMoreActions"
+              :more-label="t('container.images.actions.more')"
+              @detail="openDetail(image)"
+              @action="handleCardAction($event, image)"
+            />
           </article>
         </div>
       </template>
@@ -240,7 +235,7 @@
             { value: 'detail', label: 'container.images.actions.detail' },
             { value: 'manage-tags', label: 'container.images.actions.manageTags' },
             { value: 'tag', label: 'container.images.actions.tag' },
-            ...(canRemove ? [{ value: 'remove', label: 'container.images.actions.remove' }] : []),
+            ...(canRemove ? [{ danger: true, value: 'remove', label: 'container.images.actions.remove' }] : []),
           ]"
           :more-label="t('container.images.actions.more')"
           @action="handleRowAction($event, row)"
@@ -724,6 +719,7 @@ import {
   tagDockerImage,
 } from '../../api/image-actions';
 import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
+import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
 import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
@@ -842,12 +838,10 @@ const imageColumnSets = computed(() => ({
   spacious: ['row-select', 'tags', 'size', 'containers', 'status', 'created_at', 'actions'],
 }));
 const cardMoreActions = computed(() => [
-  { content: t('container.images.actions.select'), value: 'select' },
-  { content: t('container.images.actions.manageTags'), value: 'manage-tags' },
-  { content: t('container.images.actions.tag'), value: 'tag' },
-  ...(canRemove.value
-    ? [{ content: t('container.images.actions.remove'), theme: 'error' as const, value: 'remove' }]
-    : []),
+  { label: t('container.images.actions.select'), value: 'select' },
+  { label: t('container.images.actions.manageTags'), value: 'manage-tags' },
+  { label: t('container.images.actions.tag'), value: 'tag' },
+  ...(canRemove.value ? [{ danger: true, label: t('container.images.actions.remove'), value: 'remove' }] : []),
 ]);
 const selectedBatchReferences = computed(() =>
   selectedRowKeys.value.flatMap((key) => selectedImages.value.get(String(key))?.container_references ?? []),
@@ -945,9 +939,6 @@ function handleCardAction(action: string, image: DockerImage) {
     return;
   }
   handleRowAction(action, image);
-}
-function handleCardDropdownAction(action: string | number | Record<string, unknown> | undefined, image: DockerImage) {
-  if (typeof action === 'string') handleCardAction(action, image);
 }
 function handleCardClick(image: DockerImage) {
   if (cardSelectionMode.value) {
@@ -1351,8 +1342,7 @@ onUnmounted(() => {
 }
 
 .docker-images-card__header,
-.docker-images-card__primary,
-.docker-images-card__actions {
+.docker-images-card__primary {
   align-items: center;
   display: flex;
   gap: var(--graft-density-gap-12);
@@ -1408,10 +1398,6 @@ onUnmounted(() => {
   color: var(--td-text-color-primary);
   font: var(--td-font-body-small);
   overflow-wrap: anywhere;
-}
-
-.docker-images-card__actions > :first-child {
-  flex: 0 0 auto;
 }
 
 .docker-images-detail {

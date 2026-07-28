@@ -15,8 +15,10 @@ describe('docker volume asset management page', () => {
     expect(sourceText).toContain('class="docker-volume-page__card"');
     expect(sourceText).toContain('class="docker-volume-page__card-primary"');
     expect(sourceText).toContain('class="docker-volume-page__card-secondary"');
-    expect(sourceText).toContain('block-size: 9.25rem;');
+    expect(sourceText).toContain('block-size: 10rem;');
     expect(sourceText).toContain('middleEllipsis(row.name, 31)');
+    expect(sourceText).toContain('<docker-resource-card-actions');
+    expect(sourceText).toContain("danger: true, label: t('container.volume.actions.remove')");
   });
 
   it('navigates mobile cards directly to the renderable detail child route', () => {

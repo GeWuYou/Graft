@@ -52,13 +52,14 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('networkQuery.isFetching.value');
   });
 
-  it('uses responsive breakpoints to reduce tablet columns and move mobile actions into overlays', () => {
+  it('uses responsive breakpoints to reduce tablet columns and move mobile actions into a consistent card action bar', () => {
     expect(sourceText).toContain('useViewportResponsiveVariant()');
     expect(sourceText).toContain("comfortable: ['name', 'context', 'status', 'operation']");
     expect(sourceText).toContain('advancedFiltersDrawerVisible');
     expect(sourceText).toContain('placement="bottom"');
     expect(sourceText).toContain('networkActionOptions');
-    expect(sourceText).toContain("theme: 'error'");
+    expect(sourceText).toContain('<docker-resource-card-actions');
+    expect(sourceText).toContain("danger: true, label: t('container.networks.remove')");
     expect(sourceText).toContain("t('container.networks.removeRisk')");
   });
 

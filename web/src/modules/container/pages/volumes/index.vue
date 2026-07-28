@@ -165,19 +165,13 @@
                 <dd>{{ formatCardDate(row.created_at) }}</dd>
               </div>
             </dl>
-            <footer @click.stop>
-              <t-button size="small" variant="text" @click="openDetailPage(row)">{{
-                t('container.volume.actions.detail')
-              }}</t-button>
-              <t-dropdown
-                v-if="canRemove"
-                :options="volumeCardOverflowOptions()"
-                trigger="click"
-                @click="handleVolumeCardOverflowAction($event, row)"
-              >
-                <t-button size="small" variant="text">{{ t('container.list.actions.more') }}</t-button>
-              </t-dropdown>
-            </footer>
+            <docker-resource-card-actions
+              :detail-label="t('container.volume.actions.detail')"
+              :more-actions="canRemove ? volumeCardOverflowOptions() : []"
+              :more-label="t('container.list.actions.more')"
+              @detail="openDetailPage(row)"
+              @action="handleVolumeRowAction($event, row)"
+            />
           </article>
         </div>
       </template>
@@ -378,6 +372,7 @@ import {
   listDockerVolumes,
   removeDockerVolume,
 } from '../../api/container';
+import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import VolumeDetailContent from '../../components/VolumeDetailContent.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -553,6 +548,7 @@ function volumeRowActions(_row: VolumeRow) {
     ...(canRemove.value
       ? [
           {
+            danger: true,
             fallbackLabel: t('container.volume.actions.remove'),
             label: 'container.volume.actions.remove',
             value: 'remove',
@@ -562,14 +558,7 @@ function volumeRowActions(_row: VolumeRow) {
   ];
 }
 function volumeCardOverflowOptions() {
-  return [{ content: t('container.volume.actions.remove'), value: 'remove' }];
-}
-function handleVolumeCardOverflowAction(
-  payload: string | number | { value?: string | number | Record<string, unknown> },
-  row: VolumeRow,
-) {
-  const action = typeof payload === 'object' ? payload.value : payload;
-  if (typeof action === 'string') handleVolumeRowAction(action, row);
+  return [{ danger: true, label: t('container.volume.actions.remove'), value: 'remove' }];
 }
 function handleVolumeRowAction(action: string, row: VolumeRow) {
   if (action === 'detail') {
@@ -793,7 +782,7 @@ function confirmRemove(row: VolumeRow) {
 
 .docker-volume-page__card {
   background: var(--td-bg-color-container);
-  block-size: 9.25rem;
+  block-size: 10rem;
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-small);
   cursor: pointer;
@@ -861,17 +850,6 @@ function confirmRemove(row: VolumeRow) {
 .docker-volume-page__card-primary > div,
 .docker-volume-page__card-secondary > div {
   min-width: 0;
-}
-
-.docker-volume-page__card footer {
-  align-items: center;
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  gap: var(--graft-density-gap-6);
-  justify-content: flex-end;
-  min-height: 1.75rem;
-  min-width: 0;
-  padding-top: var(--graft-density-gap-2);
 }
 
 @container (width < 768px) {

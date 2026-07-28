@@ -124,6 +124,27 @@ describe('TableActionMenu', () => {
     expect(wrapper.get('[data-testid="action-dropdown"]').text()).toContain('更多');
   });
 
+  it('maps dangerous menu actions to TDesign error semantics', () => {
+    const wrapper = mount(TableActionMenu, {
+      global: {
+        stubs: {
+          't-button': TButtonStub,
+          't-dropdown': TDropdownStub,
+        },
+      },
+      props: {
+        actions: [
+          { label: '详情', value: 'detail' },
+          { danger: true, label: '删除', value: 'remove' },
+        ],
+      },
+    });
+
+    expect(wrapper.findComponent(TDropdownStub).props('options')).toEqual([
+      expect.objectContaining({ theme: 'error', value: 'remove' }),
+    ]);
+  });
+
   it('keeps primary action clicks from bubbling to the table row', async () => {
     const { rowClick, wrapper } = mountInsideClickableRow();
 
