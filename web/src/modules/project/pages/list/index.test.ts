@@ -682,7 +682,7 @@ describe('Application list page', () => {
     expect(wrapper.find('.t-table-stub').exists()).toBe(false);
     expect(alphaCard.text()).not.toContain('/srv/alpha');
 
-    await alphaCard.trigger('click');
+    await alphaCard.get('.project-mobile-card__detail').trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith(
       expect.objectContaining({ name: PROJECT_BOOTSTRAP_ROUTE.DETAIL.pageRouteName }),
     );
@@ -692,6 +692,30 @@ describe('Application list page', () => {
     await flushPromises();
 
     expect(routerMocks.push).not.toHaveBeenCalled();
+  });
+
+  it('opens the latest task from a compact-card runtime status without navigating to application details', async () => {
+    responsiveVariantMocks.density = 'compact';
+    taskRequestMocks.get.mockResolvedValue({
+      items: [{ id: 19, owner_id: '1', owner_type: 'application', status: 'success' }],
+      limit: 1,
+      offset: 0,
+      total: 1,
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="project-mobile-runtime-status-1"]').trigger('click');
+    await flushPromises();
+
+    expect(taskRequestMocks.get).toHaveBeenCalledWith({
+      params: { limit: 1, owner_id: '1', owner_type: 'application' },
+      url: OPENAPI_RUNTIME_PATH.listTasks,
+    });
+    expect(wrapper.getComponent({ name: 'TaskDetailDrawer' }).props('taskId')).toBe(19);
+    expect(wrapper.getComponent({ name: 'TaskDetailDrawer' }).props('visible')).toBe(true);
+    expect(routerMocks.push).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('opens the shared saved-view dialog from the query builder', async () => {

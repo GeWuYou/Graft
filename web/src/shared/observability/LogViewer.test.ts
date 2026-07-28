@@ -20,6 +20,7 @@ vi.mock('@/shared/debug/runtime', () => debugRuntimeMocks);
 vi.mock('tdesign-icons-vue-next', () => ({
   BrowseIcon: defineComponent({ setup: () => () => h('span', 'detail-icon') }),
   CopyIcon: defineComponent({ setup: () => () => h('span', 'copy-icon') }),
+  FullscreenIcon: defineComponent({ setup: () => () => h('span', 'fullscreen-icon') }),
 }));
 
 vi.mock('tdesign-vue-next/es/message', () => ({
@@ -35,6 +36,7 @@ const labels = {
   autoScrollTooltipLabel: '当视口位于底部附近时自动跟随最新日志',
   basicInfoLabel: '基础信息',
   clearLabel: '清空',
+  collapseLogLabel: '收起日志',
   collapseDetailLabel: '收起详情',
   copyErrorLabel: '复制失败',
   copyJsonLabel: '复制 JSON',
@@ -43,11 +45,18 @@ const labels = {
   copyMessageLabel: '复制消息',
   copySuccessLabel: '复制成功',
   detailTitleLabel: '日志详情',
+  detailWrapLabel: '详情自动换行',
   downloadLabel: '下载',
+  downloadLogFragmentLabel: '下载日志片段',
   emptyLabel: '暂无日志',
   emptyDescriptionLabel: '等待容器输出...',
   fullscreenLabel: '全屏',
   exitFullscreenLabel: '退出全屏',
+  expandLogLabel: '展开更多',
+  fontSizeLabel: '字体大小',
+  fontSizeLargeLabel: '大',
+  fontSizeMediumLabel: '中',
+  fontSizeSmallLabel: '小',
   importantFieldsLabel: '关键字段',
   jumpBottomLabel: '跳至底部',
   levelFilterLabel: '级别',
@@ -55,6 +64,7 @@ const labels = {
   matchCountLabel: '{count} 个匹配',
   messageLabel: '日志内容',
   metadataLabel: '元数据',
+  moreActionsLabel: '更多操作',
   operationLabel: '操作',
   pauseLabel: '暂停',
   rawLabel: '原始日志',
@@ -86,7 +96,7 @@ describe('LogViewer', () => {
     vi.useRealTimers();
   });
 
-  it('renders the rebuilt toolbar groups and sticky header columns', () => {
+  it('renders stream cards without a table header', () => {
     const wrapper = mount(LogViewer, {
       props: {
         ...labels,
@@ -102,11 +112,9 @@ describe('LogViewer', () => {
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('自动换行');
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('自动滚动');
     expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('暂停');
-    expect(wrapper.find('.log-viewer__header-row').text()).toContain('时间');
-    expect(wrapper.find('.log-viewer__header-row').text()).toContain('输出流');
-    expect(wrapper.find('.log-viewer__header-row').text()).toContain('日志内容');
-    expect(wrapper.find('.log-viewer__header-row').text()).not.toContain('来源');
-    expect(wrapper.find('.log-viewer__header-row').text()).not.toContain('#');
+    expect(wrapper.find('.log-viewer__header-row').exists()).toBe(false);
+    expect(wrapper.find('.log-viewer__line').text()).toContain('STDOUT');
+    expect(wrapper.find('.log-viewer__line').text()).toContain('http request completed');
   });
 
   it('binds caller attributes to the visible log surface without emitting fragment attribute warnings', () => {
@@ -164,9 +172,30 @@ describe('LogViewer', () => {
     const viewport = wrapper.get('.log-viewer__viewport');
     expect(wrapper.get('.log-viewer__viewport-shell').attributes('style')).toContain('height: 560px');
     expect(viewport.classes()).toContain('log-viewer__viewport--compact');
-    expect(wrapper.find('.log-viewer__toolbar-right').text()).not.toContain('自动换行');
+    expect(wrapper.find('.log-viewer__toolbar-right').text()).toContain('自动换行');
     expect(wrapper.findAll('.log-viewer__line').length).toBeLessThan(40);
     expect(wrapper.find('.log-viewer__metadata-tags').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps the viewport constrained inside the framed viewer without an explicit height', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        entries: createEntries(200),
+        viewerMode: true,
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    await nextTick();
+
+    const shell = wrapper.get('.log-viewer__viewport-shell').element;
+    const viewport = wrapper.get('.log-viewer__viewport').element;
+    expect(getComputedStyle(shell).display).toBe('flex');
+    expect(getComputedStyle(shell).flexDirection).toBe('column');
+    expect(getComputedStyle(viewport).flexGrow).toBe('1');
     wrapper.unmount();
   });
 
@@ -309,7 +338,7 @@ describe('LogViewer', () => {
 
     await wrapper.find('input[type="search"]').setValue('request');
 
-    expect(wrapper.text()).toContain('6 个匹配');
+    expect(wrapper.text()).toContain('3/3 个匹配');
     await wrapper.setProps({
       entries: createEntries(4),
       contentVersion: 4,
@@ -493,7 +522,7 @@ describe('LogViewer', () => {
       global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
-    expect(wrapper.find('.log-viewer__header-row').exists()).toBe(true);
+    expect(wrapper.find('.log-viewer__header-row').exists()).toBe(false);
     expect(wrapper.findAll('.log-viewer__line')).toHaveLength(2);
     expect(wrapper.find('.stream-viewport-state-surface').exists()).toBe(false);
   });

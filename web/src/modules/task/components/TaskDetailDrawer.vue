@@ -1,11 +1,10 @@
 <template>
-  <t-drawer
+  <resource-detail-layout
     :visible="visible"
-    :header="t('task.detail.title')"
-    :footer="false"
-    destroy-on-close
-    placement="right"
-    size="820px"
+    :back-label="t('task.detail.back')"
+    presentation="overlay"
+    size="large"
+    :title="t('task.detail.title')"
     @update:visible="$emit('update:visible', $event)"
   >
     <t-loading :loading="loading && !task">
@@ -27,7 +26,7 @@
           :message="task.failure_message"
         />
 
-        <t-descriptions bordered :column="2" size="small" :title="t('task.detail.summary')">
+        <t-descriptions bordered :column="detailDescriptionColumns" size="small" :title="t('task.detail.summary')">
           <t-descriptions-item :label="t('task.detail.currentStage')">{{
             task.current_stage_key || '-'
           }}</t-descriptions-item>
@@ -94,7 +93,7 @@
       </div>
       <t-alert v-else-if="errorMessage" theme="error" :message="errorMessage" />
     </t-loading>
-  </t-drawer>
+  </resource-detail-layout>
 </template>
 <script setup lang="ts">
 // 任务详情抽屉消费可观察任务状态，并把取消、重试和日志查看动作交回任务 API 边界。
@@ -102,6 +101,8 @@ import type { StepItemProps } from 'tdesign-vue-next';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
+import { useViewportResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime, LogViewer, type StructuredLogEntry } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
@@ -128,6 +129,7 @@ defineEmits<{
 }>();
 
 const { locale, t } = useI18n();
+const detailVariant = useViewportResponsiveVariant();
 const task = ref<TaskDetail | null>(null);
 const structuredLogs = ref<readonly StructuredLogEntry[]>([]);
 const projectLogContentVersion = ref(0);
@@ -162,6 +164,7 @@ const stageOptions = computed<StepItemProps[]>(() =>
     value: stage.id,
   })),
 );
+const detailDescriptionColumns = computed(() => (detailVariant.value.density === 'compact' ? 1 : 2));
 const retryableStages = computed(() => (task.value?.stages ?? []).filter(canRetryStage));
 const durationLabel = computed(() => {
   if (!task.value?.duration_ms) return '-';
@@ -183,7 +186,11 @@ const logViewerBindings = computed(() => ({
   copySuccessLabel: t('task.logs.copySuccess'),
   detailTitleLabel: t('task.logs.detailTitle'),
   downloadLabel: t('task.logs.download'),
+  downloadLogFragmentLabel: t('task.logs.downloadFragment'),
   emptyLabel: t('task.logs.empty'),
+  expandLogLabel: t('task.logs.expandLog'),
+  collapseLogLabel: t('task.logs.collapseLog'),
+  moreActionsLabel: t('task.logs.moreActions'),
   importantFieldsLabel: t('task.logs.importantFields'),
   jumpBottomLabel: t('task.logs.jumpBottom'),
   jumpTopLabel: t('task.logs.jumpTop'),
@@ -207,6 +214,11 @@ const logViewerBindings = computed(() => ({
   truncatedLabel: t('task.logs.truncated'),
   viewDetailLabel: t('task.logs.viewDetail'),
   wrapLabel: t('task.logs.wrap'),
+  detailWrapLabel: t('task.logs.detailWrap'),
+  fontSizeLabel: t('task.logs.fontSize'),
+  fontSizeSmallLabel: t('task.logs.fontSizeSmall'),
+  fontSizeMediumLabel: t('task.logs.fontSizeMedium'),
+  fontSizeLargeLabel: t('task.logs.fontSizeLarge'),
 }));
 
 function closeRealtime() {
@@ -428,7 +440,7 @@ onUnmounted(() => {
 }
 
 .task-detail__logs {
-  --task-detail-log-viewport-height: clamp(500px, 58dvh, 560px);
+  --task-detail-log-viewport-height: clamp(320px, calc(100dvh - 360px), 560px);
 
   min-width: 0;
 }
@@ -451,11 +463,5 @@ onUnmounted(() => {
 .task-detail__summary p {
   color: var(--td-text-color-secondary);
   margin-top: var(--graft-density-gap-4);
-}
-
-@media (width <= 760px) {
-  .task-detail__logs {
-    --task-detail-log-viewport-height: max(320px, calc(100dvh - 360px));
-  }
 }
 </style>

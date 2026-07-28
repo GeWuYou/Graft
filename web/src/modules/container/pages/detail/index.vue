@@ -688,18 +688,24 @@
                   :clear-label="t('container.detail.logs.clear')"
                   :copy-label="t('container.detail.copy')"
                   :download-label="t('container.detail.logs.download')"
+                  :download-log-fragment-label="t('container.detail.logs.downloadFragment')"
                   :retry-label="t('container.list.retry')"
                   :search-placeholder="t('container.detail.logs.searchPlaceholder')"
                   :wrap-label="t('container.detail.logs.wrap')"
+                  :detail-wrap-label="t('container.detail.logs.detailWrap')"
                   :auto-scroll-label="t('container.detail.logs.autoScroll')"
                   :auto-scroll-tooltip-label="t('container.detail.logs.autoScrollTooltip')"
                   :pause-label="t('container.detail.logs.pause')"
                   :resume-label="t('container.detail.logs.resume')"
                   :reconnect-label="t('container.detail.logs.reconnect')"
                   :jump-bottom-label="t('container.detail.logs.jumpBottom')"
+                  :jump-top-label="t('container.detail.logs.jumpTop')"
                   :level-filter-label="t('container.detail.logs.levelFilter')"
                   :all-levels-label="t('container.detail.logs.allLevels')"
                   :match-count-label="t('container.detail.logs.matchCount')"
+                  :more-actions-label="t('container.detail.logs.moreActions')"
+                  :expand-log-label="t('container.detail.logs.expandLog')"
+                  :collapse-log-label="t('container.detail.logs.collapseLog')"
                   :empty-label="t('container.detail.logs.empty')"
                   :empty-description-label="t('container.detail.logs.emptyDescription')"
                   :truncated-label="t('container.detail.logs.truncated')"
@@ -723,6 +729,10 @@
                   :copy-json-label="t('container.detail.logs.copyJson')"
                   :copy-success-label="t('container.detail.copySuccess')"
                   :copy-error-label="t('container.detail.copyError')"
+                  :font-size-label="t('container.detail.logs.fontSize')"
+                  :font-size-small-label="t('container.detail.logs.fontSizeSmall')"
+                  :font-size-medium-label="t('container.detail.logs.fontSizeMedium')"
+                  :font-size-large-label="t('container.detail.logs.fontSizeLarge')"
                   :paused="logsPaused"
                   :show-reconnect="logsCanReconnect"
                   :viewport-state="logsViewportState"
@@ -1499,6 +1509,7 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
+import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   buildContainerLogsTopicName,
   isContainerLogsTopicForContainer,
@@ -3796,11 +3807,7 @@ function updateCurrentTabTitle(title: LocalizedTitle) {
   if (!hasMeaningfulTitle(title)) {
     return;
   }
-  const routePath = route.path;
-  const routeFullPath = route.fullPath;
-  tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
-    tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
-  );
+  tabsRouterStore.updateActiveTabTitle(CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName, route, title);
 }
 
 function hasMeaningfulTitle(title: LocalizedTitle) {

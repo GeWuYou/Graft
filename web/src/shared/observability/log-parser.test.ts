@@ -151,6 +151,22 @@ describe('log-parser', () => {
     expect(unknownLine.level).toBe('LOG');
   });
 
+  it('strips ANSI CSI and OSC sequences before parsing and display search while preserving the original raw line', () => {
+    const raw =
+      '\u001B]0;monitor\u0007\u001B[36m2026-07-28T08:58:28+08:00\u001B[0m \u001B[33mWARN\u001B[0m Request failed';
+    const parsed = parseLogLine(createEntry(raw), 1);
+    const display = buildDisplayLogLine(parsed, 'request');
+
+    expect(parsed.raw).toBe(raw);
+    expect(parsed.displayRaw).toBe('2026-07-28T08:58:28+08:00 WARN Request failed');
+    expect(parsed.parsed.raw).toBe(parsed.displayRaw);
+    expect(parsed.level).toBe('WARN');
+    expect(parsed.message).toBe('Request failed');
+    expect(display.rawTokens.flatMap((token) => token.text).join('')).toBe(parsed.displayRaw);
+    expect(display.searchMatchCount).toBe(1);
+    expect(display.rawTokens.some((token) => token.type === 'keyword' && token.text === 'Request')).toBe(true);
+  });
+
   it('keeps stack trace-like lines from gaining false time or source fields', () => {
     const line = parseLogLine(createEntry('github.com/xxx/service.(*PricingService).refresh'), 1);
 

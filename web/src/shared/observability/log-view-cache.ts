@@ -14,6 +14,7 @@ type CachedLineMaterialization = Readonly<{
 export type LogViewResult = Readonly<{
   displayLines: LogViewLine[];
   matchCount: number;
+  totalCount: number;
 }>;
 
 export type LogViewLine = DisplayLogLine &
@@ -43,6 +44,7 @@ export class LogViewCache {
     const displayLines: LogViewLine[] = [];
     const rowKeyCounts = new Map<string, number>();
     let matchCount = 0;
+    let totalCount = 0;
 
     visibleEntries.forEach((entry, index) => {
       const { cacheKey, parsedLine } = this.#materializeParsedLine(entry, lineNoOffset + index + 1);
@@ -51,9 +53,15 @@ export class LogViewCache {
       }
 
       const searchPayload = this.#resolveSearchPayload(parsedLine, cacheKey, options.keyword);
+      totalCount += 1;
+      if (options.keyword && searchPayload.searchMatchCount === 0) {
+        return;
+      }
       const occurrence = rowKeyCounts.get(cacheKey) ?? 0;
       rowKeyCounts.set(cacheKey, occurrence + 1);
-      matchCount += searchPayload.searchMatchCount;
+      if (options.keyword) {
+        matchCount += 1;
+      }
       displayLines.push({
         ...parsedLine,
         ...searchPayload,
@@ -64,6 +72,7 @@ export class LogViewCache {
     return {
       displayLines,
       matchCount,
+      totalCount,
     };
   }
 

@@ -222,15 +222,17 @@
               v-for="row in rows"
               :key="row.application_id"
               class="project-mobile-card"
-              role="button"
-              tabindex="0"
               :data-testid="`project-mobile-card-${row.application_id}`"
-              @click="navigateToDetail(row)"
-              @keydown.enter.prevent="navigateToDetail(row)"
-              @keydown.space.prevent="navigateToDetail(row)"
             >
               <div class="project-mobile-card__main">
-                <strong class="project-mobile-card__title">{{ row.display_name }}</strong>
+                <button
+                  class="project-mobile-card__detail"
+                  type="button"
+                  :aria-label="t('project.list.actions.detail')"
+                  @click="navigateToDetail(row)"
+                >
+                  <strong class="project-mobile-card__title">{{ row.display_name }}</strong>
+                </button>
                 <div class="project-mobile-card__meta">
                   <t-tag theme="primary" variant="light-outline" size="small">
                     {{ deploymentAdapterLabel(row.deployment_adapter_kind) }}
@@ -245,6 +247,7 @@
                     :aria-busy="isRowActionPending(row.application_id)"
                     :aria-label="runtimeStatusActionTooltip(row)"
                     :disabled="openingTaskRowIds.has(row.application_id)"
+                    :data-testid="`project-mobile-runtime-status-${row.application_id}`"
                     @click.stop="openApplicationTask(row)"
                   >
                     <span v-if="isRowActionPending(row.application_id)" class="project-runtime-badge__spinner" />
@@ -2453,7 +2456,6 @@ button.project-runtime-badge:disabled {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
-  cursor: pointer;
   display: flex;
   gap: var(--graft-density-gap-12);
   justify-content: space-between;
@@ -2461,7 +2463,16 @@ button.project-runtime-badge:disabled {
   padding: var(--graft-density-gap-14);
 }
 
-.project-mobile-card:focus-visible {
+.project-mobile-card__detail {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  min-width: 0;
+  padding: 0;
+  text-align: start;
+}
+
+.project-mobile-card__detail:focus-visible {
   outline: 2px solid var(--td-brand-color);
   outline-offset: 2px;
 }
