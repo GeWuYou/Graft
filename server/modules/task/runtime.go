@@ -473,13 +473,33 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, taskID uint64) error {
 	running, exists := r.running[taskID]
 	r.mu.RUnlock()
 	if exists {
-		if err := r.cancelStage(ctx, running.executor, running.run); err != nil {
-			return fmt.Errorf("cancel task stage: %w", err)
-		}
-		running.cancel()
+		return r.cancelTrackedStage(ctx, running)
+	}
+	if err := r.cancelExternalReceiptStage(ctx, taskID); err != nil {
+		return err
 	}
 	r.signalWake()
 	return r.appendEvent(ctx, taskID, taskmodel.EventTypeCancelRequested)
+}
+
+func (r *Runtime) cancelTrackedStage(ctx context.Context, running runningStage) error {
+	if err := r.cancelStage(ctx, running.executor, running.run); err != nil {
+		return fmt.Errorf("cancel task stage: %w", err)
+	}
+	running.cancel()
+	r.signalWake()
+	return r.appendEvent(ctx, running.run.TaskID(), taskmodel.EventTypeCancelRequested)
+}
+
+func (r *Runtime) cancelExternalReceiptStage(ctx context.Context, taskID uint64) error {
+	claim, found, err := r.externalReceiptClaim(ctx, taskID)
+	if err != nil || !found {
+		return err
+	}
+	if err := r.cancelClaim(ctx, claim); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r *Runtime) executeStage(ctx context.Context, executor moduleapi.StageExecutor, run moduleapi.StageRun) (err error) {
@@ -734,6 +754,38 @@ func (r *Runtime) cancelClaim(ctx context.Context, claim taskstore.StageClaim) e
 		return err
 	}
 	return r.appendEvent(ctx, claim.Task.ID, taskmodel.EventTypeCancelled)
+}
+
+// externalReceiptClaim 返回已领取且等待外部回执的阶段；取消这类阶段必须先落库为终态，阻止迟到回执复活任务。
+func (r *Runtime) externalReceiptClaim(ctx context.Context, taskID uint64) (taskstore.StageClaim, bool, error) {
+	task, err := r.repository.Get(ctx, taskID)
+	if err != nil {
+		return taskstore.StageClaim{}, false, err
+	}
+	if task.CurrentStageKey == nil {
+		return taskstore.StageClaim{}, false, nil
+	}
+	var plan moduleapi.TaskPlan
+	if err := json.Unmarshal(task.Plan, &plan); err != nil {
+		return taskstore.StageClaim{}, false, fmt.Errorf("decode frozen task plan for cancellation: %w", err)
+	}
+	stages, err := r.repository.ListStages(ctx, taskID)
+	if err != nil {
+		return taskstore.StageClaim{}, false, err
+	}
+	for _, stage := range stages {
+		if externalReceiptStageMatches(stage, *task.CurrentStageKey, plan) {
+			return taskstore.StageClaim{Task: task, Stage: stage}, true, nil
+		}
+	}
+	return taskstore.StageClaim{}, false, nil
+}
+
+func externalReceiptStageMatches(stage taskmodel.Stage, currentStageKey string, plan moduleapi.TaskPlan) bool {
+	if stage.Key != currentStageKey || stage.Status != moduleapi.StageStatusRunning || stage.Sequence <= 0 || stage.Sequence > len(plan.Stages) {
+		return false
+	}
+	return plan.Stages[stage.Sequence-1].ExternalReceipt != nil
 }
 
 func (r *Runtime) validatePlan(plan moduleapi.TaskPlan) error {
