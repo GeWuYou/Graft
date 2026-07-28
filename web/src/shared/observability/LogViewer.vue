@@ -1,15 +1,11 @@
 <template>
-  <content-viewer-frame
-    v-if="viewerMode"
+  <log-viewer-surface
     v-bind="$attrs"
-    class="log-viewer log-viewer--framed"
-    :storage-key="viewerStorageKey"
-    :fullscreen-label="fullscreenLabel"
     :exit-fullscreen-label="exitFullscreenLabel"
+    :framed="viewerMode"
+    :fullscreen-label="fullscreenLabel"
     :resize-handle-label="resizeHandleLabel"
-    :show-fullscreen-button="false"
-    surface-padding="none"
-    fullscreen-surface-padding="none"
+    :storage-key="viewerStorageKey"
   >
     <template #header-actions="{ fullscreen, toggleFullscreen }">
       <t-tooltip :content="fullscreen ? exitFullscreenLabel : fullscreenLabel" theme="light">
@@ -27,6 +23,7 @@
         </t-button>
       </t-tooltip>
     </template>
+
     <template #toolbar>
       <div class="log-viewer__toolbar">
         <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
@@ -130,311 +127,6 @@
         </div>
       </div>
     </template>
-
-    <template #default>
-      <div class="log-viewer__body">
-        <t-alert v-if="error" theme="error" :title="error">
-          <template #operation>
-            <t-button size="small" theme="danger" variant="text" @click="$emit('refresh')">
-              {{ retryLabel }}
-            </t-button>
-          </template>
-        </t-alert>
-        <t-alert v-if="truncated" theme="warning" :title="truncatedLabel" />
-
-        <div
-          :class="['log-viewer__viewport-shell', { 'log-viewer__viewport-shell--fixed': viewportHeight !== undefined }]"
-          :style="viewportInlineStyle"
-        >
-          <div
-            ref="viewport"
-            :class="[
-              'log-viewer__viewport graft-scrollbar',
-              {
-                'log-viewer__viewport--compact': compactRows,
-                'log-viewer__viewport--wrap': wrapLines,
-              },
-            ]"
-            @pointercancel="endViewportInteraction"
-            @pointerdown="beginViewportInteraction"
-            @pointerup="endViewportInteraction"
-            @scroll="handleViewportScroll"
-          >
-            <stream-viewport-state-surface
-              v-if="shouldRenderViewportStateSurface"
-              class="log-viewer__viewport-state"
-              v-bind="viewportStateSurfaceModel"
-            />
-            <template v-else>
-              <ol class="log-viewer__lines" :style="virtualListStyle">
-                <li
-                  v-for="(line, lineIndex) in renderedLines"
-                  :key="line.rowKey"
-                  :ref="(element) => setRenderedLineRef(line.rowKey, element)"
-                  tabindex="0"
-                  :class="[
-                    'log-viewer__line',
-                    `log-viewer__line--${line.tone}`,
-                    { 'log-viewer__line--active': isActive(line.rowKey) },
-                  ]"
-                  :style="virtualLineStyle(lineIndex)"
-                  @click="openLineDetail(line)"
-                  @keydown.enter.prevent="openLineDetail(line)"
-                  @keydown.space.prevent="openLineDetail(line)"
-                >
-                  <div class="log-viewer__timestamp-cell">
-                    <t-tooltip
-                      v-if="line.timestamp"
-                      :content="formattedFullTimestamp(line.timestamp)"
-                      placement="top-left"
-                      theme="light"
-                    >
-                      <time class="log-viewer__timestamp">{{ displayTimestamp(line.timestamp) }}</time>
-                    </t-tooltip>
-                    <span v-else class="log-viewer__timestamp log-viewer__timestamp--empty"></span>
-                  </div>
-                  <div class="log-viewer__level-cell">
-                    <t-tag
-                      class="log-viewer__level"
-                      :theme="levelTheme(line.level)"
-                      size="small"
-                      variant="light-outline"
-                    >
-                      {{ line.level ?? 'LOG' }}
-                    </t-tag>
-                  </div>
-                  <div class="log-viewer__stream-cell">
-                    <span class="log-viewer__stream-pill" :class="`log-viewer__stream-pill--${line.stream}`">
-                      {{ line.stream === 'stderr' ? stderrLabel : stdoutLabel }}
-                    </span>
-                  </div>
-                  <div class="log-viewer__content">
-                    <div class="log-viewer__message-row">
-                      <t-tooltip
-                        v-if="compactRows"
-                        class="log-viewer__message-tooltip"
-                        :content="line.message"
-                        placement="top-left"
-                        theme="light"
-                      >
-                        <code
-                          :ref="(element) => setMessageRef(line.rowKey, element)"
-                          :class="[
-                            'log-viewer__message',
-                            { 'log-viewer__message--collapsed': isMessageCollapsed(line.rowKey) },
-                          ]"
-                        >
-                          <span
-                            v-for="(token, tokenIndex) in line.messageTokens"
-                            :key="`${line.lineNo}-message-${tokenIndex}`"
-                            :class="tokenClass(token)"
-                            >{{ token.text }}</span
-                          >
-                        </code>
-                      </t-tooltip>
-                      <code
-                        v-else
-                        :ref="(element) => setMessageRef(line.rowKey, element)"
-                        :class="[
-                          'log-viewer__message',
-                          { 'log-viewer__message--collapsed': isMessageCollapsed(line.rowKey) },
-                        ]"
-                      >
-                        <span
-                          v-for="(token, tokenIndex) in line.messageTokens"
-                          :key="`${line.lineNo}-message-${tokenIndex}`"
-                          :class="tokenClass(token)"
-                          >{{ token.text }}</span
-                        >
-                      </code>
-                    </div>
-                    <t-button
-                      v-if="hasExpandableMessage(line.rowKey)"
-                      class="log-viewer__expand-action"
-                      size="small"
-                      theme="default"
-                      variant="text"
-                      @click.stop="toggleMessageExpansion(line.rowKey)"
-                    >
-                      {{ isMessageCollapsed(line.rowKey) ? expandLogLabel : collapseLogLabel }}
-                    </t-button>
-                    <div
-                      v-if="!compactRows && visibleMetadataTags(line).length"
-                      class="log-viewer__metadata-tags"
-                      @click.stop
-                    >
-                      <t-tag
-                        v-for="[key, value] in visibleMetadataTags(line)"
-                        :key="`${line.lineNo}-${key}`"
-                        size="small"
-                        theme="default"
-                        variant="light"
-                      >
-                        {{ key }}={{ formatMetadataValue(value) }}
-                      </t-tag>
-                      <t-button
-                        v-if="hiddenRowFieldCount(line)"
-                        size="small"
-                        theme="default"
-                        variant="text"
-                        @click="openLineDetail(line)"
-                      >
-                        +{{ hiddenRowFieldCount(line) }}
-                      </t-button>
-                    </div>
-                  </div>
-                  <div class="log-viewer__row-actions" @click.stop>
-                    <t-tooltip :content="viewDetailLabel" theme="light">
-                      <t-button
-                        :aria-label="viewDetailLabel"
-                        class="log-viewer__icon-action"
-                        shape="square"
-                        size="small"
-                        theme="default"
-                        variant="text"
-                        @click.stop="openLineDetail(line)"
-                      >
-                        <template #icon>
-                          <browse-icon />
-                        </template>
-                      </t-button>
-                    </t-tooltip>
-                    <t-tooltip :content="copyLineLabel" theme="light">
-                      <t-button
-                        :aria-label="copyLineLabel"
-                        class="log-viewer__icon-action"
-                        shape="square"
-                        size="small"
-                        theme="default"
-                        variant="text"
-                        @click.stop="copyLine(line.displayRaw)"
-                      >
-                        <template #icon>
-                          <copy-icon />
-                        </template>
-                      </t-button>
-                    </t-tooltip>
-                  </div>
-                </li>
-              </ol>
-            </template>
-          </div>
-          <div class="log-viewer__jump-actions">
-            <t-button v-if="showJumpTop" class="log-viewer__jump-top" size="small" theme="default" @click="jumpTop">
-              {{ jumpTopLabel }}
-            </t-button>
-            <t-button
-              v-if="showJumpBottom"
-              class="log-viewer__jump-bottom"
-              size="small"
-              theme="primary"
-              @click="jumpBottom"
-            >
-              {{ jumpBottomLabel }}
-            </t-button>
-          </div>
-        </div>
-      </div>
-    </template>
-  </content-viewer-frame>
-
-  <section v-else v-bind="$attrs" class="log-viewer">
-    <div class="log-viewer__toolbar">
-      <div class="log-viewer__toolbar-group log-viewer__toolbar-left">
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          :disabled="!displayLines.length"
-          data-testid="log-viewer-clear"
-          @click="$emit('clear')"
-        >
-          {{ clearLabel }}
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          :disabled="!displayLines.length"
-          data-testid="log-viewer-copy"
-          @click="copyContent"
-        >
-          {{ copyLabel }}
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          size="small"
-          :disabled="!displayLines.length"
-          data-testid="log-viewer-download"
-          @click="downloadContent"
-        >
-          {{ downloadLabel }}
-        </t-button>
-      </div>
-
-      <div class="log-viewer__toolbar-group log-viewer__toolbar-middle">
-        <t-select
-          v-if="lineLimitOptions.length"
-          v-model:value="selectedLineLimit"
-          class="log-viewer__limit"
-          :options="lineLimitOptions"
-          size="small"
-          @change="emitLimit"
-        />
-        <t-select v-model:value="selectedLevel" class="log-viewer__level-filter" :options="levelOptions" size="small" />
-        <t-input
-          v-model:value="searchKeyword"
-          class="log-viewer__search"
-          clearable
-          type="search"
-          :placeholder="searchPlaceholder"
-        />
-        <span v-if="normalizedSearchKeyword" class="log-viewer__match-count">
-          {{ matchCountLabel.replace('{count}', `${searchMatchCount}/${searchCandidateCount}`) }}
-        </span>
-      </div>
-
-      <div class="log-viewer__toolbar-group log-viewer__toolbar-right">
-        <label class="log-viewer__switch">
-          <span>{{ wrapLabel }}</span>
-          <t-switch v-model:value="wrapLines" size="small" />
-        </label>
-        <label class="log-viewer__switch">
-          <span>{{ autoScrollLabel }}</span>
-          <t-tooltip v-if="autoScrollTooltipLabel" :content="autoScrollTooltipLabel" theme="light">
-            <t-switch v-model:value="scrollAfterRefresh" size="small" />
-          </t-tooltip>
-          <t-switch v-else v-model:value="scrollAfterRefresh" size="small" />
-        </label>
-        <t-button
-          size="small"
-          theme="default"
-          variant="outline"
-          data-testid="log-viewer-pause-toggle"
-          @click="togglePause"
-        >
-          {{ paused ? resumeLabel : pauseLabel }}
-        </t-button>
-        <t-button
-          v-if="showReconnect"
-          size="small"
-          theme="primary"
-          variant="outline"
-          data-testid="log-viewer-reconnect"
-          @click="$emit('reconnect')"
-        >
-          {{ reconnectLabel }}
-        </t-button>
-        <div class="log-viewer__mobile-more">
-          <t-dropdown :options="moreActionOptions" trigger="click" @click="handleMoreAction">
-            <t-button size="small" theme="default" variant="outline">
-              {{ moreActionsLabel }}
-            </t-button>
-          </t-dropdown>
-        </div>
-      </div>
-    </div>
 
     <t-alert v-if="error" theme="error" :title="error">
       <template #operation>
@@ -632,7 +324,7 @@
         </t-button>
       </div>
     </div>
-  </section>
+  </log-viewer-surface>
 
   <t-drawer
     v-model:visible="detailDrawerVisible"
@@ -802,7 +494,6 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import ContentViewerFrame from '@/shared/components/viewer/ContentViewerFrame.vue';
 import { emitDebugLog, isDebugFlagEnabled } from '@/shared/debug/runtime';
 import { createLogger } from '@/utils/logger';
 
@@ -812,6 +503,7 @@ import type { LogLevel, LogToken } from './log-highlight';
 import { type DisplayLogLine, formatLogMetadataValue, type ParsedLogMetadata, summarizeMetadata } from './log-parser';
 import { LogViewCache, type LogViewLine } from './log-view-cache';
 import { LogViewportCommitScheduler } from './log-viewport-commit-scheduler';
+import LogViewerSurface from './LogViewerSurface.vue';
 import type { StreamViewportState } from './stream-viewport-state';
 import StreamViewportStateSurface from './StreamViewportStateSurface.vue';
 import { formatLocaleDateTime, formatLogViewerTimestamp } from './time';
@@ -1655,16 +1347,6 @@ function isViewportNearBottom(node: HTMLElement) {
 
 .log-viewer--framed {
   gap: 0;
-}
-
-.log-viewer__body {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--graft-density-gap-10);
-  min-height: 0;
-  min-width: 0;
-  padding: var(--graft-density-gap-12);
 }
 
 .log-viewer__viewport-shell {
