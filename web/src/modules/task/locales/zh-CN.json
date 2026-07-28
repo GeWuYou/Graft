@@ -17,6 +17,7 @@
       "open": "实时连接"
     },
     "detail": {
+      "back": "返回任务列表",
       "connection": "实时状态",
       "createdAt": "创建时间",
       "currentStage": "当前阶段",

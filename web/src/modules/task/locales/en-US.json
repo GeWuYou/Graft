@@ -17,6 +17,7 @@
       "open": "Live"
     },
     "detail": {
+      "back": "Back to Task List",
       "connection": "Realtime",
       "createdAt": "Created At",
       "currentStage": "Current Stage",
