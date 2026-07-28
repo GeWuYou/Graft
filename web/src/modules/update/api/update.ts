@@ -32,6 +32,20 @@ export function getUpdateOperations() {
   >;
 }
 
+/** 读取单个升级操作，用于壳层升级进度会话轮询。 */
+export function getUpdateOperation(operationID: string) {
+  return request.get<UpdateOperation>({
+    url: buildOpenApiRuntimePath('getPlatformUpdateOperation', { operationID }),
+  }) as Promise<UpdateOperation>;
+}
+
+/** 操作结束后读取服务端映射出的脱敏失败原因，不透传 runner 原始输出。 */
+export function getUpdateOperationDiagnostic(operationID: string) {
+  return request.get<UpdateFailureDiagnostic>({
+    url: UPDATE_API_PATH.OPERATION_DIAGNOSTIC.replace('{operationID}', encodeURIComponent(operationID)),
+  }) as Promise<UpdateFailureDiagnostic>;
+}
+
 export function createUpdateOperation(payload: CreateUpdateOperationRequest) {
   return request.post<UpdateOperation>({ url: UPDATE_API_PATH.OPERATIONS, data: payload }) as Promise<UpdateOperation>;
 }

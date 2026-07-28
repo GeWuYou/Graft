@@ -85,6 +85,7 @@ export const OPENAPI_RUNTIME_PATH = {
   getPlatformBackup: '/api/platform/backups/{id}',
   getPlatformUpdateFailureDiagnostic: '/api/platform/updates/diagnostics/{requestId}',
   getPlatformUpdateOperation: '/api/platform/updates/operations/{operationID}',
+  getPlatformUpdateOperationFailureDiagnostic: '/api/platform/updates/operations/{operationID}/diagnostic',
   getPlatformUpdateOperations: '/api/platform/updates/operations',
   getPlatformUpdateStatus: '/api/platform/updates/status',
   getPublishedApplicationTemplate: '/api/ops/applications/templates/{templateId}/published',

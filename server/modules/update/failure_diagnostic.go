@@ -11,6 +11,7 @@ import (
 
 const (
 	updateFailureDiagnosticSummary = "platform update rollout start failed"
+	runnerFailureDiagnosticSummary = "platform update runner reported a terminal failure"
 	maxFailureDiagnosticDetailSize = 32 * 1024
 )
 
@@ -33,6 +34,7 @@ type FailureDiagnostic struct {
 type FailureDiagnosticStore interface {
 	CreateFailureDiagnostic(context.Context, FailureDiagnostic, uint64) error
 	GetFailureDiagnostic(context.Context, string) (FailureDiagnostic, error)
+	GetFailureDiagnosticByOperation(context.Context, string) (FailureDiagnostic, error)
 }
 
 type sqlFailureDiagnosticStore struct{ db *sql.DB }
@@ -63,12 +65,24 @@ func (s *sqlFailureDiagnosticStore) GetFailureDiagnostic(ctx context.Context, re
 	if s == nil || s.db == nil || strings.TrimSpace(requestID) == "" {
 		return FailureDiagnostic{}, errors.New("update failure diagnostic identity is invalid")
 	}
+	return scanFailureDiagnostic(s.db.QueryRowContext(ctx, `SELECT request_id, operation_id, task_id, target_version, failure_code,
+ failure_stage, summary, detail, occurred_at FROM update_failure_diagnostics WHERE request_id = $1`, strings.TrimSpace(requestID)))
+}
+
+// GetFailureDiagnosticByOperation 返回 runner 回执终态关联的受控诊断，避免调用方猜测原始 HTTP request ID。
+func (s *sqlFailureDiagnosticStore) GetFailureDiagnosticByOperation(ctx context.Context, operationID string) (FailureDiagnostic, error) {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
+		return FailureDiagnostic{}, errors.New("update operation identity is invalid")
+	}
+	return scanFailureDiagnostic(s.db.QueryRowContext(ctx, `SELECT request_id, operation_id, task_id, target_version, failure_code,
+ failure_stage, summary, detail, occurred_at FROM update_failure_diagnostics WHERE operation_id = $1`, operationID))
+}
+
+func scanFailureDiagnostic(row interface{ Scan(...any) error }) (FailureDiagnostic, error) {
 	var value FailureDiagnostic
 	var operationID sql.NullString
 	var taskID sql.NullInt64
-	err := s.db.QueryRowContext(ctx, `SELECT request_id, operation_id, task_id, target_version, failure_code,
- failure_stage, summary, detail, occurred_at FROM update_failure_diagnostics WHERE request_id = $1`, strings.TrimSpace(requestID)).Scan(
-		&value.RequestID, &operationID, &taskID, &value.TargetVersion, &value.FailureCode, &value.FailureStage,
+	err := row.Scan(&value.RequestID, &operationID, &taskID, &value.TargetVersion, &value.FailureCode, &value.FailureStage,
 		&value.Summary, &value.Detail, &value.OccurredAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return FailureDiagnostic{}, errUpdateFailureDiagnosticNotFound
@@ -95,6 +109,27 @@ func newFailureDiagnostic(requestID, operationID, targetVersion, failureCode, fa
 		FailureStage:  strings.TrimSpace(failureStage),
 		Summary:       updateFailureDiagnosticSummary,
 		Detail:        truncateFailureDiagnosticDetail(sanitizeRolloutError(err)),
+		OccurredAt:    time.Now().UTC(),
+	}
+}
+
+func runnerTerminalFailureDiagnostic(operation ComposeUpdateOperation, receipt RunnerReceipt) FailureDiagnostic {
+	detail := "runner reported a terminal failure"
+	if code := strings.TrimSpace(receipt.FailureCode); code != "" {
+		detail += " (" + code + ")"
+	}
+	if receipt.MigrationStarted {
+		detail += "; migration had started and operator attention is required"
+	}
+	return FailureDiagnostic{
+		RequestID:     operation.RequestID,
+		OperationID:   operation.OperationID,
+		TaskID:        operation.TaskID,
+		TargetVersion: operation.TargetVersion,
+		FailureCode:   rolloutFailureRunnerTerminal,
+		FailureStage:  "runner_receipt",
+		Summary:       runnerFailureDiagnosticSummary,
+		Detail:        detail,
 		OccurredAt:    time.Now().UTC(),
 	}
 }

@@ -12,6 +12,7 @@ export const UPDATE_OPERATION_FAILURE_CODE = {
   COMPOSE_CANDIDATE_INVALID: 'PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID',
   COMPOSE_PREFLIGHT_FAILED: 'PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED',
   OPERATION_START_FAILED: 'PLATFORM_UPDATE_OPERATION_START_FAILED',
+  RUNNER_TERMINAL_FAILED: 'PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED',
 } as const satisfies Record<string, UpdateOperationFailureCode>;
 
 /** 将已知失败码映射为安全的本地化消息 key；未知服务端值不得通过此映射展示。 */
@@ -24,6 +25,7 @@ export const UPDATE_OPERATION_FAILURE_MESSAGE_KEY: Record<UpdateOperationFailure
     'update.center.confirmation.failure.composeCandidateInvalid',
   [UPDATE_OPERATION_FAILURE_CODE.COMPOSE_PREFLIGHT_FAILED]: 'update.center.confirmation.failure.composePreflightFailed',
   [UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED]: 'update.center.confirmation.failure.startFailed',
+  [UPDATE_OPERATION_FAILURE_CODE.RUNNER_TERMINAL_FAILED]: 'update.center.confirmation.failure.runnerTerminalFailed',
 };
 
 /** 仅接受映射表自有的 OpenAPI 失败码，避免原型属性被误当作可展示的服务端错误。 */

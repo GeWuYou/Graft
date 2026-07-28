@@ -45,6 +45,7 @@ properties:
               additionalProperties: { type: string }
       blocking_reason: { type: string }
       compose_root_source: { $ref: ./platform-update-compose-root-source.yaml }
+      compose_root_confirmation_required: { type: boolean, description: "Whether the caller must select among Compose root candidates before rollout." }
       compose_candidates:
         type: array
         description: Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array.

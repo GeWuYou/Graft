@@ -26,30 +26,41 @@ Run the helper from any checkout in the repository:
 
 ```bash
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py status
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py doctor
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py acquire feature/runtime-target
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py closeout
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py release --confirm-integrated <commit-or-ref>
+python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py repair --confirm 03
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py reconcile --confirm 01 02 03
 python3 .agents/skills/graft-worktree-manager/scripts/worktree_manager.py relocate --confirm
 ```
 
-`status` reports every registered worktree, its branch or detached ref, uncommitted-change count, derived state, and
-pool baseline state. A clean recognized pool slot is `available` even when its cached baseline is stale; `baseline=stale`
-indicates that the next acquire will refresh it.
+`status` reports registered slots plus recoverable and broken numbered-slot evidence. `doctor` adds the concrete reason.
+A clean recognized pool slot is `available` even when its cached baseline is stale; `baseline=stale` indicates that the
+next acquire will refresh it.
 
-`acquire` serializes pool allocation, fetches `origin`, selects the lowest clean reusable numbered pool directory, or
-creates the next one. A stale detached legacy slot is reusable only when its HEAD is an ancestor of `origin/main`.
-Before creating the task branch, the manager restores the slot to its local-only `main-XX` marker branch at the current
-`origin/main`, then creates the unique task branch and reapplies the tracked `.worktree-shared.json` links.
+`acquire` serializes allocation, fetches `origin`, reuses the lowest clean registered slot, then the lowest safe
+recoverable marker slot, then the lowest missing number. A marker-only slot is recoverable only when its `main-XX` ref
+is an ancestor of `origin/main`; it is restored before the task branch is created. Any directory/registration mismatch
+or divergent marker is `broken` and blocks allocation until explicitly repaired.
+
+`acquire` writes a local lease in the Git common directory. After the task's owned changes are committed, validated, and
+the worktree is clean, `graft-task-closeout` invokes `closeout` to mark the lease release-ready. The local lease is
+operational metadata, not active-topic recovery truth.
 
 `release` is a two-step developer-controlled operation. Without `--confirm-integrated` it only prints the review
-summary. With the confirmation ref it requires a clean task worktree, fetches the current baseline, restores the
-corresponding local-only `main-XX` marker branch, and deletes only the local task branch. It never merges, cherry-picks,
-force-pushes, deletes a remote branch, or discards an unconfirmed task branch.
+summary. With the confirmation ref it requires a clean, release-ready leased task worktree, fetches the current
+baseline, restores the corresponding local-only `main-XX` marker branch, and deletes only the local task branch.
+Existing historical task branches without a lease remain releasable under the clean and integration-confirmation checks,
+and are reported as `legacy-untracked` until the pool is fully migrated.
 
 `reconcile --confirm [<slot> ...]` is a developer-confirmed migration for clean pool slots. It converts old detached
 slots to their `main-XX` marker branches and refreshes them to `origin/main`. It preflights all selected slots and refuses
 to touch dirty, task-branch, or divergent slots. `main-XX` branches are local pool markers, have no upstream, and must
 never be passed to `$graft-push`.
+
+`repair --confirm <slot>` restores only a safe `recoverable` marker slot. Other `broken` states are fail-closed: inspect
+their `doctor` reason and resolve the directory, registration, or divergent branch explicitly before retrying acquire.
 
 `relocate --confirm` is a one-time developer-approved migration from legacy sibling directories such as
 `<repo>-wt-01` into `<repo>/.worktrees/01`. It refuses to run unless every legacy pool slot is clean and at `origin/main`,
@@ -62,6 +73,8 @@ checkout do not block relocation.
   numbered pool slot.
 - Do not manually delete or push `main-XX` marker branches; they are managed slot identities.
 - Pool-mutating commands are serialized by a repository-local lock under the Git common directory.
+- Do not declare an acquired task complete with owned uncommitted changes. A task that reached closeout must commit,
+  validate, leave its worktree clean, and record manager `closeout` before developer integration and `release`.
 - Do not use a worktree path as an active-topic identity. Recovery records name the topic and current task branch only
   when that information is useful for resumption.
 - Numbered agent worktrees are non-runtime environments: do not start frontend/backend services, development servers,

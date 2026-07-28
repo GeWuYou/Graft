@@ -53,6 +53,10 @@ commit 或最终集成 authority。最终 merge、cherry-pick 和非 OpenAPI 线
 source 与确定性生成产物必须由拥有该 bounded contract slice 的 Agent 在任务分支内同步生成、验证并提交，集成冲突再由
 开发者基于合并后的 canonical source 重新生成和复验。
 
+工作树管理器可在 Git common directory 保存本地槽位 lease，用于报告 `acquired`、`in-progress`、`release-ready`、
+`legacy-untracked` 与损坏槽位诊断。该 lease 不保存任务内容、不成为 active-topic recovery truth，也不替代根 `AGENTS.md`
+对提交、验证、closeout 和最终集成的 authority。
+
 仓库根 `Justfile` 属于 optional developer entrypoint / convenience layer：
 
 - 可以推荐给贡献者作为 first-run 或 common workflow shortcut。

@@ -296,6 +296,17 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	}
 }
 
+func TestComposePreflightUsesUniqueHighConfidenceCandidateWithoutKey(t *testing.T) {
+	root := t.TempDir()
+	release := Release{ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	release.ServerRef, release.WebRef, release.RunnerRef = release.ServerImage+"@"+release.ServerDigest, release.WebImage+"@"+release.WebDigest, release.RunnerImage+"@"+release.RunnerDigest
+	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeRootConfirmationRequired: false, ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-unique", Root: root, ConfigFiles: []string{filepath.Join(root, "compose.yml")}, Confidence: "high"}}}
+	preflight, err := composePreflight(profile, release, "")
+	if err != nil || preflight.ComposeRoot != root {
+		t.Fatalf("expected unique candidate preflight, got %#v, %v", preflight, err)
+	}
+}
+
 func mustReceiptEntry(t *testing.T, root, name string) os.DirEntry {
 	t.Helper()
 	entries, err := os.ReadDir(filepath.Join(root, runnerReceiptDirectory))
@@ -370,7 +381,8 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, source_version TEXT, target_version TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP)`); err != nil {
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
+CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
 	store, err := newSQLOperationStore(db)
@@ -391,6 +403,25 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	}
 	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
+	}
+}
+
+func TestSettlePersistedReceiptStoresControlledOperationDiagnostic(t *testing.T) {
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
+		"update-86": {OperationID: "update-86", RequestID: "request-86", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 86, RequestedBy: 9, Outcome: ExecutionOutcomePulling},
+	}}
+	diagnostics := &failureDiagnosticStoreRecorder{}
+	rollout := NewRolloutService(NewService(nil), operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 86}}, &stubBackupService{}, &recordingLauncher{})
+	rollout.SetFailureDiagnosticStore(diagnostics)
+	_, err := rollout.SettlePersistedReceipt(t.Context(), RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "update-86", FailureCode: "receipt_write_failed"})
+	if err != nil {
+		t.Fatalf("settle failed receipt: %v", err)
+	}
+	if diagnostics.value.OperationID != "update-86" || diagnostics.value.RequestID != "request-86" || diagnostics.value.FailureCode != rolloutFailureRunnerTerminal || diagnostics.value.FailureStage != "runner_receipt" {
+		t.Fatalf("unexpected controlled terminal diagnostic: %#v", diagnostics.value)
+	}
+	if strings.Contains(diagnostics.value.Detail, "stderr") {
+		t.Fatalf("terminal diagnostic must not expose runner logs: %q", diagnostics.value.Detail)
 	}
 }
 

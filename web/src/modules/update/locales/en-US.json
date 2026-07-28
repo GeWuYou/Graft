@@ -92,6 +92,7 @@
           "composeCandidateInvalid": "The selected Compose project directory is no longer valid. Select it again and retry.",
           "composePreflightFailed": "The current Compose project did not pass the upgrade preflight check.",
           "startFailed": "The upgrade task could not be started. Use the request ID to inspect the server logs.",
+          "runnerTerminalFailed": "The upgrade did not complete. Review the sanitized cause and application logs.",
           "generic": "The upgrade request could not be started. Try again later."
         }
       },
@@ -101,7 +102,39 @@
         "status": "Status",
         "result": "Result",
         "started": "Started",
+        "viewCause": "View cause",
+        "causeUnavailable": "The diagnostic detail for this update is temporarily unavailable.",
+        "statuses": {
+          "PLANNING": "Planning",
+          "BACKING_UP": "Backing up",
+          "PULLING": "Pulling",
+          "MIGRATING": "Migrating",
+          "RECREATING": "Recreating",
+          "VERIFYING": "Verifying",
+          "SUCCESS": "Completed",
+          "RECOVERED": "Recovered",
+          "FAILED": "Failed",
+          "NEEDS_ATTENTION": "Needs attention"
+        },
         "loadFailed": "Unable to load update history."
+      },
+      "progress": {
+        "title": "Upgrading Platform",
+        "phase": {
+          "running": "The upgrade is in progress. Keep this page open.",
+          "reconnecting": "The service is being recreated. Reconnecting to the upgrade status...",
+          "success": "Upgrade complete. Refreshing the application...",
+          "failed": "The upgrade did not complete. Review the sanitized cause."
+        },
+        "steps": {
+          "planning": "Prepare",
+          "pulling": "Pull release images",
+          "recreating": "Recreate services",
+          "verifying": "Verify services"
+        },
+        "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",
+        "viewAppLogs": "View application logs",
+        "close": "Close"
       },
       "capabilities": {
         "title": "Installation capability matrix",

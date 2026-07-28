@@ -1,0 +1,38 @@
+get:
+  tags: [platform-update]
+  summary: Read controlled failure diagnostics for a self-update operation
+  operationId: getPlatformUpdateOperationFailureDiagnostic
+  description: Returns immutable, sanitized diagnostics for a terminal runner failure. Raw runner logs and deployment secrets are never returned.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: operationID
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+  responses:
+    '200':
+      description: Sanitized operation failure diagnostic.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-failure-diagnostic.yaml }
+    '400':
+      description: Invalid operation identity.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404':
+      description: Operation failure diagnostic not found.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

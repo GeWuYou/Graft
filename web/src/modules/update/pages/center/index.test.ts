@@ -83,6 +83,7 @@ const status = (candidates: Array<Record<string, unknown>>) =>
       capability: 'compose_upgrade_available',
       guidance: '',
       compose_root_source: 'docker_discovered',
+      compose_root_confirmation_required: candidates.filter(({ confidence }) => confidence === 'high').length !== 1,
       compose_candidates: candidates,
     },
     cache_stale: false,
@@ -142,7 +143,7 @@ describe('UpdateCenter', () => {
     expect(wrapper.get('[data-testid="update-confirmation-dialog"]').text()).toContain('/srv/graft');
   });
 
-  it('uses the unique high-confidence candidate when submitting the dialog confirmation', async () => {
+  it('shows the unique high-confidence candidate without returning its opaque key', async () => {
     useUpdateDiscoveryStore().replaceSnapshot(
       status([
         { key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' },
@@ -158,7 +159,6 @@ describe('UpdateCenter', () => {
 
     expect(createUpdateOperation).toHaveBeenCalledWith({
       target_version: '1.1.0',
-      compose_candidate_key: 'high',
     });
   });
 
@@ -276,7 +276,6 @@ describe('UpdateCenter', () => {
 
     expect(dataSource.createOperation).toHaveBeenCalledWith({
       target_version: '1.1.0',
-      compose_candidate_key: 'preview',
     });
     expect(dataSource.getOperations).toHaveBeenCalledTimes(3);
   });
@@ -315,5 +314,26 @@ describe('UpdateCenter', () => {
     expect(dataSource.getFailureDiagnostic).toHaveBeenCalledWith('request-update-42');
     expect(getUpdateFailureDiagnostic).not.toHaveBeenCalled();
     expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain('preview diagnostic');
+  });
+
+  it('does not expose live operation tracking from an injected preview data source', async () => {
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi.fn().mockResolvedValue(status([])),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([
+        {
+          operation_id: 'preview-operation',
+          status: 'FAILED',
+          failure_diagnostic_available: true,
+        },
+      ]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(null),
+      createOperation: vi.fn(),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('update.center.history.viewCause');
   });
 });

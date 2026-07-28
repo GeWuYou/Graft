@@ -51,6 +51,7 @@ func registerRoutes(ctx *module.Context, service *Service, rollout *RolloutServi
 	}
 	group.GET(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.list)
 	group.GET(updatecontract.UpdateFailureDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.getFailureDiagnostic)
+	group.GET(updatecontract.UpdateOperationDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.getOperationFailureDiagnostic)
 	group.GET(updatecontract.UpdateOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.get)
 	group.POST(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.start)
 	return nil
@@ -129,6 +130,25 @@ func (h updateRouteHandlers) getFailureDiagnostic(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusOK, value)
 }
 
+func (h updateRouteHandlers) getOperationFailureDiagnostic(c *gin.Context) {
+	operationID := c.Param("operationID")
+	if !runnerOperationID.MatchString(operationID) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	value, err := h.diagnostics.GetFailureDiagnosticByOperation(c.Request.Context(), operationID)
+	if errors.Is(err, errUpdateFailureDiagnosticNotFound) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusNotFound, messagecontract.CommonNotFound.String(), nil)
+		return
+	}
+	if err != nil {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
+	h.publishDiagnosticReadAudit(c.Request.Context(), value)
+	httpx.WriteSuccess(c, http.StatusOK, value)
+}
+
 func (h updateRouteHandlers) start(c *gin.Context) {
 	var request struct {
 		TargetVersion string `json:"target_version"`
@@ -143,6 +163,10 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusUnauthorized, "auth.unauthenticated", nil)
 		return
 	}
+	requestID := httpx.EnsureRequestID(c)
+	requestAudit, _ := httpx.RequestAuditContextFromContext(c.Request.Context())
+	requestAudit.RequestID = requestID
+	c.Request = c.Request.WithContext(httpx.WithRequestAuditContext(c.Request.Context(), requestAudit))
 	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.CandidateKey)
 	if err != nil {
 		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)

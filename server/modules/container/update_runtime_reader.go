@@ -73,12 +73,15 @@ func (r containerProjectRuntimeReader) DiscoverCurrentServerCompose(ctx context.
 	if workingDir != "" {
 		add(workingDir, updateComposeCandidateConfidenceHigh, nil)
 	}
-	for _, mount := range detail.Mounts {
-		if mount.Type != "bind" || !filepath.IsAbs(strings.TrimSpace(mount.Source)) {
-			continue
+	// Compose 标签同时标识根目录与文件序列；仅在该高置信事实缺失时才回退 bind mount，避免调用方在无关数据挂载中选择。
+	if len(values) == 0 {
+		for _, mount := range detail.Mounts {
+			if mount.Type != "bind" || !filepath.IsAbs(strings.TrimSpace(mount.Source)) {
+				continue
+			}
+			warnings := []string{"bind_mount_candidate_requires_administrator_confirmation"}
+			add(mount.Source, updateComposeCandidateConfidenceMedium, warnings)
 		}
-		warnings := []string{"bind_mount_candidate_requires_administrator_confirmation"}
-		add(mount.Source, updateComposeCandidateConfidenceMedium, warnings)
 	}
 	candidates := make([]moduleapi.UpdateComposeRuntimeCandidate, 0, len(values))
 	for _, candidate := range values {

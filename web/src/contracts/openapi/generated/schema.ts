@@ -1586,6 +1586,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/updates/operations/{operationID}/diagnostic': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read controlled failure diagnostics for a self-update operation
+     * @description Returns immutable, sanitized diagnostics for a terminal runner failure. Raw runner logs and deployment secrets are never returned.
+     */
+    get: operations['getPlatformUpdateOperationFailureDiagnostic'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/platform/backups': {
     parameters: {
       query?: never;
@@ -6283,6 +6303,8 @@ export interface components {
         }[];
         blocking_reason?: string;
         compose_root_source: components['schemas']['platform-update-compose-root-source'];
+        /** @description Whether the caller must select among Compose root candidates before rollout. */
+        compose_root_confirmation_required?: boolean;
         /** @description Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array. */
         compose_candidates: components['schemas']['platform-update-compose-root-candidate'][];
       };
@@ -6323,6 +6345,8 @@ export interface components {
         | 'RECOVERED'
         | 'NEEDS_ATTENTION';
       failure_code?: string;
+      /** @description Whether a manager may retrieve controlled failure diagnostics for this operation. */
+      failure_diagnostic_available?: boolean;
       recovery_completed: boolean;
       /** Format: date-time */
       created_at: string;
@@ -6362,7 +6386,8 @@ export interface components {
       | 'PLATFORM_UPDATE_INVALID_TARGET'
       | 'PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID'
       | 'PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED'
-      | 'PLATFORM_UPDATE_OPERATION_START_FAILED';
+      | 'PLATFORM_UPDATE_OPERATION_START_FAILED'
+      | 'PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED';
     'platform-update-rollout-failure-data': {
       reason: components['schemas']['platform-update-rollout-failure-code'];
     };
@@ -13723,6 +13748,60 @@ export interface operations {
         };
         content?: never;
       };
+    };
+  };
+  getPlatformUpdateOperationFailureDiagnostic: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        operationID: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized operation failure diagnostic. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-failure-diagnostic'];
+        };
+      };
+      /** @description Invalid operation identity. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Operation failure diagnostic not found. */
+      404: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
     };
   };
   listPlatformBackups: {

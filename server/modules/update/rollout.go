@@ -25,6 +25,7 @@ import (
 type RolloutService struct {
 	discovery         *Service
 	operations        OperationStore
+	diagnostics       FailureDiagnosticStore
 	coordinator       *ComposeExecutionCoordinator
 	launcher          ComposeRunnerLauncher
 	newOperation      func() string
@@ -71,6 +72,13 @@ func NewRolloutService(discovery *Service, operations OperationStore, tasks modu
 	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID}
 }
 
+// SetFailureDiagnosticStore 注入 operation 终态使用的受控诊断存储；runner 的原始输出不进入该边界。
+func (s *RolloutService) SetFailureDiagnosticStore(store FailureDiagnosticStore) {
+	if s != nil {
+		s.diagnostics = store
+	}
+}
+
 // Start 只接受当前 catalog 中已验证的候选版本，随后仅启动一次 digest-pinned runner。
 //
 //nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
@@ -87,7 +95,7 @@ func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVe
 		code := classifyRolloutPreflightFailure(err)
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
-	operation := ComposeUpdateOperation{OperationID: s.newOperation(), SourceVersion: status.CurrentVersion, TargetVersion: targetVersion, RequestedBy: requestedBy, Outcome: ExecutionOutcomePlanning}
+	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: targetVersion, RequestedBy: requestedBy, Outcome: ExecutionOutcomePlanning}
 	handoff := backupHandoff(operation.OperationID, requestedBy, preflight.ComposeRoot)
 	prepared, input, err := s.coordinator.Start(ctx, operation, requestedBy, handoff)
 	if err != nil {
@@ -265,8 +273,30 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 		s.publishAudit(ctx, settled, false, "operation_settlement_failed")
 		return ComposeUpdateOperation{}, err
 	}
+	s.persistTerminalFailureDiagnostic(ctx, settled, receipt)
 	s.publishAudit(ctx, settled, settled.Outcome == ExecutionOutcomeSuccess, settled.FailureCode)
 	return settled, nil
+}
+
+func rolloutRequestID(ctx context.Context) string {
+	audit, ok := httpx.RequestAuditContextFromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(audit.RequestID)
+}
+
+func (s *RolloutService) persistTerminalFailureDiagnostic(ctx context.Context, operation ComposeUpdateOperation, receipt RunnerReceipt) {
+	if s == nil || s.diagnostics == nil || operation.RequestID == "" || operation.RequestedBy == 0 {
+		return
+	}
+	if operation.Outcome != ExecutionOutcomeFailed && operation.Outcome != ExecutionOutcomeNeedsAttention {
+		return
+	}
+	diagnostic := runnerTerminalFailureDiagnostic(operation, receipt)
+	if err := s.diagnostics.CreateFailureDiagnostic(ctx, diagnostic, operation.RequestedBy); err != nil && s.logger != nil {
+		s.logger.Error("persist terminal platform update failure diagnostic failed", zap.String("module", moduleID), zap.String("operation_id", operation.OperationID), zap.Error(err))
+	}
 }
 
 func (s *RolloutService) publishAudit(ctx context.Context, operation ComposeUpdateOperation, success bool, message string) {
@@ -419,13 +449,7 @@ func composePreflight(profile InstallationProfile, release Release, candidateKey
 	explicitRoot := root != ""
 	composeFiles := []string{}
 	if root == "" {
-		for _, candidate := range profile.ComposeCandidates {
-			if candidate.CandidateKey == strings.TrimSpace(candidateKey) {
-				root = strings.TrimSpace(candidate.Root)
-				composeFiles = append(composeFiles, candidate.ConfigFiles...)
-				break
-			}
-		}
+		root, composeFiles = confirmedComposeCandidate(profile, candidateKey)
 		if root == "" {
 			return ComposePreflight{}, fmt.Errorf("%w: a confirmed compose root candidate is required", errRolloutComposeCandidateInvalid)
 		}
@@ -441,6 +465,18 @@ func composePreflight(profile InstallationProfile, release Release, candidateKey
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}
 	return value, nil
+}
+
+func confirmedComposeCandidate(profile InstallationProfile, candidateKey string) (string, []string) {
+	if !profile.ComposeRootConfirmationRequired && len(profile.ComposeCandidates) == 1 && profile.ComposeCandidates[0].Confidence == "high" && strings.TrimSpace(candidateKey) == "" {
+		candidateKey = profile.ComposeCandidates[0].CandidateKey
+	}
+	for _, candidate := range profile.ComposeCandidates {
+		if candidate.CandidateKey == strings.TrimSpace(candidateKey) {
+			return strings.TrimSpace(candidate.Root), append([]string(nil), candidate.ConfigFiles...)
+		}
+	}
+	return "", nil
 }
 
 func backupHandoff(operationID string, requestedBy uint64, root string) moduleapi.BackupRunnerHandoffPlan {

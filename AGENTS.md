@@ -585,6 +585,9 @@ For repository work:
   or standing ownership boundaries; each slot may retain a local-only `main-XX` marker branch
 - acquire an agent workspace through `graft-worktree-manager`; it fetches `origin`, refreshes the lowest clean reusable
   slot to `origin/main`, and creates a unique task branch from that baseline
+- an acquired numbered worktree has a local lifecycle lease: after its owned changes are committed, validated, and clean,
+  task closeout records manager `closeout`; a new leased task cannot be released before that receipt, while explicitly
+  reported historical `legacy-untracked` branches retain the existing clean-and-integrated release path during migration
 - agents may read, modify, validate, and commit their task branch, but must not perform the final merge or cherry-pick
 - developers review, merge, or cherry-pick in the primary checkout; no agent may assume it owns final repository state
 - numbered agent worktrees are non-runtime execution environments: agents must not start frontend or backend services,
@@ -607,6 +610,8 @@ For repository work:
   slice unless the user explicitly asks to batch them
 - if the working tree already mixes multiple feature points, split them back to feature-granularity commits before
   considering the task complete; do not leave validated slices piled up as uncommitted changes
+- do not report a numbered-worktree task as completed or hand it off as completed while it has owned uncommitted changes;
+  if ownership or validation prevents a clean commit, report the exact blocker instead of bypassing the closeout lease
 - default to one logical closure per commit; for larger tasks, split commits into readable stages such as
   schema/migration, runtime implementation, tests, docs, or cleanup/refactor
 - each commit should remain as buildable or testable as the current slice reasonably allows; do not rely on hidden

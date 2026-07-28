@@ -157,6 +157,7 @@ vi.mock('@/store', () => ({
 
 vi.mock('@/modules/update', () => ({
   updateProvider: { name: 'UpdateProvider', template: '<span />' },
+  updateProgressDialog: { name: 'UpdateProgressDialog', template: '<span />' },
 }));
 
 vi.mock('@/utils/logger', () => ({

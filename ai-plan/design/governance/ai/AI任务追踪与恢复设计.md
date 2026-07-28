@@ -297,11 +297,17 @@ bootstrap、loop、closeout 和归档消费的统一输入。
 
 ### 4.1 可复用工作树生命周期
 
-1. Agent 使用 `graft-worktree-manager acquire <branch>` 获取最低编号的空闲目录，或创建下一个编号目录。每个槽位保留一个
-   本地-only 的 `main-XX` 标记分支；空闲槽位即使落后缓存的 `origin/main` 也可在 acquire 时刷新。
-2. Agent 在唯一任务分支内修改、验证和提交。
-3. Agent 输出 Review Summary 并等待开发者在主工作区完成 merge 或 cherry-pick。
-4. 开发者以确认的集成引用调用 `release`；目录刷新到当前 `origin/main` 并恢复对应的 `main-XX` 标记分支，本地任务分支被清理。
+1. Agent 使用 `graft-worktree-manager acquire <branch>` 获取最低编号的已注册空闲目录；若没有，先恢复最低编号的安全
+   `main-XX` marker-only 槽位，再补齐最低缺号，最后才连续扩容。目录、Git 注册和 marker 不一致时 fail-closed，必须先
+   `doctor` 并按 `repair` 处理。
+2. Agent 在唯一任务分支内修改、验证和提交。`acquire` 在 Git common directory 写入本地 lease；它只记录槽位操作状态，
+   不替代 topic tracking 或任务恢复真值。
+3. 任务完成时，Agent 必须在工作区干净且已验证提交后通过 closeout 记录 `release-ready`。脏工作树只能表示进行中或阻塞，
+   不能被声明为已完成。
+4. 开发者以两阶段方式调用 `release`：先不带确认引用运行预览，只输出 task branch、提交与 diff 统计且不改变任何
+   worktree、branch 或 lease；确认集成引用包含 task branch 后，再以该引用运行确认阶段。确认阶段刷新到当前
+   `origin/main`，恢复对应的 `main-XX` 标记分支，并清理本地 task branch 和 lease。历史无 lease 分支在 clean 与
+   集成证明满足时可一次性回收，并显式报告 `legacy-untracked`。
 
 对于历史上以 detached HEAD 保存的干净槽位，开发者可使用 `reconcile --confirm <slot> ...` 进行一次性转换。该命令只处理
 明确指定且可证明属于旧 main 基线的槽位，不接管脏工作树、任务分支或包含未合并提交的 detached 工作树。

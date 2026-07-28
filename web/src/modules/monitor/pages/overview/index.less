@@ -474,10 +474,11 @@
 .trend-panel__body {
   display: grid;
   gap: var(--graft-density-gap-16);
+  min-width: 0;
 }
 
 .trend-panel__body--overview {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .trend-overview-section,
@@ -487,6 +488,7 @@
   background: var(--monitor-surface-background);
   border: 1px solid var(--monitor-surface-border);
   border-radius: var(--td-radius-large);
+  min-width: 0;
   padding: var(--graft-density-gap-16);
 }
 

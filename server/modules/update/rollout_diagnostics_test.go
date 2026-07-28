@@ -17,6 +17,7 @@ import (
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
+	"graft/server/internal/testassert"
 )
 
 func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
@@ -81,6 +82,73 @@ func TestGetFailureDiagnosticReturnsStoredSanitizedEvidence(t *testing.T) {
 	}
 }
 
+func TestGetOperationFailureDiagnosticUsesOperationIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "operationID", Value: "update-92"}}
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/platform/updates/operations/update-92/diagnostic", nil)
+	store := &failureDiagnosticStoreRecorder{value: FailureDiagnostic{RequestID: "request-92", OperationID: "update-92", TargetVersion: "0.11.0-beta.9", FailureCode: rolloutFailureRunnerTerminal, FailureStage: "runner_receipt", Summary: runnerFailureDiagnosticSummary, Detail: "runner reported a terminal failure (receipt_write_failed)", OccurredAt: time.Now().UTC()}}
+
+	updateRouteHandlers{diagnostics: store}.getOperationFailureDiagnostic(ctx)
+
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "update-92") {
+		t.Fatalf("expected operation diagnostic response, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestGetOperationFailureDiagnosticClassifiesInvalidNotFoundAndStoreErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name        string
+		operationID string
+		store       *failureDiagnosticStoreRecorder
+		wantStatus  int
+		wantKey     string
+	}{
+		{
+			name:        "invalid operation identity",
+			operationID: "invalid/operation",
+			store:       &failureDiagnosticStoreRecorder{},
+			wantStatus:  http.StatusBadRequest,
+			wantKey:     "common.invalid_argument",
+		},
+		{
+			name:        "diagnostic not found",
+			operationID: "update-93",
+			store:       &failureDiagnosticStoreRecorder{err: errUpdateFailureDiagnosticNotFound},
+			wantStatus:  http.StatusNotFound,
+			wantKey:     "common.not_found",
+		},
+		{
+			name:        "diagnostic store failure",
+			operationID: "update-94",
+			store:       &failureDiagnosticStoreRecorder{err: errors.New("database unavailable")},
+			wantStatus:  http.StatusInternalServerError,
+			wantKey:     "common.internal_error",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Params = gin.Params{{Key: "operationID", Value: testCase.operationID}}
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/api/platform/updates/operations/"+testCase.operationID+"/diagnostic", nil)
+
+			updateRouteHandlers{diagnostics: testCase.store}.getOperationFailureDiagnostic(ctx)
+
+			if recorder.Code != testCase.wantStatus {
+				t.Fatalf("expected status %d, got %d: %s", testCase.wantStatus, recorder.Code, recorder.Body.String())
+			}
+			payload := testassert.DecodeErrorResponse(t, recorder)
+			if payload.MessageKey != testCase.wantKey {
+				t.Fatalf("expected message key %q, got %#v", testCase.wantKey, payload)
+			}
+		})
+	}
+}
+
 type startFailureTestFixture struct {
 	recorder    *httptest.ResponseRecorder
 	context     *gin.Context
@@ -100,6 +168,13 @@ func (r *failureDiagnosticStoreRecorder) CreateFailureDiagnostic(_ context.Conte
 }
 
 func (r *failureDiagnosticStoreRecorder) GetFailureDiagnostic(context.Context, string) (FailureDiagnostic, error) {
+	if r.err != nil {
+		return FailureDiagnostic{}, r.err
+	}
+	return r.value, nil
+}
+
+func (r *failureDiagnosticStoreRecorder) GetFailureDiagnosticByOperation(context.Context, string) (FailureDiagnostic, error) {
 	if r.err != nil {
 		return FailureDiagnostic{}, r.err
 	}

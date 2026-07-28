@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { request } from '@/utils/request';
 
 import { UPDATE_API_PATH } from '../contract/paths';
-import { checkForUpdates, createUpdateOperation, getUpdateOperations, getUpdateStatus } from './update';
+import {
+  checkForUpdates,
+  createUpdateOperation,
+  getUpdateOperation,
+  getUpdateOperationDiagnostic,
+  getUpdateOperations,
+  getUpdateStatus,
+} from './update';
 
 vi.mock('@/utils/request', () => ({
   request: {
@@ -51,6 +58,19 @@ describe('platform update api', () => {
     expect(requestPost).toHaveBeenCalledWith({
       url: UPDATE_API_PATH.OPERATIONS,
       data: { target_version: '1.1.0', compose_candidate_key: 'candidate-1' },
+    });
+  });
+
+  it('reads operation progress and its controlled diagnostic through operation-scoped endpoints', async () => {
+    const requestGet = vi.mocked(request.get);
+    requestGet.mockResolvedValue({ operation_id: 'update-1' } as never);
+
+    await getUpdateOperation('update-1');
+    await getUpdateOperationDiagnostic('update-1');
+
+    expect(requestGet).toHaveBeenNthCalledWith(1, { url: '/api/platform/updates/operations/update-1' });
+    expect(requestGet).toHaveBeenNthCalledWith(2, {
+      url: '/api/platform/updates/operations/update-1/diagnostic',
     });
   });
 });

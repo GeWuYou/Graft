@@ -133,7 +133,24 @@
 
       <t-card :title="t('update.center.history.title')" bordered>
         <t-alert v-if="historyError" theme="warning" :message="historyError" />
-        <t-table v-else :data="operations" row-key="operation_id" :columns="operationColumns" size="small" />
+        <t-table v-else :data="operations" row-key="operation_id" :columns="operationColumns" size="small">
+          <template #status="{ row }">
+            <t-tag size="small" :theme="operationStatusTheme(row.status)" variant="light-outline">
+              {{ t(`update.center.history.statuses.${row.status}`) }}
+            </t-tag>
+          </template>
+          <template #failure_code="{ row }">
+            <t-button
+              v-if="hasFailureDiagnostic(row) && !dataSource"
+              size="small"
+              variant="text"
+              @click="showHistoryCause(row)"
+            >
+              {{ t('update.center.history.viewCause') }}
+            </t-button>
+            <span v-else>{{ row.failure_code || '-' }}</span>
+          </template>
+        </t-table>
       </t-card>
     </template>
 
@@ -153,7 +170,11 @@
       <template v-if="isDockerDiscovery">
         <p class="update-center__compose-root-title">{{ t('update.center.composeRoot.title') }}</p>
         <p class="update-center__card-description">{{ t('update.center.composeRoot.description') }}</p>
-        <t-radio-group v-model="selectedCandidateKey" direction="vertical">
+        <section v-if="resolvedCandidate" class="update-center__resolved-candidate" data-testid="resolved-compose-root">
+          <strong>{{ resolvedCandidate.host_path }}</strong>
+          <small>{{ resolvedCandidate.compose_files.join(', ') }}</small>
+        </section>
+        <t-radio-group v-else v-model="selectedCandidateKey" direction="vertical">
           <t-radio v-for="candidate in composeCandidates" :key="candidate.key" :value="candidate.key">
             <span class="update-center__candidate">
               <strong>{{ candidate.host_path }}</strong>
@@ -231,6 +252,7 @@ import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
+import { useUpdateProgressStore } from '../../store/progress';
 import type { UpdateCenterDataSource } from '../../types/preview';
 import type { UpdateChannel, UpdateFailureDiagnostic, UpdateOperation, UpdateStatus } from '../../types/update';
 
@@ -243,6 +265,7 @@ const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
 const discoveryStore = useUpdateDiscoveryStore();
+const progressStore = useUpdateProgressStore();
 const previewStatus = ref<UpdateStatus | null>(null);
 const status = computed<UpdateStatus | null>(() => (props.dataSource ? previewStatus.value : discoveryStore.status));
 const loading = computed(() => (props.dataSource ? !previewStatus.value : discoveryStore.phase === 'loading'));
@@ -267,8 +290,20 @@ const isDockerDiscovery = computed(
   () => status.value?.installation_profile.compose_root_source === 'docker_discovered',
 );
 const composeCandidates = computed(() => status.value?.installation_profile.compose_candidates ?? []);
+const composeRootConfirmationRequired = computed(
+  () => status.value?.installation_profile.compose_root_confirmation_required === true,
+);
+const resolvedCandidate = computed(() => {
+  if (composeRootConfirmationRequired.value) return null;
+  const candidates = composeCandidates.value;
+  const highConfidence = candidates.filter(({ confidence }) => confidence === 'high');
+  return highConfidence[0] ?? candidates[0] ?? null;
+});
 const hasSelectedCandidate = computed(
-  () => !isDockerDiscovery.value || composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
+  () =>
+    !isDockerDiscovery.value ||
+    Boolean(resolvedCandidate.value) ||
+    composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
 );
 const canOpenUpgradeFlow = computed(
   () =>
@@ -408,14 +443,21 @@ async function submitUpgrade() {
   try {
     const payload = {
       target_version: status.value.latest.version,
-      ...(isDockerDiscovery.value ? { compose_candidate_key: selectedCandidateKey.value } : {}),
+      // 唯一高置信候选已由服务端解析，避免把选择键回传成第二份客户端事实。
+      ...(isDockerDiscovery.value && composeRootConfirmationRequired.value
+        ? { compose_candidate_key: selectedCandidateKey.value }
+        : {}),
     };
+    let operation: UpdateOperation;
     if (props.dataSource) {
-      await props.dataSource.createOperation(payload);
+      operation = await props.dataSource.createOperation(payload);
     } else {
-      await createUpdateOperation(payload);
+      operation = await createUpdateOperation(payload);
     }
     confirmationVisible.value = false;
+    if (!props.dataSource) {
+      progressStore.begin(operation);
+    }
     await loadHistory();
   } catch (error) {
     operationError.value = resolveOperationErrorMessage(error);
@@ -442,9 +484,33 @@ function openAppLogs() {
   void router.push(buildAppLogLocation({ request_id: operationRequestId.value }));
 }
 
+function hasFailureDiagnostic(operation: UpdateOperation) {
+  return Boolean(
+    operation.failure_diagnostic_available && (operation.status === 'FAILED' || operation.status === 'NEEDS_ATTENTION'),
+  );
+}
+
+function showHistoryCause(operation: UpdateOperation) {
+  if (props.dataSource) {
+    return;
+  }
+  progressStore.begin(operation);
+}
+
+function operationStatusTheme(status: UpdateOperation['status']) {
+  if (status === 'FAILED' || status === 'NEEDS_ATTENTION') return 'danger';
+  if (status === 'SUCCESS' || status === 'RECOVERED') return 'success';
+  if (status === 'RECREATING' || status === 'VERIFYING') return 'warning';
+  return 'primary';
+}
+
 function syncCandidateSelection() {
   const candidates = status.value?.installation_profile.compose_candidates ?? [];
   if (status.value?.installation_profile.compose_root_source !== 'docker_discovered') {
+    selectedCandidateKey.value = '';
+    return;
+  }
+  if (resolvedCandidate.value) {
     selectedCandidateKey.value = '';
     return;
   }
@@ -598,6 +664,20 @@ function formatDate(value: string) {
 .update-center__candidate small {
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
+}
+
+.update-center__resolved-candidate {
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-component-border);
+  display: grid;
+  gap: var(--td-comp-margin-xs);
+  margin-top: var(--td-comp-margin-m);
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+}
+
+.update-center__resolved-candidate small {
+  color: var(--td-text-color-secondary);
+  overflow-wrap: anywhere;
 }
 
 .update-center__notes {

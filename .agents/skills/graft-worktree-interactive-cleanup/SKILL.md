@@ -15,7 +15,7 @@ interactive confirmation, and the non-ancestor-but-equivalent patch check.
    `docs/automation`, with recovery source `none` unless the user names a topic.
 2. Run the manager status command and inspect only the user-named numbered slots.
 3. Record each slot's current branch, HEAD, upstream, clean/dirty state, conflict state,
-   and divergence from the explicit integration HEAD and `origin/main`.
+   divergence from the explicit integration HEAD and `origin/main`, and manager lifecycle state.
 4. Never inspect `main-XX` pool markers as task branches, and never touch an unnamed slot.
 
 ## Classify
@@ -31,6 +31,9 @@ Classify a task branch before asking for cleanup confirmation:
 
 Do not release `unreleased` or `unsafe` slots. A deleted upstream branch alone does not prove
 that local work is disposable.
+
+For leases created by the current manager, `release-ready` is also required before release. A historical
+`legacy-untracked` task branch may use the existing clean-and-integrated release path, but must be reported as such.
 
 ## Confirm And Mutate
 
