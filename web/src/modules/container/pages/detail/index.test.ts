@@ -321,14 +321,23 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.detail.logs.basicInfo': '基础信息',
   'container.detail.logs.clear': '清空',
   'container.detail.logs.collapseDetail': '收起详情',
+  'container.detail.logs.collapseLog': '收起日志',
   'container.detail.logs.copyJson': '复制 JSON',
   'container.detail.logs.copyLine': '复制本行',
   'container.detail.logs.detailTitle': '日志详情',
+  'container.detail.logs.detailWrap': '自动换行',
   'container.detail.logs.download': '下载',
+  'container.detail.logs.downloadFragment': '下载日志片段',
+  'container.detail.logs.expandLog': '展开更多',
+  'container.detail.logs.fontSize': '字体大小',
+  'container.detail.logs.fontSizeLarge': '大',
+  'container.detail.logs.fontSizeMedium': '中',
+  'container.detail.logs.fontSizeSmall': '小',
   'container.detail.logs.level': '级别',
   'container.detail.logs.levelFilter': '级别',
   'container.detail.logs.matchCount': '{count} 个匹配',
   'container.detail.logs.metadata': '元数据',
+  'container.detail.logs.moreActions': '更多操作',
   'container.detail.logs.importantFields': '关键字段',
   'container.detail.logs.message': '日志内容',
   'container.detail.logs.title': '容器日志',
@@ -341,6 +350,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'container.detail.logs.resume': '继续',
   'container.detail.logs.reconnect': '重新连接',
   'container.detail.logs.jumpBottom': '跳至底部',
+  'container.detail.logs.jumpTop': '回到顶部',
   'container.detail.logs.searchPlaceholder': '搜索日志内容',
   'container.detail.logs.stream': '输出流',
   'container.detail.logs.source': '来源',
@@ -1621,6 +1631,18 @@ describe('container detail page', () => {
     expect(logController).toBeTruthy();
     expect(wrapper.get('.log-viewer').text()).toContain('server started');
     expect(wrapper.get('[data-testid="container-detail-logs-header"]').text()).toContain('容器日志');
+    expect(wrapper.getComponent({ name: 'LogViewer' }).props()).toMatchObject({
+      collapseLogLabel: '收起日志',
+      detailWrapLabel: '自动换行',
+      downloadLogFragmentLabel: '下载日志片段',
+      expandLogLabel: '展开更多',
+      fontSizeLabel: '字体大小',
+      fontSizeLargeLabel: '大',
+      fontSizeMediumLabel: '中',
+      fontSizeSmallLabel: '小',
+      jumpTopLabel: '回到顶部',
+      moreActionsLabel: '更多操作',
+    });
 
     logController!.emitMessage(createRealtimeLogEvent('server ready'));
     await flushLogViewerUpdates();

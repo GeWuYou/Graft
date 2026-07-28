@@ -15,7 +15,6 @@
       <t-tooltip :content="fullscreen ? exitFullscreenLabel : fullscreenLabel" theme="light">
         <t-button
           :aria-label="fullscreen ? exitFullscreenLabel : fullscreenLabel"
-          class="log-viewer__fullscreen-action"
           shape="square"
           size="small"
           theme="default"
@@ -308,7 +307,7 @@
                         size="small"
                         theme="default"
                         variant="text"
-                        @click.stop="copyLine(line.raw)"
+                        @click.stop="copyLine(line.displayRaw)"
                       >
                         <template #icon>
                           <copy-icon />
@@ -606,7 +605,7 @@
                     size="small"
                     theme="default"
                     variant="text"
-                    @click.stop="copyLine(line.raw)"
+                    @click.stop="copyLine(line.displayRaw)"
                   >
                     <template #icon>
                       <copy-icon />
@@ -788,7 +787,7 @@
 defineOptions({ inheritAttrs: false });
 
 import { BrowseIcon, CopyIcon, FullscreenIcon } from 'tdesign-icons-vue-next';
-import type { DropdownProps, SelectProps } from 'tdesign-vue-next';
+import type { DropdownOption, DropdownProps, SelectProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import {
   type ComponentPublicInstance,
@@ -969,6 +968,7 @@ const viewportClientHeight = ref(DEFAULT_VIRTUAL_VIEWPORT_HEIGHT);
 const viewportPinnedToBottom = ref(true);
 const hasAutoScrolledSinceLastEmpty = ref(false);
 const selectedLineKey = ref<string | null>(null);
+const collapsedMessageMaxHeight = `${COLLAPSED_MESSAGE_MAX_HEIGHT_PX}px`;
 const measuredHeights = shallowRef(new Map<string, number>());
 const expandableMessageKeys = ref(new Set<string>());
 const expandedMessageKeys = ref(new Set<string>());
@@ -1207,7 +1207,7 @@ function emitLimit(value: SelectProps['value']) {
 }
 
 async function copyContent() {
-  await copyTextWithFeedback(displayLines.value.map((line) => line.raw).join('\n'));
+  await copyTextWithFeedback(displayLines.value.map((line) => line.displayRaw).join('\n'));
 }
 
 async function copyLine(raw: string) {
@@ -1220,12 +1220,12 @@ async function copyJson(metadata: ParsedLogMetadata) {
 }
 
 function downloadContent() {
-  downloadText(displayLines.value.map((line) => line.raw).join('\n'));
+  downloadText(displayLines.value.map((line) => line.displayRaw).join('\n'));
 }
 
 function downloadSelectedLine() {
   if (selectedLine.value) {
-    downloadText(selectedLine.value.raw, 'log-fragment');
+    downloadText(selectedLine.value.displayRaw, 'log-fragment');
   }
 }
 
@@ -1247,7 +1247,7 @@ function togglePause() {
   emit('pause');
 }
 
-async function handleMoreAction(item: { value?: unknown }) {
+async function handleMoreAction(item: DropdownOption, _context: { e: MouseEvent }) {
   switch (item.value) {
     case 'clear':
       emit('clear');
@@ -1396,6 +1396,8 @@ function setMessageRef(rowKey: string, element: Element | ComponentPublicInstanc
       return;
     }
     expandableMessageKeys.value = new Set(expandableMessageKeys.value).add(rowKey);
+    clearMeasuredHeights();
+    void nextTick(syncViewportMetrics);
   });
 }
 
@@ -1433,13 +1435,24 @@ function pruneMeasuredHeights() {
     changed = true;
   }
   if (changed) triggerRef(measuredHeights);
-  const activeExpandableKeys = new Set(displayLines.value.map((line) => line.rowKey));
-  expandableMessageKeys.value = new Set(
-    [...expandableMessageKeys.value].filter((rowKey) => activeExpandableKeys.has(rowKey)),
-  );
-  expandedMessageKeys.value = new Set(
-    [...expandedMessageKeys.value].filter((rowKey) => activeExpandableKeys.has(rowKey)),
-  );
+  const nextExpandableKeys = pruneRowKeys(expandableMessageKeys.value, activeRowKeys);
+  if (nextExpandableKeys !== expandableMessageKeys.value) {
+    expandableMessageKeys.value = nextExpandableKeys;
+  }
+  const nextExpandedKeys = pruneRowKeys(expandedMessageKeys.value, activeRowKeys);
+  if (nextExpandedKeys !== expandedMessageKeys.value) {
+    expandedMessageKeys.value = nextExpandedKeys;
+  }
+}
+
+function pruneRowKeys(rowKeys: Set<string>, activeRowKeys: ReadonlySet<string>) {
+  let nextRowKeys: Set<string> | null = null;
+  for (const rowKey of rowKeys) {
+    if (activeRowKeys.has(rowKey)) continue;
+    nextRowKeys ??= new Set(rowKeys);
+    nextRowKeys.delete(rowKey);
+  }
+  return nextRowKeys ?? rowKeys;
 }
 
 function scheduleScrollToBottom() {
@@ -1471,7 +1484,7 @@ function isActive(rowKey: string) {
 
 async function copySelectedLine() {
   if (selectedLine.value) {
-    await copyLine(selectedLine.value.raw);
+    await copyLine(selectedLine.value.displayRaw);
   }
 }
 
@@ -1704,11 +1717,6 @@ function isViewportNearBottom(node: HTMLElement) {
   display: none;
 }
 
-.log-viewer__fullscreen-action {
-  position: sticky;
-  right: 0;
-}
-
 .log-viewer__limit {
   width: 96px;
 }
@@ -1916,7 +1924,7 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__message--collapsed {
-  max-height: 300px;
+  max-height: v-bind('collapsedMessageMaxHeight');
   overflow: hidden;
 }
 
@@ -2248,7 +2256,7 @@ function isViewportNearBottom(node: HTMLElement) {
   color: var(--td-text-color-placeholder);
 }
 
-@media (width >= 768px) and (width <= 991px) {
+@container (width >= 768px) and (width <= 991px) {
   .log-viewer__toolbar {
     align-items: stretch;
   }
@@ -2268,7 +2276,7 @@ function isViewportNearBottom(node: HTMLElement) {
   }
 }
 
-@media (width < 768px) {
+@container (width < 768px) {
   .log-viewer__toolbar {
     align-items: stretch;
     display: grid;

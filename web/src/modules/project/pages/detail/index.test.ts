@@ -171,6 +171,7 @@ const detailMessages = {
   'project.detail.services.actions.restart': 'Restart',
   'project.detail.services.actions.start': 'Start',
   'project.detail.services.actions.stop': 'Stop',
+  'project.detail.services.batch.actionMenu': 'Batch Actions',
   'project.detail.services.batch.cancelSelection': 'Clear Selection',
   'project.detail.services.batch.confirmRestart': 'Restart the {count} selected services?',
   'project.detail.services.batch.confirmRestartTitle': 'Confirm Batch Service Restart',
@@ -1730,9 +1731,7 @@ describe('Application detail service tab', () => {
     await flushPromises();
 
     expect(wrapper.find('.project-service-selection-toolbar').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="project-service-batch-actions"]').text()).toBe(
-      'project.detail.services.batch.actionMenu',
-    );
+    expect(wrapper.get('[data-testid="project-service-batch-actions"]').text()).toBe('Batch Actions');
     expect(wrapper.findAll('[data-dropdown-action]').map((item) => item.attributes('data-dropdown-action'))).toEqual([
       'start',
       'stop',
