@@ -184,6 +184,31 @@
       >
         {{ t('update.center.confirmation.requestId', { requestId: operationRequestId }) }}
       </p>
+      <t-alert
+        v-if="diagnosticUnavailable"
+        class="update-center__diagnostic-unavailable"
+        theme="warning"
+        :message="t('update.center.confirmation.diagnosticUnavailable')"
+      />
+      <section v-if="operationDiagnostic" class="update-center__diagnostic" data-testid="update-operation-diagnostic">
+        <div class="update-center__diagnostic-heading">
+          <strong>{{ t('update.center.confirmation.diagnosticTitle') }}</strong>
+          <t-button size="small" variant="text" @click="openAppLogs">
+            {{ t('update.center.confirmation.viewAppLogs') }}
+          </t-button>
+        </div>
+        <dl>
+          <div>
+            <dt>{{ t('update.center.confirmation.diagnosticCode') }}</dt>
+            <dd>{{ operationDiagnostic.failure_code }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('update.center.confirmation.diagnosticStage') }}</dt>
+            <dd>{{ operationDiagnostic.failure_stage }}</dd>
+          </div>
+        </dl>
+        <pre>{{ operationDiagnostic.detail }}</pre>
+      </section>
     </t-dialog>
   </div>
 </template>
@@ -192,21 +217,22 @@
 import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
+import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { ManagementEmptyState } from '@/shared/components/management';
 import { MarkdownViewer } from '@/shared/components/markdown';
 import { formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
 
-import { createUpdateOperation, getUpdateOperations } from '../../api/update';
+import { createUpdateOperation, getUpdateFailureDiagnostic, getUpdateOperations } from '../../api/update';
 import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
-import type { UpdateChannel, UpdateOperation, UpdateStatus } from '../../types/update';
+import type { UpdateChannel, UpdateFailureDiagnostic, UpdateOperation, UpdateStatus } from '../../types/update';
 
 const props = defineProps<{
   dataSource?: UpdateCenterDataSource;
@@ -214,6 +240,7 @@ const props = defineProps<{
 
 const { locale, t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 const permissionStore = usePermissionStore();
 const discoveryStore = useUpdateDiscoveryStore();
 const previewStatus = ref<UpdateStatus | null>(null);
@@ -227,6 +254,8 @@ const confirmationVisible = ref(false);
 const submitting = ref(false);
 const operationError = ref('');
 const operationRequestId = ref('');
+const operationDiagnostic = ref<UpdateFailureDiagnostic | null>(null);
+const diagnosticUnavailable = ref(false);
 const selectedCandidateKey = ref('');
 const canCheck = computed(() =>
   props.dataSource ? props.dataSource.permissions.check : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK),
@@ -362,6 +391,8 @@ function openConfirmation() {
   }
   operationError.value = '';
   operationRequestId.value = '';
+  operationDiagnostic.value = null;
+  diagnosticUnavailable.value = false;
   confirmationVisible.value = true;
 }
 
@@ -372,6 +403,8 @@ async function submitUpgrade() {
   submitting.value = true;
   operationError.value = '';
   operationRequestId.value = '';
+  operationDiagnostic.value = null;
+  diagnosticUnavailable.value = false;
   try {
     const payload = {
       target_version: status.value.latest.version,
@@ -388,9 +421,25 @@ async function submitUpgrade() {
     operationError.value = resolveOperationErrorMessage(error);
     operationRequestId.value =
       isApiRequestError(error) && isUpdateOperationFailureCode(error.code) ? error.traceId.trim() : '';
+    if (operationRequestId.value) {
+      try {
+        operationDiagnostic.value = props.dataSource
+          ? await props.dataSource.getFailureDiagnostic(operationRequestId.value)
+          : await getUpdateFailureDiagnostic(operationRequestId.value);
+      } catch {
+        diagnosticUnavailable.value = true;
+      }
+    }
   } finally {
     submitting.value = false;
   }
+}
+
+function openAppLogs() {
+  if (!operationRequestId.value) {
+    return;
+  }
+  void router.push(buildAppLogLocation({ request_id: operationRequestId.value }));
 }
 
 function syncCandidateSelection() {
@@ -585,6 +634,56 @@ function formatDate(value: string) {
 
 .update-center__confirmation-error {
   margin-top: var(--td-comp-margin-l);
+}
+
+.update-center__diagnostic-unavailable {
+  margin-top: var(--td-comp-margin-l);
+}
+
+.update-center__diagnostic {
+  border-top: 1px solid var(--td-component-border);
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  margin-top: var(--td-comp-margin-l);
+  padding-top: var(--td-comp-paddingTB-l);
+
+  dl {
+    display: grid;
+    gap: var(--td-comp-margin-l);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  dt {
+    color: var(--td-text-color-secondary);
+    font-size: var(--td-font-size-s);
+  }
+
+  dd {
+    margin: var(--td-comp-margin-xs) 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  pre {
+    background: var(--td-bg-color-container-hover);
+    color: var(--td-text-color-primary);
+    font-family: var(--td-font-family-mono);
+    font-size: var(--td-font-size-s);
+    line-height: 1.5;
+    margin: 0;
+    max-height: 240px;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
+    white-space: pre-wrap;
+  }
+}
+
+.update-center__diagnostic-heading {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-s);
+  justify-content: space-between;
 }
 
 .update-center__candidate-selection {

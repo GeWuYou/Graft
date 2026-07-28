@@ -1,159 +1,110 @@
 import { describe, expect, it } from 'vitest';
 
-import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
+import detailContentText from '../../components/VolumeDetailContent.vue?raw';
+import removalContentText from '../../components/VolumeRemovalConfirmContent.vue?raw';
+import presentationText from '../../shared/volume-presentation.ts?raw';
+import removalText from '../../shared/volume-removal.ts?raw';
 import sourceText from './index.vue?raw';
 
-describe('docker volume list page', () => {
-  it('centers a standalone detail loading indicator before the request resolves', () => {
-    expect(sourceText).toContain('class="docker-volume-page__detail-loading-host"');
-    expect(sourceText).toContain('.docker-volume-page__detail-loading-host {\n  min-height: 240px;');
-    expect(sourceText).toContain('class="docker-volume-page__detail-loading-host__indicator"');
-    expect(sourceText).toContain('place-items: center;');
-    expect(sourceText).toContain('docker-volume-detail-loading-spin 1s linear infinite');
-  });
-
-  it('keeps volume detail content in a drawer while allowing reference navigation', () => {
-    expect(sourceText).toContain('<t-drawer');
-    expect(sourceText).toContain('getDockerVolume');
-    expect(sourceText).toContain('useRouter');
-    expect(sourceText).toContain("query: { tab: 'storage' }");
-  });
-
-  it('keeps long names bounded and exposes the complete name through a tooltip', () => {
-    expect(sourceText).toContain('table-layout="fixed"');
+describe('docker volume asset management page', () => {
+  it('renders a compact mobile asset card instead of stacking every table field', () => {
+    expect(sourceText).toContain('cards-visible');
+    expect(sourceText).toContain('density-scope="viewport"');
+    expect(sourceText).toContain('entity-card-layout="compact"');
+    expect(sourceText).toContain('preserve-inactive');
+    expect(sourceText).toContain('class="docker-volume-page__card"');
+    expect(sourceText).toContain('class="docker-volume-page__card-primary"');
+    expect(sourceText).toContain('class="docker-volume-page__card-secondary"');
+    expect(sourceText).toContain('block-size: 9.25rem;');
     expect(sourceText).toContain('middleEllipsis(row.name, 31)');
-    expect(sourceText).toContain(':content="row.name"');
-    expect(sourceText).toContain("const columns = computed<TableProps['columns']>(() => [");
-    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 }");
   });
 
-  it('makes volume identity, ownership, capacity, and relationship status scannable in one row', () => {
-    expect(sourceText).toContain("t('container.volume.types.named')");
-    expect(sourceText).toContain("t('container.volume.types.anonymous')");
-    expect(sourceText).toContain('const anonymousVolumeName = /^[a-f0-9]{64}$/i;');
-    expect(sourceText).toContain('function sourceDescription(row: VolumeRow)');
-    expect(sourceText).toContain("colKey: 'size'");
-    expect(sourceText).toContain("t('container.volume.columns.mountedContainers')");
-    expect(sourceText).toContain("t('container.volume.columns.status')");
-    expect(sourceText).toContain("title: t('container.resourceContext.source')");
-    expect(sourceText).not.toContain("t('container.volume.columns.references')");
-    expect(sourceText).not.toContain("t('container.volume.columns.usage')");
+  it('navigates mobile cards directly to the renderable detail child route', () => {
+    expect(sourceText).toContain('@click="openDetailPage(row)"');
+    expect(sourceText).toContain('CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.pageRouteName');
+    expect(sourceText).not.toContain('CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.routeName, params');
   });
 
-  it('keeps mounted-container overflow actionable for pointer and keyboard users', () => {
-    expect(sourceText).toContain('<container-reference-list');
-    expect(referenceListText).toContain('<t-popup');
-    expect(referenceListText).toContain('trigger="hover"');
-    expect(referenceListText).toContain('@focus="overflowVisible = true"');
-    expect(referenceListText).toContain('@keydown.esc.prevent="overflowVisible = false"');
-    expect(referenceListText).toContain('@keydown.enter.prevent="emit(\'open\', reference.id)"');
-    expect(referenceListText).toContain('@keydown.space.prevent="emit(\'open\', reference.id)"');
-    expect(referenceListText).toContain('referenceTooltip(reference)');
+  it('keeps the requested desktop column order and sortable capacity', () => {
+    const selection = sourceText.indexOf("colKey: 'row-select'");
+    const name = sourceText.indexOf("colKey: 'name'");
+    const status = sourceText.indexOf("colKey: 'status'");
+    const size = sourceText.indexOf("colKey: 'size'");
+    const references = sourceText.indexOf("colKey: 'references'");
+    const driver = sourceText.indexOf("colKey: 'driver'");
+    const createdAt = sourceText.indexOf("colKey: 'created_at'");
+    const actions = sourceText.indexOf("colKey: 'actions'");
+
+    expect([selection, name, status, size, references, driver, createdAt, actions]).toEqual(
+      [...[selection, name, status, size, references, driver, createdAt, actions]].sort((left, right) => left - right),
+    );
+    expect(sourceText).toContain("colKey: 'size',");
+    expect(sourceText).toContain('sorter: true');
+    expect(sourceText).not.toContain("colKey: 'context'");
   });
 
-  it('provides selection and a batch removal request integration', () => {
-    expect(sourceText).toContain("{ colKey: 'row-select', type: 'multiple' as const, width: 48 }");
-    expect(sourceText).toContain(':selected-row-keys="selectedRowKeys"');
-    expect(sourceText).toContain('@select-change="handleSelectChange"');
-    expect(sourceText).toContain('function handleBatchRemove()');
-    expect(sourceText).toContain('batchRemoveDockerVolumes');
+  it('defaults the server query to capacity descending and supports sort changes', () => {
+    expect(sourceText).toContain("const sort = ref<TableSort>({ sortBy: 'size', descending: true })");
+    expect(sourceText).toContain("sort_by: 'size_bytes'");
+    expect(sourceText).toContain("? 'desc' : 'asc'");
+    expect(sourceText).toContain('@sort-change="handleSortChange"');
   });
 
-  it('cleans unused volumes with paged candidates and cross-page selection', () => {
-    expect(sourceText).toContain("listDockerVolumes({ limit: 100, offset: 0, usage: 'unused' })");
-    expect(sourceText).toContain('while (all.length < firstPage.total)');
-    expect(sourceText).toContain('offset: all.length');
-    expect(sourceText).toContain('if (!page.items.length) break;');
-    expect(sourceText).toContain('await cleanup.open();');
-    expect(sourceText).toContain('cleanup.select');
-    expect(sourceText).toContain('cleanup.totalSize.value');
-    expect(sourceText).toContain('for (let index = 0; index < ids.length; index += 50)');
-    expect(sourceText).toContain('batchRemoveDockerVolumes({ names: chunk, force: false })');
-    expect(sourceText).toContain('requestError = cause;');
-    expect(sourceText).toContain('break;');
-    expect(sourceText).toContain('cleanup.partial');
+  it('uses the volume-specific three-state presentation', () => {
+    expect(presentationText).toContain("status === 'used'");
+    expect(presentationText).toContain("status === 'unused'");
+    expect(presentationText).toContain("theme: 'success'");
+    expect(presentationText).toContain("theme: 'warning'");
+    expect(presentationText).toContain("theme: 'danger'");
+    expect(sourceText).not.toContain("t('container.volume.metrics.referenceUnknown'");
+    expect(sourceText).not.toContain("t('container.volume.unavailable'");
   });
 
-  it('does not append CSS ellipsis to the already middle-ellipsized name', () => {
-    expect(sourceText).toContain('middleEllipsis(row.name, 31)');
-    expect(sourceText).toContain("{ colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 }");
-    expect(sourceText).toContain('function middleEllipsis(value: string, maxLength = 31)');
-    expect(sourceText).not.toContain("title: t('container.volume.columns.name'), ellipsis: true");
-    expect(sourceText).not.toContain('text-overflow: ellipsis;');
-  });
-
-  it('uses the shared paged table with an explicit filter-aware empty state', () => {
-    expect(sourceText).toContain('<management-paged-table');
-    expect(sourceText).toContain('<template #empty>');
-    expect(sourceText).toContain('<t-empty');
-    expect(sourceText).toContain('hasActiveFilters');
+  it('restores filtered compact-card empty states through the existing filter reset action', () => {
+    expect(sourceText).toContain(":title=\"hasActiveFilters ? t('container.volume.pagination.empty')");
+    expect(sourceText).toContain("hasActiveFilters ? t('container.volume.filters.reset')");
+    expect(sourceText).toContain('<template v-if="hasActiveFilters" #action>');
     expect(sourceText).toContain('@click="resetFilters"');
-    expect(sourceText).toContain('<template #name="{ row }">');
-    expect(sourceText).toContain('<template #references="{ row }">');
-    expect(sourceText).toContain('<template #actions="{ row }">');
-    expect(sourceText).toContain('<table-action-menu');
   });
 
-  it('keeps the paged table on the shared data presentation for narrow containers', () => {
-    expect(sourceText).toContain('<management-paged-table');
-    expect(sourceText).toContain('v-model:current="pagination.current"');
-    expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
-    expect(sourceText).not.toContain('presentation="entity"');
+  it('formats compact-card dates with the locale-safe date-only helper', () => {
+    expect(sourceText).toContain('formatLocaleDateOnly(value, locale)');
+    expect(sourceText).not.toContain("formatLocaleDateTime(value, locale).split(' ')");
   });
 
-  it('uses the full runtime summary for four aligned statistics', () => {
-    expect(sourceText).toContain('<management-statistics-bar');
-    expect(sourceText).toContain("t('container.volume.metrics.total')");
-    expect(sourceText).toContain("t('container.volume.metrics.inUse')");
-    expect(sourceText).toContain("t('container.volume.metrics.unused')");
-    expect(sourceText).toContain("t('container.volume.metrics.size')");
-    expect(sourceText).toContain('volumeSummary.value?.size_bytes === null');
-    expect(sourceText).toContain('response.summary');
+  it('uses a compact drawer with shared detail content on desktop', () => {
+    expect(sourceText).toContain('<resource-detail-layout');
+    expect(sourceText).toContain('size="compact"');
+    expect(sourceText).toContain('<volume-detail-content');
+    expect(sourceText).toContain('surface="drawer"');
+    expect(detailContentText).toContain("surface === 'page'");
+    expect(detailContentText).toContain("t('container.resourceContext.configuration')");
+    expect(detailContentText).not.toContain('<docker-resource-context-card');
   });
 
-  it('shows sanitized container references in the table and detail drawer', () => {
-    expect(sourceText).toContain('<container-reference-list');
-    expect(referenceListText).toContain('references.slice(0, 2)');
-    expect(sourceText).toContain('selectedVolume.container_references');
-    expect(sourceText).toContain('openContainerReference(reference.id)');
-    expect(sourceText).toContain("t('container.resourceContext.relations')");
-    expect(sourceText).toContain("t('container.volume.metrics.referenceUnknown'");
+  it('shows relationships, storage facts, and the safe-cleanup empty state on the page surface', () => {
+    expect(detailContentText).toContain('volume.container_references.length');
+    expect(detailContentText).toContain("t('container.volume.detail.noContainers')");
+    expect(detailContentText).toContain('safeCleanupCandidate');
+    expect(detailContentText).toContain("t('container.volume.detail.actualUsage')");
   });
 
-  it('uses TDesign controls in removal confirmations and avoids duplicate filter refreshes', () => {
-    expect(sourceText).toContain('Input,');
-    expect(sourceText).toContain('Checkbox,');
-    expect(sourceText).not.toContain("h('input'");
-    expect(sourceText).toContain('defaultValue: typedName');
-    expect(sourceText).toContain('defaultChecked: isChecked()');
-    expect(sourceText).toContain('const previousPage = pagination.current;');
-    expect(sourceText).toContain('if (previousPage === 1) void refresh();');
+  it('routes every removal entry through the shared danger confirmation facts', () => {
+    expect(sourceText).toContain('openVolumeRemovalConfirmation');
+    expect(sourceText).toContain('confirmCleanupRemoval');
+    expect(removalText).toContain('DialogPlugin.confirm');
+    expect(removalText).toContain("theme: 'danger'");
+    expect(removalContentText).toContain("t('container.volume.columns.name')");
+    expect(removalContentText).toContain("t('container.volume.columns.size')");
+    expect(removalContentText).toContain("t('container.volume.columns.mountedContainers')");
+    expect(removalContentText).toContain("t('container.volume.removal.risk')");
   });
 
-  it('keeps Context and relationship status in the list while moving technical filters behind More Filters', () => {
-    expect(sourceText).toContain("colKey: 'context'");
-    expect(sourceText).toContain("colKey: 'status'");
-    expect(sourceText).toContain('advancedFiltersVisible');
-    expect(sourceText).toContain('<docker-resource-context-card');
-    expect(sourceText).toContain('<t-collapse');
-    expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
-  });
-
-  it('keeps volume detail loading, error, empty, and data states mutually exclusive', () => {
-    expect(sourceText).toContain('v-else-if="selectedVolume"');
-    expect(sourceText).toContain('v-else-if="!detailLoading"');
-    expect(sourceText).toContain('container.volume.detail.emptyTitle');
-    expect(sourceText).toContain('detailError');
-    expect(sourceText).toContain('selectedVolume.value = null;');
-  });
-
-  it('consumes the canonical generated permission contract for dangerous actions', () => {
-    expect(sourceText).toContain("from '@/contracts/generated/modules/container'");
+  it('preserves selection, cleanup, permissions, and container navigation', () => {
+    expect(sourceText).toContain(':selected-row-keys="selectedRowKeys"');
+    expect(sourceText).toContain('batchRemoveDockerVolumes');
+    expect(sourceText).toContain('await cleanup.open();');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.VOLUME_REMOVE');
-    expect(sourceText).not.toContain("from '../../contract/permissions'");
-    expect(sourceText).not.toContain('ops.container.volume.remove');
-    expect(sourceText).toContain('v-if="canRemove"');
-    expect(sourceText).toContain('...(canRemove.value');
-    expect(sourceText).toContain('if (!canRemove.value) return;');
+    expect(sourceText).toContain("query: { tab: 'storage' }");
   });
 });

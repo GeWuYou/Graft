@@ -5,14 +5,18 @@ import { defineComponent, h } from 'vue';
 
 import { usePermissionStore } from '@/store';
 
-import { createUpdateOperation } from '../../api/update';
+import { createUpdateOperation, getUpdateFailureDiagnostic } from '../../api/update';
 import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
 import UpdateCenter from './index.vue';
 
-const apiMocks = vi.hoisted(() => ({ createUpdateOperation: vi.fn(), getUpdateOperations: vi.fn() }));
+const apiMocks = vi.hoisted(() => ({
+  createUpdateOperation: vi.fn(),
+  getUpdateFailureDiagnostic: vi.fn(),
+  getUpdateOperations: vi.fn(),
+}));
 
 const updateStartFailure = (code: string, traceId = 'request-update-42') =>
   Object.assign(new Error('internal implementation detail'), {
@@ -23,7 +27,7 @@ const updateStartFailure = (code: string, traceId = 'request-update-42') =>
   });
 
 vi.mock('../../api/update', () => apiMocks);
-vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }) }));
+vi.mock('vue-router', () => ({ useRoute: () => ({ query: {} }), useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({
@@ -120,6 +124,7 @@ describe('UpdateCenter', () => {
     } as never);
     useUpdateDiscoveryStore().replaceSnapshot(status([]));
     apiMocks.getUpdateOperations.mockResolvedValue([]);
+    apiMocks.getUpdateFailureDiagnostic.mockResolvedValue(null);
     apiMocks.createUpdateOperation.mockResolvedValue({ operation_id: 'operation-1' });
     vi.clearAllMocks();
   });
@@ -191,6 +196,36 @@ describe('UpdateCenter', () => {
     expect(wrapper.text()).not.toContain('internal implementation detail');
   });
 
+  it('loads and renders the protected sanitized diagnostic for a failed update start', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot(
+      status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
+    );
+    apiMocks.createUpdateOperation.mockRejectedValueOnce(
+      updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED),
+    );
+    apiMocks.getUpdateFailureDiagnostic.mockResolvedValueOnce({
+      request_id: 'request-update-42',
+      target_version: '1.1.0',
+      failure_code: UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED,
+      failure_stage: 'runner_launch',
+      summary: 'platform update rollout start failed',
+      detail: 'docker launch failed: [REDACTED]',
+      occurred_at: '2026-07-27T10:00:00Z',
+    });
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(getUpdateFailureDiagnostic).toHaveBeenCalledWith('request-update-42');
+    expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain(
+      'docker launch failed: [REDACTED]',
+    );
+    expect(wrapper.text()).toContain('update.center.confirmation.diagnosticTitle');
+  });
+
   it('uses the generic failure text and hides the request ID for an unknown or network error', async () => {
     useUpdateDiscoveryStore().replaceSnapshot(
       status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
@@ -222,6 +257,7 @@ describe('UpdateCenter', () => {
           status([{ key: 'preview', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
         ),
       getOperations: vi.fn().mockResolvedValue([]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(null),
       createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation' }),
     };
     const wrapper = mountCenter(dataSource);
@@ -243,5 +279,41 @@ describe('UpdateCenter', () => {
       compose_candidate_key: 'preview',
     });
     expect(dataSource.getOperations).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses the injected data source for diagnostics after an injected update submission fails', async () => {
+    const diagnostic = {
+      request_id: 'request-update-42',
+      target_version: '1.1.0',
+      failure_code: UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED,
+      failure_stage: 'runner_launch',
+      summary: 'platform update rollout start failed',
+      detail: 'preview diagnostic',
+      occurred_at: '2026-07-27T10:00:00Z',
+    };
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi
+        .fn()
+        .mockResolvedValue(
+          status([{ key: 'preview', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+        ),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(diagnostic),
+      createOperation: vi
+        .fn()
+        .mockRejectedValue(updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED)),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(dataSource.getFailureDiagnostic).toHaveBeenCalledWith('request-update-42');
+    expect(getUpdateFailureDiagnostic).not.toHaveBeenCalled();
+    expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain('preview diagnostic');
   });
 });

@@ -17,6 +17,7 @@ import (
 
 const dockerImageReadTimeout = 10 * time.Second
 const dockerVolumeUsageTimeout = 3 * time.Second
+const dockerAnonymousVolumeNameLength = 64
 
 // dockerResourceClient 与容器操作 runtime 接口分离，使只读 Docker 资源聚合可以独立替换和测试。
 type dockerResourceClient interface {
@@ -196,13 +197,14 @@ func summarizeDockerNetworks(items []DockerNetwork) DockerNetworkListSummary {
 	return summary
 }
 
-// DockerVolume is the sanitized volume projection shared by list and detail reads.
-// Host mount paths and driver-specific status are intentionally omitted.
+// DockerVolume 是列表与详情读取共享的数据卷投影；Mountpoint 直接来自 Docker 只读事实。
 type DockerVolume struct {
 	Name                string
 	Driver              string
 	Scope               string
 	CreatedAt           string
+	Mountpoint          string
+	Anonymous           bool
 	Labels              map[string]string
 	ReferenceCount      *int64
 	SizeBytes           *int64
@@ -217,6 +219,10 @@ type DockerVolumeListQuery struct {
 	Keyword, Driver, Scope, Usage string
 	Source                        DockerResourceSource
 	ComposeProject                string
+	SortBy, SortOrder             string
+	CreatedAfter, CreatedBefore   *time.Time
+	SizeMinBytes, SizeMaxBytes    *int64
+	Anonymous, Orphaned           *bool
 }
 
 // DockerVolumeListResult 是数据卷列表的分页投影。
@@ -231,6 +237,7 @@ type DockerVolumeListSummary struct {
 	Total            int
 	InUse            int
 	Unused           int
+	Orphaned         int
 	ReferenceUnknown int
 	SizeBytes        *int64
 }
@@ -245,7 +252,7 @@ func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) Docker
 			filtered = append(filtered, item)
 		}
 	}
-	sort.Slice(filtered, func(i, j int) bool { return filtered[i].Name < filtered[j].Name })
+	sortDockerVolumes(filtered, query.SortOrder)
 	total := len(filtered)
 	start := min(query.Offset, total)
 	end := total
@@ -253,6 +260,26 @@ func listDockerVolumes(items []DockerVolume, query DockerVolumeListQuery) Docker
 		end = start + query.Limit
 	}
 	return DockerVolumeListResult{Items: filtered[start:end], Total: total, Limit: query.Limit, Offset: query.Offset, Summary: summarizeDockerVolumes(items)}
+}
+
+func sortDockerVolumes(items []DockerVolume, order string) {
+	ascending := order == "asc"
+	sort.SliceStable(items, func(i, j int) bool {
+		left, right := items[i], items[j]
+		if left.SizeBytes == nil || right.SizeBytes == nil {
+			if left.SizeBytes == nil && right.SizeBytes == nil {
+				return left.Name < right.Name
+			}
+			return left.SizeBytes != nil
+		}
+		if *left.SizeBytes == *right.SizeBytes {
+			return left.Name < right.Name
+		}
+		if ascending {
+			return *left.SizeBytes < *right.SizeBytes
+		}
+		return *left.SizeBytes > *right.SizeBytes
+	})
 }
 
 func summarizeDockerVolumes(items []DockerVolume) DockerVolumeListSummary {
@@ -267,6 +294,9 @@ func summarizeDockerVolumes(items []DockerVolume) DockerVolumeListSummary {
 			summary.InUse++
 		case dockerResourceRelationshipStatusUnused:
 			summary.Unused++
+			if dockerVolumeIsOrphaned(item) {
+				summary.Orphaned++
+			}
 		}
 		if item.SizeBytes == nil {
 			sizeAvailable = false
@@ -284,7 +314,46 @@ func dockerVolumeMatchesQuery(item DockerVolume, query DockerVolumeListQuery, ke
 	return dockerResourceAttributesMatch(
 		dockerResourceAttributes{Name: item.Name, Driver: item.Driver, Scope: item.Scope, Context: item.Context},
 		dockerResourceAttributeFilter{Keyword: keyword, Driver: query.Driver, Scope: query.Scope, Source: query.Source, ComposeProject: query.ComposeProject},
-	) && dockerRelationshipUsageMatches(dockerVolumeRelationshipStatus(item), query.Usage)
+	) && dockerRelationshipUsageMatches(dockerVolumeRelationshipStatus(item), query.Usage) &&
+		dockerVolumeCreatedAtMatches(item, query.CreatedAfter, query.CreatedBefore) &&
+		dockerVolumeSizeMatches(item.SizeBytes, query.SizeMinBytes, query.SizeMaxBytes) &&
+		dockerVolumeBoolMatches(item.Anonymous, query.Anonymous) &&
+		dockerVolumeBoolMatches(dockerVolumeIsOrphaned(item), query.Orphaned)
+}
+
+func dockerVolumeCreatedAtMatches(item DockerVolume, after, before *time.Time) bool {
+	if after == nil && before == nil {
+		return true
+	}
+	created, err := time.Parse(time.RFC3339, item.CreatedAt)
+	if err != nil {
+		return false
+	}
+	if after != nil && created.Before(*after) {
+		return false
+	}
+	return before == nil || !created.After(*before)
+}
+
+func dockerVolumeSizeMatches(size, minimum, maximum *int64) bool {
+	if minimum == nil && maximum == nil {
+		return true
+	}
+	if size == nil {
+		return false
+	}
+	if minimum != nil && *size < *minimum {
+		return false
+	}
+	return maximum == nil || *size <= *maximum
+}
+
+func dockerVolumeBoolMatches(value bool, filter *bool) bool {
+	return filter == nil || value == *filter
+}
+
+func dockerVolumeIsOrphaned(item DockerVolume) bool {
+	return dockerVolumeRelationshipStatus(item) == dockerResourceRelationshipStatusUnused && item.ReferenceCount != nil && *item.ReferenceCount == 0
 }
 
 type dockerResourceAttributes struct {
@@ -329,6 +398,8 @@ func dockerRelationshipUsageMatches(status DockerResourceRelationshipStatus, usa
 		return status == dockerResourceRelationshipStatusUsed
 	case "unused":
 		return status == dockerResourceRelationshipStatusUnused
+	case "abnormal":
+		return status == dockerResourceRelationshipStatusUnknown || status == dockerResourceRelationshipStatusException
 	default:
 		return true
 	}
@@ -800,7 +871,19 @@ func dockerVolume(item volume.Volume) DockerVolume {
 		sizeBytes = nullableUsage(item.UsageData.Size)
 	}
 	name := strings.TrimSpace(item.Name)
-	return DockerVolume{Name: name, Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes, Context: dockerResourceContext(item.Labels, name, composeVolumeLabel, false), RelationshipStatus: dockerRelationshipStatusFromReferenceCount(referenceCount)}
+	return DockerVolume{Name: name, Driver: strings.TrimSpace(item.Driver), Scope: strings.TrimSpace(item.Scope), CreatedAt: strings.TrimSpace(item.CreatedAt), Mountpoint: strings.TrimSpace(item.Mountpoint), Anonymous: dockerVolumeIsAnonymous(name), Labels: cloneLabels(item.Labels), ReferenceCount: referenceCount, SizeBytes: sizeBytes, Context: dockerResourceContext(item.Labels, name, composeVolumeLabel, false), RelationshipStatus: dockerRelationshipStatusFromReferenceCount(referenceCount)}
+}
+
+func dockerVolumeIsAnonymous(name string) bool {
+	if len(name) != dockerAnonymousVolumeNameLength {
+		return false
+	}
+	for _, character := range name {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') && (character < 'A' || character > 'F') {
+			return false
+		}
+	}
+	return true
 }
 
 func dockerResourceContext(labels map[string]string, resourceName, composeResourceLabel string, defaultDockerResource bool) DockerResourceContext {

@@ -438,6 +438,7 @@ function buildPresetFilters(preset: AccessLogPresetKey): Partial<AccessLogFilter
 
 function applyRouteFilters() {
   const {
+    quick_preset: quickPreset = '',
     keyword = '',
     request_id: requestId = '',
     user_id: userId = '',
@@ -458,6 +459,7 @@ function applyRouteFilters() {
   } = parseAccessLogRouteQuery(route.query);
   const parsedSorters = decodeSorters(sort, normalizeSortBy, normalizeSortOrder);
   const nextStatusCode = statusGroup || statusCode;
+  activePreset.value = normalizeQuickPreset(quickPreset);
   filters.value = {
     ...filters.value,
     keyword,
@@ -489,6 +491,7 @@ function buildRouteQuery() {
   const isGroupedStatusCode = filters.value.statusCode === '4xx' || filters.value.statusCode === '5xx';
   return buildAccessLogLocation(
     {
+      quick_preset: activePreset.value === 'all' ? '' : activePreset.value,
       keyword: filters.value.keyword,
       request_id: filters.value.requestId,
       user_id: filters.value.userId,
@@ -521,6 +524,7 @@ async function updateRouteQuery() {
   }
 
   const targetLocation = buildRouteQuery();
+  const currentQuickPreset = typeof route.query.quick_preset === 'string' ? route.query.quick_preset : '';
   const currentKeyword = typeof route.query.keyword === 'string' ? route.query.keyword : '';
   const currentRequestId = typeof route.query.request_id === 'string' ? route.query.request_id : '';
   const currentUserId = typeof route.query.user_id === 'string' ? route.query.user_id : '';
@@ -546,6 +550,7 @@ async function updateRouteQuery() {
   const nextSort = Array.isArray(nextQuery.sort) ? nextQuery.sort : nextQuery.sort ? [nextQuery.sort] : [];
 
   if (
+    currentQuickPreset === (nextQuery.quick_preset ?? '') &&
     currentKeyword === (nextQuery.keyword ?? '') &&
     currentRequestId === (nextQuery.request_id ?? '') &&
     currentUserId === (nextQuery.user_id ?? '') &&
@@ -615,6 +620,7 @@ function matchesClientFilters(row: AccessLogItem, state: AccessLogFilterState) {
 
 watch(
   () => [
+    route.query.quick_preset,
     route.query.keyword,
     route.query.request_id,
     route.query.user_id,
@@ -652,6 +658,17 @@ function normalizeSortBy(value: string) {
     : value === 'started_at'
       ? 'started_at'
       : '';
+}
+
+function normalizeQuickPreset(value: string): AccessLogPresetKey {
+  return value === 'todayErrors' ||
+    value === 'status4xx' ||
+    value === 'status5xx' ||
+    value === 'slowRequests' ||
+    value === 'currentUser' ||
+    value === 'lastHour'
+    ? value
+    : 'all';
 }
 
 function normalizeSortOrder(value: string) {

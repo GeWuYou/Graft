@@ -41,6 +41,9 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 const passthrough = (name: string) =>
   defineComponent({
     name,
+    props: {
+      source: { type: Object, default: undefined },
+    },
     template: '<div><slot name="actions" /><slot /><slot name="action" /></div>',
   });
 
@@ -124,6 +127,24 @@ describe('RuntimeTargetListPage', () => {
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledWith({ limit: 10, offset: 0 });
     expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('7');
     expect(wrapper.get('[data-testid="pagination"]').attributes('data-options')).toBe('10,20,50,100');
+  });
+
+  it('identifies the page as infrastructure in the shared header', async () => {
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 10,
+      offset: 0,
+      summary: { total: 0, healthy: 0, unavailable: 0 },
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findComponent({ name: 'ManagementPageHeader' }).props('source')).toEqual({
+      labelKey: 'runtimeTarget.list.eyebrow',
+      fallback: 'runtimeTarget.list.eyebrow:',
+    });
   });
 
   it('scans Local Docker and reloads the first page', async () => {

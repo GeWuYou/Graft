@@ -6,6 +6,7 @@ import { buildLogListLocation, parseLogRouteQuery } from '@/shared/observability
 import { ACCESS_LOG_ROUTE_PATH } from './paths';
 
 export type AccessLogRouteQuery = Partial<{
+  quick_preset: string;
   keyword: string;
   request_id: string;
   user_id: string;
@@ -26,6 +27,7 @@ export type AccessLogRouteQuery = Partial<{
 }>;
 
 const ACCESS_LOG_QUERY_KEYS = [
+  'quick_preset',
   'keyword',
   'request_id',
   'user_id',
@@ -45,7 +47,7 @@ const ACCESS_LOG_QUERY_KEYS = [
 ] as const;
 type AccessLogQueryKey = (typeof ACCESS_LOG_QUERY_KEYS)[number];
 
-/** 只保留已批准的日志筛选字段，避免 URL 查询参数成为第二套 API 契约。 */
+/** 只保留已批准的日志筛选字段和 UI 快捷筛选上下文，避免 URL 查询参数成为第二套 API 契约。 */
 export function parseAccessLogRouteQuery(query: LocationQuery | AccessLogRouteQuery): AccessLogRouteQuery {
   return parseLogRouteQuery<AccessLogRouteQuery>(query, ACCESS_LOG_QUERY_KEYS);
 }

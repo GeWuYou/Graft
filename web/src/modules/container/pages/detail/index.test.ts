@@ -1190,12 +1190,10 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const headerMeta = wrapper.get('[data-testid="container-detail-header-meta-slot"]');
-    const headerActions = wrapper.get('[data-testid="container-detail-header-actions-slot"]');
+    const header = wrapper.get('.resource-detail-content__header');
 
-    expect(headerMeta.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
-    expect(headerActions.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
-    expect(headerActions.text()).toContain('查看审计');
+    expect(header.find('[data-testid="container-detail-realtime-bar"]').exists()).toBe(false);
+    expect(header.text()).toContain('查看审计');
     expect(wrapper.find('[data-testid="container-detail-tabs-action-slot"]').exists()).toBe(false);
     expect(wrapper.findAll('[data-testid="container-detail-realtime-bar"]')).toHaveLength(0);
   });
@@ -1204,8 +1202,7 @@ describe('container detail page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const actionSlot = wrapper.get('[data-testid="container-detail-header-actions-slot"]');
-    expect(actionSlot.text()).toContain('查看审计');
+    expect(wrapper.get('.resource-detail-content__actions').text()).toContain('查看审计');
 
     await wrapper.get('[data-testid="container-detail-view-audit"]').trigger('click');
     await flushPromises();
@@ -1793,6 +1790,7 @@ describe('container detail page', () => {
   });
 
   it('shows paused viewport semantics when the viewer is paused with no visible lines', async () => {
+    vi.useFakeTimers();
     routeState.route.query.tab = 'logs';
     apiMocks.getContainerLogs.mockResolvedValueOnce({
       id: 'container-1',
@@ -1806,11 +1804,10 @@ describe('container detail page', () => {
     });
 
     const wrapper = mountPage();
-    await flushPromises();
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     await wrapper.get('[data-testid="log-viewer-pause-toggle"]').trigger('click');
-    await flushPromises();
+    await flushLogViewerUpdates();
 
     expect(wrapper.get('[data-testid="container-detail-logs-status"]').text()).toBe('暂停');
     expect(wrapper.get('.log-viewer').text()).toContain('日志流已暂停');

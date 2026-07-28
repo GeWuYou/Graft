@@ -25,7 +25,13 @@ export const CONTAINER_BOOTSTRAP_ROUTE = {
   },
   VOLUMES: {
     menuPath: CONTAINER_ROUTE_PATH.VOLUMES,
+    pageRouteName: 'DockerVolumeListIndex',
     routeName: 'DockerVolumeList',
+  },
+  VOLUME_DETAIL: {
+    path: CONTAINER_ROUTE_PATH.VOLUME_DETAIL,
+    pageRouteName: 'DockerVolumeDetailIndex',
+    routeName: 'DockerVolumeDetail',
   },
 } as const;
 

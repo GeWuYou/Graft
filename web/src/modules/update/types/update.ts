@@ -9,4 +9,6 @@ export type UpdateCapability = UpdateStatus['installation_profile']['capability'
 export type InstallationProfile = UpdateStatus['installation_profile'];
 export type UpdateRelease = NonNullable<UpdateStatus['latest']>;
 export type UpdateOperation = UpdateSchemas['platform-update-operation'];
+/** 更新启动失败诊断只由受权限保护的诊断接口返回，不进入通用错误响应。 */
+export type UpdateFailureDiagnostic = UpdateSchemas['platform-update-failure-diagnostic'];
 export type CreateUpdateOperationRequest = UpdateSchemas['create-platform-update-operation-request'];

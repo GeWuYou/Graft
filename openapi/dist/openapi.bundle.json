@@ -8836,6 +8836,70 @@
         }
       }
     },
+    "/api/platform/updates/diagnostics/{requestId}": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Read a sanitized self-update start failure diagnostic",
+        "operationId": "getPlatformUpdateFailureDiagnostic",
+        "description": "Returns the immutable, sanitized diagnostic retained for a failed update-start request. This protected evidence is available only to platform update managers and does not change the safe error envelope returned by the update-start request.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized update-start failure diagnostic.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-failure-diagnostic"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request identifier."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Update-start failure diagnostic not found."
+          },
+          "500": {
+            "description": "The diagnostic store could not be read."
+          }
+        }
+      }
+    },
     "/api/platform/updates/operations/{operationID}": {
       "get": {
         "tags": [
@@ -13911,6 +13975,30 @@
           },
           {
             "$ref": "#/components/parameters/docker-volume-list-compose-project"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-created-after"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-created-before"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-size-min-bytes"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-size-max-bytes"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-anonymous"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-orphaned"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-sort-by"
+          },
+          {
+            "$ref": "#/components/parameters/docker-volume-list-sort-order"
           }
         ],
         "security": [
@@ -18900,6 +18988,12 @@
       },
       "EnvelopedPlatformUpdateOperationList": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation-list"
+      },
+      "PlatformUpdateFailureDiagnostic": {
+        "$ref": "#/components/schemas/platform-update-failure-diagnostic"
+      },
+      "EnvelopedPlatformUpdateFailureDiagnostic": {
+        "$ref": "#/components/schemas/enveloped-platform-update-failure-diagnostic"
       },
       "AccessLogDetailResponse": {
         "$ref": "#/components/schemas/access-log-detail-response"
@@ -26517,6 +26611,85 @@
           }
         }
       },
+      "platform-update-failure-diagnostic": {
+        "type": "object",
+        "description": "Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.",
+        "required": [
+          "request_id",
+          "target_version",
+          "failure_code",
+          "failure_stage",
+          "summary",
+          "detail",
+          "occurred_at"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "Request identifier that correlates this diagnostic with application and access logs."
+          },
+          "operation_id": {
+            "type": "string",
+            "description": "Update operation identifier when persistence completed before the failure."
+          },
+          "task_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Task runtime identifier when one was created before the failure."
+          },
+          "target_version": {
+            "type": "string",
+            "description": "Requested release version."
+          },
+          "failure_code": {
+            "$ref": "#/components/schemas/platform-update-rollout-failure-code"
+          },
+          "failure_stage": {
+            "type": "string",
+            "description": "Server-side update-start stage that failed."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Controlled operator-facing failure summary."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC time at which the update start failed."
+          }
+        }
+      },
+      "enveloped-platform-update-failure-diagnostic": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-failure-diagnostic"
+          }
+        }
+      },
       "platform-backup-summary": {
         "type": "object",
         "description": "Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned.",
@@ -30899,6 +31072,7 @@
           "driver",
           "scope",
           "created_at",
+          "anonymous",
           "container_references",
           "context",
           "relationship_status"
@@ -30915,6 +31089,10 @@
           },
           "created_at": {
             "type": "string"
+          },
+          "anonymous": {
+            "type": "boolean",
+            "description": "Server-owned classification of Docker-generated anonymous volume names."
           },
           "labels": {
             "type": "object",
@@ -30953,6 +31131,7 @@
           "total",
           "in_use",
           "unused",
+          "orphaned",
           "reference_unknown"
         ],
         "properties": {
@@ -30967,6 +31146,11 @@
           "unused": {
             "type": "integer",
             "minimum": 0
+          },
+          "orphaned": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors."
           },
           "reference_unknown": {
             "type": "integer",
@@ -37345,16 +37529,18 @@
         "name": "usage",
         "in": "query",
         "required": false,
-        "description": "Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.",
+        "description": "Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states.",
         "schema": {
           "type": "string",
           "enum": [
             "used",
-            "unused"
+            "unused",
+            "abnormal"
           ],
           "x-enum-varnames": [
             "DockerVolumeListUsageUsed",
-            "DockerVolumeListUsageUnused"
+            "DockerVolumeListUsageUnused",
+            "DockerVolumeListUsageAbnormal"
           ]
         }
       },
@@ -37376,6 +37562,100 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        }
+      },
+      "docker-volume-list-created-after": {
+        "name": "created_after",
+        "in": "query",
+        "required": false,
+        "description": "Optional inclusive RFC 3339 lower bound for a Docker volume creation time.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "docker-volume-list-created-before": {
+        "name": "created_before",
+        "in": "query",
+        "required": false,
+        "description": "Optional inclusive RFC 3339 upper bound for a Docker volume creation time.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "docker-volume-list-size-min-bytes": {
+        "name": "size_min_bytes",
+        "in": "query",
+        "required": false,
+        "description": "Optional inclusive lower bound for known Docker volume usage in bytes.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "docker-volume-list-size-max-bytes": {
+        "name": "size_max_bytes",
+        "in": "query",
+        "required": false,
+        "description": "Optional inclusive upper bound for known Docker volume usage in bytes.",
+        "schema": {
+          "type": "integer",
+          "format": "int64",
+          "minimum": 0
+        }
+      },
+      "docker-volume-list-anonymous": {
+        "name": "anonymous",
+        "in": "query",
+        "required": false,
+        "description": "Optional server-owned anonymous-volume classification filter.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "docker-volume-list-orphaned": {
+        "name": "orphaned",
+        "in": "query",
+        "required": false,
+        "description": "Optional filter for volumes with a resolved zero-container reference count.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "docker-volume-list-sort-by": {
+        "name": "sort_by",
+        "in": "query",
+        "required": false,
+        "description": "Optional Docker volume sort field. Defaults to size_bytes.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "size_bytes"
+          ],
+          "default": "size_bytes",
+          "x-enum-varnames": [
+            "DockerVolumeListSortBySizeBytes"
+          ]
+        }
+      },
+      "docker-volume-list-sort-order": {
+        "name": "sort_order",
+        "in": "query",
+        "required": false,
+        "description": "Optional Docker volume sort direction. Defaults to descending.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "default": "desc",
+          "x-enum-varnames": [
+            "DockerVolumeListSortOrderAsc",
+            "DockerVolumeListSortOrderDesc"
+          ]
         }
       },
       "docker-volume-id-path": {

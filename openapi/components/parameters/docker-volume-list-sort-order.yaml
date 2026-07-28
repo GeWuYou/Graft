@@ -1,0 +1,11 @@
+name: sort_order
+in: query
+required: false
+description: Optional Docker volume sort direction. Defaults to descending.
+schema:
+  type: string
+  enum: [asc, desc]
+  default: desc
+  x-enum-varnames:
+    - DockerVolumeListSortOrderAsc
+    - DockerVolumeListSortOrderDesc

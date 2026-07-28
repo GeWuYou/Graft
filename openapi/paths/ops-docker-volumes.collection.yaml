@@ -13,6 +13,14 @@ get:
     - $ref: ../components/parameters/docker-volume-list-usage.yaml
     - $ref: ../components/parameters/docker-volume-list-source.yaml
     - $ref: ../components/parameters/docker-volume-list-compose-project.yaml
+    - $ref: ../components/parameters/docker-volume-list-created-after.yaml
+    - $ref: ../components/parameters/docker-volume-list-created-before.yaml
+    - $ref: ../components/parameters/docker-volume-list-size-min-bytes.yaml
+    - $ref: ../components/parameters/docker-volume-list-size-max-bytes.yaml
+    - $ref: ../components/parameters/docker-volume-list-anonymous.yaml
+    - $ref: ../components/parameters/docker-volume-list-orphaned.yaml
+    - $ref: ../components/parameters/docker-volume-list-sort-by.yaml
+    - $ref: ../components/parameters/docker-volume-list-sort-order.yaml
   security: [{ bearerAuth: [] }]
   responses:
     '200': { description: Docker volume list., headers: { X-Request-Id: { $ref: ../components/headers/request-id.yaml } }, content: { application/json: { schema: { $ref: ../components/schemas/enveloped-docker-volume-list-response.yaml } } } }

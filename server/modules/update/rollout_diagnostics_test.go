@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,12 +9,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 )
 
 func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
@@ -55,13 +58,52 @@ func TestWriteStartFailureLogsSanitizedCauseAndReturnsSafeResponse(t *testing.T)
 	fixture.handler.writeStartFailure(fixture.context, 7, "0.11.0-beta.9", "candidate-91", err)
 	assertSafeStartFailureResponse(t, fixture.recorder, sensitiveInput)
 	assertSanitizedStartFailureLog(t, fixture.entries)
+	if strings.Contains(fixture.diagnostics.value.Detail, sensitiveInput) || !strings.Contains(fixture.diagnostics.value.Detail, "[REDACTED]") {
+		t.Fatalf("expected sanitized diagnostic detail, got %q", fixture.diagnostics.value.Detail)
+	}
+}
+
+func TestGetFailureDiagnosticReturnsStoredSanitizedEvidence(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "requestID", Value: "request-91"}}
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/platform/updates/diagnostics/request-91", nil)
+	store := &failureDiagnosticStoreRecorder{value: FailureDiagnostic{RequestID: "request-91", TargetVersion: "0.11.0-beta.9", FailureCode: rolloutFailureOperationStartFailed, FailureStage: "runner_launch", Summary: updateFailureDiagnosticSummary, Detail: "docker launch failed: [REDACTED]", OccurredAt: time.Now().UTC()}}
+
+	updateRouteHandlers{diagnostics: store}.getFailureDiagnostic(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected diagnostic response status 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "docker launch failed: [REDACTED]") {
+		t.Fatalf("expected stored sanitized detail, got %s", recorder.Body.String())
+	}
 }
 
 type startFailureTestFixture struct {
-	recorder *httptest.ResponseRecorder
-	context  *gin.Context
-	handler  updateRouteHandlers
-	entries  *observer.ObservedLogs
+	recorder    *httptest.ResponseRecorder
+	context     *gin.Context
+	handler     updateRouteHandlers
+	entries     *observer.ObservedLogs
+	diagnostics *failureDiagnosticStoreRecorder
+}
+
+type failureDiagnosticStoreRecorder struct {
+	value FailureDiagnostic
+	err   error
+}
+
+func (r *failureDiagnosticStoreRecorder) CreateFailureDiagnostic(_ context.Context, value FailureDiagnostic, _ uint64) error {
+	r.value = value
+	return nil
+}
+
+func (r *failureDiagnosticStoreRecorder) GetFailureDiagnostic(context.Context, string) (FailureDiagnostic, error) {
+	if r.err != nil {
+		return FailureDiagnostic{}, r.err
+	}
+	return r.value, nil
 }
 
 func newStartFailureTestHandler(t *testing.T) startFailureTestFixture {
@@ -72,8 +114,10 @@ func newStartFailureTestHandler(t *testing.T) startFailureTestFixture {
 	request := httptest.NewRequest(http.MethodPost, "/api/platform/updates/operations", nil)
 	request.Header.Set(httpx.RequestIDHeader, "request-91")
 	request.Header.Set("X-Trace-Id", "trace-91")
+	request = request.WithContext(httpx.WithRequestAuditContext(request.Context(), httpx.RequestAuditContext{RequestID: "request-91", TraceID: "trace-91", Method: http.MethodPost, Route: "/api/platform/updates/operations"}))
 	ctx.Request = request
-	return startFailureTestFixture{recorder: recorder, context: ctx, handler: updateRouteHandlers{logger: zap.New(core)}, entries: entries}
+	diagnostics := &failureDiagnosticStoreRecorder{}
+	return startFailureTestFixture{recorder: recorder, context: ctx, handler: updateRouteHandlers{diagnostics: diagnostics, appLogger: logger.NewAppLogger(zap.New(core))}, entries: entries, diagnostics: diagnostics}
 }
 
 func assertSafeStartFailureResponse(t *testing.T, recorder *httptest.ResponseRecorder, sensitiveInput string) {
@@ -109,7 +153,7 @@ func assertSanitizedStartFailureLog(t *testing.T, entries *observer.ObservedLogs
 	}
 	fields := logs[0].ContextMap()
 	for key, want := range map[string]any{
-		"request_id": "request-91", "trace_id": "trace-91", "actor_id": uint64(7), "target_version": "0.11.0-beta.9", "compose_candidate_key": "candidate-91", "failure_code": rolloutFailureOperationStartFailed, "failure_stage": "runner_launch", "operation_id": "update-91",
+		"request_id": "request-91", "trace_id": "trace-91", "actor_id": uint64(7), "target_version": "0.11.0-beta.9", "failure_code": rolloutFailureOperationStartFailed, "failure_stage": "runner_launch", "operation_id": "update-91",
 	} {
 		if fields[key] != want {
 			t.Fatalf("log field %s = %#v, want %#v", key, fields[key], want)

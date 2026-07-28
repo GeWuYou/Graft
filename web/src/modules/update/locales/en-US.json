@@ -79,6 +79,11 @@
         "confirm": "Start upgrade",
         "cancel": "Cancel",
         "requestId": "Request ID: {requestId}",
+        "diagnosticTitle": "Start failure diagnostic (sanitized)",
+        "diagnosticCode": "Failure code",
+        "diagnosticStage": "Failure stage",
+        "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Use the request ID to inspect application logs.",
+        "viewAppLogs": "View application logs",
         "failure": {
           "catalogStale": "The verified release catalog has expired. Check for updates and try again.",
           "executionUnavailable": "This installation does not meet the runtime requirements for a controlled upgrade.",

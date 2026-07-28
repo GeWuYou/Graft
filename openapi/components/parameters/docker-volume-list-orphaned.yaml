@@ -1,0 +1,5 @@
+name: orphaned
+in: query
+required: false
+description: Optional filter for volumes with a resolved zero-container reference count.
+schema: { type: boolean }

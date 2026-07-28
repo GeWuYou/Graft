@@ -17,50 +17,56 @@
 
     <slot name="feedback" />
 
-    <responsive-table presentation="data">
-      <div v-if="props.cardsVisible && $slots.cards" class="management-paged-table__cards">
-        <slot name="cards" />
-      </div>
-      <div
-        v-else
-        ref="tableHostRef"
-        class="management-paged-table__table-host graft-scrollbar"
-        :data-table-mode="tableWidthPolicy.mode"
-      >
-        <t-table
-          :key="props.size ?? 'default-size'"
-          :row-key="resolvedRowKey"
-          :columns="props.columns"
-          :data="props.rows"
-          :loading="props.loading"
-          :row-class-name="props.rowClassName"
-          :selected-row-keys="props.selectedRowKeys"
-          :size="props.size"
-          :sort="props.sort"
-          table-layout="fixed"
-          :table-content-width="tableWidthPolicy.tableContentWidth"
-          cell-empty-content="-"
-          hover
-          @row-click="emitRowClick"
-          @select-change="emitSelectChange"
-          @sort-change="emitSortChange"
+    <responsive-table
+      :density-scope="densityScope"
+      :entity-card-layout="entityCardLayout"
+      :preserve-inactive="preserveInactive"
+      :presentation="responsivePresentation"
+    >
+      <template v-if="$slots.cards" #cards>
+        <div class="management-paged-table__cards"><slot name="cards" /></div>
+      </template>
+      <template #default="{ variant }">
+        <div
+          ref="tableHostRef"
+          class="management-paged-table__table-host graft-scrollbar"
+          :data-table-mode="resolveTableWidthPolicyFor(variant.density).mode"
         >
-          <template v-for="slotName in tableSlotNames" #[slotName]="slotProps" :key="slotName">
-            <slot :name="slotName" v-bind="slotProps" />
-          </template>
-          <template #empty>
-            <slot name="empty">
-              <div class="management-paged-table__empty">
-                <t-empty :title="props.emptyTitle" :description="props.emptyDescription">
-                  <template v-if="$slots['empty-action']" #action>
-                    <slot name="empty-action" />
-                  </template>
-                </t-empty>
-              </div>
-            </slot>
-          </template>
-        </t-table>
-      </div>
+          <t-table
+            :key="props.size ?? 'default-size'"
+            :row-key="resolvedRowKey"
+            :columns="resolveColumns(variant.density)"
+            :data="props.rows"
+            :loading="props.loading"
+            :row-class-name="props.rowClassName"
+            :selected-row-keys="props.selectedRowKeys"
+            :size="props.size"
+            :sort="props.sort"
+            table-layout="fixed"
+            :table-content-width="resolveTableWidthPolicyFor(variant.density).tableContentWidth"
+            cell-empty-content="-"
+            hover
+            @row-click="emitRowClick"
+            @select-change="emitSelectChange"
+            @sort-change="emitSortChange"
+          >
+            <template v-for="slotName in tableSlotNames" #[slotName]="slotProps" :key="slotName">
+              <slot :name="slotName" v-bind="slotProps" />
+            </template>
+            <template #empty>
+              <slot name="empty">
+                <div class="management-paged-table__empty">
+                  <t-empty :title="props.emptyTitle" :description="props.emptyDescription">
+                    <template v-if="$slots['empty-action']" #action>
+                      <slot name="empty-action" />
+                    </template>
+                  </t-empty>
+                </div>
+              </slot>
+            </template>
+          </t-table>
+        </div>
+      </template>
     </responsive-table>
 
     <template v-if="props.paginationVisible" #footer>
@@ -85,10 +91,11 @@ import type { PageInfo, PaginationProps, TableRowData, TableSort, TdBaseTablePro
 import { computed, useSlots } from 'vue';
 
 import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
+import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/responsive';
 
 import ManagementTableCard from './ManagementTableCard.vue';
 import ManagementTablePagination from './ManagementTablePagination.vue';
-import { resolveTableWidthPolicy } from './table-columns';
+import { resolveManagedColumns, resolveTableWidthPolicy } from './table-columns';
 import { useTableHostWidth } from './use-table-host-width';
 
 const RESERVED_SLOT_NAMES = new Set([
@@ -104,20 +111,28 @@ const RESERVED_SLOT_NAMES = new Set([
   'toolbar',
 ]);
 
+type ResponsiveEntityCardLayout = 'adaptive' | 'compact';
+type ResponsiveColumnSets = Partial<Record<ResponsiveDensity, string[]>>;
+
 const props = withDefaults(
   defineProps<{
     cellSlotNames?: string[];
     cardsVisible?: boolean;
+    columnSets?: ResponsiveColumnSets;
+    densityScope?: 'container' | 'viewport';
     columns: TdBaseTableProps['columns'];
     description?: string;
     emptyDescription: string;
     emptyTitle: string;
+    entityCardLayout?: ResponsiveEntityCardLayout;
     footerSummary: string;
     headLabel?: string;
     loading?: boolean;
     pageSizeOptions?: PaginationProps['pageSizeOptions'];
     paginationProps?: Partial<PaginationProps>;
     paginationVisible?: boolean;
+    presentation?: ResponsivePresentation;
+    preserveInactive?: boolean;
     rowClassName?: TdBaseTableProps['rowClassName'];
     rowKey?: string;
     rows: TableRowData[];
@@ -130,12 +145,17 @@ const props = withDefaults(
   {
     cellSlotNames: () => [],
     cardsVisible: false,
+    columnSets: () => ({}),
+    densityScope: 'container',
     description: '',
+    entityCardLayout: 'compact',
     headLabel: '',
     loading: false,
     pageSizeOptions: () => [10, 20, 50, 100],
     paginationProps: () => ({}),
     paginationVisible: true,
+    presentation: 'data',
+    preserveInactive: false,
     rowClassName: undefined,
     rowKey: 'id',
     selectedRowKeys: () => [],
@@ -169,8 +189,17 @@ const resolvedPaginationProps = computed<Partial<PaginationProps>>(() => ({
   ...props.paginationProps,
 }));
 const resolvedRowKey = computed(() => props.rowKey || 'id');
+const responsivePresentation = computed<ResponsivePresentation>(() =>
+  props.cardsVisible ? 'entity' : props.presentation,
+);
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(props.columns, tableHostWidth.value));
+function resolveColumns(density: ResponsiveDensity) {
+  return resolveManagedColumns(props.columns, props.columnSets[density]);
+}
+
+function resolveTableWidthPolicyFor(density: ResponsiveDensity) {
+  return resolveTableWidthPolicy(resolveColumns(density), tableHostWidth.value);
+}
 
 function emitPageChange(pageInfo: PageInfo) {
   emit('page-change', pageInfo);

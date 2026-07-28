@@ -1,44 +1,41 @@
 <template>
-  <div class="container-detail-page" data-page-type="operations-detail">
-    <management-page-header
-      :title="pageTitle"
-      :description="safeDetail ? safeDetail.image : t('container.detail.description')"
-      :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
-    >
-      <template #actions>
-        <t-button
-          v-if="safeDetail && permissionStore.hasPermission(auditPermissionCodes.READ)"
-          data-testid="container-detail-view-audit"
-          theme="default"
-          variant="outline"
-          size="small"
-          @click="openAuditLogs"
-        >
-          {{ t('container.detail.viewAudit') }}
-        </t-button>
-      </template>
-      <template #meta>
-        <div class="container-detail-header-meta" data-testid="container-detail-header-meta">
-          <t-space class="container-detail-header-meta__tags" break-line size="small">
-            <span v-if="safeDetail" class="container-detail-header-id">{{ shortContainerId(safeDetail) }}</span>
-            <t-tag v-if="safeDetail" :theme="stateTheme(safeDetail.state)" variant="light-outline">
-              {{ stateLabel(safeDetail.state) }}
-            </t-tag>
-            <t-tag v-if="safeDetail" :theme="healthTheme(safeDetail.health)" variant="light-outline">
-              {{ healthLabel(safeDetail.health) }}
-            </t-tag>
-            <t-tag v-if="safeDetail?.runtime" theme="default" variant="light-outline">
-              {{ safeDetail.runtime }}
-            </t-tag>
-          </t-space>
-          <div v-if="safeDetail?.inspect_updated_at" class="container-detail-header-meta__updated-at">
-            {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(safeDetail.inspect_updated_at) }}
-          </div>
-        </div>
-      </template>
-    </management-page-header>
+  <resource-detail-layout
+    class="container-detail-page"
+    data-page-type="operations-detail"
+    :title="pageTitle"
+    :back-label="t('container.detail.back')"
+    presentation="page"
+    @update:visible="goBack"
+  >
+    <template #actions>
+      <t-button
+        v-if="safeDetail && permissionStore.hasPermission(auditPermissionCodes.READ)"
+        data-testid="container-detail-view-audit"
+        theme="default"
+        variant="outline"
+        size="small"
+        @click="openAuditLogs"
+      >
+        {{ t('container.detail.viewAudit') }}
+      </t-button>
+    </template>
 
     <section class="container-detail-body">
+      <div class="container-detail-header-meta" data-testid="container-detail-header-meta">
+        <t-space class="container-detail-header-meta__tags" break-line size="small">
+          <span v-if="safeDetail" class="container-detail-header-id">{{ shortContainerId(safeDetail) }}</span>
+          <t-tag v-if="safeDetail" :theme="stateTheme(safeDetail.state)" variant="light-outline">
+            {{ stateLabel(safeDetail.state) }}
+          </t-tag>
+          <t-tag v-if="safeDetail" :theme="healthTheme(safeDetail.health)" variant="light-outline">
+            {{ healthLabel(safeDetail.health) }}
+          </t-tag>
+          <t-tag v-if="safeDetail?.runtime" theme="default" variant="light-outline">{{ safeDetail.runtime }}</t-tag>
+        </t-space>
+        <div v-if="safeDetail?.inspect_updated_at" class="container-detail-header-meta__updated-at">
+          {{ t('container.detail.inspectUpdatedAt') }}: {{ formatTime(safeDetail.inspect_updated_at) }}
+        </div>
+      </div>
       <t-loading
         v-if="detailRefreshing && !safeDetail && !error"
         class="container-detail-state"
@@ -1460,7 +1457,7 @@
 
       <t-empty v-else class="container-detail-state" size="small" :description="t('container.detail.empty')" />
     </section>
-  </div>
+  </resource-detail-layout>
 </template>
 <script setup lang="ts">
 import type { TableProps } from 'tdesign-vue-next';
@@ -1474,8 +1471,8 @@ import { LOCALE, type LocalizedTitle } from '@/contracts/i18n/locales';
 import { buildAuditResourceLocation } from '@/modules/audit/contract/deep-link';
 import { AUDIT_PERMISSION_CODE } from '@/modules/audit/contract/permissions';
 import { routeLoading } from '@/router/route-loading';
-import { ManagementPageHeader } from '@/shared/components/management';
 import { MetricCard } from '@/shared/components/metrics';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   copyText as copyTextToClipboard,
@@ -4578,6 +4575,10 @@ function readableImageId(value?: string | null) {
   const normalized = value?.trim();
   if (!normalized) return '-';
   return normalized.startsWith('sha256:') ? normalized.slice('sha256:'.length) : normalized;
+}
+
+function goBack() {
+  void router.back();
 }
 
 function portLabel(port: ContainerDetail['ports'][number]) {

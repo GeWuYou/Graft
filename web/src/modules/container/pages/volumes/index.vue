@@ -1,12 +1,14 @@
 <template>
   <div class="docker-volume-page" data-page-type="list-form-detail">
     <management-page-header
+      action-layout="inline"
+      compact
       :title="t('container.volume.list.title')"
       :description="t('container.volume.list.description')"
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #actions>
-        <t-button v-if="canRemove" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
+        <t-button v-if="canRemove" size="small" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
           {{ t('container.volume.actions.cleanup') }}
         </t-button>
       </template>
@@ -14,11 +16,12 @@
 
     <management-statistics-bar
       :items="volumeStatistics"
+      layout="inline"
       :label="t('container.volume.list.total', { count: volumeSummary?.total ?? 0 })"
       aria-live="polite"
     />
 
-    <management-toolbar>
+    <management-toolbar class="docker-volume-page__toolbar">
       <template #filters>
         <t-input
           v-model="filters.keyword"
@@ -33,8 +36,9 @@
           :placeholder="t('container.volume.filters.usage')"
         >
           <t-option value="all" :label="t('container.volume.filters.allUsage')" />
-          <t-option value="used" :label="t('container.resourceContext.relationship.used')" />
-          <t-option value="unused" :label="t('container.resourceContext.relationship.unused')" />
+          <t-option value="used" :label="t('container.volume.status.inUse')" />
+          <t-option value="unused" :label="t('container.volume.status.unused')" />
+          <t-option value="abnormal" :label="t('container.volume.filters.abnormal')" />
         </t-select>
         <t-button variant="outline" @click="advancedFiltersVisible = !advancedFiltersVisible">
           {{ t('container.resourceContext.moreFilters') }}
@@ -63,9 +67,6 @@
           />
         </template>
       </template>
-    </management-toolbar>
-
-    <management-toolbar>
       <template #actions>
         <table-view-toolbar
           :refresh-label="t('container.list.refresh')"
@@ -79,18 +80,24 @@
       v-model:current="pagination.current"
       v-model:page-size="pagination.pageSize"
       :columns="columns"
+      cards-visible
+      density-scope="viewport"
+      entity-card-layout="compact"
       :empty-description="
         hasActiveFilters ? t('container.volume.filters.reset') : t('container.volume.list.description')
       "
       :empty-title="t('container.volume.pagination.empty')"
       :footer-summary="paginationSummary"
       :loading="loading"
+      preserve-inactive
       row-key="name"
       :rows="rows"
       :selected-row-keys="selectedRowKeys"
+      :sort="sort"
       :total="pagination.total"
       @page-change="handlePageChange"
       @select-change="handleSelectChange"
+      @sort-change="handleSortChange"
     >
       <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
@@ -108,11 +115,71 @@
       <template #feedback>
         <t-alert v-if="error" class="docker-volume-page__alert" theme="error" :message="error" />
         <t-alert
-          v-else-if="volumeSummary?.reference_unknown"
+          v-else-if="abnormalCount"
           class="docker-volume-page__alert"
-          theme="warning"
-          :message="t('container.volume.metrics.referenceUnknown', { count: volumeSummary.reference_unknown })"
+          theme="error"
+          :message="t('container.volume.metrics.abnormalNotice', { count: abnormalCount })"
         />
+      </template>
+      <template #cards>
+        <t-empty
+          v-if="!rows.length && !loading"
+          :title="hasActiveFilters ? t('container.volume.pagination.empty') : t('container.volume.empty.title')"
+          :description="
+            hasActiveFilters ? t('container.volume.filters.reset') : t('container.volume.empty.description')
+          "
+        >
+          <template v-if="hasActiveFilters" #action>
+            <t-button variant="outline" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
+          </template>
+        </t-empty>
+        <div v-else class="docker-volume-page__cards">
+          <article v-for="row in rows" :key="row.name" class="docker-volume-page__card" @click="openDetailPage(row)">
+            <header class="docker-volume-page__card-header">
+              <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+                {{ relationshipPresentation(row.relationship_status).label }}
+              </t-tag>
+              <t-tooltip :content="row.name">
+                <strong>{{ middleEllipsis(row.name, 31) }}</strong>
+              </t-tooltip>
+            </header>
+            <dl class="docker-volume-page__card-primary">
+              <div>
+                <dt>{{ t('container.volume.columns.size') }}</dt>
+                <dd>{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.volume.columns.mountedContainers') }}</dt>
+                <dd>
+                  {{ t('container.volume.card.containerCount', { count: row.container_references?.length ?? 0 }) }}
+                </dd>
+              </div>
+            </dl>
+            <dl class="docker-volume-page__card-secondary">
+              <div>
+                <dt>{{ t('container.volume.columns.driver') }}</dt>
+                <dd>{{ row.driver }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.volume.columns.createdAt') }}</dt>
+                <dd>{{ formatCardDate(row.created_at) }}</dd>
+              </div>
+            </dl>
+            <footer @click.stop>
+              <t-button size="small" variant="text" @click="openDetailPage(row)">{{
+                t('container.volume.actions.detail')
+              }}</t-button>
+              <t-dropdown
+                v-if="canRemove"
+                :options="volumeCardOverflowOptions()"
+                trigger="click"
+                @click="handleVolumeCardOverflowAction($event, row)"
+              >
+                <t-button size="small" variant="text">{{ t('container.list.actions.more') }}</t-button>
+              </t-dropdown>
+            </footer>
+          </article>
+        </div>
       </template>
       <template #name="{ row }">
         <div class="docker-volume-page__identity">
@@ -124,12 +191,6 @@
           <span class="docker-volume-page__hint">{{ volumeType(row) }}</span>
         </div>
       </template>
-      <template #context="{ row }">
-        <t-tooltip v-if="sourceDescription(row)" :content="sourceDescription(row)" placement="top-left">
-          <span class="docker-volume-page__source">{{ sourceDescription(row) }}</span>
-        </t-tooltip>
-        <span v-else class="docker-volume-page__muted">—</span>
-      </template>
       <template #references="{ row }">
         <div v-if="row.container_references?.length" class="docker-volume-page__container-list">
           <container-reference-list
@@ -140,7 +201,8 @@
         </div>
         <span v-else class="docker-volume-page__muted">—</span>
       </template>
-      <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
+      <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</template>
+      <template #created_at="{ row }">{{ formatTime(row.created_at) }}</template>
       <template #status="{ row }">
         <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
           {{ relationshipPresentation(row.relationship_status).label }}
@@ -167,13 +229,13 @@
       v-model:visible="cleanup.visible.value"
       :header="t('container.volume.cleanup.title')"
       width="760px"
-      @confirm="submitCleanup"
+      @confirm="confirmCleanupRemoval"
     >
       <t-loading :loading="cleanup.loading.value">
         <t-card v-if="cleanup.items.value.length" :bordered="false">
           <div class="docker-volume-cleanup-summary">
             <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
-            <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.unavailable')) }}</strong>
+            <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.notCollected')) }}</strong>
           </div>
         </t-card>
         <t-alert
@@ -210,7 +272,7 @@
                 ><span>{{ middleEllipsis(row.name, 31) }}</span></t-tooltip
               >
             </template>
-            <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.unavailable')) }}</template>
+            <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</template>
           </t-table>
           <div v-if="cleanup.pageCount.value > 1" class="docker-volume-cleanup-pager">
             <t-button
@@ -242,82 +304,36 @@
           <t-button variant="outline" @click="cleanup.visible.value = false">{{
             t('container.volume.cleanup.cancel')
           }}</t-button>
-          <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="submitCleanup">
+          <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="confirmCleanupRemoval">
             {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
           </t-button>
         </t-space>
       </template>
     </t-dialog>
-    <t-drawer
+    <resource-detail-layout
       v-model:visible="detailDrawerVisible"
-      :header="selectedVolume?.name || t('container.volume.detail.title')"
-      size="520px"
-      :footer="false"
+      :title="selectedVolume?.name || t('container.volume.detail.title')"
+      :back-label="t('container.detail.back')"
+      size="compact"
     >
+      <template v-if="selectedVolume" #actions>
+        <t-tag :theme="relationshipPresentation(selectedVolume.relationship_status).theme" size="small" variant="light">
+          {{ relationshipPresentation(selectedVolume.relationship_status).label }}
+        </t-tag>
+      </template>
       <div class="docker-volume-page__detail-loading-host">
         <div v-if="detailLoading" class="docker-volume-page__detail-loading-host__indicator">
           <t-loading :loading="true" size="large" />
         </div>
         <t-alert v-else-if="detailError" theme="error" :message="detailError" />
-        <template v-else-if="selectedVolume">
-          <section class="docker-volume-page__section">
-            <h3>{{ t('container.resourceContext.overview') }}</h3>
-            <t-space break-line size="small">
-              <t-tag size="small" variant="light-outline">{{ selectedVolume.driver }}</t-tag>
-              <t-tag
-                :theme="relationshipPresentation(selectedVolume.relationship_status).theme"
-                size="small"
-                variant="light"
-                >{{ relationshipPresentation(selectedVolume.relationship_status).label }}</t-tag
-              >
-              <span>{{ formatBytes(selectedVolume.size_bytes, t('container.volume.unavailable')) }}</span>
-              <span>{{ formatTime(selectedVolume.created_at) }}</span>
-            </t-space>
-          </section>
-          <docker-resource-context-card :context="selectedVolume.context" resource-kind="volume" />
-          <section class="docker-volume-page__section">
-            <h3>{{ t('container.resourceContext.relations') }}</h3>
-            <t-space v-if="selectedVolume.container_references?.length" size="small" break-line>
-              <t-link
-                v-for="reference in selectedVolume.container_references"
-                :key="reference.id"
-                theme="primary"
-                @click="openContainerReference(reference.id)"
-              >
-                <t-tooltip :content="reference.id">{{ reference.name || reference.id }}</t-tooltip>
-              </t-link>
-            </t-space>
-            <span v-else class="docker-volume-page__muted">{{
-              relationEmptyLabel(selectedVolume.relationship_status)
-            }}</span>
-          </section>
-          <section class="docker-volume-page__section">
-            <h3>{{ t('container.resourceContext.configuration') }}</h3>
-            <t-descriptions :column="2">
-              <t-descriptions-item :label="t('container.volume.columns.driver')">{{
-                selectedVolume.driver
-              }}</t-descriptions-item>
-              <t-descriptions-item :label="t('container.volume.columns.scope')">{{
-                selectedVolume.scope
-              }}</t-descriptions-item>
-            </t-descriptions>
-          </section>
-          <t-collapse v-if="Object.keys(selectedVolume.labels || {}).length" class="docker-volume-page__section">
-            <t-collapse-panel :header="t('container.resourceContext.metadata')" value="metadata">
-              <t-space break-line size="small"
-                ><t-tag v-for="(value, key) in selectedVolume.labels" :key="key" variant="light-outline"
-                  >{{ key }}={{ value }}</t-tag
-                ></t-space
-              >
-            </t-collapse-panel>
-          </t-collapse>
-          <section v-if="canRemove" class="docker-volume-page__danger-zone">
-            <h3>{{ t('container.resourceContext.dangerZone') }}</h3>
-            <t-button theme="danger" variant="outline" @click="confirmRemove(selectedVolume)">{{
-              t('container.volume.actions.remove')
-            }}</t-button>
-          </section>
-        </template>
+        <volume-detail-content
+          v-else-if="selectedVolume"
+          :can-remove="canRemove"
+          surface="drawer"
+          :volume="selectedVolume"
+          @open-container="openContainerReference"
+          @remove="confirmRemove(selectedVolume)"
+        />
         <div v-else-if="!detailLoading" class="docker-volume-page__detail-state">
           <t-empty
             size="small"
@@ -326,14 +342,14 @@
           />
         </div>
       </div>
-    </t-drawer>
+    </resource-detail-layout>
   </div>
 </template>
 <script setup lang="ts">
 // 数据卷页负责 Docker 数据卷查询与操作，清理流程通过现有批量删除契约执行未使用候选。
-import type { TableProps } from 'tdesign-vue-next';
-import { Checkbox, DialogPlugin, Input, MessagePlugin } from 'tdesign-vue-next';
-import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import type { TableProps, TableSort } from 'tdesign-vue-next';
+import { MessagePlugin } from 'tdesign-vue-next';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -349,8 +365,9 @@ import {
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
-import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
+import { formatBytes, formatLocaleDateOnly, formatLocaleDateTime } from '@/shared/observability';
 import { usePermissionStore } from '@/store';
 
 import {
@@ -361,22 +378,18 @@ import {
   listDockerVolumes,
   removeDockerVolume,
 } from '../../api/container';
-import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
+import VolumeDetailContent from '../../components/VolumeDetailContent.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
-import {
-  getDockerResourceRelationEmptyLabel,
-  getDockerResourceRelationshipPresentation,
-  getDockerResourceSourceDescription,
-} from '../../shared/resource-presentation';
+import { getDockerVolumeStatusPresentation } from '../../shared/volume-presentation';
+import { openVolumeRemovalConfirmation } from '../../shared/volume-removal';
 
 type VolumeRow = Awaited<ReturnType<typeof listDockerVolumes>>['items'][number];
 type CleanupVolume = Omit<VolumeRow, 'size_bytes'> & { id: string; size_bytes: number };
-type UsageFilter = 'all' | 'used' | 'unused';
+type UsageFilter = 'all' | 'used' | 'unused' | 'abnormal';
 type DockerResourceSource = components['schemas']['docker-resource-source'];
-const anonymousVolumeName = /^[a-f0-9]{64}$/i;
 const { locale, t } = useI18n();
 const router = useRouter();
 const permissionStore = usePermissionStore();
@@ -417,7 +430,9 @@ const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref('');
+const sort = ref<TableSort>({ sortBy: 'size', descending: true });
 const volumeSummary = ref<Awaited<ReturnType<typeof listDockerVolumes>>['summary'] | null>(null);
+const abnormalCount = computed(() => volumeSummary.value?.reference_unknown ?? 0);
 const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
   { label: t('container.volume.metrics.total'), value: volumeSummary.value?.total ?? '--' },
   { label: t('container.volume.metrics.inUse'), value: volumeSummary.value?.in_use ?? '--' },
@@ -426,17 +441,19 @@ const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
     label: t('container.volume.metrics.size'),
     value:
       volumeSummary.value?.size_bytes === null || volumeSummary.value?.size_bytes === undefined
-        ? t('container.volume.unavailable')
-        : formatBytes(volumeSummary.value.size_bytes, t('container.volume.unavailable')),
+        ? t('container.volume.notCollected')
+        : formatBytes(volumeSummary.value.size_bytes, t('container.volume.notCollected')),
   },
+  { label: t('container.volume.metrics.abnormal'), value: abnormalCount.value },
 ]);
 const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 },
-  { colKey: 'context', title: t('container.resourceContext.source'), minWidth: 210 },
-  { colKey: 'references', title: t('container.volume.columns.mountedContainers'), minWidth: 260 },
-  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const },
   { colKey: 'status', title: t('container.volume.columns.status'), width: 120 },
+  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const, sorter: true },
+  { colKey: 'references', title: t('container.volume.columns.mountedContainers'), minWidth: 260 },
+  { colKey: 'driver', title: t('container.volume.columns.driver'), width: 120 },
+  { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
   { colKey: 'actions', title: t('container.volume.columns.actions'), width: 144, fixed: 'right' },
 ]);
 const cleanup = useDockerCleanup<CleanupVolume>({
@@ -472,6 +489,8 @@ function buildQuery(): DockerVolumeListQuery {
     usage: applied.value.usage === 'all' ? undefined : applied.value.usage,
     source: applied.value.source || undefined,
     compose_project: applied.value.compose_project || undefined,
+    sort_by: 'size_bytes',
+    sort_order: (Array.isArray(sort.value) ? sort.value[0]?.descending : sort.value.descending) ? 'desc' : 'asc',
   };
 }
 async function refresh() {
@@ -518,6 +537,12 @@ function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.current = page.current;
   pagination.pageSize = page.pageSize;
 }
+function handleSortChange(nextSort: TableSort) {
+  sort.value = nextSort;
+  const previousPage = pagination.current;
+  pagination.current = 1;
+  if (previousPage === 1) void refresh();
+}
 function volumeRowActions(_row: VolumeRow) {
   return [
     {
@@ -535,6 +560,16 @@ function volumeRowActions(_row: VolumeRow) {
         ]
       : []),
   ];
+}
+function volumeCardOverflowOptions() {
+  return [{ content: t('container.volume.actions.remove'), value: 'remove' }];
+}
+function handleVolumeCardOverflowAction(
+  payload: string | number | { value?: string | number | Record<string, unknown> },
+  row: VolumeRow,
+) {
+  const action = typeof payload === 'object' ? payload.value : payload;
+  if (typeof action === 'string') handleVolumeRowAction(action, row);
 }
 function handleVolumeRowAction(action: string, row: VolumeRow) {
   if (action === 'detail') {
@@ -558,9 +593,22 @@ async function openCleanup() {
     MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.cleanup.loadFailed')));
   }
 }
-async function submitCleanup() {
-  if (!canRemove.value) return;
-  await cleanup.submit();
+function confirmCleanupRemoval() {
+  if (!canRemove.value || !cleanup.selectedIds.value.length) return;
+  const selected = new Set(cleanup.selectedIds.value);
+  const candidates = cleanup.items.value
+    .filter((item) => selected.has(item.id))
+    .map((item) => ({ containerNames: [], name: item.name, sizeBytes: item.size_bytes }));
+  openVolumeRemovalConfirmation({
+    candidates,
+    confirmLabel: t('container.volume.cleanup.removeSelected', { count: candidates.length }),
+    header: t('container.volume.cleanup.confirmTitle'),
+    t,
+    onConfirm: async () => {
+      await cleanup.submit();
+      return true;
+    },
+  });
 }
 async function fetchCleanupCandidates(): Promise<CleanupVolume[]> {
   const firstPage = await listDockerVolumes({ limit: 100, offset: 0, usage: 'unused' });
@@ -612,58 +660,41 @@ async function handleCleanupOutcome(outcome: CleanupBatchOutcome) {
 function clearSelection() {
   selectedRowKeys.value = [];
 }
-function renderForceCheckbox(isChecked: () => boolean, onChange: (checked: boolean) => void) {
-  return h(
-    Checkbox,
-    {
-      class: 'docker-volume-remove-confirm__force',
-      defaultChecked: isChecked(),
-      onChange,
-    },
-    { default: () => t('container.volume.actions.force') },
-  );
-}
 function handleBatchRemove() {
   if (!selectedRowKeys.value.length || !canRemove.value) return;
-  let force = false;
   const selected = new Set(selectedRowKeys.value);
   const mustForce = rows.value.some(
     (row) =>
       selected.has(row.name) &&
       (row.reference_count === null || row.reference_count === undefined || row.reference_count > 0),
   );
-  const dialog = DialogPlugin.confirm({
+  const candidates = selectedRowKeys.value.map((name) => {
+    const row = rows.value.find((item) => item.name === name);
+    return {
+      containerNames: row?.container_references.map((reference) => reference.name || reference.id) ?? [],
+      name,
+      sizeBytes: row?.size_bytes,
+    };
+  });
+  openVolumeRemovalConfirmation({
+    candidates,
     header: t('container.volume.batch.confirmTitle'),
-    theme: 'danger',
-    confirmBtn: t('container.volume.batch.remove'),
-    cancelBtn: t('container.volume.actions.cancel'),
-    body: () =>
-      h('div', { class: 'docker-volume-remove-confirm' }, [
-        h('p', t('container.volume.batch.confirm', { count: selectedRowKeys.value.length })),
-        h('div', { class: 'docker-volume-remove-confirm__names' }, selectedRowKeys.value.join(', ')),
-        mustForce
-          ? renderForceCheckbox(
-              () => force,
-              (checked) => (force = checked),
-            )
-          : null,
-      ]),
-    onConfirm: async () => {
-      if (mustForce && !force) {
-        MessagePlugin.warning(t('container.volume.actions.forceRequired'));
-        return;
-      }
+    confirmLabel: t('container.volume.batch.remove'),
+    forceRequired: mustForce,
+    t,
+    onConfirm: async (force) => {
       try {
         const response = await batchRemoveDockerVolumes({ names: selectedRowKeys.value, force });
         const successful = response.items.filter((item) => item.success).map((item) => item.name);
         const failed = response.items.length - successful.length;
         selectedRowKeys.value = selectedRowKeys.value.filter((name) => !successful.includes(name));
-        dialog.hide();
         if (!failed) MessagePlugin.success(t('container.volume.batch.success', { count: successful.length }));
         else MessagePlugin.warning(t('container.volume.batch.partial', { success: successful.length, failed }));
         await refresh();
+        return true;
       } catch (cause) {
         MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.batch.failed')));
+        return false;
       }
     },
   });
@@ -682,17 +713,14 @@ async function openDetail(row: VolumeRow) {
     detailLoading.value = false;
   }
 }
-function sourceDescription(row: VolumeRow) {
-  return getDockerResourceSourceDescription(t, row.context);
+function openDetailPage(row: VolumeRow) {
+  void router.push({ name: CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.pageRouteName, params: { name: row.name } });
 }
 function volumeType(row: VolumeRow) {
-  return row.context.source !== 'compose' && anonymousVolumeName.test(row.name)
-    ? t('container.volume.types.anonymous')
-    : t('container.volume.types.named');
+  return row.anonymous ? t('container.volume.types.anonymous') : t('container.volume.types.named');
 }
 const relationshipPresentation = (status: VolumeRow['relationship_status']) =>
-  getDockerResourceRelationshipPresentation(t, status);
-const relationEmptyLabel = (status: VolumeRow['relationship_status']) => getDockerResourceRelationEmptyLabel(t, status);
+  getDockerVolumeStatusPresentation(t, status);
 function openContainerReference(containerId: string) {
   void router.push({
     name: CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName,
@@ -701,46 +729,35 @@ function openContainerReference(containerId: string) {
   });
 }
 function formatTime(value?: string) {
-  return value ? formatLocaleDateTime(value, locale) : t('container.volume.unavailable');
+  return value ? formatLocaleDateTime(value, locale) : t('container.volume.notCollected');
+}
+function formatCardDate(value?: string) {
+  return value ? formatLocaleDateOnly(value, locale) : t('container.volume.notCollected');
 }
 function confirmRemove(row: VolumeRow) {
-  let typedName = '';
-  let force = false;
-  const mustForce = row.reference_count === null || row.reference_count === undefined || row.reference_count > 0;
-  const dialog = DialogPlugin.confirm({
+  openVolumeRemovalConfirmation({
+    candidates: [
+      {
+        containerNames: row.container_references.map((reference) => reference.name || reference.id),
+        name: row.name,
+        sizeBytes: row.size_bytes,
+      },
+    ],
+    confirmationName: row.name,
+    forceRequired: row.relationship_status !== 'unused',
     header: t('container.volume.actions.confirmTitle'),
-    theme: 'danger',
-    confirmBtn: t('container.volume.actions.remove'),
-    cancelBtn: t('container.volume.actions.cancel'),
-    body: () =>
-      h('div', { class: 'docker-volume-remove-confirm' }, [
-        h('p', t('container.volume.actions.confirm', { name: row.name })),
-        h(Input, {
-          defaultValue: typedName,
-          placeholder: row.name,
-          onChange: (value: string | number) => (typedName = String(value)),
-        }),
-        mustForce
-          ? renderForceCheckbox(
-              () => force,
-              (checked) => (force = checked),
-            )
-          : null,
-      ]),
-    onConfirm: async () => {
-      if (typedName !== row.name || (mustForce && !force)) {
-        MessagePlugin.warning(
-          t(mustForce && !force ? 'container.volume.actions.forceRequired' : 'container.volume.actions.nameRequired'),
-        );
-        return;
-      }
+    confirmLabel: t('container.volume.actions.remove'),
+    t,
+    onConfirm: async (force) => {
       try {
         await removeDockerVolume(row.name, { force });
         MessagePlugin.success(t('container.volume.actions.removeSuccess'));
-        dialog.hide();
+        detailDrawerVisible.value = false;
         await refresh();
+        return true;
       } catch (cause) {
         MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.actions.removeFailed')));
+        return false;
       }
     },
   });
@@ -748,6 +765,7 @@ function confirmRemove(row: VolumeRow) {
 </script>
 <style scoped lang="less">
 .docker-volume-page {
+  container-type: inline-size;
   display: grid;
   gap: var(--graft-density-gap-16);
 }
@@ -768,19 +786,147 @@ function confirmRemove(row: VolumeRow) {
   gap: var(--td-comp-margin-xs);
 }
 
+.docker-volume-page__cards {
+  display: grid;
+  gap: var(--graft-density-gap-10);
+}
+
+.docker-volume-page__card {
+  background: var(--td-bg-color-container);
+  block-size: 9.25rem;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-small);
+  cursor: pointer;
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  grid-template-rows: 1.5rem 2.25rem 1.5rem 1fr;
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
+}
+
+.docker-volume-page__card:hover {
+  border-color: var(--td-brand-color);
+}
+
+.docker-volume-page__card-header {
+  align-items: center;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.docker-volume-page__card-header strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-volume-page__card-primary,
+.docker-volume-page__card-secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.docker-volume-page__card-primary {
+  gap: var(--graft-density-gap-12);
+}
+
+.docker-volume-page__card-secondary {
+  gap: var(--graft-density-gap-8);
+}
+
+.docker-volume-page__card dt {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.docker-volume-page__card dd {
+  font-variant-numeric: tabular-nums;
+  margin: var(--graft-density-gap-2) 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docker-volume-page__card-secondary > div {
+  align-items: baseline;
+  display: flex;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.docker-volume-page__card-primary > div,
+.docker-volume-page__card-secondary > div {
+  min-width: 0;
+}
+
+.docker-volume-page__card footer {
+  align-items: center;
+  border-top: 1px solid var(--td-component-stroke);
+  display: flex;
+  gap: var(--graft-density-gap-6);
+  justify-content: flex-end;
+  min-height: 1.75rem;
+  min-width: 0;
+  padding-top: var(--graft-density-gap-2);
+}
+
+@container (width < 768px) {
+  .docker-volume-page {
+    gap: var(--graft-density-gap-10);
+  }
+
+  .docker-volume-page :deep(.management-page-header),
+  .docker-volume-page :deep(.management-toolbar),
+  .docker-volume-page :deep(.management-table-card) {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .docker-volume-page :deep(.management-page-header) {
+    background: transparent;
+    border: 0;
+    padding: var(--graft-density-gap-4) 0;
+  }
+
+  .docker-volume-page :deep(.management-toolbar) {
+    border-left: 0;
+    border-right: 0;
+    min-height: auto;
+    padding: var(--graft-density-gap-10) 0;
+  }
+
+  .docker-volume-page :deep(.management-table-card) {
+    background: transparent;
+    border: 0;
+    overflow: visible;
+  }
+
+  .docker-volume-page :deep(.management-table-card__body) {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .docker-volume-page :deep(.management-table-card__footer) {
+    background: var(--td-bg-color-container);
+    border: 1px solid var(--td-component-stroke);
+    border-radius: var(--td-radius-small);
+    margin-top: var(--graft-density-gap-10);
+    padding: var(--graft-density-gap-10);
+  }
+
+  .docker-volume-page__alert {
+    margin-bottom: var(--graft-density-gap-10);
+  }
+}
+
 .docker-volume-page__hint,
 .docker-volume-page__muted {
   color: var(--td-text-color-placeholder);
   font-size: var(--td-font-size-body-small);
-}
-
-.docker-volume-page__source {
-  color: var(--td-text-color-secondary);
-}
-
-.docker-volume-page__section,
-.docker-volume-page__danger-zone {
-  margin-top: var(--td-comp-margin-xl);
 }
 
 .docker-volume-page__detail-state {
@@ -813,17 +959,6 @@ function confirmRemove(row: VolumeRow) {
   }
 }
 
-.docker-volume-page__section h3,
-.docker-volume-page__danger-zone h3 {
-  font-size: var(--td-font-size-body-large);
-  margin: 0 0 var(--td-comp-margin-m);
-}
-
-.docker-volume-page__danger-zone {
-  border-top: 1px solid var(--td-component-stroke);
-  padding-top: var(--td-comp-paddingTB-l);
-}
-
 .docker-volume-cleanup-summary,
 .docker-volume-cleanup-section-head,
 .docker-volume-cleanup-pager {
@@ -841,16 +976,5 @@ function confirmRemove(row: VolumeRow) {
   gap: var(--td-comp-margin-m);
   justify-content: center;
   margin-top: var(--td-comp-margin-m);
-}
-
-.docker-volume-remove-confirm {
-  display: grid;
-  gap: var(--td-comp-margin-l);
-}
-
-.docker-volume-remove-confirm__force {
-  align-items: center;
-  display: flex;
-  gap: var(--td-comp-margin-s);
 }
 </style>

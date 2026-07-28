@@ -18,10 +18,14 @@ func NewModuleSpec() module.Spec {
 		if err != nil {
 			return nil, err
 		}
+		diagnostics, err := newSQLFailureDiagnosticStore(db)
+		if err != nil {
+			return nil, err
+		}
 		cache, err := newSQLDiscoveryCache(db)
 		if err != nil {
 			return nil, err
 		}
-		return NewModule(operations, cache), nil
+		return NewModule(operations, diagnostics, cache), nil
 	})}
 }

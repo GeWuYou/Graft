@@ -111,4 +111,30 @@ describe('ManagementPagedTable', () => {
     expect(wrapper.find('[data-testid="paged-table"]').exists()).toBe(false);
     expect(wrapper.find('.management-table-pagination').exists()).toBe(true);
   });
+
+  it('passes responsive entity semantics and density-specific column sets to the shared table boundary', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columnSets: { comfortable: ['name', 'operation'], spacious: ['select', 'name', 'operation'] },
+        columns: [
+          { colKey: 'select', title: 'Select' },
+          { colKey: 'name', title: 'Name' },
+          { colKey: 'operation', title: 'Operation' },
+        ],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        presentation: 'entity',
+        rows: [{ id: 'application-1', name: 'web' }],
+        total: 1,
+      },
+      slots: { cards: '<article data-testid="application-card">web</article>' },
+    });
+
+    expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('presentation')).toBe('entity');
+    expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('entityCardLayout')).toBe('compact');
+  });
 });

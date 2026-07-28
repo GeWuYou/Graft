@@ -1174,6 +1174,7 @@
       "emptyDescription": "创建空白模板，或从现有模板克隆。",
       "loadFailed": "无法加载模板目录。",
       "detailLoadFailed": "无法加载模板详情。",
+      "detailNavigationFailed": "无法打开模板详情，请稍后重试。",
       "createFailed": "无法创建模板草稿。",
       "createSuccess": "模板草稿已创建。",
       "save": "保存草稿",

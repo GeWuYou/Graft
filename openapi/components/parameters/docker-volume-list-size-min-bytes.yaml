@@ -1,0 +1,5 @@
+name: size_min_bytes
+in: query
+required: false
+description: Optional inclusive lower bound for known Docker volume usage in bytes.
+schema: { type: integer, format: int64, minimum: 0 }

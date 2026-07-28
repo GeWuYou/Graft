@@ -38,11 +38,45 @@ describe('docker image list page', () => {
     expect(sourceText).not.toContain('docker-images-metrics');
   });
 
-  it('keeps responsive data-table behavior in the shared paged-table boundary', () => {
+  it('declares an entity presentation with compact cards and tablet column priorities', () => {
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('v-model:current="pagination.current"');
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
-    expect(sourceText).not.toContain('presentation="entity"');
+    expect(sourceText).toContain('presentation="entity"');
+    expect(sourceText).toContain('entity-card-layout="compact"');
+    expect(sourceText).toContain("comfortable: ['tags', 'size', 'status', 'actions']");
+    expect(sourceText).toContain(
+      "spacious: ['row-select', 'tags', 'size', 'containers', 'status', 'created_at', 'actions']",
+    );
+  });
+
+  it('uses a card list for compact containers without a default checkbox', () => {
+    expect(sourceText).toContain('<template #cards>');
+    expect(sourceText).toContain('class="docker-images-card"');
+    expect(sourceText).toContain('formatBytes(image.size_bytes)');
+    expect(sourceText).toContain("t('container.images.fields.containers')");
+    expect(sourceText).toContain("t('container.images.fields.createdAt')");
+    expect(sourceText).toContain('v-if="cardSelectionMode"');
+    expect(sourceText).toContain("{ content: t('container.images.actions.select'), value: 'select' }");
+    expect(sourceText).toContain('function handleCardClick(image: DockerImage)');
+    expect(sourceText).toContain('function setCardSelected(image: DockerImage, selected: boolean)');
+  });
+
+  it('places image removal in the shared container danger zone', () => {
+    expect(sourceText).toContain('<container-danger-zone');
+    expect(sourceText).toContain('v-if="selectedImage && canRemove"');
+    expect(sourceText).toContain(':description="t(\'container.images.remove.risk\')"');
+    expect(sourceText).toContain('@action="openRemove(selectedImage)"');
+    expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.IMAGE_REMOVE');
+  });
+
+  it('keeps the pull action primary and moves cleanup into compact overflow', () => {
+    expect(sourceText).toContain('<template #compactActions>');
+    expect(sourceText).toContain('compactHeaderActions');
+    expect(sourceText).toContain('handleCompactHeaderAction');
+    expect(sourceText).toContain('sticky-compact');
+    expect(sourceText).toContain("t('container.images.searchCompact')");
+    expect(sourceText).toContain('layout="chips"');
   });
 
   it('resets server pagination when submitting or clearing the keyword', () => {
@@ -197,7 +231,7 @@ describe('docker image list page', () => {
     );
     expect(sourceText).toContain('theme="info"');
     expect(sourceText).toContain('<template #footer>');
-    expect(sourceText).toContain('@click="openRemove(selectedImage)"');
+    expect(sourceText).toContain('@action="openRemove(selectedImage)"');
   });
 
   it('previews a multi-tag Image delete failure without changing the remove request semantics', () => {

@@ -37,6 +37,19 @@ describe('PageHeader', () => {
     expect(wrapper.get('.page-header__extra').text()).toBe('Updated just now');
   });
 
+  it('provides a compact-only action slot for shared responsive headers', () => {
+    const wrapper = mount(PageHeader, {
+      props: { titleFallback: 'Images' },
+      slots: {
+        actions: '<button type="button">Clean</button>',
+        compactActions: '<button type="button">More</button>',
+      },
+    });
+
+    expect(wrapper.get('.page-header__compact-actions button').text()).toBe('More');
+    expect(PAGE_HEADER_SOURCE).toContain('$slots.compactActions');
+  });
+
   it('uses its own container width to stack title and actions', () => {
     expect(PAGE_HEADER_SOURCE).toContain('container-type: inline-size');
     expect(PAGE_HEADER_SOURCE).toContain('@container (width < @screen-sm)');

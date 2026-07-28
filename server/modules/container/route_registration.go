@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -903,7 +904,6 @@ func bindGetContainerParams(ginCtx *gin.Context) containeropenapi.GetContainerPa
 	return containeropenapi.GetContainerParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-//nolint:cyclop // 数据卷查询参数需在单一 HTTP 边界完成校验与绑定。
 func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (containeropenapi.GetDockerVolumesParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	params := containeropenapi.GetDockerVolumesParams{XGraftLocale: locale, XRequestId: requestID}
@@ -925,26 +925,72 @@ func bindGetDockerVolumesParams(ginCtx *gin.Context, ctx *module.Context) (conta
 		offset = &defaultOffset
 	}
 	params.Offset = offset
-	if !bindDockerVolumeStringQuery(ginCtx, ctx, "keyword", &params.Keyword) || !bindDockerVolumeStringQuery(ginCtx, ctx, "driver", &params.Driver) || !bindDockerVolumeStringQuery(ginCtx, ctx, "scope", &params.Scope) || !bindDockerVolumeStringQuery(ginCtx, ctx, "compose_project", &params.ComposeProject) {
+	if !bindDockerVolumeFilters(ginCtx, ctx, &params) {
 		return containeropenapi.GetDockerVolumesParams{}, false
 	}
+	return params, true
+}
+
+func bindDockerVolumeFilters(ginCtx *gin.Context, ctx *module.Context, params *containeropenapi.GetDockerVolumesParams) bool {
+	if !bindDockerVolumeBasicFilters(ginCtx, ctx, params) {
+		return false
+	}
+	if !bindDockerVolumeEnumFilters(ginCtx, ctx, params) {
+		return false
+	}
+	return bindDockerVolumeTypedFilters(ginCtx, ctx, params)
+}
+
+func bindDockerVolumeBasicFilters(ginCtx *gin.Context, ctx *module.Context, params *containeropenapi.GetDockerVolumesParams) bool {
+	return bindDockerVolumeStringQuery(ginCtx, ctx, "keyword", &params.Keyword) &&
+		bindDockerVolumeStringQuery(ginCtx, ctx, "driver", &params.Driver) &&
+		bindDockerVolumeStringQuery(ginCtx, ctx, "scope", &params.Scope) &&
+		bindDockerVolumeStringQuery(ginCtx, ctx, "compose_project", &params.ComposeProject)
+}
+
+func bindDockerVolumeEnumFilters(ginCtx *gin.Context, ctx *module.Context, params *containeropenapi.GetDockerVolumesParams) bool {
 	if usage := strings.TrimSpace(ginCtx.Query("usage")); usage != "" {
 		value := containeropenapi.GetDockerVolumesParamsUsage(usage)
 		if !value.Valid() {
 			writeInvalidContainerQuery(ginCtx, ctx, "usage")
-			return containeropenapi.GetDockerVolumesParams{}, false
+			return false
 		}
 		params.Usage = &value
 	}
 	if source, ok := optionalEnumQueryValue(ginCtx, ctx, "source", func(value string) bool {
 		return containeropenapi.GetDockerVolumesParamsSource(value).Valid()
 	}); !ok {
-		return containeropenapi.GetDockerVolumesParams{}, false
+		return false
 	} else if source != "" {
 		value := containeropenapi.GetDockerVolumesParamsSource(source)
 		params.Source = &value
 	}
-	return params, true
+	if sortBy, ok := optionalEnumQueryValue(ginCtx, ctx, "sort_by", func(value string) bool {
+		return containeropenapi.GetDockerVolumesParamsSortBy(value).Valid()
+	}); !ok {
+		return false
+	} else if sortBy != "" {
+		value := containeropenapi.GetDockerVolumesParamsSortBy(sortBy)
+		params.SortBy = &value
+	}
+	if sortOrder, ok := optionalEnumQueryValue(ginCtx, ctx, "sort_order", func(value string) bool {
+		return containeropenapi.GetDockerVolumesParamsSortOrder(value).Valid()
+	}); !ok {
+		return false
+	} else if sortOrder != "" {
+		value := containeropenapi.GetDockerVolumesParamsSortOrder(sortOrder)
+		params.SortOrder = &value
+	}
+	return true
+}
+
+func bindDockerVolumeTypedFilters(ginCtx *gin.Context, ctx *module.Context, params *containeropenapi.GetDockerVolumesParams) bool {
+	return bindDockerVolumeTimeQuery(ginCtx, ctx, "created_after", &params.CreatedAfter) &&
+		bindDockerVolumeTimeQuery(ginCtx, ctx, "created_before", &params.CreatedBefore) &&
+		bindDockerVolumeInt64Query(ginCtx, ctx, "size_min_bytes", &params.SizeMinBytes) &&
+		bindDockerVolumeInt64Query(ginCtx, ctx, "size_max_bytes", &params.SizeMaxBytes) &&
+		bindDockerVolumeBoolQuery(ginCtx, ctx, "anonymous", &params.Anonymous) &&
+		bindDockerVolumeBoolQuery(ginCtx, ctx, "orphaned", &params.Orphaned)
 }
 
 func bindDockerVolumeStringQuery(ginCtx *gin.Context, ctx *module.Context, key string, target **string) bool {
@@ -957,6 +1003,48 @@ func bindDockerVolumeStringQuery(ginCtx *gin.Context, ctx *module.Context, key s
 		return false
 	}
 	*target = &value
+	return true
+}
+
+func bindDockerVolumeTimeQuery(ginCtx *gin.Context, ctx *module.Context, key string, target **time.Time) bool {
+	value := strings.TrimSpace(ginCtx.Query(key))
+	if value == "" {
+		return true
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		writeInvalidContainerQuery(ginCtx, ctx, key)
+		return false
+	}
+	*target = &parsed
+	return true
+}
+
+func bindDockerVolumeInt64Query(ginCtx *gin.Context, ctx *module.Context, key string, target **int64) bool {
+	value := strings.TrimSpace(ginCtx.Query(key))
+	if value == "" {
+		return true
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed < 0 {
+		writeInvalidContainerQuery(ginCtx, ctx, key)
+		return false
+	}
+	*target = &parsed
+	return true
+}
+
+func bindDockerVolumeBoolQuery(ginCtx *gin.Context, ctx *module.Context, key string, target **bool) bool {
+	value := strings.TrimSpace(ginCtx.Query(key))
+	if value == "" {
+		return true
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		writeInvalidContainerQuery(ginCtx, ctx, key)
+		return false
+	}
+	*target = &parsed
 	return true
 }
 
@@ -1122,12 +1210,24 @@ func dockerVolumeListQueryFromParams(params containeropenapi.GetDockerVolumesPar
 		Driver:         stringPtrValue(params.Driver),
 		Scope:          stringPtrValue(params.Scope),
 		ComposeProject: stringPtrValue(params.ComposeProject),
+		CreatedAfter:   params.CreatedAfter,
+		CreatedBefore:  params.CreatedBefore,
+		SizeMinBytes:   params.SizeMinBytes,
+		SizeMaxBytes:   params.SizeMaxBytes,
+		Anonymous:      params.Anonymous,
+		Orphaned:       params.Orphaned,
 	}
 	if params.Source != nil {
 		query.Source = DockerResourceSource(*params.Source)
 	}
 	if params.Usage != nil {
 		query.Usage = string(*params.Usage)
+	}
+	if params.SortBy != nil {
+		query.SortBy = string(*params.SortBy)
+	}
+	if params.SortOrder != nil {
+		query.SortOrder = string(*params.SortOrder)
 	}
 	return query
 }

@@ -14,6 +14,9 @@
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
+      <template v-if="$slots.compactActions" #compactActions>
+        <slot name="compactActions" />
+      </template>
     </page-header>
   </header>
 </template>

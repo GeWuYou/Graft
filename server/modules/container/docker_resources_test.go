@@ -16,10 +16,10 @@ import (
 func TestListDockerVolumesFiltersSortsAndPages(t *testing.T) {
 	t.Parallel()
 
-	used := int64(2)
+	used, small, large := int64(2), int64(10), int64(20)
 	items := []DockerVolume{
-		{Name: "zeta", Driver: "local", Scope: "local", ReferenceCount: &used},
-		{Name: "alpha", Driver: "local", Scope: "local", ReferenceCount: &used},
+		{Name: "zeta", Driver: "local", Scope: "local", ReferenceCount: &used, SizeBytes: &large},
+		{Name: "alpha", Driver: "local", Scope: "local", ReferenceCount: &used, SizeBytes: &small},
 		{Name: "beta", Driver: "nfs", Scope: "global"},
 	}
 	result := listDockerVolumes(items, DockerVolumeListQuery{Driver: "local", Usage: "used", Limit: 1, Offset: 1})
@@ -27,8 +27,39 @@ func TestListDockerVolumesFiltersSortsAndPages(t *testing.T) {
 	if result.Total != 2 || result.Limit != 1 || result.Offset != 1 {
 		t.Fatalf("unexpected page metadata: %#v", result)
 	}
-	if len(result.Items) != 1 || result.Items[0].Name != "zeta" {
+	if len(result.Items) != 1 || result.Items[0].Name != "alpha" {
 		t.Fatalf("expected sorted second matching volume, got %#v", result.Items)
+	}
+}
+
+func TestListDockerVolumesSortsBySizeWithNilAlwaysLast(t *testing.T) {
+	t.Parallel()
+
+	small, large := int64(10), int64(20)
+	items := []DockerVolume{
+		{Name: "unknown-b"},
+		{Name: "large-b", SizeBytes: &large},
+		{Name: "small", SizeBytes: &small},
+		{Name: "large-a", SizeBytes: &large},
+		{Name: "unknown-a"},
+	}
+	tests := []struct {
+		name, order string
+		want        []string
+	}{
+		{name: "default descending", want: []string{"large-a", "large-b", "small", "unknown-a", "unknown-b"}},
+		{name: "explicit descending", order: "desc", want: []string{"large-a", "large-b", "small", "unknown-a", "unknown-b"}},
+		{name: "explicit ascending", order: "asc", want: []string{"small", "large-a", "large-b", "unknown-a", "unknown-b"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := listDockerVolumes(items, DockerVolumeListQuery{SortBy: "size_bytes", SortOrder: test.order, Limit: len(items)})
+			for index, name := range test.want {
+				if result.Items[index].Name != name {
+					t.Fatalf("unexpected order at %d: got %q, want %q (%#v)", index, result.Items[index].Name, name, result.Items)
+				}
+			}
+		})
 	}
 }
 
@@ -323,9 +354,10 @@ func TestReadDockerVolumeDoesNotCalculateGlobalUsage(t *testing.T) {
 
 	refCount, size := int64(2), int64(4096)
 	client := &volumeDetailDockerClient{volume: volume.Volume{
-		Name:      "data",
-		Driver:    "local",
-		UsageData: &volume.UsageData{RefCount: refCount, Size: size},
+		Name:       "data",
+		Driver:     "local",
+		Mountpoint: "/var/lib/docker/volumes/data/_data",
+		UsageData:  &volume.UsageData{RefCount: refCount, Size: size},
 	}}
 	runtime := &DockerRuntime{client: client}
 
@@ -338,6 +370,9 @@ func TestReadDockerVolumeDoesNotCalculateGlobalUsage(t *testing.T) {
 	}
 	if result.ReferenceCount == nil || *result.ReferenceCount != refCount || result.SizeBytes == nil || *result.SizeBytes != size {
 		t.Fatalf("expected inspect usage mapping to be preserved, got %#v", result)
+	}
+	if result.Mountpoint != "/var/lib/docker/volumes/data/_data" {
+		t.Fatalf("expected inspect mountpoint mapping, got %q", result.Mountpoint)
 	}
 	if got := client.containerListOptions.Filters["volume"]["data"]; !got {
 		t.Fatalf("expected container query to filter volume name, got %#v", client.containerListOptions)

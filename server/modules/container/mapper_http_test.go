@@ -1,6 +1,8 @@
 package container
 
 import (
+	"bytes"
+	"encoding/json"
 	"slices"
 	"testing"
 
@@ -62,6 +64,19 @@ func TestToDockerImageMapsRequiredArraysAsEmptyArrays(t *testing.T) {
 	volume := toDockerVolume(DockerVolume{Name: "volume-name"})
 	if volume.ContainerReferences == nil || len(volume.ContainerReferences) != 0 {
 		t.Fatalf("expected empty volume container references array, got %#v", volume.ContainerReferences)
+	}
+}
+
+func TestToDockerVolumeDoesNotExposeHostMountpoint(t *testing.T) {
+	t.Parallel()
+
+	volume := toDockerVolume(DockerVolume{Name: "volume-name", Mountpoint: "/var/lib/docker/volumes/volume-name/_data"})
+	encoded, err := json.Marshal(volume)
+	if err != nil {
+		t.Fatalf("marshal Docker volume response: %v", err)
+	}
+	if bytes.Contains(encoded, []byte(`"mountpoint"`)) {
+		t.Fatalf("Docker volume response must not expose host mount paths: %s", encoded)
 	}
 }
 

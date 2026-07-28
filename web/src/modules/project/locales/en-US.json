@@ -1174,6 +1174,7 @@
       "emptyDescription": "Create a blank template or clone an existing template.",
       "loadFailed": "Failed to load the template catalog.",
       "detailLoadFailed": "Failed to load template details.",
+      "detailNavigationFailed": "The template details could not be opened. Try again shortly.",
       "createFailed": "Failed to create the template draft.",
       "createSuccess": "Template draft created.",
       "save": "Save Draft",

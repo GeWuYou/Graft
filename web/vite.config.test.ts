@@ -104,4 +104,8 @@ describe('createViteConfig', () => {
     );
     expect(manualChunks.manualChunks('/tmp/node_modules/monaco-yaml/lib/esm/index.js')).toBe('vendor-monaco');
   });
+
+  it('keeps Monaco worker entrypoints out of dependency optimization', () => {
+    expect(createViteConfig('development').optimizeDeps?.exclude).toContain('monaco-editor');
+  });
 });

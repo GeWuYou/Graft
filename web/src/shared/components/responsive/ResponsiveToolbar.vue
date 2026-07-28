@@ -72,6 +72,12 @@ const variant = useResponsiveVariant(container);
     width: 100%;
   }
 
+  .responsive-toolbar__filters,
+  .responsive-toolbar__batch,
+  .responsive-toolbar__actions {
+    flex: 0 0 auto;
+  }
+
   .responsive-toolbar__primary,
   .responsive-toolbar__secondary,
   .responsive-toolbar__overflow {

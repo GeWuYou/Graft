@@ -7,6 +7,7 @@ describe('access-log monitor origin', () => {
     expect(
       buildAccessLogLocation(
         {
+          quick_preset: 'status5xx',
           status_code: '503',
           occurred_from: '2026-07-14T08:00:00Z',
           occurred_to: '2026-07-14T08:10:00Z',
@@ -16,6 +17,7 @@ describe('access-log monitor origin', () => {
     ).toEqual({
       path: '/observability/access-logs',
       query: {
+        quick_preset: 'status5xx',
         status_code: '503',
         occurred_from: '2026-07-14T08:00:00Z',
         occurred_to: '2026-07-14T08:10:00Z',
@@ -26,10 +28,11 @@ describe('access-log monitor origin', () => {
 
     const parsed = parseAccessLogRouteQuery({
       status_code: '503',
+      quick_preset: 'status5xx',
       monitorView: 'request-performance',
       monitorTrendRange: '10m',
     });
-    expect(parsed).toMatchObject({ status_code: '503' });
+    expect(parsed).toMatchObject({ quick_preset: 'status5xx', status_code: '503' });
     expect(parsed).not.toHaveProperty('monitorView');
     expect(parsed).not.toHaveProperty('monitorTrendRange');
   });

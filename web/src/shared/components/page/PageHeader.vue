@@ -16,12 +16,15 @@
         </p>
       </div>
 
-      <div v-if="$slots.actions || $slots.extra" class="page-header__side">
+      <div v-if="$slots.actions || $slots.compactActions || $slots.extra" class="page-header__side">
         <div v-if="$slots.extra" class="page-header__extra">
           <slot name="extra" />
         </div>
         <div v-if="$slots.actions" class="page-header__actions">
           <slot name="actions" />
+        </div>
+        <div v-if="$slots.compactActions" class="page-header__compact-actions">
+          <slot name="compactActions" />
         </div>
       </div>
     </div>
@@ -151,6 +154,7 @@ const resolvedDescription = computed(() => {
 }
 
 .page-header__actions,
+.page-header__compact-actions,
 .page-header__extra {
   align-items: center;
   display: flex;
@@ -158,6 +162,10 @@ const resolvedDescription = computed(() => {
   gap: var(--graft-density-gap-12);
   justify-content: flex-end;
   max-width: 100%;
+}
+
+.page-header__compact-actions {
+  display: none;
 }
 
 .page-header--compact {
@@ -175,10 +183,19 @@ const resolvedDescription = computed(() => {
 
   .page-header:not(.page-header--inline-actions) .page-header__side,
   .page-header:not(.page-header--inline-actions) .page-header__actions,
+  .page-header:not(.page-header--inline-actions) .page-header__compact-actions,
   .page-header:not(.page-header--inline-actions) .page-header__extra {
     align-items: stretch;
     justify-content: flex-start;
     width: 100%;
+  }
+
+  .page-header:not(.page-header--inline-actions) .page-header__actions:has(+ .page-header__compact-actions) {
+    display: none;
+  }
+
+  .page-header:not(.page-header--inline-actions) .page-header__compact-actions {
+    display: flex;
   }
 
   .page-header--inline-actions .page-header__side {
@@ -186,6 +203,7 @@ const resolvedDescription = computed(() => {
   }
 
   .page-header--inline-actions .page-header__actions,
+  .page-header--inline-actions .page-header__compact-actions,
   .page-header--inline-actions .page-header__extra {
     justify-content: flex-end;
   }

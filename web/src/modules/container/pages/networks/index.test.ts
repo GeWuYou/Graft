@@ -25,7 +25,7 @@ describe('Docker network management page', () => {
   });
 
   it('supports permission-gated batch removal with pagination and partial results', () => {
-    expect(sourceText).toContain(':selected-row-keys="selectedNetworkIds"');
+    expect(sourceText).toContain(':selected-row-keys="isCompactDensity ? [] : selectedNetworkIds"');
     expect(sourceText).toContain('<management-batch-bar');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.NETWORK_REMOVE');
     expect(sourceText).toContain('Promise.allSettled');
@@ -39,11 +39,27 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('size="small" theme="danger" variant="outline" @click="openBatchRemoveDialog"');
   });
 
-  it('keeps the paged table on the shared data presentation for narrow containers', () => {
+  it('switches the shared paged-table slot to mobile resource cards without a horizontal table', () => {
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('v-model:current="pagination.current"');
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
-    expect(sourceText).not.toContain('presentation="entity"');
+    expect(sourceText).toContain(':cards-visible="true"');
+    expect(sourceText).toContain('density-scope="viewport"');
+    expect(sourceText).toContain('<responsive-card-list');
+    expect(sourceText).toContain('docker-network-page__mobile-card');
+    expect(sourceText).toContain('docker-network-page__mobile-card-name');
+    expect(sourceText).toContain('overflow-wrap: anywhere;');
+    expect(sourceText).toContain('networkQuery.isFetching.value');
+  });
+
+  it('uses responsive breakpoints to reduce tablet columns and move mobile actions into overlays', () => {
+    expect(sourceText).toContain('useViewportResponsiveVariant()');
+    expect(sourceText).toContain("comfortable: ['name', 'context', 'status', 'operation']");
+    expect(sourceText).toContain('advancedFiltersDrawerVisible');
+    expect(sourceText).toContain('placement="bottom"');
+    expect(sourceText).toContain('networkActionOptions');
+    expect(sourceText).toContain("theme: 'error'");
+    expect(sourceText).toContain("t('container.networks.removeRisk')");
   });
 
   it('uses the shared cleanup snapshot for removable unused networks', () => {
@@ -80,7 +96,8 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('<docker-resource-context-card');
     expect(sourceText).toContain("t('container.resourceContext.relations')");
     expect(sourceText).toContain('<t-collapse');
-    expect(sourceText).toContain("t('container.resourceContext.dangerZone')");
+    expect(sourceText).toContain('<container-danger-zone');
+    expect(sourceText).toContain(':description="t(\'container.networks.removeRisk\')"');
     expect(sourceText).toContain('advancedFiltersVisible');
   });
 

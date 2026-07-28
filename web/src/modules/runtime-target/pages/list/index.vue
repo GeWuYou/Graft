@@ -6,6 +6,7 @@
         compact
         :title="t('runtimeTarget.list.title')"
         :description="t('runtimeTarget.list.description')"
+        :source="{ labelKey: 'runtimeTarget.list.eyebrow', fallback: t('runtimeTarget.list.eyebrow') }"
       >
         <template v-if="total > 0" #actions>
           <t-tooltip :content="t('runtimeTarget.list.discoverLocalDocker')" placement="bottom">

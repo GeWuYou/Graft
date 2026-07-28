@@ -1,8 +1,12 @@
 type: object
-required: [total, in_use, unused, reference_unknown]
+required: [total, in_use, unused, orphaned, reference_unknown]
 properties:
   total: { type: integer, minimum: 0 }
   in_use: { type: integer, minimum: 0 }
   unused: { type: integer, minimum: 0 }
+  orphaned:
+    type: integer
+    minimum: 0
+    description: Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors.
   reference_unknown: { type: integer, minimum: 0 }
   size_bytes: { type: integer, format: int64, minimum: 0, nullable: true }

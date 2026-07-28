@@ -96,7 +96,7 @@ describe('container resource query keys', () => {
       total: 0,
       limit: 20,
       offset: 0,
-      summary: { total: 0, in_use: 0, unused: 0, reference_unknown: 0, size_bytes: 0 },
+      summary: { total: 0, in_use: 0, unused: 0, orphaned: 0, reference_unknown: 0, size_bytes: 0 },
     });
 
     const active = ref<DockerResourceTab>('networks');

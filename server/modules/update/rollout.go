@@ -228,7 +228,6 @@ func (s *RolloutService) runReceiptPolling(ctx context.Context, polling receiptP
 
 func (s *RolloutService) persistAndLaunch(ctx context.Context, operation ComposeUpdateOperation, input RunnerInput) error {
 	if err := s.operations.Create(ctx, operation); err != nil {
-		s.publishAudit(ctx, operation, false, "operation_persist_failed")
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "operation_persist", operation.OperationID, fmt.Errorf("persist update operation: %w", err))
 	}
 	if err := s.launcher.Launch(ctx, input); err != nil {
@@ -236,11 +235,9 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 		if cleanupErr := s.coordinator.CancelBeforeLaunch(ctx, operation); cleanupErr != nil {
 			operation.FailureCode = "runner_launch_cleanup_failed"
 			_ = s.operations.Settle(ctx, operation)
-			s.publishAudit(ctx, operation, false, operation.FailureCode)
 			return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w; reconcile launch handoff: %w", err, cleanupErr))
 		}
 		_ = s.operations.Settle(ctx, operation)
-		s.publishAudit(ctx, operation, false, operation.FailureCode)
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w", err))
 	}
 	s.publishAudit(ctx, operation, true, "")

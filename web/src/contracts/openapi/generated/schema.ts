@@ -1549,6 +1549,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/updates/diagnostics/{requestId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read a sanitized self-update start failure diagnostic
+     * @description Returns the immutable, sanitized diagnostic retained for a failed update-start request. This protected evidence is available only to platform update managers and does not change the safe error envelope returned by the update-start request.
+     */
+    get: operations['getPlatformUpdateFailureDiagnostic'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/platform/updates/operations/{operationID}': {
     parameters: {
       query?: never;
@@ -3765,6 +3785,8 @@ export interface components {
     CreatePlatformUpdateOperationRequest: components['schemas']['create-platform-update-operation-request'];
     EnvelopedPlatformUpdateOperation: components['schemas']['enveloped-platform-update-operation'];
     EnvelopedPlatformUpdateOperationList: components['schemas']['enveloped-platform-update-operation-list'];
+    PlatformUpdateFailureDiagnostic: components['schemas']['platform-update-failure-diagnostic'];
+    EnvelopedPlatformUpdateFailureDiagnostic: components['schemas']['enveloped-platform-update-failure-diagnostic'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
     AccessLogListResponse: components['schemas']['access-log-list-response'];
     EnvelopedAccessLogListResponse: components['schemas']['enveloped-access-log-list-response'];
@@ -6358,6 +6380,39 @@ export interface components {
       traceId: string;
       data: components['schemas']['platform-update-rollout-failure-data'];
     };
+    /** @description Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses. */
+    'platform-update-failure-diagnostic': {
+      /** @description Request identifier that correlates this diagnostic with application and access logs. */
+      request_id: string;
+      /** @description Update operation identifier when persistence completed before the failure. */
+      operation_id?: string;
+      /**
+       * Format: int64
+       * @description Task runtime identifier when one was created before the failure.
+       */
+      task_id?: number;
+      /** @description Requested release version. */
+      target_version: string;
+      failure_code: components['schemas']['platform-update-rollout-failure-code'];
+      /** @description Server-side update-start stage that failed. */
+      failure_stage: string;
+      /** @description Controlled operator-facing failure summary. */
+      summary: string;
+      /** @description Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted. */
+      detail: string;
+      /**
+       * Format: date-time
+       * @description UTC time at which the update start failed.
+       */
+      occurred_at: string;
+    };
+    'enveloped-platform-update-failure-diagnostic': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-failure-diagnostic'];
+    };
     /** @description Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned. */
     'platform-backup-summary': {
       /** Format: int64 */
@@ -7676,6 +7731,8 @@ export interface components {
       driver: string;
       scope: string;
       created_at: string;
+      /** @description Server-owned classification of Docker-generated anonymous volume names. */
+      anonymous: boolean;
       labels?: {
         [key: string]: string;
       };
@@ -7692,6 +7749,8 @@ export interface components {
       total: number;
       in_use: number;
       unused: number;
+      /** @description Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors. */
+      orphaned: number;
       reference_unknown: number;
       /** Format: int64 */
       size_bytes?: number | null;
@@ -9190,12 +9249,28 @@ export interface components {
     'docker-volume-list-driver': string;
     /** @description Optional exact Docker volume scope filter. */
     'docker-volume-list-scope': string;
-    /** @description Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server. */
-    'docker-volume-list-usage': 'used' | 'unused';
+    /** @description Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states. */
+    'docker-volume-list-usage': 'used' | 'unused' | 'abnormal';
     /** @description Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts. */
     'docker-volume-list-source': components['schemas']['docker-resource-source'];
     /** @description Optional exact Compose project filter. Only applies to volumes with source=compose. */
     'docker-volume-list-compose-project': string;
+    /** @description Optional inclusive RFC 3339 lower bound for a Docker volume creation time. */
+    'docker-volume-list-created-after': string;
+    /** @description Optional inclusive RFC 3339 upper bound for a Docker volume creation time. */
+    'docker-volume-list-created-before': string;
+    /** @description Optional inclusive lower bound for known Docker volume usage in bytes. */
+    'docker-volume-list-size-min-bytes': number;
+    /** @description Optional inclusive upper bound for known Docker volume usage in bytes. */
+    'docker-volume-list-size-max-bytes': number;
+    /** @description Optional server-owned anonymous-volume classification filter. */
+    'docker-volume-list-anonymous': boolean;
+    /** @description Optional filter for volumes with a resolved zero-container reference count. */
+    'docker-volume-list-orphaned': boolean;
+    /** @description Optional Docker volume sort field. Defaults to size_bytes. */
+    'docker-volume-list-sort-by': 'size_bytes';
+    /** @description Optional Docker volume sort direction. Defaults to descending. */
+    'docker-volume-list-sort-order': 'asc' | 'desc';
     /** @description Docker volume name. Clients must call encodeURIComponent before placing this value in the path. The backend must PathUnescape the path parameter and reject empty values, slashes, and control characters. */
     'docker-volume-id-path': string;
     /** @description Optional case-insensitive keyword matched against the application display name, Compose identity, and working directory before pagination. */
@@ -13550,6 +13625,60 @@ export interface operations {
       };
     };
   };
+  getPlatformUpdateFailureDiagnostic: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        requestId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized update-start failure diagnostic. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-failure-diagnostic'];
+        };
+      };
+      /** @description Invalid request identifier. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Update-start failure diagnostic not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The diagnostic store could not be read. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getPlatformUpdateOperation: {
     parameters: {
       query?: never;
@@ -16668,12 +16797,28 @@ export interface operations {
         driver?: components['parameters']['docker-volume-list-driver'];
         /** @description Optional exact Docker volume scope filter. */
         scope?: components['parameters']['docker-volume-list-scope'];
-        /** @description Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server. */
+        /** @description Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states. */
         usage?: components['parameters']['docker-volume-list-usage'];
         /** @description Optional normalized Docker volume source filter, resolved by the server from trusted runtime facts. */
         source?: components['parameters']['docker-volume-list-source'];
         /** @description Optional exact Compose project filter. Only applies to volumes with source=compose. */
         compose_project?: components['parameters']['docker-volume-list-compose-project'];
+        /** @description Optional inclusive RFC 3339 lower bound for a Docker volume creation time. */
+        created_after?: components['parameters']['docker-volume-list-created-after'];
+        /** @description Optional inclusive RFC 3339 upper bound for a Docker volume creation time. */
+        created_before?: components['parameters']['docker-volume-list-created-before'];
+        /** @description Optional inclusive lower bound for known Docker volume usage in bytes. */
+        size_min_bytes?: components['parameters']['docker-volume-list-size-min-bytes'];
+        /** @description Optional inclusive upper bound for known Docker volume usage in bytes. */
+        size_max_bytes?: components['parameters']['docker-volume-list-size-max-bytes'];
+        /** @description Optional server-owned anonymous-volume classification filter. */
+        anonymous?: components['parameters']['docker-volume-list-anonymous'];
+        /** @description Optional filter for volumes with a resolved zero-container reference count. */
+        orphaned?: components['parameters']['docker-volume-list-orphaned'];
+        /** @description Optional Docker volume sort field. Defaults to size_bytes. */
+        sort_by?: components['parameters']['docker-volume-list-sort-by'];
+        /** @description Optional Docker volume sort direction. Defaults to descending. */
+        sort_order?: components['parameters']['docker-volume-list-sort-order'];
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */

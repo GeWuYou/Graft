@@ -1,10 +1,11 @@
 name: usage
 in: query
 required: false
-description: Optional Docker volume relationship-status filter. Used and unused only include volumes whose container relationship is resolved by the server.
+description: Optional Docker volume lifecycle status filter. The abnormal value aggregates server-owned unknown and exception relationship states.
 schema:
   type: string
-  enum: [used, unused]
+  enum: [used, unused, abnormal]
   x-enum-varnames:
     - DockerVolumeListUsageUsed
     - DockerVolumeListUsageUnused
+    - DockerVolumeListUsageAbnormal
