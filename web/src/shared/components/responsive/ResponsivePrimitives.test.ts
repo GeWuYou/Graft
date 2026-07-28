@@ -9,11 +9,19 @@ import ResponsiveContent from './ResponsiveContent.vue';
 import responsiveContentSource from './ResponsiveContent.vue?raw';
 import ResponsiveDialog from './ResponsiveDialog.vue';
 import ResponsiveEmpty from './ResponsiveEmpty.vue';
+import ResponsiveFilterPanel from './ResponsiveFilterPanel.vue';
 import ResponsiveForm from './ResponsiveForm.vue';
 import ResponsiveHeader from './ResponsiveHeader.vue';
 import ResponsivePage from './ResponsivePage.vue';
 import ResponsiveTable from './ResponsiveTable.vue';
 import ResponsiveToolbar from './ResponsiveToolbar.vue';
+
+vi.mock('tdesign-vue-next/es/dialog', () => ({
+  Dialog: { name: 'TDialog', template: '<div data-testid="responsive-dialog-overlay"><slot /></div>' },
+}));
+vi.mock('tdesign-vue-next/es/drawer', () => ({
+  Drawer: { name: 'TDrawer', template: '<aside data-testid="responsive-drawer-overlay"><slot /></aside>' },
+}));
 
 class ResizeObserverMock {
   static instances: ResizeObserverMock[] = [];
@@ -138,6 +146,32 @@ describe('responsive primitives', () => {
     expect(empty.find('.responsive-empty__actions').text()).toContain('retry');
   });
 
+  it('keeps secondary filters in a responsive panel on compact surfaces', async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const wrapper = mount(ResponsiveFilterPanel, {
+      props: { moreLabel: 'More Filters', panelTitle: 'Filter Roles' },
+      slots: {
+        filters: '<select aria-label="type"><option>Type</option></select>',
+        search: '<input aria-label="search">',
+      },
+      global: {
+        stubs: {
+          't-button': { template: '<button><slot name="icon" /><slot /></button>' },
+          't-tooltip': { template: '<div><slot /></div>' },
+        },
+      },
+    });
+    await nextTick();
+    ResizeObserverMock.instances[0]?.emit(480);
+    await nextTick();
+
+    expect(wrapper.find('.responsive-filter-panel__search input').exists()).toBe(true);
+    expect(wrapper.find('.responsive-filter-panel__filters').exists()).toBe(false);
+
+    await wrapper.get('button').trigger('click');
+    expect(wrapper.find('.responsive-filter-panel__dialog-content select').exists()).toBe(true);
+  });
+
   it('resolves dialog surfaces from semantic purpose and size without pixel props', () => {
     expect(resolveResponsiveDialogPolicy(375, 'confirm', 'compact')).toMatchObject({
       interaction: 'interactive',
@@ -153,11 +187,9 @@ describe('responsive primitives', () => {
     const wrapper = mount(ResponsiveDialog, {
       props: { purpose: 'form', size: 'large', title: 'Edit', visible: true },
       slots: { default: '<p>form fields</p>', footer: '<button>save</button>' },
-      global: {
-        stubs: { 't-dialog': { template: '<div><slot /></div>' }, 't-drawer': { template: '<div><slot /></div>' } },
-      },
     });
 
+    expect(wrapper.find('[data-testid="responsive-drawer-overlay"]').exists()).toBe(true);
     expect(wrapper.find('.responsive-dialog').classes()).toContain('responsive-dialog--drawer');
     expect(wrapper.text()).toContain('form fields');
     expect(wrapper.find('.responsive-dialog__footer').text()).toContain('save');

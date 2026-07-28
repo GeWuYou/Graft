@@ -90,6 +90,10 @@
             :selected-label="t('user.userList.batch.selected', { count: selectedRowKeys.length })"
             :clear-label="t('user.userList.batch.cancelSelection')"
             clear-test-id="user-batch-clear"
+            :compact-action-label="t('user.userList.batch.actions')"
+            compact-action-test-id="user-batch-actions"
+            :compact-actions="compactBatchActions"
+            @action="handleCompactBatchAction"
             @clear="selectedRowKeys = []"
           >
             <t-button size="small" variant="outline" disabled>{{ t('user.userList.batch.enable') }}</t-button>
@@ -127,24 +131,36 @@
           <div v-if="pagedUsers.length" class="user-card-list">
             <article v-for="user in pagedUsers" :key="user.id" class="user-card" :data-testid="`user-card-${user.id}`">
               <div class="user-card__head">
-                <div class="user-cell">
-                  <div class="user-cell__avatar">{{ userInitial(user.display || user.username) }}</div>
-                  <div class="user-cell__meta">
-                    <span class="user-cell__display">{{ user.display || user.username }}</span>
-                    <span class="user-cell__username">{{ user.email || `@${user.username}` }}</span>
+                <t-checkbox
+                  class="user-card__selection"
+                  :checked="selectedRowKeys.includes(user.id)"
+                  :aria-label="t('user.userList.batch.selected', { count: 1 })"
+                  data-testid="user-card-selection"
+                  @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
+                />
+                <div class="user-card__identity-row">
+                  <div class="user-cell">
+                    <div class="user-cell__avatar">{{ userInitial(user.display || user.username) }}</div>
+                    <div class="user-cell__meta">
+                      <span class="user-cell__display">{{ user.display || user.username }}</span>
+                      <span class="user-cell__username">{{ user.email || `@${user.username}` }}</span>
+                    </div>
+                  </div>
+                  <div class="user-card__badges">
+                    <t-tag
+                      v-if="isProtectedDefaultAdminUser(user)"
+                      theme="warning"
+                      variant="light-outline"
+                      size="small"
+                      :title="t('user.userList.protectedDefaultAdmin.badge')"
+                      data-testid="user-protected-badge"
+                    >
+                      {{ t('user.userList.protectedDefaultAdmin.compactBadge') }}
+                    </t-tag>
+                    <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
                   </div>
                 </div>
-                <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
               </div>
-              <t-tag
-                v-if="isProtectedDefaultAdminUser(user)"
-                theme="warning"
-                variant="light-outline"
-                size="small"
-                data-testid="user-protected-badge"
-              >
-                {{ t('user.userList.protectedDefaultAdmin.badge') }}
-              </t-tag>
               <dl class="user-card__details">
                 <div>
                   <dt>{{ t('user.userList.columns.roles') }}</dt>
@@ -160,11 +176,6 @@
                 </div>
               </dl>
               <div class="user-card__actions">
-                <t-checkbox
-                  :checked="selectedRowKeys.includes(user.id)"
-                  :aria-label="t('user.userList.batch.selected', { count: 1 })"
-                  @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
-                />
                 <table-action-menu
                   :actions="userRowActions(user)"
                   :more-label="t('user.userList.more')"
@@ -788,6 +799,15 @@ const selectedBatchUsers = computed(() => {
 const selectedBatchUsersContainProtectedDefaultAdmin = computed(() =>
   selectedBatchUsers.value.some((item) => isProtectedDefaultAdminUser(item)),
 );
+const compactBatchActions = computed(() => [
+  { content: t('user.userList.batch.enable'), disabled: true, value: 'enable' },
+  { content: t('user.userList.batch.disable'), disabled: true, value: 'disable' },
+  {
+    content: t('user.userList.batch.assignRoles'),
+    disabled: selectedBatchUsersContainProtectedDefaultAdmin.value,
+    value: 'assign-roles',
+  },
+]);
 const editingProtectedDefaultAdmin = computed(
   () => userDrawerMode.value === 'edit' && isProtectedDefaultAdminUser(userDrawerTarget.value),
 );
@@ -1906,6 +1926,10 @@ async function openBatchUserRoleDrawer() {
   }
 
   roleSelectionReady.value = true;
+}
+
+function handleCompactBatchAction(action: string) {
+  if (action === 'assign-roles') void openBatchUserRoleDrawer();
 }
 
 function toggleUserRoleSelection(roleId: number) {

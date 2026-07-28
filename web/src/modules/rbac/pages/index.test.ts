@@ -738,6 +738,7 @@ function mountRolePage() {
         't-form': formStub,
         't-form-item': formItemStub,
         't-input': inputStub,
+        't-loading': passthroughStub,
         't-select': selectStub,
         't-table': tableStub,
         't-tag': passthroughStub,
@@ -823,8 +824,8 @@ describe('RolePage', () => {
     expect(wrapper.text()).not.toContain('rbac.roleList.stats.totalRoles');
   });
 
-  it('keeps the role data table on compact screens with only role, type, and operation columns', async () => {
-    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ];
+  it('renders role cards with the complete mobile summary on compact screens', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_UPDATE];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
     const viewportWidth = window.innerWidth;
@@ -836,8 +837,36 @@ describe('RolePage', () => {
       window.dispatchEvent(new Event('resize'));
       await flushPromises();
 
+      expect(wrapper.find('[data-testid="role-table"]').exists()).toBe(false);
+      const card = wrapper.get('.role-mobile-card');
+      expect(card.text()).toContain('Editor');
+      expect(card.text()).toContain('editor');
+      expect(card.text()).toContain('rbac.roleList.columns.permissionCount');
+      expect(card.text()).toContain('rbac.roleList.columns.userCount');
+      expect(card.text()).toContain('rbac.roleList.columns.updatedAt');
+      expect(card.find('[data-testid="role-detail"]').exists()).toBe(true);
+      expect(card.find('[data-testid="dropdown"]').exists()).toBe(true);
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
+
+  it('keeps the table layout and hides secondary columns on tablet screens', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    const viewportWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 768 });
+
+    try {
+      const wrapper = mountRolePage();
+      await flushPromises();
+      window.dispatchEvent(new Event('resize'));
+      await flushPromises();
+
       expect(wrapper.get('[data-testid="role-table"]').attributes('data-column-keys')).toBe(
-        JSON.stringify(['role', 'builtin', 'operation']),
+        JSON.stringify(['role', 'builtin', 'permission_count', 'user_count', 'operation']),
       );
     } finally {
       Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });

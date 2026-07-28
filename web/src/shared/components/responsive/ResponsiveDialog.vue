@@ -1,17 +1,29 @@
 <template>
-  <component
-    :is="overlayComponent"
-    v-bind="overlayBindings"
+  <t-dialog
+    v-if="policy.surface === 'fullscreen'"
+    v-bind="dialogBindings"
     @close-btn-click="emitVisible(false)"
     @esc-keydown="emitVisible(false)"
     @overlay-click="emitVisible(false)"
     @update:visible="emitVisible"
   >
     <dialog-content :policy="policy"><slot /></dialog-content>
-  </component>
+  </t-dialog>
+  <t-drawer
+    v-else
+    v-bind="drawerBindings"
+    @close-btn-click="emitVisible(false)"
+    @esc-keydown="emitVisible(false)"
+    @overlay-click="emitVisible(false)"
+    @update:visible="emitVisible"
+  >
+    <dialog-content :policy="policy"><slot /></dialog-content>
+  </t-drawer>
 </template>
 <script setup lang="ts">
 import { CloseIcon } from 'tdesign-icons-vue-next';
+import { Dialog as TDialog } from 'tdesign-vue-next/es/dialog';
+import { Drawer as TDrawer } from 'tdesign-vue-next/es/drawer';
 import { computed, defineComponent, h, resolveComponent, useSlots } from 'vue';
 
 import { useViewportResponsiveVariant } from '@/shared/composables';
@@ -57,8 +69,18 @@ const dialogSizeToken = computed<ResponsiveStyleToken>(() => {
 
   return RESPONSIVE_STYLE_TOKENS.dialogMediumMax;
 });
-const overlayComponent = computed(() => (policy.value.surface === 'fullscreen' ? 't-dialog' : 't-drawer'));
-const overlayBindings = computed(() => {
+const dialogBindings = computed(() => ({
+  closeOnEscKeydown,
+  closeOnOverlayClick,
+  destroyOnClose: true,
+  footer: false,
+  visible,
+  class: 'responsive-dialog__fullscreen-overlay',
+  closeBtn: false,
+  header: false,
+  width: '100vw',
+}));
+const drawerBindings = computed(() => {
   const shared = {
     closeOnEscKeydown,
     closeOnOverlayClick,
@@ -67,20 +89,10 @@ const overlayBindings = computed(() => {
     visible,
   };
 
-  if (policy.value.surface === 'fullscreen') {
-    return {
-      ...shared,
-      class: 'responsive-dialog__fullscreen-overlay',
-      closeBtn: false,
-      header: false,
-      width: '100vw',
-    };
-  }
-
   return {
     ...shared,
     header: title,
-    placement: policy.value.surface === 'sheet' ? 'bottom' : 'right',
+    placement: policy.value.surface === 'sheet' ? ('bottom' as const) : ('right' as const),
     size: policy.value.surface === 'sheet' ? 'auto' : `var(${dialogSizeToken.value})`,
   };
 });

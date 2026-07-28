@@ -214,6 +214,59 @@
   text-overflow: ellipsis;
 }
 
+.role-mobile-card__head,
+.role-mobile-card__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.role-mobile-card__head .role-identity {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.role-mobile-card__details {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: var(--graft-density-gap-16) 0;
+}
+
+.role-mobile-card__details div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.role-mobile-card__details dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.role-mobile-card__details dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.role-mobile-card__updated-at {
+  grid-column: 1 / -1;
+}
+
+.role-mobile-card__actions {
+  justify-content: flex-end;
+  margin-top: var(--graft-density-gap-16);
+}
+
+.role-mobile-card__actions :deep(.table-action-menu) {
+  width: auto;
+}
+
 @media (width <= 768px) {
   .table-head,
   .table-actions,

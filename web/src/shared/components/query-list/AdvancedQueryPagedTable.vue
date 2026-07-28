@@ -56,6 +56,8 @@ import { ManagementPagedTable } from '@/shared/components/management';
 import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/responsive';
 
 // 该组件只负责把查询页的分页模型与表格 slot 转交给共享表格壳，不拥有查询条件或服务端数据状态。
+/* jscpd:ignore-start */
+// 该适配层必须显式镜像 ManagementPagedTable 的分页输入，避免查询页再定义一套表格传参契约。
 const props = defineProps<{
   cellSlotNames: string[];
   cardsVisible?: boolean;
@@ -80,6 +82,7 @@ const props = defineProps<{
   summary?: string;
   total: number;
 }>();
+/* jscpd:ignore-end */
 
 const emit = defineEmits<{
   (e: 'page-change'): void;

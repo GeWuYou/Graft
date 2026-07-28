@@ -1,9 +1,22 @@
 <template>
-  <div class="management-batch-bar">
+  <div
+    class="management-batch-bar"
+    :class="{ 'management-batch-bar--has-compact-actions': props.compactActions.length }"
+  >
     <span class="management-batch-bar__summary">{{ selectedLabel }}</span>
     <div class="management-batch-bar__actions">
-      <t-space>
+      <t-space class="management-batch-bar__desktop-actions">
         <slot />
+        <t-button :data-testid="clearTestId" size="small" theme="default" variant="text" @click="emit('clear')">
+          {{ clearLabel }}
+        </t-button>
+      </t-space>
+      <t-space v-if="props.compactActions.length" class="management-batch-bar__compact-actions">
+        <t-dropdown :options="props.compactActions" trigger="click" @click="handleCompactAction">
+          <t-button :data-testid="props.compactActionTestId" size="small" theme="primary" variant="outline">
+            {{ props.compactActionLabel }}
+          </t-button>
+        </t-dropdown>
         <t-button :data-testid="clearTestId" size="small" theme="default" variant="text" @click="emit('clear')">
           {{ clearLabel }}
         </t-button>
@@ -12,16 +25,37 @@
   </div>
 </template>
 <script setup lang="ts">
-// 页面持有选择状态；组件只统一批量操作布局，并通过 clear 事件交还清除选择的责任。
-defineProps<{
-  clearLabel: string;
-  clearTestId?: string;
-  selectedLabel: string;
-}>();
+import type { DropdownProps } from 'tdesign-vue-next';
+
+type ManagementBatchAction = NonNullable<DropdownProps['options']>[number];
+
+// 页面持有选择状态；组件只统一批量操作布局，并通过 clear / action 事件交还业务处理责任。
+const props = withDefaults(
+  defineProps<{
+    clearLabel: string;
+    clearTestId?: string;
+    compactActionLabel?: string;
+    compactActionTestId?: string;
+    compactActions?: ManagementBatchAction[];
+    selectedLabel: string;
+  }>(),
+  {
+    compactActionLabel: '',
+    compactActionTestId: 'management-batch-actions',
+    compactActions: () => [],
+    clearTestId: '',
+  },
+);
 
 const emit = defineEmits<{
+  action: [value: string];
   clear: [];
 }>();
+
+function handleCompactAction(payload: { value?: unknown } | string | number) {
+  const value = typeof payload === 'object' && payload ? payload.value : payload;
+  if (typeof value === 'string') emit('action', value);
+}
 </script>
 <style scoped lang="less">
 .management-batch-bar,
@@ -48,20 +82,25 @@ const emit = defineEmits<{
   justify-content: flex-end;
 }
 
+.management-batch-bar__compact-actions {
+  display: none;
+}
+
 @media (width <= 768px) {
-  .management-batch-bar,
-  .management-batch-bar__actions {
-    align-items: stretch;
-    flex-direction: column;
+  .management-batch-bar {
+    align-items: center;
   }
 
-  .management-batch-bar__actions,
-  .management-batch-bar__actions :deep(.t-space) {
-    width: 100%;
-  }
-
-  .management-batch-bar__actions :deep(.t-space) {
+  .management-batch-bar__desktop-actions {
     flex-wrap: wrap;
+  }
+
+  .management-batch-bar__compact-actions {
+    display: inline-flex;
+  }
+
+  .management-batch-bar--has-compact-actions .management-batch-bar__desktop-actions {
+    display: none;
   }
 }
 </style>

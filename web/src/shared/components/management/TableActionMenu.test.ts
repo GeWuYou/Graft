@@ -124,6 +124,32 @@ describe('TableActionMenu', () => {
     expect(wrapper.get('[data-testid="action-dropdown"]').text()).toContain('更多');
   });
 
+  it('keeps the More label visible on compact viewports', () => {
+    const viewportWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 });
+
+    try {
+      const wrapper = mount(TableActionMenu, {
+        global: {
+          stubs: {
+            't-button': TButtonStub,
+            't-dropdown': TDropdownStub,
+          },
+        },
+        props: {
+          actions: [
+            { label: '详情', value: 'detail' },
+            { label: '编辑', value: 'edit' },
+          ],
+        },
+      });
+
+      expect(wrapper.get('[data-testid="action-dropdown"]').text()).toContain('更多');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });
+    }
+  });
+
   it('maps dangerous menu actions to TDesign error semantics', () => {
     const wrapper = mount(TableActionMenu, {
       global: {

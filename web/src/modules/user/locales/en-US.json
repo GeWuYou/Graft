@@ -25,6 +25,7 @@
       "viewRoles": "View Roles",
       "protectedDefaultAdmin": {
         "badge": "Builtin Admin",
+        "compactBadge": "Builtin",
         "actionDisabled": "This action is not allowed for the builtin default administrator",
         "usernameImmutable": "The builtin default administrator username is protected and cannot be edited here."
       },
@@ -43,6 +44,7 @@
         "total": "Total"
       },
       "batch": {
+        "actions": "Batch Actions",
         "selected": "{count} selected",
         "enable": "Batch Enable",
         "disable": "Batch Disable",

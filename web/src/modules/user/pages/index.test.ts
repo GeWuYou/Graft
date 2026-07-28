@@ -772,6 +772,35 @@ describe('UserPage', () => {
     }
   });
 
+  it('anchors card selection at the top-left and row actions at the bottom-right on compact screens', async () => {
+    userApiMocks.getUsers.mockResolvedValue(createProtectedUserListResponse());
+    const viewportWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 });
+
+    try {
+      const wrapper = mountUserPage();
+      await flushPromises();
+      window.dispatchEvent(new Event('resize'));
+      await flushPromises();
+
+      const card = wrapper.get('[data-testid="user-card-1"]');
+      const directChildren = card.element.children;
+
+      expect(card.get('.user-card__head').element.firstElementChild?.getAttribute('data-testid')).toBe(
+        'user-card-selection',
+      );
+      expect(card.get('.user-card__head').element.children[1]?.classList).toContain('user-card__identity-row');
+      expect(card.get('[data-testid="user-protected-badge"]').text()).toContain(
+        'user.userList.protectedDefaultAdmin.compactBadge',
+      );
+      expect(directChildren[directChildren.length - 1]?.classList).toContain('user-card__actions');
+      expect(card.get('.user-card__actions .table-action-menu').classes()).toContain('table-action-menu');
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
+
   it('disables the drawer default footer for user role assignment', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());

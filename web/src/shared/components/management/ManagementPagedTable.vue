@@ -39,7 +39,7 @@
             :data="props.rows"
             :loading="props.loading"
             :row-class-name="props.rowClassName"
-            :selected-row-keys="props.selectedRowKeys"
+            :selected-row-keys="resolveSelectedRowKeys(variant.density)"
             :size="props.size"
             :sort="props.sort"
             table-layout="fixed"
@@ -192,6 +192,9 @@ const resolvedRowKey = computed(() => props.rowKey || 'id');
 const responsivePresentation = computed<ResponsivePresentation>(() =>
   props.cardsVisible && props.presentation === 'data' ? 'entity' : props.presentation,
 );
+function resolveSelectedRowKeys(density: ResponsiveDensity) {
+  return density === 'compact' && responsivePresentation.value === 'entity' ? [] : props.selectedRowKeys;
+}
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
 function resolveColumns(density: ResponsiveDensity) {
   return resolveManagedColumns(props.columns, props.columnSets[density]);

@@ -6,7 +6,7 @@ import ManagementPagedTable from './ManagementPagedTable.vue';
 
 const TTableStub = defineComponent({
   name: 'TTableStub',
-  props: ['columns', 'data'],
+  props: ['columns', 'data', 'selectedRowKeys'],
   emits: ['page-change', 'row-click', 'select-change', 'sort-change'],
   setup(props, { slots }) {
     return () =>
@@ -136,5 +136,33 @@ describe('ManagementPagedTable', () => {
 
     expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('presentation')).toBe('entity');
     expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('entityCardLayout')).toBe('compact');
+  });
+
+  it('keeps compact entity-card selection out of the hidden table renderer', () => {
+    const ResponsiveTableStub = defineComponent({
+      name: 'ResponsiveTable',
+      setup(_props, { slots }) {
+        return () => slots.default?.({ variant: { density: 'compact' } });
+      },
+    });
+    const wrapper = mount(ManagementPagedTable, {
+      global: {
+        stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub, ResponsiveTable: ResponsiveTableStub },
+      },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        presentation: 'entity',
+        rows: [{ id: 'user-1', name: 'Admin' }],
+        selectedRowKeys: ['user-1'],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.findComponent(TTableStub).props('selectedRowKeys')).toEqual([]);
   });
 });

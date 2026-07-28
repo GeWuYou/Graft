@@ -128,7 +128,7 @@ Container Resize
 
 ## 8. 页面策略
 
-- 表格：审计、访问、应用及后续日志页使用 `log`；它们在 Desktop/Tablet 仍为 `data` 表格，在 compact density 通过 `ResponsiveTable` 的统一移动端 renderer 显示同一记录的卡片摘要。日志卡片由模块只声明字段优先级：事件/消息、状态、时间、主体/目标、技术 ID、详情和溢出操作。模板、目录、镜像、网络、卷和短实体选择列表可声明 `entity`。详情页中按 owner 限定的少量任务历史可作为实体摘要声明 `entity`，并只通过 `ResponsiveTable` 的卡片槽位呈现同一份记录。业务页面不能用 CSS 或 `v-if` 自行实现第二份卡片布局。分页列表的页面 surface、工具栏和滚动细则继续以 [分页列表页统一规范与收敛计划](分页列表页统一规范与收敛计划.md) 为准，本规范不复制或取代其列表页 authority。
+- 表格：审计、访问、应用及后续日志页使用 `log`；它们在 Desktop/Tablet 仍为 `data` 表格，在 compact density 通过 `ResponsiveTable` 的统一移动端 renderer 显示同一记录的卡片摘要。日志卡片由模块只声明字段优先级：事件/消息、状态、时间、主体/目标、技术 ID、详情和溢出操作。模板、目录、镜像、网络、卷和短实体选择列表可声明 `entity`。详情页中按 owner 限定的少量任务历史可作为实体摘要声明 `entity`，并只通过 `ResponsiveTable` 的卡片槽位呈现同一份记录。业务页面不能用 CSS 或 `v-if` 自行实现第二份卡片布局。分页列表的页面 surface、工具栏和滚动细则继续以 [项目分页列表规范设计](项目分页列表规范设计.md) 为准，本规范不复制或取代其列表页 authority。
 - 表单：标签、表单列、Footer 和提交按钮由 `ResponsiveForm` 管理。复杂编辑保持 Desktop Preferred，Mobile 不强行压缩为可编辑代码工作台。
 - 导航：Sidebar、Breadcrumb、Tabs、TopBar 与 Drawer 由壳层组件集中治理，页面不得自行侦测窗口来折叠导航。
 - Monaco/YAML/JSON/Code Editor/Terminal/Diff：Desktop Preferred；Mobile 默认只读，保留查看、复制、搜索、下载或转到 Desktop 的安全路径。

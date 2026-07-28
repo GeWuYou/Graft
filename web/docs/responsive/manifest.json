@@ -65,7 +65,7 @@
     {
       "path": "src/modules/rbac/pages/index.vue",
       "kind": "list-form-detail",
-      "components": ["ManagementPagedTable", "ResponsiveDialog"],
+      "components": ["ManagementPagedTable", "ResponsiveCardList", "ResponsiveDialog", "ResponsiveFilterPanel"],
       "status": "migrated"
     },
     {

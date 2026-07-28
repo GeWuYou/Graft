@@ -278,12 +278,7 @@ void TableActionMenu;
 .log-table-stack-cells();
 
 .audit-log-card {
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  cursor: pointer;
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  padding: var(--graft-density-gap-12);
+  .log-card-surface(var(--td-component-stroke));
 }
 
 .audit-log-card__header,

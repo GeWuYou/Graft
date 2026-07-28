@@ -277,71 +277,10 @@ void emit;
 @import '@/shared/observability/log-table-cells.less';
 
 .log-table-stack-cells();
+.log-card-layout();
 
 .duration-danger {
   color: var(--td-error-color);
   font-weight: 600;
-}
-
-.log-card {
-  border: 1px solid var(--graft-card-border-color);
-  border-radius: var(--td-radius-medium);
-  cursor: pointer;
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  padding: var(--graft-density-gap-12);
-}
-
-.log-card:focus-visible {
-  outline: 2px solid var(--td-brand-color);
-  outline-offset: 2px;
-}
-
-.log-card__header,
-.log-card__technical,
-.log-card__metadata {
-  align-items: center;
-  display: flex;
-  gap: var(--graft-density-gap-8);
-  min-width: 0;
-}
-
-.log-card__time,
-.log-card__metadata,
-.log-card__technical > span {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-s);
-}
-
-.log-card__time {
-  margin-left: auto;
-}
-
-.log-card__title {
-  -webkit-box-orient: vertical;
-  display: -webkit-box;
-  font-weight: 600;
-  -webkit-line-clamp: 2;
-  margin: 0;
-  overflow: hidden;
-}
-
-.log-card__metadata {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.log-card__technical {
-  justify-content: space-between;
-}
-
-.log-card__technical :deep(.log-id-text) {
-  flex: 1 1 auto;
-  justify-content: flex-end;
-}
-
-.log-card__actions {
-  justify-self: end;
 }
 </style>

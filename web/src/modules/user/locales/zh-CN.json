@@ -25,6 +25,7 @@
       "viewRoles": "查看角色",
       "protectedDefaultAdmin": {
         "badge": "内置管理员",
+        "compactBadge": "内置",
         "actionDisabled": "内置默认管理员不允许执行该操作",
         "usernameImmutable": "内置默认管理员用户名受保护，不能在前端编辑中修改。"
       },
@@ -43,6 +44,7 @@
         "total": "总数"
       },
       "batch": {
+        "actions": "批量操作",
         "selected": "已选择 {count} 项",
         "enable": "批量启用",
         "disable": "批量禁用",

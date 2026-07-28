@@ -5,7 +5,7 @@
       :data-testid="primaryAction.testId"
       :disabled="primaryAction.disabled"
       size="small"
-      theme="default"
+      theme="primary"
       variant="outline"
       @click="handlePrimaryClick"
     >
@@ -13,18 +13,14 @@
     </t-button>
     <t-dropdown v-if="menuOptions.length > 0" :options="menuOptions" trigger="click" @click="handleMenuClick">
       <t-button :aria-label="resolvedMoreLabel" size="small" theme="default" variant="outline" @click.stop>
-        <template v-if="compact" #icon><more-icon /></template>
-        <span v-if="!compact">{{ resolvedMoreLabel }}</span>
+        {{ resolvedMoreLabel }}
       </t-button>
     </t-dropdown>
   </div>
 </template>
 <script setup lang="ts">
-import { MoreIcon } from 'tdesign-icons-vue-next';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-
-import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 
 type ActionOption = {
   danger?: boolean;
@@ -55,8 +51,6 @@ const emit = defineEmits<{
 
 const I18N_KEY_PATTERN = /^[a-z][\w-]*(\.[A-Za-z0-9_-]+)+$/;
 const { t } = useI18n();
-const viewportVariant = useViewportResponsiveVariant();
-const compact = computed(() => viewportVariant.value.density === 'compact');
 
 function resolveLabel(label: string, fallbackLabel?: string) {
   if (!label || I18N_KEY_PATTERN.test(label)) {

@@ -20,22 +20,32 @@
 
       <management-toolbar>
         <template #filters>
-          <t-input
-            v-model="filters.keyword"
-            clearable
-            class="management-list-search"
-            :placeholder="t('rbac.roleList.toolbar.searchPlaceholder')"
-          />
-          <t-select
-            v-model="filters.type"
-            clearable
-            class="toolbar__select"
-            :options="roleTypeOptions"
-            :placeholder="t('rbac.roleList.toolbar.typePlaceholder')"
-          />
-          <t-button theme="default" variant="text" @click="resetFilters">
-            {{ t('rbac.roleList.toolbar.clearFilters') }}
-          </t-button>
+          <responsive-filter-panel
+            density-scope="viewport"
+            :more-label="t('rbac.roleList.toolbar.moreFilters')"
+            :panel-title="t('rbac.roleList.toolbar.filterPanelTitle')"
+          >
+            <template #search>
+              <t-input
+                v-model="filters.keyword"
+                clearable
+                class="management-list-search"
+                :placeholder="t('rbac.roleList.toolbar.searchPlaceholder')"
+              />
+            </template>
+            <template #filters>
+              <t-select
+                v-model="filters.type"
+                clearable
+                class="toolbar__select"
+                :options="roleTypeOptions"
+                :placeholder="t('rbac.roleList.toolbar.typePlaceholder')"
+              />
+              <t-button theme="default" variant="text" @click="resetFilters">
+                {{ t('rbac.roleList.toolbar.clearFilters') }}
+              </t-button>
+            </template>
+          </responsive-filter-panel>
         </template>
       </management-toolbar>
 
@@ -57,6 +67,7 @@
         v-model:current="pagination.current"
         v-model:page-size="pagination.pageSize"
         :columns="visibleColumns"
+        :cards-visible="true"
         :column-sets="roleColumnSets"
         density-scope="viewport"
         presentation="data"
@@ -131,6 +142,71 @@
             :more-label-fallback="t('rbac.roleList.more')"
             @action="(action) => handleRoleRowAction(action, row)"
           />
+        </template>
+
+        <template #cards>
+          <t-loading :loading="loading">
+            <responsive-card-list v-if="pagedRoles.length" class="role-mobile-list">
+              <t-card v-for="row in pagedRoles" :key="row.id" class="role-mobile-card" size="small">
+                <div class="role-mobile-card__head">
+                  <div class="role-identity">
+                    <span class="role-identity__display">{{ row.display }}</span>
+                    <span class="role-identity__code">{{ row.name }}</span>
+                  </div>
+                  <t-tag class="role-type-tag" :theme="row.builtin ? 'primary' : 'default'" variant="light">
+                    {{ roleTypeLabel(row) }}
+                  </t-tag>
+                </div>
+                <dl class="role-mobile-card__details">
+                  <div>
+                    <dt>{{ t('rbac.roleList.columns.permissionCount') }}</dt>
+                    <dd>{{ countLabel(row.permission_count, 'rbac.roleList.permissionCount') }}</dd>
+                  </div>
+                  <div>
+                    <dt>{{ t('rbac.roleList.columns.userCount') }}</dt>
+                    <dd>{{ countLabel(row.user_count, 'rbac.roleList.userCount') }}</dd>
+                  </div>
+                  <div class="role-mobile-card__updated-at">
+                    <dt>{{ t('rbac.roleList.columns.updatedAt') }}</dt>
+                    <dd>{{ formatTimestamp(row.updated_at) }}</dd>
+                  </div>
+                </dl>
+                <div class="role-mobile-card__actions">
+                  <table-action-menu
+                    :actions="roleRowActions(row)"
+                    :more-label="t('rbac.roleList.more')"
+                    :more-label-fallback="t('rbac.roleList.more')"
+                    @action="(action) => handleRoleRowAction(action, row)"
+                  />
+                </div>
+              </t-card>
+            </responsive-card-list>
+            <management-empty-state
+              v-else-if="!loading"
+              :title="t('rbac.roleList.emptyTitle')"
+              :description="t('rbac.roleList.emptyDescription')"
+            >
+              <template #actions>
+                <t-button
+                  v-if="hasActiveFilters"
+                  theme="default"
+                  variant="outline"
+                  data-testid="role-mobile-empty-clear-filters"
+                  @click="resetFilters"
+                >
+                  {{ t('rbac.roleList.toolbar.clearFilters') }}
+                </t-button>
+                <t-button
+                  v-permission="permissionCodes.ROLE_CREATE"
+                  theme="primary"
+                  data-testid="role-mobile-empty-create"
+                  @click="openCreateDrawer"
+                >
+                  {{ t('rbac.roleList.emptyCreate') }}
+                </t-button>
+              </template>
+            </management-empty-state>
+          </t-loading>
         </template>
 
         <template #empty>
@@ -506,7 +582,9 @@ import {
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
+import ResponsiveFilterPanel from '@/shared/components/responsive/ResponsiveFilterPanel.vue';
 import { useAssignmentSelection, useTabPageSnapshot } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { localizedApiErrorMessage, resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -1099,6 +1177,7 @@ const visibleColumns = computed(() => {
   return (columns.value ?? []).filter((column) => column?.colKey !== 'operation');
 });
 const roleColumnSets = computed(() => ({
+  comfortable: ['role', 'builtin', 'permission_count', 'user_count', 'operation'],
   compact: ['role', 'builtin', 'operation'],
 }));
 
