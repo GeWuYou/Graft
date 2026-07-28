@@ -59,7 +59,7 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("encode compose update task input: %w", err)
 	}
 	task, err := c.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
-		Type: composeUpdateTaskType, Owner: moduleapi.TaskOwner{Type: "platform_update", ID: operation.OperationID}, RequestedBy: requestedBy, Input: input,
+		Type: composeUpdateTaskType, Owner: moduleapi.TaskOwner{Type: platformUpdateTaskOwnerType, ID: operation.OperationID}, RequestedBy: requestedBy, Input: input,
 		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "compose_runner", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: "compose-runner/v1", OperationID: operation.OperationID}}}},
 	})
 	if err != nil {

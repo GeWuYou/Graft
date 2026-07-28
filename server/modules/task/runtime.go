@@ -653,6 +653,9 @@ func (r *Runtime) runOne(ctx context.Context) error {
 		return err
 	}
 	r.publishTask(claim.Task.ID, taskcontract.TaskRealtimeEventStageStarted)
+	if r.claimedStageWaitsForExternalReceipt(claim) {
+		return nil
+	}
 	executor, ok := r.executorFor(claim.Stage.ExecutorType)
 	if !ok {
 		return r.failClaim(ctx, claim, errorCodeMissingExec, "no executor registered for stage")
@@ -753,14 +756,29 @@ func (r *Runtime) validateStagePlan(stage moduleapi.StagePlan, index int, total 
 	if _, exists := seen[stage.Key]; exists {
 		return fmt.Errorf("task plan contains duplicate stage %q", stage.Key)
 	}
-	if _, exists := r.executorFor(stage.ExecutorType); !exists {
+	if stage.ExternalReceipt != nil {
+		if !externalReceiptExpectationValid(stage.ExternalReceipt, index, total) {
+			return errors.New("external receipt expectation must bind the final stage with a protocol and operation identity")
+		}
+	} else if _, exists := r.executorFor(stage.ExecutorType); !exists {
 		return fmt.Errorf("task plan references unregistered stage executor %q", stage.ExecutorType)
-	}
-	if stage.ExternalReceipt != nil && !externalReceiptExpectationValid(stage.ExternalReceipt, index, total) {
-		return errors.New("external receipt expectation must bind the final stage with a protocol and operation identity")
 	}
 	seen[stage.Key] = struct{}{}
 	return nil
+}
+
+// claimedStageWaitsForExternalReceipt 只依赖冻结 TaskPlan 识别外部阶段，避免把短生命周期 runner 误当作常驻本地执行器。
+func (r *Runtime) claimedStageWaitsForExternalReceipt(claim taskstore.StageClaim) bool {
+	index := claim.Stage.Sequence - 1
+	if index < 0 {
+		return false
+	}
+	var plan moduleapi.TaskPlan
+	if err := json.Unmarshal(claim.Task.Plan, &plan); err != nil || index >= len(plan.Stages) {
+		return false
+	}
+	stage := plan.Stages[index]
+	return stage.ExternalReceipt != nil && stage.Key == claim.Stage.Key && stage.ExecutorType == claim.Stage.ExecutorType
 }
 
 func externalReceiptExpectationValid(expectation *moduleapi.ExternalReceiptExpectation, index int, total int) bool {
