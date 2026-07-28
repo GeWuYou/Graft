@@ -5,7 +5,9 @@
     :data-responsive-density="variant.density"
     :data-responsive-layout="layout"
   >
-    <slot :variant="variant" />
+    <div class="responsive-content__inner">
+      <slot :variant="variant" />
+    </div>
   </section>
 </template>
 <script setup lang="ts">
@@ -22,30 +24,41 @@ const variant = useResponsiveVariant(container, { layout });
 <style scoped lang="less">
 .responsive-content {
   container-type: inline-size;
+  min-width: 0;
+}
+
+.responsive-content__inner {
   display: grid;
   gap: var(--graft-density-gap-16);
   min-width: 0;
 }
 
-.responsive-content--stack {
+.responsive-content--stack .responsive-content__inner,
+.responsive-content--wide-split .responsive-content__inner {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.responsive-content--split {
+.responsive-content--split .responsive-content__inner {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.responsive-content--grid {
+.responsive-content--grid .responsive-content__inner {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 }
 
-.responsive-content--compact {
+.responsive-content--compact .responsive-content__inner {
   gap: var(--graft-density-gap-12);
 }
 
 @container (width < 48rem) {
-  .responsive-content--split {
+  .responsive-content--split .responsive-content__inner {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (width >= 75rem) {
+  .responsive-content--wide-split .responsive-content__inner {
+    grid-template-columns: var(--graft-responsive-wide-split-template, repeat(2, minmax(0, 1fr)));
   }
 }
 </style>

@@ -1,8 +1,101 @@
-import { describe, expect, it } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
+import { defineComponent, h } from 'vue';
 
 import taskTypesSourceText from '../../contract/task-types.ts?raw';
 import cleanupSourceText from '../../shared/cleanup/use-docker-cleanup.ts?raw';
 import sourceText from './index.vue?raw';
+
+const permissionStoreMock = vi.hoisted(() => ({ hasPermission: vi.fn(() => true) }));
+
+vi.mock('@/store', () => ({ usePermissionStore: () => permissionStoreMock }));
+vi.mock('@/utils/logger', () => ({ createLogger: () => ({ error: vi.fn(), info: vi.fn(), warn: vi.fn() }) }));
+vi.mock('@/utils/request', () => ({ isApiRequestError: () => false }));
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'zh-CN' }, t: (key: string) => key }) }));
+vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: vi.fn(), success: vi.fn() } }));
+vi.mock('../../api/container', () => ({ getDockerImage: vi.fn(), getDockerImages: vi.fn() }));
+vi.mock('../../api/image-actions', () => ({
+  batchRemoveDockerImages: vi.fn(),
+  pullDockerImage: vi.fn(),
+  removeDockerImage: vi.fn(),
+  tagDockerImage: vi.fn(),
+}));
+vi.mock('../../../task/contract/task-observer', () => ({
+  isTerminalTaskStatus: () => false,
+  observeTask: vi.fn(),
+}));
+vi.mock('../../../task/contract/task-ui', () => ({ TaskDetailDrawer: defineComponent({ name: 'TaskDetailDrawer' }) }));
+vi.mock('../../shared/cleanup/use-docker-cleanup', () => ({
+  useDockerCleanup: () => ({
+    close: vi.fn(),
+    error: { value: '' },
+    execute: vi.fn(),
+    fetch: vi.fn(),
+    items: { value: [] },
+    loading: { value: false },
+    previewPage: { value: 1 },
+    selectedIds: { value: [] },
+    visible: { value: false },
+  }),
+}));
+vi.mock('../../shared/docker-image-queries', () => ({
+  useDockerImageQuery: () => ({
+    data: {
+      value: {
+        items: [
+          {
+            container_references: [],
+            created_at: '2026-07-01T00:00:00Z',
+            id: 'sha256:image-1',
+            labels: {},
+            repository_digests: [],
+            repo_tags: ['graft/web:latest'],
+            size_bytes: 1024,
+          },
+        ],
+        summary: { dangling: 0, in_use: 0, size_bytes: 1024, total: 1 },
+        total: 1,
+      },
+    },
+    error: { value: null },
+    isError: { value: false },
+    isFetching: { value: false },
+    refetch: vi.fn(),
+  }),
+}));
+
+import DockerImagesPage from './index.vue';
+
+function mountSelectionPage() {
+  return mount(DockerImagesPage, {
+    global: {
+      stubs: {
+        'docker-resource-card-actions': defineComponent({
+          emits: ['action'],
+          setup:
+            (_, { emit }) =>
+            () =>
+              h('button', {
+                'data-testid': 'select-image-card',
+                onClick: (event: MouseEvent) => {
+                  event.stopPropagation();
+                  emit('action', 'select');
+                },
+              }),
+        }),
+        'management-paged-table': defineComponent({
+          setup:
+            (_, { slots }) =>
+            () =>
+              h('section', slots.cards?.()),
+        }),
+        'resource-detail-layout': true,
+        'tag-manager-drawer': true,
+        'task-detail-drawer': true,
+      },
+    },
+  });
+}
 
 describe('docker image list page', () => {
   it('centers a standalone detail loading indicator before the request resolves', () => {
@@ -50,7 +143,7 @@ describe('docker image list page', () => {
     );
   });
 
-  it('uses a card list for compact containers without a default checkbox', () => {
+  it('uses detail actions instead of opening compact cards outside selection mode', () => {
     expect(sourceText).toContain('<template #cards>');
     expect(sourceText).toContain('class="docker-images-card"');
     expect(sourceText).toContain('formatBytes(image.size_bytes)');
@@ -59,9 +152,38 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('v-if="cardSelectionMode"');
     expect(sourceText).toContain("{ label: t('container.images.actions.select'), value: 'select' }");
     expect(sourceText).toContain('function handleCardClick(image: DockerImage)');
+    expect(sourceText).toContain("'docker-images-card--selection-mode': cardSelectionMode");
+    expect(sourceText).toContain(':role="cardSelectionMode ? \'button\' : undefined"');
+    expect(sourceText).toContain(':tabindex="cardSelectionMode ? 0 : undefined"');
+    expect(sourceText).toContain(':aria-pressed="cardSelectionMode ? isImageSelected(image) : undefined"');
+    expect(sourceText).toContain('if (!cardSelectionMode.value) return;');
+    expect(sourceText).toContain('function handleCardKeydown(event: KeyboardEvent, image: DockerImage)');
+    expect(sourceText).toContain('event.target !== event.currentTarget');
     expect(sourceText).toContain('function setCardSelected(image: DockerImage, selected: boolean)');
     expect(sourceText).toContain('<docker-resource-card-actions');
+    expect(sourceText).toContain('@detail="openDetail(image)"');
     expect(sourceText).toContain("danger: true, label: t('container.images.actions.remove')");
+  });
+
+  it('selects cards only in selection mode and exposes the selected state', async () => {
+    const wrapper = mountSelectionPage();
+    const card = wrapper.get('[data-testid="docker-image-card-sha256:image-1"]');
+
+    expect(card.attributes('aria-pressed')).toBeUndefined();
+    await card.trigger('click');
+    expect(card.attributes('aria-pressed')).toBeUndefined();
+
+    await wrapper.get('[data-testid="select-image-card"]').trigger('click');
+    expect(card.attributes('aria-pressed')).toBe('true');
+
+    await card.trigger('click');
+    expect(card.attributes('aria-pressed')).toBe('false');
+
+    await card.trigger('keydown.space');
+    expect(card.attributes('aria-pressed')).toBe('true');
+
+    await card.find('strong').trigger('keydown.space');
+    expect(card.attributes('aria-pressed')).toBe('true');
   });
 
   it('places image removal in the shared container danger zone', () => {

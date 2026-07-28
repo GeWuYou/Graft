@@ -21,8 +21,9 @@ describe('docker volume asset management page', () => {
     expect(sourceText).toContain("danger: true, label: t('container.volume.actions.remove')");
   });
 
-  it('navigates mobile cards directly to the renderable detail child route', () => {
-    expect(sourceText).toContain('@click="openDetailPage(row)"');
+  it('uses the explicit mobile detail action instead of making the card navigate', () => {
+    expect(sourceText).not.toContain('class="docker-volume-page__card" @click="openDetailPage(row)"');
+    expect(sourceText).toContain('@detail="openDetailPage(row)"');
     expect(sourceText).toContain('CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.pageRouteName');
     expect(sourceText).not.toContain('CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.routeName, params');
   });

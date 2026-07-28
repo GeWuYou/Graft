@@ -111,13 +111,17 @@
             v-for="image in images"
             :key="image.id"
             class="docker-images-card"
-            :class="{ 'docker-images-card--selected': isImageSelected(image) }"
+            :class="{
+              'docker-images-card--selected': isImageSelected(image),
+              'docker-images-card--selection-mode': cardSelectionMode,
+            }"
             :data-testid="`docker-image-card-${image.id}`"
-            role="button"
-            tabindex="0"
+            :role="cardSelectionMode ? 'button' : undefined"
+            :tabindex="cardSelectionMode ? 0 : undefined"
+            :aria-pressed="cardSelectionMode ? isImageSelected(image) : undefined"
             @click="handleCardClick(image)"
-            @keydown.enter.prevent="handleCardClick(image)"
-            @keydown.space.prevent="handleCardClick(image)"
+            @keydown.enter="handleCardKeydown($event, image)"
+            @keydown.space="handleCardKeydown($event, image)"
           >
             <header class="docker-images-card__header">
               <div class="docker-images-card__identity">
@@ -941,11 +945,13 @@ function handleCardAction(action: string, image: DockerImage) {
   handleRowAction(action, image);
 }
 function handleCardClick(image: DockerImage) {
-  if (cardSelectionMode.value) {
-    setCardSelected(image, !isImageSelected(image));
-    return;
-  }
-  void openDetail(image);
+  if (!cardSelectionMode.value) return;
+  setCardSelected(image, !isImageSelected(image));
+}
+function handleCardKeydown(event: KeyboardEvent, image: DockerImage) {
+  if (!cardSelectionMode.value || event.target !== event.currentTarget) return;
+  event.preventDefault();
+  handleCardClick(image);
 }
 function isImageSelected(image: DockerImage) {
   return selectedRowKeys.value.includes(image.id);
@@ -1324,7 +1330,6 @@ onUnmounted(() => {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
-  cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: var(--graft-density-gap-14);
@@ -1332,7 +1337,11 @@ onUnmounted(() => {
   padding: var(--graft-density-gap-16);
 }
 
-.docker-images-card:focus-visible {
+.docker-images-card--selection-mode {
+  cursor: pointer;
+}
+
+.docker-images-card--selection-mode:focus-visible {
   outline: 2px solid var(--td-brand-color);
   outline-offset: 2px;
 }

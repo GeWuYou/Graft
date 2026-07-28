@@ -6,6 +6,7 @@ import { resolveResponsiveDialogPolicy } from './dialog-policy';
 import ResourceDetailLayout from './ResourceDetailLayout.vue';
 import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
+import responsiveContentSource from './ResponsiveContent.vue?raw';
 import ResponsiveDialog from './ResponsiveDialog.vue';
 import ResponsiveEmpty from './ResponsiveEmpty.vue';
 import ResponsiveForm from './ResponsiveForm.vue';
@@ -39,7 +40,7 @@ describe('responsive primitives', () => {
 
   it('keeps page, content and header composition semantic while preserving slots', () => {
     const page = mount(ResponsivePage, { props: { layout: 'grid' }, slots: { default: '<p>content</p>' } });
-    const content = mount(ResponsiveContent, { props: { layout: 'split' }, slots: { default: '<p>detail</p>' } });
+    const content = mount(ResponsiveContent, { props: { layout: 'wide-split' }, slots: { default: '<p>detail</p>' } });
     const header = mount(ResponsiveHeader, {
       slots: {
         actions: '<button>create</button>',
@@ -50,9 +51,15 @@ describe('responsive primitives', () => {
 
     expect(page.classes()).toContain('responsive-page--grid');
     expect(page.text()).toContain('content');
-    expect(content.classes()).toContain('responsive-content--split');
+    expect(content.classes()).toContain('responsive-content--wide-split');
+    expect(content.find('.responsive-content__inner').text()).toContain('detail');
     expect(header.find('.responsive-header__actions').text()).toContain('create');
     expect(header.find('.responsive-header__description').text()).toContain('summary');
+  });
+
+  it('uses the measured content container for wide split activation', () => {
+    expect(responsiveContentSource).toContain('@container (width >= 75rem)');
+    expect(responsiveContentSource).not.toContain('@media (width >= 75rem)');
   });
 
   it('keeps data tables scrollable and reserves compact cards for entity presentation', () => {

@@ -1,7 +1,7 @@
 import { RESPONSIVE_CONTAINER_THRESHOLDS } from './breakpoints';
 
 export type ResponsiveDensity = 'compact' | 'comfortable' | 'spacious';
-export type ResponsiveLayout = 'stack' | 'flow' | 'split' | 'grid';
+export type ResponsiveLayout = 'stack' | 'flow' | 'split' | 'wide-split' | 'grid';
 export type ResponsiveSurface = 'page' | 'dialog' | 'drawer' | 'sheet';
 export type ResponsivePresentation = 'data' | 'entity';
 export type ResponsiveInteraction = 'readonly' | 'interactive' | 'workspace';
