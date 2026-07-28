@@ -21,6 +21,18 @@
       "status": "migrated"
     },
     {
+      "path": "src/modules/task/components/TaskHistoryTable.vue",
+      "kind": "detail-history",
+      "components": ["ResponsiveTable", "ResponsiveCardList"],
+      "status": "migrated"
+    },
+    {
+      "path": "src/shared/components/responsive/ResourceDetailLayout.vue",
+      "kind": "shared-detail",
+      "components": ["ResourceDetailLayout"],
+      "status": "migrated"
+    },
+    {
       "path": "src/shared/components/management/ManagementToolbar.vue",
       "kind": "shared-toolbar",
       "components": ["ResponsiveToolbar"],

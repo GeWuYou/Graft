@@ -73,7 +73,12 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:visible': [visible: boolean] }>();
 const variant = useViewportResponsiveVariant();
 const drawerSize = computed(() => {
-  if (variant.value.density === 'comfortable') return '70%';
+  if (variant.value.density === 'comfortable') {
+    return props.size === 'large' ? 'var(--graft-resource-detail-large-comfortable-width)' : '70%';
+  }
+  if (variant.value.density === 'spacious' && props.size === 'large') {
+    return 'var(--graft-resource-detail-large-fluid-width)';
+  }
   return `var(--graft-resource-detail-${props.size}-width)`;
 });
 
