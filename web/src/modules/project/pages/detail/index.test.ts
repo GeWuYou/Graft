@@ -290,6 +290,53 @@ const TButtonStub = defineComponent({
   },
 });
 
+const TCheckboxStub = defineComponent({
+  name: 'TCheckboxStub',
+  props: {
+    checked: { type: Boolean, default: false },
+  },
+  emits: ['change'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          'aria-checked': String(props.checked),
+          type: 'button',
+          onClick: () => emit('change', !props.checked),
+        },
+        'select',
+      );
+  },
+});
+
+const TDropdownStub = defineComponent({
+  name: 'TDropdownStub',
+  props: {
+    options: { type: Array, default: () => [] },
+  },
+  emits: ['click'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('div', { 'data-stub': 'TDropdown' }, [
+        slots.default?.(),
+        ...(props.options as Array<{ content: string; disabled?: boolean; value: string }>).map((option) =>
+          h(
+            'button',
+            {
+              key: option.value,
+              'data-dropdown-action': option.value,
+              disabled: option.disabled,
+              onClick: () => emit('click', option),
+            },
+            option.content,
+          ),
+        ),
+      ]);
+  },
+});
+
 const TSwitchStub = defineComponent({
   name: 'TSwitchStub',
   props: {
@@ -363,6 +410,7 @@ const ManagementPagedTableStub = defineComponent({
   name: 'ManagementPagedTable',
   props: {
     columns: { type: Array, default: () => [] },
+    cardsVisible: { type: Boolean, default: false },
     paginationVisible: { type: Boolean, default: true },
     rows: { type: Array, default: () => [] },
     selectedRowKeys: { type: Array, default: () => [] },
@@ -377,6 +425,7 @@ const ManagementPagedTableStub = defineComponent({
         h('div', { 'data-summary': props.summary }),
         slots.toolbar?.(),
         slots.batch?.(),
+        slots.cards?.(),
         ...(props.rows as Array<Record<string, unknown>>).map((row) =>
           h('div', { key: String(row.service_name), 'data-row': String(row.service_name) }, [
             h(
@@ -712,10 +761,12 @@ function mountPage() {
         't-alert': slotStub('TAlert'),
         't-button': TButtonStub,
         't-card': slotStub('TCard'),
+        't-checkbox': TCheckboxStub,
         't-collapse': slotStub('TCollapse'),
         't-collapse-panel': slotStub('TCollapsePanel'),
         't-descriptions': slotStub('TDescriptions'),
         't-descriptions-item': slotStub('TDescriptionsItem'),
+        't-dropdown': TDropdownStub,
         't-empty': slotStub('TEmpty'),
         't-input': slotStub('TInput'),
         't-input-number': TInputNumberStub,
@@ -1291,6 +1342,20 @@ describe('Application detail service tab', () => {
     expect(wrapper.text()).not.toContain('Networks');
   });
 
+  it('renders selectable service cards through the shared responsive table slot', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const table = wrapper.findComponent(ManagementPagedTableStub);
+    expect(table.props('cardsVisible')).toBe(true);
+    expect(wrapper.get('[data-testid="project-service-card-app"]').text()).toContain('demo:latest');
+
+    await wrapper.get('[data-testid="project-service-card-select-app"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-service-batch-actions"]').exists()).toBe(true);
+  });
+
   it('does not render the retired configuration tab label in detail tabs', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -1431,6 +1496,21 @@ describe('Application detail service tab', () => {
       'true',
     );
     expect(wrapper.find('[data-testid="project-lifecycle-remote-stale-alert"]').exists()).toBe(true);
+  });
+
+  it('preserves runtime action visibility when lifecycle configuration snapshots omit runtime state', async () => {
+    routeState.value.query = { tab: 'lifecycle' };
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const detailSocket = realtimeMocks.sockets.find(
+      (socket) => socket.options.topic === 'application.lifecycle-config:app_7',
+    );
+    detailSocket?.options.onMessage({ detail: buildApplicationDetail('unknown') });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="project-detail-action-stop"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="project-detail-action-up"]').exists()).toBe(false);
   });
 
   it('keeps an unsaved lifecycle draft when a realtime snapshot arrives during saving', async () => {
@@ -1587,7 +1667,7 @@ describe('Application detail service tab', () => {
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
     await flushPromises();
-    await wrapper.get('[data-testid="project-service-batch-restart"]').trigger('click');
+    await wrapper.get('[data-dropdown-action="restart"]').trigger('click');
     await flushPromises();
 
     expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
@@ -1623,7 +1703,7 @@ describe('Application detail service tab', () => {
     await flushPromises();
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
-    await wrapper.get('[data-testid="project-service-batch-restart"]').trigger('click');
+    await wrapper.get('[data-dropdown-action="restart"]').trigger('click');
     const [dialogOptions] = dialogMocks.confirm.mock.calls[0] as [
       {
         onConfirm?: () => Promise<void> | void;
@@ -1642,15 +1722,23 @@ describe('Application detail service tab', () => {
     expect(dialogInstance.destroy).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the service batch selection bar through the shared batch component', async () => {
+  it('renders the service batch selection toolbar with a single action menu', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     await wrapper.get('[data-select-row="app"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.find('.management-batch-bar').exists()).toBe(true);
-    expect(wrapper.find('.management-batch-bar__actions').exists()).toBe(true);
+    expect(wrapper.find('.project-service-selection-toolbar').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="project-service-batch-actions"]').text()).toBe(
+      'project.detail.services.batch.actionMenu',
+    );
+    expect(wrapper.findAll('[data-dropdown-action]').map((item) => item.attributes('data-dropdown-action'))).toEqual([
+      'start',
+      'stop',
+      'restart',
+      'clear',
+    ]);
   });
 
   it('prefers the first running member when opening service detail', async () => {

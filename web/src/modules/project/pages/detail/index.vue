@@ -323,6 +323,7 @@
                 v-model:current="serviceTableCurrent"
                 v-model:page-size="serviceTablePageSize"
                 :cell-slot-names="['name', 'status', 'health', 'ports', 'operation']"
+                cards-visible
                 :columns="serviceColumns"
                 :description="t('project.detail.services.description')"
                 :empty-description="t('project.detail.services.emptyDescription')"
@@ -350,46 +351,71 @@
                   </t-button>
                 </template>
                 <template v-if="selectedServiceRows.length > 0" #batch>
-                  <management-batch-bar
-                    :selected-label="t('project.detail.services.batch.selected', { count: selectedServiceRows.length })"
-                    :clear-label="t('project.detail.services.batch.cancelSelection')"
-                    clear-test-id="project-service-batch-clear"
-                    @clear="clearSelectedServices"
+                  <div class="project-service-selection-toolbar">
+                    <span class="project-service-selection-toolbar__summary">
+                      {{ t('project.detail.services.batch.selected', { count: selectedServiceRows.length }) }}
+                    </span>
+                    <t-dropdown
+                      :options="serviceBatchActionOptions"
+                      placement="bottom-right"
+                      trigger="click"
+                      @click="handleServiceBatchMenuAction"
+                    >
+                      <t-button
+                        data-testid="project-service-batch-actions"
+                        size="small"
+                        theme="default"
+                        variant="outline"
+                      >
+                        {{ t('project.detail.services.batch.actionMenu') }}
+                      </t-button>
+                    </t-dropdown>
+                  </div>
+                </template>
+
+                <template #cards>
+                  <article
+                    v-for="row in pagedServiceTableRows"
+                    :key="row.service_name"
+                    class="project-service-mobile-card"
+                    :data-testid="`project-service-card-${row.service_name}`"
                   >
-                    <t-button
-                      data-testid="project-service-batch-start"
-                      size="small"
-                      theme="primary"
-                      variant="outline"
-                      :disabled="isServiceBatchActionDisabled('start')"
-                      :loading="serviceBatchActionLoading === 'start'"
-                      @click="confirmServiceBatchAction('start')"
-                    >
-                      {{ t('project.detail.services.batch.start') }}
-                    </t-button>
-                    <t-button
-                      data-testid="project-service-batch-stop"
-                      size="small"
-                      theme="warning"
-                      variant="outline"
-                      :disabled="isServiceBatchActionDisabled('stop')"
-                      :loading="serviceBatchActionLoading === 'stop'"
-                      @click="confirmServiceBatchAction('stop')"
-                    >
-                      {{ t('project.detail.services.batch.stop') }}
-                    </t-button>
-                    <t-button
-                      data-testid="project-service-batch-restart"
-                      size="small"
-                      theme="warning"
-                      variant="outline"
-                      :disabled="isServiceBatchActionDisabled('restart')"
-                      :loading="serviceBatchActionLoading === 'restart'"
-                      @click="confirmServiceBatchAction('restart')"
-                    >
-                      {{ t('project.detail.services.batch.restart') }}
-                    </t-button>
-                  </management-batch-bar>
+                    <header class="project-service-mobile-card__header">
+                      <t-checkbox
+                        :aria-label="`${t('project.detail.services.columns.service')} ${row.name}`"
+                        :checked="selectedServiceRowKeys.includes(row.service_name)"
+                        :data-testid="`project-service-card-select-${row.service_name}`"
+                        @change="toggleServiceSelection(row.service_name, $event)"
+                      />
+                      <div class="project-service-mobile-card__identity">
+                        <strong>{{ row.name }}</strong>
+                        <span :title="row.image">{{ row.image }}</span>
+                      </div>
+                    </header>
+                    <dl class="project-service-mobile-card__facts">
+                      <div>
+                        <dt>{{ t('project.detail.services.columns.status') }}</dt>
+                        <dd>
+                          <t-tag :theme="row.statusTheme" variant="light-outline">{{ row.statusLabel }}</t-tag>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{{ t('project.detail.services.columns.health') }}</dt>
+                        <dd>
+                          <t-tag :theme="row.healthTheme" variant="light-outline">{{ row.healthLabel }}</t-tag>
+                        </dd>
+                      </div>
+                      <div class="project-service-mobile-card__ports">
+                        <dt>{{ t('project.detail.services.columns.ports') }}</dt>
+                        <dd>{{ row.portsSummary }}</dd>
+                      </div>
+                    </dl>
+                    <table-action-menu
+                      class="project-service-mobile-card__actions"
+                      :actions="serviceActionOptions(row)"
+                      @action="handleServiceAction($event, row)"
+                    />
+                  </article>
                 </template>
 
                 <template #name="{ row }">
@@ -473,6 +499,7 @@
                   :resume-label="t('project.detail.logs.resume')"
                   :reconnect-label="t('project.detail.logs.refreshAction')"
                   :jump-bottom-label="t('project.detail.logs.jumpBottom')"
+                  :jump-top-label="t('project.detail.logs.jumpTop')"
                   :level-filter-label="t('project.detail.logs.levelFilter')"
                   :all-levels-label="t('project.detail.logs.allLevels')"
                   :match-count-label="t('project.detail.logs.matchCount')"
@@ -499,6 +526,15 @@
                   :copy-json-label="t('project.detail.logs.copyJson')"
                   :copy-success-label="t('project.detail.logs.copySuccess')"
                   :copy-error-label="t('project.detail.logs.copyError')"
+                  :more-actions-label="t('project.detail.logs.moreActions')"
+                  :expand-log-label="t('project.detail.logs.expandLog')"
+                  :collapse-log-label="t('project.detail.logs.collapseLog')"
+                  :download-log-fragment-label="t('project.detail.logs.downloadLogFragment')"
+                  :detail-wrap-label="t('project.detail.logs.detailWrap')"
+                  :font-size-label="t('project.detail.logs.fontSize')"
+                  :font-size-small-label="t('project.detail.logs.fontSizeSmall')"
+                  :font-size-medium-label="t('project.detail.logs.fontSizeMedium')"
+                  :font-size-large-label="t('project.detail.logs.fontSizeLarge')"
                   :paused="projectLogPaused"
                   :viewer-mode="true"
                   viewer-storage-key="graft.project.logs.height"
@@ -804,7 +840,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { TableProps } from 'tdesign-vue-next';
+import type { DropdownProps, TableProps } from 'tdesign-vue-next';
 import { DialogPlugin } from 'tdesign-vue-next/es/dialog';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { NotifyPlugin } from 'tdesign-vue-next/es/notification';
@@ -833,7 +869,6 @@ import {
   createMainTextColumn,
   createStatusColumn,
   createTextColumn,
-  ManagementBatchBar,
   ManagementPagedTable,
   ManagementPageHeader,
   TableActionMenu,
@@ -1800,8 +1835,25 @@ function applyApplicationRuntimeRealtimeSnapshot(payload: {
 }
 
 function applyApplicationLifecycleConfigRealtimeSnapshot(payload: { detail: ApplicationDetailResponseWithLifecycle }) {
-  detailRecord.value = payload.detail;
-  syncLifecycleState(payload.detail, { preserveDirtyDraft: true });
+  const nextDetail = mergeLifecycleConfigurationRealtimeDetail(payload.detail);
+  detailRecord.value = nextDetail;
+  syncLifecycleState(nextDetail, { preserveDirtyDraft: true });
+}
+
+function mergeLifecycleConfigurationRealtimeDetail(
+  lifecycleDetail: ApplicationDetailResponseWithLifecycle,
+): ApplicationDetailResponseWithLifecycle {
+  const currentDetail = detailRecord.value;
+  if (!currentDetail) {
+    return lifecycleDetail;
+  }
+
+  return {
+    ...lifecycleDetail,
+    container_counts: currentDetail.container_counts,
+    runtime_status: currentDetail.runtime_status,
+    service_count: currentDetail.service_count,
+  };
 }
 
 function syncApplicationRuntimeRealtimeSubscription() {
@@ -1973,6 +2025,21 @@ function handleServiceSelectChange(rowKeys: Array<string | number>) {
   selectedServiceRowKeys.value = [...preservedKeys, ...normalizedCurrentKeys];
 }
 
+function toggleServiceSelection(serviceName: string, checked: boolean) {
+  const currentPageKeys = new Set(pagedServiceTableRows.value.map((row) => row.service_name));
+  const nextCurrentKeys = new Set(
+    selectedServiceRowKeys.value.filter((key) => currentPageKeys.has(String(key))).map(String),
+  );
+
+  if (checked) {
+    nextCurrentKeys.add(serviceName);
+  } else {
+    nextCurrentKeys.delete(serviceName);
+  }
+
+  handleServiceSelectChange(Array.from(nextCurrentKeys));
+}
+
 function clearSelectedServices() {
   selectedServiceRowKeys.value = [];
 }
@@ -2001,6 +2068,42 @@ function serviceBatchActionableRows(action: ProjectContainerAction) {
 function isServiceBatchActionDisabled(action: ProjectContainerAction) {
   return serviceActionBusy.value || serviceBatchActionableRows(action).length === 0;
 }
+
+const serviceBatchActionOptions = computed<DropdownProps['options']>(() => [
+  {
+    content: t('project.detail.services.batch.start'),
+    disabled: isServiceBatchActionDisabled('start'),
+    theme: 'success',
+    value: 'start',
+  },
+  {
+    content: t('project.detail.services.batch.stop'),
+    disabled: isServiceBatchActionDisabled('stop'),
+    theme: 'warning',
+    value: 'stop',
+  },
+  {
+    content: t('project.detail.services.batch.restart'),
+    disabled: isServiceBatchActionDisabled('restart'),
+    value: 'restart',
+  },
+  {
+    content: t('project.detail.services.batch.cancelSelection'),
+    divider: true,
+    value: 'clear',
+  },
+]);
+
+const handleServiceBatchMenuAction: NonNullable<DropdownProps['onClick']> = (item) => {
+  if (item.value === 'clear') {
+    clearSelectedServices();
+    return;
+  }
+
+  if (item.value === 'start' || item.value === 'stop' || item.value === 'restart') {
+    confirmServiceBatchAction(item.value);
+  }
+};
 
 function serviceActionOptions(row: ServiceTableRow) {
   const rowLoading = serviceActionBusy.value || serviceActionKey.value.startsWith(`${row.service_name}:`);
@@ -3278,6 +3381,92 @@ function openContainerDetail(member: ApplicationServiceContainerMember) {
 .project-service-name span {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
+}
+
+.project-service-mobile-card {
+  background: var(--td-bg-color-container-hover);
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+  padding: var(--graft-density-gap-12);
+}
+
+.project-service-mobile-card__header {
+  align-items: flex-start;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.project-service-mobile-card__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-4);
+  min-width: 0;
+}
+
+.project-service-mobile-card__identity strong {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+}
+
+.project-service-mobile-card__identity span,
+.project-service-mobile-card__facts dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.project-service-mobile-card__identity span,
+.project-service-mobile-card__ports dd {
+  overflow-wrap: anywhere;
+}
+
+.project-service-mobile-card__actions {
+  align-self: flex-end;
+  width: auto;
+}
+
+.project-service-mobile-card__facts {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.project-service-mobile-card__facts div {
+  min-width: 0;
+}
+
+.project-service-mobile-card__facts dt,
+.project-service-mobile-card__facts dd {
+  margin: 0;
+}
+
+.project-service-mobile-card__facts dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  margin-top: var(--graft-density-gap-4);
+}
+
+.project-service-mobile-card__ports {
+  grid-column: 1 / -1;
+}
+
+.project-service-selection-toolbar {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+  width: 100%;
+}
+
+.project-service-selection-toolbar__summary {
+  color: var(--td-text-color-primary);
+  min-width: 0;
 }
 
 .project-activity-card__head {
