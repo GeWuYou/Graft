@@ -56,7 +56,7 @@ const variant = useResponsiveVariant(container, { layout });
   }
 }
 
-@media (width >= 75rem) {
+@container (width >= 75rem) {
   .responsive-content--wide-split .responsive-content__inner {
     grid-template-columns: var(--graft-responsive-wide-split-template, repeat(2, minmax(0, 1fr)));
   }

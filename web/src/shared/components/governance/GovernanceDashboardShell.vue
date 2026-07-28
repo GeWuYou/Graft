@@ -28,7 +28,7 @@
       </page-header>
     </header>
 
-    <section v-if="$slots.summary" class="governance-dashboard-shell__summary">
+    <section v-if="$slots.summary" class="governance-dashboard-shell__summary graft-scrollbar">
       <slot name="summary" />
     </section>
 

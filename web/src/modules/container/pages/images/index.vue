@@ -118,6 +118,7 @@
             :data-testid="`docker-image-card-${image.id}`"
             :role="cardSelectionMode ? 'button' : undefined"
             :tabindex="cardSelectionMode ? 0 : undefined"
+            :aria-pressed="cardSelectionMode ? isImageSelected(image) : undefined"
             @click="handleCardClick(image)"
             @keydown.enter="handleCardKeydown($event, image)"
             @keydown.space="handleCardKeydown($event, image)"

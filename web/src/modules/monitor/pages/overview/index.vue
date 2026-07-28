@@ -2071,7 +2071,7 @@ function buildXAxis(labels: string[], chartColors: TChartColor, compact: boolean
 
 function compactTrendAxisLabelInterval(labelCount: number) {
   if (labelCount <= 4) {
-    return true;
+    return 0;
   }
 
   const lastIndex = labelCount - 1;
@@ -2286,6 +2286,7 @@ watch(
     () => trendPoints.value,
     () => trendMetricConfigs.value,
     () => activeTrendMode.value,
+    () => isCompactDashboard.value,
     () => selectedFocusMetric.value,
     () => settingStore.chartColors.textColor,
     () => settingStore.chartColors.placeholderColor,

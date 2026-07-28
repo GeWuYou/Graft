@@ -25,6 +25,7 @@ describe('governance dashboard primitives', () => {
     expect(wrapper.attributes('data-governance-domain')).toBe('audit');
     expect(wrapper.text()).toContain('Audit Overview');
     expect(wrapper.find('[data-testid="summary"]').exists()).toBe(true);
+    expect(wrapper.find('.governance-dashboard-shell__summary').classes()).toContain('graft-scrollbar');
     expect(wrapper.find('[data-testid="content"]').exists()).toBe(true);
   });
 

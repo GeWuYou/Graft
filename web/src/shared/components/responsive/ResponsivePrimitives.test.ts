@@ -6,6 +6,7 @@ import { resolveResponsiveDialogPolicy } from './dialog-policy';
 import ResourceDetailLayout from './ResourceDetailLayout.vue';
 import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
+import responsiveContentSource from './ResponsiveContent.vue?raw';
 import ResponsiveDialog from './ResponsiveDialog.vue';
 import ResponsiveEmpty from './ResponsiveEmpty.vue';
 import ResponsiveForm from './ResponsiveForm.vue';
@@ -54,6 +55,11 @@ describe('responsive primitives', () => {
     expect(content.find('.responsive-content__inner').text()).toContain('detail');
     expect(header.find('.responsive-header__actions').text()).toContain('create');
     expect(header.find('.responsive-header__description').text()).toContain('summary');
+  });
+
+  it('uses the measured content container for wide split activation', () => {
+    expect(responsiveContentSource).toContain('@container (width >= 75rem)');
+    expect(responsiveContentSource).not.toContain('@media (width >= 75rem)');
   });
 
   it('keeps data tables scrollable and reserves compact cards for entity presentation', () => {
