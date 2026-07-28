@@ -81,6 +81,21 @@ func TestGetFailureDiagnosticReturnsStoredSanitizedEvidence(t *testing.T) {
 	}
 }
 
+func TestGetOperationFailureDiagnosticUsesOperationIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "operationID", Value: "update-92"}}
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/platform/updates/operations/update-92/diagnostic", nil)
+	store := &failureDiagnosticStoreRecorder{value: FailureDiagnostic{RequestID: "request-92", OperationID: "update-92", TargetVersion: "0.11.0-beta.9", FailureCode: rolloutFailureRunnerTerminal, FailureStage: "runner_receipt", Summary: runnerFailureDiagnosticSummary, Detail: "runner reported a terminal failure (receipt_write_failed)", OccurredAt: time.Now().UTC()}}
+
+	updateRouteHandlers{diagnostics: store}.getOperationFailureDiagnostic(ctx)
+
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "update-92") {
+		t.Fatalf("expected operation diagnostic response, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
 type startFailureTestFixture struct {
 	recorder    *httptest.ResponseRecorder
 	context     *gin.Context
@@ -100,6 +115,13 @@ func (r *failureDiagnosticStoreRecorder) CreateFailureDiagnostic(_ context.Conte
 }
 
 func (r *failureDiagnosticStoreRecorder) GetFailureDiagnostic(context.Context, string) (FailureDiagnostic, error) {
+	if r.err != nil {
+		return FailureDiagnostic{}, r.err
+	}
+	return r.value, nil
+}
+
+func (r *failureDiagnosticStoreRecorder) GetFailureDiagnosticByOperation(context.Context, string) (FailureDiagnostic, error) {
 	if r.err != nil {
 		return FailureDiagnostic{}, r.err
 	}

@@ -230,6 +230,8 @@ paths:
     $ref: ./paths/platform-updates.diagnostic.yaml
   /api/platform/updates/operations/{operationID}:
     $ref: ./paths/platform-updates.operation.yaml
+  /api/platform/updates/operations/{operationID}/diagnostic:
+    $ref: ./paths/platform-updates.operation-diagnostic.yaml
   /api/platform/backups:
     $ref: ./paths/platform-backups.collection.yaml
   /api/platform/backups/{id}:

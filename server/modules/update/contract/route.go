@@ -13,6 +13,8 @@ const (
 	UpdateOperationRoute = "/operations/:operationID"
 	// UpdateFailureDiagnosticRoute 读取一次更新启动失败的受控诊断详情。
 	UpdateFailureDiagnosticRoute = "/diagnostics/:requestID"
+	// UpdateOperationDiagnosticRoute 读取一条 operation 终态的受控失败诊断详情。
+	UpdateOperationDiagnosticRoute = "/operations/:operationID/diagnostic"
 	// UpdateMenuPath 是 Update Center 的稳定前端路由。
 	UpdateMenuPath = "/platform/updates"
 )

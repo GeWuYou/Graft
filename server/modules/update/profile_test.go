@@ -47,6 +47,21 @@ func TestDetectInstallationProfileUsesDockerCandidateWhenExplicitRootIsMissing(t
 	if profile.ComposeRootSource != "docker_discovered" || profile.Capability != "compose_upgrade_available" || len(profile.ComposeCandidates) != 1 {
 		t.Fatalf("expected docker-discovered compose profile, got %#v", profile)
 	}
+	if profile.ComposeRootConfirmationRequired {
+		t.Fatalf("expected unique high-confidence candidate to skip confirmation, got %#v", profile)
+	}
+}
+
+func TestDetectInstallationProfileRequiresConfirmationForFallbackCandidate(t *testing.T) {
+	profile := DetectInstallationProfileWithComposeReader(context.Background(), func(key string) string {
+		if key == declaredDeploymentModeEnv {
+			return "compose"
+		}
+		return ""
+	}, func(_ string) (string, bool) { return "", false }, func() (string, error) { return "", nil }, &composeReaderStub{candidates: []moduleapi.UpdateComposeRuntimeCandidate{{CandidateKey: "compose-a", Root: "/srv/graft", Confidence: "medium"}}})
+	if !profile.ComposeRootConfirmationRequired {
+		t.Fatalf("expected fallback candidate to require confirmation, got %#v", profile)
+	}
 }
 
 func TestDetectInstallationProfileExplicitRootNeverFallsBackToDocker(t *testing.T) {

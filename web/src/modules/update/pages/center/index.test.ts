@@ -83,6 +83,7 @@ const status = (candidates: Array<Record<string, unknown>>) =>
       capability: 'compose_upgrade_available',
       guidance: '',
       compose_root_source: 'docker_discovered',
+      compose_root_confirmation_required: candidates.filter(({ confidence }) => confidence === 'high').length !== 1,
       compose_candidates: candidates,
     },
     cache_stale: false,
@@ -142,7 +143,7 @@ describe('UpdateCenter', () => {
     expect(wrapper.get('[data-testid="update-confirmation-dialog"]').text()).toContain('/srv/graft');
   });
 
-  it('uses the unique high-confidence candidate when submitting the dialog confirmation', async () => {
+  it('shows the unique high-confidence candidate without returning its opaque key', async () => {
     useUpdateDiscoveryStore().replaceSnapshot(
       status([
         { key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' },
@@ -158,7 +159,6 @@ describe('UpdateCenter', () => {
 
     expect(createUpdateOperation).toHaveBeenCalledWith({
       target_version: '1.1.0',
-      compose_candidate_key: 'high',
     });
   });
 
@@ -276,7 +276,6 @@ describe('UpdateCenter', () => {
 
     expect(dataSource.createOperation).toHaveBeenCalledWith({
       target_version: '1.1.0',
-      compose_candidate_key: 'preview',
     });
     expect(dataSource.getOperations).toHaveBeenCalledTimes(3);
   });

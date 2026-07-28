@@ -109,6 +109,7 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 		return err
 	}
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
+	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
 	return nil
 }

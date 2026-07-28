@@ -33,8 +33,8 @@ func (s *sqlOperationStore) Create(ctx context.Context, value ComposeUpdateOpera
 		return errors.New("update operation is invalid")
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO update_operations
- (operation_id, source_version, target_version, task_id, requested_by, status, created_at, started_at)
- VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, value.SourceVersion,
+	 (operation_id, request_id, source_version, target_version, task_id, requested_by, status, created_at, started_at)
+	 VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, nullableString(value.RequestID), value.SourceVersion,
 		value.TargetVersion, value.TaskID, nullableUint64(value.RequestedBy), value.Outcome)
 	if err != nil {
 		return fmt.Errorf("create update operation: %w", err)
@@ -46,18 +46,22 @@ func (s *sqlOperationStore) Get(ctx context.Context, operationID string) (Compos
 	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
 		return ComposeUpdateOperation{}, errors.New("update operation identity is invalid")
 	}
-	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, source_version, target_version, task_id,
+	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, request_id, source_version, target_version, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
- created_at, started_at, finished_at FROM update_operations WHERE operation_id = $1`, operationID))
+	 created_at, started_at, finished_at,
+ EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
+ FROM update_operations WHERE operation_id = $1`, operationID))
 }
 
 func (s *sqlOperationStore) List(ctx context.Context, limit int) ([]ComposeUpdateOperation, error) {
 	if s == nil || s.db == nil || limit < 1 || limit > 100 {
 		return nil, errors.New("update operation list limit is invalid")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, source_version, target_version, task_id,
+	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, request_id, source_version, target_version, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
- created_at, started_at, finished_at FROM update_operations ORDER BY created_at DESC LIMIT $1`, limit)
+ created_at, started_at, finished_at,
+ EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
+ FROM update_operations ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list update operations: %w", err)
 	}
@@ -102,34 +106,50 @@ type operationScanner interface{ Scan(...any) error }
 func scanOperation(row operationScanner) (ComposeUpdateOperation, error) {
 	var item ComposeUpdateOperation
 	var backupID, requestedBy sql.NullInt64
-	var integrity, failure sql.NullString
+	var requestID, integrity, failure sql.NullString
 	var created, started time.Time
 	var finished sql.NullTime
-	if err := row.Scan(&item.OperationID, &item.SourceVersion, &item.TargetVersion, &item.TaskID, &backupID,
-		&requestedBy, &item.Outcome, &integrity, &failure, &item.RecoveryCompleted, &created, &started, &finished); err != nil {
+	if err := row.Scan(&item.OperationID, &requestID, &item.SourceVersion, &item.TargetVersion, &item.TaskID, &backupID,
+		&requestedBy, &item.Outcome, &integrity, &failure, &item.RecoveryCompleted, &created, &started, &finished, &item.FailureDiagnosticAvailable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ComposeUpdateOperation{}, errUpdateOperationNotFound
 		}
 		return ComposeUpdateOperation{}, fmt.Errorf("scan update operation: %w", err)
 	}
-	if backupID.Valid && backupID.Int64 > 0 {
-		item.BackupID = uint64(backupID.Int64)
-	}
-	if requestedBy.Valid && requestedBy.Int64 > 0 {
-		item.RequestedBy = uint64(requestedBy.Int64)
-	}
-	if integrity.Valid {
-		item.ReceiptIntegritySHA256 = integrity.String
-	}
-	if failure.Valid {
-		item.FailureCode = failure.String
-	}
+	assignOperationNullableFields(&item, operationNullableFields{requestID: requestID, backupID: backupID, requestedBy: requestedBy, integrity: integrity, failure: failure, finished: finished})
 	item.CreatedAt, item.StartedAt = created.UTC(), started.UTC()
-	if finished.Valid {
-		value := finished.Time.UTC()
+	return item, nil
+}
+
+type operationNullableFields struct {
+	requestID, integrity, failure sql.NullString
+	backupID, requestedBy         sql.NullInt64
+	finished                      sql.NullTime
+}
+
+func assignOperationNullableFields(item *ComposeUpdateOperation, values operationNullableFields) {
+	if item == nil {
+		return
+	}
+	if values.backupID.Valid && values.backupID.Int64 > 0 {
+		item.BackupID = uint64(values.backupID.Int64)
+	}
+	if values.requestedBy.Valid && values.requestedBy.Int64 > 0 {
+		item.RequestedBy = uint64(values.requestedBy.Int64)
+	}
+	if values.requestID.Valid {
+		item.RequestID = values.requestID.String
+	}
+	if values.integrity.Valid {
+		item.ReceiptIntegritySHA256 = values.integrity.String
+	}
+	if values.failure.Valid {
+		item.FailureCode = values.failure.String
+	}
+	if values.finished.Valid {
+		value := values.finished.Time.UTC()
 		item.FinishedAt = &value
 	}
-	return item, nil
 }
 
 func nullableUint64(value uint64) any {

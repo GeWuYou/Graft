@@ -9,6 +9,7 @@ properties:
   requested_by: { type: integer, format: int64 }
   status: { type: string, enum: [PLANNING, BACKING_UP, PULLING, MIGRATING, RECREATING, VERIFYING, SUCCESS, FAILED, RECOVERED, NEEDS_ATTENTION] }
   failure_code: { type: string }
+  failure_diagnostic_available: { type: boolean, description: "Whether a manager may retrieve controlled failure diagnostics for this operation." }
   recovery_completed: { type: boolean }
   created_at: { type: string, format: date-time }
   started_at: { type: string, format: date-time }

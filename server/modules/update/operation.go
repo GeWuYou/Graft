@@ -18,19 +18,21 @@ const (
 
 // ComposeUpdateOperation 是 Update 编排层持有的冻结关联；Task 和 Backup 的持久事实仍分别由各自模块拥有。
 type ComposeUpdateOperation struct {
-	OperationID            string           `json:"operation_id"`
-	SourceVersion          string           `json:"source_version"`
-	TargetVersion          string           `json:"target_version"`
-	TaskID                 uint64           `json:"task_id"`
-	BackupID               uint64           `json:"backup_id,omitempty"`
-	RequestedBy            uint64           `json:"requested_by,omitempty"`
-	Outcome                ExecutionOutcome `json:"status"`
-	ReceiptIntegritySHA256 string           `json:"-"`
-	FailureCode            string           `json:"failure_code,omitempty"`
-	RecoveryCompleted      bool             `json:"recovery_completed"`
-	CreatedAt              time.Time        `json:"created_at"`
-	StartedAt              time.Time        `json:"started_at"`
-	FinishedAt             *time.Time       `json:"finished_at,omitempty"`
+	OperationID                string           `json:"operation_id"`
+	RequestID                  string           `json:"-"`
+	SourceVersion              string           `json:"source_version"`
+	TargetVersion              string           `json:"target_version"`
+	TaskID                     uint64           `json:"task_id"`
+	BackupID                   uint64           `json:"backup_id,omitempty"`
+	RequestedBy                uint64           `json:"requested_by,omitempty"`
+	Outcome                    ExecutionOutcome `json:"status"`
+	ReceiptIntegritySHA256     string           `json:"-"`
+	FailureCode                string           `json:"failure_code,omitempty"`
+	FailureDiagnosticAvailable bool             `json:"failure_diagnostic_available"`
+	RecoveryCompleted          bool             `json:"recovery_completed"`
+	CreatedAt                  time.Time        `json:"created_at"`
+	StartedAt                  time.Time        `json:"started_at"`
+	FinishedAt                 *time.Time       `json:"finished_at,omitempty"`
 }
 
 // ComposeExecutionCoordinator 只消费 Task 与 Backup capability，避免 Update 直接访问其它模块的仓储。

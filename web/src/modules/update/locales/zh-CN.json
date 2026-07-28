@@ -92,6 +92,7 @@
           "composeCandidateInvalid": "所选 Compose 项目目录已失效，请重新选择后再试。",
           "composePreflightFailed": "当前 Compose 项目未通过升级前检查。",
           "startFailed": "升级任务未能启动，请根据请求 ID 查询服务端日志。",
+          "runnerTerminalFailed": "升级执行未完成，请查看已脱敏的失败原因和应用日志。",
           "generic": "升级请求未能启动，请稍后重试。"
         }
       },
@@ -101,7 +102,33 @@
         "status": "状态",
         "result": "结果",
         "started": "开始时间",
+        "viewCause": "查看原因",
+        "causeUnavailable": "暂时无法读取本次升级的诊断详情。",
+        "statuses": {
+          "PLANNING": "准备中",
+          "BACKING_UP": "正在备份",
+          "PULLING": "正在拉取",
+          "MIGRATING": "正在迁移",
+          "RECREATING": "正在重建",
+          "VERIFYING": "正在验证",
+          "SUCCESS": "已完成",
+          "RECOVERED": "已恢复",
+          "FAILED": "失败",
+          "NEEDS_ATTENTION": "需要处理"
+        },
         "loadFailed": "无法加载更新历史。"
+      },
+      "progress": {
+        "title": "正在升级平台",
+        "phase": {
+          "running": "升级正在进行，请勿关闭此页面。",
+          "reconnecting": "服务正在重建，正在重新连接升级状态…",
+          "success": "升级完成，正在刷新页面…",
+          "failed": "升级未完成，请查看已脱敏的失败原因。"
+        },
+        "steps": { "planning": "准备", "pulling": "拉取发行镜像", "recreating": "重建服务", "verifying": "验证服务" },
+        "diagnosticUnavailable": "暂时无法读取本次升级的诊断详情，请在应用日志中按请求 ID 查询。",
+        "viewAppLogs": "查看应用日志"
       },
       "capabilities": {
         "title": "安装能力矩阵",

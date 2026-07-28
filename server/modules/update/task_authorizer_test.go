@@ -141,3 +141,7 @@ func (failureDiagnosticStoreStub) CreateFailureDiagnostic(context.Context, Failu
 func (failureDiagnosticStoreStub) GetFailureDiagnostic(context.Context, string) (FailureDiagnostic, error) {
 	return FailureDiagnostic{}, errUpdateFailureDiagnosticNotFound
 }
+
+func (failureDiagnosticStoreStub) GetFailureDiagnosticByOperation(context.Context, string) (FailureDiagnostic, error) {
+	return FailureDiagnostic{}, errUpdateFailureDiagnosticNotFound
+}

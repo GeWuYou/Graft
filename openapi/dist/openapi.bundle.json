@@ -8955,6 +8955,70 @@
         }
       }
     },
+    "/api/platform/updates/operations/{operationID}/diagnostic": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Read controlled failure diagnostics for a self-update operation",
+        "operationId": "getPlatformUpdateOperationFailureDiagnostic",
+        "description": "Returns immutable, sanitized diagnostics for a terminal runner failure. Raw runner logs and deployment secrets are never returned.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "operationID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized operation failure diagnostic.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-failure-diagnostic"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid operation identity."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Operation failure diagnostic not found."
+          },
+          "500": {
+            "description": "The diagnostic store could not be read."
+          }
+        }
+      }
+    },
     "/api/platform/backups": {
       "get": {
         "tags": [
@@ -26346,6 +26410,10 @@
               "compose_root_source": {
                 "$ref": "#/components/schemas/platform-update-compose-root-source"
               },
+              "compose_root_confirmation_required": {
+                "type": "boolean",
+                "description": "Whether the caller must select among Compose root candidates before rollout."
+              },
               "compose_candidates": {
                 "type": "array",
                 "description": "Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array.",
@@ -26449,6 +26517,10 @@
           },
           "failure_code": {
             "type": "string"
+          },
+          "failure_diagnostic_available": {
+            "type": "boolean",
+            "description": "Whether a manager may retrieve controlled failure diagnostics for this operation."
           },
           "recovery_completed": {
             "type": "boolean"
@@ -26556,7 +26628,8 @@
           "PLATFORM_UPDATE_INVALID_TARGET",
           "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID",
           "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED",
-          "PLATFORM_UPDATE_OPERATION_START_FAILED"
+          "PLATFORM_UPDATE_OPERATION_START_FAILED",
+          "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
         ]
       },
       "platform-update-rollout-failure-data": {

@@ -19,18 +19,19 @@ const (
 
 // InstallationProfile 组合 operator 声明与运行时证据；Capability 只在二者可安全对齐时允许自动化。
 type InstallationProfile struct {
-	DeclaredMode      string                 `json:"declared_mode"`
-	DetectedMode      string                 `json:"detected_mode"`
-	Capability        string                 `json:"capability"`
-	Guidance          string                 `json:"guidance"`
-	BinaryPath        string                 `json:"binary_path,omitempty"`
-	WebRoot           string                 `json:"web_root,omitempty"`
-	ServiceManager    string                 `json:"service_manager,omitempty"`
-	ServiceName       string                 `json:"service_name,omitempty"`
-	ManualSteps       []ManualStep           `json:"manual_steps,omitempty"`
-	BlockingReason    string                 `json:"blocking_reason,omitempty"`
-	ComposeRootSource string                 `json:"compose_root_source"`
-	ComposeCandidates []ComposeRootCandidate `json:"compose_candidates"`
+	DeclaredMode                    string                 `json:"declared_mode"`
+	DetectedMode                    string                 `json:"detected_mode"`
+	Capability                      string                 `json:"capability"`
+	Guidance                        string                 `json:"guidance"`
+	BinaryPath                      string                 `json:"binary_path,omitempty"`
+	WebRoot                         string                 `json:"web_root,omitempty"`
+	ServiceManager                  string                 `json:"service_manager,omitempty"`
+	ServiceName                     string                 `json:"service_name,omitempty"`
+	ManualSteps                     []ManualStep           `json:"manual_steps,omitempty"`
+	BlockingReason                  string                 `json:"blocking_reason,omitempty"`
+	ComposeRootSource               string                 `json:"compose_root_source"`
+	ComposeRootConfirmationRequired bool                   `json:"compose_root_confirmation_required"`
+	ComposeCandidates               []ComposeRootCandidate `json:"compose_candidates"`
 }
 
 // ComposeRootCandidate 是一次状态读取得到的候选；Root 只用于服务端当前请求，不作为持久配置。
@@ -104,7 +105,12 @@ func DetectInstallationProfileWithComposeReader(ctx context.Context, getenv func
 			profile.Guidance = profile.BlockingReason
 		} else {
 			profile.Capability = "compose_upgrade_available"
-			profile.Guidance = "Compose 根目录由 Docker bind mount 推导；执行升级前必须确认候选。"
+			profile.ComposeRootConfirmationRequired = composeRootConfirmationRequired(profile.ComposeCandidates)
+			if profile.ComposeRootConfirmationRequired {
+				profile.Guidance = "Compose 根目录存在多个或低置信度候选；执行升级前必须确认候选。"
+			} else {
+				profile.Guidance = "Compose 根目录已由当前容器 Compose 标签唯一确认。"
+			}
 		}
 	case declared == "compose" && !composeRootSet:
 		profile.DetectedMode = "compose"
@@ -120,6 +126,10 @@ func DetectInstallationProfileWithComposeReader(ctx context.Context, getenv func
 		profile = binaryInstallationProfile(profile, getenv, executable)
 	}
 	return profile
+}
+
+func composeRootConfirmationRequired(candidates []ComposeRootCandidate) bool {
+	return len(candidates) != 1 || candidates[0].Confidence != "high"
 }
 
 func copyStrings(values []string) []string {

@@ -7,9 +7,16 @@
     trigger="click"
     :overlay-inner-style="{ padding: '0' }"
   >
-    <button class="update-version-entry" data-testid="update-version-entry" type="button" :aria-label="tooltip">
-      {{ versionLabel }}
-    </button>
+    <t-tooltip :content="tooltip" placement="bottom">
+      <button
+        :class="['update-version-entry', { 'update-version-entry--available': discoveryStore.hasUpdate }]"
+        data-testid="update-version-entry"
+        type="button"
+        :aria-label="tooltip"
+      >
+        {{ versionLabel }}
+      </button>
+    </t-tooltip>
     <template #content>
       <section class="update-version-preview">
         <header class="update-version-preview__header">
@@ -189,6 +196,12 @@ async function refreshStatus() {
   min-height: 18px;
   padding: 0 var(--td-comp-paddingLR-xs);
   white-space: nowrap;
+}
+
+.update-version-entry--available {
+  background: var(--td-warning-color-1);
+  border-color: var(--td-warning-color-5);
+  color: var(--td-warning-color-8);
 }
 
 .update-version-preview {
