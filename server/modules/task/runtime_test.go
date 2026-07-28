@@ -166,7 +166,7 @@ func TestRuntimeLeavesUnregisteredExternalReceiptStageRunningUntilSettlement(t *
 	}
 }
 
-func TestRuntimeCancelsClaimedExternalReceiptBeforeLateSettlement(t *testing.T) {
+func TestRuntimePreservesClaimedExternalReceiptForLateSettlementAfterCancel(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
 	receipt, err := runtime.Submit(context.Background(), externalReceiptSubmitInput())
@@ -180,14 +180,15 @@ func TestRuntimeCancelsClaimedExternalReceiptBeforeLateSettlement(t *testing.T) 
 		t.Fatalf("cancel external stage: %v", err)
 	}
 	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
-	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusCancelled {
+	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusRunning {
 		t.Fatalf("external stage after cancel = %#v err=%v", stages, err)
 	}
-	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusCancelled {
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusRunning {
 		t.Fatalf("external task after cancel = %#v", task)
 	}
-	if _, err := runtime.SettleExternalReceipt(context.Background(), externalReceipt(receipt.TaskID, moduleapi.ExternalReceiptOutcomeSuccess, "")); err == nil {
-		t.Fatal("late external receipt settlement succeeded after cancellation")
+	settlement, err := runtime.SettleExternalReceipt(context.Background(), externalReceipt(receipt.TaskID, moduleapi.ExternalReceiptOutcomeSuccess, ""))
+	if err != nil || settlement.Status != moduleapi.TaskStatusSuccess {
+		t.Fatalf("late external receipt settlement = %#v err=%v", settlement, err)
 	}
 }
 
