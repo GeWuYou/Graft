@@ -134,7 +134,7 @@
           </template>
         </t-empty>
         <div v-else class="docker-volume-page__cards">
-          <article v-for="row in rows" :key="row.name" class="docker-volume-page__card" @click="openDetailPage(row)">
+          <article v-for="row in rows" :key="row.name" class="docker-volume-page__card">
             <header class="docker-volume-page__card-header">
               <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
                 {{ relationshipPresentation(row.relationship_status).label }}
@@ -785,17 +785,12 @@ function confirmRemove(row: VolumeRow) {
   block-size: 10rem;
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-small);
-  cursor: pointer;
   display: grid;
   gap: var(--graft-density-gap-4);
   grid-template-rows: 1.5rem 2.25rem 1.5rem 1fr;
   min-width: 0;
   overflow: hidden;
   padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
-}
-
-.docker-volume-page__card:hover {
-  border-color: var(--td-brand-color);
 }
 
 .docker-volume-page__card-header {

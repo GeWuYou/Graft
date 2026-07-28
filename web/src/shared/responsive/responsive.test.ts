@@ -40,4 +40,8 @@ describe('responsive variants', () => {
       expect.arrayContaining(['isMobile', 'isTablet', 'isDesktop']),
     );
   });
+
+  it('preserves wide-split as a semantic layout choice', () => {
+    expect(resolveResponsiveVariant(1200, { layout: 'wide-split' }).layout).toBe('wide-split');
+  });
 });

@@ -785,11 +785,8 @@
 }
 
 .server-status-overview-layout {
-  align-items: start;
-  container-type: inline-size;
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  --graft-responsive-wide-split-template: minmax(0, 2fr) minmax(0, 1fr);
+
   min-width: 0;
 }
 
@@ -859,17 +856,40 @@
   container-type: inline-size;
 }
 
-@container (max-width: 1280px) {
-  .server-status-overview-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
 @container (max-width: 960px) {
   .trend-runtime-summary__grid,
   .trend-small-grid,
   .host-observability-section__groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.monitor-dashboard[data-responsive-density='compact'] {
+  :deep(.governance-dashboard-shell__summary) {
+    display: flex;
+    gap: var(--graft-density-gap-12);
+    grid-template-columns: none;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: var(--graft-density-gap-4);
+    scroll-snap-type: inline mandatory;
+  }
+
+  :deep(.server-status-summary-card) {
+    flex: 0 0 min(80vw, 17rem);
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+
+  :deep(.governance-summary-card__aside),
+  :deep(.governance-summary-card__description),
+  :deep(.metric-card__usage-description) {
+    display: none;
+  }
+
+  .trend-chart--overview {
+    min-height: 15rem;
   }
 }
 

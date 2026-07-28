@@ -50,7 +50,7 @@ describe('docker image list page', () => {
     );
   });
 
-  it('uses a card list for compact containers without a default checkbox', () => {
+  it('uses detail actions instead of opening compact cards outside selection mode', () => {
     expect(sourceText).toContain('<template #cards>');
     expect(sourceText).toContain('class="docker-images-card"');
     expect(sourceText).toContain('formatBytes(image.size_bytes)');
@@ -59,8 +59,15 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('v-if="cardSelectionMode"');
     expect(sourceText).toContain("{ label: t('container.images.actions.select'), value: 'select' }");
     expect(sourceText).toContain('function handleCardClick(image: DockerImage)');
+    expect(sourceText).toContain("'docker-images-card--selection-mode': cardSelectionMode");
+    expect(sourceText).toContain(':role="cardSelectionMode ? \'button\' : undefined"');
+    expect(sourceText).toContain(':tabindex="cardSelectionMode ? 0 : undefined"');
+    expect(sourceText).toContain('if (!cardSelectionMode.value) return;');
+    expect(sourceText).toContain('function handleCardKeydown(event: KeyboardEvent, image: DockerImage)');
+    expect(sourceText).toContain('event.target !== event.currentTarget');
     expect(sourceText).toContain('function setCardSelected(image: DockerImage, selected: boolean)');
     expect(sourceText).toContain('<docker-resource-card-actions');
+    expect(sourceText).toContain('@detail="openDetail(image)"');
     expect(sourceText).toContain("danger: true, label: t('container.images.actions.remove')");
   });
 

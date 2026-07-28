@@ -1,369 +1,372 @@
 <template>
-  <server-status-page-shell
-    class="monitor-dashboard"
-    :eyebrow="t('monitor.sectionTitle')"
-    title-key="monitor.serverStatus.overviewTitle"
-    description-key="monitor.serverStatus.overviewHint"
-  >
-    <template #toolbar>
-      <refresh-control-bar
-        :status="refreshControlStatus"
-        :countdown-seconds="remainingRefreshSeconds"
-        :interval="selectedRefreshInterval"
-        :interval-options="refreshIntervalOptions"
-        :refreshing="loading"
-        :show-countdown="true"
-        :show-trend-window="true"
-        :status-tone="toolbarStatus"
-        :status-label="overallStatusLabel(overallStatus)"
-        :trend-window="selectedTrendRange"
-        :trend-window-label="t('monitor.serverStatus.trendWindowLabel')"
-        :trend-window-options="trendRangeOptions"
-        variant="page"
-        @refresh="() => fetchServerStatus({ manual: true })"
-        @pause="toggleAutoRefresh"
-        @resume="toggleAutoRefresh"
-        @update:interval="handleRefreshIntervalChange"
-        @update:trend-window="handleTrendRangeChange"
-      />
-    </template>
-
-    <template #summary>
-      <summary-metric-card
-        v-for="card in metricCards"
-        :key="card.key"
-        :data-card-key="card.key"
-        :title="card.label"
-        :value="card.value"
-        :value-aside="card.valueSide"
-        :description="card.meta"
-        :status="metricToneToServerStatusTone(card.tone)"
-        :status-label="card.statusLabel"
-      >
-        <metric-usage-bar
-          :value="card.usage.value"
-          :label="card.usage.label"
-          :status="card.usage.status"
-          :tooltip="card.usage.tooltip"
-          :loading="card.usage.loading"
-          :empty-text="t('monitor.serverStatus.metricUsageNoData')"
+  <div class="monitor-dashboard" :data-responsive-density="dashboardVariant.density">
+    <server-status-page-shell
+      :eyebrow="t('monitor.sectionTitle')"
+      title-key="monitor.serverStatus.overviewTitle"
+      description-key="monitor.serverStatus.overviewHint"
+    >
+      <template #toolbar>
+        <refresh-control-bar
+          :status="refreshControlStatus"
+          :countdown-seconds="remainingRefreshSeconds"
+          :interval="selectedRefreshInterval"
+          :interval-options="refreshIntervalOptions"
+          :refreshing="loading"
+          :show-countdown="true"
+          :show-trend-window="true"
+          :status-tone="toolbarStatus"
+          :status-label="overallStatusLabel(overallStatus)"
+          :trend-window="selectedTrendRange"
+          :trend-window-label="t('monitor.serverStatus.trendWindowLabel')"
+          :trend-window-options="trendRangeOptions"
+          variant="page"
+          @refresh="() => fetchServerStatus({ manual: true })"
+          @pause="toggleAutoRefresh"
+          @resume="toggleAutoRefresh"
+          @update:interval="handleRefreshIntervalChange"
+          @update:trend-window="handleTrendRangeChange"
         />
-        <p class="metric-card__usage-description">{{ card.description }}</p>
-      </summary-metric-card>
-    </template>
+      </template>
 
-    <div class="server-status-overview-layout">
-      <section-card
-        class="server-status-overview-layout__trend"
-        :title="t('monitor.serverStatus.trendCardTitle')"
-        :min-height="520"
-      >
-        <template #actions>
-          <div class="trend-panel__actions">
-            <t-radio-group v-model="selectedTrendMode" variant="default-filled" size="small">
-              <t-radio-button v-for="option in trendModeOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </t-radio-button>
-            </t-radio-group>
-          </div>
-        </template>
+      <template #summary>
+        <summary-metric-card
+          v-for="card in metricCards"
+          :key="card.key"
+          :data-card-key="card.key"
+          :title="card.label"
+          :value="card.value"
+          :value-aside="card.valueSide"
+          :description="card.meta"
+          :status="metricToneToServerStatusTone(card.tone)"
+          :status-label="card.statusLabel"
+        >
+          <metric-usage-bar
+            :value="card.usage.value"
+            :label="card.usage.label"
+            :status="card.usage.status"
+            :tooltip="card.usage.tooltip"
+            :loading="card.usage.loading"
+            :empty-text="t('monitor.serverStatus.metricUsageNoData')"
+          />
+          <p class="metric-card__usage-description">{{ card.description }}</p>
+        </summary-metric-card>
+      </template>
 
-        <div class="trend-panel__shell" :data-mode="selectedTrendMode">
-          <div class="trend-panel__summary-bar">
-            <div class="trend-panel__summary-copy">
-              <span class="trend-panel__summary-title">{{ t('monitor.serverStatus.trendMetricInventory') }}</span>
-              <p class="trend-panel__summary-text">
-                {{
-                  t('monitor.serverStatus.trendMetricInventoryValue', {
-                    count: String(visibleTrendMetricCount),
-                    groups: trendGroupSummaryLabel,
-                  })
-                }}
-              </p>
+      <responsive-content class="server-status-overview-layout" layout="wide-split">
+        <section-card
+          class="server-status-overview-layout__trend"
+          :title="t('monitor.serverStatus.trendCardTitle')"
+          :min-height="520"
+        >
+          <template #actions>
+            <div v-if="!isCompactDashboard" class="trend-panel__actions">
+              <t-radio-group v-model="selectedTrendMode" variant="default-filled" size="small">
+                <t-radio-button v-for="option in trendModeOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </t-radio-button>
+              </t-radio-group>
             </div>
-            <div
-              v-if="selectedTrendMode === 'focus'"
-              class="trend-panel__focus-toolbar"
-              data-trend-focus-toolbar="true"
-            >
-              <div class="trend-panel__focus-toolbar-copy">
-                <span class="trend-panel__focus-label">{{ t('monitor.serverStatus.focusMetricLabel') }}</span>
-                <span class="trend-panel__focus-group">{{ currentFocusMetric?.groupLabel }}</span>
+          </template>
+
+          <div class="trend-panel__shell" :data-mode="activeTrendMode">
+            <div class="trend-panel__summary-bar">
+              <div class="trend-panel__summary-copy">
+                <span class="trend-panel__summary-title">{{ t('monitor.serverStatus.trendMetricInventory') }}</span>
+                <p class="trend-panel__summary-text">
+                  {{
+                    t('monitor.serverStatus.trendMetricInventoryValue', {
+                      count: String(visibleTrendMetricCount),
+                      groups: trendGroupSummaryLabel,
+                    })
+                  }}
+                </p>
               </div>
-              <t-select
-                v-model="selectedFocusMetric"
-                class="trend-panel__focus-select"
-                :options="focusMetricOptions"
-                size="small"
-                data-trend-focus-select="true"
-              />
-            </div>
-          </div>
-
-          <t-empty v-if="!hasTrendData" :description="t('monitor.serverStatus.emptyTrend')" />
-
-          <transition v-else name="trend-mode-fade" mode="out-in">
-            <div
-              v-if="selectedTrendMode === 'overview'"
-              key="overview"
-              class="trend-panel__body trend-panel__body--overview"
-              data-trend-mode-panel="overview"
-            >
-              <article
-                v-for="section in overviewTrendSections"
-                :key="section.key"
-                class="trend-overview-section"
-                :data-trend-overview-section="section.key"
+              <div
+                v-if="activeTrendMode === 'focus'"
+                class="trend-panel__focus-toolbar"
+                data-trend-focus-toolbar="true"
               >
-                <header class="trend-section-header">
-                  <div class="trend-section-header__copy">
-                    <div class="trend-section-header__title-row">
-                      <h3 class="trend-section-header__title">{{ section.title }}</h3>
-                      <t-popup v-if="section.infoText" expand-animation placement="top" show-arrow trigger="click">
-                        <template #content>
-                          <div class="trend-info-popup">{{ section.infoText }}</div>
-                        </template>
-                        <button
-                          type="button"
-                          class="trend-info-trigger"
-                          :aria-label="`${section.title}${t('monitor.serverStatus.infoActionLabel')}`"
-                        >
-                          <info-circle-icon class="trend-info-trigger__icon" />
-                        </button>
-                      </t-popup>
-                    </div>
-                  </div>
-                  <div v-if="section.helperText" class="trend-section-header__helper">
-                    {{ section.helperText }}
-                  </div>
-                </header>
-                <div class="trend-section-legend" :data-trend-legend-group="section.key">
-                  <span
-                    v-for="metric in section.metrics"
-                    :key="metric.key"
-                    class="trend-legend-item"
-                    data-trend-legend-item="true"
-                  >
-                    <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color() }" />
-                    <span class="trend-legend-item__text">{{ metric.shortLabel }}</span>
-                    <strong class="trend-legend-item__value">{{ metric.currentValue }}</strong>
-                  </span>
+                <div class="trend-panel__focus-toolbar-copy">
+                  <span class="trend-panel__focus-label">{{ t('monitor.serverStatus.focusMetricLabel') }}</span>
+                  <span class="trend-panel__focus-group">{{ currentFocusMetric?.groupLabel }}</span>
                 </div>
-                <div
-                  :ref="(el) => setTrendChartRef(section.chartKey, el)"
-                  class="trend-chart trend-chart--overview"
-                  :data-trend-chart="section.chartKey"
+                <t-select
+                  v-model="selectedFocusMetric"
+                  class="trend-panel__focus-select"
+                  :options="focusMetricOptions"
+                  size="small"
+                  data-trend-focus-select="true"
                 />
-              </article>
-
-              <article class="trend-runtime-summary" data-trend-overview-section="requestPerformance">
-                <header class="trend-section-header">
-                  <div class="trend-section-header__copy">
-                    <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.requestPerformanceTitle') }}</h3>
-                  </div>
-                  <t-button theme="primary" variant="text" size="small" @click="openRequestPerformance">
-                    {{ t('monitor.serverStatus.openRequestPerformance') }}
-                  </t-button>
-                </header>
-                <div class="trend-runtime-summary__grid">
-                  <article
-                    v-for="metric in requestPerformanceMetrics"
-                    :key="metric.key"
-                    class="trend-runtime-summary__item"
-                  >
-                    <span class="trend-runtime-summary__label">{{ metric.label }}</span>
-                    <strong class="trend-runtime-summary__value">{{ metric.value }}</strong>
-                  </article>
-                </div>
-              </article>
+              </div>
             </div>
 
-            <transition-group
-              v-else-if="selectedTrendMode === 'multi'"
-              key="multi"
-              name="trend-metric-fade"
-              tag="div"
-              class="trend-panel__body trend-panel__body--multi trend-small-grid"
-              data-trend-mode-panel="multi"
-            >
-              <article
-                v-for="metric in smallMultipleMetrics"
-                :key="metric.key"
-                class="trend-small-card"
-                :data-trend-small-card="metric.key"
+            <t-empty v-if="!hasTrendData" :description="t('monitor.serverStatus.emptyTrend')" />
+
+            <transition v-else name="trend-mode-fade" mode="out-in">
+              <div
+                v-if="activeTrendMode === 'overview'"
+                key="overview"
+                class="trend-panel__body trend-panel__body--overview"
+                data-trend-mode-panel="overview"
               >
-                <header class="trend-small-card__header">
-                  <div class="trend-small-card__copy">
-                    <div class="trend-small-card__title-row">
-                      <h3 class="trend-small-card__title">{{ metric.label }}</h3>
-                      <t-popup v-if="metric.infoText" expand-animation placement="top" show-arrow trigger="click">
+                <article
+                  v-for="section in overviewTrendSections"
+                  :key="section.key"
+                  class="trend-overview-section"
+                  :data-trend-overview-section="section.key"
+                >
+                  <header class="trend-section-header">
+                    <div class="trend-section-header__copy">
+                      <div class="trend-section-header__title-row">
+                        <h3 class="trend-section-header__title">{{ section.title }}</h3>
+                        <t-popup v-if="section.infoText" expand-animation placement="top" show-arrow trigger="click">
+                          <template #content>
+                            <div class="trend-info-popup">{{ section.infoText }}</div>
+                          </template>
+                          <button
+                            type="button"
+                            class="trend-info-trigger"
+                            :aria-label="`${section.title}${t('monitor.serverStatus.infoActionLabel')}`"
+                          >
+                            <info-circle-icon class="trend-info-trigger__icon" />
+                          </button>
+                        </t-popup>
+                      </div>
+                    </div>
+                    <div v-if="section.helperText" class="trend-section-header__helper">
+                      {{ section.helperText }}
+                    </div>
+                  </header>
+                  <div class="trend-section-legend" :data-trend-legend-group="section.key">
+                    <span
+                      v-for="metric in section.metrics"
+                      :key="metric.key"
+                      class="trend-legend-item"
+                      data-trend-legend-item="true"
+                    >
+                      <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color() }" />
+                      <span class="trend-legend-item__text">{{ metric.shortLabel }}</span>
+                      <strong class="trend-legend-item__value">{{ metric.currentValue }}</strong>
+                    </span>
+                  </div>
+                  <div
+                    :ref="(el) => setTrendChartRef(section.chartKey, el)"
+                    class="trend-chart trend-chart--overview"
+                    :data-trend-chart="section.chartKey"
+                  />
+                </article>
+
+                <article class="trend-runtime-summary" data-trend-overview-section="requestPerformance">
+                  <header class="trend-section-header">
+                    <div class="trend-section-header__copy">
+                      <h3 class="trend-section-header__title">
+                        {{ t('monitor.serverStatus.requestPerformanceTitle') }}
+                      </h3>
+                    </div>
+                    <t-button theme="primary" variant="text" size="small" @click="openRequestPerformance">
+                      {{ t('monitor.serverStatus.openRequestPerformance') }}
+                    </t-button>
+                  </header>
+                  <div class="trend-runtime-summary__grid">
+                    <article
+                      v-for="metric in requestPerformanceMetrics"
+                      :key="metric.key"
+                      class="trend-runtime-summary__item"
+                    >
+                      <span class="trend-runtime-summary__label">{{ metric.label }}</span>
+                      <strong class="trend-runtime-summary__value">{{ metric.value }}</strong>
+                    </article>
+                  </div>
+                </article>
+              </div>
+
+              <transition-group
+                v-else-if="activeTrendMode === 'multi'"
+                key="multi"
+                name="trend-metric-fade"
+                tag="div"
+                class="trend-panel__body trend-panel__body--multi trend-small-grid"
+                data-trend-mode-panel="multi"
+              >
+                <article
+                  v-for="metric in smallMultipleMetrics"
+                  :key="metric.key"
+                  class="trend-small-card"
+                  :data-trend-small-card="metric.key"
+                >
+                  <header class="trend-small-card__header">
+                    <div class="trend-small-card__copy">
+                      <div class="trend-small-card__title-row">
+                        <h3 class="trend-small-card__title">{{ metric.label }}</h3>
+                        <t-popup v-if="metric.infoText" expand-animation placement="top" show-arrow trigger="click">
+                          <template #content>
+                            <div class="trend-info-popup">{{ metric.infoText }}</div>
+                          </template>
+                          <button
+                            type="button"
+                            class="trend-info-trigger"
+                            :aria-label="`${metric.label}${t('monitor.serverStatus.infoActionLabel')}`"
+                          >
+                            <info-circle-icon class="trend-info-trigger__icon" />
+                          </button>
+                        </t-popup>
+                      </div>
+                    </div>
+                    <div class="trend-small-card__meta">
+                      <span class="trend-small-card__meta-label">{{ t('monitor.serverStatus.currentValue') }}</span>
+                      <strong class="trend-small-card__meta-value">{{ metric.currentValue }}</strong>
+                      <span class="trend-small-card__meta-unit">
+                        {{ t('monitor.serverStatus.unitLabel') }} {{ metric.unit }}
+                      </span>
+                    </div>
+                  </header>
+                  <div
+                    :ref="(el) => setTrendChartRef(metric.chartKey, el)"
+                    class="trend-chart trend-chart--small"
+                    :data-trend-chart="metric.chartKey"
+                  />
+                  <footer class="trend-small-card__footer">
+                    <span class="trend-legend-item" data-trend-legend-item="true">
+                      <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color() }" />
+                      <span class="trend-legend-item__text">{{ metric.shortLabel }}</span>
+                    </span>
+                    <span v-if="metric.helperText" class="trend-section-header__helper">
+                      {{ metric.helperText }}
+                    </span>
+                  </footer>
+                </article>
+              </transition-group>
+
+              <div
+                v-else
+                key="focus"
+                class="trend-panel__body trend-panel__body--focus trend-focus-panel"
+                :data-trend-mode-panel="activeTrendMode"
+                :data-trend-focus-metric="currentFocusMetric?.key"
+              >
+                <header class="trend-focus-panel__header">
+                  <div class="trend-focus-panel__copy">
+                    <div class="trend-focus-panel__title-row">
+                      <h3 class="trend-focus-panel__title">{{ currentFocusMetric?.label }}</h3>
+                      <t-popup
+                        v-if="currentFocusMetric?.infoText"
+                        expand-animation
+                        placement="top"
+                        show-arrow
+                        trigger="click"
+                      >
                         <template #content>
-                          <div class="trend-info-popup">{{ metric.infoText }}</div>
+                          <div class="trend-info-popup">{{ currentFocusMetric?.infoText }}</div>
                         </template>
                         <button
                           type="button"
                           class="trend-info-trigger"
-                          :aria-label="`${metric.label}${t('monitor.serverStatus.infoActionLabel')}`"
+                          :aria-label="`${currentFocusMetric?.label ?? ''}${t('monitor.serverStatus.infoActionLabel')}`"
                         >
                           <info-circle-icon class="trend-info-trigger__icon" />
                         </button>
                       </t-popup>
+                      <span class="trend-focus-panel__group">{{ currentFocusMetric?.groupLabel }}</span>
                     </div>
                   </div>
-                  <div class="trend-small-card__meta">
-                    <span class="trend-small-card__meta-label">{{ t('monitor.serverStatus.currentValue') }}</span>
-                    <strong class="trend-small-card__meta-value">{{ metric.currentValue }}</strong>
-                    <span class="trend-small-card__meta-unit">
-                      {{ t('monitor.serverStatus.unitLabel') }} {{ metric.unit }}
+                  <div class="trend-focus-panel__meta">
+                    <span class="trend-focus-panel__meta-label">{{ t('monitor.serverStatus.currentValue') }}</span>
+                    <strong class="trend-focus-panel__meta-value">{{ currentFocusMetric?.currentValue }}</strong>
+                    <span class="trend-focus-panel__meta-unit">
+                      {{ t('monitor.serverStatus.unitLabel') }} {{ currentFocusMetric?.unit }}
                     </span>
                   </div>
                 </header>
-                <div
-                  :ref="(el) => setTrendChartRef(metric.chartKey, el)"
-                  class="trend-chart trend-chart--small"
-                  :data-trend-chart="metric.chartKey"
-                />
-                <footer class="trend-small-card__footer">
+                <div class="trend-section-legend" data-trend-legend-group="focus">
                   <span class="trend-legend-item" data-trend-legend-item="true">
-                    <i class="trend-legend-item__dot" :style="{ backgroundColor: metric.color() }" />
-                    <span class="trend-legend-item__text">{{ metric.shortLabel }}</span>
+                    <i class="trend-legend-item__dot" :style="{ backgroundColor: currentFocusMetric?.color() }" />
+                    <span class="trend-legend-item__text">{{ currentFocusMetric?.label }}</span>
                   </span>
-                  <span v-if="metric.helperText" class="trend-section-header__helper">
-                    {{ metric.helperText }}
+                  <span v-if="focusReferenceText" class="trend-section-header__helper">
+                    {{ focusReferenceText }}
                   </span>
-                </footer>
-              </article>
-            </transition-group>
+                </div>
+                <div
+                  :ref="(el) => setTrendChartRef('focus', el)"
+                  class="trend-chart trend-chart--focus"
+                  data-trend-chart="focus"
+                />
+              </div>
+            </transition>
 
-            <div
-              v-else
-              key="focus"
-              class="trend-panel__body trend-panel__body--focus trend-focus-panel"
-              :data-trend-mode-panel="selectedTrendMode"
-              :data-trend-focus-metric="currentFocusMetric?.key"
-            >
-              <header class="trend-focus-panel__header">
-                <div class="trend-focus-panel__copy">
-                  <div class="trend-focus-panel__title-row">
-                    <h3 class="trend-focus-panel__title">{{ currentFocusMetric?.label }}</h3>
-                    <t-popup
-                      v-if="currentFocusMetric?.infoText"
-                      expand-animation
-                      placement="top"
-                      show-arrow
-                      trigger="click"
-                    >
-                      <template #content>
-                        <div class="trend-info-popup">{{ currentFocusMetric?.infoText }}</div>
-                      </template>
-                      <button
-                        type="button"
-                        class="trend-info-trigger"
-                        :aria-label="`${currentFocusMetric?.label ?? ''}${t('monitor.serverStatus.infoActionLabel')}`"
-                      >
-                        <info-circle-icon class="trend-info-trigger__icon" />
-                      </button>
-                    </t-popup>
-                    <span class="trend-focus-panel__group">{{ currentFocusMetric?.groupLabel }}</span>
-                  </div>
+            <article class="trend-runtime-summary" data-trend-overview-section="runtimeSummary">
+              <header class="trend-section-header">
+                <div class="trend-section-header__copy">
+                  <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.runtimeSummaryTitle') }}</h3>
                 </div>
-                <div class="trend-focus-panel__meta">
-                  <span class="trend-focus-panel__meta-label">{{ t('monitor.serverStatus.currentValue') }}</span>
-                  <strong class="trend-focus-panel__meta-value">{{ currentFocusMetric?.currentValue }}</strong>
-                  <span class="trend-focus-panel__meta-unit">
-                    {{ t('monitor.serverStatus.unitLabel') }} {{ currentFocusMetric?.unit }}
-                  </span>
-                </div>
+                <t-button theme="primary" variant="text" size="small" @click="openServiceStatus">
+                  {{ t('monitor.serverStatus.openServiceStatus') }}
+                </t-button>
               </header>
-              <div class="trend-section-legend" data-trend-legend-group="focus">
-                <span class="trend-legend-item" data-trend-legend-item="true">
-                  <i class="trend-legend-item__dot" :style="{ backgroundColor: currentFocusMetric?.color() }" />
-                  <span class="trend-legend-item__text">{{ currentFocusMetric?.label }}</span>
-                </span>
-                <span v-if="focusReferenceText" class="trend-section-header__helper">
-                  {{ focusReferenceText }}
-                </span>
+              <div class="trend-runtime-summary__grid">
+                <article
+                  v-for="metric in runtimeSummaryMetrics"
+                  :key="metric.key"
+                  class="trend-runtime-summary__item"
+                  :data-runtime-summary-item="metric.key"
+                >
+                  <span class="trend-runtime-summary__label">{{ metric.shortLabel }}</span>
+                  <strong class="trend-runtime-summary__value">{{ metric.currentValue }}</strong>
+                </article>
               </div>
-              <div
-                :ref="(el) => setTrendChartRef('focus', el)"
-                class="trend-chart trend-chart--focus"
-                data-trend-chart="focus"
-              />
-            </div>
-          </transition>
+            </article>
+          </div>
+        </section-card>
 
-          <article class="trend-runtime-summary" data-trend-overview-section="runtimeSummary">
-            <header class="trend-section-header">
-              <div class="trend-section-header__copy">
-                <h3 class="trend-section-header__title">{{ t('monitor.serverStatus.runtimeSummaryTitle') }}</h3>
+        <section-card
+          class="server-status-overview-layout__status"
+          :title="t('monitor.serverStatus.runtimeStatusDependenciesTitle')"
+          :min-height="520"
+        >
+          <template #actions>
+            <t-button theme="primary" variant="text" size="small" @click="openDependencies">
+              {{ t('monitor.serverStatus.openDependencies') }}
+            </t-button>
+          </template>
+          <div v-if="serverStatus" class="status-sidebar__content">
+            <dependency-health-card
+              v-for="service in overviewDependencyCards"
+              :key="service.key"
+              variant="summary"
+              :service-key="service.key"
+              :title="service.name"
+              :description="service.description"
+              :status="service.status"
+              :status-label="service.statusLabel"
+              :primary-metric="service.primaryMetric"
+              :pool="service.pool"
+              :diagnostics-title="t('monitor.dependenciesPage.diagnostics.title')"
+            />
+          </div>
+          <t-empty v-else :description="t('monitor.serverStatus.empty')" />
+        </section-card>
+      </responsive-content>
+
+      <section-card class="host-observability-section" :title="t('monitor.serverStatus.hostObservabilityTitle')">
+        <div class="host-observability-section__groups">
+          <article
+            v-for="group in hostObservabilityGroups"
+            :key="group.key"
+            class="host-observability-group"
+            :data-host-observability-group="group.key"
+          >
+            <h3 class="host-observability-group__title">{{ group.title }}</h3>
+            <div class="host-observability-group__metrics">
+              <div v-for="metric in group.metrics" :key="metric.key" class="host-observability-metric">
+                <span class="host-observability-metric__label">{{ metric.label }}</span>
+                <strong class="host-observability-metric__value">{{ metric.value }}</strong>
               </div>
-              <t-button theme="primary" variant="text" size="small" @click="openServiceStatus">
-                {{ t('monitor.serverStatus.openServiceStatus') }}
-              </t-button>
-            </header>
-            <div class="trend-runtime-summary__grid">
-              <article
-                v-for="metric in runtimeSummaryMetrics"
-                :key="metric.key"
-                class="trend-runtime-summary__item"
-                :data-runtime-summary-item="metric.key"
-              >
-                <span class="trend-runtime-summary__label">{{ metric.shortLabel }}</span>
-                <strong class="trend-runtime-summary__value">{{ metric.currentValue }}</strong>
-              </article>
             </div>
           </article>
         </div>
       </section-card>
-
-      <section-card
-        class="server-status-overview-layout__status"
-        :title="t('monitor.serverStatus.runtimeStatusDependenciesTitle')"
-        :min-height="520"
-      >
-        <template #actions>
-          <t-button theme="primary" variant="text" size="small" @click="openDependencies">
-            {{ t('monitor.serverStatus.openDependencies') }}
-          </t-button>
-        </template>
-        <div v-if="serverStatus" class="status-sidebar__content">
-          <dependency-health-card
-            v-for="service in overviewDependencyCards"
-            :key="service.key"
-            variant="summary"
-            :service-key="service.key"
-            :title="service.name"
-            :description="service.description"
-            :status="service.status"
-            :status-label="service.statusLabel"
-            :primary-metric="service.primaryMetric"
-            :pool="service.pool"
-            :diagnostics-title="t('monitor.dependenciesPage.diagnostics.title')"
-          />
-        </div>
-        <t-empty v-else :description="t('monitor.serverStatus.empty')" />
-      </section-card>
-    </div>
-
-    <section-card class="host-observability-section" :title="t('monitor.serverStatus.hostObservabilityTitle')">
-      <div class="host-observability-section__groups">
-        <article
-          v-for="group in hostObservabilityGroups"
-          :key="group.key"
-          class="host-observability-group"
-          :data-host-observability-group="group.key"
-        >
-          <h3 class="host-observability-group__title">{{ group.title }}</h3>
-          <div class="host-observability-group__metrics">
-            <div v-for="metric in group.metrics" :key="metric.key" class="host-observability-metric">
-              <span class="host-observability-metric__label">{{ metric.label }}</span>
-              <strong class="host-observability-metric__value">{{ metric.value }}</strong>
-            </div>
-          </div>
-        </article>
-      </div>
-    </section-card>
-  </server-status-page-shell>
+    </server-status-page-shell>
+  </div>
 </template>
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
@@ -380,6 +383,8 @@ import { useRouter } from 'vue-router';
 import type { TChartColor } from '@/config/color';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { RefreshControlBar } from '@/shared/components/refresh';
+import ResponsiveContent from '@/shared/components/responsive/ResponsiveContent.vue';
+import { useViewportResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
@@ -413,6 +418,7 @@ defineOptions({
   name: 'MonitorServerStatusOverviewIndex',
 });
 
+// 系统运行概览复用同一快照；窄容器只收敛展示层级，不改变监控数据或刷新语义。
 echarts.use([TooltipComponent, LegendComponent, GridComponent, MarkLineComponent, LineChart, CanvasRenderer]);
 const router = useRouter();
 
@@ -544,6 +550,9 @@ const {
 const selectedTrendRange = ref<TrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
 const selectedTrendMode = ref<TrendMode>('overview');
 const selectedFocusMetric = ref<FocusMetric>('cpu');
+const dashboardVariant = useViewportResponsiveVariant({ layout: 'flow' });
+const isCompactDashboard = computed(() => dashboardVariant.value.density === 'compact');
+const activeTrendMode = computed<TrendMode>(() => (isCompactDashboard.value ? 'overview' : selectedTrendMode.value));
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);
 const isPageVisible = ref(typeof document === 'undefined' ? true : document.visibilityState === 'visible');
@@ -1898,7 +1907,7 @@ function buildTrendChartOptions(points: ServerStatusTrendPoint[], chartColors: T
   const metrics = trendMetricConfigs.value;
   const labels = points.map((point) => formatChartTimestamp(point.observed_at));
 
-  if (selectedTrendMode.value === 'overview') {
+  if (activeTrendMode.value === 'overview') {
     return overviewTrendSections.value.map((section) => ({
       key: section.chartKey,
       option:
@@ -1908,7 +1917,7 @@ function buildTrendChartOptions(points: ServerStatusTrendPoint[], chartColors: T
     }));
   }
 
-  if (selectedTrendMode.value === 'focus') {
+  if (activeTrendMode.value === 'focus') {
     const focusMetric = metrics.find((metric) => metric.key === selectedFocusMetric.value) ?? metrics[0];
     return [
       {
@@ -1935,7 +1944,7 @@ function buildOverviewUsageChartOption(labels: string[], metrics: TrendMetricDef
       bottom: '28px',
       containLabel: true,
     },
-    xAxis: buildXAxis(labels, chartColors),
+    xAxis: buildXAxis(labels, chartColors, isCompactDashboard.value),
     yAxis: [buildYAxis('%', 'percent', chartColors, { min: 0, max: 100 })],
     series: metrics.map((metric) => buildSeries(metric, 0)),
   };
@@ -1954,7 +1963,7 @@ function buildOverviewLoadChartOption(labels: string[], metrics: TrendMetricDefi
       bottom: '28px',
       containLabel: true,
     },
-    xAxis: buildXAxis(labels, chartColors),
+    xAxis: buildXAxis(labels, chartColors, isCompactDashboard.value),
     yAxis: [buildYAxis(t('monitor.serverStatus.chartLoadAxis'), 'load', chartColors)],
     series: [buildSeries(loadMetric, 0, { markLineValue: serverStatus.value?.runtime.cpu_cores ?? null })],
   };
@@ -1971,7 +1980,7 @@ function buildSmallMultipleTrendChartOption(labels: string[], metric: TrendMetri
       bottom: '28px',
       containLabel: true,
     },
-    xAxis: buildXAxis(labels, chartColors),
+    xAxis: buildXAxis(labels, chartColors, isCompactDashboard.value),
     yAxis: [buildSingleAxis(metric, chartColors)],
     series: [
       buildSeries(metric, 0, {
@@ -1993,7 +2002,7 @@ function buildFocusTrendChartOption(labels: string[], metric: TrendMetricDefinit
       bottom: '28px',
       containLabel: true,
     },
-    xAxis: buildXAxis(labels, chartColors),
+    xAxis: buildXAxis(labels, chartColors, isCompactDashboard.value),
     yAxis: [buildSingleAxis(metric, chartColors)],
     series: [
       buildSeries(metric, 0, {
@@ -2041,12 +2050,13 @@ function buildTooltip(chartColors: TChartColor, metrics: TrendMetricDefinition[]
   };
 }
 
-function buildXAxis(labels: string[], chartColors: TChartColor) {
+function buildXAxis(labels: string[], chartColors: TChartColor, compact: boolean) {
   return {
     type: 'category',
     data: labels,
     axisLabel: {
       color: chartColors.placeholderColor,
+      interval: compact ? compactTrendAxisLabelInterval(labels.length) : 'auto',
     },
     axisLine: {
       lineStyle: {
@@ -2057,6 +2067,16 @@ function buildXAxis(labels: string[], chartColors: TChartColor) {
       show: false,
     },
   };
+}
+
+function compactTrendAxisLabelInterval(labelCount: number) {
+  if (labelCount <= 4) {
+    return true;
+  }
+
+  const lastIndex = labelCount - 1;
+  const step = Math.ceil(lastIndex / 3);
+  return (index: number) => index === 0 || index === lastIndex || index % step === 0;
 }
 
 function buildSingleAxis(metric: TrendMetricDefinition, chartColors: TChartColor) {
@@ -2265,7 +2285,7 @@ watch(
   [
     () => trendPoints.value,
     () => trendMetricConfigs.value,
-    () => selectedTrendMode.value,
+    () => activeTrendMode.value,
     () => selectedFocusMetric.value,
     () => settingStore.chartColors.textColor,
     () => settingStore.chartColors.placeholderColor,
