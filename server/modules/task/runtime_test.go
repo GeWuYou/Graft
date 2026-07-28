@@ -143,6 +143,65 @@ func TestRuntimeSettlesExternalReceiptAfterCrashRecovery(t *testing.T) {
 	}
 }
 
+func TestRuntimeLeavesUnregisteredExternalReceiptStageRunningUntilSettlement(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	receipt, err := runtime.Submit(context.Background(), externalReceiptSubmitInput())
+	if err != nil {
+		t.Fatalf("submit unregistered external stage: %v", err)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("claim external stage: %v", err)
+	}
+	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
+	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusRunning {
+		t.Fatalf("external stage after worker claim = %#v err=%v", stages, err)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("external task after worker claim = %#v", task)
+	}
+	settlement, err := runtime.SettleExternalReceipt(context.Background(), externalReceipt(receipt.TaskID, moduleapi.ExternalReceiptOutcomeSuccess, ""))
+	if err != nil || settlement.Status != moduleapi.TaskStatusSuccess {
+		t.Fatalf("settle external receipt = %#v err=%v", settlement, err)
+	}
+}
+
+func TestRuntimePreservesClaimedExternalReceiptForLateSettlementAfterCancel(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	receipt, err := runtime.Submit(context.Background(), externalReceiptSubmitInput())
+	if err != nil {
+		t.Fatalf("submit unregistered external stage: %v", err)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("claim external stage: %v", err)
+	}
+	if err := runtime.Cancel(context.Background(), receipt.TaskID); err != nil {
+		t.Fatalf("cancel external stage: %v", err)
+	}
+	stages, err := repository.ListStages(context.Background(), receipt.TaskID)
+	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusRunning {
+		t.Fatalf("external stage after cancel = %#v err=%v", stages, err)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("external task after cancel = %#v", task)
+	}
+	settlement, err := runtime.SettleExternalReceipt(context.Background(), externalReceipt(receipt.TaskID, moduleapi.ExternalReceiptOutcomeSuccess, ""))
+	if err != nil || settlement.Status != moduleapi.TaskStatusSuccess {
+		t.Fatalf("late external receipt settlement = %#v err=%v", settlement, err)
+	}
+}
+
+func TestRuntimeRejectsUnregisteredOrdinaryStageExecutor(t *testing.T) {
+	t.Parallel()
+	runtime, _ := newRuntimeForTest(t)
+	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].ExecutorType = "platform.update.compose-runner"
+	if _, err := runtime.Submit(context.Background(), input); err == nil || !strings.Contains(err.Error(), "unregistered stage executor") {
+		t.Fatalf("submit unregistered ordinary stage error = %v", err)
+	}
+}
+
 func TestRuntimeSubmitReplaysMatchingIdempotencyKeyAndRejectsChangedSubmission(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
@@ -509,27 +568,25 @@ func testSubmitInput(stageCount int, attempts int) moduleapi.SubmitTaskInput {
 
 func externalReceiptSubmitInput() moduleapi.SubmitTaskInput {
 	input := testSubmitInput(1, 1)
+	input.Plan.Stages[0].ExecutorType = "platform.update.compose-runner"
 	input.Plan.Stages[0].RecoveryPolicy = moduleapi.StageRecoveryManualReconcile
 	input.Plan.Stages[0].ExternalReceipt = &moduleapi.ExternalReceiptExpectation{Protocol: "compose-runner/v1", OperationID: "operation-123"}
 	return input
 }
 
 func externalReceipt(taskID uint64, outcome moduleapi.ExternalReceiptOutcome, failureCode string) moduleapi.ExternalTaskReceipt {
-	return moduleapi.ExternalTaskReceipt{TaskID: taskID, ExecutorType: "test.executor", Protocol: "compose-runner/v1", OperationID: "operation-123", Outcome: outcome, FailureCode: failureCode, IntegritySHA256: strings.Repeat("a", 64)}
+	return moduleapi.ExternalTaskReceipt{TaskID: taskID, ExecutorType: "platform.update.compose-runner", Protocol: "compose-runner/v1", OperationID: "operation-123", Outcome: outcome, FailureCode: failureCode, IntegritySHA256: strings.Repeat("a", 64)}
 }
 
 func claimedExternalReceiptTask(t *testing.T) (*Runtime, *taskstore.SQLRepository, moduleapi.TaskReceipt) {
 	t.Helper()
 	runtime, repository := newRuntimeForTest(t)
-	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
-		t.Fatalf("register executor: %v", err)
-	}
 	receipt, err := runtime.Submit(context.Background(), externalReceiptSubmitInput())
 	if err != nil {
 		t.Fatalf("submit task: %v", err)
 	}
-	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
-		t.Fatalf("claim external stage: found=%t err=%v", found, err)
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("claim external stage: %v", err)
 	}
 	return runtime, repository, receipt
 }

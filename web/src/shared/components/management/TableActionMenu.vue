@@ -23,6 +23,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 type ActionOption = {
+  danger?: boolean;
   disabled?: boolean;
   fallbackLabel?: string;
   label: string;
@@ -81,6 +82,7 @@ const menuOptions = computed(() =>
     content: resolveLabel(action.label, action.fallbackLabel),
     disabled: action.disabled,
     testId: action.testId,
+    theme: action.danger ? ('error' as const) : undefined,
     value: action.value,
   })),
 );

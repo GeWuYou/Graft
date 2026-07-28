@@ -37,25 +37,20 @@
         ><strong>{{ memoryValue }}</strong>
       </div>
     </section>
-    <footer class="container-card__actions">
-      <t-button theme="primary" variant="outline" @click="$emit('detail', row)">{{
-        t('container.list.actions.detail')
-      }}</t-button>
-      <t-dropdown
-        v-if="moreActionOptions.length"
-        :options="moreActionOptions"
-        trigger="click"
-        @click="handleMoreAction"
-      >
-        <t-button theme="default" variant="outline">{{ t('container.list.actions.more') }}</t-button>
-      </t-dropdown>
-    </footer>
+    <docker-resource-card-actions
+      :detail-label="t('container.list.actions.detail')"
+      :more-actions="moreActionOptions"
+      :more-label="t('container.list.actions.more')"
+      @detail="$emit('detail', row)"
+      @action="emitAction"
+    />
   </article>
 </template>
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import { type ContainerResourceRowAction, displayContainerName, shortContainerId } from '../../shared/resource-table';
 import type { ContainerSummaryRecord } from '../../types/container';
 
@@ -65,7 +60,12 @@ const { t } = useI18n();
 const moreActionOptions = computed(() =>
   props.actions
     .filter((action) => action.value !== 'detail')
-    .map((action) => ({ content: action.fallbackLabel, disabled: action.disabled, value: action.value })),
+    .map((action) => ({
+      danger: action.danger,
+      disabled: action.disabled,
+      label: action.fallbackLabel,
+      value: action.value,
+    })),
 );
 const cpuValue = computed(() =>
   props.row.resource?.cpu_percent === undefined
@@ -92,11 +92,6 @@ function stateTheme(state: ContainerSummaryRecord['state']) {
         ? 'warning'
         : 'default';
 }
-function handleMoreAction(payload: { value?: unknown } | string | number) {
-  const action =
-    typeof payload === 'string' ? payload : typeof payload === 'object' && payload ? payload.value : payload;
-  if (typeof action === 'string') emitAction(action);
-}
 const emit = defineEmits<{
   detail: [row: ContainerSummaryRecord];
   action: [payload: { action: string; row: ContainerSummaryRecord }];
@@ -118,8 +113,7 @@ function emitAction(action: string) {
   padding: var(--graft-density-card-padding);
 }
 
-.container-card__header,
-.container-card__actions {
+.container-card__header {
   align-items: flex-start;
   display: flex;
   gap: var(--graft-density-gap-12);
@@ -189,11 +183,6 @@ function emitAction(action: string) {
 .container-card__metrics strong {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
-}
-
-.container-card__actions {
-  align-items: center;
-  justify-content: flex-end;
 }
 
 @container (width < 360px) {

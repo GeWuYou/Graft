@@ -18,6 +18,7 @@ export type ContainerSourceQuickFilter = {
 };
 
 export type ContainerResourceRowAction = {
+  danger?: boolean;
   disabled?: boolean;
   fallbackLabel: string;
   label: string;

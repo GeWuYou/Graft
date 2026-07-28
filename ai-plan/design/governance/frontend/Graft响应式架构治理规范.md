@@ -123,9 +123,11 @@ Container Resize
 
 `ResponsiveDialog` 的默认映射为：短确认/动作流在 Mobile 使用 Bottom Sheet；详情或短表单按可用空间使用 Dialog/Drawer；复杂表单在 Mobile 使用 Fullscreen；`workspace` 不承诺编辑能力，改为只读、复制、检索或引导至 Desktop。
 
+`ResourceDetailLayout` 的 `large` overlay 在 `comfortable` 视口使用“满宽减 gutter”的 shared token，在 `spacious` 视口使用既有 60rem 基线与 84rem 上限之间的 fluid token；日志、终端等高密度详情必须使用这条 shared 策略填充可用阅读宽度，不得在业务组件内重新定义 Drawer 宽度。
+
 ## 8. 页面策略
 
-- 表格：审计、日志、监控、RBAC、任务和资源运行数据属于 `data`；模板、目录、镜像、网络、卷和短实体选择列表可声明 `entity`。业务页面不能用 CSS 或 `v-if` 自行实现第二份卡片布局。分页列表的页面 surface、工具栏和滚动细则继续以 [分页列表页统一规范与收敛计划](分页列表页统一规范与收敛计划.md) 为准，本规范不复制或取代其列表页 authority。
+- 表格：审计、日志、监控、RBAC、完整任务管理和资源运行数据属于 `data`；模板、目录、镜像、网络、卷和短实体选择列表可声明 `entity`。详情页中按 owner 限定的少量任务历史可作为实体摘要声明 `entity`，并只通过 `ResponsiveTable` 的卡片槽位呈现同一份记录。业务页面不能用 CSS 或 `v-if` 自行实现第二份卡片布局。分页列表的页面 surface、工具栏和滚动细则继续以 [分页列表页统一规范与收敛计划](分页列表页统一规范与收敛计划.md) 为准，本规范不复制或取代其列表页 authority。
 - 表单：标签、表单列、Footer 和提交按钮由 `ResponsiveForm` 管理。复杂编辑保持 Desktop Preferred，Mobile 不强行压缩为可编辑代码工作台。
 - 导航：Sidebar、Breadcrumb、Tabs、TopBar 与 Drawer 由壳层组件集中治理，页面不得自行侦测窗口来折叠导航。
 - Monaco/YAML/JSON/Code Editor/Terminal/Diff：Desktop Preferred；Mobile 默认只读，保留查看、复制、搜索、下载或转到 Desktop 的安全路径。

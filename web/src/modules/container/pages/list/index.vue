@@ -101,7 +101,7 @@
       @application-context="openComposeApplicationContext"
       @select-change="handleSelectChange"
     >
-      <template #toolbar>
+      <template #toolbar="{ desktop }">
         <div class="container-toolbar-row">
           <table-view-toolbar
             :column-settings-label="t('container.list.columnSettings')"
@@ -112,7 +112,7 @@
             @density="toggleTableDensity"
             @refresh="handleManualRefresh"
           />
-          <t-button-group class="container-view-switch" variant="outline">
+          <t-button-group v-if="desktop" class="container-view-switch" variant="outline">
             <t-tooltip :content="t('container.list.presentation.card')">
               <t-button
                 data-testid="container-presentation-card"
@@ -782,6 +782,7 @@ function buildRowActions(row: ContainerSummaryRecord): ContainerResourceRowActio
 
   if (canRunDangerousAction(row, 'start')) {
     actions.push({
+      danger: true,
       fallbackLabel: t('container.list.actions.start'),
       label: 'container.list.actions.start',
       testId: 'container-action-start',
@@ -791,6 +792,7 @@ function buildRowActions(row: ContainerSummaryRecord): ContainerResourceRowActio
 
   if (canRunDangerousAction(row, 'stop')) {
     actions.push({
+      danger: true,
       fallbackLabel: t('container.list.actions.stop'),
       label: 'container.list.actions.stop',
       testId: 'container-action-stop',
@@ -800,6 +802,7 @@ function buildRowActions(row: ContainerSummaryRecord): ContainerResourceRowActio
 
   if (canRunDangerousAction(row, 'restart')) {
     actions.push({
+      danger: true,
       fallbackLabel: t('container.list.actions.restart'),
       label: 'container.list.actions.restart',
       testId: 'container-action-restart',
@@ -809,6 +812,7 @@ function buildRowActions(row: ContainerSummaryRecord): ContainerResourceRowActio
 
   if (orchestratorActionLevel(row) !== 'readonly') {
     actions.push({
+      danger: true,
       disabled: isDangerousActionDisabled(row, 'remove'),
       fallbackLabel: t('container.list.actions.remove'),
       label: 'container.list.actions.remove',

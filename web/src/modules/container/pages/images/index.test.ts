@@ -57,9 +57,11 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.fields.containers')");
     expect(sourceText).toContain("t('container.images.fields.createdAt')");
     expect(sourceText).toContain('v-if="cardSelectionMode"');
-    expect(sourceText).toContain("{ content: t('container.images.actions.select'), value: 'select' }");
+    expect(sourceText).toContain("{ label: t('container.images.actions.select'), value: 'select' }");
     expect(sourceText).toContain('function handleCardClick(image: DockerImage)');
     expect(sourceText).toContain('function setCardSelected(image: DockerImage, selected: boolean)');
+    expect(sourceText).toContain('<docker-resource-card-actions');
+    expect(sourceText).toContain("danger: true, label: t('container.images.actions.remove')");
   });
 
   it('places image removal in the shared container danger zone', () => {

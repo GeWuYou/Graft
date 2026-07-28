@@ -9,32 +9,69 @@
         {{ t('task.actions.refresh') }}
       </t-button>
     </div>
-    <t-table
-      row-key="id"
-      size="small"
-      :columns="columns"
-      :data="items"
-      :loading="loading"
-      :empty="t('task.history.empty')"
-      @row-click="({ row }) => $emit('open', row as TaskSummary)"
-    >
-      <template #type="{ row }">
-        {{ taskTypeLabel((row as TaskSummary).type) }}
+    <responsive-table presentation="entity">
+      <template #cards>
+        <t-loading :loading="loading">
+          <responsive-card-list v-if="items.length">
+            <article v-for="item in items" :key="item.id" class="task-history__card">
+              <header class="task-history__card-header">
+                <strong class="task-history__card-type">{{ taskTypeLabel(item.type) }}</strong>
+              </header>
+              <dl class="task-history__card-details">
+                <div>
+                  <dt>{{ t('task.history.columns.status') }}</dt>
+                  <dd>
+                    <t-tag :theme="taskStatusTheme(item.status)" size="small" variant="light-outline">
+                      {{ taskStatusLabel(item.status) }}
+                    </t-tag>
+                  </dd>
+                </div>
+                <div>
+                  <dt>{{ t('task.history.columns.stage') }}</dt>
+                  <dd>{{ item.current_stage_key }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('task.history.columns.createdAt') }}</dt>
+                  <dd>{{ formatLocaleDateTime(item.created_at, locale) }}</dd>
+                </div>
+              </dl>
+              <footer class="task-history__card-actions">
+                <t-button size="small" theme="primary" variant="text" @click="$emit('open', item)">
+                  {{ t('task.actions.view') }}
+                </t-button>
+              </footer>
+            </article>
+          </responsive-card-list>
+          <t-empty v-else-if="!loading" :title="t('task.history.empty')" />
+        </t-loading>
       </template>
-      <template #status="{ row }">
-        <t-tag :theme="taskStatusTheme(row.status)" size="small" variant="light-outline">
-          {{ taskStatusLabel(row.status) }}
-        </t-tag>
-      </template>
-      <template #created_at="{ row }">
-        {{ formatLocaleDateTime(row.created_at, locale) }}
-      </template>
-      <template #operation="{ row }">
-        <t-button size="small" theme="primary" variant="text" @click.stop="$emit('open', row as TaskSummary)">
-          {{ t('task.actions.view') }}
-        </t-button>
-      </template>
-    </t-table>
+      <t-table
+        row-key="id"
+        size="small"
+        :columns="columns"
+        :data="items"
+        :loading="loading"
+        :empty="t('task.history.empty')"
+        @row-click="({ row }) => $emit('open', row as TaskSummary)"
+      >
+        <template #type="{ row }">
+          {{ taskTypeLabel((row as TaskSummary).type) }}
+        </template>
+        <template #status="{ row }">
+          <t-tag :theme="taskStatusTheme(row.status)" size="small" variant="light-outline">
+            {{ taskStatusLabel(row.status) }}
+          </t-tag>
+        </template>
+        <template #created_at="{ row }">
+          {{ formatLocaleDateTime(row.created_at, locale) }}
+        </template>
+        <template #operation="{ row }">
+          <t-button size="small" theme="primary" variant="text" @click.stop="$emit('open', row as TaskSummary)">
+            {{ t('task.actions.view') }}
+          </t-button>
+        </template>
+      </t-table>
+    </responsive-table>
     <p v-if="errorMessage" class="task-history__error">{{ errorMessage }}</p>
   </section>
 </template>
@@ -44,6 +81,8 @@ import type { TableProps } from 'tdesign-vue-next';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
+import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatLocaleDateTime } from '@/shared/observability';
 
@@ -110,8 +149,13 @@ watch(() => [props.ownerId, props.ownerType], load, { immediate: true });
 .task-history__heading {
   align-items: flex-start;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--graft-density-gap-16);
   justify-content: space-between;
+}
+
+.task-history__heading > div {
+  min-width: 0;
 }
 
 .task-history__heading h3,
@@ -128,5 +172,61 @@ watch(() => [props.ownerId, props.ownerType], load, { immediate: true });
 .task-history__error {
   color: var(--td-error-color);
   margin-bottom: 0;
+}
+
+.task-history__card {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.task-history__card-header,
+.task-history__card-details,
+.task-history__card-details > div {
+  display: grid;
+  min-width: 0;
+}
+
+.task-history__card-type {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  overflow-wrap: anywhere;
+}
+
+.task-history__card-details {
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.task-history__card-details > div {
+  gap: var(--graft-density-gap-4);
+}
+
+.task-history__card-details > div:last-child {
+  grid-column: 1 / -1;
+}
+
+.task-history__card-details dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.task-history__card-details dd {
+  color: var(--td-text-color-primary);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.task-history__card-actions {
+  border-top: 1px solid var(--td-component-stroke);
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(-1 * var(--graft-density-gap-4));
+  padding-top: var(--graft-density-gap-12);
 }
 </style>

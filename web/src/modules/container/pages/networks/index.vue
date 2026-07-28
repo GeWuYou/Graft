@@ -244,20 +244,13 @@
                   <dd v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</dd>
                 </div>
               </dl>
-              <footer class="docker-network-page__mobile-card-actions">
-                <t-dropdown
-                  :options="networkActionOptions"
-                  placement="bottom-right"
-                  trigger="click"
-                  @click="handleNetworkAction(row, $event)"
-                >
-                  <t-tooltip :content="t('container.networks.mobile.moreActions')">
-                    <t-button shape="square" variant="outline" :aria-label="t('container.networks.mobile.moreActions')">
-                      <template #icon><ellipsis-icon /></template>
-                    </t-button>
-                  </t-tooltip>
-                </t-dropdown>
-              </footer>
+              <docker-resource-card-actions
+                :detail-label="t('container.networks.detail')"
+                :more-actions="networkActionOptions"
+                :more-label="t('container.list.actions.more')"
+                @detail="openDetail(row.id)"
+                @action="handleNetworkAction(row, $event)"
+              />
             </article>
           </responsive-card-list>
           <t-empty
@@ -531,7 +524,7 @@
 </template>
 <script setup lang="ts">
 import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon, FilterIcon, SearchIcon } from 'tdesign-icons-vue-next';
-import type { DropdownProps, TableProps } from 'tdesign-vue-next';
+import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -561,6 +554,7 @@ import {
   removeDockerNetwork,
 } from '../../api/container';
 import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
+import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
@@ -661,10 +655,9 @@ const canCreate = computed(() => permissionStore.hasPermission(CONTAINER_PERMISS
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.NETWORK_REMOVE));
 const isCompactDensity = computed(() => viewportVariant.value.density === 'compact');
 const headerActionOptions = computed(() => [{ content: t('container.networks.cleanup.action'), value: 'cleanup' }]);
-const networkActionOptions = computed<NonNullable<DropdownProps['options']>>(() => [
-  { content: t('container.networks.detail'), value: 'detail' },
-  ...(canRemove.value ? [{ content: t('container.networks.remove'), theme: 'error' as const, value: 'remove' }] : []),
-]);
+const networkActionOptions = computed(() =>
+  canRemove.value ? [{ danger: true, label: t('container.networks.remove'), value: 'remove' }] : [],
+);
 let cleanup: ReturnType<typeof useDockerCleanup<DockerNetwork>>;
 cleanup = useDockerCleanup<DockerNetwork>({
   fetchCandidates: fetchCleanupCandidates,
@@ -720,7 +713,6 @@ function handleHeaderAction(payload: { value?: unknown } | string | number) {
 }
 function handleNetworkAction(network: DockerNetwork, payload: { value?: unknown } | string | number) {
   const action = typeof payload === 'object' && payload ? payload.value : payload;
-  if (action === 'detail') openDetail(network.id);
   if (action === 'remove' && canRemove.value) openRemoveDialog(network);
 }
 function handleCleanupSelectChange(keys: Array<string | number>) {
@@ -1143,14 +1135,6 @@ async function submitBatchRemove() {
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.docker-network-page__mobile-card-actions {
-  border-top: 1px solid var(--td-component-stroke);
-  display: flex;
-  justify-content: flex-end;
-  margin-top: calc(-1 * var(--graft-density-gap-4));
-  padding-top: var(--graft-density-gap-12);
 }
 
 @media (width < 768px) {

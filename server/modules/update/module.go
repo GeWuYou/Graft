@@ -49,6 +49,9 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	m.configureRuntimeReader(ctx)
+	if err := registerUpdateTaskOwnerAuthorizer(ctx); err != nil {
+		return err
+	}
 	if err := m.configureRollout(ctx); err != nil {
 		return err
 	}
@@ -67,6 +70,21 @@ func (m *Module) Register(ctx *module.Context) error {
 func (m *Module) validateRegistration(ctx *module.Context) error {
 	if ctx == nil || m.service == nil || m.operations == nil || m.diagnostics == nil {
 		return errors.New("platform-update module context is unavailable")
+	}
+	return nil
+}
+
+func registerUpdateTaskOwnerAuthorizer(ctx *module.Context) error {
+	registrar, err := module.ResolveService[moduleapi.TaskRuntimeRegistrar](ctx.Services, (*moduleapi.TaskRuntimeRegistrar)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task runtime registrar: %w", err)
+	}
+	authorizer, err := module.ResolveService[moduleapi.Authorizer](ctx.Services, (*moduleapi.Authorizer)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve authorizer: %w", err)
+	}
+	if err := registrar.RegisterTaskOwnerAuthorizer(platformUpdateTaskOwnerAuthorizer{authorizer: authorizer}); err != nil {
+		return fmt.Errorf("register platform update task owner authorizer: %w", err)
 	}
 	return nil
 }

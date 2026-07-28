@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nextTick } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
 import ResourceDetailLayout from './ResourceDetailLayout.vue';
@@ -149,5 +149,41 @@ describe('responsive primitives', () => {
     expect(wrapper.text()).toContain('app-shared-postgres');
     expect(wrapper.find('.resource-detail-content__actions').exists()).toBe(false);
     expect(Object.keys(wrapper.props())).not.toContain('isMobile');
+  });
+
+  it('lets large detail drawers use the available width through comfortable and spacious densities', async () => {
+    const DrawerStub = defineComponent({
+      name: 'TDrawerStub',
+      props: { size: { type: String, required: true } },
+      setup(props, { slots }) {
+        return () =>
+          h('aside', { 'data-testid': 'responsive-detail-drawer', 'data-size': props.size }, slots.default?.());
+      },
+    });
+
+    vi.stubGlobal('innerWidth', 800);
+    const comfortableWrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', size: 'large', title: 'Task detail', visible: true },
+      slots: { default: '<p>Execution logs</p>' },
+      global: { stubs: { 't-drawer': DrawerStub } },
+    });
+    await nextTick();
+
+    expect(comfortableWrapper.get('[data-testid="responsive-detail-drawer"]').attributes('data-size')).toBe(
+      'var(--graft-resource-detail-large-comfortable-width)',
+    );
+    comfortableWrapper.unmount();
+
+    vi.stubGlobal('innerWidth', 1440);
+    const wrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', size: 'large', title: 'Task detail', visible: true },
+      slots: { default: '<p>Execution logs</p>' },
+      global: { stubs: { 't-drawer': DrawerStub } },
+    });
+    await nextTick();
+
+    expect(wrapper.get('[data-testid="responsive-detail-drawer"]').attributes('data-size')).toBe(
+      'var(--graft-resource-detail-large-fluid-width)',
+    );
   });
 });
