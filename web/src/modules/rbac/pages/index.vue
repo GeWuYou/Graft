@@ -39,7 +39,35 @@
         </template>
       </management-toolbar>
 
-      <management-table-card>
+      <management-empty-state
+        v-if="listError && !loading"
+        tone="error"
+        :title="t('rbac.roleList.errorTitle')"
+        :description="listError"
+      >
+        <template #actions>
+          <t-button theme="primary" variant="outline" @click="refreshRolePageData">
+            {{ t('rbac.roleList.retry') }}
+          </t-button>
+        </template>
+      </management-empty-state>
+
+      <management-paged-table
+        v-else
+        v-model:current="pagination.current"
+        v-model:page-size="pagination.pageSize"
+        :columns="visibleColumns"
+        :column-sets="roleColumnSets"
+        density-scope="viewport"
+        presentation="data"
+        :rows="pagedRoles"
+        :loading="loading"
+        :total="filteredRoles.length"
+        :footer-summary="t('rbac.roleList.footerTotal', { count: filteredRoles.length })"
+        :empty-title="t('rbac.roleList.emptyTitle')"
+        :empty-description="t('rbac.roleList.emptyDescription')"
+        :pagination-props="{ showPageNumber: true }"
+      >
         <template #head>
           <div class="table-head">
             <div>
@@ -61,122 +89,85 @@
           />
         </template>
 
-        <div v-if="permissionCatalogError" class="inline-warning">
-          <span>{{ permissionCatalogError }}</span>
-        </div>
-
-        <management-empty-state
-          v-if="listError && !loading"
-          tone="error"
-          :title="t('rbac.roleList.errorTitle')"
-          :description="listError"
-        >
-          <template #actions>
-            <t-button theme="primary" variant="outline" @click="refreshRolePageData">
-              {{ t('rbac.roleList.retry') }}
-            </t-button>
-          </template>
-        </management-empty-state>
-
-        <div v-else ref="tableHostRef" class="table-host graft-scrollbar" :data-table-mode="tableWidthPolicy.mode">
-          <t-table
-            row-key="id"
-            :data="pagedRoles"
-            :columns="visibleColumns"
-            :loading="loading"
-            table-layout="fixed"
-            :table-content-width="tableWidthPolicy.tableContentWidth"
-            cell-empty-content="-"
-          >
-            <template #role="{ row }">
-              <div class="role-identity">
-                <span class="role-identity__display">{{ row.display }}</span>
-                <span class="role-identity__code">{{ row.name }}</span>
-              </div>
-            </template>
-
-            <template #builtin="{ row }">
-              <t-tag class="role-type-tag" :theme="row.builtin ? 'primary' : 'default'" variant="light">
-                {{ row.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
-              </t-tag>
-            </template>
-
-            <template #permission_count="{ row }">
-              <span class="role-count">{{ countLabel(row.permission_count, 'rbac.roleList.permissionCount') }}</span>
-            </template>
-
-            <template #user_count="{ row }">
-              <span class="role-count">{{ countLabel(row.user_count, 'rbac.roleList.userCount') }}</span>
-            </template>
-
-            <template #remark="{ row }">
-              <span class="role-remark table-muted">{{ roleRemark(row) }}</span>
-            </template>
-
-            <template #updated_at="{ row }">
-              <span class="role-date">{{ formatTimestamp(row.updated_at) }}</span>
-            </template>
-
-            <template #operation="{ row }">
-              <table-action-menu
-                :actions="roleRowActions(row)"
-                :more-label="t('rbac.roleList.more')"
-                :more-label-fallback="t('rbac.roleList.more')"
-                @action="(action) => handleRoleRowAction(action, row)"
-              />
-            </template>
-
-            <template #empty>
-              <div class="table-empty-state">
-                <t-empty :title="t('rbac.roleList.emptyTitle')" :description="t('rbac.roleList.emptyDescription')">
-                  <template #action>
-                    <div class="table-empty-state__actions">
-                      <t-button
-                        v-if="hasActiveFilters"
-                        theme="default"
-                        variant="outline"
-                        data-testid="role-empty-clear-filters"
-                        @click="resetFilters"
-                      >
-                        {{ t('rbac.roleList.toolbar.clearFilters') }}
-                      </t-button>
-                      <t-button
-                        v-permission="permissionCodes.ROLE_CREATE"
-                        theme="primary"
-                        data-testid="role-empty-create"
-                        @click="openCreateDrawer"
-                      >
-                        {{ t('rbac.roleList.emptyCreate') }}
-                      </t-button>
-                    </div>
-                  </template>
-                </t-empty>
-              </div>
-            </template>
-          </t-table>
-        </div>
-
-        <template #footer>
-          <management-table-pagination :summary="t('rbac.roleList.footerTotal', { count: filteredRoles.length })">
-            <t-pagination
-              v-model:current="pagination.current"
-              v-model:page-size="pagination.pageSize"
-              :total="filteredRoles.length"
-              :page-size-options="[10, 20, 50, 100]"
-              :show-page-number="true"
-            />
-          </management-table-pagination>
+        <template #feedback>
+          <div v-if="permissionCatalogError" class="inline-warning">
+            <span>{{ permissionCatalogError }}</span>
+          </div>
         </template>
-      </management-table-card>
+
+        <template #role="{ row }">
+          <div class="role-identity">
+            <span class="role-identity__display">{{ row.display }}</span>
+            <span class="role-identity__code">{{ row.name }}</span>
+          </div>
+        </template>
+
+        <template #builtin="{ row }">
+          <t-tag class="role-type-tag" :theme="row.builtin ? 'primary' : 'default'" variant="light">
+            {{ row.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
+          </t-tag>
+        </template>
+
+        <template #permission_count="{ row }">
+          <span class="role-count">{{ countLabel(row.permission_count, 'rbac.roleList.permissionCount') }}</span>
+        </template>
+
+        <template #user_count="{ row }">
+          <span class="role-count">{{ countLabel(row.user_count, 'rbac.roleList.userCount') }}</span>
+        </template>
+
+        <template #remark="{ row }">
+          <span class="role-remark table-muted">{{ roleRemark(row) }}</span>
+        </template>
+
+        <template #updated_at="{ row }">
+          <span class="role-date">{{ formatTimestamp(row.updated_at) }}</span>
+        </template>
+
+        <template #operation="{ row }">
+          <table-action-menu
+            :actions="roleRowActions(row)"
+            :more-label="t('rbac.roleList.more')"
+            :more-label-fallback="t('rbac.roleList.more')"
+            @action="(action) => handleRoleRowAction(action, row)"
+          />
+        </template>
+
+        <template #empty>
+          <div class="table-empty-state">
+            <t-empty :title="t('rbac.roleList.emptyTitle')" :description="t('rbac.roleList.emptyDescription')">
+              <template #action>
+                <div class="table-empty-state__actions">
+                  <t-button
+                    v-if="hasActiveFilters"
+                    theme="default"
+                    variant="outline"
+                    data-testid="role-empty-clear-filters"
+                    @click="resetFilters"
+                  >
+                    {{ t('rbac.roleList.toolbar.clearFilters') }}
+                  </t-button>
+                  <t-button
+                    v-permission="permissionCodes.ROLE_CREATE"
+                    theme="primary"
+                    data-testid="role-empty-create"
+                    @click="openCreateDrawer"
+                  >
+                    {{ t('rbac.roleList.emptyCreate') }}
+                  </t-button>
+                </div>
+              </template>
+            </t-empty>
+          </div>
+        </template>
+      </management-paged-table>
     </management-page-content>
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="roleDrawerVisible"
-      :header="roleDrawerTitle"
-      :footer="false"
-      size="520px"
-      placement="right"
-      destroy-on-close
+      :title="roleDrawerTitle"
+      :purpose="roleDrawerMode === 'detail' ? 'detail' : 'form'"
+      size="medium"
     >
       <div class="drawer-panel">
         <t-card v-if="roleDrawerRole" class="role-drawer-overview" size="small" :bordered="true">
@@ -333,12 +324,11 @@
           </t-form>
         </t-card>
       </div>
-    </t-drawer>
+    </responsive-dialog>
 
     <assignment-drawer
       v-model:visible="permissionDrawerVisible"
       :title="permissionDrawerTitle"
-      size="860px"
       @close="requestClosePermissionDrawer"
     >
       <template #header>
@@ -463,12 +453,11 @@
       @confirm="discardPermissionDrawerChanges"
     />
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="columnDrawerVisible"
-      :header="t('rbac.roleList.columnSettings')"
-      size="360px"
-      placement="right"
-      destroy-on-close
+      :title="t('rbac.roleList.columnSettings')"
+      purpose="form"
+      size="compact"
     >
       <div class="drawer-panel">
         <t-checkbox-group v-model="visibleColumnKeys">
@@ -479,7 +468,7 @@
           </div>
         </t-checkbox-group>
       </div>
-    </t-drawer>
+    </responsive-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -511,15 +500,13 @@ import {
   formatCompactDateTime,
   ManagementEmptyState,
   ManagementPageContent,
+  ManagementPagedTable,
   ManagementPageHeader,
-  ManagementTableCard,
-  ManagementTablePagination,
   ManagementToolbar,
-  resolveTableWidthPolicy,
   TableActionMenu,
   TableViewToolbar,
-  useTableHostWidth,
 } from '@/shared/components/management';
+import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useAssignmentSelection, useTabPageSnapshot } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { localizedApiErrorMessage, resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -1111,9 +1098,9 @@ const visibleColumns = computed(() => {
 
   return (columns.value ?? []).filter((column) => column?.colKey !== 'operation');
 });
-
-const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
+const roleColumnSets = computed(() => ({
+  compact: ['role', 'builtin', 'operation'],
+}));
 
 async function refreshRolePageData() {
   await Promise.all([

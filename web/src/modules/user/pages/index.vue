@@ -49,7 +49,24 @@
         </template>
       </management-toolbar>
 
-      <management-table-card>
+      <management-paged-table
+        v-model:current="pagination.current"
+        v-model:page-size="pagination.pageSize"
+        cards-visible
+        :column-sets="userColumnSets"
+        :columns="visibleColumns"
+        density-scope="viewport"
+        entity-card-layout="compact"
+        :empty-description="t('user.userList.emptyDescription')"
+        :empty-title="t('user.userList.emptyTitle')"
+        :footer-summary="t('user.userList.footerTotal', { count: filteredUsers.length })"
+        :loading="loading"
+        presentation="entity"
+        :rows="pagedUsers"
+        :selected-row-keys="selectedRowKeys"
+        :total="filteredUsers.length"
+        @select-change="handleSelectChange"
+      >
         <template #head>
           <div class="table-head">
             <div>
@@ -91,147 +108,185 @@
           </management-batch-bar>
         </template>
 
-        <management-empty-state
-          v-if="listError && !loading"
-          tone="error"
-          :title="t('user.userList.errorTitle')"
-          :description="listError"
-        >
-          <template #actions>
-            <t-button theme="primary" variant="outline" @click="refetchUsers">
-              {{ t('user.userList.retry') }}
-            </t-button>
-          </template>
-        </management-empty-state>
-
-        <div v-else ref="tableHostRef" class="table-host" :data-table-mode="tableWidthPolicy.mode">
-          <t-table
-            row-key="id"
-            :data="pagedUsers"
-            :columns="visibleColumns"
-            :loading="loading"
-            table-layout="fixed"
-            :table-content-width="tableWidthPolicy.tableContentWidth"
-            :selected-row-keys="selectedRowKeys"
-            cell-empty-content="-"
-            @select-change="handleSelectChange"
+        <template #feedback>
+          <management-empty-state
+            v-if="listError && !loading"
+            tone="error"
+            :title="t('user.userList.errorTitle')"
+            :description="listError"
           >
-            <template #user="{ row }">
-              <div class="user-cell">
-                <div class="user-cell__avatar">{{ userInitial(row.display || row.username) }}</div>
-                <div class="user-cell__meta">
-                  <span class="user-cell__display">{{ row.display || row.username }}</span>
-                  <span class="user-cell__username">{{ row.email || `@${row.username}` }}</span>
-                </div>
-                <t-tag
-                  v-if="isProtectedDefaultAdminUser(row)"
-                  theme="warning"
-                  variant="light-outline"
-                  size="small"
-                  data-testid="user-protected-badge"
-                >
-                  {{ t('user.userList.protectedDefaultAdmin.badge') }}
-                </t-tag>
-              </div>
+            <template #actions>
+              <t-button theme="primary" variant="outline" @click="refetchUsers">
+                {{ t('user.userList.retry') }}
+              </t-button>
             </template>
+          </management-empty-state>
+        </template>
 
-            <template #status="{ row }">
-              <t-tag :theme="statusTheme(row.status)" variant="light">
-                {{ statusLabel(row.status) }}
+        <template #cards>
+          <div v-if="pagedUsers.length" class="user-card-list">
+            <article v-for="user in pagedUsers" :key="user.id" class="user-card" :data-testid="`user-card-${user.id}`">
+              <div class="user-card__head">
+                <div class="user-cell">
+                  <div class="user-cell__avatar">{{ userInitial(user.display || user.username) }}</div>
+                  <div class="user-cell__meta">
+                    <span class="user-cell__display">{{ user.display || user.username }}</span>
+                    <span class="user-cell__username">{{ user.email || `@${user.username}` }}</span>
+                  </div>
+                </div>
+                <t-tag :theme="statusTheme(user.status)" variant="light">{{ statusLabel(user.status) }}</t-tag>
+              </div>
+              <t-tag
+                v-if="isProtectedDefaultAdminUser(user)"
+                theme="warning"
+                variant="light-outline"
+                size="small"
+                data-testid="user-protected-badge"
+              >
+                {{ t('user.userList.protectedDefaultAdmin.badge') }}
+              </t-tag>
+              <dl class="user-card__details">
+                <div>
+                  <dt>{{ t('user.userList.columns.roles') }}</dt>
+                  <dd>{{ roleSummaryText(user) }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('user.userList.columns.lastLoginAt') }}</dt>
+                  <dd>{{ formatTimestamp(user.last_login_at) }}</dd>
+                </div>
+                <div>
+                  <dt>{{ t('user.userList.columns.updatedAt') }}</dt>
+                  <dd>{{ formatTimestamp(user.updated_at) }}</dd>
+                </div>
+              </dl>
+              <div class="user-card__actions">
+                <t-checkbox
+                  :checked="selectedRowKeys.includes(user.id)"
+                  :aria-label="t('user.userList.batch.selected', { count: 1 })"
+                  @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
+                />
+                <table-action-menu
+                  :actions="userRowActions(user)"
+                  :more-label="t('user.userList.more')"
+                  :more-label-fallback="t('user.userList.more')"
+                  @action="(action) => handleUserRowAction(action, user)"
+                />
+              </div>
+            </article>
+          </div>
+          <div v-else class="table-empty-state">
+            <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
+              <template #action>
+                <div class="table-empty-state__actions">
+                  <t-button v-if="hasActiveFilters" theme="default" variant="outline" @click="resetFilters">
+                    {{ t('user.userList.toolbar.clearFilters') }}
+                  </t-button>
+                  <t-button v-permission="userPermissionCodes.CREATE" theme="primary" @click="openUserDrawer('create')">
+                    {{ t('user.userList.create') }}
+                  </t-button>
+                </div>
+              </template>
+            </t-empty>
+          </div>
+        </template>
+
+        <template #user="{ row }">
+          <div class="user-cell">
+            <div class="user-cell__avatar">{{ userInitial(row.display || row.username) }}</div>
+            <div class="user-cell__meta">
+              <span class="user-cell__display">{{ row.display || row.username }}</span>
+              <span class="user-cell__username">{{ row.email || `@${row.username}` }}</span>
+            </div>
+            <t-tag
+              v-if="isProtectedDefaultAdminUser(row)"
+              theme="warning"
+              variant="light-outline"
+              size="small"
+              data-testid="user-protected-badge"
+            >
+              {{ t('user.userList.protectedDefaultAdmin.badge') }}
+            </t-tag>
+          </div>
+        </template>
+
+        <template #status="{ row }">
+          <t-tag :theme="statusTheme(row.status)" variant="light">{{ statusLabel(row.status) }}</t-tag>
+        </template>
+
+        <template #roles="{ row }">
+          <div class="role-tag-list">
+            <template v-if="(row.roles ?? []).length > 0">
+              <t-tag
+                v-for="role in (row.roles ?? []).slice(0, 2)"
+                :key="role.id"
+                theme="default"
+                variant="light-outline"
+                size="small"
+              >
+                {{ role.display }}
+              </t-tag>
+              <t-tag v-if="(row.roles ?? []).length > 2" theme="default" variant="light-outline" size="small">
+                +{{ (row.roles ?? []).length - 2 }}
               </t-tag>
             </template>
-
-            <template #roles="{ row }">
-              <div class="role-tag-list">
-                <template v-if="(row.roles ?? []).length > 0">
-                  <t-tag
-                    v-for="role in (row.roles ?? []).slice(0, 2)"
-                    :key="role.id"
-                    theme="default"
-                    variant="light-outline"
-                    size="small"
-                  >
-                    {{ role.display }}
-                  </t-tag>
-                  <t-tag v-if="(row.roles ?? []).length > 2" theme="default" variant="light-outline" size="small">
-                    +{{ (row.roles ?? []).length - 2 }}
-                  </t-tag>
-                </template>
-                <span v-else class="table-muted">{{ t('user.userList.roleSummary.empty') }}</span>
-              </div>
-            </template>
-
-            <template #last_login_at="{ row }">
-              <span>{{ formatTimestamp(row.last_login_at) }}</span>
-            </template>
-
-            <template #created_at="{ row }">
-              <span>{{ formatTimestamp(row.created_at) }}</span>
-            </template>
-
-            <template #updated_at="{ row }">
-              <span>{{ formatTimestamp(row.updated_at) }}</span>
-            </template>
-
-            <template #operation="{ row }">
-              <table-action-menu
-                :actions="userRowActions(row)"
-                :more-label="t('user.userList.more')"
-                :more-label-fallback="t('user.userList.more')"
-                @action="(action) => handleUserRowAction(action, row)"
-              />
-            </template>
-
-            <template #empty>
-              <div class="table-empty-state">
-                <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
-                  <template #action>
-                    <div class="table-empty-state__actions">
-                      <t-button
-                        v-if="hasActiveFilters"
-                        theme="default"
-                        variant="outline"
-                        data-testid="user-empty-clear-filters"
-                        @click="resetFilters"
-                      >
-                        {{ t('user.userList.toolbar.clearFilters') }}
-                      </t-button>
-                      <t-button
-                        v-permission="userPermissionCodes.CREATE"
-                        theme="primary"
-                        data-testid="user-empty-create"
-                        @click="openUserDrawer('create')"
-                      >
-                        {{ t('user.userList.create') }}
-                      </t-button>
-                    </div>
-                  </template>
-                </t-empty>
-              </div>
-            </template>
-          </t-table>
-        </div>
-
-        <template #footer>
-          <management-table-pagination :summary="t('user.userList.footerTotal', { count: filteredUsers.length })">
-            <t-pagination
-              v-model:current="pagination.current"
-              v-model:page-size="pagination.pageSize"
-              :total="filteredUsers.length"
-              :page-size-options="[10, 20, 50, 100]"
-              :show-page-number="true"
-            />
-          </management-table-pagination>
+            <span v-else class="table-muted">{{ t('user.userList.roleSummary.empty') }}</span>
+          </div>
         </template>
-      </management-table-card>
+
+        <template #last_login_at="{ row }"
+          ><span>{{ formatTimestamp(row.last_login_at) }}</span></template
+        >
+        <template #created_at="{ row }"
+          ><span>{{ formatTimestamp(row.created_at) }}</span></template
+        >
+        <template #updated_at="{ row }"
+          ><span>{{ formatTimestamp(row.updated_at) }}</span></template
+        >
+
+        <template #operation="{ row }">
+          <table-action-menu
+            :actions="userRowActions(row)"
+            :more-label="t('user.userList.more')"
+            :more-label-fallback="t('user.userList.more')"
+            @action="(action) => handleUserRowAction(action, row)"
+          />
+        </template>
+
+        <template #empty>
+          <div class="table-empty-state">
+            <t-empty :title="t('user.userList.emptyTitle')" :description="t('user.userList.emptyDescription')">
+              <template #action>
+                <div class="table-empty-state__actions">
+                  <t-button
+                    v-if="hasActiveFilters"
+                    theme="default"
+                    variant="outline"
+                    data-testid="user-empty-clear-filters"
+                    @click="resetFilters"
+                  >
+                    {{ t('user.userList.toolbar.clearFilters') }}
+                  </t-button>
+                  <t-button
+                    v-permission="userPermissionCodes.CREATE"
+                    theme="primary"
+                    data-testid="user-empty-create"
+                    @click="openUserDrawer('create')"
+                  >
+                    {{ t('user.userList.create') }}
+                  </t-button>
+                </div>
+              </template>
+            </t-empty>
+          </div>
+        </template>
+      </management-paged-table>
     </management-page-content>
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="userDrawerVisible"
-      :header="userDrawerMode === 'create' ? t('user.userList.form.createTitle') : t('user.userList.form.editTitle')"
-      size="520px"
-      placement="right"
-      destroy-on-close
+      :title="userDrawerMode === 'create' ? t('user.userList.form.createTitle') : t('user.userList.form.editTitle')"
+      purpose="form"
+      size="medium"
     >
       <div class="drawer-panel">
         <t-form ref="userFormRef" :data="userForm" :rules="userFormRules" label-align="top" @submit="handleUserSubmit">
@@ -272,14 +327,13 @@
           </div>
         </t-form>
       </div>
-    </t-drawer>
+    </responsive-dialog>
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="detailDrawerVisible"
-      :header="t('user.userList.detailTitle')"
-      size="520px"
-      placement="right"
-      destroy-on-close
+      :title="t('user.userList.detailTitle')"
+      purpose="detail"
+      size="medium"
     >
       <div v-if="detailUser" class="drawer-panel user-detail-panel">
         <div class="detail-header">
@@ -318,7 +372,7 @@
           </div>
         </div>
       </div>
-    </t-drawer>
+    </responsive-dialog>
 
     <t-dialog
       v-model:visible="resetPasswordDialogVisible"
@@ -387,7 +441,6 @@
     <assignment-drawer
       v-model:visible="userRoleDrawerVisible"
       :title="userRoleDrawerTitle"
-      size="760px"
       @close="requestCloseUserRoleDrawer"
     >
       <template #header>
@@ -485,12 +538,11 @@
       </template>
     </assignment-drawer>
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="columnDrawerVisible"
-      :header="t('user.userList.columnSettings')"
-      size="360px"
-      placement="right"
-      destroy-on-close
+      :title="t('user.userList.columnSettings')"
+      purpose="form"
+      size="compact"
     >
       <div class="drawer-panel">
         <t-checkbox-group v-model="visibleColumnKeys">
@@ -501,7 +553,7 @@
           </div>
         </t-checkbox-group>
       </div>
-    </t-drawer>
+    </responsive-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -534,16 +586,14 @@ import {
   ManagementBatchBar,
   ManagementEmptyState,
   ManagementPageContent,
+  ManagementPagedTable,
   ManagementPageHeader,
   ManagementStatisticsBar,
-  ManagementTableCard,
-  ManagementTablePagination,
   ManagementToolbar,
-  resolveTableWidthPolicy,
   TableActionMenu,
   TableViewToolbar,
-  useTableHostWidth,
 } from '@/shared/components/management';
+import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useAssignmentSelection } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { localizedApiErrorMessage } from '@/shared/localized-api-error';
@@ -612,6 +662,9 @@ const INITIAL_USER_FORM: UserFormState = {
 };
 
 const DEFAULT_VISIBLE_COLUMNS = ['row-select', 'user', 'status', 'roles', 'last_login_at', 'updated_at', 'operation'];
+const userColumnSets = {
+  compact: ['row-select', 'user', 'status', 'operation'],
+};
 
 const { t, locale } = useI18n();
 const route = useRoute();
@@ -1166,9 +1219,6 @@ const visibleColumns = computed(() => {
   return (columns.value ?? []).filter((column) => column?.colKey !== 'operation');
 });
 
-const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
-
 async function refetchUsers() {
   selectedRowKeys.value = [];
   pagination.value.current = 1;
@@ -1701,6 +1751,16 @@ function handleUserMoreAction(payload: { value?: string | number | Record<string
 
 function handleSelectChange(value: Array<string | number>) {
   selectedRowKeys.value = value;
+}
+
+function toggleMobileUserSelection(userId: number, checked: boolean) {
+  const current = new Set(selectedRowKeys.value);
+  if (checked) {
+    current.add(userId);
+  } else {
+    current.delete(userId);
+  }
+  selectedRowKeys.value = [...current];
 }
 
 function arePermissionIDsEqual(left: number[], right: number[]) {

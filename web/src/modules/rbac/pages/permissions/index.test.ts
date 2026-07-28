@@ -317,6 +317,17 @@ describe('PermissionPage', () => {
     expect(wrapper.text()).toContain('Permission Details');
   });
 
+  it('keeps the permission catalog as a compact data table with only identity, module, and operations', async () => {
+    rbacApiMocks.getPermissions.mockResolvedValue({ items: [] });
+
+    const wrapper = await mountPermissionPage();
+    await flushPromises();
+
+    expect(wrapper.findComponent({ name: 'ManagementPagedTable' }).props('columnSets')).toEqual({
+      compact: ['permission', 'module', 'operation'],
+    });
+  });
+
   it('filters permissions by keyword', async () => {
     rbacApiMocks.getPermissions.mockResolvedValue({
       items: [

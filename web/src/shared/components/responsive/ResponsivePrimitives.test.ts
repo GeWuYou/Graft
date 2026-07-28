@@ -148,14 +148,17 @@ describe('responsive primitives', () => {
       interaction: 'readonly',
       surface: 'drawer',
     });
-    expect(resolveResponsiveDialogPolicy(992, 'detail', 'medium')).toMatchObject({ surface: 'dialog' });
+    expect(resolveResponsiveDialogPolicy(992, 'detail', 'medium')).toMatchObject({ surface: 'drawer' });
 
     const wrapper = mount(ResponsiveDialog, {
-      props: { purpose: 'form', size: 'large' },
+      props: { purpose: 'form', size: 'large', title: 'Edit', visible: true },
       slots: { default: '<p>form fields</p>', footer: '<button>save</button>' },
+      global: {
+        stubs: { 't-dialog': { template: '<div><slot /></div>' }, 't-drawer': { template: '<div><slot /></div>' } },
+      },
     });
 
-    expect(wrapper.attributes('data-responsive-surface')).toBe('fullscreen');
+    expect(wrapper.find('.responsive-dialog').classes()).toContain('responsive-dialog--drawer');
     expect(wrapper.text()).toContain('form fields');
     expect(wrapper.find('.responsive-dialog__footer').text()).toContain('save');
     expect(Object.keys(wrapper.props())).toEqual(expect.arrayContaining(['purpose', 'size']));

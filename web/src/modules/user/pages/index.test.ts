@@ -752,6 +752,26 @@ describe('UserPage', () => {
     expect(wrapper.find('[data-testid="user-detail"]').exists()).toBe(true);
   });
 
+  it('switches user records to the shared card presentation on compact screens', async () => {
+    userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
+    const viewportWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 });
+
+    try {
+      const wrapper = mountUserPage();
+      await flushPromises();
+      window.dispatchEvent(new Event('resize'));
+      await flushPromises();
+
+      expect(wrapper.get('[data-testid="user-card-7"]').text()).toContain('Alice');
+      expect(wrapper.get('[data-testid="user-card-7"]').text()).toContain('user.userList.columns.roles');
+      expect(wrapper.find('[data-testid="user-row-0"]').exists()).toBe(false);
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
+
   it('disables the drawer default footer for user role assignment', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.USER_ROLE_READ, RBAC_PERMISSION_CODE.USER_ROLE_ASSIGN];
     userApiMocks.getUsers.mockResolvedValue(createUserListResponse());
