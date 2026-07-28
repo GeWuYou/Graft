@@ -30,6 +30,8 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
    - the current slice is complete enough to hand off, or
    - the current slice is blocked and needs an honest next-step prompt
 3. If validation status is unclear, use `graft-validation-runner` before deciding whether a commit is allowed.
+4. For a numbered managed worktree, do not report a completed closeout while owned changes remain uncommitted. After a
+   clean validated commit, invoke `graft-worktree-manager ... closeout` so later release can verify the lifecycle.
 
 ## Workflow
 
@@ -49,19 +51,22 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
 5. If a commit is justified or explicitly requested, delegate commit execution to `graft-commit`:
    - keep the scope limited to the confirmed owned slice
    - reuse the same ownership and validation rules instead of inventing a second commit path
-6. Emit one explicit next-task startup prompt whenever the output hands work to a future turn. The prompt must include:
+6. When the current checkout is an acquired numbered worktree and the closeout is validated and owned, run the manager
+   `closeout` command after the scoped commit. If ownership or validation blocks committing, report `blocked` or
+   `handoff_only`; do not represent the dirty worktree as a completed slice.
+7. Emit one explicit next-task startup prompt whenever the output hands work to a future turn. The prompt must include:
    - `governance source`
    - `task class`
    - `recovery source`
    - `owned scope`
    - if recovery context matters, the parent topic and subtopic to read after startup preflight
-7. Report the closeout result concisely:
+8. Report the closeout result concisely:
    - whether a commit was created, and if so the scoped title and short SHA
    - whether the output is a handoff prompt only
    - what validation was used or what exact validation gap remains
    - the `Experience capture` result, following the routing and threshold rules from `graft-lessons-learned` when the
      task produced a reusable lesson
-8. When the caller asks for machine-readable closeout, end the result with one fenced ` ```json ` block that matches the
+9. When the caller asks for machine-readable closeout, end the result with one fenced ` ```json ` block that matches the
    closeout state and the current delegated-round budget.
 
 ## Output Contract

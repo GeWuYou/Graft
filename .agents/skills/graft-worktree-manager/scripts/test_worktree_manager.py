@@ -51,6 +51,9 @@ class WorktreeManagerTests(unittest.TestCase):
             check=check,
         )
 
+    def closeout(self, worker: Path) -> subprocess.CompletedProcess[str]:
+        return self.manager("closeout", "--worktree", str(worker))
+
     def test_acquire_status_and_release_reuse_numbered_slot(self) -> None:
         acquired = self.manager("acquire", "feature/runtime-target")
         worker = self.repo / ".worktrees" / "01"
@@ -61,6 +64,7 @@ class WorktreeManagerTests(unittest.TestCase):
         rows = json.loads(occupied.stdout)["worktrees"]
         self.assertEqual(next(row for row in rows if row["path"] == str(worker))["state"], "occupied")
 
+        self.closeout(worker)
         preview = self.manager("release", "--worktree", str(worker))
         self.assertIn("Awaiting developer integration confirmation", preview.stdout)
         self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "feature/runtime-target")
@@ -148,6 +152,7 @@ class WorktreeManagerTests(unittest.TestCase):
         (worker / "worker.txt").write_text("worker\n", encoding="utf-8")
         run("git", "add", "worker.txt", cwd=worker)
         run("git", "commit", "-m", "worker change", cwd=worker)
+        self.closeout(worker)
 
         rejected = self.manager("release", "--worktree", str(worker), "--confirm-integrated", "origin/main", check=False)
 
@@ -161,6 +166,7 @@ class WorktreeManagerTests(unittest.TestCase):
         (worker / "worker.txt").write_text("worker\n", encoding="utf-8")
         run("git", "add", "worker.txt", cwd=worker)
         run("git", "commit", "-m", "worker change", cwd=worker)
+        self.closeout(worker)
         run("git", "push", "origin", "feature/runtime-target", cwd=worker)
 
         run("git", "fetch", "origin", "feature/runtime-target", cwd=self.seed)
@@ -202,6 +208,70 @@ class WorktreeManagerTests(unittest.TestCase):
         self.manager("acquire", "feature/reuse-slot")
 
         self.assertTrue((worker / "shared.env").is_symlink())
+
+    def test_acquire_recovers_lowest_safe_marker_slot(self) -> None:
+        run("git", "branch", "main-03", "origin/main", cwd=self.repo)
+
+        acquired = self.manager("acquire", "feature/recover-slot")
+        worker = self.repo / ".worktrees" / "03"
+
+        self.assertIn(str(worker), acquired.stdout)
+        self.assertTrue(worker.is_dir())
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "feature/recover-slot")
+        self.assertFalse((self.repo / ".worktrees" / "01").exists())
+
+    def test_repair_restores_safe_marker_slot_to_idle_pool(self) -> None:
+        run("git", "branch", "main-03", "origin/main", cwd=self.repo)
+
+        repaired = self.manager("repair", "--confirm", "03")
+        worker = self.repo / ".worktrees" / "03"
+
+        self.assertIn("Repaired Worktree", repaired.stdout)
+        self.assertEqual(run("git", "branch", "--show-current", cwd=worker).stdout.strip(), "main-03")
+        rows = json.loads(self.manager("status", "--json").stdout)["worktrees"]
+        row = next(row for row in rows if row["path"] == str(worker))
+        self.assertEqual(row["state"], "available")
+        self.assertEqual(row["lifecycle"], "idle")
+
+    def test_acquire_fills_lowest_missing_slot_when_registered_slots_are_occupied(self) -> None:
+        for number in (1, 2, 4):
+            worker = self.repo / ".worktrees" / f"{number:02d}"
+            worker.parent.mkdir(exist_ok=True)
+            run("git", "worktree", "add", "-b", f"feature/occupied-{number}", str(worker), "origin/main", cwd=self.repo)
+
+        acquired = self.manager("acquire", "feature/fill-gap")
+
+        self.assertIn(str(self.repo / ".worktrees" / "03"), acquired.stdout)
+        self.assertFalse((self.repo / ".worktrees" / "05").exists())
+
+    def test_acquire_refuses_broken_numbered_directory(self) -> None:
+        broken = self.repo / ".worktrees" / "01"
+        broken.mkdir(parents=True)
+
+        rejected = self.manager("acquire", "feature/refuse-broken", check=False)
+
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("repair broken pool slots", rejected.stderr)
+        self.assertFalse((self.repo / ".worktrees" / "02").exists())
+
+    def test_closeout_rejects_dirty_worktree_and_release_requires_closeout(self) -> None:
+        self.manager("acquire", "feature/closeout-gate")
+        worker = self.repo / ".worktrees" / "01"
+        (worker / "worker.txt").write_text("worker\n", encoding="utf-8")
+
+        dirty_closeout = self.manager("closeout", "--worktree", str(worker), check=False)
+        self.assertNotEqual(dirty_closeout.returncode, 0)
+        self.assertIn("clean worktree", dirty_closeout.stderr)
+
+        run("git", "add", "worker.txt", cwd=worker)
+        run("git", "commit", "-m", "worker change", cwd=worker)
+        before_closeout = self.manager("release", "--worktree", str(worker), check=False)
+        self.assertNotEqual(before_closeout.returncode, 0)
+        self.assertIn("manager closeout", before_closeout.stderr)
+
+        self.closeout(worker)
+        rows = json.loads(self.manager("status", "--json").stdout)["worktrees"]
+        self.assertEqual(next(row for row in rows if row["path"] == str(worker))["lifecycle"], "release-ready")
 
     def test_relocate_moves_clean_legacy_pool_and_rebuilds_shared_links(self) -> None:
         legacy = self.base / "graft-wt-01"
