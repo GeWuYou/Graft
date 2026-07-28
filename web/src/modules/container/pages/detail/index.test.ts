@@ -85,16 +85,37 @@ const tabStoreState = vi.hoisted(() => ({
   tabRouterList: [
     {
       fullPath: '/ops/containers/container-1?tab=config',
+      name: 'ContainerDetailIndex',
       path: '/ops/containers/container-1',
       tabKey: '/ops/containers/container-1',
       title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
     },
   ] as Array<{
     fullPath?: string;
+    name: string;
     path: string;
     tabKey: string;
     title: { 'zh-CN': string; 'en-US': string };
+    titleSource?: 'route' | 'runtime';
   }>,
+  updateActiveTabTitle(
+    expectedRouteName: string,
+    route: { name?: string; path: string },
+    title: { 'zh-CN': string; 'en-US': string },
+  ) {
+    if (route.name !== expectedRouteName) {
+      return;
+    }
+
+    const activeTab = this.tabRouterList.find((tab) => tab.tabKey === this.activeTabKey);
+    if (!activeTab || activeTab.path !== route.path || activeTab.name !== route.name) {
+      return;
+    }
+
+    this.tabRouterList = this.tabRouterList.map((tab) =>
+      tab.tabKey === this.activeTabKey ? { ...tab, title, titleSource: 'runtime' } : tab,
+    );
+  },
   get tabRouters() {
     return this.tabRouterList;
   },
@@ -112,6 +133,7 @@ const routeState = vi.hoisted(
   (): {
     route: {
       fullPath: string;
+      name: string;
       path: string;
       params: { id: string };
       query: { name?: string; tab?: string };
@@ -119,6 +141,7 @@ const routeState = vi.hoisted(
   } => ({
     route: {
       fullPath: '/ops/containers/container-1?tab=config',
+      name: 'ContainerDetailIndex',
       path: '/ops/containers/container-1',
       params: { id: 'container-1' },
       query: { tab: 'config' },
@@ -673,6 +696,7 @@ describe('container detail page', () => {
     tabStoreState.tabRouterList = [
       {
         fullPath: '/ops/containers/container-1?tab=config',
+        name: 'ContainerDetailIndex',
         path: '/ops/containers/container-1',
         tabKey: '/ops/containers/container-1',
         title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
@@ -764,6 +788,7 @@ describe('container detail page', () => {
     expect(wrapper.find('h1').text()).toBe('graft-web');
     expect(tabStoreState.tabRouterList[0]?.title?.['zh-CN']).toBe('容器详情 - graft-web');
     expect(tabStoreState.tabRouterList[0]?.title?.['en-US']).toBe('Container Detail - graft-web');
+    expect(tabStoreState.tabRouterList[0]?.titleSource).toBe('runtime');
     expect(wrapper.text()).toContain('graft/web:latest');
     expect(wrapper.text()).not.toContain('容器详情 - graft-web');
     expect(wrapper.text()).toContain('graft/web:latest');
@@ -908,6 +933,7 @@ describe('container detail page', () => {
     tabStoreState.tabRouterList = [
       {
         fullPath: '/ops/containers/container-1?tab=config',
+        name: 'ContainerDetailIndex',
         path: '/ops/containers/container-1',
         tabKey: '/ops/containers/container-1',
         title: { 'zh-CN': '容器详情 - list-name', 'en-US': 'Container Detail - list-name' },
@@ -935,6 +961,7 @@ describe('container detail page', () => {
     tabStoreState.tabRouterList = [
       {
         fullPath: '/ops/containers/container-1?tab=config',
+        name: 'ContainerDetailIndex',
         path: '/ops/containers/container-1',
         tabKey: '/ops/containers/container-1',
         title: { 'zh-CN': '容器详情 - list-name', 'en-US': 'Container Detail - list-name' },
@@ -985,10 +1012,12 @@ describe('container detail page', () => {
     tabStoreState.tabRouterList = [
       {
         path: '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59',
+        name: 'ContainerDetailIndex',
         tabKey: '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59',
         title: { 'zh-CN': '容器详情', 'en-US': 'Container Detail' },
       },
     ];
+    tabStoreState.activeTabKey = '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59';
     routeState.route.path = '/ops/containers/338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59';
     routeState.route.fullPath = `${routeState.route.path}?tab=overview`;
     routeState.route.params.id = '338d02f869494842b74a70c84a64a84d7a9ce8caa945d552823bad060f7002e59';

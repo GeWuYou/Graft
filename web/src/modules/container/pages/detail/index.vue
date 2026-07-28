@@ -1499,6 +1499,7 @@ import {
 } from '../../api/container';
 import ContainerRawJsonPanel from '../../components/ContainerRawJsonPanel.vue';
 import ContainerShellPanel from '../../components/ContainerShellPanel.vue';
+import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import {
   buildContainerLogsTopicName,
   isContainerLogsTopicForContainer,
@@ -3796,11 +3797,7 @@ function updateCurrentTabTitle(title: LocalizedTitle) {
   if (!hasMeaningfulTitle(title)) {
     return;
   }
-  const routePath = route.path;
-  const routeFullPath = route.fullPath;
-  tabsRouterStore.tabRouterList = tabsRouterStore.tabRouterList.map((tab) =>
-    tab.tabKey === routePath || tab.path === routePath || tab.fullPath === routeFullPath ? { ...tab, title } : tab,
-  );
+  tabsRouterStore.updateActiveTabTitle(CONTAINER_BOOTSTRAP_ROUTE.DETAIL.pageRouteName, route, title);
 }
 
 function hasMeaningfulTitle(title: LocalizedTitle) {
