@@ -13782,26 +13782,26 @@ export interface operations {
       /** @description Invalid operation identity. */
       400: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Operation failure diagnostic not found. */
       404: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content?: never;
-      };
-      /** @description The diagnostic store could not be read. */
-      500: {
-        headers: {
-          [name: string]: unknown;
+        content: {
+          'application/json': components['schemas']['error-response'];
         };
-        content?: never;
       };
+      500: components['responses']['internal-server-error'];
     };
   };
   listPlatformBackups: {
