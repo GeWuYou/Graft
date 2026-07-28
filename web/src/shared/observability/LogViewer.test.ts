@@ -170,6 +170,27 @@ describe('LogViewer', () => {
     wrapper.unmount();
   });
 
+  it('keeps the viewport constrained inside the framed viewer without an explicit height', async () => {
+    const wrapper = mount(LogViewer, {
+      attachTo: document.body,
+      props: {
+        ...labels,
+        entries: createEntries(200),
+        viewerMode: true,
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    await nextTick();
+
+    const shell = wrapper.get('.log-viewer__viewport-shell').element;
+    const viewport = wrapper.get('.log-viewer__viewport').element;
+    expect(getComputedStyle(shell).display).toBe('flex');
+    expect(getComputedStyle(shell).flexDirection).toBe('column');
+    expect(getComputedStyle(viewport).flexGrow).toBe('1');
+    wrapper.unmount();
+  });
+
   it('emits reach-top once per approach and suppresses it while history is loading', async () => {
     const wrapper = mount(LogViewer, {
       props: {

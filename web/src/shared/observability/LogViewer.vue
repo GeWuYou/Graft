@@ -1480,7 +1480,9 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__viewport-shell {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
   min-width: 0;
   position: relative;
@@ -1560,7 +1562,7 @@ function isViewportNearBottom(node: HTMLElement) {
 }
 
 .log-viewer__viewport--compact {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
 }
 
 .log-viewer__viewport-state {
