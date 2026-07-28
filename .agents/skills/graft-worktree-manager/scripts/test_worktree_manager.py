@@ -233,6 +233,54 @@ class WorktreeManagerTests(unittest.TestCase):
         self.assertEqual(row["state"], "available")
         self.assertEqual(row["lifecycle"], "idle")
 
+    def test_pool_slots_require_two_digits_and_reject_out_of_range_repairs(self) -> None:
+        self.assertIsNone(worktree_manager.pool_slot(self.repo, self.repo / ".worktrees" / "003"))
+        self.assertEqual(worktree_manager.pool_path(self.repo, 3), self.repo / ".worktrees" / "03")
+
+        with mock.patch.object(worktree_manager, "fetch") as fetch_mock:
+            with self.assertRaisesRegex(worktree_manager.WorktreeManagerError, "between 01 and 99"):
+                worktree_manager.repair(self.repo, 100, True)
+
+        fetch_mock.assert_not_called()
+
+    def test_status_rows_reuse_one_origin_and_change_check_per_worktree(self) -> None:
+        worker = self.repo / ".worktrees" / "01"
+        run("git", "worktree", "add", "--detach", str(worker), "origin/main", cwd=self.repo)
+
+        with mock.patch.object(worktree_manager, "origin_main", wraps=worktree_manager.origin_main) as origin_mock:
+            with mock.patch.object(worktree_manager, "changes", wraps=worktree_manager.changes) as changes_mock:
+                worktree_manager.status_rows(self.repo)
+
+        self.assertEqual(origin_mock.call_count, 1)
+        self.assertEqual(changes_mock.call_count, 2)
+
+    def test_rebuild_links_reports_rollback_os_errors(self) -> None:
+        target = self.repo / ".worktrees" / "01"
+        target.mkdir(parents=True)
+        (self.repo / "shared.env").write_text("shared\n", encoding="utf-8")
+        (self.repo / ".worktree-shared.json").write_text(
+            json.dumps({"links": [{"source": "shared.env", "target": ".env", "required": True}]}),
+            encoding="utf-8",
+        )
+        (target / ".env").symlink_to("old.env")
+
+        with mock.patch.object(Path, "symlink_to", side_effect=OSError("disk full")):
+            with self.assertRaisesRegex(worktree_manager.WorktreeManagerError, "rollback failed"):
+                worktree_manager.rebuild_links(self.repo, target)
+
+    def test_rebuild_links_wraps_initial_snapshot_read_errors(self) -> None:
+        target = self.repo / ".worktrees" / "01"
+        target.mkdir(parents=True)
+        (self.repo / ".worktree-shared.json").write_text(
+            json.dumps({"links": [{"source": "missing.env", "target": ".env", "required": False}]}),
+            encoding="utf-8",
+        )
+        (target / ".env").symlink_to("old.env")
+
+        with mock.patch.object(worktree_manager.os, "readlink", side_effect=OSError("read failed")):
+            with self.assertRaisesRegex(worktree_manager.WorktreeManagerError, "read failed"):
+                worktree_manager.rebuild_links(self.repo, target)
+
     def test_acquire_fills_lowest_missing_slot_when_registered_slots_are_occupied(self) -> None:
         for number in (1, 2, 4):
             worker = self.repo / ".worktrees" / f"{number:02d}"

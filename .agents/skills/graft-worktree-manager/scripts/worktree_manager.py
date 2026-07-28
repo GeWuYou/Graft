@@ -16,11 +16,13 @@ import sys
 from pathlib import Path
 
 
-POOL_SLOT = re.compile(r"(?P<slot>\d{2,})$")
-LEGACY_POOL_SUFFIX = re.compile(r"-wt-(?P<slot>\d{2,})$")
-POOL_BRANCH = re.compile(r"main-(?P<slot>\d{2,})$")
+POOL_SLOT = re.compile(r"(?P<slot>\d{2})$")
+LEGACY_POOL_SUFFIX = re.compile(r"-wt-(?P<slot>\d{2})$")
+POOL_BRANCH = re.compile(r"main-(?P<slot>\d{2})$")
 ALLOWED_BRANCH = re.compile(r"^(feature|fix|refactor|docs|chore|build|ci)/[a-z0-9]+(?:-[a-z0-9]+)*$")
 LEASE_FILE = "graft-worktree-manager-leases.json"
+MIN_POOL_SLOT = 1
+MAX_POOL_SLOT = 99
 
 
 class WorktreeManagerError(RuntimeError):
@@ -94,11 +96,20 @@ def pool_slot(root: Path, path: Path) -> int | None:
 
 
 def pool_path(root: Path, number: int) -> Path:
+    validate_pool_slot(number)
     return pool_root(root) / f"{number:02d}"
 
 
 def pool_branch(number: int) -> str:
+    validate_pool_slot(number)
     return f"main-{number:02d}"
+
+
+def validate_pool_slot(number: int) -> None:
+    if not MIN_POOL_SLOT <= number <= MAX_POOL_SLOT:
+        raise WorktreeManagerError(
+            f"pool slot must be between {MIN_POOL_SLOT:02d} and {MAX_POOL_SLOT:02d}"
+        )
 
 
 def legacy_pool_slot(root: Path, path: Path) -> int | None:
@@ -129,11 +140,6 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     return completed.returncode == 0
 
 
-def ref_head(root: Path, ref: str) -> str | None:
-    head = git(root, "rev-parse", "--verify", "--quiet", ref, check=False)
-    return head or None
-
-
 def marker_branches(root: Path) -> dict[int, tuple[str, str]]:
     result: dict[int, tuple[str, str]] = {}
     for line in git(root, "for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads").splitlines():
@@ -156,11 +162,19 @@ def numbered_directories(root: Path) -> set[int]:
     return result
 
 
-def inspect_slots(root: Path) -> list[Slot]:
-    worktrees = {pool_slot(root, item.path): item for item in parse_worktrees(root) if pool_slot(root, item.path) is not None}
+def inspect_slots(
+    root: Path,
+    parsed_worktrees: list[Worktree] | None = None,
+    current: str | None = None,
+) -> list[Slot]:
+    worktrees = {
+        pool_slot(root, item.path): item
+        for item in parsed_worktrees or parse_worktrees(root)
+        if pool_slot(root, item.path) is not None
+    }
     markers = marker_branches(root)
     directories = numbered_directories(root)
-    current = origin_main(root)
+    current = current or origin_main(root)
     slots = set(worktrees) | set(markers) | directories
     result: list[Slot] = []
     for number in sorted(slot for slot in slots if slot is not None):
@@ -211,8 +225,8 @@ def now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def baseline_state(worktree: Worktree, root: Path) -> str:
-    current = origin_main(root)
+def baseline_state(worktree: Worktree, root: Path, current: str | None = None) -> str:
+    current = current or origin_main(root)
     if worktree.head == current:
         return "current"
     if is_ancestor(root, worktree.head, current):
@@ -220,14 +234,30 @@ def baseline_state(worktree: Worktree, root: Path) -> str:
     return "unknown"
 
 
-def is_reusable_slot(slot: Slot, root: Path) -> bool:
+def is_reusable_slot(
+    slot: Slot,
+    root: Path,
+    current: str | None = None,
+    change_count: int | None = None,
+) -> bool:
     worktree = slot.worktree
-    if slot.kind != "registered" or worktree is None or changes(worktree.path):
+    if slot.kind != "registered" or worktree is None:
         return False
-    return worktree.branch in (None, pool_branch(slot.number)) and is_ancestor(root, worktree.head, origin_main(root))
+    is_dirty = change_count if change_count is not None else changes(worktree.path)
+    if is_dirty:
+        return False
+    return worktree.branch in (None, pool_branch(slot.number)) and is_ancestor(
+        root, worktree.head, current or origin_main(root)
+    )
 
 
-def lifecycle(slot: Slot, root: Path, leases: dict[str, dict[str, str]]) -> str:
+def lifecycle(
+    slot: Slot,
+    root: Path,
+    leases: dict[str, dict[str, str]],
+    current: str | None = None,
+    change_count: int | None = None,
+) -> str:
     worktree = slot.worktree
     if slot.kind == "recoverable":
         return "recoverable"
@@ -235,21 +265,27 @@ def lifecycle(slot: Slot, root: Path, leases: dict[str, dict[str, str]]) -> str:
         return "broken"
     if worktree is None:
         return "free"
-    if is_reusable_slot(slot, root):
+    if is_reusable_slot(slot, root, current, change_count):
         return "idle"
     lease = leases.get(str(slot.number))
     if lease is None:
         return "legacy-untracked"
     if lease.get("branch") != (worktree.branch or ""):
         return "lease-mismatch"
-    if changes(worktree.path):
+    is_dirty = change_count if change_count is not None else changes(worktree.path)
+    if is_dirty:
         return "in-progress"
     if lease.get("closeout_commit") == worktree.head:
         return "release-ready"
     return "in-progress" if lease.get("base") != worktree.head else "acquired"
 
 
-def state(slot: Slot, root: Path) -> str:
+def state(
+    slot: Slot,
+    root: Path,
+    current: str | None = None,
+    change_count: int | None = None,
+) -> str:
     worktree = slot.worktree
     if slot.kind == "recoverable":
         return "recoverable"
@@ -257,30 +293,35 @@ def state(slot: Slot, root: Path) -> str:
         return "broken"
     if worktree is None:
         return "free"
-    if changes(worktree.path):
+    is_dirty = change_count if change_count is not None else changes(worktree.path)
+    if is_dirty:
         return "dirty"
-    return "available" if is_reusable_slot(slot, root) else "occupied"
+    return "available" if is_reusable_slot(slot, root, current, change_count) else "occupied"
 
 
 def status_rows(root: Path) -> list[dict[str, object]]:
     leases = load_leases(root)
+    parsed_worktrees = parse_worktrees(root)
+    current = origin_main(root)
+    change_counts = {worktree.path: changes(worktree.path) for worktree in parsed_worktrees}
     rows: list[dict[str, object]] = [{
-        "path": str(root), "branch": next(item.branch for item in parse_worktrees(root) if item.path == root),
-        "head": git(root, "rev-parse", "HEAD"), "changes": changes(root), "state": "integration",
+        "path": str(root), "branch": next(item.branch for item in parsed_worktrees if item.path == root),
+        "head": git(root, "rev-parse", "HEAD"), "changes": change_counts[root], "state": "integration",
         "slot": None, "slot_state": None, "lifecycle": None, "baseline": None, "reason": None,
     }]
-    for slot in inspect_slots(root):
+    for slot in inspect_slots(root, parsed_worktrees, current):
         worktree = slot.worktree
+        change_count = change_counts[worktree.path] if worktree else 0
         rows.append({
             "path": str(slot.path),
             "branch": worktree.branch if worktree else slot.marker,
             "head": worktree.head if worktree else slot.marker_head,
-            "changes": changes(worktree.path) if worktree else 0,
-            "state": state(slot, root),
+            "changes": change_count,
+            "state": state(slot, root, current, change_count),
             "slot": slot.number,
             "slot_state": slot.kind,
-            "lifecycle": lifecycle(slot, root, leases),
-            "baseline": baseline_state(worktree, root) if worktree else None,
+            "lifecycle": lifecycle(slot, root, leases, current, change_count),
+            "baseline": baseline_state(worktree, root, current) if worktree else None,
             "reason": slot.reason,
             "lease": leases.get(str(slot.number)),
         })
@@ -357,12 +398,13 @@ def validate_link_rebuild(root: Path, target: Path) -> None:
 
 def rebuild_links(root: Path, target: Path) -> None:
     links = load_links(root)
-    previous = {
-        target / str(link["target"]): os.readlink(target / str(link["target"]))
-        for link in links
-        if (target / str(link["target"])).is_symlink()
-    }
+    previous: dict[Path, str] = {}
     try:
+        previous = {
+            target / str(link["target"]): os.readlink(target / str(link["target"]))
+            for link in links
+            if (target / str(link["target"])).is_symlink()
+        }
         for link in links:
             source = root / str(link["source"])
             destination = target / str(link["target"])
@@ -373,14 +415,19 @@ def rebuild_links(root: Path, target: Path) -> None:
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.symlink_to(Path(os.path.relpath(source, destination.parent)))
     except OSError as exc:
+        rollback_errors: list[str] = []
         for link in links:
             destination = target / str(link["target"])
-            if destination.is_symlink():
-                destination.unlink()
-            if destination in previous:
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.symlink_to(previous[destination])
-        raise WorktreeManagerError(f"rebuild_links failed for {target}: {exc}") from exc
+            try:
+                if destination.is_symlink():
+                    destination.unlink()
+                if destination in previous:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.symlink_to(previous[destination])
+            except OSError as rollback_exc:
+                rollback_errors.append(f"{destination}: {rollback_exc}")
+        suffix = f"; rollback failed: {'; '.join(rollback_errors)}" if rollback_errors else ""
+        raise WorktreeManagerError(f"rebuild_links failed for {target}: {exc}{suffix}") from exc
 
 
 def sync_pool_slot(root: Path, target: Path) -> None:
@@ -388,6 +435,7 @@ def sync_pool_slot(root: Path, target: Path) -> None:
     number = pool_slot(root, target)
     if entry is None or number is None:
         raise WorktreeManagerError(f"unregistered pool worktree: {target}")
+    validate_pool_slot(number)
     if changes(target):
         raise WorktreeManagerError(f"refusing to sync non-clean worktree: {target}")
     marker = pool_branch(number)
@@ -400,15 +448,12 @@ def sync_pool_slot(root: Path, target: Path) -> None:
     apply_links(root, target)
 
 
-def broken_slots(root: Path) -> list[Slot]:
-    return [slot for slot in inspect_slots(root) if slot.kind == "broken"]
-
-
 def first_free_slot(slots: list[Slot]) -> int:
     used = {slot.number for slot in slots}
     number = 1
     while number in used:
         number += 1
+    validate_pool_slot(number)
     return number
 
 
@@ -521,6 +566,7 @@ def release(root: Path, target: Path, confirmation: str | None) -> None:
 
 
 def repair(root: Path, number: int, confirmed: bool) -> None:
+    validate_pool_slot(number)
     if not confirmed:
         raise WorktreeManagerError("repair requires --confirm")
     with manager_lock(root):
@@ -544,8 +590,11 @@ def reconcile(root: Path, numbers: list[str], confirmed: bool) -> None:
             requested = [int(number) for number in numbers] if numbers else None
         except ValueError as exc:
             raise WorktreeManagerError("reconcile slots must be numeric") from exc
-        if requested is not None and (any(number < 1 for number in requested) or len(set(requested)) != len(requested)):
+        if requested is not None and (len(set(requested)) != len(requested)):
             raise WorktreeManagerError("reconcile slots must be unique positive numbers")
+        if requested is not None:
+            for number in requested:
+                validate_pool_slot(number)
         slots = inspect_slots(root)
         candidates = [slot for slot in slots if slot.kind == "registered" and (requested is None or slot.number in requested)]
         if requested is not None and {slot.number for slot in candidates} != set(requested):
@@ -650,8 +699,6 @@ def main() -> int:
                 number = int(args.slot)
             except ValueError as exc:
                 raise WorktreeManagerError("repair slot must be numeric") from exc
-            if number < 1:
-                raise WorktreeManagerError("repair slot must be positive")
             repair(root, number, args.confirm)
         elif args.command == "reconcile":
             reconcile(root, args.slots, args.confirm)
