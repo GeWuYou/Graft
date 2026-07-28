@@ -79,13 +79,13 @@ Container Resize
 
 响应式组件只接受稳定语义，不接收像素宽度或设备布尔值。
 
-| 维度         | 值                                       | 用途                       |
-| ------------ | ---------------------------------------- | -------------------------- |
-| Density      | `compact` / `comfortable` / `spacious`   | 信息密度、间距和工具栏排布 |
-| Layout       | `stack` / `flow` / `split` / `grid`      | 内容关系与栅格行为         |
-| Surface      | `page` / `dialog` / `drawer` / `sheet`   | 容器与交互表面             |
-| Presentation | `data` / `entity`                        | 表格优先或实体卡片可选     |
-| Interaction  | `readonly` / `interactive` / `workspace` | 窄容器下允许的操作等级     |
+| 维度         | 值                                       | 用途                         |
+| ------------ | ---------------------------------------- | ---------------------------- |
+| Density      | `compact` / `comfortable` / `spacious`   | 信息密度、间距和工具栏排布   |
+| Layout       | `stack` / `flow` / `split` / `grid`      | 内容关系与栅格行为           |
+| Surface      | `page` / `dialog` / `drawer` / `sheet`   | 容器与交互表面               |
+| Presentation | `data` / `entity` / `log`                | 表格优先、实体卡片或日志卡片 |
+| Interaction  | `readonly` / `interactive` / `workspace` | 窄容器下允许的操作等级       |
 
 业务页面只传递业务语义，例如 `presentation="data"`、`purpose="form"` 或 `interaction="workspace"`；shared 层依据容器与策略选择具体布局。禁止以 `width=900`、`mobile` 或 `isMobile` 作为组件公共接口。
 
@@ -97,6 +97,7 @@ Container Resize
      -> 列表或查询结果 -> ResponsiveTable
         -> presentation=data   -> 表格，窄容器横向滚动与列优先级
         -> presentation=entity -> shared 决定表格或 ResponsiveCardList
+        -> presentation=log    -> Desktop/Tablet 表格，compact 使用同一 ResponsiveTable 卡片槽
      -> 详情或概览 -> ResponsiveContent
      -> 表单或编辑 -> ResponsiveForm + ResponsiveDialog
      -> 代码、日志、终端、Diff -> Desktop Preferred 内容容器
@@ -106,20 +107,20 @@ Container Resize
 
 ## 7. 组件职责与契约
 
-| 组件                                     | 业务输入                                     | shared 层职责                                                            |
-| ---------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| `ResponsivePage`                         | 页面类型、密度                               | 页面宽度、滚动边界、安全区与标准留白                                     |
-| `ResponsiveHeader`                       | 标题、主/次操作 slots                        | 标题与操作区堆叠、动作溢出                                               |
-| `ResponsiveToolbar`                      | 筛选、主操作、次操作、批量操作、溢出 slots   | 换行、全宽筛选、保留主操作、次操作收进 Overflow Menu                     |
-| `ResponsiveContent`                      | 内容与布局语义                               | 标准节奏、信息栅格与窄容器内边距                                         |
-| `ResponsiveTable`                        | `rows`、语义 columns、行操作、`presentation` | 容器测量、固定主列/操作列、列优先级、横向滚动、分页与 CardList 切换      |
-| `ResponsiveCardList`                     | 同一行数据与实体摘要映射                     | 仅用于 `entity` presentation 的移动呈现，不能形成第二个业务页            |
-| `ResponsiveForm`                         | 字段组、语义列跨度、操作区                   | 标签位置、Grid 到单列、控件宽度与底部操作区安全性                        |
-| `ResponsiveDialog`                       | `purpose`、`size`、slots、操作语义           | 在 Dialog、Drawer、Fullscreen、Bottom Sheet 间选择表面                   |
-| `ResponsiveLayout` / `ResponsiveSidebar` | 导航树与壳层 slots                           | Desktop 固定侧栏、Tablet 紧凑导航、Mobile Drawer、面包屑截断和 Tabs 溢出 |
-| `ResponsiveEmpty`                        | 空、加载、错误态语义                         | 紧凑且可访问的反馈布局，不重复页面级间距规则                             |
+| 组件                                     | 业务输入                                     | shared 层职责                                                               |
+| ---------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------- |
+| `ResponsivePage`                         | 页面类型、密度                               | 页面宽度、滚动边界、安全区与标准留白                                        |
+| `ResponsiveHeader`                       | 标题、主/次操作 slots                        | 标题与操作区堆叠、动作溢出                                                  |
+| `ResponsiveToolbar`                      | 筛选、主操作、次操作、批量操作、溢出 slots   | 换行、全宽筛选、保留主操作、次操作收进 Overflow Menu                        |
+| `ResponsiveContent`                      | 内容与布局语义                               | 标准节奏、信息栅格与窄容器内边距                                            |
+| `ResponsiveTable`                        | `rows`、语义 columns、行操作、`presentation` | 容器测量、固定主列/操作列、列优先级、横向滚动、分页与同源卡片切换           |
+| `ResponsiveCardList`                     | 同一行数据与实体摘要映射                     | 用于 `entity`，以及受控 `log` presentation 的移动呈现，不能形成第二个业务页 |
+| `ResponsiveForm`                         | 字段组、语义列跨度、操作区                   | 标签位置、Grid 到单列、控件宽度与底部操作区安全性                           |
+| `ResponsiveDialog`                       | `purpose`、`size`、slots、操作语义           | 在 Dialog、Drawer、Fullscreen、Bottom Sheet 间选择表面                      |
+| `ResponsiveLayout` / `ResponsiveSidebar` | 导航树与壳层 slots                           | Desktop 固定侧栏、Tablet 紧凑导航、Mobile Drawer、面包屑截断和 Tabs 溢出    |
+| `ResponsiveEmpty`                        | 空、加载、错误态语义                         | 紧凑且可访问的反馈布局，不重复页面级间距规则                                |
 
-`ResponsiveTable` 的 `data` presentation 永远保留表格语义，Mobile 允许横向滚动和辅助列隐藏；只有 `entity` presentation 可以切换为 `ResponsiveCardList`。每列必须声明可见性优先级，并确保状态、主标识和可操作入口不会同时消失。
+`ResponsiveTable` 的 `data` presentation 永远保留表格语义，Mobile 允许横向滚动和辅助列隐藏；`entity` 可以切换为 `ResponsiveCardList`，`log` 只在 compact density 切换到同一个表格实例提供的卡片槽。日志模块只能配置卡片字段优先级和业务操作，不能建立页面本地 Card List 或设备检测。每列必须声明可见性优先级，并确保状态、主标识和可操作入口不会同时消失。
 
 `ResponsiveDialog` 的默认映射为：短确认/动作流在 Mobile 使用 Bottom Sheet；详情或短表单按可用空间使用 Dialog/Drawer；复杂表单在 Mobile 使用 Fullscreen；`workspace` 不承诺编辑能力，改为只读、复制、检索或引导至 Desktop。
 
@@ -127,7 +128,7 @@ Container Resize
 
 ## 8. 页面策略
 
-- 表格：审计、日志、监控、RBAC、完整任务管理和资源运行数据属于 `data`；模板、目录、镜像、网络、卷和短实体选择列表可声明 `entity`。详情页中按 owner 限定的少量任务历史可作为实体摘要声明 `entity`，并只通过 `ResponsiveTable` 的卡片槽位呈现同一份记录。业务页面不能用 CSS 或 `v-if` 自行实现第二份卡片布局。分页列表的页面 surface、工具栏和滚动细则继续以 [分页列表页统一规范与收敛计划](分页列表页统一规范与收敛计划.md) 为准，本规范不复制或取代其列表页 authority。
+- 表格：审计、访问、应用及后续日志页使用 `log`；它们在 Desktop/Tablet 仍为 `data` 表格，在 compact density 通过 `ResponsiveTable` 的统一移动端 renderer 显示同一记录的卡片摘要。日志卡片由模块只声明字段优先级：事件/消息、状态、时间、主体/目标、技术 ID、详情和溢出操作。模板、目录、镜像、网络、卷和短实体选择列表可声明 `entity`。详情页中按 owner 限定的少量任务历史可作为实体摘要声明 `entity`，并只通过 `ResponsiveTable` 的卡片槽位呈现同一份记录。业务页面不能用 CSS 或 `v-if` 自行实现第二份卡片布局。分页列表的页面 surface、工具栏和滚动细则继续以 [分页列表页统一规范与收敛计划](分页列表页统一规范与收敛计划.md) 为准，本规范不复制或取代其列表页 authority。
 - 表单：标签、表单列、Footer 和提交按钮由 `ResponsiveForm` 管理。复杂编辑保持 Desktop Preferred，Mobile 不强行压缩为可编辑代码工作台。
 - 导航：Sidebar、Breadcrumb、Tabs、TopBar 与 Drawer 由壳层组件集中治理，页面不得自行侦测窗口来折叠导航。
 - Monaco/YAML/JSON/Code Editor/Terminal/Diff：Desktop Preferred；Mobile 默认只读，保留查看、复制、搜索、下载或转到 Desktop 的安全路径。

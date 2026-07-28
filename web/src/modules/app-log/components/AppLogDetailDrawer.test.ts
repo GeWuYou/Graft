@@ -23,6 +23,13 @@ const LogJsonPanelStub = defineComponent({
   },
 });
 
+const ResourceDetailLayoutStub = defineComponent({
+  name: 'ResourceDetailLayout',
+  setup(_props, { slots }) {
+    return () => h('aside', slots.default?.());
+  },
+});
+
 const activeTabKey = Symbol('activeTab');
 
 const TTabsStub = defineComponent({
@@ -82,6 +89,7 @@ const i18n = createI18n({
           category: '类别',
         },
         detail: {
+          back: '返回应用日志',
           basic: '基础信息',
           collapseContext: '收起完整应用日志 JSON',
           contextEmpty: '当前应用日志没有可展示的上下文。',
@@ -144,7 +152,7 @@ describe('AppLogDetailDrawer', () => {
           TButton: true,
           TDescriptions: { template: '<section><slot /></section>' },
           TDescriptionsItem: { template: '<div><slot /></div>' },
-          TDrawer: { template: '<aside><slot /></aside>' },
+          ResourceDetailLayout: ResourceDetailLayoutStub,
           TTag: { template: '<span><slot /></span>' },
           TTabPanel: TTabPanelStub,
           TTabs: TTabsStub,
@@ -172,7 +180,7 @@ describe('AppLogDetailDrawer', () => {
           TButton: true,
           TDescriptions: { template: '<section><slot /></section>' },
           TDescriptionsItem: { template: '<div><slot /></div>' },
-          TDrawer: { template: '<aside><slot /></aside>' },
+          ResourceDetailLayout: ResourceDetailLayoutStub,
           TTag: { template: '<span><slot /></span>' },
           TTabPanel: TTabPanelStub,
           TTabs: TTabsStub,

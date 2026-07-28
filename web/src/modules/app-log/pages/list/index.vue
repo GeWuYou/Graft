@@ -37,6 +37,7 @@
         :filtered-empty="hasActiveFilters && rows.length === 0"
         :loading="loading"
         :rows="rows"
+        :selection-mode="selectionMode"
         :selected-row-keys="selectedRowKeys"
         :total="total"
         :visible-column-keys="visibleColumnKeys"
@@ -45,6 +46,7 @@
         @clear-filters="resetFilters"
         @page-change="fetchAppLogs"
         @select-change="handleSelectChange"
+        @enter-selection="selectionMode = true"
       >
         <template #toolbar>
           <table-view-toolbar
@@ -55,13 +57,16 @@
             @refresh="fetchAppLogs"
           />
         </template>
-        <template v-if="selectedRowKeys.length > 0" #batch>
+        <template v-if="selectedRowKeys.length > 0 || selectionMode" #batch>
           <management-batch-bar
             :selected-label="t('appLog.batch.selected', { count: selectedRowKeys.length })"
             :clear-label="t('appLog.batch.cancelSelection')"
             clear-test-id="app-log-batch-clear"
-            @clear="selectedRowKeys = []"
+            @clear="clearSelectionMode"
           >
+            <t-button v-if="selectionMode" size="small" theme="default" variant="outline" @click="selectCurrentPage">
+              {{ t('appLog.batch.selectAll') }}
+            </t-button>
             <t-button
               v-permission="permissionCodes.DELETE"
               size="small"
@@ -201,6 +206,7 @@ const activePreset = ref<AppLogPresetKey>('all');
 const columnDrawerVisible = ref(false);
 const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
 const selectedRowKeys = ref<Array<string | number>>([]);
+const selectionMode = ref(false);
 const pagination = ref({
   current: 1,
   pageSize: 20,
@@ -390,6 +396,15 @@ async function openDetail(row: AppLogItem) {
 
 function handleSelectChange(keys: Array<string | number>) {
   selectedRowKeys.value = keys;
+}
+
+function clearSelectionMode() {
+  selectedRowKeys.value = [];
+  selectionMode.value = false;
+}
+
+function selectCurrentPage() {
+  selectedRowKeys.value = rows.value.map((row) => row.id);
 }
 
 function confirmDeleteOne(row: AppLogItem) {

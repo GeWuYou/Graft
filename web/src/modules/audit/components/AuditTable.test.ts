@@ -6,12 +6,12 @@ import { createI18n } from 'vue-i18n';
 import type { AuditLogListItem } from '../types/audit';
 import AuditTable from './AuditTable.vue';
 
-const TTableStub = defineComponent({
-  name: 'TTableStub',
-  props: ['columns', 'data'],
+const ManagementPagedTableStub = defineComponent({
+  name: 'ManagementPagedTableStub',
+  props: ['cardsVisible', 'columns', 'presentation', 'rows'],
   emits: ['row-click'],
   setup(props, { emit, slots }) {
-    const row = props.data?.[0] ?? auditRow();
+    const row = props.rows?.[0] ?? auditRow();
     return () =>
       h('section', { 'data-testid': 'table' }, [
         h(
@@ -21,10 +21,11 @@ const TTableStub = defineComponent({
             h('span', { 'data-fixed': column.fixed ?? '' }, column.colKey),
           ),
         ),
-        h('button', { 'data-testid': 'row-click', onClick: () => emit('row-click', { row }) }, 'open'),
+        h('button', { 'data-testid': 'row-click', onClick: () => emit('row-click', row) }, 'open'),
         h('div', { 'data-testid': 'action-slot' }, slots.action?.({ row })),
         h('div', { 'data-testid': 'resource-slot' }, slots.resource?.({ row })),
         h('div', { 'data-testid': 'operation-slot' }, slots.operation?.({ row })),
+        h('div', { 'data-testid': 'cards-slot' }, slots.cards?.()),
       ]);
   },
 });
@@ -62,13 +63,6 @@ const TableActionMenuStub = defineComponent({
           props.actions[4].label,
         ),
       ]);
-  },
-});
-
-const passthroughStub = defineComponent({
-  name: 'PassthroughStub',
-  setup(_, { slots }) {
-    return () => h('div', slots.default?.());
   },
 });
 
@@ -145,13 +139,8 @@ function mountTable(row = auditRow()) {
     global: {
       plugins: [i18n],
       stubs: {
-        ManagementTableCard: passthroughStub,
-        ManagementTablePagination: passthroughStub,
+        ManagementPagedTable: ManagementPagedTableStub,
         TableActionMenu: TableActionMenuStub,
-        TEmpty: passthroughStub,
-        TPagination: passthroughStub,
-        TTable: TTableStub,
-        TTag: passthroughStub,
       },
     },
     props: {
@@ -172,7 +161,7 @@ describe('AuditTable', () => {
     const operationColumn = wrapper.findAll('[data-testid="table-columns"] span').at(-1);
     expect(wrapper.get('[data-testid="table-columns"]').text()).toContain('operation');
     expect(operationColumn?.attributes('data-fixed')).toBe('right');
-    expect(wrapper.find('.audit-log-table__host').classes()).toContain('graft-scrollbar');
+    expect(wrapper.findComponent({ name: 'ManagementPagedTableStub' }).props('presentation')).toBe('log');
 
     await wrapper.get('[data-testid="row-click"]').trigger('click');
 
@@ -219,5 +208,19 @@ describe('AuditTable', () => {
     const wrapper = mountTable();
 
     expect(wrapper.get('[data-testid="resource-slot"]').findAll('.stack-cell__secondary')).toHaveLength(1);
+  });
+
+  it('provides the audit-priority mobile card through the shared log renderer slot', () => {
+    const wrapper = mountTable();
+
+    const card = wrapper.get('.audit-log-card');
+    expect(card.text()).toContain('Permission Denied');
+    expect(card.text()).toContain('Denied');
+    expect(card.text()).toContain('High');
+    expect(card.text()).toContain('Admin');
+    expect(card.get('.audit-log-card__request').text()).toContain('Request ID');
+    expect(
+      wrapper.findAllComponents({ name: 'LogIdText' }).some((item) => item.props('displayValue') === 'req-1'),
+    ).toBe(true);
   });
 });

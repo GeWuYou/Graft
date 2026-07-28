@@ -1,5 +1,5 @@
 <template>
-  <div class="table-view-toolbar">
+  <div :class="['table-view-toolbar', { 'table-view-toolbar--compact': compact }]">
     <slot name="before" />
     <t-tooltip v-if="refreshLabel" :content="refreshLabel" placement="top">
       <t-button
@@ -11,7 +11,7 @@
         @click="$emit('refresh')"
       >
         <template #icon><refresh-icon /></template>
-        {{ refreshLabel }}
+        <span v-if="!compact">{{ refreshLabel }}</span>
       </t-button>
     </t-tooltip>
     <t-tooltip v-if="columnSettingsLabel" :content="columnSettingsLabel" placement="top">
@@ -23,7 +23,7 @@
         @click="$emit('column-settings')"
       >
         <template #icon><view-column-icon /></template>
-        {{ columnSettingsLabel }}
+        <span v-if="!compact">{{ columnSettingsLabel }}</span>
       </t-button>
     </t-tooltip>
     <t-tooltip v-if="densityLabel" :content="densityLabel" placement="top">
@@ -36,6 +36,9 @@
 </template>
 <script setup lang="ts">
 import { RefreshIcon, ViewColumnIcon, ViewModuleIcon } from 'tdesign-icons-vue-next';
+import { computed } from 'vue';
+
+import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 
 defineProps<{
   columnSettingsLabel?: string;
@@ -49,6 +52,9 @@ defineEmits<{
   (e: 'density'): void;
   (e: 'refresh'): void;
 }>();
+
+const viewportVariant = useViewportResponsiveVariant();
+const compact = computed(() => viewportVariant.value.density === 'compact');
 </script>
 <style scoped lang="less">
 .table-view-toolbar {
@@ -61,6 +67,10 @@ defineEmits<{
 
 .table-view-toolbar__button {
   flex: 0 0 auto;
+}
+
+.table-view-toolbar--compact .table-view-toolbar__button {
+  min-width: auto;
 }
 
 @media (width <= 768px) {

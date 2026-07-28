@@ -3,6 +3,7 @@
     v-model:current="current"
     v-model:page-size="pageSize"
     :cell-slot-names="cellSlotNames"
+    cards-visible
     :columns="columns"
     :description="description"
     :empty-description="emptyDescription"
@@ -10,6 +11,7 @@
     :footer-summary="footerSummary"
     head-label="access-log-table-head"
     :loading="loading"
+    presentation="log"
     :rows="rows"
     :summary="summary"
     :total="total"
@@ -18,6 +20,40 @@
   >
     <template v-if="$slots.toolbar" #toolbar>
       <slot name="toolbar" />
+    </template>
+    <template #cards>
+      <article
+        v-for="row in rows"
+        :key="row.id"
+        class="log-card access-log-card"
+        tabindex="0"
+        @click="$emit('detail', row)"
+        @keydown.enter="$emit('detail', row)"
+      >
+        <div class="log-card__header">
+          <t-tag theme="primary" variant="light-outline" size="small">{{ row.method }}</t-tag>
+          <t-tag :theme="statusTheme(row.status_code)" variant="light-outline" size="small">{{
+            row.status_code
+          }}</t-tag>
+          <time class="log-card__time">{{ Management.formatCompactDateTime(row.started_at, locale) }}</time>
+        </div>
+        <p class="log-card__title">{{ row.path }}</p>
+        <p class="log-card__metadata">
+          {{ accessLogUserPrimary(row, t) }} <span aria-hidden="true">/</span> {{ row.client_ip || '-' }}
+        </p>
+        <div class="log-card__technical">
+          <span>{{ t('accessLog.columns.requestId') }}</span>
+          <log-id-text :display-value="row.request_id" :tooltip="row.request_id" v-bind="technicalCopyLabels" />
+        </div>
+        <div class="log-card__actions" @click.stop>
+          <table-action-menu
+            :actions="rowActions(row)"
+            :more-label="t('accessLog.actions.more')"
+            :more-label-fallback="t('accessLog.actions.more')"
+            @action="(action) => handleRowAction(action, row)"
+          />
+        </div>
+      </article>
     </template>
     <template #method="{ row }">
       <t-tag theme="primary" variant="light-outline" size="small">{{ accessRow(row).method }}</t-tag>
@@ -245,5 +281,67 @@ void emit;
 .duration-danger {
   color: var(--td-error-color);
   font-weight: 600;
+}
+
+.log-card {
+  border: 1px solid var(--graft-card-border-color);
+  border-radius: var(--td-radius-medium);
+  cursor: pointer;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  padding: var(--graft-density-gap-12);
+}
+
+.log-card:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+
+.log-card__header,
+.log-card__technical,
+.log-card__metadata {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.log-card__time,
+.log-card__metadata,
+.log-card__technical > span {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-s);
+}
+
+.log-card__time {
+  margin-left: auto;
+}
+
+.log-card__title {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  font-weight: 600;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  overflow: hidden;
+}
+
+.log-card__metadata {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-card__technical {
+  justify-content: space-between;
+}
+
+.log-card__technical :deep(.log-id-text) {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.log-card__actions {
+  justify-self: end;
 }
 </style>

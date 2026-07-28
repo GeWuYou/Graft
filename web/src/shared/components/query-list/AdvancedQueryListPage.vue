@@ -1,5 +1,5 @@
 <template>
-  <div :class="rootClass" :data-page-type="pageType">
+  <responsive-page :class="rootClass" :data-page-type="pageType">
     <management-page-content>
       <management-page-header
         :title="title"
@@ -44,11 +44,12 @@
     </management-page-content>
 
     <slot name="detail" />
-  </div>
+  </responsive-page>
 </template>
 <script setup lang="ts">
 import { ManagementEmptyState, ManagementPageContent, ManagementPageHeader } from '@/shared/components/management';
 import type { PageHeaderSource } from '@/shared/components/page';
+import ResponsivePage from '@/shared/components/responsive/ResponsivePage.vue';
 
 // 高级查询页只编排列表外层与错误反馈；筛选、表格工具和服务端查询仍由业务页面通过具名槽拥有。
 withDefaults(

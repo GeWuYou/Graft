@@ -13,6 +13,47 @@
     <template v-if="$slots.batch" #batch>
       <slot name="batch" />
     </template>
+    <template #cards>
+      <article
+        v-for="row in rows"
+        :key="row.id"
+        class="log-card app-log-card"
+        :class="{ 'log-card--selecting': selectionMode }"
+        tabindex="0"
+        @click="$emit('detail', row)"
+        @keydown.enter="$emit('detail', row)"
+      >
+        <t-checkbox
+          v-if="selectionMode"
+          class="log-card__selection"
+          :checked="isSelected(row)"
+          @click.stop
+          @change="toggleCardSelection(row, $event)"
+        />
+        <div class="log-card__header">
+          <t-tag :theme="appLogSeverityTheme(row.severity)" variant="light-outline" size="small">
+            {{ row.severity.toUpperCase() }}
+          </t-tag>
+          <time class="log-card__time">{{ formatCompactDateTime(row.occurred_at, locale) }}</time>
+        </div>
+        <p class="log-card__title">{{ row.message }}</p>
+        <p class="log-card__metadata">
+          {{ row.component || '-' }} <span aria-hidden="true">/</span> {{ row.category || '-' }}
+        </p>
+        <div class="log-card__technical">
+          <span>{{ t('appLog.columns.operation') }}</span>
+          <log-id-text v-bind="technicalTextProps(appLogOperationText(row, t))" />
+        </div>
+        <div class="log-card__actions" @click.stop>
+          <table-action-menu
+            :actions="cardActions(row)"
+            :more-label="t('appLog.actions.more')"
+            :more-label-fallback="t('appLog.actions.more')"
+            @action="(action) => handleCardAction(action, row)"
+          />
+        </div>
+      </article>
+    </template>
     <template v-if="filteredEmpty" #empty-action>
       <t-button size="small" theme="default" variant="outline" @click="$emit('clear-filters')">
         {{ t('appLog.actions.reset') }}
@@ -110,6 +151,7 @@ const props = defineProps<{
   filteredEmpty?: boolean;
   loading?: boolean;
   rows: AppLogItem[];
+  selectionMode?: boolean;
   selectedRowKeys?: Array<string | number>;
   total: number;
   visibleColumnKeys?: string[];
@@ -124,6 +166,7 @@ const emit = defineEmits<{
   (e: 'clear-filters'): void;
   (e: 'delete', row: AppLogItem): void;
   (e: 'select-change', rowKeys: Array<string | number>): void;
+  (e: 'enter-selection'): void;
 }>();
 const pageSize = defineModel<number>('pageSize', { required: true });
 const cellSlotNames = [
@@ -174,6 +217,7 @@ const columns = computed<TdBaseTableProps['columns']>(() => {
   return resolveManagedColumns(allColumns, props.visibleColumnKeys, ['row-select', 'actions']);
 });
 const pagedTableProps = computed(() => ({
+  cardsVisible: true,
   cellSlotNames,
   columns: columns.value,
   emptyDescription: props.emptyDescription,
@@ -181,6 +225,7 @@ const pagedTableProps = computed(() => ({
   footerSummary: props.footerSummary,
   headLabel: 'app-log-table-head',
   loading: props.loading,
+  presentation: 'log' as const,
   rows: props.rows,
   selectedRowKeys: props.selectedRowKeys,
   total: props.total,
@@ -219,6 +264,37 @@ function rowActions(row: AppLogItem) {
   return actions;
 }
 
+function cardActions(row: AppLogItem): AppLogRowAction[] {
+  const actions = rowActions(row);
+  if (canDelete.value && !props.selectionMode) {
+    actions.push({
+      fallbackLabel: t('appLog.batch.select'),
+      label: t('appLog.batch.select'),
+      value: 'select',
+    });
+  }
+  return actions;
+}
+
+function isSelected(row: AppLogItem) {
+  return (props.selectedRowKeys ?? []).some((key) => Number(key) === row.id);
+}
+
+function toggleCardSelection(row: AppLogItem, checked: boolean | { checked?: boolean }) {
+  const selected = isSelected(row);
+  const nextSelected = typeof checked === 'boolean' ? checked : checked.checked === true;
+  const keys = props.selectedRowKeys ?? [];
+  emit('select-change', nextSelected && !selected ? [...keys, row.id] : keys.filter((key) => Number(key) !== row.id));
+}
+
+function handleCardAction(action: string, row: AppLogItem) {
+  if (action === 'select') {
+    emit('enter-selection');
+    return;
+  }
+  handleRowAction(action, row);
+}
+
 function handleRowAction(action: string, row: AppLogItem) {
   if (action === 'detail') {
     emit('detail', row);
@@ -237,4 +313,78 @@ void emit;
 @import '@/shared/observability/log-table-cells.less';
 
 .log-table-stack-cells();
+
+.log-card {
+  border: 1px solid var(--graft-card-border-color);
+  border-radius: var(--td-radius-medium);
+  cursor: pointer;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  padding: var(--graft-density-gap-12);
+  position: relative;
+}
+
+.log-card:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+
+.log-card__header,
+.log-card__technical,
+.log-card__metadata {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.log-card__time,
+.log-card__metadata,
+.log-card__technical > span {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-s);
+}
+
+.log-card__time {
+  margin-left: auto;
+}
+
+.log-card__title {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  font-weight: 600;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  overflow: hidden;
+}
+
+.log-card__metadata {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-card__technical {
+  justify-content: space-between;
+}
+
+.log-card__technical :deep(.log-id-text) {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.log-card__actions {
+  justify-self: end;
+}
+
+.log-card__selection {
+  left: var(--graft-density-gap-12);
+  position: absolute;
+  top: var(--graft-density-gap-12);
+  z-index: 1;
+}
+
+.log-card--selecting {
+  padding-left: calc(var(--graft-density-gap-12) + var(--graft-density-gap-24));
+}
 </style>

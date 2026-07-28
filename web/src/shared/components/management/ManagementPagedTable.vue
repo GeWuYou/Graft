@@ -190,7 +190,7 @@ const resolvedPaginationProps = computed<Partial<PaginationProps>>(() => ({
 }));
 const resolvedRowKey = computed(() => props.rowKey || 'id');
 const responsivePresentation = computed<ResponsivePresentation>(() =>
-  props.cardsVisible ? 'entity' : props.presentation,
+  props.cardsVisible && props.presentation === 'data' ? 'entity' : props.presentation,
 );
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
 function resolveColumns(density: ResponsiveDensity) {

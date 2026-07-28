@@ -155,6 +155,7 @@
       "emptyTitle": "No audit logs",
       "emptyDescription": "Adjust filters and try again.",
       "detailTitle": "Audit Detail",
+      "detailBack": "Back to Audit Logs",
       "presets": {
         "label": "Quick filters",
         "all": "All",

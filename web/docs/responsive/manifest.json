@@ -21,6 +21,24 @@
       "status": "migrated"
     },
     {
+      "path": "src/modules/audit/pages/logs/index.vue",
+      "kind": "log-audit",
+      "components": ["ResponsivePage", "ResponsiveTable", "ResourceDetailLayout"],
+      "status": "migrated"
+    },
+    {
+      "path": "src/modules/access-log/pages/list/index.vue",
+      "kind": "log-access",
+      "components": ["ResponsivePage", "ResponsiveTable", "ResourceDetailLayout"],
+      "status": "migrated"
+    },
+    {
+      "path": "src/modules/app-log/pages/list/index.vue",
+      "kind": "log-application",
+      "components": ["ResponsivePage", "ResponsiveTable", "ResourceDetailLayout"],
+      "status": "migrated"
+    },
+    {
       "path": "src/modules/task/components/TaskHistoryTable.vue",
       "kind": "detail-history",
       "components": ["ResponsiveTable", "ResponsiveCardList"],

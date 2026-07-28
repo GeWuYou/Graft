@@ -4,7 +4,7 @@
 
 ## Summary
 
-- 适用范围：`audit logs`、`access logs`，以及未来的 `app log`、`monitor log`
+- 适用范围：`audit logs`、`access logs`、`app log`，以及未来的 `monitor log`
 - 不创建统一业务模块；各日志能力继续留在所属模块
 - 共享仅上提到 `web/src/shared/**`
 
@@ -31,6 +31,14 @@
   - 完整上下文
   - 关联跳转
   - metadata
+
+## Responsive Log Center
+
+- 所有日志页通过 `ResponsiveTable` 的 `presentation="log"` 接入同一个移动端 renderer；Desktop（`>=992px`）和 Tablet 保持原有 Table，compact density 才显示同一记录的卡片摘要。
+- 筛选继续使用 `AdvancedQueryFilterBuilder`：移动端为关键词搜索、查询、单行横向滚动的快捷筛选；高级筛选默认折叠，已保存筛选归入该面板。
+- 卡片保留详情和溢出菜单。技术 ID 使用既有 `LogIdText` 复制入口，不能成为主信息列。
+- 详情使用 `ResourceDetailLayout`：Desktop Drawer、Mobile 全屏；列设置使用 `AdvancedQueryColumnDrawer`：Desktop 右侧 Drawer、Mobile Bottom Sheet。
+- 审计日志卡片信息顺序固定为：事件、审计目标、结果与风险、时间、操作者、Request ID、详情和更多菜单。
 
 ## Table Rules
 

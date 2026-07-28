@@ -28,7 +28,7 @@ import { computed, ref, useSlots } from 'vue';
 import { useResponsiveVariant, useViewportResponsiveVariant } from '@/shared/composables';
 import type { ResponsivePresentation } from '@/shared/responsive';
 
-/** Table 只按数据/实体展示语义选择横向滚动或卡片槽位，不解释列与业务操作。 */
+/** Table 只按展示语义选择横向滚动或卡片槽位，不解释列与业务操作。 */
 const {
   densityScope = 'container',
   entityCardLayout = 'compact',
@@ -47,9 +47,11 @@ const variant = computed(() => (densityScope === 'viewport' ? viewportVariant.va
 const slots = useSlots();
 const showCards = computed(
   () =>
-    presentation === 'entity' &&
     Boolean(slots.cards) &&
-    (entityCardLayout === 'adaptive' ? variant.value.density !== 'spacious' : variant.value.density === 'compact'),
+    (presentation === 'log'
+      ? variant.value.density === 'compact'
+      : presentation === 'entity' &&
+        (entityCardLayout === 'adaptive' ? variant.value.density !== 'spacious' : variant.value.density === 'compact')),
 );
 </script>
 <style scoped lang="less">

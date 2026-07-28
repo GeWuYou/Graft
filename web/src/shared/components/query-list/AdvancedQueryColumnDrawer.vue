@@ -1,5 +1,12 @@
 <template>
-  <t-drawer v-model:visible="visible" :header="title" :footer="false" placement="right" size="320px">
+  <t-drawer
+    v-model:visible="visible"
+    :header="title"
+    :footer="false"
+    :placement="compact ? 'bottom' : 'right'"
+    :size="compact ? 'auto' : '320px'"
+    :class="{ 'advanced-query-column-drawer--sheet': compact }"
+  >
     <div v-if="viewPresets?.length" class="advanced-query-column-drawer__presets">
       <p class="advanced-query-column-drawer__presets-title">{{ presetsLabel }}</p>
       <t-space break-line size="small">
@@ -37,6 +44,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
+
 export type AdvancedQueryColumnOption = {
   label: string;
   value: string;
@@ -58,6 +67,8 @@ const props = defineProps<{
 
 const visible = defineModel<boolean>('visible', { required: true });
 const selectedKeys = defineModel<string[]>('selectedKeys', { required: true });
+const viewportVariant = useViewportResponsiveVariant();
+const compact = computed(() => viewportVariant.value.density === 'compact');
 
 const disabledKeySet = computed(() => new Set(props.disabledKeys ?? []));
 
@@ -105,5 +116,9 @@ function normalizeSelectedKeys(keys: string[]) {
   border-top: 1px solid var(--td-border-level-1-color);
   margin-top: var(--graft-density-gap-16);
   padding-top: var(--graft-density-gap-16);
+}
+
+:deep(.advanced-query-column-drawer--sheet .t-drawer__body) {
+  max-height: min(70vh, 36rem);
 }
 </style>

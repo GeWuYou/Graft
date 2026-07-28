@@ -99,6 +99,25 @@ describe('responsive primitives', () => {
     expect(wrapper.find('.responsive-table__scroll').exists()).toBe(false);
   });
 
+  it('keeps log tables on the grid through tablet widths and activates cards only when compact', async () => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const wrapper = mount(ResponsiveTable, {
+      props: { presentation: 'log' },
+      slots: { cards: '<article>log card</article>', default: '<table><tbody><tr><td>row</td></tr></tbody></table>' },
+    });
+    await nextTick();
+
+    ResizeObserverMock.instances[0]?.emit(800);
+    await nextTick();
+    expect(wrapper.find('.responsive-table__cards').exists()).toBe(false);
+    expect(wrapper.find('.responsive-table__scroll table').exists()).toBe(true);
+
+    ResizeObserverMock.instances[0]?.emit(480);
+    await nextTick();
+    expect(wrapper.find('.responsive-table__cards').text()).toContain('log card');
+    expect(wrapper.find('.responsive-table__scroll').exists()).toBe(false);
+  });
+
   it('provides named toolbar and empty-state slots without business props', () => {
     const toolbar = mount(ResponsiveToolbar, {
       slots: {

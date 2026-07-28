@@ -29,6 +29,13 @@ const LogJsonPanelStub = defineComponent({
   },
 });
 
+const ResourceDetailLayoutStub = defineComponent({
+  name: 'ResourceDetailLayout',
+  setup(_props, { slots }) {
+    return () => h('aside', slots.default?.());
+  },
+});
+
 const i18n = createI18n({
   legacy: false,
   locale: 'zh-CN',
@@ -50,6 +57,7 @@ const i18n = createI18n({
           statusCode: '状态码',
         },
         detail: {
+          back: '返回访问日志',
           basic: '基础信息',
           clientIp: '客户端 IP',
           collapseContext: '收起原始 JSON',
@@ -118,7 +126,7 @@ describe('AccessLogDetailDrawer', () => {
           TButton: true,
           TDescriptions: { template: '<section><slot /></section>' },
           TDescriptionsItem: { template: '<div><slot /></div>' },
-          TDrawer: { template: '<aside><slot /></aside>' },
+          ResourceDetailLayout: ResourceDetailLayoutStub,
           TTabPanel: { template: '<div><slot /></div>' },
           TTabs: { template: '<div><slot /></div>' },
         },

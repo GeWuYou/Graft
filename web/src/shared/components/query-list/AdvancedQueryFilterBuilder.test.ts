@@ -36,6 +36,18 @@ const tagStub = defineComponent({
   },
 });
 
+const collapseStub = defineComponent({
+  setup(_, { slots }) {
+    return () => h('section', { 'data-testid': 'compact-collapse' }, slots.default?.());
+  },
+});
+
+const collapsePanelStub = defineComponent({
+  setup(_, { slots }) {
+    return () => h('section', [slots.header?.(), slots.default?.()]);
+  },
+});
+
 const defaultProps = {
   activePreset: 'all',
   addFilterLabel: 'Add Filter',
@@ -73,6 +85,8 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
           't-input': inputStub,
           't-tag': tagStub,
         },
@@ -84,7 +98,7 @@ describe('AdvancedQueryFilterBuilder', () => {
     expect(wrapper.emitted('reset')).toHaveLength(1);
   });
 
-  it('keeps compact filters collapsed until the filter entry is opened', async () => {
+  it('keeps compact filters in a collapsed filter summary while presets remain outside the panel', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: {
         ...defaultProps,
@@ -97,19 +111,17 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
           't-input': inputStub,
           't-tag': tagStub,
         },
       },
     });
 
-    expect(wrapper.find('[data-testid="saved-view"]').exists()).toBe(false);
-    expect(wrapper.text()).not.toContain('Keyword: active');
-
-    await wrapper.get('[data-testid="query-filter-builder-compact-toggle"]').trigger('click');
-
-    expect(wrapper.get('[data-testid="saved-view"]').text()).toBe('saved');
-    expect(wrapper.text()).toContain('Keyword: active');
+    expect(wrapper.find('[data-testid="compact-collapse"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="query-filter-builder-compact-toggle"]').text()).toBe('Filter (1)');
+    expect(wrapper.find('.query-filter-builder__group').exists()).toBe(false);
 
     await wrapper
       .findAll('button')

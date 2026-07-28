@@ -11,7 +11,7 @@
             @enter="$emit('search')"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
-          <template v-if="!compactMode">
+          <template v-if="!effectiveCompactMode">
             <slot name="saved-query-views" />
             <div class="query-filter-builder__actions">
               <t-button theme="primary" :loading="loading" @click="$emit('search')">
@@ -24,31 +24,38 @@
           </template>
           <t-button
             v-else
-            class="query-filter-builder__compact-toggle"
-            data-testid="query-filter-builder-compact-toggle"
-            :aria-expanded="compactExpanded"
-            theme="default"
-            variant="outline"
-            @click="compactExpanded = !compactExpanded"
+            class="query-filter-builder__compact-search"
+            theme="primary"
+            block
+            :loading="loading"
+            @click="$emit('search')"
           >
-            <template #suffix><t-icon :name="compactExpanded ? 'chevron-up' : 'filter'" /></template>
-            {{ compactToggleLabel || addFilterLabel }}
+            {{ searchLabel }}
           </t-button>
         </div>
 
-        <div v-if="compactMode && compactExpanded" class="query-filter-builder__compact-actions">
-          <slot name="saved-query-views" />
-          <div class="query-filter-builder__actions">
-            <t-button theme="primary" :loading="loading" @click="$emit('search')">
-              {{ searchLabel }}
-            </t-button>
-            <t-button theme="default" variant="outline" @click="$emit('reset')">
-              {{ resetLabel }}
-            </t-button>
-          </div>
-        </div>
+        <t-collapse
+          v-if="effectiveCompactMode"
+          v-model="compactExpandedPanels"
+          class="query-filter-builder__compact-collapse"
+        >
+          <t-collapse-panel value="filters">
+            <template #header>
+              <span data-testid="query-filter-builder-compact-toggle">{{ compactFilterSummary }}</span>
+            </template>
+            <div class="query-filter-builder__compact-actions">
+              <slot name="saved-query-views" />
+              <t-button theme="default" variant="outline" block @click="$emit('reset')">
+                {{ resetLabel }}
+              </t-button>
+            </div>
+          </t-collapse-panel>
+        </t-collapse>
 
-        <section v-if="(!compactMode || compactExpanded) && availableFields.length" class="query-filter-builder__group">
+        <section
+          v-if="(!effectiveCompactMode || compactExpanded) && availableFields.length"
+          class="query-filter-builder__group"
+        >
           <div class="query-filter-builder__group-header">
             <span class="query-filter-builder__group-title">{{ filtersGroupLabel }}</span>
           </div>
@@ -228,7 +235,7 @@
           </div>
         </section>
 
-        <div v-if="(!compactMode || compactExpanded) && presets.length" class="query-filter-builder__preset-row">
+        <div v-if="presets.length" class="query-filter-builder__preset-row">
           <span class="query-filter-builder__preset-label">{{ presetLabel }}</span>
           <t-button
             v-for="preset in presets"
@@ -242,7 +249,7 @@
           </t-button>
         </div>
 
-        <div v-if="(!compactMode || compactExpanded) && tags.length" class="query-filter-builder__tag-row">
+        <div v-if="(!effectiveCompactMode || compactExpanded) && tags.length" class="query-filter-builder__tag-row">
           <t-tag
             v-for="tag in tags"
             :key="tag.key"
@@ -264,6 +271,7 @@
 import { computed, ref, watch } from 'vue';
 
 import { ManagementToolbar } from '@/shared/components/management';
+import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 
 import type {
   AdvancedQueryFilterFieldDefinition,
@@ -343,16 +351,23 @@ defineEmits<{
 }>();
 
 const builderVisible = ref(false);
-const compactExpanded = ref(false);
+const compactExpandedPanels = ref<string[]>([]);
+const viewportVariant = useViewportResponsiveVariant();
+const effectiveCompactMode = computed(() => props.compactMode || viewportVariant.value.density === 'compact');
+const compactExpanded = computed(() => compactExpandedPanels.value.includes('filters'));
+const compactFilterSummary = computed(() => {
+  if (props.tags.length > 0) {
+    return `${props.compactToggleLabel || props.filtersGroupLabel} (${props.tags.length})`;
+  }
 
-watch(
-  () => props.compactMode,
-  (compactMode) => {
-    if (compactMode) {
-      compactExpanded.value = false;
-    }
-  },
-);
+  return props.compactToggleLabel || props.filtersGroupLabel;
+});
+
+watch(effectiveCompactMode, (compactMode) => {
+  if (compactMode) {
+    compactExpandedPanels.value = [];
+  }
+});
 
 const availableFields = computed(() =>
   props.fields.filter((field) => {
@@ -428,6 +443,14 @@ function normalizeRange(value: string[] | undefined) {
 
 .query-filter-builder__compact-toggle {
   flex: 0 0 auto;
+}
+
+.query-filter-builder__compact-search {
+  flex: 0 0 auto;
+}
+
+.query-filter-builder__compact-collapse {
+  width: 100%;
 }
 
 .query-filter-builder__compact-actions {
@@ -566,12 +589,30 @@ function normalizeRange(value: string[] | undefined) {
 
 @media (width <= 768px) {
   .query-filter-builder__top-row {
-    flex-wrap: nowrap;
+    align-items: stretch;
+    flex-flow: column nowrap;
   }
 
   .query-filter-builder__keyword {
-    flex: 1 1 auto;
+    flex: none;
     min-width: 0;
+    width: 100%;
+  }
+
+  .query-filter-builder__compact-search {
+    width: 100%;
+  }
+
+  .query-filter-builder__preset-row {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: var(--graft-density-gap-4);
+  }
+
+  .query-filter-builder__preset-row :deep(.t-button) {
+    flex: 0 0 auto;
   }
 }
 </style>

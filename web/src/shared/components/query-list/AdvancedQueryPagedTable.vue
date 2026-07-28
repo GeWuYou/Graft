@@ -3,6 +3,8 @@
     v-model:current="current"
     v-model:page-size="pageSize"
     :cell-slot-names="props.cellSlotNames"
+    :cards-visible="props.cardsVisible"
+    :column-sets="props.columnSets"
     :columns="props.columns"
     :description="props.description"
     :empty-description="props.emptyDescription"
@@ -10,6 +12,12 @@
     :footer-summary="props.footerSummary"
     :head-label="props.headLabel"
     :loading="props.loading"
+    :density-scope="props.densityScope"
+    :entity-card-layout="props.entityCardLayout"
+    :pagination-props="props.paginationProps"
+    :pagination-visible="props.paginationVisible"
+    :presentation="props.presentation"
+    :preserve-inactive="props.preserveInactive"
     :row-class-name="props.rowClassName"
     :row-key="props.rowKey"
     :rows="props.rows"
@@ -26,6 +34,12 @@
     <template v-if="$slots.batch" #batch>
       <slot name="batch" />
     </template>
+    <template v-if="$slots.cards" #cards>
+      <slot name="cards" />
+    </template>
+    <template v-if="$slots.head" #head>
+      <slot name="head" />
+    </template>
     <template v-if="$slots.pagination" #pagination>
       <slot name="pagination" />
     </template>
@@ -35,21 +49,30 @@
   </management-paged-table>
 </template>
 <script setup lang="ts">
-import type { TableRowData, TdBaseTableProps } from 'tdesign-vue-next';
+import type { PaginationProps, TableRowData, TdBaseTableProps } from 'tdesign-vue-next';
 import { computed } from 'vue';
 
 import { ManagementPagedTable } from '@/shared/components/management';
+import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/responsive';
 
 // 该组件只负责把查询页的分页模型与表格 slot 转交给共享表格壳，不拥有查询条件或服务端数据状态。
 const props = defineProps<{
   cellSlotNames: string[];
+  cardsVisible?: boolean;
+  columnSets?: Partial<Record<ResponsiveDensity, string[]>>;
   columns: TdBaseTableProps['columns'];
   description?: string;
+  densityScope?: 'container' | 'viewport';
   emptyDescription: string;
   emptyTitle: string;
+  entityCardLayout?: 'adaptive' | 'compact';
   footerSummary: string;
   headLabel: string;
   loading?: boolean;
+  paginationProps?: Partial<PaginationProps>;
+  paginationVisible?: boolean;
+  presentation?: ResponsivePresentation;
+  preserveInactive?: boolean;
   rowClassName?: TdBaseTableProps['rowClassName'];
   rowKey?: string;
   rows: TableRowData[];
