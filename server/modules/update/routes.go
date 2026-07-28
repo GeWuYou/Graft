@@ -131,13 +131,18 @@ func (h updateRouteHandlers) getFailureDiagnostic(c *gin.Context) {
 }
 
 func (h updateRouteHandlers) getOperationFailureDiagnostic(c *gin.Context) {
-	value, err := h.diagnostics.GetFailureDiagnosticByOperation(c.Request.Context(), c.Param("operationID"))
+	operationID := c.Param("operationID")
+	if !runnerOperationID.MatchString(operationID) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	value, err := h.diagnostics.GetFailureDiagnosticByOperation(c.Request.Context(), operationID)
 	if errors.Is(err, errUpdateFailureDiagnosticNotFound) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusNotFound, messagecontract.CommonNotFound.String(), nil)
 		return
 	}
 	if err != nil {
-		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return
 	}
 	h.publishDiagnosticReadAudit(c.Request.Context(), value)

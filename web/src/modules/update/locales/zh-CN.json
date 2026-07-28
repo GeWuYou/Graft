@@ -128,7 +128,8 @@
         },
         "steps": { "planning": "准备", "pulling": "拉取发行镜像", "recreating": "重建服务", "verifying": "验证服务" },
         "diagnosticUnavailable": "暂时无法读取本次升级的诊断详情，请在应用日志中按请求 ID 查询。",
-        "viewAppLogs": "查看应用日志"
+        "viewAppLogs": "查看应用日志",
+        "close": "关闭"
       },
       "capabilities": {
         "title": "安装能力矩阵",

@@ -9002,7 +9002,19 @@
             }
           },
           "400": {
-            "description": "Invalid operation identity."
+            "description": "Invalid operation identity.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -9011,10 +9023,22 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Operation failure diagnostic not found."
+            "description": "Operation failure diagnostic not found.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "500": {
-            "description": "The diagnostic store could not be read."
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       }

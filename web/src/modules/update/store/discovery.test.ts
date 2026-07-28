@@ -86,6 +86,22 @@ describe('update discovery store', () => {
     expect(store.status).toEqual(refreshed);
   });
 
+  it('does not let a visible-page revalidation overwrite a newer manual refresh', async () => {
+    const permissions = usePermissionStore();
+    permissions.setBootstrapSnapshot({ permissions: ['platform-update.read', 'platform-update.check'] } as never);
+    let resolveRevalidation!: (status: never) => void;
+    vi.mocked(getUpdateStatus).mockReturnValueOnce(new Promise((resolve) => (resolveRevalidation = resolve)));
+    vi.mocked(checkForUpdates).mockResolvedValueOnce({ current_version: '2.0.0' } as never);
+    const store = useUpdateDiscoveryStore();
+
+    const revalidation = store.revalidateVisibleSnapshot();
+    await store.refreshSnapshot();
+    resolveRevalidation({ current_version: '1.0.0' } as never);
+    await revalidation;
+
+    expect(store.status?.current_version).toBe('2.0.0');
+  });
+
   it('invalidates the current snapshot when a manual refresh fails', () => {
     const permissions = usePermissionStore();
     permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);

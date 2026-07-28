@@ -133,7 +133,8 @@
           "verifying": "Verify services"
         },
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",
-        "viewAppLogs": "View application logs"
+        "viewAppLogs": "View application logs",
+        "close": "Close"
       },
       "capabilities": {
         "title": "Installation capability matrix",

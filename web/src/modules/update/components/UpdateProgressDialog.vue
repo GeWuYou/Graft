@@ -4,12 +4,13 @@
     :header="t('update.center.progress.title')"
     :cancel-btn="null"
     :confirm-btn="null"
-    :close-btn="false"
-    :close-on-esc-keydown="false"
-    :close-on-overlay-click="false"
+    :close-btn="terminal"
+    :close-on-esc-keydown="terminal"
+    :close-on-overlay-click="terminal"
     :prevent-scroll-through="true"
     :footer="false"
     width="480px"
+    @close="closeTerminalDialog"
   >
     <section class="update-progress" data-testid="update-progress-dialog">
       <t-progress v-if="progress.phase !== 'failed'" :percentage="100" :indeterminate="progress.phase !== 'success'" />
@@ -17,7 +18,7 @@
         :theme="progress.phase === 'failed' ? 'error' : progress.phase === 'success' ? 'success' : 'info'"
         :message="phaseMessage"
       />
-      <t-steps v-if="progress.operation" :current="currentStep" readonly>
+      <t-steps v-if="progress.operation && progress.phase !== 'failed'" :current="currentStep" readonly>
         <t-step v-for="step in steps" :key="step" :title="t(`update.center.progress.steps.${step}`)" />
       </t-steps>
       <section v-if="progress.phase === 'failed'" class="update-progress__failure">
@@ -26,6 +27,9 @@
           t('update.center.progress.viewAppLogs')
         }}</t-button>
       </section>
+      <t-button v-if="terminal" class="update-progress__close" @click="closeTerminalDialog">
+        {{ t('update.center.progress.close') }}
+      </t-button>
     </section>
   </t-dialog>
 </template>
@@ -38,6 +42,7 @@ import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 
 import { useUpdateProgressStore } from '../store/progress';
 
+// 后台壳唯一挂载的升级会话表面：运行中阻止离开，终态清理本地会话后恢复壳层操作。
 const { t } = useI18n();
 const router = useRouter();
 const progress = useUpdateProgressStore();
@@ -55,8 +60,17 @@ const stageIndex: Record<string, number> = {
 const currentStep = computed(() => stageIndex[progress.operation?.status ?? 'PLANNING'] ?? 0);
 const requestId = computed(() => progress.diagnostic?.request_id?.trim() ?? '');
 const phaseMessage = computed(() => t(`update.center.progress.phase.${progress.phase}`));
+const terminal = computed(() => progress.phase === 'success' || progress.phase === 'failed');
+
+function closeTerminalDialog() {
+  if (terminal.value) progress.reset();
+}
+
 function openAppLogs() {
-  if (requestId.value) void router.push(buildAppLogLocation({ request_id: requestId.value }));
+  const operationRequestId = requestId.value;
+  if (!operationRequestId) return;
+  progress.reset();
+  void router.push(buildAppLogLocation({ request_id: operationRequestId }));
 }
 </script>
 <style scoped lang="less">

@@ -19,8 +19,20 @@ get:
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-update-failure-diagnostic.yaml }
-    '400': { description: Invalid operation identity. }
+    '400':
+      description: Invalid operation identity.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Operation failure diagnostic not found. }
-    '500': { description: The diagnostic store could not be read. }
+    '404':
+      description: Operation failure diagnostic not found.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

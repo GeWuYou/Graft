@@ -119,7 +119,11 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
       if (!permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ)) {
         return null;
       }
+      const generation = this.generation;
       const status = await getUpdateStatus();
+      if (generation !== this.generation) {
+        return null;
+      }
       this.replaceSnapshot(status);
       return status;
     },

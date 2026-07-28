@@ -315,4 +315,25 @@ describe('UpdateCenter', () => {
     expect(getUpdateFailureDiagnostic).not.toHaveBeenCalled();
     expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain('preview diagnostic');
   });
+
+  it('does not expose live operation tracking from an injected preview data source', async () => {
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi.fn().mockResolvedValue(status([])),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([
+        {
+          operation_id: 'preview-operation',
+          status: 'FAILED',
+          failure_diagnostic_available: true,
+        },
+      ]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(null),
+      createOperation: vi.fn(),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain('update.center.history.viewCause');
+  });
 });

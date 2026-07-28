@@ -13,6 +13,7 @@ describe('governance dashboard primitives', () => {
     expect(governanceDashboardShellSource).toContain('@container (width < 75rem)');
     expect(governanceDashboardShellSource).toContain('@container (width < 48rem)');
     expect(governanceDashboardShellSource).not.toContain('@media (width <= 1199px)');
+    expect(governanceDashboardShellSource).not.toContain('@media (width <= 767px)');
   });
 
   it('renders shell with domain-aware hero and slots', () => {

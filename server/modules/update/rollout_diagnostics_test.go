@@ -17,6 +17,7 @@ import (
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
+	"graft/server/internal/testassert"
 )
 
 func TestRolloutStartFailureKeepsCauseAndSafeDetails(t *testing.T) {
@@ -93,6 +94,58 @@ func TestGetOperationFailureDiagnosticUsesOperationIdentity(t *testing.T) {
 
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), "update-92") {
 		t.Fatalf("expected operation diagnostic response, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestGetOperationFailureDiagnosticClassifiesInvalidNotFoundAndStoreErrors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name        string
+		operationID string
+		store       *failureDiagnosticStoreRecorder
+		wantStatus  int
+		wantKey     string
+	}{
+		{
+			name:        "invalid operation identity",
+			operationID: "invalid/operation",
+			store:       &failureDiagnosticStoreRecorder{},
+			wantStatus:  http.StatusBadRequest,
+			wantKey:     "common.invalid_argument",
+		},
+		{
+			name:        "diagnostic not found",
+			operationID: "update-93",
+			store:       &failureDiagnosticStoreRecorder{err: errUpdateFailureDiagnosticNotFound},
+			wantStatus:  http.StatusNotFound,
+			wantKey:     "common.not_found",
+		},
+		{
+			name:        "diagnostic store failure",
+			operationID: "update-94",
+			store:       &failureDiagnosticStoreRecorder{err: errors.New("database unavailable")},
+			wantStatus:  http.StatusInternalServerError,
+			wantKey:     "common.internal_error",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Params = gin.Params{{Key: "operationID", Value: testCase.operationID}}
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/api/platform/updates/operations/"+testCase.operationID+"/diagnostic", nil)
+
+			updateRouteHandlers{diagnostics: testCase.store}.getOperationFailureDiagnostic(ctx)
+
+			if recorder.Code != testCase.wantStatus {
+				t.Fatalf("expected status %d, got %d: %s", testCase.wantStatus, recorder.Code, recorder.Body.String())
+			}
+			payload := testassert.DecodeErrorResponse(t, recorder)
+			if payload.MessageKey != testCase.wantKey {
+				t.Fatalf("expected message key %q, got %#v", testCase.wantKey, payload)
+			}
+		})
 	}
 }
 

@@ -140,7 +140,12 @@
             </t-tag>
           </template>
           <template #failure_code="{ row }">
-            <t-button v-if="hasFailureDiagnostic(row)" size="small" variant="text" @click="showHistoryCause(row)">
+            <t-button
+              v-if="hasFailureDiagnostic(row) && !dataSource"
+              size="small"
+              variant="text"
+              @click="showHistoryCause(row)"
+            >
               {{ t('update.center.history.viewCause') }}
             </t-button>
             <span v-else>{{ row.failure_code || '-' }}</span>
@@ -486,6 +491,9 @@ function hasFailureDiagnostic(operation: UpdateOperation) {
 }
 
 function showHistoryCause(operation: UpdateOperation) {
+  if (props.dataSource) {
+    return;
+  }
   progressStore.begin(operation);
 }
 

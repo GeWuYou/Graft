@@ -1,8 +1,10 @@
+-- atlas:txmode none
+
 ALTER TABLE update_operations ADD COLUMN request_id VARCHAR(128) NULL;
 
 COMMENT ON COLUMN update_operations.request_id IS '发起更新确认请求的稳定关联标识';
 
-CREATE UNIQUE INDEX uq_update_failure_diagnostics_operation_id
+CREATE UNIQUE INDEX CONCURRENTLY uq_update_failure_diagnostics_operation_id
 ON update_failure_diagnostics (operation_id)
 WHERE operation_id IS NOT NULL;
 
