@@ -137,6 +137,63 @@
   max-width: 100%;
 }
 
+.user-card-list {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+}
+
+.user-card {
+  background-color: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-large);
+  box-shadow: var(--td-shadow-1);
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.user-card__head,
+.user-card__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.user-card__details {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  margin: 0;
+}
+
+.user-card__details > div {
+  align-items: baseline;
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: minmax(5rem, 0.4fr) minmax(0, 1fr);
+}
+
+.user-card__details dt {
+  color: var(--td-text-color-secondary);
+}
+
+.user-card__details dd {
+  color: var(--td-text-color-primary);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-card__actions :deep(.table-actions) {
+  flex: 0 0 auto;
+  width: auto;
+}
+
 @media (width <= 768px) {
   .table-head,
   .batch-bar,

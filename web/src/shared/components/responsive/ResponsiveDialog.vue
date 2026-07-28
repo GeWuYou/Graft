@@ -1,26 +1,20 @@
 <template>
-  <section
-    ref="container"
-    :class="[
-      'responsive-dialog',
-      `responsive-dialog--${policy.surface}`,
-      `responsive-dialog--${size}`,
-      `responsive-dialog--${purpose}`,
-    ]"
-    :data-responsive-density="policy.density"
-    :data-responsive-interaction="policy.interaction"
-    :data-responsive-surface="policy.surface"
-    :style="{ '--graft-responsive-dialog-max': `var(${dialogSizeToken})` }"
+  <component
+    :is="overlayComponent"
+    v-bind="overlayBindings"
+    @close-btn-click="emitVisible(false)"
+    @esc-keydown="emitVisible(false)"
+    @overlay-click="emitVisible(false)"
+    @update:visible="emitVisible"
   >
-    <div v-if="$slots.header" class="responsive-dialog__header"><slot name="header" :policy="policy" /></div>
-    <div class="responsive-dialog__body"><slot :policy="policy" /></div>
-    <div v-if="$slots.footer" class="responsive-dialog__footer"><slot name="footer" :policy="policy" /></div>
-  </section>
+    <dialog-content :policy="policy"><slot /></dialog-content>
+  </component>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { CloseIcon } from 'tdesign-icons-vue-next';
+import { computed, defineComponent, h, resolveComponent, useSlots } from 'vue';
 
-import { useContainerSize } from '@/shared/composables';
+import { useViewportResponsiveVariant } from '@/shared/composables';
 import { RESPONSIVE_STYLE_TOKENS, type ResponsiveStyleToken } from '@/shared/responsive';
 
 import {
@@ -29,14 +23,29 @@ import {
   type ResponsiveDialogSize,
 } from './dialog-policy';
 
-/** Dialog facade 只解析可用表面，实际 TDesign overlay 的创建仍归后续接入层。 */
-const { purpose = 'detail', size = 'medium' } = defineProps<{
+/** Dialog facade 统一选择 TDesign overlay，调用方只声明业务意图与尺寸语义。 */
+const {
+  closeOnEscKeydown = true,
+  closeOnOverlayClick = true,
+  purpose = 'detail',
+  size = 'medium',
+  title,
+  visible,
+} = defineProps<{
+  closeOnEscKeydown?: boolean;
+  closeOnOverlayClick?: boolean;
   purpose?: ResponsiveDialogPurpose;
   size?: ResponsiveDialogSize;
+  title: string;
+  visible: boolean;
 }>();
-const container = ref<HTMLElement | null>(null);
-const containerSize = useContainerSize(container);
-const policy = computed(() => resolveResponsiveDialogPolicy(containerSize.value.width, purpose, size));
+const emit = defineEmits<{ 'update:visible': [visible: boolean] }>();
+const viewportVariant = useViewportResponsiveVariant();
+const slots = useSlots();
+const policy = computed(() => {
+  const widthByDensity = { compact: 0, comfortable: 768, spacious: 992 } as const;
+  return resolveResponsiveDialogPolicy(widthByDensity[viewportVariant.value.density], purpose, size);
+});
 const dialogSizeToken = computed<ResponsiveStyleToken>(() => {
   if (size === 'compact') {
     return RESPONSIVE_STYLE_TOKENS.dialogCompactMax;
@@ -48,9 +57,75 @@ const dialogSizeToken = computed<ResponsiveStyleToken>(() => {
 
   return RESPONSIVE_STYLE_TOKENS.dialogMediumMax;
 });
+const overlayComponent = computed(() => (policy.value.surface === 'fullscreen' ? 't-dialog' : 't-drawer'));
+const overlayBindings = computed(() => {
+  const shared = {
+    closeOnEscKeydown,
+    closeOnOverlayClick,
+    destroyOnClose: true,
+    footer: false,
+    visible,
+  };
+
+  if (policy.value.surface === 'fullscreen') {
+    return {
+      ...shared,
+      class: 'responsive-dialog__fullscreen-overlay',
+      closeBtn: false,
+      header: false,
+      width: '100vw',
+    };
+  }
+
+  return {
+    ...shared,
+    header: title,
+    placement: policy.value.surface === 'sheet' ? 'bottom' : 'right',
+    size: policy.value.surface === 'sheet' ? 'auto' : `var(${dialogSizeToken.value})`,
+  };
+});
+
+const DialogContent = defineComponent({
+  name: 'ResponsiveDialogContent',
+  props: { policy: { type: Object, required: true } },
+  setup() {
+    const TButton = resolveComponent('t-button');
+
+    return () =>
+      h('section', { class: ['responsive-dialog', `responsive-dialog--${policy.value.surface}`] }, [
+        policy.value.surface === 'fullscreen'
+          ? h('header', { class: 'responsive-dialog__header responsive-dialog__header--fullscreen' }, [
+              h('h1', title),
+              h(
+                TButton,
+                {
+                  'aria-label': title,
+                  shape: 'square',
+                  theme: 'default',
+                  variant: 'text',
+                  onClick: () => emitVisible(false),
+                },
+                { icon: () => h(CloseIcon) },
+              ),
+            ])
+          : slots.header
+            ? h('header', { class: 'responsive-dialog__header' }, slots.header({ policy: policy.value }))
+            : null,
+        h('div', { class: 'responsive-dialog__body' }, slots.default?.({ policy: policy.value })),
+        slots.footer
+          ? h('footer', { class: 'responsive-dialog__footer' }, slots.footer({ policy: policy.value }))
+          : null,
+      ]);
+  },
+});
+
+function emitVisible(nextVisible: boolean) {
+  emit('update:visible', nextVisible);
+}
 </script>
 <style scoped lang="less">
 .responsive-dialog {
+  block-size: 100%;
   box-sizing: border-box;
   container-type: inline-size;
   display: flex;
@@ -67,9 +142,50 @@ const dialogSizeToken = computed<ResponsiveStyleToken>(() => {
   max-inline-size: none;
 }
 
+.responsive-dialog__header:empty {
+  display: none;
+}
+
+.responsive-dialog__header--fullscreen {
+  align-items: center;
+  border-bottom: 1px solid var(--td-component-stroke);
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-l);
+}
+
+.responsive-dialog__header--fullscreen h1 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.responsive-dialog__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow: auto;
+}
+
 .responsive-dialog__footer {
   display: flex;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-12);
+}
+
+:deep(.responsive-dialog__fullscreen-overlay .t-dialog) {
+  block-size: 100dvh;
+  border-radius: 0;
+  margin: 0;
+  max-block-size: none;
+  max-inline-size: none;
+  padding: 0;
+}
+
+:deep(.responsive-dialog__fullscreen-overlay .t-dialog__body) {
+  block-size: 100%;
+  padding: 0;
 }
 </style>

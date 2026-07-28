@@ -1,6 +1,5 @@
 export type { AssignmentMutationMode } from './useAssignmentSelection';
 export { useAssignmentSelection } from './useAssignmentSelection';
-export { useContainerSize } from './useContainerSize';
 export { useCounter } from './useCounter';
 export type { UseDocumentFullscreenOptions } from './useDocumentFullscreen';
 export { useDocumentFullscreen } from './useDocumentFullscreen';

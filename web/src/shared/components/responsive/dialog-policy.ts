@@ -25,20 +25,16 @@ export function resolveResponsiveDialogPolicy(
       return { density, interaction: 'interactive', surface: 'sheet' };
     }
 
-    if (purpose === 'workspace') {
+    if (purpose === 'workspace' || purpose === 'detail') {
       return { density, interaction: 'readonly', surface: 'fullscreen' };
     }
 
-    if (purpose === 'form' && size === 'large') {
+    if (purpose === 'form' && size !== 'compact') {
       return { density, interaction: 'interactive', surface: 'fullscreen' };
     }
 
-    return { density, interaction: 'interactive', surface: 'drawer' };
+    return { density, interaction: 'interactive', surface: 'sheet' };
   }
 
-  if (density === 'comfortable' && (purpose === 'workspace' || (purpose === 'form' && size === 'large'))) {
-    return { density, interaction: purpose === 'workspace' ? 'readonly' : 'interactive', surface: 'drawer' };
-  }
-
-  return { density, interaction: purpose === 'workspace' ? 'readonly' : 'interactive', surface: 'dialog' };
+  return { density, interaction: purpose === 'workspace' ? 'readonly' : 'interactive', surface: 'drawer' };
 }

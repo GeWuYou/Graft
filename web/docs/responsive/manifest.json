@@ -37,6 +37,24 @@
       "kind": "shared-toolbar",
       "components": ["ResponsiveToolbar"],
       "status": "migrated"
+    },
+    {
+      "path": "src/modules/user/pages/index.vue",
+      "kind": "list-form-detail",
+      "components": ["ManagementPagedTable", "ResponsiveCardList", "ResponsiveDialog"],
+      "status": "migrated"
+    },
+    {
+      "path": "src/modules/rbac/pages/index.vue",
+      "kind": "list-form-detail",
+      "components": ["ManagementPagedTable", "ResponsiveDialog"],
+      "status": "migrated"
+    },
+    {
+      "path": "src/modules/rbac/pages/permissions/index.vue",
+      "kind": "list-form-detail",
+      "components": ["ManagementPagedTable", "ResponsiveDialog"],
+      "status": "migrated"
     }
   ],
   "exceptions": [

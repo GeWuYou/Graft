@@ -14,6 +14,7 @@ vi.mock('tdesign-icons-vue-next', async () => {
   });
 
   return {
+    EllipsisIcon: IconStub,
     RefreshIcon: IconStub,
     ViewColumnIcon: IconStub,
     ViewModuleIcon: IconStub,
