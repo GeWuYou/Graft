@@ -8,6 +8,7 @@ import type { ServerStatusResponse } from '../../types/server-status';
 import DependenciesPage from '../dependencies/index.vue';
 import RuntimePage from '../runtime/index.vue';
 import MonitorPage from './index.vue';
+import monitorOverviewSource from './index.vue?raw';
 
 const monitorApiMocks = vi.hoisted(() => ({
   getServerStatus: vi.fn(),
@@ -861,6 +862,12 @@ function getLatestChartOption<T = unknown>() {
 }
 
 describe('MonitorPage', () => {
+  it('derives dashboard density from its content container', () => {
+    expect(monitorOverviewSource).toContain('ref="dashboardContainer"');
+    expect(monitorOverviewSource).toContain("useResponsiveVariant(dashboardContainer, { layout: 'flow' })");
+    expect(monitorOverviewSource).not.toContain('useViewportResponsiveVariant');
+  });
+
   beforeEach(() => {
     vi.useRealTimers();
     vi.stubGlobal('ResizeObserver', resizeObserverMocks.ResizeObserverMock);

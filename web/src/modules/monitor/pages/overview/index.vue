@@ -1,5 +1,5 @@
 <template>
-  <div class="monitor-dashboard" :data-responsive-density="dashboardVariant.density">
+  <div ref="dashboardContainer" class="monitor-dashboard" :data-responsive-density="dashboardVariant.density">
     <server-status-page-shell
       :eyebrow="t('monitor.sectionTitle')"
       title-key="monitor.serverStatus.overviewTitle"
@@ -384,7 +384,7 @@ import type { TChartColor } from '@/config/color';
 import { openCorrelationErrorNotification, requestIdFromError } from '@/modules/audit/shared/correlation-actions';
 import { RefreshControlBar } from '@/shared/components/refresh';
 import ResponsiveContent from '@/shared/components/responsive/ResponsiveContent.vue';
-import { useViewportResponsiveVariant } from '@/shared/composables';
+import { useResponsiveVariant } from '@/shared/composables';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { useRealtimeSchedulerStore, useSettingStore } from '@/store';
 
@@ -550,8 +550,11 @@ const {
 const selectedTrendRange = ref<TrendRange>(MONITOR_TREND_RANGE.TEN_MINUTES);
 const selectedTrendMode = ref<TrendMode>('overview');
 const selectedFocusMetric = ref<FocusMetric>('cpu');
-const dashboardVariant = useViewportResponsiveVariant({ layout: 'flow' });
-const isCompactDashboard = computed(() => dashboardVariant.value.density === 'compact');
+const dashboardContainer = ref<HTMLDivElement | null>(null);
+const dashboardVariant = useResponsiveVariant(dashboardContainer, { layout: 'flow' });
+const isCompactDashboard = computed(
+  () => (dashboardContainer.value?.clientWidth ?? 0) > 0 && dashboardVariant.value.density === 'compact',
+);
 const activeTrendMode = computed<TrendMode>(() => (isCompactDashboard.value ? 'overview' : selectedTrendMode.value));
 const consecutiveFailures = ref(0);
 const remainingRefreshSeconds = ref<number | null>(null);

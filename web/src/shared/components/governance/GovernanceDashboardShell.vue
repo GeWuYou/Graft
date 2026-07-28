@@ -110,6 +110,7 @@ const resolvedSource = computed<PageHeaderSource | undefined>(() => {
   --governance-shell-heading-gap: var(--graft-density-gap-6);
   --governance-shell-summary-columns: 4;
 
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--governance-shell-gap);
@@ -160,13 +161,13 @@ const resolvedSource = computed<PageHeaderSource | undefined>(() => {
   --governance-shell-accent: var(--td-brand-color-6);
 }
 
-@media (width <= 1199px) {
+@container (width < 75rem) {
   .governance-dashboard-shell__summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (width <= 767px) {
+@container (width < 48rem) {
   .governance-dashboard-shell__summary {
     grid-template-columns: 1fr;
   }
