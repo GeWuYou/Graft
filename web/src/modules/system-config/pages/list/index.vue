@@ -47,19 +47,30 @@
           >
             <template #suffixIcon><search-icon /></template>
           </t-input>
-          <t-list v-if="normalizedGroupSearchKeyword" class="system-config-search-results" split>
-            <t-list-item
-              v-for="item in searchResultItems"
-              :key="item.key"
-              class="system-config-search-results__item"
-              @click="selectConfig(item)"
-            >
-              <div class="system-config-navigation-item">
+          <t-list
+            v-if="normalizedGroupSearchKeyword && searchResultItems.length"
+            class="system-config-search-results"
+            split
+          >
+            <t-list-item v-for="item in searchResultItems" :key="item.key" class="system-config-search-results__item">
+              <t-button class="system-config-navigation-item" variant="text" @click="selectConfig(item)">
                 <strong>{{ configTitle(item) }}</strong>
                 <small>{{ configSearchResultDescription(item) }}</small>
-              </div>
+              </t-button>
             </t-list-item>
           </t-list>
+
+          <t-empty
+            v-else-if="normalizedGroupSearchKeyword"
+            :title="t('systemConfig.list.searchEmpty')"
+            class="system-config-search-empty"
+          >
+            <template #action>
+              <t-button theme="primary" variant="outline" @click="clearGroupSearch">
+                {{ t('systemConfig.list.searchClear') }}
+              </t-button>
+            </template>
+          </t-empty>
 
           <t-collapse
             v-else-if="isCompact"
@@ -75,11 +86,11 @@
                   <small>{{ t('systemConfig.list.groupConfigCount', { count: group.items.length }) }}</small>
                 </div>
                 <t-list split>
-                  <t-list-item v-for="item in group.items" :key="item.key" @click="selectConfig(item)">
-                    <div class="system-config-navigation-item">
+                  <t-list-item v-for="item in group.items" :key="item.key">
+                    <t-button class="system-config-navigation-item" variant="text" @click="selectConfig(item)">
                       <strong>{{ configTitle(item) }}</strong>
                       <small>{{ configDescription(item) }}</small>
-                    </div>
+                    </t-button>
                   </t-list-item>
                 </t-list>
               </section>
@@ -114,6 +125,7 @@
           class="system-config-detail"
           :class="isCompact ? 'system-config-detail--compact' : 'system-config-detail--desktop'"
           :back-label="t('systemConfig.list.detailBack')"
+          content-layout="embedded"
           :presentation="isCompact ? 'overlay' : 'page'"
           size="large"
           :title="selectedConfigCard?.title ?? ''"
@@ -740,13 +752,19 @@ const filteredDomains = computed<ConfigDomain[]>(() => {
     }))
     .filter((domain) => domain.groups.length > 0);
 });
+const searchableConfigItems = computed(() =>
+  items.value.map((item) => ({
+    item,
+    searchText: buildConfigSearchText(item),
+  })),
+);
 const searchResultItems = computed(() => {
   const keyword = normalizedGroupSearchKeyword.value;
   if (!keyword) {
     return [];
   }
 
-  return items.value.filter((item) => buildConfigSearchText(item).includes(keyword));
+  return searchableConfigItems.value.filter((entry) => entry.searchText.includes(keyword)).map((entry) => entry.item);
 });
 const domainTree = computed<TreeProps['data']>(() =>
   filteredDomains.value.map((domain) => ({
@@ -861,6 +879,10 @@ function handleDetailVisibility(visible: boolean) {
   if (!visible) {
     selectedConfigKey.value = '';
   }
+}
+
+function clearGroupSearch() {
+  groupSearchKeyword.value = '';
 }
 
 function selectConfig(item: SystemConfigItem) {
@@ -1463,21 +1485,6 @@ function readableError(error: unknown, fallback: string) {
   min-width: 0;
 }
 
-.system-config-detail--desktop :deep(.resource-detail-content__header) {
-  display: none;
-}
-
-.system-config-detail--desktop :deep(.resource-detail-content__scroll) {
-  height: 100%;
-  overflow: hidden;
-}
-
-.system-config-detail--desktop :deep(.resource-detail-content__body) {
-  display: block;
-  height: 100%;
-  padding: 0;
-}
-
 .system-config-groups {
   align-self: stretch;
   background: var(--td-bg-color-container);
@@ -1509,11 +1516,6 @@ function readableError(error: unknown, fallback: string) {
   min-width: 0;
 }
 
-.system-config-search-results__item,
-.system-config-mobile-group :deep(.t-list-item) {
-  cursor: pointer;
-}
-
 .system-config-mobile-group {
   display: grid;
   gap: var(--graft-density-gap-8);
@@ -1536,14 +1538,43 @@ function readableError(error: unknown, fallback: string) {
 }
 
 .system-config-navigation-item {
+  align-items: flex-start;
+  block-size: auto;
   display: grid;
   gap: var(--graft-density-gap-4);
+  justify-content: flex-start;
   min-width: 0;
+  padding: var(--graft-density-gap-4) 0;
+  text-align: start;
+  white-space: normal;
+  width: 100%;
+}
+
+.system-config-navigation-item :deep(.t-button__text) {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  justify-items: start;
+  min-width: 0;
+  width: 100%;
+}
+
+.system-config-navigation-item strong,
+.system-config-navigation-item small {
+  text-align: start;
+  white-space: normal;
+}
+
+.system-config-navigation-item strong {
+  color: var(--td-text-color-primary);
 }
 
 .system-config-navigation-item small {
   color: var(--td-text-color-secondary);
   overflow-wrap: anywhere;
+}
+
+.system-config-search-empty {
+  margin: auto 0;
 }
 
 .system-config-tree-node {

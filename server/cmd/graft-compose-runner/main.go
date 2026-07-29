@@ -222,15 +222,15 @@ func digest(path string) (string, int64, error) {
 //
 //nolint:cyclop // 两个镜像与官方仓库必须共同校验，拆分会破坏原子写入边界。
 func replaceRefs(path string, preflight update.ComposePreflight) error {
-	tag, err := sharedOfficialTag(preflight.ServerReference, preflight.WebReference, preflight.OfficialServerImage, preflight.OfficialWebImage)
-	if err != nil {
-		return err
-	}
 	if preflight.UpdateMode == update.UpdateModeStableTracking || preflight.UpdateMode == update.UpdateModeBetaTracking {
 		return nil
 	}
 	if preflight.UpdateMode != update.UpdateModePinnedStable && preflight.UpdateMode != update.UpdateModePinnedBeta {
 		return errors.New("compose runner deployment strategy is invalid")
+	}
+	tag, err := sharedOfficialTag(preflight.ServerReference, preflight.WebReference, preflight.OfficialServerImage, preflight.OfficialWebImage)
+	if err != nil {
+		return err
 	}
 	// #nosec G304 -- .env path is derived from the preflight-validated compose root.
 	contents, err := os.ReadFile(path)

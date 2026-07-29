@@ -19,6 +19,7 @@
       "edit": "Edit",
       "searchPlaceholder": "Search Groups, Items, or Technical Keys",
       "searchEmpty": "No Matching Configuration Items",
+      "searchClear": "Clear Search",
       "detailBack": "Back to Configuration Directory",
       "save": "Save",
       "cancel": "Cancel",

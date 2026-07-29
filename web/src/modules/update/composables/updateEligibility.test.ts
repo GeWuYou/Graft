@@ -60,6 +60,6 @@ describe('isUpgradeEligible', () => {
       ),
     ).toBe(false);
     expect(isUpgradeEligible(status({ latest: undefined }), true)).toBe(false);
-    expect(isUpgradeEligible(status({ update_mode: 'pinned_stable', latest: undefined }), true)).toBe(false);
+    expect(isUpgradeEligible(status({ update_mode: 'pinned_stable' }), true)).toBe(false);
   });
 });

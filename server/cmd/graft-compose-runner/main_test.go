@@ -131,7 +131,7 @@ func TestReplaceRefsKeepsTrackingTag(t *testing.T) {
 	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=beta\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
-	preflight := pinnedPreflight("ghcr.io/gewuyou/graft-server:1.2.3-beta.1", "ghcr.io/gewuyou/graft-web:1.2.3-beta.1")
+	preflight := pinnedPreflight("registry.example/graft-server:1.2.3-beta.1", "registry.example/graft-web:1.2.3-beta.1")
 	preflight.UpdateMode, preflight.ImageTag = update.UpdateModeBetaTracking, "beta"
 	if err := replaceRefs(path, preflight); err != nil {
 		t.Fatalf("retain tracking tag: %v", err)
@@ -139,7 +139,7 @@ func TestReplaceRefsKeepsTrackingTag(t *testing.T) {
 	// #nosec G304 -- 测试仅读取本例刚写入的临时文件。
 	contents, err := os.ReadFile(path)
 	if err != nil || string(contents) != "GRAFT_IMAGE_TAG=beta\n" {
-		t.Fatalf("tracking tag changed: %q, %v", contents, err)
+		t.Fatalf("tracking tag changed or tracking references were validated: %q, %v", contents, err)
 	}
 }
 

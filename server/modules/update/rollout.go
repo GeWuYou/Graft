@@ -455,7 +455,7 @@ func composePreflight(profile InstallationProfile, release Release, strategy Dep
 		}
 		composeFiles = []string{filepath.Join(root, "compose.yml")}
 	}
-	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, UpdateMode: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":" + release.Version, WebReference: release.WebImage + ":" + release.Version, RunnerReference: release.RunnerRef}
+	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, UpdateMode: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":v" + release.Version, WebReference: release.WebImage + ":v" + release.Version, RunnerReference: release.RunnerRef}
 	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}

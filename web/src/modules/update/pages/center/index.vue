@@ -370,9 +370,9 @@ const selectedTargetVersion = computed(() => {
   return status.value?.latest?.version ?? '';
 });
 const fixedReleaseCandidates = computed(() =>
-  (status.value?.available_releases ?? []).filter((release) =>
-    isFixedReleaseCandidate(release.version, release.channel),
-  ),
+  (status.value?.available_releases ?? [])
+    .filter((release) => isFixedReleaseCandidate(release.version, release.channel))
+    .sort((left, right) => compareReleaseVersions(right.version, left.version)),
 );
 const fixedReleaseOptions = computed(() =>
   fixedReleaseCandidates.value.map((release) => ({

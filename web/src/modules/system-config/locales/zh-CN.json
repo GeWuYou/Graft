@@ -19,6 +19,7 @@
       "edit": "编辑",
       "searchPlaceholder": "搜索配置组、配置项或技术标识",
       "searchEmpty": "未找到匹配的配置项",
+      "searchClear": "清除搜索",
       "detailBack": "返回配置目录",
       "save": "保存",
       "cancel": "取消",

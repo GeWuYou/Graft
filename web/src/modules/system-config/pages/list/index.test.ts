@@ -128,6 +128,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.list.saveError': '系统配置保存失败。',
   'systemConfig.list.saveSuccess': '系统配置已保存。',
   'systemConfig.list.searchEmpty': '未找到匹配的配置项',
+  'systemConfig.list.searchClear': '清除搜索',
   'systemConfig.list.searchPlaceholder': '搜索配置组、配置项或技术标识',
   'systemConfig.list.schema.advancedTitle': '高级',
   'systemConfig.list.schema.basicInfoTitle': '基本信息',
@@ -261,10 +262,14 @@ vi.mock('@/shared/observability', async () => {
   };
 });
 
-vi.mock('@/shared/composables', () => ({
-  useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
-  useViewportResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
-}));
+vi.mock('@/shared/composables', async () => {
+  const actual = await vi.importActual<typeof import('@/shared/composables')>('@/shared/composables');
+  return {
+    ...actual,
+    useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
+    useViewportResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
+  };
+});
 
 vi.mock('tdesign-icons-vue-next', () => ({
   AddIcon: defineComponent({ name: 'AddIcon', setup: () => () => h('span') }),
@@ -988,6 +993,34 @@ describe('system config list page', () => {
     expect(wrapper.find('.system-config-search-results').text()).not.toContain('访问日志保留清理');
   });
 
+  it('shows a dedicated empty search state and clears the query through its action', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('[data-test-id="group-search"]').setValue('not-a-config');
+    await flushPromises();
+
+    expect(wrapper.find('.system-config-search-results').exists()).toBe(false);
+    expect(wrapper.find('.system-config-search-empty').attributes('data-title')).toBe('未找到匹配的配置项');
+    await wrapper.find('.system-config-search-empty button').trigger('click');
+    await flushPromises();
+
+    expect((wrapper.get('[data-test-id="group-search"]').element as HTMLInputElement).value).toBe('');
+  });
+
+  it('uses native button controls for search and compact directory navigation', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.find('[data-test-id="group-search"]').setValue('retention');
+    await flushPromises();
+
+    expect(sourceText).toContain('<t-button class="system-config-navigation-item"');
+    expect(sourceText).toContain('content-layout="embedded"');
+    expect(sourceText).not.toContain(':deep(.resource-detail-content__header)');
+    expect(sourceText).toContain('searchableConfigItems.value.filter');
+  });
+
   it('keeps search text from every item in the same group', async () => {
     apiMocks.getSystemConfigs.mockResolvedValue({
       items: [
@@ -1421,7 +1454,13 @@ function mountPage() {
               ]);
           },
         }),
-        TEmpty: textStub('section'),
+        TEmpty: defineComponent({
+          name: 'TEmpty',
+          props: ['title'],
+          setup(props, { attrs, slots }) {
+            return () => h('section', { ...attrs, 'data-title': props.title as string }, [slots.action?.()]);
+          },
+        }),
         TForm: textStub('form'),
         TFormItem: defineComponent({
           name: 'TFormItem',
@@ -1470,7 +1509,7 @@ function mountPage() {
         TListItem: defineComponent({
           name: 'TListItem',
           setup(_props, { attrs, slots }) {
-            return () => h('button', attrs, slots.default?.());
+            return () => h('div', attrs, slots.default?.());
           },
         }),
         TOption: textStub('option'),

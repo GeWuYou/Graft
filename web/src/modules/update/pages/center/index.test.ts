@@ -244,6 +244,15 @@ describe('UpdateCenter', () => {
           web_digest: 'web',
         },
         {
+          version: '1.1.0',
+          channel: 'stable',
+          notes: 'Earlier fixed release notes',
+          published_at: '2026-07-25T00:00:00Z',
+          manifest_url: 'https://example.test/earlier-fixed-manifest',
+          server_digest: 'server',
+          web_digest: 'web',
+        },
+        {
           version: '1.2.0',
           channel: 'stable',
           notes: 'Fixed release notes',
