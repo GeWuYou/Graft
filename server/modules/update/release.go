@@ -370,6 +370,31 @@ func SelectLatest(current Version, releases []Release) (Release, bool) {
 	return selected, found
 }
 
+// SelectLatestForPolicy 返回部署策略允许的最新已验证发行版本。
+// stable 与 beta 是精确 channel 策略；fixed 与 manual 刻意要求调用方单独处理。
+func SelectLatestForPolicy(current Version, policy UpdatePolicy, releases []Release) (Release, bool) {
+	if policy != UpdatePolicyStable && policy != UpdatePolicyBeta {
+		return Release{}, false
+	}
+	var selected Release
+	found := false
+	for _, release := range releases {
+		candidate, err := ParseVersion(release.Version)
+		if err != nil || candidate.Compare(current) <= 0 || release.Channel != string(policy) {
+			continue
+		}
+		if !found {
+			selected, found = release, true
+			continue
+		}
+		selectedVersion, _ := ParseVersion(selected.Version)
+		if candidate.Compare(selectedVersion) > 0 {
+			selected = release
+		}
+	}
+	return selected, found
+}
+
 func eligibleChannel(current Version, channel string) bool {
 	return channel == "stable" || current.IsPrerelease() && channel == "beta"
 }

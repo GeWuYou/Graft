@@ -33,9 +33,9 @@ func (s *sqlOperationStore) Create(ctx context.Context, value ComposeUpdateOpera
 		return errors.New("update operation is invalid")
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO update_operations
-	 (operation_id, request_id, source_version, target_version, task_id, requested_by, status, created_at, started_at)
-	 VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, nullableString(value.RequestID), value.SourceVersion,
-		value.TargetVersion, value.TaskID, nullableUint64(value.RequestedBy), value.Outcome)
+	 (operation_id, request_id, source_version, target_version, update_policy, task_id, requested_by, status, created_at, started_at)
+	 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, nullableString(value.RequestID), value.SourceVersion,
+		value.TargetVersion, nullableString(string(value.UpdatePolicy)), value.TaskID, nullableUint64(value.RequestedBy), value.Outcome)
 	if err != nil {
 		return fmt.Errorf("create update operation: %w", err)
 	}
@@ -46,7 +46,7 @@ func (s *sqlOperationStore) Get(ctx context.Context, operationID string) (Compos
 	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
 		return ComposeUpdateOperation{}, errors.New("update operation identity is invalid")
 	}
-	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, request_id, source_version, target_version, task_id,
+	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, request_id, source_version, target_version, update_policy, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
 	 created_at, started_at, finished_at,
  EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
@@ -57,7 +57,7 @@ func (s *sqlOperationStore) List(ctx context.Context, limit int) ([]ComposeUpdat
 	if s == nil || s.db == nil || limit < 1 || limit > 100 {
 		return nil, errors.New("update operation list limit is invalid")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, request_id, source_version, target_version, task_id,
+	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, request_id, source_version, target_version, update_policy, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
  created_at, started_at, finished_at,
  EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
@@ -106,27 +106,28 @@ type operationScanner interface{ Scan(...any) error }
 func scanOperation(row operationScanner) (ComposeUpdateOperation, error) {
 	var item ComposeUpdateOperation
 	var backupID, requestedBy sql.NullInt64
-	var requestID, integrity, failure sql.NullString
+	var requestID, policy, integrity, failure sql.NullString
 	var created, started time.Time
 	var finished sql.NullTime
-	if err := row.Scan(&item.OperationID, &requestID, &item.SourceVersion, &item.TargetVersion, &item.TaskID, &backupID,
+	if err := row.Scan(&item.OperationID, &requestID, &item.SourceVersion, &item.TargetVersion, &policy, &item.TaskID, &backupID,
 		&requestedBy, &item.Outcome, &integrity, &failure, &item.RecoveryCompleted, &created, &started, &finished, &item.FailureDiagnosticAvailable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ComposeUpdateOperation{}, errUpdateOperationNotFound
 		}
 		return ComposeUpdateOperation{}, fmt.Errorf("scan update operation: %w", err)
 	}
-	assignOperationNullableFields(&item, operationNullableFields{requestID: requestID, backupID: backupID, requestedBy: requestedBy, integrity: integrity, failure: failure, finished: finished})
+	assignOperationNullableFields(&item, operationNullableFields{requestID: requestID, policy: policy, backupID: backupID, requestedBy: requestedBy, integrity: integrity, failure: failure, finished: finished})
 	item.CreatedAt, item.StartedAt = created.UTC(), started.UTC()
 	return item, nil
 }
 
 type operationNullableFields struct {
-	requestID, integrity, failure sql.NullString
-	backupID, requestedBy         sql.NullInt64
-	finished                      sql.NullTime
+	requestID, policy, integrity, failure sql.NullString
+	backupID, requestedBy                 sql.NullInt64
+	finished                              sql.NullTime
 }
 
+//nolint:cyclop // 可空持久化字段必须独立映射，以保持零值语义。
 func assignOperationNullableFields(item *ComposeUpdateOperation, values operationNullableFields) {
 	if item == nil {
 		return
@@ -139,6 +140,9 @@ func assignOperationNullableFields(item *ComposeUpdateOperation, values operatio
 	}
 	if values.requestID.Valid {
 		item.RequestID = values.requestID.String
+	}
+	if values.policy.Valid {
+		item.UpdatePolicy = UpdatePolicy(values.policy.String)
 	}
 	if values.integrity.Valid {
 		item.ReceiptIntegritySHA256 = values.integrity.String

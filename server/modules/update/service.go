@@ -15,14 +15,17 @@ const discoveryCacheStaleAfter = 24 * time.Hour
 
 // Status 是 Update Center 的只读发现快照。
 type Status struct {
-	CurrentVersion   string              `json:"current_version"`
-	Channel          string              `json:"channel"`
-	Latest           *Release            `json:"latest,omitempty"`
-	Profile          InstallationProfile `json:"installation_profile"`
-	CheckedAt        *time.Time          `json:"checked_at,omitempty"`
-	LastSuccessfulAt *time.Time          `json:"last_successful_at,omitempty"`
-	CacheStale       bool                `json:"cache_stale"`
-	CheckError       string              `json:"check_error,omitempty"`
+	CurrentVersion    string              `json:"current_version"`
+	Channel           string              `json:"channel"`
+	UpdatePolicy      UpdatePolicy        `json:"update_policy,omitempty"`
+	PolicyInitialized bool                `json:"policy_initialized"`
+	AvailableReleases []Release           `json:"available_releases"`
+	Latest            *Release            `json:"latest,omitempty"`
+	Profile           InstallationProfile `json:"installation_profile"`
+	CheckedAt         *time.Time          `json:"checked_at,omitempty"`
+	LastSuccessfulAt  *time.Time          `json:"last_successful_at,omitempty"`
+	CacheStale        bool                `json:"cache_stale"`
+	CheckError        string              `json:"check_error,omitempty"`
 }
 
 // withoutComposeCandidates 为只读调用方移除仅供升级管理员确认的宿主机候选路径。
@@ -41,6 +44,7 @@ type Service struct {
 	current          func() buildinfo.Info
 	mu               sync.RWMutex
 	latest           *Release
+	catalog          []Release
 	checkedAt        *time.Time
 	lastSuccessfulAt *time.Time
 	checkError       string
@@ -62,6 +66,8 @@ func NewServiceWithCache(provider ReleaseProvider, cache DiscoveryCache) *Servic
 }
 
 // Status 返回当前进程已知的发布发现状态。
+//
+//nolint:cyclop // 快照新鲜度、策略解析和缓存目录投影都是独立的响应不变量。
 func (s *Service) Status() Status {
 	s.loadCachedSnapshot()
 	info := s.current()
@@ -76,8 +82,17 @@ func (s *Service) Status() Status {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	status := Status{CurrentVersion: info.Version, Channel: channel, Profile: s.profile(), CheckError: s.checkError}
-	if s.latest != nil {
+	policy, initialized := configuredUpdatePolicy()
+	catalog := append([]Release(nil), s.catalog...)
+	if len(catalog) == 0 && s.latest != nil {
+		catalog = []Release{*s.latest}
+	}
+	status := Status{CurrentVersion: info.Version, Channel: channel, UpdatePolicy: policy, PolicyInitialized: initialized, AvailableReleases: catalog, Profile: s.profile(), CheckError: s.checkError}
+	if initialized && err == nil {
+		if selected, found := SelectLatestForPolicy(current, policy, catalog); found {
+			status.Latest = &selected
+		}
+	} else if s.latest != nil {
 		copied := *s.latest
 		status.Latest = &copied
 	}
@@ -105,33 +120,34 @@ func (s *Service) Check(ctx context.Context) Status {
 	current, err := ParseVersion(info.Version)
 	now := time.Now().UTC()
 	if err != nil {
-		s.store(ctx, nil, now, false, "current build is not a release semantic version")
+		s.store(ctx, nil, nil, now, false, "current build is not a release semantic version")
 		return s.Status()
 	}
 	releases, err := s.provider.List(ctx)
 	if err != nil {
 		// 发布源错误可能包含上游 URL 或响应细节，状态 API 只暴露稳定失败语义；保留已验证快照供运维判断。
-		s.store(ctx, nil, now, false, releaseDiscoveryFailedMessage)
+		s.store(ctx, nil, nil, now, false, releaseDiscoveryFailedMessage)
 		return s.Status()
 	}
 	latest, found := SelectLatest(current, releases)
 	if found {
-		s.store(ctx, &latest, now, true, "")
+		s.store(ctx, &latest, releases, now, true, "")
 	} else {
-		s.store(ctx, nil, now, true, "")
+		s.store(ctx, nil, releases, now, true, "")
 	}
 	return s.Status()
 }
 
-func (s *Service) store(ctx context.Context, latest *Release, checkedAt time.Time, successful bool, checkError string) {
+func (s *Service) store(ctx context.Context, latest *Release, catalog []Release, checkedAt time.Time, successful bool, checkError string) {
 	s.mu.Lock()
 	if successful {
 		s.latest = latest
+		s.catalog = append([]Release(nil), catalog...)
 		s.lastSuccessfulAt = &checkedAt
 	}
 	s.checkedAt = &checkedAt
 	s.checkError = checkError
-	snapshot := DiscoverySnapshot{Latest: s.latest, LastSuccessfulAt: s.lastSuccessfulAt, LastAttemptAt: s.checkedAt, CheckError: s.checkError}
+	snapshot := DiscoverySnapshot{Latest: s.latest, Catalog: s.catalog, LastSuccessfulAt: s.lastSuccessfulAt, LastAttemptAt: s.checkedAt, CheckError: s.checkError}
 	s.mu.Unlock()
 	if s.cache != nil {
 		_ = s.cache.Save(ctx, snapshot)
@@ -151,7 +167,7 @@ func (s *Service) loadCachedSnapshot() {
 			return
 		}
 		s.mu.Lock()
-		s.latest, s.lastSuccessfulAt, s.checkedAt, s.checkError = snapshot.Latest, snapshot.LastSuccessfulAt, snapshot.LastAttemptAt, snapshot.CheckError
+		s.latest, s.catalog, s.lastSuccessfulAt, s.checkedAt, s.checkError = snapshot.Latest, snapshot.Catalog, snapshot.LastSuccessfulAt, snapshot.LastAttemptAt, snapshot.CheckError
 		s.mu.Unlock()
 	})
 }

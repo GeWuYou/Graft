@@ -15,8 +15,9 @@
 4. **Independent backup capability**
    - 交付 `platform-backup` module 的配置与 PostgreSQL backup metadata、恢复入口和审计边界；更新只通过 capability 消费它。
 5. **Confirmed Compose execution and recovery**
-   - 交付一次性 receipt-writing runner、Task Runtime 状态、explicit migration、digest-pinned recreate、health receipt、history 和 Restore Backup 操作。
+   - 交付一次性 receipt-writing runner、Task Runtime 状态、explicit migration、manifest-verified recreate、health receipt、history 和 Restore Backup 操作。
    - 自动化含义仅为管理员确认后的工作流自动执行，不包含无人值守更新。
+   - 在 Beta 可靠性收敛中，Compose `.env` 使用完整 server/web 镜像引用与 `stable|beta|fixed|manual` 策略；runner pull 后验证 manifest digest，且 `manual` 不执行镜像变更。`nightly` 延后且不暴露。
 6. **Archive readiness**
    - 跑跨边界验证，补齐 Compose fixture、运行文档、已知风险和 topic archive evidence。
 

@@ -22,6 +22,7 @@ type ComposeUpdateOperation struct {
 	RequestID                  string           `json:"-"`
 	SourceVersion              string           `json:"source_version"`
 	TargetVersion              string           `json:"target_version"`
+	UpdatePolicy               UpdatePolicy     `json:"update_policy,omitempty"`
 	TaskID                     uint64           `json:"task_id"`
 	BackupID                   uint64           `json:"backup_id,omitempty"`
 	RequestedBy                uint64           `json:"requested_by,omitempty"`

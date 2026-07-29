@@ -14,24 +14,25 @@ import (
 const runnerProtocolVersion = 1
 
 // ComposePreflight 是 server 在启动一次性 runner 前冻结的无秘密部署证据。
-// 它只描述官方 Compose 画像，不接受自定义覆盖层、外部数据库或可变镜像标签。
+// 它只描述官方 Compose 画像，不接受自定义覆盖层、外部数据库或未验证的镜像标签。
 type ComposePreflight struct {
-	DeclaredMode        string   `json:"declared_mode"`
-	DetectedMode        string   `json:"detected_mode"`
-	ComposeRoot         string   `json:"compose_root"`
-	Platform            string   `json:"platform"`
-	DockerSocket        string   `json:"docker_socket"`
-	ComposeFiles        []string `json:"compose_files"`
-	ServerReference     string   `json:"server_reference"`
-	WebReference        string   `json:"web_reference"`
-	ServerDigest        string   `json:"server_digest"`
-	WebDigest           string   `json:"web_digest"`
-	RunnerReference     string   `json:"runner_reference"`
-	RunnerDigest        string   `json:"runner_digest"`
-	BundledPostgres     bool     `json:"bundled_postgres"`
-	OfficialServerImage string   `json:"official_server_image"`
-	OfficialWebImage    string   `json:"official_web_image"`
-	OfficialRunnerImage string   `json:"official_runner_image"`
+	DeclaredMode        string       `json:"declared_mode"`
+	UpdatePolicy        UpdatePolicy `json:"update_policy"`
+	DetectedMode        string       `json:"detected_mode"`
+	ComposeRoot         string       `json:"compose_root"`
+	Platform            string       `json:"platform"`
+	DockerSocket        string       `json:"docker_socket"`
+	ComposeFiles        []string     `json:"compose_files"`
+	ServerReference     string       `json:"server_reference"`
+	WebReference        string       `json:"web_reference"`
+	ServerDigest        string       `json:"server_digest"`
+	WebDigest           string       `json:"web_digest"`
+	RunnerReference     string       `json:"runner_reference"`
+	RunnerDigest        string       `json:"runner_digest"`
+	BundledPostgres     bool         `json:"bundled_postgres"`
+	OfficialServerImage string       `json:"official_server_image"`
+	OfficialWebImage    string       `json:"official_web_image"`
+	OfficialRunnerImage string       `json:"official_runner_image"`
 }
 
 // RunnerInput 是 server 写入 runner 输入目录的版本化、无秘密协议。runner 只读取该文件，
@@ -43,7 +44,7 @@ type RunnerInput struct {
 	Preflight       ComposePreflight `json:"preflight"`
 }
 
-// RunnerReceipt 是 runner 写入受限状态目录的无秘密结算证据。
+// RunnerReceipt 是 runner 输出到带 operation label 的容器日志的无秘密结算证据。
 type RunnerReceipt struct {
 	ProtocolVersion   int                                         `json:"protocol_version"`
 	OperationID       string                                      `json:"operation_id"`
@@ -84,6 +85,9 @@ const (
 func ValidateComposePreflight(value ComposePreflight) error {
 	if normalizeMode(value.DeclaredMode) != "compose" || strings.TrimSpace(value.DetectedMode) != "compose" {
 		return errors.New("official compose deployment was not declared and detected")
+	}
+	if value.UpdatePolicy != UpdatePolicyStable && value.UpdatePolicy != UpdatePolicyBeta && value.UpdatePolicy != UpdatePolicyFixed {
+		return errors.New("automated compose runner requires stable, beta, or fixed update policy")
 	}
 	if err := validateComposeHost(value); err != nil {
 		return err
@@ -194,13 +198,21 @@ func validateComposeImages(value ComposePreflight) error {
 	if !validDigest(value.ServerDigest) || !validDigest(value.WebDigest) || !validDigest(value.RunnerDigest) {
 		return errors.New("server, web, and runner image digests are required")
 	}
-	if value.ServerReference != value.OfficialServerImage+"@"+value.ServerDigest || value.WebReference != value.OfficialWebImage+"@"+value.WebDigest || value.RunnerReference != value.OfficialRunnerImage+"@"+value.RunnerDigest {
-		return errors.New("server, web, and runner must use official immutable image references")
+	if !validTaggedReference(value.ServerReference, value.OfficialServerImage) || !validTaggedReference(value.WebReference, value.OfficialWebImage) || value.RunnerReference != value.OfficialRunnerImage+"@"+value.RunnerDigest {
+		return errors.New("server and web must use official version tags while runner remains digest pinned")
 	}
 	if value.OfficialRunnerImage != composeRunnerImage(value.OfficialServerImage) {
 		return errors.New("runner image does not belong to the official release authority")
 	}
 	return nil
+}
+
+func validTaggedReference(reference, officialImage string) bool {
+	if !strings.HasPrefix(reference, officialImage+":") || strings.Contains(reference, "@") {
+		return false
+	}
+	tag := strings.TrimPrefix(reference, officialImage+":")
+	return tag != "" && tag != "latest" && !strings.ContainsAny(tag, " \t\r\n")
 }
 
 // ValidateRunnerInput verifies the server-to-runner contract before Docker is invoked.

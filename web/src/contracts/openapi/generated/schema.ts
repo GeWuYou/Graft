@@ -1540,7 +1540,7 @@ export interface paths {
     put?: never;
     /**
      * Confirm and start an official Compose update
-     * @description Starts a one-shot digest-pinned runner only for the currently verified target release. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.
+     * @description Starts a one-shot digest-pinned runner only for the verified release selected by the deployment-owned policy. A request can supply update_policy only for first-time initialization when the official Compose .env has no policy. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.
      */
     post: operations['postPlatformUpdateOperation'];
     delete?: never;
@@ -3799,6 +3799,8 @@ export interface components {
     EnvelopedSystemConfigItem: components['schemas']['enveloped-system-config-item'];
     EnvelopedSystemConfigListResponse: components['schemas']['enveloped-system-config-list-response'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
+    PlatformUpdatePolicy: components['schemas']['platform-update-policy'];
+    PlatformUpdateRelease: components['schemas']['platform-update-release'];
     EnvelopedPlatformUpdateStatus: components['schemas']['enveloped-platform-update-status'];
     PlatformUpdateOperation: components['schemas']['platform-update-operation'];
     PlatformUpdateOperationList: components['schemas']['platform-update-operation-list'];
@@ -6244,6 +6246,39 @@ export interface components {
       /** @description JSON value to store as the user override for the registered definition. */
       value: unknown;
     };
+    /**
+     * @description Deployment-owned self-update policy persisted in the official Compose .env file.
+     * @enum {string}
+     */
+    'platform-update-policy': 'stable' | 'beta' | 'fixed' | 'manual';
+    'platform-update-release': {
+      version: string;
+      /** @enum {string} */
+      channel: 'stable' | 'beta';
+      notes: string;
+      /** Format: date-time */
+      published_at: string;
+      /** Format: uri */
+      manifest_url: string;
+      /** Format: uri */
+      notes_url?: string;
+      upgrade_notes?: string;
+      minimum_source_version?: string;
+      server_digest: string;
+      web_digest: string;
+      server_image: string;
+      web_image: string;
+      server_reference: string;
+      web_reference: string;
+      runner_image: string;
+      runner_digest: string;
+      runner_reference: string;
+      /** Format: uri */
+      checksums_url?: string;
+      asset_sha256?: {
+        [key: string]: string;
+      };
+    };
     /** @enum {string} */
     'platform-update-compose-root-source': 'explicit_env' | 'docker_discovered' | 'unavailable';
     'platform-update-compose-root-candidate': {
@@ -6261,27 +6296,12 @@ export interface components {
       current_version: string;
       /** @enum {string} */
       channel: 'stable' | 'beta' | 'unknown';
-      latest?: {
-        version: string;
-        /** @enum {string} */
-        channel: 'stable' | 'beta';
-        notes: string;
-        /** Format: date-time */
-        published_at: string;
-        /** Format: uri */
-        manifest_url: string;
-        /** Format: uri */
-        notes_url?: string;
-        upgrade_notes?: string;
-        minimum_source_version?: string;
-        server_digest: string;
-        web_digest: string;
-        /** Format: uri */
-        checksums_url?: string;
-        asset_sha256?: {
-          [key: string]: string;
-        };
-      };
+      update_policy?: components['schemas']['platform-update-policy'];
+      /** @description Whether the official Compose .env declares the deployment-owned update policy. */
+      policy_initialized?: boolean;
+      latest?: components['schemas']['platform-update-release'];
+      /** @description Verified releases available for fixed-policy selection. Empty for callers without update management permission. */
+      available_releases?: components['schemas']['platform-update-release'][];
       installation_profile: {
         /** @enum {string} */
         declared_mode: 'compose' | 'binary' | 'unknown';
@@ -6326,6 +6346,7 @@ export interface components {
       operation_id: string;
       source_version: string;
       target_version: string;
+      update_policy?: components['schemas']['platform-update-policy'];
       /** Format: int64 */
       task_id: number;
       /** Format: int64 */
@@ -6364,6 +6385,8 @@ export interface components {
       data: components['schemas']['platform-update-operation-list'];
     };
     'create-platform-update-operation-request': {
+      /** @description Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Requests containing this field after initialization are rejected and never override .env. */
+      update_policy?: components['schemas']['platform-update-policy'];
       target_version: string;
       /** @description Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery. */
       compose_candidate_key?: string;

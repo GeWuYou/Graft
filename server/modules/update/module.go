@@ -18,7 +18,7 @@ import (
 const (
 	moduleID                    = "platform-update"
 	platformUpdateMenuOrder     = 103
-	platformUpdateCheckSchedule = "0 0 4 * * *"
+	platformUpdateCheckSchedule = "0 0 */4 * * *"
 )
 
 // Module 拥有更新发现的注册、周期检查与 HTTP 读取面。
@@ -111,6 +111,7 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
+	m.rollout.SetAppLogger(ctx.AppLogger)
 	return nil
 }
 

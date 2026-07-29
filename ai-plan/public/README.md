@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `compose-update-policy-reset`
+  - Recovery entry: `ai-plan/public/compose-update-policy-reset/README.md`
+
 - `migration-governance`
   - Recovery entry: `ai-plan/public/migration-governance/README.md`
 

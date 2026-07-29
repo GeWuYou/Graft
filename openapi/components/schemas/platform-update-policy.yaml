@@ -1,0 +1,3 @@
+type: string
+enum: [stable, beta, fixed, manual]
+description: Deployment-owned self-update policy persisted in the official Compose .env file.

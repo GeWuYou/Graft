@@ -39,6 +39,19 @@ func TestStatusWithoutComposeCandidatesKeepsDiscoverySnapshotIntact(t *testing.T
 	}
 }
 
+func TestStatusDoesNotSelectReleaseForInvalidCurrentVersion(t *testing.T) {
+	t.Setenv(updatePolicyEnv, string(UpdatePolicyStable))
+	service := NewService(nil)
+	service.current = func() buildinfo.Info { return buildinfo.Info{Version: "development"} }
+	service.catalog = []Release{{Version: "1.1.0", Channel: "stable"}}
+
+	status := service.Status()
+
+	if status.Latest != nil {
+		t.Fatalf("invalid current version must not select a release: %#v", status.Latest)
+	}
+}
+
 type stubReleaseProvider struct {
 	releases []Release
 	err      error

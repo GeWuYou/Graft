@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/event"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
 )
 
@@ -94,12 +94,13 @@ func TestRunnerReceiptDoesNotSerializeBackupStorageReferences(t *testing.T) {
 func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	t.Setenv("GRAFT_UPDATE_POLICY", "beta")
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
 	}
-	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	discovery.latest = &Release{Version: "1.1.0", Channel: "beta", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
 	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
 	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
@@ -109,10 +110,10 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	launcher := &recordingLauncher{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
 	rollout.newOperation = func() string { return "update-77" }
-	if _, err := rollout.Start(t.Context(), 9, "1.0.9"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.0.9"}); err == nil {
 		t.Fatal("expected target version rejection")
 	}
-	operation, err := rollout.Start(t.Context(), 9, "1.1.0")
+	operation, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"})
 	if err != nil {
 		t.Fatalf("start rollout: %v", err)
 	}
@@ -127,12 +128,13 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
+	t.Setenv("GRAFT_UPDATE_POLICY", "beta")
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
 	discovery.profile = func() InstallationProfile {
 		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
 	}
-	discovery.latest = &Release{Version: "1.1.0", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	discovery.latest = &Release{Version: "1.1.0", Channel: "beta", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	discovery.latest.ServerRef = discovery.latest.ServerImage + "@" + discovery.latest.ServerDigest
 	discovery.latest.WebRef = discovery.latest.WebImage + "@" + discovery.latest.WebDigest
 	discovery.latest.RunnerRef = discovery.latest.RunnerImage + "@" + discovery.latest.RunnerDigest
@@ -143,7 +145,7 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	operations := &memoryOperationStore{}
 	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{launchErr: errors.New("docker unavailable")})
 	rollout.newOperation = func() string { return "update-78" }
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
 		t.Fatal("expected launcher failure")
 	}
 	if tasks.canceled != 78 || backups.canceled.OperationID != "update-78" || backups.canceled.TaskID != 78 {
@@ -151,35 +153,6 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	}
 	if item := operations.items["update-78"]; item.Outcome != ExecutionOutcomeFailed || item.FailureCode != "runner_launch_failed" {
 		t.Fatalf("operation failure was not persisted: %#v", item)
-	}
-}
-
-func TestSettleReceiptEntryDeletesOnlySuccessfulSettlements(t *testing.T) {
-	root := t.TempDir()
-	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
-		"update-81": {OperationID: "update-81", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 81, Outcome: ExecutionOutcomePulling},
-		"update-82": {OperationID: "update-82", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 82, Outcome: ExecutionOutcomePulling},
-	}}
-	rollout := NewRolloutService(NewService(nil), operations, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
-	for _, receipt := range []RunnerReceipt{
-		{ProtocolVersion: runnerProtocolVersion, OperationID: "update-81", Succeeded: true},
-		{ProtocolVersion: runnerProtocolVersion, OperationID: "update-82", FailureCode: "pull_failed"},
-	} {
-		input := fixtureRunnerInput(root)
-		input.OperationID = receipt.OperationID
-		if err := persistRunnerReceipt(input, receipt); err != nil {
-			t.Fatalf("persist receipt %s: %v", receipt.OperationID, err)
-		}
-		entry := mustReceiptEntry(t, root, receipt.OperationID+".json")
-		if err := rollout.settleReceiptEntry(t.Context(), root, entry); err != nil {
-			t.Fatalf("settle receipt %s: %v", receipt.OperationID, err)
-		}
-	}
-	if _, err := os.Stat(filepath.Join(root, runnerReceiptDirectory, "update-81.json")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("successful receipt should be removed, got %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(root, runnerReceiptDirectory, "update-82.json")); err != nil {
-		t.Fatalf("failed receipt should remain for retry, got %v", err)
 	}
 }
 
@@ -200,6 +173,19 @@ func TestSettlePersistedReceiptShortCircuitsTerminalOperation(t *testing.T) {
 	}
 	if tasks.external.TaskID != 0 || backups.completion.OperationID != "" {
 		t.Fatalf("terminal receipt replay triggered side effects: task=%#v backup=%#v", tasks.external, backups.completion)
+	}
+}
+
+func TestLogTerminalFailureWithoutRequestIDStillWritesAppLog(t *testing.T) {
+	core, observed := observer.New(zap.ErrorLevel)
+	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
+	rollout.SetAppLogger(logger.NewAppLogger(zap.New(core)))
+
+	rollout.logTerminalFailure(t.Context(), ComposeUpdateOperation{OperationID: "update-84", TaskID: 84, TargetVersion: "1.1.0", Outcome: ExecutionOutcomeFailed}, RunnerReceipt{FailureCode: runnerFailureHealthz})
+
+	entries := observed.All()
+	if len(entries) != 1 || entries[0].Message != runnerFailureDiagnosticSummary {
+		t.Fatalf("expected terminal failure app log without request ID, got %#v", entries)
 	}
 }
 
@@ -283,11 +269,11 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	serverDigest := "sha256:" + strings.Repeat("a", 64)
 	webDigest := "sha256:" + strings.Repeat("b", 64)
 	runnerDigest := "sha256:" + strings.Repeat("c", 64)
-	release := Release{ServerImage: serverImage, WebImage: webImage, RunnerImage: runnerImage, ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest, ServerRef: serverImage + "@" + serverDigest, WebRef: webImage + "@" + webDigest, RunnerRef: runnerImage + "@" + runnerDigest}
+	release := Release{Version: "1.1.0-beta.1", ServerImage: serverImage, WebImage: webImage, RunnerImage: runnerImage, ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest, ServerRef: serverImage + "@" + serverDigest, WebRef: webImage + "@" + webDigest, RunnerRef: runnerImage + "@" + runnerDigest}
 	files := []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides", "web.yml")}
 	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-selected", Root: root, ConfigFiles: files}}}
 
-	preflight, err := composePreflight(profile, release, "compose-selected")
+	preflight, err := composePreflight(profile, release, UpdatePolicyBeta, "compose-selected")
 	if err != nil {
 		t.Fatalf("build compose preflight: %v", err)
 	}
@@ -298,28 +284,13 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 
 func TestComposePreflightUsesUniqueHighConfidenceCandidateWithoutKey(t *testing.T) {
 	root := t.TempDir()
-	release := Release{ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
+	release := Release{Version: "1.1.0-beta.1", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	release.ServerRef, release.WebRef, release.RunnerRef = release.ServerImage+"@"+release.ServerDigest, release.WebImage+"@"+release.WebDigest, release.RunnerImage+"@"+release.RunnerDigest
 	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeRootConfirmationRequired: false, ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-unique", Root: root, ConfigFiles: []string{filepath.Join(root, "compose.yml")}, Confidence: "high"}}}
-	preflight, err := composePreflight(profile, release, "")
+	preflight, err := composePreflight(profile, release, UpdatePolicyBeta, "")
 	if err != nil || preflight.ComposeRoot != root {
 		t.Fatalf("expected unique candidate preflight, got %#v, %v", preflight, err)
 	}
-}
-
-func mustReceiptEntry(t *testing.T, root, name string) os.DirEntry {
-	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(root, runnerReceiptDirectory))
-	if err != nil {
-		t.Fatalf("list receipts: %v", err)
-	}
-	for _, entry := range entries {
-		if entry.Name() == name {
-			return entry
-		}
-	}
-	t.Fatalf("receipt %s was not created", name)
-	return nil
 }
 
 func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
@@ -335,7 +306,7 @@ func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
 	discovery.lastSuccessfulAt = &old
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 99}}
 	rollout := NewRolloutService(discovery, &memoryOperationStore{}, tasks, &stubBackupService{}, &recordingLauncher{})
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
 		t.Fatal("expected stale release catalog to reject rollout")
 	}
 	if tasks.plan.Type != "" {
@@ -356,7 +327,7 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 	discovery.lastSuccessfulAt = &fresh
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 100}}
 	rollout := NewRolloutService(discovery, &memoryOperationStore{}, tasks, &stubBackupService{}, &recordingLauncher{})
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
 		t.Fatal("expected minimum source version to reject rollout")
 	}
 	if tasks.plan.Type != "" {
@@ -381,7 +352,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, update_policy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -389,7 +360,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
-	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", UpdatePolicy: UpdatePolicyBeta, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
 	if err := store.Create(t.Context(), created); err != nil {
 		t.Fatalf("create operation: %v", err)
 	}
@@ -401,7 +372,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("get operation: %v", err)
 	}
-	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
+	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.UpdatePolicy != UpdatePolicyBeta || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
 	}
 }

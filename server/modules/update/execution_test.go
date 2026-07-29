@@ -20,12 +20,12 @@ func TestValidateRunnerInputAcceptsOrderedComposeFilesUnderRoot(t *testing.T) {
 		}
 	}
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
-		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides/web.yml")}, BundledPostgres: true,
+		DeclaredMode: "compose", UpdatePolicy: UpdatePolicyBeta, DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides/web.yml")}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web",
 		OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest:        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		RunnerDigest:    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-		ServerReference: "ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebReference: "ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		ServerReference: "ghcr.io/gewuyou/graft-server:1.2.3-beta.1", WebReference: "ghcr.io/gewuyou/graft-web:1.2.3-beta.1",
 		RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 	}}
 	if err := ValidateRunnerInput(valid); err != nil {
@@ -53,10 +53,10 @@ func TestValidateRunnerInputRejectsComposeSymlinkEscapeAndNestedFirstFile(t *tes
 	}
 
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
-		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml"), link}, BundledPostgres: true,
+		DeclaredMode: "compose", UpdatePolicy: UpdatePolicyBeta, DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml"), link}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerDigest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-		ServerReference: "ghcr.io/gewuyou/graft-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebReference: "ghcr.io/gewuyou/graft-web@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		ServerReference: "ghcr.io/gewuyou/graft-server:1.2.3-beta.1", WebReference: "ghcr.io/gewuyou/graft-web:1.2.3-beta.1", RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 	}}
 	if err := ValidateRunnerInput(valid); err == nil {
 		t.Fatal("expected compose symlink escaping root rejection")
@@ -73,6 +73,14 @@ func TestValidateRunnerInputRejectsComposeSymlinkEscapeAndNestedFirstFile(t *tes
 	valid.Preflight.ComposeFiles = []string{nestedCompose}
 	if err := ValidateRunnerInput(valid); err == nil {
 		t.Fatal("expected nested first compose file rejection")
+	}
+}
+
+func TestComposeRunnerContainerConfigUsesNonRootUser(t *testing.T) {
+	input := RunnerInput{Preflight: ComposePreflight{ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock"}}
+	config, _ := composeRunnerContainerConfig(input, "runner-input")
+	if config.User != "65532:65532" {
+		t.Fatalf("runner user = %q, want non-root service user", config.User)
 	}
 }
 
