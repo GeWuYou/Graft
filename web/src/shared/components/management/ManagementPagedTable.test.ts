@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
@@ -25,7 +27,7 @@ const TTableStub = defineComponent({
 
 const TPaginationStub = defineComponent({
   name: 'TPaginationStub',
-  props: ['current', 'pageSize', 'total'],
+  props: ['current', 'pageSize', 'total', 'totalContent'],
   emits: ['change', 'update:current', 'update:pageSize'],
   setup(_props, { emit }) {
     return () =>
@@ -39,6 +41,15 @@ const TPaginationStub = defineComponent({
       );
   },
 });
+
+const directManagedPaginationSources = [
+  '../../../modules/announcement/pages/management/index.vue',
+  '../../../modules/announcement/pages/user-list/index.vue',
+  '../../../modules/notification/components/NotificationTable.vue',
+  '../../../modules/rbac/pages/permissions/index.vue',
+  '../../../modules/runtime-target/pages/list/index.vue',
+  '../../../modules/scheduled-task/pages/list/index.vue',
+];
 
 describe('ManagementPagedTable', () => {
   it('routes table cell slots and renders the shared empty/pagination frame', async () => {
@@ -77,6 +88,7 @@ describe('ManagementPagedTable', () => {
 
     expect(wrapper.get('[data-testid="name-cell"]').text()).toBe('web');
     expect(wrapper.get('[data-testid="operation-cell"]').text()).toBe('detail');
+    expect(wrapper.findComponent(TPaginationStub).props('totalContent')).toBe(false);
 
     await wrapper.get('[data-testid="pagination-change"]').trigger('click');
 
@@ -110,6 +122,25 @@ describe('ManagementPagedTable', () => {
     expect(wrapper.get('[data-testid="application-card"]').text()).toBe('web');
     expect(wrapper.find('[data-testid="paged-table"]').exists()).toBe(false);
     expect(wrapper.find('.management-table-pagination').exists()).toBe(true);
+  });
+
+  it('hides the pagination footer only when callers explicitly opt out', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        paginationVisible: false,
+        rows: [{ id: 'container-1', name: 'web' }],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.find('.management-table-pagination').exists()).toBe(false);
   });
 
   it('passes responsive entity semantics and density-specific column sets to the shared table boundary', () => {
@@ -164,5 +195,15 @@ describe('ManagementPagedTable', () => {
     });
 
     expect(wrapper.findComponent(TTableStub).props('selectedRowKeys')).toEqual([]);
+  });
+
+  it('disables the native total for every direct management pagination footer', async () => {
+    const sources = await Promise.all(
+      directManagedPaginationSources.map((path) => readFile(new URL(path, import.meta.url), 'utf8')),
+    );
+
+    for (const source of sources) {
+      expect(source).toContain(':total-content="false"');
+    }
   });
 });

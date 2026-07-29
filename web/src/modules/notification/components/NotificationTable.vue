@@ -76,6 +76,7 @@
           :page-size-options="[10, 20, 50, 100]"
           :show-page-number="true"
           :total="total"
+          :total-content="false"
           @change="handlePageChange"
         />
       </management-table-pagination>

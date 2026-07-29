@@ -15,7 +15,7 @@
     :density-scope="props.densityScope"
     :entity-card-layout="props.entityCardLayout"
     :pagination-props="props.paginationProps"
-    :pagination-visible="props.paginationVisible"
+    :pagination-visible="paginationVisible"
     :presentation="props.presentation"
     :preserve-inactive="props.preserveInactive"
     :row-class-name="props.rowClassName"
@@ -58,30 +58,48 @@ import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/respons
 // 该组件只负责把查询页的分页模型与表格 slot 转交给共享表格壳，不拥有查询条件或服务端数据状态。
 /* jscpd:ignore-start */
 // 该适配层必须显式镜像 ManagementPagedTable 的分页输入，避免查询页再定义一套表格传参契约。
-const props = defineProps<{
-  cellSlotNames: string[];
-  cardsVisible?: boolean;
-  columnSets?: Partial<Record<ResponsiveDensity, string[]>>;
-  columns: TdBaseTableProps['columns'];
-  description?: string;
-  densityScope?: 'container' | 'viewport';
-  emptyDescription: string;
-  emptyTitle: string;
-  entityCardLayout?: 'adaptive' | 'compact';
-  footerSummary: string;
-  headLabel: string;
-  loading?: boolean;
-  paginationProps?: Partial<PaginationProps>;
-  paginationVisible?: boolean;
-  presentation?: ResponsivePresentation;
-  preserveInactive?: boolean;
-  rowClassName?: TdBaseTableProps['rowClassName'];
-  rowKey?: string;
-  rows: TableRowData[];
-  selectedRowKeys?: Array<string | number>;
-  summary?: string;
-  total: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    cellSlotNames: string[];
+    cardsVisible?: boolean;
+    columnSets?: Partial<Record<ResponsiveDensity, string[]>>;
+    columns: TdBaseTableProps['columns'];
+    description?: string;
+    densityScope?: 'container' | 'viewport';
+    emptyDescription: string;
+    emptyTitle: string;
+    entityCardLayout?: 'adaptive' | 'compact';
+    footerSummary: string;
+    headLabel: string;
+    loading?: boolean;
+    paginationProps?: Partial<PaginationProps>;
+    paginationVisible?: boolean;
+    presentation?: ResponsivePresentation;
+    preserveInactive?: boolean;
+    rowClassName?: TdBaseTableProps['rowClassName'];
+    rowKey?: string;
+    rows: TableRowData[];
+    selectedRowKeys?: Array<string | number>;
+    summary?: string;
+    total: number;
+  }>(),
+  {
+    cardsVisible: false,
+    columnSets: () => ({}),
+    description: '',
+    densityScope: 'container',
+    entityCardLayout: 'compact',
+    loading: false,
+    paginationProps: () => ({}),
+    paginationVisible: true,
+    presentation: 'data',
+    preserveInactive: false,
+    rowClassName: undefined,
+    rowKey: 'id',
+    selectedRowKeys: () => [],
+    summary: '',
+  },
+);
 /* jscpd:ignore-end */
 
 const emit = defineEmits<{
@@ -92,6 +110,8 @@ const emit = defineEmits<{
 
 const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
+
+const paginationVisible = computed(() => props.paginationVisible !== false);
 
 const passthroughTableSlotNames = computed(() =>
   Array.from(new Set([...props.cellSlotNames, 'empty', 'empty-action'])).filter(

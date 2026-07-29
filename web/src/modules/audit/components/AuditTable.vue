@@ -316,5 +316,6 @@ void TableActionMenu;
 
 .audit-log-card__actions {
   justify-content: flex-end;
+  justify-self: end;
 }
 </style>

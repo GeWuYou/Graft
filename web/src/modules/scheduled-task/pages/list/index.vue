@@ -269,6 +269,7 @@
               v-model:current="pagination.current"
               v-model:page-size="pagination.pageSize"
               :total="pagination.total"
+              :total-content="false"
               :page-size-options="[10, 20, 50, 100]"
               :show-page-number="true"
               @change="handlePageChange"
