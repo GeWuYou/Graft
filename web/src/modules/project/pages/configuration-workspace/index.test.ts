@@ -1903,9 +1903,8 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === '重新部署项目')
       ?.trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(dialogMocks.confirm).toHaveBeenCalledTimes(1));
 
-    expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
     expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
 

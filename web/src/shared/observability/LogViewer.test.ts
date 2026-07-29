@@ -220,16 +220,20 @@ describe('LogViewer', () => {
 
     viewport.scrollTop = 80;
     await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
     await wrapper.setProps({ historyLoading: true });
     viewport.scrollTop = 0;
     await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
     expect(wrapper.emitted('reach-top')).toHaveLength(1);
 
     await wrapper.setProps({ historyLoading: false });
     viewport.scrollTop = 80;
     await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
     viewport.scrollTop = 0;
     await wrapper.get('.log-viewer__viewport').trigger('scroll');
+    await nextTick();
     expect(wrapper.emitted('reach-top')).toHaveLength(2);
   });
 
