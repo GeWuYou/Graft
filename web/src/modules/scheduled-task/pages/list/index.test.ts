@@ -749,10 +749,56 @@ const PassthroughStub = defineComponent({
   },
 });
 
-const ManagementTableCardStub = defineComponent({
-  name: 'ManagementTableCard',
-  setup(_props, { slots }) {
-    return () => h('section', [slots.head?.(), slots.toolbar?.(), slots.default?.(), slots.footer?.()]);
+const ManagementPagedTableStub = defineComponent({
+  name: 'ManagementPagedTable',
+  props: {
+    columns: { type: Array, default: () => [] },
+    current: { type: Number, default: 1 },
+    footerSummary: { type: String, default: '' },
+    hideFooterSummaryOnCompact: Boolean,
+    pageSize: { type: Number, default: 20 },
+    rows: { type: Array, default: () => [] },
+    total: { type: Number, default: 0 },
+  },
+  emits: ['page-change', 'update:current', 'update:pageSize'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('section', { 'data-testid': 'scheduled-task-paged-table' }, [
+        slots.head?.(),
+        slots.toolbar?.(),
+        h(
+          TableStub,
+          { columns: props.columns, data: props.rows },
+          Object.fromEntries(
+            ['task', 'job_key', 'status', 'schedule', 'last_run', 'success_rate', 'operation'].map((name) => [
+              name,
+              (slotProps: Record<string, unknown>) => slots[name]?.(slotProps),
+            ]),
+          ),
+        ),
+        h(PaginationStub, {
+          current: props.current,
+          pageSize: props.pageSize,
+          total: props.total,
+          onChange: (pageInfo: { current: number; pageSize: number }) => emit('page-change', pageInfo),
+          'onUpdate:current': (current: number) => emit('update:current', current),
+          'onUpdate:pageSize': (pageSize: number) => emit('update:pageSize', pageSize),
+        }),
+        h('span', { 'data-testid': 'scheduled-task-footer-summary' }, props.footerSummary),
+        h('span', { 'data-testid': 'compact-pagination-config' }, String(props.hideFooterSummaryOnCompact)),
+      ]);
+  },
+});
+
+const ManagementPagedTableCardsStub = defineComponent({
+  name: 'ManagementPagedTable',
+  props: { hideFooterSummaryOnCompact: Boolean },
+  setup(props, { slots }) {
+    return () =>
+      h('section', { 'data-testid': 'scheduled-task-card-mode' }, [
+        slots.cards?.(),
+        h('span', { 'data-testid': 'compact-pagination-config' }, String(props.hideFooterSummaryOnCompact)),
+      ]);
   },
 });
 
@@ -806,7 +852,7 @@ const PaginationStub = defineComponent({
   },
 });
 
-function mountPage() {
+function mountPage(stubOverrides: Record<string, unknown> = {}) {
   return mount(ScheduledTaskListPage, {
     global: {
       directives: {
@@ -847,17 +893,18 @@ function mountPage() {
         TRadioButton: PassthroughStub,
         TRadioGroup: PassthroughStub,
         TSelect: PassthroughStub,
+        TSkeleton: PassthroughStub,
         TSpace: PassthroughStub,
         TSwitch: PassthroughStub,
         TAlert: PassthroughStub,
         TTable: TableStub,
         TTag: PassthroughStub,
         TTextarea: TextareaStub,
-        ManagementTableCard: ManagementTableCardStub,
-        ManagementTablePagination: PassthroughStub,
+        ManagementPagedTable: ManagementPagedTableStub,
         ManagementToolbar: PassthroughStub,
         ManagementStatisticsBar: ManagementStatisticsBarStub,
         TableViewToolbar: TableViewToolbarStub,
+        ...stubOverrides,
       },
     },
   });
@@ -1005,6 +1052,44 @@ describe('ScheduledTaskListPage', () => {
     expect(statistics.text()).toContain('任务总数');
     expect(statistics.text()).toContain('🟢');
     expect(wrapper.findAll('.scheduled-task-metric-card')).toHaveLength(0);
+  });
+
+  it('renders every scheduled task information group in responsive card mode', async () => {
+    const wrapper = mountPage({ ManagementPagedTable: ManagementPagedTableCardsStub });
+    await flushPromises();
+
+    const card = wrapper.get('[data-testid="scheduled-task-card-httpx.access-log-retention-cleanup"]');
+    expect(card.text()).toContain('访问日志保留清理');
+    expect(card.text()).toContain('httpx.access-log-retention-cleanup');
+    expect(card.text()).toContain('日志保留');
+    expect(card.text()).toContain('启用');
+    expect(card.text()).toContain('成功');
+    expect(card.text()).toContain('每 5 分钟执行一次');
+    expect(card.text()).toContain('*/5 * * * *');
+    expect(card.text()).toContain('下次运行');
+    expect(card.text()).toContain('已删除 3 行');
+    expect(card.findAll('button')).toHaveLength(2);
+  });
+
+  it('uses card skeletons and a primary create action in responsive card mode', async () => {
+    apiMocks.getScheduledTasks.mockReturnValueOnce(new Promise(() => undefined));
+    const loadingWrapper = mountPage({ ManagementPagedTable: ManagementPagedTableCardsStub });
+    await flushPromises();
+
+    expect(loadingWrapper.findAll('.scheduled-task-card--skeleton')).toHaveLength(3);
+
+    apiMocks.getScheduledTasks.mockResolvedValueOnce({ ...scheduledTasksResponse(), items: [], total: 0 });
+    const emptyWrapper = mountPage({ ManagementPagedTable: ManagementPagedTableCardsStub });
+    await flushPromises();
+
+    expect(findButtonByText(emptyWrapper, '新建任务')).toBeTruthy();
+  });
+
+  it('keeps the shared pagination configuration compact without a footer total', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="compact-pagination-config"]').text()).toBe('true');
   });
 
   it('keeps high-frequency actions visible and folds management actions into more menu', async () => {
