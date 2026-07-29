@@ -1,5 +1,10 @@
 <template>
-  <div class="management-table-pagination">
+  <div
+    :class="[
+      'management-table-pagination',
+      { 'management-table-pagination--hide-summary-compact': hideSummaryOnCompact },
+    ]"
+  >
     <div class="management-table-pagination__summary">
       <slot name="summary">
         <span>{{ summary }}</span>
@@ -12,9 +17,15 @@
 </template>
 <script setup lang="ts">
 // 管理表格分页只承载摘要与分页控件的布局；数据统计和分页状态仍由业务页面拥有，避免共享壳层反向持有查询状态。
-defineProps<{
-  summary: string;
-}>();
+withDefaults(
+  defineProps<{
+    hideSummaryOnCompact?: boolean;
+    summary: string;
+  }>(),
+  {
+    hideSummaryOnCompact: false,
+  },
+);
 </script>
 <style scoped lang="less">
 .management-table-pagination {
@@ -85,6 +96,10 @@ defineProps<{
   .management-table-pagination__controls :deep(.t-pagination) {
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .management-table-pagination--hide-summary-compact .management-table-pagination__summary {
+    display: none;
   }
 }
 </style>

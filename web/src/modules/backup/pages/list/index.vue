@@ -8,7 +8,7 @@
       :description-fallback="t('backup.list.description')"
     />
 
-    <management-toolbar>
+    <management-toolbar compact-action-layout="equal-width">
       <template #actions>
         <t-button theme="default" variant="outline" :loading="loading" @click="loadBackups">
           <template #icon><refresh-icon /></template>
@@ -29,36 +29,90 @@
       :message="errorMessage"
     />
 
-    <management-table-card>
+    <management-paged-table
+      v-model:current="current"
+      v-model:page-size="pageSize"
+      :columns="columns"
+      density-scope="viewport"
+      entity-card-layout="compact"
+      :empty-description="t('backup.list.empty')"
+      :empty-title="t('backup.list.title')"
+      :footer-summary="footerSummary"
+      hide-footer-summary-on-compact
+      :loading="loading"
+      presentation="entity"
+      :rows="backups"
+      :total="total"
+      @page-change="handlePageChange"
+    >
       <template #head>
         <p class="backup-page__table-summary">{{ t('backup.list.description') }}</p>
       </template>
-      <t-table
-        row-key="id"
-        :columns="columns"
-        :data="backups"
-        :loading="loading"
-        :pagination="pagination"
-        :disable-data-page="true"
-        @page-change="handlePageChange"
-      >
-        <template #purpose="{ row }">{{ purposeLabel(row.purpose) }}</template>
-        <template #status="{ row }">
-          <t-tag :theme="statusTheme(row.status)" variant="light-outline">{{ statusLabel(row.status) }}</t-tag>
+      <template #status="{ row }">
+        <t-tag :theme="statusTheme(row.status)" variant="light-outline">{{ statusLabel(row.status) }}</t-tag>
+      </template>
+      <template #contents>{{ t('backup.content.summary') }}</template>
+      <template #retain_until="{ row }">{{ formatDate(row.retain_until) }}</template>
+      <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
+      <template #actions="{ row }">
+        <t-button size="small" theme="primary" variant="text" @click="openBackup(row)">
+          {{ t('backup.list.actions.view') }}
+        </t-button>
+      </template>
+      <template #empty>
+        <t-empty :description="t('backup.list.empty')">
+          <template #action>
+            <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="createDialogVisible = true">
+              {{ t('backup.list.create') }}
+            </t-button>
+          </template>
+        </t-empty>
+      </template>
+      <template #cards>
+        <template v-if="loading">
+          <article v-for="index in 3" :key="`backup-card-skeleton-${index}`" class="backup-card backup-card--skeleton">
+            <t-skeleton animation="gradient" :row-col="backupCardSkeletonRows" />
+          </article>
         </template>
-        <template #contents>{{ t('backup.content.summary') }}</template>
-        <template #retain_until="{ row }">{{ formatDate(row.retain_until) }}</template>
-        <template #created_at="{ row }">{{ formatDate(row.created_at) }}</template>
-        <template #actions="{ row }">
-          <t-button size="small" theme="primary" variant="text" @click="openBackup(row)">
-            {{ t('backup.list.actions.view') }}
-          </t-button>
-        </template>
-        <template #empty>
-          <t-empty :description="t('backup.list.empty')" />
-        </template>
-      </t-table>
-    </management-table-card>
+        <article
+          v-for="backup in backups"
+          v-else-if="backups.length"
+          :key="backup.id"
+          class="backup-card"
+          :data-testid="`backup-card-${backup.id}`"
+        >
+          <header class="backup-card__header">
+            <p class="backup-card__identifier">{{ t('backup.detail.identifier', { id: backup.id }) }}</p>
+            <t-tag :theme="statusTheme(backup.status)" variant="light-outline">
+              {{ statusLabel(backup.status) }}
+            </t-tag>
+          </header>
+          <dl class="backup-card__details">
+            <div>
+              <dt>{{ t('backup.list.columns.contents') }}</dt>
+              <dd>{{ t('backup.content.summary') }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('backup.list.columns.createdAt') }}</dt>
+              <dd>{{ formatDate(backup.created_at) }}</dd>
+            </div>
+          </dl>
+          <div class="backup-card__actions">
+            <t-button theme="primary" variant="text" @click="openBackup(backup)">
+              {{ t('backup.list.actions.view') }}
+              <template #suffix><chevron-right-icon /></template>
+            </t-button>
+          </div>
+        </article>
+        <t-empty v-else :description="t('backup.list.empty')">
+          <template #action>
+            <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="createDialogVisible = true">
+              {{ t('backup.list.create') }}
+            </t-button>
+          </template>
+        </t-empty>
+      </template>
+    </management-paged-table>
 
     <t-dialog
       v-model:visible="createDialogVisible"
@@ -175,14 +229,14 @@
 </template>
 <script setup lang="ts">
 // Backup 页面只消费安全资产投影；存储位置、工件内容和恢复执行权始终留在服务端边界。
-import { AddIcon, RefreshIcon } from 'tdesign-icons-vue-next';
+import { AddIcon, ChevronRightIcon, RefreshIcon } from 'tdesign-icons-vue-next';
 import type { PageInfo, PrimaryTableCol } from 'tdesign-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/task-observer';
-import { ManagementPageHeader, ManagementTableCard, ManagementToolbar } from '@/shared/components/management';
+import { ManagementPagedTable, ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { copyText, formatBytes, formatLocaleDateTime } from '@/shared/observability';
 
@@ -213,11 +267,16 @@ let listRequestSequence = 0;
 let detailRequestSequence = 0;
 
 const retentionOptions: readonly BackupRetention[] = ['1d', '7d', '30d'];
-const pagination = computed(() => ({
-  current: current.value,
-  pageSize: pageSize.value,
-  total: total.value,
-}));
+const footerSummary = computed(() => t('backup.list.footerTotal', { count: total.value }));
+const backupCardSkeletonRows = [
+  [
+    { width: '40%', height: '18px' },
+    { width: '72px', height: '24px', marginLeft: 'auto' },
+  ],
+  { width: '62%', height: '16px', marginTop: '20px' },
+  { width: '74%', height: '16px', marginTop: '14px' },
+  { width: '94px', height: '20px', marginTop: '20px' },
+];
 
 const artifactCards = computed(() => {
   if (!selectedBackup.value) return [];
@@ -395,6 +454,8 @@ function resolveTaskType(taskType: string) {
 }
 </script>
 <style scoped lang="less">
+@import '@/shared/components/card-surface.less';
+
 .backup-page {
   display: grid;
   gap: var(--td-comp-margin-xl);
@@ -409,6 +470,63 @@ function resolveTaskType(taskType: string) {
 .backup-page__table-summary,
 .backup-page__dialog-description {
   color: var(--td-text-color-secondary);
+}
+
+.backup-card {
+  .graft-entity-card-surface();
+
+  display: grid;
+  gap: var(--graft-density-gap-16);
+  min-width: 0;
+  padding: var(--graft-density-gap-16);
+}
+
+.backup-card__header,
+.backup-card__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.backup-card__identifier {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-medium);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.backup-card__details {
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  margin: 0;
+}
+
+.backup-card__details div {
+  border-top: 1px solid var(--td-component-stroke);
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  padding-top: var(--graft-density-gap-12);
+}
+
+.backup-card__details dt {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+}
+
+.backup-card__details dd {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.backup-card__actions {
+  border-top: 1px solid var(--td-component-stroke);
+  justify-content: flex-end;
+  padding-top: var(--graft-density-gap-12);
 }
 
 .backup-detail {

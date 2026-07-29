@@ -71,7 +71,10 @@
 
     <template v-if="paginationVisible" #footer>
       <slot name="footer">
-        <management-table-pagination :summary="props.footerSummary">
+        <management-table-pagination
+          :hide-summary-on-compact="props.hideFooterSummaryOnCompact"
+          :summary="props.footerSummary"
+        >
           <slot name="pagination">
             <t-pagination
               v-model:current="current"
@@ -127,6 +130,7 @@ const props = withDefaults(
     entityCardLayout?: ResponsiveEntityCardLayout;
     footerSummary: string;
     headLabel?: string;
+    hideFooterSummaryOnCompact?: boolean;
     loading?: boolean;
     pageSizeOptions?: PaginationProps['pageSizeOptions'];
     paginationProps?: Partial<PaginationProps>;
@@ -150,6 +154,7 @@ const props = withDefaults(
     description: '',
     entityCardLayout: 'compact',
     headLabel: '',
+    hideFooterSummaryOnCompact: false,
     loading: false,
     pageSizeOptions: () => [10, 20, 50, 100],
     paginationProps: () => ({}),
