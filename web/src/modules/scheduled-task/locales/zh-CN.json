@@ -382,6 +382,7 @@
       "detail": {
         "title": "任务详情",
         "titleWithName": "{name}",
+        "back": "返回定时任务",
         "basics": "基础信息",
         "schedule": "调度配置",
         "runtime": "运行状态",

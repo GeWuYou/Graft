@@ -76,6 +76,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'scheduledTask.list.description': '管理系统后台任务的调度规则、启停状态和运行记录。',
   'scheduledTask.list.detail.none': '无',
   'scheduledTask.list.detail.noError': '未记录错误',
+  'scheduledTask.list.detail.titleWithName': '{name}',
   'scheduledTask.list.detail.behavior': '任务行为',
   'scheduledTask.list.detail.effectiveConfig': '最终配置',
   'scheduledTask.list.detail.details': '详情',
@@ -116,6 +117,8 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'scheduledTask.list.detail.sections.configuration': '配置',
   'scheduledTask.list.detail.sections.runInfo': '运行信息',
   'scheduledTask.list.detail.noRecentRun': '暂无记录',
+  'scheduledTask.list.detail.back': '返回定时任务',
+  'scheduledTask.list.detail.recentRuns': '运行历史',
   'scheduledTask.list.detail.nextRun': '下次运行',
   'scheduledTask.list.detail.advancedInfo': '高级信息',
   'scheduledTask.list.detail.rawJobDefinition': '原始任务定义',
@@ -749,6 +752,24 @@ const PassthroughStub = defineComponent({
   },
 });
 
+const ResourceDetailLayoutStub = defineComponent({
+  name: 'ResourceDetailLayout',
+  props: ['backLabel', 'presentation', 'size', 'title', 'visible'],
+  emits: ['update:visible'],
+  setup(_props, { slots }) {
+    return () => h('section', { 'data-testid': 'scheduled-task-detail-surface' }, slots.default?.());
+  },
+});
+
+const CollapseStub = defineComponent({
+  name: 'TCollapse',
+  props: ['modelValue'],
+  emits: ['update:modelValue'],
+  setup(_props, { slots }) {
+    return () => h('section', { 'data-testid': 'scheduled-task-detail-collapse' }, slots.default?.());
+  },
+});
+
 const ManagementPagedTableStub = defineComponent({
   name: 'ManagementPagedTable',
   props: {
@@ -872,7 +893,7 @@ function mountPage(stubOverrides: Record<string, unknown> = {}) {
         CronExpressionField: CronExpressionFieldStub,
         TButton: ButtonStub,
         TCard: PassthroughStub,
-        TCollapse: PassthroughStub,
+        TCollapse: CollapseStub,
         TCollapsePanel: PassthroughStub,
         TDescriptions: PassthroughStub,
         TDescriptionsItem: PassthroughStub,
@@ -904,6 +925,7 @@ function mountPage(stubOverrides: Record<string, unknown> = {}) {
         ManagementToolbar: PassthroughStub,
         ManagementStatisticsBar: ManagementStatisticsBarStub,
         TableViewToolbar: TableViewToolbarStub,
+        ResourceDetailLayout: ResourceDetailLayoutStub,
         ...stubOverrides,
       },
     },
@@ -997,6 +1019,31 @@ describe('ScheduledTaskListPage', () => {
     expect(wrapper.text()).toContain('审计日志保留清理');
     expect(wrapper.text()).not.toContain('Access log retention cleanup');
     expect(wrapper.text()).toContain('Custom cleanup');
+  });
+
+  it('uses the shared responsive detail surface with the intended default information sections', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const detailTrigger = findButtonByText(wrapper, '查看');
+    expect(detailTrigger).toBeTruthy();
+    await detailTrigger!.trigger('click');
+    await flushPromises();
+
+    const surface = wrapper.getComponent(ResourceDetailLayoutStub);
+    expect(surface.props()).toMatchObject({
+      backLabel: '返回定时任务',
+      presentation: 'overlay',
+      size: 'large',
+      title: '访问日志保留清理',
+      visible: true,
+    });
+
+    const detailCollapse = wrapper.getComponent(CollapseStub);
+    expect(detailCollapse.props('modelValue')).toEqual(['basicInfo', 'scheduleInfo']);
+    expect(wrapper.text()).toContain('规则说明');
+    expect(wrapper.text()).toContain('Cron');
+    expect(wrapper.text()).toContain('运行历史');
   });
 
   it('keeps operation column visible while column settings hide optional columns', async () => {
