@@ -124,6 +124,7 @@
       "userIdValue": "User ID: {id}"
     },
     "detail": {
+      "back": "Back to Access Logs",
       "basic": "Basic Facts",
       "correlation": "Correlation",
       "network": "Network",

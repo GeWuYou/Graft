@@ -206,7 +206,7 @@ const dropdownStub = defineComponent({
             h(
               'button',
               {
-                'data-testid': option.testId,
+                'data-testid': option.testId ?? `role-${option.value}`,
                 onClick: () => emit('click', { value: option.value }),
               },
               option.content,
@@ -319,6 +319,10 @@ const selectStub = defineComponent({
 const tableStub = defineComponent({
   name: 'TTableStub',
   props: {
+    columns: {
+      type: Array,
+      default: () => [],
+    },
     data: {
       type: Array,
       default: () => [],
@@ -326,14 +330,26 @@ const tableStub = defineComponent({
   },
   setup(props, { slots }) {
     return () => {
+      const tableAttributes = {
+        'data-column-keys': JSON.stringify(
+          (props.columns as Array<{ colKey?: string }>).map((column) => column.colKey),
+        ),
+        'data-testid': 'role-table',
+      };
+
       if (props.data.length === 0) {
-        return h('div', slots.empty?.());
+        return h('div', tableAttributes, slots.empty?.());
       }
 
       return h(
         'div',
+        tableAttributes,
         (props.data as Array<Record<string, unknown>>).map((row, index) =>
-          h('div', { 'data-testid': `role-row-${index}` }, [slots.role?.({ row }), slots.operation?.({ row })]),
+          h('div', { 'data-testid': `role-row-${index}` }, [
+            slots.role?.({ row }),
+            slots.builtin?.({ row }),
+            slots.operation?.({ row }),
+          ]),
         ),
       );
     };
@@ -726,6 +742,7 @@ function mountRolePage() {
         't-form': formStub,
         't-form-item': formItemStub,
         't-input': inputStub,
+        't-loading': passthroughStub,
         't-select': selectStub,
         't-table': tableStub,
         't-tag': passthroughStub,
@@ -746,6 +763,26 @@ function selectedPermissionIds(wrapper: ReturnType<typeof mountRolePage>) {
   return JSON.parse(
     wrapper.get('[data-testid="permission-checkbox-group"]').attributes('data-selected-permission-ids') ?? '[]',
   );
+}
+
+async function emitRoleDropdownAction(wrapper: ReturnType<typeof mountRolePage>, value: string) {
+  const dropdown = wrapper.findAllComponents(dropdownStub).find((candidate) => {
+    const options = JSON.parse(candidate.attributes('data-options') ?? '[]') as Array<{ value?: string }>;
+    return options.some((option) => option.value === value);
+  });
+
+  if (!dropdown) {
+    throw new Error(`role action dropdown with ${value} was not found`);
+  }
+
+  const option = (
+    JSON.parse(dropdown.attributes('data-options') ?? '[]') as Array<{ testId?: string; value?: string }>
+  ).find((candidate) => candidate.value === value);
+  if (!option) {
+    throw new Error(`role action option ${value} was not found`);
+  }
+
+  await dropdown.get(`[data-testid="${option.testId ?? `role-${value}`}"]`).trigger('click');
 }
 
 function setPermissionMutationMode(wrapper: ReturnType<typeof mountRolePage>, mode: 'replace' | 'add' | 'remove') {
@@ -795,7 +832,59 @@ describe('RolePage', () => {
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(wrapper.text()).toContain('Editor');
+    expect(wrapper.get('[data-testid="role-row-0"]').text()).toContain('rbac.roleList.form.type.custom');
     expect(wrapper.text()).not.toContain('rbac.roleList.stats.totalRoles');
+  });
+
+  it('renders role cards with the complete mobile summary on compact screens', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_UPDATE];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    const viewportWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 375 });
+
+    try {
+      const wrapper = mountRolePage();
+      await flushPromises();
+      window.dispatchEvent(new Event('resize'));
+      await flushPromises();
+
+      expect(wrapper.find('[data-testid="role-table"]').exists()).toBe(false);
+      const card = wrapper.get('.role-mobile-card');
+      expect(card.text()).toContain('Editor');
+      expect(card.text()).toContain('editor');
+      expect(card.text()).toContain('rbac.roleList.form.type.custom');
+      expect(card.text()).toContain('rbac.roleList.columns.permissionCount');
+      expect(card.text()).toContain('rbac.roleList.columns.userCount');
+      expect(card.text()).toContain('rbac.roleList.columns.updatedAt');
+      expect(card.find('[data-testid="role-detail"]').exists()).toBe(true);
+      expect(card.find('[data-testid="dropdown"]').exists()).toBe(true);
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
+
+  it('keeps the table layout and hides secondary columns on tablet screens', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+    const viewportWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 768 });
+
+    try {
+      const wrapper = mountRolePage();
+      await flushPromises();
+      window.dispatchEvent(new Event('resize'));
+      await flushPromises();
+
+      expect(wrapper.get('[data-testid="role-table"]').attributes('data-column-keys')).toBe(
+        JSON.stringify(['role', 'builtin', 'permission_count', 'user_count', 'operation']),
+      );
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: viewportWidth });
+      window.dispatchEvent(new Event('resize'));
+    }
   });
 
   it('hides the edit button when role.update is missing', async () => {
@@ -1345,7 +1434,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    wrapper.getComponent(dropdownStub).vm.$emit('click', { value: 'detail' });
+    await wrapper.get('[data-testid="role-detail"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.get('[data-testid="role-overview"]').text()).toContain('Administrator');
@@ -1394,7 +1483,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    wrapper.getComponent(dropdownStub).vm.$emit('click', { value: 'copy-role' });
+    await emitRoleDropdownAction(wrapper, 'copy-role');
     await flushPromises();
 
     expect(rbacApiMocks.getRolePermissionBindings).toHaveBeenCalledWith(1);
@@ -1445,7 +1534,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    wrapper.getComponent(dropdownStub).vm.$emit('click', { value: 'copy-role' });
+    await emitRoleDropdownAction(wrapper, 'copy-role');
     await flushPromises();
     await wrapper.get('input[placeholder="rbac.roleList.form.namePlaceholder"]').setValue(' custom-admin ');
     await wrapper.get('[data-testid="role-form"]').trigger('submit');
@@ -1481,7 +1570,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    wrapper.getComponent(dropdownStub).vm.$emit('click', { value: 'delete' });
+    await emitRoleDropdownAction(wrapper, 'delete');
     await flushPromises();
 
     expect(rbacApiMocks.deleteRole).not.toHaveBeenCalled();
@@ -1518,7 +1607,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    wrapper.getComponent(dropdownStub).vm.$emit('click', { value: 'delete' });
+    await emitRoleDropdownAction(wrapper, 'delete');
     await flushPromises();
 
     expect(rbacApiMocks.deleteRole).not.toHaveBeenCalled();

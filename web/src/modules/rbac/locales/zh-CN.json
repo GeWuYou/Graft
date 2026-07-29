@@ -86,6 +86,8 @@
         "searchPlaceholder": "搜索角色名、显示名、角色编码",
         "typeAll": "全部类型",
         "typePlaceholder": "筛选角色类型",
+        "moreFilters": "更多筛选",
+        "filterPanelTitle": "筛选角色",
         "clearFilters": "重置"
       },
       "form": {

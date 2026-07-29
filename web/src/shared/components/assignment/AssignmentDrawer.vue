@@ -1,18 +1,13 @@
 <template>
-  <t-drawer
+  <responsive-dialog
     :visible="visible"
-    :header="title"
-    :footer="false"
-    :size="size"
-    placement="right"
-    destroy-on-close
+    :close-label="closeLabel"
+    :title="title"
+    purpose="workspace"
+    size="large"
     :close-on-esc-keydown="false"
     :close-on-overlay-click="false"
     @update:visible="handleVisibleChange"
-    @close="requestClose"
-    @close-btn-click="requestClose"
-    @esc-keydown="requestClose"
-    @overlay-click="requestClose"
   >
     <div class="assignment-drawer permission-drawer">
       <div v-if="$slots.header" class="assignment-drawer__header permission-drawer__header">
@@ -25,21 +20,18 @@
         <slot name="footer" />
       </div>
     </div>
-  </t-drawer>
+  </responsive-dialog>
 </template>
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
 
-const props = withDefaults(
-  defineProps<{
-    size?: string;
-    title: string;
-    visible: boolean;
-  }>(),
-  {
-    size: '760px',
-  },
-);
+import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
+
+const props = defineProps<{
+  title: string;
+  visible: boolean;
+  closeLabel: string;
+}>();
 
 const emit = defineEmits<{
   close: [];
@@ -124,20 +116,5 @@ watch(
   background: var(--td-bg-color-container);
   border-top: 1px solid var(--td-component-border);
   padding: 0 var(--td-comp-paddingLR-l) var(--td-comp-paddingTB-l);
-}
-
-:deep(.t-drawer__content) {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-:deep(.t-drawer__body) {
-  box-sizing: border-box;
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
-  overflow: hidden;
-  padding: 0;
 }
 </style>

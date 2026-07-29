@@ -6,7 +6,7 @@ import ManagementPagedTable from './ManagementPagedTable.vue';
 
 const TTableStub = defineComponent({
   name: 'TTableStub',
-  props: ['columns', 'data'],
+  props: ['columns', 'data', 'selectedRowKeys'],
   emits: ['page-change', 'row-click', 'select-change', 'sort-change'],
   setup(props, { slots }) {
     return () =>
@@ -25,7 +25,7 @@ const TTableStub = defineComponent({
 
 const TPaginationStub = defineComponent({
   name: 'TPaginationStub',
-  props: ['current', 'pageSize', 'total'],
+  props: ['current', 'pageSize', 'total', 'totalContent'],
   emits: ['change', 'update:current', 'update:pageSize'],
   setup(_props, { emit }) {
     return () =>
@@ -77,10 +77,30 @@ describe('ManagementPagedTable', () => {
 
     expect(wrapper.get('[data-testid="name-cell"]').text()).toBe('web');
     expect(wrapper.get('[data-testid="operation-cell"]').text()).toBe('detail');
+    expect(wrapper.findComponent(TPaginationStub).props('totalContent')).toBe(false);
 
     await wrapper.get('[data-testid="pagination-change"]').trigger('click');
 
     expect(wrapper.emitted('page-change')?.[0]).toEqual([{ current: 2, pageSize: 20, previous: 1 }]);
+  });
+
+  it('lets callers override the default pagination total content', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        paginationProps: { totalContent: true },
+        rows: [{ id: 'container-1', name: 'web' }],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.findComponent(TPaginationStub).props('totalContent')).toBe(true);
   });
 
   it('replaces the table with an explicit card slot without changing the shared frame', () => {
@@ -112,6 +132,25 @@ describe('ManagementPagedTable', () => {
     expect(wrapper.find('.management-table-pagination').exists()).toBe(true);
   });
 
+  it('hides the pagination footer only when callers explicitly opt out', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        paginationVisible: false,
+        rows: [{ id: 'container-1', name: 'web' }],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.find('.management-table-pagination').exists()).toBe(false);
+  });
+
   it('passes responsive entity semantics and density-specific column sets to the shared table boundary', () => {
     const wrapper = mount(ManagementPagedTable, {
       global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
@@ -136,5 +175,53 @@ describe('ManagementPagedTable', () => {
 
     expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('presentation')).toBe('entity');
     expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('entityCardLayout')).toBe('compact');
+  });
+
+  it('derives entity cards from cardsVisible while preserving the caller data presentation default', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        cardsVisible: true,
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        rows: [{ id: 'application-1', name: 'web' }],
+        total: 1,
+      },
+      slots: { cards: '<article data-testid="application-card">web</article>' },
+    });
+
+    expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('presentation')).toBe('entity');
+  });
+
+  it('keeps compact entity-card selection out of the hidden table renderer', () => {
+    const ResponsiveTableStub = defineComponent({
+      name: 'ResponsiveTable',
+      setup(_props, { slots }) {
+        return () => slots.default?.({ variant: { density: 'compact' } });
+      },
+    });
+    const wrapper = mount(ManagementPagedTable, {
+      global: {
+        stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub, ResponsiveTable: ResponsiveTableStub },
+      },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        presentation: 'entity',
+        rows: [{ id: 'user-1', name: 'Admin' }],
+        selectedRowKeys: ['user-1'],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.findComponent(TTableStub).props('selectedRowKeys')).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@
     v-model:current="current"
     v-model:page-size="pageSize"
     :cell-slot-names="cellSlotNames"
+    cards-visible
     :columns="columns"
     :description="description"
     :empty-description="emptyDescription"
@@ -10,6 +11,7 @@
     :footer-summary="footerSummary"
     head-label="access-log-table-head"
     :loading="loading"
+    presentation="log"
     :rows="rows"
     :summary="summary"
     :total="total"
@@ -18,6 +20,40 @@
   >
     <template v-if="$slots.toolbar" #toolbar>
       <slot name="toolbar" />
+    </template>
+    <template #cards>
+      <article
+        v-for="row in rows"
+        :key="row.id"
+        class="log-card access-log-card"
+        tabindex="0"
+        @click="$emit('detail', row)"
+        @keydown.enter="$emit('detail', row)"
+      >
+        <div class="log-card__header">
+          <t-tag theme="primary" variant="light-outline" size="small">{{ row.method }}</t-tag>
+          <t-tag :theme="statusTheme(row.status_code)" variant="light-outline" size="small">{{
+            row.status_code
+          }}</t-tag>
+          <time class="log-card__time">{{ Management.formatCompactDateTime(row.started_at, locale) }}</time>
+        </div>
+        <p class="log-card__title">{{ row.path }}</p>
+        <p class="log-card__metadata">
+          {{ accessLogUserPrimary(row, t) }} <span aria-hidden="true">/</span> {{ row.client_ip || '-' }}
+        </p>
+        <div class="log-card__technical">
+          <span>{{ t('accessLog.columns.requestId') }}</span>
+          <log-id-text :display-value="row.request_id" :tooltip="row.request_id" v-bind="technicalCopyLabels" />
+        </div>
+        <div class="log-card__actions" @click.stop @keydown.enter.stop @keydown.space.stop>
+          <table-action-menu
+            :actions="rowActions(row)"
+            :more-label="t('accessLog.actions.more')"
+            :more-label-fallback="t('accessLog.actions.more')"
+            @action="(action) => handleRowAction(action, row)"
+          />
+        </div>
+      </article>
     </template>
     <template #method="{ row }">
       <t-tag theme="primary" variant="light-outline" size="small">{{ accessRow(row).method }}</t-tag>
@@ -241,6 +277,7 @@ void emit;
 @import '@/shared/observability/log-table-cells.less';
 
 .log-table-stack-cells();
+.log-card-layout();
 
 .duration-danger {
   color: var(--td-error-color);

@@ -1,11 +1,10 @@
 <template>
-  <t-drawer
+  <resource-detail-layout
     :visible="visible"
-    :header="t('accessLog.page.detailTitle')"
-    :footer="false"
-    destroy-on-close
-    placement="right"
-    size="820px"
+    :back-label="t('accessLog.detail.back')"
+    presentation="overlay"
+    size="large"
+    :title="t('accessLog.page.detailTitle')"
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="record" class="access-log-detail">
@@ -86,7 +85,7 @@
         </div>
       </section>
     </div>
-  </t-drawer>
+  </resource-detail-layout>
 </template>
 <script setup lang="ts">
 // 详情抽屉只消费选中的访问日志并提供证据复制，不修改审计记录。
@@ -96,6 +95,7 @@ import { useRouter } from 'vue-router';
 
 import { buildAuditRequestLocation } from '@/modules/audit/contract/deep-link';
 import { formatCompactDateTime } from '@/shared/components/management';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { LogJsonPanel, sanitizeTraceFieldsForDisplay } from '@/shared/observability';
 
 import { copyAccessLogValue } from '../shared/clipboard';

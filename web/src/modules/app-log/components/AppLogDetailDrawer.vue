@@ -1,11 +1,10 @@
 <template>
-  <t-drawer
+  <resource-detail-layout
     :visible="visible"
-    :header="t('appLog.page.detailTitle')"
-    :footer="false"
-    destroy-on-close
-    placement="right"
-    size="820px"
+    :back-label="t('appLog.detail.back')"
+    presentation="overlay"
+    size="large"
+    :title="t('appLog.page.detailTitle')"
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="record" class="app-log-detail">
@@ -61,7 +60,7 @@
         </t-tab-panel>
       </t-tabs>
     </div>
-  </t-drawer>
+  </resource-detail-layout>
 </template>
 <script setup lang="ts">
 // 详情抽屉把结构化字段作为排障证据展示，并保持日志记录本身只读。
@@ -70,6 +69,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime } from '@/shared/components/management';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { copyText, LogJsonPanel, sanitizeTraceFieldsForDisplay } from '@/shared/observability';
 
 import { appLogOperationText, appLogSeverityTheme } from '../shared/presentation';

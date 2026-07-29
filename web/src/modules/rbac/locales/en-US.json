@@ -86,6 +86,8 @@
         "searchPlaceholder": "Search role name, display name, or role code",
         "typeAll": "All Types",
         "typePlaceholder": "Filter role type",
+        "moreFilters": "More Filters",
+        "filterPanelTitle": "Filter Roles",
         "clearFilters": "Reset"
       },
       "form": {

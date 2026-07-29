@@ -34,7 +34,34 @@
         </template>
       </management-toolbar>
 
-      <management-table-card>
+      <management-empty-state
+        v-if="listError && !loading"
+        tone="error"
+        :title="t('rbac.permissionList.errorTitle')"
+        :description="listError"
+      >
+        <template #actions>
+          <t-button theme="primary" variant="outline" @click="refreshPermissions">
+            {{ t('rbac.permissionList.retry') }}
+          </t-button>
+        </template>
+      </management-empty-state>
+
+      <management-paged-table
+        v-else
+        v-model:current="pagination.current"
+        v-model:page-size="pagination.pageSize"
+        :column-sets="permissionColumnSets"
+        :columns="visibleColumns"
+        :empty-description="
+          hasActiveFilters ? t('rbac.permissionList.emptyFilteredDescription') : t('rbac.permissionList.empty')
+        "
+        :empty-title="t('rbac.permissionList.emptyTitle')"
+        :footer-summary="t('rbac.permissionList.footerTotal', { count: filteredPermissions.length })"
+        :loading="loading"
+        :rows="pagedPermissions"
+        :total="filteredPermissions.length"
+      >
         <template #head>
           <div class="table-head">
             <div>
@@ -42,6 +69,10 @@
                 {{ t('rbac.permissionList.summary', { count: filteredPermissions.length }) }}
               </p>
               <p class="table-head__description">{{ t('rbac.permissionList.tableHint') }}</p>
+              <div class="inline-note">
+                <p>{{ t('rbac.permissionList.readonlyDescription') }}</p>
+                <p>{{ t('rbac.permissionList.factSourceHint') }}</p>
+              </div>
             </div>
           </div>
         </template>
@@ -54,132 +85,85 @@
             @refresh="refreshPermissions"
           />
         </template>
-
-        <div class="inline-note">
-          <p>{{ t('rbac.permissionList.readonlyDescription') }}</p>
-          <p>{{ t('rbac.permissionList.factSourceHint') }}</p>
-        </div>
-
-        <management-empty-state
-          v-if="listError && !loading"
-          tone="error"
-          :title="t('rbac.permissionList.errorTitle')"
-          :description="listError"
-        >
-          <template #actions>
-            <t-button theme="primary" variant="outline" @click="refreshPermissions">
-              {{ t('rbac.permissionList.retry') }}
-            </t-button>
-          </template>
-        </management-empty-state>
-
-        <div v-else ref="tableHostRef" class="table-host graft-scrollbar" :data-table-mode="tableWidthPolicy.mode">
-          <t-table
-            row-key="id"
-            :data="pagedPermissions"
-            :columns="visibleColumns"
-            :loading="loading"
-            table-layout="fixed"
-            :table-content-width="tableWidthPolicy.tableContentWidth"
-            cell-empty-content="-"
-          >
-            <template #permission="{ row }">
-              <div class="permission-cell">
-                <span class="permission-cell__name">{{ localizedPermissionDisplay(row) }}</span>
-                <span class="permission-cell__code">{{ row.code }}</span>
-              </div>
-            </template>
-
-            <template #module="{ row }">
-              <t-tag theme="default" variant="light">{{ row.module || '-' }}</t-tag>
-            </template>
-
-            <template #description="{ row }">
-              <span class="permission-description">{{ localizedPermissionDescription(row) }}</span>
-            </template>
-
-            <template #created_at="{ row }">
-              <span>{{ formatTimestamp(row.created_at) }}</span>
-            </template>
-
-            <template #updated_at="{ row }">
-              <span>{{ formatTimestamp(row.updated_at) }}</span>
-            </template>
-
-            <template #role_count="{ row }">
-              <span>{{ row.role_binding_count ?? '-' }}</span>
-            </template>
-
-            <template #operation="{ row }">
-              <table-action-menu
-                :actions="[
-                  {
-                    label: t('rbac.permissionList.detail'),
-                    testId: 'permission-detail',
-                    value: 'detail',
-                  },
-                  {
-                    label: t('rbac.permissionList.viewAudit'),
-                    testId: 'permission-view-audit',
-                    value: 'view-audit',
-                  },
-                ]"
-                :more-label="t('rbac.permissionList.more')"
-                :more-label-fallback="t('rbac.permissionList.more')"
-                @action="(action) => handlePermissionAction(action, row)"
-              />
-            </template>
-
-            <template #empty>
-              <div class="table-empty-state">
-                <t-empty
-                  :title="t('rbac.permissionList.emptyTitle')"
-                  :description="
-                    hasActiveFilters
-                      ? t('rbac.permissionList.emptyFilteredDescription')
-                      : t('rbac.permissionList.empty')
-                  "
-                >
-                  <template #action>
-                    <div v-if="hasActiveFilters" class="table-empty-state__actions">
-                      <t-button
-                        theme="default"
-                        variant="outline"
-                        data-testid="permission-empty-clear-filters"
-                        @click="resetFilters"
-                      >
-                        {{ t('rbac.permissionList.toolbar.clearFilters') }}
-                      </t-button>
-                    </div>
-                  </template>
-                </t-empty>
-              </div>
-            </template>
-          </t-table>
-        </div>
-
-        <template #footer>
-          <management-table-pagination
-            :summary="t('rbac.permissionList.footerTotal', { count: filteredPermissions.length })"
-          >
-            <t-pagination
-              v-model:current="pagination.current"
-              v-model:page-size="pagination.pageSize"
-              :total="filteredPermissions.length"
-              :page-size-options="[10, 20, 50, 100]"
-              :show-page-number="true"
-            />
-          </management-table-pagination>
+        <template #permission="{ row }">
+          <div class="permission-cell">
+            <span class="permission-cell__name">{{ localizedPermissionDisplay(row) }}</span>
+            <span class="permission-cell__code">{{ row.code }}</span>
+          </div>
         </template>
-      </management-table-card>
+
+        <template #module="{ row }">
+          <t-tag theme="default" variant="light">{{ row.module || '-' }}</t-tag>
+        </template>
+
+        <template #description="{ row }">
+          <span class="permission-description">{{ localizedPermissionDescription(row) }}</span>
+        </template>
+
+        <template #created_at="{ row }">
+          <span>{{ formatTimestamp(row.created_at) }}</span>
+        </template>
+
+        <template #updated_at="{ row }">
+          <span>{{ formatTimestamp(row.updated_at) }}</span>
+        </template>
+
+        <template #role_count="{ row }">
+          <span>{{ row.role_binding_count ?? '-' }}</span>
+        </template>
+
+        <template #operation="{ row }">
+          <table-action-menu
+            :actions="[
+              {
+                label: t('rbac.permissionList.detail'),
+                testId: 'permission-detail',
+                value: 'detail',
+              },
+              {
+                label: t('rbac.permissionList.viewAudit'),
+                testId: 'permission-view-audit',
+                value: 'view-audit',
+              },
+            ]"
+            :more-label="t('rbac.permissionList.more')"
+            :more-label-fallback="t('rbac.permissionList.more')"
+            @action="(action) => handlePermissionAction(action, row)"
+          />
+        </template>
+
+        <template #empty>
+          <div class="table-empty-state">
+            <t-empty
+              :title="t('rbac.permissionList.emptyTitle')"
+              :description="
+                hasActiveFilters ? t('rbac.permissionList.emptyFilteredDescription') : t('rbac.permissionList.empty')
+              "
+            >
+              <template #action>
+                <div v-if="hasActiveFilters" class="table-empty-state__actions">
+                  <t-button
+                    theme="default"
+                    variant="outline"
+                    data-testid="permission-empty-clear-filters"
+                    @click="resetFilters"
+                  >
+                    {{ t('rbac.permissionList.toolbar.clearFilters') }}
+                  </t-button>
+                </div>
+              </template>
+            </t-empty>
+          </div>
+        </template>
+      </management-paged-table>
     </management-page-content>
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="columnDrawerVisible"
-      :header="t('rbac.permissionList.columnSettings')"
-      size="360px"
-      placement="right"
-      destroy-on-close
+      :close-label="t('components.common.close')"
+      :title="t('rbac.permissionList.columnSettings')"
+      purpose="form"
+      size="compact"
     >
       <div class="drawer-panel">
         <t-checkbox-group v-model="visibleColumnKeys">
@@ -190,14 +174,14 @@
           </div>
         </t-checkbox-group>
       </div>
-    </t-drawer>
+    </responsive-dialog>
 
-    <t-drawer
+    <responsive-dialog
       v-model:visible="detailDrawerVisible"
-      :header="t('rbac.permissionList.detailTitle')"
-      size="480px"
-      placement="right"
-      destroy-on-close
+      :close-label="t('components.common.close')"
+      :title="t('rbac.permissionList.detailTitle')"
+      purpose="detail"
+      size="medium"
     >
       <div class="drawer-panel permission-detail-panel">
         <div v-if="detailError" class="inline-warning detail-warning">
@@ -237,7 +221,7 @@
           </div>
         </template>
       </div>
-    </t-drawer>
+    </responsive-dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -259,15 +243,13 @@ import {
   formatCompactDateTime,
   ManagementEmptyState,
   ManagementPageContent,
+  ManagementPagedTable,
   ManagementPageHeader,
-  ManagementTableCard,
-  ManagementTablePagination,
   ManagementToolbar,
-  resolveTableWidthPolicy,
   TableActionMenu,
   TableViewToolbar,
-  useTableHostWidth,
 } from '@/shared/components/management';
+import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useTabPageSnapshot } from '@/shared/composables';
 import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -399,8 +381,9 @@ const visibleColumns = computed<TdBaseTableProps['columns']>(() => {
   return buildVisibleColumns(allColumns, visibleColumnKeys.value);
 });
 
-const { tableHostRef, tableHostWidth } = useTableHostWidth(() => visibleColumns.value);
-const tableWidthPolicy = computed(() => resolveTableWidthPolicy(visibleColumns.value, tableHostWidth.value));
+const permissionColumnSets = {
+  compact: ['permission', 'module', 'operation'],
+};
 
 async function refreshPermissions() {
   await permissionListQuery.refetch();

@@ -155,6 +155,7 @@
       "emptyTitle": "暂无审计日志",
       "emptyDescription": "调整筛选条件后重试。",
       "detailTitle": "审计详情",
+      "detailBack": "返回审计日志",
       "presets": {
         "label": "快捷筛选",
         "all": "全部",

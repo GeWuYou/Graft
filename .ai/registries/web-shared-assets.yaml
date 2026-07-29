@@ -36,9 +36,10 @@ assets:
     type: "frontend-component-suite"
     path: "web/src/shared/components/management"
     owner: "web/shared"
-    purpose: "Reusable management page table surfaces, pagination, action menus, column helpers, and compact timestamp helpers. Management pagination uses page sizes 10, 20, 50, and 100 only."
+    purpose: "Reusable management page table surfaces, pagination, row action menus, compact entity-card selection, narrow-screen batch-action dropdowns, column helpers, and compact timestamp helpers. Management pagination uses page sizes 10, 20, 50, and 100 only."
     use_when:
-      - "Building module management list pages with TDesign tables, actions, or pagination."
+      - "Building module management list pages with TDesign tables, entity cards, row actions, batch actions, or pagination."
+      - "A narrow management list must collapse batch actions into one labeled dropdown while retaining selection summary and cancellation."
     do_not_use_when:
       - "The surface is not a management/list page or carries module-private business semantics."
       - "Defining a module-private pagination control or inconsistent page-size option array; reuse ManagementTablePagination or ManagementPagedTable."
@@ -46,6 +47,8 @@ assets:
       - "web/src/modules/user/pages/index.vue"
       - "web/src/modules/rbac/pages/index.vue"
       - "web/src/modules/system-config/pages/list/index.vue"
+      - "web/src/shared/components/management/ManagementBatchBar.vue"
+      - "web/src/shared/components/management/TableActionMenu.vue"
     related_assets:
       - "observability-helpers"
       - "query-list-components"

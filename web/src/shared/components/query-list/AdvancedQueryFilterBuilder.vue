@@ -11,7 +11,7 @@
             @enter="$emit('search')"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
-          <template v-if="!compactMode">
+          <template v-if="!effectiveCompactMode">
             <slot name="saved-query-views" />
             <div class="query-filter-builder__actions">
               <t-button theme="primary" :loading="loading" @click="$emit('search')">
@@ -24,211 +24,218 @@
           </template>
           <t-button
             v-else
-            class="query-filter-builder__compact-toggle"
-            data-testid="query-filter-builder-compact-toggle"
-            :aria-expanded="compactExpanded"
-            theme="default"
-            variant="outline"
-            @click="compactExpanded = !compactExpanded"
+            class="query-filter-builder__compact-search"
+            theme="primary"
+            block
+            :loading="loading"
+            @click="$emit('search')"
           >
-            <template #suffix><t-icon :name="compactExpanded ? 'chevron-up' : 'filter'" /></template>
-            {{ compactToggleLabel || addFilterLabel }}
+            {{ searchLabel }}
           </t-button>
         </div>
 
-        <div v-if="compactMode && compactExpanded" class="query-filter-builder__compact-actions">
-          <slot name="saved-query-views" />
-          <div class="query-filter-builder__actions">
-            <t-button theme="primary" :loading="loading" @click="$emit('search')">
-              {{ searchLabel }}
-            </t-button>
-            <t-button theme="default" variant="outline" @click="$emit('reset')">
-              {{ resetLabel }}
-            </t-button>
-          </div>
-        </div>
-
-        <section v-if="(!compactMode || compactExpanded) && availableFields.length" class="query-filter-builder__group">
-          <div class="query-filter-builder__group-header">
-            <span class="query-filter-builder__group-title">{{ filtersGroupLabel }}</span>
-          </div>
-          <div class="query-filter-builder__group-body">
-            <t-popup
-              v-model:visible="builderVisible"
-              attach="body"
-              destroy-on-close
-              placement="bottom-left"
-              trigger="click"
-            >
-              <template #content>
-                <div class="query-filter-builder__popup">
-                  <div class="query-filter-builder__header">
-                    <span class="query-filter-builder__title">{{ builderTitle }}</span>
-                    <span class="query-filter-builder__hint">{{ builderHint }}</span>
-                  </div>
-
-                  <div class="query-filter-builder__field-list">
-                    <button
-                      v-for="definition in availableFields"
-                      :key="definition.key"
-                      :class="[
-                        'query-filter-builder__field-button',
-                        {
-                          'query-filter-builder__field-button--active': selectedFieldKey === definition.key,
-                          'query-filter-builder__field-button--disabled': definition.disabled,
-                        },
-                      ]"
-                      :disabled="definition.disabled"
-                      type="button"
-                      @click="$emit('update:selectedFieldKey', definition.key)"
-                    >
-                      {{ definition.label }}
-                    </button>
-                  </div>
-
-                  <div v-if="selectedField" class="query-filter-builder__editor">
-                    <div class="query-filter-builder__editor-title">
-                      {{ selectedField.label }}
-                    </div>
-
-                    <template v-if="selectedField.key === timeFieldKey">
-                      <div class="query-filter-builder__time-list">
-                        <div v-for="field in timeFields" :key="field.key" class="query-filter-builder__time-item">
-                          <span class="query-filter-builder__time-label">{{ field.label }}</span>
-                          <t-date-range-picker
-                            :model-value="field.value"
-                            allow-input
-                            clearable
-                            enable-time-picker
-                            format="YYYY-MM-DD HH:mm:ss"
-                            :placeholder="field.placeholder"
-                            @update:model-value="
-                              $emit('update:time-field', { key: field.key, value: normalizeRange($event) })
-                            "
-                          />
-                        </div>
+        <t-collapse
+          v-if="availableFields.length"
+          v-model="filterPanels"
+          borderless
+          :class="[
+            'query-filter-builder__filters-collapse',
+            { 'query-filter-builder__filters-collapse--compact': effectiveCompactMode },
+          ]"
+        >
+          <t-collapse-panel value="filters">
+            <template v-if="effectiveCompactMode" #header>
+              <span data-testid="query-filter-builder-compact-toggle">{{ compactFilterSummary }}</span>
+            </template>
+            <div v-if="effectiveCompactMode" class="query-filter-builder__compact-actions">
+              <slot name="saved-query-views" />
+              <t-button theme="default" variant="outline" block @click="$emit('reset')">
+                {{ resetLabel }}
+              </t-button>
+            </div>
+            <section class="query-filter-builder__group">
+              <div class="query-filter-builder__group-header">
+                <span class="query-filter-builder__group-title">{{ filtersGroupLabel }}</span>
+              </div>
+              <div class="query-filter-builder__group-body">
+                <t-popup
+                  v-model:visible="builderVisible"
+                  attach="body"
+                  destroy-on-close
+                  placement="bottom-left"
+                  trigger="click"
+                >
+                  <template #content>
+                    <div class="query-filter-builder__popup">
+                      <div class="query-filter-builder__header">
+                        <span class="query-filter-builder__title">{{ builderTitle }}</span>
+                        <span class="query-filter-builder__hint">{{ builderHint }}</span>
                       </div>
-                    </template>
 
-                    <template v-else-if="selectedField.key === sortFieldKey">
-                      <div class="query-filter-builder__sort-list">
-                        <div
-                          v-for="(sorter, index) in sorters"
-                          :key="`sort-row-${index}`"
-                          class="query-filter-builder__sort-row"
+                      <div class="query-filter-builder__field-list">
+                        <button
+                          v-for="definition in availableFields"
+                          :key="definition.key"
+                          :class="[
+                            'query-filter-builder__field-button',
+                            {
+                              'query-filter-builder__field-button--active': selectedFieldKey === definition.key,
+                              'query-filter-builder__field-button--disabled': definition.disabled,
+                            },
+                          ]"
+                          :disabled="definition.disabled"
+                          type="button"
+                          @click="$emit('update:selectedFieldKey', definition.key)"
                         >
-                          <t-select
-                            :model-value="sorter.field"
-                            clearable
-                            :options="sortFieldOptionsByIndex[index] ?? []"
-                            :placeholder="sortFieldPlaceholder"
-                            @update:model-value="$emit('update:sort-field', { index, value: $event })"
-                          />
-                          <t-select
-                            :model-value="sorter.direction ?? 'desc'"
-                            :options="sortDirectionOptions"
-                            :placeholder="sortDirectionPlaceholder"
-                            @update:model-value="$emit('update:sort-direction', { index, value: $event })"
-                          />
-                          <div class="query-filter-builder__sort-actions">
-                            <t-button
-                              :disabled="sortMoveUpDisabled?.[index] ?? false"
-                              variant="text"
-                              theme="default"
-                              size="small"
-                              @click="$emit('move-sorter-up', index)"
+                          {{ definition.label }}
+                        </button>
+                      </div>
+
+                      <div v-if="selectedField" class="query-filter-builder__editor">
+                        <div class="query-filter-builder__editor-title">
+                          {{ selectedField.label }}
+                        </div>
+
+                        <template v-if="selectedField.key === timeFieldKey">
+                          <div class="query-filter-builder__time-list">
+                            <div v-for="field in timeFields" :key="field.key" class="query-filter-builder__time-item">
+                              <span class="query-filter-builder__time-label">{{ field.label }}</span>
+                              <t-date-range-picker
+                                :model-value="field.value"
+                                allow-input
+                                clearable
+                                enable-time-picker
+                                format="YYYY-MM-DD HH:mm:ss"
+                                :placeholder="field.placeholder"
+                                @update:model-value="
+                                  $emit('update:time-field', { key: field.key, value: normalizeRange($event) })
+                                "
+                              />
+                            </div>
+                          </div>
+                        </template>
+
+                        <template v-else-if="selectedField.key === sortFieldKey">
+                          <div class="query-filter-builder__sort-list">
+                            <div
+                              v-for="(sorter, index) in sorters"
+                              :key="`sort-row-${index}`"
+                              class="query-filter-builder__sort-row"
                             >
-                              {{ moveUpLabel }}
-                            </t-button>
+                              <t-select
+                                :model-value="sorter.field"
+                                clearable
+                                :options="sortFieldOptionsByIndex[index] ?? []"
+                                :placeholder="sortFieldPlaceholder"
+                                @update:model-value="$emit('update:sort-field', { index, value: $event })"
+                              />
+                              <t-select
+                                :model-value="sorter.direction ?? 'desc'"
+                                :options="sortDirectionOptions"
+                                :placeholder="sortDirectionPlaceholder"
+                                @update:model-value="$emit('update:sort-direction', { index, value: $event })"
+                              />
+                              <div class="query-filter-builder__sort-actions">
+                                <t-button
+                                  :disabled="sortMoveUpDisabled?.[index] ?? false"
+                                  variant="text"
+                                  theme="default"
+                                  size="small"
+                                  @click="$emit('move-sorter-up', index)"
+                                >
+                                  {{ moveUpLabel }}
+                                </t-button>
+                                <t-button
+                                  :disabled="sortMoveDownDisabled?.[index] ?? false"
+                                  variant="text"
+                                  theme="default"
+                                  size="small"
+                                  @click="$emit('move-sorter-down', index)"
+                                >
+                                  {{ moveDownLabel }}
+                                </t-button>
+                                <t-button
+                                  variant="text"
+                                  theme="default"
+                                  size="small"
+                                  @click="$emit('remove-sorter', index)"
+                                >
+                                  {{ removeSorterLabel }}
+                                </t-button>
+                              </div>
+                            </div>
                             <t-button
-                              :disabled="sortMoveDownDisabled?.[index] ?? false"
-                              variant="text"
+                              :disabled="sortAddDisabled"
                               theme="default"
+                              variant="outline"
                               size="small"
-                              @click="$emit('move-sorter-down', index)"
+                              @click="$emit('add-sorter')"
                             >
-                              {{ moveDownLabel }}
-                            </t-button>
-                            <t-button
-                              variant="text"
-                              theme="default"
-                              size="small"
-                              @click="$emit('remove-sorter', index)"
-                            >
-                              {{ removeSorterLabel }}
+                              {{ addSorterLabel }}
                             </t-button>
                           </div>
-                        </div>
-                        <t-button
-                          :disabled="sortAddDisabled"
-                          theme="default"
-                          variant="outline"
-                          size="small"
-                          @click="$emit('add-sorter')"
-                        >
-                          {{ addSorterLabel }}
-                        </t-button>
+                        </template>
+
+                        <template v-else-if="selectedField.kind === 'select'">
+                          <t-select
+                            :model-value="fieldValue(selectedField.key)"
+                            clearable
+                            :options="selectedField.options ?? []"
+                            :placeholder="selectedField.placeholder"
+                            @update:model-value="
+                              $emit('update:field', { key: selectedField.key, value: normalizeSelectValue($event) })
+                            "
+                          />
+                        </template>
+
+                        <template v-else-if="selectedField.kind === 'multi-select'">
+                          <t-select
+                            :model-value="fieldValue(selectedField.key)"
+                            clearable
+                            filterable
+                            multiple
+                            :min-collapsed-num="2"
+                            :options="selectedField.options ?? []"
+                            :placeholder="selectedField.placeholder"
+                            @update:model-value="
+                              $emit('update:field', { key: selectedField.key, value: normalizeArrayValue($event) })
+                            "
+                          />
+                        </template>
+
+                        <template v-else-if="selectedField.kind === 'tag-input'">
+                          <t-tag-input
+                            :model-value="tagInputValue(selectedField.key)"
+                            clearable
+                            :input-props="{ placeholder: selectedField.placeholder }"
+                            @update:model-value="
+                              $emit('update:field', { key: selectedField.key, value: normalizeArrayValue($event) })
+                            "
+                          />
+                        </template>
+
+                        <template v-else>
+                          <t-input
+                            :model-value="String(fieldValue(selectedField.key) ?? '')"
+                            clearable
+                            :placeholder="selectedField.placeholder"
+                            @update:model-value="
+                              $emit('update:field', { key: selectedField.key, value: normalizeTextValue($event) })
+                            "
+                          />
+                        </template>
                       </div>
-                    </template>
+                    </div>
+                  </template>
 
-                    <template v-else-if="selectedField.kind === 'select'">
-                      <t-select
-                        :model-value="fieldValue(selectedField.key)"
-                        clearable
-                        :options="selectedField.options ?? []"
-                        :placeholder="selectedField.placeholder"
-                        @update:model-value="
-                          $emit('update:field', { key: selectedField.key, value: normalizeSelectValue($event) })
-                        "
-                      />
-                    </template>
+                  <t-button theme="default" variant="dashed">{{ addFilterLabel }}</t-button>
+                </t-popup>
+              </div>
+            </section>
+          </t-collapse-panel>
+        </t-collapse>
 
-                    <template v-else-if="selectedField.kind === 'multi-select'">
-                      <t-select
-                        :model-value="fieldValue(selectedField.key)"
-                        clearable
-                        filterable
-                        multiple
-                        :min-collapsed-num="2"
-                        :options="selectedField.options ?? []"
-                        :placeholder="selectedField.placeholder"
-                        @update:model-value="
-                          $emit('update:field', { key: selectedField.key, value: normalizeArrayValue($event) })
-                        "
-                      />
-                    </template>
-
-                    <template v-else-if="selectedField.kind === 'tag-input'">
-                      <t-tag-input
-                        :model-value="tagInputValue(selectedField.key)"
-                        clearable
-                        :input-props="{ placeholder: selectedField.placeholder }"
-                        @update:model-value="
-                          $emit('update:field', { key: selectedField.key, value: normalizeArrayValue($event) })
-                        "
-                      />
-                    </template>
-
-                    <template v-else>
-                      <t-input
-                        :model-value="String(fieldValue(selectedField.key) ?? '')"
-                        clearable
-                        :placeholder="selectedField.placeholder"
-                        @update:model-value="
-                          $emit('update:field', { key: selectedField.key, value: normalizeTextValue($event) })
-                        "
-                      />
-                    </template>
-                  </div>
-                </div>
-              </template>
-
-              <t-button theme="default" variant="dashed">{{ addFilterLabel }}</t-button>
-            </t-popup>
-          </div>
-        </section>
-
-        <div v-if="(!compactMode || compactExpanded) && presets.length" class="query-filter-builder__preset-row">
+        <div v-if="presets.length" class="query-filter-builder__preset-row">
           <span class="query-filter-builder__preset-label">{{ presetLabel }}</span>
           <t-button
             v-for="preset in presets"
@@ -242,7 +249,7 @@
           </t-button>
         </div>
 
-        <div v-if="(!compactMode || compactExpanded) && tags.length" class="query-filter-builder__tag-row">
+        <div v-if="(!effectiveCompactMode || compactExpanded) && tags.length" class="query-filter-builder__tag-row">
           <t-tag
             v-for="tag in tags"
             :key="tag.key"
@@ -264,6 +271,7 @@
 import { computed, ref, watch } from 'vue';
 
 import { ManagementToolbar } from '@/shared/components/management';
+import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 
 import type {
   AdvancedQueryFilterFieldDefinition,
@@ -343,15 +351,24 @@ defineEmits<{
 }>();
 
 const builderVisible = ref(false);
-const compactExpanded = ref(false);
+const filterPanels = ref<string[]>(['filters']);
+const viewportVariant = useViewportResponsiveVariant();
+const effectiveCompactMode = computed(() => props.compactMode || viewportVariant.value.density === 'compact');
+const compactExpanded = computed(() => filterPanels.value.includes('filters'));
+const compactFilterSummary = computed(() => {
+  if (props.tags.length > 0) {
+    return `${props.compactToggleLabel || props.filtersGroupLabel} (${props.tags.length})`;
+  }
+
+  return props.compactToggleLabel || props.filtersGroupLabel;
+});
 
 watch(
-  () => props.compactMode,
+  effectiveCompactMode,
   (compactMode) => {
-    if (compactMode) {
-      compactExpanded.value = false;
-    }
+    filterPanels.value = compactMode ? [] : ['filters'];
   },
+  { immediate: true },
 );
 
 const availableFields = computed(() =>
@@ -426,8 +443,24 @@ function normalizeRange(value: string[] | undefined) {
   gap: var(--graft-density-gap-12);
 }
 
-.query-filter-builder__compact-toggle {
+.query-filter-builder__compact-search {
   flex: 0 0 auto;
+}
+
+.query-filter-builder__filters-collapse {
+  width: 100%;
+}
+
+.query-filter-builder__filters-collapse:not(.query-filter-builder__filters-collapse--compact)
+  :deep(.t-collapse-panel__header) {
+  display: none;
+}
+
+.query-filter-builder__filters-collapse:not(.query-filter-builder__filters-collapse--compact)
+  :deep(.t-collapse-panel__body),
+.query-filter-builder__filters-collapse:not(.query-filter-builder__filters-collapse--compact)
+  :deep(.t-collapse-panel__content) {
+  padding: 0;
 }
 
 .query-filter-builder__compact-actions {
@@ -566,12 +599,30 @@ function normalizeRange(value: string[] | undefined) {
 
 @media (width <= 768px) {
   .query-filter-builder__top-row {
-    flex-wrap: nowrap;
+    align-items: stretch;
+    flex-flow: column nowrap;
   }
 
   .query-filter-builder__keyword {
-    flex: 1 1 auto;
+    flex: none;
     min-width: 0;
+    width: 100%;
+  }
+
+  .query-filter-builder__compact-search {
+    width: 100%;
+  }
+
+  .query-filter-builder__preset-row {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: var(--graft-density-gap-4);
+  }
+
+  .query-filter-builder__preset-row :deep(.t-button) {
+    flex: 0 0 auto;
   }
 }
 </style>

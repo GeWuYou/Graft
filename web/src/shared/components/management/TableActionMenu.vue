@@ -5,14 +5,14 @@
       :data-testid="primaryAction.testId"
       :disabled="primaryAction.disabled"
       size="small"
-      theme="default"
+      theme="primary"
       variant="outline"
       @click="handlePrimaryClick"
     >
       {{ primaryAction.label }}
     </t-button>
     <t-dropdown v-if="menuOptions.length > 0" :options="menuOptions" trigger="click" @click="handleMenuClick">
-      <t-button size="small" theme="default" variant="outline" @click.stop>
+      <t-button :aria-label="resolvedMoreLabel" size="small" theme="default" variant="outline" @click.stop>
         {{ resolvedMoreLabel }}
       </t-button>
     </t-dropdown>

@@ -1248,7 +1248,8 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 24, clientY: 24 });
-    await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
+    await nextTick();
+    await wrapper.get('[role="menuitem"]').trigger('click');
     await wrapper.find('input').setValue('notes.txt');
     wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await flushPromises();
@@ -1587,7 +1588,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushDiffViewerFrames();
+    await waitForDiffViewer(wrapper, '[data-testid="configuration-diff-confirm-save"]');
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1641,7 +1642,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushDiffViewerFrames();
+    await waitForDiffViewer(wrapper, '[data-testid="configuration-diff-confirm-save"]');
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1902,9 +1903,8 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === '重新部署项目')
       ?.trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(dialogMocks.confirm).toHaveBeenCalledTimes(1));
 
-    expect(dialogMocks.confirm).toHaveBeenCalledTimes(1);
     expect(mocks.putApplicationFileContent).not.toHaveBeenCalled();
     expect(wrapper.find('[data-testid="configuration-diff-modal"]').exists()).toBe(false);
 
@@ -1936,7 +1936,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === '重新部署项目')
       ?.trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(dialogMocks.confirm).toHaveBeenCalled());
 
     const dialogOptions = dialogMocks.confirm.mock.calls[0]?.[0] as { onCancel?: () => void };
     dialogOptions.onCancel?.();

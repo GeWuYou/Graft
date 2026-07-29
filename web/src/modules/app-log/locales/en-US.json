@@ -43,7 +43,9 @@
     },
     "batch": {
       "selected": "{count} app logs selected",
-      "cancelSelection": "Cancel Selection"
+      "cancelSelection": "Cancel Selection",
+      "select": "Select Multiple",
+      "selectAll": "Select Current Page"
     },
     "deleteDialog": {
       "title": "Delete App Log",
@@ -121,6 +123,7 @@
       "actions": "Actions"
     },
     "detail": {
+      "back": "Back to App Logs",
       "basic": "Basic Facts",
       "correlation": "Correlation",
       "message": "Message",

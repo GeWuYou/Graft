@@ -39,7 +39,7 @@
             :data="props.rows"
             :loading="props.loading"
             :row-class-name="props.rowClassName"
-            :selected-row-keys="props.selectedRowKeys"
+            :selected-row-keys="resolveSelectedRowKeys(variant.density)"
             :size="props.size"
             :sort="props.sort"
             table-layout="fixed"
@@ -69,7 +69,7 @@
       </template>
     </responsive-table>
 
-    <template v-if="props.paginationVisible" #footer>
+    <template v-if="paginationVisible" #footer>
       <slot name="footer">
         <management-table-pagination :summary="props.footerSummary">
           <slot name="pagination">
@@ -186,12 +186,19 @@ const tableSlotNames = computed(() => {
 });
 const resolvedPaginationProps = computed<Partial<PaginationProps>>(() => ({
   pageSizeOptions: props.pageSizeOptions,
+  // 管理列表的总数由 footerSummary 统一呈现，避免 Pagination 重复渲染同义统计。
+  totalContent: false,
   ...props.paginationProps,
 }));
+// 分页是管理列表的默认结果面；只有调用方明确关闭时才隐藏，避免包装组件传递 undefined 时丢失 footer。
+const paginationVisible = computed(() => props.paginationVisible !== false);
 const resolvedRowKey = computed(() => props.rowKey || 'id');
 const responsivePresentation = computed<ResponsivePresentation>(() =>
-  props.cardsVisible ? 'entity' : props.presentation,
+  props.cardsVisible && props.presentation === 'data' ? 'entity' : props.presentation,
 );
+function resolveSelectedRowKeys(density: ResponsiveDensity) {
+  return density === 'compact' && responsivePresentation.value === 'entity' ? [] : props.selectedRowKeys;
+}
 const { tableHostRef, tableHostWidth } = useTableHostWidth(() => props.columns);
 function resolveColumns(density: ResponsiveDensity) {
   return resolveManagedColumns(props.columns, props.columnSets[density]);

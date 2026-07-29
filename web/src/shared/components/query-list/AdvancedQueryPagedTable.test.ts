@@ -7,7 +7,7 @@ import AdvancedQueryPagedTable from './AdvancedQueryPagedTable.vue';
 vi.mock('@/shared/components/management', () => {
   const ManagementPagedTable = defineComponent({
     name: 'ManagementPagedTableStub',
-    props: ['rows'],
+    props: ['paginationVisible', 'rows'],
     emits: ['page-change', 'row-click', 'select-change', 'update:current', 'update:pageSize'],
     setup(props, { emit, slots }) {
       return () =>
@@ -72,6 +72,7 @@ describe('AdvancedQueryPagedTable', () => {
     expect(wrapper.get('[data-testid="pagination-content"]').text()).toBe('pagination');
     expect(wrapper.get('[data-testid="project-runtime_demo"]').text()).toContain('demo');
     expect(wrapper.get('[data-testid="status-runtime_demo"]').text()).toContain('ready');
+    expect(wrapper.findComponent({ name: 'ManagementPagedTableStub' }).props('paginationVisible')).toBe(true);
 
     await wrapper.get('[data-testid="page-change"]').trigger('click');
 

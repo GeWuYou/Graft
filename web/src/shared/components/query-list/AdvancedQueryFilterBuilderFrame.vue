@@ -5,6 +5,7 @@
     :add-sorter-label="t(`${messagePrefix}.actions.addSorter`)"
     :builder-hint="t(`${messagePrefix}.builder.hint`)"
     :builder-title="t(`${messagePrefix}.builder.title`)"
+    :compact-toggle-label="t(`${messagePrefix}.builder.groups.filters`)"
     :field-values="frame.fieldValues"
     :fields="frame.fields"
     :filters-group-label="t(`${messagePrefix}.builder.groups.filters`)"

@@ -53,8 +53,7 @@ defineProps<{
   width: 100%;
 }
 
-// 这些选择器依赖 tdesign-vue-next 1.20.1 的 Pagination DOM，用于保持分页各段在窄屏下的布局约束。
-.management-table-pagination__controls :deep(.t-pagination__total),
+// 这些选择器依赖 tdesign-vue-next 1.20.5 的 Pagination DOM，用于保持分页各段在窄屏下的布局约束。
 .management-table-pagination__controls :deep(.t-pagination__select),
 .management-table-pagination__controls :deep(.t-pagination__pager),
 .management-table-pagination__controls :deep(.t-pagination__jump),
@@ -64,10 +63,6 @@ defineProps<{
   display: inline-flex;
   margin: 0;
   white-space: nowrap;
-}
-
-.management-table-pagination__controls :deep(.t-pagination__total) {
-  margin-left: auto;
 }
 
 .management-table-pagination__controls :deep(.t-pagination__pager) {
@@ -90,10 +85,6 @@ defineProps<{
   .management-table-pagination__controls :deep(.t-pagination) {
     flex-wrap: wrap;
     justify-content: flex-start;
-  }
-
-  .management-table-pagination__controls :deep(.t-pagination__total) {
-    margin-left: 0;
   }
 }
 </style>

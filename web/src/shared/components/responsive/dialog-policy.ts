@@ -29,16 +29,16 @@ export function resolveResponsiveDialogPolicy(
       return { density, interaction: 'readonly', surface: 'fullscreen' };
     }
 
-    if (purpose === 'form' && size === 'large') {
+    if (purpose === 'detail') {
+      return { density, interaction: 'interactive', surface: 'drawer' };
+    }
+
+    if (purpose === 'form' && size !== 'compact') {
       return { density, interaction: 'interactive', surface: 'fullscreen' };
     }
 
-    return { density, interaction: 'interactive', surface: 'drawer' };
+    return { density, interaction: 'interactive', surface: 'sheet' };
   }
 
-  if (density === 'comfortable' && (purpose === 'workspace' || (purpose === 'form' && size === 'large'))) {
-    return { density, interaction: purpose === 'workspace' ? 'readonly' : 'interactive', surface: 'drawer' };
-  }
-
-  return { density, interaction: purpose === 'workspace' ? 'readonly' : 'interactive', surface: 'dialog' };
+  return { density, interaction: purpose === 'workspace' ? 'readonly' : 'interactive', surface: 'drawer' };
 }

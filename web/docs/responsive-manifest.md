@@ -5,7 +5,7 @@
 ## 新页面必做
 
 - 使用 `ResponsivePage` 作为页面入口，并组合适用的 `ResponsiveHeader`、`ResponsiveToolbar`、`ResponsiveContent`、`ResponsiveEmpty`。
-- 列表或查询页使用 `ResponsiveTable`；表格必须声明 `presentation="data"` 或 `presentation="entity"`，业务页面不得自行切换第二份 Mobile 卡片布局。
+- 列表或查询页使用 `ResponsiveTable`；表格声明 `presentation="data"`、`presentation="entity"` 或受控的 `presentation="log"`。`log` 在 compact density 使用同一表格的卡片槽，业务页面不得自行切换第二份 Mobile 卡片布局。
 - 表单使用 `ResponsiveForm`；短确认、详情、表单与 workspace 通过 `ResponsiveDialog` 的 `purpose` 和 `size` 表达语义，不传像素宽度。
 - 在 `375`、`768`、`992`、`1200px` 以及窄 Drawer/Dialog/Split 容器验收。
 - 在页面 profile 中记录页面类型、响应式组件、复杂 workspace 的 Mobile 降级和已批准例外。机器可读 manifest 位于 `docs/responsive/manifest.json`，由 `bun run responsive:governance:check` 消费，不进入生产 bundle。

@@ -1,11 +1,10 @@
 <template>
-  <t-drawer
+  <resource-detail-layout
     :visible="visible"
-    :header="t('audit.logList.detailTitle')"
-    :footer="false"
-    destroy-on-close
-    placement="right"
-    size="820px"
+    :back-label="t('audit.logList.detailBack')"
+    presentation="overlay"
+    size="large"
+    :title="t('audit.logList.detailTitle')"
     @update:visible="$emit('update:visible', $event)"
   >
     <div v-if="record" class="audit-detail">
@@ -215,7 +214,7 @@
         </t-tab-panel>
       </t-tabs>
     </div>
-  </t-drawer>
+  </resource-detail-layout>
 </template>
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
@@ -224,6 +223,7 @@ import { useRouter } from 'vue-router';
 
 import type { MonitorOriginContext } from '@/modules/monitor/contract/navigation';
 import { buildMonitorLocationFromOrigin } from '@/modules/monitor/contract/navigation';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { LogJsonPanel, sanitizeTraceFieldsForDisplay } from '@/shared/observability';
 
 import {

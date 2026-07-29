@@ -19,6 +19,30 @@ const ButtonStub = defineComponent({
   },
 });
 
+const DropdownStub = defineComponent({
+  name: 'TDropdownStub',
+  props: {
+    options: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['click'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('div', [
+        slots.default?.(),
+        ...(props.options as Array<{ content: string; value: string }>).map((option) =>
+          h(
+            'button',
+            { 'data-testid': `compact-action-${option.value}`, onClick: () => emit('click', option) },
+            option.content,
+          ),
+        ),
+      ]);
+  },
+});
+
 describe('ManagementBatchBar', () => {
   it('renders the selection summary, action slot, and clear button in one bar', () => {
     const wrapper = mount(ManagementBatchBar, {
@@ -41,5 +65,23 @@ describe('ManagementBatchBar', () => {
     await wrapper.get('[data-testid="batch-clear"]').trigger('click');
 
     expect(wrapper.emitted('clear')).toHaveLength(1);
+  });
+
+  it('exposes compact batch actions through one shared dropdown trigger', async () => {
+    const wrapper = mount(ManagementBatchBar, {
+      global: { components: { 't-button': ButtonStub, 't-dropdown': DropdownStub, 't-space': SpaceStub } },
+      props: {
+        clearLabel: 'Cancel',
+        compactActionLabel: 'Batch actions',
+        compactActionTestId: 'batch-actions',
+        compactActions: [{ content: 'Assign roles', value: 'assign-roles' }],
+        selectedLabel: 'Selected 1 item',
+      },
+    });
+
+    expect(wrapper.get('[data-testid="batch-actions"]').text()).toBe('Batch actions');
+    await wrapper.get('[data-testid="compact-action-assign-roles"]').trigger('click');
+
+    expect(wrapper.emitted('action')).toEqual([['assign-roles']]);
   });
 });

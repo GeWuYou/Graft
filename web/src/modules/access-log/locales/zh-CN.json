@@ -124,6 +124,7 @@
       "userIdValue": "用户 ID：{id}"
     },
     "detail": {
+      "back": "返回访问日志",
       "basic": "基础信息",
       "correlation": "关联信息",
       "network": "网络信息",
