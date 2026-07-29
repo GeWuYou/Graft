@@ -10,6 +10,7 @@ import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
+import type { UpdateStatus } from '../../types/update';
 import UpdateCenter from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -68,6 +69,9 @@ const status = (candidates: Array<Record<string, unknown>>) =>
   ({
     current_version: '1.0.0',
     channel: 'stable',
+    update_policy: 'stable',
+    policy_initialized: true,
+    available_releases: [{ version: '1.1.0', channel: 'stable', published_at: '2026-07-24T00:00:00Z' }],
     latest: {
       version: '1.1.0',
       channel: 'stable',
@@ -88,7 +92,7 @@ const status = (candidates: Array<Record<string, unknown>>) =>
     },
     cache_stale: false,
     check_error: '',
-  }) as never;
+  }) as UpdateStatus;
 
 function mountCenter(dataSource?: UpdateCenterDataSource) {
   return mount(UpdateCenter, {
@@ -109,6 +113,11 @@ function mountCenter(dataSource?: UpdateCenterDataSource) {
         't-loading': passthrough,
         't-radio': radioStub,
         't-radio-group': radioGroupStub,
+        't-select': defineComponent({
+          props: { modelValue: { type: String, default: '' } },
+          emits: ['update:modelValue'],
+          template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)" />',
+        }),
         't-table': passthrough,
         't-tag': passthrough,
         ManagementEmptyState: passthrough,
@@ -175,6 +184,25 @@ describe('UpdateCenter', () => {
     await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
     expect(wrapper.get('[data-testid="update-confirmation-submit"]').attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('update.center.composeRoot.selectionRequired');
+  });
+
+  it('initializes an unconfigured deployment with the selected policy and verified target', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot({
+      ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+      update_policy: undefined,
+      policy_initialized: false,
+    } as never);
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-configure-policy"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(createUpdateOperation).toHaveBeenCalledWith({
+      update_policy: 'stable',
+      target_version: '1.1.0',
+    });
   });
 
   it('renders a safe failure reason and request ID for a rejected upgrade submission', async () => {

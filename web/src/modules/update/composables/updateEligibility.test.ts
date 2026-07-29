@@ -6,6 +6,9 @@ import { isUpgradeEligible } from './updateEligibility';
 const status = (overrides: Partial<UpdateStatus> = {}): UpdateStatus => ({
   current_version: '1.0.0',
   channel: 'stable',
+  update_policy: 'stable',
+  policy_initialized: true,
+  available_releases: [],
   latest: {
     version: '1.1.0',
     channel: 'stable',
@@ -50,5 +53,7 @@ describe('isUpgradeEligible', () => {
       ),
     ).toBe(false);
     expect(isUpgradeEligible(status({ latest: undefined }), true)).toBe(false);
+    expect(isUpgradeEligible(status({ policy_initialized: false }), true)).toBe(false);
+    expect(isUpgradeEligible(status({ update_policy: 'manual' }), true)).toBe(false);
   });
 });

@@ -22,6 +22,15 @@ const dialogStub = defineComponent({
   template: '<section v-if="visible"><slot /><button data-testid="dialog-close" @click="$emit(\'close\')" /></section>',
 });
 const passthrough = defineComponent({ template: '<section><slot /></section>' });
+const progressStub = defineComponent({
+  props: {
+    percentage: { type: Number, required: true },
+    label: { type: Boolean, default: true },
+    indeterminate: Boolean,
+  },
+  template:
+    '<section data-testid="progress" :data-percentage="percentage" :data-label="label" :data-indeterminate="indeterminate" />',
+});
 
 function mountDialog() {
   return mount(UpdateProgressDialog, {
@@ -33,7 +42,7 @@ function mountDialog() {
           template: '<button @click="$emit(\'click\')"><slot /></button>',
         }),
         't-dialog': dialogStub,
-        't-progress': passthrough,
+        't-progress': progressStub,
         't-step': passthrough,
         't-steps': passthrough,
       },
@@ -55,6 +64,18 @@ describe('UpdateProgressDialog', () => {
     await wrapper.get('[data-testid="dialog-close"]').trigger('click');
 
     expect(progress.phase).toBe('idle');
+  });
+
+  it('does not display a completed percentage while an operation is still running', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({ operation: { operation_id: 'update-1', status: 'PULLING' } as never, phase: 'running' });
+    const wrapper = mountDialog();
+
+    expect(wrapper.get('[data-testid="progress"]').attributes()).toMatchObject({
+      'data-percentage': '0',
+      'data-label': 'false',
+      'data-indeterminate': 'true',
+    });
   });
 
   it('clears progress before opening application logs', async () => {

@@ -127,10 +127,19 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 }
 func (a *actions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput { return a.backup }
 func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
-	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight.ServerReference, in.Preflight.WebReference); err != nil {
+	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.UpdatePolicy); err != nil {
 		return err
 	}
 	return compose(ctx, in, "pull")
+}
+func (a *actions) VerifyImages(ctx context.Context, in update.RunnerInput) error {
+	if err := verifyImageDigest(ctx, in.Preflight.ServerReference, in.Preflight.ServerDigest); err != nil {
+		return fmt.Errorf("verify server image: %w", err)
+	}
+	if err := verifyImageDigest(ctx, in.Preflight.WebReference, in.Preflight.WebDigest); err != nil {
+		return fmt.Errorf("verify web image: %w", err)
+	}
+	return nil
 }
 func (a *actions) BootstrapMigrate(ctx context.Context, in update.RunnerInput) error {
 	return compose(ctx, in, "run", "--rm", "bootstrap")
@@ -200,25 +209,22 @@ func digest(path string) (string, int64, error) {
 	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }
 
-//nolint:cyclop // 四个镜像坐标必须作为一组原子替换，避免 Compose 在任一服务上回退到旧引用。
-func replaceRefs(path, server, web string) error {
-	if !immutableReference(server) || !immutableReference(web) {
-		return errors.New("compose runner image references must be immutable digests")
+// replaceRefs 以一次原子文件替换更新官方 Compose 的两个完整镜像引用，避免服务分别回退到不同 release。
+//
+//nolint:cyclop // 三个键必须共同校验、替换并验证完整性，拆分会破坏原子写入边界。
+func replaceRefs(path, server, web string, policy update.UpdatePolicy) error {
+	if !taggedReference(server) || !taggedReference(web) {
+		return errors.New("compose runner image references must use explicit version tags")
+	}
+	if policy != update.UpdatePolicyStable && policy != update.UpdatePolicyBeta && policy != update.UpdatePolicyFixed {
+		return errors.New("compose runner update policy is invalid")
 	}
 	// #nosec G304 -- .env path is derived from the preflight-validated compose root.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	serverRepository, serverDigest, err := splitImmutableReference(server)
-	if err != nil {
-		return err
-	}
-	webRepository, webDigest, err := splitImmutableReference(web)
-	if err != nil {
-		return err
-	}
-	values := map[string]string{"GRAFT_SERVER_IMAGE_REPOSITORY": serverRepository, "GRAFT_SERVER_IMAGE_DIGEST": serverDigest, "GRAFT_WEB_IMAGE_REPOSITORY": webRepository, "GRAFT_WEB_IMAGE_DIGEST": webDigest}
+	values := map[string]string{"GRAFT_SERVER_IMAGE": server, "GRAFT_WEB_IMAGE": web, "GRAFT_UPDATE_POLICY": string(policy)}
 	lines := strings.Split(string(contents), "\n")
 	for index, line := range lines {
 		for key, value := range values {
@@ -229,7 +235,7 @@ func replaceRefs(path, server, web string) error {
 		}
 	}
 	if len(values) != 0 {
-		return errors.New("official compose environment lacks immutable image references")
+		return errors.New("official compose environment lacks complete image references")
 	}
 	temporary := path + ".graft-update-tmp"
 	// #nosec G703 -- temporary is a fixed suffix under the preflight-validated compose root.
@@ -239,19 +245,37 @@ func replaceRefs(path, server, web string) error {
 	return os.Rename(temporary, path)
 }
 
-func splitImmutableReference(reference string) (string, string, error) {
-	repository, digest, ok := strings.Cut(strings.TrimSpace(reference), "@")
-	if repository == "" || !ok || !strings.HasPrefix(digest, "sha256:") {
-		return "", "", errors.New("image reference must use an immutable sha256 digest")
-	}
-	return repository, digest, nil
-}
-
-func immutableReference(value string) bool {
-	repository, digest, ok := strings.Cut(strings.TrimSpace(value), "@")
-	if !ok || repository == "" || !strings.HasPrefix(digest, "sha256:") || len(digest) != len("sha256:")+sha256.Size*2 {
+func taggedReference(value string) bool {
+	reference := strings.TrimSpace(value)
+	if reference == "" || strings.Contains(reference, "@") {
 		return false
 	}
-	_, err := hex.DecodeString(strings.TrimPrefix(digest, "sha256:"))
+	lastSlash := strings.LastIndex(reference, "/")
+	lastColon := strings.LastIndex(reference, ":")
+	return lastColon > lastSlash && lastColon < len(reference)-1
+}
+
+func verifyImageDigest(ctx context.Context, reference, wantDigest string) error {
+	if !taggedReference(reference) || !immutableDigest(wantDigest) {
+		return errors.New("image verification input is invalid")
+	}
+	// #nosec G204 -- 引用来自经 manifest 校验的官方明确镜像标签。
+	command := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", reference)
+	contents, err := command.Output()
+	if err != nil {
+		return err
+	}
+	actual := strings.TrimSpace(string(contents))
+	if !strings.HasSuffix(actual, "@"+wantDigest) {
+		return fmt.Errorf("pulled image digest %q does not match verified manifest digest", actual)
+	}
+	return nil
+}
+
+func immutableDigest(value string) bool {
+	if !strings.HasPrefix(value, "sha256:") || len(value) != len("sha256:")+sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(strings.TrimPrefix(value, "sha256:"))
 	return err == nil
 }

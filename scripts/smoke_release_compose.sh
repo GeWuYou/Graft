@@ -32,16 +32,14 @@ cp compose.yml compose.smoke.yml "${workspace}/"
 docker image inspect "${server_image}:${image_tag}" >/dev/null
 docker image inspect "${web_image}:${image_tag}" >/dev/null
 cat > "${workspace}/.env" <<EOF
-# Base Compose still requires digest-shaped values. compose.smoke.yml replaces
-# bootstrap, application-root-init, backup-root-init, server, and web with the
-# local tags below before any service starts.
-GRAFT_SERVER_IMAGE_REPOSITORY=graft-release-smoke-placeholder
-GRAFT_SERVER_IMAGE_DIGEST=sha256:0000000000000000000000000000000000000000000000000000000000000000
-GRAFT_WEB_IMAGE_REPOSITORY=graft-release-smoke-placeholder
-GRAFT_WEB_IMAGE_DIGEST=sha256:0000000000000000000000000000000000000000000000000000000000000000
+# compose.smoke.yml replaces these official complete image references with the
+# local release tags below before any service starts.
+GRAFT_SERVER_IMAGE=graft-release-smoke-placeholder:0
+GRAFT_WEB_IMAGE=graft-release-smoke-placeholder:0
 GRAFT_RELEASE_SERVER_IMAGE=${server_image}
 GRAFT_RELEASE_WEB_IMAGE=${web_image}
 GRAFT_RELEASE_IMAGE_TAG=${image_tag}
+GRAFT_UPDATE_POLICY=manual
 COMPOSE_FILE_DIR=${workspace}
 POSTGRES_DB=graft
 POSTGRES_USER=graft

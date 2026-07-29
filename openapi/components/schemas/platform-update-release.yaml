@@ -1,0 +1,17 @@
+type: object
+required: [version, channel, notes, published_at, manifest_url, server_digest, web_digest]
+properties:
+  version: { type: string }
+  channel: { type: string, enum: [stable, beta] }
+  notes: { type: string }
+  published_at: { type: string, format: date-time }
+  manifest_url: { type: string, format: uri }
+  notes_url: { type: string, format: uri }
+  upgrade_notes: { type: string }
+  minimum_source_version: { type: string }
+  server_digest: { type: string }
+  web_digest: { type: string }
+  checksums_url: { type: string, format: uri }
+  asset_sha256:
+    type: object
+    additionalProperties: { type: string }

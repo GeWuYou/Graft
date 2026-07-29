@@ -218,7 +218,7 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containe
 			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
 		}
 	}
-	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "65532:65532", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
+	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
 		"io.graft.update.protocol":  "compose-runner/v1",
 	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}

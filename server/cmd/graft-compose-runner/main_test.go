@@ -76,12 +76,12 @@ func TestComposeFileArgsPreservesEveryPreflightFileInOrder(t *testing.T) {
 
 func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE_REPOSITORY=ghcr.io/gewuyou/graft-server\nGRAFT_SERVER_IMAGE_DIGEST=sha256:old\nGRAFT_WEB_IMAGE_REPOSITORY=ghcr.io/gewuyou/graft-web\nGRAFT_WEB_IMAGE_DIGEST=sha256:old\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:old\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:old\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
-	server := "ghcr.io/gewuyou/graft-server@sha256:" + strings.Repeat("a", 64)
-	web := "ghcr.io/gewuyou/graft-web@sha256:" + strings.Repeat("b", 64)
-	if err := replaceRefs(path, server, web); err != nil {
+	server := "ghcr.io/gewuyou/graft-server:1.2.3-beta.1"
+	web := "ghcr.io/gewuyou/graft-web:1.2.3-beta.1"
+	if err := replaceRefs(path, server, web, update.UpdatePolicyBeta); err != nil {
 		t.Fatalf("replace mutable image references: %v", err)
 	}
 	// #nosec G304 -- path is a test-owned file under this test's temporary directory.
@@ -89,7 +89,7 @@ func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read updated compose environment: %v", err)
 	}
-	if strings.Contains(string(contents), "sha256:old") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE_DIGEST="+strings.TrimPrefix(server, "ghcr.io/gewuyou/graft-server@")) || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE_DIGEST="+strings.TrimPrefix(web, "ghcr.io/gewuyou/graft-web@")) {
+	if strings.Contains(string(contents), ":old") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE="+server) || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE="+web) {
 		t.Fatalf("compose environment does not contain frozen references: %s", contents)
 	}
 }
@@ -99,9 +99,9 @@ func TestReplaceRefsRejectsMissingComposeImageReference(t *testing.T) {
 	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
-	server := "ghcr.io/gewuyou/graft-server@sha256:" + strings.Repeat("a", 64)
-	web := "ghcr.io/gewuyou/graft-web@sha256:" + strings.Repeat("b", 64)
-	if err := replaceRefs(path, server, web); err == nil {
+	server := "ghcr.io/gewuyou/graft-server:1.2.3-beta.1"
+	web := "ghcr.io/gewuyou/graft-web:1.2.3-beta.1"
+	if err := replaceRefs(path, server, web, update.UpdatePolicyBeta); err == nil {
 		t.Fatal("expected missing web image reference to reject update")
 	}
 }
@@ -111,7 +111,7 @@ func TestReplaceRefsRejectsMutableImageReference(t *testing.T) {
 	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:latest\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
-	if err := replaceRefs(path, "ghcr.io/gewuyou/graft-server:latest", "ghcr.io/gewuyou/graft-web:latest"); err == nil {
+	if err := replaceRefs(path, "ghcr.io/gewuyou/graft-server:latest", "ghcr.io/gewuyou/graft-web:latest", update.UpdatePolicyBeta); err == nil {
 		t.Fatal("expected mutable image references to be rejected")
 	}
 }

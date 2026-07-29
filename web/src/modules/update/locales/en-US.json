@@ -46,6 +46,31 @@
         "unavailable": "Release status unavailable",
         "unavailableDescription": "Unable to retrieve available releases right now. Try again later."
       },
+      "policy": {
+        "title": "Update policy",
+        "unconfigured": "Not configured",
+        "unconfiguredDescription": "Choose an update policy before the first managed operation for this official Compose deployment.",
+        "setupTitle": "Configure update policy",
+        "setupDescription": "The policy is saved to the official Compose deployment configuration. Choose the policy that matches the intended operating model.",
+        "saveAndUpgrade": "Save and start upgrade",
+        "manualTag": "Manual",
+        "manualSetupMessage": "The manual policy does not change image references or start an automated upgrade.",
+        "manualConfigured": "This deployment uses the manual policy. The platform will not change images or run an automated upgrade.",
+        "fixedReleaseTitle": "Select fixed release",
+        "fixedReleasePlaceholder": "Select a verified release",
+        "options": {
+          "stable": { "title": "Stable", "description": "Use verified stable releases only." },
+          "beta": { "title": "Beta", "description": "Use verified Beta releases." },
+          "fixed": {
+            "title": "Fixed release",
+            "description": "Use only the verified release selected for this operation."
+          },
+          "manual": {
+            "title": "Manual",
+            "description": "Keep the manual update process and do not change images automatically."
+          }
+        }
+      },
       "installation": {
         "title": "Installation profile",
         "declared": "Declared mode",
@@ -56,6 +81,7 @@
         "title": "Release notes",
         "verified": "The release manifest and OCI image digests are verified.",
         "upgrade": "Start upgrade",
+        "configurePolicy": "Configure update policy",
         "executionUnavailable": "This installation cannot run a controlled Compose upgrade.",
         "manualOnly": "This installation type provides verified packages and manual guidance only. It will not replace the running binary automatically.",
         "catalogStale": "A fresh verified release catalog is required before a controlled upgrade can start.",

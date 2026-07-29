@@ -13,7 +13,12 @@
     @close="closeTerminalDialog"
   >
     <section class="update-progress" data-testid="update-progress-dialog">
-      <t-progress v-if="progress.phase !== 'failed'" :percentage="100" :indeterminate="progress.phase !== 'success'" />
+      <t-progress
+        v-if="progress.phase !== 'failed'"
+        :percentage="progress.phase === 'success' ? 100 : 0"
+        :label="progress.phase === 'success'"
+        :indeterminate="!terminal"
+      />
       <t-alert
         :theme="progress.phase === 'failed' ? 'error' : progress.phase === 'success' ? 'success' : 'info'"
         :message="phaseMessage"

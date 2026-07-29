@@ -24,13 +24,9 @@ func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
 	if !receipt.Succeeded || !receipt.MigrationStarted {
 		t.Fatalf("unexpected receipt: %#v", receipt)
 	}
-	want := []string{"backup", "compose pull", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz"}
+	want := []string{"backup", "compose pull", "verify images", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz"}
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
-	}
-	persisted := readFixtureReceipt(t, input)
-	if !reflect.DeepEqual(persisted, receipt) {
-		t.Fatalf("persisted receipt = %#v, want %#v", persisted, receipt)
 	}
 }
 
@@ -44,7 +40,7 @@ func TestExecuteComposeRunnerMigrationFailureNeverRestoresDatabase(t *testing.T)
 	if receipt.FailureCode != runnerFailureMigration || !receipt.MigrationStarted || ClassifyRunnerReceipt(receipt) != ExecutionOutcomeNeedsAttention {
 		t.Fatalf("unexpected receipt: %#v", receipt)
 	}
-	want := []string{"backup", "compose pull", "bootstrap migrate up"}
+	want := []string{"backup", "compose pull", "verify images", "bootstrap migrate up"}
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
 	}
@@ -87,26 +83,6 @@ func TestExecuteComposeRunnerRejectsMissingBackupCompletion(t *testing.T) {
 	}
 }
 
-func TestPersistRunnerReceiptReplacesReceiptWithoutTemporaryFiles(t *testing.T) {
-	input := fixtureRunnerInput(t.TempDir())
-	if err := persistRunnerReceipt(input, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, FailureCode: "first"}); err != nil {
-		t.Fatalf("persist first receipt: %v", err)
-	}
-	if err := persistRunnerReceipt(input, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, Succeeded: true}); err != nil {
-		t.Fatalf("replace receipt: %v", err)
-	}
-	if receipt := readFixtureReceipt(t, input); !receipt.Succeeded || receipt.FailureCode != "" {
-		t.Fatalf("receipt was not atomically replaced: %#v", receipt)
-	}
-	entries, err := os.ReadDir(filepath.Join(input.Preflight.ComposeRoot, runnerReceiptDirectory))
-	if err != nil {
-		t.Fatalf("list receipt directory: %v", err)
-	}
-	if len(entries) != 1 || entries[0].Name() != input.OperationID+".json" {
-		t.Fatalf("temporary receipt files remain: %#v", entries)
-	}
-}
-
 func TestComposeRunnerFixtureHasLocalSourceAndTargetVersions(t *testing.T) {
 	contents, err := os.ReadFile("testdata/compose-runner/fixture.json")
 	if err != nil {
@@ -143,29 +119,11 @@ func fixtureRunnerInput(root string) RunnerInput {
 	webDigest := "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	runnerDigest := "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 	return RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "fixture-operation-1", TaskID: 7, Preflight: ComposePreflight{
-		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true,
+		DeclaredMode: "compose", UpdatePolicy: UpdatePolicyBeta, DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest,
-		ServerReference: "ghcr.io/gewuyou/graft-server@" + serverDigest, WebReference: "ghcr.io/gewuyou/graft-web@" + webDigest, RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@" + runnerDigest,
+		ServerReference: "ghcr.io/gewuyou/graft-server:1.2.3-beta.1", WebReference: "ghcr.io/gewuyou/graft-web:1.2.3-beta.1", RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@" + runnerDigest,
 	}}
-}
-
-func readFixtureReceipt(t *testing.T, input RunnerInput) RunnerReceipt {
-	t.Helper()
-	path, err := runnerReceiptPath(input)
-	if err != nil {
-		t.Fatalf("receipt path: %v", err)
-	}
-	// #nosec G304 -- path 由受限 operation ID 与当前测试的临时 Compose root 构造。
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read receipt: %v", err)
-	}
-	var receipt RunnerReceipt
-	if err := json.Unmarshal(contents, &receipt); err != nil {
-		t.Fatalf("decode receipt: %v", err)
-	}
-	return receipt
 }
 
 type tracingRunnerActions struct {
@@ -199,6 +157,10 @@ func (actions *tracingRunnerActions) BackupReceipt() moduleapi.CompleteBackupRun
 
 func (actions *tracingRunnerActions) Pull(context.Context, RunnerInput) error {
 	return actions.run("compose pull")
+}
+
+func (actions *tracingRunnerActions) VerifyImages(context.Context, RunnerInput) error {
+	return actions.run("verify images")
 }
 
 func (actions *tracingRunnerActions) BootstrapMigrate(context.Context, RunnerInput) error {

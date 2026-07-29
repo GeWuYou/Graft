@@ -46,6 +46,25 @@
         "unavailable": "发行状态暂不可用",
         "unavailableDescription": "暂时无法获取可用版本，请稍后重试。"
       },
+      "policy": {
+        "title": "升级策略",
+        "unconfigured": "尚未配置",
+        "unconfiguredDescription": "首次执行前，请选择官方 Compose 部署的升级策略。",
+        "setupTitle": "配置升级策略",
+        "setupDescription": "策略会写入官方 Compose 部署配置。请选择与当前运维方式一致的策略。",
+        "saveAndUpgrade": "保存并开始升级",
+        "manualTag": "人工执行",
+        "manualSetupMessage": "人工策略不会修改镜像引用，也不会启动自动升级。",
+        "manualConfigured": "当前部署使用人工策略，系统不会自动变更镜像或执行升级。",
+        "fixedReleaseTitle": "选择固定发行版本",
+        "fixedReleasePlaceholder": "请选择已验证的发行版本",
+        "options": {
+          "stable": { "title": "稳定版", "description": "仅使用已验证的稳定版发行版本。" },
+          "beta": { "title": "Beta", "description": "使用已验证的 Beta 发行版本。" },
+          "fixed": { "title": "固定版本", "description": "仅使用本次选择的已验证发行版本。" },
+          "manual": { "title": "人工执行", "description": "保留人工更新流程，不自动修改镜像。" }
+        }
+      },
       "installation": {
         "title": "安装画像",
         "declared": "声明模式",
@@ -56,6 +75,7 @@
         "title": "发行说明",
         "verified": "发行清单与 OCI 镜像摘要已验证。",
         "upgrade": "开始升级",
+        "configurePolicy": "配置升级策略",
         "executionUnavailable": "当前安装不满足受控 Compose 升级条件。",
         "manualOnly": "此安装类型仅提供校验包与人工升级指引，不会自动替换正在运行的二进制文件。",
         "catalogStale": "必须先获得新的已验证发行目录，才能开始受控升级。",

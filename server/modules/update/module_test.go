@@ -44,8 +44,8 @@ func TestRegisterMessagesRejectsMissingScheduledTaskMessage(t *testing.T) {
 }
 
 func TestPlatformUpdateCheckScheduleUsesSeconds(t *testing.T) {
-	if platformUpdateCheckSchedule != "0 0 4 * * *" {
-		t.Fatalf("expected platform update check at 04:00:00, got %q", platformUpdateCheckSchedule)
+	if platformUpdateCheckSchedule != "0 0 */4 * * *" {
+		t.Fatalf("expected platform update check every four hours, got %q", platformUpdateCheckSchedule)
 	}
 	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 	if _, err := parser.Parse(platformUpdateCheckSchedule); err != nil {

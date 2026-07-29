@@ -31,6 +31,29 @@
           </div>
           <p>{{ t('update.center.current.description') }}</p>
         </t-card>
+        <t-card :title="t('update.center.policy.title')" bordered>
+          <template v-if="status.policy_initialized">
+            <div class="update-center__version">
+              <strong>{{ policyLabel(effectivePolicy) }}</strong>
+              <t-tag v-if="effectivePolicy === 'manual'" size="small" theme="warning" variant="light">
+                {{ t('update.center.policy.manualTag') }}
+              </t-tag>
+            </div>
+            <p>{{ policyDescription(effectivePolicy) }}</p>
+          </template>
+          <template v-else>
+            <strong class="update-center__policy-unconfigured">{{ t('update.center.policy.unconfigured') }}</strong>
+            <p>{{ t('update.center.policy.unconfiguredDescription') }}</p>
+            <t-button
+              theme="primary"
+              :disabled="!isPolicySetupEligible"
+              data-testid="update-center-configure-policy"
+              @click="openConfirmation"
+            >
+              {{ t('update.center.release.configurePolicy') }}
+            </t-button>
+          </template>
+        </t-card>
         <t-card :title="t('update.center.latest.title')" bordered>
           <template v-if="status.latest && !status.cache_stale && !status.check_error">
             <div class="update-center__version">
@@ -65,7 +88,11 @@
                 data-testid="update-center-upgrade"
                 @click="openConfirmation"
               >
-                {{ t('update.center.release.upgrade') }}
+                {{
+                  status.policy_initialized
+                    ? t('update.center.release.upgrade')
+                    : t('update.center.release.configurePolicy')
+                }}
               </t-button>
             </div>
             <t-alert v-if="!canOpenUpgradeFlow" theme="info" :message="upgradeUnavailableReason" />
@@ -156,17 +183,46 @@
 
     <t-dialog
       v-model:visible="confirmationVisible"
-      :header="t('update.center.confirmation.title', { version: status?.latest?.version })"
-      :confirm-btn="{
-        content: t('update.center.confirmation.confirm'),
-        theme: 'danger',
-        loading: submitting,
-        disabled: !canSubmitUpgrade,
-      }"
+      :header="confirmationTitle"
+      :confirm-btn="
+        selectedPolicy === 'manual'
+          ? null
+          : {
+              content: confirmationSubmitLabel,
+              theme: 'danger',
+              loading: submitting,
+              disabled: !canSubmitUpgrade,
+            }
+      "
       :cancel-btn="{ content: t('update.center.confirmation.cancel') }"
       @confirm="submitUpgrade"
     >
-      <p>{{ t('update.center.confirmation.description', { version: status?.latest?.version }) }}</p>
+      <template v-if="!status?.policy_initialized">
+        <p>{{ t('update.center.policy.setupDescription') }}</p>
+        <t-radio-group v-model="selectedPolicy" class="update-center__policy-options" direction="vertical">
+          <t-radio v-for="policy in policies" :key="policy" :value="policy">
+            <span class="update-center__candidate">
+              <strong>{{ policyLabel(policy) }}</strong>
+              <small>{{ policyDescription(policy) }}</small>
+            </span>
+          </t-radio>
+        </t-radio-group>
+      </template>
+      <p v-else-if="selectedPolicy === 'manual'">{{ t('update.center.policy.manualConfigured') }}</p>
+      <p v-else>{{ t('update.center.confirmation.description', { version: selectedTargetVersion }) }}</p>
+      <template v-if="selectedPolicy === 'fixed'">
+        <p class="update-center__compose-root-title">{{ t('update.center.policy.fixedReleaseTitle') }}</p>
+        <t-select
+          v-model="selectedFixedVersion"
+          :options="fixedReleaseOptions"
+          :placeholder="t('update.center.policy.fixedReleasePlaceholder')"
+        />
+      </template>
+      <t-alert
+        v-if="selectedPolicy === 'manual'"
+        theme="info"
+        :message="t('update.center.policy.manualSetupMessage')"
+      />
       <template v-if="isDockerDiscovery">
         <p class="update-center__compose-root-title">{{ t('update.center.composeRoot.title') }}</p>
         <p class="update-center__card-description">{{ t('update.center.composeRoot.description') }}</p>
@@ -248,13 +304,18 @@ import { usePermissionStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
 
 import { createUpdateOperation, getUpdateFailureDiagnostic, getUpdateOperations } from '../../api/update';
-import { isUpgradeEligible } from '../../composables/updateEligibility';
 import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import { useUpdateProgressStore } from '../../store/progress';
 import type { UpdateCenterDataSource } from '../../types/preview';
-import type { UpdateChannel, UpdateFailureDiagnostic, UpdateOperation, UpdateStatus } from '../../types/update';
+import type {
+  UpdateChannel,
+  UpdateFailureDiagnostic,
+  UpdateOperation,
+  UpdatePolicy,
+  UpdateStatus,
+} from '../../types/update';
 
 const props = defineProps<{
   dataSource?: UpdateCenterDataSource;
@@ -280,6 +341,10 @@ const operationRequestId = ref('');
 const operationDiagnostic = ref<UpdateFailureDiagnostic | null>(null);
 const diagnosticUnavailable = ref(false);
 const selectedCandidateKey = ref('');
+const selectedPolicy = ref<UpdatePolicy>('stable');
+const selectedFixedVersion = ref('');
+// manual 仅是部署配置；首次受控操作只能初始化可执行策略。
+const policies: UpdatePolicy[] = ['stable', 'beta', 'fixed'];
 const canCheck = computed(() =>
   props.dataSource ? props.dataSource.permissions.check : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK),
 );
@@ -307,10 +372,46 @@ const hasSelectedCandidate = computed(
 );
 const canOpenUpgradeFlow = computed(
   () =>
-    isUpgradeEligible(status.value, canManage.value) &&
+    isPolicySetupEligible.value &&
+    (!status.value?.policy_initialized ||
+      (effectivePolicy.value !== 'manual' && Boolean(status.value.latest?.version))),
+);
+const isPolicySetupEligible = computed(
+  () =>
+    Boolean(status.value) &&
+    !status.value?.cache_stale &&
+    !status.value?.check_error &&
+    status.value?.installation_profile.capability === 'compose_upgrade_available' &&
+    canManage.value &&
     (!isDockerDiscovery.value || composeCandidates.value.length > 0),
 );
-const canSubmitUpgrade = computed(() => canOpenUpgradeFlow.value && hasSelectedCandidate.value);
+const selectedTargetVersion = computed(() => {
+  if (selectedPolicy.value === 'manual') return '';
+  if (selectedPolicy.value === 'fixed') return selectedFixedVersion.value;
+  return status.value?.latest?.version ?? '';
+});
+const effectivePolicy = computed<UpdatePolicy>(() => status.value?.update_policy ?? 'manual');
+const fixedReleaseOptions = computed(() =>
+  (status.value?.available_releases ?? []).map((release) => ({
+    label: `${release.version} (${channelLabel(release.channel)})`,
+    value: release.version,
+  })),
+);
+const canSubmitUpgrade = computed(
+  () =>
+    isPolicySetupEligible.value &&
+    hasSelectedCandidate.value &&
+    selectedPolicy.value !== 'manual' &&
+    Boolean(selectedTargetVersion.value),
+);
+const confirmationTitle = computed(() =>
+  status.value?.policy_initialized
+    ? t('update.center.confirmation.title', { version: selectedTargetVersion.value })
+    : t('update.center.policy.setupTitle'),
+);
+const confirmationSubmitLabel = computed(() =>
+  status.value?.policy_initialized ? t('update.center.confirmation.confirm') : t('update.center.policy.saveAndUpgrade'),
+);
 const releaseNotes = computed(() => status.value?.latest?.notes || t('update.center.release.notesEmpty'));
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
@@ -350,6 +451,9 @@ const upgradeUnavailableReason = computed(() => {
   if (status.value.installation_profile.capability !== 'compose_upgrade_available') {
     return t('update.center.release.manualOnly');
   }
+  if (status.value.policy_initialized && effectivePolicy.value === 'manual') {
+    return t('update.center.policy.manualConfigured');
+  }
   if (!canManage.value) {
     return t('update.center.release.managePermissionRequired');
   }
@@ -372,6 +476,8 @@ watch(
   },
   { immediate: true },
 );
+
+watch(selectedPolicy, syncFixedReleaseSelection);
 
 async function loadStatus() {
   loadError.value = '';
@@ -428,11 +534,13 @@ function openConfirmation() {
   operationRequestId.value = '';
   operationDiagnostic.value = null;
   diagnosticUnavailable.value = false;
+  selectedPolicy.value = status.value?.policy_initialized ? effectivePolicy.value : 'stable';
+  syncFixedReleaseSelection();
   confirmationVisible.value = true;
 }
 
 async function submitUpgrade() {
-  if (!status.value?.latest || !canSubmitUpgrade.value) {
+  if (!status.value || !canSubmitUpgrade.value) {
     return;
   }
   submitting.value = true;
@@ -442,7 +550,8 @@ async function submitUpgrade() {
   diagnosticUnavailable.value = false;
   try {
     const payload = {
-      target_version: status.value.latest.version,
+      target_version: selectedTargetVersion.value,
+      ...(status.value.policy_initialized ? {} : { update_policy: selectedPolicy.value }),
       // 唯一高置信候选已由服务端解析，避免把选择键回传成第二份客户端事实。
       ...(isDockerDiscovery.value && composeRootConfirmationRequired.value
         ? { compose_candidate_key: selectedCandidateKey.value }
@@ -520,6 +629,17 @@ function syncCandidateSelection() {
   }
 }
 
+function syncFixedReleaseSelection() {
+  if (selectedPolicy.value !== 'fixed') {
+    selectedFixedVersion.value = '';
+    return;
+  }
+  const releases = status.value?.available_releases ?? [];
+  if (!releases.some(({ version }) => version === selectedFixedVersion.value)) {
+    selectedFixedVersion.value = status.value?.latest?.version ?? releases[0]?.version ?? '';
+  }
+}
+
 function resolveOperationErrorMessage(error: unknown) {
   if (!isApiRequestError(error)) {
     return t('update.center.confirmation.failure.generic');
@@ -541,6 +661,14 @@ function capabilityRow(key: string, compose: string, binary: string) {
 
 function channelLabel(channel: UpdateChannel) {
   return t(`update.center.channels.${channel}`);
+}
+
+function policyLabel(policy: UpdatePolicy) {
+  return t(`update.center.policy.options.${policy}.title`);
+}
+
+function policyDescription(policy: UpdatePolicy) {
+  return t(`update.center.policy.options.${policy}.description`);
 }
 
 function deploymentModeLabel(mode: string) {
@@ -626,6 +754,17 @@ function formatDate(value: string) {
 
 .update-center__up-to-date {
   color: var(--td-success-color);
+}
+
+.update-center__policy-unconfigured {
+  color: var(--td-warning-color);
+  font: var(--td-font-title-large);
+}
+
+.update-center__policy-options {
+  display: grid;
+  gap: var(--td-comp-margin-m);
+  margin-top: var(--td-comp-margin-l);
 }
 
 .update-center__profile {

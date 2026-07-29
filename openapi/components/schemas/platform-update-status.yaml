@@ -3,24 +3,18 @@ required: [current_version, channel, installation_profile]
 properties:
   current_version: { type: string }
   channel: { type: string, enum: [stable, beta, unknown] }
+  update_policy:
+    $ref: ./platform-update-policy.yaml
+  policy_initialized:
+    type: boolean
+    description: Whether the official Compose .env declares the deployment-owned update policy.
   latest:
-    type: object
-    required: [version, channel, notes, published_at, manifest_url, server_digest, web_digest]
-    properties:
-      version: { type: string }
-      channel: { type: string, enum: [stable, beta] }
-      notes: { type: string }
-      published_at: { type: string, format: date-time }
-      manifest_url: { type: string, format: uri }
-      notes_url: { type: string, format: uri }
-      upgrade_notes: { type: string }
-      minimum_source_version: { type: string }
-      server_digest: { type: string }
-      web_digest: { type: string }
-      checksums_url: { type: string, format: uri }
-      asset_sha256:
-        type: object
-        additionalProperties: { type: string }
+    $ref: ./platform-update-release.yaml
+  available_releases:
+    type: array
+    description: Verified releases available for fixed-policy selection. Empty for callers without update management permission.
+    items:
+      $ref: ./platform-update-release.yaml
   installation_profile:
     type: object
     required: [declared_mode, detected_mode, capability, guidance, compose_root_source, compose_candidates]

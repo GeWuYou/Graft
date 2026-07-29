@@ -4,6 +4,28 @@ import type { CreateUpdateOperationRequest, UpdateOperation, UpdateStatus } from
 export const updateCenterPreviewStatus: UpdateStatus = {
   current_version: '0.9.8-beta.2',
   channel: 'beta',
+  update_policy: 'beta',
+  policy_initialized: true,
+  available_releases: [
+    {
+      version: '0.9.8-beta.3',
+      channel: 'beta',
+      notes: 'Verified Beta release.',
+      published_at: '2026-07-24T08:00:00Z',
+      manifest_url: 'https://example.test/releases/v0.9.8-beta.3/manifest.json',
+      server_digest: 'sha256:preview-server',
+      web_digest: 'sha256:preview-web',
+    },
+    {
+      version: '0.9.8',
+      channel: 'stable',
+      notes: 'Verified stable release.',
+      published_at: '2026-07-22T08:00:00Z',
+      manifest_url: 'https://example.test/releases/v0.9.8/manifest.json',
+      server_digest: 'sha256:preview-server-stable',
+      web_digest: 'sha256:preview-web-stable',
+    },
+  ],
   latest: {
     version: '0.9.8-beta.3',
     channel: 'beta',
@@ -62,6 +84,7 @@ export function createUpdateCenterPreviewDataSource(): UpdateCenterDataSource {
       const operation: UpdateOperation = {
         operation_id: `preview-${operations.length + 1}`,
         source_version: updateCenterPreviewStatus.current_version,
+        update_policy: payload.update_policy,
         target_version: payload.target_version,
         task_id: operations.length + 1,
         status: 'PLANNING',

@@ -14,9 +14,9 @@ operator responsibility boundary 和 compatibility principle，但不承诺自�
 ## Unsupported Or Discouraged Path
 
 - mixed-tag `server` / `web` deployment
-- using mutable `latest` or `beta` image tags as an upgrade target
-- treating a Beta installation as a stable-production compatibility promise; Beta testing may use the matching immutable
-  Beta tag and the beta channel selection rules when repeatability matters
+- using mutable `latest` tags, unverified image tags, or an image reference that does not resolve to the selected release manifest digest
+- treating a Beta installation as a stable-production compatibility promise; Beta testing may use a matching explicit
+  Beta version Tag only after its pulled digest is verified against the Beta release manifest
 - relying on `graft serve` for migration side effects
 - skipping release notes, upgrade notes, or config review for releases with governed changes
 - treating migration ordering numbers as product compatibility promises

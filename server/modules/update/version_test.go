@@ -19,6 +19,24 @@ func TestSelectLatestHonorsStableAndBetaChannels(t *testing.T) {
 	}
 }
 
+func TestSelectLatestForPolicyUsesTheConfiguredChannel(t *testing.T) {
+	current, _ := ParseVersion("0.9.1")
+	releases := []Release{
+		{Version: "0.9.2-beta.1", Channel: "beta"},
+		{Version: "0.9.2", Channel: "stable"},
+		{Version: "0.10.0-beta.1", Channel: "beta"},
+	}
+
+	selected, ok := SelectLatestForPolicy(current, UpdatePolicyBeta, releases)
+	if !ok || selected.Version != "0.10.0-beta.1" {
+		t.Fatalf("beta policy selected %#v, want latest beta", selected)
+	}
+	selected, ok = SelectLatestForPolicy(current, UpdatePolicyStable, releases)
+	if !ok || selected.Version != "0.9.2" {
+		t.Fatalf("stable policy selected %#v, want latest stable", selected)
+	}
+}
+
 func TestDetectInstallationProfileRequiresDeclaredAndDetectedCompose(t *testing.T) {
 	profile := DetectInstallationProfile(func(key string) string {
 		if key == "GRAFT_UPDATE_COMPOSE_ROOT" {

@@ -49,6 +49,8 @@ const status = (overrides: Record<string, unknown> = {}) =>
     channel: 'stable',
     checked_at: '2026-07-23T00:00:00Z',
     current_version: '1.0.0',
+    update_policy: 'stable',
+    policy_initialized: true,
     latest: null,
     cache_stale: false,
     check_error: '',
