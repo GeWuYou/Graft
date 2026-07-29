@@ -29,7 +29,7 @@ closeout:
 ## Current Recovery Point
 
 - The old repository-plus-digest Compose contract has been replaced without compatibility support.
-- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_SERVER_IMAGE`, `GRAFT_WEB_IMAGE`, and `GRAFT_UPDATE_POLICY` contract; the remaining batch is cross-boundary validation and archive readiness.
+- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_IMAGE_TAG` and `GRAFT_UPDATE_POLICY` contract; the remaining batch is cross-boundary validation and archive readiness.
 
 ## Task Checklist
 
@@ -41,7 +41,7 @@ closeout:
 
 ## Acceptance Conditions
 
-- Official Compose uses complete image references and one explicit policy value with no legacy-key compatibility.
+- Official Compose uses one shared `GRAFT_IMAGE_TAG` and one explicit policy value with no alternate-key compatibility.
 - Automated upgrades only select verified releases and validate pulled digests before migration/recreation.
 - A terminal update failure leaves both an actionable Update diagnostic and a request-correlated App Log record.
 - Running UI never presents indeterminate progress as `100%`.

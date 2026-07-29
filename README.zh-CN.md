@@ -54,6 +54,7 @@ git clone https://github.com/GeWuYou/Graft.git
 cd Graft
 cp compose.env.example .env
 # 在 .env 中为 POSTGRES_PASSWORD 和 GRAFT_AUTH_JWT_SECRET 设置强密码。
+# GRAFT_IMAGE_TAG 选择 server/web 共用的官方镜像版本：latest、beta 或固定发行版本（例如 v1.2.3）。
 docker compose pull
 docker compose up -d
 ```
@@ -74,7 +75,7 @@ cd web
 bun run dev
 ```
 
-部署到非本机环境前，请阅读[部署配置模板](compose.env.example)与 [Compose 拓扑](compose.yml)。
+部署到非本机环境前，请阅读[部署配置模板](compose.env.example)与 [Compose 拓扑](compose.yml)。`GRAFT_IMAGE_TAG` 是官方 server 与 web 镜像唯一共用的版本配置，可使用 `latest`、`beta` 或固定发行版本。受控更新只会写入已验证的明确发行版 Tag，并仍会校验拉取镜像的 digest。
 
 ## 界面预览
 

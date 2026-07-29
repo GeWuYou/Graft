@@ -6,7 +6,7 @@
 
 - 入口为 `Platform -> System Maintenance -> Updates`；左侧 Graft 标识下的当前版本是进入此页的快捷入口。
 - 更新是管理员确认后的受治理操作：自动检查可以启用，自动安装不在当前承诺范围内。
-- `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用版本。官方 Compose 首次部署可使用 `latest`，但 runner 只能写入完整的明确版本 Tag，并且必须验证 pull 后 digest 与同一已验证 manifest 一致；Tag 不能单独成为升级事实。
+- `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用版本。官方 Compose 用共享 `GRAFT_IMAGE_TAG` 选择 server 和 web 镜像，初次部署可手工选择 `latest`、`beta` 或固定版本；runner 只能写入从已验证 manifest 得到的明确版本 Tag，并且必须验证 pull 后 digest 与同一 manifest 一致；Tag 不能单独成为升级事实。
 - `server/modules/update` 和 `server/modules/backup` 是两个独立模块。Update 消费 Backup capability；Atlas migration 仍由 core CLI 拥有，不创建 migration 业务模块。
 - Backup 是可审计资产，Task 是其生成过程。Backup Detail 负责说明资产覆盖范围、工件大小、完整性摘要、保留状态和恢复证据；关联 Task 只负责展示阶段与执行日志。安全读取面可以公开配置快照和 PostgreSQL 转储的大小、SHA-256 与恢复证据，但绝不公开存储位置、配置或转储内容、执行命令和密钥。
 - `AVAILABLE` 仅表示备份工件已记录且仍在保留期，不表示恢复已验证或承诺可自动回滚。恢复验证必须有受控流程写入的证据；数据库 migration 仍遵循 forward-only 策略。
@@ -55,12 +55,12 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 
 ## Compose Update Policy
 
-官方 Compose `.env` 是更新策略与镜像声明的唯一 owner：`GRAFT_SERVER_IMAGE` 和 `GRAFT_WEB_IMAGE` 在首次部署模板中默认使用官方 `latest`，而受控升级后保存同一 release 的完整明确版本 Tag；模板默认 `GRAFT_UPDATE_POLICY=beta`，其余有效值为 `stable`、`fixed` 或 `manual`。极少数缺失策略的旧部署可在首次受控升级时由 Update Center 初始化 `stable`、`beta` 或 `fixed`；`manual` 必须直接写入 `.env`。之后服务端每次都重新读取 `.env`，Web 不维护策略副本。
+官方 Compose `.env` 是更新策略与镜像声明的唯一 owner：固定的官方 server/web 仓库通过一个 `GRAFT_IMAGE_TAG` 共同选择镜像版本；模板默认 `latest`，也可手工使用 `beta` 或固定发行版本。模板默认 `GRAFT_UPDATE_POLICY=stable`，其余有效值为 `beta`、`fixed` 或 `manual`。之后服务端每次都重新读取 `.env`，Web 不维护策略副本。
 
 - `stable` 只选择已验证 stable release；`beta` 只选择已验证 beta channel 允许的 release；`fixed` 仅允许管理员从已验证 catalog 选择具体版本。
 - `manual` 只保存策略，不改写镜像引用、不拉取、不迁移、不重建服务。
-- stable、beta 与 fixed 在实际 runner 执行前均解析到一个 verified manifest；runner 写入完整版本 Tag、pull 后比对 server/web digest，成功才可跨越 migration/recreate 边界。
-- `nightly` 没有发布和 manifest 链，明确不支持。旧 repository/digest 拆分配置不兼容，Beta 操作员必须先替换官方 Compose 模板与 `.env`。
+- stable、beta 与 fixed 在实际 runner 执行前均解析到一个 verified manifest；runner 从 server/web 的完整目标引用提取同一明确版本 Tag，写入 `GRAFT_IMAGE_TAG` 后比对 server/web digest，成功才可跨越 migration/recreate 边界。
+- `latest` 与 `beta` 是可变的手工部署 tag，不能替代上述 manifest/digest 验证。`nightly` 没有发布和 manifest 链，明确不支持；不存在替代镜像配置键的兼容路径。
 
 ## Installation Profile And Capability Matrix
 

@@ -2,7 +2,7 @@
 
 ## 2026-07-29 compose-contract-and-governance-reset
 
-- Accepted ADR-007 without rewriting historical ADR-006: full image references and `GRAFT_UPDATE_POLICY` now own the official Compose declaration; ADR-006 retains runner trust-boundary authority.
+- Accepted ADR-007 without rewriting historical ADR-006: the shared `GRAFT_IMAGE_TAG` and `GRAFT_UPDATE_POLICY` now own the official Compose declaration; ADR-006 retains runner trust-boundary authority.
 - Created the active-topic Work Contract and removed repository-plus-digest image variables from the official Compose example.
 
 ## 2026-07-29 runner-server-web-policy-batches
@@ -14,7 +14,7 @@
 ## Locked Decisions
 
 - `stable`, `beta`, `fixed`, and `manual` are the only current policies; `nightly` is explicitly out of scope.
-- The release manifest remains immutable identity authority; a complete tagged image reference is only executable after digest validation.
+- The release manifest remains immutable identity authority; a shared explicit image tag is only executable by the runner after digest validation.
 - No fallback, alias, or migration path exists for the removed legacy image configuration.
 
 ## Loop Batch State

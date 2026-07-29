@@ -42,8 +42,8 @@ web_reference="${registry}/graft-web@${web_digest}"
 runner_reference="${registry}/graft-compose-runner@${runner_digest}"
 cp "${fixture_dir}/compose.yml" "${workspace}/compose.yml"
 cat > "${workspace}/.env" <<EOF
-GRAFT_SERVER_IMAGE=${registry}/graft-server:v1.0.0
-GRAFT_WEB_IMAGE=${registry}/graft-web:v1.0.0
+GRAFT_IMAGE_TAG=v1.0.0
+GRAFT_UPDATE_POLICY=beta
 COMPOSE_PROJECT_NAME=${project}
 EOF
 docker tag "${registry}/graft-server:v1.1.0" "${registry}/graft-server:v1.0.0"
@@ -65,6 +65,7 @@ cat > "${workspace}/runner-input.json" <<EOF
   "task_id": 1,
   "preflight": {
     "declared_mode": "compose",
+    "update_policy": "beta",
     "detected_mode": "compose",
     "compose_root": "${workspace}",
     "platform": "linux/amd64",
@@ -103,8 +104,7 @@ jq -e '
   and (.backup_completion.ConfigSnapshotSHA256 | test("^[0-9a-f]{64}$"))
   and (.backup_completion.DatabaseDumpSHA256 | test("^[0-9a-f]{64}$"))
 ' "${workspace}/.graft-update/receipts/compose-runner-smoke.json" >/dev/null
-grep -Fqx "GRAFT_SERVER_IMAGE=${server_reference}" "${workspace}/.env"
-grep -Fqx "GRAFT_WEB_IMAGE=${web_reference}" "${workspace}/.env"
+grep -Fqx "GRAFT_IMAGE_TAG=v1.1.0" "${workspace}/.env"
 test -s "${workspace}/.graft-update/backups/compose-runner-smoke/config.snapshot"
 test -s "${workspace}/.graft-update/backups/compose-runner-smoke/database.dump"
 printf 'Compose runner smoke passed.\n'

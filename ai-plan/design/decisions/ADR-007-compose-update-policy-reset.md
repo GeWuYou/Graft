@@ -13,12 +13,12 @@ The Beta self-update flow needs a deployment-owned policy that an administrator 
 
 Official Compose deployments use these `.env` keys as their only image and update-policy contract:
 
-- `GRAFT_SERVER_IMAGE` and `GRAFT_WEB_IMAGE` are complete, explicit version-tagged official image references.
+- `GRAFT_IMAGE_TAG` is the single shared tag for the fixed official server and web repositories. Initial deployment may select `latest`, `beta`, or a fixed release tag.
 - `GRAFT_UPDATE_POLICY` is one of `stable`, `beta`, `fixed`, or `manual`.
 - `stable` and `beta` resolve only a verified GitHub Release manifest in the respective channel. `fixed` resolves an administrator-selected verified release. `manual` never changes image references or executes automated upgrade work.
-- The runner writes both complete image references atomically, pulls them, and verifies the resulting server and web digests against the selected verified manifest before migration or recreation.
+- The runner accepts manifest-derived complete target references, verifies that they are the official server and web repositories with one explicit shared tag, then atomically writes `GRAFT_IMAGE_TAG`, pulls, and verifies the resulting server and web digests against the selected manifest before migration or recreation.
 
-`nightly` is not implemented. Old repository/digest keys and `GRAFT_IMAGE_TAG` have no fallback, alias, dual-read, or migration path. Existing Beta operators must replace their official Compose template and `.env` contract before using self-update.
+`nightly` is not implemented. `latest` and `beta` are mutable manual-deployment choices, never manifest-verified runner targets. No alternate image key has a fallback, alias, dual-read, or migration path.
 
 ## Consequences
 

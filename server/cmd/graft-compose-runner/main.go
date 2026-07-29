@@ -128,7 +128,7 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 }
 func (a *actions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput { return a.backup }
 func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
-	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.UpdatePolicy); err != nil {
+	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.OfficialServerImage, in.Preflight.OfficialWebImage, in.Preflight.UpdatePolicy); err != nil {
 		return err
 	}
 	return compose(ctx, in, "pull")
@@ -210,12 +210,13 @@ func digest(path string) (string, int64, error) {
 	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }
 
-// replaceRefs 以一次原子文件替换更新官方 Compose 的两个完整镜像引用，避免服务分别回退到不同 release。
+// replaceRefs 以一次原子文件替换更新官方 Compose 的共享镜像 tag 与更新策略，避免服务分别回退到不同 release。
 //
-//nolint:cyclop // 三个键必须共同校验、替换并验证完整性，拆分会破坏原子写入边界。
-func replaceRefs(path, server, web string, policy update.UpdatePolicy) error {
-	if !taggedReference(server) || !taggedReference(web) {
-		return errors.New("compose runner image references must use explicit version tags")
+//nolint:cyclop // 两个镜像、两个官方仓库和两个环境键必须共同校验，拆分会破坏原子写入边界。
+func replaceRefs(path, server, web, officialServer, officialWeb string, policy update.UpdatePolicy) error {
+	tag, err := sharedOfficialTag(server, web, officialServer, officialWeb)
+	if err != nil {
+		return err
 	}
 	if policy != update.UpdatePolicyStable && policy != update.UpdatePolicyBeta && policy != update.UpdatePolicyFixed {
 		return errors.New("compose runner update policy is invalid")
@@ -225,7 +226,7 @@ func replaceRefs(path, server, web string, policy update.UpdatePolicy) error {
 	if err != nil {
 		return err
 	}
-	values := map[string]string{"GRAFT_SERVER_IMAGE": server, "GRAFT_WEB_IMAGE": web, "GRAFT_UPDATE_POLICY": string(policy)}
+	values := map[string]string{"GRAFT_IMAGE_TAG": tag, "GRAFT_UPDATE_POLICY": string(policy)}
 	lines := strings.Split(string(contents), "\n")
 	for index, line := range lines {
 		for key, value := range values {
@@ -236,7 +237,7 @@ func replaceRefs(path, server, web string, policy update.UpdatePolicy) error {
 		}
 	}
 	if len(values) != 0 {
-		return errors.New("official compose environment lacks complete image references")
+		return errors.New("official compose environment lacks the shared image tag or update policy")
 	}
 	temporary := path + ".graft-update-tmp"
 	// #nosec G703 -- temporary is a fixed suffix under the preflight-validated compose root.
@@ -246,21 +247,35 @@ func replaceRefs(path, server, web string, policy update.UpdatePolicy) error {
 	return os.Rename(temporary, path)
 }
 
-func taggedReference(value string) bool {
-	reference := value
-	if reference == "" || strings.TrimSpace(reference) != reference || strings.Contains(reference, "@") || strings.ContainsAny(reference, " \t\r\n") {
-		return false
+func sharedOfficialTag(server, web, officialServer, officialWeb string) (string, error) {
+	serverTag, ok := referenceTag(server, officialServer)
+	if !ok {
+		return "", errors.New("server image must use the official repository with an explicit version tag")
 	}
-	lastSlash := strings.LastIndex(reference, "/")
-	lastColon := strings.LastIndex(reference, ":")
-	if lastColon <= lastSlash || lastColon >= len(reference)-1 {
-		return false
+	webTag, ok := referenceTag(web, officialWeb)
+	if !ok {
+		return "", errors.New("web image must use the official repository with an explicit version tag")
 	}
-	return reference[lastColon+1:] != "latest"
+	if serverTag != webTag {
+		return "", errors.New("server and web image references must use the same version tag")
+	}
+	return serverTag, nil
+}
+
+func referenceTag(reference, officialImage string) (string, bool) {
+	if reference == "" || officialImage == "" || strings.TrimSpace(reference) != reference || strings.TrimSpace(officialImage) != officialImage || strings.Contains(reference, "@") || strings.ContainsAny(reference, " \t\r\n") {
+		return "", false
+	}
+	prefix := officialImage + ":"
+	if !strings.HasPrefix(reference, prefix) {
+		return "", false
+	}
+	tag := strings.TrimPrefix(reference, prefix)
+	return tag, tag != "" && tag != "latest" && !strings.ContainsAny(tag, " \t\r\n")
 }
 
 func verifyImageDigest(ctx context.Context, reference, wantDigest string) error {
-	if !taggedReference(reference) || !immutableDigest(wantDigest) {
+	if !referenceHasExplicitTag(reference) || !immutableDigest(wantDigest) {
 		return errors.New("image verification input is invalid")
 	}
 	// #nosec G204 -- 引用来自经 manifest 校验的官方明确镜像标签。
@@ -286,6 +301,15 @@ func verifyImageDigest(ctx context.Context, reference, wantDigest string) error 
 		return fmt.Errorf("pulled image does not include verified digest %q: %.256s", repository+"@"+wantDigest, summary)
 	}
 	return fmt.Errorf("pulled image does not include verified digest %q", repository+"@"+wantDigest)
+}
+
+func referenceHasExplicitTag(reference string) bool {
+	if reference == "" || strings.TrimSpace(reference) != reference || strings.Contains(reference, "@") || strings.ContainsAny(reference, " \t\r\n") {
+		return false
+	}
+	lastSlash := strings.LastIndex(reference, "/")
+	lastColon := strings.LastIndex(reference, ":")
+	return lastColon > lastSlash && lastColon < len(reference)-1 && reference[lastColon+1:] != "latest"
 }
 
 func containsVerifiedRepoDigest(repoDigests []string, reference, wantDigest string) bool {

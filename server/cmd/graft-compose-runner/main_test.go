@@ -74,59 +74,69 @@ func TestComposeFileArgsPreservesEveryPreflightFileInOrder(t *testing.T) {
 	}
 }
 
-func TestReplaceRefsReplacesMutableComposeImageReferences(t *testing.T) {
+func TestReplaceRefsReplacesSharedComposeImageTag(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:old\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:old\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=old\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	server := "ghcr.io/gewuyou/graft-server:1.2.3-beta.1"
 	web := "ghcr.io/gewuyou/graft-web:1.2.3-beta.1"
-	if err := replaceRefs(path, server, web, update.UpdatePolicyBeta); err != nil {
-		t.Fatalf("replace mutable image references: %v", err)
+	if err := replaceRefs(path, server, web, "ghcr.io/gewuyou/graft-server", "ghcr.io/gewuyou/graft-web", update.UpdatePolicyBeta); err != nil {
+		t.Fatalf("replace compose image tag: %v", err)
 	}
 	// #nosec G304 -- path is a test-owned file under this test's temporary directory.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read updated compose environment: %v", err)
 	}
-	if strings.Contains(string(contents), ":old") || !strings.Contains(string(contents), "GRAFT_SERVER_IMAGE="+server) || !strings.Contains(string(contents), "GRAFT_WEB_IMAGE="+web) {
-		t.Fatalf("compose environment does not contain frozen references: %s", contents)
+	if strings.Contains(string(contents), "old") || !strings.Contains(string(contents), "GRAFT_IMAGE_TAG=1.2.3-beta.1") || !strings.Contains(string(contents), "GRAFT_UPDATE_POLICY=beta") {
+		t.Fatalf("compose environment does not contain the shared release tag: %s", contents)
 	}
 }
 
-func TestReplaceRefsRejectsMissingComposeImageReference(t *testing.T) {
+func TestReplaceRefsRejectsMissingComposeImageTag(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	server := "ghcr.io/gewuyou/graft-server:1.2.3-beta.1"
 	web := "ghcr.io/gewuyou/graft-web:1.2.3-beta.1"
-	if err := replaceRefs(path, server, web, update.UpdatePolicyBeta); err == nil {
-		t.Fatal("expected missing web image reference to reject update")
+	if err := replaceRefs(path, server, web, "ghcr.io/gewuyou/graft-server", "ghcr.io/gewuyou/graft-web", update.UpdatePolicyBeta); err == nil {
+		t.Fatal("expected missing image tag to reject update")
 	}
 }
 
-func TestReplaceRefsRejectsMutableImageReference(t *testing.T) {
+func TestReplaceRefsRejectsInvalidTargetReferences(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:latest\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=latest\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
-	if err := replaceRefs(path, "ghcr.io/gewuyou/graft-server:latest", "ghcr.io/gewuyou/graft-web:latest", update.UpdatePolicyBeta); err == nil {
-		t.Fatal("expected mutable image references to be rejected")
+	for _, target := range []struct {
+		server string
+		web    string
+	}{
+		{server: "ghcr.io/gewuyou/graft-server:latest", web: "ghcr.io/gewuyou/graft-web:latest"},
+		{server: "ghcr.io/gewuyou/graft-server:1.2.3", web: "ghcr.io/gewuyou/graft-web:1.2.4"},
+		{server: "registry.example/graft-server:1.2.3", web: "ghcr.io/gewuyou/graft-web:1.2.3"},
+		{server: "ghcr.io/gewuyou/graft-server@sha256:" + strings.Repeat("a", 64), web: "ghcr.io/gewuyou/graft-web:1.2.3"},
+	} {
+		if err := replaceRefs(path, target.server, target.web, "ghcr.io/gewuyou/graft-server", "ghcr.io/gewuyou/graft-web", update.UpdatePolicyBeta); err == nil {
+			t.Fatalf("invalid target references accepted: server=%q web=%q", target.server, target.web)
+		}
 	}
 }
 
-func TestTaggedReferenceRejectsMutableOrWhitespaceTag(t *testing.T) {
+func TestReferenceTagRejectsMutableOrWhitespaceTag(t *testing.T) {
 	for _, reference := range []string{
 		"ghcr.io/gewuyou/graft-server:latest",
 		"ghcr.io/gewuyou/graft-server:1.2.3 beta.1",
 		"ghcr.io/gewuyou/graft-server:1.2.3\n",
 	} {
-		if taggedReference(reference) {
+		if _, ok := referenceTag(reference, "ghcr.io/gewuyou/graft-server"); ok {
 			t.Fatalf("mutable or malformed reference accepted: %q", reference)
 		}
 	}
-	if !taggedReference("ghcr.io/gewuyou/graft-server:1.2.3-beta.1") {
+	if tag, ok := referenceTag("ghcr.io/gewuyou/graft-server:1.2.3-beta.1", "ghcr.io/gewuyou/graft-server"); !ok || tag != "1.2.3-beta.1" {
 		t.Fatal("explicit version tag rejected")
 	}
 }

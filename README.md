@@ -54,6 +54,7 @@ git clone https://github.com/GeWuYou/Graft.git
 cd Graft
 cp compose.env.example .env
 # Set strong values for POSTGRES_PASSWORD and GRAFT_AUTH_JWT_SECRET in .env.
+# GRAFT_IMAGE_TAG selects the shared official server/web version: latest, beta, or a fixed release tag such as v1.2.3.
 docker compose pull
 docker compose up -d
 ```
@@ -74,7 +75,7 @@ cd web
 bun run dev
 ```
 
-See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost.
+See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost. `GRAFT_IMAGE_TAG` is the single image-version setting for the official server and web images; use `latest`, `beta`, or a fixed release tag. Controlled updates only write a verified explicit release tag and still validate the pulled image digests.
 
 ## Screenshots
 
