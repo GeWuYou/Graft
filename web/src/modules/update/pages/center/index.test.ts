@@ -107,7 +107,7 @@ function mountCenter(dataSource?: UpdateCenterDataSource) {
         }),
         't-card': passthrough,
         't-collapse': passthrough,
-        't-collapse-panel': passthrough,
+        't-collapse-panel': defineComponent({ template: '<section><slot name="header" /><slot /></section>' }),
         't-dialog': dialogStub,
         't-link': passthrough,
         't-loading': passthrough,
@@ -197,7 +197,7 @@ describe('UpdateCenter', () => {
 
     expect(wrapper.text()).toContain('update.center.strategy.options.beta_tracking.title');
     expect(wrapper.find('[data-testid="update-center-configure-policy"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain('update.center.readiness.strategy');
+    expect(wrapper.text()).toContain('update.center.readiness.title');
     expect(createUpdateOperation).not.toHaveBeenCalled();
 
     await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
@@ -214,7 +214,7 @@ describe('UpdateCenter', () => {
     const wrapper = mountCenter();
     await flushPromises();
 
-    expect(wrapper.text()).toContain('update.center.latest.upToDate');
+    expect(wrapper.text()).toContain('update.center.overall.status_unknown.title');
     expect(wrapper.text()).not.toContain('update.center.release.executionUnavailable');
   });
 
@@ -457,5 +457,56 @@ describe('UpdateCenter', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('update.center.history.viewCause');
+  });
+
+  it('renders server readiness checks in order and exposes their diagnostic summaries', async () => {
+    const source = status([]);
+    source.readiness = {
+      overall: 'upgrade_blocked',
+      ready_count: 1,
+      total_count: 2,
+      checks: [
+        {
+          id: 'later',
+          order: 20,
+          state: 'passed',
+          severity: 'success',
+          blocking: false,
+          title_key: 'platformUpdate.readiness.imageStrategy.title',
+          summary_key: 'platformUpdate.readiness.imageStrategy.passed',
+          evidence: [],
+          actions: [],
+        },
+        {
+          id: 'first',
+          order: 10,
+          state: 'failed',
+          severity: 'critical',
+          blocking: true,
+          title_key: 'platformUpdate.readiness.officialCompose.title',
+          summary_key: 'platformUpdate.readiness.officialCompose.failed',
+          detail_key: 'platformUpdate.readiness.officialCompose.detail',
+          evidence: [],
+          actions: [],
+        },
+      ],
+    };
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi.fn().mockResolvedValue(source),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([]),
+      getFailureDiagnostic: vi.fn(),
+      createOperation: vi.fn(),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    const content = wrapper.text();
+    expect(content.indexOf('platformUpdate.readiness.officialCompose.title')).toBeLessThan(
+      content.indexOf('platformUpdate.readiness.imageStrategy.title'),
+    );
+    expect(content).toContain('platformUpdate.readiness.officialCompose.detail');
+    expect(content).toContain('update.center.overall.upgrade_blocked.title');
   });
 });

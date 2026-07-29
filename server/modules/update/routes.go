@@ -74,10 +74,11 @@ func mayViewComposeCandidates(ctx context.Context, authorizer moduleapi.Authoriz
 }
 
 func statusForUpdateViewer(ctx context.Context, authorizer moduleapi.Authorizer, status Status) Status {
-	if mayViewComposeCandidates(ctx, authorizer) {
-		return status
+	canManage := mayViewComposeCandidates(ctx, authorizer)
+	if !canManage {
+		status = status.withoutComposeCandidates()
 	}
-	return status.withoutComposeCandidates()
+	return status.withReadiness(canManage)
 }
 
 func (h updateRouteHandlers) list(c *gin.Context) {

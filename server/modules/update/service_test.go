@@ -29,7 +29,7 @@ func TestServiceRetainsSuccessfulCatalogWhenNextCheckFails(t *testing.T) {
 }
 
 func TestStatusWithoutComposeCandidatesKeepsDiscoverySnapshotIntact(t *testing.T) {
-	status := Status{Profile: InstallationProfile{ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-a", Root: "/srv/graft"}}}}
+	status := Status{Profile: InstallationProfile{ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-a", Root: "/srv/graft"}}, BinaryPath: "/opt/graft/server", WebRoot: "/srv/graft/web", ManualSteps: []ManualStep{{Key: "deploy"}}}}
 
 	redacted := status.withoutComposeCandidates()
 
@@ -38,6 +38,9 @@ func TestStatusWithoutComposeCandidatesKeepsDiscoverySnapshotIntact(t *testing.T
 	}
 	if len(status.Profile.ComposeCandidates) != 1 || status.Profile.ComposeCandidates[0].Root != "/srv/graft" {
 		t.Fatalf("expected source discovery snapshot to remain intact, got %#v", status.Profile.ComposeCandidates)
+	}
+	if redacted.Profile.BinaryPath != "" || redacted.Profile.WebRoot != "" || len(redacted.Profile.ManualSteps) != 0 {
+		t.Fatalf("expected host paths and manual steps to be redacted, got %#v", redacted.Profile)
 	}
 }
 

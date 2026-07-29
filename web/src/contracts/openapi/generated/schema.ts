@@ -6292,6 +6292,59 @@ export interface components {
       confidence: 'high' | 'medium' | 'low';
       warning?: string;
     };
+    /** @description A server-authorized next step for resolving a platform update readiness check. */
+    'platform-update-readiness-action': {
+      /** @enum {string} */
+      id: 'check_updates' | 'start_upgrade' | 'view_release' | 'view_documentation' | 'navigate' | 'copy';
+      /** @enum {string} */
+      type: 'command' | 'documentation' | 'navigate' | 'copy' | 'recheck';
+      /** @description Module-owned web locale key used to render the action label. */
+      label_key: string;
+      /** @description A validated documentation path, application route, or copyable value. Never contains credentials. */
+      target?: string;
+      params?: {
+        [key: string]: string;
+      };
+    };
+    /** @description One structured observation used to explain a platform update readiness check. */
+    'platform-update-readiness-evidence': {
+      code: string;
+      /** @enum {string} */
+      state: 'passed' | 'failed' | 'unavailable';
+      /** @description Module-owned web locale key used to render the evidence label. */
+      label_key: string;
+      value?: string;
+      expected?: string;
+      /** @description Whether this observation is visible only to platform-update.manage callers. */
+      sensitive?: boolean;
+    };
+    /** @description A canonical, ordered readiness check produced by the platform update evaluator. */
+    'platform-update-readiness-check': {
+      id: string;
+      order: number;
+      /** @enum {string} */
+      state: 'passed' | 'warning' | 'failed' | 'unavailable';
+      /** @enum {string} */
+      severity: 'success' | 'info' | 'warning' | 'critical';
+      blocking: boolean;
+      title_key: string;
+      summary_key: string;
+      detail_key?: string;
+      params?: {
+        [key: string]: string;
+      };
+      evidence: components['schemas']['platform-update-readiness-evidence'][];
+      actions: components['schemas']['platform-update-readiness-action'][];
+    };
+    /** @description Server-owned evaluation of whether the current instance can safely perform a controlled platform update. */
+    'platform-update-readiness': {
+      /** @enum {string} */
+      overall: 'up_to_date' | 'upgrade_ready' | 'upgrade_blocked' | 'status_unknown';
+      ready_count: number;
+      total_count: number;
+      next_action?: components['schemas']['platform-update-readiness-action'];
+      checks: components['schemas']['platform-update-readiness-check'][];
+    };
     'platform-update-status': {
       current_version: string;
       /** @enum {string} */
@@ -6328,6 +6381,7 @@ export interface components {
         /** @description Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array. */
         compose_candidates: components['schemas']['platform-update-compose-root-candidate'][];
       };
+      readiness: components['schemas']['platform-update-readiness'];
       /** Format: date-time */
       checked_at?: string;
       /** Format: date-time */

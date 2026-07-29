@@ -1,5 +1,5 @@
 type: object
-required: [current_version, channel, image_tag, update_mode, installation_profile]
+required: [current_version, channel, image_tag, update_mode, installation_profile, readiness]
 properties:
   current_version: { type: string }
   channel: { type: string, enum: [stable, beta, unknown] }
@@ -44,6 +44,8 @@ properties:
         type: array
         description: Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array.
         items: { $ref: ./platform-update-compose-root-candidate.yaml }
+  readiness:
+    $ref: ./platform-update-readiness.yaml
   checked_at: { type: string, format: date-time }
   last_successful_at: { type: string, format: date-time }
   cache_stale: { type: boolean }

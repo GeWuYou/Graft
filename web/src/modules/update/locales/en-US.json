@@ -81,7 +81,7 @@
       },
       "readiness": {
         "title": "Update readiness",
-        "description": "Every condition must be ready before a managed update can start.",
+        "description": "Review each condition and resolve the items that need attention.",
         "ready": "Ready",
         "actionRequired": "Action required",
         "capability": "Official Compose deployment capability",
@@ -89,6 +89,32 @@
         "strategy": "Deployment image strategy",
         "release": "Newer eligible release",
         "permission": "Update management permission"
+      },
+      "overall": {
+        "label": "Upgrade status",
+        "up_to_date": {
+          "title": "No update required",
+          "description": "Version {version} is current. {ready} of {total} checks are ready."
+        },
+        "upgrade_ready": {
+          "title": "Ready to upgrade",
+          "description": "{ready} of {total} checks are ready. You can begin the controlled upgrade."
+        },
+        "upgrade_blocked": {
+          "title": "Upgrade needs attention",
+          "description": "{ready} of {total} checks are ready. Resolve the blocking checks before upgrading."
+        },
+        "status_unknown": {
+          "title": "Upgrade status unavailable",
+          "description": "The platform could not confirm readiness. Check again before upgrading."
+        }
+      },
+      "diagnostics": {
+        "viewDetails": "View details",
+        "evidence": "Diagnostic evidence",
+        "actions": "Recommended actions",
+        "expected": "Expected: {value}",
+        "notAvailable": "Not available"
       },
       "release": {
         "title": "Release notes",
@@ -158,7 +184,10 @@
           "FAILED": "Failed",
           "NEEDS_ATTENTION": "Needs attention"
         },
-        "loadFailed": "Unable to load update history."
+        "loadFailed": "Unable to load update history.",
+        "retry": "Reload",
+        "emptyTitle": "No update records",
+        "emptyDescription": "Completed platform upgrades will appear here."
       },
       "progress": {
         "title": "Upgrading Platform",
@@ -201,6 +230,60 @@
         "migrate": "Run graft migrate up explicitly.",
         "restartSystemd": "Run systemctl restart {service_name}, then verify /healthz.",
         "restartManual": "Restart the service using the current manual process, then verify /healthz."
+      }
+    }
+  },
+  "platformUpdate": {
+    "readiness": {
+      "officialCompose": {
+        "title": "Official Compose deployment",
+        "passed": "This instance supports the official upgrade flow.",
+        "failed": "This instance is not an official Compose deployment.",
+        "detail": "Controlled upgrades require the official Compose deployment layout."
+      },
+      "composeProject": {
+        "title": "Compose project",
+        "passed": "A Compose project was detected.",
+        "failed": "No usable Compose project was detected.",
+        "detail": "The updater needs a Compose project to manage the running services."
+      },
+      "imageStrategy": {
+        "title": "Image strategy",
+        "passed": "The deployment follows a supported image strategy.",
+        "failed": "The configured image tag is not a supported update strategy.",
+        "detail": "Configure a supported image tag before running a controlled upgrade."
+      },
+      "releaseAvailability": {
+        "title": "Release availability",
+        "unavailable": "The verified release catalog is unavailable.",
+        "upToDate": "This instance is already up to date.",
+        "available": "A newer verified release is available.",
+        "detail": "Release information is checked against the verified catalog."
+      },
+      "updateManagePermission": {
+        "title": "Update permission",
+        "passed": "The current administrator can manage platform updates.",
+        "failed": "The current administrator cannot start an upgrade.",
+        "detail": "Platform update management permission is required for controlled upgrades."
+      },
+      "evidence": {
+        "declaredDeploymentMode": "Declared deployment mode",
+        "detectedDeploymentMode": "Detected deployment mode",
+        "composeRootSource": "Compose project source",
+        "composeRoot": "Compose project path",
+        "composeFile": "Compose file",
+        "imageTag": "Image tag",
+        "updateMode": "Update mode",
+        "releaseCatalog": "Release catalog",
+        "latestRelease": "Latest release",
+        "updateManagePermission": "Update management permission"
+      },
+      "actions": {
+        "checkUpdates": "Check updates",
+        "startUpgrade": "Start upgrade",
+        "viewRelease": "View release notes",
+        "viewComposeMigration": "View Compose migration guide",
+        "viewImagePolicy": "View image policy"
       }
     }
   },

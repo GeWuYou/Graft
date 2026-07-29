@@ -74,6 +74,12 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 
 ## Installation Profile And Capability Matrix
 
+### Platform Readiness Diagnostics
+
+`Readiness Evaluator` is the platform's common read-only diagnostic model, not an Update Center view concern. A domain owns the facts and rules for its own prerequisite checks, while the shared model owns ordered checks, state, severity, blocking semantics, structured evidence, safe actions, and the overall next action. Update is the first consumer; Backup, Restore, Compose management, deployment, registry, and future controlled operations must publish prerequisites through this model instead of creating another status-list protocol.
+
+The evaluator returns stable IDs and locale keys rather than final display text. Each check has an extensible `order`, `state`, `severity`, and `blocking` flag, so clients sort and render without a hard-coded checklist. Evidence is structured as code, localized label key, current value, expected value, pass state, and sensitivity. Actions are typed (`documentation`, `navigate`, `copy`, or `recheck`) and server-authorized; values that would reveal host paths or other deployment details remain restricted to callers with update management permission. The UI must show actionable failure or warning guidance inline and reserve a diagnostic Drawer for the full evidence set.
+
 环境变量 `GRAFT_UPDATE_DEPLOYMENT_MODE` 仅为 declared mode，绝不是授权证据。Update 模块构造以下只读事实：
 
 ```go
