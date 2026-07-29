@@ -77,6 +77,7 @@
     justify-content: space-between;
   }
 
+  // 此 mixin 只能由 Vue scoped SFC 样式引入；:deep 依赖 scoped 编译转换，普通 LESS 不可直接复用。
   .log-card__technical :deep(.log-id-text) {
     flex: 1 1 auto;
     justify-content: flex-end;

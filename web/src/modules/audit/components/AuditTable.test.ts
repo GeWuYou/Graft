@@ -11,9 +11,10 @@ const ManagementPagedTableStub = defineComponent({
   props: ['cardsVisible', 'columns', 'presentation', 'rows'],
   emits: ['row-click'],
   setup(props, { emit, slots }) {
-    const row = props.rows?.[0] ?? auditRow();
-    return () =>
-      h('section', { 'data-testid': 'table' }, [
+    return () => {
+      const row = props.rows?.[0] ?? auditRow();
+
+      return h('section', { 'data-testid': 'table' }, [
         h(
           'div',
           { 'data-testid': 'table-columns' },
@@ -27,6 +28,7 @@ const ManagementPagedTableStub = defineComponent({
         h('div', { 'data-testid': 'operation-slot' }, slots.operation?.({ row })),
         h('div', { 'data-testid': 'cards-slot' }, slots.cards?.()),
       ]);
+    };
   },
 });
 

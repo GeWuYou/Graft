@@ -1,7 +1,7 @@
 <template>
   <div class="user-cell__avatar">{{ initial }}</div>
   <div class="user-cell__meta">
-    <span class="user-cell__display">{{ user.display || user.username }}</span>
+    <span class="user-cell__display">{{ displayName }}</span>
     <span class="user-cell__username">{{ user.email || `@${user.username}` }}</span>
   </div>
 </template>
@@ -12,9 +12,10 @@ import { computed } from 'vue';
 const props = defineProps<{
   user: {
     display?: string;
-    email?: string;
+    email?: string | null;
     username: string;
   };
 }>();
-const initial = computed(() => (props.user.display || props.user.username).trim().slice(0, 1).toUpperCase() || '?');
+const displayName = computed(() => props.user.display?.trim() || props.user.username);
+const initial = computed(() => Array.from(displayName.value)[0]?.toUpperCase() || '?');
 </script>

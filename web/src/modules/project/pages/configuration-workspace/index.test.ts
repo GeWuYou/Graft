@@ -1248,7 +1248,8 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 24, clientY: 24 });
-    await wrapper.findAll('[role="menuitem"]')[0].trigger('click');
+    await nextTick();
+    await wrapper.get('[role="menuitem"]').trigger('click');
     await wrapper.find('input').setValue('notes.txt');
     wrapper.findComponent({ name: 'ApplicationWorkspaceEditor' }).vm.$emit('inline-edit-submit');
     await flushPromises();

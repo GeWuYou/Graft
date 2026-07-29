@@ -183,8 +183,6 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   (e: 'detail', row: AuditLogListItem): void;
-  (e: 'update:current', value: number): void;
-  (e: 'update:pageSize', value: number): void;
   (e: 'page-change'): void;
   (e: 'view-access-log', row: AuditLogListItem): void;
   (e: 'view-app-log', row: AuditLogListItem): void;
