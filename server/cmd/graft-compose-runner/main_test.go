@@ -76,39 +76,39 @@ func TestComposeFileArgsPreservesEveryPreflightFileInOrder(t *testing.T) {
 
 func TestReplaceRefsReplacesSharedComposeImageTag(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=old\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=v1.2.2-beta.1\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	server := "ghcr.io/gewuyou/graft-server:1.2.3-beta.1"
 	web := "ghcr.io/gewuyou/graft-web:1.2.3-beta.1"
-	if err := replaceRefs(path, server, web, "ghcr.io/gewuyou/graft-server", "ghcr.io/gewuyou/graft-web", update.UpdatePolicyBeta); err != nil {
+	if err := replaceRefs(path, pinnedPreflight(server, web)); err != nil {
 		t.Fatalf("replace compose image tag: %v", err)
 	}
 	// #nosec G304 -- path is a test-owned file under this test's temporary directory.
-	contents, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path) // #nosec G304 -- test-controlled temporary file.
 	if err != nil {
 		t.Fatalf("read updated compose environment: %v", err)
 	}
-	if strings.Contains(string(contents), "old") || !strings.Contains(string(contents), "GRAFT_IMAGE_TAG=1.2.3-beta.1") || !strings.Contains(string(contents), "GRAFT_UPDATE_POLICY=beta") {
+	if strings.Contains(string(contents), "v1.2.2-beta.1") || !strings.Contains(string(contents), "GRAFT_IMAGE_TAG=1.2.3-beta.1") {
 		t.Fatalf("compose environment does not contain the shared release tag: %s", contents)
 	}
 }
 
 func TestReplaceRefsRejectsMissingComposeImageTag(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_APP_NAME=graft\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	server := "ghcr.io/gewuyou/graft-server:1.2.3-beta.1"
 	web := "ghcr.io/gewuyou/graft-web:1.2.3-beta.1"
-	if err := replaceRefs(path, server, web, "ghcr.io/gewuyou/graft-server", "ghcr.io/gewuyou/graft-web", update.UpdatePolicyBeta); err == nil {
+	if err := replaceRefs(path, pinnedPreflight(server, web)); err == nil {
 		t.Fatal("expected missing image tag to reject update")
 	}
 }
 
 func TestReplaceRefsRejectsInvalidTargetReferences(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=latest\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=latest\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	for _, target := range []struct {
@@ -120,10 +120,31 @@ func TestReplaceRefsRejectsInvalidTargetReferences(t *testing.T) {
 		{server: "registry.example/graft-server:1.2.3", web: "ghcr.io/gewuyou/graft-web:1.2.3"},
 		{server: "ghcr.io/gewuyou/graft-server@sha256:" + strings.Repeat("a", 64), web: "ghcr.io/gewuyou/graft-web:1.2.3"},
 	} {
-		if err := replaceRefs(path, target.server, target.web, "ghcr.io/gewuyou/graft-server", "ghcr.io/gewuyou/graft-web", update.UpdatePolicyBeta); err == nil {
+		if err := replaceRefs(path, pinnedPreflight(target.server, target.web)); err == nil {
 			t.Fatalf("invalid target references accepted: server=%q web=%q", target.server, target.web)
 		}
 	}
+}
+
+func TestReplaceRefsKeepsTrackingTag(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	if err := os.WriteFile(path, []byte("GRAFT_IMAGE_TAG=beta\n"), privateFilePermission); err != nil {
+		t.Fatalf("write compose environment: %v", err)
+	}
+	preflight := pinnedPreflight("ghcr.io/gewuyou/graft-server:1.2.3-beta.1", "ghcr.io/gewuyou/graft-web:1.2.3-beta.1")
+	preflight.UpdateMode, preflight.ImageTag = update.UpdateModeBetaTracking, "beta"
+	if err := replaceRefs(path, preflight); err != nil {
+		t.Fatalf("retain tracking tag: %v", err)
+	}
+	// #nosec G304 -- 测试仅读取本例刚写入的临时文件。
+	contents, err := os.ReadFile(path)
+	if err != nil || string(contents) != "GRAFT_IMAGE_TAG=beta\n" {
+		t.Fatalf("tracking tag changed: %q, %v", contents, err)
+	}
+}
+
+func pinnedPreflight(server, web string) update.ComposePreflight {
+	return update.ComposePreflight{ServerReference: server, WebReference: web, OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", UpdateMode: update.UpdateModePinnedBeta, ImageTag: "v1.2.2-beta.1"}
 }
 
 func TestReferenceTagRejectsInvalidTags(t *testing.T) {

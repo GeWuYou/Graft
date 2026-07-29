@@ -19,21 +19,20 @@ func TestSelectLatestHonorsStableAndBetaChannels(t *testing.T) {
 	}
 }
 
-func TestSelectLatestForPolicyUsesTheConfiguredChannel(t *testing.T) {
+func TestSelectLatestForChannelUsesTheConfiguredChannel(t *testing.T) {
 	testCases := []struct {
 		name     string
 		current  string
-		policy   UpdatePolicy
+		channel  string
 		releases []Release
 		want     string
 		wantOK   bool
 	}{
-		{name: "beta selects latest beta", current: "0.9.1", policy: UpdatePolicyBeta, releases: []Release{{Version: "0.9.2-beta.1", Channel: "beta"}, {Version: "0.9.2", Channel: "stable"}, {Version: "0.10.0-beta.1", Channel: "beta"}}, want: "0.10.0-beta.1", wantOK: true},
-		{name: "stable ignores beta", current: "0.9.1", policy: UpdatePolicyStable, releases: []Release{{Version: "0.9.2-beta.1", Channel: "beta"}, {Version: "0.9.2", Channel: "stable"}, {Version: "0.10.0-beta.1", Channel: "beta"}}, want: "0.9.2", wantOK: true},
-		{name: "fixed requires explicit selection", current: "0.9.1", policy: UpdatePolicyFixed, releases: []Release{{Version: "1.0.0", Channel: "stable"}}},
-		{name: "manual blocks selection", current: "0.9.1", policy: UpdatePolicyManual, releases: []Release{{Version: "1.0.0", Channel: "stable"}}},
-		{name: "same and older releases are ignored", current: "1.0.0", policy: UpdatePolicyStable, releases: []Release{{Version: "1.0.0", Channel: "stable"}, {Version: "0.9.9", Channel: "stable"}}},
-		{name: "invalid and mixed channels are filtered", current: "1.0.0", policy: UpdatePolicyStable, releases: []Release{{Version: "invalid", Channel: "stable"}, {Version: "1.1.0-beta.1", Channel: "beta"}, {Version: "1.0.1", Channel: "stable"}}, want: "1.0.1", wantOK: true},
+		{name: "beta selects latest beta", current: "0.9.1", channel: "beta", releases: []Release{{Version: "0.9.2-beta.1", Channel: "beta"}, {Version: "0.9.2", Channel: "stable"}, {Version: "0.10.0-beta.1", Channel: "beta"}}, want: "0.10.0-beta.1", wantOK: true},
+		{name: "stable ignores beta", current: "0.9.1", channel: "stable", releases: []Release{{Version: "0.9.2-beta.1", Channel: "beta"}, {Version: "0.9.2", Channel: "stable"}, {Version: "0.10.0-beta.1", Channel: "beta"}}, want: "0.9.2", wantOK: true},
+		{name: "invalid channel blocks selection", current: "0.9.1", channel: "fixed", releases: []Release{{Version: "1.0.0", Channel: "stable"}}},
+		{name: "same and older releases are ignored", current: "1.0.0", channel: "stable", releases: []Release{{Version: "1.0.0", Channel: "stable"}, {Version: "0.9.9", Channel: "stable"}}},
+		{name: "invalid and mixed channels are filtered", current: "1.0.0", channel: "stable", releases: []Release{{Version: "invalid", Channel: "stable"}, {Version: "1.1.0-beta.1", Channel: "beta"}, {Version: "1.0.1", Channel: "stable"}}, want: "1.0.1", wantOK: true},
 	}
 
 	for _, testCase := range testCases {
@@ -42,7 +41,7 @@ func TestSelectLatestForPolicyUsesTheConfiguredChannel(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse current version: %v", err)
 			}
-			selected, ok := SelectLatestForPolicy(current, testCase.policy, testCase.releases)
+			selected, ok := SelectLatestForChannel(current, testCase.channel, testCase.releases)
 			if ok != testCase.wantOK || selected.Version != testCase.want {
 				t.Fatalf("selected = %#v, ok = %t; want version %q, ok = %t", selected, ok, testCase.want, testCase.wantOK)
 			}

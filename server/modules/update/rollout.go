@@ -50,6 +50,10 @@ var (
 	errRolloutInvalidArgument          = errors.New("compose update request is invalid")
 	errRolloutCatalogStale             = errors.New("compose update release catalog is stale")
 	errRolloutInstallationUnavailable  = errors.New("compose update installation is unavailable")
+	errRolloutImageTagUnconfigured     = errors.New("compose image tag is unconfigured")
+	errRolloutImageTagInvalid          = errors.New("compose image tag is invalid")
+	errRolloutCandidateConfirmation    = errors.New("compose update candidate confirmation is required")
+	errRolloutNoEligibleRelease        = errors.New("no eligible newer compose update release")
 	errRolloutSourceVersionUnsupported = errors.New("compose update source version is unsupported")
 	errRolloutComposeCandidateInvalid  = errors.New("compose update candidate is invalid")
 	errRolloutComposePreflightFailed   = errors.New("compose update preflight failed")
@@ -87,10 +91,9 @@ func (s *RolloutService) SetFailureDiagnosticStore(store FailureDiagnosticStore)
 
 // StartRolloutInput 承载一次 Compose 更新启动的显式请求语义，避免候选 Compose 根与更新策略共享位置参数。
 type StartRolloutInput struct {
-	RequestedBy     uint64
-	TargetVersion   string
-	CandidateKey    string
-	RequestedPolicy string
+	RequestedBy   uint64
+	TargetVersion string
+	CandidateKey  string
 }
 
 // Start 只接受当前 catalog 中已验证的候选版本，随后仅启动一次 digest-pinned runner。
@@ -101,13 +104,12 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
 	}
 	candidateKey := strings.TrimSpace(input.CandidateKey)
-	requestedPolicy := strings.TrimSpace(input.RequestedPolicy)
-	status, preflight, policy, err := s.confirmedPreflight(input.TargetVersion, candidateKey, requestedPolicy)
+	status, preflight, mode, err := s.confirmedPreflight(input.TargetVersion, candidateKey)
 	if err != nil {
 		code := classifyRolloutPreflightFailure(err)
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
-	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, UpdatePolicy: policy, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
+	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, UpdateMode: mode, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
 	handoff := backupHandoff(operation.OperationID, input.RequestedBy, preflight.ComposeRoot)
 	prepared, runnerInput, err := s.coordinator.Start(ctx, operation, input.RequestedBy, handoff)
 	if err != nil {
@@ -122,37 +124,41 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 }
 
 //nolint:cyclop,gocognit,gocyclo,revive // 每个拒绝分支都是可独立审计的发布安全门。
-func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey, requestedPolicy string) (Status, ComposePreflight, UpdatePolicy, error) {
+func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey string) (Status, ComposePreflight, UpdateMode, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: fresh verified release catalog is required", errRolloutCatalogStale)
 	}
-	if status.Profile.Capability != "compose_upgrade_available" || status.Latest == nil {
+	if status.Profile.Capability != "compose_upgrade_available" {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: rollout is unavailable for this installation", errRolloutInstallationUnavailable)
 	}
-	policy, initialized := configuredUpdatePolicy()
-	if initialized && requestedPolicy != "" || !initialized && requestedPolicy == "" {
-		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: update policy initialization is invalid", errRolloutInvalidArgument)
+	strategy, configured := configuredDeploymentStrategy()
+	if strings.TrimSpace(strategy.ImageTag) == "" {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: configure %s in the deployment .env", errRolloutImageTagUnconfigured, imageTagEnv)
 	}
-	if !initialized {
-		var ok bool
-		policy, ok = parseUpdatePolicy(requestedPolicy)
-		if !ok {
-			return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: update policy is invalid", errRolloutInvalidArgument)
-		}
+	if !configured {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: %s must be latest, beta, or a pinned release tag", errRolloutImageTagInvalid, imageTagEnv)
 	}
-	if policy == UpdatePolicyManual {
-		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: manual policy does not permit automated rollout", errRolloutInvalidArgument)
+	if status.Profile.ComposeRootConfirmationRequired && strings.TrimSpace(candidateKey) == "" {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: select a discovered compose candidate", errRolloutCandidateConfirmation)
+	}
+	if strategy.Tracking && status.Latest == nil {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: the configured tracking channel has no newer verified release", errRolloutNoEligibleRelease)
 	}
 	release, found := verifiedRelease(status.AvailableReleases, targetVersion)
 	if !found {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: target version is not in the verified release catalog", errRolloutInvalidArgument)
 	}
-	if (policy == UpdatePolicyStable || policy == UpdatePolicyBeta) && release.Channel != string(policy) {
-		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: target channel does not match update policy", errRolloutInvalidArgument)
+	if release.Channel != strategy.Channel {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: target channel does not match the deployment image tag", errRolloutInvalidArgument)
 	}
-	if (policy == UpdatePolicyStable || policy == UpdatePolicyBeta) && (status.Latest == nil || release.Version != status.Latest.Version) {
-		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: target version is not the policy-selected verified release", errRolloutInvalidArgument)
+	if strategy.Tracking && (status.Latest == nil || release.Version != status.Latest.Version) {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: target version is not the tracking channel's latest verified release", errRolloutInvalidArgument)
+	}
+	current, currentErr := ParseVersion(status.CurrentVersion)
+	target, targetErr := ParseVersion(release.Version)
+	if currentErr != nil || targetErr != nil || target.Compare(current) <= 0 {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: target version must be newer than the running version", errRolloutNoEligibleRelease)
 	}
 	if minimum := strings.TrimSpace(release.MinimumSourceVersion); minimum != "" {
 		current, currentErr := ParseVersion(status.CurrentVersion)
@@ -161,11 +167,11 @@ func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey, request
 			return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: current version does not meet the target minimum source version", errRolloutSourceVersionUnsupported)
 		}
 	}
-	preflight, err := composePreflight(status.Profile, release, policy, candidateKey)
+	preflight, err := composePreflight(status.Profile, release, strategy, candidateKey)
 	if err != nil {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: %w", errRolloutComposePreflightFailed, err)
 	}
-	return status, preflight, policy, nil
+	return status, preflight, strategy.Mode, nil
 }
 
 func verifiedRelease(catalog []Release, version string) (Release, bool) {
@@ -177,6 +183,7 @@ func verifiedRelease(catalog []Release, version string) (Release, bool) {
 	return Release{}, false
 }
 
+//nolint:cyclop // 每个稳定预检失败都映射到一个明确的公开错误码。
 func classifyRolloutPreflightFailure(err error) string {
 	switch {
 	case errors.Is(err, errRolloutInvalidArgument):
@@ -185,6 +192,14 @@ func classifyRolloutPreflightFailure(err error) string {
 		return rolloutFailureCatalogStale
 	case errors.Is(err, errRolloutInstallationUnavailable):
 		return rolloutFailureInstallationUnavailable
+	case errors.Is(err, errRolloutImageTagUnconfigured):
+		return rolloutFailureImageTagUnconfigured
+	case errors.Is(err, errRolloutImageTagInvalid):
+		return rolloutFailureImageTagInvalid
+	case errors.Is(err, errRolloutCandidateConfirmation):
+		return rolloutFailureCandidateConfirmationRequired
+	case errors.Is(err, errRolloutNoEligibleRelease):
+		return rolloutFailureNoEligibleRelease
 	case errors.Is(err, errRolloutSourceVersionUnsupported):
 		return rolloutFailureSourceVersionUnsupported
 	case errors.Is(err, errRolloutComposeCandidateInvalid):
@@ -424,7 +439,7 @@ func (s *RolloutService) settleReceiptAndCleanup(ctx context.Context, receipt Ru
 	return settled, nil
 }
 
-func composePreflight(profile InstallationProfile, release Release, policy UpdatePolicy, candidateKey string) (ComposePreflight, error) {
+func composePreflight(profile InstallationProfile, release Release, strategy DeploymentStrategy, candidateKey string) (ComposePreflight, error) {
 	root := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_COMPOSE_ROOT"))
 	explicitRoot := root != ""
 	composeFiles := []string{}
@@ -440,7 +455,7 @@ func composePreflight(profile InstallationProfile, release Release, policy Updat
 		}
 		composeFiles = []string{filepath.Join(root, "compose.yml")}
 	}
-	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, UpdatePolicy: policy, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":" + release.Version, WebReference: release.WebImage + ":" + release.Version, RunnerReference: release.RunnerRef}
+	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, UpdateMode: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":" + release.Version, WebReference: release.WebImage + ":" + release.Version, RunnerReference: release.RunnerRef}
 	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}

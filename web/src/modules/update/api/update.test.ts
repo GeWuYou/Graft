@@ -50,7 +50,6 @@ describe('platform update api', () => {
 
     await getUpdateOperations();
     await createUpdateOperation({
-      update_policy: 'fixed',
       target_version: '1.1.0',
       compose_candidate_key: 'candidate-1',
     });
@@ -58,7 +57,7 @@ describe('platform update api', () => {
     expect(requestGet).toHaveBeenCalledWith({ url: UPDATE_API_PATH.OPERATIONS, params: { limit: 20 } });
     expect(requestPost).toHaveBeenCalledWith({
       url: UPDATE_API_PATH.OPERATIONS,
-      data: { update_policy: 'fixed', target_version: '1.1.0', compose_candidate_key: 'candidate-1' },
+      data: { target_version: '1.1.0', compose_candidate_key: 'candidate-1' },
     });
   });
 

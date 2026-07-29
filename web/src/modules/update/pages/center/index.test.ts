@@ -69,8 +69,8 @@ const status = (candidates: Array<Record<string, unknown>>) =>
   ({
     current_version: '1.0.0',
     channel: 'stable',
-    update_policy: 'stable',
-    policy_initialized: true,
+    image_tag: 'latest',
+    update_mode: 'stable_tracking',
     available_releases: [{ version: '1.1.0', channel: 'stable', published_at: '2026-07-24T00:00:00Z' }],
     latest: {
       version: '1.1.0',
@@ -186,31 +186,63 @@ describe('UpdateCenter', () => {
     expect(wrapper.text()).toContain('update.center.composeRoot.selectionRequired');
   });
 
-  it('initializes an unconfigured deployment with the selected policy and verified target', async () => {
+  it('derives the tracking strategy from the image tag without offering a browser-owned setup flow', async () => {
     useUpdateDiscoveryStore().replaceSnapshot({
       ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
-      update_policy: undefined,
-      policy_initialized: false,
+      image_tag: 'beta',
+      update_mode: 'beta_tracking',
     } as never);
     const wrapper = mountCenter();
     await flushPromises();
 
-    await wrapper.get('[data-testid="update-center-configure-policy"]').trigger('click');
-    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
-    await flushPromises();
+    expect(wrapper.text()).toContain('update.center.strategy.options.beta_tracking.title');
+    expect(wrapper.find('[data-testid="update-center-configure-policy"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain('update.center.readiness.strategy');
+    expect(createUpdateOperation).not.toHaveBeenCalled();
 
-    expect(createUpdateOperation).toHaveBeenCalledWith({
-      update_policy: 'stable',
-      target_version: '1.1.0',
-    });
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    expect(wrapper.find('select').exists()).toBe(false);
   });
 
-  it('opens and submits the initialized fixed-policy flow from available releases without latest', async () => {
+  it('reports no eligible release without claiming that the installation is invalid', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot({
+      ...status([]),
+      image_tag: 'beta',
+      update_mode: 'beta_tracking',
+      latest: undefined,
+    } as UpdateStatus);
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('update.center.latest.upToDate');
+    expect(wrapper.text()).not.toContain('update.center.release.executionUnavailable');
+  });
+
+  it('opens a fixed-tag flow with only newer releases from the matching channel', async () => {
     useUpdateDiscoveryStore().replaceSnapshot({
       ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
-      update_policy: 'fixed',
+      image_tag: 'v1.0.0',
+      update_mode: 'pinned_stable',
       latest: undefined,
       available_releases: [
+        {
+          version: '0.9.9',
+          channel: 'stable',
+          notes: 'Older release',
+          published_at: '2026-07-25T00:00:00Z',
+          manifest_url: 'https://example.test/older-manifest',
+          server_digest: 'server',
+          web_digest: 'web',
+        },
+        {
+          version: '1.3.0-beta.1',
+          channel: 'beta',
+          notes: 'Other channel release',
+          published_at: '2026-07-25T00:00:00Z',
+          manifest_url: 'https://example.test/beta-manifest',
+          server_digest: 'server',
+          web_digest: 'web',
+        },
         {
           version: '1.2.0',
           channel: 'stable',
@@ -234,6 +266,7 @@ describe('UpdateCenter', () => {
 
     await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
     expect(wrapper.find('[data-testid="update-confirmation-dialog"]').exists()).toBe(true);
+    expect(wrapper.find('select').exists()).toBe(true);
     await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
     await flushPromises();
 
@@ -257,6 +290,23 @@ describe('UpdateCenter', () => {
     expect(wrapper.text()).toContain('update.center.confirmation.failure.composePreflightFailed');
     expect(wrapper.get('[data-testid="update-operation-request-id"]').text()).toContain('request-update-42');
     expect(wrapper.text()).not.toContain('internal implementation detail');
+  });
+
+  it('maps invalid deployment image tags to their dedicated safe message', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot(
+      status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
+    );
+    apiMocks.createUpdateOperation.mockRejectedValueOnce(
+      updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.IMAGE_TAG_INVALID),
+    );
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('update.center.confirmation.failure.imageTagInvalid');
   });
 
   it('loads and renders the protected sanitized diagnostic for a failed update start', async () => {

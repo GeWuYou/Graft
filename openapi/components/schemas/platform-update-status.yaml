@@ -1,18 +1,18 @@
 type: object
-required: [current_version, channel, installation_profile]
+required: [current_version, channel, image_tag, update_mode, installation_profile]
 properties:
   current_version: { type: string }
   channel: { type: string, enum: [stable, beta, unknown] }
-  update_policy:
-    $ref: ./platform-update-policy.yaml
-  policy_initialized:
-    type: boolean
-    description: Whether the official Compose .env declares the deployment-owned update policy.
+  image_tag:
+    type: string
+    description: The injected GRAFT_IMAGE_TAG deployment strategy source.
+  update_mode:
+    $ref: ./platform-update-mode.yaml
   latest:
     $ref: ./platform-update-release.yaml
   available_releases:
     type: array
-    description: Verified releases available for fixed-policy selection. Empty for callers without update management permission.
+    description: Verified releases newer than the running version in the deployment's channel. Tracking modes expose their current channel; pinned modes expose fixed-version choices. Empty for callers without update management permission.
     items:
       $ref: ./platform-update-release.yaml
   installation_profile:

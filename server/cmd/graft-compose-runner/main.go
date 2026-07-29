@@ -131,7 +131,7 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 }
 func (a *actions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput { return a.backup }
 func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
-	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.OfficialServerImage, in.Preflight.OfficialWebImage, in.Preflight.UpdatePolicy); err != nil {
+	if err := replaceRefs(filepath.Join(in.Preflight.ComposeRoot, ".env"), in.Preflight); err != nil {
 		return err
 	}
 	return compose(ctx, in, "pull")
@@ -169,6 +169,11 @@ func compose(ctx context.Context, in update.RunnerInput, args ...string) error {
 	// #nosec G204 -- callers select only fixed runner lifecycle argument sets.
 	command := exec.CommandContext(ctx, "docker", append(commandArgs, args...)...)
 	command.Dir, command.Stdout, command.Stderr = in.Preflight.ComposeRoot, os.Stdout, os.Stderr
+	tag, err := sharedOfficialTag(in.Preflight.ServerReference, in.Preflight.WebReference, in.Preflight.OfficialServerImage, in.Preflight.OfficialWebImage)
+	if err != nil {
+		return err
+	}
+	command.Env = append(os.Environ(), "GRAFT_IMAGE_TAG="+tag)
 	return command.Run()
 }
 
@@ -213,23 +218,26 @@ func digest(path string) (string, int64, error) {
 	return hex.EncodeToString(hash.Sum(nil)), size, nil
 }
 
-// replaceRefs 以一次原子文件替换更新官方 Compose 的共享镜像 tag 与更新策略，避免服务分别回退到不同 release。
+// replaceRefs 只推进固定版本部署；跟随频道的部署必须保留其频道标签。
 //
-//nolint:cyclop // 两个镜像、两个官方仓库和两个环境键必须共同校验，拆分会破坏原子写入边界。
-func replaceRefs(path, server, web, officialServer, officialWeb string, policy update.UpdatePolicy) error {
-	tag, err := sharedOfficialTag(server, web, officialServer, officialWeb)
+//nolint:cyclop // 两个镜像与官方仓库必须共同校验，拆分会破坏原子写入边界。
+func replaceRefs(path string, preflight update.ComposePreflight) error {
+	tag, err := sharedOfficialTag(preflight.ServerReference, preflight.WebReference, preflight.OfficialServerImage, preflight.OfficialWebImage)
 	if err != nil {
 		return err
 	}
-	if policy != update.UpdatePolicyStable && policy != update.UpdatePolicyBeta && policy != update.UpdatePolicyFixed {
-		return errors.New("compose runner update policy is invalid")
+	if preflight.UpdateMode == update.UpdateModeStableTracking || preflight.UpdateMode == update.UpdateModeBetaTracking {
+		return nil
+	}
+	if preflight.UpdateMode != update.UpdateModePinnedStable && preflight.UpdateMode != update.UpdateModePinnedBeta {
+		return errors.New("compose runner deployment strategy is invalid")
 	}
 	// #nosec G304 -- .env path is derived from the preflight-validated compose root.
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	values := map[string]string{"GRAFT_IMAGE_TAG": tag, "GRAFT_UPDATE_POLICY": string(policy)}
+	values := map[string]string{"GRAFT_IMAGE_TAG": tag}
 	lines := strings.Split(string(contents), "\n")
 	for index, line := range lines {
 		for key, value := range values {
@@ -240,7 +248,7 @@ func replaceRefs(path, server, web, officialServer, officialWeb string, policy u
 		}
 	}
 	if len(values) != 0 {
-		return errors.New("official compose environment lacks the shared image tag or update policy")
+		return errors.New("official compose environment lacks the shared image tag")
 	}
 	temporary := path + ".graft-update-tmp"
 	// #nosec G703 -- temporary is a fixed suffix under the preflight-validated compose root.

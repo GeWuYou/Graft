@@ -17,8 +17,8 @@ const discoveryCacheStaleAfter = 24 * time.Hour
 type Status struct {
 	CurrentVersion    string              `json:"current_version"`
 	Channel           string              `json:"channel"`
-	UpdatePolicy      UpdatePolicy        `json:"update_policy,omitempty"`
-	PolicyInitialized bool                `json:"policy_initialized"`
+	ImageTag          string              `json:"image_tag"`
+	UpdateMode        UpdateMode          `json:"update_mode"`
 	AvailableReleases []Release           `json:"available_releases"`
 	Latest            *Release            `json:"latest,omitempty"`
 	Profile           InstallationProfile `json:"installation_profile"`
@@ -82,19 +82,20 @@ func (s *Service) Status() Status {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	policy, initialized := configuredUpdatePolicy()
+	strategy, configured := configuredDeploymentStrategy()
 	catalog := append([]Release(nil), s.catalog...)
 	if len(catalog) == 0 && s.latest != nil {
 		catalog = []Release{*s.latest}
 	}
-	status := Status{CurrentVersion: info.Version, Channel: channel, UpdatePolicy: policy, PolicyInitialized: initialized, AvailableReleases: catalog, Profile: s.profile(), CheckError: s.checkError}
-	if initialized && err == nil {
-		if selected, found := SelectLatestForPolicy(current, policy, catalog); found {
+	eligibleReleases := newerVerifiedReleases(current, err, catalog)
+	if configured {
+		eligibleReleases = releasesForStrategy(strategy, eligibleReleases)
+	}
+	status := Status{CurrentVersion: info.Version, Channel: channel, ImageTag: strategy.ImageTag, UpdateMode: strategy.Mode, AvailableReleases: eligibleReleases, Profile: s.profile(), CheckError: s.checkError}
+	if configured && strategy.Tracking && err == nil {
+		if selected, found := SelectLatestForChannel(current, strategy.Channel, eligibleReleases); found {
 			status.Latest = &selected
 		}
-	} else if s.latest != nil {
-		copied := *s.latest
-		status.Latest = &copied
 	}
 	if s.checkedAt != nil {
 		copied := *s.checkedAt
@@ -111,6 +112,30 @@ func (s *Service) Status() Status {
 		status.CacheStale = true
 	}
 	return status
+}
+
+func releasesForStrategy(strategy DeploymentStrategy, releases []Release) []Release {
+	filtered := make([]Release, 0, len(releases))
+	for _, release := range releases {
+		if release.Channel == strategy.Channel {
+			filtered = append(filtered, release)
+		}
+	}
+	return filtered
+}
+
+func newerVerifiedReleases(current Version, currentErr error, catalog []Release) []Release {
+	eligible := make([]Release, 0, len(catalog))
+	if currentErr != nil {
+		return eligible
+	}
+	for _, release := range catalog {
+		candidate, err := ParseVersion(release.Version)
+		if err == nil && candidate.Compare(current) > 0 {
+			eligible = append(eligible, release)
+		}
+	}
+	return eligible
 }
 
 // Check 刷新上游 Release 目录；无有效当前 SemVer 时保留错误而不伪造可升级版本。

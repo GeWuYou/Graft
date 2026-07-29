@@ -153,7 +153,6 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	var request struct {
 		TargetVersion string `json:"target_version"`
 		CandidateKey  string `json:"compose_candidate_key,omitempty"`
-		UpdatePolicy  string `json:"update_policy,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
@@ -169,10 +168,9 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	requestAudit.RequestID = requestID
 	c.Request = c.Request.WithContext(httpx.WithRequestAuditContext(c.Request.Context(), requestAudit))
 	operation, err := h.rollout.Start(c.Request.Context(), StartRolloutInput{
-		RequestedBy:     actor.ID,
-		TargetVersion:   request.TargetVersion,
-		CandidateKey:    request.CandidateKey,
-		RequestedPolicy: request.UpdatePolicy,
+		RequestedBy:   actor.ID,
+		TargetVersion: request.TargetVersion,
+		CandidateKey:  request.CandidateKey,
 	})
 	if err != nil {
 		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)

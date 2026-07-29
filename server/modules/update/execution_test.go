@@ -20,7 +20,7 @@ func TestValidateRunnerInputAcceptsOrderedComposeFilesUnderRoot(t *testing.T) {
 		}
 	}
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
-		DeclaredMode: "compose", UpdatePolicy: UpdatePolicyBeta, DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides/web.yml")}, BundledPostgres: true,
+		DeclaredMode: "compose", UpdateMode: UpdateModeBetaTracking, ImageTag: "beta", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides/web.yml")}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web",
 		OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest:        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
@@ -53,7 +53,7 @@ func TestValidateRunnerInputRejectsComposeSymlinkEscapeAndNestedFirstFile(t *tes
 	}
 
 	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
-		DeclaredMode: "compose", UpdatePolicy: UpdatePolicyBeta, DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml"), link}, BundledPostgres: true,
+		DeclaredMode: "compose", UpdateMode: UpdateModeBetaTracking, ImageTag: "beta", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml"), link}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerDigest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
 		ServerReference: "ghcr.io/gewuyou/graft-server:1.2.3-beta.1", WebReference: "ghcr.io/gewuyou/graft-web:1.2.3-beta.1", RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
