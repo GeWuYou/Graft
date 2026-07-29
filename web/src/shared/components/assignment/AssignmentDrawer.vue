@@ -1,6 +1,7 @@
 <template>
   <responsive-dialog
     :visible="visible"
+    :close-label="closeLabel"
     :title="title"
     purpose="workspace"
     size="large"
@@ -26,13 +27,11 @@ import { nextTick, ref, watch } from 'vue';
 
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 
-const props = withDefaults(
-  defineProps<{
-    title: string;
-    visible: boolean;
-  }>(),
-  {},
-);
+const props = defineProps<{
+  title: string;
+  visible: boolean;
+  closeLabel: string;
+}>();
 
 const emit = defineEmits<{
   close: [];

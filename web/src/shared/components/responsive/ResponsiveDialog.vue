@@ -37,6 +37,7 @@ import {
 
 /** Dialog facade 统一选择 TDesign overlay，调用方只声明业务意图与尺寸语义。 */
 const {
+  closeLabel,
   closeOnEscKeydown = true,
   closeOnOverlayClick = true,
   purpose = 'detail',
@@ -46,6 +47,7 @@ const {
 } = defineProps<{
   closeOnEscKeydown?: boolean;
   closeOnOverlayClick?: boolean;
+  closeLabel: string;
   purpose?: ResponsiveDialogPurpose;
   size?: ResponsiveDialogSize;
   title: string;
@@ -111,7 +113,7 @@ const DialogContent = defineComponent({
               h(
                 TButton,
                 {
-                  'aria-label': title,
+                  'aria-label': closeLabel,
                   shape: 'square',
                   theme: 'default',
                   variant: 'text',

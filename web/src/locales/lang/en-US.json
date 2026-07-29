@@ -8,6 +8,9 @@
     "not_found": "Requested resource not found"
   },
   "components": {
+    "common": {
+      "close": "Close"
+    },
     "commonTable": {
       "operation": "Operation",
       "detail": "Detail",

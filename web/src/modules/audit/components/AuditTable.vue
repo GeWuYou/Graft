@@ -89,7 +89,16 @@
     </template>
 
     <template #cards>
-      <article v-for="row in rows" :key="row.id" class="audit-log-card" @click="emit('detail', row)">
+      <article
+        v-for="row in rows"
+        :key="row.id"
+        class="audit-log-card"
+        role="button"
+        tabindex="0"
+        @click="emit('detail', row)"
+        @keydown.enter="emit('detail', row)"
+        @keydown.space.prevent="emit('detail', row)"
+      >
         <div class="audit-log-card__header">
           <strong class="audit-log-card__title">{{ actionTitle(row, t) }}</strong>
         </div>
@@ -279,6 +288,11 @@ void TableActionMenu;
 
 .audit-log-card {
   .log-card-surface(var(--td-component-stroke));
+}
+
+.audit-log-card:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
 }
 
 .audit-log-card__header,

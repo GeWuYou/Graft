@@ -210,7 +210,7 @@ describe('AuditTable', () => {
     expect(wrapper.get('[data-testid="resource-slot"]').findAll('.stack-cell__secondary')).toHaveLength(1);
   });
 
-  it('provides the audit-priority mobile card through the shared log renderer slot', () => {
+  it('provides a keyboard-accessible audit-priority mobile card through the shared log renderer slot', async () => {
     const wrapper = mountTable();
 
     const card = wrapper.get('.audit-log-card');
@@ -222,5 +222,10 @@ describe('AuditTable', () => {
     expect(
       wrapper.findAllComponents({ name: 'LogIdText' }).some((item) => item.props('displayValue') === 'req-1'),
     ).toBe(true);
+    expect(card.attributes('role')).toBe('button');
+    expect(card.attributes('tabindex')).toBe('0');
+
+    await card.trigger('keydown.enter');
+    expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1 });
   });
 });

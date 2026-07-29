@@ -43,8 +43,9 @@ const collapseStub = defineComponent({
 });
 
 const collapsePanelStub = defineComponent({
-  setup(_, { slots }) {
-    return () => h('section', [slots.header?.(), slots.default?.()]);
+  props: { value: { type: String, required: true } },
+  setup(_props, { slots }) {
+    return () => h('section', { 'data-testid': 'compact-collapse-panel' }, [slots.header?.(), slots.default?.()]);
   },
 });
 
@@ -98,12 +99,13 @@ describe('AdvancedQueryFilterBuilder', () => {
     expect(wrapper.emitted('reset')).toHaveLength(1);
   });
 
-  it('keeps compact filters in a collapsed filter summary while presets remain outside the panel', async () => {
+  it('keeps compact filter controls inside the collapsed panel while presets remain outside it', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: {
         ...defaultProps,
         compactMode: true,
         compactToggleLabel: 'Filter',
+        fields: [{ key: 'status', kind: 'select', label: 'Status' }],
       },
       slots: {
         'saved-query-views': '<span data-testid="saved-view">saved</span>',
@@ -121,7 +123,8 @@ describe('AdvancedQueryFilterBuilder', () => {
 
     expect(wrapper.find('[data-testid="compact-collapse"]').exists()).toBe(true);
     expect(wrapper.get('[data-testid="query-filter-builder-compact-toggle"]').text()).toBe('Filter (1)');
-    expect(wrapper.find('.query-filter-builder__group').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="compact-collapse-panel"] .query-filter-builder__group').exists()).toBe(true);
+    expect(wrapper.findAll('.query-filter-builder__group')).toHaveLength(1);
 
     await wrapper
       .findAll('button')

@@ -131,9 +131,10 @@ vi.mock('../../components/AppLogTable.vue', () => ({
       emptyTitle: { type: String, default: '' },
       filteredEmpty: { type: Boolean, default: false },
       rows: { type: Array, default: () => [] },
+      selectionMode: { type: Boolean, default: false },
       total: { type: Number, default: 0 },
     },
-    emits: ['clear-filters'],
+    emits: ['clear-filters', 'enter-selection'],
     setup(props, { emit, slots }) {
       return () =>
         h('section', [
@@ -142,7 +143,9 @@ vi.mock('../../components/AppLogTable.vue', () => ({
           h('output', { 'data-testid': 'empty-title' }, props.emptyTitle),
           h('output', { 'data-testid': 'empty-description' }, props.emptyDescription),
           h('output', { 'data-testid': 'filtered-empty' }, String(props.filteredEmpty)),
+          h('output', { 'data-testid': 'selection-mode' }, String(props.selectionMode)),
           h('button', { 'data-testid': 'clear-filters', onClick: () => emit('clear-filters') }, 'clear'),
+          h('button', { 'data-testid': 'enter-selection', onClick: () => emit('enter-selection') }, 'select'),
           slots.toolbar?.(),
         ]);
     },
@@ -285,5 +288,18 @@ describe('AppLogListIndex', () => {
     expect(mocks.routerReplace).toHaveBeenLastCalledWith(
       expect.objectContaining({ query: expect.objectContaining({ quick_preset: '' }) }),
     );
+  });
+
+  it('exits selection mode after a refreshed list response', async () => {
+    mocks.getAppLogs.mockResolvedValue(response([appLog(1)]));
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="enter-selection"]').trigger('click');
+    expect(wrapper.get('[data-testid="selection-mode"]').text()).toBe('true');
+
+    await wrapper.get('[data-testid="refresh"]').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[data-testid="selection-mode"]').text()).toBe('false');
   });
 });

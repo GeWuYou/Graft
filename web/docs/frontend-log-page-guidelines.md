@@ -14,6 +14,7 @@
   - 所属领域
   - 页面标题
   - 页面说明
+- `page toolbar`
   - Refresh
 - `query workbench`
   - 主搜索框

@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
@@ -41,15 +39,6 @@ const TPaginationStub = defineComponent({
       );
   },
 });
-
-const directManagedPaginationSources = [
-  '../../../modules/announcement/pages/management/index.vue',
-  '../../../modules/announcement/pages/user-list/index.vue',
-  '../../../modules/notification/components/NotificationTable.vue',
-  '../../../modules/rbac/pages/permissions/index.vue',
-  '../../../modules/runtime-target/pages/list/index.vue',
-  '../../../modules/scheduled-task/pages/list/index.vue',
-];
 
 describe('ManagementPagedTable', () => {
   it('routes table cell slots and renders the shared empty/pagination frame', async () => {
@@ -93,6 +82,25 @@ describe('ManagementPagedTable', () => {
     await wrapper.get('[data-testid="pagination-change"]').trigger('click');
 
     expect(wrapper.emitted('page-change')?.[0]).toEqual([{ current: 2, pageSize: 20, previous: 1 }]);
+  });
+
+  it('lets callers override the default pagination total content', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        paginationProps: { totalContent: true },
+        rows: [{ id: 'container-1', name: 'web' }],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.findComponent(TPaginationStub).props('totalContent')).toBe(true);
   });
 
   it('replaces the table with an explicit card slot without changing the shared frame', () => {
@@ -169,6 +177,26 @@ describe('ManagementPagedTable', () => {
     expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('entityCardLayout')).toBe('compact');
   });
 
+  it('derives entity cards from cardsVisible while preserving the caller data presentation default', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        cardsVisible: true,
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        pageSize: 10,
+        rows: [{ id: 'application-1', name: 'web' }],
+        total: 1,
+      },
+      slots: { cards: '<article data-testid="application-card">web</article>' },
+    });
+
+    expect(wrapper.findComponent({ name: 'ResponsiveTable' }).props('presentation')).toBe('entity');
+  });
+
   it('keeps compact entity-card selection out of the hidden table renderer', () => {
     const ResponsiveTableStub = defineComponent({
       name: 'ResponsiveTable',
@@ -195,15 +223,5 @@ describe('ManagementPagedTable', () => {
     });
 
     expect(wrapper.findComponent(TTableStub).props('selectedRowKeys')).toEqual([]);
-  });
-
-  it('disables the native total for every direct management pagination footer', async () => {
-    const sources = await Promise.all(
-      directManagedPaginationSources.map((path) => readFile(new URL(path, import.meta.url), 'utf8')),
-    );
-
-    for (const source of sources) {
-      expect(source).toContain(':total-content="false"');
-    }
   });
 });

@@ -7,6 +7,7 @@ describe('AssignmentDrawer', () => {
   it('emits close requests instead of directly hiding the drawer', async () => {
     const wrapper = mount(AssignmentDrawer, {
       props: {
+        closeLabel: 'Close assignments',
         title: 'Assignments',
         visible: true,
       },

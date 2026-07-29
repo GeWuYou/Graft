@@ -372,6 +372,7 @@ watch(appLogListQuery.error, (error) => {
 
 async function fetchAppLogs() {
   listError.value = '';
+  selectionMode.value = false;
   await nextTick();
   await appLogListQuery.refetch();
 }
@@ -381,6 +382,7 @@ function applyListResponse(response: Awaited<ReturnType<typeof getAppLogs>>) {
   rows.value = response.items;
   total.value = response.total;
   selectedRowKeys.value = selectedRowKeys.value.filter((key) => rows.value.some((row) => row.id === Number(key)));
+  selectionMode.value = false;
 }
 
 async function openDetail(row: AppLogItem) {

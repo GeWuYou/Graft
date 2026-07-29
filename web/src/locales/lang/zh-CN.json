@@ -8,6 +8,9 @@
     "not_found": "请求的资源不存在"
   },
   "components": {
+    "common": {
+      "close": "关闭"
+    },
     "commonTable": {
       "operation": "操作",
       "detail": "详情",

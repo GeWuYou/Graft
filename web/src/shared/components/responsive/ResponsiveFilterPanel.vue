@@ -18,7 +18,13 @@
           <template #icon><filter-icon /></template>
         </t-button>
       </t-tooltip>
-      <responsive-dialog v-model:visible="panelVisible" purpose="form" size="compact" :title="panelTitle">
+      <responsive-dialog
+        v-model:visible="panelVisible"
+        :close-label="closeLabel"
+        purpose="form"
+        size="compact"
+        :title="panelTitle"
+      >
         <div class="responsive-filter-panel__dialog-content"><slot name="filters" /></div>
       </responsive-dialog>
     </template>
@@ -37,6 +43,7 @@ import ResponsiveDialog from './ResponsiveDialog.vue';
 const props = withDefaults(
   defineProps<{
     densityScope?: 'container' | 'viewport';
+    closeLabel: string;
     moreLabel: string;
     panelTitle: string;
   }>(),

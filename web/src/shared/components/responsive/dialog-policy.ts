@@ -25,8 +25,12 @@ export function resolveResponsiveDialogPolicy(
       return { density, interaction: 'interactive', surface: 'sheet' };
     }
 
-    if (purpose === 'workspace' || purpose === 'detail') {
+    if (purpose === 'workspace') {
       return { density, interaction: 'readonly', surface: 'fullscreen' };
+    }
+
+    if (purpose === 'detail') {
+      return { density, interaction: 'interactive', surface: 'drawer' };
     }
 
     if (purpose === 'form' && size !== 'compact') {

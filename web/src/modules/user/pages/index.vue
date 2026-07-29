@@ -134,18 +134,12 @@
                 <t-checkbox
                   class="user-card__selection"
                   :checked="selectedRowKeys.includes(user.id)"
-                  :aria-label="t('user.userList.batch.selected', { count: 1 })"
+                  :aria-label="t('user.userList.batch.selectUser', { user: user.display || user.username })"
                   data-testid="user-card-selection"
                   @change="(checked: boolean) => toggleMobileUserSelection(user.id, checked)"
                 />
                 <div class="user-card__identity-row">
-                  <div class="user-cell">
-                    <div class="user-cell__avatar">{{ userInitial(user.display || user.username) }}</div>
-                    <div class="user-cell__meta">
-                      <span class="user-cell__display">{{ user.display || user.username }}</span>
-                      <span class="user-cell__username">{{ user.email || `@${user.username}` }}</span>
-                    </div>
-                  </div>
+                  <user-identity :user="user" />
                   <div class="user-card__badges">
                     <t-tag
                       v-if="isProtectedDefaultAdminUser(user)"
@@ -203,11 +197,7 @@
 
         <template #user="{ row }">
           <div class="user-cell">
-            <div class="user-cell__avatar">{{ userInitial(row.display || row.username) }}</div>
-            <div class="user-cell__meta">
-              <span class="user-cell__display">{{ row.display || row.username }}</span>
-              <span class="user-cell__username">{{ row.email || `@${row.username}` }}</span>
-            </div>
+            <user-identity :user="row" />
             <t-tag
               v-if="isProtectedDefaultAdminUser(row)"
               theme="warning"
@@ -295,6 +285,7 @@
 
     <responsive-dialog
       v-model:visible="userDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="userDrawerMode === 'create' ? t('user.userList.form.createTitle') : t('user.userList.form.editTitle')"
       purpose="form"
       size="medium"
@@ -342,6 +333,7 @@
 
     <responsive-dialog
       v-model:visible="detailDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="t('user.userList.detailTitle')"
       purpose="detail"
       size="medium"
@@ -451,6 +443,7 @@
 
     <assignment-drawer
       v-model:visible="userRoleDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="userRoleDrawerTitle"
       @close="requestCloseUserRoleDrawer"
     >
@@ -551,6 +544,7 @@
 
     <responsive-dialog
       v-model:visible="columnDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="t('user.userList.columnSettings')"
       purpose="form"
       size="compact"
@@ -614,6 +608,7 @@ import { isApiRequestError } from '@/utils/request';
 
 import { getRoles, getUserRoleBindings, mutateBatchUserRoles, mutateUserRoles } from '../api/user-roles';
 import { createUser, deleteUser, resetUserPassword, updateUser, updateUserStatus } from '../api/users';
+import UserIdentity from '../components/UserIdentity.vue';
 import { USER_PERMISSION_CODE } from '../contract/permissions';
 import type { UserStatus } from '../contract/status';
 import { USER_STATUS } from '../contract/status';
@@ -802,11 +797,15 @@ const selectedBatchUsersContainProtectedDefaultAdmin = computed(() =>
 const compactBatchActions = computed(() => [
   { content: t('user.userList.batch.enable'), disabled: true, value: 'enable' },
   { content: t('user.userList.batch.disable'), disabled: true, value: 'disable' },
-  {
-    content: t('user.userList.batch.assignRoles'),
-    disabled: selectedBatchUsersContainProtectedDefaultAdmin.value,
-    value: 'assign-roles',
-  },
+  ...(canManageUserRoles()
+    ? [
+        {
+          content: t('user.userList.batch.assignRoles'),
+          disabled: selectedBatchUsersContainProtectedDefaultAdmin.value,
+          value: 'assign-roles',
+        },
+      ]
+    : []),
 ]);
 const editingProtectedDefaultAdmin = computed(
   () => userDrawerMode.value === 'edit' && isProtectedDefaultAdminUser(userDrawerTarget.value),

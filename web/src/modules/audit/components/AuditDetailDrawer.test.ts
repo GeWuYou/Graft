@@ -7,6 +7,15 @@ import AuditDetailDrawer from './AuditDetailDrawer.vue';
 
 const pushMock = vi.fn();
 
+const ResourceDetailLayoutStub = defineComponent({
+  name: 'ResourceDetailLayout',
+  props: ['backLabel', 'presentation', 'size', 'title', 'visible'],
+  emits: ['update:visible'],
+  setup(_props, { slots }) {
+    return () => h('section', { 'data-testid': 'audit-detail-layout' }, slots.default?.());
+  },
+});
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: pushMock,
@@ -174,6 +183,7 @@ describe('AuditDetailDrawer', () => {
       },
       global: {
         plugins: [i18n],
+        stubs: { ResourceDetailLayout: ResourceDetailLayoutStub },
       },
     });
 
@@ -190,6 +200,13 @@ describe('AuditDetailDrawer', () => {
     expect(wrapper.get('[data-testid="json-panel-Raw JSON"]').text()).toContain('"request_id":"req-1"');
     expect(wrapper.get('[data-testid="json-panel-Raw JSON"]').text()).not.toContain('trace');
     expect(wrapper.text()).not.toContain('openIncident');
+    expect(wrapper.getComponent(ResourceDetailLayoutStub).props()).toMatchObject({
+      backLabel: 'audit.logList.detailBack',
+      presentation: 'overlay',
+      size: 'large',
+      title: 'Audit Detail',
+      visible: true,
+    });
   });
 
   it('renders the tabbed detail payloads inside the drawer body', () => {
@@ -231,6 +248,7 @@ describe('AuditDetailDrawer', () => {
       },
       global: {
         plugins: [i18n],
+        stubs: { ResourceDetailLayout: ResourceDetailLayoutStub },
       },
     });
 

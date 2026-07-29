@@ -46,6 +46,7 @@
       "batch": {
         "actions": "批量操作",
         "selected": "已选择 {count} 项",
+        "selectUser": "选择 {user}",
         "enable": "批量启用",
         "disable": "批量禁用",
         "assignRoles": "批量管理角色",

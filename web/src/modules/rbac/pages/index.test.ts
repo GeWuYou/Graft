@@ -206,7 +206,7 @@ const dropdownStub = defineComponent({
             h(
               'button',
               {
-                'data-testid': option.testId,
+                'data-testid': option.testId ?? `role-${option.value}`,
                 onClick: () => emit('click', { value: option.value }),
               },
               option.content,
@@ -345,7 +345,11 @@ const tableStub = defineComponent({
         'div',
         tableAttributes,
         (props.data as Array<Record<string, unknown>>).map((row, index) =>
-          h('div', { 'data-testid': `role-row-${index}` }, [slots.role?.({ row }), slots.operation?.({ row })]),
+          h('div', { 'data-testid': `role-row-${index}` }, [
+            slots.role?.({ row }),
+            slots.builtin?.({ row }),
+            slots.operation?.({ row }),
+          ]),
         ),
       );
     };
@@ -761,7 +765,7 @@ function selectedPermissionIds(wrapper: ReturnType<typeof mountRolePage>) {
   );
 }
 
-function emitRoleDropdownAction(wrapper: ReturnType<typeof mountRolePage>, value: string) {
+async function emitRoleDropdownAction(wrapper: ReturnType<typeof mountRolePage>, value: string) {
   const dropdown = wrapper.findAllComponents(dropdownStub).find((candidate) => {
     const options = JSON.parse(candidate.attributes('data-options') ?? '[]') as Array<{ value?: string }>;
     return options.some((option) => option.value === value);
@@ -771,7 +775,14 @@ function emitRoleDropdownAction(wrapper: ReturnType<typeof mountRolePage>, value
     throw new Error(`role action dropdown with ${value} was not found`);
   }
 
-  dropdown.vm.$emit('click', { value });
+  const option = (
+    JSON.parse(dropdown.attributes('data-options') ?? '[]') as Array<{ testId?: string; value?: string }>
+  ).find((candidate) => candidate.value === value);
+  if (!option) {
+    throw new Error(`role action option ${value} was not found`);
+  }
+
+  await dropdown.get(`[data-testid="${option.testId ?? `role-${value}`}"]`).trigger('click');
 }
 
 function setPermissionMutationMode(wrapper: ReturnType<typeof mountRolePage>, mode: 'replace' | 'add' | 'remove') {
@@ -821,6 +832,7 @@ describe('RolePage', () => {
     expect(rbacApiMocks.getPermissions).toHaveBeenCalledTimes(1);
     expect(wrapper.attributes('data-page-type')).toBe('list-form-detail');
     expect(wrapper.text()).toContain('Editor');
+    expect(wrapper.get('[data-testid="role-row-0"]').text()).toContain('rbac.roleList.form.type.custom');
     expect(wrapper.text()).not.toContain('rbac.roleList.stats.totalRoles');
   });
 
@@ -841,6 +853,7 @@ describe('RolePage', () => {
       const card = wrapper.get('.role-mobile-card');
       expect(card.text()).toContain('Editor');
       expect(card.text()).toContain('editor');
+      expect(card.text()).toContain('rbac.roleList.form.type.custom');
       expect(card.text()).toContain('rbac.roleList.columns.permissionCount');
       expect(card.text()).toContain('rbac.roleList.columns.userCount');
       expect(card.text()).toContain('rbac.roleList.columns.updatedAt');
@@ -1470,7 +1483,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    emitRoleDropdownAction(wrapper, 'copy-role');
+    await emitRoleDropdownAction(wrapper, 'copy-role');
     await flushPromises();
 
     expect(rbacApiMocks.getRolePermissionBindings).toHaveBeenCalledWith(1);
@@ -1521,7 +1534,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    emitRoleDropdownAction(wrapper, 'copy-role');
+    await emitRoleDropdownAction(wrapper, 'copy-role');
     await flushPromises();
     await wrapper.get('input[placeholder="rbac.roleList.form.namePlaceholder"]').setValue(' custom-admin ');
     await wrapper.get('[data-testid="role-form"]').trigger('submit');
@@ -1557,7 +1570,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    emitRoleDropdownAction(wrapper, 'delete');
+    await emitRoleDropdownAction(wrapper, 'delete');
     await flushPromises();
 
     expect(rbacApiMocks.deleteRole).not.toHaveBeenCalled();
@@ -1594,7 +1607,7 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
-    emitRoleDropdownAction(wrapper, 'delete');
+    await emitRoleDropdownAction(wrapper, 'delete');
     await flushPromises();
 
     expect(rbacApiMocks.deleteRole).not.toHaveBeenCalled();

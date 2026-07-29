@@ -149,7 +149,7 @@ describe('responsive primitives', () => {
   it('keeps secondary filters in a responsive panel on compact surfaces', async () => {
     vi.stubGlobal('ResizeObserver', ResizeObserverMock);
     const wrapper = mount(ResponsiveFilterPanel, {
-      props: { moreLabel: 'More Filters', panelTitle: 'Filter Roles' },
+      props: { closeLabel: 'Close filters', moreLabel: 'More Filters', panelTitle: 'Filter Roles' },
       slots: {
         filters: '<select aria-label="type"><option>Type</option></select>',
         search: '<input aria-label="search">',
@@ -178,6 +178,10 @@ describe('responsive primitives', () => {
       surface: 'sheet',
     });
     expect(resolveResponsiveDialogPolicy(375, 'form', 'large')).toMatchObject({ surface: 'fullscreen' });
+    expect(resolveResponsiveDialogPolicy(375, 'detail', 'medium')).toMatchObject({
+      interaction: 'interactive',
+      surface: 'drawer',
+    });
     expect(resolveResponsiveDialogPolicy(768, 'workspace', 'large')).toMatchObject({
       interaction: 'readonly',
       surface: 'drawer',
@@ -185,7 +189,7 @@ describe('responsive primitives', () => {
     expect(resolveResponsiveDialogPolicy(992, 'detail', 'medium')).toMatchObject({ surface: 'drawer' });
 
     const wrapper = mount(ResponsiveDialog, {
-      props: { purpose: 'form', size: 'large', title: 'Edit', visible: true },
+      props: { closeLabel: 'Close editor', purpose: 'form', size: 'large', title: 'Edit', visible: true },
       slots: { default: '<p>form fields</p>', footer: '<button>save</button>' },
     });
 
@@ -195,6 +199,23 @@ describe('responsive primitives', () => {
     expect(wrapper.find('.responsive-dialog__footer').text()).toContain('save');
     expect(Object.keys(wrapper.props())).toEqual(expect.arrayContaining(['purpose', 'size']));
     expect(Object.keys(wrapper.props())).not.toContain('width');
+  });
+
+  it('names the fullscreen close control with the caller-localized close label', async () => {
+    vi.stubGlobal('innerWidth', 390);
+    const wrapper = mount(ResponsiveDialog, {
+      props: {
+        closeLabel: 'Close editor',
+        purpose: 'form',
+        size: 'large',
+        title: 'Edit profile',
+        visible: true,
+      },
+      global: { stubs: { 't-button': { template: '<button><slot name="icon" /></button>' } } },
+    });
+    await nextTick();
+
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Close editor');
   });
 
   it('uses a fullscreen detail surface below the compact breakpoint without an empty actions region', async () => {

@@ -46,6 +46,7 @@
       "batch": {
         "actions": "Batch Actions",
         "selected": "{count} selected",
+        "selectUser": "Select {user}",
         "enable": "Batch Enable",
         "disable": "Batch Disable",
         "assignRoles": "Batch Manage Roles",

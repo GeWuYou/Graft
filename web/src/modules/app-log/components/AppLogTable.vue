@@ -44,7 +44,7 @@
           <span>{{ t('appLog.columns.operation') }}</span>
           <log-id-text v-bind="technicalTextProps(appLogOperationText(row, t))" />
         </div>
-        <div class="log-card__actions" @click.stop>
+        <div class="log-card__actions" @click.stop @keydown.enter.stop @keydown.space.stop>
           <table-action-menu
             :actions="cardActions(row)"
             :more-label="t('appLog.actions.more')"

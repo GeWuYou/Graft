@@ -7,9 +7,6 @@
     <div class="management-batch-bar__actions">
       <t-space class="management-batch-bar__desktop-actions">
         <slot />
-        <t-button :data-testid="clearTestId" size="small" theme="default" variant="text" @click="emit('clear')">
-          {{ clearLabel }}
-        </t-button>
       </t-space>
       <t-space v-if="props.compactActions.length" class="management-batch-bar__compact-actions">
         <t-dropdown :options="props.compactActions" trigger="click" @click="handleCompactAction">
@@ -17,10 +14,10 @@
             {{ props.compactActionLabel }}
           </t-button>
         </t-dropdown>
-        <t-button :data-testid="clearTestId" size="small" theme="default" variant="text" @click="emit('clear')">
-          {{ clearLabel }}
-        </t-button>
       </t-space>
+      <t-button :data-testid="clearTestId" size="small" theme="default" variant="text" @click="emit('clear')">
+        {{ clearLabel }}
+      </t-button>
     </div>
   </div>
 </template>
@@ -52,8 +49,8 @@ const emit = defineEmits<{
   clear: [];
 }>();
 
-function handleCompactAction(payload: { value?: unknown } | string | number) {
-  const value = typeof payload === 'object' && payload ? payload.value : payload;
+function handleCompactAction(action: ManagementBatchAction) {
+  const { value } = action;
   if (typeof value === 'string') emit('action', value);
 }
 </script>

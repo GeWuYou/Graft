@@ -69,6 +69,10 @@
                 {{ t('rbac.permissionList.summary', { count: filteredPermissions.length }) }}
               </p>
               <p class="table-head__description">{{ t('rbac.permissionList.tableHint') }}</p>
+              <div class="inline-note">
+                <p>{{ t('rbac.permissionList.readonlyDescription') }}</p>
+                <p>{{ t('rbac.permissionList.factSourceHint') }}</p>
+              </div>
             </div>
           </div>
         </template>
@@ -81,13 +85,6 @@
             @refresh="refreshPermissions"
           />
         </template>
-        <template #feedback>
-          <div class="inline-note">
-            <p>{{ t('rbac.permissionList.readonlyDescription') }}</p>
-            <p>{{ t('rbac.permissionList.factSourceHint') }}</p>
-          </div>
-        </template>
-
         <template #permission="{ row }">
           <div class="permission-cell">
             <span class="permission-cell__name">{{ localizedPermissionDisplay(row) }}</span>
@@ -158,25 +155,12 @@
             </t-empty>
           </div>
         </template>
-        <template #footer>
-          <management-table-pagination
-            :summary="t('rbac.permissionList.footerTotal', { count: filteredPermissions.length })"
-          >
-            <t-pagination
-              v-model:current="pagination.current"
-              v-model:page-size="pagination.pageSize"
-              :total="filteredPermissions.length"
-              :total-content="false"
-              :page-size-options="[10, 20, 50, 100]"
-              :show-page-number="true"
-            />
-          </management-table-pagination>
-        </template>
       </management-paged-table>
     </management-page-content>
 
     <responsive-dialog
       v-model:visible="columnDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="t('rbac.permissionList.columnSettings')"
       purpose="form"
       size="compact"
@@ -194,6 +178,7 @@
 
     <responsive-dialog
       v-model:visible="detailDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="t('rbac.permissionList.detailTitle')"
       purpose="detail"
       size="medium"
@@ -260,7 +245,6 @@ import {
   ManagementPageContent,
   ManagementPagedTable,
   ManagementPageHeader,
-  ManagementTablePagination,
   ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,

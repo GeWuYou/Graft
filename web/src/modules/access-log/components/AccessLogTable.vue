@@ -45,7 +45,7 @@
           <span>{{ t('accessLog.columns.requestId') }}</span>
           <log-id-text :display-value="row.request_id" :tooltip="row.request_id" v-bind="technicalCopyLabels" />
         </div>
-        <div class="log-card__actions" @click.stop>
+        <div class="log-card__actions" @click.stop @keydown.enter.stop @keydown.space.stop>
           <table-action-menu
             :actions="rowActions(row)"
             :more-label="t('accessLog.actions.more')"

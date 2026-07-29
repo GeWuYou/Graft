@@ -29,6 +29,7 @@ const AdvancedQueryPagedTableStub = defineComponent({
             ? slots.operation?.({ row: props.rows?.[0] ?? accessLogRow() })
             : undefined,
         ),
+        h('div', { 'data-testid': 'cards-slot' }, slots.cards?.()),
       ]);
   },
 });
@@ -222,5 +223,32 @@ describe('AccessLogTable', () => {
     expect(wrapper.emitted('detail')?.[0]?.[0]).toMatchObject({ id: 1, request_id: 'req-1' });
     expect(wrapper.emitted('view-app-log')?.[0]?.[0]).toMatchObject({ id: 1, request_id: 'req-1' });
     expect(wrapper.emitted('view-audit')?.[0]?.[0]).toMatchObject({ id: 1, request_id: 'req-1' });
+  });
+
+  it('does not open a card when Enter is handled by an inner action control', async () => {
+    const wrapper = shallowMount(AccessLogTable, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          AdvancedQueryPagedTable: AdvancedQueryPagedTableStub,
+          TableActionMenu: TableActionMenuStub,
+          TTag: TTagStub,
+        },
+      },
+      props: {
+        current: 1,
+        description: '列表说明',
+        emptyDescription: '暂无数据',
+        footerSummary: '共 1 条',
+        pageSize: 20,
+        rows: [accessLogRow()],
+        summary: '当前 1 条',
+        total: 1,
+        visibleColumnKeys: ['started_at', 'method', 'path'],
+      },
+    });
+
+    await wrapper.get('.log-card__actions').trigger('keydown.enter');
+    expect(wrapper.emitted('detail')).toBeUndefined();
   });
 });

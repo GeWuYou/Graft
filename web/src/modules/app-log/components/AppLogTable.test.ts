@@ -39,6 +39,7 @@ const AdvancedQueryPagedTableStub = defineComponent({
             ? slots.actions?.({ row: props.rows?.[0] ?? appLogRow() })
             : undefined,
         ),
+        h('div', { 'data-testid': 'cards-slot' }, slots.cards?.()),
       ]);
   },
 });
@@ -239,5 +240,30 @@ describe('AppLogTable', () => {
     expect(wrapper.emitted('delete')?.[0]?.[0]).toMatchObject({ id: 1 });
     expect(wrapper.find('[data-testid="raw-json-action"]').exists()).toBe(false);
     expect(wrapper.emitted('raw-json')).toBeUndefined();
+  });
+
+  it('does not open a card when Enter is handled by an inner action control', async () => {
+    const wrapper = shallowMount(AppLogTable, {
+      global: {
+        plugins: [i18n],
+        stubs: {
+          AdvancedQueryPagedTable: AdvancedQueryPagedTableStub,
+          TableActionMenu: TableActionMenuStub,
+          TTag: TTagStub,
+        },
+      },
+      props: {
+        current: 1,
+        emptyDescription: '暂无数据',
+        footerSummary: '共 1 条',
+        pageSize: 20,
+        rows: [appLogRow()],
+        total: 1,
+        visibleColumnKeys: ['occurred_at', 'severity', 'component'],
+      },
+    });
+
+    await wrapper.get('.log-card__actions').trigger('keydown.enter');
+    expect(wrapper.emitted('detail')).toBeUndefined();
   });
 });

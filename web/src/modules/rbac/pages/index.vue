@@ -22,6 +22,7 @@
         <template #filters>
           <responsive-filter-panel
             density-scope="viewport"
+            :close-label="t('components.common.close')"
             :more-label="t('rbac.roleList.toolbar.moreFilters')"
             :panel-title="t('rbac.roleList.toolbar.filterPanelTitle')"
           >
@@ -115,7 +116,7 @@
 
         <template #builtin="{ row }">
           <t-tag class="role-type-tag" :theme="row.builtin ? 'primary' : 'default'" variant="light">
-            {{ row.builtin ? t('rbac.roleList.builtinYes') : t('rbac.roleList.builtinNo') }}
+            {{ roleTypeLabel(row) }}
           </t-tag>
         </template>
 
@@ -241,6 +242,7 @@
 
     <responsive-dialog
       v-model:visible="roleDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="roleDrawerTitle"
       :purpose="roleDrawerMode === 'detail' ? 'detail' : 'form'"
       size="medium"
@@ -404,6 +406,7 @@
 
     <assignment-drawer
       v-model:visible="permissionDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="permissionDrawerTitle"
       @close="requestClosePermissionDrawer"
     >
@@ -531,6 +534,7 @@
 
     <responsive-dialog
       v-model:visible="columnDrawerVisible"
+      :close-label="t('components.common.close')"
       :title="t('rbac.roleList.columnSettings')"
       purpose="form"
       size="compact"
@@ -1176,10 +1180,10 @@ const visibleColumns = computed(() => {
 
   return (columns.value ?? []).filter((column) => column?.colKey !== 'operation');
 });
-const roleColumnSets = computed(() => ({
+const roleColumnSets = {
   comfortable: ['role', 'builtin', 'permission_count', 'user_count', 'operation'],
   compact: ['role', 'builtin', 'operation'],
-}));
+};
 
 async function refreshRolePageData() {
   await Promise.all([
