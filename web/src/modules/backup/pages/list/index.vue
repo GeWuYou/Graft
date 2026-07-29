@@ -74,36 +74,37 @@
             <t-skeleton animation="gradient" :row-col="backupCardSkeletonRows" />
           </article>
         </template>
-        <article
-          v-for="backup in backups"
-          v-else-if="backups.length"
-          :key="backup.id"
-          class="backup-card"
-          :data-testid="`backup-card-${backup.id}`"
-        >
-          <header class="backup-card__header">
-            <p class="backup-card__identifier">{{ t('backup.detail.identifier', { id: backup.id }) }}</p>
-            <t-tag :theme="statusTheme(backup.status)" variant="light-outline">
-              {{ statusLabel(backup.status) }}
-            </t-tag>
-          </header>
-          <dl class="backup-card__details">
-            <div>
-              <dt>{{ t('backup.list.columns.contents') }}</dt>
-              <dd>{{ t('backup.content.summary') }}</dd>
+        <template v-else-if="backups.length">
+          <article
+            v-for="backup in backups"
+            :key="backup.id"
+            class="backup-card"
+            :data-testid="`backup-card-${backup.id}`"
+          >
+            <header class="backup-card__header">
+              <p class="backup-card__identifier">{{ t('backup.detail.identifier', { id: backup.id }) }}</p>
+              <t-tag :theme="statusTheme(backup.status)" variant="light-outline">
+                {{ statusLabel(backup.status) }}
+              </t-tag>
+            </header>
+            <dl class="backup-card__details">
+              <div>
+                <dt>{{ t('backup.list.columns.contents') }}</dt>
+                <dd>{{ t('backup.content.summary') }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('backup.list.columns.createdAt') }}</dt>
+                <dd>{{ formatDate(backup.created_at) }}</dd>
+              </div>
+            </dl>
+            <div class="backup-card__actions">
+              <t-button theme="primary" variant="text" @click="openBackup(backup)">
+                {{ t('backup.list.actions.view') }}
+                <template #suffix><chevron-right-icon /></template>
+              </t-button>
             </div>
-            <div>
-              <dt>{{ t('backup.list.columns.createdAt') }}</dt>
-              <dd>{{ formatDate(backup.created_at) }}</dd>
-            </div>
-          </dl>
-          <div class="backup-card__actions">
-            <t-button theme="primary" variant="text" @click="openBackup(backup)">
-              {{ t('backup.list.actions.view') }}
-              <template #suffix><chevron-right-icon /></template>
-            </t-button>
-          </div>
-        </article>
+          </article>
+        </template>
         <t-empty v-else :description="t('backup.list.empty')">
           <template #action>
             <t-button v-permission="permissionCodes.CREATE" theme="primary" @click="createDialogVisible = true">

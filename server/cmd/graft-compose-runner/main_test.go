@@ -126,14 +126,19 @@ func TestReplaceRefsRejectsInvalidTargetReferences(t *testing.T) {
 	}
 }
 
-func TestReferenceTagRejectsMutableOrWhitespaceTag(t *testing.T) {
+func TestReferenceTagRejectsInvalidTags(t *testing.T) {
 	for _, reference := range []string{
 		"ghcr.io/gewuyou/graft-server:latest",
 		"ghcr.io/gewuyou/graft-server:1.2.3 beta.1",
 		"ghcr.io/gewuyou/graft-server:1.2.3\n",
+		"ghcr.io/gewuyou/graft-server:1:2.3",
+		"ghcr.io/gewuyou/graft-server:release/1.2.3",
+		"ghcr.io/gewuyou/graft-server:.1.2.3",
+		"ghcr.io/gewuyou/graft-server:-1.2.3",
+		"ghcr.io/gewuyou/graft-server:" + strings.Repeat("a", 129),
 	} {
 		if _, ok := referenceTag(reference, "ghcr.io/gewuyou/graft-server"); ok {
-			t.Fatalf("mutable or malformed reference accepted: %q", reference)
+			t.Fatalf("invalid image tag accepted: %q", reference)
 		}
 	}
 	if tag, ok := referenceTag("ghcr.io/gewuyou/graft-server:1.2.3-beta.1", "ghcr.io/gewuyou/graft-server"); !ok || tag != "1.2.3-beta.1" {

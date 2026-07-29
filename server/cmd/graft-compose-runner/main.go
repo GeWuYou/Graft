@@ -14,11 +14,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/update"
 )
+
+var imageTagPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
 
 const (
 	directoryPermission                   os.FileMode = 0o700
@@ -271,7 +274,11 @@ func referenceTag(reference, officialImage string) (string, bool) {
 		return "", false
 	}
 	tag := strings.TrimPrefix(reference, prefix)
-	return tag, tag != "" && tag != "latest" && !strings.ContainsAny(tag, " \t\r\n")
+	return tag, tag != "latest" && validImageTag(tag)
+}
+
+func validImageTag(tag string) bool {
+	return imageTagPattern.MatchString(tag)
 }
 
 func verifyImageDigest(ctx context.Context, reference, wantDigest string) error {

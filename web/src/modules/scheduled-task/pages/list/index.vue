@@ -209,46 +209,16 @@
               <template #icon><browse-icon /></template>
               {{ t('scheduledTask.list.viewDetail') }}
             </t-button>
-            <t-dropdown trigger="click" placement="bottom-right">
-              <t-button theme="default" variant="outline" size="small">
-                <template #icon><ellipsis-icon /></template>
-                {{ t('scheduledTask.list.more') }}
-              </t-button>
-              <t-dropdown-menu>
-                <t-dropdown-item
-                  v-permission="permissionCodes.RUN"
-                  :disabled="!canRunTask(row)"
-                  @click="openRunDialog(row)"
-                >
-                  <template #prefix-icon><play-icon /></template>
-                  {{ t('scheduledTask.list.run') }}
-                </t-dropdown-item>
-                <t-dropdown-item v-permission="permissionCodes.UPDATE" @click="openEditDrawer(row)">
-                  <template #prefix-icon><edit-icon /></template>
-                  {{ t('scheduledTask.list.edit') }}
-                </t-dropdown-item>
-                <t-dropdown-item
-                  v-permission="permissionCodes.ENABLE"
-                  :disabled="lifecycleTaskKey === row.task_key"
-                  @click="toggleTaskEnabled(row)"
-                >
-                  <template #prefix-icon>
-                    <pause-icon v-if="row.enabled" />
-                    <play-icon v-else />
-                  </template>
-                  {{ row.enabled ? t('scheduledTask.list.disable') : t('scheduledTask.list.enable') }}
-                </t-dropdown-item>
-                <t-dropdown-item
-                  v-permission="permissionCodes.DELETE"
-                  :disabled="isSystemTask(row) || deletingTaskKey === row.task_key"
-                  theme="error"
-                  @click="openDeleteDialog(row)"
-                >
-                  <template #prefix-icon><delete-icon /></template>
-                  {{ t('scheduledTask.list.delete') }}
-                </t-dropdown-item>
-              </t-dropdown-menu>
-            </t-dropdown>
+            <scheduled-task-row-actions
+              :task="row"
+              :run-disabled="!canRunTask(row)"
+              :lifecycle-pending="lifecycleTaskKey === row.task_key"
+              :delete-disabled="isSystemTask(row) || deletingTaskKey === row.task_key"
+              @run="openRunDialog"
+              @edit="openEditDrawer"
+              @toggle="toggleTaskEnabled"
+              @delete="openDeleteDialog"
+            />
           </t-space>
         </template>
 
@@ -336,52 +306,17 @@
                   <template #icon><browse-icon /></template>
                   {{ t('scheduledTask.list.viewDetail') }}
                 </t-button>
-                <t-dropdown trigger="click" placement="bottom-right">
-                  <t-button
-                    :aria-label="t('scheduledTask.list.more')"
-                    :title="t('scheduledTask.list.more')"
-                    shape="square"
-                    size="small"
-                    theme="default"
-                    variant="text"
-                  >
-                    <template #icon><ellipsis-icon /></template>
-                  </t-button>
-                  <t-dropdown-menu>
-                    <t-dropdown-item
-                      v-permission="permissionCodes.RUN"
-                      :disabled="!canRunTask(task)"
-                      @click="openRunDialog(task)"
-                    >
-                      <template #prefix-icon><play-icon /></template>
-                      {{ t('scheduledTask.list.run') }}
-                    </t-dropdown-item>
-                    <t-dropdown-item v-permission="permissionCodes.UPDATE" @click="openEditDrawer(task)">
-                      <template #prefix-icon><edit-icon /></template>
-                      {{ t('scheduledTask.list.edit') }}
-                    </t-dropdown-item>
-                    <t-dropdown-item
-                      v-permission="permissionCodes.ENABLE"
-                      :disabled="lifecycleTaskKey === task.task_key"
-                      @click="toggleTaskEnabled(task)"
-                    >
-                      <template #prefix-icon>
-                        <pause-icon v-if="task.enabled" />
-                        <play-icon v-else />
-                      </template>
-                      {{ task.enabled ? t('scheduledTask.list.disable') : t('scheduledTask.list.enable') }}
-                    </t-dropdown-item>
-                    <t-dropdown-item
-                      v-permission="permissionCodes.DELETE"
-                      :disabled="isSystemTask(task) || deletingTaskKey === task.task_key"
-                      theme="error"
-                      @click="openDeleteDialog(task)"
-                    >
-                      <template #prefix-icon><delete-icon /></template>
-                      {{ t('scheduledTask.list.delete') }}
-                    </t-dropdown-item>
-                  </t-dropdown-menu>
-                </t-dropdown>
+                <scheduled-task-row-actions
+                  compact
+                  :task="task"
+                  :run-disabled="!canRunTask(task)"
+                  :lifecycle-pending="lifecycleTaskKey === task.task_key"
+                  :delete-disabled="isSystemTask(task) || deletingTaskKey === task.task_key"
+                  @run="openRunDialog"
+                  @edit="openEditDrawer"
+                  @toggle="toggleTaskEnabled"
+                  @delete="openDeleteDialog"
+                />
               </footer>
             </article>
           </template>
@@ -1225,16 +1160,7 @@
   </advanced-query-list-page>
 </template>
 <script setup lang="ts">
-import {
-  AddIcon,
-  BrowseIcon,
-  DeleteIcon,
-  EditIcon,
-  EllipsisIcon,
-  PauseIcon,
-  PlayIcon,
-  SearchIcon,
-} from 'tdesign-icons-vue-next';
+import { AddIcon, BrowseIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { Tag } from 'tdesign-vue-next/es/tag';
@@ -1275,6 +1201,7 @@ import {
 } from '../../api/scheduled-task';
 import ConfigJsonEditor from '../../components/ConfigJsonEditor.vue';
 import CronExpressionField from '../../components/CronExpressionField.vue';
+import ScheduledTaskRowActions from '../../components/ScheduledTaskRowActions.vue';
 import { SCHEDULED_TASK_PERMISSION_CODE } from '../../contract/permissions';
 import {
   jobCategoryLabel,
@@ -3206,7 +3133,7 @@ function formatDuration(value?: number | null) {
   gap: var(--graft-density-gap-16);
 }
 
-@media (width <= 768px) {
+@media (width < 768px) {
   .scheduled-task-page :deep(.management-statistics-bar--chips .management-statistics-bar__compact-content) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3886,12 +3813,6 @@ function formatDuration(value?: number | null) {
   }
 }
 
-@media (width < 480px) {
-  .scheduled-task-detail-summary {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (width < 768px) {
   .scheduled-task-page :deep(.table-view-toolbar) {
     justify-content: flex-end;
@@ -3924,6 +3845,12 @@ function formatDuration(value?: number | null) {
 
   .scheduled-task-run-card-list :deep(.t-button) {
     justify-self: end;
+  }
+}
+
+@media (width < 480px) {
+  .scheduled-task-detail-summary {
+    grid-template-columns: 1fr;
   }
 }
 </style>
