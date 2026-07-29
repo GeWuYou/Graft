@@ -1587,7 +1587,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushDiffViewerFrames();
+    await waitForDiffViewer(wrapper, '[data-testid="configuration-diff-confirm-save"]');
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1641,7 +1641,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === 'Save All')
       ?.trigger('click');
-    await flushDiffViewerFrames();
+    await waitForDiffViewer(wrapper, '[data-testid="configuration-diff-confirm-save"]');
     await wrapper.get('[data-testid="configuration-diff-confirm-save"]').trigger('click');
     await flushPromises();
 
@@ -1936,7 +1936,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
       .findAll('button')
       .find((button) => button.text().trim() === '重新部署项目')
       ?.trigger('click');
-    await flushPromises();
+    await vi.waitFor(() => expect(dialogMocks.confirm).toHaveBeenCalled());
 
     const dialogOptions = dialogMocks.confirm.mock.calls[0]?.[0] as { onCancel?: () => void };
     dialogOptions.onCancel?.();
