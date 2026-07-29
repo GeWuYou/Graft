@@ -76,7 +76,21 @@ const TTableStub = defineComponent({
   },
 });
 
-function mountPage() {
+const ResponsiveTableCardsStub = defineComponent({
+  name: 'ResponsiveTable',
+  setup(_props, { slots }) {
+    return () => h('div', { 'data-testid': 'backup-responsive-cards' }, slots.cards?.());
+  },
+});
+
+const TEmptyStub = defineComponent({
+  name: 'TEmpty',
+  setup(_props, { slots }) {
+    return () => h('div', { 'data-testid': 'backup-empty' }, [slots.default?.(), slots.action?.()]);
+  },
+});
+
+function mountPage(stubOverrides: Record<string, unknown> = {}) {
   return mount(BackupListPage, {
     global: {
       directives: { permission: () => undefined },
@@ -101,15 +115,17 @@ function mountPage() {
         't-descriptions-item': passthrough('TDescriptionsItem'),
         't-dialog': passthrough('TDialog'),
         't-drawer': passthrough('TDrawer'),
-        't-empty': passthrough('TEmpty'),
+        't-empty': TEmptyStub,
         't-form': passthrough('TForm'),
         't-form-item': passthrough('TFormItem'),
         't-loading': passthrough('TLoading'),
         't-option': passthrough('TOption'),
         't-select': passthrough('TSelect'),
+        't-skeleton': passthrough('TSkeleton'),
         't-table': TTableStub,
         't-tag': passthrough('TTag'),
         't-tooltip': passthrough('TTooltip'),
+        ...stubOverrides,
       },
     },
   });
@@ -160,6 +176,53 @@ describe('BackupListPage', () => {
     expect(apiMocks.getBackup).toHaveBeenCalledWith(2);
     expect(wrapper.get('[data-testid="backup-detail-drawer"]').text()).toContain('SHA-256');
     expect(wrapper.text()).toContain('backup.detail.restore.notVerifiedTitle');
+  });
+
+  it('renders the same backup record as a compact card and opens its detail', async () => {
+    apiMocks.listBackups.mockResolvedValue({
+      items: [
+        {
+          id: 2,
+          purpose: 'platform_manual',
+          status: 'AVAILABLE',
+          retain_until: '2026-07-28T07:17:00Z',
+          created_at: '2026-07-27T07:17:00Z',
+        },
+      ],
+      total: 1,
+    });
+    apiMocks.getBackup.mockResolvedValue(detail());
+
+    const wrapper = mountPage({ ResponsiveTable: ResponsiveTableCardsStub });
+    await flushPromises();
+
+    const card = wrapper.get('[data-testid="backup-card-2"]');
+    expect(card.text()).toContain('backup.detail.identifier{"id":2}');
+    expect(card.text()).toContain('backup.content.summary');
+    expect(card.text()).toContain('backup.list.columns.createdAt');
+
+    await card.get('button').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.getBackup).toHaveBeenCalledWith(2);
+  });
+
+  it('uses card skeletons while the list is loading in compact presentation', async () => {
+    apiMocks.listBackups.mockReturnValue(new Promise(() => undefined));
+
+    const wrapper = mountPage({ ResponsiveTable: ResponsiveTableCardsStub });
+    await flushPromises();
+
+    expect(wrapper.findAll('.backup-card--skeleton')).toHaveLength(3);
+  });
+
+  it('keeps the create action in the card empty state', async () => {
+    apiMocks.listBackups.mockResolvedValue({ items: [], total: 0 });
+
+    const wrapper = mountPage({ ResponsiveTable: ResponsiveTableCardsStub });
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="backup-empty"]').text()).toContain('backup.list.create');
   });
 
   it('opens the related Task only from the asset detail', async () => {

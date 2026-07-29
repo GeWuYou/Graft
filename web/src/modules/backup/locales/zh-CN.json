@@ -19,6 +19,7 @@
       "refresh": "刷新",
       "loadFailed": "备份历史加载失败。",
       "empty": "暂无备份记录。",
+      "footerTotal": "共 {count} 条数据",
       "columns": {
         "id": "备份 ID",
         "purpose": "用途",

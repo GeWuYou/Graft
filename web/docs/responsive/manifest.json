@@ -73,6 +73,12 @@
       "kind": "list-form-detail",
       "components": ["ManagementPagedTable", "ResponsiveDialog"],
       "status": "migrated"
+    },
+    {
+      "path": "src/modules/backup/pages/list/index.vue",
+      "kind": "list-form-detail",
+      "components": ["ManagementToolbar", "ManagementPagedTable", "ResponsiveTable"],
+      "status": "migrated"
     }
   ],
   "exceptions": [

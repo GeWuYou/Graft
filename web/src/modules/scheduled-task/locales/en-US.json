@@ -382,6 +382,7 @@
       "detail": {
         "title": "Task Details",
         "titleWithName": "{name}",
+        "back": "Back to Scheduled Tasks",
         "basics": "Basic Info",
         "schedule": "Schedule Config",
         "runtime": "Runtime Status",

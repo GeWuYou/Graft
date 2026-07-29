@@ -2,7 +2,7 @@
 
 ## Current Status Summary
 
-- Topic objective: reset the Beta self-update deployment contract around explicit Compose image references and a declared update policy.
+- Topic objective: reset the Beta self-update deployment contract around one shared Compose image tag and a declared update policy.
 - Current status: `active`
 - Task class: `cross-boundary`
 - Intake summary: a Beta reliability repair needs coordinated Compose, runner, API, Web, and release-governance changes.
@@ -29,7 +29,7 @@ Out of scope:
 
 ## Locked Decisions
 
-1. The deployment `.env` owns `GRAFT_UPDATE_POLICY` and complete server/web image references.
+1. The deployment `.env` owns `GRAFT_UPDATE_POLICY` and the shared `GRAFT_IMAGE_TAG` for fixed official server/web repositories.
 2. `stable`, `beta`, `fixed`, and `manual` are the only policy values; `manual` never automates image changes.
 3. The policy reset intentionally has no old digest-key compatibility branch.
 

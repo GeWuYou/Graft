@@ -103,6 +103,25 @@ describe('ManagementPagedTable', () => {
     expect(wrapper.findComponent(TPaginationStub).props('totalContent')).toBe(true);
   });
 
+  it('forwards compact footer-summary visibility to the shared pagination frame', () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '1-1 / 1',
+        hideFooterSummaryOnCompact: true,
+        pageSize: 10,
+        rows: [{ id: 'application-1', name: 'web' }],
+        total: 1,
+      },
+    });
+
+    expect(wrapper.findComponent({ name: 'ManagementTablePagination' }).props('hideSummaryOnCompact')).toBe(true);
+  });
+
   it('replaces the table with an explicit card slot without changing the shared frame', () => {
     const wrapper = mount(ManagementPagedTable, {
       global: {

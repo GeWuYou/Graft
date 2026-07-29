@@ -19,6 +19,7 @@
       "refresh": "Refresh",
       "loadFailed": "Backup history could not be loaded.",
       "empty": "No backups are available.",
+      "footerTotal": "{count} Backup | {count} Backups",
       "columns": {
         "id": "Backup ID",
         "purpose": "Purpose",

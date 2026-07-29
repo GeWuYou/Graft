@@ -1,5 +1,13 @@
 <template>
-  <responsive-toolbar :class="['management-toolbar', { 'management-toolbar--sticky-compact': stickyCompact }]">
+  <responsive-toolbar
+    :class="[
+      'management-toolbar',
+      {
+        'management-toolbar--compact-actions-equal-width': compactActionLayout === 'equal-width',
+        'management-toolbar--sticky-compact': stickyCompact,
+      },
+    ]"
+  >
     <template #filters>
       <div class="management-toolbar__filters"><slot name="filters" /></div>
     </template>
@@ -13,9 +21,11 @@ import ResponsiveToolbar from '@/shared/components/responsive/ResponsiveToolbar.
 
 withDefaults(
   defineProps<{
+    compactActionLayout?: 'default' | 'equal-width';
     stickyCompact?: boolean;
   }>(),
   {
+    compactActionLayout: 'default',
     stickyCompact: false,
   },
 );
@@ -91,6 +101,16 @@ withDefaults(
   .management-toolbar__filters,
   .management-toolbar__actions {
     justify-content: flex-start;
+  }
+
+  .management-toolbar--compact-actions-equal-width .management-toolbar__actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    width: 100%;
+  }
+
+  .management-toolbar--compact-actions-equal-width .management-toolbar__actions :deep(.t-button) {
+    width: 100%;
   }
 
   .management-toolbar :deep(.management-list-search),
