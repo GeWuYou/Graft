@@ -9,8 +9,8 @@
     </header>
     <div class="resource-detail-content__scroll graft-scrollbar">
       <div class="resource-detail-content__body"><slot /></div>
-      <footer v-if="$slots.footer" class="resource-detail-content__footer"><slot name="footer" /></footer>
     </div>
+    <footer v-if="$slots.footer" class="resource-detail-content__footer"><slot name="footer" /></footer>
   </section>
 </template>
 <script setup lang="ts">
@@ -69,12 +69,16 @@ const emit = defineEmits<{ back: [] }>();
 .resource-detail-content__footer {
   border-top: 1px solid var(--td-component-stroke);
   display: grid;
+  flex: 0 0 auto;
   gap: var(--graft-density-gap-12);
-  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l)
-    max(var(--td-comp-paddingTB-l), env(safe-area-inset-bottom));
+  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l);
 }
 
 @media (width < 768px) {
+  .resource-detail-content__footer {
+    padding-bottom: max(var(--td-comp-paddingTB-l), env(safe-area-inset-bottom));
+  }
+
   .resource-detail-content__footer :deep(.t-button) {
     inline-size: 100%;
   }

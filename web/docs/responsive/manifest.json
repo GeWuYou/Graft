@@ -75,6 +75,12 @@
       "status": "migrated"
     },
     {
+      "path": "src/modules/system-config/pages/list/index.vue",
+      "kind": "settings",
+      "components": ["ResourceDetailLayout", "useResponsiveVariant"],
+      "status": "migrated"
+    },
+    {
       "path": "src/modules/backup/pages/list/index.vue",
       "kind": "list-form-detail",
       "components": ["ManagementToolbar", "ManagementPagedTable", "ResponsiveTable"],

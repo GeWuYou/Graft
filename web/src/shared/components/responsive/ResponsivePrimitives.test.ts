@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
+import ResourceDetailContent from './ResourceDetailContent.vue';
+import resourceDetailContentSource from './ResourceDetailContent.vue?raw';
 import ResourceDetailLayout from './ResourceDetailLayout.vue';
 import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
@@ -231,6 +233,21 @@ describe('responsive primitives', () => {
     expect(wrapper.text()).toContain('app-shared-postgres');
     expect(wrapper.find('.resource-detail-content__actions').exists()).toBe(false);
     expect(Object.keys(wrapper.props())).not.toContain('isMobile');
+  });
+
+  it('keeps footer actions outside the independently scrollable detail body', () => {
+    const wrapper = mount(ResourceDetailContent, {
+      props: { backLabel: 'Back', title: 'System settings' },
+      slots: { default: '<p>Configuration values</p>', footer: '<button>Save changes</button>' },
+      global: { stubs: { 't-button': { template: '<button><slot name="icon" /></button>' } } },
+    });
+
+    expect(wrapper.find('.resource-detail-content__scroll .resource-detail-content__footer').exists()).toBe(false);
+    expect(wrapper.find('.resource-detail-content__footer').text()).toContain('Save changes');
+    expect(wrapper.find('.resource-detail-content__scroll').text()).toContain('Configuration values');
+    expect(resourceDetailContentSource).toContain('flex: 0 0 auto;');
+    expect(resourceDetailContentSource).toContain('env(safe-area-inset-bottom)');
+    expect(resourceDetailContentSource).toContain('inline-size: 100%');
   });
 
   it('lets large detail drawers use the available width through comfortable and spacious densities', async () => {

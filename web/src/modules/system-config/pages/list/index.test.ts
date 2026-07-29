@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defineComponent, h, ref, type VNode } from 'vue';
+import { computed, defineComponent, h, ref, type VNode } from 'vue';
 
 import { formatCompactDateTime } from '@/shared/components/management';
 import { queryClient } from '@/shared/query';
@@ -21,6 +21,8 @@ const apiMocks = vi.hoisted(() => ({
 const observabilityMocks = vi.hoisted(() => ({
   copyText: vi.fn(),
 }));
+
+const responsiveVariantMocks = vi.hoisted(() => ({ density: 'spacious' }));
 
 const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.fields.batchSize.description': '单次清理最多删除的日志行数。',
@@ -104,6 +106,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.list.boolean.true': '是',
   'systemConfig.list.cancel': '取消',
   'systemConfig.list.description': '管理模块注册的系统级默认配置与用户覆盖值。',
+  'systemConfig.list.detailBack': '返回配置目录',
   'systemConfig.list.edit': '编辑',
   'systemConfig.list.editorTitle': '编辑：{title}',
   'systemConfig.list.emptyDescription': '模块注册的 ConfigDefinition 会显示在这里。',
@@ -124,7 +127,7 @@ const translations = vi.hoisted((): Record<string, string> => ({
   'systemConfig.list.save': '保存',
   'systemConfig.list.saveError': '系统配置保存失败。',
   'systemConfig.list.saveSuccess': '系统配置已保存。',
-  'systemConfig.list.searchEmpty': '未找到匹配的配置组',
+  'systemConfig.list.searchEmpty': '未找到匹配的配置项',
   'systemConfig.list.searchPlaceholder': '搜索配置组、配置项或技术标识',
   'systemConfig.list.schema.advancedTitle': '高级',
   'systemConfig.list.schema.basicInfoTitle': '基本信息',
@@ -258,6 +261,11 @@ vi.mock('@/shared/observability', async () => {
   };
 });
 
+vi.mock('@/shared/composables', () => ({
+  useResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
+  useViewportResponsiveVariant: () => computed(() => ({ density: responsiveVariantMocks.density })),
+}));
+
 vi.mock('tdesign-icons-vue-next', () => ({
   AddIcon: defineComponent({ name: 'AddIcon', setup: () => () => h('span') }),
   CheckCircleFilledIcon: defineComponent({ name: 'CheckCircleFilledIcon', setup: () => () => h('span') }),
@@ -285,6 +293,7 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 
 describe('system config list page', () => {
   beforeEach(() => {
+    responsiveVariantMocks.density = 'spacious';
     queryClient.clear();
     vi.clearAllMocks();
     const items = dashboardQuickActionItems();
@@ -955,7 +964,7 @@ describe('system config list page', () => {
     expect(wrapper.text()).not.toContain('Maximum personalized entries shown on the dashboard home page.');
   });
 
-  it('filters the group tree by localized labels and technical keys', async () => {
+  it('searches localized labels and technical keys as direct configuration results', async () => {
     const items = [systemConfigItem(), ...dashboardQuickActionItems()];
     apiMocks.getSystemConfigs.mockResolvedValue({
       items,
@@ -968,18 +977,15 @@ describe('system config list page', () => {
     await wrapper.find('[data-test-id="group-search"]').setValue('retention');
     await flushPromises();
 
-    expect(wrapper.findAll('[data-tree-node="group"]').map((node) => node.text())).toEqual([
-      '访问日志保留配置1 个配置项',
-    ]);
-    expect(wrapper.find('.system-config-content__head').text()).toContain('访问日志保留配置');
+    expect(wrapper.find('[data-tree-node="group"]').exists()).toBe(false);
+    expect(wrapper.find('.system-config-search-results').text()).toContain('访问日志保留清理');
+    expect(wrapper.find('.system-config-search-results').text()).not.toContain('工作台快捷入口');
 
     await wrapper.find('[data-test-id="group-search"]').setValue('快捷');
     await flushPromises();
 
-    expect(wrapper.findAll('[data-tree-node="group"]').map((node) => node.text())).toEqual([
-      '工作台快捷入口1 个配置项',
-    ]);
-    expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
+    expect(wrapper.find('.system-config-search-results').text()).toContain('工作台快捷入口');
+    expect(wrapper.find('.system-config-search-results').text()).not.toContain('访问日志保留清理');
   });
 
   it('keeps search text from every item in the same group', async () => {
@@ -1019,10 +1025,32 @@ describe('system config list page', () => {
     await wrapper.find('[data-test-id="group-search"]').setValue('alpha');
     await flushPromises();
 
-    expect(wrapper.findAll('[data-tree-node="group"]').map((node) => node.text())).toEqual([
-      '工作台快捷入口2 个配置项',
-    ]);
-    expect(wrapper.find('.system-config-content__head').text()).toContain('工作台快捷入口');
+    expect(wrapper.find('.system-config-search-results').text()).toContain('Alpha Entry');
+    expect(wrapper.find('.system-config-search-results').text()).not.toContain('Beta Entry');
+  });
+
+  it('uses the compact directory as navigation and opens one configuration detail surface', async () => {
+    responsiveVariantMocks.density = 'compact';
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.find('[data-tree-node="domain"]').exists()).toBe(false);
+    expect(wrapper.find('.system-config-detail').exists()).toBe(false);
+
+    await wrapper.find('[data-test-id="collapse-panel-toggle"]').trigger('click');
+    await wrapper.find('.system-config-navigation-item').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('.system-config-detail').exists()).toBe(true);
+    expect(wrapper.text()).toContain('工作台快捷入口');
+    expect(wrapper.find('[data-testid="config-editor-mobile"]').exists()).toBe(false);
+
+    await wrapper.find('button[data-test-id="edit-button"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="config-editor-mobile"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="config-editor-dialog"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="config-editor-drawer"]').exists()).toBe(false);
   });
 
   it('keeps settings navigation and content as independent scroll panes', async () => {
@@ -1438,6 +1466,13 @@ function mountPage() {
           },
         }),
         TLoading: textStub('div'),
+        TList: textStub('section'),
+        TListItem: defineComponent({
+          name: 'TListItem',
+          setup(_props, { attrs, slots }) {
+            return () => h('button', attrs, slots.default?.());
+          },
+        }),
         TOption: textStub('option'),
         TPopconfirm: textStub('div'),
         TSelect: defineComponent({
