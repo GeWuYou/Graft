@@ -6266,6 +6266,13 @@ export interface components {
       minimum_source_version?: string;
       server_digest: string;
       web_digest: string;
+      server_image: string;
+      web_image: string;
+      server_reference: string;
+      web_reference: string;
+      runner_image: string;
+      runner_digest: string;
+      runner_reference: string;
       /** Format: uri */
       checksums_url?: string;
       asset_sha256?: {
@@ -6378,7 +6385,7 @@ export interface components {
       data: components['schemas']['platform-update-operation-list'];
     };
     'create-platform-update-operation-request': {
-      /** @description Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Ignored after initialization is rejected rather than overriding .env. */
+      /** @description Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Requests containing this field after initialization are rejected and never override .env. */
       update_policy?: components['schemas']['platform-update-policy'];
       target_version: string;
       /** @description Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery. */

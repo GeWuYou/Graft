@@ -28,15 +28,15 @@ closeout:
 
 ## Current Recovery Point
 
-- The old repository-plus-digest Compose contract is being replaced without compatibility support.
-- Batch 1 owns Compose/document authority; server and Web must consume the resulting `GRAFT_SERVER_IMAGE`, `GRAFT_WEB_IMAGE`, and `GRAFT_UPDATE_POLICY` contract.
+- The old repository-plus-digest Compose contract has been replaced without compatibility support.
+- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_SERVER_IMAGE`, `GRAFT_WEB_IMAGE`, and `GRAFT_UPDATE_POLICY` contract; the remaining batch is cross-boundary validation and archive readiness.
 
 ## Task Checklist
 
 - [x] Work Intake contract, active-topic bootstrap, ADR-007, and Compose configuration reset
-- [ ] runner image/policy write, digest verification, and receipt failure preservation
-- [ ] server/OpenAPI policy initialization, history, and App Log failure evidence
-- [ ] Web policy selection, fixed-release selection, and stage-progress UI
+- [x] runner image/policy write, digest verification, and receipt failure preservation
+- [x] server/OpenAPI policy initialization, history, and App Log failure evidence
+- [x] Web policy selection, fixed-release selection, and stage-progress UI
 - [ ] cross-boundary validation and archive-readiness review
 
 ## Acceptance Conditions
@@ -51,15 +51,17 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["compose-contract-and-governance-reset"],
-  "pending_batches": [
+  "completed_batches": [
+    "compose-contract-and-governance-reset",
     "runner-policy-and-receipt-reliability",
     "server-contract-and-app-log-evidence",
-    "web-policy-selection-and-progress-rendering",
+    "web-policy-selection-and-progress-rendering"
+  ],
+  "pending_batches": [
     "cross-boundary-validation-and-archive-readiness"
   ],
-  "current_batch": "runner-policy-and-receipt-reliability",
-  "next_batch": "server-contract-and-app-log-evidence",
+  "current_batch": "cross-boundary-validation-and-archive-readiness",
+  "next_batch": "",
   "closeout_status": "active"
 }
 ```

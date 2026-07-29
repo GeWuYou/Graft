@@ -26250,7 +26250,14 @@
           "published_at",
           "manifest_url",
           "server_digest",
-          "web_digest"
+          "web_digest",
+          "server_image",
+          "web_image",
+          "server_reference",
+          "web_reference",
+          "runner_image",
+          "runner_digest",
+          "runner_reference"
         ],
         "properties": {
           "version": {
@@ -26288,6 +26295,27 @@
             "type": "string"
           },
           "web_digest": {
+            "type": "string"
+          },
+          "server_image": {
+            "type": "string"
+          },
+          "web_image": {
+            "type": "string"
+          },
+          "server_reference": {
+            "type": "string"
+          },
+          "web_reference": {
+            "type": "string"
+          },
+          "runner_image": {
+            "type": "string"
+          },
+          "runner_digest": {
+            "type": "string"
+          },
+          "runner_reference": {
             "type": "string"
           },
           "checksums_url": {
@@ -26640,7 +26668,7 @@
         "properties": {
           "update_policy": {
             "$ref": "#/components/schemas/platform-update-policy",
-            "description": "Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Ignored after initialization is rejected rather than overriding .env."
+            "description": "Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Requests containing this field after initialization are rejected and never override .env."
           },
           "target_version": {
             "type": "string",

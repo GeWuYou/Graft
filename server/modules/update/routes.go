@@ -168,7 +168,12 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	requestAudit, _ := httpx.RequestAuditContextFromContext(c.Request.Context())
 	requestAudit.RequestID = requestID
 	c.Request = c.Request.WithContext(httpx.WithRequestAuditContext(c.Request.Context(), requestAudit))
-	operation, err := h.rollout.Start(c.Request.Context(), actor.ID, request.TargetVersion, request.CandidateKey, request.UpdatePolicy)
+	operation, err := h.rollout.Start(c.Request.Context(), StartRolloutInput{
+		RequestedBy:     actor.ID,
+		TargetVersion:   request.TargetVersion,
+		CandidateKey:    request.CandidateKey,
+		RequestedPolicy: request.UpdatePolicy,
+	})
 	if err != nil {
 		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)
 		return

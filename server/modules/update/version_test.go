@@ -20,20 +20,33 @@ func TestSelectLatestHonorsStableAndBetaChannels(t *testing.T) {
 }
 
 func TestSelectLatestForPolicyUsesTheConfiguredChannel(t *testing.T) {
-	current, _ := ParseVersion("0.9.1")
-	releases := []Release{
-		{Version: "0.9.2-beta.1", Channel: "beta"},
-		{Version: "0.9.2", Channel: "stable"},
-		{Version: "0.10.0-beta.1", Channel: "beta"},
+	testCases := []struct {
+		name     string
+		current  string
+		policy   UpdatePolicy
+		releases []Release
+		want     string
+		wantOK   bool
+	}{
+		{name: "beta selects latest beta", current: "0.9.1", policy: UpdatePolicyBeta, releases: []Release{{Version: "0.9.2-beta.1", Channel: "beta"}, {Version: "0.9.2", Channel: "stable"}, {Version: "0.10.0-beta.1", Channel: "beta"}}, want: "0.10.0-beta.1", wantOK: true},
+		{name: "stable ignores beta", current: "0.9.1", policy: UpdatePolicyStable, releases: []Release{{Version: "0.9.2-beta.1", Channel: "beta"}, {Version: "0.9.2", Channel: "stable"}, {Version: "0.10.0-beta.1", Channel: "beta"}}, want: "0.9.2", wantOK: true},
+		{name: "fixed requires explicit selection", current: "0.9.1", policy: UpdatePolicyFixed, releases: []Release{{Version: "1.0.0", Channel: "stable"}}},
+		{name: "manual blocks selection", current: "0.9.1", policy: UpdatePolicyManual, releases: []Release{{Version: "1.0.0", Channel: "stable"}}},
+		{name: "same and older releases are ignored", current: "1.0.0", policy: UpdatePolicyStable, releases: []Release{{Version: "1.0.0", Channel: "stable"}, {Version: "0.9.9", Channel: "stable"}}},
+		{name: "invalid and mixed channels are filtered", current: "1.0.0", policy: UpdatePolicyStable, releases: []Release{{Version: "invalid", Channel: "stable"}, {Version: "1.1.0-beta.1", Channel: "beta"}, {Version: "1.0.1", Channel: "stable"}}, want: "1.0.1", wantOK: true},
 	}
 
-	selected, ok := SelectLatestForPolicy(current, UpdatePolicyBeta, releases)
-	if !ok || selected.Version != "0.10.0-beta.1" {
-		t.Fatalf("beta policy selected %#v, want latest beta", selected)
-	}
-	selected, ok = SelectLatestForPolicy(current, UpdatePolicyStable, releases)
-	if !ok || selected.Version != "0.9.2" {
-		t.Fatalf("stable policy selected %#v, want latest stable", selected)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			current, err := ParseVersion(testCase.current)
+			if err != nil {
+				t.Fatalf("parse current version: %v", err)
+			}
+			selected, ok := SelectLatestForPolicy(current, testCase.policy, testCase.releases)
+			if ok != testCase.wantOK || selected.Version != testCase.want {
+				t.Fatalf("selected = %#v, ok = %t; want version %q, ok = %t", selected, ok, testCase.want, testCase.wantOK)
+			}
+		})
 	}
 }
 

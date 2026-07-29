@@ -75,10 +75,10 @@
 
       <div class="update-center__content-grid">
         <t-card :title="t('update.center.release.title')" bordered>
-          <template v-if="status.latest">
+          <template v-if="releaseForUpgrade">
             <div class="update-center__release-heading">
               <div>
-                <strong>{{ status.latest.version }}</strong>
+                <strong>{{ releaseForUpgrade.version }}</strong>
                 <p>{{ t('update.center.release.verified') }}</p>
               </div>
               <t-button
@@ -99,23 +99,28 @@
             <div class="update-center__notes graft-scrollbar">
               <markdown-viewer :source="releaseNotes" />
             </div>
-            <t-alert v-if="status.latest.upgrade_notes" theme="info" :message="status.latest.upgrade_notes" />
+            <t-alert v-if="releaseForUpgrade.upgrade_notes" theme="info" :message="releaseForUpgrade.upgrade_notes" />
             <ol v-if="status.installation_profile.manual_steps?.length" class="update-center__manual-steps">
               <li v-for="step in status.installation_profile.manual_steps" :key="step.key">
                 {{ t(`update.center.manualSteps.${step.key}`, step.params ?? {}) }}
               </li>
             </ol>
             <div class="update-center__release-links">
-              <t-link theme="primary" :href="status.latest.manifest_url" target="_blank">
+              <t-link theme="primary" :href="releaseForUpgrade.manifest_url" target="_blank">
                 {{ t('update.center.release.manifest') }}
               </t-link>
-              <t-link v-if="status.latest.notes_url" theme="primary" :href="status.latest.notes_url" target="_blank">
+              <t-link
+                v-if="releaseForUpgrade.notes_url"
+                theme="primary"
+                :href="releaseForUpgrade.notes_url"
+                target="_blank"
+              >
                 {{ t('update.center.release.releaseNotes') }}
               </t-link>
               <t-link
-                v-if="status.latest.checksums_url"
+                v-if="releaseForUpgrade.checksums_url"
                 theme="primary"
-                :href="status.latest.checksums_url"
+                :href="releaseForUpgrade.checksums_url"
                 target="_blank"
               >
                 {{ t('update.center.release.checksums') }}
@@ -370,11 +375,17 @@ const hasSelectedCandidate = computed(
     Boolean(resolvedCandidate.value) ||
     composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
 );
+const effectivePolicy = computed<UpdatePolicy>(() => status.value?.update_policy ?? 'manual');
+const releaseForUpgrade = computed(
+  () => status.value?.latest ?? (effectivePolicy.value === 'fixed' ? status.value?.available_releases?.[0] : undefined),
+);
 const canOpenUpgradeFlow = computed(
   () =>
     isPolicySetupEligible.value &&
     (!status.value?.policy_initialized ||
-      (effectivePolicy.value !== 'manual' && Boolean(status.value.latest?.version))),
+      (effectivePolicy.value === 'fixed'
+        ? Boolean(status.value.available_releases?.length)
+        : effectivePolicy.value !== 'manual' && Boolean(status.value.latest?.version))),
 );
 const isPolicySetupEligible = computed(
   () =>
@@ -390,7 +401,6 @@ const selectedTargetVersion = computed(() => {
   if (selectedPolicy.value === 'fixed') return selectedFixedVersion.value;
   return status.value?.latest?.version ?? '';
 });
-const effectivePolicy = computed<UpdatePolicy>(() => status.value?.update_policy ?? 'manual');
 const fixedReleaseOptions = computed(() =>
   (status.value?.available_releases ?? []).map((release) => ({
     label: `${release.version} (${channelLabel(release.channel)})`,
@@ -412,7 +422,7 @@ const confirmationTitle = computed(() =>
 const confirmationSubmitLabel = computed(() =>
   status.value?.policy_initialized ? t('update.center.confirmation.confirm') : t('update.center.policy.saveAndUpgrade'),
 );
-const releaseNotes = computed(() => status.value?.latest?.notes || t('update.center.release.notesEmpty'));
+const releaseNotes = computed(() => releaseForUpgrade.value?.notes || t('update.center.release.notesEmpty'));
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'capability', title: t('update.center.capabilities.columns.capability'), width: 136 },

@@ -85,35 +85,37 @@ func (s *RolloutService) SetFailureDiagnosticStore(store FailureDiagnosticStore)
 	}
 }
 
+// StartRolloutInput 承载一次 Compose 更新启动的显式请求语义，避免候选 Compose 根与更新策略共享位置参数。
+type StartRolloutInput struct {
+	RequestedBy     uint64
+	TargetVersion   string
+	CandidateKey    string
+	RequestedPolicy string
+}
+
 // Start 只接受当前 catalog 中已验证的候选版本，随后仅启动一次 digest-pinned runner。
 //
 //nolint:cyclop // 版本、候选、镜像和跨模块 handoff 各自对应独立的升级安全门。
-func (s *RolloutService) Start(ctx context.Context, requestedBy uint64, targetVersion string, candidateKeys ...string) (ComposeUpdateOperation, error) {
-	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || requestedBy == 0 {
+func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (ComposeUpdateOperation, error) {
+	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || input.RequestedBy == 0 {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
 	}
-	candidateKey := ""
-	requestedPolicy := ""
-	if len(candidateKeys) > 0 {
-		candidateKey = strings.TrimSpace(candidateKeys[0])
-	}
-	if len(candidateKeys) > 1 {
-		requestedPolicy = strings.TrimSpace(candidateKeys[1])
-	}
-	status, preflight, policy, err := s.confirmedPreflight(targetVersion, candidateKey, requestedPolicy)
+	candidateKey := strings.TrimSpace(input.CandidateKey)
+	requestedPolicy := strings.TrimSpace(input.RequestedPolicy)
+	status, preflight, policy, err := s.confirmedPreflight(input.TargetVersion, candidateKey, requestedPolicy)
 	if err != nil {
 		code := classifyRolloutPreflightFailure(err)
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
-	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: targetVersion, UpdatePolicy: policy, RequestedBy: requestedBy, Outcome: ExecutionOutcomePlanning}
-	handoff := backupHandoff(operation.OperationID, requestedBy, preflight.ComposeRoot)
-	prepared, input, err := s.coordinator.Start(ctx, operation, requestedBy, handoff)
+	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, UpdatePolicy: policy, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
+	handoff := backupHandoff(operation.OperationID, input.RequestedBy, preflight.ComposeRoot)
+	prepared, runnerInput, err := s.coordinator.Start(ctx, operation, input.RequestedBy, handoff)
 	if err != nil {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "handoff", operation.OperationID, err)
 	}
-	prepared.RequestedBy, prepared.Outcome = requestedBy, ExecutionOutcomePulling
-	input.Preflight = preflight
-	if err := s.persistAndLaunch(ctx, prepared, input); err != nil {
+	prepared.RequestedBy, prepared.Outcome = input.RequestedBy, ExecutionOutcomePulling
+	runnerInput.Preflight = preflight
+	if err := s.persistAndLaunch(ctx, prepared, runnerInput); err != nil {
 		return ComposeUpdateOperation{}, err
 	}
 	return prepared, nil
@@ -320,7 +322,7 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 }
 
 func (s *RolloutService) logTerminalFailure(ctx context.Context, operation ComposeUpdateOperation, receipt RunnerReceipt) {
-	if s == nil || s.appLogger == nil || operation.RequestID == "" || (operation.Outcome != ExecutionOutcomeFailed && operation.Outcome != ExecutionOutcomeNeedsAttention) {
+	if s == nil || s.appLogger == nil || (operation.Outcome != ExecutionOutcomeFailed && operation.Outcome != ExecutionOutcomeNeedsAttention) {
 		return
 	}
 	s.appLogger.Named("modules.update.rollout").Error(ctx, runnerFailureDiagnosticSummary,

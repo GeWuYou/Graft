@@ -18,6 +18,7 @@ import (
 	"graft/server/internal/buildinfo"
 	"graft/server/internal/event"
 	"graft/server/internal/httpx"
+	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
 )
 
@@ -109,10 +110,10 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	launcher := &recordingLauncher{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
 	rollout.newOperation = func() string { return "update-77" }
-	if _, err := rollout.Start(t.Context(), 9, "1.0.9"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.0.9"}); err == nil {
 		t.Fatal("expected target version rejection")
 	}
-	operation, err := rollout.Start(t.Context(), 9, "1.1.0")
+	operation, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"})
 	if err != nil {
 		t.Fatalf("start rollout: %v", err)
 	}
@@ -144,7 +145,7 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	operations := &memoryOperationStore{}
 	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{launchErr: errors.New("docker unavailable")})
 	rollout.newOperation = func() string { return "update-78" }
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
 		t.Fatal("expected launcher failure")
 	}
 	if tasks.canceled != 78 || backups.canceled.OperationID != "update-78" || backups.canceled.TaskID != 78 {
@@ -172,6 +173,19 @@ func TestSettlePersistedReceiptShortCircuitsTerminalOperation(t *testing.T) {
 	}
 	if tasks.external.TaskID != 0 || backups.completion.OperationID != "" {
 		t.Fatalf("terminal receipt replay triggered side effects: task=%#v backup=%#v", tasks.external, backups.completion)
+	}
+}
+
+func TestLogTerminalFailureWithoutRequestIDStillWritesAppLog(t *testing.T) {
+	core, observed := observer.New(zap.ErrorLevel)
+	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
+	rollout.SetAppLogger(logger.NewAppLogger(zap.New(core)))
+
+	rollout.logTerminalFailure(t.Context(), ComposeUpdateOperation{OperationID: "update-84", TaskID: 84, TargetVersion: "1.1.0", Outcome: ExecutionOutcomeFailed}, RunnerReceipt{FailureCode: runnerFailureHealthz})
+
+	entries := observed.All()
+	if len(entries) != 1 || entries[0].Message != runnerFailureDiagnosticSummary {
+		t.Fatalf("expected terminal failure app log without request ID, got %#v", entries)
 	}
 }
 
@@ -292,7 +306,7 @@ func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
 	discovery.lastSuccessfulAt = &old
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 99}}
 	rollout := NewRolloutService(discovery, &memoryOperationStore{}, tasks, &stubBackupService{}, &recordingLauncher{})
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
 		t.Fatal("expected stale release catalog to reject rollout")
 	}
 	if tasks.plan.Type != "" {
@@ -313,7 +327,7 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 	discovery.lastSuccessfulAt = &fresh
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 100}}
 	rollout := NewRolloutService(discovery, &memoryOperationStore{}, tasks, &stubBackupService{}, &recordingLauncher{})
-	if _, err := rollout.Start(t.Context(), 9, "1.1.0", "1.1.0"); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
 		t.Fatal("expected minimum source version to reject rollout")
 	}
 	if tasks.plan.Type != "" {
@@ -346,7 +360,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
-	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", UpdatePolicy: UpdatePolicyBeta, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
 	if err := store.Create(t.Context(), created); err != nil {
 		t.Fatalf("create operation: %v", err)
 	}
@@ -358,7 +372,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("get operation: %v", err)
 	}
-	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
+	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.UpdatePolicy != UpdatePolicyBeta || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
 	}
 }

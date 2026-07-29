@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -246,13 +247,16 @@ func replaceRefs(path, server, web string, policy update.UpdatePolicy) error {
 }
 
 func taggedReference(value string) bool {
-	reference := strings.TrimSpace(value)
-	if reference == "" || strings.Contains(reference, "@") {
+	reference := value
+	if reference == "" || strings.TrimSpace(reference) != reference || strings.Contains(reference, "@") || strings.ContainsAny(reference, " \t\r\n") {
 		return false
 	}
 	lastSlash := strings.LastIndex(reference, "/")
 	lastColon := strings.LastIndex(reference, ":")
-	return lastColon > lastSlash && lastColon < len(reference)-1
+	if lastColon <= lastSlash || lastColon >= len(reference)-1 {
+		return false
+	}
+	return reference[lastColon+1:] != "latest"
 }
 
 func verifyImageDigest(ctx context.Context, reference, wantDigest string) error {
@@ -260,16 +264,39 @@ func verifyImageDigest(ctx context.Context, reference, wantDigest string) error 
 		return errors.New("image verification input is invalid")
 	}
 	// #nosec G204 -- 引用来自经 manifest 校验的官方明确镜像标签。
-	command := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", reference)
+	command := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{json .RepoDigests}}", reference)
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
 	contents, err := command.Output()
 	if err != nil {
+		if summary := strings.TrimSpace(stderr.String()); summary != "" {
+			return fmt.Errorf("inspect pulled image: %w: %.256s", err, summary)
+		}
 		return err
 	}
-	actual := strings.TrimSpace(string(contents))
-	if !strings.HasSuffix(actual, "@"+wantDigest) {
-		return fmt.Errorf("pulled image digest %q does not match verified manifest digest", actual)
+	var repoDigests []string
+	if err := json.Unmarshal(contents, &repoDigests); err != nil {
+		return fmt.Errorf("decode pulled image digests: %w", err)
 	}
-	return nil
+	if containsVerifiedRepoDigest(repoDigests, reference, wantDigest) {
+		return nil
+	}
+	repository := reference[:strings.LastIndex(reference, ":")]
+	if summary := strings.TrimSpace(stderr.String()); summary != "" {
+		return fmt.Errorf("pulled image does not include verified digest %q: %.256s", repository+"@"+wantDigest, summary)
+	}
+	return fmt.Errorf("pulled image does not include verified digest %q", repository+"@"+wantDigest)
+}
+
+func containsVerifiedRepoDigest(repoDigests []string, reference, wantDigest string) bool {
+	repository := reference[:strings.LastIndex(reference, ":")]
+	want := repository + "@" + wantDigest
+	for _, actual := range repoDigests {
+		if actual == want {
+			return true
+		}
+	}
+	return false
 }
 
 func immutableDigest(value string) bool {

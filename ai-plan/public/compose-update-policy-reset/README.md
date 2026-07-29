@@ -7,8 +7,8 @@
 - Task class: `cross-boundary`
 - Intake summary: a Beta reliability repair needs coordinated Compose, runner, API, Web, and release-governance changes.
 - Canonical authority: official `compose.yml` / `.env` deployment contract, verified GitHub Release manifests, and the platform-update lifecycle design.
-- Completed so far: Work Contract bootstrap and ADR-007 are created.
-- Not started yet: server/web contract, runner, observability, and UI implementation.
+- Completed so far: Compose authority reset, ADR-007, runner policy and receipt reliability, server/OpenAPI policy and release catalog handling, and Web policy selection and progress rendering.
+- Remaining: cross-boundary validation, PR-review remediation, and archive-readiness review.
 
 ## Recovery Receipt
 
@@ -35,8 +35,8 @@ Out of scope:
 
 ## Current Recovery Point
 
-- First batch is resetting documented Compose authority and establishing the active topic.
-- Next step: align runner write semantics, API contract, and Web policy selection with ADR-007.
+- The policy, runner, server/OpenAPI, and Web implementation batches are complete.
+- Next step: finish cross-boundary validation and archive-readiness review, including verified PR-review remediation.
 
 ## Work Intake
 

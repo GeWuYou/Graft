@@ -88,7 +88,7 @@ func (s *Service) Status() Status {
 		catalog = []Release{*s.latest}
 	}
 	status := Status{CurrentVersion: info.Version, Channel: channel, UpdatePolicy: policy, PolicyInitialized: initialized, AvailableReleases: catalog, Profile: s.profile(), CheckError: s.checkError}
-	if initialized {
+	if initialized && err == nil {
 		if selected, found := SelectLatestForPolicy(current, policy, catalog); found {
 			status.Latest = &selected
 		}

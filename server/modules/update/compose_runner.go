@@ -43,49 +43,49 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID}
 	if err := validateRunnerExecution(input, actions); err != nil {
 		receipt.FailureCode = runnerFailureInvalidInput
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	if err := actions.Backup(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	completion := actions.BackupReceipt()
 	if err := validateBackupReceipt(completion, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	receipt.BackupCompletion = &completion
 	if err := actions.Pull(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailurePull
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	if err := actions.VerifyImages(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureImageVerify
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 
 	// Atlas 是 forward-only：调用 bootstrap 前便跨过自动数据库恢复边界。
 	receipt.MigrationStarted = true
 	if err := actions.BootstrapMigrate(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureMigration
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	if err := actions.Recreate(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureRecreate
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	if err := actions.DockerHealth(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureDockerHealth
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	if err := actions.Healthz(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureHealthz
-		return writeRunnerReceipt(input, receipt, err)
+		return finalizeRunnerReceipt(receipt, err)
 	}
 	receipt.Succeeded = true
-	return writeRunnerReceipt(input, receipt, nil)
+	return finalizeRunnerReceipt(receipt, nil)
 }
 
 func validateBackupReceipt(completion moduleapi.CompleteBackupRunnerHandoffInput, input RunnerInput) error {
@@ -122,7 +122,7 @@ func validateRunnerExecution(input RunnerInput, actions ComposeRunnerActions) er
 	return ValidateRunnerInput(input)
 }
 
-func writeRunnerReceipt(_ RunnerInput, receipt RunnerReceipt, runErr error) (RunnerReceipt, error) {
+func finalizeRunnerReceipt(receipt RunnerReceipt, runErr error) (RunnerReceipt, error) {
 	if runErr != nil {
 		return receipt, fmt.Errorf("compose runner %s: %w", receipt.FailureCode, runErr)
 	}

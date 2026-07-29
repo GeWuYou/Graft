@@ -108,10 +108,39 @@ func TestReplaceRefsRejectsMissingComposeImageReference(t *testing.T) {
 
 func TestReplaceRefsRejectsMutableImageReference(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
-	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:latest\n"), privateFilePermission); err != nil {
+	if err := os.WriteFile(path, []byte("GRAFT_SERVER_IMAGE=ghcr.io/gewuyou/graft-server:latest\nGRAFT_WEB_IMAGE=ghcr.io/gewuyou/graft-web:latest\nGRAFT_UPDATE_POLICY=beta\n"), privateFilePermission); err != nil {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	if err := replaceRefs(path, "ghcr.io/gewuyou/graft-server:latest", "ghcr.io/gewuyou/graft-web:latest", update.UpdatePolicyBeta); err == nil {
 		t.Fatal("expected mutable image references to be rejected")
+	}
+}
+
+func TestTaggedReferenceRejectsMutableOrWhitespaceTag(t *testing.T) {
+	for _, reference := range []string{
+		"ghcr.io/gewuyou/graft-server:latest",
+		"ghcr.io/gewuyou/graft-server:1.2.3 beta.1",
+		"ghcr.io/gewuyou/graft-server:1.2.3\n",
+	} {
+		if taggedReference(reference) {
+			t.Fatalf("mutable or malformed reference accepted: %q", reference)
+		}
+	}
+	if !taggedReference("ghcr.io/gewuyou/graft-server:1.2.3-beta.1") {
+		t.Fatal("explicit version tag rejected")
+	}
+}
+
+func TestContainsVerifiedRepoDigestSearchesEveryRepositoryDigest(t *testing.T) {
+	wantDigest := "sha256:" + strings.Repeat("a", 64)
+	repoDigests := []string{
+		"ghcr.io/gewuyou/graft-server@sha256:" + strings.Repeat("b", 64),
+		"ghcr.io/gewuyou/graft-server@" + wantDigest,
+	}
+	if !containsVerifiedRepoDigest(repoDigests, "ghcr.io/gewuyou/graft-server:1.2.3-beta.1", wantDigest) {
+		t.Fatal("verified digest after the first repository digest was not accepted")
+	}
+	if containsVerifiedRepoDigest(repoDigests, "ghcr.io/gewuyou/graft-web:1.2.3-beta.1", wantDigest) {
+		t.Fatal("server repository digest was accepted for the web reference")
 	}
 }

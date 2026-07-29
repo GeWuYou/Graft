@@ -1,5 +1,5 @@
 type: object
-required: [version, channel, notes, published_at, manifest_url, server_digest, web_digest]
+required: [version, channel, notes, published_at, manifest_url, server_digest, web_digest, server_image, web_image, server_reference, web_reference, runner_image, runner_digest, runner_reference]
 properties:
   version: { type: string }
   channel: { type: string, enum: [stable, beta] }
@@ -11,6 +11,13 @@ properties:
   minimum_source_version: { type: string }
   server_digest: { type: string }
   web_digest: { type: string }
+  server_image: { type: string }
+  web_image: { type: string }
+  server_reference: { type: string }
+  web_reference: { type: string }
+  runner_image: { type: string }
+  runner_digest: { type: string }
+  runner_reference: { type: string }
   checksums_url: { type: string, format: uri }
   asset_sha256:
     type: object

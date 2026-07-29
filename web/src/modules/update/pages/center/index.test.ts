@@ -205,6 +205,41 @@ describe('UpdateCenter', () => {
     });
   });
 
+  it('opens and submits the initialized fixed-policy flow from available releases without latest', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot({
+      ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+      update_policy: 'fixed',
+      latest: undefined,
+      available_releases: [
+        {
+          version: '1.2.0',
+          channel: 'stable',
+          notes: 'Fixed release notes',
+          published_at: '2026-07-25T00:00:00Z',
+          manifest_url: 'https://example.test/fixed-manifest',
+          server_digest: 'server',
+          web_digest: 'web',
+          server_image: 'ghcr.io/example/graft-server',
+          web_image: 'ghcr.io/example/graft-web',
+          server_reference: 'ghcr.io/example/graft-server@sha256:server',
+          web_reference: 'ghcr.io/example/graft-web@sha256:web',
+          runner_image: 'ghcr.io/example/graft-compose-runner',
+          runner_digest: 'runner',
+          runner_reference: 'ghcr.io/example/graft-compose-runner@sha256:runner',
+        },
+      ],
+    } as UpdateStatus);
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    expect(wrapper.find('[data-testid="update-confirmation-dialog"]').exists()).toBe(true);
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(createUpdateOperation).toHaveBeenCalledWith({ target_version: '1.2.0' });
+  });
+
   it('renders a safe failure reason and request ID for a rejected upgrade submission', async () => {
     useUpdateDiscoveryStore().replaceSnapshot(
       status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),

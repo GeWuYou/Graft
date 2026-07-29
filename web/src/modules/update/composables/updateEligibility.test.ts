@@ -17,6 +17,13 @@ const status = (overrides: Partial<UpdateStatus> = {}): UpdateStatus => ({
     manifest_url: 'https://example.com/manifest.json',
     server_digest: 'server-digest',
     web_digest: 'web-digest',
+    server_image: 'ghcr.io/example/graft-server',
+    web_image: 'ghcr.io/example/graft-web',
+    server_reference: 'ghcr.io/example/graft-server@sha256:server-digest',
+    web_reference: 'ghcr.io/example/graft-web@sha256:web-digest',
+    runner_image: 'ghcr.io/example/graft-compose-runner',
+    runner_digest: 'runner-digest',
+    runner_reference: 'ghcr.io/example/graft-compose-runner@sha256:runner-digest',
   },
   installation_profile: {
     declared_mode: 'compose',

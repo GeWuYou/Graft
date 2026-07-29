@@ -4,7 +4,7 @@ Continue the same `topic-completion-loop` after rerunning root startup preflight
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: `parent topic`
+- recovery source: `none`
 - recovery entry: `ai-plan/public/compose-update-policy-reset/README.md`
 - design authority: `ai-plan/design/release/platform-self-update.md`, `ai-plan/design/decisions/ADR-007-compose-update-policy-reset.md`, and `ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
 - required skills: `$graft-multi-agent-loop`, `$graft-validation-runner`
@@ -21,9 +21,8 @@ Locked decisions:
 
 Current batch plan:
 
-1. Complete server/OpenAPI/runner policy and receipt/App Log semantics.
-2. Complete Web policy selection and truthful stage-progress rendering.
-3. Run cross-boundary validation and archive-readiness review.
+1. Complete cross-boundary validation and verified PR-review remediation.
+2. Run archive-readiness review.
 
 Loop instructions:
 

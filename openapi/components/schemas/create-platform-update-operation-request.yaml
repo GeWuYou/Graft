@@ -3,7 +3,7 @@ required: [target_version]
 properties:
   update_policy:
     $ref: ./platform-update-policy.yaml
-    description: Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Ignored after initialization is rejected rather than overriding .env.
+    description: Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Requests containing this field after initialization are rejected and never override .env.
   target_version: { type: string, minLength: 1, maxLength: 128 }
   compose_candidate_key:
     type: string
