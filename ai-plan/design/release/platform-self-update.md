@@ -6,7 +6,7 @@
 
 - 入口为 `Platform -> System Maintenance -> Updates`；左侧 Graft 标识下的当前版本是进入此页的快捷入口。
 - 更新是管理员确认后的受治理操作：自动检查可以启用，自动安装不在当前承诺范围内。
-- `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用版本。官方 Compose 用共享 `GRAFT_IMAGE_TAG` 选择 server 和 web 镜像，初次部署可手工选择 `latest`、`beta` 或固定版本；runner 只能写入从已验证 manifest 得到的明确版本 Tag，并且必须验证 pull 后 digest 与同一 manifest 一致；Tag 不能单独成为升级事实。
+- `server`、`web`、数据库迁移和配置快照必须对应同一目标 release；不得混用版本。官方 Compose 用共享 `GRAFT_IMAGE_TAG` 同时声明 server/web 镜像选择和更新策略：`latest` 跟随 stable、`beta` 跟随 Beta、SemVer tag 固定到一个 stable 或 Beta release。runner 从已验证 manifest 解析明确目标并验证 digest；解析结果是运行时状态，不能改写跟随 tag 或单独成为升级事实。
 - `server/modules/update` 和 `server/modules/backup` 是两个独立模块。Update 消费 Backup capability；Atlas migration 仍由 core CLI 拥有，不创建 migration 业务模块。
 - Backup 是可审计资产，Task 是其生成过程。Backup Detail 负责说明资产覆盖范围、工件大小、完整性摘要、保留状态和恢复证据；关联 Task 只负责展示阶段与执行日志。安全读取面可以公开配置快照和 PostgreSQL 转储的大小、SHA-256 与恢复证据，但绝不公开存储位置、配置或转储内容、执行命令和密钥。
 - `AVAILABLE` 仅表示备份工件已记录且仍在保留期，不表示恢复已验证或承诺可自动回滚。恢复验证必须有受控流程写入的证据；数据库 migration 仍遵循 forward-only 策略。
@@ -48,19 +48,29 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 ## Version And Channel Selection
 
 - 版本遵循 `MAJOR.MINOR.PATCH` 和 `MAJOR.MINOR.PATCH-beta.N`。
-- stable 安装只选择比当前版本新的 stable release，不将 beta 作为候选。
-- beta 安装选择更高的 beta 或其后的 stable release。因此 `0.9.1-beta.1` 可升级到 `0.9.1-beta.2`、`0.10.0-beta.1`，以及后来发布的稳定版本。
+- `latest`（stable tracking）只选择比当前版本新的 stable release，不将 Beta 作为候选。
+- `beta`（Beta tracking）只选择比当前版本新的 Beta release，不将 stable 作为候选。
+- 固定 stable tag 只可选择比当前版本严格更高的 stable release；固定 Beta tag 只可选择比当前版本严格更高的 Beta release。固定版本选择界面不得出现同版本、较低版本或跨频道版本。
+- 频道切换是独立的受治理产品操作，不是普通升级；当前切片不提供或隐式执行频道切换。
 - catalog 条目必须通过 manifest 校验后才可展示为可升级；release notes 只作为展示内容，不能替代 manifest。
 - Update 持久化最近成功验证的 catalog projection，缓存窗口为 24 小时；网络失败必须显示检查失败和缓存陈旧，不能把缓存解释为“已是最新”。
 
-## Compose Update Policy
+## Compose Image Tag Strategy
 
-官方 Compose `.env` 是更新策略与镜像声明的唯一 owner：固定的官方 server/web 仓库通过一个 `GRAFT_IMAGE_TAG` 共同选择镜像版本；模板默认 `latest`，也可手工使用 `beta` 或固定发行版本。模板默认 `GRAFT_UPDATE_POLICY=stable`，其余有效值为 `beta`、`fixed` 或 `manual`。之后服务端每次都重新读取 `.env`，Web 不维护策略副本。
+官方 Compose `.env` 的 `GRAFT_IMAGE_TAG` 是唯一的镜像声明与更新策略 owner：固定的官方 server/web 仓库通过它共同选择镜像版本，模板默认 `latest`。
 
-- `stable` 只选择已验证 stable release；`beta` 只选择已验证 beta channel 允许的 release；`fixed` 仅允许管理员从已验证 catalog 选择具体版本。
-- `manual` 只保存策略，不改写镜像引用、不拉取、不迁移、不重建服务。
-- stable、beta 与 fixed 在实际 runner 执行前均解析到一个 verified manifest；runner 从 server/web 的完整目标引用提取同一明确版本 Tag，写入 `GRAFT_IMAGE_TAG` 后比对 server/web digest，成功才可跨越 migration/recreate 边界。
-- `latest` 与 `beta` 是可变的手工部署 tag，不能替代上述 manifest/digest 验证。`nightly` 没有发布和 manifest 链，明确不支持；不存在替代镜像配置键的兼容路径。
+| `GRAFT_IMAGE_TAG` | Deployment mode | Upgrade candidates |
+| --- | --- | --- |
+| `latest` | stable tracking | strictly newer verified stable releases |
+| `beta` | Beta tracking | strictly newer verified Beta releases |
+| `vX.Y.Z` | fixed stable | strictly newer verified stable releases |
+| `vX.Y.Z-beta.N` | fixed Beta | strictly newer verified Beta releases |
+
+- 服务端只读取注入到 server 容器的 `GRAFT_IMAGE_TAG`，不得读取宿主机 `.env`；Web 不维护第二个可写策略值。
+- 每次升级在 runner 执行前都解析到一个 verified manifest，且该 manifest 的 release、官方 server/web 仓库和 immutable digest 必须一致。解析出的 release tag 与 digest 是运行时状态，不能成为第二份配置。
+- 对 `latest` 或 `beta`，runner 仅以本次运行的 Compose override 使用 manifest-derived explicit target 拉取、迁移、重建并验证 digest；成功后 `.env` 必须仍保留原 tracking tag。对 fixed tag 的管理员确认升级，runner 原子写入新选择的、更高且同频道的 fixed tag。
+- 服务器必须在执行前重新验证严格升序、同频道、官方 Release membership 与 manifest digest；不得依赖前端候选列表阻止降级或跨频道。
+- 切换 `latest`/`beta` 或 tracking/fixed 是独立的受治理操作，不是升级操作；当前范围不支持该切换。`nightly` 没有发布和 manifest 链，明确不支持。不存在 `GRAFT_UPDATE_POLICY` 或替代镜像配置键的兼容、alias、双读或 fallback。
 
 ## Installation Profile And Capability Matrix
 
@@ -102,7 +112,7 @@ InstallationProfile {
 
 ## Compose Execution Boundary
 
-官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标完整镜像引用、预期 manifest digest、host compose root 和受限 Compose 命令。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 后执行备份、原子写 `.env`、`docker compose pull`、验证实际 digest、bootstrap migration、受控 recreate、health check，并将 marker-bounded receipt 写入带 operation/protocol labels 的保留容器日志。server 通过 Docker API 读取、校验并结算 receipt 后才清理 runner。
+官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标完整镜像引用、预期 manifest digest、host compose root 和受限 Compose 命令。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 后执行备份，以 runner-scoped Compose override 使用 manifest-derived explicit target，`docker compose pull`、验证实际 digest、bootstrap migration、受控 recreate、health check，并将 marker-bounded receipt 写入带 operation/protocol labels 的保留容器日志。它不得将已声明的 `latest` 或 `beta` 改写为解析出的 release tag。server 通过 Docker API 读取、校验并结算 receipt 后才清理 runner。
 
 `GRAFT_UPDATE_COMPOSE_ROOT` 非空时必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载；Docker daemon 返回的 Linux host path 是执行权威。为空时，Docker API 发现结果只作为待确认候选，不能由 server 容器路径、WSL 映射路径或前端输入推导和替代。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。详细信任边界由 `ADR-006` 固定。
 

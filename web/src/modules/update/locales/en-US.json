@@ -46,28 +46,30 @@
         "unavailable": "Release status unavailable",
         "unavailableDescription": "Unable to retrieve available releases right now. Try again later."
       },
-      "policy": {
-        "title": "Update policy",
-        "unconfigured": "Not configured",
-        "unconfiguredDescription": "Choose an update policy before the first managed operation for this official Compose deployment.",
-        "setupTitle": "Configure update policy",
-        "setupDescription": "The policy is saved to the official Compose deployment configuration. Choose the policy that matches the intended operating model.",
-        "saveAndUpgrade": "Save and start upgrade",
-        "manualTag": "Manual",
-        "manualSetupMessage": "The manual policy does not change image references or start an automated upgrade.",
-        "manualConfigured": "This deployment uses the manual policy. The platform will not change images or run an automated upgrade.",
+      "strategy": {
+        "title": "Deployment image strategy",
         "fixedReleaseTitle": "Select fixed release",
-        "fixedReleasePlaceholder": "Select a verified release",
+        "fixedReleasePlaceholder": "Select a newer verified release",
         "options": {
-          "stable": { "title": "Stable", "description": "Use verified stable releases only." },
-          "beta": { "title": "Beta", "description": "Use verified Beta releases." },
-          "fixed": {
-            "title": "Fixed release",
-            "description": "Use only the verified release selected for this operation."
+          "stable_tracking": {
+            "title": "Follow Stable",
+            "description": "The deployment follows the latest verified Stable release."
           },
-          "manual": {
-            "title": "Manual",
-            "description": "Keep the manual update process and do not change images automatically."
+          "beta_tracking": {
+            "title": "Follow Beta",
+            "description": "The deployment follows the latest verified Beta release."
+          },
+          "pinned_stable": {
+            "title": "Pinned Stable release",
+            "description": "Choose only a newer verified Stable release when upgrading."
+          },
+          "pinned_beta": {
+            "title": "Pinned Beta release",
+            "description": "Choose only a newer verified Beta release when upgrading."
+          },
+          "unknown": {
+            "title": "Unknown strategy",
+            "description": "The image tag is not a supported update strategy."
           }
         }
       },
@@ -77,11 +79,21 @@
         "detected": "Detected mode",
         "modes": { "compose": "Compose", "binary": "Binary", "unknown": "Undeclared" }
       },
+      "readiness": {
+        "title": "Update readiness",
+        "description": "Every condition must be ready before a managed update can start.",
+        "ready": "Ready",
+        "actionRequired": "Action required",
+        "capability": "Official Compose deployment capability",
+        "candidate": "Detected Compose project candidate",
+        "strategy": "Deployment image strategy",
+        "release": "Newer eligible release",
+        "permission": "Update management permission"
+      },
       "release": {
         "title": "Release notes",
         "verified": "The release manifest and OCI image digests are verified.",
         "upgrade": "Start upgrade",
-        "configurePolicy": "Configure update policy",
         "executionUnavailable": "This installation cannot run a controlled Compose upgrade.",
         "manualOnly": "This installation type provides verified packages and manual guidance only. It will not replace the running binary automatically.",
         "catalogStale": "A fresh verified release catalog is required before a controlled upgrade can start.",
@@ -113,6 +125,10 @@
         "failure": {
           "catalogStale": "The verified release catalog has expired. Check for updates and try again.",
           "executionUnavailable": "This installation does not meet the runtime requirements for a controlled upgrade.",
+          "imageTagUnconfigured": "Set GRAFT_IMAGE_TAG in the deployment .env before starting an update.",
+          "imageTagInvalid": "GRAFT_IMAGE_TAG must be latest, beta, or a verified release tag.",
+          "composeCandidateConfirmationRequired": "Select a discovered Compose project before starting the update.",
+          "noEligibleNewerRelease": "There is no eligible release newer than the running version.",
           "minimumSourceVersion": "The current version does not meet the target release's minimum upgrade requirement.",
           "targetInvalid": "The target release is no longer valid. Refresh the update status and try again.",
           "composeCandidateInvalid": "The selected Compose project directory is no longer valid. Select it again and retry.",

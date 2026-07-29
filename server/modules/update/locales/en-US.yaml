@@ -5,6 +5,10 @@ scheduledTask.platformUpdateCheck.description: Checks the release source for a n
 update.operation.start.invalid_target: The target release is no longer valid. Refresh update information and try again.
 update.operation.start.catalog_stale: The update catalog is stale. Check for updates and try again.
 update.operation.start.installation_unavailable: This installation does not support managed updates.
+update.operation.start.image_tag_unconfigured: Configure GRAFT_IMAGE_TAG in the selected deployment's .env file before starting an update.
+update.operation.start.image_tag_invalid: GRAFT_IMAGE_TAG must be latest, beta, or a pinned official release tag.
+update.operation.start.compose_candidate_confirmation_required: Select a discovered Compose project before starting an update.
+update.operation.start.no_eligible_newer_release: There is no verified release newer than the running version for this update request.
 update.operation.start.source_version_unsupported: The current version does not meet the target release requirements.
 update.operation.start.compose_candidate_invalid: The selected Compose project is no longer valid. Refresh update information and select it again.
 update.operation.start.compose_preflight_failed: The installation did not pass the update preflight. Verify the deployment configuration.

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
+import ResourceDetailContent from './ResourceDetailContent.vue';
+import resourceDetailContentSource from './ResourceDetailContent.vue?raw';
 import ResourceDetailLayout from './ResourceDetailLayout.vue';
 import ResponsiveCardList from './ResponsiveCardList.vue';
 import ResponsiveContent from './ResponsiveContent.vue';
@@ -231,6 +233,55 @@ describe('responsive primitives', () => {
     expect(wrapper.text()).toContain('app-shared-postgres');
     expect(wrapper.find('.resource-detail-content__actions').exists()).toBe(false);
     expect(Object.keys(wrapper.props())).not.toContain('isMobile');
+  });
+
+  it('keeps footer actions outside the independently scrollable detail body', () => {
+    const wrapper = mount(ResourceDetailContent, {
+      props: { backLabel: 'Back', title: 'System settings' },
+      slots: { default: '<p>Configuration values</p>', footer: '<button>Save changes</button>' },
+      global: { stubs: { 't-button': { template: '<button><slot name="icon" /></button>' } } },
+    });
+
+    expect(wrapper.find('.resource-detail-content__scroll .resource-detail-content__footer').exists()).toBe(false);
+    expect(wrapper.find('.resource-detail-content__footer').text()).toContain('Save changes');
+    expect(wrapper.find('.resource-detail-content__scroll').text()).toContain('Configuration values');
+    const footerBlock =
+      resourceDetailContentSource.match(/\.resource-detail-content__footer \{[\s\S]*?\n\}/)?.[0] ?? '';
+    const compactFooterBlock =
+      resourceDetailContentSource.match(
+        /@media \(width < 768px\) \{\s*\.resource-detail-content__footer \{[\s\S]*?\n {2}\}/,
+      )?.[0] ?? '';
+    const compactFooterButtonBlock =
+      resourceDetailContentSource.match(
+        /\.resource-detail-content__footer :deep\(\.t-button\) \{[\s\S]*?\n {2}\}/,
+      )?.[0] ?? '';
+    expect(footerBlock).toContain('flex: 0 0 auto;');
+    expect(compactFooterBlock).toContain('env(safe-area-inset-bottom)');
+    expect(compactFooterButtonBlock).toContain('inline-size: 100%');
+  });
+
+  it('offers embedded content layout without requiring consumer deep selectors', () => {
+    const wrapper = mount(ResourceDetailContent, {
+      props: { backLabel: 'Back', contentLayout: 'embedded', title: 'System settings' },
+      slots: { default: '<p>Configuration values</p>' },
+      global: { stubs: { 't-button': { template: '<button><slot name="icon" /></button>' } } },
+    });
+
+    expect(wrapper.classes()).toContain('resource-detail-content--embedded');
+    expect(resourceDetailContentSource).toContain(
+      '.resource-detail-content--embedded .resource-detail-content__header',
+    );
+  });
+
+  it('forwards the embedded content layout through the page detail surface', () => {
+    const wrapper = mount(ResourceDetailLayout, {
+      attrs: { 'content-layout': 'embedded' },
+      props: { backLabel: 'Back', presentation: 'page', title: 'System settings' },
+      slots: { default: '<p>Configuration values</p>' },
+      global: { stubs: { 't-button': { template: '<button><slot name="icon" /></button>' } } },
+    });
+
+    expect(wrapper.find('.resource-detail-content').classes()).toContain('resource-detail-content--embedded');
   });
 
   it('lets large detail drawers use the available width through comfortable and spacious densities', async () => {

@@ -21,7 +21,7 @@ post:
   tags: [platform-update]
   summary: Confirm and start an official Compose update
   operationId: postPlatformUpdateOperation
-  description: Starts a one-shot digest-pinned runner only for the verified release selected by the deployment-owned policy. A request can supply update_policy only for first-time initialization when the official Compose .env has no policy. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.
+  description: Starts a one-shot digest-pinned runner only for the verified release selected by the mode derived from the injected GRAFT_IMAGE_TAG. Tracking tags remain unchanged after a successful rollout; pinned tags advance only to a newer verified release in the same channel. When Docker discovery is active, the request accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

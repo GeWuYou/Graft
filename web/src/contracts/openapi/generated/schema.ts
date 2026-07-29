@@ -1540,7 +1540,7 @@ export interface paths {
     put?: never;
     /**
      * Confirm and start an official Compose update
-     * @description Starts a one-shot digest-pinned runner only for the verified release selected by the deployment-owned policy. A request can supply update_policy only for first-time initialization when the official Compose .env has no policy. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.
+     * @description Starts a one-shot digest-pinned runner only for the verified release selected by the mode derived from the injected GRAFT_IMAGE_TAG. Tracking tags remain unchanged after a successful rollout; pinned tags advance only to a newer verified release in the same channel. When Docker discovery is active, the request accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths.
      */
     post: operations['postPlatformUpdateOperation'];
     delete?: never;
@@ -3799,7 +3799,7 @@ export interface components {
     EnvelopedSystemConfigItem: components['schemas']['enveloped-system-config-item'];
     EnvelopedSystemConfigListResponse: components['schemas']['enveloped-system-config-list-response'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
-    PlatformUpdatePolicy: components['schemas']['platform-update-policy'];
+    PlatformUpdateMode: components['schemas']['platform-update-mode'];
     PlatformUpdateRelease: components['schemas']['platform-update-release'];
     EnvelopedPlatformUpdateStatus: components['schemas']['enveloped-platform-update-status'];
     PlatformUpdateOperation: components['schemas']['platform-update-operation'];
@@ -6247,10 +6247,10 @@ export interface components {
       value: unknown;
     };
     /**
-     * @description Deployment-owned self-update policy persisted in the official Compose .env file.
+     * @description Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
      * @enum {string}
      */
-    'platform-update-policy': 'stable' | 'beta' | 'fixed' | 'manual';
+    'platform-update-mode': 'stable_tracking' | 'beta_tracking' | 'pinned_stable' | 'pinned_beta' | 'unknown';
     'platform-update-release': {
       version: string;
       /** @enum {string} */
@@ -6296,11 +6296,11 @@ export interface components {
       current_version: string;
       /** @enum {string} */
       channel: 'stable' | 'beta' | 'unknown';
-      update_policy?: components['schemas']['platform-update-policy'];
-      /** @description Whether the official Compose .env declares the deployment-owned update policy. */
-      policy_initialized?: boolean;
+      /** @description The injected GRAFT_IMAGE_TAG deployment strategy source. */
+      image_tag: string;
+      update_mode: components['schemas']['platform-update-mode'];
       latest?: components['schemas']['platform-update-release'];
-      /** @description Verified releases available for fixed-policy selection. Empty for callers without update management permission. */
+      /** @description Verified releases newer than the running version in the deployment's channel. Tracking modes expose their current channel; pinned modes expose fixed-version choices. Empty for callers without update management permission. */
       available_releases?: components['schemas']['platform-update-release'][];
       installation_profile: {
         /** @enum {string} */
@@ -6346,7 +6346,7 @@ export interface components {
       operation_id: string;
       source_version: string;
       target_version: string;
-      update_policy?: components['schemas']['platform-update-policy'];
+      update_mode?: components['schemas']['platform-update-mode'];
       /** Format: int64 */
       task_id: number;
       /** Format: int64 */
@@ -6385,8 +6385,6 @@ export interface components {
       data: components['schemas']['platform-update-operation-list'];
     };
     'create-platform-update-operation-request': {
-      /** @description Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Requests containing this field after initialization are rejected and never override .env. */
-      update_policy?: components['schemas']['platform-update-policy'];
       target_version: string;
       /** @description Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery. */
       compose_candidate_key?: string;
@@ -6405,6 +6403,10 @@ export interface components {
     'platform-update-rollout-failure-code':
       | 'PLATFORM_UPDATE_CATALOG_STALE'
       | 'PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE'
+      | 'PLATFORM_UPDATE_IMAGE_TAG_UNCONFIGURED'
+      | 'PLATFORM_UPDATE_IMAGE_TAG_INVALID'
+      | 'PLATFORM_UPDATE_COMPOSE_CANDIDATE_CONFIRMATION_REQUIRED'
+      | 'PLATFORM_UPDATE_NO_ELIGIBLE_NEWER_RELEASE'
       | 'PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED'
       | 'PLATFORM_UPDATE_INVALID_TARGET'
       | 'PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID'

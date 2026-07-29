@@ -1,4 +1,4 @@
-# Compose Update Policy Reset Startup Prompt
+# Compose Image Tag Strategy Reset Startup Prompt
 
 Continue the same `topic-completion-loop` after rerunning root startup preflight.
 
@@ -15,9 +15,9 @@ Topic objective:
 
 Locked decisions:
 
-1. Deployment `.env` owns explicit image references and `GRAFT_UPDATE_POLICY`.
-2. Only `stable`, `beta`, `fixed`, and `manual` are supported; no `nightly` path exists.
-3. The runner must verify pulled image digests against a verified release manifest before mutation.
+1. Deployment `.env` owns `GRAFT_IMAGE_TAG` as the shared official image tag and sole update strategy: `latest` tracks stable, `beta` tracks Beta, and SemVer tags are fixed releases.
+2. A fixed upgrade can select only a strictly newer verified release in the same channel. Tracking/fixed or channel switching is a separate operation and is out of scope; no `nightly` path exists.
+3. The runner must resolve a verified manifest release and digest at runtime, verify pulled image digests before mutation, and preserve `latest` or `beta` in `.env` after a tracking update.
 
 Current batch plan:
 
@@ -27,5 +27,5 @@ Current batch plan:
 Loop instructions:
 
 - Advance one bounded batch per round and update this topic's tracking and trace materials in the same change.
-- Do not add aliases, dual reads, or compatibility DTOs for removed image configuration keys.
+- Do not add `GRAFT_UPDATE_POLICY`, aliases, dual reads, or compatibility DTOs for removed image configuration keys.
 - Use `Next-session startup prompt:` only in a terminal closeout.

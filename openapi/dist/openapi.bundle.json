@@ -8757,7 +8757,7 @@
         ],
         "summary": "Confirm and start an official Compose update",
         "operationId": "postPlatformUpdateOperation",
-        "description": "Starts a one-shot digest-pinned runner only for the verified release selected by the deployment-owned policy. A request can supply update_policy only for first-time initialization when the official Compose .env has no policy. When Docker discovery is active, it accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths from the request.",
+        "description": "Starts a one-shot digest-pinned runner only for the verified release selected by the mode derived from the injected GRAFT_IMAGE_TAG. Tracking tags remain unchanged after a successful rollout; pinned tags advance only to a newer verified release in the same channel. When Docker discovery is active, the request accepts only an opaque Compose root candidate key; it never accepts commands, image references, or host paths.",
         "security": [
           {
             "bearerAuth": []
@@ -19059,8 +19059,8 @@
       "PlatformUpdateStatus": {
         "$ref": "#/components/schemas/platform-update-status"
       },
-      "PlatformUpdatePolicy": {
-        "$ref": "#/components/schemas/platform-update-policy"
+      "PlatformUpdateMode": {
+        "$ref": "#/components/schemas/platform-update-mode"
       },
       "PlatformUpdateRelease": {
         "$ref": "#/components/schemas/platform-update-release"
@@ -26231,15 +26231,16 @@
           }
         }
       },
-      "platform-update-policy": {
+      "platform-update-mode": {
         "type": "string",
+        "description": "Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.",
         "enum": [
-          "stable",
-          "beta",
-          "fixed",
-          "manual"
-        ],
-        "description": "Deployment-owned self-update policy persisted in the official Compose .env file."
+          "stable_tracking",
+          "beta_tracking",
+          "pinned_stable",
+          "pinned_beta",
+          "unknown"
+        ]
       },
       "platform-update-release": {
         "type": "object",
@@ -26385,6 +26386,8 @@
         "required": [
           "current_version",
           "channel",
+          "image_tag",
+          "update_mode",
           "installation_profile"
         ],
         "properties": {
@@ -26399,19 +26402,19 @@
               "unknown"
             ]
           },
-          "update_policy": {
-            "$ref": "#/components/schemas/platform-update-policy"
+          "image_tag": {
+            "type": "string",
+            "description": "The injected GRAFT_IMAGE_TAG deployment strategy source."
           },
-          "policy_initialized": {
-            "type": "boolean",
-            "description": "Whether the official Compose .env declares the deployment-owned update policy."
+          "update_mode": {
+            "$ref": "#/components/schemas/platform-update-mode"
           },
           "latest": {
             "$ref": "#/components/schemas/platform-update-release"
           },
           "available_releases": {
             "type": "array",
-            "description": "Verified releases available for fixed-policy selection. Empty for callers without update management permission.",
+            "description": "Verified releases newer than the running version in the deployment's channel. Tracking modes expose their current channel; pinned modes expose fixed-version choices. Empty for callers without update management permission.",
             "items": {
               "$ref": "#/components/schemas/platform-update-release"
             }
@@ -26573,8 +26576,8 @@
           "target_version": {
             "type": "string"
           },
-          "update_policy": {
-            "$ref": "#/components/schemas/platform-update-policy"
+          "update_mode": {
+            "$ref": "#/components/schemas/platform-update-mode"
           },
           "task_id": {
             "type": "integer",
@@ -26666,10 +26669,6 @@
           "target_version"
         ],
         "properties": {
-          "update_policy": {
-            "$ref": "#/components/schemas/platform-update-policy",
-            "description": "Required only to initialize an official Compose deployment whose .env does not yet declare a policy. Requests containing this field after initialization are rejected and never override .env."
-          },
           "target_version": {
             "type": "string",
             "minLength": 1,
@@ -26716,6 +26715,10 @@
         "enum": [
           "PLATFORM_UPDATE_CATALOG_STALE",
           "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE",
+          "PLATFORM_UPDATE_IMAGE_TAG_UNCONFIGURED",
+          "PLATFORM_UPDATE_IMAGE_TAG_INVALID",
+          "PLATFORM_UPDATE_COMPOSE_CANDIDATE_CONFIRMATION_REQUIRED",
+          "PLATFORM_UPDATE_NO_ELIGIBLE_NEWER_RELEASE",
           "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED",
           "PLATFORM_UPDATE_INVALID_TARGET",
           "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID",

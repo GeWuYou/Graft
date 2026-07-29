@@ -4,8 +4,8 @@ import type { CreateUpdateOperationRequest, UpdateOperation, UpdateStatus } from
 export const updateCenterPreviewStatus: UpdateStatus = {
   current_version: '0.9.8-beta.2',
   channel: 'beta',
-  update_policy: 'beta',
-  policy_initialized: true,
+  image_tag: 'beta',
+  update_mode: 'beta_tracking',
   available_releases: [
     {
       version: '0.9.8-beta.3',
@@ -105,7 +105,6 @@ export function createUpdateCenterPreviewDataSource(): UpdateCenterDataSource {
       const operation: UpdateOperation = {
         operation_id: `preview-${operations.length + 1}`,
         source_version: updateCenterPreviewStatus.current_version,
-        update_policy: payload.update_policy ?? updateCenterPreviewStatus.update_policy,
         target_version: payload.target_version,
         task_id: operations.length + 1,
         status: 'PLANNING',

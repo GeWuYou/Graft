@@ -8,14 +8,18 @@ import (
 )
 
 const (
-	rolloutFailureInvalidTarget            = "PLATFORM_UPDATE_INVALID_TARGET"
-	rolloutFailureCatalogStale             = "PLATFORM_UPDATE_CATALOG_STALE"
-	rolloutFailureInstallationUnavailable  = "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE"
-	rolloutFailureSourceVersionUnsupported = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
-	rolloutFailureComposeCandidateInvalid  = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID"
-	rolloutFailureComposePreflightFailed   = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
-	rolloutFailureOperationStartFailed     = "PLATFORM_UPDATE_OPERATION_START_FAILED"
-	rolloutFailureRunnerTerminal           = "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
+	rolloutFailureInvalidTarget                 = "PLATFORM_UPDATE_INVALID_TARGET"
+	rolloutFailureCatalogStale                  = "PLATFORM_UPDATE_CATALOG_STALE"
+	rolloutFailureInstallationUnavailable       = "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE"
+	rolloutFailureImageTagUnconfigured          = "PLATFORM_UPDATE_IMAGE_TAG_UNCONFIGURED"
+	rolloutFailureImageTagInvalid               = "PLATFORM_UPDATE_IMAGE_TAG_INVALID"
+	rolloutFailureCandidateConfirmationRequired = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_CONFIRMATION_REQUIRED"
+	rolloutFailureNoEligibleRelease             = "PLATFORM_UPDATE_NO_ELIGIBLE_NEWER_RELEASE"
+	rolloutFailureSourceVersionUnsupported      = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
+	rolloutFailureComposeCandidateInvalid       = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID"
+	rolloutFailureComposePreflightFailed        = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
+	rolloutFailureOperationStartFailed          = "PLATFORM_UPDATE_OPERATION_START_FAILED"
+	rolloutFailureRunnerTerminal                = "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
 )
 
 type rolloutStartFailure struct {
@@ -51,6 +55,7 @@ func rolloutFailureDetails(err error) (code, stage, operationID string) {
 	return rolloutFailureOperationStartFailed, "internal", ""
 }
 
+//nolint:cyclop // 每个稳定失败码都映射到一个明确的本地化键。
 func rolloutFailureMessageKey(code string) string {
 	switch code {
 	case rolloutFailureInvalidTarget:
@@ -59,6 +64,14 @@ func rolloutFailureMessageKey(code string) string {
 		return "update.operation.start.catalog_stale"
 	case rolloutFailureInstallationUnavailable:
 		return "update.operation.start.installation_unavailable"
+	case rolloutFailureImageTagUnconfigured:
+		return "update.operation.start.image_tag_unconfigured"
+	case rolloutFailureImageTagInvalid:
+		return "update.operation.start.image_tag_invalid"
+	case rolloutFailureCandidateConfirmationRequired:
+		return "update.operation.start.compose_candidate_confirmation_required"
+	case rolloutFailureNoEligibleRelease:
+		return "update.operation.start.no_eligible_newer_release"
 	case rolloutFailureSourceVersionUnsupported:
 		return "update.operation.start.source_version_unsupported"
 	case rolloutFailureComposeCandidateInvalid:
@@ -74,7 +87,7 @@ func rolloutFailureHTTPStatus(code string) int {
 	switch code {
 	case rolloutFailureInvalidTarget:
 		return http.StatusBadRequest
-	case rolloutFailureCatalogStale, rolloutFailureInstallationUnavailable, rolloutFailureSourceVersionUnsupported, rolloutFailureComposeCandidateInvalid, rolloutFailureComposePreflightFailed:
+	case rolloutFailureCatalogStale, rolloutFailureInstallationUnavailable, rolloutFailureImageTagUnconfigured, rolloutFailureImageTagInvalid, rolloutFailureCandidateConfirmationRequired, rolloutFailureNoEligibleRelease, rolloutFailureSourceVersionUnsupported, rolloutFailureComposeCandidateInvalid, rolloutFailureComposePreflightFailed:
 		return http.StatusPreconditionFailed
 	default:
 		return http.StatusInternalServerError

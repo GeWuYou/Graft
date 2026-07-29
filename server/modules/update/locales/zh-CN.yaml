@@ -5,6 +5,10 @@ scheduledTask.platformUpdateCheck.description: 检查发布源中是否存在经
 update.operation.start.invalid_target: 目标版本已失效，请刷新更新信息后重试。
 update.operation.start.catalog_stale: 更新目录已过期，请检查更新后重试。
 update.operation.start.installation_unavailable: 当前安装环境不支持受控升级。
+update.operation.start.image_tag_unconfigured: 请先在所选部署的 .env 文件中配置 GRAFT_IMAGE_TAG，再启动升级。
+update.operation.start.image_tag_invalid: GRAFT_IMAGE_TAG 必须是 latest、beta 或固定的官方发行版本标签。
+update.operation.start.compose_candidate_confirmation_required: 请先选择已发现的 Compose 项目目录，再启动升级。
+update.operation.start.no_eligible_newer_release: 当前升级请求没有比正在运行版本更新的已验证发行版本。
 update.operation.start.source_version_unsupported: 当前版本不满足目标版本的升级要求。
 update.operation.start.compose_candidate_invalid: 选择的 Compose 项目已失效，请刷新更新信息后重新选择。
 update.operation.start.compose_preflight_failed: 当前安装环境未通过升级预检，请确认部署配置。

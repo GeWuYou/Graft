@@ -43,7 +43,6 @@ runner_reference="${registry}/graft-compose-runner@${runner_digest}"
 cp "${fixture_dir}/compose.yml" "${workspace}/compose.yml"
 cat > "${workspace}/.env" <<EOF
 GRAFT_IMAGE_TAG=v1.0.0
-GRAFT_UPDATE_POLICY=beta
 COMPOSE_PROJECT_NAME=${project}
 EOF
 docker tag "${registry}/graft-server:v1.1.0" "${registry}/graft-server:v1.0.0"
@@ -65,7 +64,8 @@ cat > "${workspace}/runner-input.json" <<EOF
   "task_id": 1,
   "preflight": {
     "declared_mode": "compose",
-    "update_policy": "beta",
+    "update_mode": "beta_tracking",
+    "image_tag": "beta",
     "detected_mode": "compose",
     "compose_root": "${workspace}",
     "platform": "linux/amd64",

@@ -1,5 +1,5 @@
 <template>
-  <section class="resource-detail-content">
+  <section class="resource-detail-content" :class="`resource-detail-content--${contentLayout}`">
     <header class="resource-detail-content__header">
       <t-button shape="square" variant="text" :aria-label="backLabel" @click="emit('back')">
         <template #icon><chevron-left-icon /></template>
@@ -9,15 +9,17 @@
     </header>
     <div class="resource-detail-content__scroll graft-scrollbar">
       <div class="resource-detail-content__body"><slot /></div>
-      <footer v-if="$slots.footer" class="resource-detail-content__footer"><slot name="footer" /></footer>
     </div>
+    <footer v-if="$slots.footer" class="resource-detail-content__footer"><slot name="footer" /></footer>
   </section>
 </template>
 <script setup lang="ts">
 import { ChevronLeftIcon } from 'tdesign-icons-vue-next';
 
 /** 详情内容骨架统一拥有固定标题栏和独立滚动区域，业务页只组合资源语义内容。 */
-defineProps<{ backLabel: string; title: string }>();
+withDefaults(defineProps<{ backLabel: string; contentLayout?: 'default' | 'embedded'; title: string }>(), {
+  contentLayout: 'default',
+});
 const emit = defineEmits<{ back: [] }>();
 </script>
 <style scoped lang="less">
@@ -69,12 +71,31 @@ const emit = defineEmits<{ back: [] }>();
 .resource-detail-content__footer {
   border-top: 1px solid var(--td-component-stroke);
   display: grid;
+  flex: 0 0 auto;
   gap: var(--graft-density-gap-12);
-  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l)
-    max(var(--td-comp-paddingTB-l), env(safe-area-inset-bottom));
+  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l);
+}
+
+.resource-detail-content--embedded .resource-detail-content__header {
+  display: none;
+}
+
+.resource-detail-content--embedded .resource-detail-content__scroll {
+  block-size: 100%;
+  overflow: hidden;
+}
+
+.resource-detail-content--embedded .resource-detail-content__body {
+  block-size: 100%;
+  display: block;
+  padding: 0;
 }
 
 @media (width < 768px) {
+  .resource-detail-content__footer {
+    padding-bottom: max(var(--td-comp-paddingTB-l), env(safe-area-inset-bottom));
+  }
+
   .resource-detail-content__footer :deep(.t-button) {
     inline-size: 100%;
   }

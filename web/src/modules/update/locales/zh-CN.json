@@ -46,23 +46,16 @@
         "unavailable": "发行状态暂不可用",
         "unavailableDescription": "暂时无法获取可用版本，请稍后重试。"
       },
-      "policy": {
-        "title": "升级策略",
-        "unconfigured": "尚未配置",
-        "unconfiguredDescription": "首次执行前，请选择官方 Compose 部署的升级策略。",
-        "setupTitle": "配置升级策略",
-        "setupDescription": "策略会写入官方 Compose 部署配置。请选择与当前运维方式一致的策略。",
-        "saveAndUpgrade": "保存并开始升级",
-        "manualTag": "人工执行",
-        "manualSetupMessage": "人工策略不会修改镜像引用，也不会启动自动升级。",
-        "manualConfigured": "当前部署使用人工策略，系统不会自动变更镜像或执行升级。",
+      "strategy": {
+        "title": "部署镜像策略",
         "fixedReleaseTitle": "选择固定发行版本",
-        "fixedReleasePlaceholder": "请选择已验证的发行版本",
+        "fixedReleasePlaceholder": "请选择更高的已验证发行版本",
         "options": {
-          "stable": { "title": "稳定版", "description": "仅使用已验证的稳定版发行版本。" },
-          "beta": { "title": "Beta", "description": "使用已验证的 Beta 发行版本。" },
-          "fixed": { "title": "固定版本", "description": "仅使用本次选择的已验证发行版本。" },
-          "manual": { "title": "人工执行", "description": "保留人工更新流程，不自动修改镜像。" }
+          "stable_tracking": { "title": "跟随稳定版", "description": "部署会跟随最新的已验证稳定发行版本。" },
+          "beta_tracking": { "title": "跟随 Beta", "description": "部署会跟随最新的已验证 Beta 发行版本。" },
+          "pinned_stable": { "title": "固定稳定版", "description": "升级时只能选择更高的已验证稳定发行版本。" },
+          "pinned_beta": { "title": "固定 Beta 版本", "description": "升级时只能选择更高的已验证 Beta 发行版本。" },
+          "unknown": { "title": "未知策略", "description": "镜像标签无法识别为受支持的升级策略。" }
         }
       },
       "installation": {
@@ -71,11 +64,21 @@
         "detected": "检测模式",
         "modes": { "compose": "Compose", "binary": "二进制", "unknown": "未声明" }
       },
+      "readiness": {
+        "title": "升级就绪检查",
+        "description": "受控升级开始前，以下所有条件都必须满足。",
+        "ready": "已就绪",
+        "actionRequired": "需要处理",
+        "capability": "官方 Compose 部署能力",
+        "candidate": "已检测的 Compose 项目候选",
+        "strategy": "部署镜像策略",
+        "release": "可升级的新发行版本",
+        "permission": "更新管理权限"
+      },
       "release": {
         "title": "发行说明",
         "verified": "发行清单与 OCI 镜像摘要已验证。",
         "upgrade": "开始升级",
-        "configurePolicy": "配置升级策略",
         "executionUnavailable": "当前安装不满足受控 Compose 升级条件。",
         "manualOnly": "此安装类型仅提供校验包与人工升级指引，不会自动替换正在运行的二进制文件。",
         "catalogStale": "必须先获得新的已验证发行目录，才能开始受控升级。",
@@ -107,6 +110,10 @@
         "failure": {
           "catalogStale": "已验证的发行目录已过期，请重新检查更新后再试。",
           "executionUnavailable": "当前安装不满足受控升级的运行条件。",
+          "imageTagUnconfigured": "请先在部署 .env 中设置 GRAFT_IMAGE_TAG，再启动升级。",
+          "imageTagInvalid": "GRAFT_IMAGE_TAG 必须是 latest、beta 或已验证的发行版本标签。",
+          "composeCandidateConfirmationRequired": "请先选择已发现的 Compose 项目目录，再启动升级。",
+          "noEligibleNewerRelease": "没有比正在运行版本更新的可升级发行版本。",
           "minimumSourceVersion": "当前运行版本不满足目标版本的最低升级要求。",
           "targetInvalid": "目标发行版本已失效，请刷新更新状态后再试。",
           "composeCandidateInvalid": "所选 Compose 项目目录已失效，请重新选择后再试。",

@@ -1,5 +1,11 @@
 <template>
-  <section class="system-config-page" data-page-type="settings">
+  <section
+    ref="pageContainer"
+    class="system-config-page"
+    :class="`system-config-page--${pageVariant.density}`"
+    data-page-type="settings"
+    :data-responsive-density="pageVariant.density"
+  >
     <page-header
       :source="{
         labelKey: 'systemConfig.list.eyebrow',
@@ -41,7 +47,58 @@
           >
             <template #suffixIcon><search-icon /></template>
           </t-input>
+          <t-list
+            v-if="normalizedGroupSearchKeyword && searchResultItems.length"
+            class="system-config-search-results"
+            split
+          >
+            <t-list-item v-for="item in searchResultItems" :key="item.key" class="system-config-search-results__item">
+              <t-button class="system-config-navigation-item" variant="text" @click="selectConfig(item)">
+                <strong>{{ configTitle(item) }}</strong>
+                <small>{{ configSearchResultDescription(item) }}</small>
+              </t-button>
+            </t-list-item>
+          </t-list>
+
+          <t-empty
+            v-else-if="normalizedGroupSearchKeyword"
+            :title="t('systemConfig.list.searchEmpty')"
+            class="system-config-search-empty"
+          >
+            <template #action>
+              <t-button theme="primary" variant="outline" @click="clearGroupSearch">
+                {{ t('systemConfig.list.searchClear') }}
+              </t-button>
+            </template>
+          </t-empty>
+
+          <t-collapse
+            v-else-if="isCompact"
+            :value="expandedDomainKeys"
+            borderless
+            expand-icon-placement="right"
+            @change="handleMobileDomainExpand"
+          >
+            <t-collapse-panel v-for="domain in domains" :key="domain.key" :value="domain.key" :header="domain.label">
+              <section v-for="group in domain.groups" :key="group.key" class="system-config-mobile-group">
+                <div class="system-config-mobile-group__head">
+                  <strong>{{ group.label }}</strong>
+                  <small>{{ t('systemConfig.list.groupConfigCount', { count: group.items.length }) }}</small>
+                </div>
+                <t-list split>
+                  <t-list-item v-for="item in group.items" :key="item.key">
+                    <t-button class="system-config-navigation-item" variant="text" @click="selectConfig(item)">
+                      <strong>{{ configTitle(item) }}</strong>
+                      <small>{{ configDescription(item) }}</small>
+                    </t-button>
+                  </t-list-item>
+                </t-list>
+              </section>
+            </t-collapse-panel>
+          </t-collapse>
+
           <t-tree
+            v-else
             :data="domainTree"
             :actived="activeTreeValue"
             :expanded="expandedDomainKeys"
@@ -63,257 +120,301 @@
           </t-tree>
         </aside>
 
-        <main class="system-config-content system-config-scrollbar graft-scrollbar">
-          <div v-if="activeGroup" class="system-config-content__head">
-            <div>
-              <h2>{{ activeGroup.label }}</h2>
-              <p>{{ activeGroup.description }}</p>
+        <resource-detail-layout
+          v-if="!isCompact || selectedConfigCard"
+          class="system-config-detail"
+          :class="isCompact ? 'system-config-detail--compact' : 'system-config-detail--desktop'"
+          :back-label="t('systemConfig.list.detailBack')"
+          content-layout="embedded"
+          :presentation="isCompact ? 'overlay' : 'page'"
+          size="large"
+          :title="selectedConfigCard?.title ?? ''"
+          :visible="!isCompact || Boolean(selectedConfigCard)"
+          @update:visible="handleDetailVisibility"
+        >
+          <main class="system-config-content system-config-scrollbar graft-scrollbar">
+            <div v-if="activeGroup && !isCompact" class="system-config-content__head">
+              <div>
+                <h2>{{ activeGroup.label }}</h2>
+                <p>{{ activeGroup.description }}</p>
+              </div>
+              <t-space size="small" break-line>
+                <t-tag variant="light">
+                  {{ t('systemConfig.list.groupConfigCount', { count: activeGroup.items.length }) }}
+                </t-tag>
+                <t-tag :theme="activeGroupOverrideCount > 0 ? 'primary' : 'default'" variant="light">
+                  {{ t('systemConfig.list.overrideCount', { count: activeGroupOverrideCount }) }}
+                </t-tag>
+              </t-space>
             </div>
-            <t-space size="small" break-line>
-              <t-tag variant="light">
-                {{ t('systemConfig.list.groupConfigCount', { count: activeGroup.items.length }) }}
-              </t-tag>
-              <t-tag :theme="activeGroupOverrideCount > 0 ? 'primary' : 'default'" variant="light">
-                {{ t('systemConfig.list.overrideCount', { count: activeGroupOverrideCount }) }}
-              </t-tag>
-            </t-space>
-          </div>
 
-          <div v-if="activeConfigCards.length" class="system-config-list">
-            <t-card v-for="card in activeConfigCards" :key="card.key" class="system-config-item" bordered>
-              <div class="system-config-item__main">
-                <div class="system-config-item__title-row">
-                  <div>
-                    <h3>{{ card.title }}</h3>
-                    <p>{{ card.description }}</p>
-                  </div>
-                  <t-space size="small" break-line>
-                    <t-tag :theme="card.effectiveSource.theme" variant="light">
-                      {{ card.effectiveSource.label }}
-                    </t-tag>
-                    <t-tag v-if="card.sensitive" theme="danger" variant="light">
-                      {{ t('systemConfig.list.tags.sensitive') }}
-                    </t-tag>
-                    <t-tag v-if="card.runtimeHot" theme="success" variant="light">
-                      {{ t('systemConfig.list.tags.runtimeHot') }}
-                    </t-tag>
-                    <t-tag v-if="card.restartRequired" theme="primary" variant="light">
-                      {{ t('systemConfig.list.tags.restartRequired') }}
-                    </t-tag>
-                  </t-space>
-                </div>
-
-                <div class="system-config-values">
-                  <section
-                    v-for="valueSection in card.valueSections"
-                    :key="valueSection.key"
-                    class="system-config-value"
-                  >
-                    <header>
-                      <h4>{{ valueSection.title }}</h4>
-                    </header>
-                    <dl class="system-config-value__rows">
-                      <template v-for="row in valueSection.rows" :key="row.key">
-                        <dt>{{ row.label }}</dt>
-                        <dd>
-                          <template v-if="row.displayItems?.length">
-                            <div class="system-config-value__tag-list">
-                              <t-tag
-                                v-for="itemValue in row.displayItems"
-                                :key="`${row.key}-${itemValue}`"
-                                theme="default"
-                                variant="light-outline"
-                              >
-                                {{ itemValue }}
-                              </t-tag>
-                            </div>
-                          </template>
-                          <config-value-renderer
-                            v-else-if="!isWorkspaceTooltipRuleRow(row)"
-                            :value="row.rawValue"
-                            :schema="row.schema"
-                            :unit="row.unit"
-                            :empty-value-label="t('systemConfig.list.emptyValue')"
-                            :boolean-label-resolver="booleanStateLabel"
-                            :schema-description-resolver="schemaDescription"
-                            :option-label-resolver="schemaOptionDisplayLabel"
-                            :option-description-resolver="schemaOptionDescription"
-                          >
-                            <template #description="{ description, mode }">
-                              <t-tooltip
-                                v-if="description && mode === 'tooltip'"
-                                :content="description"
-                                placement="top"
-                                show-arrow
-                              >
-                                <button
-                                  class="system-config-value__info"
-                                  type="button"
-                                  :aria-label="t('systemConfig.list.valueDescription')"
-                                >
-                                  <info-circle-icon />
-                                </button>
-                              </t-tooltip>
-                            </template>
-                          </config-value-renderer>
-                          <workspace-tooltip-rule-collection
-                            v-else
-                            :model-value="row.rawValue"
-                            :labels="ruleCollectionPreviewLabels()"
-                          />
-                        </dd>
-                      </template>
-                    </dl>
-                    <t-collapse
-                      v-if="valueSection.extraRows.length"
-                      borderless
-                      expand-icon-placement="right"
-                      class="system-config-more-fields"
-                    >
-                      <t-collapse-panel
-                        :value="`${valueSection.key}-more`"
-                        :header="t('systemConfig.list.values.moreFields', { count: valueSection.extraRows.length })"
-                      >
-                        <dl class="system-config-value__rows">
-                          <template v-for="row in valueSection.extraRows" :key="row.key">
-                            <dt>{{ row.label }}</dt>
-                            <dd>
-                              <template v-if="row.displayItems?.length">
-                                <div class="system-config-value__tag-list">
-                                  <t-tag
-                                    v-for="itemValue in row.displayItems"
-                                    :key="`${row.key}-${itemValue}`"
-                                    theme="default"
-                                    variant="light-outline"
-                                  >
-                                    {{ itemValue }}
-                                  </t-tag>
-                                </div>
-                              </template>
-                              <config-value-renderer
-                                v-else-if="!isWorkspaceTooltipRuleRow(row)"
-                                :value="row.rawValue"
-                                :schema="row.schema"
-                                :unit="row.unit"
-                                :empty-value-label="t('systemConfig.list.emptyValue')"
-                                :boolean-label-resolver="booleanStateLabel"
-                                :schema-description-resolver="schemaDescription"
-                                :option-label-resolver="schemaOptionDisplayLabel"
-                                :option-description-resolver="schemaOptionDescription"
-                              >
-                                <template #description="{ description, mode }">
-                                  <t-tooltip
-                                    v-if="description && mode === 'tooltip'"
-                                    :content="description"
-                                    placement="top"
-                                    show-arrow
-                                  >
-                                    <button
-                                      class="system-config-value__info"
-                                      type="button"
-                                      :aria-label="t('systemConfig.list.valueDescription')"
-                                    >
-                                      <info-circle-icon />
-                                    </button>
-                                  </t-tooltip>
-                                </template>
-                              </config-value-renderer>
-                              <workspace-tooltip-rule-collection
-                                v-else
-                                :model-value="row.rawValue"
-                                :labels="ruleCollectionPreviewLabels()"
-                              />
-                            </dd>
-                          </template>
-                        </dl>
-                      </t-collapse-panel>
-                    </t-collapse>
-                  </section>
-                </div>
-
-                <div class="system-config-summary">
-                  <section class="system-config-summary__cell">
-                    <span>{{ t('systemConfig.list.lastModified.title') }}</span>
-                    <strong>{{ card.auditLabel }}</strong>
-                  </section>
-                </div>
-
-                <t-collapse borderless expand-icon-placement="right" class="system-config-advanced">
-                  <t-collapse-panel :value="`${card.key}-advanced`" :header="t('systemConfig.list.advanced.title')">
-                    <div class="system-config-advanced__grid">
-                      <section class="system-config-advanced__section">
-                        <div class="system-config-advanced__section-head">
-                          <span>{{ t('systemConfig.list.technicalId') }}</span>
-                          <t-button theme="default" variant="text" size="small" @click="copyConfigKey(card.key)">
-                            <template #icon><copy-icon /></template>
-                            {{ t('systemConfig.list.advanced.copyKey') }}
-                          </t-button>
-                        </div>
-                        <code>{{ card.key }}</code>
-                      </section>
-                      <section v-if="card.advanced.schemaSummary.length" class="system-config-advanced__section">
-                        <span>{{ t('systemConfig.list.advanced.schemaSummary') }}</span>
-                        <ul>
-                          <li v-for="summary in card.advanced.schemaSummary" :key="summary">{{ summary }}</li>
-                        </ul>
-                      </section>
-                      <section v-if="card.advanced.currentJson" class="system-config-advanced__section">
-                        <span>{{ t('systemConfig.list.advanced.currentJson') }}</span>
-                        <pre>{{ card.advanced.currentJson }}</pre>
-                      </section>
-                      <section v-if="card.advanced.defaultJson" class="system-config-advanced__section">
-                        <span>{{ t('systemConfig.list.advanced.defaultJson') }}</span>
-                        <pre>{{ card.advanced.defaultJson }}</pre>
-                      </section>
+            <div v-if="visibleConfigCards.length" class="system-config-list">
+              <t-card
+                v-for="card in visibleConfigCards"
+                :key="card.key"
+                :data-config-key="card.key"
+                class="system-config-item"
+                bordered
+              >
+                <div class="system-config-item__main">
+                  <div class="system-config-item__title-row">
+                    <div>
+                      <h3>{{ card.title }}</h3>
+                      <p>{{ card.description }}</p>
                     </div>
-                  </t-collapse-panel>
-                </t-collapse>
+                    <t-space size="small" break-line>
+                      <t-tag :theme="card.effectiveSource.theme" variant="light">
+                        {{ card.effectiveSource.label }}
+                      </t-tag>
+                      <t-tag v-if="card.sensitive" theme="danger" variant="light">
+                        {{ t('systemConfig.list.tags.sensitive') }}
+                      </t-tag>
+                      <t-tag v-if="card.runtimeHot" theme="success" variant="light">
+                        {{ t('systemConfig.list.tags.runtimeHot') }}
+                      </t-tag>
+                      <t-tag v-if="card.restartRequired" theme="primary" variant="light">
+                        {{ t('systemConfig.list.tags.restartRequired') }}
+                      </t-tag>
+                    </t-space>
+                  </div>
 
-                <div class="system-config-item__actions">
-                  <t-button
-                    v-permission="permissionCodes.WRITE"
-                    theme="primary"
-                    variant="outline"
-                    @click="openEditor(card.item)"
-                  >
-                    <template #icon><edit-icon /></template>
-                    {{ t('systemConfig.list.edit') }}
-                  </t-button>
-                  <t-popconfirm
-                    v-if="card.canReset"
-                    theme="warning"
-                    :content="t('systemConfig.list.resetConfirm')"
-                    :confirm-btn="t('systemConfig.list.reset')"
-                    :cancel-btn="t('systemConfig.list.cancel')"
-                    @confirm="resetConfigOverride(card.item)"
-                  >
+                  <div class="system-config-values">
+                    <section
+                      v-for="valueSection in card.valueSections"
+                      :key="valueSection.key"
+                      class="system-config-value"
+                    >
+                      <header>
+                        <h4>{{ valueSection.title }}</h4>
+                      </header>
+                      <dl class="system-config-value__rows">
+                        <template v-for="row in valueSection.rows" :key="row.key">
+                          <dt>{{ row.label }}</dt>
+                          <dd>
+                            <template v-if="row.displayItems?.length">
+                              <div class="system-config-value__tag-list">
+                                <t-tag
+                                  v-for="itemValue in row.displayItems"
+                                  :key="`${row.key}-${itemValue}`"
+                                  theme="default"
+                                  variant="light-outline"
+                                >
+                                  {{ itemValue }}
+                                </t-tag>
+                              </div>
+                            </template>
+                            <config-value-renderer
+                              v-else-if="!isWorkspaceTooltipRuleRow(row)"
+                              :value="row.rawValue"
+                              :schema="row.schema"
+                              :unit="row.unit"
+                              :empty-value-label="t('systemConfig.list.emptyValue')"
+                              :boolean-label-resolver="booleanStateLabel"
+                              :schema-description-resolver="schemaDescription"
+                              :option-label-resolver="schemaOptionDisplayLabel"
+                              :option-description-resolver="schemaOptionDescription"
+                            >
+                              <template #description="{ description, mode }">
+                                <t-tooltip
+                                  v-if="description && mode === 'tooltip'"
+                                  :content="description"
+                                  placement="top"
+                                  show-arrow
+                                >
+                                  <button
+                                    class="system-config-value__info"
+                                    type="button"
+                                    :aria-label="t('systemConfig.list.valueDescription')"
+                                  >
+                                    <info-circle-icon />
+                                  </button>
+                                </t-tooltip>
+                              </template>
+                            </config-value-renderer>
+                            <workspace-tooltip-rule-collection
+                              v-else
+                              :model-value="row.rawValue"
+                              :labels="ruleCollectionPreviewLabels()"
+                            />
+                          </dd>
+                        </template>
+                      </dl>
+                      <t-collapse
+                        v-if="valueSection.extraRows.length"
+                        borderless
+                        expand-icon-placement="right"
+                        class="system-config-more-fields"
+                      >
+                        <t-collapse-panel
+                          :value="`${valueSection.key}-more`"
+                          :header="t('systemConfig.list.values.moreFields', { count: valueSection.extraRows.length })"
+                        >
+                          <dl class="system-config-value__rows">
+                            <template v-for="row in valueSection.extraRows" :key="row.key">
+                              <dt>{{ row.label }}</dt>
+                              <dd>
+                                <template v-if="row.displayItems?.length">
+                                  <div class="system-config-value__tag-list">
+                                    <t-tag
+                                      v-for="itemValue in row.displayItems"
+                                      :key="`${row.key}-${itemValue}`"
+                                      theme="default"
+                                      variant="light-outline"
+                                    >
+                                      {{ itemValue }}
+                                    </t-tag>
+                                  </div>
+                                </template>
+                                <config-value-renderer
+                                  v-else-if="!isWorkspaceTooltipRuleRow(row)"
+                                  :value="row.rawValue"
+                                  :schema="row.schema"
+                                  :unit="row.unit"
+                                  :empty-value-label="t('systemConfig.list.emptyValue')"
+                                  :boolean-label-resolver="booleanStateLabel"
+                                  :schema-description-resolver="schemaDescription"
+                                  :option-label-resolver="schemaOptionDisplayLabel"
+                                  :option-description-resolver="schemaOptionDescription"
+                                >
+                                  <template #description="{ description, mode }">
+                                    <t-tooltip
+                                      v-if="description && mode === 'tooltip'"
+                                      :content="description"
+                                      placement="top"
+                                      show-arrow
+                                    >
+                                      <button
+                                        class="system-config-value__info"
+                                        type="button"
+                                        :aria-label="t('systemConfig.list.valueDescription')"
+                                      >
+                                        <info-circle-icon />
+                                      </button>
+                                    </t-tooltip>
+                                  </template>
+                                </config-value-renderer>
+                                <workspace-tooltip-rule-collection
+                                  v-else
+                                  :model-value="row.rawValue"
+                                  :labels="ruleCollectionPreviewLabels()"
+                                />
+                              </dd>
+                            </template>
+                          </dl>
+                        </t-collapse-panel>
+                      </t-collapse>
+                    </section>
+                  </div>
+
+                  <div class="system-config-summary">
+                    <section class="system-config-summary__cell">
+                      <span>{{ t('systemConfig.list.lastModified.title') }}</span>
+                      <strong>{{ card.auditLabel }}</strong>
+                    </section>
+                  </div>
+
+                  <t-collapse borderless expand-icon-placement="right" class="system-config-advanced">
+                    <t-collapse-panel :value="`${card.key}-advanced`" :header="t('systemConfig.list.advanced.title')">
+                      <div class="system-config-advanced__grid">
+                        <section class="system-config-advanced__section">
+                          <div class="system-config-advanced__section-head">
+                            <span>{{ t('systemConfig.list.technicalId') }}</span>
+                            <t-button theme="default" variant="text" size="small" @click="copyConfigKey(card.key)">
+                              <template #icon><copy-icon /></template>
+                              {{ t('systemConfig.list.advanced.copyKey') }}
+                            </t-button>
+                          </div>
+                          <code>{{ card.key }}</code>
+                        </section>
+                        <section v-if="card.advanced.schemaSummary.length" class="system-config-advanced__section">
+                          <span>{{ t('systemConfig.list.advanced.schemaSummary') }}</span>
+                          <ul>
+                            <li v-for="summary in card.advanced.schemaSummary" :key="summary">{{ summary }}</li>
+                          </ul>
+                        </section>
+                        <section v-if="card.advanced.currentJson" class="system-config-advanced__section">
+                          <span>{{ t('systemConfig.list.advanced.currentJson') }}</span>
+                          <pre>{{ card.advanced.currentJson }}</pre>
+                        </section>
+                        <section v-if="card.advanced.defaultJson" class="system-config-advanced__section">
+                          <span>{{ t('systemConfig.list.advanced.defaultJson') }}</span>
+                          <pre>{{ card.advanced.defaultJson }}</pre>
+                        </section>
+                      </div>
+                    </t-collapse-panel>
+                  </t-collapse>
+
+                  <div v-if="!isCompact" class="system-config-item__actions">
                     <t-button
                       v-permission="permissionCodes.WRITE"
-                      theme="default"
+                      theme="primary"
                       variant="outline"
-                      :loading="resettingKey === card.key"
+                      @click="openEditor(card.item)"
                     >
-                      <template #icon><rollback-icon /></template>
-                      {{ t('systemConfig.list.reset') }}
+                      <template #icon><edit-icon /></template>
+                      {{ t('systemConfig.list.edit') }}
                     </t-button>
-                  </t-popconfirm>
+                    <t-popconfirm
+                      v-if="card.canReset"
+                      theme="warning"
+                      :content="t('systemConfig.list.resetConfirm')"
+                      :confirm-btn="t('systemConfig.list.reset')"
+                      :cancel-btn="t('systemConfig.list.cancel')"
+                      @confirm="resetConfigOverride(card.item)"
+                    >
+                      <t-button
+                        v-permission="permissionCodes.WRITE"
+                        theme="default"
+                        variant="outline"
+                        :loading="resettingKey === card.key"
+                      >
+                        <template #icon><rollback-icon /></template>
+                        {{ t('systemConfig.list.reset') }}
+                      </t-button>
+                    </t-popconfirm>
+                  </div>
                 </div>
-              </div>
-            </t-card>
-          </div>
+              </t-card>
+            </div>
 
-          <t-empty
-            v-else
-            :title="t('systemConfig.list.emptyTitle')"
-            :description="t('systemConfig.list.emptyDescription')"
-          >
-            <template #action>
-              <t-button theme="primary" variant="outline" @click="refreshConfigs">
-                {{ t('systemConfig.list.refresh') }}
+            <t-empty
+              v-else
+              :title="t('systemConfig.list.emptyTitle')"
+              :description="t('systemConfig.list.emptyDescription')"
+            >
+              <template #action>
+                <t-button theme="primary" variant="outline" @click="refreshConfigs">
+                  {{ t('systemConfig.list.refresh') }}
+                </t-button>
+              </template>
+            </t-empty>
+          </main>
+
+          <template v-if="isCompact && selectedConfigCard" #footer>
+            <t-button v-permission="permissionCodes.WRITE" theme="primary" @click="openEditor(selectedConfigCard.item)">
+              <template #icon><edit-icon /></template>
+              {{ t('systemConfig.list.edit') }}
+            </t-button>
+            <t-popconfirm
+              v-if="selectedConfigCard.canReset"
+              theme="warning"
+              :content="t('systemConfig.list.resetConfirm')"
+              :confirm-btn="t('systemConfig.list.reset')"
+              :cancel-btn="t('systemConfig.list.cancel')"
+              @confirm="resetConfigOverride(selectedConfigCard.item)"
+            >
+              <t-button
+                v-permission="permissionCodes.WRITE"
+                theme="default"
+                variant="outline"
+                :loading="resettingKey === selectedConfigCard.key"
+              >
+                <template #icon><rollback-icon /></template>
+                {{ t('systemConfig.list.reset') }}
               </t-button>
-            </template>
-          </t-empty>
-        </main>
+            </t-popconfirm>
+          </template>
+        </resource-detail-layout>
       </div>
     </t-loading>
 
@@ -390,17 +491,55 @@
         </div>
       </div>
     </t-drawer>
+
+    <resource-detail-layout
+      v-model:visible="editorFullscreenVisible"
+      :back-label="t('systemConfig.list.cancel')"
+      presentation="overlay"
+      size="large"
+      :title="editorTitle"
+      data-testid="config-editor-mobile"
+    >
+      <div v-if="editingItem" class="system-config-editor">
+        <t-alert v-if="editingItem.sensitive" theme="warning" :message="t('systemConfig.list.sensitiveEditHint')" />
+        <t-form :data="editorForm" label-align="top">
+          <config-editor-renderer
+            v-model="editorForm.value"
+            :root-schema="editingSchema"
+            :fallback-type="editingItem.type"
+            :labels="schemaLabels"
+            :title-resolver="schemaFieldTitle"
+            :description-resolver="schemaFieldDescription"
+            :placeholder-resolver="schemaFieldPlaceholder"
+            :unit-resolver="schemaFieldUnit"
+            :option-label-resolver="schemaOptionLabel"
+          />
+        </t-form>
+        <t-collapse borderless expand-icon-placement="right" class="system-config-editor__preview">
+          <t-collapse-panel value="editor-preview" :header="t('systemConfig.list.previewTitle')">
+            <pre>{{ editorPreview }}</pre>
+          </t-collapse-panel>
+        </t-collapse>
+      </div>
+      <template #footer>
+        <t-button theme="primary" :loading="saving" data-testid="editor-mobile-save" @click="saveEditor">
+          {{ t('systemConfig.list.save') }}
+        </t-button>
+      </template>
+    </resource-detail-layout>
   </section>
 </template>
 <script setup lang="ts">
 import { CopyIcon, EditIcon, InfoCircleIcon, RefreshIcon, RollbackIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import type { TreeNodeValue, TreeProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatCompactDateTime, ManagementToolbar } from '@/shared/components/management';
 import { PageHeader } from '@/shared/components/page';
+import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
+import { useResponsiveVariant } from '@/shared/composables';
 import { copyText } from '@/shared/observability';
 import {
   configEditorContainer,
@@ -484,12 +623,15 @@ type ConfigCardVM = {
   canReset: boolean;
 };
 
-type EditorContainer = 'dialog' | 'drawer';
+type EditorContainer = 'dialog' | 'drawer' | 'fullscreen';
 
 const CORE_VALUE_ROW_LIMIT = 3;
 
 const { getLocaleMessage, locale, t, te } = useI18n();
 const permissionCodes = SYSTEM_CONFIG_PERMISSION_CODE;
+const pageContainer = ref<HTMLElement | null>(null);
+const pageVariant = useResponsiveVariant(pageContainer, { layout: 'split', presentation: 'entity' });
+const isCompact = computed(() => pageVariant.value.density === 'compact');
 const systemConfigsQuery = useSystemConfigsQuery();
 const items = computed(() => systemConfigsQuery.data.value?.items ?? []);
 const loading = systemConfigsQuery.isFetching;
@@ -501,6 +643,7 @@ const errorMessage = computed(() =>
     : '',
 );
 const activeGroupKey = ref('');
+const selectedConfigKey = ref('');
 const expandedDomainKeys = ref<TreeNodeValue[]>([]);
 let hasInitializedDomainExpansion = false;
 const groupSearchKeyword = ref('');
@@ -609,6 +752,20 @@ const filteredDomains = computed<ConfigDomain[]>(() => {
     }))
     .filter((domain) => domain.groups.length > 0);
 });
+const searchableConfigItems = computed(() =>
+  items.value.map((item) => ({
+    item,
+    searchText: buildConfigSearchText(item),
+  })),
+);
+const searchResultItems = computed(() => {
+  const keyword = normalizedGroupSearchKeyword.value;
+  if (!keyword) {
+    return [];
+  }
+
+  return searchableConfigItems.value.filter((entry) => entry.searchText.includes(keyword)).map((entry) => entry.item);
+});
 const domainTree = computed<TreeProps['data']>(() =>
   filteredDomains.value.map((domain) => ({
     value: domain.key,
@@ -623,12 +780,19 @@ const domainTree = computed<TreeProps['data']>(() =>
 const activeTreeValue = computed(() => (activeGroupKey.value ? [activeGroupKey.value] : []));
 const activeGroup = computed(() => groupedConfigs.value.find((group) => group.key === activeGroupKey.value) ?? null);
 const activeConfigCards = computed(() => activeGroup.value?.items.map(buildConfigCard) ?? []);
+const selectedConfigCard = computed(() => {
+  const item = items.value.find((candidate) => candidate.key === selectedConfigKey.value);
+  return item ? buildConfigCard(item) : null;
+});
+const visibleConfigCards = computed(() =>
+  isCompact.value ? (selectedConfigCard.value ? [selectedConfigCard.value] : []) : activeConfigCards.value,
+);
 const activeGroupOverrideCount = computed(() => activeGroup.value?.items.filter(hasConfigOverride).length ?? 0);
 const editingSchema = computed(() =>
   editingItem.value ? editorSchemaForItem(editingItem.value) : parseConfigSchema(),
 );
 const editorContainer = computed<EditorContainer>(() =>
-  editingItem.value && shouldUseDrawerEditor(editingItem.value) ? 'drawer' : 'dialog',
+  isCompact.value ? 'fullscreen' : editingItem.value && shouldUseDrawerEditor(editingItem.value) ? 'drawer' : 'dialog',
 );
 const editorDialogVisible = computed({
   get: () => editorVisible.value && editorContainer.value === 'dialog',
@@ -642,6 +806,14 @@ const editorDrawerVisible = computed({
   get: () => editorVisible.value && editorContainer.value === 'drawer',
   set: (visible: boolean) => {
     if (!visible && editorContainer.value === 'drawer') {
+      closeEditor();
+    }
+  },
+});
+const editorFullscreenVisible = computed({
+  get: () => editorVisible.value && editorContainer.value === 'fullscreen',
+  set: (visible: boolean) => {
+    if (!visible && editorContainer.value === 'fullscreen') {
       closeEditor();
     }
   },
@@ -668,6 +840,9 @@ watch(
   () => {
     if (!activeGroupKey.value || !groupedConfigs.value.some((group) => group.key === activeGroupKey.value)) {
       activeGroupKey.value = groupedConfigs.value[0]?.key ?? '';
+    }
+    if (selectedConfigKey.value && !items.value.some((item) => item.key === selectedConfigKey.value)) {
+      selectedConfigKey.value = '';
     }
     if (!hasInitializedDomainExpansion) {
       expandedDomainKeys.value = domains.value.map((domain) => domain.key);
@@ -696,6 +871,39 @@ function handleTreeExpand(value: TreeNodeValue[]) {
   expandedDomainKeys.value = value;
 }
 
+function handleMobileDomainExpand(value: Array<string | number>) {
+  expandedDomainKeys.value = value;
+}
+
+function handleDetailVisibility(visible: boolean) {
+  if (!visible) {
+    selectedConfigKey.value = '';
+  }
+}
+
+function clearGroupSearch() {
+  groupSearchKeyword.value = '';
+}
+
+function selectConfig(item: SystemConfigItem) {
+  const group = groupedConfigs.value.find((candidate) =>
+    candidate.items.some((candidateItem) => candidateItem.key === item.key),
+  );
+  if (group) {
+    activeGroupKey.value = group.key;
+  }
+  selectedConfigKey.value = item.key;
+
+  if (!isCompact.value) {
+    nextTick(() => {
+      const target = [...(pageContainer.value?.querySelectorAll<HTMLElement>('[data-config-key]') ?? [])].find(
+        (element) => element.dataset.configKey === item.key,
+      );
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+
 function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem, previousSearchText = '') {
   return normalizeSearchText(
     [
@@ -713,6 +921,26 @@ function buildGroupSearchText(group: ConfigGroup, item: SystemConfigItem, previo
       item.tags?.join(' '),
     ].join(' '),
   );
+}
+
+function buildConfigSearchText(item: SystemConfigItem) {
+  return normalizeSearchText(
+    [
+      item.key,
+      item.module,
+      item.group,
+      item.domain,
+      configTitle(item),
+      configDescription(item),
+      groupLabel(item),
+      domainLabel(item),
+      item.tags?.join(' '),
+    ].join(' '),
+  );
+}
+
+function configSearchResultDescription(item: SystemConfigItem) {
+  return `${groupLabel(item)} / ${configDescription(item)}`;
 }
 
 function normalizeSearchText(value: string) {
@@ -1251,6 +1479,12 @@ function readableError(error: unknown, fallback: string) {
   overflow: hidden;
 }
 
+.system-config-detail {
+  align-self: stretch;
+  min-height: 0;
+  min-width: 0;
+}
+
 .system-config-groups {
   align-self: stretch;
   background: var(--td-bg-color-container);
@@ -1275,6 +1509,72 @@ function readableError(error: unknown, fallback: string) {
 .system-config-groups :deep(.t-tree) {
   background: transparent;
   min-height: 0;
+}
+
+.system-config-search-results,
+.system-config-mobile-group {
+  min-width: 0;
+}
+
+.system-config-mobile-group {
+  display: grid;
+  gap: var(--graft-density-gap-8);
+}
+
+.system-config-mobile-group + .system-config-mobile-group {
+  margin-top: var(--graft-density-gap-16);
+}
+
+.system-config-mobile-group__head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  justify-content: space-between;
+}
+
+.system-config-mobile-group__head small {
+  color: var(--td-text-color-secondary);
+  flex: 0 0 auto;
+}
+
+.system-config-navigation-item {
+  align-items: flex-start;
+  block-size: auto;
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  justify-content: flex-start;
+  min-width: 0;
+  padding: var(--graft-density-gap-4) 0;
+  text-align: start;
+  white-space: normal;
+  width: 100%;
+}
+
+.system-config-navigation-item :deep(.t-button__text) {
+  display: grid;
+  gap: var(--graft-density-gap-4);
+  justify-items: start;
+  min-width: 0;
+  width: 100%;
+}
+
+.system-config-navigation-item strong,
+.system-config-navigation-item small {
+  text-align: start;
+  white-space: normal;
+}
+
+.system-config-navigation-item strong {
+  color: var(--td-text-color-primary);
+}
+
+.system-config-navigation-item small {
+  color: var(--td-text-color-secondary);
+  overflow-wrap: anywhere;
+}
+
+.system-config-search-empty {
+  margin: auto 0;
 }
 
 .system-config-tree-node {
@@ -1521,42 +1821,44 @@ function readableError(error: unknown, fallback: string) {
   padding-top: var(--graft-density-gap-12);
 }
 
-@media (width <= 900px) {
-  .system-config-page {
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-  }
+.system-config-page--comfortable .system-config-layout {
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+}
 
-  .system-config-workspace,
-  .system-config-workspace :deep(.t-loading__parent) {
-    height: auto;
-    overflow: visible;
-  }
+.system-config-page--compact {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
 
-  .system-config-layout,
-  .system-config-summary,
-  .system-config-values {
-    display: flex;
-    flex-direction: column;
-    overflow: visible;
-  }
+.system-config-page--compact .system-config-workspace,
+.system-config-page--compact .system-config-workspace :deep(.t-loading__parent) {
+  height: auto;
+  overflow: visible;
+}
 
-  .system-config-groups,
-  .system-config-content {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-    width: 100%;
-  }
+.system-config-page--compact .system-config-layout,
+.system-config-page--compact .system-config-summary,
+.system-config-page--compact .system-config-values {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
 
-  .system-config-content__head {
-    position: static;
-  }
+.system-config-page--compact .system-config-groups,
+.system-config-page--compact .system-config-content {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+  width: 100%;
+}
 
-  .system-config-item__actions {
-    flex-flow: row wrap;
-  }
+.system-config-page--compact .system-config-content__head {
+  position: static;
+}
+
+.system-config-page--compact .system-config-item__actions {
+  flex-flow: row wrap;
 }
 </style>

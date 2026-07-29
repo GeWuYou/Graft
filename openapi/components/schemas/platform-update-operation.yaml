@@ -4,7 +4,7 @@ properties:
   operation_id: { type: string }
   source_version: { type: string }
   target_version: { type: string }
-  update_policy: { $ref: ./platform-update-policy.yaml }
+  update_mode: { $ref: ./platform-update-mode.yaml }
   task_id: { type: integer, format: int64 }
   backup_id: { type: integer, format: int64 }
   requested_by: { type: integer, format: int64 }

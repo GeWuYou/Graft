@@ -6,7 +6,7 @@
 version: 1
 kind: bug
 scope: long-running
-authority_summary: official Compose deployment configuration and verified release manifests own update image and policy semantics
+authority_summary: official Compose deployment configuration and verified release manifests own update image and tag-strategy semantics
 requires:
   design: true
   topic: true
@@ -29,19 +29,21 @@ closeout:
 ## Current Recovery Point
 
 - The old repository-plus-digest Compose contract has been replaced without compatibility support.
-- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_IMAGE_TAG` and `GRAFT_UPDATE_POLICY` contract; the remaining batch is cross-boundary validation and archive readiness.
+- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_IMAGE_TAG`-only contract; the remaining batch is cross-boundary validation and archive readiness.
 
 ## Task Checklist
 
 - [x] Work Intake contract, active-topic bootstrap, ADR-007, and Compose configuration reset
-- [x] runner image/policy write, digest verification, and receipt failure preservation
-- [x] server/OpenAPI policy initialization, history, and App Log failure evidence
-- [x] Web policy selection, fixed-release selection, and stage-progress UI
+- [x] runner tag-strategy handling, digest verification, and receipt failure preservation
+- [x] server/OpenAPI tag initialization, history, and App Log failure evidence
+- [x] Web tag-strategy rendering, fixed-release selection, and stage-progress UI
 - [ ] cross-boundary validation and archive-readiness review
 
 ## Acceptance Conditions
 
-- Official Compose uses one shared `GRAFT_IMAGE_TAG` and one explicit policy value with no alternate-key compatibility.
+- Official Compose uses `GRAFT_IMAGE_TAG` as its one shared image tag and update strategy, with no `GRAFT_UPDATE_POLICY` or alternate-key compatibility.
+- `latest` tracks stable, `beta` tracks Beta, and fixed SemVer tags only select strictly newer verified releases in the same channel; server-side validation prevents downgrade and cross-channel upgrades.
+- A tracking update resolves a verified manifest and digest at runtime without replacing `latest` or `beta` in `.env`.
 - Automated upgrades only select verified releases and validate pulled digests before migration/recreation.
 - A terminal update failure leaves both an actionable Update diagnostic and a request-correlated App Log record.
 - Running UI never presents indeterminate progress as `100%`.

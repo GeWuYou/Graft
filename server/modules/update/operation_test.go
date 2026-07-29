@@ -94,7 +94,7 @@ func TestRunnerReceiptDoesNotSerializeBackupStorageReferences(t *testing.T) {
 func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
-	t.Setenv("GRAFT_UPDATE_POLICY", "beta")
+	t.Setenv(imageTagEnv, "beta")
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
 	discovery.profile = func() InstallationProfile {
@@ -128,7 +128,7 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
-	t.Setenv("GRAFT_UPDATE_POLICY", "beta")
+	t.Setenv(imageTagEnv, "beta")
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
 	discovery.profile = func() InstallationProfile {
@@ -273,12 +273,15 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	files := []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides", "web.yml")}
 	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-selected", Root: root, ConfigFiles: files}}}
 
-	preflight, err := composePreflight(profile, release, UpdatePolicyBeta, "compose-selected")
+	preflight, err := composePreflight(profile, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true}, "compose-selected")
 	if err != nil {
 		t.Fatalf("build compose preflight: %v", err)
 	}
 	if !slices.Equal(preflight.ComposeFiles, files) {
 		t.Fatalf("candidate config file sequence was not passed to runner input: got %#v want %#v", preflight.ComposeFiles, files)
+	}
+	if preflight.ServerReference != serverImage+":v"+release.Version || preflight.WebReference != webImage+":v"+release.Version {
+		t.Fatalf("preflight image references = (%q, %q), want canonical v-prefixed release tags", preflight.ServerReference, preflight.WebReference)
 	}
 }
 
@@ -287,7 +290,7 @@ func TestComposePreflightUsesUniqueHighConfidenceCandidateWithoutKey(t *testing.
 	release := Release{Version: "1.1.0-beta.1", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	release.ServerRef, release.WebRef, release.RunnerRef = release.ServerImage+"@"+release.ServerDigest, release.WebImage+"@"+release.WebDigest, release.RunnerImage+"@"+release.RunnerDigest
 	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeRootConfirmationRequired: false, ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-unique", Root: root, ConfigFiles: []string{filepath.Join(root, "compose.yml")}, Confidence: "high"}}}
-	preflight, err := composePreflight(profile, release, UpdatePolicyBeta, "")
+	preflight, err := composePreflight(profile, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true}, "")
 	if err != nil || preflight.ComposeRoot != root {
 		t.Fatalf("expected unique candidate preflight, got %#v, %v", preflight, err)
 	}
@@ -352,7 +355,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, update_policy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, update_mode TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -360,7 +363,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
-	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", UpdatePolicy: UpdatePolicyBeta, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", UpdateMode: UpdateModeBetaTracking, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
 	if err := store.Create(t.Context(), created); err != nil {
 		t.Fatalf("create operation: %v", err)
 	}
@@ -372,7 +375,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("get operation: %v", err)
 	}
-	if loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.UpdatePolicy != UpdatePolicyBeta || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
+	if loaded.UpdateMode != UpdateModeBetaTracking || loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
 	}
 }
