@@ -1,0 +1,19 @@
+type: object
+description: One structured observation used to explain a platform update readiness check.
+required: [code, state, label_key]
+properties:
+  code:
+    type: string
+  state:
+    type: string
+    enum: [passed, failed, unavailable]
+  label_key:
+    type: string
+    description: Module-owned web locale key used to render the evidence label.
+  value:
+    type: string
+  expected:
+    type: string
+  sensitive:
+    type: boolean
+    description: Whether this observation is visible only to platform-update.manage callers.

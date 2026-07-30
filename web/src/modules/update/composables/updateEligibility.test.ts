@@ -35,6 +35,7 @@ const status = (overrides: Partial<UpdateStatus> = {}): UpdateStatus => ({
   },
   cache_stale: false,
   check_error: '',
+  readiness: { overall: 'upgrade_ready', ready_count: 5, total_count: 5, checks: [] },
   ...overrides,
 });
 

@@ -1,0 +1,35 @@
+type: object
+description: A canonical, ordered readiness check produced by the platform update evaluator.
+required: [id, order, state, severity, blocking, title_key, summary_key, evidence, actions]
+properties:
+  id:
+    type: string
+  order:
+    type: integer
+    minimum: 0
+  state:
+    type: string
+    enum: [passed, warning, failed, unavailable]
+  severity:
+    type: string
+    enum: [success, info, warning, critical]
+  blocking:
+    type: boolean
+  title_key:
+    type: string
+  summary_key:
+    type: string
+  detail_key:
+    type: string
+  params:
+    type: object
+    additionalProperties:
+      type: string
+  evidence:
+    type: array
+    items:
+      $ref: ./platform-update-readiness-evidence.yaml
+  actions:
+    type: array
+    items:
+      $ref: ./platform-update-readiness-action.yaml

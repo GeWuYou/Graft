@@ -26,12 +26,32 @@ type Status struct {
 	LastSuccessfulAt  *time.Time          `json:"last_successful_at,omitempty"`
 	CacheStale        bool                `json:"cache_stale"`
 	CheckError        string              `json:"check_error,omitempty"`
+	Readiness         moduleapi.Readiness `json:"readiness"`
 }
 
-// withoutComposeCandidates 为只读调用方移除仅供升级管理员确认的宿主机候选路径。
+// withoutComposeCandidates 为只读调用方移除仅供升级管理员确认的宿主机路径和诊断证据。
 // 它只操作当前响应副本，不能影响本进程后续升级预检使用的 Docker 发现结果。
 func (s Status) withoutComposeCandidates() Status {
 	s.Profile.ComposeCandidates = []ComposeRootCandidate{}
+	s.Profile.BinaryPath = ""
+	s.Profile.WebRoot = ""
+	s.Profile.ManualSteps = []ManualStep{}
+	s.Readiness.Checks = append([]moduleapi.ReadinessCheck(nil), s.Readiness.Checks...)
+	for index := range s.Readiness.Checks {
+		evidence := make([]moduleapi.ReadinessEvidence, 0, len(s.Readiness.Checks[index].Evidence))
+		for _, item := range s.Readiness.Checks[index].Evidence {
+			if !item.Sensitive {
+				evidence = append(evidence, item)
+			}
+		}
+		s.Readiness.Checks[index].Evidence = evidence
+	}
+	return s
+}
+
+// withReadiness 使用调用方已获授权的可见证据重新计算诊断，避免把宿主机路径混入只读响应。
+func (s Status) withReadiness(canManage bool) Status {
+	s.Readiness = EvaluateReadiness(s, canManage)
 	return s
 }
 
@@ -111,7 +131,7 @@ func (s *Service) Status() Status {
 	if status.CheckError != "" {
 		status.CacheStale = true
 	}
-	return status
+	return status.withReadiness(false)
 }
 
 func releasesForStrategy(strategy DeploymentStrategy, releases []Release) []Release {

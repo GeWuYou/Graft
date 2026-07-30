@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"graft/server/internal/buildinfo"
+	"graft/server/internal/moduleapi"
 )
 
 func TestServiceRetainsSuccessfulCatalogWhenNextCheckFails(t *testing.T) {
@@ -29,7 +30,10 @@ func TestServiceRetainsSuccessfulCatalogWhenNextCheckFails(t *testing.T) {
 }
 
 func TestStatusWithoutComposeCandidatesKeepsDiscoverySnapshotIntact(t *testing.T) {
-	status := Status{Profile: InstallationProfile{ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-a", Root: "/srv/graft"}}}}
+	status := Status{
+		Profile:   InstallationProfile{ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-a", Root: "/srv/graft"}}, BinaryPath: "/opt/graft/server", WebRoot: "/srv/graft/web", ManualSteps: []ManualStep{{Key: "deploy"}}},
+		Readiness: moduleapi.Readiness{Checks: []moduleapi.ReadinessCheck{{Evidence: []moduleapi.ReadinessEvidence{{Code: "safe"}, {Code: "host_path", Sensitive: true}}}}},
+	}
 
 	redacted := status.withoutComposeCandidates()
 
@@ -38,6 +42,15 @@ func TestStatusWithoutComposeCandidatesKeepsDiscoverySnapshotIntact(t *testing.T
 	}
 	if len(status.Profile.ComposeCandidates) != 1 || status.Profile.ComposeCandidates[0].Root != "/srv/graft" {
 		t.Fatalf("expected source discovery snapshot to remain intact, got %#v", status.Profile.ComposeCandidates)
+	}
+	if redacted.Profile.BinaryPath != "" || redacted.Profile.WebRoot != "" || len(redacted.Profile.ManualSteps) != 0 {
+		t.Fatalf("expected host paths and manual steps to be redacted, got %#v", redacted.Profile)
+	}
+	if len(redacted.Readiness.Checks) != 1 || len(redacted.Readiness.Checks[0].Evidence) != 1 || redacted.Readiness.Checks[0].Evidence[0].Code != "safe" {
+		t.Fatalf("expected only non-sensitive readiness evidence, got %#v", redacted.Readiness)
+	}
+	if len(status.Readiness.Checks) != 1 || len(status.Readiness.Checks[0].Evidence) != 2 || status.Readiness.Checks[0].Evidence[1].Code != "host_path" {
+		t.Fatalf("expected source readiness snapshot to remain intact, got %#v", status.Readiness)
 	}
 }
 

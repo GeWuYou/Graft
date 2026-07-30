@@ -243,14 +243,14 @@ import {
   formatCompactDateTime,
   ManagementEmptyState,
   ManagementPageContent,
-  ManagementPagedTable,
   ManagementPageHeader,
   ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
-import { useTabPageSnapshot } from '@/shared/composables';
+import { useTabPageSnapshot } from '@/shared/composables/useTabPageSnapshot';
 import { resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { createLogger } from '@/utils/logger';

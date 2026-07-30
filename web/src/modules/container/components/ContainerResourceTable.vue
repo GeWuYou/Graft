@@ -170,7 +170,8 @@ import type { PageInfo, PaginationProps, TableSort, TdBaseTableProps } from 'tde
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ManagementPagedTable, resolveManagedColumns, TableActionMenu } from '@/shared/components/management';
+import { resolveManagedColumns, TableActionMenu } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { formatLocaleDateTime } from '@/shared/observability';
 
 import {

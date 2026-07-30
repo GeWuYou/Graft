@@ -66,7 +66,7 @@
       },
       "readiness": {
         "title": "升级就绪检查",
-        "description": "受控升级开始前，以下所有条件都必须满足。",
+        "description": "查看每项条件，并处理需要关注的问题。",
         "ready": "已就绪",
         "actionRequired": "需要处理",
         "capability": "官方 Compose 部署能力",
@@ -74,6 +74,32 @@
         "strategy": "部署镜像策略",
         "release": "可升级的新发行版本",
         "permission": "更新管理权限"
+      },
+      "overall": {
+        "label": "升级状态",
+        "up_to_date": {
+          "title": "无需升级",
+          "description": "当前运行 {version}。{total} 项检查中已有 {ready} 项就绪。"
+        },
+        "upgrade_ready": {
+          "title": "可以升级",
+          "description": "{total} 项检查中已有 {ready} 项就绪，可以开始受控升级。"
+        },
+        "upgrade_blocked": {
+          "title": "暂不能升级",
+          "description": "{total} 项检查中已有 {ready} 项就绪，请先处理阻断项。"
+        },
+        "status_unknown": {
+          "title": "无法确认升级状态",
+          "description": "平台暂时无法确认就绪状态，请重新检查后再升级。"
+        }
+      },
+      "diagnostics": {
+        "viewDetails": "查看详情",
+        "evidence": "诊断证据",
+        "actions": "建议操作",
+        "expected": "预期：{value}",
+        "notAvailable": "暂不可用"
       },
       "release": {
         "title": "发行说明",
@@ -143,7 +169,10 @@
           "FAILED": "失败",
           "NEEDS_ATTENTION": "需要处理"
         },
-        "loadFailed": "无法加载更新历史。"
+        "loadFailed": "无法加载更新历史。",
+        "retry": "重新加载",
+        "emptyTitle": "暂无升级记录",
+        "emptyDescription": "完成平台升级后将在这里显示。"
       },
       "progress": {
         "title": "正在升级平台",
@@ -181,6 +210,60 @@
         "migrate": "显式执行 graft migrate up。",
         "restartSystemd": "执行 systemctl restart {service_name}，然后验证 /healthz。",
         "restartManual": "按当前人工运行方式重启服务，然后验证 /healthz。"
+      }
+    }
+  },
+  "platformUpdate": {
+    "readiness": {
+      "officialCompose": {
+        "title": "官方 Compose 部署",
+        "passed": "当前实例支持官方升级流程。",
+        "failed": "当前实例不是官方 Compose 部署。",
+        "detail": "受控升级需要官方 Compose 部署目录结构。"
+      },
+      "composeProject": {
+        "title": "Compose 项目",
+        "passed": "已检测到 Compose 项目。",
+        "failed": "未检测到可用的 Compose 项目。",
+        "detail": "升级器需要 Compose 项目来管理正在运行的服务。"
+      },
+      "imageStrategy": {
+        "title": "镜像策略",
+        "passed": "当前部署使用受支持的镜像策略。",
+        "failed": "配置的镜像标签不是受支持的升级策略。",
+        "detail": "请先配置受支持的镜像标签，再执行受控升级。"
+      },
+      "releaseAvailability": {
+        "title": "发行版本",
+        "unavailable": "已验证的发行目录暂不可用。",
+        "upToDate": "当前实例已经是最新版本。",
+        "available": "检测到更高的已验证发行版本。",
+        "detail": "发行信息会根据已验证目录进行检查。"
+      },
+      "updateManagePermission": {
+        "title": "更新权限",
+        "passed": "当前管理员可以管理平台更新。",
+        "failed": "当前管理员不能启动升级。",
+        "detail": "执行受控升级需要平台更新管理权限。"
+      },
+      "evidence": {
+        "declaredDeploymentMode": "声明部署方式",
+        "detectedDeploymentMode": "检测到的部署方式",
+        "composeRootSource": "Compose 项目来源",
+        "composeRoot": "Compose 项目路径",
+        "composeFile": "Compose 文件",
+        "imageTag": "镜像标签",
+        "updateMode": "更新模式",
+        "releaseCatalog": "发行目录",
+        "latestRelease": "最新发行版本",
+        "updateManagePermission": "更新管理权限"
+      },
+      "actions": {
+        "checkUpdates": "检查更新",
+        "startUpgrade": "开始升级",
+        "viewRelease": "查看发行说明",
+        "viewComposeMigration": "查看 Compose 迁移指南",
+        "viewImagePolicy": "查看镜像策略"
       }
     }
   },

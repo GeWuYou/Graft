@@ -75,7 +75,7 @@ cd web
 bun run dev
 ```
 
-See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost. `GRAFT_IMAGE_TAG` is the single image-version setting for the official server and web images; use `latest`, `beta`, or a fixed release tag. Controlled updates only write a verified explicit release tag and still validate the pulled image digests.
+See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost. `GRAFT_IMAGE_TAG` is the single image-version setting for the official server and web images; use `latest`, `beta`, or a fixed release tag. For `latest` and `beta`, the runner uses a manifest-derived release target only for that upgrade and leaves the tracking tag in `.env` unchanged. A fixed-tag upgrade atomically writes a newer verified fixed tag in the same channel and still validates the pulled image digests. Existing instances can follow the [official Compose migration guide](docs/official-compose-migration.md) before enabling controlled upgrades.
 
 ## Screenshots
 
@@ -97,6 +97,7 @@ See the [deployment configuration template](compose.env.example) and [Compose to
 - [Module and dependency injection design](ai-plan/design/architecture/模块与依赖注入设计.md) describes runtime composition.
 - [Frontend architecture](ai-plan/design/architecture/前端架构设计.md) documents the Vue admin shell and module ownership.
 - [OpenAPI contract](openapi/openapi.yaml) is the canonical HTTP API description.
+- [Official Compose migration](docs/official-compose-migration.md) explains the deployment requirements for controlled upgrades.
 - [MVP implementation plan](ai-plan/roadmap/MVP实施计划.md) records the currently approved platform scope.
 
 ## Roadmap

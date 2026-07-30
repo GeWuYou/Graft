@@ -31,6 +31,7 @@
           </div>
           <p>{{ t('update.center.current.description') }}</p>
         </t-card>
+
         <t-card :title="t('update.center.strategy.title')" bordered>
           <div class="update-center__version">
             <strong>{{ updateModeLabel(updateMode) }}</strong>
@@ -38,6 +39,7 @@
           </div>
           <p>{{ updateModeDescription(updateMode) }}</p>
         </t-card>
+
         <t-card :title="t('update.center.latest.title')" bordered>
           <template v-if="status.latest && !status.cache_stale && !status.check_error">
             <div class="update-center__version">
@@ -58,18 +60,59 @@
       </div>
 
       <section class="update-center__readiness" aria-labelledby="update-readiness-title">
-        <div>
-          <h2 id="update-readiness-title">{{ t('update.center.readiness.title') }}</h2>
-          <p>{{ t('update.center.readiness.description') }}</p>
-        </div>
-        <ul>
-          <li v-for="item in readinessItems" :key="item.key">
-            <t-tag size="small" :theme="item.ready ? 'success' : 'warning'" variant="light">
-              {{ item.ready ? t('update.center.readiness.ready') : t('update.center.readiness.actionRequired') }}
+        <div class="update-center__section-heading">
+          <div>
+            <h2 id="update-readiness-title">{{ t('update.center.readiness.title') }}</h2>
+            <p>
+              {{
+                t(`update.center.overall.${readiness.overall}.description`, {
+                  ready: readiness.ready_count,
+                  total: readiness.total_count,
+                  version: status.current_version,
+                })
+              }}
+            </p>
+          </div>
+          <div class="update-center__readiness-actions">
+            <t-tag :theme="overallReadinessTheme" variant="light">
+              {{ t(`update.center.overall.${readiness.overall}.title`) }}
             </t-tag>
-            <span>{{ item.label }}</span>
-          </li>
-        </ul>
+            <t-button
+              v-if="readiness.next_action"
+              size="small"
+              theme="primary"
+              variant="outline"
+              @click="handleDiagnosticAction(readiness.next_action)"
+            >
+              {{ t(readiness.next_action.label_key, readiness.next_action.params ?? {}) }}
+            </t-button>
+          </div>
+        </div>
+
+        <div class="update-center__readiness-grid">
+          <article
+            v-for="item in readinessChecks"
+            :key="item.id"
+            class="update-center__readiness-check"
+            :data-testid="`update-readiness-${item.id}`"
+          >
+            <t-tag size="small" :theme="readinessTheme(item.severity)" variant="light">
+              {{ readinessIcon(item.state) }}
+            </t-tag>
+            <div class="update-center__readiness-content">
+              <strong>{{ t(item.title_key, item.params ?? {}) }}</strong>
+              <p>{{ t(item.summary_key, item.params ?? {}) }}</p>
+              <t-button
+                size="small"
+                variant="text"
+                :data-testid="`update-readiness-detail-${item.id}`"
+                @click="openDiagnostic(item)"
+              >
+                {{ t('update.center.diagnostics.viewDetails') }}
+              </t-button>
+            </div>
+          </article>
+        </div>
       </section>
 
       <div class="update-center__content-grid">
@@ -133,10 +176,10 @@
           <t-collapse borderless>
             <t-collapse-panel :header="t('update.center.advanced.installation')" value="installation">
               <div class="update-center__profile">
-                <span>{{ t('update.center.installation.declared') }}</span
-                ><strong>{{ deploymentModeLabel(status.installation_profile.declared_mode) }}</strong>
-                <span>{{ t('update.center.installation.detected') }}</span
-                ><strong>{{ deploymentModeLabel(status.installation_profile.detected_mode) }}</strong>
+                <span>{{ t('update.center.installation.declared') }}</span>
+                <strong>{{ deploymentModeLabel(status.installation_profile.declared_mode) }}</strong>
+                <span>{{ t('update.center.installation.detected') }}</span>
+                <strong>{{ deploymentModeLabel(status.installation_profile.detected_mode) }}</strong>
               </div>
               <p class="update-center__card-description">{{ status.installation_profile.guidance }}</p>
             </t-collapse-panel>
@@ -159,7 +202,16 @@
       </p>
 
       <t-card :title="t('update.center.history.title')" bordered>
-        <t-alert v-if="historyError" theme="warning" :message="historyError" />
+        <t-alert v-if="historyError" theme="warning" :message="historyError"
+          ><t-button size="small" variant="text" @click="loadHistory">{{
+            t('update.center.history.retry')
+          }}</t-button></t-alert
+        >
+        <management-empty-state
+          v-else-if="!operations.length"
+          :title="t('update.center.history.emptyTitle')"
+          :description="t('update.center.history.emptyDescription')"
+        />
         <t-table v-else :data="operations" row-key="operation_id" :columns="operationColumns" size="small">
           <template #status="{ row }">
             <t-tag size="small" :theme="operationStatusTheme(row.status)" variant="light-outline">
@@ -180,6 +232,12 @@
         </t-table>
       </t-card>
     </template>
+
+    <diagnostic-drawer
+      v-model:visible="diagnosticVisible"
+      :check="selectedDiagnostic"
+      @action="handleDiagnosticAction"
+    />
 
     <t-dialog
       v-model:visible="confirmationVisible"
@@ -279,10 +337,12 @@ import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 import { ManagementEmptyState } from '@/shared/components/management';
 import { MarkdownViewer } from '@/shared/components/markdown';
 import { formatLocaleDateTime } from '@/shared/observability';
+import { copyText } from '@/shared/observability/copy';
 import { usePermissionStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
 
 import { createUpdateOperation, getUpdateFailureDiagnostic, getUpdateOperations } from '../../api/update';
+import DiagnosticDrawer from '../../components/DiagnosticDrawer.vue';
 import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
@@ -293,6 +353,9 @@ import type {
   UpdateFailureDiagnostic,
   UpdateMode,
   UpdateOperation,
+  UpdateReadiness,
+  UpdateReadinessAction,
+  UpdateReadinessCheck,
   UpdateStatus,
 } from '../../types/update';
 
@@ -321,6 +384,8 @@ const operationDiagnostic = ref<UpdateFailureDiagnostic | null>(null);
 const diagnosticUnavailable = ref(false);
 const selectedCandidateKey = ref('');
 const selectedFixedVersion = ref('');
+const diagnosticVisible = ref(false);
+const selectedDiagnostic = ref<UpdateReadinessCheck | null>(null);
 const canCheck = computed(() =>
   props.dataSource ? props.dataSource.permissions.check : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK),
 );
@@ -388,32 +453,14 @@ const confirmationTitle = computed(() =>
 );
 const confirmationSubmitLabel = computed(() => t('update.center.confirmation.confirm'));
 const releaseNotes = computed(() => releaseForUpgrade.value?.notes || t('update.center.release.notesEmpty'));
-const readinessItems = computed(() => {
-  const current = status.value;
-  const profile = current?.installation_profile;
-  return [
-    {
-      key: 'capability',
-      ready: profile?.capability === 'compose_upgrade_available',
-      label: t('update.center.readiness.capability'),
-    },
-    {
-      key: 'candidate',
-      ready: profile?.compose_root_source !== 'docker_discovered' || Boolean(profile.compose_candidates?.length),
-      label: t('update.center.readiness.candidate'),
-    },
-    {
-      key: 'strategy',
-      ready: Boolean(current?.image_tag && current.update_mode !== 'unknown'),
-      label: t('update.center.readiness.strategy'),
-    },
-    {
-      key: 'release',
-      ready: Boolean(current?.latest) || (isFixedStrategy.value && Boolean(fixedReleaseCandidates.value.length)),
-      label: t('update.center.readiness.release'),
-    },
-    { key: 'permission', ready: canManage.value, label: t('update.center.readiness.permission') },
-  ];
+const readiness = computed<UpdateReadiness>(
+  () => status.value?.readiness ?? { overall: 'status_unknown', ready_count: 0, total_count: 0, checks: [] },
+);
+const readinessChecks = computed(() => [...readiness.value.checks].sort((left, right) => left.order - right.order));
+const overallReadinessTheme = computed(() => {
+  if (readiness.value.overall === 'upgrade_ready' || readiness.value.overall === 'up_to_date') return 'success';
+  if (readiness.value.overall === 'upgrade_blocked') return 'warning';
+  return 'primary';
 });
 
 const capabilityColumns = computed<PrimaryTableCol[]>(() => [
@@ -533,6 +580,41 @@ function openConfirmation() {
   diagnosticUnavailable.value = false;
   syncFixedReleaseSelection();
   confirmationVisible.value = true;
+}
+
+function openDiagnostic(check: UpdateReadinessCheck) {
+  selectedDiagnostic.value = check;
+  diagnosticVisible.value = true;
+}
+
+async function handleDiagnosticAction(action: UpdateReadinessAction) {
+  if (action.type === 'recheck' || action.id === 'check_updates') {
+    await refreshStatus();
+    // 刷新替换 readiness 快照后关闭抽屉，避免继续持有旧的诊断对象。
+    selectedDiagnostic.value = null;
+    diagnosticVisible.value = false;
+    return;
+  }
+  if (action.id === 'start_upgrade') {
+    openConfirmation();
+    return;
+  }
+  if (action.type === 'copy' || action.type === 'command') {
+    if (action.target) await copyText(action.target);
+    return;
+  }
+  if (!action.target) return;
+  if (action.type === 'navigate' && action.target.startsWith('/')) {
+    await router.push(action.target);
+    return;
+  }
+  if (action.type === 'documentation' && isSafeDocumentationLink(action.target)) {
+    window.open(action.target, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  if (action.id === 'view_release' && isSafeExternalLink(action.target)) {
+    window.open(action.target, '_blank', 'noopener,noreferrer');
+  }
 }
 
 async function submitUpgrade() {
@@ -697,8 +779,33 @@ function parseReleaseVersion(version: string): [number, number, number, number] 
   return [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4] ?? 0)];
 }
 
+function readinessTheme(severity: UpdateReadinessCheck['severity']) {
+  if (severity === 'critical') return 'danger';
+  if (severity === 'warning') return 'warning';
+  if (severity === 'success') return 'success';
+  return 'primary';
+}
+
+function readinessIcon(state: UpdateReadinessCheck['state']) {
+  if (state === 'passed') return '✓';
+  if (state === 'failed') return '×';
+  return '!';
+}
+
 function deploymentModeLabel(mode: string) {
   return t(`update.center.installation.modes.${mode}`);
+}
+
+function isSafeExternalLink(value: string) {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function isSafeDocumentationLink(value: string) {
+  return value.startsWith('/docs/') || isSafeExternalLink(value);
 }
 
 function formatDate(value: string) {
@@ -755,12 +862,10 @@ function formatDate(value: string) {
 }
 
 .update-center__readiness {
-  align-items: start;
   border-bottom: 1px solid var(--td-component-border);
   border-top: 1px solid var(--td-component-border);
   display: grid;
   gap: var(--td-comp-margin-l);
-  grid-template-columns: minmax(200px, 0.45fr) minmax(0, 1fr);
   padding: var(--td-comp-paddingTB-l) 0;
 }
 
@@ -779,19 +884,55 @@ function formatDate(value: string) {
   margin-top: var(--td-comp-margin-xs);
 }
 
-.update-center__readiness ul {
-  display: grid;
+.update-center__section-heading,
+.update-center__readiness-actions,
+.update-center__readiness-check {
+  align-items: flex-start;
+  display: flex;
+}
+
+.update-center__section-heading {
+  gap: var(--td-comp-margin-l);
+  justify-content: space-between;
+}
+
+.update-center__readiness-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
   gap: var(--td-comp-margin-s);
-  list-style: none;
+  justify-content: flex-end;
+}
+
+.update-center__readiness-grid {
+  display: grid;
+  gap: var(--td-comp-margin-m);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin: 0;
   padding: 0;
 }
 
-.update-center__readiness li {
-  align-items: center;
-  color: var(--td-text-color-primary);
-  display: flex;
+.update-center__readiness-check {
+  border: 1px solid var(--td-component-border);
   gap: var(--td-comp-margin-s);
+  min-width: 0;
+  padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-m);
+}
+
+.update-center__readiness-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.update-center__readiness-check strong {
+  color: var(--td-text-color-primary);
+  display: block;
+}
+
+.update-center__readiness-content .t-button {
+  align-self: flex-end;
+  margin-top: auto;
 }
 
 .update-center__summary-grid {
@@ -966,17 +1107,21 @@ function formatDate(value: string) {
 
 @media (width <= 900px) {
   .update-center__summary-grid,
-  .update-center__content-grid,
-  .update-center__readiness {
+  .update-center__content-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (width <= 640px) {
   .update-center__header,
-  .update-center__release-heading {
+  .update-center__release-heading,
+  .update-center__section-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .update-center__readiness-actions {
+    justify-content: flex-start;
   }
 }
 </style>

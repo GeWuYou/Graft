@@ -698,13 +698,13 @@ import {
 } from '@/contracts/generated/modules/container';
 import {
   ManagementBatchBar,
-  ManagementPagedTable,
   ManagementPageHeader,
   ManagementStatisticsBar,
   ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';

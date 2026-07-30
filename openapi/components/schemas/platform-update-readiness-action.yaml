@@ -1,0 +1,20 @@
+type: object
+description: A server-authorized next step for resolving a platform update readiness check.
+required: [id, type, label_key]
+properties:
+  id:
+    type: string
+    enum: [check_updates, start_upgrade, view_release, view_documentation, navigate, copy]
+  type:
+    type: string
+    enum: [command, documentation, navigate, copy, recheck]
+  label_key:
+    type: string
+    description: Module-owned web locale key used to render the action label.
+  target:
+    type: string
+    description: A validated documentation path, application route, or copyable value. Never contains credentials.
+  params:
+    type: object
+    additionalProperties:
+      type: string

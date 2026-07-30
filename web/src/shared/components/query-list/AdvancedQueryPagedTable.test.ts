@@ -4,7 +4,7 @@ import { defineComponent, h } from 'vue';
 
 import AdvancedQueryPagedTable from './AdvancedQueryPagedTable.vue';
 
-vi.mock('@/shared/components/management', () => {
+vi.mock('@/shared/components/management/ManagementPagedTable.vue', () => {
   const ManagementPagedTable = defineComponent({
     name: 'ManagementPagedTableStub',
     props: ['paginationVisible', 'rows'],
@@ -32,7 +32,7 @@ vi.mock('@/shared/components/management', () => {
     },
   });
 
-  return { ManagementPagedTable };
+  return { default: ManagementPagedTable };
 });
 describe('AdvancedQueryPagedTable', () => {
   it('passes configured cell slots through to ManagementPagedTable', async () => {

@@ -455,12 +455,12 @@ import {
   ManagementBatchBar,
   ManagementEmptyState,
   ManagementPageContent,
-  ManagementPagedTable,
   ManagementPageHeader,
   ManagementStatisticsBar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import {
   AdvancedQueryFilterBuilder,
   type AdvancedQueryFilterFieldDefinition,

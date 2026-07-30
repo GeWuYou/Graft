@@ -1,5 +1,5 @@
-import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, h, nextTick, reactive, watch } from 'vue';
 
 import type { ApplicationWorkspaceFileContentResponse } from '../../types/project';
@@ -60,6 +60,8 @@ const tabsRouterStoreMock = vi.hoisted(() => ({
 const pageContextState = reactive({
   locale: 'en-US',
 });
+
+const mountedWorkspaces: VueWrapper[] = [];
 
 const workspaceCopyMessages = {
   'en-US': {
@@ -581,6 +583,17 @@ async function waitForDiffViewer(
   }
 }
 
+async function waitForWorkspaceEntry(wrapper: ReturnType<typeof mount>, selector: string, attempts = 6) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    await flushPromises();
+    if (wrapper.find(selector).exists()) {
+      return;
+    }
+  }
+
+  throw new Error(`workspace entry did not render: ${selector}`);
+}
+
 const TButtonStub = defineComponent({
   name: 'TButtonStub',
   props: {
@@ -764,6 +777,10 @@ const TTabPanelStub = defineComponent({
 });
 
 describe('ApplicationConfigurationWorkspaceIndex', () => {
+  afterEach(() => {
+    mountedWorkspaces.splice(0).forEach((wrapper) => wrapper.unmount());
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     monacoSurfaceState.diagnosticsResolver = null;
@@ -1554,7 +1571,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushDiffViewerFrames();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-env"]');
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
@@ -1580,7 +1597,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-app-yaml"]');
     await wrapper.get('[data-testid="workspace-entry-config-app-yaml"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('name: [broken\nenabled: true\n');
@@ -1634,7 +1651,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-app-yaml"]');
     await wrapper.get('[data-testid="workspace-entry-config-app-yaml"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('name: [broken\nenabled: true\n');
@@ -1658,7 +1675,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: newer\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-env"]');
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
@@ -1697,7 +1714,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
     await flushPromises();
 
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-env"]');
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
@@ -1732,7 +1749,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushDiffViewerFrames();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-env"]');
     await wrapper.get('[data-testid="workspace-entry-config-env"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('APP_ENV=prod\n');
@@ -1845,7 +1862,7 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
 
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('services:\n  api:\n    image: [broken\n');
     await wrapper.get('[data-testid="workspace-entry-config"]').trigger('click');
-    await flushPromises();
+    await waitForWorkspaceEntry(wrapper, '[data-testid="workspace-entry-config-app-yaml"]');
     await wrapper.get('[data-testid="workspace-entry-config-app-yaml"]').trigger('click');
     await flushPromises();
     await wrapper.get('[data-testid="workspace-monaco-editor"]').setValue('name: [broken\nenabled: true\n');
@@ -1990,8 +2007,8 @@ describe('ApplicationConfigurationWorkspaceIndex', () => {
   });
 });
 
-function mountWorkspace() {
-  return mount(ApplicationConfigurationWorkspaceIndex, {
+function mountWorkspace(): VueWrapper {
+  const wrapper = mount(ApplicationConfigurationWorkspaceIndex, {
     global: {
       stubs: {
         TAlert: createTStub('TAlert'),
@@ -2040,4 +2057,7 @@ function mountWorkspace() {
       },
     },
   });
+
+  mountedWorkspaces.push(wrapper);
+  return wrapper;
 }

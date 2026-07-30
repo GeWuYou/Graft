@@ -75,7 +75,7 @@ cd web
 bun run dev
 ```
 
-部署到非本机环境前，请阅读[部署配置模板](compose.env.example)与 [Compose 拓扑](compose.yml)。`GRAFT_IMAGE_TAG` 是官方 server 与 web 镜像唯一共用的版本配置，可使用 `latest`、`beta` 或固定发行版本。受控更新只会写入已验证的明确发行版 Tag，并仍会校验拉取镜像的 digest。
+部署到非本机环境前，请阅读[部署配置模板](compose.env.example)与 [Compose 拓扑](compose.yml)。`GRAFT_IMAGE_TAG` 是官方 server 与 web 镜像唯一共用的版本配置，可使用 `latest`、`beta` 或固定发行版本。对 `latest` 和 `beta`，runner 只在本次升级中使用由 manifest 推导出的发行目标，`.env` 中的跟随标签保持不变。固定 Tag 升级会以原子方式写入同一频道中较新的已验证固定 Tag，并仍会校验拉取镜像的 digest。已有实例在启用受控升级前可参考[官方 Compose 迁移指南](docs/official-compose-migration.zh-CN.md)。
 
 ## 界面预览
 
@@ -97,6 +97,7 @@ bun run dev
 - [模块与依赖注入设计](ai-plan/design/architecture/模块与依赖注入设计.md)：运行时组合方式。
 - [前端架构](ai-plan/design/architecture/前端架构设计.md)：Vue 管理壳和模块归属。
 - [OpenAPI 契约](openapi/openapi.yaml)：HTTP API 的权威描述。
+- [官方 Compose 迁移指南](docs/official-compose-migration.zh-CN.md)：受控升级需要满足的部署要求。
 - [MVP 实施计划](ai-plan/roadmap/MVP实施计划.md)：当前已批准的平台范围。
 
 ## 路线图

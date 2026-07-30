@@ -10,6 +10,10 @@ export type VerifiedUpdateRelease = NonNullable<UpdateStatus['available_releases
 export type UpdateCapability = UpdateStatus['installation_profile']['capability'];
 export type InstallationProfile = UpdateStatus['installation_profile'];
 export type UpdateRelease = NonNullable<UpdateStatus['latest']>;
+export type UpdateReadiness = NonNullable<UpdateStatus['readiness']>;
+export type UpdateReadinessCheck = UpdateReadiness['checks'][number];
+export type UpdateReadinessAction = NonNullable<UpdateReadiness['next_action']>;
+export type UpdateReadinessEvidence = UpdateReadinessCheck['evidence'][number];
 export type UpdateOperation = UpdateSchemas['platform-update-operation'];
 /** 更新启动失败诊断只由受权限保护的诊断接口返回，不进入通用错误响应。 */
 export type UpdateFailureDiagnostic = UpdateSchemas['platform-update-failure-diagnostic'];

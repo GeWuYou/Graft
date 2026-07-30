@@ -1,0 +1,19 @@
+type: object
+description: Server-owned evaluation of whether the current instance can safely perform a controlled platform update.
+required: [overall, ready_count, total_count, checks]
+properties:
+  overall:
+    type: string
+    enum: [up_to_date, upgrade_ready, upgrade_blocked, status_unknown]
+  ready_count:
+    type: integer
+    minimum: 0
+  total_count:
+    type: integer
+    minimum: 0
+  next_action:
+    $ref: ./platform-update-readiness-action.yaml
+  checks:
+    type: array
+    items:
+      $ref: ./platform-update-readiness-check.yaml

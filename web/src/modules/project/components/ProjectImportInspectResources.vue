@@ -284,10 +284,10 @@ import type { ContainerSummaryRecord } from '@/modules/container/types/container
 import {
   createActionColumn,
   createMainTextColumn,
-  ManagementPagedTable,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 
