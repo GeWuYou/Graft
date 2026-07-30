@@ -6,6 +6,7 @@ import { defineComponent, h } from 'vue';
 import { usePermissionStore } from '@/store';
 
 import { createUpdateOperation, getUpdateFailureDiagnostic } from '../../api/update';
+import DiagnosticDrawer from '../../components/DiagnosticDrawer.vue';
 import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
@@ -46,6 +47,10 @@ vi.mock('@/shared/components/markdown', () => ({
 }));
 
 const passthrough = defineComponent({ template: '<section><slot /></section>' });
+const cardStub = defineComponent({
+  props: { title: { type: String, default: '' } },
+  template: '<section><header>{{ title }}</header><slot /></section>',
+});
 const alertStub = defineComponent({
   props: { message: { type: String, default: '' } },
   template: '<section><slot />{{ message }}</section>',
@@ -105,7 +110,7 @@ function mountCenter(dataSource?: UpdateCenterDataSource) {
           emits: ['click'],
           template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         }),
-        't-card': passthrough,
+        't-card': cardStub,
         't-collapse': passthrough,
         't-collapse-panel': defineComponent({ template: '<section><slot name="header" /><slot /></section>' }),
         't-dialog': dialogStub,
@@ -459,7 +464,7 @@ describe('UpdateCenter', () => {
     expect(wrapper.text()).not.toContain('update.center.history.viewCause');
   });
 
-  it('renders server readiness checks in order and exposes their diagnostic summaries', async () => {
+  it('keeps server readiness checks scannable and opens diagnostics on demand', async () => {
     const source = status([]);
     source.readiness = {
       overall: 'upgrade_blocked',
@@ -506,7 +511,18 @@ describe('UpdateCenter', () => {
     expect(content.indexOf('platformUpdate.readiness.officialCompose.title')).toBeLessThan(
       content.indexOf('platformUpdate.readiness.imageStrategy.title'),
     );
-    expect(content).toContain('platformUpdate.readiness.officialCompose.detail');
+    expect(content).toContain('update.center.current.title');
+    expect(content).toContain('update.center.strategy.title');
+    expect(content).toContain('update.center.latest.title');
     expect(content).toContain('update.center.overall.upgrade_blocked.title');
+    expect(wrapper.get('[data-testid="update-readiness-first"]').text()).not.toContain(
+      'platformUpdate.readiness.officialCompose.detail',
+    );
+
+    await wrapper.get('[data-testid="update-readiness-detail-first"]').trigger('click');
+
+    const diagnosticDrawer = wrapper.getComponent(DiagnosticDrawer);
+    expect(diagnosticDrawer.props('visible')).toBe(true);
+    expect(diagnosticDrawer.props('check')).toMatchObject({ id: 'first' });
   });
 });

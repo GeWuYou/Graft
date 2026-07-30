@@ -23,72 +23,100 @@
     </div>
 
     <template v-else-if="status">
-      <t-card class="update-center__overall" bordered>
-        <div>
-          <p class="update-center__eyebrow">{{ t('update.center.overall.label') }}</p>
-          <h2>{{ t(`update.center.overall.${readiness.overall}.title`) }}</h2>
-          <p>
-            {{
-              t(`update.center.overall.${readiness.overall}.description`, {
-                ready: readiness.ready_count,
-                total: readiness.total_count,
-                version: status.current_version,
-              })
-            }}
-          </p>
-        </div>
-        <div class="update-center__overall-meta">
-          <strong>{{ status.current_version }}</strong>
-          <span>{{ updateModeLabel(updateMode) }}</span>
-          <t-button
-            v-if="readiness.next_action"
-            theme="primary"
-            variant="outline"
-            @click="handleDiagnosticAction(readiness.next_action)"
-          >
-            {{ t(readiness.next_action.label_key, readiness.next_action.params ?? {}) }}
-          </t-button>
-        </div>
-      </t-card>
+      <div class="update-center__summary-grid">
+        <t-card :title="t('update.center.current.title')" bordered>
+          <div class="update-center__version">
+            <strong>{{ status.current_version }}</strong>
+            <t-tag size="small" variant="light">{{ channelLabel(status.channel) }}</t-tag>
+          </div>
+          <p>{{ t('update.center.current.description') }}</p>
+        </t-card>
+
+        <t-card :title="t('update.center.strategy.title')" bordered>
+          <div class="update-center__version">
+            <strong>{{ updateModeLabel(updateMode) }}</strong>
+            <t-tag size="small" variant="light">{{ status.image_tag }}</t-tag>
+          </div>
+          <p>{{ updateModeDescription(updateMode) }}</p>
+        </t-card>
+
+        <t-card :title="t('update.center.latest.title')" bordered>
+          <template v-if="status.latest && !status.cache_stale && !status.check_error">
+            <div class="update-center__version">
+              <strong>{{ status.latest.version }}</strong>
+              <t-tag size="small" theme="success" variant="light">{{ channelLabel(status.latest.channel) }}</t-tag>
+            </div>
+            <p>{{ t('update.center.latest.available', { date: formatDate(status.latest.published_at) }) }}</p>
+          </template>
+          <template v-else-if="status.cache_stale || status.check_error">
+            <strong class="update-center__up-to-date">{{ t('update.center.latest.unavailable') }}</strong>
+            <p>{{ t('update.center.latest.unavailableDescription') }}</p>
+          </template>
+          <template v-else>
+            <strong class="update-center__up-to-date">{{ t('update.center.latest.upToDate') }}</strong>
+            <p>{{ t('update.center.latest.upToDateDescription') }}</p>
+          </template>
+        </t-card>
+      </div>
 
       <section class="update-center__readiness" aria-labelledby="update-readiness-title">
         <div class="update-center__section-heading">
-          <h2 id="update-readiness-title">{{ t('update.center.readiness.title') }}</h2>
-          <p>{{ t('update.center.readiness.description') }}</p>
+          <div>
+            <h2 id="update-readiness-title">{{ t('update.center.readiness.title') }}</h2>
+            <p>
+              {{
+                t(`update.center.overall.${readiness.overall}.description`, {
+                  ready: readiness.ready_count,
+                  total: readiness.total_count,
+                  version: status.current_version,
+                })
+              }}
+            </p>
+          </div>
+          <div class="update-center__readiness-actions">
+            <t-tag :theme="overallReadinessTheme" variant="light">
+              {{ t(`update.center.overall.${readiness.overall}.title`) }}
+            </t-tag>
+            <t-button
+              v-if="readiness.next_action"
+              size="small"
+              theme="primary"
+              variant="outline"
+              @click="handleDiagnosticAction(readiness.next_action)"
+            >
+              {{ t(readiness.next_action.label_key, readiness.next_action.params ?? {}) }}
+            </t-button>
+          </div>
         </div>
-        <t-collapse v-model="expandedReadiness" borderless>
-          <t-collapse-panel v-for="item in readinessChecks" :key="item.id" :value="item.id">
-            <template #header>
-              <div class="update-center__check-header" @click.stop="openDiagnostic(item)">
-                <t-tag size="small" :theme="readinessTheme(item.severity)" variant="light">{{
-                  readinessIcon(item.state)
-                }}</t-tag>
-                <div>
-                  <strong>{{ t(item.title_key, item.params ?? {}) }}</strong>
-                  <p>{{ t(item.summary_key, item.params ?? {}) }}</p>
-                </div>
-              </div>
-            </template>
-            <div class="update-center__check-detail">
-              <p v-if="item.detail_key">{{ t(item.detail_key, item.params ?? {}) }}</p>
+
+        <div class="update-center__readiness-grid">
+          <article
+            v-for="item in readinessChecks"
+            :key="item.id"
+            class="update-center__readiness-check"
+            :data-testid="`update-readiness-${item.id}`"
+          >
+            <t-tag size="small" :theme="readinessTheme(item.severity)" variant="light">
+              {{ readinessIcon(item.state) }}
+            </t-tag>
+            <div class="update-center__readiness-content">
+              <strong>{{ t(item.title_key, item.params ?? {}) }}</strong>
+              <p>{{ t(item.summary_key, item.params ?? {}) }}</p>
               <t-button
-                v-for="action in item.actions"
-                :key="action.id"
                 size="small"
-                variant="outline"
-                @click="handleDiagnosticAction(action)"
-                >{{ t(action.label_key, action.params ?? {}) }}</t-button
+                variant="text"
+                :data-testid="`update-readiness-detail-${item.id}`"
+                @click="openDiagnostic(item)"
               >
-              <t-button size="small" variant="text" @click="openDiagnostic(item)">{{
-                t('update.center.diagnostics.viewDetails')
-              }}</t-button>
+                {{ t('update.center.diagnostics.viewDetails') }}
+              </t-button>
             </div>
-          </t-collapse-panel>
-        </t-collapse>
+          </article>
+        </div>
       </section>
 
       <div class="update-center__content-grid">
-        <t-card v-if="releaseForUpgrade" :title="t('update.center.release.title')" bordered>
+        <t-card :title="t('update.center.release.title')" bordered>
           <template v-if="releaseForUpgrade">
             <div class="update-center__release-heading">
               <div>
@@ -137,8 +165,36 @@
               </t-link>
             </div>
           </template>
+          <management-empty-state
+            v-else
+            :title="t('update.center.release.emptyTitle')"
+            :description="t('update.center.release.emptyDescription')"
+          />
         </t-card>
-        <p v-else class="update-center__release-empty">{{ t('update.center.release.emptyDescription') }}</p>
+
+        <t-card :title="t('update.center.advanced.title')" bordered>
+          <t-collapse borderless>
+            <t-collapse-panel :header="t('update.center.advanced.installation')" value="installation">
+              <div class="update-center__profile">
+                <span>{{ t('update.center.installation.declared') }}</span>
+                <strong>{{ deploymentModeLabel(status.installation_profile.declared_mode) }}</strong>
+                <span>{{ t('update.center.installation.detected') }}</span>
+                <strong>{{ deploymentModeLabel(status.installation_profile.detected_mode) }}</strong>
+              </div>
+              <p class="update-center__card-description">{{ status.installation_profile.guidance }}</p>
+            </t-collapse-panel>
+            <t-collapse-panel :header="t('update.center.capabilities.title')" value="capabilities">
+              <p class="update-center__card-description">{{ t('update.center.capabilities.description') }}</p>
+              <t-table :data="capabilityRows" row-key="key" :columns="capabilityColumns" size="small" />
+              <t-alert
+                v-if="status.installation_profile.detected_mode === 'binary'"
+                class="update-center__binary-guidance"
+                theme="info"
+                :message="t('update.center.binaryGuidance')"
+              />
+            </t-collapse-panel>
+          </t-collapse>
+        </t-card>
       </div>
 
       <p v-if="status.checked_at" class="update-center__checked-at">
@@ -330,7 +386,6 @@ const selectedCandidateKey = ref('');
 const selectedFixedVersion = ref('');
 const diagnosticVisible = ref(false);
 const selectedDiagnostic = ref<UpdateReadinessCheck | null>(null);
-const expandedReadiness = ref<string[]>([]);
 const canCheck = computed(() =>
   props.dataSource ? props.dataSource.permissions.check : permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK),
 );
@@ -402,6 +457,26 @@ const readiness = computed<UpdateReadiness>(
   () => status.value?.readiness ?? { overall: 'status_unknown', ready_count: 0, total_count: 0, checks: [] },
 );
 const readinessChecks = computed(() => [...readiness.value.checks].sort((left, right) => left.order - right.order));
+const overallReadinessTheme = computed(() => {
+  if (readiness.value.overall === 'upgrade_ready' || readiness.value.overall === 'up_to_date') return 'success';
+  if (readiness.value.overall === 'upgrade_blocked') return 'warning';
+  return 'primary';
+});
+
+const capabilityColumns = computed<PrimaryTableCol[]>(() => [
+  { colKey: 'capability', title: t('update.center.capabilities.columns.capability'), width: 136 },
+  { colKey: 'compose', title: t('update.center.capabilities.columns.compose'), width: 104 },
+  { colKey: 'binary', title: t('update.center.capabilities.columns.binary') },
+]);
+
+const capabilityRows = computed(() => [
+  capabilityRow('check', 'supported', 'supported'),
+  capabilityRow('notes', 'supported', 'supported'),
+  capabilityRow('verify', 'supported', 'supported'),
+  capabilityRow('upgrade', 'supported', 'manual'),
+  capabilityRow('backup', 'supported', 'manual'),
+  capabilityRow('migration', 'supported', 'manual'),
+]);
 
 const operationColumns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'target_version', title: t('update.center.history.target'), width: 140 },
@@ -444,16 +519,6 @@ watch(
     if (upgradeRequested === '1' && eligible && !confirmationVisible.value) {
       openConfirmation();
     }
-  },
-  { immediate: true },
-);
-
-watch(
-  readinessChecks,
-  (checks) => {
-    expandedReadiness.value = checks
-      .filter((check) => check.state === 'failed' || check.state === 'warning')
-      .map((check) => check.id);
   },
   { immediate: true },
 );
@@ -659,12 +724,25 @@ function resolveOperationErrorMessage(error: unknown) {
     : t('update.center.confirmation.failure.generic');
 }
 
+function capabilityRow(key: string, compose: string, binary: string) {
+  return {
+    key,
+    capability: t(`update.center.capabilities.rows.${key}`),
+    compose: t(`update.center.capabilities.states.${compose}`),
+    binary: t(`update.center.capabilities.states.${binary}`),
+  };
+}
+
 function channelLabel(channel: UpdateChannel) {
   return t(`update.center.channels.${channel}`);
 }
 
 function updateModeLabel(mode: UpdateMode) {
   return t(`update.center.strategy.options.${mode}.title`);
+}
+
+function updateModeDescription(mode: UpdateMode) {
+  return t(`update.center.strategy.options.${mode}.description`);
 }
 
 function isFixedReleaseCandidate(version: string, channel: UpdateChannel) {
@@ -709,6 +787,10 @@ function readinessIcon(state: UpdateReadinessCheck['state']) {
   if (state === 'passed') return '✓';
   if (state === 'failed') return '×';
   return '!';
+}
+
+function deploymentModeLabel(mode: string) {
+  return t(`update.center.installation.modes.${mode}`);
 }
 
 function isSafeExternalLink(value: string) {
@@ -777,12 +859,10 @@ function formatDate(value: string) {
 }
 
 .update-center__readiness {
-  align-items: start;
   border-bottom: 1px solid var(--td-component-border);
   border-top: 1px solid var(--td-component-border);
   display: grid;
   gap: var(--td-comp-margin-l);
-  grid-template-columns: minmax(200px, 0.45fr) minmax(0, 1fr);
   padding: var(--td-comp-paddingTB-l) 0;
 }
 
@@ -801,19 +881,55 @@ function formatDate(value: string) {
   margin-top: var(--td-comp-margin-xs);
 }
 
-.update-center__readiness ul {
-  display: grid;
+.update-center__section-heading,
+.update-center__readiness-actions,
+.update-center__readiness-check {
+  align-items: flex-start;
+  display: flex;
+}
+
+.update-center__section-heading {
+  gap: var(--td-comp-margin-l);
+  justify-content: space-between;
+}
+
+.update-center__readiness-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
   gap: var(--td-comp-margin-s);
-  list-style: none;
+  justify-content: flex-end;
+}
+
+.update-center__readiness-grid {
+  display: grid;
+  gap: var(--td-comp-margin-m);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin: 0;
   padding: 0;
 }
 
-.update-center__readiness li {
-  align-items: center;
-  color: var(--td-text-color-primary);
-  display: flex;
+.update-center__readiness-check {
+  border: 1px solid var(--td-component-border);
   gap: var(--td-comp-margin-s);
+  min-width: 0;
+  padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-m);
+}
+
+.update-center__readiness-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.update-center__readiness-check strong {
+  color: var(--td-text-color-primary);
+  display: block;
+}
+
+.update-center__readiness-content .t-button {
+  align-self: flex-end;
+  margin-top: auto;
 }
 
 .update-center__summary-grid {
@@ -988,17 +1104,21 @@ function formatDate(value: string) {
 
 @media (width <= 900px) {
   .update-center__summary-grid,
-  .update-center__content-grid,
-  .update-center__readiness {
+  .update-center__content-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (width <= 640px) {
   .update-center__header,
-  .update-center__release-heading {
+  .update-center__release-heading,
+  .update-center__section-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .update-center__readiness-actions {
+    justify-content: flex-start;
   }
 }
 </style>
