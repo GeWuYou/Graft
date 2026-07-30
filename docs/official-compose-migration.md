@@ -71,6 +71,22 @@ Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`,
 
 `docker compose pull` and `docker compose up -d` are required to start the same fixed release selected above. Do not change `GRAFT_IMAGE_TAG`, version, or channel between cloning the release and running these commands.
 
+## Recover an Affected `0.11.0-beta.22` Update Center
+
+`0.11.0-beta.22` can fail while starting an update operation because its server expects the historical `update_mode` column before that migration was included in the release. This is not a normal Compose ordering failure: official Compose runs `bootstrap` before server startup and only exposes web after server health succeeds. Do not retry the in-app operation on the affected image.
+
+First make and verify a database backup. After setting the corrected official release tag in `.env`, run the following on the Docker daemon host from the Compose root:
+
+```bash
+docker compose pull bootstrap server web
+docker compose run --rm bootstrap
+docker compose up -d --no-deps --force-recreate server web
+docker compose ps
+docker compose exec -T server curl --fail --silent http://127.0.0.1:8080/healthz
+```
+
+The one-shot bootstrap applies the immutable `202607300001_update_operation_mode.sql` and then `202607300002_rename_update_operation_deployment_strategy.sql`. The second migration renames the column and its check constraint, so the completed schema records the canonical `deployment_strategy` snapshot. The contract intentionally does not retain an `update_mode` API or storage alias.
+
 ## Troubleshooting
 
 | Checklist result | What to correct |

@@ -3362,6 +3362,33 @@ func (e PlatformBackupSummaryStatus) Valid() bool {
 	}
 }
 
+// Defines values for PlatformDeploymentStrategy.
+const (
+	PlatformDeploymentStrategyBetaTracking   PlatformDeploymentStrategy = "beta_tracking"
+	PlatformDeploymentStrategyPinnedBeta     PlatformDeploymentStrategy = "pinned_beta"
+	PlatformDeploymentStrategyPinnedStable   PlatformDeploymentStrategy = "pinned_stable"
+	PlatformDeploymentStrategyStableTracking PlatformDeploymentStrategy = "stable_tracking"
+	PlatformDeploymentStrategyUnknown        PlatformDeploymentStrategy = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PlatformDeploymentStrategy enum.
+func (e PlatformDeploymentStrategy) Valid() bool {
+	switch e {
+	case PlatformDeploymentStrategyBetaTracking:
+		return true
+	case PlatformDeploymentStrategyPinnedBeta:
+		return true
+	case PlatformDeploymentStrategyPinnedStable:
+		return true
+	case PlatformDeploymentStrategyStableTracking:
+		return true
+	case PlatformDeploymentStrategyUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateComposeRootCandidateConfidence.
 const (
 	High   PlatformUpdateComposeRootCandidateConfidence = "high"
@@ -3398,33 +3425,6 @@ func (e PlatformUpdateComposeRootSource) Valid() bool {
 	case PlatformUpdateComposeRootSourceExplicitEnv:
 		return true
 	case PlatformUpdateComposeRootSourceUnavailable:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PlatformUpdateMode.
-const (
-	PlatformUpdateModeBetaTracking   PlatformUpdateMode = "beta_tracking"
-	PlatformUpdateModePinnedBeta     PlatformUpdateMode = "pinned_beta"
-	PlatformUpdateModePinnedStable   PlatformUpdateMode = "pinned_stable"
-	PlatformUpdateModeStableTracking PlatformUpdateMode = "stable_tracking"
-	PlatformUpdateModeUnknown        PlatformUpdateMode = "unknown"
-)
-
-// Valid indicates whether the value is a known member of the PlatformUpdateMode enum.
-func (e PlatformUpdateMode) Valid() bool {
-	switch e {
-	case PlatformUpdateModeBetaTracking:
-		return true
-	case PlatformUpdateModePinnedBeta:
-		return true
-	case PlatformUpdateModePinnedStable:
-		return true
-	case PlatformUpdateModeStableTracking:
-		return true
-	case PlatformUpdateModeUnknown:
 		return true
 	default:
 		return false
@@ -11507,6 +11507,9 @@ type PlatformBackupSummary struct {
 // PlatformBackupSummaryStatus defines model for PlatformBackupSummary.Status.
 type PlatformBackupSummaryStatus string
 
+// PlatformDeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
+type PlatformDeploymentStrategy string
+
 // PlatformUpdateComposeRootCandidate defines model for platform-update-compose-root-candidate.
 type PlatformUpdateComposeRootCandidate struct {
 	ComposeFiles []string                                     `json:"compose_files"`
@@ -11557,14 +11560,14 @@ type PlatformUpdateFailureDiagnostic struct {
 	TaskId *int64 `json:"task_id,omitempty"`
 }
 
-// PlatformUpdateMode Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
-type PlatformUpdateMode string
-
 // PlatformUpdateOperation defines model for platform-update-operation.
 type PlatformUpdateOperation struct {
-	BackupId    *int64    `json:"backup_id,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	FailureCode *string   `json:"failure_code,omitempty"`
+	BackupId  *int64    `json:"backup_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// DeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
+	DeploymentStrategy PlatformDeploymentStrategy `json:"deployment_strategy"`
+	FailureCode        *string                    `json:"failure_code,omitempty"`
 
 	// FailureDiagnosticAvailable Whether a manager may retrieve controlled failure diagnostics for this operation.
 	FailureDiagnosticAvailable *bool                         `json:"failure_diagnostic_available,omitempty"`
@@ -11577,9 +11580,6 @@ type PlatformUpdateOperation struct {
 	Status                     PlatformUpdateOperationStatus `json:"status"`
 	TargetVersion              string                        `json:"target_version"`
 	TaskId                     int64                         `json:"task_id"`
-
-	// UpdateMode Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
-	UpdateMode *PlatformUpdateMode `json:"update_mode,omitempty"`
 }
 
 // PlatformUpdateOperationStatus defines model for PlatformUpdateOperation.Status.
@@ -11727,6 +11727,9 @@ type PlatformUpdateStatus struct {
 	CheckedAt         *time.Time                  `json:"checked_at,omitempty"`
 	CurrentVersion    string                      `json:"current_version"`
 
+	// DeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
+	DeploymentStrategy PlatformDeploymentStrategy `json:"deployment_strategy"`
+
 	// ImageTag The injected GRAFT_IMAGE_TAG deployment strategy source.
 	ImageTag            string `json:"image_tag"`
 	InstallationProfile struct {
@@ -11756,9 +11759,6 @@ type PlatformUpdateStatus struct {
 
 	// Readiness Server-owned evaluation of whether the current instance can safely perform a controlled platform update.
 	Readiness PlatformUpdateReadiness `json:"readiness"`
-
-	// UpdateMode Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
-	UpdateMode PlatformUpdateMode `json:"update_mode"`
 }
 
 // PlatformUpdateStatusChannel defines model for PlatformUpdateStatus.Channel.

@@ -3799,7 +3799,7 @@ export interface components {
     EnvelopedSystemConfigItem: components['schemas']['enveloped-system-config-item'];
     EnvelopedSystemConfigListResponse: components['schemas']['enveloped-system-config-list-response'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
-    PlatformUpdateMode: components['schemas']['platform-update-mode'];
+    PlatformDeploymentStrategy: components['schemas']['platform-deployment-strategy'];
     PlatformUpdateRelease: components['schemas']['platform-update-release'];
     EnvelopedPlatformUpdateStatus: components['schemas']['enveloped-platform-update-status'];
     PlatformUpdateOperation: components['schemas']['platform-update-operation'];
@@ -6247,10 +6247,10 @@ export interface components {
       value: unknown;
     };
     /**
-     * @description Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
+     * @description Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
      * @enum {string}
      */
-    'platform-update-mode': 'stable_tracking' | 'beta_tracking' | 'pinned_stable' | 'pinned_beta' | 'unknown';
+    'platform-deployment-strategy': 'stable_tracking' | 'beta_tracking' | 'pinned_stable' | 'pinned_beta' | 'unknown';
     'platform-update-release': {
       version: string;
       /** @enum {string} */
@@ -6351,7 +6351,7 @@ export interface components {
       channel: 'stable' | 'beta' | 'unknown';
       /** @description The injected GRAFT_IMAGE_TAG deployment strategy source. */
       image_tag: string;
-      update_mode: components['schemas']['platform-update-mode'];
+      deployment_strategy: components['schemas']['platform-deployment-strategy'];
       latest?: components['schemas']['platform-update-release'];
       /** @description Verified releases newer than the running version in the deployment's channel. Tracking modes expose their current channel; pinned modes expose fixed-version choices. Empty for callers without update management permission. */
       available_releases?: components['schemas']['platform-update-release'][];
@@ -6400,7 +6400,7 @@ export interface components {
       operation_id: string;
       source_version: string;
       target_version: string;
-      update_mode?: components['schemas']['platform-update-mode'];
+      deployment_strategy: components['schemas']['platform-deployment-strategy'];
       /** Format: int64 */
       task_id: number;
       /** Format: int64 */

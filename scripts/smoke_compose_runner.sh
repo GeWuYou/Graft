@@ -64,7 +64,7 @@ cat > "${workspace}/runner-input.json" <<EOF
   "task_id": 1,
   "preflight": {
     "declared_mode": "compose",
-    "update_mode": "beta_tracking",
+    "deployment_strategy": "beta_tracking",
     "image_tag": "beta",
     "detected_mode": "compose",
     "compose_root": "${workspace}",

@@ -69,6 +69,22 @@ docker compose ps
 
 必须执行 `docker compose pull` 和 `docker compose up -d`，以启动上文选择的同一固定发行版本。克隆该发行版到执行这些命令之间，不要变更 `GRAFT_IMAGE_TAG`、版本或频道。
 
+## 恢复受影响的 `0.11.0-beta.22` 更新中心
+
+`0.11.0-beta.22` 在启动更新操作时可能失败：该版本的 server 会写入历史列 `update_mode`，但相应 migration 未随该 release 的 bootstrap 镜像发布。这不是正常 Compose 启动顺序失效：官方 Compose 会先运行 `bootstrap`，server 仅在它成功后启动，web 仅在 server 健康后对外提供服务。不要在受影响镜像上重复尝试页面内升级。
+
+先创建并验证数据库备份。然后在 `.env` 中设定已修复的官方 release tag，并在 Docker daemon 宿主机的 Compose 根目录执行：
+
+```bash
+docker compose pull bootstrap server web
+docker compose run --rm bootstrap
+docker compose up -d --no-deps --force-recreate server web
+docker compose ps
+docker compose exec -T server curl --fail --silent http://127.0.0.1:8080/healthz
+```
+
+一次性的 bootstrap 会先应用不可变的 `202607300001_update_operation_mode.sql`，再应用 `202607300002_rename_update_operation_deployment_strategy.sql`。第二个 migration 会重命名列及其检查约束，因此最终 schema 使用规范名称 `deployment_strategy`。该契约刻意不保留 `update_mode` 的 API 或存储 alias。
+
 ## 故障排查
 
 | 检查结果 | 应修复的内容 |

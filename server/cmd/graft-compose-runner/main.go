@@ -222,10 +222,10 @@ func digest(path string) (string, int64, error) {
 //
 //nolint:cyclop // 两个镜像与官方仓库必须共同校验，拆分会破坏原子写入边界。
 func replaceRefs(path string, preflight update.ComposePreflight) error {
-	if preflight.UpdateMode == update.UpdateModeStableTracking || preflight.UpdateMode == update.UpdateModeBetaTracking {
+	if preflight.DeploymentStrategy == update.DeploymentStrategyStableTracking || preflight.DeploymentStrategy == update.DeploymentStrategyBetaTracking {
 		return nil
 	}
-	if preflight.UpdateMode != update.UpdateModePinnedStable && preflight.UpdateMode != update.UpdateModePinnedBeta {
+	if preflight.DeploymentStrategy != update.DeploymentStrategyPinnedStable && preflight.DeploymentStrategy != update.DeploymentStrategyPinnedBeta {
 		return errors.New("compose runner deployment strategy is invalid")
 	}
 	tag, err := sharedOfficialTag(preflight.ServerReference, preflight.WebReference, preflight.OfficialServerImage, preflight.OfficialWebImage)

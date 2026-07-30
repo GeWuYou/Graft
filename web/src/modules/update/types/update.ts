@@ -5,7 +5,7 @@ type UpdateSchemas = components['schemas'];
 
 export type UpdateStatus = UpdateSchemas['platform-update-status'];
 export type UpdateChannel = UpdateStatus['channel'];
-export type UpdateMode = UpdateStatus['update_mode'];
+export type DeploymentStrategy = UpdateStatus['deployment_strategy'];
 export type VerifiedUpdateRelease = NonNullable<UpdateStatus['available_releases']>[number];
 export type UpdateCapability = UpdateStatus['installation_profile']['capability'];
 export type InstallationProfile = UpdateStatus['installation_profile'];

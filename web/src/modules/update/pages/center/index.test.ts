@@ -75,7 +75,7 @@ const status = (candidates: Array<Record<string, unknown>>) =>
     current_version: '1.0.0',
     channel: 'stable',
     image_tag: 'latest',
-    update_mode: 'stable_tracking',
+    deployment_strategy: 'stable_tracking',
     available_releases: [{ version: '1.1.0', channel: 'stable', published_at: '2026-07-24T00:00:00Z' }],
     latest: {
       version: '1.1.0',
@@ -195,7 +195,7 @@ describe('UpdateCenter', () => {
     useUpdateDiscoveryStore().replaceSnapshot({
       ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
       image_tag: 'beta',
-      update_mode: 'beta_tracking',
+      deployment_strategy: 'beta_tracking',
     } as never);
     const wrapper = mountCenter();
     await flushPromises();
@@ -213,7 +213,7 @@ describe('UpdateCenter', () => {
     useUpdateDiscoveryStore().replaceSnapshot({
       ...status([]),
       image_tag: 'beta',
-      update_mode: 'beta_tracking',
+      deployment_strategy: 'beta_tracking',
       latest: undefined,
     } as UpdateStatus);
     const wrapper = mountCenter();
@@ -227,7 +227,7 @@ describe('UpdateCenter', () => {
     useUpdateDiscoveryStore().replaceSnapshot({
       ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
       image_tag: 'v1.0.0',
-      update_mode: 'pinned_stable',
+      deployment_strategy: 'pinned_stable',
       latest: undefined,
       available_releases: [
         {

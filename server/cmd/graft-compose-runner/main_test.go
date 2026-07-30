@@ -132,7 +132,7 @@ func TestReplaceRefsKeepsTrackingTag(t *testing.T) {
 		t.Fatalf("write compose environment: %v", err)
 	}
 	preflight := pinnedPreflight("registry.example/graft-server:1.2.3-beta.1", "registry.example/graft-web:1.2.3-beta.1")
-	preflight.UpdateMode, preflight.ImageTag = update.UpdateModeBetaTracking, "beta"
+	preflight.DeploymentStrategy, preflight.ImageTag = update.DeploymentStrategyBetaTracking, "beta"
 	if err := replaceRefs(path, preflight); err != nil {
 		t.Fatalf("retain tracking tag: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestReplaceRefsKeepsTrackingTag(t *testing.T) {
 }
 
 func pinnedPreflight(server, web string) update.ComposePreflight {
-	return update.ComposePreflight{ServerReference: server, WebReference: web, OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", UpdateMode: update.UpdateModePinnedBeta, ImageTag: "v1.2.2-beta.1"}
+	return update.ComposePreflight{ServerReference: server, WebReference: web, OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", DeploymentStrategy: update.DeploymentStrategyPinnedBeta, ImageTag: "v1.2.2-beta.1"}
 }
 
 func TestReferenceTagRejectsInvalidTags(t *testing.T) {
