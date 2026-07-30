@@ -127,50 +127,48 @@ func TestRestartStageExecutorReevaluatesRuntimeStatusImmediatelyBeforeCompose(t 
 		t.Fatalf("submitted restart args = %#v", args)
 	}
 
-	t.Run("missing project switches to up", func(t *testing.T) {
-		service, err := NewService(
-			&stubProjectRepository{aggregate: aggregate},
-			WithRuntimeReader(restartExecutorRuntimeReader{}),
-		)
-		if err != nil {
-			t.Fatalf("new service: %v", err)
-		}
-		args, err := (&composeStageExecutor{typeName: moduleapi.StageExecutorType(composeStagePrefix + "restart"), service: service}).commandArgs(context.Background(), input)
-		if err != nil {
-			t.Fatalf("resolve restart args: %v", err)
-		}
-		if got, want := args[len(args)-2:], []string{"up", "-d"}; !equalStrings(got, want) {
-			t.Fatalf("execution args suffix = %#v, want %#v", got, want)
-		}
-	})
+	assertRestartExecutorUsesUpForMissingProject(t, aggregate, input)
+	assertRestartExecutorKeepsRestartAfterRuntimeReadFailure(t, aggregate, input)
+	assertRestartExecutorKeepsLegacyPlannedRestart(t, input)
+}
 
-	t.Run("runtime read failure keeps restart", func(t *testing.T) {
-		service, err := NewService(
-			&stubProjectRepository{aggregate: aggregate},
-			WithRuntimeReader(restartExecutorRuntimeReader{err: errors.New("runtime unavailable")}),
-		)
-		if err != nil {
-			t.Fatalf("new service: %v", err)
-		}
-		args, err := (&composeStageExecutor{typeName: moduleapi.StageExecutorType(composeStagePrefix + "restart"), service: service}).commandArgs(context.Background(), input)
-		if err != nil {
-			t.Fatalf("resolve restart args after runtime failure: %v", err)
-		}
-		if args[len(args)-1] != "restart" {
-			t.Fatalf("runtime read fallback args = %#v, want restart", args)
-		}
-	})
+func assertRestartExecutorUsesUpForMissingProject(t *testing.T, aggregate projectstore.ApplicationAggregate, input composeStageInput) {
+	t.Helper()
+	service, err := NewService(&stubProjectRepository{aggregate: aggregate}, WithRuntimeReader(restartExecutorRuntimeReader{}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	args, err := (&composeStageExecutor{typeName: moduleapi.StageExecutorType(composeStagePrefix + "restart"), service: service}).commandArgs(context.Background(), input)
+	if err != nil {
+		t.Fatalf("resolve restart args: %v", err)
+	}
+	if got, want := args[len(args)-2:], []string{"up", "-d"}; !equalStrings(got, want) {
+		t.Fatalf("execution args suffix = %#v, want %#v", got, want)
+	}
+}
 
-	t.Run("legacy persisted input keeps its planned restart", func(t *testing.T) {
-		args, err := (&composeStageExecutor{typeName: moduleapi.StageExecutorType(composeStagePrefix + "restart")}).commandArgs(context.Background(), composeStageInput{
-			WorkspacePath: input.WorkspacePath,
-			Args:          input.Args,
-		})
-		if err != nil {
-			t.Fatalf("resolve legacy restart args: %v", err)
-		}
-		if args[len(args)-1] != "restart" {
-			t.Fatalf("legacy restart args = %#v, want restart", args)
-		}
-	})
+func assertRestartExecutorKeepsRestartAfterRuntimeReadFailure(t *testing.T, aggregate projectstore.ApplicationAggregate, input composeStageInput) {
+	t.Helper()
+	service, err := NewService(&stubProjectRepository{aggregate: aggregate}, WithRuntimeReader(restartExecutorRuntimeReader{err: errors.New("runtime unavailable")}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	args, err := (&composeStageExecutor{typeName: moduleapi.StageExecutorType(composeStagePrefix + "restart"), service: service}).commandArgs(context.Background(), input)
+	if err != nil {
+		t.Fatalf("resolve restart args after runtime failure: %v", err)
+	}
+	if args[len(args)-1] != "restart" {
+		t.Fatalf("runtime read fallback args = %#v, want restart", args)
+	}
+}
+
+func assertRestartExecutorKeepsLegacyPlannedRestart(t *testing.T, input composeStageInput) {
+	t.Helper()
+	args, err := (&composeStageExecutor{typeName: moduleapi.StageExecutorType(composeStagePrefix + "restart")}).commandArgs(context.Background(), composeStageInput{WorkspacePath: input.WorkspacePath, Args: input.Args})
+	if err != nil {
+		t.Fatalf("resolve legacy restart args: %v", err)
+	}
+	if args[len(args)-1] != "restart" {
+		t.Fatalf("legacy restart args = %#v, want restart", args)
+	}
 }

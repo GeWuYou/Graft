@@ -186,9 +186,9 @@ func assertEventTypes(t *testing.T, repository *SQLRepository, taskID uint64, wa
 	if err != nil || len(events) != len(want) {
 		t.Fatalf("task events: events=%#v err=%v", events, err)
 	}
-	for index, event := range events {
-		if event.Type != want[index] {
-			t.Fatalf("event %d type = %q, want %q", index, event.Type, want[index])
+	for index, wantType := range want {
+		if events[index].Type != wantType {
+			t.Fatalf("event %d type = %q, want %q", index, events[index].Type, wantType)
 		}
 	}
 }

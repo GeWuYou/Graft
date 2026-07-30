@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	defaultPageLimit            = 100
-	maxPageLimit                = 500
-	externalReceiptSHA256Length = 64
+	defaultPageLimit                      = 100
+	maxPageLimit                          = 500
+	externalReceiptSHA256Length           = 64
+	interruptedCancellationEventFixedArgs = 3
 )
 
 // SQLRepository 将 Task Runtime 事实持久化到模块自有的 PostgreSQL 表中。
@@ -1023,7 +1024,7 @@ func (r *SQLRepository) appendInterruptedCancellationEvents(ctx context.Context,
 		return nil
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(taskIDs)), ",")
-	args := make([]any, 0, len(taskIDs)+3)
+	args := make([]any, 0, len(taskIDs)+interruptedCancellationEventFixedArgs)
 	args = append(args, taskmodel.EventTypeCancelled, json.RawMessage(`{}`), now.UTC())
 	for _, taskID := range taskIDs {
 		args = append(args, taskID)
