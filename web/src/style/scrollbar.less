@@ -1,17 +1,17 @@
 .graft-scrollbar {
-  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-color: var(--td-scrollbar-color) var(--graft-scrollbar-track-color);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
 
 .graft-scrollbar::-webkit-scrollbar {
-  background: transparent;
+  background: var(--graft-scrollbar-track-color);
   height: 8px;
   width: 8px;
 }
 
 .graft-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--graft-scrollbar-track-color);
 }
 
 .graft-scrollbar::-webkit-scrollbar-thumb {
@@ -19,4 +19,8 @@
   background-color: var(--td-scrollbar-color);
   border: 2px solid transparent;
   border-radius: 6px;
+}
+
+.graft-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--graft-scrollbar-thumb-hover-color);
 }

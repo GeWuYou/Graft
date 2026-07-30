@@ -62,19 +62,32 @@ defineEmits<{
 }>();
 
 const thumbnailStyle = (preset: ThemePresetDefinition): CSSProperties => {
+  const tokenOverrides = preset.tokenOverrides?.[preset.mode === 'dark' ? 'dark' : 'light'];
   const baseBackground =
-    preset.mode === 'dark'
-      ? 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0)), #111827'
-      : 'linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.22)), #f5f7fa';
+    tokenOverrides?.['--graft-shell-content-bg'] ??
+    tokenOverrides?.['--td-bg-color-page'] ??
+    (preset.mode === 'dark' ? '#111827' : '#F5F7FA');
 
-  const surfaceBackground = preset.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)';
-  const borderColor = preset.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(17, 24, 39, 0.08)';
+  const surfaceBackground =
+    tokenOverrides?.['--graft-shell-header-bg'] ??
+    tokenOverrides?.['--td-bg-color-container'] ??
+    (preset.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)');
+  const sidebarBackground =
+    tokenOverrides?.['--graft-shell-sidebar-bg'] ??
+    tokenOverrides?.['--td-bg-color-secondarycontainer'] ??
+    surfaceBackground;
+  const borderColor =
+    tokenOverrides?.['--graft-shell-border-color'] ??
+    tokenOverrides?.['--td-component-stroke'] ??
+    tokenOverrides?.['--td-component-border'] ??
+    (preset.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(17, 24, 39, 0.08)');
   const mutedColor = preset.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(148, 163, 184, 0.28)';
 
   return {
     '--preset-brand-color': preset.brandTheme,
     '--preset-thumbnail-background': baseBackground,
     '--preset-thumbnail-surface': surfaceBackground,
+    '--preset-thumbnail-sidebar': sidebarBackground,
     '--preset-thumbnail-border': borderColor,
     '--preset-thumbnail-muted': mutedColor,
   } as CSSProperties;
@@ -168,7 +181,7 @@ const thumbnailStyle = (preset: ThemePresetDefinition): CSSProperties => {
 }
 
 .preset-card__thumb-sidebar {
-  background: color-mix(in srgb, var(--preset-brand-color) 12%, var(--preset-thumbnail-surface));
+  background: var(--preset-thumbnail-sidebar);
   border-right: 1px solid var(--preset-thumbnail-border);
   display: grid;
   gap: var(--graft-density-gap-6);

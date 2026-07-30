@@ -142,7 +142,7 @@ const renderedHtml = computed(() =>
   max-width: 100%;
   overflow: auto;
   padding: var(--graft-density-gap-12);
-  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-color: var(--td-scrollbar-color) var(--graft-scrollbar-track-color);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
@@ -155,13 +155,18 @@ const renderedHtml = computed(() =>
 
 .markdown-viewer :deep(pre::-webkit-scrollbar-track),
 .markdown-viewer :deep(table::-webkit-scrollbar-track) {
-  background: transparent;
+  background: var(--graft-scrollbar-track-color);
 }
 
 .markdown-viewer :deep(pre::-webkit-scrollbar-thumb),
 .markdown-viewer :deep(table::-webkit-scrollbar-thumb) {
   background-color: var(--td-scrollbar-color);
   border-radius: var(--td-radius-round);
+}
+
+.markdown-viewer :deep(pre::-webkit-scrollbar-thumb:hover),
+.markdown-viewer :deep(table::-webkit-scrollbar-thumb:hover) {
+  background-color: var(--graft-scrollbar-thumb-hover-color);
 }
 
 .markdown-viewer :deep(pre code) {
@@ -187,7 +192,7 @@ const renderedHtml = computed(() =>
   display: block;
   max-width: 100%;
   overflow: auto;
-  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-color: var(--td-scrollbar-color) var(--graft-scrollbar-track-color);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   white-space: nowrap;

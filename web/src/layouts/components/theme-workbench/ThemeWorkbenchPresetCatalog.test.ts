@@ -65,12 +65,23 @@ describe('ThemeWorkbenchPresetCatalog', () => {
     const wrapper = mountCatalog();
 
     await wrapper.get('input').setValue('night');
-    expect(wrapper.findAll('.preset-card')).toHaveLength(1);
+    expect(wrapper.findAll('.preset-card')).toHaveLength(3);
     expect(wrapper.text()).not.toContain('layout.setting.workbench.presets.featured');
 
     await wrapper.get('input').setValue('');
     await wrapper.findComponent({ name: 'TRadioGroupStub' }).vm.$emit('change', 'operations');
-    expect(wrapper.findAll('.preset-card')).toHaveLength(2);
+    expect(wrapper.findAll('.preset-card')).toHaveLength(3);
+  });
+
+  it('keeps the catalog categories balanced and gives Tencent Cloud distinct preview surfaces', () => {
+    const wrapper = mountCatalog();
+    const categoryCounts = Object.groupBy(THEME_PRESET_DEFINITIONS, (preset) => preset.category);
+    const tencentCard = wrapper.findAll('.preset-card')[1].element as HTMLElement;
+
+    expect(Object.values(categoryCounts).map((presets) => presets?.length)).toEqual([3, 3, 3, 3]);
+    expect(tencentCard.style.getPropertyValue('--preset-brand-color')).toBe('#00A4FF');
+    expect(tencentCard.style.getPropertyValue('--preset-thumbnail-background')).toBe('#F4F9FD');
+    expect(tencentCard.style.getPropertyValue('--preset-thumbnail-sidebar')).toBe('#E5F3FF');
   });
 
   it('emits the selected preset id and exposes the active card state', async () => {

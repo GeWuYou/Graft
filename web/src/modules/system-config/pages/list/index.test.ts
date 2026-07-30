@@ -1161,7 +1161,7 @@ describe('system config list page', () => {
     expect(cssBlock('.system-config-content__head')).toContain('position: sticky;');
     expect(cssBlock('.system-config-list')).toContain('padding-bottom: var(--graft-density-gap-24);');
     expect(cssBlock('.system-config-scrollbar')).not.toContain(
-      'scrollbar-color: var(--td-scrollbar-color) transparent;',
+      'scrollbar-color: var(--td-scrollbar-color) var(--graft-scrollbar-track-color);',
     );
     expect(cssBlock('.system-config-scrollbar')).not.toContain('scrollbar-width: thin;');
   });
