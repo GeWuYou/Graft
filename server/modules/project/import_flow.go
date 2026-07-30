@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -996,6 +997,27 @@ func resolveRootPath(root importRootDefinition, relative string) (string, error)
 	return joined, nil
 }
 
+func openImportRootDirectory(root importRootDefinition, relative string) (*managedRootFS, string, error) {
+	rootFS, err := openManagedRootFS(root.path)
+	if err != nil {
+		return nil, "", err
+	}
+	defer func() { _ = closeManagedRootFS(rootFS) }()
+	resolved, err := resolveRootPath(root, relative)
+	if err != nil {
+		return nil, "", err
+	}
+	managedPath := normalizeBrowsePath(relative)
+	if managedPath == "" {
+		managedPath = "."
+	}
+	workspace, err := rootFS.root.OpenRoot(managedPath)
+	if err != nil {
+		return nil, "", err
+	}
+	return &managedRootFS{root: workspace, rootDir: resolved}, resolved, nil
+}
+
 // parentBrowsePath 返回路径的父级浏览路径。
 //
 // 当输入为空或仅包含空白字符时，返回 nil。若父级位于根目录，则返回指向空字符串的指针，以表示根的父级；否则返回规范化后的父级路径。
@@ -1038,6 +1060,31 @@ func discoverImportFiles(workingDirectory string) (discoveredImportFiles, error)
 	}, nil
 }
 
+func discoverImportFilesInRoot(root *managedRootFS) (discoveredImportFiles, error) {
+	entries, err := fs.ReadDir(root.root.FS(), ".")
+	if err != nil {
+		return discoveredImportFiles{}, err
+	}
+	foundPrimary := discoverPrimaryComposeFilesInRoot(root)
+	if len(foundPrimary) == 0 {
+		return discoveredImportFiles{}, fmt.Errorf("no compose file discovered")
+	}
+	composeFiles := make([]string, 0, importComposeFileCapacity)
+	warnings := make([]string, 0, 1)
+	composeFiles = append(composeFiles, foundPrimary[0])
+	if len(foundPrimary) > 1 {
+		warnings = append(warnings, importDirectoryWarningMultiple)
+	}
+	if regularFileExistsInRoot(root, defaultComposeOverrideCandidate) {
+		composeFiles = append(composeFiles, defaultComposeOverrideCandidate)
+	}
+	return discoveredImportFiles{
+		composeFiles: composeFiles,
+		envFiles:     discoverEnvFilesInRoot(root, entries),
+		warnings:     warnings,
+	}, nil
+}
+
 func discoverEnvFilesForWorkspacePath(workingDirectory string) ([]string, error) {
 	entries, err := os.ReadDir(workingDirectory)
 	if err != nil {
@@ -1052,6 +1099,16 @@ func discoverPrimaryComposeFiles(workingDirectory string) []string {
 	foundPrimary := make([]string, 0, len(defaultPrimaryComposeCandidates))
 	for _, candidate := range defaultPrimaryComposeCandidates {
 		if regularFileExists(filepath.Join(workingDirectory, candidate)) {
+			foundPrimary = append(foundPrimary, candidate)
+		}
+	}
+	return foundPrimary
+}
+
+func discoverPrimaryComposeFilesInRoot(root *managedRootFS) []string {
+	foundPrimary := make([]string, 0, len(defaultPrimaryComposeCandidates))
+	for _, candidate := range defaultPrimaryComposeCandidates {
+		if regularFileExistsInRoot(root, candidate) {
 			foundPrimary = append(foundPrimary, candidate)
 		}
 	}
@@ -1089,6 +1146,37 @@ func discoverEnvFiles(workingDirectory string, entries []os.DirEntry) []string {
 	return envFiles
 }
 
+func discoverEnvFilesInRoot(root *managedRootFS, entries []fs.DirEntry) []string {
+	envFiles := make([]string, 0)
+	envSet := make(map[string]struct{})
+	appendEnv := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		if _, ok := envSet[name]; ok {
+			return
+		}
+		envSet[name] = struct{}{}
+		envFiles = append(envFiles, name)
+	}
+	if regularFileExistsInRoot(root, ".env") {
+		appendEnv(".env")
+	}
+	dotEnvVariants, suffixEnvVariants := collectEnvVariants(entries)
+	for _, name := range dotEnvVariants {
+		if regularFileExistsInRoot(root, name) {
+			appendEnv(name)
+		}
+	}
+	for _, name := range suffixEnvVariants {
+		if regularFileExistsInRoot(root, name) {
+			appendEnv(name)
+		}
+	}
+	return envFiles
+}
+
 // collectEnvVariants 收集目录中的环境变量变体文件名。
 // 第一个返回值包含以 `.env.` 开头的文件名，第二个返回值包含以 `.env` 结尾的文件名；两组结果都会按字典序排序。
 
@@ -1099,6 +1187,14 @@ func regularFileExists(path string) bool {
 		return false
 	}
 	return !info.IsDir()
+}
+
+func regularFileExistsInRoot(root *managedRootFS, path string) bool {
+	info, err := root.root.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSymlink == 0 && !info.IsDir()
 }
 func collectEnvVariants(entries []os.DirEntry) ([]string, []string) {
 	dotEnvVariants := make([]string, 0)

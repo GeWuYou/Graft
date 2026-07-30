@@ -120,6 +120,49 @@ func TestSaveProjectFileContentRejectsBinaryWorkspaceFile(t *testing.T) {
 	}
 }
 
+func TestWorkspaceFileOperationsRejectSymlinksOutsideWorkspace(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink probe is not reliable on windows")
+	}
+
+	workingDirectory := t.TempDir()
+	externalDirectory := t.TempDir()
+	externalFile := filepath.Join(externalDirectory, "secret.txt")
+	if err := os.WriteFile(externalFile, []byte("secret\n"), 0o600); err != nil {
+		t.Fatalf("write external file: %v", err)
+	}
+	if err := os.Symlink(externalFile, filepath.Join(workingDirectory, "secret.txt")); err != nil {
+		t.Fatalf("link external file: %v", err)
+	}
+	if err := os.Symlink(externalDirectory, filepath.Join(workingDirectory, "outside")); err != nil {
+		t.Fatalf("link external directory: %v", err)
+	}
+
+	service, err := NewService(&stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
+		Application: projectstore.Application{ApplicationRecordID: 1, WorkspacePath: workingDirectory},
+	}})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	if _, err := service.projectFileContent(context.Background(), 1, "secret.txt"); !errors.Is(err, errProjectImportValidation) {
+		t.Fatalf("expected external symlink read rejection, got %v", err)
+	}
+	if _, err := service.saveProjectFileContent(context.Background(), 1, "secret.txt", workspaceFileSaveRequest{Content: "changed\n"}); !errors.Is(err, errProjectImportValidation) {
+		t.Fatalf("expected external symlink write rejection, got %v", err)
+	}
+	if _, err := service.browseProjectFiles(context.Background(), 1, workspaceFileBrowseQuery{Path: "outside"}); !errors.Is(err, errProjectImportValidation) {
+		t.Fatalf("expected external symlink browse rejection, got %v", err)
+	}
+	content, err := os.ReadFile(externalFile)
+	if err != nil {
+		t.Fatalf("read external file: %v", err)
+	}
+	if string(content) != "secret\n" {
+		t.Fatalf("external file was modified: %q", content)
+	}
+}
+
 func TestDeleteApplicationWorkspaceEntryRejectsTrackedLifecycleInput(t *testing.T) {
 	workingDirectory := t.TempDir()
 	composePath := filepath.Join(workingDirectory, "compose.yaml")
