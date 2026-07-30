@@ -145,6 +145,54 @@ func TestSQLRepositoryCancelsUntrackedRunningStageWithDistinctDurations(t *testi
 	}
 }
 
+func TestSQLRepositoryRecoveryAppendsCancellationEventOnlyForCapturedTask(t *testing.T) {
+	t.Parallel()
+	repository, db := newTestSQLRepository(t)
+	cancelled, cancelledStages, _, err := repository.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatalf("create interrupted task: %v", err)
+	}
+	startedAt := time.Now().UTC().Add(-time.Minute)
+	if err := repository.TransitionTask(context.Background(), TaskTransitionInput{TaskID: cancelled.ID, From: moduleapi.TaskStatusPending, To: moduleapi.TaskStatusRunning, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition interrupted task: %v", err)
+	}
+	if err := repository.TransitionStage(context.Background(), StageTransitionInput{StageID: cancelledStages[0].ID, From: moduleapi.StageStatusPending, To: moduleapi.StageStatusRunning, Attempt: 1, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition interrupted stage: %v", err)
+	}
+	if _, err := repository.RequestCancellation(context.Background(), cancelled.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("request interrupted task cancellation: %v", err)
+	}
+
+	unrelatedInput := validCreateInput()
+	unrelatedInput.Task.Owner.ID = "unrelated-owner"
+	unrelated, _, _, err := repository.Create(context.Background(), unrelatedInput)
+	if err != nil {
+		t.Fatalf("create unrelated task: %v", err)
+	}
+	recoveryAt := time.Now().UTC()
+	if _, err := db.Exec(`UPDATE tasks SET status = ?, cancel_requested_at = ?, finished_at = ? WHERE id = ?`, moduleapi.TaskStatusCancelled, recoveryAt, recoveryAt, unrelated.ID); err != nil {
+		t.Fatalf("seed unrelated cancelled task: %v", err)
+	}
+	if count, err := repository.RecoverInterruptedStages(context.Background(), recoveryAt); err != nil || count != 1 {
+		t.Fatalf("recover interrupted cancellation: count=%d err=%v", count, err)
+	}
+	assertEventTypes(t, repository, cancelled.ID, []taskmodel.EventType{taskmodel.EventTypeCreated, taskmodel.EventTypeCancelled})
+	assertEventTypes(t, repository, unrelated.ID, []taskmodel.EventType{taskmodel.EventTypeCreated})
+}
+
+func assertEventTypes(t *testing.T, repository *SQLRepository, taskID uint64, want []taskmodel.EventType) {
+	t.Helper()
+	events, err := repository.ListEvents(context.Background(), taskID, 0, len(want)+1)
+	if err != nil || len(events) != len(want) {
+		t.Fatalf("task events: events=%#v err=%v", events, err)
+	}
+	for index, event := range events {
+		if event.Type != want[index] {
+			t.Fatalf("event %d type = %q, want %q", index, event.Type, want[index])
+		}
+	}
+}
+
 func TestSQLRepositoryReplaysEventsAndLogsBySequence(t *testing.T) {
 	t.Parallel()
 

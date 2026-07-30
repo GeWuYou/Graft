@@ -983,36 +983,56 @@ func (r *SQLRepository) cancelInterruptedRequestedStages(ctx context.Context, tx
 	if cancelledCount == 0 {
 		return 0, nil
 	}
-	if err := r.cancelInterruptedRequestedTasks(ctx, tx, now); err != nil {
+	cancelledTaskIDs, err := r.cancelInterruptedRequestedTasks(ctx, tx, now)
+	if err != nil {
 		return 0, err
 	}
-	if err := r.appendInterruptedCancellationEvents(ctx, tx, now); err != nil {
+	if err := r.appendInterruptedCancellationEvents(ctx, tx, now, cancelledTaskIDs); err != nil {
 		return 0, err
 	}
 	return int(cancelledCount), nil
 }
 
-func (r *SQLRepository) cancelInterruptedRequestedTasks(ctx context.Context, tx *sql.Tx, now time.Time) error {
-	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+func (r *SQLRepository) cancelInterruptedRequestedTasks(ctx context.Context, tx *sql.Tx, now time.Time) ([]uint64, error) {
+	rows, err := tx.QueryContext(ctx, r.placeholder.rebind(`UPDATE tasks
 		SET status = ?, finished_at = ?, duration_ms = NULL, updated_at = ?
 		WHERE status = ? AND cancel_requested_at IS NOT NULL
-			AND NOT EXISTS (SELECT 1 FROM task_stages WHERE task_stages.task_id = tasks.id AND task_stages.status = ?)`),
+			AND NOT EXISTS (SELECT 1 FROM task_stages WHERE task_stages.task_id = tasks.id AND task_stages.status = ?)
+		RETURNING id`),
 		moduleapi.TaskStatusCancelled, now.UTC(), now.UTC(), moduleapi.TaskStatusRunning, moduleapi.StageStatusRunning)
 	if err != nil {
-		return fmt.Errorf("cancel interrupted requested tasks: %w", err)
+		return nil, fmt.Errorf("cancel interrupted requested tasks: %w", err)
 	}
-	if _, err := result.RowsAffected(); err != nil {
-		return fmt.Errorf("count cancelled interrupted tasks: %w", err)
+	defer func() { _ = rows.Close() }()
+	var taskIDs []uint64
+	for rows.Next() {
+		var taskID uint64
+		if err := rows.Scan(&taskID); err != nil {
+			return nil, fmt.Errorf("scan cancelled interrupted task: %w", err)
+		}
+		taskIDs = append(taskIDs, taskID)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate cancelled interrupted tasks: %w", err)
+	}
+	return taskIDs, nil
 }
 
-func (r *SQLRepository) appendInterruptedCancellationEvents(ctx context.Context, tx *sql.Tx, now time.Time) error {
-	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_events (task_id, sequence, event_type, payload_json, created_at)
+func (r *SQLRepository) appendInterruptedCancellationEvents(ctx context.Context, tx *sql.Tx, now time.Time, taskIDs []uint64) error {
+	if len(taskIDs) == 0 {
+		return nil
+	}
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(taskIDs)), ",")
+	args := make([]any, 0, len(taskIDs)+3)
+	args = append(args, taskmodel.EventTypeCancelled, json.RawMessage(`{}`), now.UTC())
+	for _, taskID := range taskIDs {
+		args = append(args, taskID)
+	}
+	query := fmt.Sprintf(`INSERT INTO task_events (task_id, sequence, event_type, payload_json, created_at)
 		SELECT task.id, COALESCE((SELECT MAX(event.sequence) FROM task_events event WHERE event.task_id = task.id), 0) + 1, ?, ?, ?
 		FROM tasks task
-		WHERE task.status = ? AND task.cancel_requested_at IS NOT NULL AND task.finished_at = ?`),
-		taskmodel.EventTypeCancelled, json.RawMessage(`{}`), now.UTC(), moduleapi.TaskStatusCancelled, now.UTC()); err != nil {
+		WHERE task.id IN (%s)`, placeholders)
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(query), args...); err != nil {
 		return fmt.Errorf("append interrupted task cancellation events: %w", err)
 	}
 	return nil
