@@ -52,6 +52,27 @@ test:
         self.assertEqual(profile, "test")
         self.assertEqual(credentials, {"username": "test-user", "password": "test-password"})
 
+    def test_requested_profile_overrides_top_level_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            credentials_file = Path(directory) / "credentials.yaml"
+            credentials_file.write_text(
+                """username: flat-user
+password: flat-password
+dev:
+  username: dev-user
+  password: dev-password
+test:
+  username: test-user
+  password: test-password
+""",
+                encoding="utf-8",
+            )
+
+            credentials, profile = browser_agent.parse_credentials(credentials_file, "test")
+
+        self.assertEqual(profile, "test")
+        self.assertEqual(credentials, {"username": "test-user", "password": "test-password"})
+
     def test_rejects_unknown_profile_without_disclosing_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             credentials_file = Path(directory) / "credentials.yaml"

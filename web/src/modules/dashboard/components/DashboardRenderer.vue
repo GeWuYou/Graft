@@ -245,8 +245,10 @@ function categoryWeight(category: DashboardWidgetCategory) {
 <style lang="less" scoped>
 @import '@/shared/components/card-surface.less';
 
-:deep(.app-shell[data-acrylic-glass='true']) .dashboard-renderer__widget {
-  .graft-glass-surface();
+@media (width > 768px) {
+  :deep(.app-shell[data-acrylic-glass='true']) .dashboard-renderer__widget {
+    .graft-glass-surface();
+  }
 }
 </style>
 <style lang="less" scoped>

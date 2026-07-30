@@ -101,14 +101,21 @@ def parse_credentials(path: Path, profile: str | None = None) -> tuple[dict[str,
     if not isinstance(document, dict):
         raise ValueError("Credentials YAML must contain a mapping of profiles or credential fields.")
 
-    fields = normalize_credential_fields(document)
     selected_profile: str | None = None
-    if not has_credential_fields(fields):
+    if profile:
         selected_profile = select_credential_profile(document, profile)
         candidate = document[selected_profile]
         if not isinstance(candidate, dict):
             raise ValueError(f"Credential profile must be a mapping: {selected_profile}")
         fields = normalize_credential_fields(candidate)
+    else:
+        fields = normalize_credential_fields(document)
+        if not has_credential_fields(fields):
+            selected_profile = select_credential_profile(document, profile)
+            candidate = document[selected_profile]
+            if not isinstance(candidate, dict):
+                raise ValueError(f"Credential profile must be a mapping: {selected_profile}")
+            fields = normalize_credential_fields(candidate)
 
     username = first_nonempty(fields, ("username", "account", "user"))
     password = first_nonempty(fields, ("password", "passward", "passwd", "pwd"))
