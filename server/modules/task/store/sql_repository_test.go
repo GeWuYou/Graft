@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -110,6 +111,37 @@ func TestSQLRepositoryTransitionsUseCompareAndSwap(t *testing.T) {
 		Attempt: 1,
 	}); !errors.Is(err, ErrStateConflict) {
 		t.Fatalf("expected stale stage transition conflict, got %v", err)
+	}
+}
+
+func TestSQLRepositoryCancelsUntrackedRunningStageWithDistinctDurations(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	created, stages, _, err := repository.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	startedAt := time.Now().UTC().Add(-time.Minute)
+	if err := repository.TransitionTask(context.Background(), TaskTransitionInput{TaskID: created.ID, From: moduleapi.TaskStatusPending, To: moduleapi.TaskStatusRunning, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition task to running: %v", err)
+	}
+	if err := repository.TransitionStage(context.Background(), StageTransitionInput{StageID: stages[0].ID, From: moduleapi.StageStatusPending, To: moduleapi.StageStatusRunning, Attempt: 1, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition stage to running: %v", err)
+	}
+	if _, err := repository.RequestCancellation(context.Background(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("request cancellation: %v", err)
+	}
+	stageDurationMS, taskDurationMS := int64(1_000), int64(60_000)
+	if err := repository.CancelUntrackedRunningStage(context.Background(), created.ID, stages[0].ID, time.Now().UTC(), &stageDurationMS, &taskDurationMS); err != nil {
+		t.Fatalf("cancel untracked running stage: %v", err)
+	}
+	task, err := repository.Get(context.Background(), created.ID)
+	if err != nil || task.DurationMS == nil || *task.DurationMS != taskDurationMS {
+		t.Fatalf("cancelled task duration: task=%#v err=%v", task, err)
+	}
+	storedStages, err := repository.ListStages(context.Background(), created.ID)
+	if err != nil || len(storedStages) != 2 || storedStages[0].DurationMS == nil || *storedStages[0].DurationMS != stageDurationMS {
+		t.Fatalf("cancelled stage duration: stages=%#v err=%v", storedStages, err)
 	}
 }
 

@@ -625,7 +625,7 @@ func (r *SQLRepository) CancelPendingTask(ctx context.Context, taskID uint64, fi
 
 // CancelUntrackedRunningStage 仅结算已经收到取消请求、但当前 Runtime 没有本地 worker 跟踪的普通 running Stage。
 // cancelled 记录的是执行控制权已撤销，不能推断或伪造外部副作用已经成功或被回滚。
-func (r *SQLRepository) CancelUntrackedRunningStage(ctx context.Context, taskID uint64, stageID uint64, finishedAt time.Time, durationMS *int64) error {
+func (r *SQLRepository) CancelUntrackedRunningStage(ctx context.Context, taskID uint64, stageID uint64, finishedAt time.Time, stageDurationMS *int64, taskDurationMS *int64) error {
 	if taskID == 0 || stageID == 0 || finishedAt.IsZero() {
 		return ErrInvalidInput
 	}
@@ -638,7 +638,7 @@ func (r *SQLRepository) CancelUntrackedRunningStage(ctx context.Context, taskID 
 	stageResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, finished_at = ?, duration_ms = ?, updated_at = ?
 		WHERE id = ? AND task_id = ? AND status = ?`),
-		moduleapi.StageStatusCancelled, finishedAt.UTC(), durationMS, finishedAt.UTC(), stageID, taskID, moduleapi.StageStatusRunning)
+		moduleapi.StageStatusCancelled, finishedAt.UTC(), stageDurationMS, finishedAt.UTC(), stageID, taskID, moduleapi.StageStatusRunning)
 	if err != nil {
 		return fmt.Errorf("cancel untracked running stage: %w", err)
 	}
@@ -650,7 +650,7 @@ func (r *SQLRepository) CancelUntrackedRunningStage(ctx context.Context, taskID 
 		SET status = ?, current_stage_key = (SELECT stage_key FROM task_stages WHERE id = ?),
 			finished_at = ?, duration_ms = ?, updated_at = ?
 		WHERE id = ? AND status = ? AND cancel_requested_at IS NOT NULL`),
-		moduleapi.TaskStatusCancelled, stageID, finishedAt.UTC(), durationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusRunning)
+		moduleapi.TaskStatusCancelled, stageID, finishedAt.UTC(), taskDurationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusRunning)
 	if err != nil {
 		return fmt.Errorf("cancel untracked running task: %w", err)
 	}

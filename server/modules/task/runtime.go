@@ -493,7 +493,7 @@ func (r *Runtime) cancelRunningTask(ctx context.Context, task taskmodel.Task) (b
 		return false, err
 	}
 	now := time.Now().UTC()
-	if err := r.repository.CancelUntrackedRunningStage(ctx, task.ID, runningStage.ID, now, durationSince(task.StartedAt, now)); err != nil {
+	if err := r.repository.CancelUntrackedRunningStage(ctx, task.ID, runningStage.ID, now, durationSince(runningStage.StartedAt, now), durationSince(task.StartedAt, now)); err != nil {
 		return false, err
 	}
 	if err := r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelled); err != nil {
@@ -710,10 +710,10 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	stageContext, cancel := context.WithCancel(ctx)
 	run := &stageRun{runtime: r, task: claim.Task, stage: claim.Stage}
 	r.addRunning(claim.Task.ID, runningStage{executor: executor, run: run, cancel: cancel})
+	defer r.removeRunning(claim.Task.ID)
 	err = r.executeStage(stageContext, executor, run)
 	cancel()
 	finishErr := r.finishClaim(ctx, claim, err)
-	r.removeRunning(claim.Task.ID)
 	if finishErr == nil {
 		eventType := taskcontract.TaskRealtimeEventStageCompleted
 		if err != nil {
