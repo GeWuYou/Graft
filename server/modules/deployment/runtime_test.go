@@ -99,10 +99,20 @@ func TestRuntimeFreezeUsesFreshDockerFacts(t *testing.T) {
 	}
 }
 
-func TestRuntimeNilLookupFailsClosed(t *testing.T) {
-	runtime := NewRuntime(nil, dockerFactsStub{})
-	if current := runtime.Current(context.Background()); current.Available() || current.Diagnostics()[0].Code != "deployment_mode_unsupported" {
-		t.Fatalf("nil declaration lookup did not fail closed: %#v", current)
+func TestRuntimeDefaultsToComposeWhenRuntimeIsUnsetOrEmpty(t *testing.T) {
+	lookups := map[string]func(string) (string, bool){
+		"unset": nil,
+		"empty": func(key string) (string, bool) {
+			return "", key == deploymentRuntimeEnv
+		},
+	}
+	for name, lookup := range lookups {
+		t.Run(name, func(t *testing.T) {
+			runtime := NewRuntime(lookup, dockerFactsStub{})
+			if current := runtime.Current(context.Background()); current.Mode() != "compose" || current.Available() || current.Diagnostics()[0].Code != "compose_candidate_unavailable" {
+				t.Fatalf("runtime did not default to Compose discovery: %#v", current)
+			}
+		})
 	}
 }
 

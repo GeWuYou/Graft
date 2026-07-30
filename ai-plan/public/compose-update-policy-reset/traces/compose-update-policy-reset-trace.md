@@ -24,6 +24,12 @@
 - `GRAFT_DEPLOYMENT_RUNTIME` and optional `GRAFT_DEPLOYMENT_COMPOSE_ROOT` replace Update-prefixed deployment configuration without aliases, dual reads, or fallback keys. `GRAFT_IMAGE_TAG` remains the official Compose image/update strategy.
 - The next implementation batch owns server wiring, migration of Update consumers, and regression coverage before the topic returns to cross-boundary validation and archive readiness.
 
+## 2026-07-30 deployment-runtime PR-review remediation
+
+- Official Compose now defaults an unset `GRAFT_DEPLOYMENT_RUNTIME` to `compose` while preserving `GRAFT_DEPLOYMENT_COMPOSE_ROOT` unset, nonempty, and explicit-empty injection semantics through `env_file`.
+- Deployment Runtime now defaults an unset or empty runtime declaration to Compose. A unique high-confidence Docker candidate freezes directly; ambiguous or lower-confidence candidates require opaque-key selection.
+- Update profile discovery has a bounded Docker facts lookup, and deployment registration failures retain operation context for diagnosis.
+
 ## Locked Decisions
 
 - `GRAFT_IMAGE_TAG` is the only current image and update-strategy declaration; `GRAFT_UPDATE_POLICY` is removed without compatibility. `nightly` is explicitly out of scope.

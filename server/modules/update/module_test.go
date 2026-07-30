@@ -1,15 +1,32 @@
 package update
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/robfig/cron/v3"
 	"graft/server/internal/config"
+	"graft/server/internal/container"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
+	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	updatecontract "graft/server/modules/update/contract"
 	updatelocales "graft/server/modules/update/locales"
 )
+
+type deploymentProfileRuntimeStub struct {
+	current func(context.Context) moduleapi.DeploymentContext
+}
+
+func (s deploymentProfileRuntimeStub) Current(ctx context.Context) moduleapi.DeploymentContext {
+	return s.current(ctx)
+}
+
+func (deploymentProfileRuntimeStub) Freeze(context.Context, moduleapi.DeploymentFreezeRequest) (moduleapi.DeploymentSnapshot, error) {
+	return moduleapi.DeploymentSnapshot{}, nil
+}
 
 func TestRegisterMessagesIncludesPlatformUpdateScheduledTaskKeys(t *testing.T) {
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
@@ -50,6 +67,59 @@ func TestPlatformUpdateCheckScheduleUsesSeconds(t *testing.T) {
 	parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 	if _, err := parser.Parse(platformUpdateCheckSchedule); err != nil {
 		t.Fatalf("parse platform update check schedule: %v", err)
+	}
+}
+
+func TestConfigureDeploymentRuntimeBoundsAndCancelsProfileLookup(t *testing.T) {
+	services := container.New()
+	var profileCtx context.Context
+	runtime := deploymentProfileRuntimeStub{current: func(ctx context.Context) moduleapi.DeploymentContext {
+		profileCtx = ctx
+		return moduleapi.NewDeploymentContext("compose", "docker_discovered", false, nil, nil)
+	}}
+	if err := services.RegisterSingleton((*moduleapi.DeploymentRuntime)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
+		t.Fatalf("register deployment runtime: %v", err)
+	}
+	instance := NewModule(&memoryOperationStore{}, failureDiagnosticStoreStub{}, nil)
+	if err := instance.configureDeploymentRuntime(&module.Context{Services: services, LifecycleContext: context.Background()}); err != nil {
+		t.Fatalf("configure deployment runtime: %v", err)
+	}
+
+	instance.service.profile()
+	if profileCtx == nil {
+		t.Fatal("expected deployment runtime profile lookup")
+	}
+	deadline, ok := profileCtx.Deadline()
+	if !ok || time.Until(deadline) <= 0 || time.Until(deadline) > deploymentProfileTimeout {
+		t.Fatalf("expected profile lookup deadline within %s, got %v", deploymentProfileTimeout, deadline)
+	}
+	select {
+	case <-profileCtx.Done():
+	default:
+		t.Fatal("expected profile lookup context to be canceled after the callback returns")
+	}
+}
+
+func TestConfigureDeploymentRuntimePropagatesLifecycleCancellation(t *testing.T) {
+	services := container.New()
+	lifecycleCtx, lifecycleCancel := context.WithCancel(context.Background())
+	lifecycleCancel()
+	var lookupErr error
+	runtime := deploymentProfileRuntimeStub{current: func(ctx context.Context) moduleapi.DeploymentContext {
+		lookupErr = ctx.Err()
+		return moduleapi.NewDeploymentContext("compose", "docker_discovered", false, nil, nil)
+	}}
+	if err := services.RegisterSingleton((*moduleapi.DeploymentRuntime)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
+		t.Fatalf("register deployment runtime: %v", err)
+	}
+	instance := NewModule(&memoryOperationStore{}, failureDiagnosticStoreStub{}, nil)
+	if err := instance.configureDeploymentRuntime(&module.Context{Services: services, LifecycleContext: lifecycleCtx}); err != nil {
+		t.Fatalf("configure deployment runtime: %v", err)
+	}
+
+	instance.service.profile()
+	if lookupErr != context.Canceled {
+		t.Fatalf("expected canceled lifecycle context to reach profile lookup, got %v", lookupErr)
 	}
 }
 

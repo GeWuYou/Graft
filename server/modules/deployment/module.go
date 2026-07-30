@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	containerdi "graft/server/internal/container"
@@ -22,10 +23,13 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	provider, err := module.ResolveService[moduleapi.DockerFactsProvider](ctx.Services, (*moduleapi.DockerFactsProvider)(nil))
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve Docker facts provider: %w", err)
 	}
 	m.runtime = NewRuntime(os.LookupEnv, provider)
-	return ctx.Services.RegisterSingleton((*moduleapi.DeploymentRuntime)(nil), func(containerdi.Resolver) (any, error) { return m.runtime, nil })
+	if err := ctx.Services.RegisterSingleton((*moduleapi.DeploymentRuntime)(nil), func(containerdi.Resolver) (any, error) { return m.runtime, nil }); err != nil {
+		return fmt.Errorf("register deployment runtime: %w", err)
+	}
+	return nil
 }
 
 // Boot 不启动后台任务；Deployment Runtime 在消费时读取当前运行时事实。

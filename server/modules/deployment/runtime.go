@@ -86,7 +86,10 @@ func unavailableContext(mode, code, message string) moduleapi.DeploymentContext 
 }
 
 func deploymentRuntime(lookup environmentLookup) string {
-	value, _ := environmentValue(lookup, deploymentRuntimeEnv)
+	value, configured := environmentValue(lookup, deploymentRuntimeEnv)
+	if !configured || strings.TrimSpace(value) == "" {
+		return "compose"
+	}
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "compose", "binary":
 		return strings.ToLower(strings.TrimSpace(value))

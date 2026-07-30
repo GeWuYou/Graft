@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -19,6 +20,7 @@ const (
 	moduleID                    = "platform-update"
 	platformUpdateMenuOrder     = 103
 	platformUpdateCheckSchedule = "0 0 */4 * * *"
+	deploymentProfileTimeout    = 2 * time.Second
 )
 
 // Module 拥有更新发现的注册、周期检查与 HTTP 读取面。
@@ -97,7 +99,9 @@ func (m *Module) configureDeploymentRuntime(ctx *module.Context) error {
 		return fmt.Errorf("resolve deployment runtime: %w", err)
 	}
 	m.service.profile = func() InstallationProfile {
-		return installationProfile(runtime.Current(ctx.LifecycleContext))
+		profileCtx, cancel := context.WithTimeout(ctx.LifecycleContext, deploymentProfileTimeout)
+		defer cancel()
+		return installationProfile(runtime.Current(profileCtx))
 	}
 	return nil
 }

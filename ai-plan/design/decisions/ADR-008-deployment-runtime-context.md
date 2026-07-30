@@ -30,7 +30,7 @@ The `container` module exposes raw Docker inspect facts only. It may obtain Comp
 
 Deployment configuration uses these canonical keys with no legacy aliases, dual reads, or fallback keys:
 
-- `GRAFT_DEPLOYMENT_RUNTIME` declares the requested runtime, currently `compose` or `binary`.
+- `GRAFT_DEPLOYMENT_RUNTIME` declares the requested runtime, currently `compose` or `binary`; an unset or empty value defaults to `compose`.
 - `GRAFT_DEPLOYMENT_COMPOSE_ROOT` is optional for Compose and, when set, is a non-empty Docker-daemon-host absolute path.
 - `GRAFT_DEPLOYMENT_SERVICE_MANAGER` and `GRAFT_DEPLOYMENT_SERVICE_NAME` describe a supported binary service-control surface when required.
 - `GRAFT_IMAGE_TAG` remains the sole official Compose image tag and update-strategy declaration.
@@ -41,7 +41,7 @@ No `GRAFT_DEPLOYMENT_BINARY_PATH`, `GRAFT_DEPLOYMENT_WEB_ROOT`, `GRAFT_UPDATE_*`
 
 Deployment state has one explicit owner and one immutable operation snapshot, so a status page, preflight, runner, Backup, and Restore can use the same resolved facts. Compose runner trust boundaries from ADR-006 remain: only the frozen daemon-host path is mounted and executed by the runner.
 
-The new module is an infrastructure capability, not a new HTTP surface, persistent store, or startup script. It does not cache deployment facts permanently at server boot, because Docker labels, project configuration, and daemon reachability can change. Operator guidance can expose structured reasons such as socket unavailable, labels absent, ambiguous candidates, invalid explicit root, or fingerprint mismatch without accepting host paths from Web requests.
+The new module is an infrastructure capability, not a new HTTP surface, persistent store, or startup script. It does not cache deployment facts permanently at server boot, because Docker labels, project configuration, and daemon reachability can change. When `GRAFT_DEPLOYMENT_COMPOSE_ROOT` is unset, a unique high-confidence Docker candidate may be frozen directly for a controlled operation; multiple or lower-confidence candidates require an administrator to select their opaque key. Operator guidance can expose structured reasons such as socket unavailable, labels absent, ambiguous candidates, invalid explicit root, or fingerprint mismatch without accepting host paths from Web requests.
 
 ## Rejected Alternatives
 
