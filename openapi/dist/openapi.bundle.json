@@ -26381,6 +26381,198 @@
           }
         }
       },
+      "platform-update-readiness-action": {
+        "type": "object",
+        "description": "A server-authorized next step for resolving a platform update readiness check.",
+        "required": [
+          "id",
+          "type",
+          "label_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "check_updates",
+              "start_upgrade",
+              "view_release",
+              "view_documentation",
+              "navigate",
+              "copy"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "command",
+              "documentation",
+              "navigate",
+              "copy",
+              "recheck"
+            ]
+          },
+          "label_key": {
+            "type": "string",
+            "description": "Module-owned web locale key used to render the action label."
+          },
+          "target": {
+            "type": "string",
+            "description": "A validated documentation path, application route, or copyable value. Never contains credentials."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "platform-update-readiness-evidence": {
+        "type": "object",
+        "description": "One structured observation used to explain a platform update readiness check.",
+        "required": [
+          "code",
+          "state",
+          "label_key"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "failed",
+              "unavailable"
+            ]
+          },
+          "label_key": {
+            "type": "string",
+            "description": "Module-owned web locale key used to render the evidence label."
+          },
+          "value": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "sensitive": {
+            "type": "boolean",
+            "description": "Whether this observation is visible only to platform-update.manage callers."
+          }
+        }
+      },
+      "platform-update-readiness-check": {
+        "type": "object",
+        "description": "A canonical, ordered readiness check produced by the platform update evaluator.",
+        "required": [
+          "id",
+          "order",
+          "state",
+          "severity",
+          "blocking",
+          "title_key",
+          "summary_key",
+          "evidence",
+          "actions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "passed",
+              "warning",
+              "failed",
+              "unavailable"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "success",
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "title_key": {
+            "type": "string"
+          },
+          "summary_key": {
+            "type": "string"
+          },
+          "detail_key": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-update-readiness-evidence"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-update-readiness-action"
+            }
+          }
+        }
+      },
+      "platform-update-readiness": {
+        "type": "object",
+        "description": "Server-owned evaluation of whether the current instance can safely perform a controlled platform update.",
+        "required": [
+          "overall",
+          "ready_count",
+          "total_count",
+          "checks"
+        ],
+        "properties": {
+          "overall": {
+            "type": "string",
+            "enum": [
+              "up_to_date",
+              "upgrade_ready",
+              "upgrade_blocked",
+              "status_unknown"
+            ]
+          },
+          "ready_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_action": {
+            "$ref": "#/components/schemas/platform-update-readiness-action"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-update-readiness-check"
+            }
+          }
+        }
+      },
       "platform-update-status": {
         "type": "object",
         "required": [
@@ -26388,7 +26580,8 @@
           "channel",
           "image_tag",
           "update_mode",
-          "installation_profile"
+          "installation_profile",
+          "readiness"
         ],
         "properties": {
           "current_version": {
@@ -26510,6 +26703,9 @@
                 }
               }
             }
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/platform-update-readiness"
           },
           "checked_at": {
             "type": "string",

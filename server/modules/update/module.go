@@ -48,7 +48,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
 		return err
 	}
-	m.configureRuntimeReader(ctx)
+	if err := m.configureDeploymentRuntime(ctx); err != nil {
+		return err
+	}
 	if err := registerUpdateTaskOwnerAuthorizer(ctx); err != nil {
 		return err
 	}
@@ -89,10 +91,15 @@ func registerUpdateTaskOwnerAuthorizer(ctx *module.Context) error {
 	return nil
 }
 
-func (m *Module) configureRuntimeReader(ctx *module.Context) {
-	if reader, err := module.ResolveService[moduleapi.UpdateComposeRuntimeReader](ctx.Services, (*moduleapi.UpdateComposeRuntimeReader)(nil)); err == nil {
-		m.service.runtimeReader = reader
+func (m *Module) configureDeploymentRuntime(ctx *module.Context) error {
+	runtime, err := module.ResolveService[moduleapi.DeploymentRuntime](ctx.Services, (*moduleapi.DeploymentRuntime)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve deployment runtime: %w", err)
 	}
+	m.service.profile = func() InstallationProfile {
+		return installationProfile(runtime.Current(ctx.LifecycleContext))
+	}
+	return nil
 }
 
 func (m *Module) configureRollout(ctx *module.Context) error {
@@ -109,6 +116,11 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 		return err
 	}
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
+	runtime, err := module.ResolveService[moduleapi.DeploymentRuntime](ctx.Services, (*moduleapi.DeploymentRuntime)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve deployment runtime: %w", err)
+	}
+	m.rollout.SetDeploymentRuntime(runtime)
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
 	m.rollout.SetAppLogger(ctx.AppLogger)

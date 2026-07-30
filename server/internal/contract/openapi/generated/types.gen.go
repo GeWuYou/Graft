@@ -3404,6 +3404,33 @@ func (e PlatformUpdateComposeRootSource) Valid() bool {
 	}
 }
 
+// Defines values for PlatformUpdateMode.
+const (
+	PlatformUpdateModeBetaTracking   PlatformUpdateMode = "beta_tracking"
+	PlatformUpdateModePinnedBeta     PlatformUpdateMode = "pinned_beta"
+	PlatformUpdateModePinnedStable   PlatformUpdateMode = "pinned_stable"
+	PlatformUpdateModeStableTracking PlatformUpdateMode = "stable_tracking"
+	PlatformUpdateModeUnknown        PlatformUpdateMode = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateMode enum.
+func (e PlatformUpdateMode) Valid() bool {
+	switch e {
+	case PlatformUpdateModeBetaTracking:
+		return true
+	case PlatformUpdateModePinnedBeta:
+		return true
+	case PlatformUpdateModePinnedStable:
+		return true
+	case PlatformUpdateModeStableTracking:
+		return true
+	case PlatformUpdateModeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateOperationStatus.
 const (
 	PlatformUpdateOperationStatusBACKINGUP      PlatformUpdateOperationStatus = "BACKING_UP"
@@ -3446,6 +3473,174 @@ func (e PlatformUpdateOperationStatus) Valid() bool {
 	}
 }
 
+// Defines values for PlatformUpdateReadinessOverall.
+const (
+	StatusUnknown  PlatformUpdateReadinessOverall = "status_unknown"
+	UpToDate       PlatformUpdateReadinessOverall = "up_to_date"
+	UpgradeBlocked PlatformUpdateReadinessOverall = "upgrade_blocked"
+	UpgradeReady   PlatformUpdateReadinessOverall = "upgrade_ready"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReadinessOverall enum.
+func (e PlatformUpdateReadinessOverall) Valid() bool {
+	switch e {
+	case StatusUnknown:
+		return true
+	case UpToDate:
+		return true
+	case UpgradeBlocked:
+		return true
+	case UpgradeReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateReadinessActionId.
+const (
+	PlatformUpdateReadinessActionIdCheckUpdates      PlatformUpdateReadinessActionId = "check_updates"
+	PlatformUpdateReadinessActionIdCopy              PlatformUpdateReadinessActionId = "copy"
+	PlatformUpdateReadinessActionIdNavigate          PlatformUpdateReadinessActionId = "navigate"
+	PlatformUpdateReadinessActionIdStartUpgrade      PlatformUpdateReadinessActionId = "start_upgrade"
+	PlatformUpdateReadinessActionIdViewDocumentation PlatformUpdateReadinessActionId = "view_documentation"
+	PlatformUpdateReadinessActionIdViewRelease       PlatformUpdateReadinessActionId = "view_release"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReadinessActionId enum.
+func (e PlatformUpdateReadinessActionId) Valid() bool {
+	switch e {
+	case PlatformUpdateReadinessActionIdCheckUpdates:
+		return true
+	case PlatformUpdateReadinessActionIdCopy:
+		return true
+	case PlatformUpdateReadinessActionIdNavigate:
+		return true
+	case PlatformUpdateReadinessActionIdStartUpgrade:
+		return true
+	case PlatformUpdateReadinessActionIdViewDocumentation:
+		return true
+	case PlatformUpdateReadinessActionIdViewRelease:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateReadinessActionType.
+const (
+	PlatformUpdateReadinessActionTypeCommand       PlatformUpdateReadinessActionType = "command"
+	PlatformUpdateReadinessActionTypeCopy          PlatformUpdateReadinessActionType = "copy"
+	PlatformUpdateReadinessActionTypeDocumentation PlatformUpdateReadinessActionType = "documentation"
+	PlatformUpdateReadinessActionTypeNavigate      PlatformUpdateReadinessActionType = "navigate"
+	PlatformUpdateReadinessActionTypeRecheck       PlatformUpdateReadinessActionType = "recheck"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReadinessActionType enum.
+func (e PlatformUpdateReadinessActionType) Valid() bool {
+	switch e {
+	case PlatformUpdateReadinessActionTypeCommand:
+		return true
+	case PlatformUpdateReadinessActionTypeCopy:
+		return true
+	case PlatformUpdateReadinessActionTypeDocumentation:
+		return true
+	case PlatformUpdateReadinessActionTypeNavigate:
+		return true
+	case PlatformUpdateReadinessActionTypeRecheck:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateReadinessCheckSeverity.
+const (
+	PlatformUpdateReadinessCheckSeverityCritical PlatformUpdateReadinessCheckSeverity = "critical"
+	PlatformUpdateReadinessCheckSeverityInfo     PlatformUpdateReadinessCheckSeverity = "info"
+	PlatformUpdateReadinessCheckSeveritySuccess  PlatformUpdateReadinessCheckSeverity = "success"
+	PlatformUpdateReadinessCheckSeverityWarning  PlatformUpdateReadinessCheckSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReadinessCheckSeverity enum.
+func (e PlatformUpdateReadinessCheckSeverity) Valid() bool {
+	switch e {
+	case PlatformUpdateReadinessCheckSeverityCritical:
+		return true
+	case PlatformUpdateReadinessCheckSeverityInfo:
+		return true
+	case PlatformUpdateReadinessCheckSeveritySuccess:
+		return true
+	case PlatformUpdateReadinessCheckSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateReadinessCheckState.
+const (
+	PlatformUpdateReadinessCheckStateFailed      PlatformUpdateReadinessCheckState = "failed"
+	PlatformUpdateReadinessCheckStatePassed      PlatformUpdateReadinessCheckState = "passed"
+	PlatformUpdateReadinessCheckStateUnavailable PlatformUpdateReadinessCheckState = "unavailable"
+	PlatformUpdateReadinessCheckStateWarning     PlatformUpdateReadinessCheckState = "warning"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReadinessCheckState enum.
+func (e PlatformUpdateReadinessCheckState) Valid() bool {
+	switch e {
+	case PlatformUpdateReadinessCheckStateFailed:
+		return true
+	case PlatformUpdateReadinessCheckStatePassed:
+		return true
+	case PlatformUpdateReadinessCheckStateUnavailable:
+		return true
+	case PlatformUpdateReadinessCheckStateWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateReadinessEvidenceState.
+const (
+	PlatformUpdateReadinessEvidenceStateFailed      PlatformUpdateReadinessEvidenceState = "failed"
+	PlatformUpdateReadinessEvidenceStatePassed      PlatformUpdateReadinessEvidenceState = "passed"
+	PlatformUpdateReadinessEvidenceStateUnavailable PlatformUpdateReadinessEvidenceState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReadinessEvidenceState enum.
+func (e PlatformUpdateReadinessEvidenceState) Valid() bool {
+	switch e {
+	case PlatformUpdateReadinessEvidenceStateFailed:
+		return true
+	case PlatformUpdateReadinessEvidenceStatePassed:
+		return true
+	case PlatformUpdateReadinessEvidenceStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateReleaseChannel.
+const (
+	PlatformUpdateReleaseChannelBeta   PlatformUpdateReleaseChannel = "beta"
+	PlatformUpdateReleaseChannelStable PlatformUpdateReleaseChannel = "stable"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateReleaseChannel enum.
+func (e PlatformUpdateReleaseChannel) Valid() bool {
+	switch e {
+	case PlatformUpdateReleaseChannelBeta:
+		return true
+	case PlatformUpdateReleaseChannelStable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateRolloutErrorResponseSuccess.
 const (
 	PlatformUpdateRolloutErrorResponseSuccessFalse PlatformUpdateRolloutErrorResponseSuccess = false
@@ -3463,13 +3658,18 @@ func (e PlatformUpdateRolloutErrorResponseSuccess) Valid() bool {
 
 // Defines values for PlatformUpdateRolloutFailureCode.
 const (
-	PLATFORMUPDATECATALOGSTALE             PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_CATALOG_STALE"
-	PLATFORMUPDATECOMPOSECANDIDATEINVALID  PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID"
-	PLATFORMUPDATECOMPOSEPREFLIGHTFAILED   PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
-	PLATFORMUPDATEINSTALLATIONUNAVAILABLE  PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE"
-	PLATFORMUPDATEINVALIDTARGET            PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INVALID_TARGET"
-	PLATFORMUPDATEOPERATIONSTARTFAILED     PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_OPERATION_START_FAILED"
-	PLATFORMUPDATESOURCEVERSIONUNSUPPORTED PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
+	PLATFORMUPDATECATALOGSTALE                         PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_CATALOG_STALE"
+	PLATFORMUPDATECOMPOSECANDIDATECONFIRMATIONREQUIRED PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_CONFIRMATION_REQUIRED"
+	PLATFORMUPDATECOMPOSECANDIDATEINVALID              PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID"
+	PLATFORMUPDATECOMPOSEPREFLIGHTFAILED               PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
+	PLATFORMUPDATEIMAGETAGINVALID                      PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_IMAGE_TAG_INVALID"
+	PLATFORMUPDATEIMAGETAGUNCONFIGURED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_IMAGE_TAG_UNCONFIGURED"
+	PLATFORMUPDATEINSTALLATIONUNAVAILABLE              PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INSTALLATION_UNAVAILABLE"
+	PLATFORMUPDATEINVALIDTARGET                        PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INVALID_TARGET"
+	PLATFORMUPDATENOELIGIBLENEWERRELEASE               PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_NO_ELIGIBLE_NEWER_RELEASE"
+	PLATFORMUPDATEOPERATIONSTARTFAILED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_OPERATION_START_FAILED"
+	PLATFORMUPDATERUNNERTERMINALFAILED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
+	PLATFORMUPDATESOURCEVERSIONUNSUPPORTED             PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
 )
 
 // Valid indicates whether the value is a known member of the PlatformUpdateRolloutFailureCode enum.
@@ -3477,15 +3677,25 @@ func (e PlatformUpdateRolloutFailureCode) Valid() bool {
 	switch e {
 	case PLATFORMUPDATECATALOGSTALE:
 		return true
+	case PLATFORMUPDATECOMPOSECANDIDATECONFIRMATIONREQUIRED:
+		return true
 	case PLATFORMUPDATECOMPOSECANDIDATEINVALID:
 		return true
 	case PLATFORMUPDATECOMPOSEPREFLIGHTFAILED:
+		return true
+	case PLATFORMUPDATEIMAGETAGINVALID:
+		return true
+	case PLATFORMUPDATEIMAGETAGUNCONFIGURED:
 		return true
 	case PLATFORMUPDATEINSTALLATIONUNAVAILABLE:
 		return true
 	case PLATFORMUPDATEINVALIDTARGET:
 		return true
+	case PLATFORMUPDATENOELIGIBLENEWERRELEASE:
+		return true
 	case PLATFORMUPDATEOPERATIONSTARTFAILED:
+		return true
+	case PLATFORMUPDATERUNNERTERMINALFAILED:
 		return true
 	case PLATFORMUPDATESOURCEVERSIONUNSUPPORTED:
 		return true
@@ -3587,24 +3797,6 @@ func (e PlatformUpdateStatusInstallationProfileServiceManager) Valid() bool {
 	case PlatformUpdateStatusInstallationProfileServiceManagerManual:
 		return true
 	case PlatformUpdateStatusInstallationProfileServiceManagerSystemd:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PlatformUpdateStatusLatestChannel.
-const (
-	Beta   PlatformUpdateStatusLatestChannel = "beta"
-	Stable PlatformUpdateStatusLatestChannel = "stable"
-)
-
-// Valid indicates whether the value is a known member of the PlatformUpdateStatusLatestChannel enum.
-func (e PlatformUpdateStatusLatestChannel) Valid() bool {
-	switch e {
-	case Beta:
-		return true
-	case Stable:
 		return true
 	default:
 		return false
@@ -4441,19 +4633,19 @@ func (e ServerStatusTrendRange) Valid() bool {
 
 // Defines values for SystemConfigItemRuntimeApplyMode.
 const (
-	SystemConfigItemRuntimeApplyModeRestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
-	SystemConfigItemRuntimeApplyModeRuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
-	SystemConfigItemRuntimeApplyModeUnknown         SystemConfigItemRuntimeApplyMode = "unknown"
+	RestartRequired SystemConfigItemRuntimeApplyMode = "restart_required"
+	RuntimeHot      SystemConfigItemRuntimeApplyMode = "runtime_hot"
+	Unknown         SystemConfigItemRuntimeApplyMode = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemRuntimeApplyMode enum.
 func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 	switch e {
-	case SystemConfigItemRuntimeApplyModeRestartRequired:
+	case RestartRequired:
 		return true
-	case SystemConfigItemRuntimeApplyModeRuntimeHot:
+	case RuntimeHot:
 		return true
-	case SystemConfigItemRuntimeApplyModeUnknown:
+	case Unknown:
 		return true
 	default:
 		return false
@@ -11365,20 +11557,29 @@ type PlatformUpdateFailureDiagnostic struct {
 	TaskId *int64 `json:"task_id,omitempty"`
 }
 
+// PlatformUpdateMode Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
+type PlatformUpdateMode string
+
 // PlatformUpdateOperation defines model for platform-update-operation.
 type PlatformUpdateOperation struct {
-	BackupId          *int64                        `json:"backup_id,omitempty"`
-	CreatedAt         time.Time                     `json:"created_at"`
-	FailureCode       *string                       `json:"failure_code,omitempty"`
-	FinishedAt        *time.Time                    `json:"finished_at,omitempty"`
-	OperationId       string                        `json:"operation_id"`
-	RecoveryCompleted bool                          `json:"recovery_completed"`
-	RequestedBy       *int64                        `json:"requested_by,omitempty"`
-	SourceVersion     string                        `json:"source_version"`
-	StartedAt         time.Time                     `json:"started_at"`
-	Status            PlatformUpdateOperationStatus `json:"status"`
-	TargetVersion     string                        `json:"target_version"`
-	TaskId            int64                         `json:"task_id"`
+	BackupId    *int64    `json:"backup_id,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	FailureCode *string   `json:"failure_code,omitempty"`
+
+	// FailureDiagnosticAvailable Whether a manager may retrieve controlled failure diagnostics for this operation.
+	FailureDiagnosticAvailable *bool                         `json:"failure_diagnostic_available,omitempty"`
+	FinishedAt                 *time.Time                    `json:"finished_at,omitempty"`
+	OperationId                string                        `json:"operation_id"`
+	RecoveryCompleted          bool                          `json:"recovery_completed"`
+	RequestedBy                *int64                        `json:"requested_by,omitempty"`
+	SourceVersion              string                        `json:"source_version"`
+	StartedAt                  time.Time                     `json:"started_at"`
+	Status                     PlatformUpdateOperationStatus `json:"status"`
+	TargetVersion              string                        `json:"target_version"`
+	TaskId                     int64                         `json:"task_id"`
+
+	// UpdateMode Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
+	UpdateMode *PlatformUpdateMode `json:"update_mode,omitempty"`
 }
 
 // PlatformUpdateOperationStatus defines model for PlatformUpdateOperation.Status.
@@ -11386,6 +11587,103 @@ type PlatformUpdateOperationStatus string
 
 // PlatformUpdateOperationList defines model for platform-update-operation-list.
 type PlatformUpdateOperationList = []PlatformUpdateOperation
+
+// PlatformUpdateReadiness Server-owned evaluation of whether the current instance can safely perform a controlled platform update.
+type PlatformUpdateReadiness struct {
+	Checks []PlatformUpdateReadinessCheck `json:"checks"`
+
+	// NextAction A server-authorized next step for resolving a platform update readiness check.
+	NextAction *PlatformUpdateReadinessAction `json:"next_action,omitempty"`
+	Overall    PlatformUpdateReadinessOverall `json:"overall"`
+	ReadyCount int                            `json:"ready_count"`
+	TotalCount int                            `json:"total_count"`
+}
+
+// PlatformUpdateReadinessOverall defines model for PlatformUpdateReadiness.Overall.
+type PlatformUpdateReadinessOverall string
+
+// PlatformUpdateReadinessAction A server-authorized next step for resolving a platform update readiness check.
+type PlatformUpdateReadinessAction struct {
+	Id PlatformUpdateReadinessActionId `json:"id"`
+
+	// LabelKey Module-owned web locale key used to render the action label.
+	LabelKey string             `json:"label_key"`
+	Params   *map[string]string `json:"params,omitempty"`
+
+	// Target A validated documentation path, application route, or copyable value. Never contains credentials.
+	Target *string                           `json:"target,omitempty"`
+	Type   PlatformUpdateReadinessActionType `json:"type"`
+}
+
+// PlatformUpdateReadinessActionId defines model for PlatformUpdateReadinessAction.Id.
+type PlatformUpdateReadinessActionId string
+
+// PlatformUpdateReadinessActionType defines model for PlatformUpdateReadinessAction.Type.
+type PlatformUpdateReadinessActionType string
+
+// PlatformUpdateReadinessCheck A canonical, ordered readiness check produced by the platform update evaluator.
+type PlatformUpdateReadinessCheck struct {
+	Actions    []PlatformUpdateReadinessAction      `json:"actions"`
+	Blocking   bool                                 `json:"blocking"`
+	DetailKey  *string                              `json:"detail_key,omitempty"`
+	Evidence   []PlatformUpdateReadinessEvidence    `json:"evidence"`
+	Id         string                               `json:"id"`
+	Order      int                                  `json:"order"`
+	Params     *map[string]string                   `json:"params,omitempty"`
+	Severity   PlatformUpdateReadinessCheckSeverity `json:"severity"`
+	State      PlatformUpdateReadinessCheckState    `json:"state"`
+	SummaryKey string                               `json:"summary_key"`
+	TitleKey   string                               `json:"title_key"`
+}
+
+// PlatformUpdateReadinessCheckSeverity defines model for PlatformUpdateReadinessCheck.Severity.
+type PlatformUpdateReadinessCheckSeverity string
+
+// PlatformUpdateReadinessCheckState defines model for PlatformUpdateReadinessCheck.State.
+type PlatformUpdateReadinessCheckState string
+
+// PlatformUpdateReadinessEvidence One structured observation used to explain a platform update readiness check.
+type PlatformUpdateReadinessEvidence struct {
+	Code     string  `json:"code"`
+	Expected *string `json:"expected,omitempty"`
+
+	// LabelKey Module-owned web locale key used to render the evidence label.
+	LabelKey string `json:"label_key"`
+
+	// Sensitive Whether this observation is visible only to platform-update.manage callers.
+	Sensitive *bool                                `json:"sensitive,omitempty"`
+	State     PlatformUpdateReadinessEvidenceState `json:"state"`
+	Value     *string                              `json:"value,omitempty"`
+}
+
+// PlatformUpdateReadinessEvidenceState defines model for PlatformUpdateReadinessEvidence.State.
+type PlatformUpdateReadinessEvidenceState string
+
+// PlatformUpdateRelease defines model for platform-update-release.
+type PlatformUpdateRelease struct {
+	AssetSha256          *map[string]string           `json:"asset_sha256,omitempty"`
+	Channel              PlatformUpdateReleaseChannel `json:"channel"`
+	ChecksumsUrl         *string                      `json:"checksums_url,omitempty"`
+	ManifestUrl          string                       `json:"manifest_url"`
+	MinimumSourceVersion *string                      `json:"minimum_source_version,omitempty"`
+	Notes                string                       `json:"notes"`
+	NotesUrl             *string                      `json:"notes_url,omitempty"`
+	PublishedAt          time.Time                    `json:"published_at"`
+	RunnerDigest         string                       `json:"runner_digest"`
+	RunnerImage          string                       `json:"runner_image"`
+	RunnerReference      string                       `json:"runner_reference"`
+	ServerDigest         string                       `json:"server_digest"`
+	ServerImage          string                       `json:"server_image"`
+	ServerReference      string                       `json:"server_reference"`
+	UpgradeNotes         *string                      `json:"upgrade_notes,omitempty"`
+	Version              string                       `json:"version"`
+	WebDigest            string                       `json:"web_digest"`
+	WebImage             string                       `json:"web_image"`
+	WebReference         string                       `json:"web_reference"`
+}
+
+// PlatformUpdateReleaseChannel defines model for PlatformUpdateRelease.Channel.
+type PlatformUpdateReleaseChannel string
 
 // PlatformUpdateRolloutErrorResponse defines model for platform-update-rollout-error-response.
 type PlatformUpdateRolloutErrorResponse struct {
@@ -11421,23 +11719,31 @@ type PlatformUpdateRolloutFailureData struct {
 
 // PlatformUpdateStatus defines model for platform-update-status.
 type PlatformUpdateStatus struct {
-	CacheStale          *bool                       `json:"cache_stale,omitempty"`
-	Channel             PlatformUpdateStatusChannel `json:"channel"`
-	CheckError          *string                     `json:"check_error,omitempty"`
-	CheckedAt           *time.Time                  `json:"checked_at,omitempty"`
-	CurrentVersion      string                      `json:"current_version"`
+	// AvailableReleases Verified releases newer than the running version in the deployment's channel. Tracking modes expose their current channel; pinned modes expose fixed-version choices. Empty for callers without update management permission.
+	AvailableReleases *[]PlatformUpdateRelease    `json:"available_releases,omitempty"`
+	CacheStale        *bool                       `json:"cache_stale,omitempty"`
+	Channel           PlatformUpdateStatusChannel `json:"channel"`
+	CheckError        *string                     `json:"check_error,omitempty"`
+	CheckedAt         *time.Time                  `json:"checked_at,omitempty"`
+	CurrentVersion    string                      `json:"current_version"`
+
+	// ImageTag The injected GRAFT_IMAGE_TAG deployment strategy source.
+	ImageTag            string `json:"image_tag"`
 	InstallationProfile struct {
 		BinaryPath     *string                                           `json:"binary_path,omitempty"`
 		BlockingReason *string                                           `json:"blocking_reason,omitempty"`
 		Capability     PlatformUpdateStatusInstallationProfileCapability `json:"capability"`
 
 		// ComposeCandidates Opaque Compose candidates and host paths for an authenticated platform-update.manage caller. Read-only callers receive an empty array.
-		ComposeCandidates []PlatformUpdateComposeRootCandidate                `json:"compose_candidates"`
-		ComposeRootSource PlatformUpdateComposeRootSource                     `json:"compose_root_source"`
-		DeclaredMode      PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
-		DetectedMode      PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
-		Guidance          string                                              `json:"guidance"`
-		ManualSteps       *[]struct {
+		ComposeCandidates []PlatformUpdateComposeRootCandidate `json:"compose_candidates"`
+
+		// ComposeRootConfirmationRequired Whether the caller must select among Compose root candidates before rollout.
+		ComposeRootConfirmationRequired *bool                                               `json:"compose_root_confirmation_required,omitempty"`
+		ComposeRootSource               PlatformUpdateComposeRootSource                     `json:"compose_root_source"`
+		DeclaredMode                    PlatformUpdateStatusInstallationProfileDeclaredMode `json:"declared_mode"`
+		DetectedMode                    PlatformUpdateStatusInstallationProfileDetectedMode `json:"detected_mode"`
+		Guidance                        string                                              `json:"guidance"`
+		ManualSteps                     *[]struct {
 			Key    string             `json:"key"`
 			Params *map[string]string `json:"params,omitempty"`
 		} `json:"manual_steps,omitempty"`
@@ -11445,21 +11751,14 @@ type PlatformUpdateStatus struct {
 		ServiceName    *string                                                `json:"service_name,omitempty"`
 		WebRoot        *string                                                `json:"web_root,omitempty"`
 	} `json:"installation_profile"`
-	LastSuccessfulAt *time.Time `json:"last_successful_at,omitempty"`
-	Latest           *struct {
-		AssetSha256          *map[string]string                `json:"asset_sha256,omitempty"`
-		Channel              PlatformUpdateStatusLatestChannel `json:"channel"`
-		ChecksumsUrl         *string                           `json:"checksums_url,omitempty"`
-		ManifestUrl          string                            `json:"manifest_url"`
-		MinimumSourceVersion *string                           `json:"minimum_source_version,omitempty"`
-		Notes                string                            `json:"notes"`
-		NotesUrl             *string                           `json:"notes_url,omitempty"`
-		PublishedAt          time.Time                         `json:"published_at"`
-		ServerDigest         string                            `json:"server_digest"`
-		UpgradeNotes         *string                           `json:"upgrade_notes,omitempty"`
-		Version              string                            `json:"version"`
-		WebDigest            string                            `json:"web_digest"`
-	} `json:"latest,omitempty"`
+	LastSuccessfulAt *time.Time             `json:"last_successful_at,omitempty"`
+	Latest           *PlatformUpdateRelease `json:"latest,omitempty"`
+
+	// Readiness Server-owned evaluation of whether the current instance can safely perform a controlled platform update.
+	Readiness PlatformUpdateReadiness `json:"readiness"`
+
+	// UpdateMode Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
+	UpdateMode PlatformUpdateMode `json:"update_mode"`
 }
 
 // PlatformUpdateStatusChannel defines model for PlatformUpdateStatus.Channel.
@@ -11476,9 +11775,6 @@ type PlatformUpdateStatusInstallationProfileDetectedMode string
 
 // PlatformUpdateStatusInstallationProfileServiceManager defines model for PlatformUpdateStatus.InstallationProfile.ServiceManager.
 type PlatformUpdateStatusInstallationProfileServiceManager string
-
-// PlatformUpdateStatusLatestChannel defines model for PlatformUpdateStatus.Latest.Channel.
-type PlatformUpdateStatusLatestChannel string
 
 // PublishAnnouncementRequest defines model for publish-announcement-request.
 type PublishAnnouncementRequest struct {
@@ -15015,6 +15311,16 @@ type PostPlatformUpdateOperationParams struct {
 
 // GetPlatformUpdateOperationParams defines parameters for GetPlatformUpdateOperation.
 type GetPlatformUpdateOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformUpdateOperationFailureDiagnosticParams defines parameters for GetPlatformUpdateOperationFailureDiagnostic.
+type GetPlatformUpdateOperationFailureDiagnosticParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

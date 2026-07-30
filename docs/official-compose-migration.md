@@ -45,15 +45,15 @@ Configure the official values in `.env`:
 # Use the exact fixed official tag already deployed and cloned in step 1.
 # Do not change this version or its release channel during migration.
 GRAFT_IMAGE_TAG=v0.11.0-beta.21
-GRAFT_UPDATE_DEPLOYMENT_MODE=compose
+GRAFT_DEPLOYMENT_RUNTIME=compose
 ```
 
 `GRAFT_IMAGE_TAG` is the only image-version and update-strategy setting. It must be the same exact fixed tag used to clone the Compose release in step 1; do not add a second update-policy variable. In a later controlled upgrade, tracking tags such as `latest` and `beta` remain in `.env`, while the runner uses a manifest-derived release target only for the current upgrade. A fixed-tag upgrade atomically writes a newer verified fixed tag in the same channel.
 
-Normally leave `GRAFT_UPDATE_COMPOSE_ROOT` unset. The server discovers its own Compose project through Docker and requires an administrator to confirm an ambiguous candidate. If discovery cannot identify the project, set this value to the absolute root from step 1:
+Normally leave `GRAFT_DEPLOYMENT_COMPOSE_ROOT` unset. Deployment Runtime discovers the server's Compose project through Docker and requires an administrator to confirm an ambiguous candidate. If discovery cannot identify the project, set this value to the absolute root from step 1:
 
 ```dotenv
-GRAFT_UPDATE_COMPOSE_ROOT=/opt/graft
+GRAFT_DEPLOYMENT_COMPOSE_ROOT=/opt/graft
 ```
 
 An explicitly blank, relative, invalid, or stale root blocks controlled upgrades. Graft does not fall back to a container path, binary updater, or unrelated Compose project.
@@ -75,8 +75,8 @@ Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`,
 
 | Checklist result | What to correct |
 | --- | --- |
-| Official Compose deployment is not detected | Start from the repository `compose.yml`, set `GRAFT_UPDATE_DEPLOYMENT_MODE=compose`, and recreate the instance from that root. |
-| Compose project cannot be detected | Verify that the server mounts `/var/run/docker.sock`. If discovery remains unavailable, set `GRAFT_UPDATE_COMPOSE_ROOT` to the Docker daemon host's absolute Compose root. |
+| Official Compose deployment is not detected | Start from the repository `compose.yml`, set `GRAFT_DEPLOYMENT_RUNTIME=compose`, and recreate the instance from that root. |
+| Compose project cannot be detected | Verify that the server mounts `/var/run/docker.sock`. If discovery remains unavailable, set `GRAFT_DEPLOYMENT_COMPOSE_ROOT` to the Docker daemon host's absolute Compose root. |
 | Image strategy is invalid | Set `GRAFT_IMAGE_TAG` to `latest`, `beta`, or a compatible fixed release tag. |
 | No release information is available | Check host access to the release endpoint, then check again. This does not mean an upgrade is available. |
 | Upgrade permission is missing | Sign in with an account granted `platform-update.manage`. |

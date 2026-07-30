@@ -13,7 +13,7 @@ sed -i 's/^GRAFT_AUTH_JWT_SECRET=.*/GRAFT_AUTH_JWT_SECRET=test-secret/' "$worksp
 
 rendered="$(docker compose --env-file "$workspace/.env" -f "$workspace/compose.yml" config --format json)"
 server_tag="$(jq -r '.services.server.environment.GRAFT_IMAGE_TAG' <<<"$rendered")"
-server_mode="$(jq -r '.services.server.environment.GRAFT_UPDATE_DEPLOYMENT_MODE' <<<"$rendered")"
+server_runtime="$(jq -r '.services.server.environment.GRAFT_DEPLOYMENT_RUNTIME' <<<"$rendered")"
 
 test "$server_tag" = "beta"
-test "$server_mode" = "compose"
+test "$server_runtime" = "compose"

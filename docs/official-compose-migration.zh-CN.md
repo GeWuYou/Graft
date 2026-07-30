@@ -43,15 +43,15 @@ GRAFT_PROJECT_IMPORT_HOST_PATH=/opt/graft/imports
 # 使用第 1 步克隆且当前已部署的确切固定官方 Tag。
 # 迁移期间不要变更此版本或其发行频道。
 GRAFT_IMAGE_TAG=v0.11.0-beta.21
-GRAFT_UPDATE_DEPLOYMENT_MODE=compose
+GRAFT_DEPLOYMENT_RUNTIME=compose
 ```
 
 `GRAFT_IMAGE_TAG` 是唯一的镜像版本与升级策略配置，必须与第 1 步克隆 Compose 发行版所用的确切固定 Tag 相同；不要增加第二个更新策略变量。在后续受控升级中，`latest`、`beta` 等跟随标签仍保留在 `.env` 中，runner 只在本次升级期间使用由 manifest 推导出的发行目标。固定 Tag 升级会以原子方式写入同一频道中较新的已验证固定 Tag。
 
-通常应让 `GRAFT_UPDATE_COMPOSE_ROOT` 保持未设置。server 会通过 Docker 发现自身 Compose 项目，结果存在歧义时管理员必须确认候选。只有自动发现无法识别项目时，才将该值设置为第 1 步中的绝对目录：
+通常应让 `GRAFT_DEPLOYMENT_COMPOSE_ROOT` 保持未设置。Deployment Runtime 会通过 Docker 发现 server 自身的 Compose 项目，结果存在歧义时管理员必须确认候选。只有自动发现无法识别项目时，才将该值设置为第 1 步中的绝对目录：
 
 ```dotenv
-GRAFT_UPDATE_COMPOSE_ROOT=/opt/graft
+GRAFT_DEPLOYMENT_COMPOSE_ROOT=/opt/graft
 ```
 
 显式空值、相对路径、无效路径或过期路径都会阻断受控升级。Graft 不会回退到容器内路径、binary updater 或无关的 Compose 项目。
@@ -73,8 +73,8 @@ docker compose ps
 
 | 检查结果 | 应修复的内容 |
 | --- | --- |
-| 未检测到官方 Compose 部署 | 使用仓库 `compose.yml`，设置 `GRAFT_UPDATE_DEPLOYMENT_MODE=compose`，再从该根目录重新创建实例。 |
-| 无法检测 Compose 项目 | 检查 server 是否挂载 `/var/run/docker.sock`。若自动发现仍不可用，将 `GRAFT_UPDATE_COMPOSE_ROOT` 设为 Docker daemon 宿主机上的绝对 Compose 根目录。 |
+| 未检测到官方 Compose 部署 | 使用仓库 `compose.yml`，设置 `GRAFT_DEPLOYMENT_RUNTIME=compose`，再从该根目录重新创建实例。 |
+| 无法检测 Compose 项目 | 检查 server 是否挂载 `/var/run/docker.sock`。若自动发现仍不可用，将 `GRAFT_DEPLOYMENT_COMPOSE_ROOT` 设为 Docker daemon 宿主机上的绝对 Compose 根目录。 |
 | 镜像策略无效 | 将 `GRAFT_IMAGE_TAG` 设为 `latest`、`beta` 或兼容的固定发行版 Tag。 |
 | 无法获取发行信息 | 检查主机访问发行服务的网络，然后重新检查。此状态不代表一定有可升级版本。 |
 | 缺少升级权限 | 使用已授予 `platform-update.manage` 的账户登录。 |

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -26,6 +25,7 @@ type RolloutService struct {
 	diagnostics       FailureDiagnosticStore
 	coordinator       *ComposeExecutionCoordinator
 	launcher          ComposeRunnerLauncher
+	deployment        moduleapi.DeploymentRuntime
 	newOperation      func() string
 	auditPublisher    event.Publisher
 	logger            *zap.Logger
@@ -82,6 +82,13 @@ func NewRolloutService(discovery *Service, operations OperationStore, tasks modu
 	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID}
 }
 
+// SetDeploymentRuntime 注入唯一可解释部署事实的能力；每次升级启动前都必须重新冻结快照。
+func (s *RolloutService) SetDeploymentRuntime(runtime moduleapi.DeploymentRuntime) {
+	if s != nil {
+		s.deployment = runtime
+	}
+}
+
 // SetFailureDiagnosticStore 注入 operation 终态使用的受控诊断存储；runner 的原始输出不进入该边界。
 func (s *RolloutService) SetFailureDiagnosticStore(store FailureDiagnosticStore) {
 	if s != nil {
@@ -104,7 +111,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
 	}
 	candidateKey := strings.TrimSpace(input.CandidateKey)
-	status, preflight, mode, err := s.confirmedPreflight(input.TargetVersion, candidateKey)
+	status, preflight, mode, err := s.confirmedPreflight(ctx, input.TargetVersion, candidateKey)
 	if err != nil {
 		code := classifyRolloutPreflightFailure(err)
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
@@ -124,7 +131,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 }
 
 //nolint:cyclop,gocognit,gocyclo,revive // 每个拒绝分支都是可独立审计的发布安全门。
-func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey string) (Status, ComposePreflight, UpdateMode, error) {
+func (s *RolloutService) confirmedPreflight(ctx context.Context, targetVersion, candidateKey string) (Status, ComposePreflight, UpdateMode, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: fresh verified release catalog is required", errRolloutCatalogStale)
@@ -167,7 +174,14 @@ func (s *RolloutService) confirmedPreflight(targetVersion, candidateKey string) 
 			return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: current version does not meet the target minimum source version", errRolloutSourceVersionUnsupported)
 		}
 	}
-	preflight, err := composePreflight(status.Profile, release, strategy, candidateKey)
+	if s.deployment == nil {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: deployment runtime is unavailable", errRolloutInstallationUnavailable)
+	}
+	snapshot, err := s.deployment.Freeze(ctx, moduleapi.DeploymentFreezeRequest{CandidateKey: candidateKey})
+	if err != nil {
+		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: %w", errRolloutComposeCandidateInvalid, err)
+	}
+	preflight, err := composePreflight(snapshot, release, strategy)
 	if err != nil {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: %w", errRolloutComposePreflightFailed, err)
 	}
@@ -439,39 +453,18 @@ func (s *RolloutService) settleReceiptAndCleanup(ctx context.Context, receipt Ru
 	return settled, nil
 }
 
-func composePreflight(profile InstallationProfile, release Release, strategy DeploymentStrategy, candidateKey string) (ComposePreflight, error) {
-	root := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_COMPOSE_ROOT"))
-	explicitRoot := root != ""
-	composeFiles := []string{}
-	if root == "" {
-		root, composeFiles = confirmedComposeCandidate(profile, candidateKey)
-		if root == "" {
-			return ComposePreflight{}, fmt.Errorf("%w: a confirmed compose root candidate is required", errRolloutComposeCandidateInvalid)
-		}
+func composePreflight(snapshot moduleapi.DeploymentSnapshot, release Release, strategy DeploymentStrategy) (ComposePreflight, error) {
+	candidate := snapshot.Candidate()
+	root := candidate.Root()
+	composeFiles := candidate.ConfigFiles()
+	if root == "" || len(composeFiles) == 0 {
+		return ComposePreflight{}, fmt.Errorf("%w: frozen compose candidate is incomplete", errRolloutComposeCandidateInvalid)
 	}
-	if len(composeFiles) == 0 {
-		if !explicitRoot {
-			return ComposePreflight{}, fmt.Errorf("%w: the confirmed compose root candidate must include its compose file sequence", errRolloutComposeCandidateInvalid)
-		}
-		composeFiles = []string{filepath.Join(root, "compose.yml")}
-	}
-	value := ComposePreflight{DeclaredMode: profile.DeclaredMode, UpdateMode: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: profile.DetectedMode, ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":v" + release.Version, WebReference: release.WebImage + ":v" + release.Version, RunnerReference: release.RunnerRef}
+	value := ComposePreflight{DeclaredMode: snapshot.Context().Mode(), UpdateMode: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: snapshot.Context().Mode(), ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":v" + release.Version, WebReference: release.WebImage + ":v" + release.Version, RunnerReference: release.RunnerRef}
 	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}
 	return value, nil
-}
-
-func confirmedComposeCandidate(profile InstallationProfile, candidateKey string) (string, []string) {
-	if !profile.ComposeRootConfirmationRequired && len(profile.ComposeCandidates) == 1 && profile.ComposeCandidates[0].Confidence == "high" && strings.TrimSpace(candidateKey) == "" {
-		candidateKey = profile.ComposeCandidates[0].CandidateKey
-	}
-	for _, candidate := range profile.ComposeCandidates {
-		if candidate.CandidateKey == strings.TrimSpace(candidateKey) {
-			return strings.TrimSpace(candidate.Root), append([]string(nil), candidate.ConfigFiles...)
-		}
-	}
-	return "", nil
 }
 
 func backupHandoff(operationID string, requestedBy uint64, root string) moduleapi.BackupRunnerHandoffPlan {

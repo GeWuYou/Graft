@@ -80,17 +80,19 @@ GitHub Release 是 release catalog 和 release notes 的权威来源；GHCR dige
 
 The evaluator returns stable IDs and locale keys rather than final display text. Each check has an extensible `order`, `state`, `severity`, and `blocking` flag, so clients sort and render without a hard-coded checklist. Evidence is structured as code, localized label key, current value, expected value, pass state, and sensitivity. Actions are typed (`documentation`, `navigate`, `copy`, or `recheck`) and server-authorized; values that would reveal host paths or other deployment details remain restricted to callers with update management permission. The UI must show actionable failure or warning guidance inline and reserve a diagnostic Drawer for the full evidence set.
 
-环境变量 `GRAFT_UPDATE_DEPLOYMENT_MODE` 仅为 declared mode，绝不是授权证据。Update 模块构造以下只读事实：
+环境变量 `GRAFT_DEPLOYMENT_RUNTIME` 仅为 declared runtime，绝不是授权证据。Deployment Runtime 构造并拥有以下只读事实；Update 只消费它：
 
 ```go
-InstallationProfile {
-    DeclaredMode
-    DetectedMode
-    Capability
+DeploymentContext {
+    Runtime
+    ComposeRoot
+    ConfigFiles
+    ProjectName
+    Fingerprint
 }
 ```
 
-检测需验证 official Compose 文件、同一 host absolute compose root、Docker socket 可用性、镜像坐标和运行中服务；声明与检测矛盾时 capability 降级为不可执行并显示原因。已设置的 `GRAFT_UPDATE_COMPOSE_ROOT` 是唯一 Compose root authority，显式空值或相对路径必须 fail closed，不得自动回退到 binary 或 Docker 自动发现；只有环境变量未设置且 Docker API 可用时才检查当前 server 容器的 Compose labels、config files 和 bind mounts，生成一个或多个 host root 候选。候选必须显示给管理员确认，且每次升级启动前重新发现并验证；候选 key 和选择结果不持久化，前端不得提交原始 host path。
+检测需验证 official Compose 文件、同一 host absolute compose root、Docker socket 可用性、镜像坐标和运行中服务；声明与检测矛盾时 capability 降级为不可执行并显示原因。Deployment Runtime 是唯一允许解释环境变量、Docker inspect facts 与宿主机路径并构造 `DeploymentContext` 的组件；Container 只返回原始 inspect facts。已设置的 `GRAFT_DEPLOYMENT_COMPOSE_ROOT` 是唯一 Compose root authority，显式空值或相对路径必须 fail closed，不得自动回退到 binary 或 Docker 自动发现；只有变量未设置且 Docker API 可用时才通过 Container 检查当前 server 的 Compose labels、config files 和 bind mounts，生成一个或多个 host root 候选。候选必须显示给管理员确认，且每次升级启动前重新发现、验证并 freeze immutable operation snapshot；候选 key 和选择结果不持久化，前端不得提交原始 host path。
 
 | Capability | Official Compose | Binary + systemd | Binary manual |
 | --- | --- | --- | --- |
@@ -100,7 +102,7 @@ InstallationProfile {
 | migration | runner 执行 | 指引显式执行 | 指引显式执行 |
 | 恢复操作 | supported scope | operator-controlled | operator-controlled |
 
-二进制部署是一等安装类型：同 tag 下载 server binary 和 web distribution，验证 manifest SHA256，并生成 systemd 或手工安装步骤。`GRAFT_UPDATE_BINARY_PATH`、`GRAFT_UPDATE_WEB_ROOT` 与 `GRAFT_UPDATE_SERVICE_MANAGER=systemd|manual` 是完整指引的必要输入；systemd 还要求 `GRAFT_UPDATE_SERVICE_NAME`。缺少任何必要输入时，UI 必须显示阻断原因，不能给出不可靠的完整升级承诺。MVP 不替换正在运行的 binary，也不尝试接管 systemd。
+二进制部署是一等安装类型：同 tag 下载 server binary 和 web distribution，验证 manifest SHA256，并生成 systemd 或手工安装步骤。`GRAFT_DEPLOYMENT_RUNTIME=binary` 声明 runtime；`GRAFT_DEPLOYMENT_SERVICE_MANAGER=systemd|manual` 和 `GRAFT_DEPLOYMENT_SERVICE_NAME` 只描述受支持的服务控制面。Deployment Runtime 负责从受控 runtime facts 解释 service action，不用 `GRAFT_DEPLOYMENT_BINARY_PATH`、`GRAFT_DEPLOYMENT_WEB_ROOT` 或 Update 专属变量猜测 filesystem layout 或 `ExecStart`。缺少受支持 runtime facts 时，UI 必须显示阻断原因，不能给出不可靠的完整升级承诺。MVP 不替换正在运行的 binary，也不尝试接管 systemd。
 
 ## Update Lifecycle
 
@@ -120,7 +122,7 @@ InstallationProfile {
 
 官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标完整镜像引用、预期 manifest digest、host compose root 和受限 Compose 命令。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 后执行备份，以 runner-scoped Compose override 使用 manifest-derived explicit target，`docker compose pull`、验证实际 digest、bootstrap migration、受控 recreate、health check，并将 marker-bounded receipt 写入带 operation/protocol labels 的保留容器日志。它不得将已声明的 `latest` 或 `beta` 改写为解析出的 release tag。server 通过 Docker API 读取、校验并结算 receipt 后才清理 runner。
 
-`GRAFT_UPDATE_COMPOSE_ROOT` 非空时必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载；Docker daemon 返回的 Linux host path 是执行权威。为空时，Docker API 发现结果只作为待确认候选，不能由 server 容器路径、WSL 映射路径或前端输入推导和替代。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。详细信任边界由 `ADR-006` 固定。
+冻结的 `DeploymentContext.ComposeRoot` 必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载；Docker daemon 返回的 Linux host path 是执行权威。变量未设置时，Docker API 发现结果只作为待确认候选，不能由 server 容器路径、WSL 映射路径或前端输入推导和替代。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。详细信任边界由 `ADR-006` 与 ADR-008 固定。
 
 ## Scope
 
