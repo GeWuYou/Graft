@@ -2,21 +2,26 @@ package moduleapi
 
 import "context"
 
-// UpdateComposeRuntimeCandidate 描述容器模块为平台更新推导出的宿主机 Compose 根目录候选。
-// Root 只在服务端模块间传递，HTTP 请求只能提交 CandidateKey；候选不写入持久配置。
-type UpdateComposeRuntimeCandidate struct {
-	CandidateKey string
-	Root         string
-	WorkingDir   string
-	ConfigFiles  []string
-	ProjectName  string
-	Confidence   string
-	Warnings     []string
+// DockerMountFact 是 Docker inspect 中与宿主机挂载有关的原始事实投影。
+// 它不解释挂载是否属于某种部署方式；调用方必须在自身领域内解释这些值。
+type DockerMountFact struct {
+	Type        string
+	Source      string
+	Destination string
 }
 
-// UpdateComposeRuntimeReader 暴露当前 server 容器的受限 Compose 运行时发现能力。
-type UpdateComposeRuntimeReader interface {
-	DiscoverCurrentServerCompose(ctx context.Context) ([]UpdateComposeRuntimeCandidate, error)
+// DockerContainerFacts 是当前 server 容器的原始 Docker inspect 事实。
+// Labels 和 Mounts 的内容属于 Docker runtime，不承载 Deployment 领域语义。
+type DockerContainerFacts struct {
+	ContainerID string
+	Labels      map[string]string
+	Mounts      []DockerMountFact
+}
+
+// DockerFactsProvider 读取当前 server 容器的 Docker inspect 事实。
+// Deployment 等消费者负责解释 labels、mounts 和环境声明，container 不拥有部署推导。
+type DockerFactsProvider interface {
+	CurrentContainer(ctx context.Context) (DockerContainerFacts, error)
 }
 
 // ContainerProjectMember 描述 Project 模块可消费的单个容器窄化运行时投影。

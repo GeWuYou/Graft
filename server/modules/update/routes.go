@@ -93,6 +93,13 @@ func (h updateRouteHandlers) list(c *gin.Context) {
 	}
 	items, err := h.rollout.operations.List(c.Request.Context(), limit)
 	if err != nil {
+		if h.appLogger != nil {
+			h.appLogger.Named("modules.update.routes").Error(c.Request.Context(), "list platform update operations failed",
+				logger.StringField(logger.FieldOperation, "platform_update.operations.list"),
+				logger.StringField(logger.FieldRequestID, rolloutRequestID(c.Request.Context())),
+				logger.ErrorField(err),
+			)
+		}
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return
 	}

@@ -29,7 +29,7 @@ closeout:
 ## Current Recovery Point
 
 - The old repository-plus-digest Compose contract has been replaced without compatibility support.
-- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_IMAGE_TAG`-only contract; the remaining batch is cross-boundary validation and archive readiness.
+- Compose, runner, server/OpenAPI, and Web now consume the resulting `GRAFT_IMAGE_TAG`-only contract. Deployment Runtime context convergence is the remaining authority repair before cross-boundary validation and archive readiness.
 
 ## Task Checklist
 
@@ -37,6 +37,7 @@ closeout:
 - [x] runner tag-strategy handling, digest verification, and receipt failure preservation
 - [x] server/OpenAPI tag initialization, history, and App Log failure evidence
 - [x] Web tag-strategy rendering, fixed-release selection, and stage-progress UI
+- [ ] Deployment Runtime context ownership, canonical deployment keys, and shared Compose-root snapshot
 - [ ] cross-boundary validation and archive-readiness review
 
 ## Acceptance Conditions
@@ -60,10 +61,11 @@ closeout:
     "web-policy-selection-and-progress-rendering"
   ],
   "pending_batches": [
+    "deployment-runtime-context-convergence",
     "cross-boundary-validation-and-archive-readiness"
   ],
-  "current_batch": "cross-boundary-validation-and-archive-readiness",
-  "next_batch": "",
+  "current_batch": "deployment-runtime-context-convergence",
+  "next_batch": "cross-boundary-validation-and-archive-readiness",
   "closeout_status": "active"
 }
 ```
