@@ -4,9 +4,11 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"graft/server/internal/moduleregistry"
 )
 
-// TestUpdateOperationMigrationConvergesDeploymentStrategy 验证保留的历史列迁移与前向重命名迁移形成可回放链。
+// TestUpdateOperationMigrationConvergesDeploymentStrategy 验证保留的历史列迁移、前向重命名迁移及其运行时嵌入副本形成可回放链。
 func TestUpdateOperationMigrationConvergesDeploymentStrategy(t *testing.T) {
 	modeContents, err := os.ReadFile("migrations/202607300001_update_operation_mode.sql")
 	if err != nil {
@@ -15,6 +17,35 @@ func TestUpdateOperationMigrationConvergesDeploymentStrategy(t *testing.T) {
 	strategyContents, err := os.ReadFile("migrations/202607300002_rename_update_operation_deployment_strategy.sql")
 	if err != nil {
 		t.Fatalf("read deployment strategy migration: %v", err)
+	}
+	atlasSumContents, err := os.ReadFile("migrations/atlas.sum")
+	if err != nil {
+		t.Fatalf("read update migration atlas sum: %v", err)
+	}
+
+	dir, ok := moduleregistry.EmbeddedMigrationDirByPath("modules/update/migrations")
+	if !ok {
+		t.Fatal("expected compile-time embedded update migration dir")
+	}
+	embeddedFiles := make(map[string][]byte, len(dir.Files))
+	for _, file := range dir.Files {
+		embeddedFiles[file.Name] = file.Contents
+	}
+	for _, sourceFile := range []struct {
+		name     string
+		contents []byte
+	}{
+		{name: "202607300001_update_operation_mode.sql", contents: modeContents},
+		{name: "202607300002_rename_update_operation_deployment_strategy.sql", contents: strategyContents},
+		{name: "atlas.sum", contents: atlasSumContents},
+	} {
+		embeddedContents, ok := embeddedFiles[sourceFile.name]
+		if !ok {
+			t.Fatalf("expected embedded update migration file %s", sourceFile.name)
+		}
+		if string(embeddedContents) != string(sourceFile.contents) {
+			t.Fatalf("expected embedded update migration %s to stay aligned with live source content", sourceFile.name)
+		}
 	}
 
 	for _, want := range []string{
