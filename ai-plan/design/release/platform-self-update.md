@@ -114,7 +114,12 @@ DeploymentContext {
 
 `update_operations.deployment_strategy` 是创建操作时冻结的部署升级策略，值为 `stable_tracking`、`beta_tracking`、`pinned_stable`、`pinned_beta` 或 `unknown`。它必须与 API、审计元数据和持久化快照使用同一个名字；`update_mode` 不保留 API、存储或兼容 alias。
 
-已发布的 `202607300001_update_operation_mode.sql` 先创建历史列 `update_mode`，因此不可重写。后续 `202607300002_rename_update_operation_deployment_strategy.sql` 前向迁移在该列存在且目标列尚不存在时重命名为 `deployment_strategy`，重命名检查约束并刷新列注释。官方链对新库和既有库均按 `300001 -> 300002` 执行，最终 schema 只保留 `deployment_strategy`。
+已发布的 `202607300001_update_operation_mode.sql` 先创建历史列 `update_mode`，因此不可重写。后续
+`202607300002_rename_update_operation_deployment_strategy.sql` 前向迁移在该列存在且目标列尚不存在时重命名为
+`deployment_strategy`，重命名检查约束并刷新列注释。官方链对新库和既有库均按 `300001 -> 300002` 执行，最终 schema
+只保留 `deployment_strategy`。受 `0.11.0-beta.22` 影响的实例在 bootstrap 前必须停止旧 `server`/`web`；已发布的
+`v0.11.0-beta.23` 只包含 `300001`，因此只能修复缺列故障。只有后续官方 release 的已验证 manifest 明确包含
+`300002` 时，恢复流程才可完成该重命名；不得把未发布 tag 当作恢复目标。
 
 官方 Compose 的正常启动顺序不允许 server 在 migration 前接收流量：`bootstrap` 执行 `graft migrate up`，server 依赖其成功完成，web 再依赖 server 健康。`0.11.0-beta.22` 的故障不是该顺序被绕过，而是该 release 的 server 已写入 `update_mode`，对应 `300001` 却未随 release 发布；该缺失使首次创建更新操作先于可用 schema 失败。任何受影响实例必须先通过 bootstrap 补齐迁移，不能依赖运行中的旧 server 自行修复。
 

@@ -73,17 +73,29 @@ docker compose ps
 
 `0.11.0-beta.22` 在启动更新操作时可能失败：该版本的 server 会写入历史列 `update_mode`，但相应 migration 未随该 release 的 bootstrap 镜像发布。这不是正常 Compose 启动顺序失效：官方 Compose 会先运行 `bootstrap`，server 仅在它成功后启动，web 仅在 server 健康后对外提供服务。不要在受影响镜像上重复尝试页面内升级。
 
-先创建并验证数据库备份。然后在 `.env` 中设定已修复的官方 release tag，并在 Docker daemon 宿主机的 Compose 根目录执行：
+先创建并验证数据库备份。本故障已发布的修复版本是 `v0.11.0-beta.23`；其 release manifest 声明了以下不可变镜像身份：
+
+```text
+ghcr.io/gewuyou/graft-server@sha256:b791e3d46d956ef9b0026cc64f90cb93e495633949506b0fae2457b63abedcaa
+ghcr.io/gewuyou/graft-web@sha256:b30ef5b0647b1449051646b1d53fcf2dde54556bf221d65f6b45b07607356a0c
+```
+
+在 `.env` 中设置 `GRAFT_IMAGE_TAG=v0.11.0-beta.23`，并将上述 digest 与该 GitHub Release 的 `release-manifest.json` 资产核对，
+然后在 Docker daemon 宿主机的 Compose 根目录执行。若 manifest 或镜像 digest 不一致，不要继续：
 
 ```bash
-docker compose pull bootstrap server web
+docker compose pull --policy always bootstrap server web
+docker compose stop server web
 docker compose run --rm bootstrap
 docker compose up -d --no-deps --force-recreate server web
 docker compose ps
 docker compose exec -T server curl --fail --silent http://127.0.0.1:8080/healthz
 ```
 
-一次性的 bootstrap 会先应用不可变的 `202607300001_update_operation_mode.sql`，再应用 `202607300002_rename_update_operation_deployment_strategy.sql`。第二个 migration 会重命名列及其检查约束，因此最终 schema 使用规范名称 `deployment_strategy`。该契约刻意不保留 `update_mode` 的 API 或存储 alias。
+已发布的 `v0.11.0-beta.23` bootstrap 会应用不可变的 `202607300001_update_operation_mode.sql`，修复 `0.11.0-beta.22` 缺少列导致的故障。
+`202607300002_rename_update_operation_deployment_strategy.sql` 目前尚未包含在任何已发布版本中；不要虚构或选择未发布的 tag。
+完成本次恢复后，只有在后续官方 release 的已验证 manifest 明确包含 `300002` 时，才能期待规范的 `deployment_strategy` schema。
+应用该后续版本后，契约不会保留 `update_mode` 的 API 或存储 alias。
 
 ## 故障排查
 

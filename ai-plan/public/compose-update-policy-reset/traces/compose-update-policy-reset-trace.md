@@ -34,7 +34,7 @@
 
 - `update_mode` was renamed directly to `deployment_strategy` across the operation snapshot contract. The immutable `202607300001_update_operation_mode.sql` remains the historical first step; `202607300002_rename_update_operation_deployment_strategy.sql` conditionally renames the column and its check constraint, then refreshes the column comment. New and upgraded databases converge through both migrations and finish with only `deployment_strategy`.
 - The `0.11.0-beta.22` failure was release-content drift: server code attempted to persist `update_mode` but its corresponding migration was absent from the released bootstrap image. It was not a normal Compose startup-order defect. Official Compose keeps `server` blocked on successful `bootstrap`, and `web` blocked on a healthy server.
-- Recovery for an affected deployment is: verify a database backup; pull corrected `bootstrap`, `server`, and `web` images; run the bootstrap one-shot service; recreate only server and web; then verify Compose state and `/healthz`. Bootstrap applies `300001` followed immediately by `300002`, so the final schema is `deployment_strategy`.
+- Recovery for an affected deployment is: verify a database backup; verify the published `v0.11.0-beta.23` manifest and image digests; pull with an always policy; stop old `server` and `web`; run the bootstrap one-shot service; recreate only server and web; then verify Compose state and `/healthz`. The published corrective release applies `300001`; `300002` is not yet in a published release and must not be represented by an invented tag. A later official release whose verified manifest includes `300002` is required to finish the `deployment_strategy` rename.
 
 ## Locked Decisions
 
