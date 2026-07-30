@@ -252,7 +252,7 @@
         "composeRoot": "Compose 项目路径",
         "composeFile": "Compose 文件",
         "imageTag": "镜像标签",
-        "updateMode": "更新模式",
+        "deploymentStrategy": "部署策略",
         "releaseCatalog": "发行目录",
         "latestRelease": "最新发行版本",
         "updateManagePermission": "更新管理权限"

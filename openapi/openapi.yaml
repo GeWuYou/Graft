@@ -727,8 +727,8 @@ components:
       $ref: ./components/schemas/enveloped-system-config-list-response.yaml
     PlatformUpdateStatus:
       $ref: ./components/schemas/platform-update-status.yaml
-    PlatformUpdateMode:
-      $ref: ./components/schemas/platform-update-mode.yaml
+    PlatformDeploymentStrategy:
+      $ref: ./components/schemas/platform-deployment-strategy.yaml
     PlatformUpdateRelease:
       $ref: ./components/schemas/platform-update-release.yaml
     EnvelopedPlatformUpdateStatus:

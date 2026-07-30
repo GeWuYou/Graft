@@ -116,7 +116,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 		code := classifyRolloutPreflightFailure(err)
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
-	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, UpdateMode: mode, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
+	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, DeploymentStrategy: mode, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
 	handoff := backupHandoff(operation.OperationID, input.RequestedBy, preflight.ComposeRoot)
 	prepared, runnerInput, err := s.coordinator.Start(ctx, operation, input.RequestedBy, handoff)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 }
 
 //nolint:cyclop,gocognit,gocyclo,revive // 每个拒绝分支都是可独立审计的发布安全门。
-func (s *RolloutService) confirmedPreflight(ctx context.Context, targetVersion, candidateKey string) (Status, ComposePreflight, UpdateMode, error) {
+func (s *RolloutService) confirmedPreflight(ctx context.Context, targetVersion, candidateKey string) (Status, ComposePreflight, DeploymentStrategy, error) {
 	status := s.discovery.Status()
 	if status.CacheStale || strings.TrimSpace(status.CheckError) != "" {
 		return Status{}, ComposePreflight{}, "", fmt.Errorf("%w: fresh verified release catalog is required", errRolloutCatalogStale)
@@ -396,7 +396,7 @@ func (s *RolloutService) publishAudit(ctx context.Context, operation ComposeUpda
 		operator = requestAuth.User
 	}
 	requestAudit, _ := httpx.RequestAuditContextFromContext(ctx)
-	payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: operator, Action: "platform.update.compose", ResourceType: "platform_update", ResourceID: operation.OperationID, ResourceName: operation.TargetVersion, RequestID: requestAudit.RequestID, RequestMethod: requestAudit.Method, RequestPath: requestAudit.Route, IP: requestAudit.ClientIP, UserAgent: requestAudit.UserAgent, StatusCode: http.StatusAccepted, Success: success, Message: strings.TrimSpace(message), Metadata: map[string]any{"source_version": operation.SourceVersion, "target_version": operation.TargetVersion, "task_id": operation.TaskID, "status": operation.Outcome}, CreatedAt: time.Now().UTC()}
+	payload := moduleapi.AuditEvent{Kind: moduleapi.AuditEventKindDomain, Operator: operator, Action: "platform.update.compose", ResourceType: "platform_update", ResourceID: operation.OperationID, ResourceName: operation.TargetVersion, RequestID: requestAudit.RequestID, RequestMethod: requestAudit.Method, RequestPath: requestAudit.Route, IP: requestAudit.ClientIP, UserAgent: requestAudit.UserAgent, StatusCode: http.StatusAccepted, Success: success, Message: strings.TrimSpace(message), Metadata: map[string]any{"source_version": operation.SourceVersion, "target_version": operation.TargetVersion, "deployment_strategy": operation.DeploymentStrategy, "task_id": operation.TaskID, "status": operation.Outcome}, CreatedAt: time.Now().UTC()}
 	envelope, err := httpx.NewAuditEvent(moduleID, payload)
 	if err != nil {
 		s.logAuditPublishFailure(operation, err)
@@ -453,14 +453,14 @@ func (s *RolloutService) settleReceiptAndCleanup(ctx context.Context, receipt Ru
 	return settled, nil
 }
 
-func composePreflight(snapshot moduleapi.DeploymentSnapshot, release Release, strategy DeploymentStrategy) (ComposePreflight, error) {
+func composePreflight(snapshot moduleapi.DeploymentSnapshot, release Release, strategy ResolvedDeploymentStrategy) (ComposePreflight, error) {
 	candidate := snapshot.Candidate()
 	root := candidate.Root()
 	composeFiles := candidate.ConfigFiles()
 	if root == "" || len(composeFiles) == 0 {
 		return ComposePreflight{}, fmt.Errorf("%w: frozen compose candidate is incomplete", errRolloutComposeCandidateInvalid)
 	}
-	value := ComposePreflight{DeclaredMode: snapshot.Context().Mode(), UpdateMode: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: snapshot.Context().Mode(), ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":v" + release.Version, WebReference: release.WebImage + ":v" + release.Version, RunnerReference: release.RunnerRef}
+	value := ComposePreflight{DeclaredMode: snapshot.Context().Mode(), DeploymentStrategy: strategy.Mode, ImageTag: strategy.ImageTag, DetectedMode: snapshot.Context().Mode(), ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: append([]string(nil), composeFiles...), BundledPostgres: true, OfficialServerImage: release.ServerImage, OfficialWebImage: release.WebImage, OfficialRunnerImage: release.RunnerImage, ServerDigest: release.ServerDigest, WebDigest: release.WebDigest, RunnerDigest: release.RunnerDigest, ServerReference: release.ServerImage + ":v" + release.Version, WebReference: release.WebImage + ":v" + release.Version, RunnerReference: release.RunnerRef}
 	if err := ValidateComposePreflight(value); err != nil {
 		return ComposePreflight{}, fmt.Errorf("preflight official compose rollout: %w", err)
 	}

@@ -4,7 +4,7 @@ import type { UpdateStatus } from '../types/update';
 export function isUpgradeEligible(status: UpdateStatus | null, canManage: boolean): boolean {
   return (
     Boolean(status?.latest) &&
-    (status?.update_mode === 'stable_tracking' || status?.update_mode === 'beta_tracking') &&
+    (status?.deployment_strategy === 'stable_tracking' || status?.deployment_strategy === 'beta_tracking') &&
     !status?.cache_stale &&
     !status?.check_error &&
     status?.installation_profile.capability === 'compose_upgrade_available' &&

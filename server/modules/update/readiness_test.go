@@ -10,10 +10,10 @@ import (
 
 func TestEvaluateReadinessReturnsOrderedUpgradeableChecks(t *testing.T) {
 	status := Status{
-		CurrentVersion: "v1.0.0",
-		ImageTag:       "beta",
-		UpdateMode:     UpdateModeBetaTracking,
-		Latest:         &Release{Version: "v1.1.0-beta.1", NotesURL: "https://example.test/releases/v1.1.0-beta.1"},
+		CurrentVersion:     "v1.0.0",
+		ImageTag:           "beta",
+		DeploymentStrategy: DeploymentStrategyBetaTracking,
+		Latest:             &Release{Version: "v1.1.0-beta.1", NotesURL: "https://example.test/releases/v1.1.0-beta.1"},
 		Profile: InstallationProfile{
 			DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available", ComposeRootSource: "docker_discovered",
 			ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-a", Root: "/srv/graft", ConfigFiles: []string{"/srv/graft/compose.yml"}}},
@@ -79,7 +79,7 @@ func TestEvaluateReadinessIncludesReleaseActionOnlyForMeaningfulNotesURL(t *test
 }
 
 func TestEvaluateReadinessBlocksAvailableReleaseUntilDeploymentIsSupported(t *testing.T) {
-	status := Status{CurrentVersion: "v1.0.0", ImageTag: "beta", UpdateMode: UpdateModeBetaTracking, Latest: &Release{Version: "v1.1.0-beta.1"}, Profile: InstallationProfile{DeclaredMode: "binary", DetectedMode: "binary", Capability: "manual_guidance"}}
+	status := Status{CurrentVersion: "v1.0.0", ImageTag: "beta", DeploymentStrategy: DeploymentStrategyBetaTracking, Latest: &Release{Version: "v1.1.0-beta.1"}, Profile: InstallationProfile{DeclaredMode: "binary", DetectedMode: "binary", Capability: "manual_guidance"}}
 
 	readiness := EvaluateReadiness(status, true)
 	if readiness.Overall != readinessOverallUpgradeBlocked || readiness.NextAction == nil || readiness.NextAction.ID != "view_documentation" {

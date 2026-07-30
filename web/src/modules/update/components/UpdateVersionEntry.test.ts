@@ -54,7 +54,7 @@ const status = (overrides: Record<string, unknown> = {}) =>
     checked_at: '2026-07-23T00:00:00Z',
     current_version: '1.0.0',
     image_tag: 'latest',
-    update_mode: 'stable_tracking',
+    deployment_strategy: 'stable_tracking',
     latest: null,
     cache_stale: false,
     check_error: '',

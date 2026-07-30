@@ -7,7 +7,7 @@ const status = (overrides: Partial<UpdateStatus> = {}): UpdateStatus => ({
   current_version: '1.0.0',
   channel: 'stable',
   image_tag: 'latest',
-  update_mode: 'stable_tracking',
+  deployment_strategy: 'stable_tracking',
   available_releases: [],
   latest: {
     version: '1.1.0',
@@ -61,6 +61,6 @@ describe('isUpgradeEligible', () => {
       ),
     ).toBe(false);
     expect(isUpgradeEligible(status({ latest: undefined }), true)).toBe(false);
-    expect(isUpgradeEligible(status({ update_mode: 'pinned_stable' }), true)).toBe(false);
+    expect(isUpgradeEligible(status({ deployment_strategy: 'pinned_stable' }), true)).toBe(false);
   });
 });

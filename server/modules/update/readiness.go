@@ -94,7 +94,7 @@ func composeProjectReadiness(profile InstallationProfile, canManage bool) module
 }
 
 func imageStrategyReadiness(status Status) moduleapi.ReadinessCheck {
-	configured := status.UpdateMode != UpdateModeUnknown
+	configured := status.DeploymentStrategy != DeploymentStrategyUnknown
 	state, severity := readinessResult(configured)
 	check := moduleapi.ReadinessCheck{
 		ID: "image_strategy", Order: readinessOrderImageStrategy, State: state, Severity: severity, Blocking: !configured,
@@ -103,7 +103,7 @@ func imageStrategyReadiness(status Status) moduleapi.ReadinessCheck {
 		DetailKey:  "platformUpdate.readiness.imageStrategy.detail",
 		Evidence: []moduleapi.ReadinessEvidence{
 			{Code: "image_tag", State: evidenceState(configured), LabelKey: "platformUpdate.readiness.evidence.imageTag", Value: status.ImageTag, Expected: "supported_update_tag"},
-			{Code: "update_mode", State: evidenceState(configured), LabelKey: "platformUpdate.readiness.evidence.updateMode", Value: string(status.UpdateMode), Expected: "supported_update_mode"},
+			{Code: "deployment_strategy", State: evidenceState(configured), LabelKey: "platformUpdate.readiness.evidence.deploymentStrategy", Value: string(status.DeploymentStrategy), Expected: "supported_deployment_strategy"},
 		},
 	}
 	if !configured {

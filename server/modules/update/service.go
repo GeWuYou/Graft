@@ -14,18 +14,18 @@ const discoveryCacheStaleAfter = 24 * time.Hour
 
 // Status 是 Update Center 的只读发现快照。
 type Status struct {
-	CurrentVersion    string              `json:"current_version"`
-	Channel           string              `json:"channel"`
-	ImageTag          string              `json:"image_tag"`
-	UpdateMode        UpdateMode          `json:"update_mode"`
-	AvailableReleases []Release           `json:"available_releases"`
-	Latest            *Release            `json:"latest,omitempty"`
-	Profile           InstallationProfile `json:"installation_profile"`
-	CheckedAt         *time.Time          `json:"checked_at,omitempty"`
-	LastSuccessfulAt  *time.Time          `json:"last_successful_at,omitempty"`
-	CacheStale        bool                `json:"cache_stale"`
-	CheckError        string              `json:"check_error,omitempty"`
-	Readiness         moduleapi.Readiness `json:"readiness"`
+	CurrentVersion     string              `json:"current_version"`
+	Channel            string              `json:"channel"`
+	ImageTag           string              `json:"image_tag"`
+	DeploymentStrategy DeploymentStrategy  `json:"deployment_strategy"`
+	AvailableReleases  []Release           `json:"available_releases"`
+	Latest             *Release            `json:"latest,omitempty"`
+	Profile            InstallationProfile `json:"installation_profile"`
+	CheckedAt          *time.Time          `json:"checked_at,omitempty"`
+	LastSuccessfulAt   *time.Time          `json:"last_successful_at,omitempty"`
+	CacheStale         bool                `json:"cache_stale"`
+	CheckError         string              `json:"check_error,omitempty"`
+	Readiness          moduleapi.Readiness `json:"readiness"`
 }
 
 // withoutComposeCandidates 为只读调用方移除仅供升级管理员确认的宿主机路径和诊断证据。
@@ -109,7 +109,7 @@ func (s *Service) Status() Status {
 	if configured {
 		eligibleReleases = releasesForStrategy(strategy, eligibleReleases)
 	}
-	status := Status{CurrentVersion: info.Version, Channel: channel, ImageTag: strategy.ImageTag, UpdateMode: strategy.Mode, AvailableReleases: eligibleReleases, Profile: s.profile(), CheckError: s.checkError}
+	status := Status{CurrentVersion: info.Version, Channel: channel, ImageTag: strategy.ImageTag, DeploymentStrategy: strategy.Mode, AvailableReleases: eligibleReleases, Profile: s.profile(), CheckError: s.checkError}
 	if configured && strategy.Tracking && err == nil {
 		if selected, found := SelectLatestForChannel(current, strategy.Channel, eligibleReleases); found {
 			status.Latest = &selected
@@ -132,7 +132,7 @@ func (s *Service) Status() Status {
 	return status.withReadiness(false)
 }
 
-func releasesForStrategy(strategy DeploymentStrategy, releases []Release) []Release {
+func releasesForStrategy(strategy ResolvedDeploymentStrategy, releases []Release) []Release {
 	filtered := make([]Release, 0, len(releases))
 	for _, release := range releases {
 		if release.Channel == strategy.Channel {

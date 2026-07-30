@@ -1,13 +1,13 @@
 type: object
-required: [current_version, channel, image_tag, update_mode, installation_profile, readiness]
+required: [current_version, channel, image_tag, deployment_strategy, installation_profile, readiness]
 properties:
   current_version: { type: string }
   channel: { type: string, enum: [stable, beta, unknown] }
   image_tag:
     type: string
     description: The injected GRAFT_IMAGE_TAG deployment strategy source.
-  update_mode:
-    $ref: ./platform-update-mode.yaml
+  deployment_strategy:
+    $ref: ./platform-deployment-strategy.yaml
   latest:
     $ref: ./platform-update-release.yaml
   available_releases:

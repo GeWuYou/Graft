@@ -29,13 +29,13 @@ func newSQLOperationStore(db *sql.DB) (OperationStore, error) {
 }
 
 func (s *sqlOperationStore) Create(ctx context.Context, value ComposeUpdateOperation) error {
-	if s == nil || s.db == nil || !validOperation(value) || !validUpdateMode(value.UpdateMode) || value.TaskID == 0 {
+	if s == nil || s.db == nil || !validOperation(value) || !validDeploymentStrategy(value.DeploymentStrategy) || value.TaskID == 0 {
 		return errors.New("update operation is invalid")
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO update_operations
-	 (operation_id, request_id, source_version, target_version, update_mode, task_id, requested_by, status, created_at, started_at)
+	 (operation_id, request_id, source_version, target_version, deployment_strategy, task_id, requested_by, status, created_at, started_at)
 	 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, nullableString(value.RequestID), value.SourceVersion,
-		value.TargetVersion, value.UpdateMode, value.TaskID, nullableUint64(value.RequestedBy), value.Outcome)
+		value.TargetVersion, value.DeploymentStrategy, value.TaskID, nullableUint64(value.RequestedBy), value.Outcome)
 	if err != nil {
 		return fmt.Errorf("create update operation: %w", err)
 	}
@@ -46,7 +46,7 @@ func (s *sqlOperationStore) Get(ctx context.Context, operationID string) (Compos
 	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
 		return ComposeUpdateOperation{}, errors.New("update operation identity is invalid")
 	}
-	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, request_id, source_version, target_version, update_mode, task_id,
+	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, request_id, source_version, target_version, deployment_strategy, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
 	 created_at, started_at, finished_at,
  EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
@@ -57,7 +57,7 @@ func (s *sqlOperationStore) List(ctx context.Context, limit int) ([]ComposeUpdat
 	if s == nil || s.db == nil || limit < 1 || limit > 100 {
 		return nil, errors.New("update operation list limit is invalid")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, request_id, source_version, target_version, update_mode, task_id,
+	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, request_id, source_version, target_version, deployment_strategy, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
  created_at, started_at, finished_at,
  EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
@@ -109,7 +109,7 @@ func scanOperation(row operationScanner) (ComposeUpdateOperation, error) {
 	var requestID, integrity, failure sql.NullString
 	var created, started time.Time
 	var finished sql.NullTime
-	if err := row.Scan(&item.OperationID, &requestID, &item.SourceVersion, &item.TargetVersion, &item.UpdateMode, &item.TaskID, &backupID,
+	if err := row.Scan(&item.OperationID, &requestID, &item.SourceVersion, &item.TargetVersion, &item.DeploymentStrategy, &item.TaskID, &backupID,
 		&requestedBy, &item.Outcome, &integrity, &failure, &item.RecoveryCompleted, &created, &started, &finished, &item.FailureDiagnosticAvailable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ComposeUpdateOperation{}, errUpdateOperationNotFound

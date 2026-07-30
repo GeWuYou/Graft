@@ -5,7 +5,7 @@ export const updateCenterPreviewStatus: UpdateStatus = {
   current_version: '0.9.8-beta.2',
   channel: 'beta',
   image_tag: 'beta',
-  update_mode: 'beta_tracking',
+  deployment_strategy: 'beta_tracking',
   available_releases: [
     {
       version: '0.9.8-beta.3',
@@ -208,6 +208,7 @@ export function createUpdateCenterPreviewDataSource(): UpdateCenterDataSource {
         operation_id: `preview-${operations.length + 1}`,
         source_version: updateCenterPreviewStatus.current_version,
         target_version: payload.target_version,
+        deployment_strategy: updateCenterPreviewStatus.deployment_strategy,
         task_id: operations.length + 1,
         status: 'PLANNING',
         recovery_completed: false,

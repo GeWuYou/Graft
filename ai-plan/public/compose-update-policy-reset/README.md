@@ -7,7 +7,7 @@
 - Task class: `cross-boundary`
 - Intake summary: a Beta reliability repair needs coordinated Compose, runner, API, Web, and release-governance changes.
 - Canonical authority: official `compose.yml` / `.env` deployment contract, verified GitHub Release manifests, and the platform-update lifecycle design.
-- Completed so far: Compose authority reset, ADR-007, runner tag-strategy and receipt reliability, server/OpenAPI tag and release catalog handling, and Web strategy rendering and progress behavior.
+- Completed so far: Compose authority reset, ADR-007, runner tag-strategy and receipt reliability, server/OpenAPI tag and release catalog handling, Web strategy rendering and progress behavior, and the `update_mode` to `deployment_strategy` operation-snapshot convergence.
 - Remaining: cross-boundary validation, PR-review remediation, and archive-readiness review.
 
 ## Recovery Receipt
@@ -32,10 +32,12 @@ Out of scope:
 1. The deployment `.env` owns `GRAFT_IMAGE_TAG` as the shared official server/web image tag and the only update strategy: `latest` tracks stable, `beta` tracks Beta, and SemVer tags are fixed releases.
 2. The resolved manifest release and digest are runtime state, not a second configuration value. Tracking tags remain in `.env` after a successful update; a fixed upgrade writes only the selected higher same-channel fixed tag.
 3. The tag-strategy reset intentionally has no `GRAFT_UPDATE_POLICY`, old digest-key, alias, dual-read, or fallback compatibility branch.
+4. `update_operations.deployment_strategy` is the only operation-snapshot name across persistence, API, and audit metadata. The released `300001` migration remains immutable; `300002` converges its historical `update_mode` column and constraint to the canonical name without an alias.
 
 ## Current Recovery Point
 
-- The policy, runner, server/OpenAPI, and Web implementation batches are complete.
+- The policy, runner, server/OpenAPI, Web, and deployment-strategy snapshot implementation batches are complete.
+- The affected `0.11.0-beta.22` release omitted the migration required by its server write path. Normal official Compose startup still runs `bootstrap` before server traffic; recovery is an operator bootstrap of the corrected release, not an application-level fallback.
 - Next step: finish cross-boundary validation and archive-readiness review, including verified PR-review remediation.
 
 ## Work Intake

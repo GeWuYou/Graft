@@ -7,57 +7,55 @@ import (
 
 const imageTagEnv = "GRAFT_IMAGE_TAG"
 
-// UpdateMode 表示从注入的镜像标签推导出的部署升级意图。
-//
-//nolint:revive // OpenAPI and persisted operation fields use the stable update_mode term.
-type UpdateMode string
+// DeploymentStrategy 表示从注入的镜像标签推导出的部署升级策略。
+type DeploymentStrategy string
 
 const (
-	// UpdateModeStableTracking 表示跟随稳定发行频道。
-	UpdateModeStableTracking UpdateMode = "stable_tracking"
-	// UpdateModeBetaTracking 表示跟随 Beta 发行频道。
-	UpdateModeBetaTracking UpdateMode = "beta_tracking"
-	// UpdateModePinnedStable 表示锁定在稳定发行频道。
-	UpdateModePinnedStable UpdateMode = "pinned_stable"
-	// UpdateModePinnedBeta 表示锁定在 Beta 发行频道。
-	UpdateModePinnedBeta UpdateMode = "pinned_beta"
-	// UpdateModeUnknown 表示镜像标签无法推导出受支持的部署意图。
-	UpdateModeUnknown UpdateMode = "unknown"
+	// DeploymentStrategyStableTracking 表示跟随稳定发行频道。
+	DeploymentStrategyStableTracking DeploymentStrategy = "stable_tracking"
+	// DeploymentStrategyBetaTracking 表示跟随 Beta 发行频道。
+	DeploymentStrategyBetaTracking DeploymentStrategy = "beta_tracking"
+	// DeploymentStrategyPinnedStable 表示锁定在稳定发行频道。
+	DeploymentStrategyPinnedStable DeploymentStrategy = "pinned_stable"
+	// DeploymentStrategyPinnedBeta 表示锁定在 Beta 发行频道。
+	DeploymentStrategyPinnedBeta DeploymentStrategy = "pinned_beta"
+	// DeploymentStrategyUnknown 表示镜像标签无法推导出受支持的部署策略。
+	DeploymentStrategyUnknown DeploymentStrategy = "unknown"
 )
 
-// DeploymentStrategy 是 Update 对唯一部署配置的解释结果，不持久化为另一份策略。
-type DeploymentStrategy struct {
+// ResolvedDeploymentStrategy 是 Update 对唯一部署配置的解释结果，不持久化为另一份策略。
+type ResolvedDeploymentStrategy struct {
 	ImageTag string
-	Mode     UpdateMode
+	Mode     DeploymentStrategy
 	Channel  string
 	Tracking bool
 }
 
-func configuredDeploymentStrategy() (DeploymentStrategy, bool) {
+func configuredDeploymentStrategy() (ResolvedDeploymentStrategy, bool) {
 	return parseDeploymentStrategy(os.Getenv(imageTagEnv))
 }
 
-func parseDeploymentStrategy(value string) (DeploymentStrategy, bool) {
+func parseDeploymentStrategy(value string) (ResolvedDeploymentStrategy, bool) {
 	tag := strings.TrimSpace(value)
 	switch tag {
 	case "latest":
-		return DeploymentStrategy{ImageTag: tag, Mode: UpdateModeStableTracking, Channel: "stable", Tracking: true}, true
+		return ResolvedDeploymentStrategy{ImageTag: tag, Mode: DeploymentStrategyStableTracking, Channel: "stable", Tracking: true}, true
 	case "beta":
-		return DeploymentStrategy{ImageTag: tag, Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true}, true
+		return ResolvedDeploymentStrategy{ImageTag: tag, Mode: DeploymentStrategyBetaTracking, Channel: "beta", Tracking: true}, true
 	}
 	version, err := ParseVersion(tag)
 	if err != nil || !strings.HasPrefix(tag, "v") {
-		return DeploymentStrategy{ImageTag: tag, Mode: UpdateModeUnknown}, false
+		return ResolvedDeploymentStrategy{ImageTag: tag, Mode: DeploymentStrategyUnknown}, false
 	}
 	if version.IsPrerelease() {
-		return DeploymentStrategy{ImageTag: tag, Mode: UpdateModePinnedBeta, Channel: "beta"}, true
+		return ResolvedDeploymentStrategy{ImageTag: tag, Mode: DeploymentStrategyPinnedBeta, Channel: "beta"}, true
 	}
-	return DeploymentStrategy{ImageTag: tag, Mode: UpdateModePinnedStable, Channel: "stable"}, true
+	return ResolvedDeploymentStrategy{ImageTag: tag, Mode: DeploymentStrategyPinnedStable, Channel: "stable"}, true
 }
 
-func validUpdateMode(value UpdateMode) bool {
+func validDeploymentStrategy(value DeploymentStrategy) bool {
 	switch value {
-	case UpdateModeStableTracking, UpdateModeBetaTracking, UpdateModePinnedStable, UpdateModePinnedBeta, UpdateModeUnknown:
+	case DeploymentStrategyStableTracking, DeploymentStrategyBetaTracking, DeploymentStrategyPinnedStable, DeploymentStrategyPinnedBeta, DeploymentStrategyUnknown:
 		return true
 	}
 	return false

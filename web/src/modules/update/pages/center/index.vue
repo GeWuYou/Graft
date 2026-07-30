@@ -34,10 +34,10 @@
 
         <t-card :title="t('update.center.strategy.title')" bordered>
           <div class="update-center__version">
-            <strong>{{ updateModeLabel(updateMode) }}</strong>
+            <strong>{{ deploymentStrategyLabel(deploymentStrategy) }}</strong>
             <t-tag size="small" variant="light">{{ status.image_tag }}</t-tag>
           </div>
-          <p>{{ updateModeDescription(updateMode) }}</p>
+          <p>{{ deploymentStrategyDescription(deploymentStrategy) }}</p>
         </t-card>
 
         <t-card :title="t('update.center.latest.title')" bordered>
@@ -349,9 +349,9 @@ import { useUpdateDiscoveryStore } from '../../store/discovery';
 import { useUpdateProgressStore } from '../../store/progress';
 import type { UpdateCenterDataSource } from '../../types/preview';
 import type {
+  DeploymentStrategy,
   UpdateChannel,
   UpdateFailureDiagnostic,
-  UpdateMode,
   UpdateOperation,
   UpdateReadiness,
   UpdateReadinessAction,
@@ -411,8 +411,10 @@ const hasSelectedCandidate = computed(
     Boolean(resolvedCandidate.value) ||
     composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
 );
-const updateMode = computed<UpdateMode>(() => status.value?.update_mode ?? 'unknown');
-const isFixedStrategy = computed(() => updateMode.value === 'pinned_stable' || updateMode.value === 'pinned_beta');
+const deploymentStrategy = computed<DeploymentStrategy>(() => status.value?.deployment_strategy ?? 'unknown');
+const isFixedStrategy = computed(
+  () => deploymentStrategy.value === 'pinned_stable' || deploymentStrategy.value === 'pinned_beta',
+);
 const releaseForUpgrade = computed(
   () => status.value?.latest ?? (isFixedStrategy.value ? fixedReleaseCandidates.value[0] : undefined),
 );
@@ -740,24 +742,24 @@ function channelLabel(channel: UpdateChannel) {
   return t(`update.center.channels.${channel}`);
 }
 
-function updateModeLabel(mode: UpdateMode) {
-  return t(`update.center.strategy.options.${mode}.title`);
+function deploymentStrategyLabel(strategy: DeploymentStrategy) {
+  return t(`update.center.strategy.options.${strategy}.title`);
 }
 
-function updateModeDescription(mode: UpdateMode) {
-  return t(`update.center.strategy.options.${mode}.description`);
+function deploymentStrategyDescription(strategy: DeploymentStrategy) {
+  return t(`update.center.strategy.options.${strategy}.description`);
 }
 
 function isFixedReleaseCandidate(version: string, channel: UpdateChannel) {
   const current = status.value;
-  if (!current || !isFixedStrategy.value || channel !== fixedStrategyChannel(updateMode.value)) {
+  if (!current || !isFixedStrategy.value || channel !== fixedStrategyChannel(deploymentStrategy.value)) {
     return false;
   }
   return compareReleaseVersions(version, current.current_version) > 0;
 }
 
-function fixedStrategyChannel(mode: UpdateMode): UpdateChannel {
-  return mode === 'pinned_beta' ? 'beta' : 'stable';
+function fixedStrategyChannel(strategy: DeploymentStrategy): UpdateChannel {
+  return strategy === 'pinned_beta' ? 'beta' : 'stable';
 }
 
 function compareReleaseVersions(left: string, right: string) {

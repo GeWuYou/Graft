@@ -298,7 +298,7 @@ func TestComposePreflightPreservesFrozenCandidateConfigFiles(t *testing.T) {
 	files := []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides", "web.yml")}
 	candidate := moduleapi.NewDeploymentComposeCandidate("compose-selected", root, files, "graft", "high", nil)
 	snapshot := moduleapi.NewDeploymentSnapshot(moduleapi.NewDeploymentContext("compose", "docker_discovered", false, []moduleapi.DeploymentComposeCandidate{candidate}, nil), candidate, "test-fingerprint")
-	preflight, err := composePreflight(snapshot, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true})
+	preflight, err := composePreflight(snapshot, release, ResolvedDeploymentStrategy{ImageTag: "beta", Mode: DeploymentStrategyBetaTracking, Channel: "beta", Tracking: true})
 	if err != nil {
 		t.Fatalf("build compose preflight: %v", err)
 	}
@@ -316,7 +316,7 @@ func TestComposePreflightUsesFrozenUniqueCandidate(t *testing.T) {
 	release.ServerRef, release.WebRef, release.RunnerRef = release.ServerImage+"@"+release.ServerDigest, release.WebImage+"@"+release.WebDigest, release.RunnerImage+"@"+release.RunnerDigest
 	candidate := moduleapi.NewDeploymentComposeCandidate("compose-unique", root, []string{filepath.Join(root, "compose.yml")}, "graft", "high", nil)
 	snapshot := moduleapi.NewDeploymentSnapshot(moduleapi.NewDeploymentContext("compose", "docker_discovered", false, []moduleapi.DeploymentComposeCandidate{candidate}, nil), candidate, "test-fingerprint")
-	preflight, err := composePreflight(snapshot, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true})
+	preflight, err := composePreflight(snapshot, release, ResolvedDeploymentStrategy{ImageTag: "beta", Mode: DeploymentStrategyBetaTracking, Channel: "beta", Tracking: true})
 	if err != nil || preflight.ComposeRoot != root {
 		t.Fatalf("expected unique candidate preflight, got %#v, %v", preflight, err)
 	}
@@ -377,7 +377,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, update_mode TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -385,7 +385,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
-	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", UpdateMode: UpdateModeBetaTracking, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
 	if err := store.Create(t.Context(), created); err != nil {
 		t.Fatalf("create operation: %v", err)
 	}
@@ -397,26 +397,26 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("get operation: %v", err)
 	}
-	if loaded.UpdateMode != UpdateModeBetaTracking || loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
+	if loaded.DeploymentStrategy != DeploymentStrategyBetaTracking || loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
 	}
 }
 
-func TestSQLOperationStoreRejectsUnsupportedUpdateMode(t *testing.T) {
+func TestSQLOperationStoreRejectsUnsupportedDeploymentStrategy(t *testing.T) {
 	store, err := newSQLOperationStore(&sql.DB{})
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
 	err = store.Create(t.Context(), ComposeUpdateOperation{
-		OperationID:   "update-invalid-mode",
-		SourceVersion: "1.0.0",
-		TargetVersion: "1.1.0",
-		UpdateMode:    "unsupported",
-		TaskID:        1,
-		Outcome:       ExecutionOutcomePlanning,
+		OperationID:        "update-invalid-mode",
+		SourceVersion:      "1.0.0",
+		TargetVersion:      "1.1.0",
+		DeploymentStrategy: "unsupported",
+		TaskID:             1,
+		Outcome:            ExecutionOutcomePlanning,
 	})
 	if err == nil || err.Error() != "update operation is invalid" {
-		t.Fatalf("expected invalid update mode to be rejected, got %v", err)
+		t.Fatalf("expected invalid deployment strategy to be rejected, got %v", err)
 	}
 }
 
@@ -452,7 +452,7 @@ func TestRolloutAuditCarriesRequestIDAndLogsPublishFailure(t *testing.T) {
 		UserAgent: "update-test",
 	})
 
-	rollout.publishAudit(ctx, ComposeUpdateOperation{OperationID: "update-audit-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 7, Outcome: ExecutionOutcomePulling}, true, "")
+	rollout.publishAudit(ctx, ComposeUpdateOperation{OperationID: "update-audit-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, TaskID: 7, Outcome: ExecutionOutcomePulling}, true, "")
 	if publisher.options.Delivery != event.DeliveryDurable {
 		t.Fatalf("expected durable audit delivery, got %q", publisher.options.Delivery)
 	}
@@ -462,6 +462,9 @@ func TestRolloutAuditCarriesRequestIDAndLogsPublishFailure(t *testing.T) {
 	}
 	if payload.RequestID != "req-update-1" || payload.RequestMethod != "POST" || payload.RequestPath != "/api/platform/update/compose" || payload.IP != "198.51.100.7" || payload.UserAgent != "update-test" {
 		t.Fatalf("expected request correlation in audit payload, got %#v", payload)
+	}
+	if payload.Metadata["deployment_strategy"] != string(DeploymentStrategyBetaTracking) {
+		t.Fatalf("expected deployment strategy audit snapshot, got %#v", payload.Metadata)
 	}
 	if entries := logs.FilterMessage("publish update rollout audit event failed").All(); len(entries) != 1 {
 		t.Fatalf("expected one audit publish failure log, got %#v", entries)

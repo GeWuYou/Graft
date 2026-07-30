@@ -16,24 +16,24 @@ const runnerProtocolVersion = 1
 // ComposePreflight 是 server 在启动一次性 runner 前冻结的无秘密部署证据。
 // 它只描述官方 Compose 画像，不接受自定义覆盖层、外部数据库或未验证的镜像标签。
 type ComposePreflight struct {
-	DeclaredMode        string     `json:"declared_mode"`
-	UpdateMode          UpdateMode `json:"update_mode"`
-	ImageTag            string     `json:"image_tag"`
-	DetectedMode        string     `json:"detected_mode"`
-	ComposeRoot         string     `json:"compose_root"`
-	Platform            string     `json:"platform"`
-	DockerSocket        string     `json:"docker_socket"`
-	ComposeFiles        []string   `json:"compose_files"`
-	ServerReference     string     `json:"server_reference"`
-	WebReference        string     `json:"web_reference"`
-	ServerDigest        string     `json:"server_digest"`
-	WebDigest           string     `json:"web_digest"`
-	RunnerReference     string     `json:"runner_reference"`
-	RunnerDigest        string     `json:"runner_digest"`
-	BundledPostgres     bool       `json:"bundled_postgres"`
-	OfficialServerImage string     `json:"official_server_image"`
-	OfficialWebImage    string     `json:"official_web_image"`
-	OfficialRunnerImage string     `json:"official_runner_image"`
+	DeclaredMode        string             `json:"declared_mode"`
+	DeploymentStrategy  DeploymentStrategy `json:"deployment_strategy"`
+	ImageTag            string             `json:"image_tag"`
+	DetectedMode        string             `json:"detected_mode"`
+	ComposeRoot         string             `json:"compose_root"`
+	Platform            string             `json:"platform"`
+	DockerSocket        string             `json:"docker_socket"`
+	ComposeFiles        []string           `json:"compose_files"`
+	ServerReference     string             `json:"server_reference"`
+	WebReference        string             `json:"web_reference"`
+	ServerDigest        string             `json:"server_digest"`
+	WebDigest           string             `json:"web_digest"`
+	RunnerReference     string             `json:"runner_reference"`
+	RunnerDigest        string             `json:"runner_digest"`
+	BundledPostgres     bool               `json:"bundled_postgres"`
+	OfficialServerImage string             `json:"official_server_image"`
+	OfficialWebImage    string             `json:"official_web_image"`
+	OfficialRunnerImage string             `json:"official_runner_image"`
 }
 
 // RunnerInput 是 server 写入 runner 输入目录的版本化、无秘密协议。runner 只读取该文件，
@@ -88,7 +88,7 @@ func ValidateComposePreflight(value ComposePreflight) error {
 		return errors.New("official compose deployment was not declared and detected")
 	}
 	strategy, configured := parseDeploymentStrategy(value.ImageTag)
-	if !configured || strategy.Mode != value.UpdateMode {
+	if !configured || strategy.Mode != value.DeploymentStrategy {
 		return errors.New("compose runner deployment strategy is invalid")
 	}
 	if err := validateComposeHost(value); err != nil {

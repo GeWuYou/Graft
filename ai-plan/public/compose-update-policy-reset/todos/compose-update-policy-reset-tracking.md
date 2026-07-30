@@ -38,6 +38,7 @@ closeout:
 - [x] server/OpenAPI tag initialization, history, and App Log failure evidence
 - [x] Web tag-strategy rendering, fixed-release selection, and stage-progress UI
 - [x] Deployment Runtime context ownership, canonical deployment keys, and shared Compose-root snapshot
+- [x] Update operation snapshot rename from `update_mode` to `deployment_strategy`, including forward migration and affected-release recovery guidance
 - [ ] cross-boundary validation and archive-readiness review
 
 ## Acceptance Conditions
@@ -48,6 +49,7 @@ closeout:
 - Automated upgrades only select verified releases and validate pulled digests before migration/recreation.
 - A terminal update failure leaves both an actionable Update diagnostic and a request-correlated App Log record.
 - Running UI never presents indeterminate progress as `100%`.
+- `update_operations` ends at the canonical `deployment_strategy` column after the immutable `300001` then forward `300002` migration sequence; no `update_mode` API or storage alias remains.
 
 ## Loop Batch State
 

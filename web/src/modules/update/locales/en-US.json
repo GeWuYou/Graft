@@ -272,7 +272,7 @@
         "composeRoot": "Compose project path",
         "composeFile": "Compose file",
         "imageTag": "Image tag",
-        "updateMode": "Update mode",
+        "deploymentStrategy": "Deployment strategy",
         "releaseCatalog": "Release catalog",
         "latestRelease": "Latest release",
         "updateManagePermission": "Update management permission"

@@ -1,3 +1,3 @@
 type: string
-description: Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.
+description: Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
 enum: [stable_tracking, beta_tracking, pinned_stable, pinned_beta, unknown]

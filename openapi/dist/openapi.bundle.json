@@ -19059,8 +19059,8 @@
       "PlatformUpdateStatus": {
         "$ref": "#/components/schemas/platform-update-status"
       },
-      "PlatformUpdateMode": {
-        "$ref": "#/components/schemas/platform-update-mode"
+      "PlatformDeploymentStrategy": {
+        "$ref": "#/components/schemas/platform-deployment-strategy"
       },
       "PlatformUpdateRelease": {
         "$ref": "#/components/schemas/platform-update-release"
@@ -26231,9 +26231,9 @@
           }
         }
       },
-      "platform-update-mode": {
+      "platform-deployment-strategy": {
         "type": "string",
-        "description": "Deployment update mode derived only from the injected GRAFT_IMAGE_TAG.",
+        "description": "Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.",
         "enum": [
           "stable_tracking",
           "beta_tracking",
@@ -26579,7 +26579,7 @@
           "current_version",
           "channel",
           "image_tag",
-          "update_mode",
+          "deployment_strategy",
           "installation_profile",
           "readiness"
         ],
@@ -26599,8 +26599,8 @@
             "type": "string",
             "description": "The injected GRAFT_IMAGE_TAG deployment strategy source."
           },
-          "update_mode": {
-            "$ref": "#/components/schemas/platform-update-mode"
+          "deployment_strategy": {
+            "$ref": "#/components/schemas/platform-deployment-strategy"
           },
           "latest": {
             "$ref": "#/components/schemas/platform-update-release"
@@ -26756,6 +26756,7 @@
           "operation_id",
           "source_version",
           "target_version",
+          "deployment_strategy",
           "task_id",
           "status",
           "recovery_completed",
@@ -26772,8 +26773,8 @@
           "target_version": {
             "type": "string"
           },
-          "update_mode": {
-            "$ref": "#/components/schemas/platform-update-mode"
+          "deployment_strategy": {
+            "$ref": "#/components/schemas/platform-deployment-strategy"
           },
           "task_id": {
             "type": "integer",
