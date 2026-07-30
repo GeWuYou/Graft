@@ -22,6 +22,30 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
+type deploymentRuntimeStub struct {
+	context moduleapi.DeploymentContext
+	err     error
+}
+
+func (s deploymentRuntimeStub) Current(context.Context) moduleapi.DeploymentContext { return s.context }
+
+func (s deploymentRuntimeStub) Freeze(_ context.Context, request moduleapi.DeploymentFreezeRequest) (moduleapi.DeploymentSnapshot, error) {
+	if s.err != nil {
+		return moduleapi.DeploymentSnapshot{}, s.err
+	}
+	for _, candidate := range s.context.ComposeCandidates() {
+		if request.CandidateKey == "" || request.CandidateKey == candidate.Key() {
+			return moduleapi.NewDeploymentSnapshot(s.context, candidate, "test-fingerprint"), nil
+		}
+	}
+	return moduleapi.DeploymentSnapshot{}, errors.New("candidate unavailable")
+}
+
+func composeDeploymentRuntime(root string) moduleapi.DeploymentRuntime {
+	candidate := moduleapi.NewDeploymentComposeCandidate("compose-test", root, []string{filepath.Join(root, "compose.yml")}, "graft", "high", nil)
+	return deploymentRuntimeStub{context: moduleapi.NewDeploymentContext("compose", "explicit_config", false, []moduleapi.DeploymentComposeCandidate{candidate}, nil)}
+}
+
 func TestComposeExecutionCoordinatorSettlesReceiptAndDoesNotExposeBackupRefs(t *testing.T) {
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 41, Status: moduleapi.TaskStatusPending}}
 	backups := &stubBackupService{}
@@ -93,7 +117,6 @@ func TestRunnerReceiptDoesNotSerializeBackupStorageReferences(t *testing.T) {
 
 func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
 	t.Setenv(imageTagEnv, "beta")
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
@@ -109,6 +132,10 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	operations := &memoryOperationStore{}
 	launcher := &recordingLauncher{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); !errors.Is(err, errRolloutInstallationUnavailable) {
+		t.Fatalf("start without deployment runtime error = %v, want installation unavailable", err)
+	}
+	rollout.SetDeploymentRuntime(composeDeploymentRuntime(root))
 	rollout.newOperation = func() string { return "update-77" }
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.0.9"}); err == nil {
 		t.Fatal("expected target version rejection")
@@ -127,7 +154,6 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 
 func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
 	t.Setenv(imageTagEnv, "beta")
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
@@ -144,8 +170,9 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	backups := &stubBackupService{}
 	operations := &memoryOperationStore{}
 	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{launchErr: errors.New("docker unavailable")})
+	rollout.SetDeploymentRuntime(composeDeploymentRuntime(root))
 	rollout.newOperation = func() string { return "update-78" }
-	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0", CandidateKey: "1.1.0"}); err == nil {
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); err == nil {
 		t.Fatal("expected launcher failure")
 	}
 	if tasks.canceled != 78 || backups.canceled.OperationID != "update-78" || backups.canceled.TaskID != 78 {
@@ -190,8 +217,6 @@ func TestLogTerminalFailureWithoutRequestIDStillWritesAppLog(t *testing.T) {
 }
 
 func TestSettleAvailableReceiptsCleansRunnerOnlyAfterSuccessfulSettlement(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
 	discovery := NewService(nil)
 	discovery.profile = func() InstallationProfile { return InstallationProfile{DetectedMode: "compose"} }
 	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
@@ -261,7 +286,7 @@ func TestSettleReceiptWithoutCleanupInterfaceDoesNotRequireRunnerCleanup(t *test
 	}
 }
 
-func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
+func TestComposePreflightPreservesFrozenCandidateConfigFiles(t *testing.T) {
 	root := t.TempDir()
 	serverImage := "ghcr.io/gewuyou/graft-server"
 	webImage := "ghcr.io/gewuyou/graft-web"
@@ -271,9 +296,9 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	runnerDigest := "sha256:" + strings.Repeat("c", 64)
 	release := Release{Version: "1.1.0-beta.1", ServerImage: serverImage, WebImage: webImage, RunnerImage: runnerImage, ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest, ServerRef: serverImage + "@" + serverDigest, WebRef: webImage + "@" + webDigest, RunnerRef: runnerImage + "@" + runnerDigest}
 	files := []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides", "web.yml")}
-	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-selected", Root: root, ConfigFiles: files}}}
-
-	preflight, err := composePreflight(profile, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true}, "compose-selected")
+	candidate := moduleapi.NewDeploymentComposeCandidate("compose-selected", root, files, "graft", "high", nil)
+	snapshot := moduleapi.NewDeploymentSnapshot(moduleapi.NewDeploymentContext("compose", "docker_discovered", false, []moduleapi.DeploymentComposeCandidate{candidate}, nil), candidate, "test-fingerprint")
+	preflight, err := composePreflight(snapshot, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true})
 	if err != nil {
 		t.Fatalf("build compose preflight: %v", err)
 	}
@@ -285,20 +310,19 @@ func TestComposePreflightPreservesSelectedCandidateConfigFiles(t *testing.T) {
 	}
 }
 
-func TestComposePreflightUsesUniqueHighConfidenceCandidateWithoutKey(t *testing.T) {
+func TestComposePreflightUsesFrozenUniqueCandidate(t *testing.T) {
 	root := t.TempDir()
 	release := Release{Version: "1.1.0-beta.1", ServerImage: "ghcr.io/gewuyou/graft-server", WebImage: "ghcr.io/gewuyou/graft-web", RunnerImage: "ghcr.io/gewuyou/graft-compose-runner", ServerDigest: "sha256:" + strings.Repeat("a", 64), WebDigest: "sha256:" + strings.Repeat("b", 64), RunnerDigest: "sha256:" + strings.Repeat("c", 64)}
 	release.ServerRef, release.WebRef, release.RunnerRef = release.ServerImage+"@"+release.ServerDigest, release.WebImage+"@"+release.WebDigest, release.RunnerImage+"@"+release.RunnerDigest
-	profile := InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", ComposeRootConfirmationRequired: false, ComposeCandidates: []ComposeRootCandidate{{CandidateKey: "compose-unique", Root: root, ConfigFiles: []string{filepath.Join(root, "compose.yml")}, Confidence: "high"}}}
-	preflight, err := composePreflight(profile, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true}, "")
+	candidate := moduleapi.NewDeploymentComposeCandidate("compose-unique", root, []string{filepath.Join(root, "compose.yml")}, "graft", "high", nil)
+	snapshot := moduleapi.NewDeploymentSnapshot(moduleapi.NewDeploymentContext("compose", "docker_discovered", false, []moduleapi.DeploymentComposeCandidate{candidate}, nil), candidate, "test-fingerprint")
+	preflight, err := composePreflight(snapshot, release, DeploymentStrategy{ImageTag: "beta", Mode: UpdateModeBetaTracking, Channel: "beta", Tracking: true})
 	if err != nil || preflight.ComposeRoot != root {
 		t.Fatalf("expected unique candidate preflight, got %#v, %v", preflight, err)
 	}
 }
 
 func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
 	discovery.profile = func() InstallationProfile {
@@ -318,8 +342,6 @@ func TestRolloutRejectsStaleCatalogBeforeCreatingTask(t *testing.T) {
 }
 
 func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("GRAFT_UPDATE_COMPOSE_ROOT", root)
 	discovery := NewService(nil)
 	discovery.current = func() buildinfo.Info { return buildinfo.Info{Version: "1.0.0"} }
 	discovery.profile = func() InstallationProfile {

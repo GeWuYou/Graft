@@ -80,6 +80,11 @@ func TestModuleRegisterRegistersPlatformUpdateTaskOwnerAuthorizer(t *testing.T) 
 	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(container.Resolver) (any, error) { return &recordingUpdateTaskAuthorizer{}, nil }); err != nil {
 		t.Fatalf("register authorizer: %v", err)
 	}
+	deploymentCandidate := moduleapi.NewDeploymentComposeCandidate("compose-test", "/opt/graft", []string{"/opt/graft/compose.yml"}, "graft", "high", nil)
+	deploymentRuntime := deploymentRuntimeStub{context: moduleapi.NewDeploymentContext("compose", "explicit_config", false, []moduleapi.DeploymentComposeCandidate{deploymentCandidate}, nil)}
+	if err := services.RegisterSingleton((*moduleapi.DeploymentRuntime)(nil), func(container.Resolver) (any, error) { return deploymentRuntime, nil }); err != nil {
+		t.Fatalf("register deployment runtime: %v", err)
+	}
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
 	resources, err := updatelocales.EmbeddedLocaleResources()
 	if err != nil {

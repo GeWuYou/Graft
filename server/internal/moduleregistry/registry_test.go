@@ -18,6 +18,7 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 		"audit":          {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"backup":         {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"container":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"deployment":     {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"monitor":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"project":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"rbac":           {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},

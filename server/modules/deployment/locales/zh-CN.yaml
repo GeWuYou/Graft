@@ -1,0 +1,5 @@
+deployment.diagnostics.mode_unsupported: 在执行 Compose 发现前，部署运行时必须为 Compose。
+deployment.diagnostics.runtime_unsupported: 配置 Compose 根目录时，部署运行时必须为 Compose。
+deployment.diagnostics.docker_facts_unavailable: Docker 运行时事实不可用。
+deployment.diagnostics.compose_candidate_unavailable: 当前 Docker 运行时事实中未找到 Compose 根目录候选。
+deployment.diagnostics.configured_compose_root_invalid: GRAFT_DEPLOYMENT_COMPOSE_ROOT 必须是非根目录的绝对宿主机路径。

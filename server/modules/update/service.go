@@ -2,7 +2,6 @@ package update
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -60,7 +59,6 @@ type Service struct {
 	provider         ReleaseProvider
 	cache            DiscoveryCache
 	profile          func() InstallationProfile
-	runtimeReader    moduleapi.UpdateComposeRuntimeReader
 	current          func() buildinfo.Info
 	mu               sync.RWMutex
 	latest           *Release
@@ -80,7 +78,7 @@ func NewService(provider ReleaseProvider) *Service {
 func NewServiceWithCache(provider ReleaseProvider, cache DiscoveryCache) *Service {
 	service := &Service{provider: provider, cache: cache, current: buildinfo.Current}
 	service.profile = func() InstallationProfile {
-		return DetectInstallationProfileWithComposeReader(context.Background(), os.Getenv, os.LookupEnv, os.Executable, service.runtimeReader)
+		return installationProfile(moduleapi.NewDeploymentContext("unknown", "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: "deployment_runtime_unavailable", MessageKey: "update.diagnostics.deployment_runtime_unavailable", Message: "Deployment Runtime is unavailable"}}))
 	}
 	return service
 }

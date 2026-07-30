@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -19,6 +20,7 @@ const (
 	moduleID                    = "platform-update"
 	platformUpdateMenuOrder     = 103
 	platformUpdateCheckSchedule = "0 0 */4 * * *"
+	deploymentProfileTimeout    = 2 * time.Second
 )
 
 // Module 拥有更新发现的注册、周期检查与 HTTP 读取面。
@@ -48,7 +50,9 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
 		return err
 	}
-	m.configureRuntimeReader(ctx)
+	if err := m.configureDeploymentRuntime(ctx); err != nil {
+		return err
+	}
 	if err := registerUpdateTaskOwnerAuthorizer(ctx); err != nil {
 		return err
 	}
@@ -89,10 +93,17 @@ func registerUpdateTaskOwnerAuthorizer(ctx *module.Context) error {
 	return nil
 }
 
-func (m *Module) configureRuntimeReader(ctx *module.Context) {
-	if reader, err := module.ResolveService[moduleapi.UpdateComposeRuntimeReader](ctx.Services, (*moduleapi.UpdateComposeRuntimeReader)(nil)); err == nil {
-		m.service.runtimeReader = reader
+func (m *Module) configureDeploymentRuntime(ctx *module.Context) error {
+	runtime, err := module.ResolveService[moduleapi.DeploymentRuntime](ctx.Services, (*moduleapi.DeploymentRuntime)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve deployment runtime: %w", err)
 	}
+	m.service.profile = func() InstallationProfile {
+		profileCtx, cancel := context.WithTimeout(ctx.LifecycleContext, deploymentProfileTimeout)
+		defer cancel()
+		return installationProfile(runtime.Current(profileCtx))
+	}
+	return nil
 }
 
 func (m *Module) configureRollout(ctx *module.Context) error {
@@ -109,6 +120,11 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 		return err
 	}
 	m.rollout = NewRolloutService(m.service, m.operations, tasks, backups, launcher)
+	runtime, err := module.ResolveService[moduleapi.DeploymentRuntime](ctx.Services, (*moduleapi.DeploymentRuntime)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve deployment runtime: %w", err)
+	}
+	m.rollout.SetDeploymentRuntime(runtime)
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
 	m.rollout.SetAppLogger(ctx.AppLogger)
@@ -152,6 +168,7 @@ func registerMessages(localizer *i18n.Service) error {
 			"update.operation.start.compose_candidate_invalid",
 			"update.operation.start.compose_preflight_failed",
 			"update.operation.start.operation_start_failed",
+			"update.diagnostics.deployment_runtime_unavailable",
 		} {
 			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
 				return fmt.Errorf("platform-update locale resource missing %s for %s", key, locale)
