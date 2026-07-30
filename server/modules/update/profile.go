@@ -41,7 +41,7 @@ func installationProfile(context moduleapi.DeploymentContext) InstallationProfil
 		DeclaredMode:                    context.Mode(),
 		DetectedMode:                    context.Mode(),
 		ComposeRootSource:               context.ComposeRootSource(),
-		ComposeRootConfirmationRequired: context.ComposeConfirmationRequired(),
+		ComposeRootConfirmationRequired: context.IsComposeConfirmationRequired(),
 		ComposeCandidates:               []ComposeRootCandidate{},
 	}
 	for _, candidate := range context.ComposeCandidates() {
@@ -58,7 +58,7 @@ func installationProfile(context moduleapi.DeploymentContext) InstallationProfil
 			Warning:      warning,
 		})
 	}
-	if context.Available() {
+	if context.IsAvailable() {
 		profile.Capability = "compose_upgrade_available"
 		if profile.ComposeRootConfirmationRequired {
 			profile.Guidance = "Compose 根目录存在多个或低置信度候选；执行升级前必须确认候选。"

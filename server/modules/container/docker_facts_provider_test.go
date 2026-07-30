@@ -2,16 +2,30 @@ package container
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 )
 
 type dockerFactsDetailRuntime struct {
 	stubProjectReaderRuntime
 	detail Detail
+	err    error
 }
 
 func (r dockerFactsDetailRuntime) Detail(context.Context, Ref) (Detail, error) {
-	return r.detail, nil
+	return r.detail, r.err
+}
+
+func TestCurrentContainerAddsDockerInspectContext(t *testing.T) {
+	cause := errors.New("socket unavailable")
+	runtime := dockerFactsDetailRuntime{err: cause}
+	reader := containerProjectRuntimeReader{service: &service{runtime: runtime, enabled: true}}
+
+	_, err := reader.CurrentContainer(context.Background())
+	if !errors.Is(err, cause) || !strings.Contains(err.Error(), "inspect current server container") {
+		t.Fatalf("CurrentContainer error = %v, want inspect context and preserved cause", err)
+	}
 }
 
 func TestCurrentContainerReturnsCopiedRawDockerFacts(t *testing.T) {

@@ -34,7 +34,7 @@ func TestRuntimeExplicitRootWinsOverDockerFacts(t *testing.T) {
 		return map[string]string{deploymentRuntimeEnv: "compose", deploymentComposeRootEnv: "/opt/graft"}[key], key == deploymentRuntimeEnv || key == deploymentComposeRootEnv
 	}, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Labels: map[string]string{composeWorkingDirLabel: "/other"}}})
 	current := runtime.Current(context.Background())
-	if !current.Available() || current.ComposeRootSource() != "explicit_config" || current.ComposeCandidates()[0].Root() != "/opt/graft" {
+	if !current.IsAvailable() || current.ComposeRootSource() != "explicit_config" || current.ComposeCandidates()[0].Root() != "/opt/graft" {
 		t.Fatalf("explicit declaration did not win: %#v", current)
 	}
 }
@@ -43,7 +43,7 @@ func TestRuntimeInvalidExplicitRootFailsClosed(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) {
 		return map[string]string{deploymentRuntimeEnv: "compose", deploymentComposeRootEnv: "relative"}[key], true
 	}, dockerFactsStub{})
-	if current := runtime.Current(context.Background()); current.Available() || current.Diagnostics()[0].Code != "configured_compose_root_invalid" {
+	if current := runtime.Current(context.Background()); current.IsAvailable() || current.Diagnostics()[0].Code != "configured_compose_root_invalid" {
 		t.Fatalf("invalid explicit root did not fail closed: %#v", current)
 	}
 }
@@ -53,7 +53,7 @@ func TestRuntimeDiscoversUniqueComposeLabelsAndFreezesSnapshot(t *testing.T) {
 		composeWorkingDirLabel: "/srv/graft", composeConfigFilesLabel: "/srv/graft/compose.yml,/srv/graft/compose.override.yml", composeProjectLabel: "graft",
 	}}})
 	current := runtime.Current(context.Background())
-	if !current.Available() || current.ComposeConfirmationRequired() || len(current.ComposeCandidates()) != 1 {
+	if !current.IsAvailable() || current.IsComposeConfirmationRequired() || len(current.ComposeCandidates()) != 1 {
 		t.Fatalf("expected unique high confidence candidate: %#v", current)
 	}
 	snapshot, err := runtime.Freeze(context.Background(), moduleapi.DeploymentFreezeRequest{})
@@ -65,7 +65,7 @@ func TestRuntimeDiscoversUniqueComposeLabelsAndFreezesSnapshot(t *testing.T) {
 func TestRuntimeRequiresSelectionForAmbiguousBindCandidates(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Mounts: []moduleapi.DockerMountFact{{Type: "bind", Source: "/one"}, {Type: "bind", Source: "/two"}}}})
 	current := runtime.Current(context.Background())
-	if !current.Available() || !current.ComposeConfirmationRequired() {
+	if !current.IsAvailable() || !current.IsComposeConfirmationRequired() {
 		t.Fatalf("expected confirmation-required candidates: %#v", current)
 	}
 	if _, err := runtime.Freeze(context.Background(), moduleapi.DeploymentFreezeRequest{}); err == nil {
@@ -79,7 +79,7 @@ func TestRuntimeRequiresSelectionForAmbiguousBindCandidates(t *testing.T) {
 func TestRuntimeReportsDockerFactsFailure(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{err: errors.New("socket unavailable")})
 	current := runtime.Current(context.Background())
-	if current.Available() || current.Diagnostics()[0].Code != "docker_facts_unavailable" {
+	if current.IsAvailable() || current.Diagnostics()[0].Code != "docker_facts_unavailable" {
 		t.Fatalf("unexpected unavailable context: %#v", current)
 	}
 }
@@ -109,7 +109,7 @@ func TestRuntimeDefaultsToComposeWhenRuntimeIsUnsetOrEmpty(t *testing.T) {
 	for name, lookup := range lookups {
 		t.Run(name, func(t *testing.T) {
 			runtime := NewRuntime(lookup, dockerFactsStub{})
-			if current := runtime.Current(context.Background()); current.Mode() != "compose" || current.Available() || current.Diagnostics()[0].Code != "compose_candidate_unavailable" {
+			if current := runtime.Current(context.Background()); current.Mode() != "compose" || current.IsAvailable() || current.Diagnostics()[0].Code != "compose_candidate_unavailable" {
 				t.Fatalf("runtime did not default to Compose discovery: %#v", current)
 			}
 		})
@@ -118,7 +118,7 @@ func TestRuntimeDefaultsToComposeWhenRuntimeIsUnsetOrEmpty(t *testing.T) {
 
 func TestRuntimePreservesDeclaredUnsupportedRuntimeInDiagnosticContext(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) { return "binary", key == deploymentRuntimeEnv }, dockerFactsStub{})
-	if current := runtime.Current(context.Background()); current.Mode() != "binary" || current.Available() || current.Diagnostics()[0].Code != "deployment_mode_unsupported" {
+	if current := runtime.Current(context.Background()); current.Mode() != "binary" || current.IsAvailable() || current.Diagnostics()[0].Code != "deployment_mode_unsupported" {
 		t.Fatalf("binary runtime was not represented as unavailable context: %#v", current)
 	}
 }

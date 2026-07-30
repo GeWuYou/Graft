@@ -69,8 +69,8 @@ func (c DeploymentContext) Mode() string { return c.mode }
 // ComposeRootSource 返回 Compose 根目录的解析来源。
 func (c DeploymentContext) ComposeRootSource() string { return c.composeRootSource }
 
-// ComposeConfirmationRequired 表示操作开始前必须提交本次候选的确认标识。
-func (c DeploymentContext) ComposeConfirmationRequired() bool { return c.composeConfirmationRequired }
+// IsComposeConfirmationRequired 表示操作开始前必须提交本次候选的确认标识。
+func (c DeploymentContext) IsComposeConfirmationRequired() bool { return c.composeConfirmationRequired }
 
 // ComposeCandidates 返回复制后的当前 Compose 候选。
 func (c DeploymentContext) ComposeCandidates() []DeploymentComposeCandidate {
@@ -82,8 +82,8 @@ func (c DeploymentContext) Diagnostics() []DeploymentDiagnostic {
 	return append([]DeploymentDiagnostic(nil), c.diagnostics...)
 }
 
-// Available 表示当前上下文能为一次受控 Compose 操作提供候选。
-func (c DeploymentContext) Available() bool {
+// IsAvailable 表示当前上下文能为一次受控 Compose 操作提供候选。
+func (c DeploymentContext) IsAvailable() bool {
 	return len(c.diagnostics) == 0 && len(c.composeCandidates) > 0
 }
 

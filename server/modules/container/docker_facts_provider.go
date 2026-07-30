@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -16,15 +17,18 @@ func (r containerProjectRuntimeReader) CurrentContainer(ctx context.Context) (mo
 	}
 	runtime, err := r.service.runtimeForRequestContext(ctx)
 	if err != nil {
-		return moduleapi.DockerContainerFacts{}, err
+		return moduleapi.DockerContainerFacts{}, fmt.Errorf("resolve container runtime: %w", err)
 	}
 	hostname, err := os.Hostname()
-	if err != nil || strings.TrimSpace(hostname) == "" {
+	if err != nil {
+		return moduleapi.DockerContainerFacts{}, fmt.Errorf("read current server container identity: %w", err)
+	}
+	if strings.TrimSpace(hostname) == "" {
 		return moduleapi.DockerContainerFacts{}, errors.New("current server container identity is unavailable")
 	}
 	detail, err := runtime.Detail(ctx, Ref{Value: strings.TrimSpace(hostname)})
 	if err != nil {
-		return moduleapi.DockerContainerFacts{}, err
+		return moduleapi.DockerContainerFacts{}, fmt.Errorf("inspect current server container: %w", err)
 	}
 	labels := make(map[string]string, len(detail.Labels))
 	for key, value := range detail.Labels {

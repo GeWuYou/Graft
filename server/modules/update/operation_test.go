@@ -132,6 +132,9 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	operations := &memoryOperationStore{}
 	launcher := &recordingLauncher{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); !errors.Is(err, errRolloutInstallationUnavailable) {
+		t.Fatalf("start without deployment runtime error = %v, want installation unavailable", err)
+	}
 	rollout.SetDeploymentRuntime(composeDeploymentRuntime(root))
 	rollout.newOperation = func() string { return "update-77" }
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.0.9"}); err == nil {

@@ -60,11 +60,11 @@ func (r runtime) Current(ctx context.Context) moduleapi.DeploymentContext {
 
 func (r runtime) Freeze(ctx context.Context, request moduleapi.DeploymentFreezeRequest) (moduleapi.DeploymentSnapshot, error) {
 	current := r.Current(ctx)
-	if !current.Available() {
+	if !current.IsAvailable() {
 		return moduleapi.DeploymentSnapshot{}, errors.New("deployment context is not available for a controlled operation")
 	}
 	candidates := current.ComposeCandidates()
-	candidate, err := selectCandidate(candidates, request.CandidateKey, current.ComposeConfirmationRequired())
+	candidate, err := selectCandidate(candidates, request.CandidateKey, current.IsComposeConfirmationRequired())
 	if err != nil {
 		return moduleapi.DeploymentSnapshot{}, err
 	}
