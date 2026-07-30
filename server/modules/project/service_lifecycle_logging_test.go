@@ -133,7 +133,7 @@ func TestRestartTaskOwnerBusyReturnsConflictWithoutInternalError(t *testing.T) {
 	if recorder.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusConflict, recorder.Body.String())
 	}
-	if strings.Contains(recorder.Body.String(), "COMMON_INTERNAL_ERROR") || !strings.Contains(recorder.Body.String(), projectcontract.ApplicationConflict.String()) {
+	if strings.Contains(recorder.Body.String(), "COMMON_INTERNAL_ERROR") || !strings.Contains(recorder.Body.String(), projectcontract.ApplicationConflict.String()) || !strings.Contains(recorder.Body.String(), "task_already_active") {
 		t.Fatalf("expected conflict response, got %s", recorder.Body.String())
 	}
 	if len(observed.All()) != 0 {

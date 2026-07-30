@@ -218,8 +218,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	runtimeStatus := s.lifecycleRuntimeStatus(ctx, aggregate, action)
-	plan, err := lifecycleTaskPlan(aggregate, action, runtimeStatus)
+	plan, err := lifecycleTaskPlan(aggregate, action)
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
@@ -244,7 +243,7 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 }
 
 // lifecycleRuntimeStatus 仅为 restart 判定是否需要由 up -d 恢复一个已不存在的 Compose 项目。
-// 运行时读取失败不会阻止任务提交，保持既有的 restart 语义并由执行阶段给出真实错误。
+// 运行时读取失败时保留 restart 参数，避免状态读取失败阻止任务提交或执行。
 func (s *Service) lifecycleRuntimeStatus(
 	ctx context.Context,
 	aggregate projectstore.ApplicationAggregate,
@@ -285,27 +284,15 @@ func (s *Service) reportLifecycleTaskSubmissionFailure(
 func lifecycleTaskPlan(
 	aggregate projectstore.ApplicationAggregate,
 	action generated.ApplicationActionResponseAction,
-	runtimeStatus *generated.ApplicationRuntimeStatus,
 ) (moduleapi.TaskPlan, error) {
 	if action == generated.ApplicationActionResponseActionApplicationActionRedeploy {
 		return redeployTaskPlan(aggregate)
 	}
-	args, err := lifecycleCommandArgsForRuntime(aggregate, action, runtimeStatus)
+	args, err := lifecycleCommandArgsForRuntime(aggregate, action, nil)
 	if err != nil {
 		return moduleapi.TaskPlan{}, err
 	}
-	return taskPlanWithStage(aggregate, lifecycleStageKey(action, runtimeStatus), args)
-}
-
-// lifecycleStageKey 保持任务阶段记录与实际 Compose 子命令一致。
-func lifecycleStageKey(
-	action generated.ApplicationActionResponseAction,
-	runtimeStatus *generated.ApplicationRuntimeStatus,
-) string {
-	if action == generated.ApplicationActionResponseActionApplicationActionRestart && runtimeStatus != nil && *runtimeStatus == generated.ApplicationRuntimeStatusMissing {
-		return "up"
-	}
-	return strings.ToLower(string(action))
+	return taskPlanWithStage(aggregate, strings.ToLower(string(action)), args)
 }
 
 // redeployTaskPlan 按固定顺序构建重部署阶段，并根据配置追加停止、拉取和镜像清理等可选阶段。
@@ -367,7 +354,11 @@ func appendTaskPlanStage(stages *[]moduleapi.StagePlan, aggregate projectstore.A
 	if err := ensureLifecycleCommandArgs(args); err != nil {
 		return err
 	}
-	input, err := json.Marshal(composeStageInput{WorkspacePath: aggregate.Application.WorkspacePath, Args: args})
+	input, err := json.Marshal(composeStageInput{
+		ApplicationRecordID: aggregate.Application.ApplicationRecordID,
+		WorkspacePath:       aggregate.Application.WorkspacePath,
+		Args:                args,
+	})
 	if err != nil {
 		return err
 	}

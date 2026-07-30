@@ -97,7 +97,7 @@ func TestBuildLifecycleUpArgvSkipsWaitTimeoutWhenWaitDisabled(t *testing.T) {
 	}
 }
 
-func TestLifecycleRestartArgsRecoverMissingProjectWithUp(t *testing.T) {
+func TestLifecycleRestartPlanDefersRuntimeRecoveryDecision(t *testing.T) {
 	t.Parallel()
 
 	aggregate := projectstore.ApplicationAggregate{
@@ -110,40 +110,16 @@ func TestLifecycleRestartArgsRecoverMissingProjectWithUp(t *testing.T) {
 			AbsolutePath: "/srv/compose-demo/compose.yaml",
 		}},
 	}
-	missing := generated.ApplicationRuntimeStatusMissing
-	stopped := generated.ApplicationRuntimeStatusStopped
-
-	missingPlan, err := lifecycleTaskPlan(
-		aggregate,
-		generated.ApplicationActionResponseActionApplicationActionRestart,
-		&missing,
-	)
+	plan, err := lifecycleTaskPlan(aggregate, generated.ApplicationActionResponseActionApplicationActionRestart)
 	if err != nil {
-		t.Fatalf("build missing restart plan: %v", err)
+		t.Fatalf("build restart plan: %v", err)
 	}
-	missingStage := onlyLifecycleStage(t, missingPlan)
-	if missingStage.Key != "up" {
-		t.Fatalf("missing restart stage = %q, want up", missingStage.Key)
+	stage := onlyLifecycleStage(t, plan)
+	if stage.Key != "restart" {
+		t.Fatalf("restart stage = %q, want restart", stage.Key)
 	}
-	missingArgs := lifecycleStageArgs(t, missingStage)
-	if got, want := missingArgs[len(missingArgs)-2:], []string{"up", "-d"}; !equalStrings(got, want) {
-		t.Fatalf("missing restart args suffix = %#v, want %#v", got, want)
-	}
-
-	stoppedPlan, err := lifecycleTaskPlan(
-		aggregate,
-		generated.ApplicationActionResponseActionApplicationActionRestart,
-		&stopped,
-	)
-	if err != nil {
-		t.Fatalf("build stopped restart plan: %v", err)
-	}
-	stoppedStage := onlyLifecycleStage(t, stoppedPlan)
-	if stoppedStage.Key != "restart" {
-		t.Fatalf("stopped restart stage = %q, want restart", stoppedStage.Key)
-	}
-	if args := lifecycleStageArgs(t, stoppedStage); args[len(args)-1] != "restart" {
-		t.Fatalf("stopped restart args = %#v", args)
+	if args := lifecycleStageArgs(t, stage); args[len(args)-1] != "restart" {
+		t.Fatalf("restart plan args = %#v", args)
 	}
 }
 
