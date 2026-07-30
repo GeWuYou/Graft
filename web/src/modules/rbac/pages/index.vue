@@ -580,16 +580,17 @@ import {
   formatCompactDateTime,
   ManagementEmptyState,
   ManagementPageContent,
-  ManagementPagedTable,
   ManagementPageHeader,
   ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import ResponsiveFilterPanel from '@/shared/components/responsive/ResponsiveFilterPanel.vue';
-import { useAssignmentSelection, useTabPageSnapshot } from '@/shared/composables';
+import { useAssignmentSelection } from '@/shared/composables';
+import { useTabPageSnapshot } from '@/shared/composables/useTabPageSnapshot';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
 import { localizedApiErrorMessage, resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore } from '@/store';

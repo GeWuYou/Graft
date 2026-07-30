@@ -141,10 +141,10 @@ import {
   createStatusColumn,
   createTechnicalColumn,
   createTimeColumn,
-  ManagementPagedTable,
   resolveManagedColumns,
   TableActionMenu,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { LogIdText } from '@/shared/observability';
 
 import {

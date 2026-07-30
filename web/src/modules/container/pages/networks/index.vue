@@ -534,12 +534,12 @@ import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/contain
 import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
-  ManagementPagedTable,
   ManagementPageHeader,
   ManagementStatisticsBar,
   ManagementToolbar,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import { useViewportResponsiveVariant } from '@/shared/composables';

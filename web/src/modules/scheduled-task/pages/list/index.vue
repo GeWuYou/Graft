@@ -1171,11 +1171,11 @@ import { requestNotificationHeaderRefresh } from '@/modules/notification/contrac
 import { readErrorField } from '@/modules/shared/error-field';
 import {
   buildVisibleColumns,
-  ManagementPagedTable,
   ManagementStatisticsBar,
   ManagementToolbar,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { AdvancedQueryColumnDrawer, AdvancedQueryListPage } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';

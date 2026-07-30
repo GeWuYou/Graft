@@ -52,7 +52,7 @@
 import type { PaginationProps, TableRowData, TdBaseTableProps } from 'tdesign-vue-next';
 import { computed } from 'vue';
 
-import { ManagementPagedTable } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import type { ResponsiveDensity, ResponsivePresentation } from '@/shared/responsive';
 
 // 该组件只负责把查询页的分页模型与表格 slot 转交给共享表格壳，不拥有查询条件或服务端数据状态。

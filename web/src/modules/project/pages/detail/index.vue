@@ -869,10 +869,10 @@ import {
   createMainTextColumn,
   createStatusColumn,
   createTextColumn,
-  ManagementPagedTable,
   ManagementPageHeader,
   TableActionMenu,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import {
   copyText,

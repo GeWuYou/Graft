@@ -237,7 +237,8 @@ import { useI18n } from 'vue-i18n';
 
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/task-observer';
-import { ManagementPagedTable, ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
+import { ManagementPageHeader, ManagementToolbar } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { copyText, formatBytes, formatLocaleDateTime } from '@/shared/observability';
 

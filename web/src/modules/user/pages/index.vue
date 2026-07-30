@@ -591,13 +591,13 @@ import {
   ManagementBatchBar,
   ManagementEmptyState,
   ManagementPageContent,
-  ManagementPagedTable,
   ManagementPageHeader,
   ManagementStatisticsBar,
   ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
+import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import ResponsiveDialog from '@/shared/components/responsive/ResponsiveDialog.vue';
 import { useAssignmentSelection } from '@/shared/composables';
 import { formatHintedMessage, resolveErrorMessageWithCorrelation } from '@/shared/correlation';
