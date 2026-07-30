@@ -54,3 +54,11 @@ func parseDeploymentStrategy(value string) (DeploymentStrategy, bool) {
 	}
 	return DeploymentStrategy{ImageTag: tag, Mode: UpdateModePinnedStable, Channel: "stable"}, true
 }
+
+func validUpdateMode(value UpdateMode) bool {
+	switch value {
+	case UpdateModeStableTracking, UpdateModeBetaTracking, UpdateModePinnedStable, UpdateModePinnedBeta, UpdateModeUnknown:
+		return true
+	}
+	return false
+}

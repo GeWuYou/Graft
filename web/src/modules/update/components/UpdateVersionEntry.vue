@@ -7,16 +7,30 @@
     trigger="click"
     :overlay-inner-style="{ padding: '0' }"
   >
-    <t-tooltip :content="tooltip" placement="bottom">
+    <t-tooltip
+      v-if="discoveryStore.hasUpdate"
+      data-testid="update-version-tooltip"
+      :content="updateTooltip"
+      placement="bottom"
+    >
       <button
         :class="['update-version-entry', { 'update-version-entry--available': discoveryStore.hasUpdate }]"
         data-testid="update-version-entry"
         type="button"
-        :aria-label="tooltip"
+        :aria-label="versionEntryAriaLabel"
       >
         {{ versionLabel }}
       </button>
     </t-tooltip>
+    <button
+      v-else
+      :class="['update-version-entry', { 'update-version-entry--available': discoveryStore.hasUpdate }]"
+      data-testid="update-version-entry"
+      type="button"
+      :aria-label="versionEntryAriaLabel"
+    >
+      {{ versionLabel }}
+    </button>
     <template #content>
       <section class="update-version-preview">
         <header class="update-version-preview__header">
@@ -134,10 +148,11 @@ const statusUnavailable = computed(
 );
 const releaseUrl = computed(() => discoveryStore.status?.latest?.notes_url?.trim() ?? '');
 const canViewRelease = computed(() => hasAvailableRelease.value && /^https:\/\//i.test(releaseUrl.value));
-const tooltip = computed(() =>
-  discoveryStore.hasUpdate
-    ? t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version })
-    : t('update.versionEntry.openCenter', { version: versionLabel.value }),
+const updateTooltip = computed(() =>
+  t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version }),
+);
+const versionEntryAriaLabel = computed(() =>
+  discoveryStore.hasUpdate ? updateTooltip.value : t('update.versionEntry.current', { version: versionLabel.value }),
 );
 watch(
   visible,

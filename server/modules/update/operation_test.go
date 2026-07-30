@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -399,6 +400,40 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	}
 	if loaded.UpdateMode != UpdateModeBetaTracking || loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
+	}
+}
+
+func TestUpdateOperationMigrationPersistsUpdateMode(t *testing.T) {
+	contents, err := os.ReadFile(filepath.Join("migrations", "202607300001_update_operation_mode.sql"))
+	if err != nil {
+		t.Fatalf("read update mode migration: %v", err)
+	}
+	for _, want := range []string{
+		"ADD COLUMN update_mode VARCHAR(32) NOT NULL DEFAULT 'unknown'",
+		"ALTER COLUMN update_mode DROP DEFAULT",
+		"update_operations_update_mode_check",
+	} {
+		if !strings.Contains(string(contents), want) {
+			t.Fatalf("update mode migration must contain %q", want)
+		}
+	}
+}
+
+func TestSQLOperationStoreRejectsUnsupportedUpdateMode(t *testing.T) {
+	store, err := newSQLOperationStore(&sql.DB{})
+	if err != nil {
+		t.Fatalf("new operation store: %v", err)
+	}
+	err = store.Create(t.Context(), ComposeUpdateOperation{
+		OperationID:   "update-invalid-mode",
+		SourceVersion: "1.0.0",
+		TargetVersion: "1.1.0",
+		UpdateMode:    "unsupported",
+		TaskID:        1,
+		Outcome:       ExecutionOutcomePlanning,
+	})
+	if err == nil || err.Error() != "update operation is invalid" {
+		t.Fatalf("expected invalid update mode to be rejected, got %v", err)
 	}
 }
 

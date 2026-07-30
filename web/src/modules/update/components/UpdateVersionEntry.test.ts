@@ -25,7 +25,11 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   }),
 }));
 
-const passthrough = defineComponent({ template: '<div><slot /></div>' });
+const tooltipStub = defineComponent({
+  inheritAttrs: false,
+  props: { content: { type: String, default: '' } },
+  template: '<div v-bind="$attrs" :data-tooltip-content="content"><slot /></div>',
+});
 const buttonStub = defineComponent({
   inheritAttrs: false,
   props: {
@@ -70,7 +74,7 @@ function mountEntry() {
     global: {
       stubs: {
         't-popup': popupStub,
-        't-tooltip': passthrough,
+        't-tooltip': tooltipStub,
         't-button': buttonStub,
         'refresh-icon': defineComponent({ template: '<span data-testid="refresh-icon" />' }),
       },
@@ -91,6 +95,15 @@ describe('UpdateVersionEntry', () => {
     vi.clearAllMocks();
   });
 
+  it('keeps the current version clickable without a tooltip when no update is available', () => {
+    const wrapper = mountEntry();
+
+    expect(wrapper.find('[data-testid="update-version-tooltip"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="update-version-entry"]').attributes('aria-label')).toBe(
+      'update.versionEntry.current:1.0.0',
+    );
+  });
+
   it('shows an available release without repeating its release summary', () => {
     const discovery = useUpdateDiscoveryStore();
     discovery.replaceSnapshot(
@@ -105,6 +118,9 @@ describe('UpdateVersionEntry', () => {
 
     const wrapper = mountEntry();
 
+    expect(wrapper.get('[data-testid="update-version-tooltip"]').attributes('data-tooltip-content')).toBe(
+      'update.versionEntry.updateAvailable:1.1.0',
+    );
     expect(wrapper.text()).toContain('update.preview.availableVersion:1.1.0');
     expect(wrapper.text()).not.toContain('update.preview.upToDate');
     expect(wrapper.findAll('p').some((paragraph) => paragraph.text() === 'update.preview.available')).toBe(false);
@@ -117,6 +133,7 @@ describe('UpdateVersionEntry', () => {
 
     const wrapper = mountEntry();
 
+    expect(wrapper.find('[data-testid="update-version-tooltip"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('update.preview.unavailable');
     expect(wrapper.text()).not.toContain('1.1.0');
   });
@@ -197,7 +214,7 @@ describe('UpdateVersionEntry', () => {
       global: {
         stubs: {
           't-popup': popupStub,
-          't-tooltip': passthrough,
+          't-tooltip': tooltipStub,
           't-button': buttonStub,
           'refresh-icon': defineComponent({ template: '<span data-testid="refresh-icon" />' }),
         },

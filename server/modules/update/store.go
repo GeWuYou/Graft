@@ -29,7 +29,7 @@ func newSQLOperationStore(db *sql.DB) (OperationStore, error) {
 }
 
 func (s *sqlOperationStore) Create(ctx context.Context, value ComposeUpdateOperation) error {
-	if s == nil || s.db == nil || !validOperation(value) || value.TaskID == 0 {
+	if s == nil || s.db == nil || !validOperation(value) || !validUpdateMode(value.UpdateMode) || value.TaskID == 0 {
 		return errors.New("update operation is invalid")
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO update_operations
