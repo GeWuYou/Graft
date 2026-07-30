@@ -1,8 +1,11 @@
 package project
 
 import (
+	"encoding/json"
 	"testing"
 
+	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -92,4 +95,83 @@ func TestBuildLifecycleUpArgvSkipsWaitTimeoutWhenWaitDisabled(t *testing.T) {
 			t.Fatalf("expected argv[%d]=%q, got %q (full=%#v)", index, expected[index], argv[index], argv)
 		}
 	}
+}
+
+func TestLifecycleRestartArgsRecoverMissingProjectWithUp(t *testing.T) {
+	t.Parallel()
+
+	aggregate := projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ComposeProjectName: "compose-demo",
+			WorkspacePath:      "/srv/compose-demo",
+		},
+		Files: []projectstore.ApplicationFile{{
+			Kind:         projectcontract.FileKindCompose.String(),
+			AbsolutePath: "/srv/compose-demo/compose.yaml",
+		}},
+	}
+	missing := generated.ApplicationRuntimeStatusMissing
+	stopped := generated.ApplicationRuntimeStatusStopped
+
+	missingPlan, err := lifecycleTaskPlan(
+		aggregate,
+		generated.ApplicationActionResponseActionApplicationActionRestart,
+		&missing,
+	)
+	if err != nil {
+		t.Fatalf("build missing restart plan: %v", err)
+	}
+	missingStage := onlyLifecycleStage(t, missingPlan)
+	if missingStage.Key != "up" {
+		t.Fatalf("missing restart stage = %q, want up", missingStage.Key)
+	}
+	missingArgs := lifecycleStageArgs(t, missingStage)
+	if got, want := missingArgs[len(missingArgs)-2:], []string{"up", "-d"}; !equalStrings(got, want) {
+		t.Fatalf("missing restart args suffix = %#v, want %#v", got, want)
+	}
+
+	stoppedPlan, err := lifecycleTaskPlan(
+		aggregate,
+		generated.ApplicationActionResponseActionApplicationActionRestart,
+		&stopped,
+	)
+	if err != nil {
+		t.Fatalf("build stopped restart plan: %v", err)
+	}
+	stoppedStage := onlyLifecycleStage(t, stoppedPlan)
+	if stoppedStage.Key != "restart" {
+		t.Fatalf("stopped restart stage = %q, want restart", stoppedStage.Key)
+	}
+	if args := lifecycleStageArgs(t, stoppedStage); args[len(args)-1] != "restart" {
+		t.Fatalf("stopped restart args = %#v", args)
+	}
+}
+
+func onlyLifecycleStage(t *testing.T, plan moduleapi.TaskPlan) moduleapi.StagePlan {
+	t.Helper()
+	if len(plan.Stages) != 1 {
+		t.Fatalf("lifecycle stages = %#v, want one stage", plan.Stages)
+	}
+	return plan.Stages[0]
+}
+
+func lifecycleStageArgs(t *testing.T, stage moduleapi.StagePlan) []string {
+	t.Helper()
+	var input composeStageInput
+	if err := json.Unmarshal(stage.Input, &input); err != nil {
+		t.Fatalf("decode lifecycle stage: %v", err)
+	}
+	return input.Args
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for index := range got {
+		if got[index] != want[index] {
+			return false
+		}
+	}
+	return true
 }

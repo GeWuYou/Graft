@@ -35,6 +35,7 @@ export function projectRuntimeStatusTheme(value?: ApplicationRuntimeStatus | nul
   if (value === 'running') return 'success';
   if (value === 'degraded') return 'warning';
   if (value === 'stopped') return 'default';
+  if (value === 'missing') return 'default';
   if (value === 'transitioning') return 'primary';
   return 'default';
 }
@@ -43,6 +44,7 @@ export function projectRuntimeStatusLabel(t: Translate, value?: ApplicationRunti
   if (value === 'running') return t('project.list.status.runtimeRunning');
   if (value === 'degraded') return t('project.list.status.runtimeDegraded');
   if (value === 'stopped') return t('project.list.status.runtimeStopped');
+  if (value === 'missing') return t('project.list.status.runtimeMissing');
   if (value === 'transitioning') return t('project.list.status.runtimeTransitioning');
   return t('project.list.status.runtimeUnknown');
 }
@@ -84,7 +86,7 @@ export function projectLifecycleActionVisibility(
     };
   }
 
-  if (value === 'stopped') {
+  if (value === 'stopped' || value === 'missing') {
     return {
       up: true,
       stop: false,

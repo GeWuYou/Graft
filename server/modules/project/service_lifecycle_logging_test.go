@@ -19,6 +19,7 @@ import (
 	"graft/server/internal/logger"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
+	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
 
@@ -81,6 +82,63 @@ func TestRedeployTaskSubmissionFailureIsReportedOnceAndReturnsSafeResponse(t *te
 
 	assertSafeRedeployResponse(t, recorder, cause)
 	assertLifecycleErrorLog(t, observed.All(), cause)
+}
+
+func TestRestartTaskOwnerBusyReturnsConflictWithoutInternalError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	core, observed := observer.New(zapcore.ErrorLevel)
+	baseLogger := zap.New(core)
+	repository := &stubProjectRepository{aggregate: projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ApplicationRecordID:   41,
+			ApplicationID:         "app_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+			ComposeProjectName:    "demo",
+			WorkspacePath:         t.TempDir(),
+			LifecycleReviewStatus: "confirmed",
+			LifecycleStrategyKind: "standard",
+		},
+		Snapshot: &projectstore.Snapshot{ApplicationRecordID: 41, ConfigHash: "cfg-1", RefreshedAt: time.Now().UTC()},
+		Files: []projectstore.ApplicationFile{{
+			Kind:         projectcontract.FileKindCompose.String(),
+			AbsolutePath: "compose.yaml",
+		}},
+	}}
+	service, err := NewService(repository)
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	service.SetTaskService(failingLifecycleTaskService{err: moduleapi.ErrTaskOwnerBusy})
+	service.SetAppLogger(logger.NewAppLogger(baseLogger).Named("modules.project.lifecycle"))
+
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodPost, "/api/ops/applications/app_01ARZ3NDEKTSV4RRFFQ69G5FAV/restart", nil)
+	request = request.WithContext(moduleapi.WithRequestAuthContext(httpx.WithRequestAuditContext(request.Context(), httpx.RequestAuditContext{
+		RequestID: "req-restart-1",
+		TraceID:   "trace-restart-1",
+		Route:     "/api/ops/applications/:applicationId/restart",
+		Method:    http.MethodPost,
+	}), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}))
+	ginCtx.Request = request
+
+	result, err := service.Restart(ginCtx.Request.Context(), 41, nil)
+	if !errors.Is(err, moduleapi.ErrTaskOwnerBusy) {
+		t.Fatalf("restart error = %v, want task owner busy", err)
+	}
+	if len(result.GuardResults) != 1 || result.GuardResults[0].Code != "lifecycle_blocked" || result.GuardResults[0].Detail == nil || *result.GuardResults[0].Detail != "task_already_active" {
+		t.Fatalf("restart guard results = %#v", result.GuardResults)
+	}
+	(routeRuntime{ctx: &module.Context{Logger: baseLogger}}).writeRouteErrorWithAction(ginCtx, err, result)
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), "COMMON_INTERNAL_ERROR") || !strings.Contains(recorder.Body.String(), projectcontract.ApplicationConflict.String()) {
+		t.Fatalf("expected conflict response, got %s", recorder.Body.String())
+	}
+	if len(observed.All()) != 0 {
+		t.Fatalf("task owner conflict must not be logged as internal failure: %#v", observed.All())
+	}
 }
 
 func assertSafeRedeployResponse(t *testing.T, recorder *httptest.ResponseRecorder, cause error) {

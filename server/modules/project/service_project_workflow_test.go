@@ -792,6 +792,7 @@ func TestSkipBatchRestartForStatusAllowsStoppedProjects(t *testing.T) {
 		{name: "running", status: generated.ApplicationRuntimeStatusRunning, wantReason: "", wantSkip: false},
 		{name: "degraded", status: generated.ApplicationRuntimeStatusDegraded, wantReason: "", wantSkip: false},
 		{name: "stopped", status: generated.ApplicationRuntimeStatusStopped, wantReason: "", wantSkip: false},
+		{name: "missing", status: generated.ApplicationRuntimeStatusMissing, wantReason: "", wantSkip: false},
 		{name: "transitioning", status: generated.ApplicationRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
 		{name: "unknown", status: generated.ApplicationRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
 	}

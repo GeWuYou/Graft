@@ -1054,6 +1054,11 @@ func (r routeRuntime) writeHandledRouteError(ginCtx *gin.Context, err error, act
 		return true
 	}
 	switch {
+	case errors.Is(err, moduleapi.ErrTaskOwnerBusy):
+		r.writeLocalizedActionError(ginCtx, http.StatusConflict, projectcontract.ApplicationConflict.String(), map[string]any{
+			"code":         projectcontract.ApplicationConflict.String(),
+			"actionResult": toActionResponse(action),
+		})
 	case errors.Is(err, errProjectFileNotFound):
 		r.writeFileNotFoundError(ginCtx)
 	case errors.Is(err, errProjectInvalidArgument):

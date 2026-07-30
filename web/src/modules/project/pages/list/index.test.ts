@@ -113,6 +113,7 @@ const listMessages = {
   'project.list.projectCount': 'Total {count}',
   'project.list.resources.container': 'Containers',
   'project.list.resources.issue': 'Issue',
+  'project.list.resources.missing': 'Missing',
   'project.list.resources.running': 'Running',
   'project.list.resources.service': 'Services',
   'project.list.resources.statusValue': '{status} {count}',
@@ -121,6 +122,7 @@ const listMessages = {
   'project.list.resources.unknown': 'Unknown',
   'project.list.tableSummary': 'Total {count}',
   'project.list.status.runtimeDegraded': 'Degraded',
+  'project.list.status.runtimeMissing': 'Missing',
   'project.list.status.runtimeRunning': 'Running',
   'project.list.status.runtimeStopped': 'Stopped',
   'project.list.status.runtimeTransitioning': 'Transitioning',
@@ -128,6 +130,7 @@ const listMessages = {
   'project.list.statusTooltip.lifecycleReviewRequired':
     'Lifecycle configuration is not confirmed yet. Open project details to complete the review.',
   'project.list.statusTooltip.runtimeDegraded': 'Current Page Degraded',
+  'project.list.statusTooltip.runtimeMissing': 'Current Page Missing',
   'project.list.statusTooltip.runtimeRunning': 'Current Page Running',
   'project.list.statusTooltip.runtimeStopped': 'Current Page Stopped',
   'project.list.statusTooltip.runtimeTransitioning': 'Current Page Transitioning',
@@ -861,13 +864,13 @@ describe('Application list page', () => {
     expect(issueRow.find('[data-testid="project-resource-badge-running-4"]').exists()).toBe(false);
   });
 
-  it('renders an unknown resource badge when runtime members are absent', async () => {
+  it('renders a missing resource badge when the compose runtime has no members', async () => {
     projectApiMocks.getApplications.mockResolvedValueOnce({
       items: [
         buildApplicationRow({
           container_counts: { issue: 0, running: 0, stopped: 0, total: 0, transitioning: 0 },
           application_id: '11',
-          runtime_status: 'unknown',
+          runtime_status: 'missing',
         }),
       ],
       limit: 20,
@@ -879,9 +882,9 @@ describe('Application list page', () => {
     await flushPromises();
 
     const row = wrapper.get('tr[data-row-id="11"]');
-    const badge = row.get('[data-testid="project-resource-badge-unknown-11"]');
+    const badge = row.get('[data-testid="project-resource-badge-missing-11"]');
     expect(badge.text()).toContain('0');
-    expect(badge.attributes('title')).toBe('Unknown 0');
+    expect(badge.attributes('title')).toBe('Missing 0');
     expect(row.find('[data-testid="project-resource-badge-stopped-11"]').exists()).toBe(false);
   });
 
@@ -1184,10 +1187,11 @@ describe('Application list page', () => {
         buildApplicationRow({ application_id: '1', runtime_status: 'running' }),
         buildApplicationRow({ application_id: '2', runtime_status: 'degraded' }),
         buildApplicationRow({ application_id: '3', runtime_status: 'stopped' }),
+        buildApplicationRow({ application_id: '4', runtime_status: 'missing' }),
       ],
       limit: 20,
       offset: 0,
-      total: 3,
+      total: 4,
     });
 
     const wrapper = mountPage();
@@ -1211,6 +1215,11 @@ describe('Application list page', () => {
     expect(stoppedRow.find('[data-testid="row-action-up"]').exists()).toBe(true);
     expect(stoppedRow.find('[data-testid="row-action-stop"]').exists()).toBe(false);
     expect(stoppedRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
+
+    const missingRow = wrapper.get('tr[data-row-id="4"]');
+    expect(missingRow.find('[data-testid="row-action-up"]').exists()).toBe(true);
+    expect(missingRow.find('[data-testid="row-action-stop"]').exists()).toBe(false);
+    expect(missingRow.find('[data-testid="row-action-restart"]').exists()).toBe(true);
 
     wrapper.unmount();
   });

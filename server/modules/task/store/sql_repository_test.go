@@ -207,11 +207,17 @@ func assertLogSequences(t *testing.T, logs []taskmodel.Log, err error, want []in
 func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
-	for _, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
+	for index, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
 		input := validCreateInput()
 		input.Task.Owner = moduleapi.TaskOwner{Type: "application", ID: ownerID}
-		if _, _, _, err := repository.Create(context.Background(), input); err != nil {
+		created, _, _, err := repository.Create(context.Background(), input)
+		if err != nil {
 			t.Fatalf("create %q task: %v", ownerID, err)
+		}
+		if index == 0 {
+			if _, err := repository.db.Exec(`UPDATE tasks SET status = ? WHERE id = ?`, moduleapi.TaskStatusFailed, created.ID); err != nil {
+				t.Fatalf("complete first owner task: %v", err)
+			}
 		}
 	}
 	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{Owner: moduleapi.TaskOwner{Type: "application", ID: "owner-a"}}, 1, 1)

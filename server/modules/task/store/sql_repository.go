@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"graft/server/internal/moduleapi"
 	taskmodel "graft/server/modules/task/model"
 	"graft/server/modules/task/state"
@@ -106,7 +108,7 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 				return existing, nil, true, nil
 			}
 		}
-		return taskmodel.Task{}, nil, false, fmt.Errorf("insert task: %w", err)
+		return taskmodel.Task{}, nil, false, mapCreateTaskError(err)
 	}
 
 	stages := make([]taskmodel.Stage, 0, len(input.Stages))
@@ -155,6 +157,21 @@ func (r *SQLRepository) Create(ctx context.Context, input CreateInput) (taskmode
 		return taskmodel.Task{}, nil, false, fmt.Errorf("commit create task transaction: %w", err)
 	}
 	return input.Task, stages, false, nil
+}
+
+func mapCreateTaskError(err error) error {
+	if isActiveOwnerConflict(err) {
+		return fmt.Errorf("insert task: %w", moduleapi.ErrTaskOwnerBusy)
+	}
+	return fmt.Errorf("insert task: %w", err)
+}
+
+func isActiveOwnerConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505" && pgErr.ConstraintName == "uq_tasks_active_owner"
+	}
+	return strings.Contains(err.Error(), "UNIQUE constraint failed: tasks.owner_type, tasks.owner_id")
 }
 
 type taskQueryer interface {
@@ -519,22 +536,8 @@ func (r *SQLRepository) transitionClaimedStage(ctx context.Context, tx *sql.Tx, 
 	if err != nil {
 		return StageClaim{}, false, fmt.Errorf("select claimable task stage: %w", err)
 	}
-	if claim.Task.Status != moduleapi.TaskStatusRunning {
-		if err := state.ValidateTaskTransition(claim.Task.Status, moduleapi.TaskStatusRunning); err != nil {
-			return StageClaim{}, false, err
-		}
-		result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
-			SET status = ?, current_stage_key = ?, started_at = COALESCE(started_at, ?), updated_at = ?
-			WHERE id = ? AND status = ?`), moduleapi.TaskStatusRunning, claim.Stage.Key, now, now, claim.Task.ID, claim.Task.Status)
-		if err != nil {
-			return StageClaim{}, false, fmt.Errorf("mark claimed task running: %w", err)
-		}
-		if err := expectOneAffected(result); err != nil {
-			return StageClaim{}, false, err
-		}
-		claim.Task.Status = moduleapi.TaskStatusRunning
-		claim.Task.CurrentStageKey = stringPointer(claim.Stage.Key)
-		claim.Task.StartedAt = &now
+	if err := r.markClaimTaskRunning(ctx, tx, &claim, now); err != nil {
+		return StageClaim{}, false, err
 	}
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, attempt = ?, started_at = COALESCE(started_at, ?), updated_at = ?
@@ -549,6 +552,38 @@ func (r *SQLRepository) transitionClaimedStage(ctx context.Context, tx *sql.Tx, 
 	claim.Stage.Attempt++
 	claim.Stage.StartedAt = &now
 	return claim, true, nil
+}
+
+func (r *SQLRepository) markClaimTaskRunning(ctx context.Context, tx *sql.Tx, claim *StageClaim, now time.Time) error {
+	if claim.Task.Status != moduleapi.TaskStatusRunning {
+		if err := state.ValidateTaskTransition(claim.Task.Status, moduleapi.TaskStatusRunning); err != nil {
+			return err
+		}
+		result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+			SET status = ?, current_stage_key = ?, started_at = COALESCE(started_at, ?), updated_at = ?
+			WHERE id = ? AND status = ?`), moduleapi.TaskStatusRunning, claim.Stage.Key, now, now, claim.Task.ID, claim.Task.Status)
+		if err != nil {
+			return fmt.Errorf("mark claimed task running: %w", err)
+		}
+		if err := expectOneAffected(result); err != nil {
+			return err
+		}
+		claim.Task.Status = moduleapi.TaskStatusRunning
+		claim.Task.CurrentStageKey = stringPointer(claim.Stage.Key)
+		claim.Task.StartedAt = &now
+		return nil
+	}
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET current_stage_key = ?, updated_at = ?
+		WHERE id = ? AND status = ?`), claim.Stage.Key, now, claim.Task.ID, moduleapi.TaskStatusRunning)
+	if err != nil {
+		return fmt.Errorf("update claimed task stage: %w", err)
+	}
+	if err := expectOneAffected(result); err != nil {
+		return err
+	}
+	claim.Task.CurrentStageKey = stringPointer(claim.Stage.Key)
+	return nil
 }
 
 // RequestCancellation 记录协作式取消请求；running Stage 保持不变，以便 worker 调用消费模块所有的 Cancel hook。
@@ -586,6 +621,46 @@ func (r *SQLRepository) CancelPendingTask(ctx context.Context, taskID uint64, fi
 		return fmt.Errorf("cancel pending task: %w", err)
 	}
 	return expectOneAffected(result)
+}
+
+// CancelUntrackedRunningStage 仅结算已经收到取消请求、但当前 Runtime 没有本地 worker 跟踪的普通 running Stage。
+// cancelled 记录的是执行控制权已撤销，不能推断或伪造外部副作用已经成功或被回滚。
+func (r *SQLRepository) CancelUntrackedRunningStage(ctx context.Context, taskID uint64, stageID uint64, finishedAt time.Time, durationMS *int64) error {
+	if taskID == 0 || stageID == 0 || finishedAt.IsZero() {
+		return ErrInvalidInput
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin untracked running stage cancellation: %w", err)
+	}
+	defer rollback(tx)
+
+	stageResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, finished_at = ?, duration_ms = ?, updated_at = ?
+		WHERE id = ? AND task_id = ? AND status = ?`),
+		moduleapi.StageStatusCancelled, finishedAt.UTC(), durationMS, finishedAt.UTC(), stageID, taskID, moduleapi.StageStatusRunning)
+	if err != nil {
+		return fmt.Errorf("cancel untracked running stage: %w", err)
+	}
+	if err := expectOneAffected(stageResult); err != nil {
+		return err
+	}
+
+	taskResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, current_stage_key = (SELECT stage_key FROM task_stages WHERE id = ?),
+			finished_at = ?, duration_ms = ?, updated_at = ?
+		WHERE id = ? AND status = ? AND cancel_requested_at IS NOT NULL`),
+		moduleapi.TaskStatusCancelled, stageID, finishedAt.UTC(), durationMS, finishedAt.UTC(), taskID, moduleapi.TaskStatusRunning)
+	if err != nil {
+		return fmt.Errorf("cancel untracked running task: %w", err)
+	}
+	if err := expectOneAffected(taskResult); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit untracked running stage cancellation: %w", err)
+	}
+	return nil
 }
 
 // RetryStage 将操作员批准的 failed 或 unknown Stage 恢复为 pending。
@@ -690,6 +765,10 @@ func (r *SQLRepository) RecoverInterruptedStages(ctx context.Context, now time.T
 		return 0, fmt.Errorf("begin interrupted stage recovery: %w", err)
 	}
 	defer rollback(tx)
+	cancelledCount, err := r.cancelInterruptedRequestedStages(ctx, tx, now)
+	if err != nil {
+		return 0, err
+	}
 	unknownCount, err := r.markManualRecoveryUnknown(ctx, tx, now)
 	if err != nil {
 		return 0, err
@@ -707,7 +786,7 @@ func (r *SQLRepository) RecoverInterruptedStages(ctx context.Context, now time.T
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit interrupted stage recovery: %w", err)
 	}
-	return unknownCount + retriedCount, nil
+	return cancelledCount + unknownCount + retriedCount, nil
 }
 
 // SettleExternalReceipt 原子记录已绑定外部回执、更新其最终 Stage 并结算父 Task。
@@ -880,6 +959,61 @@ func (r *SQLRepository) appendExternalReceiptEvent(ctx context.Context, tx *sql.
 	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_events (task_id, sequence, event_type, payload_json, created_at)
 		SELECT ?, COALESCE(MAX(sequence), 0) + 1, ?, ?, ? FROM task_events WHERE task_id = ?`), input.TaskID, taskmodel.EventTypeExternalReceiptSettled, payload, now, input.TaskID); err != nil {
 		return fmt.Errorf("append external receipt event: %w", err)
+	}
+	return nil
+}
+
+// cancelInterruptedRequestedStages 结算已请求取消且没有外部回执的中断 Stage；取消不宣称外部副作用已成功或被回滚。
+func (r *SQLRepository) cancelInterruptedRequestedStages(ctx context.Context, tx *sql.Tx, now time.Time) (int, error) {
+	stageResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
+		SET status = ?, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE status = ? AND task_id IN (
+			SELECT id FROM tasks WHERE status = ? AND cancel_requested_at IS NOT NULL
+		) AND NOT EXISTS (
+			SELECT 1 FROM task_external_receipts receipt
+			WHERE receipt.task_id = task_stages.task_id AND receipt.stage_id = task_stages.id
+		)`), moduleapi.StageStatusCancelled, now.UTC(), now.UTC(), moduleapi.StageStatusRunning, moduleapi.TaskStatusRunning)
+	if err != nil {
+		return 0, fmt.Errorf("cancel interrupted requested stages: %w", err)
+	}
+	cancelledCount, err := stageResult.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count cancelled interrupted stages: %w", err)
+	}
+	if cancelledCount == 0 {
+		return 0, nil
+	}
+	if err := r.cancelInterruptedRequestedTasks(ctx, tx, now); err != nil {
+		return 0, err
+	}
+	if err := r.appendInterruptedCancellationEvents(ctx, tx, now); err != nil {
+		return 0, err
+	}
+	return int(cancelledCount), nil
+}
+
+func (r *SQLRepository) cancelInterruptedRequestedTasks(ctx context.Context, tx *sql.Tx, now time.Time) error {
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE status = ? AND cancel_requested_at IS NOT NULL
+			AND NOT EXISTS (SELECT 1 FROM task_stages WHERE task_stages.task_id = tasks.id AND task_stages.status = ?)`),
+		moduleapi.TaskStatusCancelled, now.UTC(), now.UTC(), moduleapi.TaskStatusRunning, moduleapi.StageStatusRunning)
+	if err != nil {
+		return fmt.Errorf("cancel interrupted requested tasks: %w", err)
+	}
+	if _, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("count cancelled interrupted tasks: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLRepository) appendInterruptedCancellationEvents(ctx context.Context, tx *sql.Tx, now time.Time) error {
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`INSERT INTO task_events (task_id, sequence, event_type, payload_json, created_at)
+		SELECT task.id, COALESCE((SELECT MAX(event.sequence) FROM task_events event WHERE event.task_id = task.id), 0) + 1, ?, ?, ?
+		FROM tasks task
+		WHERE task.status = ? AND task.cancel_requested_at IS NOT NULL AND task.finished_at = ?`),
+		taskmodel.EventTypeCancelled, json.RawMessage(`{}`), now.UTC(), moduleapi.TaskStatusCancelled, now.UTC()); err != nil {
+		return fmt.Errorf("append interrupted task cancellation events: %w", err)
 	}
 	return nil
 }

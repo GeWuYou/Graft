@@ -31,7 +31,7 @@ func (s *Service) Stop(ctx context.Context, projectID uint64, actorID *uint64) (
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionStop)
 }
 
-// Restart 异步提交 docker compose restart，并限定在项目已登记的工作目录执行。
+// Restart 异步提交 Compose 恢复任务；已发现成员时执行 restart，准确确认无成员时执行 up -d。
 func (s *Service) Restart(ctx context.Context, projectID uint64, actorID *uint64) (ActionResult, error) {
 	return s.submitLifecycleTask(ctx, projectID, actorID, generated.ApplicationActionResponseActionApplicationActionRestart)
 }
@@ -218,7 +218,8 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
 		return result, err
 	}
-	plan, err := lifecycleTaskPlan(aggregate, action)
+	runtimeStatus := s.lifecycleRuntimeStatus(ctx, aggregate, action)
+	plan, err := lifecycleTaskPlan(aggregate, action, runtimeStatus)
 	if err != nil {
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
@@ -226,6 +227,11 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	}
 	receipt, err := s.taskService.Submit(ctx, moduleapi.SubmitTaskInput{Type: moduleapi.TaskType("application.compose." + strings.ToLower(string(action))), Owner: moduleapi.TaskOwner{Type: applicationTaskOwnerType, ID: aggregate.Application.ApplicationID}, RequestedBy: actor.id, Plan: plan})
 	if err != nil {
+		if errors.Is(err, moduleapi.ErrTaskOwnerBusy) {
+			result := lifecycleBlockedResult(aggregate, action, err)
+			s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
+			return result, err
+		}
 		err = s.reportLifecycleTaskSubmissionFailure(ctx, aggregate, action, err)
 		result := lifecycleBlockedResult(aggregate, action, err)
 		s.publishApplicationActionAudit(ctx, aggregate, actor, result, err)
@@ -235,6 +241,23 @@ func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, act
 	result := ActionResult{ApplicationRecordID: projectID, Action: action, Result: generated.ApplicationActionResponseResultApplicationActionResultAccepted, MessageKey: &messageKey, Message: &messageKey, GuardResults: []GuardResult{guardDetail("task_id", fmt.Sprintf("%d", receipt.TaskID))}}
 	s.publishApplicationActionAudit(ctx, aggregate, actor, result, nil)
 	return result, nil
+}
+
+// lifecycleRuntimeStatus 仅为 restart 判定是否需要由 up -d 恢复一个已不存在的 Compose 项目。
+// 运行时读取失败不会阻止任务提交，保持既有的 restart 语义并由执行阶段给出真实错误。
+func (s *Service) lifecycleRuntimeStatus(
+	ctx context.Context,
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
+) *generated.ApplicationRuntimeStatus {
+	if action != generated.ApplicationActionResponseActionApplicationActionRestart {
+		return nil
+	}
+	summary, runtimeErr := s.runtimeSummary(ctx, aggregate)
+	if runtimeErr != nil {
+		return nil
+	}
+	return deriveProjectRuntimeStatus(&summary, nil)
 }
 
 // reportLifecycleTaskSubmissionFailure 在 Project 仍掌握应用和动作语义时记录一次任务提交失败。
@@ -259,15 +282,30 @@ func (s *Service) reportLifecycleTaskSubmissionFailure(
 }
 
 // lifecycleTaskPlan 为指定生命周期动作创建异步任务计划，实际 Compose 执行由任务运行时负责。
-func lifecycleTaskPlan(aggregate projectstore.ApplicationAggregate, action generated.ApplicationActionResponseAction) (moduleapi.TaskPlan, error) {
+func lifecycleTaskPlan(
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
+	runtimeStatus *generated.ApplicationRuntimeStatus,
+) (moduleapi.TaskPlan, error) {
 	if action == generated.ApplicationActionResponseActionApplicationActionRedeploy {
 		return redeployTaskPlan(aggregate)
 	}
-	args, err := lifecycleCommandArgs(aggregate, action)
+	args, err := lifecycleCommandArgsForRuntime(aggregate, action, runtimeStatus)
 	if err != nil {
 		return moduleapi.TaskPlan{}, err
 	}
-	return taskPlanWithStage(aggregate, strings.ToLower(string(action)), args)
+	return taskPlanWithStage(aggregate, lifecycleStageKey(action, runtimeStatus), args)
+}
+
+// lifecycleStageKey 保持任务阶段记录与实际 Compose 子命令一致。
+func lifecycleStageKey(
+	action generated.ApplicationActionResponseAction,
+	runtimeStatus *generated.ApplicationRuntimeStatus,
+) string {
+	if action == generated.ApplicationActionResponseActionApplicationActionRestart && runtimeStatus != nil && *runtimeStatus == generated.ApplicationRuntimeStatusMissing {
+		return "up"
+	}
+	return strings.ToLower(string(action))
 }
 
 // redeployTaskPlan 按固定顺序构建重部署阶段，并根据配置追加停止、拉取和镜像清理等可选阶段。
@@ -632,7 +670,12 @@ func composeProjectArgs(aggregate projectstore.ApplicationAggregate, config Life
 	return base, nil
 }
 
-func lifecycleCommandArgs(aggregate projectstore.ApplicationAggregate, action generated.ApplicationActionResponseAction) ([]string, error) {
+// lifecycleCommandArgsForRuntime 在运行时准确确认 Compose 项目没有任何成员时，以 up -d 实现 restart 的恢复语义。
+func lifecycleCommandArgsForRuntime(
+	aggregate projectstore.ApplicationAggregate,
+	action generated.ApplicationActionResponseAction,
+	runtimeStatus *generated.ApplicationRuntimeStatus,
+) ([]string, error) {
 	config := lifecycleConfigurationFromAggregate(aggregate)
 	switch action {
 	case generated.ApplicationActionResponseActionApplicationActionUp:
@@ -644,6 +687,9 @@ func lifecycleCommandArgs(aggregate projectstore.ApplicationAggregate, action ge
 		}
 		return append(base, "stop"), nil
 	case generated.ApplicationActionResponseActionApplicationActionRestart:
+		if runtimeStatus != nil && *runtimeStatus == generated.ApplicationRuntimeStatusMissing {
+			return lifecycleUpArgs(aggregate, config)
+		}
 		base, err := composeProjectArgs(aggregate, config)
 		if err != nil {
 			return nil, err
@@ -709,6 +755,8 @@ func lifecycleBlockedResult(
 
 func lifecycleBlockedReason(err error) string {
 	switch {
+	case errors.Is(err, moduleapi.ErrTaskOwnerBusy):
+		return "task_already_active"
 	case errors.Is(err, errProjectLifecycleReview):
 		return "review_required"
 	case errors.Is(err, errProjectInvalidArgument):
@@ -831,7 +879,8 @@ func (s *Service) batchLifecycleItem(
 	if skipReason, shouldSkip := skipBatchLifecycleAction(action, &runtimeSummary, runtimeErr); shouldSkip {
 		return skippedBatchActionResult(aggregate.Application.ApplicationRecordID, action, skipReason), nil
 	}
-	args, err := lifecycleCommandArgs(aggregate, action)
+	runtimeStatus := deriveProjectRuntimeStatus(&runtimeSummary, runtimeErr)
+	args, err := lifecycleCommandArgsForRuntime(aggregate, action, runtimeStatus)
 	if err != nil {
 		return BatchActionItemResult{ActionResult: lifecycleBlockedResult(aggregate, action, err)}, nil
 	}
@@ -886,7 +935,7 @@ func skipBatchStopForStatus(status generated.ApplicationRuntimeStatus) (string, 
 
 func skipBatchRestartForStatus(status generated.ApplicationRuntimeStatus) (string, bool) {
 	switch status {
-	case generated.ApplicationRuntimeStatusRunning, generated.ApplicationRuntimeStatusDegraded, generated.ApplicationRuntimeStatusStopped:
+	case generated.ApplicationRuntimeStatusRunning, generated.ApplicationRuntimeStatusDegraded, generated.ApplicationRuntimeStatusStopped, generated.ApplicationRuntimeStatusMissing:
 		return "", false
 	case generated.ApplicationRuntimeStatusTransitioning:
 		return "currently_transitioning", true

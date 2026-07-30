@@ -428,7 +428,7 @@ func toTaskView(task taskmodel.Task) moduleapi.TaskView {
 	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage}
 }
 
-// Cancel 持久化取消请求；若当前 Stage 正由消费模块执行，则继续转发取消信号，running 状态由执行结果决定。
+// Cancel 持久化取消请求；本进程跟踪的 Stage 由执行器返回结果结算，失联的普通 Stage 则以 cancelled 释放业务资源占用。
 func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 	if r == nil || r.repository == nil {
 		return errors.New("task runtime repository is unavailable")
@@ -444,9 +444,12 @@ func (r *Runtime) Cancel(ctx context.Context, taskID uint64) error {
 		}
 		return err
 	}
-	err = r.cancelRunningTask(ctx, taskID)
+	settled, err := r.cancelRunningTask(ctx, task)
 	if err == nil {
 		r.publishTask(taskID, taskcontract.TaskRealtimeEventCancelRequested)
+		if settled {
+			r.publishTask(taskID, taskcontract.TaskRealtimeEventCancelled)
+		}
 	}
 	return err
 }
@@ -468,15 +471,53 @@ func (r *Runtime) cancelNonRunningTask(ctx context.Context, task taskmodel.Task)
 	return r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelled)
 }
 
-func (r *Runtime) cancelRunningTask(ctx context.Context, taskID uint64) error {
+func (r *Runtime) cancelRunningTask(ctx context.Context, task taskmodel.Task) (bool, error) {
 	r.mu.RLock()
-	running, exists := r.running[taskID]
+	running, exists := r.running[task.ID]
 	r.mu.RUnlock()
 	if exists {
-		return r.cancelTrackedStage(ctx, running)
+		return false, r.cancelTrackedStage(ctx, running)
 	}
-	r.signalWake()
-	return r.appendEvent(ctx, taskID, taskmodel.EventTypeCancelRequested)
+	stages, err := r.repository.ListStages(ctx, task.ID)
+	if err != nil {
+		return false, err
+	}
+	runningStage, err := untrackedRunningStage(stages)
+	if err != nil {
+		return false, err
+	}
+	if r.claimedStageWaitsForExternalReceipt(taskstore.StageClaim{Task: task, Stage: *runningStage}) {
+		return false, r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelRequested)
+	}
+	if err := r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelRequested); err != nil {
+		return false, err
+	}
+	now := time.Now().UTC()
+	if err := r.repository.CancelUntrackedRunningStage(ctx, task.ID, runningStage.ID, now, durationSince(task.StartedAt, now)); err != nil {
+		return false, err
+	}
+	if err := r.appendEvent(ctx, task.ID, taskmodel.EventTypeCancelled); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func untrackedRunningStage(stages []taskmodel.Stage) (*taskmodel.Stage, error) {
+	var runningStage *taskmodel.Stage
+	for _, stage := range stages {
+		if stage.Status != moduleapi.StageStatusRunning {
+			continue
+		}
+		if runningStage != nil {
+			return nil, taskstore.ErrStateConflict
+		}
+		current := stage
+		runningStage = &current
+	}
+	if runningStage == nil {
+		return nil, taskstore.ErrStateConflict
+	}
+	return runningStage, nil
 }
 
 func (r *Runtime) cancelTrackedStage(ctx context.Context, running runningStage) error {
@@ -671,8 +712,8 @@ func (r *Runtime) runOne(ctx context.Context) error {
 	r.addRunning(claim.Task.ID, runningStage{executor: executor, run: run, cancel: cancel})
 	err = r.executeStage(stageContext, executor, run)
 	cancel()
-	r.removeRunning(claim.Task.ID)
 	finishErr := r.finishClaim(ctx, claim, err)
+	r.removeRunning(claim.Task.ID)
 	if finishErr == nil {
 		eventType := taskcontract.TaskRealtimeEventStageCompleted
 		if err != nil {

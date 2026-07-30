@@ -869,6 +869,7 @@ func (e ApplicationOwnershipMode) Valid() bool {
 // Defines values for ApplicationRuntimeStatus.
 const (
 	ApplicationRuntimeStatusDegraded      ApplicationRuntimeStatus = "degraded"
+	ApplicationRuntimeStatusMissing       ApplicationRuntimeStatus = "missing"
 	ApplicationRuntimeStatusRunning       ApplicationRuntimeStatus = "running"
 	ApplicationRuntimeStatusStopped       ApplicationRuntimeStatus = "stopped"
 	ApplicationRuntimeStatusTransitioning ApplicationRuntimeStatus = "transitioning"
@@ -879,6 +880,8 @@ const (
 func (e ApplicationRuntimeStatus) Valid() bool {
 	switch e {
 	case ApplicationRuntimeStatusDegraded:
+		return true
+	case ApplicationRuntimeStatusMissing:
 		return true
 	case ApplicationRuntimeStatusRunning:
 		return true

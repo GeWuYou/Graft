@@ -558,10 +558,10 @@ const taskDrawerVisible = ref(false);
 const openingTaskRowIds = ref(new Set<string>());
 let taskOpenRequestVersion = 0;
 
-type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
+type HeaderStatusSummaryKey = 'running' | 'degraded' | 'stopped' | 'missing' | 'transitioning' | 'unknown';
 type ApplicationListDriftTone = 'clean' | 'drifted' | 'unknown';
 type PendingApplicationAction = 'up' | 'stop' | 'restart' | 'redeploy';
-type ApplicationResourceBadgeKey = 'running' | 'stopped' | 'transitioning' | 'issue' | 'unknown';
+type ApplicationResourceBadgeKey = 'running' | 'stopped' | 'missing' | 'transitioning' | 'issue' | 'unknown';
 type ApplicationBatchActionUi = ApplicationBatchAction;
 type PendingApplicationActionState = {
   action: PendingApplicationAction;
@@ -612,7 +612,14 @@ watch(usesCompactApplicationList, (usesCompact) => {
 
 const sourceTypeOptions: ApplicationSourceType[] = ['imported', 'managed', 'template'];
 const driftStatusOptions: ApplicationDriftStatus[] = ['unknown', 'clean', 'changed', 'missing'];
-const runtimeStatusOptions: ApplicationRuntimeStatus[] = ['running', 'degraded', 'stopped', 'transitioning', 'unknown'];
+const runtimeStatusOptions: ApplicationRuntimeStatus[] = [
+  'running',
+  'degraded',
+  'stopped',
+  'missing',
+  'transitioning',
+  'unknown',
+];
 const projectSortOptions = computed(() => [
   { label: t('project.list.filters.sortCreatedAt'), value: 'created_at' as const },
 ]);
@@ -810,6 +817,7 @@ const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() 
     running: 0,
     degraded: 0,
     stopped: 0,
+    missing: 0,
     transitioning: 0,
     unknown: 0,
   };
@@ -821,7 +829,16 @@ const projectStatusCounts = computed<Record<HeaderStatusSummaryKey, number>>(() 
   return counts;
 });
 const headerStatusSummaryItems = computed(() =>
-  ([{ key: 'running' }, { key: 'degraded' }, { key: 'stopped' }, { key: 'transitioning' }, { key: 'unknown' }] as const)
+  (
+    [
+      { key: 'running' },
+      { key: 'degraded' },
+      { key: 'stopped' },
+      { key: 'missing' },
+      { key: 'transitioning' },
+      { key: 'unknown' },
+    ] as const
+  )
     .filter((item) => projectStatusCounts.value[item.key] > 0)
     .map((item) => ({
       ...item,
@@ -915,7 +932,13 @@ function runtimeStatusLabel(value?: ApplicationRuntimeStatus | null) {
 }
 
 function normalizeRuntimeStatus(value?: ApplicationRuntimeStatus | null): HeaderStatusSummaryKey {
-  if (value === 'running' || value === 'degraded' || value === 'stopped' || value === 'transitioning') {
+  if (
+    value === 'running' ||
+    value === 'degraded' ||
+    value === 'stopped' ||
+    value === 'missing' ||
+    value === 'transitioning'
+  ) {
     return value;
   }
 
@@ -944,6 +967,7 @@ function projectResourceBadgeLabel(key: ApplicationResourceBadgeKey, count: numb
 function projectResourceBadgeIcon(key: ApplicationResourceBadgeKey) {
   if (key === 'running') return '🟢';
   if (key === 'stopped') return '⚫';
+  if (key === 'missing') return '⚫';
   if (key === 'transitioning') return '🟠';
   if (key === 'issue') return '🔴';
   return '⚪';
@@ -981,13 +1005,13 @@ function projectContainerBadges(row: ApplicationListItemWithLifecycle): Applicat
   if (visible.length > 0) {
     return visible;
   }
-  if ((row.runtime_status ?? null) === 'unknown' && row.container_counts.total === 0) {
+  if ((row.runtime_status ?? null) === 'missing' && row.container_counts.total === 0) {
     return [
       {
-        key: 'unknown',
+        key: 'missing',
         count: 0,
-        label: projectResourceBadgeLabel('unknown', 0),
-        icon: projectResourceBadgeIcon('unknown'),
+        label: projectResourceBadgeLabel('missing', 0),
+        icon: projectResourceBadgeIcon('missing'),
       },
     ];
   }
@@ -996,11 +1020,13 @@ function projectContainerBadges(row: ApplicationListItemWithLifecycle): Applicat
       ? 'running'
       : row.runtime_status === 'stopped'
         ? 'stopped'
-        : row.runtime_status === 'transitioning'
-          ? 'transitioning'
-          : row.runtime_status === 'degraded'
-            ? 'issue'
-            : 'unknown';
+        : row.runtime_status === 'missing'
+          ? 'missing'
+          : row.runtime_status === 'transitioning'
+            ? 'transitioning'
+            : row.runtime_status === 'degraded'
+              ? 'issue'
+              : 'unknown';
   return [
     {
       key: fallbackKey,
@@ -2236,7 +2262,9 @@ button.project-runtime-badge:disabled {
 }
 
 .project-header-summary__status--stopped,
-.project-runtime-badge--stopped {
+.project-runtime-badge--stopped,
+.project-header-summary__status--missing,
+.project-runtime-badge--missing {
   color: var(--td-text-color-secondary);
 }
 
