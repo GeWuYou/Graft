@@ -50,6 +50,34 @@ func TestEvaluateReadinessSeparatesUnknownReleaseState(t *testing.T) {
 	}
 }
 
+func TestEvaluateReadinessIncludesReleaseActionOnlyForMeaningfulNotesURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		notesURL string
+		want     string
+	}{
+		{name: "missing", notesURL: "", want: ""},
+		{name: "whitespace", notesURL: " \t", want: ""},
+		{name: "present", notesURL: " https://example.test/releases/v1.1.0 ", want: "https://example.test/releases/v1.1.0"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			readiness := EvaluateReadiness(Status{Latest: &Release{Version: "1.1.0", NotesURL: test.notesURL}}, true)
+			actions := readiness.Checks[3].Actions
+			if test.want == "" {
+				if len(actions) != 0 {
+					t.Fatalf("release actions = %#v, want none", actions)
+				}
+				return
+			}
+			if len(actions) != 1 || actions[0].ID != "view_release" || actions[0].Target != test.want {
+				t.Fatalf("release actions = %#v, want view_release to %q", actions, test.want)
+			}
+		})
+	}
+}
+
 func TestEvaluateReadinessBlocksAvailableReleaseUntilDeploymentIsSupported(t *testing.T) {
 	status := Status{CurrentVersion: "v1.0.0", ImageTag: "beta", UpdateMode: UpdateModeBetaTracking, Latest: &Release{Version: "v1.1.0-beta.1"}, Profile: InstallationProfile{DeclaredMode: "binary", DetectedMode: "binary", Capability: "manual_guidance"}}
 

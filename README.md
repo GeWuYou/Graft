@@ -75,7 +75,7 @@ cd web
 bun run dev
 ```
 
-See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost. `GRAFT_IMAGE_TAG` is the single image-version setting for the official server and web images; use `latest`, `beta`, or a fixed release tag. Controlled updates only write a verified explicit release tag and still validate the pulled image digests. Existing instances can follow the [official Compose migration guide](docs/official-compose-migration.md) before enabling controlled upgrades.
+See the [deployment configuration template](compose.env.example) and [Compose topology](compose.yml) before exposing an instance outside localhost. `GRAFT_IMAGE_TAG` is the single image-version setting for the official server and web images; use `latest`, `beta`, or a fixed release tag. For `latest` and `beta`, the runner uses a manifest-derived release target only for that upgrade and leaves the tracking tag in `.env` unchanged. A fixed-tag upgrade atomically writes a newer verified fixed tag in the same channel and still validates the pulled image digests. Existing instances can follow the [official Compose migration guide](docs/official-compose-migration.md) before enabling controlled upgrades.
 
 ## Screenshots
 

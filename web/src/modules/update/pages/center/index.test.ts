@@ -525,4 +525,61 @@ describe('UpdateCenter', () => {
     expect(diagnosticDrawer.props('visible')).toBe(true);
     expect(diagnosticDrawer.props('check')).toMatchObject({ id: 'first' });
   });
+
+  it('closes a diagnostic after a successful recheck so it cannot show stale readiness', async () => {
+    const source = status([]);
+    source.readiness = {
+      overall: 'upgrade_blocked',
+      ready_count: 0,
+      total_count: 1,
+      checks: [
+        {
+          id: 'compose',
+          order: 10,
+          state: 'failed',
+          severity: 'critical',
+          blocking: true,
+          title_key: 'platformUpdate.readiness.officialCompose.title',
+          summary_key: 'platformUpdate.readiness.officialCompose.failed',
+          evidence: [],
+          actions: [{ id: 'check_updates', type: 'recheck', label_key: 'update.center.check' }],
+        },
+      ],
+    };
+    const refreshedSource = {
+      ...source,
+      readiness: {
+        ...source.readiness,
+        overall: 'upgrade_ready' as const,
+        ready_count: 1,
+        checks: [
+          {
+            ...source.readiness.checks[0],
+            state: 'passed' as const,
+            severity: 'success' as const,
+            blocking: false,
+          },
+        ],
+      },
+    };
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi.fn().mockResolvedValue(source),
+      checkForUpdates: vi.fn().mockResolvedValue(refreshedSource),
+      getOperations: vi.fn().mockResolvedValue([]),
+      getFailureDiagnostic: vi.fn(),
+      createOperation: vi.fn(),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-readiness-detail-compose"]').trigger('click');
+    const diagnosticDrawer = wrapper.getComponent(DiagnosticDrawer);
+    diagnosticDrawer.vm.$emit('action', source.readiness.checks[0].actions[0]);
+    await flushPromises();
+
+    expect(dataSource.checkForUpdates).toHaveBeenCalledOnce();
+    expect(diagnosticDrawer.props('visible')).toBe(false);
+    expect(diagnosticDrawer.props('check')).toBeNull();
+  });
 });

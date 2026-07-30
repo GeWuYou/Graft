@@ -14,12 +14,14 @@
 选择 Docker daemon 宿主机上的绝对目录，例如 `/opt/graft`。目录顶层必须包含官方 `compose.yml`（或 `compose.yaml`）及该 Compose 项目使用的 `.env` 文件。
 
 ```bash
-git clone https://github.com/GeWuYou/Graft.git /opt/graft
+# 将 v0.11.0-beta.21 替换为当前已部署的确切固定官方 Tag。
+# 在下文 GRAFT_IMAGE_TAG 中使用同一个 Tag；不要变更版本或频道。
+git clone --branch v0.11.0-beta.21 --depth 1 https://github.com/GeWuYou/Graft.git /opt/graft
 cd /opt/graft
 cp compose.env.example .env
 ```
 
-不要把旧的自定义 Compose 文件直接合并到官方文件。应从已版本化的 `compose.yml` 开始，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 还必须挂载 `/var/run/docker.sock`，以发现项目并启动短生命周期升级 runner。
+不要把旧的自定义 Compose 文件直接合并到官方文件。应克隆当前已部署的确切发行版本，只迁移受支持的部署值，例如凭据、端口、挂载目录和允许来源。迁移期间不要变更版本或发行频道。官方拓扑包含 `server`、`web`、`bootstrap`、`postgres` 和 `redis`；server 还必须挂载 `/var/run/docker.sock`，以发现项目并启动短生命周期升级 runner。
 
 ## 2. 保留已有数据
 
@@ -38,13 +40,13 @@ GRAFT_PROJECT_IMPORT_HOST_PATH=/opt/graft/imports
 在 `.env` 中配置官方值：
 
 ```dotenv
-# latest 跟随稳定频道，beta 跟随 Beta 频道。
-# 固定版本（例如 v0.11.0-beta.21）会锁定在对应频道。
-GRAFT_IMAGE_TAG=beta
+# 使用第 1 步克隆且当前已部署的确切固定官方 Tag。
+# 迁移期间不要变更此版本或其发行频道。
+GRAFT_IMAGE_TAG=v0.11.0-beta.21
 GRAFT_UPDATE_DEPLOYMENT_MODE=compose
 ```
 
-`GRAFT_IMAGE_TAG` 是唯一的镜像版本与升级策略配置。不要增加第二个更新策略变量。跟随标签在成功受控升级后仍保持 `latest` 或 `beta`；已验证的发行版 digest 只在本次升级期间使用。
+`GRAFT_IMAGE_TAG` 是唯一的镜像版本与升级策略配置，必须与第 1 步克隆 Compose 发行版所用的确切固定 Tag 相同；不要增加第二个更新策略变量。在后续受控升级中，`latest`、`beta` 等跟随标签仍保留在 `.env` 中，runner 只在本次升级期间使用由 manifest 推导出的发行目标。固定 Tag 升级会以原子方式写入同一频道中较新的已验证固定 Tag。
 
 通常应让 `GRAFT_UPDATE_COMPOSE_ROOT` 保持未设置。server 会通过 Docker 发现自身 Compose 项目，结果存在歧义时管理员必须确认候选。只有自动发现无法识别项目时，才将该值设置为第 1 步中的绝对目录：
 
@@ -64,6 +66,8 @@ docker compose ps
 ```
 
 确认 `bootstrap` 已成功完成，且 `server`、`web`、`postgres` 与 `redis` 已健康或按预期运行。随后以管理员身份登录，在“平台 > 更新”中选择“检查更新”。唯一且高置信度的候选可以直接使用；多个候选或低置信度候选必须在升级流程中选择。页面展示的证据仅用于诊断，不应据此手工修改 Docker labels。
+
+必须执行 `docker compose pull` 和 `docker compose up -d`，以启动上文选择的同一固定发行版本。克隆该发行版到执行这些命令之间，不要变更 `GRAFT_IMAGE_TAG`、版本或频道。
 
 ## 故障排查
 

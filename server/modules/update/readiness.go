@@ -2,6 +2,7 @@ package update
 
 import (
 	"strconv"
+	"strings"
 
 	"graft/server/internal/moduleapi"
 )
@@ -128,13 +129,16 @@ func releaseReadiness(status Status) moduleapi.ReadinessCheck {
 			Actions:  []moduleapi.ReadinessAction{checkUpdatesAction()},
 		}
 	}
-	return moduleapi.ReadinessCheck{
+	check := moduleapi.ReadinessCheck{
 		ID: "release_availability", Order: readinessOrderRelease, State: moduleapi.ReadinessStateWarning, Severity: moduleapi.ReadinessSeverityInfo,
 		TitleKey: "platformUpdate.readiness.releaseAvailability.title", SummaryKey: "platformUpdate.readiness.releaseAvailability.available", DetailKey: "platformUpdate.readiness.releaseAvailability.detail",
 		Params:   map[string]string{"current_version": status.CurrentVersion, "latest_version": status.Latest.Version},
 		Evidence: []moduleapi.ReadinessEvidence{{Code: "latest_release", State: moduleapi.ReadinessEvidencePassed, LabelKey: "platformUpdate.readiness.evidence.latestRelease", Value: status.Latest.Version, Expected: "newer_than_current"}},
-		Actions:  []moduleapi.ReadinessAction{{ID: "view_release", Type: moduleapi.ReadinessActionNavigate, LabelKey: "platformUpdate.readiness.actions.viewRelease", Target: status.Latest.NotesURL}},
 	}
+	if notesURL := strings.TrimSpace(status.Latest.NotesURL); notesURL != "" {
+		check.Actions = []moduleapi.ReadinessAction{{ID: "view_release", Type: moduleapi.ReadinessActionNavigate, LabelKey: "platformUpdate.readiness.actions.viewRelease", Target: notesURL}}
+	}
+	return check
 }
 
 func managePermissionReadiness(canManage bool) moduleapi.ReadinessCheck {

@@ -36,8 +36,9 @@ func (s Status) withoutComposeCandidates() Status {
 	s.Profile.BinaryPath = ""
 	s.Profile.WebRoot = ""
 	s.Profile.ManualSteps = []ManualStep{}
+	s.Readiness.Checks = append([]moduleapi.ReadinessCheck(nil), s.Readiness.Checks...)
 	for index := range s.Readiness.Checks {
-		evidence := s.Readiness.Checks[index].Evidence[:0]
+		evidence := make([]moduleapi.ReadinessEvidence, 0, len(s.Readiness.Checks[index].Evidence))
 		for _, item := range s.Readiness.Checks[index].Evidence {
 			if !item.Sensitive {
 				evidence = append(evidence, item)

@@ -590,6 +590,9 @@ function openDiagnostic(check: UpdateReadinessCheck) {
 async function handleDiagnosticAction(action: UpdateReadinessAction) {
   if (action.type === 'recheck' || action.id === 'check_updates') {
     await refreshStatus();
+    // 刷新替换 readiness 快照后关闭抽屉，避免继续持有旧的诊断对象。
+    selectedDiagnostic.value = null;
+    diagnosticVisible.value = false;
     return;
   }
   if (action.id === 'start_upgrade') {

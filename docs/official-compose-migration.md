@@ -16,12 +16,14 @@ it does not make the Update Center a generic host command runner.
 Choose an absolute Docker daemon host directory, for example `/opt/graft`. Its top level must contain the official `compose.yml` (or `compose.yaml`) and the Compose project's `.env` file.
 
 ```bash
-git clone https://github.com/GeWuYou/Graft.git /opt/graft
+# Replace v0.11.0-beta.21 with the exact fixed official tag already deployed.
+# Use that same tag in GRAFT_IMAGE_TAG below; do not change version or channel.
+git clone --branch v0.11.0-beta.21 --depth 1 https://github.com/GeWuYou/Graft.git /opt/graft
 cd /opt/graft
 cp compose.env.example .env
 ```
 
-Do not merge an old custom Compose file into the official file. Start from the versioned `compose.yml` and carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server also needs `/var/run/docker.sock` to discover the project and launch the short-lived upgrade runner.
+Do not merge an old custom Compose file into the official file. Clone the exact release already deployed, then carry forward only supported deployment values, such as credentials, ports, mount locations, and allowed origins. Do not change the version or release channel during migration. The official topology includes `server`, `web`, `bootstrap`, `postgres`, and `redis`; the server also needs `/var/run/docker.sock` to discover the project and launch the short-lived upgrade runner.
 
 ## 2. Preserve Existing Data
 
@@ -40,13 +42,13 @@ Keep database credentials and `GRAFT_AUTH_JWT_SECRET` unchanged for an existing 
 Configure the official values in `.env`:
 
 ```dotenv
-# `latest` follows the stable channel, `beta` follows Beta.
-# A fixed version, such as v0.11.0-beta.21, pins that channel.
-GRAFT_IMAGE_TAG=beta
+# Use the exact fixed official tag already deployed and cloned in step 1.
+# Do not change this version or its release channel during migration.
+GRAFT_IMAGE_TAG=v0.11.0-beta.21
 GRAFT_UPDATE_DEPLOYMENT_MODE=compose
 ```
 
-`GRAFT_IMAGE_TAG` is the only image-version and update-strategy setting. Do not add a second update-policy variable. Tracking tags remain `latest` or `beta` after a controlled upgrade; the verified release digest is only used while that upgrade runs.
+`GRAFT_IMAGE_TAG` is the only image-version and update-strategy setting. It must be the same exact fixed tag used to clone the Compose release in step 1; do not add a second update-policy variable. In a later controlled upgrade, tracking tags such as `latest` and `beta` remain in `.env`, while the runner uses a manifest-derived release target only for the current upgrade. A fixed-tag upgrade atomically writes a newer verified fixed tag in the same channel.
 
 Normally leave `GRAFT_UPDATE_COMPOSE_ROOT` unset. The server discovers its own Compose project through Docker and requires an administrator to confirm an ambiguous candidate. If discovery cannot identify the project, set this value to the absolute root from step 1:
 
@@ -66,6 +68,8 @@ docker compose ps
 ```
 
 Confirm that `bootstrap` completed successfully and `server`, `web`, `postgres`, and `redis` are healthy or running as expected. Then sign in as an administrator and select **Platform > Updates > Check for updates**. A single high-confidence candidate is usable directly; multiple or low-confidence candidates require a choice during the upgrade flow. Displayed evidence is diagnostic only: do not manually alter Docker labels.
+
+`docker compose pull` and `docker compose up -d` are required to start the same fixed release selected above. Do not change `GRAFT_IMAGE_TAG`, version, or channel between cloning the release and running these commands.
 
 ## Troubleshooting
 
