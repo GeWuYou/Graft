@@ -23,30 +23,14 @@ func TestUpdateOperationMigrationConvergesDeploymentStrategy(t *testing.T) {
 		t.Fatalf("read update migration atlas sum: %v", err)
 	}
 
-	dir, ok := moduleregistry.EmbeddedMigrationDirByPath("modules/update/migrations")
-	if !ok {
-		t.Fatal("expected compile-time embedded update migration dir")
-	}
-	embeddedFiles := make(map[string][]byte, len(dir.Files))
-	for _, file := range dir.Files {
-		embeddedFiles[file.Name] = file.Contents
-	}
-	for _, sourceFile := range []struct {
+	assertEmbeddedMigrationsMatchSources(t, []struct {
 		name     string
 		contents []byte
 	}{
 		{name: "202607300001_update_operation_mode.sql", contents: modeContents},
 		{name: "202607300002_rename_update_operation_deployment_strategy.sql", contents: strategyContents},
 		{name: "atlas.sum", contents: atlasSumContents},
-	} {
-		embeddedContents, ok := embeddedFiles[sourceFile.name]
-		if !ok {
-			t.Fatalf("expected embedded update migration file %s", sourceFile.name)
-		}
-		if string(embeddedContents) != string(sourceFile.contents) {
-			t.Fatalf("expected embedded update migration %s to stay aligned with live source content", sourceFile.name)
-		}
-	}
+	})
 
 	for _, want := range []string{
 		"ADD COLUMN update_mode VARCHAR(32) NOT NULL DEFAULT 'unknown'",
@@ -66,6 +50,30 @@ func TestUpdateOperationMigrationConvergesDeploymentStrategy(t *testing.T) {
 	} {
 		if !strings.Contains(string(strategyContents), want) {
 			t.Fatalf("forward migration must contain %q", want)
+		}
+	}
+}
+
+func assertEmbeddedMigrationsMatchSources(t *testing.T, sourceFiles []struct {
+	name     string
+	contents []byte
+}) {
+	t.Helper()
+	dir, ok := moduleregistry.EmbeddedMigrationDirByPath("modules/update/migrations")
+	if !ok {
+		t.Fatal("expected compile-time embedded update migration dir")
+	}
+	embeddedFiles := make(map[string][]byte, len(dir.Files))
+	for _, file := range dir.Files {
+		embeddedFiles[file.Name] = file.Contents
+	}
+	for _, sourceFile := range sourceFiles {
+		embeddedContents, ok := embeddedFiles[sourceFile.name]
+		if !ok {
+			t.Fatalf("expected embedded update migration file %s", sourceFile.name)
+		}
+		if string(embeddedContents) != string(sourceFile.contents) {
+			t.Fatalf("expected embedded update migration %s to stay aligned with live source content", sourceFile.name)
 		}
 	}
 }
