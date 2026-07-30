@@ -197,6 +197,27 @@
               </div>
             </div>
 
+            <div class="section settings-layout__section settings-layout__section--visual-effects">
+              <div class="section-heading">
+                <div class="section-title">{{ t('layout.setting.workbench.appearance.visualEffects') }}</div>
+                <div class="section-desc">{{ t('layout.setting.workbench.appearance.visualEffectsDescription') }}</div>
+              </div>
+              <div class="switch-list">
+                <div class="switch-item">
+                  <div class="switch-item__content">
+                    <div class="switch-item__label">{{ t('layout.setting.workbench.appearance.acrylicGlass') }}</div>
+                    <div class="switch-item__hint">
+                      {{ t('layout.setting.workbench.appearance.acrylicGlassHint') }}
+                    </div>
+                  </div>
+                  <t-switch
+                    :model-value="settingStore.isAcrylicEnabled"
+                    @update:model-value="(value) => settingStore.updateConfig({ isAcrylicEnabled: value })"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div class="section settings-layout__section settings-layout__section--nav">
               <div class="section-heading">
                 <div class="section-title">{{ t('layout.setting.workbench.appearance.navigationAppearance') }}</div>

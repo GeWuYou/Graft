@@ -16,3 +16,33 @@
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
 }
+
+// 玻璃效果只由壳层开关下的有限 surface 消费，默认声明保持可读的实色降级。
+.graft-glass-surface(@fallback-background: var(--td-bg-color-container)) {
+  background: @fallback-background;
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-large);
+  box-shadow: var(--td-shadow-1);
+
+  @supports (backdrop-filter: blur(1px)) {
+    backdrop-filter: blur(var(--graft-glass-blur));
+    background: var(--graft-glass-bg);
+    border-color: var(--graft-glass-border);
+    box-shadow:
+      inset 0 1px 0 var(--graft-glass-highlight),
+      var(--graft-glass-shadow);
+  }
+}
+
+// 轻玻璃用于有限的指标与入口，不启用 backdrop-filter，避免滚动和窄屏的合成开销。
+.graft-glass-subtle-surface(@fallback-background: var(--td-bg-color-container-hover)) {
+  background: @fallback-background;
+  border: 1px solid var(--td-border-level-1-color);
+  border-radius: var(--td-radius-medium);
+
+  @supports (backdrop-filter: blur(1px)) {
+    background: var(--graft-glass-bg-subtle);
+    border-color: var(--graft-glass-border);
+    box-shadow: inset 0 1px 0 var(--graft-glass-highlight);
+  }
+}

@@ -14,6 +14,7 @@ import { THEME_PRESET_DEFINITIONS } from '@/config/theme-workbench';
 import { insertThemeStylesheet } from '@/utils/color';
 
 import { useSettingStore } from './setting';
+import { STYLE_CONFIG_KEYS } from './setting-theme-authority';
 
 const insertThemeStylesheetMock = insertThemeStylesheet as unknown as ReturnType<typeof vi.fn>;
 
@@ -68,7 +69,47 @@ describe('setting store theme authority', () => {
 
     expect(store.fontSizePreset).toBe('standard');
     expect(store.menuAlwaysExpanded).toBe(false);
+    expect(store.isAcrylicEnabled).toBe(false);
     expect(store.createThemeAuthoritySnapshot().fontSizePreset).toBe('standard');
+  });
+
+  it('keeps acrylic as a persisted workbench style preference instead of theme authority', () => {
+    const store = useSettingStore();
+
+    expect(STYLE_CONFIG_KEYS).toContain('isAcrylicEnabled');
+    expect(store.themeAuthorityDiff).toHaveLength(0);
+
+    store.openThemeWorkbench('appearance');
+    store.updateConfig({ isAcrylicEnabled: true });
+
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+    expect(store.themeAuthorityDiff).toHaveLength(0);
+
+    store.cancelThemeDraft();
+
+    expect(store.isAcrylicEnabled).toBe(false);
+  });
+
+  it('applies and resets the acrylic workbench preference with the draft lifecycle', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('appearance');
+    store.updateConfig({ isAcrylicEnabled: true });
+    store.applyThemeDraft();
+
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.showThemeWorkbench).toBe(false);
+
+    store.openThemeWorkbench('appearance');
+    store.resetThemeDraftToDefault();
+
+    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+
+    store.applyThemeDraft();
+
+    expect(store.isAcrylicEnabled).toBe(false);
   });
 
   it('keeps always-expanded and auto-collapse preferences mutually exclusive', () => {
@@ -666,6 +707,21 @@ describe('setting store theme authority', () => {
 
     expect(store.themeResolvedTokens.dark['--graft-scrollbar-track-color']).toBe('#111A15');
     expect(store.themeResolvedTokens.dark['--graft-scrollbar-thumb-hover-color']).toBe('#5D8D73');
+  });
+
+  it('resolves separate light and dark acrylic glass tokens', () => {
+    const store = useSettingStore();
+
+    store.initializeThemeWorkbenchRuntime();
+
+    expect(store.themeResolvedTokens.light).toMatchObject({
+      '--graft-glass-bg': 'rgba(255, 255, 255, 0.72)',
+      '--graft-glass-blur': '10px',
+    });
+    expect(store.themeResolvedTokens.dark).toMatchObject({
+      '--graft-glass-bg': 'rgba(21, 27, 36, 0.62)',
+      '--graft-glass-blur': '16px',
+    });
   });
 
   it('persists and resets the theme workbench dock position', () => {
