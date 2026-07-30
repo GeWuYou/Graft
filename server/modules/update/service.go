@@ -78,7 +78,7 @@ func NewService(provider ReleaseProvider) *Service {
 func NewServiceWithCache(provider ReleaseProvider, cache DiscoveryCache) *Service {
 	service := &Service{provider: provider, cache: cache, current: buildinfo.Current}
 	service.profile = func() InstallationProfile {
-		return installationProfile(moduleapi.NewDeploymentContext("unknown", "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: "deployment_runtime_unavailable", Message: "Deployment Runtime is unavailable"}}))
+		return installationProfile(moduleapi.NewDeploymentContext("unknown", "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: "deployment_runtime_unavailable", MessageKey: "update.diagnostics.deployment_runtime_unavailable", Message: "Deployment Runtime is unavailable"}}))
 	}
 	return service
 }

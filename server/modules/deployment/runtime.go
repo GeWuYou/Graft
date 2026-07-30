@@ -37,23 +37,23 @@ func (r runtime) Current(ctx context.Context) moduleapi.DeploymentContext {
 	root, configured := environmentValue(r.lookup, deploymentComposeRootEnv)
 	if configured {
 		if mode != "compose" {
-			return unavailableContext(mode, "deployment_runtime_unsupported", "deployment runtime must be compose when a Compose root is configured")
+			return unavailableContext(mode, "deployment_runtime_unsupported", "deployment.diagnostics.runtime_unsupported", "deployment runtime must be compose when a Compose root is configured")
 		}
 		return r.explicitContext(mode, root)
 	}
 	if mode != "compose" {
-		return moduleapi.NewDeploymentContext(mode, "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: "deployment_mode_unsupported", Message: "deployment mode must be compose before Compose runtime discovery can run"}})
+		return moduleapi.NewDeploymentContext(mode, "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: "deployment_mode_unsupported", MessageKey: "deployment.diagnostics.mode_unsupported", Message: "deployment mode must be compose before Compose runtime discovery can run"}})
 	}
 	if r.provider == nil {
-		return unavailableContext(mode, "docker_facts_unavailable", "Docker facts provider is unavailable")
+		return unavailableContext(mode, "docker_facts_unavailable", "deployment.diagnostics.docker_facts_unavailable", "Docker facts provider is unavailable")
 	}
 	facts, err := r.provider.CurrentContainer(ctx)
 	if err != nil {
-		return unavailableContext(mode, "docker_facts_unavailable", "current server Docker inspect facts are unavailable")
+		return unavailableContext(mode, "docker_facts_unavailable", "deployment.diagnostics.docker_facts_unavailable", "current server Docker inspect facts are unavailable")
 	}
 	candidates := composeCandidates(facts)
 	if len(candidates) == 0 {
-		return unavailableContext(mode, "compose_candidate_unavailable", "no Compose root candidate was found in current Docker facts")
+		return unavailableContext(mode, "compose_candidate_unavailable", "deployment.diagnostics.compose_candidate_unavailable", "no Compose root candidate was found in current Docker facts")
 	}
 	return moduleapi.NewDeploymentContext(mode, "docker_discovered", len(candidates) != 1 || candidates[0].Confidence() != "high", candidates, nil)
 }
@@ -75,14 +75,14 @@ func (r runtime) Freeze(ctx context.Context, request moduleapi.DeploymentFreezeR
 func (r runtime) explicitContext(mode, rawRoot string) moduleapi.DeploymentContext {
 	root := filepath.Clean(strings.TrimSpace(rawRoot))
 	if root == "." || !filepath.IsAbs(root) || root == string(filepath.Separator) {
-		return unavailableContext(mode, "configured_compose_root_invalid", deploymentComposeRootEnv+" must be a non-root absolute host path")
+		return unavailableContext(mode, "configured_compose_root_invalid", "deployment.diagnostics.configured_compose_root_invalid", deploymentComposeRootEnv+" must be a non-root absolute host path")
 	}
 	candidate := newCandidate(root, nil, "", "explicit", nil)
 	return moduleapi.NewDeploymentContext(mode, "explicit_config", false, []moduleapi.DeploymentComposeCandidate{candidate}, nil)
 }
 
-func unavailableContext(mode, code, message string) moduleapi.DeploymentContext {
-	return moduleapi.NewDeploymentContext(mode, "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: code, Message: message}})
+func unavailableContext(mode, code, messageKey, message string) moduleapi.DeploymentContext {
+	return moduleapi.NewDeploymentContext(mode, "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: code, MessageKey: messageKey, Message: message}})
 }
 
 func deploymentRuntime(lookup environmentLookup) string {

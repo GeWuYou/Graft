@@ -168,6 +168,7 @@ func registerMessages(localizer *i18n.Service) error {
 			"update.operation.start.compose_candidate_invalid",
 			"update.operation.start.compose_preflight_failed",
 			"update.operation.start.operation_start_failed",
+			"update.diagnostics.deployment_runtime_unavailable",
 		} {
 			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
 				return fmt.Errorf("platform-update locale resource missing %s for %s", key, locale)

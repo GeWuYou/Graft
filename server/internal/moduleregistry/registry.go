@@ -15,6 +15,7 @@ import (
 	auditlocales "graft/server/modules/audit/locales"
 	backuplocales "graft/server/modules/backup/locales"
 	containerlocales "graft/server/modules/container/locales"
+	deploymentlocales "graft/server/modules/deployment/locales"
 	monitorlocales "graft/server/modules/monitor/locales"
 	projectlocales "graft/server/modules/project/locales"
 	rbaclocales "graft/server/modules/rbac/locales"
@@ -59,6 +60,7 @@ func EmbeddedLocaleResources() []i18n.EmbeddedLocaleResource {
 		{name: "audit", load: auditlocales.EmbeddedLocaleResources},
 		{name: "backup", load: backuplocales.EmbeddedLocaleResources},
 		{name: "container", load: containerlocales.EmbeddedLocaleResources},
+		{name: "deployment", load: deploymentlocales.EmbeddedLocaleResources},
 		{name: "monitor", load: monitorlocales.EmbeddedLocaleResources},
 		{name: "project", load: projectlocales.EmbeddedLocaleResources},
 		{name: "rbac", load: rbaclocales.EmbeddedLocaleResources},

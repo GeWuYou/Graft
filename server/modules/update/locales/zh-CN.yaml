@@ -13,3 +13,4 @@ update.operation.start.source_version_unsupported: 当前版本不满足目标�
 update.operation.start.compose_candidate_invalid: 选择的 Compose 项目已失效，请刷新更新信息后重新选择。
 update.operation.start.compose_preflight_failed: 当前安装环境未通过升级预检，请确认部署配置。
 update.operation.start.operation_start_failed: 升级请求未能启动，请查看请求 ID 对应的服务端日志。
+update.diagnostics.deployment_runtime_unavailable: Deployment Runtime 不可用。

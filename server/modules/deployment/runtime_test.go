@@ -43,7 +43,7 @@ func TestRuntimeInvalidExplicitRootFailsClosed(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) {
 		return map[string]string{deploymentRuntimeEnv: "compose", deploymentComposeRootEnv: "relative"}[key], true
 	}, dockerFactsStub{})
-	if current := runtime.Current(context.Background()); current.IsAvailable() || current.Diagnostics()[0].Code != "configured_compose_root_invalid" {
+	if current := runtime.Current(context.Background()); current.IsAvailable() || current.Diagnostics()[0].Code != "configured_compose_root_invalid" || current.Diagnostics()[0].MessageKey != "deployment.diagnostics.configured_compose_root_invalid" {
 		t.Fatalf("invalid explicit root did not fail closed: %#v", current)
 	}
 }
@@ -79,7 +79,7 @@ func TestRuntimeRequiresSelectionForAmbiguousBindCandidates(t *testing.T) {
 func TestRuntimeReportsDockerFactsFailure(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{err: errors.New("socket unavailable")})
 	current := runtime.Current(context.Background())
-	if current.IsAvailable() || current.Diagnostics()[0].Code != "docker_facts_unavailable" {
+	if current.IsAvailable() || current.Diagnostics()[0].Code != "docker_facts_unavailable" || current.Diagnostics()[0].MessageKey != "deployment.diagnostics.docker_facts_unavailable" {
 		t.Fatalf("unexpected unavailable context: %#v", current)
 	}
 }
@@ -118,7 +118,7 @@ func TestRuntimeDefaultsToComposeWhenRuntimeIsUnsetOrEmpty(t *testing.T) {
 
 func TestRuntimePreservesDeclaredUnsupportedRuntimeInDiagnosticContext(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) { return "binary", key == deploymentRuntimeEnv }, dockerFactsStub{})
-	if current := runtime.Current(context.Background()); current.Mode() != "binary" || current.IsAvailable() || current.Diagnostics()[0].Code != "deployment_mode_unsupported" {
+	if current := runtime.Current(context.Background()); current.Mode() != "binary" || current.IsAvailable() || current.Diagnostics()[0].Code != "deployment_mode_unsupported" || current.Diagnostics()[0].MessageKey != "deployment.diagnostics.mode_unsupported" {
 		t.Fatalf("binary runtime was not represented as unavailable context: %#v", current)
 	}
 }

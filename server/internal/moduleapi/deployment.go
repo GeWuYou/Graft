@@ -15,8 +15,9 @@ type DeploymentFreezeRequest struct {
 
 // DeploymentDiagnostic 是不可执行或需要确认时的稳定诊断投影。
 type DeploymentDiagnostic struct {
-	Code    string
-	Message string
+	Code       string
+	MessageKey string
+	Message    string
 }
 
 // DeploymentComposeCandidate 是由 Deployment Runtime 解释后的 Compose 候选。

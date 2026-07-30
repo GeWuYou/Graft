@@ -1,0 +1,5 @@
+deployment.diagnostics.mode_unsupported: Deployment runtime must be Compose before Compose discovery can run.
+deployment.diagnostics.runtime_unsupported: Deployment runtime must be Compose when a Compose root is configured.
+deployment.diagnostics.docker_facts_unavailable: Docker facts are unavailable.
+deployment.diagnostics.compose_candidate_unavailable: No Compose root candidate was found in current Docker facts.
+deployment.diagnostics.configured_compose_root_invalid: GRAFT_DEPLOYMENT_COMPOSE_ROOT must be a non-root absolute host path.

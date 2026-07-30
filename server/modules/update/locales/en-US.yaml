@@ -13,3 +13,4 @@ update.operation.start.source_version_unsupported: The current version does not 
 update.operation.start.compose_candidate_invalid: The selected Compose project is no longer valid. Refresh update information and select it again.
 update.operation.start.compose_preflight_failed: The installation did not pass the update preflight. Verify the deployment configuration.
 update.operation.start.operation_start_failed: The update request could not start. Check the server logs using the request ID.
+update.diagnostics.deployment_runtime_unavailable: Deployment Runtime is unavailable.
