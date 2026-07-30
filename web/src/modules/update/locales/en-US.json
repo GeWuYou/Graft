@@ -24,7 +24,6 @@
     "versionEntry": {
       "unavailable": "Version unavailable",
       "current": "Current version {version}",
-      "openCenter": "Current version {version}; open update preview",
       "updateAvailable": "Version {version} is available; open update preview"
     },
     "center": {

@@ -10,6 +10,7 @@ vi.mock('@/utils/color', () => ({
   insertThemeStylesheet: vi.fn(),
 }));
 
+import { THEME_PRESET_DEFINITIONS } from '@/config/theme-workbench';
 import { insertThemeStylesheet } from '@/utils/color';
 
 import { useSettingStore } from './setting';
@@ -482,6 +483,34 @@ describe('setting store theme authority', () => {
     expect(store.themeAuthorityLastModifiedAt).not.toBe(modifiedBeforeApply);
   });
 
+  it('uses the selected preset mode for preview, cancellation, and apply', () => {
+    const store = useSettingStore();
+
+    store.assignThemeAuthorityState({
+      ...store.createThemeAuthoritySnapshot(),
+      mode: 'dark',
+      selectedThemePresetId: 'midnight-blue',
+      brandTheme: '#3B82F6',
+    });
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('tdesign-default');
+
+    expect(store.mode).toBe('light');
+    expect(store.selectedThemePresetId).toBe('tdesign-default');
+
+    store.cancelThemeDraft();
+
+    expect(store.mode).toBe('dark');
+    expect(store.selectedThemePresetId).toBe('midnight-blue');
+
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('tencent-cloud');
+    store.applyThemeDraft();
+
+    expect(store.mode).toBe('light');
+    expect(store.selectedThemePresetId).toBe('tencent-cloud');
+  });
+
   it('applies overview quick adjustments through the shared draft state', () => {
     const store = useSettingStore();
 
@@ -583,6 +612,60 @@ describe('setting store theme authority', () => {
     expect(store.isUseTabsRouter).toBe(false);
     expect(store.menuAutoCollapsed).toBe(false);
     expect(store.splitMenu).toBe(false);
+
+    store.selectThemePreset('signal-rose');
+    expect(store.selectedThemePresetId).toBe('signal-rose');
+    expect(store.brandTheme).toBe('#D65B8C');
+    expect(store.mode).toBe('dark');
+    expect(store.fontFamilyPreset).toBe('inter');
+    expect(store.fontSizePreset).toBe('small');
+    expect(store.radiusPreset).toBe('business');
+    expect(store.densityPreset).toBe('compact');
+    expect(store.layout).toBe('mix');
+    expect(store.splitMenu).toBe(true);
+
+    store.selectThemePreset('forest-night');
+    expect(store.selectedThemePresetId).toBe('forest-night');
+    expect(store.brandTheme).toBe('#3FA879');
+    expect(store.mode).toBe('dark');
+    expect(store.fontFamilyPreset).toBe('harmonyos');
+    expect(store.radiusPreset).toBe('rounded');
+    expect(store.shadowPreset).toBe('flat');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.layout).toBe('side');
+    expect(store.splitMenu).toBe(false);
+  });
+
+  it('declares a fixed light or dark mode for every built-in theme preset', () => {
+    expect(THEME_PRESET_DEFINITIONS.map((preset) => ({ id: preset.id, mode: preset.mode }))).toEqual([
+      { id: 'tdesign-default', mode: 'light' },
+      { id: 'tencent-cloud', mode: 'light' },
+      { id: 'mountain-green', mode: 'light' },
+      { id: 'midnight-blue', mode: 'dark' },
+      { id: 'graphite-slate', mode: 'dark' },
+      { id: 'sunset-amber', mode: 'light' },
+      { id: 'ocean-teal', mode: 'light' },
+      { id: 'frost-silver', mode: 'light' },
+      { id: 'violet-haze', mode: 'light' },
+      { id: 'signal-rose', mode: 'dark' },
+      { id: 'forest-night', mode: 'dark' },
+      { id: 'amethyst-night', mode: 'dark' },
+    ]);
+  });
+
+  it('resolves scrollbar tracks and hover states from the selected theme preset', () => {
+    const store = useSettingStore();
+
+    store.openThemeWorkbench('presets');
+    store.selectThemePreset('tencent-cloud');
+
+    expect(store.themeResolvedTokens.light['--graft-scrollbar-track-color']).toBe('#E0F1FB');
+    expect(store.themeResolvedTokens.light['--graft-scrollbar-thumb-hover-color']).toBe('#7EC1E8');
+
+    store.selectThemePreset('forest-night');
+
+    expect(store.themeResolvedTokens.dark['--graft-scrollbar-track-color']).toBe('#111A15');
+    expect(store.themeResolvedTokens.dark['--graft-scrollbar-thumb-hover-color']).toBe('#5D8D73');
   });
 
   it('persists and resets the theme workbench dock position', () => {

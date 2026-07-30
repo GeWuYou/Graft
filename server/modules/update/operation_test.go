@@ -402,6 +402,24 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	}
 }
 
+func TestSQLOperationStoreRejectsUnsupportedUpdateMode(t *testing.T) {
+	store, err := newSQLOperationStore(&sql.DB{})
+	if err != nil {
+		t.Fatalf("new operation store: %v", err)
+	}
+	err = store.Create(t.Context(), ComposeUpdateOperation{
+		OperationID:   "update-invalid-mode",
+		SourceVersion: "1.0.0",
+		TargetVersion: "1.1.0",
+		UpdateMode:    "unsupported",
+		TaskID:        1,
+		Outcome:       ExecutionOutcomePlanning,
+	})
+	if err == nil || err.Error() != "update operation is invalid" {
+		t.Fatalf("expected invalid update mode to be rejected, got %v", err)
+	}
+}
+
 func TestSettlePersistedReceiptStoresControlledOperationDiagnostic(t *testing.T) {
 	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{
 		"update-86": {OperationID: "update-86", RequestID: "request-86", SourceVersion: "1.0.0", TargetVersion: "1.1.0", TaskID: 86, RequestedBy: 9, Outcome: ExecutionOutcomePulling},

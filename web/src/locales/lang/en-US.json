@@ -168,7 +168,7 @@
           },
           "tencentCloud": {
             "label": "Tencent Cloud",
-            "description": "A console-oriented blue mix that sharpens navigation hierarchy and common actions."
+            "description": "Bright cyan-blue surfaces distinguish mixed navigation and common actions from the neutral default."
           },
           "mountainGreen": {
             "label": "Mountain Green",
@@ -193,6 +193,22 @@
           "frostSilver": {
             "label": "Frost Silver",
             "description": "Cool silver surfaces reduce contrast weight and keep dense pages cleaner."
+          },
+          "violetHaze": {
+            "label": "Violet Haze",
+            "description": "Soft violet accents and misty surfaces balance hierarchy for everyday multitasking."
+          },
+          "signalRose": {
+            "label": "Signal Rose",
+            "description": "A dark console with rose highlights for compact operational workflows."
+          },
+          "forestNight": {
+            "label": "Forest Night",
+            "description": "Deep forest green and low-luminance surfaces reduce fatigue during night review."
+          },
+          "amethystNight": {
+            "label": "Amethyst Night",
+            "description": "A deep violet console sharpens hierarchy and tag recognition during frequent night switching."
           }
         },
         "overview": {
@@ -321,6 +337,8 @@
           "componentStroke": "Component Stroke",
           "level1Border": "Level 1 Border",
           "scrollbar": "Scrollbar",
+          "scrollbarTrack": "Scrollbar Track",
+          "scrollbarThumbHover": "Scrollbar Hover",
           "successFeedback": "Success Feedback",
           "errorFeedback": "Error Feedback",
           "warningFeedback": "Warning Feedback",

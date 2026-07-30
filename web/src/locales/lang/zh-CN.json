@@ -168,7 +168,7 @@
           },
           "tencentCloud": {
             "label": "腾讯云",
-            "description": "偏控制台感的蓝色组合，突出导航层级与常用操作。"
+            "description": "明亮青蓝表面突出混合导航与常用操作，和默认中性层级清晰区分。"
           },
           "mountainGreen": {
             "label": "山野绿",
@@ -193,6 +193,22 @@
           "frostSilver": {
             "label": "霜银",
             "description": "冷白银灰表面减轻对比压迫，让高密度页面更干净。"
+          },
+          "violetHaze": {
+            "label": "雾岚紫",
+            "description": "柔和紫调与浅雾表面平衡信息层级，适合日常多任务操作。"
+          },
+          "signalRose": {
+            "label": "信号玫红",
+            "description": "深色控制台以玫红强调主操作，适合紧凑的运维工作流。"
+          },
+          "forestNight": {
+            "label": "森林夜",
+            "description": "深林绿与低亮度表面降低夜间浏览的视觉疲劳。"
+          },
+          "amethystNight": {
+            "label": "紫晶夜",
+            "description": "深紫控制台强化层次与标签辨识，适合夜间高频切换。"
           }
         },
         "overview": {
@@ -321,6 +337,8 @@
           "componentStroke": "组件描边",
           "level1Border": "一级边框",
           "scrollbar": "滚动条",
+          "scrollbarTrack": "滚动条轨道",
+          "scrollbarThumbHover": "滚动条悬停",
           "successFeedback": "成功反馈",
           "errorFeedback": "错误反馈",
           "warningFeedback": "警告反馈",

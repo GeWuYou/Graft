@@ -42,7 +42,7 @@ describe('check-scrollbar-governance blacklist scan', () => {
       'src/style/scrollbar.less',
       `
 .graft-scrollbar {
-  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-color: var(--td-scrollbar-color) var(--graft-scrollbar-track-color);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
@@ -66,7 +66,7 @@ describe('check-scrollbar-governance blacklist scan', () => {
 <template><div class="markdown-viewer" /></template>
 <style scoped lang="less">
 .markdown-viewer :deep(pre) {
-  scrollbar-color: var(--td-scrollbar-color) transparent;
+  scrollbar-color: var(--td-scrollbar-color) var(--graft-scrollbar-track-color);
   scrollbar-width: thin;
 }
 </style>
