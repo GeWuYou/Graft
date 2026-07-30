@@ -113,22 +113,11 @@ func (s *Service) browseProjectFiles(
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	root, err := openManagedRootFS(rootDir)
+	root, entries, err := readWorkspaceDirectory(rootDir, currentPath)
 	if err != nil {
-		return workspaceFilesResult{}, mapWorkspacePathError(err)
-	}
-	defer func() { _ = closeManagedRootFS(root) }()
-	managedPath := currentPath
-	if managedPath == "" {
-		managedPath = "."
-	}
-	if err := ensureWorkspaceBrowsePath(root, managedPath); err != nil {
 		return workspaceFilesResult{}, err
 	}
-	entries, err := fs.ReadDir(root.root.FS(), managedPath)
-	if err != nil {
-		return workspaceFilesResult{}, mapWorkspacePathError(err)
-	}
+	defer func() { _ = closeManagedRootFS(root) }()
 	hiddenDirectories, err := s.workspaceHiddenDirectories(ctx)
 	if err != nil {
 		return workspaceFilesResult{}, err
@@ -168,6 +157,27 @@ func (s *Service) browseProjectFiles(
 		HasMoreHidden:       hasMoreHidden,
 		Items:               items,
 	}, nil
+}
+
+func readWorkspaceDirectory(rootDir string, currentPath string) (*managedRootFS, []fs.DirEntry, error) {
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return nil, nil, mapWorkspacePathError(err)
+	}
+	managedPath := currentPath
+	if managedPath == "" {
+		managedPath = "."
+	}
+	if err := ensureWorkspaceBrowsePath(root, managedPath); err != nil {
+		_ = closeManagedRootFS(root)
+		return nil, nil, err
+	}
+	entries, err := fs.ReadDir(root.root.FS(), managedPath)
+	if err != nil {
+		_ = closeManagedRootFS(root)
+		return nil, nil, mapWorkspacePathError(err)
+	}
+	return root, entries, nil
 }
 
 func (s *Service) projectFileContent(

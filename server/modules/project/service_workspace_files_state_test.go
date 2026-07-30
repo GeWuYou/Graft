@@ -154,6 +154,7 @@ func TestWorkspaceFileOperationsRejectSymlinksOutsideWorkspace(t *testing.T) {
 	if _, err := service.browseProjectFiles(context.Background(), 1, workspaceFileBrowseQuery{Path: "outside"}); !errors.Is(err, errProjectImportValidation) {
 		t.Fatalf("expected external symlink browse rejection, got %v", err)
 	}
+	// #nosec G304 -- externalFile 是本测试创建的临时探针文件，用于断言受管根目录不会修改它。
 	content, err := os.ReadFile(externalFile)
 	if err != nil {
 		t.Fatalf("read external file: %v", err)
