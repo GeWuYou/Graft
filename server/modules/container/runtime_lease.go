@@ -286,6 +286,20 @@ func (l *runtimeLease) ReadDockerVolume(ctx context.Context, id string) (DockerV
 	defer done()
 	return r.ReadDockerVolume(ctx, id)
 }
+func (l *runtimeLease) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
+	r, ok := l.runtime.(interface {
+		RemoveDockerVolume(context.Context, string, bool) error
+	})
+	if !ok {
+		return errUnsupportedContainerRuntime
+	}
+	done, err := l.acquire()
+	if err != nil {
+		return err
+	}
+	defer done()
+	return r.RemoveDockerVolume(ctx, id, force)
+}
 func (l *runtimeLease) PullDockerImage(ctx context.Context, ref string, emit func(DockerImagePullEvent) error) error {
 	r, ok := l.runtime.(DockerImageWriter)
 	if !ok {

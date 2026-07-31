@@ -473,6 +473,7 @@ func (s *service) DockerVolumeBatchRemove(ctx context.Context, names []string, f
 		item := DockerVolumeBatchRemoveItem{Name: name}
 		err := s.RemoveDockerVolume(ctx, name, force)
 		if err != nil {
+			logsafe.Error(s.logger, "docker volume batch removal failed", zap.String("volume_name", name), zap.Bool("force", force), zap.Error(err))
 			item.ErrorCode = messageKeyForError(err).String()
 			item.MessageKey, item.Message = item.ErrorCode, fallbackMessageForError(err)
 			result.FailedCount++

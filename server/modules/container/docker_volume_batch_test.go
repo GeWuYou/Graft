@@ -4,6 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
+
 	containercontract "graft/server/modules/container/contract"
 )
 
@@ -43,11 +47,13 @@ func (r *dockerVolumeBatchTestRuntime) RemoveDockerVolume(_ context.Context, nam
 func TestDockerVolumeBatchRemoveUsesStableErrorCodeAndFallbackMessage(t *testing.T) {
 	t.Parallel()
 
+	core, observed := observer.New(zapcore.ErrorLevel)
 	runtime := &dockerVolumeBatchTestRuntime{errors: map[string]error{
 		"missing": errInvalidContainerState,
 	}}
 	service, err := newTestService(containerServiceOptions{
-		runtime:                 runtime,
+		logger:                  zap.New(core),
+		runtime:                 newRuntimeLease(runtime),
 		enabled:                 true,
 		dangerousActionsEnabled: true,
 	})
@@ -66,5 +72,13 @@ func TestDockerVolumeBatchRemoveUsesStableErrorCodeAndFallbackMessage(t *testing
 	wantKey := containercontract.ContainerInvalidState.String()
 	if item.ErrorCode != wantKey || item.MessageKey != wantKey || item.Message != fallbackMessageForError(errInvalidContainerState) {
 		t.Fatalf("unexpected failure projection: %#v", item)
+	}
+	entries := observed.All()
+	if len(entries) != 1 || entries[0].Message != "docker volume batch removal failed" {
+		t.Fatalf("expected one volume removal failure log, got %#v", entries)
+	}
+	fields := entries[0].ContextMap()
+	if fields["volume_name"] != "missing" || fields["force"] != false || fields["error"] != errInvalidContainerState.Error() {
+		t.Fatalf("unexpected volume removal failure fields: %#v", fields)
 	}
 }
