@@ -6498,11 +6498,11 @@ export interface components {
       /** @description Requested release version. */
       target_version: string;
       failure_code: components['schemas']['platform-update-rollout-failure-code'];
-      /** @description Server-side update-start stage that failed. */
+      /** @description Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt. */
       failure_stage: string;
       /** @description Controlled operator-facing failure summary. */
       summary: string;
-      /** @description Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted. */
+      /** @description Controlled operator-facing detail. Terminal runner diagnostics are synthesized from bounded receipt facts and never include raw stderr, credentials, tokens, cookies, DSN passwords, or deployment environment contents. */
       detail: string;
       /**
        * Format: date-time
