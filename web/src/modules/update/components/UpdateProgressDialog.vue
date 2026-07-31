@@ -83,7 +83,7 @@ const currentStep = computed(() => stageIndex[stageStatus.value] ?? 0);
 const overallPercentage = computed(() => stagePercentage[stageStatus.value] ?? 0);
 const currentStagePercentage = computed(() => overallPercentage.value);
 const currentStageLabel = computed(() => {
-  return t(`update.center.history.status.${stageStatus.value}`);
+  return t(`update.center.history.statuses.${stageStatus.value}`);
 });
 const requestId = computed(() => progress.diagnostic?.request_id?.trim() ?? '');
 const phaseMessage = computed(() => t(`update.center.progress.phase.${progress.phase}`));

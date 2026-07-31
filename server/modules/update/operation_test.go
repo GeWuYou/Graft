@@ -250,8 +250,8 @@ func TestSettleAvailableReceiptsCleansRunnerOnlyAfterSuccessfulSettlement(t *tes
 		{OperationID: "update-missing", Succeeded: true},
 	}}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 84}}, &stubBackupService{}, launcher)
-	if err := rollout.SettleAvailableReceipts(t.Context()); err != nil {
-		t.Fatalf("settle available receipts: %v", err)
+	if err := rollout.SettleAvailableReceipts(t.Context()); err == nil || !strings.Contains(err.Error(), "update operation not found") {
+		t.Fatalf("settle available receipts error = %v, want invalid receipt to remain observable", err)
 	}
 	if !slices.Equal(launcher.removed, []string{"update-84"}) {
 		t.Fatalf("removed runners = %#v, want only successfully settled runner", launcher.removed)

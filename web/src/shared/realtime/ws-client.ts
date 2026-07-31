@@ -6,7 +6,7 @@ import { toRealtimeWebSocketUrl } from './url';
 
 type RealtimeSocketState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
-const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403, 404]);
+const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403]);
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000] as const;
 const MAX_RECONNECT_ATTEMPTS = RECONNECT_DELAYS_MS.length;
 const MAX_RECONNECT_ERROR_MESSAGE = 'Realtime reconnect stopped after maximum retry attempts';
@@ -41,7 +41,7 @@ function hasStatusCode(error: unknown): error is { status: number } {
   return Boolean(error && typeof error === 'object' && typeof (error as { status?: unknown }).status === 'number');
 }
 
-// 认证、权限和资源不存在属于确定性失败；网络错误及其它状态才进入有限重连流程，避免无意义地重复请求票据。
+// 认证、权限和非法请求属于确定性失败；服务重建期间的 404 与网络错误都进入有限重连，避免页面永久失去实时能力。
 function isRetryableTicketError(error: unknown) {
   return !hasStatusCode(error) || !NON_RETRYABLE_STATUS_CODES.has(error.status);
 }

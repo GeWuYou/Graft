@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/update"
@@ -27,6 +28,8 @@ const (
 	directoryPermission                   os.FileMode = 0o700
 	privateFilePermission                 os.FileMode = 0o600
 	composeFileArgumentCapacityMultiplier             = 2
+	runnerExecutionTimeout                            = 15 * time.Minute
+	healthzCurlTimeoutSeconds                         = "30"
 )
 
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
@@ -35,7 +38,9 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	receipt, executionErr := update.ExecuteComposeRunner(context.Background(), input, &actions{})
+	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
+	defer cancel()
+	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{})
 	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
 		// 回执不能泄露宿主路径或备份内容，保留原终态以便 server 结算。
 		_, _ = fmt.Fprintln(os.Stderr, "remove backup staging directory: failed")
@@ -200,7 +205,11 @@ func (a *actions) DockerHealth(ctx context.Context, in update.RunnerInput) error
 	return compose(ctx, in, "ps", "--status", "running", "--services", "server", "web")
 }
 func (a *actions) Healthz(ctx context.Context, in update.RunnerInput) error {
-	return compose(ctx, in, "exec", "-T", "server", "curl", "--fail", "--silent", "http://127.0.0.1:8080/healthz")
+	return compose(ctx, in, healthzArgs()...)
+}
+
+func healthzArgs() []string {
+	return []string{"exec", "-T", "server", "curl", "--fail", "--silent", "--max-time", healthzCurlTimeoutSeconds, "http://127.0.0.1:8080/healthz"}
 }
 func (a *actions) RecoverPreMigration(ctx context.Context, in update.RunnerInput) error {
 	root := filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID)

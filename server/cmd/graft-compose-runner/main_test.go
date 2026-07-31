@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -64,6 +65,13 @@ func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
 	}
 	if got != receipt {
 		t.Fatalf("receipt = %#v, want %#v", got, receipt)
+	}
+}
+
+func TestHealthzArgsBoundsCurlExecution(t *testing.T) {
+	args := healthzArgs()
+	if !slices.Contains(args, "--max-time") || !slices.Contains(args, healthzCurlTimeoutSeconds) {
+		t.Fatalf("healthz args must bound curl execution: %#v", args)
 	}
 }
 

@@ -82,6 +82,8 @@ describe('UpdateProgressDialog', () => {
       'data-percentage': '30',
       'data-label': 'false',
     });
+    expect(wrapper.text()).toContain('update.center.history.statuses.PULLING');
+    expect(wrapper.text()).not.toContain('update.center.history.status.PULLING');
   });
 
   it('keeps the failed stage visible with its last known milestone', () => {

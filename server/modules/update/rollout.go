@@ -312,11 +312,8 @@ func (s *RolloutService) runReceiptPolling(ctx context.Context, polling receiptP
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.collectRunnerProgress(ctx)
-			if receipts, err := polling.reader.ReadRunnerReceipts(ctx); err == nil {
-				for _, receipt := range receipts {
-					_, _ = s.settleReceiptAndCleanup(ctx, receipt)
-				}
+			if err := s.reconcileAvailableReceipts(ctx, polling.reader); err != nil {
+				s.logReceiptReconciliationDeferred()
 			}
 		}
 	}
@@ -457,15 +454,11 @@ func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 	if s == nil || s.discovery == nil {
 		return nil
 	}
-	s.collectRunnerProgress(ctx)
-	if reader, ok := s.launcher.(ComposeRunnerReceiptReader); ok {
-		if receipts, err := reader.ReadRunnerReceipts(ctx); err == nil {
-			for _, receipt := range receipts {
-				_, _ = s.settleReceiptAndCleanup(ctx, receipt)
-			}
-		}
+	reader, ok := s.launcher.(ComposeRunnerReceiptReader)
+	if !ok {
+		return s.collectRunnerProgress(ctx)
 	}
-	return nil
+	return s.reconcileAvailableReceipts(ctx, reader)
 }
 
 // SetRealtimePublisher 注入 core realtime topic publisher；Update 只发布已持久化的操作快照。
@@ -475,29 +468,61 @@ func (s *RolloutService) SetRealtimePublisher(publisher realtime.Publisher) {
 	}
 }
 
-func (s *RolloutService) collectRunnerProgress(ctx context.Context) {
+func (s *RolloutService) reconcileAvailableReceipts(ctx context.Context, reader ComposeRunnerReceiptReader) error {
+	progressErr := s.collectRunnerProgress(ctx)
+	receipts, err := reader.ReadRunnerReceipts(ctx)
+	if err != nil {
+		return errors.Join(progressErr, fmt.Errorf("read retained compose runner receipts: %w", err))
+	}
+	var settlementErr error
+	for _, receipt := range receipts {
+		if _, err := s.settleReceiptAndCleanup(ctx, receipt); err != nil {
+			settlementErr = errors.Join(settlementErr, fmt.Errorf("settle retained compose runner receipt: %w", err))
+		}
+	}
+	return errors.Join(progressErr, settlementErr)
+}
+
+// logReceiptReconciliationDeferred 保留固定、无敏感信息的运维信号；下一轮轮询会继续读取未删除的 runner receipt。
+func (s *RolloutService) logReceiptReconciliationDeferred() {
+	if s == nil || s.logger == nil {
+		return
+	}
+	s.logger.Warn("platform update runner receipt reconciliation deferred",
+		zap.String("module", moduleID),
+		zap.String("reason", "runner_receipt_reconciliation_failed"),
+	)
+}
+
+func (s *RolloutService) collectRunnerProgress(ctx context.Context) error {
 	reader, ok := s.launcher.(ComposeRunnerProgressReader)
 	if !ok {
-		return
+		return nil
 	}
 	operations, ok := s.operations.(OperationProgressStore)
 	if !ok {
-		return
+		return nil
 	}
 	progresses, err := reader.ReadRunnerProgress(ctx)
 	if err != nil {
-		return
+		return fmt.Errorf("read retained compose runner progress: %w", err)
 	}
+	var advanceErr error
 	for _, progress := range progresses {
 		outcome, valid := outcomeForRunnerProgress(progress.Progress)
 		if !valid {
 			continue
 		}
 		item, advanced, err := operations.Advance(ctx, progress.OperationID, outcome)
-		if err == nil && advanced {
+		if err != nil {
+			advanceErr = errors.Join(advanceErr, fmt.Errorf("advance compose runner progress: %w", err))
+			continue
+		}
+		if advanced {
 			s.publishOperation(item)
 		}
 	}
+	return advanceErr
 }
 
 func (s *RolloutService) publishOperation(operation ComposeUpdateOperation) {
