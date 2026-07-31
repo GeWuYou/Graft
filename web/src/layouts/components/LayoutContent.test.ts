@@ -672,6 +672,26 @@ describe('LayoutContent', () => {
     expect(layoutStyleSource).toContain('min-height: 0;');
   });
 
+  it('centralizes acrylic card surfaces while keeping dense and overlay surfaces solid', () => {
+    const acrylicContentScope = String.raw`\.app-shell\[data-acrylic-glass='true'\]\s+\.@\{starter-prefix\}-content-layout`;
+
+    expect(layoutStyleSource).toMatch(
+      new RegExp(String.raw`${acrylicContentScope}\s+\.t-card\s*\{\s*\.graft-acrylic-primary-surface\(\);\s*\}`),
+    );
+    expect(layoutStyleSource).toMatch(
+      new RegExp(
+        String.raw`@media\s*\(width\s*<=\s*768px\)\s*\{[\s\S]*?${acrylicContentScope}\s+\.t-card\s*\{\s*backdrop-filter:\s*none;`,
+      ),
+    );
+    expect(layoutStyleSource).not.toMatch(new RegExp(String.raw`${acrylicContentScope}\s+\.t-dialog\b`));
+    expect(layoutStyleSource).not.toMatch(new RegExp(String.raw`${acrylicContentScope}\s+\.t-drawer\b`));
+    expect(layoutStyleSource).not.toMatch(new RegExp(String.raw`${acrylicContentScope}\s+\.t-table\b`));
+    expect(layoutStyleSource).toContain(
+      ".app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark,",
+    );
+    expect(layoutStyleSource).not.toContain(".app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark,");
+  });
+
   it('renders the shell breadcrumb before route content when the setting is enabled', () => {
     const wrapper = mountLayoutContent();
     const pageContainer = wrapper.get('.tdesign-starter-page-container');

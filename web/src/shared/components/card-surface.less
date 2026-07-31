@@ -9,19 +9,30 @@
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--graft-card-elevated-bg) 72%, transparent),
     var(--td-shadow-1);
+
+  .app-shell[data-acrylic-glass='true'] & {
+    .graft-acrylic-primary-surface(var(--graft-card-bg));
+  }
 }
 
 .graft-entity-card-surface() {
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--td-radius-medium);
+
+  .app-shell[data-acrylic-glass='true'] & {
+    .graft-acrylic-primary-surface(var(--td-bg-color-container), var(--td-radius-medium));
+  }
 }
 
-// 玻璃效果只由壳层开关下的有限 surface 消费，默认声明保持可读的实色降级。
-.graft-glass-surface(@fallback-background: var(--td-bg-color-container)) {
+// 主表面仅在壳层亚克力开关下使用；默认声明保留可读的实色降级。
+.graft-acrylic-primary-surface(
+  @fallback-background: var(--td-bg-color-container),
+  @radius: var(--td-radius-large)
+) {
   background: @fallback-background;
   border: 1px solid var(--td-border-level-1-color);
-  border-radius: var(--td-radius-large);
+  border-radius: @radius;
   box-shadow: var(--td-shadow-1);
 
   @supports (backdrop-filter: blur(1px)) {
@@ -32,10 +43,14 @@
       inset 0 1px 0 var(--graft-glass-highlight),
       var(--graft-glass-shadow);
   }
+
+  @media (width <= 768px) {
+    backdrop-filter: none;
+  }
 }
 
-// 轻玻璃用于有限的指标与入口，不启用 backdrop-filter，避免滚动和窄屏的合成开销。
-.graft-glass-subtle-surface(@fallback-background: var(--td-bg-color-container-hover)) {
+// 轻表面用于表格等高密度区域，不启用 backdrop-filter，避免滚动和窄屏的合成开销。
+.graft-acrylic-subtle-surface(@fallback-background: var(--td-bg-color-container-hover)) {
   background: @fallback-background;
   border: 1px solid var(--td-border-level-1-color);
   border-radius: var(--td-radius-medium);
@@ -45,4 +60,13 @@
     border-color: var(--graft-glass-border);
     box-shadow: inset 0 1px 0 var(--graft-glass-highlight);
   }
+}
+
+// 保持仪表盘现有的局部样式调用兼容，新的共享表面统一使用 acrylic 命名。
+.graft-glass-surface(@fallback-background: var(--td-bg-color-container), @radius: var(--td-radius-large)) {
+  .graft-acrylic-primary-surface(@fallback-background, @radius);
+}
+
+.graft-glass-subtle-surface(@fallback-background: var(--td-bg-color-container-hover)) {
+  .graft-acrylic-subtle-surface(@fallback-background);
 }

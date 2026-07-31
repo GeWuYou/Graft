@@ -1,4 +1,5 @@
 @import './font-family.less';
+@import '../shared/components/card-surface.less';
 
 // layout rewrite
 
@@ -111,17 +112,7 @@
 .app-shell[data-acrylic-glass='true'] .@{starter-prefix}-side-nav,
 .app-shell[data-acrylic-glass='true'] .t-head-menu,
 .app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav {
-  background: var(--td-bg-color-container);
-  border-color: var(--td-border-level-1-color);
-
-  @supports (backdrop-filter: blur(1px)) {
-    backdrop-filter: blur(var(--graft-glass-blur));
-    background: var(--graft-glass-bg);
-    border-color: var(--graft-glass-border);
-    box-shadow:
-      inset 0 1px 0 var(--graft-glass-highlight),
-      var(--graft-glass-shadow);
-  }
+  .graft-acrylic-primary-surface();
 }
 
 .app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav .t-default-menu__inner,
@@ -136,10 +127,16 @@
   border-right-color: var(--graft-glass-border);
 }
 
+// 主表面角色：页面直接使用的 TDesign 卡片；共享管理与治理表面由 graft-card-surface() 自动接入。
+.app-shell[data-acrylic-glass='true'] .@{starter-prefix}-content-layout .t-card {
+  .graft-acrylic-primary-surface();
+}
+
 @media (width <= 768px) {
   .app-shell[data-acrylic-glass='true'] .@{starter-prefix}-side-nav,
   .app-shell[data-acrylic-glass='true'] .t-head-menu,
-  .app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav {
+  .app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav,
+  .app-shell[data-acrylic-glass='true'] .@{starter-prefix}-content-layout .t-card {
     backdrop-filter: none;
   }
 }
@@ -198,12 +195,12 @@
   border-right: 1px solid var(--graft-shell-border-color);
 }
 
-.app-shell[data-theme-mode='dark'] .t-layout__sider,
-.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark,
-.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-default-menu__inner,
-.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-menu__logo,
-.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-menu,
-.app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark .t-menu__operations {
+.app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-layout__sider,
+.app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark,
+.app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark .t-default-menu__inner,
+.app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark .t-menu__logo,
+.app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark .t-menu,
+.app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark .t-menu__operations {
   background: var(--graft-shell-sidebar-bg);
 }
 

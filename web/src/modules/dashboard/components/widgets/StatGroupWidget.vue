@@ -51,7 +51,7 @@ function go(location: string) {
 @import '@/shared/components/card-surface.less';
 
 :deep(.app-shell[data-acrylic-glass='true']) .dashboard-stat-group__item {
-  .graft-glass-subtle-surface();
+  .graft-glass-surface(var(--graft-card-bg-hover), var(--td-radius-medium));
 }
 </style>
 <style lang="less" scoped>
