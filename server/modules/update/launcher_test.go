@@ -16,8 +16,10 @@ import (
 
 func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(t *testing.T) {
 	valid := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", Succeeded: true}
-	client := &receiptDockerClient{items: []containertypes.Summary{{ID: "valid", Labels: runnerLabels("operation-1")}, {ID: "pending", Labels: runnerLabels("operation-2")}}, logs: map[string][]byte{
+	legacy := RunnerReceipt{ProtocolVersion: legacyRunnerProtocolVersion, OperationID: "operation-legacy", Succeeded: true}
+	client := &receiptDockerClient{items: []containertypes.Summary{{ID: "valid", Labels: runnerLabels("operation-1")}, {ID: "legacy", Labels: runnerLabelsForProtocol("operation-legacy", legacyRunnerProtocol)}, {ID: "pending", Labels: runnerLabels("operation-2")}}, logs: map[string][]byte{
 		"valid":   multiplexRunnerLog(t, RunnerReceiptLogMarker, valid),
+		"legacy":  multiplexRunnerLog(t, RunnerReceiptLogMarker, legacy),
 		"pending": multiplexRunnerLog(t, RunnerReceiptLogMarker, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-3"}),
 	}}
 	launcher := &dockerComposeRunnerLauncher{client: client}
@@ -26,8 +28,8 @@ func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(
 	if err != nil {
 		t.Fatalf("read runner receipts: %v", err)
 	}
-	if len(receipts) != 1 || receipts[0] != valid {
-		t.Fatalf("receipts = %#v, want %#v", receipts, []RunnerReceipt{valid})
+	if len(receipts) != 2 || receipts[0] != valid || receipts[1] != legacy {
+		t.Fatalf("receipts = %#v, want %#v", receipts, []RunnerReceipt{valid, legacy})
 	}
 	if len(client.removed) != 0 {
 		t.Fatalf("removed containers after read = %#v, want none", client.removed)
@@ -41,7 +43,11 @@ func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(
 }
 
 func runnerLabels(operationID string) map[string]string {
-	return map[string]string{"io.graft.update.operation": operationID, "io.graft.update.protocol": runnerProtocol}
+	return runnerLabelsForProtocol(operationID, runnerProtocol)
+}
+
+func runnerLabelsForProtocol(operationID string, protocol string) map[string]string {
+	return map[string]string{"io.graft.update.operation": operationID, "io.graft.update.protocol": protocol}
 }
 
 func multiplexRunnerLog(t *testing.T, marker string, receipt RunnerReceipt) []byte {

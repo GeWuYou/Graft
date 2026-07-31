@@ -114,7 +114,8 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 	if err != nil {
 		return ComposeUpdateOperation{}, err
 	}
-	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: runnerProtocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity})
+	protocol, _ := runnerProtocolForVersion(receipt.ProtocolVersion)
+	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: protocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity})
 	if err != nil {
 		return ComposeUpdateOperation{}, fmt.Errorf("settle compose runner receipt: %w", err)
 	}
@@ -129,7 +130,7 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 }
 
 func validateReceiptSettlement(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation, receipt RunnerReceipt) error {
-	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || receipt.ProtocolVersion != runnerProtocolVersion || receipt.OperationID != operation.OperationID {
+	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || !supportedRunnerProtocolVersion(receipt.ProtocolVersion) || receipt.OperationID != operation.OperationID {
 		return errors.New("invalid")
 	}
 	return nil

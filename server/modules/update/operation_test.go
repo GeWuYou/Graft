@@ -83,6 +83,19 @@ func TestComposeExecutionCoordinatorMarksPostMigrationFailureNeedsAttention(t *t
 	}
 }
 
+func TestComposeExecutionCoordinatorSettlesLegacyRunnerReceiptWithItsProtocol(t *testing.T) {
+	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 53, Status: moduleapi.TaskStatusPending}}
+	coordinator := NewComposeExecutionCoordinator(tasks, &stubBackupService{})
+	operation := ComposeUpdateOperation{OperationID: "update-53", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0", TaskID: 53}
+
+	if _, err := coordinator.SettleReceipt(t.Context(), operation, RunnerReceipt{ProtocolVersion: legacyRunnerProtocolVersion, OperationID: operation.OperationID, Succeeded: true}); err != nil {
+		t.Fatalf("settle legacy compose receipt: %v", err)
+	}
+	if tasks.external.Protocol != legacyRunnerProtocol {
+		t.Fatalf("legacy receipt protocol = %q, want %q", tasks.external.Protocol, legacyRunnerProtocol)
+	}
+}
+
 func TestComposeExecutionCoordinatorRejectsForgedBackupReceiptBinding(t *testing.T) {
 	coordinator := NewComposeExecutionCoordinator(&stubTaskService{}, &stubBackupService{})
 	_, err := coordinator.SettleReceipt(context.Background(), ComposeUpdateOperation{OperationID: "update-53", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0", TaskID: 53}, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "update-53", FailureCode: "pull_failed", BackupCompletion: &moduleapi.CompleteBackupRunnerHandoffInput{OperationID: "other", TaskID: 53}})

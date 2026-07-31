@@ -63,7 +63,7 @@ func parseRunnerReceiptLog(line string) (RunnerReceipt, bool) {
 		return RunnerReceipt{}, false
 	}
 	var receipt RunnerReceipt
-	if err := json.Unmarshal(contents, &receipt); err != nil || receipt.ProtocolVersion != runnerProtocolVersion || !runnerOperationID.MatchString(receipt.OperationID) {
+	if err := json.Unmarshal(contents, &receipt); err != nil || !supportedRunnerProtocolVersion(receipt.ProtocolVersion) || !runnerOperationID.MatchString(receipt.OperationID) {
 		return RunnerReceipt{}, false
 	}
 	return receipt, true
@@ -147,7 +147,8 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([
 	if l == nil || l.client == nil {
 		return nil, errors.New("compose runner receipt reader is unavailable")
 	}
-	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.protocol="+runnerProtocol)})
+	filters := make(mobyclient.Filters).Add("label", "io.graft.update.protocol="+runnerProtocol).Add("label", "io.graft.update.protocol="+legacyRunnerProtocol)
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: filters})
 	if err != nil {
 		return nil, fmt.Errorf("list retained compose runners: %w", err)
 	}
@@ -166,7 +167,7 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([
 		}
 		var containerReceipts []RunnerReceipt
 		for _, line := range strings.Split(stdout.String()+"\n"+stderr.String(), "\n") {
-			if receipt, ok := parseRunnerReceiptLog(line); ok && receipt.OperationID == item.Labels["io.graft.update.operation"] {
+			if receipt, ok := parseRunnerReceiptLog(line); ok && receipt.OperationID == item.Labels["io.graft.update.operation"] && runnerProtocolMatchesVersion(item.Labels["io.graft.update.protocol"], receipt.ProtocolVersion) {
 				containerReceipts = append(containerReceipts, receipt)
 			}
 		}
@@ -186,12 +187,13 @@ func (l *dockerComposeRunnerLauncher) RemoveRunner(ctx context.Context, operatio
 	if !runnerOperationID.MatchString(operationID) {
 		return errors.New("compose runner receipt cleanup operation ID is invalid")
 	}
-	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.operation="+operationID).Add("label", "io.graft.update.protocol="+runnerProtocol)})
+	filters := make(mobyclient.Filters).Add("label", "io.graft.update.operation="+operationID).Add("label", "io.graft.update.protocol="+runnerProtocol).Add("label", "io.graft.update.protocol="+legacyRunnerProtocol)
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: filters})
 	if err != nil {
 		return fmt.Errorf("list settled compose runners: %w", err)
 	}
 	for _, item := range result.Items {
-		if item.Labels["io.graft.update.operation"] != operationID || item.Labels["io.graft.update.protocol"] != runnerProtocol {
+		if item.Labels["io.graft.update.operation"] != operationID || !supportedRunnerProtocol(item.Labels["io.graft.update.protocol"]) {
 			continue
 		}
 		if _, err := l.client.ContainerRemove(ctx, item.ID, mobyclient.ContainerRemoveOptions{}); err != nil {
@@ -199,6 +201,20 @@ func (l *dockerComposeRunnerLauncher) RemoveRunner(ctx context.Context, operatio
 		}
 	}
 	return nil
+}
+
+func supportedRunnerProtocolVersion(version int) bool {
+	_, ok := runnerProtocolForVersion(version)
+	return ok
+}
+
+func supportedRunnerProtocol(protocol string) bool {
+	return protocol == runnerProtocol || protocol == legacyRunnerProtocol
+}
+
+func runnerProtocolMatchesVersion(protocol string, version int) bool {
+	expected, ok := runnerProtocolForVersion(version)
+	return ok && protocol == expected
 }
 
 func encodeRunnerInput(input RunnerInput) (string, error) {

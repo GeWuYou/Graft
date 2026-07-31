@@ -12,9 +12,25 @@ import (
 )
 
 const (
-	runnerProtocolVersion = 2
-	runnerProtocol        = "compose-runner/v2"
+	runnerProtocolVersion       = 2
+	runnerProtocol              = "compose-runner/v2"
+	legacyRunnerProtocolVersion = 1
+	// COMPAT(owner=TaskPlan, cleanup=no v1 Compose runner tasks remain in flight)
+	// legacyRunnerProtocol 仅为持久 Task Stage 仍期望 v1 的在途任务读取并结算回执。
+	// Task Plan 仍是 canonical authority；确认不存在 v1 Compose runner 在途任务后删除该桥接。
+	legacyRunnerProtocol = "compose-runner/v1"
 )
+
+func runnerProtocolForVersion(version int) (string, bool) {
+	switch version {
+	case legacyRunnerProtocolVersion:
+		return legacyRunnerProtocol, true
+	case runnerProtocolVersion:
+		return runnerProtocol, true
+	default:
+		return "", false
+	}
+}
 
 // ComposePreflight 是 server 在启动一次性 runner 前冻结的无秘密部署证据。
 // 它只描述官方 Compose 画像，不接受自定义覆盖层、外部数据库或未验证的镜像标签。

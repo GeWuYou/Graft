@@ -36,12 +36,23 @@ func main() {
 		fatal(err)
 	}
 	receipt, executionErr := update.ExecuteComposeRunner(context.Background(), input, &actions{})
+	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
+		// 回执不能泄露宿主路径或备份内容，保留原终态以便 server 结算。
+		_, _ = fmt.Fprintln(os.Stderr, "remove backup staging directory: failed")
+	}
 	if err := writeRunnerReceiptLog(os.Stdout, receipt); err != nil {
 		fatal(fmt.Errorf("write runner receipt log: %w", err))
 	}
 	if executionErr != nil {
 		fatal(executionErr)
 	}
+}
+
+func cleanupBackupStaging(in update.RunnerInput) error {
+	if err := update.ValidateRunnerInput(in); err != nil {
+		return err
+	}
+	return os.RemoveAll(filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID))
 }
 
 func readRunnerInput() (update.RunnerInput, error) {

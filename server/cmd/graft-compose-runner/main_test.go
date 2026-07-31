@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -70,6 +71,56 @@ func TestBackupFailureDoesNotExposeFilesystemDetails(t *testing.T) {
 	err := backupFailure(update.RunnerBackupFailureStageConfigSnapshot, &os.PathError{Op: "open", Path: "/opt/graft/.env", Err: os.ErrPermission})
 	if got := err.Error(); got != "env_snapshot: permission_denied" {
 		t.Fatalf("safe backup error = %q", got)
+	}
+}
+
+func TestCleanupBackupStagingRemovesOperationDirectoryAfterSuccessOrCopyFailure(t *testing.T) {
+	root := t.TempDir()
+	input := update.RunnerInput{
+		ProtocolVersion:    2,
+		OperationID:        "operation-cleanup",
+		TaskID:             1,
+		BackupArtifactRoot: "/var/lib/graft/backups/operation-cleanup",
+		Preflight: update.ComposePreflight{
+			DeclaredMode: "compose", DeploymentStrategy: update.DeploymentStrategyBetaTracking, ImageTag: "beta", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true,
+			OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
+			ServerReference: "ghcr.io/gewuyou/graft-server:beta", WebReference: "ghcr.io/gewuyou/graft-web:beta", RunnerReference: "ghcr.io/gewuyou/graft-compose-runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			ServerDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", WebDigest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", RunnerDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+	stagingRoot := filepath.Join(root, ".graft-update", "backups", input.OperationID)
+	if err := os.MkdirAll(stagingRoot, directoryPermission); err != nil {
+		t.Fatalf("create staging root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(stagingRoot, "database.dump"), []byte("backup"), privateFilePermission); err != nil {
+		t.Fatalf("write staging artifact: %v", err)
+	}
+	retained := filepath.Join(root, ".graft-update", "backups", "other-operation")
+	if err := os.MkdirAll(retained, directoryPermission); err != nil {
+		t.Fatalf("create retained root: %v", err)
+	}
+
+	if err := cleanupBackupStaging(input); err != nil {
+		t.Fatalf("cleanup staging root: %v", err)
+	}
+	if _, err := os.Stat(stagingRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("staging root stat error = %v, want not exist", err)
+	}
+	if _, err := os.Stat(retained); err != nil {
+		t.Fatalf("retained backup root stat: %v", err)
+	}
+
+	if err := os.MkdirAll(stagingRoot, directoryPermission); err != nil {
+		t.Fatalf("recreate staging root for partial copy: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(stagingRoot, "config.snapshot"), []byte("partial"), privateFilePermission); err != nil {
+		t.Fatalf("write partial staging artifact: %v", err)
+	}
+	if err := cleanupBackupStaging(input); err != nil {
+		t.Fatalf("cleanup partial-copy staging root: %v", err)
+	}
+	if _, err := os.Stat(stagingRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("partial-copy staging root stat error = %v, want not exist", err)
 	}
 }
 
