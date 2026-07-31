@@ -1,10 +1,13 @@
 package update
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -19,7 +22,7 @@ func TestValidateRunnerInputAcceptsOrderedComposeFilesUnderRoot(t *testing.T) {
 			t.Fatalf("create compose file %s: %v", name, err)
 		}
 	}
-	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
+	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, BackupArtifactRoot: "/var/lib/graft/backups/operation-1", Preflight: ComposePreflight{
 		DeclaredMode: "compose", DeploymentStrategy: DeploymentStrategyBetaTracking, ImageTag: "beta", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yaml"), filepath.Join(root, "overrides/web.yml")}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web",
 		OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
@@ -52,7 +55,7 @@ func TestValidateRunnerInputRejectsComposeSymlinkEscapeAndNestedFirstFile(t *tes
 		t.Fatalf("create compose symlink: %v", err)
 	}
 
-	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
+	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, BackupArtifactRoot: "/var/lib/graft/backups/operation-1", Preflight: ComposePreflight{
 		DeclaredMode: "compose", DeploymentStrategy: DeploymentStrategyBetaTracking, ImageTag: "beta", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml"), link}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerDigest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
@@ -76,11 +79,30 @@ func TestValidateRunnerInputRejectsComposeSymlinkEscapeAndNestedFirstFile(t *tes
 	}
 }
 
-func TestComposeRunnerContainerConfigUsesNonRootUser(t *testing.T) {
+func TestComposeRunnerContainerConfigUsesTrustedRootIdentity(t *testing.T) {
 	input := RunnerInput{Preflight: ComposePreflight{ComposeRoot: "/opt/graft", DockerSocket: "/var/run/docker.sock"}}
 	config, _ := composeRunnerContainerConfig(input, "runner-input")
-	if config.User != "65532:65532" {
-		t.Fatalf("runner user = %q, want non-root service user", config.User)
+	if config.User != "0:0" {
+		t.Fatalf("runner user = %q, want trusted root identity", config.User)
+	}
+}
+
+func TestExecuteComposeRunnerRecordsSafeBackupFailureDiagnostic(t *testing.T) {
+	input := fixtureRunnerInput(t.TempDir())
+	actions := &tracingRunnerActions{backupErr: NewRunnerBackupFailure(RunnerBackupFailureStageConfigSnapshot, RunnerBackupFailureDetailPermissionDenied, errors.New("open /private/.env: permission denied"))}
+	receipt, err := ExecuteComposeRunner(context.Background(), input, actions)
+	if err == nil {
+		t.Fatal("expected backup failure")
+	}
+	if receipt.FailureCode != runnerFailureBackup || receipt.FailureStage != string(RunnerBackupFailureStageConfigSnapshot) || receipt.FailureDetail != string(RunnerBackupFailureDetailPermissionDenied) {
+		t.Fatalf("unexpected safe backup diagnostic: %#v", receipt)
+	}
+	encoded, marshalErr := json.Marshal(receipt)
+	if marshalErr != nil {
+		t.Fatalf("marshal receipt: %v", marshalErr)
+	}
+	if strings.Contains(string(encoded), "/private/.env") {
+		t.Fatalf("receipt leaked backup error details: %s", encoded)
 	}
 }
 
@@ -100,7 +122,7 @@ func TestParseRunnerReceiptLogAcceptsOnlyBoundProtocolMarker(t *testing.T) {
 }
 
 func TestValidateRunnerInputRejectsMissingOrMutableRunnerIdentity(t *testing.T) {
-	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, Preflight: ComposePreflight{
+	valid := RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "operation-1", TaskID: 1, BackupArtifactRoot: "/var/lib/graft/backups/operation-1", Preflight: ComposePreflight{
 		DeclaredMode: "compose", DetectedMode: "compose", ComposeRoot: "/opt/graft", Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{"/opt/graft/compose.yml"}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", WebDigest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", RunnerDigest: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",

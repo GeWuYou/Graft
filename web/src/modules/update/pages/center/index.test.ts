@@ -350,7 +350,39 @@ describe('UpdateCenter', () => {
     expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain(
       'docker launch failed: [REDACTED]',
     );
+    expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain(
+      'update.center.confirmation.diagnosticStages.unknown',
+    );
     expect(wrapper.text()).toContain('update.center.confirmation.diagnosticTitle');
+  });
+
+  it('localizes known terminal backup diagnostic stages', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot(
+      status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),
+    );
+    apiMocks.createUpdateOperation.mockRejectedValueOnce(
+      updateStartFailure(UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED),
+    );
+    apiMocks.getUpdateFailureDiagnostic.mockResolvedValueOnce({
+      request_id: 'request-update-42',
+      target_version: '1.1.0',
+      failure_code: UPDATE_OPERATION_FAILURE_CODE.RUNNER_TERMINAL_FAILED,
+      failure_stage: 'env_snapshot',
+      summary: 'platform update runner reported a terminal failure',
+      detail: 'deployment environment snapshot was denied by deployment filesystem permissions',
+      occurred_at: '2026-07-27T10:00:00Z',
+    });
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="update-center-upgrade"]').trigger('click');
+    await wrapper.get('[data-testid="update-confirmation-submit"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).toContain(
+      'update.center.confirmation.diagnosticStages.backupConfigSnapshot',
+    );
+    expect(wrapper.get('[data-testid="update-operation-diagnostic"]').text()).not.toContain('env_snapshot');
   });
 
   it('uses the generic failure text and hides the request ID for an unknown or network error', async () => {

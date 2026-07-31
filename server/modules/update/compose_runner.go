@@ -37,6 +37,56 @@ const (
 	runnerFailureHealthz      = "healthz_failed"
 )
 
+// RunnerBackupFailureStage 标识备份期间可安全暴露给操作者的固定失败阶段。
+type RunnerBackupFailureStage string
+
+const (
+	// RunnerBackupFailureStageArtifactDirectory 表示创建暂存或 server 工件目录失败。
+	RunnerBackupFailureStageArtifactDirectory RunnerBackupFailureStage = "artifact_directory"
+	// RunnerBackupFailureStageConfigSnapshot 表示复制私有部署环境快照失败。
+	RunnerBackupFailureStageConfigSnapshot RunnerBackupFailureStage = "env_snapshot"
+	// RunnerBackupFailureStageDatabaseDump 表示导出 PostgreSQL 数据失败。
+	RunnerBackupFailureStageDatabaseDump RunnerBackupFailureStage = "postgres_dump"
+	// RunnerBackupFailureStageArtifactDigest 表示计算备份产物摘要失败。
+	RunnerBackupFailureStageArtifactDigest RunnerBackupFailureStage = "artifact_digest"
+)
+
+// RunnerBackupFailureDetail 标识备份失败的无秘密原因类别。
+type RunnerBackupFailureDetail string
+
+const (
+	// RunnerBackupFailureDetailPermissionDenied 表示固定操作被文件系统权限拒绝。
+	RunnerBackupFailureDetailPermissionDenied RunnerBackupFailureDetail = "permission_denied"
+	// RunnerBackupFailureDetailCommandFailed 表示固定 Docker 或 Compose 命令执行失败。
+	RunnerBackupFailureDetailCommandFailed RunnerBackupFailureDetail = "command_failed"
+	// RunnerBackupFailureDetailIOFailed 表示无法分类为权限或命令的 I/O 失败。
+	RunnerBackupFailureDetailIOFailed RunnerBackupFailureDetail = "io_failed"
+)
+
+type runnerBackupFailure struct {
+	stage  RunnerBackupFailureStage
+	detail RunnerBackupFailureDetail
+	cause  error
+}
+
+func (e *runnerBackupFailure) Error() string {
+	return string(e.stage) + ": " + string(e.detail)
+}
+
+func (e *runnerBackupFailure) Unwrap() error { return e.cause }
+
+// NewRunnerBackupFailure 将底层备份错误包装为可写入 receipt 的无秘密诊断。
+// 调用方必须只传入本包声明的固定阶段与详情，避免路径、stderr 或凭证进入回执。
+func NewRunnerBackupFailure(stage RunnerBackupFailureStage, detail RunnerBackupFailureDetail, cause error) error {
+	if !validRunnerBackupFailureStage(stage) {
+		stage = RunnerBackupFailureStageArtifactDirectory
+	}
+	if !validRunnerBackupFailureDetail(detail) {
+		detail = RunnerBackupFailureDetailIOFailed
+	}
+	return &runnerBackupFailure{stage: stage, detail: detail, cause: cause}
+}
+
 // ExecuteComposeRunner 执行唯一允许的 Compose 更新顺序，并把每个终态交给入口写入容器日志回执。
 // Backup 成功后必须先校验 BackupReceipt；migration 动作开始前即记录边界，确保后续失败永远不会被解释为可自动恢复数据库的失败。
 func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) (RunnerReceipt, error) {
@@ -47,11 +97,14 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	}
 	if err := actions.Backup(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
+		receipt.FailureStage, receipt.FailureDetail = runnerBackupFailureDiagnostic(err)
 		return finalizeRunnerReceipt(receipt, err)
 	}
 	completion := actions.BackupReceipt()
 	if err := validateBackupReceipt(completion, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
+		receipt.FailureStage = string(RunnerBackupFailureStageArtifactDigest)
+		receipt.FailureDetail = string(RunnerBackupFailureDetailIOFailed)
 		return finalizeRunnerReceipt(receipt, err)
 	}
 	receipt.BackupCompletion = &completion
@@ -86,6 +139,35 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	}
 	receipt.Succeeded = true
 	return finalizeRunnerReceipt(receipt, nil)
+}
+
+func runnerBackupFailureDiagnostic(err error) (string, string) {
+	var failure *runnerBackupFailure
+	if !errors.As(err, &failure) {
+		return string(RunnerBackupFailureStageArtifactDirectory), string(RunnerBackupFailureDetailIOFailed)
+	}
+	if !validRunnerBackupFailureStage(failure.stage) || !validRunnerBackupFailureDetail(failure.detail) {
+		return string(RunnerBackupFailureStageArtifactDirectory), string(RunnerBackupFailureDetailIOFailed)
+	}
+	return string(failure.stage), string(failure.detail)
+}
+
+func validRunnerBackupFailureStage(value RunnerBackupFailureStage) bool {
+	switch value {
+	case RunnerBackupFailureStageArtifactDirectory, RunnerBackupFailureStageConfigSnapshot, RunnerBackupFailureStageDatabaseDump, RunnerBackupFailureStageArtifactDigest:
+		return true
+	default:
+		return false
+	}
+}
+
+func validRunnerBackupFailureDetail(value RunnerBackupFailureDetail) bool {
+	switch value {
+	case RunnerBackupFailureDetailPermissionDenied, RunnerBackupFailureDetailCommandFailed, RunnerBackupFailureDetailIOFailed:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateBackupReceipt(completion moduleapi.CompleteBackupRunnerHandoffInput, input RunnerInput) error {

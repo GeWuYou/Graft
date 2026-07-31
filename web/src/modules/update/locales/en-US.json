@@ -145,6 +145,14 @@
         "diagnosticTitle": "Start failure diagnostic (sanitized)",
         "diagnosticCode": "Failure code",
         "diagnosticStage": "Failure stage",
+        "diagnosticStages": {
+          "backupArtifactDirectory": "Create backup artifact directory",
+          "backupConfigSnapshot": "Snapshot deployment environment",
+          "backupDatabaseDump": "Create PostgreSQL dump",
+          "backupArtifactDigest": "Verify backup artifact digest",
+          "runnerReceipt": "Process update runner receipt",
+          "unknown": "Update runner failure"
+        },
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Use the request ID to inspect application logs.",
         "viewAppLogs": "View application logs",
         "failure": {

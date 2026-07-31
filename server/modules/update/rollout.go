@@ -20,21 +20,22 @@ import (
 
 // RolloutService 只编排人工确认的 Compose 更新；它保存 Update operation，Task 和 Backup 仍是外部能力。
 type RolloutService struct {
-	discovery         *Service
-	operations        OperationStore
-	diagnostics       FailureDiagnosticStore
-	coordinator       *ComposeExecutionCoordinator
-	launcher          ComposeRunnerLauncher
-	deployment        moduleapi.DeploymentRuntime
-	newOperation      func() string
-	auditPublisher    event.Publisher
-	logger            *zap.Logger
-	appLogger         logger.AppLogger
-	receiptPollMu     sync.Mutex
-	receiptPollCancel context.CancelFunc
-	receiptPollDone   chan struct{}
-	receiptPollClosed bool
-	receiptPollEvery  time.Duration
+	discovery          *Service
+	operations         OperationStore
+	diagnostics        FailureDiagnosticStore
+	coordinator        *ComposeExecutionCoordinator
+	launcher           ComposeRunnerLauncher
+	deployment         moduleapi.DeploymentRuntime
+	newOperation       func() string
+	auditPublisher     event.Publisher
+	logger             *zap.Logger
+	appLogger          logger.AppLogger
+	backupArtifactRoot string
+	receiptPollMu      sync.Mutex
+	receiptPollCancel  context.CancelFunc
+	receiptPollDone    chan struct{}
+	receiptPollClosed  bool
+	receiptPollEvery   time.Duration
 }
 
 const receiptPollInterval = 15 * time.Second
@@ -72,6 +73,13 @@ func (s *RolloutService) SetAuditPublisher(publisher event.Publisher, logger *za
 func (s *RolloutService) SetAppLogger(appLogger logger.AppLogger) {
 	if s != nil {
 		s.appLogger = appLogger
+	}
+}
+
+// SetBackupArtifactRoot 注入 Backup 模块在 server 容器内可见的唯一工件根目录。
+func (s *RolloutService) SetBackupArtifactRoot(root string) {
+	if s != nil {
+		s.backupArtifactRoot = filepath.Clean(strings.TrimSpace(root))
 	}
 }
 
@@ -117,13 +125,19 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
 	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, DeploymentStrategy: mode, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
-	handoff := backupHandoff(operation.OperationID, input.RequestedBy, preflight.ComposeRoot)
+	if !filepath.IsAbs(s.backupArtifactRoot) {
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("backup artifact root is unavailable"))
+	}
+	handoff := backupHandoff(operation.OperationID, input.RequestedBy, s.backupArtifactRoot)
 	prepared, runnerInput, err := s.coordinator.Start(ctx, operation, input.RequestedBy, handoff)
 	if err != nil {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "handoff", operation.OperationID, err)
 	}
 	prepared.RequestedBy, prepared.Outcome = input.RequestedBy, ExecutionOutcomePulling
 	runnerInput.Preflight = preflight
+	if !filepath.IsAbs(runnerInput.BackupArtifactRoot) {
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("prepared backup artifact root is unavailable"))
+	}
 	if err := s.persistAndLaunch(ctx, prepared, runnerInput); err != nil {
 		return ComposeUpdateOperation{}, err
 	}
@@ -354,6 +368,7 @@ func (s *RolloutService) logTerminalFailure(ctx context.Context, operation Compo
 	if s == nil || s.appLogger == nil || (operation.Outcome != ExecutionOutcomeFailed && operation.Outcome != ExecutionOutcomeNeedsAttention) {
 		return
 	}
+	stage, detail := runnerReceiptFailureDiagnostic(receipt)
 	s.appLogger.Named("modules.update.rollout").Error(ctx, runnerFailureDiagnosticSummary,
 		logger.StringField(logger.FieldOperation, "platform_update.runner_terminal_failure"),
 		logger.StringField(logger.FieldRequestID, operation.RequestID),
@@ -361,7 +376,9 @@ func (s *RolloutService) logTerminalFailure(ctx context.Context, operation Compo
 		logger.Uint64Field("task_id", operation.TaskID),
 		logger.StringField("target_version", operation.TargetVersion),
 		logger.StringField("failure_code", receipt.FailureCode),
+		logger.StringField("failure_stage", stage),
 		logger.StringField("status", string(operation.Outcome)),
+		logger.StringField(logger.FieldError, detail),
 	)
 }
 
@@ -468,7 +485,7 @@ func composePreflight(snapshot moduleapi.DeploymentSnapshot, release Release, st
 }
 
 func backupHandoff(operationID string, requestedBy uint64, root string) moduleapi.BackupRunnerHandoffPlan {
-	artifactRoot := filepath.Join(root, ".graft-update", "backups", operationID)
+	artifactRoot := filepath.Join(root, operationID)
 	creator := requestedBy
 	return moduleapi.BackupRunnerHandoffPlan{OperationID: operationID, Purpose: "before-update", RetainUntil: time.Now().UTC().Add(30 * 24 * time.Hour), CreatedBy: &creator, ArtifactRoot: artifactRoot, ConfigSnapshotRef: filepath.Join(artifactRoot, "config.snapshot"), DatabaseDumpRef: filepath.Join(artifactRoot, "database.dump")}
 }

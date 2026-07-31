@@ -130,6 +130,14 @@
         "diagnosticTitle": "启动失败诊断（已脱敏）",
         "diagnosticCode": "失败代码",
         "diagnosticStage": "失败阶段",
+        "diagnosticStages": {
+          "backupArtifactDirectory": "创建备份产物目录",
+          "backupConfigSnapshot": "备份部署环境快照",
+          "backupDatabaseDump": "创建 PostgreSQL 转储",
+          "backupArtifactDigest": "校验备份产物摘要",
+          "runnerReceipt": "处理升级运行器回执",
+          "unknown": "升级运行器失败"
+        },
         "diagnosticUnavailable": "暂时无法读取本次启动失败的诊断详情，请使用请求 ID 查询应用日志。",
         "viewAppLogs": "查看应用日志",
         "failure": {

@@ -11,7 +11,26 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-const runnerProtocolVersion = 1
+const (
+	runnerProtocolVersion       = 2
+	runnerProtocol              = "compose-runner/v2"
+	legacyRunnerProtocolVersion = 1
+	// COMPAT(owner=TaskPlan, cleanup=no v1 Compose runner tasks remain in flight)
+	// legacyRunnerProtocol 仅为持久 Task Stage 仍期望 v1 的在途任务读取并结算回执。
+	// Task Plan 仍是 canonical authority；确认不存在 v1 Compose runner 在途任务后删除该桥接。
+	legacyRunnerProtocol = "compose-runner/v1"
+)
+
+func runnerProtocolForVersion(version int) (string, bool) {
+	switch version {
+	case legacyRunnerProtocolVersion:
+		return legacyRunnerProtocol, true
+	case runnerProtocolVersion:
+		return runnerProtocol, true
+	default:
+		return "", false
+	}
+}
 
 // ComposePreflight 是 server 在启动一次性 runner 前冻结的无秘密部署证据。
 // 它只描述官方 Compose 画像，不接受自定义覆盖层、外部数据库或未验证的镜像标签。
@@ -39,10 +58,11 @@ type ComposePreflight struct {
 // RunnerInput 是 server 写入 runner 输入目录的版本化、无秘密协议。runner 只读取该文件，
 // 不提供 HTTP API，也不得把 .env、数据库连接串或备份正文写入 receipt。
 type RunnerInput struct {
-	ProtocolVersion int              `json:"protocol_version"`
-	OperationID     string           `json:"operation_id"`
-	TaskID          uint64           `json:"task_id"`
-	Preflight       ComposePreflight `json:"preflight"`
+	ProtocolVersion    int              `json:"protocol_version"`
+	OperationID        string           `json:"operation_id"`
+	TaskID             uint64           `json:"task_id"`
+	BackupArtifactRoot string           `json:"backup_artifact_root"`
+	Preflight          ComposePreflight `json:"preflight"`
 }
 
 // RunnerReceipt 是 runner 输出到带 operation label 的容器日志的无秘密结算证据。
@@ -52,6 +72,8 @@ type RunnerReceipt struct {
 	MigrationStarted  bool                                        `json:"migration_started"`
 	Succeeded         bool                                        `json:"succeeded"`
 	FailureCode       string                                      `json:"failure_code,omitempty"`
+	FailureStage      string                                      `json:"failure_stage,omitempty"`
+	FailureDetail     string                                      `json:"failure_detail,omitempty"`
 	RecoveryCompleted bool                                        `json:"recovery_completed"`
 	BackupCompletion  *moduleapi.CompleteBackupRunnerHandoffInput `json:"backup_completion,omitempty"`
 }
@@ -221,6 +243,9 @@ func validTaggedReference(reference, officialImage string) bool {
 func ValidateRunnerInput(value RunnerInput) error {
 	if value.ProtocolVersion != runnerProtocolVersion || strings.TrimSpace(value.OperationID) == "" || value.TaskID == 0 {
 		return errors.New("runner input has an unsupported protocol or missing operation identity")
+	}
+	if !filepath.IsAbs(value.BackupArtifactRoot) || filepath.Base(filepath.Clean(value.BackupArtifactRoot)) != value.OperationID {
+		return errors.New("runner input backup artifact root must be an absolute server path")
 	}
 	return ValidateComposePreflight(value.Preflight)
 }
