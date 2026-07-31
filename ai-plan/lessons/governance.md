@@ -125,3 +125,34 @@
   - `web/.env.development`
 - Updated at:
   2026-06-07
+
+## LESSON-GOVERNANCE-RELEASE-LINT-001：Release tag checkout 不应 prune lint 基准分支
+
+- Status: active
+- Level: L1
+- Applies to:
+  - GitHub Actions release workflow 的 tag checkout
+  - 依赖 remote-tracking ref 计算 changed-file lint 基准的 CI 任务
+- Source:
+  - `v0.11.0-beta.31` 的 Backend Release Validation 失败
+- Problem:
+  `actions/checkout` 在 tag 场景会收窄 remote fetch refspec。随后使用 `git fetch --prune` 获取
+  `origin/main` 时，Git 可能把该 remote-tracking ref 视为不受当前 refspec 管理而删除，令后续 lint 基准失效。
+- Correct pattern:
+  使用不带 `--prune` 的显式完全限定 refspec，例如
+  `git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'`，并在写入 lint 基准前通过
+  `git rev-parse --verify 'refs/remotes/origin/main^{commit}'` 验证引用存在。
+- Anti-pattern:
+  - 在 tag checkout 后使用 `git fetch --prune origin main:refs/remotes/origin/main`
+  - 未验证 base ref 是否存在就将其传给 changed-file lint
+- Enforcement:
+  修改 release workflow 的 lint base 解析时，在 tag-only fetch refspec 的临时仓库中验证目标
+  remote-tracking ref 存在并可计算 merge-base。
+- Promotion:
+  - AGENTS.md: no
+  - Design doc: no
+- Related:
+  - `.github/workflows/publish.yml`
+  - `server/internal/cli/validate_backend_lint.go`
+- Updated at:
+  2026-08-01
