@@ -283,6 +283,8 @@ func assertError(message string) error { return volumeTestError(message) }
 type volumeDetailDockerClient struct {
 	countingDockerClient
 	volume               volume.Volume
+	volumes              []volume.Volume
+	usage                []volume.Volume
 	volumeDiskUsageCall  int
 	volumeDiskUsageCtx   context.Context
 	containerListOptions mobyclient.ContainerListOptions
@@ -306,13 +308,13 @@ func (c *volumeDetailDockerClient) NetworkInspect(context.Context, string, mobyc
 }
 
 func (c *volumeDetailDockerClient) VolumeList(context.Context, mobyclient.VolumeListOptions) ([]volume.Volume, error) {
-	return nil, nil
+	return c.volumes, nil
 }
 
 func (c *volumeDetailDockerClient) VolumeDiskUsage(ctx context.Context) ([]volume.Volume, error) {
 	c.volumeDiskUsageCall++
 	c.volumeDiskUsageCtx = ctx
-	return nil, nil
+	return c.usage, nil
 }
 
 func (c *volumeDetailDockerClient) VolumeInspect(context.Context, string) (volume.Volume, error) {
@@ -346,6 +348,37 @@ func TestListDockerVolumesUsesShortLivedUsageContext(t *testing.T) {
 	}
 	if client.volumeDiskUsageCtx.Err() != context.Canceled {
 		t.Fatalf("expected usage context to be canceled after the call, got %v", client.volumeDiskUsageCtx.Err())
+	}
+}
+
+func TestListDockerVolumesKeepsKnownUsageStatusWhenContainerReferencesFail(t *testing.T) {
+	t.Parallel()
+
+	client := &volumeDetailDockerClient{
+		volumes: []volume.Volume{{Name: "used"}, {Name: "unused"}},
+		usage: []volume.Volume{
+			{Name: "used", UsageData: &volume.UsageData{RefCount: 1, Size: 4096}},
+			{Name: "unused", UsageData: &volume.UsageData{RefCount: 0, Size: 1024}},
+		},
+		containerListErr: assertError("container list unavailable"),
+	}
+	runtime := &DockerRuntime{client: client}
+
+	items, err := runtime.ListDockerVolumes(context.Background())
+	if err != nil {
+		t.Fatalf("list volumes: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected two volumes, got %#v", items)
+	}
+	if items[0].RelationshipStatus != dockerResourceRelationshipStatusUsed {
+		t.Fatalf("expected used volume to retain Docker usage status, got %#v", items[0])
+	}
+	if items[1].RelationshipStatus != dockerResourceRelationshipStatusUnused {
+		t.Fatalf("expected unused volume to retain Docker usage status, got %#v", items[1])
+	}
+	if summary := summarizeDockerVolumes(items); summary.InUse != 1 || summary.Unused != 1 || summary.ReferenceUnknown != 0 {
+		t.Fatalf("unexpected volume summary %#v", summary)
 	}
 }
 
