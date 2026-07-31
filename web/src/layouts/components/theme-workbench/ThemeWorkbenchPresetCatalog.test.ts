@@ -95,7 +95,7 @@ describe('ThemeWorkbenchPresetCatalog', () => {
 
   it('includes the expanded catalog and gives Tencent Cloud distinct preview surfaces', () => {
     const wrapper = mountCatalog();
-    const tencentCard = wrapper.findAll('.preset-card')[1].element as HTMLElement;
+    const tencentCard = wrapper.get('[data-theme-preset-id="tencent-cloud"]').element as HTMLElement;
 
     expect(THEME_PRESET_DEFINITIONS).toHaveLength(20);
     expect(THEME_PRESET_DEFINITIONS).toEqual(
@@ -115,7 +115,7 @@ describe('ThemeWorkbenchPresetCatalog', () => {
     const wrapper = mountCatalog();
 
     expect(wrapper.findAll('.preset-card[aria-pressed="true"]')).toHaveLength(1);
-    await wrapper.findAll('.preset-card')[1].trigger('click');
+    await wrapper.get('[data-theme-preset-id="tencent-cloud"]').trigger('click');
 
     expect(wrapper.emitted('select')?.[0]).toEqual(['tencent-cloud']);
   });

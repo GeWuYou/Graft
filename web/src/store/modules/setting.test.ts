@@ -721,9 +721,12 @@ describe('setting store theme authority', () => {
       '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 10%, transparent)',
       '--graft-glass-bg': 'rgba(33, 37, 43, 0.72)',
       '--graft-glass-blur': '30px',
-      '--graft-glass-content-bg': 'rgba(33, 37, 43, 0.72)',
+      '--graft-glass-content-bg': 'rgba(40, 44, 52, 0.78)',
       '--graft-glass-content-blur': '24px',
     });
+    expect(store.themeResolvedTokens.dark['--graft-glass-content-bg']).not.toBe(
+      store.themeResolvedTokens.dark['--graft-glass-bg'],
+    );
   });
 
   it('persists and resets the theme workbench dock position', () => {
@@ -870,5 +873,29 @@ describe('setting store theme authority', () => {
     expect(store.layout).toBe('side');
     expect(store.isAcrylicEnabled).toBe(false);
     expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
+  });
+
+  it('prefers the default preset authority mode when resetting a personalized draft', () => {
+    const store = useSettingStore();
+    const defaultPreset = THEME_PRESET_DEFINITIONS.find((preset) => preset.id === 'one-dark-pro');
+
+    expect(defaultPreset).toBeDefined();
+    if (!defaultPreset) {
+      return;
+    }
+
+    const authorityPatch = defaultPreset.authorityPatch;
+    defaultPreset.authorityPatch = { ...authorityPatch, mode: 'light' };
+    try {
+      store.openThemeWorkbench('presets');
+      store.updateConfig({ preserveThemePersonalization: true });
+      store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+
+      store.resetThemeDraftToDefault();
+
+      expect(store.mode).toBe('light');
+    } finally {
+      defaultPreset.authorityPatch = authorityPatch;
+    }
   });
 });

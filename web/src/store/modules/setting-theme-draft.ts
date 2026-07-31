@@ -243,14 +243,14 @@ export function resetThemeWorkbenchDraftToDefault(
   store.themeDraft = preserveThemePersonalization
     ? {
         ...current,
-        mode: defaultPreset.mode ?? current.mode,
+        mode: defaultPreset.authorityPatch?.mode ?? defaultPreset.mode ?? current.mode,
         brandTheme: defaultPreset.brandTheme,
         selectedThemePresetId: defaultPreset.id,
         themeSource: 'preset',
         themeTokenOverrides: cloneThemeModeTokenState(current.themeTokenOverrides),
       }
     : createDefaultThemeAuthorityState(
-        defaultPreset.mode ?? current.mode,
+        defaultPreset.authorityPatch?.mode ?? defaultPreset.mode ?? current.mode,
         defaultPreset.brandTheme,
         defaultPreset.id,
         defaultPreset.authorityPatch,

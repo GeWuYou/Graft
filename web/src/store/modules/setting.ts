@@ -416,8 +416,7 @@ export const useSettingStore = defineStore('setting', {
       }
       resetThemeWorkbenchDraftToDefault(this, defaultPreset, this.preserveThemePersonalization, options);
       if (!this.preserveThemePersonalization) {
-        const preset = THEME_PRESET_DEFINITIONS.find((item) => item.id === DEFAULT_THEME_PRESET_ID);
-        this.updateConfig(preset?.stylePatch ?? {});
+        this.updateConfig(defaultPreset.stylePatch ?? {});
       }
     },
     async resetDefaultThemeWithFeedback() {

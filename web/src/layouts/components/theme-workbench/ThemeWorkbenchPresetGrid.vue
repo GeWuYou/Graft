@@ -5,6 +5,7 @@
       :key="preset.id"
       type="button"
       class="preset-card"
+      :data-theme-preset-id="preset.id"
       :class="{ 'preset-card--active': activePresetId === preset.id }"
       :style="thumbnailStyle(preset)"
       :aria-pressed="activePresetId === preset.id"

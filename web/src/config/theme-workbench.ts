@@ -402,7 +402,7 @@ function createDarkPalette(page: string, container: string, sidebar: string, bor
   } satisfies Partial<ThemeModeTokenState>;
 }
 
-function createAcrylicMaterial(surface: string, shadow: string) {
+function createAcrylicMaterial(surface: string, contentSurface: string, shadow: string) {
   return {
     dark: {
       '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 10%, transparent)',
@@ -410,7 +410,7 @@ function createAcrylicMaterial(surface: string, shadow: string) {
       '--graft-glass-border': 'rgba(255, 255, 255, 0.1)',
       '--graft-glass-shadow': shadow,
       '--graft-glass-blur': '30px',
-      '--graft-glass-content-bg': surface,
+      '--graft-glass-content-bg': contentSurface,
       '--graft-glass-content-border': 'rgba(255, 255, 255, 0.12)',
       '--graft-glass-content-shadow': shadow,
       '--graft-glass-content-blur': '24px',
@@ -723,7 +723,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#61AFEF',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#282C34', '#21252B', '#1E2227', '#3E4451', '#2C313A'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(33, 37, 43, 0.72)', '0 14px 34px rgba(0, 0, 0, 0.24)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(33, 37, 43, 0.72)',
+      'rgba(40, 44, 52, 0.78)',
+      '0 14px 34px rgba(0, 0, 0, 0.24)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, densityPreset: 'comfortable', shadowPreset: 'floating' },
     stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
@@ -735,7 +739,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#61AFEF',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#282C34', '#21252B', '#20242B', '#3E4451', '#2C313A'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(33, 37, 43, 0.7)', '0 12px 30px rgba(0, 0, 0, 0.22)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(33, 37, 43, 0.7)',
+      'rgba(40, 44, 52, 0.76)',
+      '0 12px 30px rgba(0, 0, 0, 0.22)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, shadowPreset: 'floating' },
     stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
@@ -747,7 +755,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#80CBC4',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#263238', '#2B3B42', '#1F2A30', '#3B5058', '#34474F'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(43, 59, 66, 0.72)', '0 14px 34px rgba(0, 0, 0, 0.26)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(43, 59, 66, 0.72)',
+      'rgba(50, 68, 75, 0.78)',
+      '0 14px 34px rgba(0, 0, 0, 0.26)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, densityPreset: 'comfortable', shadowPreset: 'floating' },
     stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
@@ -760,7 +772,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#58A6FF',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#0D1117', '#161B22', '#010409', '#30363D', '#21262D'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(22, 27, 34, 0.74)', '0 10px 28px rgba(0, 0, 0, 0.28)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(22, 27, 34, 0.74)',
+      'rgba(30, 36, 44, 0.8)',
+      '0 10px 28px rgba(0, 0, 0, 0.28)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, densityPreset: 'compact' },
     stylePatch: { ...SIDE_LAYOUT_STYLE_PATCH, isAcrylicEnabled: false, isUseTabsRouter: true },
   },
@@ -772,7 +788,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#BD93F9',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#282A36', '#343746', '#21222C', '#44475A', '#3A3D4D'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(52, 55, 70, 0.72)', '0 14px 34px rgba(20, 20, 32, 0.28)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(52, 55, 70, 0.72)',
+      'rgba(61, 64, 81, 0.78)',
+      '0 14px 34px rgba(20, 20, 32, 0.28)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, radiusPreset: 'rounded', shadowPreset: 'floating' },
     stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
@@ -784,7 +804,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#88C0D0',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#2E3440', '#3B4252', '#272C36', '#4C566A', '#434C5E'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(59, 66, 82, 0.7)', '0 12px 30px rgba(18, 24, 34, 0.24)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(59, 66, 82, 0.7)',
+      'rgba(70, 78, 96, 0.76)',
+      '0 12px 30px rgba(18, 24, 34, 0.24)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, shadowPreset: 'flat' },
     stylePatch: { ...SIDE_LAYOUT_STYLE_PATCH, isAcrylicEnabled: false },
   },
@@ -797,7 +821,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#7AA2F7',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#1A1B26', '#24283B', '#16161E', '#414868', '#292E42'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(36, 40, 59, 0.72)', '0 14px 36px rgba(0, 0, 0, 0.3)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(36, 40, 59, 0.72)',
+      'rgba(44, 49, 70, 0.78)',
+      '0 14px 36px rgba(0, 0, 0, 0.3)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, shadowPreset: 'floating' },
     stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
@@ -810,7 +838,11 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     brandTheme: '#CBA6F7',
     mode: 'dark',
     tokenOverrides: createDarkPalette('#1E1E2E', '#313244', '#181825', '#45475A', '#3B3D50'),
-    materialTokenOverrides: createAcrylicMaterial('rgba(49, 50, 68, 0.72)', '0 14px 34px rgba(17, 17, 27, 0.3)'),
+    materialTokenOverrides: createAcrylicMaterial(
+      'rgba(49, 50, 68, 0.72)',
+      'rgba(59, 60, 81, 0.78)',
+      '0 14px 34px rgba(17, 17, 27, 0.3)',
+    ),
     authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, radiusPreset: 'rounded', shadowPreset: 'floating' },
     stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
