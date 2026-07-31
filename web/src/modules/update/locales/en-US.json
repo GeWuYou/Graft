@@ -206,10 +206,13 @@
         },
         "steps": {
           "planning": "Prepare",
+          "backingUp": "Back up",
           "pulling": "Pull release images",
+          "migrating": "Run migrations",
           "recreating": "Recreate services",
           "verifying": "Verify services"
         },
+        "currentStage": "Current stage",
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",
         "viewAppLogs": "View application logs",
         "close": "Close"

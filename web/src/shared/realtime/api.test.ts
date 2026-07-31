@@ -21,6 +21,7 @@ describe('shared realtime api', () => {
       topic: 'container.stats:container-1',
       ticket: 'opaque-ticket',
       websocket_url: '/ws?topic=container.stats%3Acontainer-1&ticket=opaque-ticket',
+      sse_url: '/sse?topic=container.stats%3Acontainer-1&ticket=opaque-ticket',
       expires_at: '2026-06-24T08:00:30Z',
     } as never);
 

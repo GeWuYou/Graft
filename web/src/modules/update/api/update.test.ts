@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { openRealtimeTopicEventStream } from '@/shared/realtime/sse-client';
 import { request } from '@/utils/request';
 
 import { UPDATE_API_PATH } from '../contract/paths';
+import { buildUpdateOperationTopicName } from '../contract/realtime';
 import {
   checkForUpdates,
   createUpdateOperation,
@@ -10,6 +12,7 @@ import {
   getUpdateOperationDiagnostic,
   getUpdateOperations,
   getUpdateStatus,
+  subscribeToUpdateOperation,
 } from './update';
 
 vi.mock('@/utils/request', () => ({
@@ -17,6 +20,9 @@ vi.mock('@/utils/request', () => ({
     get: vi.fn(),
     post: vi.fn(),
   },
+}));
+vi.mock('@/shared/realtime/sse-client', () => ({
+  openRealtimeTopicEventStream: vi.fn(() => ({ close: vi.fn(), reconnect: vi.fn() })),
 }));
 
 describe('platform update api', () => {
@@ -72,5 +78,19 @@ describe('platform update api', () => {
     expect(requestGet).toHaveBeenNthCalledWith(2, {
       url: '/api/platform/updates/operations/update-1/diagnostic',
     });
+  });
+
+  it('subscribes through the canonical realtime topic rather than an operation polling endpoint', () => {
+    const onOperation = vi.fn();
+
+    subscribeToUpdateOperation('update-1', { onOperation });
+
+    expect(openRealtimeTopicEventStream).toHaveBeenCalledWith(
+      expect.objectContaining({ topic: 'platform.update.operations.update-1', onMessage: onOperation }),
+    );
+  });
+
+  it('builds the operation topic from the module realtime contract', () => {
+    expect(buildUpdateOperationTopicName('update-1')).toBe('platform.update.operations.update-1');
   });
 });

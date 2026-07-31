@@ -159,7 +159,7 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	if err != nil {
 		t.Fatalf("start rollout: %v", err)
 	}
-	if operation.Outcome != ExecutionOutcomePulling || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
+	if operation.Outcome != ExecutionOutcomePlanning || operation.TaskID != 77 || launcher.input.Preflight.ComposeRoot != root {
 		t.Fatalf("unexpected rollout operation: %#v / %#v", operation, launcher.input)
 	}
 	if launcher.input.Preflight.ComposeRoot != root || launcher.input.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
@@ -400,7 +400,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -440,6 +440,17 @@ func TestSQLOperationStoreRejectsUnsupportedDeploymentStrategy(t *testing.T) {
 	})
 	if err == nil || err.Error() != "update operation is invalid" {
 		t.Fatalf("expected invalid deployment strategy to be rejected, got %v", err)
+	}
+}
+
+func TestMemoryOperationStoreAdvanceIsMonotonic(t *testing.T) {
+	store := &memoryOperationStore{items: map[string]ComposeUpdateOperation{"update-progress-1": {OperationID: "update-progress-1", Outcome: ExecutionOutcomePlanning}}}
+	advanced, changed, err := store.Advance(t.Context(), "update-progress-1", ExecutionOutcomeMigrating)
+	if err != nil || !changed || advanced.Outcome != ExecutionOutcomeMigrating || advanced.UpdatedAt.IsZero() {
+		t.Fatalf("advance = %#v, %t, %v", advanced, changed, err)
+	}
+	if _, changed, err := store.Advance(t.Context(), "update-progress-1", ExecutionOutcomePulling); err != nil || changed {
+		t.Fatalf("backward advance changed=%t err=%v", changed, err)
 	}
 }
 
@@ -534,6 +545,20 @@ func (s *memoryOperationStore) Get(_ context.Context, id string) (ComposeUpdateO
 }
 func (s *memoryOperationStore) List(context.Context, int) ([]ComposeUpdateOperation, error) {
 	return nil, nil
+}
+func (s *memoryOperationStore) Advance(_ context.Context, id string, outcome ExecutionOutcome) (ComposeUpdateOperation, bool, error) {
+	item, ok := s.items[id]
+	if !ok {
+		return ComposeUpdateOperation{}, false, nil
+	}
+	for _, allowed := range progressPredecessors(outcome) {
+		if item.Outcome == allowed {
+			item.Outcome, item.UpdatedAt = outcome, time.Now().UTC()
+			s.items[id] = item
+			return item, true, nil
+		}
+	}
+	return ComposeUpdateOperation{}, false, nil
 }
 func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOperation) error {
 	s.items[item.OperationID] = item

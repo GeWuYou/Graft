@@ -42,6 +42,19 @@ func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(
 	}
 }
 
+func TestReadRunnerProgressKeepsOnlyBoundedLatestMarker(t *testing.T) {
+	client := &receiptDockerClient{items: []containertypes.Summary{{ID: "runner", Labels: runnerLabels("operation-1")}}, logs: map[string][]byte{
+		"runner": multiplexRunnerLines("ordinary\n" + RunnerProgressLogMarker + "BACKING_UP\n" + RunnerProgressLogMarker + "PULLING\n" + RunnerProgressLogMarker + "unsafe detail\n"),
+	}}
+	progress, err := (&dockerComposeRunnerLauncher{client: client}).ReadRunnerProgress(context.Background())
+	if err != nil {
+		t.Fatalf("read runner progress: %v", err)
+	}
+	if len(progress) != 1 || progress[0] != (RunnerOperationProgress{OperationID: "operation-1", Progress: RunnerProgressPulling}) {
+		t.Fatalf("progress = %#v", progress)
+	}
+}
+
 func runnerLabels(operationID string) map[string]string {
 	return runnerLabelsForProtocol(operationID, runnerProtocol)
 }
@@ -60,6 +73,15 @@ func multiplexRunnerLog(t *testing.T, marker string, receipt RunnerReceipt) []by
 		}
 		line = marker + base64.RawStdEncoding.EncodeToString(contents) + "\n"
 	}
+	payload := []byte(line)
+	header := make([]byte, 8)
+	header[0] = 1
+	// #nosec G115 -- test payloads are bounded by the in-memory fixture.
+	binary.BigEndian.PutUint32(header[4:], uint32(len(payload)))
+	return append(header, payload...)
+}
+
+func multiplexRunnerLines(line string) []byte {
 	payload := []byte(line)
 	header := make([]byte, 8)
 	header[0] = 1

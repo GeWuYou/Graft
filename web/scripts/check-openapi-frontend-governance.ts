@@ -6,9 +6,10 @@ const SRC_DIR = join(ROOT_DIR.pathname, 'src');
 
 const ALLOWED_RUNTIME_FILES = new Set([
   'src/utils/request.ts',
-  'src/contracts/api/envelope.ts',
-  'src/types/axios.d.ts',
+  // SSE 读取服务端签发的一次性 URL，不能经 Axios 缓冲；该客户端不承载普通 API 请求。
+  'src/shared/realtime/sse-client.ts',
 ]);
+const ALLOWED_DTO_FILES = new Set(['src/contracts/api/envelope.ts', 'src/types/axios.d.ts']);
 
 const DTO_NAME_PATTERN = /\b(?:export\s+)?(?:interface|type)\s+([A-Za-z0-9_]*(?:Request|Response|DTO|Payload))\b/g;
 const GENERATED_IMPORT_PATTERN =
@@ -59,7 +60,7 @@ function isPageOrStore(relativePath: string) {
 }
 
 function isPotentialDtoFile(relativePath: string) {
-  if (ALLOWED_RUNTIME_FILES.has(relativePath)) {
+  if (ALLOWED_RUNTIME_FILES.has(relativePath) || ALLOWED_DTO_FILES.has(relativePath)) {
     return false;
   }
 
@@ -123,7 +124,7 @@ function collectFindings() {
       }
     }
 
-    if (rel !== 'src/utils/request.ts') {
+    if (!ALLOWED_RUNTIME_FILES.has(rel)) {
       if (FETCH_PATTERN.test(source)) {
         runtimeBypasses.push({
           file: rel,

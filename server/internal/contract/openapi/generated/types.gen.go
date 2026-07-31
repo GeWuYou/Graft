@@ -11535,13 +11535,13 @@ type PlatformUpdateComposeRootSource string
 
 // PlatformUpdateFailureDiagnostic Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.
 type PlatformUpdateFailureDiagnostic struct {
-	// Detail Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted.
+	// Detail Controlled operator-facing detail. Terminal runner diagnostics are synthesized from bounded receipt facts and never include raw stderr, credentials, tokens, cookies, DSN passwords, or deployment environment contents.
 	Detail string `json:"detail"`
 
 	// FailureCode Stable safe failure code returned when a confirmed platform update cannot start.
 	FailureCode PlatformUpdateRolloutFailureCode `json:"failure_code"`
 
-	// FailureStage Server-side update-start stage that failed.
+	// FailureStage Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt.
 	FailureStage string `json:"failure_stage"`
 
 	// OccurredAt UTC time at which the update start failed.
@@ -11795,6 +11795,9 @@ type RealtimeSubscriptionRequest struct {
 type RealtimeSubscriptionResponse struct {
 	// ExpiresAt Absolute UTC expiration time for the one-time realtime ticket.
 	ExpiresAt time.Time `json:"expires_at"`
+
+	// SseUrl Relative Server-Sent Events URL containing the issued ticket and topic for one-way realtime streaming.
+	SseUrl string `json:"sse_url"`
 
 	// Ticket Opaque single-use realtime ticket.
 	Ticket string `json:"ticket"`
@@ -15988,9 +15991,18 @@ type PostMcpStreamableParams struct {
 	MCPProtocolVersion *string `json:"MCP-Protocol-Version,omitempty"`
 }
 
+// GetRealtimeSSEParams defines parameters for GetRealtimeSSE.
+type GetRealtimeSSEParams struct {
+	// Ticket Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before opening the requested unified realtime gateway transport.
+	Ticket RealtimeTicketQuery `form:"ticket" json:"ticket"`
+
+	// Topic Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`.
+	Topic RealtimeTopicQuery `form:"topic" json:"topic"`
+}
+
 // GetRealtimeWebSocketParams defines parameters for GetRealtimeWebSocket.
 type GetRealtimeWebSocketParams struct {
-	// Ticket Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.
+	// Ticket Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before opening the requested unified realtime gateway transport.
 	Ticket RealtimeTicketQuery `form:"ticket" json:"ticket"`
 
 	// Topic Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`.

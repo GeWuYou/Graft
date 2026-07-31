@@ -3,7 +3,7 @@ in: query
 required: true
 description: >
   Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The
-  server must validate and consume this ticket before upgrading the connection to WebSocket.
+  server must validate and consume this ticket before opening the requested unified realtime gateway transport.
 schema:
   type: string
   minLength: 1

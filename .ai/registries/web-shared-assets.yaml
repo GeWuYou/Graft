@@ -1,6 +1,33 @@
 schema_version: 1
 updated_at: "2026-07-13"
 assets:
+  - name: "realtime-topic-clients"
+    type: "frontend-utility"
+    path: "web/src/shared/realtime"
+    owner: "web/shared/realtime"
+    purpose: "Generic topic ticket issuance plus WebSocket and one-way SSE clients; SSE reads only a server-issued single-use URL because ordinary request adapters buffer streaming responses."
+    use_when:
+      - "A module needs an authorized canonical realtime topic stream and does not own the transport lifecycle."
+      - "A one-way status stream benefits from SSE reconnection instead of periodic HTTP polling."
+      - "A page needs ticket issuance plus WebSocket reconnection behavior without owning transport details."
+    do_not_use_when:
+      - "A module needs bidirectional commands, which remain a WebSocket concern."
+      - "A stream URL was not issued through the canonical authenticated realtime subscription endpoint."
+      - "Building module-private shell or terminal session transports with their own dedicated contracts."
+      - "Using HTTP polling as the authority for realtime resource snapshots."
+    examples:
+      - "web/src/modules/update/api/update.ts"
+      - "web/src/shared/realtime/sse-client.ts"
+      - "web/src/modules/container/pages/list/index.vue"
+      - "web/src/modules/container/pages/detail/index.vue"
+      - "web/src/shared/realtime/ws-client.test.ts"
+    related_assets:
+      - "request-client"
+      - "terminal-components"
+      - "openapi-contracts"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "responsive-sidebar"
     type: "frontend-component"
     path: "web/src/shared/components/responsive/ResponsiveSidebar.vue"
@@ -417,28 +444,6 @@ assets:
       - "web/src/app/bootstrap/route-guards.ts"
     related_assets:
       - "frontend-i18n-governance"
-      - "openapi-contracts"
-    validation_commands:
-      - "cd web && bun run check"
-
-  - name: "realtime-topic-client"
-    type: "frontend-utility"
-    path: "web/src/shared/realtime"
-    owner: "web/shared"
-    purpose: "Ticket-first unified realtime topic subscription helper for opening canonical `/ws?topic=...&ticket=...` sockets without module-private WebSocket URL logic."
-    use_when:
-      - "Consuming canonical realtime topics from module pages or shared interactive surfaces."
-      - "A page needs unified ticket issue plus WebSocket reconnection behavior without owning transport details."
-    do_not_use_when:
-      - "Building module-private shell or terminal session transports with their own dedicated contracts."
-      - "Using HTTP polling as the authority for realtime resource snapshots."
-    examples:
-      - "web/src/modules/container/pages/list/index.vue"
-      - "web/src/modules/container/pages/detail/index.vue"
-      - "web/src/shared/realtime/ws-client.test.ts"
-    related_assets:
-      - "request-client"
-      - "terminal-components"
       - "openapi-contracts"
     validation_commands:
       - "cd web && bun run check"

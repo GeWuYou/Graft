@@ -19,15 +19,15 @@ const initialTopicIssuerCapacity = 4
 
 var (
 	// ErrTopicRequired 表示缺少实时主题。
-	ErrTopicRequired   = errors.New("realtime topic required")
+	ErrTopicRequired = errors.New("realtime topic required")
 	// ErrTopicNotFound 表示没有签发器拥有请求的主题。
-	ErrTopicNotFound   = errors.New("realtime topic not found")
+	ErrTopicNotFound = errors.New("realtime topic not found")
 	// ErrTopicForbidden 表示调用方无权订阅请求的主题。
-	ErrTopicForbidden  = errors.New("realtime topic forbidden")
+	ErrTopicForbidden = errors.New("realtime topic forbidden")
 	// ErrTopicConflict 表示准备主题订阅时发生暂时性冲突。
-	ErrTopicConflict   = errors.New("realtime topic unavailable")
+	ErrTopicConflict = errors.New("realtime topic unavailable")
 	// ErrIssuerRequired 表示缺少主题签发器依赖。
-	ErrIssuerRequired  = errors.New("realtime subscription issuer is required")
+	ErrIssuerRequired = errors.New("realtime subscription issuer is required")
 	// ErrDuplicateIssuer 表示同一主题前缀被重复注册。
 	ErrDuplicateIssuer = errors.New("realtime subscription issuer already registered")
 )
@@ -40,15 +40,16 @@ type SubscriptionRequest struct {
 	UserAgent   string
 }
 
-// SubscriptionResponse 返回实时主题的 WebSocket 引导数据。
+// SubscriptionResponse 返回实时主题的连接引导数据。
 type SubscriptionResponse struct {
 	Topic        string    `json:"topic"`
 	Ticket       string    `json:"ticket"`
 	WebSocketURL string    `json:"websocket_url"`
+	SSEURL       string    `json:"sse_url"`
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
-// SubscriptionIssuer 为一个受限主题族签发 WebSocket 引导数据。
+// SubscriptionIssuer 为一个受限主题族签发统一实时连接引导数据。
 type SubscriptionIssuer interface {
 	IssueSubscription(ctx context.Context, request SubscriptionRequest) (SubscriptionResponse, error)
 }
@@ -127,7 +128,7 @@ func (r *topicIssuerRegistry) Resolve(topic string) (SubscriptionIssuer, bool) {
 	return matched, matched != nil
 }
 
-// TicketIssuer 将受限 WebSocket 票据签发委托给实时认证服务。
+// TicketIssuer 将受限实时主题票据签发委托给实时认证服务。
 type TicketIssuer struct {
 	Tickets realtimeauth.Service
 }
@@ -166,6 +167,14 @@ func BuildTopicWebSocketURL(topic string, ticket string) string {
 	values.Set("topic", topic)
 	values.Set("ticket", ticket)
 	return "/ws?" + values.Encode()
+}
+
+// BuildTopicSSEURL 生成指定 topic 与 ticket 对应的标准 SSE 地址。
+func BuildTopicSSEURL(topic string, ticket string) string {
+	values := url.Values{}
+	values.Set("topic", topic)
+	values.Set("ticket", ticket)
+	return "/sse?" + values.Encode()
 }
 
 // BuildSubscriptionRequest 构建实时订阅请求并填充规范化的上下文信息。

@@ -12,6 +12,7 @@ export type RealtimeSubscriptionResponse = {
   topic: string;
   ticket: string;
   websocket_url: string;
+  sse_url: string;
   expires_at: string;
 };
 

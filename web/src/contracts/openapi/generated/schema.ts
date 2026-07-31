@@ -2137,7 +2137,7 @@ export interface paths {
     put?: never;
     /**
      * Issue realtime subscription ticket
-     * @description Issues a short-lived single-use realtime subscription ticket for one canonical topic after normal HTTP authentication, topic-level permission checks, and topic/resource scope validation succeed. The returned ticket must be consumed by the unified WebSocket gateway before it expires.
+     * @description Issues a short-lived single-use realtime subscription ticket for one canonical topic after normal HTTP authentication, topic-level permission checks, and topic/resource scope validation succeed. The returned ticket can be consumed once by either unified realtime gateway URL before it expires.
      */
     post: operations['postRealtimeSubscription'];
     delete?: never;
@@ -2158,6 +2158,26 @@ export interface paths {
      * @description Upgrades the request to the unified realtime WebSocket gateway only after the server validates and atomically consumes the single-use realtime ticket, confirms the ticket topic binding matches the requested topic, rechecks topic authorization, and validates the request Origin against the configured WebSocket allowlist. This operation is documented for contract governance; the successful handshake upgrades the connection instead of returning a JSON body.
      */
     get: operations['getRealtimeWebSocket'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/sse': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Open unified realtime Server-Sent Events stream
+     * @description Opens a one-way Server-Sent Events stream for one canonical realtime topic after the server validates and atomically consumes the single-use realtime ticket, confirms the ticket topic binding matches the requested topic, and validates the request Origin against the configured realtime allowlist. The stream emits `message` events whose data is the shared realtime event envelope. This operation is documented for contract governance; successful requests keep the HTTP response open instead of returning a JSON body.
+     */
+    get: operations['getRealtimeSSE'];
     put?: never;
     post?: never;
     delete?: never;
@@ -7013,6 +7033,8 @@ export interface components {
       ticket: string;
       /** @description Relative WebSocket URL containing the issued ticket and topic for immediate upgrade. */
       websocket_url: string;
+      /** @description Relative Server-Sent Events URL containing the issued ticket and topic for one-way realtime streaming. */
+      sse_url: string;
       /**
        * Format: date-time
        * @description Absolute UTC expiration time for the one-time realtime ticket.
@@ -9309,7 +9331,7 @@ export interface components {
     'container-logs-stderr': boolean;
     /** @description Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket. */
     'container-shell-ticket-query': string;
-    /** @description Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket. */
+    /** @description Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before opening the requested unified realtime gateway transport. */
     'realtime-ticket-query': string;
     /** @description Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`. */
     'realtime-topic-query': string;
@@ -15544,7 +15566,7 @@ export interface operations {
   getRealtimeWebSocket: {
     parameters: {
       query: {
-        /** @description Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket. */
+        /** @description Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before opening the requested unified realtime gateway transport. */
         ticket: components['parameters']['realtime-ticket-query'];
         /** @description Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`. */
         topic: components['parameters']['realtime-topic-query'];
@@ -15573,6 +15595,66 @@ export interface operations {
         };
       };
       401: components['responses']['unauthorized'];
+      /** @description Ticket scope mismatch, topic permission denied, or Origin denied. */
+      403: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      /** @description Ticket already used or expired, or the topic is not currently available. */
+      409: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRealtimeSSE: {
+    parameters: {
+      query: {
+        /** @description Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before opening the requested unified realtime gateway transport. */
+        ticket: components['parameters']['realtime-ticket-query'];
+        /** @description Canonical realtime topic to subscribe after the server validates the ticket. Topics are authority-owned strings such as `container.stats:<id>`, `container.logs:<id>`, `container.events:<id>`, `audit.events`, and `system.events`. */
+        topic: components['parameters']['realtime-topic-query'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SSE stream accepted after ticket validation and consumption. */
+      200: {
+        headers: {
+          /** @description Disables intermediary caching and response transformation for the event stream. */
+          'Cache-Control'?: string;
+          /** @description Disables Nginx response buffering for the event stream. */
+          'X-Accel-Buffering'?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          'text/event-stream': string;
+        };
+      };
+      /** @description Missing or malformed realtime ticket or topic. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       /** @description Ticket scope mismatch, topic permission denied, or Origin denied. */
       403: {
         headers: {

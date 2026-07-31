@@ -106,7 +106,9 @@ DeploymentContext {
 
 ## Update Lifecycle
 
-更新目录的候选状态是 `AVAILABLE`；持久 UpdateOperation 的标准生命周期为 `PLANNING -> BACKING_UP -> PULLING -> MIGRATING -> RECREATING -> VERIFYING -> SUCCESS`，任一阶段可到 `FAILED`。runner 交接后由 receipt 结算最终阶段；迁移后失败固定为 `NEEDS_ATTENTION`，迁移前完成配置和镜像恢复则为 `RECOVERED`。不能把 forward-only schema migration 伪装成自动数据库 rollback。
+更新目录的候选状态是 `AVAILABLE`；持久 UpdateOperation 的标准生命周期为 `PLANNING -> BACKING_UP -> PULLING -> MIGRATING -> RECREATING -> VERIFYING -> SUCCESS`，任一阶段可到 `FAILED`。runner 在每个执行阶段开始时写入无秘密 marker，server 将单调阶段持久化为 operation 快照；runner 交接后由 receipt 结算最终阶段。迁移后失败固定为 `NEEDS_ATTENTION`，迁移前完成配置和镜像恢复则为 `RECOVERED`。不能把 forward-only schema migration 伪装成自动数据库 rollback。
+
+`platform.update.operations.<operationID>` 是 Update 进度的 canonical realtime topic。Update 只发布已授权读取的 `PlatformUpdateOperation` 快照；它不单独维护 SSE 或 WebSocket endpoint。`server/internal/realtime` 统一签发受 topic 和调用者绑定的一次性 ticket；同一 ticket 可由 WebSocket 或 SSE gateway 任一方单次消费。升级重建中断连接后，客户端必须重新申请 ticket 并订阅；新 server 的首个快照或 terminal receipt 是恢复权威，不依赖浏览器定时轮询。
 
 所有阶段写入 Task Runtime、审计事件、不可变 target manifest digest、backup reference、migration 和 health receipt。权限分为 `platform-update.read`、`platform-update.check` 和 `platform-update.manage`；Phase 1 不暴露一个看似可执行但没有执行能力的 `execute` 权限。
 

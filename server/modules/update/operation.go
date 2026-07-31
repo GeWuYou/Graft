@@ -33,6 +33,7 @@ type ComposeUpdateOperation struct {
 	RecoveryCompleted          bool               `json:"recovery_completed"`
 	CreatedAt                  time.Time          `json:"created_at"`
 	StartedAt                  time.Time          `json:"started_at"`
+	UpdatedAt                  time.Time          `json:"updated_at"`
 	FinishedAt                 *time.Time         `json:"finished_at,omitempty"`
 }
 

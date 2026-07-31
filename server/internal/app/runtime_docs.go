@@ -63,19 +63,23 @@ func (r *Runtime) registerRealtimeGatewayRoute(engine *gin.Engine) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("resolve realtime websocket gateway ticket service: %w", err)
+		return fmt.Errorf("resolve realtime gateway ticket service: %w", err)
 	}
 	if ticketService == nil {
 		return nil
 	}
 
-	if err := realtime.RegisterWebSocketGateway(engine, realtime.GatewayRegistration{
+	registration := realtime.GatewayRegistration{
 		Hub:                   r.realtimeHub,
 		I18n:                  r.i18n,
 		Tickets:               ticketService,
 		WebSocketAllowOrigins: append([]string(nil), r.config.HTTPX.WebSocketAllowedOrigins...),
-	}); err != nil {
+	}
+	if err := realtime.RegisterWebSocketGateway(engine, registration); err != nil {
 		return fmt.Errorf("register realtime websocket gateway: %w", err)
+	}
+	if err := realtime.RegisterSSEGateway(engine, registration); err != nil {
+		return fmt.Errorf("register realtime SSE gateway: %w", err)
 	}
 	return nil
 }

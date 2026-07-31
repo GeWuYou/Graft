@@ -173,10 +173,11 @@ CI 适合做：
 
 规则：
 
-* 普通订阅类实时能力必须先经过 HTTP 票据签发接口，再进入统一 WebSocket gateway
-* WebSocket gateway 的 canonical authority 是统一 `/ws` 路径，而不是各模块长期各自维护一组订阅型 WS path
+* 普通订阅类实时能力必须先经过 HTTP 票据签发接口，再进入统一 realtime gateway
+* realtime gateway 的 canonical authority 是统一 `/ws` WebSocket 路径和统一 SSE 路径，而不是各模块长期各自维护订阅型连接入口
 * topic、ticket、权限、resource scope 的语义必须先落 OpenAPI source，再同步到 runtime 和 `web`
-* shell 这类双向交互终端能力可以保留独立专用通道，但普通 topic 订阅不再新增模块私有 WS 路径
+* WebSocket 与 SSE 必须复用同一 topic issuer、授权、一次性 ticket、资源范围校验和断开清理；SSE 仅承载服务端单向事件，WebSocket 继续承载双向会话
+* shell 这类双向交互终端能力可以保留独立专用通道，但普通 topic 订阅不再新增模块私有 WS 或 SSE 路径
 
 ## 5. 兼容与废弃治理
 

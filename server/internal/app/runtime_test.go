@@ -1668,7 +1668,7 @@ func TestRegisterCoreRoutesReturnsRealtimeTicketResolutionError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected realtime ticket resolution error")
 	}
-	if !strings.Contains(err.Error(), "resolve realtime websocket gateway ticket service") {
+	if !strings.Contains(err.Error(), "resolve realtime gateway ticket service") {
 		t.Fatalf("expected realtime ticket resolution wrapper, got %v", err)
 	}
 	if !errors.Is(err, resolveErr) {

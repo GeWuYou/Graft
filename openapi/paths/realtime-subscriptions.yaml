@@ -4,8 +4,8 @@ post:
   operationId: postRealtimeSubscription
   description: >
     Issues a short-lived single-use realtime subscription ticket for one canonical topic after normal HTTP
-    authentication, topic-level permission checks, and topic/resource scope validation succeed. The returned ticket must
-    be consumed by the unified WebSocket gateway before it expires.
+    authentication, topic-level permission checks, and topic/resource scope validation succeed. The returned ticket can
+    be consumed once by either unified realtime gateway URL before it expires.
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml

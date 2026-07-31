@@ -16,6 +16,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/realtime"
 )
 
 // RolloutService 只编排人工确认的 Compose 更新；它保存 Update operation，Task 和 Backup 仍是外部能力。
@@ -30,6 +31,7 @@ type RolloutService struct {
 	auditPublisher     event.Publisher
 	logger             *zap.Logger
 	appLogger          logger.AppLogger
+	realtime           realtime.Publisher
 	backupArtifactRoot string
 	receiptPollMu      sync.Mutex
 	receiptPollCancel  context.CancelFunc
@@ -133,7 +135,7 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 	if err != nil {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "handoff", operation.OperationID, err)
 	}
-	prepared.RequestedBy, prepared.Outcome = input.RequestedBy, ExecutionOutcomePulling
+	prepared.RequestedBy, prepared.Outcome = input.RequestedBy, ExecutionOutcomePlanning
 	runnerInput.Preflight = preflight
 	if !filepath.IsAbs(runnerInput.BackupArtifactRoot) {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("prepared backup artifact root is unavailable"))
@@ -310,6 +312,7 @@ func (s *RolloutService) runReceiptPolling(ctx context.Context, polling receiptP
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			s.collectRunnerProgress(ctx)
 			if receipts, err := polling.reader.ReadRunnerReceipts(ctx); err == nil {
 				for _, receipt := range receipts {
 					_, _ = s.settleReceiptAndCleanup(ctx, receipt)
@@ -334,6 +337,7 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w", err))
 	}
 	s.publishAudit(ctx, operation, true, "")
+	s.publishStoredOperation(ctx, operation)
 	return nil
 }
 
@@ -358,6 +362,10 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 		s.publishAudit(ctx, settled, false, "operation_settlement_failed")
 		return ComposeUpdateOperation{}, err
 	}
+	if persisted, getErr := s.operations.Get(ctx, settled.OperationID); getErr == nil {
+		settled = persisted
+	}
+	s.publishOperation(settled)
 	s.persistTerminalFailureDiagnostic(ctx, settled, receipt)
 	s.logTerminalFailure(ctx, settled, receipt)
 	s.publishAudit(ctx, settled, settled.Outcome == ExecutionOutcomeSuccess, settled.FailureCode)
@@ -449,6 +457,7 @@ func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 	if s == nil || s.discovery == nil {
 		return nil
 	}
+	s.collectRunnerProgress(ctx)
 	if reader, ok := s.launcher.(ComposeRunnerReceiptReader); ok {
 		if receipts, err := reader.ReadRunnerReceipts(ctx); err == nil {
 			for _, receipt := range receipts {
@@ -457,6 +466,58 @@ func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// SetRealtimePublisher 注入 core realtime topic publisher；Update 只发布已持久化的操作快照。
+func (s *RolloutService) SetRealtimePublisher(publisher realtime.Publisher) {
+	if s != nil {
+		s.realtime = publisher
+	}
+}
+
+func (s *RolloutService) collectRunnerProgress(ctx context.Context) {
+	reader, ok := s.launcher.(ComposeRunnerProgressReader)
+	if !ok {
+		return
+	}
+	operations, ok := s.operations.(OperationProgressStore)
+	if !ok {
+		return
+	}
+	progresses, err := reader.ReadRunnerProgress(ctx)
+	if err != nil {
+		return
+	}
+	for _, progress := range progresses {
+		outcome, valid := outcomeForRunnerProgress(progress.Progress)
+		if !valid {
+			continue
+		}
+		item, advanced, err := operations.Advance(ctx, progress.OperationID, outcome)
+		if err == nil && advanced {
+			s.publishOperation(item)
+		}
+	}
+}
+
+func (s *RolloutService) publishOperation(operation ComposeUpdateOperation) {
+	if s == nil || s.realtime == nil || !runnerOperationID.MatchString(operation.OperationID) {
+		return
+	}
+	s.realtime.Publish(updateOperationTopic(operation.OperationID), operation)
+}
+
+func (s *RolloutService) publishStoredOperation(ctx context.Context, operation ComposeUpdateOperation) {
+	if s == nil || s.operations == nil {
+		return
+	}
+	if persisted, err := s.operations.Get(ctx, operation.OperationID); err == nil {
+		s.publishOperation(persisted)
+	}
+}
+
+func updateOperationTopic(operationID string) string {
+	return "platform.update.operations." + operationID
 }
 
 func (s *RolloutService) settleReceiptAndCleanup(ctx context.Context, receipt RunnerReceipt) (ComposeUpdateOperation, error) {

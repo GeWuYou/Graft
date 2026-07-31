@@ -1,4 +1,4 @@
-// Package realtime 提供统一主题订阅所需的受限 HTTP 和 WebSocket 接入面。
+// Package realtime 提供统一主题订阅所需的受限 HTTP、SSE 和 WebSocket 接入面。
 package realtime
 
 import (
@@ -62,6 +62,7 @@ func RegisterSubscriptionRoutes(router gin.IRouter, registration HTTPRegistratio
 			writeSubscriptionError(ctx, registration, err, topic)
 			return
 		}
+		response.SSEURL = BuildTopicSSEURL(response.Topic, response.Ticket)
 
 		httpx.WriteSuccess(ctx, http.StatusOK, response)
 	})

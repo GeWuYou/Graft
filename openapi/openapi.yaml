@@ -288,6 +288,8 @@ paths:
     $ref: ./paths/realtime-subscriptions.yaml
   /ws:
     $ref: ./paths/realtime-ws.yaml
+  /sse:
+    $ref: ./paths/realtime-sse.yaml
   /api/ops/containers:
     $ref: ./paths/ops-containers.collection.yaml
   /api/ops/containers/dashboard-summary:

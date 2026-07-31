@@ -1,0 +1,59 @@
+get:
+  tags: [container]
+  summary: Open unified realtime Server-Sent Events stream
+  operationId: getRealtimeSSE
+  description: >
+    Opens a one-way Server-Sent Events stream for one canonical realtime topic after the server validates and
+    atomically consumes the single-use realtime ticket, confirms the ticket topic binding matches the requested
+    topic, and validates the request Origin against the configured realtime allowlist. The stream emits `message`
+    events whose data is the shared realtime event envelope. This operation is documented for contract governance;
+    successful requests keep the HTTP response open instead of returning a JSON body.
+  parameters:
+    - $ref: ../components/parameters/realtime-ticket-query.yaml
+    - $ref: ../components/parameters/realtime-topic-query.yaml
+  responses:
+    '200':
+      description: SSE stream accepted after ticket validation and consumption.
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+          description: Disables intermediary caching and response transformation for the event stream.
+        X-Accel-Buffering:
+          schema:
+            type: string
+          description: Disables Nginx response buffering for the event stream.
+      content:
+        text/event-stream:
+          schema:
+            type: string
+            description: "Server-Sent Events stream containing event: message and a JSON realtime event envelope."
+    '400':
+      description: Missing or malformed realtime ticket or topic.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '403':
+      description: Ticket scope mismatch, topic permission denied, or Origin denied.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '409':
+      description: Ticket already used or expired, or the topic is not currently available.
+      headers:
+        X-Request-Id:
+          $ref: ../components/headers/request-id.yaml
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/error-response.yaml
+    '500':
+      $ref: ../components/responses/internal-server-error.yaml
