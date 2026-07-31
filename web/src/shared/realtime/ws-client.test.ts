@@ -190,8 +190,14 @@ describe('openRealtimeTopicSocket', () => {
 
     await vi.runAllTicks();
     expect(issueTicket).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances).toHaveLength(0);
 
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(999);
+    await vi.runAllTicks();
+    expect(issueTicket).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1);
     await vi.runAllTicks();
 
     expect(issueTicket).toHaveBeenCalledTimes(2);
