@@ -40,14 +40,19 @@ function compareReleaseVersions(left: string, right: string) {
   if (!leftParts || !rightParts) return 0;
 
   for (let index = 0; index < 3; index += 1) {
-    const difference = leftParts[index] - rightParts[index];
+    const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
     if (difference !== 0) return difference;
   }
-  return leftParts[3] - rightParts[3];
+
+  const leftBeta = leftParts[3];
+  const rightBeta = rightParts[3];
+  if (leftBeta === null) return rightBeta === null ? 0 : 1;
+  if (rightBeta === null) return -1;
+  return leftBeta - rightBeta;
 }
 
-function parseReleaseVersion(version: string): [number, number, number, number] | null {
+function parseReleaseVersion(version: string): [number, number, number, number | null] | null {
   const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/.exec(version.trim());
   if (!match) return null;
-  return [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4] ?? 0)];
+  return [Number(match[1]), Number(match[2]), Number(match[3]), match[4] ? Number(match[4]) : null];
 }

@@ -62,6 +62,24 @@ func TestEvaluateReadinessRecognizesPinnedBetaCandidate(t *testing.T) {
 	}
 }
 
+func TestEvaluateReadinessRejectsSameVersionBetaForPinnedBetaOnStable(t *testing.T) {
+	status := Status{
+		CurrentVersion:     "v0.12.0",
+		DeploymentStrategy: DeploymentStrategyPinnedBeta,
+		AvailableReleases: []Release{
+			{Version: "v0.12.0-beta.1", Channel: "beta"},
+		},
+	}
+
+	readiness := EvaluateReadiness(status, true)
+	if readiness.Overall != readinessOverallUpToDate {
+		t.Fatalf("same-version Beta release must not be upgradeable from stable: %#v", readiness)
+	}
+	if got := readiness.Checks[3].Params["latest_version"]; got != "" {
+		t.Fatalf("release readiness must not expose a same-version Beta candidate, got %q", got)
+	}
+}
+
 func TestEvaluateReadinessSeparatesUnknownReleaseState(t *testing.T) {
 	status := Status{CheckError: releaseDiscoveryFailedMessage, CacheStale: true}
 

@@ -62,6 +62,16 @@ describe('update release selection', () => {
     expect(getAvailableUpdateRelease(snapshot)?.version).toBe('0.11.0-beta.28');
   });
 
+  it('does not offer a same-version Beta release to a pinned Beta deployment on the stable version', () => {
+    const snapshot = status({
+      current_version: '0.12.0',
+      available_releases: [release('0.12.0-beta.1', 'beta')],
+    });
+
+    expect(getFixedUpdateReleaseCandidates(snapshot)).toEqual([]);
+    expect(getAvailableUpdateRelease(snapshot)).toBeUndefined();
+  });
+
   it('does not advertise stale or failed snapshots', () => {
     const snapshot = status({
       available_releases: [release('0.11.0-beta.28', 'beta')],
