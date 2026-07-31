@@ -7,6 +7,7 @@
     "dev:mock": "vite --mode mock",
     "dev:open": "vite --open --mode development",
     "build": "bun run typecheck && vite build --mode release",
+    "build:release": "vite build --mode release",
     "build:test": "vite build --mode test",
     "build:type": "bun run typecheck",
     "lint": "eslint --ext .vue,.js,.jsx,.ts,.tsx ./ --max-warnings 0 && bun run log:governance:check",
@@ -36,7 +37,7 @@
     "openapi:types": "mkdir -p src/contracts/openapi/generated && bunx openapi-typescript ../openapi/openapi.yaml -o src/contracts/openapi/generated/schema.ts && bunx prettier --write src/contracts/openapi/generated/schema.ts",
     "openapi:types:check": "sh -c 'mkdir -p .tmp; tmp=.tmp/openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bunx openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bunx prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
     "openapi:frontend-governance:check": "bun run scripts/check-openapi-frontend-governance.ts",
-    "check": "bun run format:check && bun run typecheck && bun run openapi:frontend-governance:check && bun run lint:i18n && bun run lint && bun run stylelint && bun run hygiene:check && bun run test:run && bun run build"
+    "check": "bun run --parallel --no-exit-on-error format:check typecheck openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check && bun run --parallel --no-exit-on-error test:run build:release"
   },
   "dependencies": {
     "@iconify-icons/lucide": "^1.2.135",
