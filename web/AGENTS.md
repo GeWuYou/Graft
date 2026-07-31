@@ -422,17 +422,12 @@ UI 约束：
 bun run check
 ```
 
-执行顺序固定为：
+执行阶段固定为，阶段内任务并发执行：
 
-1. `format:check`
-2. `typecheck`
-3. `openapi:frontend-governance:check`
-4. `lint:i18n`
-5. `lint`
-6. `stylelint`
-7. `hygiene:check`
-8. `test:run`
-9. `build`
+1. 第一阶段并发执行 `format:check`、`typecheck`、`openapi:frontend-governance:check`、`lint:i18n`、`lint`、`stylelint` 和 `hygiene:check`
+2. 第一阶段全部成功后，并发执行 `test:run` 和生产构建
+
+`check` 中的生产构建使用仅执行 Vite 构建的内部脚本，复用第一阶段已经通过的 `typecheck`；独立执行 `build` 时仍保留完整的 typecheck + production build 语义。
 
 执行规则：
 

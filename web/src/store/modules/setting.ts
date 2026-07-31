@@ -95,6 +95,8 @@ export type SettingState = typeof STYLE_CONFIG & {
 };
 
 function createInitialSettingState(): SettingState {
+  const defaultPreset = THEME_PRESET_DEFINITIONS.find((item) => item.id === DEFAULT_THEME_PRESET_ID);
+
   return {
     ...STYLE_CONFIG,
     showSettingPanel: false,
@@ -114,8 +116,8 @@ function createInitialSettingState(): SettingState {
     fontFamilyPreset: 'system',
     fontSizePreset: 'standard',
     radiusPreset: 'standard',
-    shadowPreset: 'standard',
-    densityPreset: 'standard',
+    shadowPreset: defaultPreset?.authorityPatch?.shadowPreset ?? 'standard',
+    densityPreset: defaultPreset?.authorityPatch?.densityPreset ?? 'standard',
     themeTokenOverrides: createEmptyThemeModeTokenState(),
     themeResolvedTokens: createEmptyThemeModeTokenState(),
     themeAuthorityLastModifiedAt: null,
@@ -304,11 +306,16 @@ export const useSettingStore = defineStore('setting', {
         dark: this.getCachedBrandTokens(this.brandTheme, 'dark'),
       };
       const userTokens = buildUserThemeTokens(this.createThemeAuthoritySnapshot());
+      const isFirstRunDefault =
+        this.selectedThemePresetId === DEFAULT_THEME_PRESET_ID &&
+        this.brandTheme === STYLE_CONFIG.brandTheme &&
+        this.themeAuthorityLastModifiedAt === null;
 
       this.themeResolvedTokens = buildThemeModeSnapshot({
         baseTokens: GRAFT_BASE_THEME_TOKENS,
         brandTokens,
         preset,
+        preserveThemePersonalization: this.preserveThemePersonalization && !isFirstRunDefault,
         userTokens,
         customTokens: this.themeTokenOverrides,
       });
@@ -403,14 +410,14 @@ export const useSettingStore = defineStore('setting', {
       this.closeThemeWorkbench();
     },
     resetThemeDraftToDefault(options: { preserveResettingFeedback?: boolean } = {}) {
-      resetThemeWorkbenchDraftToDefault(
-        this,
-        STYLE_CONFIG.mode as ModeType | 'auto',
-        STYLE_CONFIG.brandTheme,
-        DEFAULT_THEME_PRESET_ID,
-        options,
-      );
-      this.updateConfig({ isAcrylicEnabled: STYLE_CONFIG.isAcrylicEnabled });
+      const defaultPreset = THEME_PRESET_DEFINITIONS.find((item) => item.id === DEFAULT_THEME_PRESET_ID);
+      if (!defaultPreset) {
+        return;
+      }
+      resetThemeWorkbenchDraftToDefault(this, defaultPreset, this.preserveThemePersonalization, options);
+      if (!this.preserveThemePersonalization) {
+        this.updateConfig(defaultPreset.stylePatch ?? {});
+      }
     },
     async resetDefaultThemeWithFeedback() {
       const feedbackKey = this.themeResetFeedbackKey + 1;
@@ -435,16 +442,21 @@ export const useSettingStore = defineStore('setting', {
         return;
       }
 
-      const nextState = buildSelectedThemePresetState(preset, this.themeDraft, {
-        mode: this.mode as ModeType | 'auto',
-        fontFamilyPreset: this.fontFamilyPreset,
-        fontSizePreset: this.fontSizePreset,
-        radiusPreset: this.radiusPreset,
-        shadowPreset: this.shadowPreset,
-        densityPreset: this.densityPreset,
-      });
+      const nextState = buildSelectedThemePresetState(
+        preset,
+        this.themeDraft,
+        {
+          mode: this.mode as ModeType | 'auto',
+          fontFamilyPreset: this.fontFamilyPreset,
+          fontSizePreset: this.fontSizePreset,
+          radiusPreset: this.radiusPreset,
+          shadowPreset: this.shadowPreset,
+          densityPreset: this.densityPreset,
+        },
+        this.preserveThemePersonalization,
+      );
       this.updateThemeDraft(nextState);
-      if (preset.stylePatch) {
+      if (!this.preserveThemePersonalization && preset.stylePatch) {
         this.updateConfig(preset.stylePatch);
       }
     },

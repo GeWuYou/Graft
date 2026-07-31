@@ -15,3 +15,12 @@
 - Replaced the bootstrap script's task-specific assertion with the generic catalog contract check.
 - Added a reusable migration CI workflow; the PR migration job now calls that workflow.
 - Static tests passed in the numbered worktree. Disposable runtime validation remains intentionally deferred because agent worktrees may not start database containers.
+
+## 2026-08-01 Pipeline governance linkage
+
+- GitHub Actions history identified one transient Docker Hub reset while pulling the disposable PostgreSQL image.
+- `pipeline-governance` owns the PR reliability repair and adds bounded image-pull retry in `scripts/check_migration_bootstrap.py`; this topic remains the authority for bootstrap semantics and reusable migration workflow behavior.
+
+## 2026-08-01 PR review documentation alignment
+
+- Aligned the Pipeline Governance recovery validation commands with its completed local-validation record: one `server` directory transition now runs the focused realtime test and both backend validation stages, and the startup prompt lists the complete target set.

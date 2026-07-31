@@ -36,16 +36,18 @@ export function buildThemeModeSnapshot(options: {
   baseTokens?: ThemeModeTokenState;
   brandTokens: ThemeModeTokenState;
   preset?: ThemePresetDefinition | null;
+  preserveThemePersonalization?: boolean;
   userTokens?: Partial<ThemeModeTokenState>;
   customTokens: ThemeModeTokenState;
 }): ThemeModeTokenState {
-  const { baseTokens, brandTokens, preset, userTokens, customTokens } = options;
+  const { baseTokens, brandTokens, preset, preserveThemePersonalization, userTokens, customTokens } = options;
 
   return {
     light: mergeThemeTokenMaps(
       brandTokens.light,
       baseTokens?.light,
       preset?.tokenOverrides?.light,
+      preserveThemePersonalization ? undefined : preset?.materialTokenOverrides?.light,
       userTokens?.light,
       customTokens.light,
     ),
@@ -53,6 +55,7 @@ export function buildThemeModeSnapshot(options: {
       brandTokens.dark,
       baseTokens?.dark,
       preset?.tokenOverrides?.dark,
+      preserveThemePersonalization ? undefined : preset?.materialTokenOverrides?.dark,
       userTokens?.dark,
       customTokens.dark,
     ),

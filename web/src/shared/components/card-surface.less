@@ -49,16 +49,23 @@
   }
 }
 
-// 轻表面用于表格等高密度区域，不启用 backdrop-filter，避免滚动和窄屏的合成开销。
-.graft-acrylic-subtle-surface(@fallback-background: var(--td-bg-color-container-hover)) {
+// 内容卡片比区域容器更实，用较短模糊维持嵌套信息的阅读优先级。
+.graft-acrylic-content-surface(@fallback-background: var(--td-bg-color-container-hover)) {
   background: @fallback-background;
   border: 1px solid var(--td-border-level-1-color);
   border-radius: var(--td-radius-medium);
 
   @supports (backdrop-filter: blur(1px)) {
-    background: var(--graft-glass-bg-subtle);
-    border-color: var(--graft-glass-border);
-    box-shadow: inset 0 1px 0 var(--graft-glass-highlight);
+    backdrop-filter: blur(var(--graft-glass-content-blur));
+    background: var(--graft-glass-content-bg);
+    border-color: var(--graft-glass-content-border);
+    box-shadow:
+      inset 0 1px 0 var(--graft-glass-highlight),
+      var(--graft-glass-content-shadow);
+  }
+
+  @media (width <= 768px) {
+    backdrop-filter: none;
   }
 }
 
@@ -67,6 +74,6 @@
   .graft-acrylic-primary-surface(@fallback-background, @radius);
 }
 
-.graft-glass-subtle-surface(@fallback-background: var(--td-bg-color-container-hover)) {
-  .graft-acrylic-subtle-surface(@fallback-background);
+.graft-glass-content-surface(@fallback-background: var(--td-bg-color-container-hover)) {
+  .graft-acrylic-content-surface(@fallback-background);
 }

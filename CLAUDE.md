@@ -135,7 +135,7 @@ Cross-module sharing is handled through `web/src/shared/` (components, composabl
 
 ## Validation Chains
 
-These are the ordered validation steps each CI gate runs:
+These are the validation stages each CI gate runs. Steps within a stage run concurrently:
 
 **Backend** (in order):
 1. Migration version gate
@@ -144,16 +144,11 @@ These are the ordered validation steps each CI gate runs:
 4. `go build ./cmd/graft`
 5. `validate smoke` (when touching server startup or API surface)
 
-**Frontend** (in order):
-1. `format:check`
-2. `typecheck`
-3. `openapi:frontend-governance:check`
-4. `lint:i18n`
-5. `lint`
-6. `stylelint`
-7. `hygiene:check`
-8. `test:run`
-9. `build`
+**Frontend** (in stages):
+1. Static and governance checks: `format:check`, `typecheck`, `openapi:frontend-governance:check`, `lint:i18n`, `lint`, `stylelint`, and `hygiene:check`
+2. Runtime checks: `test:run` and production build
+
+The unified `check` entrypoint reuses the first-stage typecheck for its production build. The standalone `build` command remains a complete typecheck plus production build.
 
 ## Authoritative Governance Documents
 

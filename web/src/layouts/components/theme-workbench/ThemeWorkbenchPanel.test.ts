@@ -93,11 +93,24 @@ describe('ThemeWorkbenchPanel', () => {
     const wrapper = mountPanel();
 
     expect(wrapper.text()).toContain('layout.setting.workbench.appearance.acrylicGlass');
-    expect(wrapper.get('[data-testid="acrylic-switch"]').attributes('aria-pressed')).toBe('false');
+    expect(wrapper.get('[data-testid="acrylic-switch"]').attributes('aria-pressed')).toBe('true');
 
     await wrapper.get('[data-testid="acrylic-switch"]').trigger('click');
 
-    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.isAcrylicEnabled).toBe(false);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+  });
+
+  it('passes the preset application preference through to the workbench store', async () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    const wrapper = mountPanel();
+
+    const preferenceSwitch = wrapper.get('.preset-catalog__apply-mode button');
+    expect(preferenceSwitch.attributes('aria-pressed')).toBe('true');
+
+    await preferenceSwitch.trigger('click');
+
+    expect(store.preserveThemePersonalization).toBe(false);
   });
 });

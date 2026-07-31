@@ -23,6 +23,9 @@ POSTGRES_DATABASE = "graft"
 READINESS_ATTEMPTS = 30
 READINESS_DELAY_SECONDS = 1
 REQUIRED_STABLE_READINESS_CHECKS = 3
+IMAGE_PULL_ATTEMPTS = 3
+IMAGE_PULL_DELAY_SECONDS = 2
+IMAGE_PULL_TIMEOUT_SECONDS = 120
 
 @dataclass(frozen=True)
 class BootstrapTarget:
@@ -39,9 +42,14 @@ class CommandError(RuntimeError):
 
 
 def run_command(
-    command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = True
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    check: bool = True,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False)
+    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False, timeout=timeout)
     if check and result.returncode != 0:
         raise CommandError(format_command_failure(command, result), stdout=result.stdout)
     return result
@@ -52,7 +60,32 @@ def format_command_failure(command: list[str], result: subprocess.CompletedProce
     return f"command failed ({result.returncode}): {' '.join(command)}\n{output}"
 
 
+def pull_postgres_image() -> None:
+    command = ["docker", "pull", POSTGRES_IMAGE]
+    last_error: CommandError | None = None
+    for attempt in range(1, IMAGE_PULL_ATTEMPTS + 1):
+        try:
+            result = run_command(command, check=False, timeout=IMAGE_PULL_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            last_error = CommandError(
+                f"command timed out after {IMAGE_PULL_TIMEOUT_SECONDS} seconds: {' '.join(command)}"
+            )
+        else:
+            if result.returncode == 0:
+                return
+            last_error = CommandError(format_command_failure(command, result), stdout=result.stdout)
+        if attempt < IMAGE_PULL_ATTEMPTS:
+            print(
+                f"PostgreSQL image pull attempt {attempt}/{IMAGE_PULL_ATTEMPTS} failed; retrying.",
+                file=sys.stderr,
+            )
+            time.sleep(IMAGE_PULL_DELAY_SECONDS)
+    assert last_error is not None
+    raise last_error
+
+
 def start_postgres(container_name: str) -> BootstrapTarget:
+    pull_postgres_image()
     run_command(
         [
             "docker",

@@ -119,7 +119,11 @@
             <theme-workbench-preset-catalog
               :presets="presetDefinitions"
               :active-preset-id="effectivePresetId"
+              :preserve-theme-personalization="settingStore.preserveThemePersonalization"
               @select="settingStore.selectThemePreset"
+              @update:preserve-theme-personalization="
+                (value) => settingStore.updateConfig({ preserveThemePersonalization: value })
+              "
             />
           </div>
 

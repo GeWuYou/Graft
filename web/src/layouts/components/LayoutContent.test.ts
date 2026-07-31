@@ -12,6 +12,7 @@ import type { AppRouteMeta } from '@/utils/types';
 import LayoutContent from './LayoutContent.vue';
 
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
+const cardSurfaceStyleSource = readFileSync(join(process.cwd(), 'src/shared/components/card-surface.less'), 'utf8');
 
 type DropdownPopupProps = {
   onVisibleChange: (visible: boolean, context: { trigger: string }) => void;
@@ -690,6 +691,19 @@ describe('LayoutContent', () => {
       ".app-shell[data-theme-mode='dark']:not([data-acrylic-glass='true']) .t-default-menu.t-menu--dark,",
     );
     expect(layoutStyleSource).not.toContain(".app-shell[data-theme-mode='dark'] .t-default-menu.t-menu--dark,");
+  });
+
+  it('uses one theme-derived ambient glow and distinct acrylic surface roles', () => {
+    expect(layoutStyleSource).toContain('var(--graft-glass-ambient-color)');
+    expect(layoutStyleSource).toContain('radial-gradient(ellipse 100% 72% at 14% -10%');
+    expect(layoutStyleSource).not.toContain('radial-gradient(circle at 88% 12%');
+    expect(layoutStyleSource).not.toContain('color-mix(in srgb, var(--graft-shell-bg) 74%, var(--td-brand-color))');
+
+    expect(cardSurfaceStyleSource).toContain('.graft-acrylic-primary-surface(');
+    expect(cardSurfaceStyleSource).toContain('.graft-acrylic-content-surface(');
+    expect(cardSurfaceStyleSource).toContain('blur(var(--graft-glass-blur))');
+    expect(cardSurfaceStyleSource).toContain('blur(var(--graft-glass-content-blur))');
+    expect(cardSurfaceStyleSource).toContain('--graft-glass-content-bg');
   });
 
   it('renders the shell breadcrumb before route content when the setting is enabled', () => {
