@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/menu"
@@ -133,8 +134,14 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
 	m.rollout.SetAppLogger(ctx.AppLogger)
-	if hub, err := module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil)); err == nil {
+	hub, err := module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil))
+	switch {
+	case err == nil:
 		m.rollout.SetRealtimePublisher(hub)
+	case errors.Is(err, container.ErrServiceNotRegistered):
+		// realtime hub 是可选能力；未注册时保持更新模块可用。
+	default:
+		return fmt.Errorf("resolve realtime hub: %w", err)
 	}
 	return nil
 }

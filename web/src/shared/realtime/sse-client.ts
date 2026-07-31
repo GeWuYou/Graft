@@ -1,7 +1,7 @@
 import type { RealtimeSubscriptionResponse } from './api';
 import { postRealtimeSubscription } from './api';
 
-type RealtimeEventStreamState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
+export type RealtimeEventStreamState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
 const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403, 404]);
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 10000] as const;
@@ -76,9 +76,8 @@ export function openRealtimeTopicEventStream<TMessage>(
       const response = await fetch(issued.sse_url, { credentials: 'include', signal: controller.signal });
       if (!response.ok || !response.body) throw new Error(`SSE request failed with status ${response.status}`);
       if (closed || currentConnectionID !== connectionID) return;
-      reconnectAttempt = 0;
       emitState('open');
-      await consumeEvents(response.body, async (raw) => {
+      const receivedEvent = await consumeEvents(response.body, async (raw) => {
         if (closed || currentConnectionID !== connectionID) return;
         const data = parseRealtimeEventData(raw);
         if (data === null) return;
@@ -87,6 +86,7 @@ export function openRealtimeTopicEventStream<TMessage>(
       });
       if (controller.signal.aborted || closed || currentConnectionID !== connectionID) return;
       emitState('closed');
+      if (receivedEvent) reconnectAttempt = 0;
       scheduleReconnect();
     } catch (error) {
       if (closed || currentConnectionID !== connectionID || isAbortError(error)) return;
@@ -134,21 +134,30 @@ async function consumeEvents(body: ReadableStream<Uint8Array>, onMessage: (raw: 
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let pending = '';
+  let receivedEvent = false;
+  const processEvent = async (event: string) => {
+    const data = event
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+    if (data) {
+      receivedEvent = true;
+      await onMessage(data);
+    }
+  };
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) return;
+      if (done) {
+        pending += decoder.decode();
+        if (pending) await processEvent(pending);
+        return receivedEvent;
+      }
       pending += decoder.decode(value, { stream: true });
       const events = pending.split(/\r?\n\r?\n/);
       pending = events.pop() ?? '';
-      for (const event of events) {
-        const data = event
-          .split(/\r?\n/)
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n');
-        if (data) await onMessage(data);
-      }
+      for (const event of events) await processEvent(event);
     }
   } finally {
     try {

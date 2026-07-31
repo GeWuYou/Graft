@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,9 @@ func TestRegisterSSEGatewayStreamsAuthorizedTopicEvents(t *testing.T) {
 	}
 	server := httptest.NewServer(engine)
 	defer server.Close()
-	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"/sse?topic="+url.QueryEscape(topic)+"&ticket="+url.QueryEscape(issued.Ticket), nil)
+	requestContext, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(requestContext, http.MethodGet, server.URL+"/sse?topic="+url.QueryEscape(topic)+"&ticket="+url.QueryEscape(issued.Ticket), nil)
 	if err != nil {
 		t.Fatalf("create SSE request: %v", err)
 	}

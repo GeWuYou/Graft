@@ -40,13 +40,18 @@ func RegisterSSEGateway(router gin.IRouter, registration GatewayRegistration) er
 // StreamSSE 将一个已获授权的主题订阅写入标准 Server-Sent Events 响应。
 // 路由、认证和主题授权由统一网关拥有；此函数只负责安全地桥接 Hub 与 HTTP 流。
 func StreamSSE(ctx context.Context, writer http.ResponseWriter, hub Hub, topic string) error {
+	if ctx == nil || writer == nil || hub == nil || NormalizeTopic(topic) == "" {
+		return errors.New("realtime SSE stream is unavailable")
+	}
+
+	events, unsubscribe := hub.Subscribe(topic)
+	defer unsubscribe()
+
 	flusher, err := prepareSSEStream(ctx, writer, hub, topic)
 	if err != nil {
 		return err
 	}
 
-	events, unsubscribe := hub.Subscribe(topic)
-	defer unsubscribe()
 	return streamSSEEvents(ctx, writer, flusher, events)
 }
 

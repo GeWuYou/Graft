@@ -21,12 +21,12 @@
       <t-steps v-if="progress.operation" :current="currentStep" layout="vertical" readonly>
         <t-step v-for="step in steps" :key="step" :title="t(`update.center.progress.steps.${step}`)" />
       </t-steps>
-      <section v-if="progress.operation && !terminal" class="update-progress__current-stage">
+      <section v-if="progress.operation && progress.phase !== 'success'" class="update-progress__current-stage">
         <div class="update-progress__current-stage-heading">
           <span>{{ t('update.center.progress.currentStage') }}</span>
           <strong>{{ currentStageLabel }}</strong>
         </div>
-        <t-progress data-testid="update-progress-stage" :percentage="0" :label="false" :indeterminate="true" />
+        <t-progress data-testid="update-progress-stage" :percentage="currentStagePercentage" :label="false" />
       </section>
       <section v-if="progress.phase === 'failed'" class="update-progress__failure">
         <p>{{ progress.diagnostic?.detail || t('update.center.progress.diagnosticUnavailable') }}</p>
@@ -74,11 +74,16 @@ const stagePercentage: Record<string, number> = {
   SUCCESS: 100,
   RECOVERED: 100,
 };
-const currentStep = computed(() => stageIndex[progress.operation?.status ?? 'PLANNING'] ?? 0);
-const overallPercentage = computed(() => stagePercentage[progress.operation?.status ?? 'PLANNING'] ?? 0);
+const stageStatus = computed(() => {
+  if (progress.lastActiveStatus) return progress.lastActiveStatus;
+  if (progress.phase === 'success' || progress.phase === 'failed') return 'VERIFYING';
+  return progress.operation?.status ?? 'PLANNING';
+});
+const currentStep = computed(() => stageIndex[stageStatus.value] ?? 0);
+const overallPercentage = computed(() => stagePercentage[stageStatus.value] ?? 0);
+const currentStagePercentage = computed(() => overallPercentage.value);
 const currentStageLabel = computed(() => {
-  const status = progress.operation?.status ?? 'PLANNING';
-  return t(`update.center.history.status.${status}`);
+  return t(`update.center.history.status.${stageStatus.value}`);
 });
 const requestId = computed(() => progress.diagnostic?.request_id?.trim() ?? '');
 const phaseMessage = computed(() => t(`update.center.progress.phase.${progress.phase}`));

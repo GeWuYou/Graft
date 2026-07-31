@@ -4,6 +4,7 @@ import { openRealtimeTopicEventStream } from '@/shared/realtime/sse-client';
 import { request } from '@/utils/request';
 
 import { UPDATE_API_PATH } from '../contract/paths';
+import { buildUpdateOperationTopicName } from '../contract/realtime';
 import {
   checkForUpdates,
   createUpdateOperation,
@@ -87,5 +88,9 @@ describe('platform update api', () => {
     expect(openRealtimeTopicEventStream).toHaveBeenCalledWith(
       expect.objectContaining({ topic: 'platform.update.operations.update-1', onMessage: onOperation }),
     );
+  });
+
+  it('builds the operation topic from the module realtime contract', () => {
+    expect(buildUpdateOperationTopicName('update-1')).toBe('platform.update.operations.update-1');
   });
 });

@@ -1,17 +1,20 @@
 import { buildOpenApiRuntimePath } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
-import { openRealtimeTopicEventStream, type RealtimeTopicEventStreamController } from '@/shared/realtime/sse-client';
+import {
+  openRealtimeTopicEventStream,
+  type RealtimeEventStreamState,
+  type RealtimeTopicEventStreamController,
+} from '@/shared/realtime/sse-client';
 import { request } from '@/utils/request';
 
 import { UPDATE_API_PATH } from '../contract/paths';
+import { buildUpdateOperationTopicName } from '../contract/realtime';
 import type {
   CreateUpdateOperationRequest,
   UpdateFailureDiagnostic,
   UpdateOperation,
   UpdateStatus,
 } from '../types/update';
-
-const updateOperationTopic = (operationID: string) => `platform.update.operations.${operationID}`;
 
 type UpdateStatusEnvelope =
   paths[typeof UPDATE_API_PATH.STATUS]['get']['responses'][200]['content']['application/json'];
@@ -47,11 +50,11 @@ export function subscribeToUpdateOperation(
   operationID: string,
   options: Readonly<{
     onOperation: (operation: UpdateOperation) => void | Promise<void>;
-    onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+    onStateChange?: (state: RealtimeEventStreamState) => void;
   }>,
 ): RealtimeTopicEventStreamController {
   return openRealtimeTopicEventStream<UpdateOperation>({
-    topic: updateOperationTopic(operationID),
+    topic: buildUpdateOperationTopicName(operationID),
     onMessage: options.onOperation,
     onStateChange: options.onStateChange,
   });

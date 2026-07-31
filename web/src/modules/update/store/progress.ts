@@ -37,6 +37,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       operation,
       diagnostic: null as UpdateFailureDiagnostic | null,
       phase: (operation ? 'running' : 'idle') as ProgressPhase,
+      lastActiveStatus: (operation?.status ?? null) as UpdateOperation['status'] | null,
       session: 0,
       stream: null as RealtimeTopicEventStreamController | null,
     };
@@ -50,6 +51,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.stopStream();
       persistOperation(operation.operation_id);
       this.operation = operation;
+      this.lastActiveStatus = operation.status;
       this.diagnostic = null;
       this.phase = 'running';
       this.connect(this.session);
@@ -94,6 +96,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         }
         return;
       }
+      this.lastActiveStatus = operation.status;
       this.phase = 'running';
     },
     isTerminal() {
@@ -108,6 +111,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.stopStream();
       persistOperation(null);
       this.operation = null;
+      this.lastActiveStatus = null;
       this.diagnostic = null;
       this.phase = 'idle';
     },

@@ -68,7 +68,18 @@ describe('update progress store', () => {
     await callback(operation('operation-1', 'FAILED'));
 
     expect(store.phase).toBe('failed');
+    expect(store.lastActiveStatus).toBe('PLANNING');
     expect(store.diagnostic?.request_id).toBe('request-1');
     expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
+  });
+
+  it('treats a closed transport as reconnecting until the next stream opens', () => {
+    const store = useUpdateProgressStore();
+    store.begin(operation('operation-1'));
+    const onStateChange = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onStateChange;
+
+    onStateChange?.('closed');
+
+    expect(store.phase).toBe('reconnecting');
   });
 });
