@@ -121,7 +121,8 @@ func releaseReadiness(status Status) moduleapi.ReadinessCheck {
 			Actions:  []moduleapi.ReadinessAction{checkUpdatesAction()},
 		}
 	}
-	if status.Latest == nil {
+	release := preferredReadinessRelease(status)
+	if release == nil {
 		return moduleapi.ReadinessCheck{
 			ID: "release_availability", Order: readinessOrderRelease, State: moduleapi.ReadinessStatePassed, Severity: moduleapi.ReadinessSeveritySuccess,
 			TitleKey: "platformUpdate.readiness.releaseAvailability.title", SummaryKey: "platformUpdate.readiness.releaseAvailability.upToDate", DetailKey: "platformUpdate.readiness.releaseAvailability.detail",
@@ -132,13 +133,34 @@ func releaseReadiness(status Status) moduleapi.ReadinessCheck {
 	check := moduleapi.ReadinessCheck{
 		ID: "release_availability", Order: readinessOrderRelease, State: moduleapi.ReadinessStateWarning, Severity: moduleapi.ReadinessSeverityInfo,
 		TitleKey: "platformUpdate.readiness.releaseAvailability.title", SummaryKey: "platformUpdate.readiness.releaseAvailability.available", DetailKey: "platformUpdate.readiness.releaseAvailability.detail",
-		Params:   map[string]string{"current_version": status.CurrentVersion, "latest_version": status.Latest.Version},
-		Evidence: []moduleapi.ReadinessEvidence{{Code: "latest_release", State: moduleapi.ReadinessEvidencePassed, LabelKey: "platformUpdate.readiness.evidence.latestRelease", Value: status.Latest.Version, Expected: "newer_than_current"}},
+		Params:   map[string]string{"current_version": status.CurrentVersion, "latest_version": release.Version},
+		Evidence: []moduleapi.ReadinessEvidence{{Code: "latest_release", State: moduleapi.ReadinessEvidencePassed, LabelKey: "platformUpdate.readiness.evidence.latestRelease", Value: release.Version, Expected: "newer_than_current"}},
 	}
-	if notesURL := strings.TrimSpace(status.Latest.NotesURL); notesURL != "" {
+	if notesURL := strings.TrimSpace(release.NotesURL); notesURL != "" {
 		check.Actions = []moduleapi.ReadinessAction{{ID: "view_release", Type: moduleapi.ReadinessActionNavigate, LabelKey: "platformUpdate.readiness.actions.viewRelease", Target: notesURL}}
 	}
 	return check
+}
+
+func preferredReadinessRelease(status Status) *Release {
+	var channel string
+	switch status.DeploymentStrategy {
+	case DeploymentStrategyPinnedStable:
+		channel = "stable"
+	case DeploymentStrategyPinnedBeta:
+		channel = "beta"
+	default:
+		return status.Latest
+	}
+	current, err := ParseVersion(status.CurrentVersion)
+	if err != nil {
+		return nil
+	}
+	selected, found := SelectLatestForChannel(current, channel, status.AvailableReleases)
+	if !found {
+		return nil
+	}
+	return &selected
 }
 
 func managePermissionReadiness(canManage bool) moduleapi.ReadinessCheck {
@@ -157,7 +179,7 @@ func updateReadinessOverall(status Status, checks []moduleapi.ReadinessCheck) (s
 		action := checkUpdatesAction()
 		return readinessOverallStatusUnknown, &action
 	}
-	if status.Latest == nil {
+	if preferredReadinessRelease(status) == nil {
 		action := checkUpdatesAction()
 		return readinessOverallUpToDate, &action
 	}

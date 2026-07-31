@@ -55,7 +55,7 @@
         <div class="update-version-preview__current">
           <strong>{{ discoveryStore.status?.current_version }}</strong>
           <p v-if="hasAvailableRelease" class="update-version-preview__available-status">
-            {{ t('update.preview.availableVersion', { version: discoveryStore.status?.latest?.version }) }}
+            {{ t('update.preview.availableVersion', { version: availableRelease?.version }) }}
           </p>
           <p v-else-if="checking" class="update-version-preview__checking">
             {{ t('update.preview.checking') }}
@@ -114,6 +114,7 @@ import { useI18n } from 'vue-i18n';
 
 import { usePermissionStore } from '@/store';
 
+import { getAvailableUpdateRelease, hasAvailableUpdate } from '../composables/releaseSelection';
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_ROUTE_PATH } from '../contract/paths';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
@@ -137,19 +138,15 @@ const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_C
 const canCheck = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.CHECK));
 const versionLabel = computed(() => discoveryStore.status?.current_version ?? '');
 const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible, props.centerPath);
-const hasAvailableRelease = computed(
-  () =>
-    Boolean(discoveryStore.status?.latest) &&
-    !discoveryStore.status?.cache_stale &&
-    !discoveryStore.status?.check_error,
-);
+const availableRelease = computed(() => getAvailableUpdateRelease(discoveryStore.status));
+const hasAvailableRelease = computed(() => hasAvailableUpdate(discoveryStore.status));
 const statusUnavailable = computed(
   () => previewCheckFailed.value || Boolean(discoveryStore.status?.cache_stale || discoveryStore.status?.check_error),
 );
-const releaseUrl = computed(() => discoveryStore.status?.latest?.notes_url?.trim() ?? '');
+const releaseUrl = computed(() => availableRelease.value?.notes_url?.trim() ?? '');
 const canViewRelease = computed(() => hasAvailableRelease.value && /^https:\/\//i.test(releaseUrl.value));
 const updateTooltip = computed(() =>
-  t('update.versionEntry.updateAvailable', { version: discoveryStore.status?.latest?.version }),
+  t('update.versionEntry.updateAvailable', { version: availableRelease.value?.version }),
 );
 const versionEntryAriaLabel = computed(() =>
   discoveryStore.hasUpdate ? updateTooltip.value : t('update.versionEntry.current', { version: versionLabel.value }),

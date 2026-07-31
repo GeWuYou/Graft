@@ -225,7 +225,7 @@
       width="760px"
       @confirm="confirmCleanupRemoval"
     >
-      <t-loading :loading="cleanup.loading.value">
+      <docker-cleanup-loading-host :loading="cleanup.loading.value">
         <t-card v-if="cleanup.items.value.length" :bordered="false">
           <div class="docker-volume-cleanup-summary">
             <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
@@ -288,7 +288,7 @@
             </t-button>
           </div>
         </section>
-      </t-loading>
+      </docker-cleanup-loading-host>
       <t-empty
         v-if="!cleanup.loading.value && !cleanup.items.value.length"
         :title="t('container.volume.cleanup.empty')"
@@ -376,6 +376,7 @@ import DockerResourceCardActions from '../../components/DockerResourceCardAction
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import VolumeDetailContent from '../../components/VolumeDetailContent.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import DockerCleanupLoadingHost from '../../shared/cleanup/DockerCleanupLoadingHost.vue';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
 import { getDockerVolumeStatusPresentation } from '../../shared/volume-presentation';

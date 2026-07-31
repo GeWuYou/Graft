@@ -535,7 +535,7 @@
           </div>
         </header>
 
-        <t-loading :loading="cleanupLoading">
+        <docker-cleanup-loading-host :loading="cleanupLoading">
           <t-card v-if="cleanupImages.length" class="docker-images-cleanup-summary" :bordered="false">
             <div class="docker-images-cleanup-summary__stats">
               <div>
@@ -630,7 +630,7 @@
               </div>
             </div>
           </section>
-        </t-loading>
+        </docker-cleanup-loading-host>
 
         <t-empty v-if="!cleanupLoading && !cleanupImages.length" :title="t('container.images.cleanup.empty')" />
       </div>
@@ -726,6 +726,7 @@ import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
 import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import TagManagerDrawer from '../../components/TagManagerDrawer.vue';
 import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
+import DockerCleanupLoadingHost from '../../shared/cleanup/DockerCleanupLoadingHost.vue';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
 

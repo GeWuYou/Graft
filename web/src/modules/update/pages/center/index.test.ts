@@ -287,6 +287,33 @@ describe('UpdateCenter', () => {
     expect(createUpdateOperation).toHaveBeenCalledWith({ target_version: '1.2.0' });
   });
 
+  it('shows a pinned Beta candidate in the summary when tracking latest is absent', async () => {
+    useUpdateDiscoveryStore().replaceSnapshot({
+      ...status([{ key: 'high', host_path: '/srv/graft', compose_files: [], confidence: 'high' }]),
+      current_version: '0.11.0-beta.27',
+      channel: 'beta',
+      image_tag: 'v0.11.0-beta.27',
+      deployment_strategy: 'pinned_beta',
+      latest: undefined,
+      available_releases: [
+        {
+          version: '0.11.0-beta.28',
+          channel: 'beta',
+          notes: 'Pinned Beta release notes',
+          published_at: '2026-07-31T00:00:00Z',
+          manifest_url: 'https://example.test/beta-manifest',
+          server_digest: 'server',
+          web_digest: 'web',
+        },
+      ],
+    } as UpdateStatus);
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('0.11.0-beta.28');
+    expect(wrapper.text()).not.toContain('update.center.latest.upToDate');
+  });
+
   it('renders a safe failure reason and request ID for a rejected upgrade submission', async () => {
     useUpdateDiscoveryStore().replaceSnapshot(
       status([{ key: 'high', host_path: '/srv/graft', compose_files: ['/srv/graft/compose.yml'], confidence: 'high' }]),

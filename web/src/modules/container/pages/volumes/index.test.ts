@@ -106,6 +106,7 @@ describe('docker volume asset management page', () => {
   it('preserves selection, cleanup, permissions, and container navigation', () => {
     expect(sourceText).toContain(':selected-row-keys="selectedRowKeys"');
     expect(sourceText).toContain('batchRemoveDockerVolumes');
+    expect(sourceText).toContain('<docker-cleanup-loading-host :loading="cleanup.loading.value">');
     expect(sourceText).toContain('await cleanup.open();');
     expect(sourceText).toContain('CONTAINER_PERMISSION_CODE.VOLUME_REMOVE');
     expect(sourceText).toContain("query: { tab: 'storage' }");

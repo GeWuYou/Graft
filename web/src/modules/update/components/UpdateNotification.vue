@@ -29,6 +29,7 @@ import { useI18n } from 'vue-i18n';
 
 import { usePermissionStore } from '@/store';
 
+import { getAvailableUpdateRelease } from '../composables/releaseSelection';
 import { useUpdatePreviewActions } from '../composables/useUpdatePreviewActions';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateDiscoveryStore } from '../store/discovery';
@@ -40,9 +41,10 @@ const discoveryStore = useUpdateDiscoveryStore();
 const visible = ref(false);
 const canRead = computed(() => permissionStore.hasPermission(UPDATE_PERMISSION_CODE.READ));
 const { canStartUpgrade, openManagement, startUpgrade } = useUpdatePreviewActions(visible);
+const availableRelease = computed(() => getAvailableUpdateRelease(discoveryStore.status));
 const tooltip = computed(() =>
   discoveryStore.hasUpdate
-    ? t('update.notification.available', { version: discoveryStore.status?.latest?.version })
+    ? t('update.notification.available', { version: availableRelease.value?.version })
     : t('update.notification.open'),
 );
 </script>

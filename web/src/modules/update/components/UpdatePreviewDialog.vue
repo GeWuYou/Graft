@@ -13,12 +13,12 @@
           <dt>{{ t('update.preview.current') }}</dt>
           <dd>{{ status.current_version }}</dd>
         </div>
-        <div v-if="status.latest">
+        <div v-if="availableRelease">
           <dt>{{ t('update.preview.available') }}</dt>
-          <dd>{{ status.latest.version }}</dd>
+          <dd>{{ availableRelease.version }}</dd>
         </div>
       </dl>
-      <template v-if="status.latest">
+      <template v-if="availableRelease">
         <h3>{{ t('update.preview.summary') }}</h3>
         <p class="update-preview__summary">{{ summary }}</p>
         <div class="update-preview__actions">
@@ -38,13 +38,15 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { getAvailableUpdateRelease } from '../composables/releaseSelection';
 import type { UpdateStatus } from '../types/update';
 
 const props = defineProps<{ visible: boolean; status: UpdateStatus | null; canStartUpgrade: boolean }>();
 const emit = defineEmits<{ 'update:visible': [value: boolean]; 'view-management': []; 'start-upgrade': [] }>();
 const { t } = useI18n();
+const availableRelease = computed(() => getAvailableUpdateRelease(props.status));
 const summary = computed(
-  () => props.status?.latest?.upgrade_notes || props.status?.latest?.notes || t('update.preview.summaryEmpty'),
+  () => availableRelease.value?.upgrade_notes || availableRelease.value?.notes || t('update.preview.summaryEmpty'),
 );
 </script>
 <style scoped lang="less">

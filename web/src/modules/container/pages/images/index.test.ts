@@ -397,6 +397,7 @@ describe('docker image list page', () => {
     expect(sourceText).toContain("t('container.images.cleanup.removeSelected'");
     expect(sourceText).toContain('dialog-class-name="docker-images-cleanup-dialog"');
     expect(sourceText).toContain('docker-images-cleanup graft-scrollbar');
+    expect(sourceText).toContain('<docker-cleanup-loading-host :loading="cleanupLoading">');
     expect(sourceText).toContain('max-height: calc(70vh - 120px);');
     expect(sourceText).toContain('overflow: auto;');
     expect(sourceText).toContain('<template #footer>');

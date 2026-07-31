@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import { usePermissionStore } from '@/store';
 
 import { checkForUpdates, getUpdateStatus } from '../api/update';
+import { hasAvailableUpdate } from '../composables/releaseSelection';
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import type { UpdateStatus } from '../types/update';
 
@@ -22,7 +23,7 @@ export const useUpdateDiscoveryStore = defineStore('update-discovery', {
     lastRefreshAt: 0,
   }),
   getters: {
-    hasUpdate: (state) => Boolean(state.status?.latest && !state.status.cache_stale && !state.status.check_error),
+    hasUpdate: (state) => hasAvailableUpdate(state.status),
   },
   actions: {
     async ensureSnapshot() {

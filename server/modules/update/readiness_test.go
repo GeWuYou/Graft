@@ -37,6 +37,49 @@ func TestEvaluateReadinessReturnsOrderedUpgradeableChecks(t *testing.T) {
 	}
 }
 
+func TestEvaluateReadinessRecognizesPinnedBetaCandidate(t *testing.T) {
+	status := Status{
+		CurrentVersion:     "v0.11.0-beta.27",
+		ImageTag:           "v0.11.0-beta.27",
+		DeploymentStrategy: DeploymentStrategyPinnedBeta,
+		AvailableReleases: []Release{
+			{Version: "v0.11.0-beta.28", Channel: "beta", NotesURL: "https://example.test/releases/v0.11.0-beta.28"},
+			{Version: "v0.11.0", Channel: "stable", NotesURL: "https://example.test/releases/v0.11.0"},
+		},
+		Profile: InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available", ComposeRootSource: "explicit_env"},
+	}
+
+	readiness := EvaluateReadiness(status, true)
+	if status.Latest != nil {
+		t.Fatalf("pinned strategy must not populate latest: %#v", status.Latest)
+	}
+	if readiness.Overall != readinessOverallUpgradeReady || readiness.NextAction == nil || readiness.NextAction.ID != "start_upgrade" {
+		t.Fatalf("expected pinned Beta candidate to make upgrade ready, got %#v", readiness)
+	}
+	release := readiness.Checks[3]
+	if release.State != moduleapi.ReadinessStateWarning || release.Params["latest_version"] != "v0.11.0-beta.28" || len(release.Actions) != 1 || release.Actions[0].Target != "https://example.test/releases/v0.11.0-beta.28" {
+		t.Fatalf("expected readiness to use the newer pinned Beta candidate, got %#v", release)
+	}
+}
+
+func TestEvaluateReadinessRejectsSameVersionBetaForPinnedBetaOnStable(t *testing.T) {
+	status := Status{
+		CurrentVersion:     "v0.12.0",
+		DeploymentStrategy: DeploymentStrategyPinnedBeta,
+		AvailableReleases: []Release{
+			{Version: "v0.12.0-beta.1", Channel: "beta"},
+		},
+	}
+
+	readiness := EvaluateReadiness(status, true)
+	if readiness.Overall != readinessOverallUpToDate {
+		t.Fatalf("same-version Beta release must not be upgradeable from stable: %#v", readiness)
+	}
+	if got := readiness.Checks[3].Params["latest_version"]; got != "" {
+		t.Fatalf("release readiness must not expose a same-version Beta candidate, got %q", got)
+	}
+}
+
 func TestEvaluateReadinessSeparatesUnknownReleaseState(t *testing.T) {
 	status := Status{CheckError: releaseDiscoveryFailedMessage, CacheStale: true}
 

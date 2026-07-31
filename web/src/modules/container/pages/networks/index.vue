@@ -271,7 +271,7 @@
       width="760px"
       @confirm="submitCleanup"
     >
-      <t-loading :loading="cleanup.loading.value">
+      <docker-cleanup-loading-host :loading="cleanup.loading.value">
         <t-alert v-if="cleanup.items.value.length" theme="warning" :message="t('container.networks.cleanup.warning')" />
         <section v-if="cleanup.items.value.length" class="docker-network-cleanup__preview">
           <div class="docker-network-cleanup__head">
@@ -310,7 +310,7 @@
           v-if="!cleanup.loading.value && !cleanup.items.value.length"
           :title="t('container.networks.cleanup.empty')"
         />
-      </t-loading>
+      </docker-cleanup-loading-host>
       <template #footer
         ><t-button
           theme="danger"
@@ -558,6 +558,7 @@ import DockerResourceCardActions from '../../components/DockerResourceCardAction
 import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
 import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
+import DockerCleanupLoadingHost from '../../shared/cleanup/DockerCleanupLoadingHost.vue';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
 import {
