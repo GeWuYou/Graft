@@ -64,9 +64,12 @@ Out of scope:
 ```bash
 actionlint .github/workflows/*.yml
 python3 -m unittest scripts/test_check_migration_bootstrap.py
-cd server && go test ./internal/realtime -count=20
-cd server && go run ./cmd/graft validate backend --stage lint
-cd server && go run ./cmd/graft validate backend --stage buildtest
+(
+  cd server
+  go test ./internal/realtime -count=20
+  go run ./cmd/graft validate backend --stage lint
+  go run ./cmd/graft validate backend --stage buildtest
+)
 python3 scripts/validate_ai_plan_structure.py
 python3 scripts/validate_ai_governance.py
 git diff --check

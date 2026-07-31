@@ -25,6 +25,7 @@ READINESS_DELAY_SECONDS = 1
 REQUIRED_STABLE_READINESS_CHECKS = 3
 IMAGE_PULL_ATTEMPTS = 3
 IMAGE_PULL_DELAY_SECONDS = 2
+IMAGE_PULL_TIMEOUT_SECONDS = 120
 
 @dataclass(frozen=True)
 class BootstrapTarget:
@@ -41,9 +42,14 @@ class CommandError(RuntimeError):
 
 
 def run_command(
-    command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = True
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    check: bool = True,
+    timeout: float | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False)
+    result = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False, timeout=timeout)
     if check and result.returncode != 0:
         raise CommandError(format_command_failure(command, result), stdout=result.stdout)
     return result
@@ -56,20 +62,26 @@ def format_command_failure(command: list[str], result: subprocess.CompletedProce
 
 def pull_postgres_image() -> None:
     command = ["docker", "pull", POSTGRES_IMAGE]
-    last_result: subprocess.CompletedProcess[str] | None = None
+    last_error: CommandError | None = None
     for attempt in range(1, IMAGE_PULL_ATTEMPTS + 1):
-        result = run_command(command, check=False)
-        if result.returncode == 0:
-            return
-        last_result = result
+        try:
+            result = run_command(command, check=False, timeout=IMAGE_PULL_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            last_error = CommandError(
+                f"command timed out after {IMAGE_PULL_TIMEOUT_SECONDS} seconds: {' '.join(command)}"
+            )
+        else:
+            if result.returncode == 0:
+                return
+            last_error = CommandError(format_command_failure(command, result), stdout=result.stdout)
         if attempt < IMAGE_PULL_ATTEMPTS:
             print(
                 f"PostgreSQL image pull attempt {attempt}/{IMAGE_PULL_ATTEMPTS} failed; retrying.",
                 file=sys.stderr,
             )
             time.sleep(IMAGE_PULL_DELAY_SECONDS)
-    assert last_result is not None
-    raise CommandError(format_command_failure(command, last_result), stdout=last_result.stdout)
+    assert last_error is not None
+    raise last_error
 
 
 def start_postgres(container_name: str) -> BootstrapTarget:

@@ -27,7 +27,7 @@ jobs:
       - name: Checkout repository at tag
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Go
@@ -48,7 +48,13 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags --prune origin main:refs/remotes/origin/main
-          echo "GRAFT_LINT_BASE_REF=refs/remotes/origin/main" >> "${GITHUB_ENV}"
+
+          base_ref="refs/remotes/origin/main"
+          if git merge-base --is-ancestor HEAD "${base_ref}"; then
+            base_ref="$(git rev-parse HEAD^)"
+          fi
+
+          echo "GRAFT_LINT_BASE_REF=${base_ref}" >> "${GITHUB_ENV}"
 
       - name: Run backend release validation
         working-directory: server

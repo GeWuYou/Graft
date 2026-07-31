@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
 import sys
 import unittest
 from unittest import mock
@@ -71,6 +72,7 @@ class ImagePullTests(unittest.TestCase):
         self.assertEqual(sleep.call_count, 1)
         self.assertEqual(run_command.call_args.args[0], ["docker", "pull", MODULE.POSTGRES_IMAGE])
         self.assertFalse(run_command.call_args.kwargs["check"])
+        self.assertEqual(run_command.call_args.kwargs["timeout"], MODULE.IMAGE_PULL_TIMEOUT_SECONDS)
 
     def test_pull_postgres_image_reports_final_failure(self) -> None:
         failed = mock.Mock(returncode=1, stdout="", stderr="network reset")
@@ -78,6 +80,33 @@ class ImagePullTests(unittest.TestCase):
             MODULE.time, "sleep"
         ) as sleep:
             with self.assertRaisesRegex(MODULE.CommandError, "docker pull postgres:16-alpine"):
+                MODULE.pull_postgres_image()
+
+        self.assertEqual(run_command.call_count, MODULE.IMAGE_PULL_ATTEMPTS)
+        self.assertEqual(sleep.call_count, MODULE.IMAGE_PULL_ATTEMPTS - 1)
+
+    def test_pull_postgres_image_retries_after_timeout(self) -> None:
+        timeout = subprocess.TimeoutExpired(
+            ["docker", "pull", MODULE.POSTGRES_IMAGE], MODULE.IMAGE_PULL_TIMEOUT_SECONDS
+        )
+        succeeded = mock.Mock(returncode=0, stdout="pulled", stderr="")
+        with mock.patch.object(MODULE, "run_command", side_effect=[timeout, succeeded]) as run_command, mock.patch.object(
+            MODULE.time, "sleep"
+        ) as sleep:
+            MODULE.pull_postgres_image()
+
+        self.assertEqual(run_command.call_count, 2)
+        self.assertEqual(sleep.call_count, 1)
+        self.assertEqual(run_command.call_args.kwargs["timeout"], MODULE.IMAGE_PULL_TIMEOUT_SECONDS)
+
+    def test_pull_postgres_image_reports_final_timeout(self) -> None:
+        timeout = subprocess.TimeoutExpired(
+            ["docker", "pull", MODULE.POSTGRES_IMAGE], MODULE.IMAGE_PULL_TIMEOUT_SECONDS
+        )
+        with mock.patch.object(MODULE, "run_command", side_effect=timeout) as run_command, mock.patch.object(
+            MODULE.time, "sleep"
+        ) as sleep:
+            with self.assertRaisesRegex(MODULE.CommandError, "timed out after"):
                 MODULE.pull_postgres_image()
 
         self.assertEqual(run_command.call_count, MODULE.IMAGE_PULL_ATTEMPTS)
