@@ -572,7 +572,6 @@ watch(
 
 .app-shell__header {
   background: var(--graft-shell-header-bg);
-  border-bottom: 1px solid var(--graft-shell-border-color);
 }
 
 .app-shell :deep(.t-layout),

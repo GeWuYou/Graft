@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +9,9 @@ import { defineComponent, h, ref } from 'vue';
 import { useSettingStore } from '@/store';
 
 import Header from './Header.vue';
+
+const headerSource = readFileSync(join(process.cwd(), 'src/layouts/components/Header.vue'), 'utf8');
+const shellSource = readFileSync(join(process.cwd(), 'src/layouts/index.vue'), 'utf8');
 
 vi.mock('@/utils/color', () => ({
   composeThemeTokenMap: (tokens: Record<string, string>) => tokens,
@@ -171,6 +177,15 @@ describe('Header', () => {
 
   afterEach(() => {
     restoreFullscreenApi();
+  });
+
+  it('keeps the operations surface transparent so the shared header separator remains visible', () => {
+    expect(headerSource).toContain(':deep(.t-head-menu__inner) {');
+    expect(headerSource).toContain('border-bottom: 1px solid var(--graft-shell-border-color);');
+    expect(headerSource).toContain(':deep(.t-head-menu__operations) {\n    background: transparent;');
+    expect(headerSource).not.toContain('box-shadow: inset 0 -1px 0 var(--graft-shell-border-color);');
+    expect(headerSource).not.toContain(':deep(.t-head-menu) {\n  position: relative;');
+    expect(shellSource).not.toContain('border-bottom: 1px solid var(--graft-shell-border-color);');
   });
 
   it('uses the personalization tooltip and palette icon to open the workbench', async () => {

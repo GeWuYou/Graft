@@ -494,7 +494,7 @@ const navToHelper = () => {
 }
 
 :deep(.t-head-menu__inner) {
-  border-bottom: 1px solid var(--td-component-stroke);
+  border-bottom: 1px solid var(--graft-shell-border-color);
 }
 
 :deep(.t-head-menu__operations) {
@@ -512,19 +512,18 @@ const navToHelper = () => {
 .t-menu--dark {
   background: var(--graft-shell-header-bg);
 
-  .t-head-menu__inner {
-    border-bottom: 1px solid var(--graft-shell-border-color);
-  }
-
   :deep(.t-head-menu__inner),
   :deep(.t-menu__logo),
   :deep(.t-menu),
-  :deep(.t-menu__operations),
   .header-operate-left,
   .operations-container,
   .header-menu,
   .header-logo-container {
     background: var(--graft-shell-header-bg);
+  }
+
+  :deep(.t-head-menu__operations) {
+    background: transparent;
   }
 
   :deep(.t-menu__item) {
