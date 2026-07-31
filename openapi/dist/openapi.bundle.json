@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Graft Server API",
-    "version": "0.1.0-phase-2a",
+    "version": "2.3.3",
     "description": "Graft Server API is described using OpenAPI 3.1 and provides unified API documentation, interactive testing, and client code generation."
   },
   "x-graft-mcp-schema": {
@@ -31811,6 +31811,7 @@
           "degraded",
           "stopped",
           "transitioning",
+          "missing",
           "unknown"
         ],
         "x-enum-varnames": [
@@ -31818,6 +31819,7 @@
           "ApplicationRuntimeStatusDegraded",
           "ApplicationRuntimeStatusStopped",
           "ApplicationRuntimeStatusTransitioning",
+          "ApplicationRuntimeStatusMissing",
           "ApplicationRuntimeStatusUnknown"
         ],
         "description": "Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.\n"

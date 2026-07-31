@@ -1,8 +1,11 @@
 package project
 
 import (
+	"encoding/json"
 	"testing"
 
+	generated "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/moduleapi"
 	projectcontract "graft/server/modules/project/contract"
 	projectstore "graft/server/modules/project/store"
 )
@@ -92,4 +95,59 @@ func TestBuildLifecycleUpArgvSkipsWaitTimeoutWhenWaitDisabled(t *testing.T) {
 			t.Fatalf("expected argv[%d]=%q, got %q (full=%#v)", index, expected[index], argv[index], argv)
 		}
 	}
+}
+
+func TestLifecycleRestartPlanDefersRuntimeRecoveryDecision(t *testing.T) {
+	t.Parallel()
+
+	aggregate := projectstore.ApplicationAggregate{
+		Application: projectstore.Application{
+			ComposeProjectName: "compose-demo",
+			WorkspacePath:      "/srv/compose-demo",
+		},
+		Files: []projectstore.ApplicationFile{{
+			Kind:         projectcontract.FileKindCompose.String(),
+			AbsolutePath: "/srv/compose-demo/compose.yaml",
+		}},
+	}
+	plan, err := lifecycleTaskPlan(aggregate, generated.ApplicationActionResponseActionApplicationActionRestart)
+	if err != nil {
+		t.Fatalf("build restart plan: %v", err)
+	}
+	stage := onlyLifecycleStage(t, plan)
+	if stage.Key != "restart" {
+		t.Fatalf("restart stage = %q, want restart", stage.Key)
+	}
+	if args := lifecycleStageArgs(t, stage); args[len(args)-1] != "restart" {
+		t.Fatalf("restart plan args = %#v", args)
+	}
+}
+
+func onlyLifecycleStage(t *testing.T, plan moduleapi.TaskPlan) moduleapi.StagePlan {
+	t.Helper()
+	if len(plan.Stages) != 1 {
+		t.Fatalf("lifecycle stages = %#v, want one stage", plan.Stages)
+	}
+	return plan.Stages[0]
+}
+
+func lifecycleStageArgs(t *testing.T, stage moduleapi.StagePlan) []string {
+	t.Helper()
+	var input composeStageInput
+	if err := json.Unmarshal(stage.Input, &input); err != nil {
+		t.Fatalf("decode lifecycle stage: %v", err)
+	}
+	return input.Args
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for index := range got {
+		if got[index] != want[index] {
+			return false
+		}
+	}
+	return true
 }

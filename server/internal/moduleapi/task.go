@@ -11,6 +11,8 @@ import (
 var (
 	// ErrTaskSubmissionConflict 表示同一幂等键被用于内容不同的 Task 提交。
 	ErrTaskSubmissionConflict = errors.New("task submission conflict")
+	// ErrTaskOwnerBusy 表示同一业务资源已有 pending、scheduled、running 或 needs_attention Task 占用执行权。
+	ErrTaskOwnerBusy = errors.New("task owner already has an active task")
 )
 
 const (

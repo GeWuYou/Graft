@@ -45,15 +45,16 @@ If bootstrap reports missing Chromium system dependencies, do not claim browser 
 .ai/venv/bin/python .agents/skills/graft-web-browser-agent/scripts/browser_agent.py \
   --url http://172.21.235.129:3002 \
   --login \
-  --credentials temp/username-passward.md \
+  --credentials temp/username-passward.yaml \
   --session auth-check \
   --screenshot \
   --snapshot-text
 ```
 
-The login helper accepts `username` / `account` / `user` and `password` / `passward` / `passwd` / `pwd` fields. It
-writes only redacted auth status to `summary.json`; do not print or commit credential values, access tokens, or session
-storage dumps.
+The login helper reads a YAML mapping of named profiles and defaults to `dev` when present; use
+`--credential-profile <name>` to select another profile. Each profile accepts `username` / `account` / `user` and
+`password` / `passward` / `passwd` / `pwd` fields. It writes only redacted auth status to `summary.json`; do not print
+or commit credential values, access tokens, or session storage dumps.
 
 5. Use focused interactions when debugging UI behavior:
 

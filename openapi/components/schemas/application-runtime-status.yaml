@@ -1,10 +1,11 @@
 type: string
-enum: [running, degraded, stopped, transitioning, unknown]
+enum: [running, degraded, stopped, transitioning, missing, unknown]
 x-enum-varnames:
   - ApplicationRuntimeStatusRunning
   - ApplicationRuntimeStatusDegraded
   - ApplicationRuntimeStatusStopped
   - ApplicationRuntimeStatusTransitioning
+  - ApplicationRuntimeStatusMissing
   - ApplicationRuntimeStatusUnknown
 description: >
   Stable aggregated application status for overview consumers. The value is derived from container-member

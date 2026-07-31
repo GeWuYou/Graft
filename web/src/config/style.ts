@@ -14,5 +14,6 @@ export default {
   isUseTabsRouter: false,
   showHeader: true,
   showThemeWorkbenchDock: true,
+  isAcrylicEnabled: false,
   brandTheme: '#0052D9',
 };

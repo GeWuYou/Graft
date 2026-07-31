@@ -92,7 +92,7 @@ type workspaceEntryRenameRequest struct {
 }
 
 type workspaceTreeBuildContext struct {
-	RootPath              string
+	Root                  *managedRootFS
 	TrackedKinds          map[string]string
 	HiddenDirectories     []string
 	FileTooltipRules      []workspaceTooltipRule
@@ -113,14 +113,11 @@ func (s *Service) browseProjectFiles(
 	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	browsePath := filepath.Join(rootDir, currentPath)
-	if err := ensureWorkspaceBrowsePath(browsePath); err != nil {
+	root, entries, err := readWorkspaceDirectory(rootDir, currentPath)
+	if err != nil {
 		return workspaceFilesResult{}, err
 	}
-	entries, err := os.ReadDir(browsePath)
-	if err != nil {
-		return workspaceFilesResult{}, mapWorkspacePathError(err)
-	}
+	defer func() { _ = closeManagedRootFS(root) }()
 	hiddenDirectories, err := s.workspaceHiddenDirectories(ctx)
 	if err != nil {
 		return workspaceFilesResult{}, err
@@ -134,7 +131,7 @@ func (s *Service) browseProjectFiles(
 		return workspaceFilesResult{}, err
 	}
 	buildContext := workspaceTreeBuildContext{
-		RootPath:              rootDir,
+		Root:                  root,
 		TrackedKinds:          trackedProjectFileKinds(rootDir, aggregate.Files),
 		HiddenDirectories:     hiddenDirectories,
 		FileTooltipRules:      fileTooltipRules,
@@ -162,6 +159,27 @@ func (s *Service) browseProjectFiles(
 	}, nil
 }
 
+func readWorkspaceDirectory(rootDir string, currentPath string) (*managedRootFS, []fs.DirEntry, error) {
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return nil, nil, mapWorkspacePathError(err)
+	}
+	managedPath := currentPath
+	if managedPath == "" {
+		managedPath = "."
+	}
+	if err := ensureWorkspaceBrowsePath(root, managedPath); err != nil {
+		_ = closeManagedRootFS(root)
+		return nil, nil, err
+	}
+	entries, err := fs.ReadDir(root.root.FS(), managedPath)
+	if err != nil {
+		_ = closeManagedRootFS(root)
+		return nil, nil, mapWorkspacePathError(err)
+	}
+	return root, entries, nil
+}
+
 func (s *Service) projectFileContent(
 	ctx context.Context,
 	projectID uint64,
@@ -175,8 +193,12 @@ func (s *Service) projectFileContent(
 	if err != nil {
 		return workspaceFileContentResult{}, err
 	}
-	absolutePath := filepath.Join(rootDir, relativePath)
-	info, err := os.Stat(absolutePath)
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return workspaceFileContentResult{}, mapWorkspacePathError(err)
+	}
+	defer func() { _ = closeManagedRootFS(root) }()
+	info, err := root.root.Stat(relativePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return workspaceFileContentResult{}, errProjectFileNotFound
@@ -186,8 +208,7 @@ func (s *Service) projectFileContent(
 	if info.IsDir() {
 		return workspaceFileContentResult{}, errProjectInvalidArgument
 	}
-	// #nosec G304 -- absolutePath 已校验为应用 workspace_path 范围内的路径。
-	content, err := os.ReadFile(absolutePath)
+	content, err := root.root.ReadFile(relativePath)
 	if err != nil {
 		return workspaceFileContentResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
@@ -225,19 +246,6 @@ func (s *Service) saveProjectFileContent(
 	if err != nil {
 		return workspaceFileSaveResult{}, err
 	}
-	absolutePath := filepath.Join(rootDir, relativePath)
-	if err := ensureWorkspaceSaveTarget(absolutePath); err != nil {
-		return workspaceFileSaveResult{}, err
-	}
-	// #nosec G304 -- absolutePath 已校验为应用 workspace_path 范围内的路径。
-	existingContent, err := os.ReadFile(absolutePath)
-	if err != nil {
-		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
-	}
-	state := resolveWorkspaceFileState(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files), existingContent)
-	if !state.Editable {
-		return workspaceFileSaveResult{}, errProjectInvalidArgument
-	}
 	fsRoot, err := openManagedRootFS(rootDir)
 	if err != nil {
 		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
@@ -245,6 +253,17 @@ func (s *Service) saveProjectFileContent(
 	defer func() {
 		_ = closeManagedRootFS(fsRoot)
 	}()
+	if err := ensureWorkspaceSaveTarget(fsRoot, relativePath); err != nil {
+		return workspaceFileSaveResult{}, err
+	}
+	existingContent, err := fsRoot.root.ReadFile(relativePath)
+	if err != nil {
+		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
+	}
+	state := resolveWorkspaceFileState(relativePath, trackedProjectFileKinds(rootDir, aggregate.Files), existingContent)
+	if !state.Editable {
+		return workspaceFileSaveResult{}, errProjectInvalidArgument
+	}
 	normalized := normalizeTextBlock(request.Content)
 	if err := fsRoot.root.WriteFile(relativePath, []byte(normalized), managedCreateFileMode); err != nil {
 		return workspaceFileSaveResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
@@ -452,8 +471,12 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 	if relativePath == "" {
 		return workspaceFileItem{}, errProjectInvalidArgument
 	}
-	absolutePath := filepath.Join(rootDir, relativePath)
-	info, err := os.Stat(absolutePath)
+	root, err := openManagedRootFS(rootDir)
+	if err != nil {
+		return workspaceFileItem{}, mapWorkspacePathError(err)
+	}
+	defer func() { _ = closeManagedRootFS(root) }()
+	info, err := root.root.Stat(relativePath)
 	if err != nil {
 		return workspaceFileItem{}, mapWorkspacePathError(err)
 	}
@@ -480,6 +503,7 @@ func (s *Service) updateProjectWorkspaceAnnotation(
 		return workspaceFileItem{}, err
 	}
 	return buildProjectWorkspaceFileItem(relativePath, entry, workspaceTreeBuildContext{
+		Root:                  root,
 		TrackedKinds:          trackedProjectFileKinds(rootDir, updatedAggregate.Files),
 		HiddenDirectories:     hiddenDirectories,
 		FileTooltipRules:      fileTooltipRules,
@@ -501,7 +525,7 @@ func buildProjectWorkspaceFileItem(
 	if err != nil {
 		return workspaceFileItem{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
-	state, err := resolveWorkspaceTreeItemState(buildContext.RootPath, relativePath, entry, buildContext.TrackedKinds)
+	state, err := resolveWorkspaceTreeItemState(buildContext.Root, relativePath, entry, buildContext.TrackedKinds)
 	if err != nil {
 		return workspaceFileItem{}, err
 	}
@@ -651,8 +675,8 @@ func buildVisibleWorkspaceItems(
 	return items, hasMoreHidden, nil
 }
 
-func ensureWorkspaceBrowsePath(path string) error {
-	info, err := os.Stat(path)
+func ensureWorkspaceBrowsePath(root *managedRootFS, path string) error {
+	info, err := root.root.Stat(path)
 	if err != nil {
 		return mapWorkspacePathError(err)
 	}
@@ -662,8 +686,8 @@ func ensureWorkspaceBrowsePath(path string) error {
 	return nil
 }
 
-func ensureWorkspaceSaveTarget(path string) error {
-	info, err := os.Stat(path)
+func ensureWorkspaceSaveTarget(root *managedRootFS, path string) error {
+	info, err := root.root.Stat(path)
 	if err != nil {
 		return mapWorkspacePathError(err)
 	}
@@ -811,7 +835,7 @@ func resolveWorkspaceTooltip(
 }
 
 func resolveWorkspaceTreeItemState(
-	rootDir string,
+	root *managedRootFS,
 	relativePath string,
 	entry fs.DirEntry,
 	trackedKinds map[string]string,
@@ -824,16 +848,15 @@ func resolveWorkspaceTreeItemState(
 			Editable:     false,
 		}, nil
 	}
-	return resolveWorkspaceFileStateFromPath(filepath.Join(rootDir, relativePath), relativePath, trackedKinds)
+	return resolveWorkspaceFileStateFromPath(root, relativePath, trackedKinds)
 }
 
 func resolveWorkspaceFileStateFromPath(
-	absolutePath string,
+	root *managedRootFS,
 	relativePath string,
 	trackedKinds map[string]string,
 ) (workspaceFileState, error) {
-	// #nosec G304 -- absolutePath 已限制在校验通过的应用工作区内。
-	sample, err := readWorkspaceFileSample(absolutePath)
+	sample, err := readWorkspaceFileSample(root, relativePath)
 	if err != nil {
 		return unreadableWorkspaceFileState(relativePath, trackedKinds), nil
 	}
@@ -872,9 +895,8 @@ func unreadableWorkspaceFileState(relativePath string, trackedKinds map[string]s
 	}
 }
 
-func readWorkspaceFileSample(path string) ([]byte, error) {
-	// #nosec G304 -- path 已限制为应用工作区内校验通过的文件路径。
-	file, err := os.Open(path)
+func readWorkspaceFileSample(root *managedRootFS, path string) ([]byte, error) {
+	file, err := root.root.Open(path)
 	if err != nil {
 		return nil, err
 	}

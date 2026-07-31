@@ -66,6 +66,84 @@
   --graft-shell-border-color: var(--graft-dark-border-color);
 }
 
+.app-shell[data-acrylic-glass='true'] {
+  background: var(--graft-shell-content-bg);
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--td-brand-color) 20%, transparent), transparent 38%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--td-brand-color) 11%, transparent), transparent 34%),
+    linear-gradient(
+      145deg,
+      var(--graft-shell-content-bg),
+      color-mix(in srgb, var(--graft-shell-bg) 74%, var(--td-brand-color))
+    );
+  isolation: isolate;
+  position: relative;
+}
+
+.app-shell[data-acrylic-glass='true']::before {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--td-text-color-primary) 18%, transparent) 0.5px,
+    transparent 0.5px
+  );
+  background-size: 5px 5px;
+  content: '';
+  inset: 0;
+  opacity: var(--graft-glass-noise-opacity);
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.app-shell[data-acrylic-glass='true'] > .t-layout {
+  position: relative;
+  z-index: 1;
+}
+
+.app-shell[data-acrylic-glass='true'] .@{starter-prefix}-content-layout {
+  background: transparent;
+}
+
+.app-shell[data-acrylic-glass='true'] .app-shell__content,
+.app-shell[data-acrylic-glass='true'] .app-shell__header {
+  background: transparent;
+}
+
+.app-shell[data-acrylic-glass='true'] .@{starter-prefix}-side-nav,
+.app-shell[data-acrylic-glass='true'] .t-head-menu,
+.app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav {
+  background: var(--td-bg-color-container);
+  border-color: var(--td-border-level-1-color);
+
+  @supports (backdrop-filter: blur(1px)) {
+    backdrop-filter: blur(var(--graft-glass-blur));
+    background: var(--graft-glass-bg);
+    border-color: var(--graft-glass-border);
+    box-shadow:
+      inset 0 1px 0 var(--graft-glass-highlight),
+      var(--graft-glass-shadow);
+  }
+}
+
+.app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav .t-default-menu__inner,
+.app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav .t-menu__logo,
+.app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav .t-menu,
+.app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav .t-menu__operations {
+  background: transparent;
+}
+
+.app-shell[data-acrylic-glass='true'] .@{starter-prefix}-side-nav,
+.app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav {
+  border-right-color: var(--graft-glass-border);
+}
+
+@media (width <= 768px) {
+  .app-shell[data-acrylic-glass='true'] .@{starter-prefix}-side-nav,
+  .app-shell[data-acrylic-glass='true'] .t-head-menu,
+  .app-shell[data-acrylic-glass='true'] .t-default-menu.@{starter-prefix}-side-nav {
+    backdrop-filter: none;
+  }
+}
+
 .t-layout__sider {
   transition:
     width 0.3s cubic-bezier(0.38, 0, 0.24, 1),

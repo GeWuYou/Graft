@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from yaml import YAMLError, safe_load
+
 
 def repo_root() -> Path:
     current = Path(__file__).resolve()
@@ -25,7 +27,7 @@ def repo_root() -> Path:
 ROOT_DIR = repo_root()
 DEFAULT_OUTPUT_DIR = ROOT_DIR / ".ai" / "artifacts" / "browser"
 DEFAULT_BROWSERS_DIR = ROOT_DIR / ".ai" / "ms-playwright"
-DEFAULT_CREDENTIALS_FILE = ROOT_DIR / "temp" / "username-passward.md"
+DEFAULT_CREDENTIALS_FILE = ROOT_DIR / "temp" / "username-passward.yaml"
 AUTH_PATH_PREFIX = "/api/auth/"
 
 
@@ -88,30 +90,67 @@ class BrowserAction(argparse.Action):
         setattr(namespace, "actions", actions)
 
 
-def parse_credentials(path: Path) -> dict[str, str]:
+def parse_credentials(path: Path, profile: str | None = None) -> tuple[dict[str, str], str | None]:
     if not path.exists():
         raise FileNotFoundError(f"Credentials file does not exist: {path}")
 
-    fields: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            key, value = line.split(":", 1)
-        elif "=" in line:
-            key, value = line.split("=", 1)
-        else:
-            continue
-        fields[key.strip().lower()] = value.strip()
+    try:
+        document = safe_load(path.read_text(encoding="utf-8"))
+    except YAMLError as exc:
+        raise ValueError(f"Credentials file must be valid YAML: {path}") from exc
+    if not isinstance(document, dict):
+        raise ValueError("Credentials YAML must contain a mapping of profiles or credential fields.")
+
+    selected_profile: str | None = None
+    if profile:
+        selected_profile = select_credential_profile(document, profile)
+        candidate = document[selected_profile]
+        if not isinstance(candidate, dict):
+            raise ValueError(f"Credential profile must be a mapping: {selected_profile}")
+        fields = normalize_credential_fields(candidate)
+    else:
+        fields = normalize_credential_fields(document)
+        if not has_credential_fields(fields):
+            selected_profile = select_credential_profile(document, profile)
+            candidate = document[selected_profile]
+            if not isinstance(candidate, dict):
+                raise ValueError(f"Credential profile must be a mapping: {selected_profile}")
+            fields = normalize_credential_fields(candidate)
 
     username = first_nonempty(fields, ("username", "account", "user"))
     password = first_nonempty(fields, ("password", "passward", "passwd", "pwd"))
     if not username or not password:
         raise ValueError(
-            "Credentials file must include username/account/user and password/passward/passwd/pwd fields."
+            "Selected credentials must include username/account/user and password/passward/passwd/pwd fields."
         )
-    return {"username": username, "password": password}
+    return {"username": username, "password": password}, selected_profile
+
+
+def normalize_credential_fields(raw_fields: dict[Any, Any]) -> dict[str, str]:
+    return {
+        str(key).strip().lower(): str(value).strip()
+        for key, value in raw_fields.items()
+        if value is not None and not isinstance(value, dict)
+    }
+
+
+def has_credential_fields(fields: dict[str, str]) -> bool:
+    return bool(first_nonempty(fields, ("username", "account", "user")))
+
+
+def select_credential_profile(document: dict[Any, Any], requested_profile: str | None) -> str:
+    if requested_profile:
+        if requested_profile not in document:
+            available = ", ".join(str(key) for key, value in document.items() if isinstance(value, dict))
+            raise ValueError(f"Credential profile not found: {requested_profile}. Available profiles: {available}")
+        return requested_profile
+
+    if isinstance(document.get("dev"), dict):
+        return "dev"
+    for name, value in document.items():
+        if isinstance(value, dict):
+            return str(name)
+    raise ValueError("Credentials YAML must contain a profile with username and password fields.")
 
 
 def first_nonempty(fields: dict[str, str], keys: tuple[str, ...]) -> str:
@@ -193,7 +232,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--credentials",
         default=str(DEFAULT_CREDENTIALS_FILE),
-        help="Credential file for --login. Defaults to temp/username-passward.md.",
+        help="YAML credential file for --login. Defaults to temp/username-passward.yaml.",
+    )
+    parser.add_argument(
+        "--credential-profile",
+        help="Credential profile in the YAML file. Defaults to dev, then the first profile.",
     )
     return parser
 
@@ -220,7 +263,9 @@ def main() -> int:
     actions = list(getattr(args, "actions", None) or [])
     width, height = args.viewport
     started_at = datetime.now(timezone.utc).isoformat()
-    credentials = parse_credentials(Path(args.credentials).resolve()) if args.login else None
+    credentials, credential_profile = (
+        parse_credentials(Path(args.credentials).resolve(), args.credential_profile) if args.login else (None, None)
+    )
     auth_events: list[dict[str, Any]] = []
 
     with sync_playwright() as playwright:
@@ -284,6 +329,7 @@ def main() -> int:
             "actions": redact_actions(actions),
             "login": {
                 "attempted": bool(args.login),
+                "credential_profile": credential_profile,
                 "authenticated": bool(
                     args.login
                     and page.url

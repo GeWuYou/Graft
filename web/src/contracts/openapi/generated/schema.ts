@@ -7922,7 +7922,7 @@ export interface components {
      * @description Stable aggregated application status for overview consumers. The value is derived from container-member runtime state and must not be treated as container-detail authority.
      * @enum {string}
      */
-    'application-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'unknown';
+    'application-runtime-status': 'running' | 'degraded' | 'stopped' | 'transitioning' | 'missing' | 'unknown';
     /** @enum {string} */
     'application-drift-status': 'unknown' | 'clean' | 'changed' | 'missing';
     /**

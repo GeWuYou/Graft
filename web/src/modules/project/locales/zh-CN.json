@@ -282,6 +282,7 @@
         "container": "容器",
         "running": "运行中",
         "stopped": "已停止",
+        "missing": "缺失",
         "transitioning": "过渡中",
         "unknown": "未知",
         "issue": "异常",
@@ -292,6 +293,7 @@
         "runtimeRunning": "🟢 运行中",
         "runtimeDegraded": "🟡 降级",
         "runtimeStopped": "⚫ 已停止",
+        "runtimeMissing": "⚫ 缺失",
         "runtimeTransitioning": "🟠 过渡中"
       },
       "statusTooltip": {
@@ -301,6 +303,7 @@
         "runtimeRunning": "当前页运行中",
         "runtimeDegraded": "当前页降级",
         "runtimeStopped": "当前页已停止",
+        "runtimeMissing": "当前页缺失",
         "runtimeTransitioning": "当前页过渡中",
         "viewLatestTask": "点击查看最近一次任务执行。"
       },

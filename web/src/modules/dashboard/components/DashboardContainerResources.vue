@@ -693,6 +693,22 @@ function resolveAnomalyKind(item: {
 type ResourceDisplayState = 'running' | 'notApplicable' | 'notCollected' | 'unknown';
 </script>
 <style lang="less" scoped>
+@import '@/shared/components/card-surface.less';
+
+:deep(.app-shell[data-acrylic-glass='true']) .dashboard-container-resources {
+  .graft-glass-surface();
+}
+
+:deep(.app-shell[data-acrylic-glass='true']) .dashboard-container-resources__summary-item,
+:deep(.app-shell[data-acrylic-glass='true'])
+  .dashboard-container-resources__consumer-card:not(
+    .dashboard-container-resources__consumer-card--warning,
+    .dashboard-container-resources__consumer-card--danger
+  ) {
+  .graft-glass-subtle-surface();
+}
+</style>
+<style lang="less" scoped>
 .dashboard-container-resources {
   border-radius: var(--td-radius-large);
 }

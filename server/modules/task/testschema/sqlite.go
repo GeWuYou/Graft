@@ -25,6 +25,9 @@ func CreateSQLite(db *sql.DB) error {
 		`CREATE UNIQUE INDEX uq_tasks_idempotency_submission
 			ON tasks (task_type, owner_type, owner_id, COALESCE(created_by, 0), idempotency_key_hash)
 			WHERE idempotency_key_hash IS NOT NULL`,
+		`CREATE UNIQUE INDEX uq_tasks_active_owner
+			ON tasks (owner_type, owner_id)
+			WHERE status IN ('pending', 'scheduled', 'running', 'needs_attention')`,
 		`CREATE TABLE task_stages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, stage_key TEXT NOT NULL, sequence INTEGER NOT NULL,
 			executor_type TEXT NOT NULL, status TEXT NOT NULL, attempt INTEGER NOT NULL, max_attempts INTEGER NOT NULL,

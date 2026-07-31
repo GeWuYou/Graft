@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -792,6 +793,7 @@ func TestSkipBatchRestartForStatusAllowsStoppedProjects(t *testing.T) {
 		{name: "running", status: generated.ApplicationRuntimeStatusRunning, wantReason: "", wantSkip: false},
 		{name: "degraded", status: generated.ApplicationRuntimeStatusDegraded, wantReason: "", wantSkip: false},
 		{name: "stopped", status: generated.ApplicationRuntimeStatusStopped, wantReason: "", wantSkip: false},
+		{name: "missing", status: generated.ApplicationRuntimeStatusMissing, wantReason: "", wantSkip: false},
 		{name: "transitioning", status: generated.ApplicationRuntimeStatusTransitioning, wantReason: "currently_transitioning", wantSkip: true},
 		{name: "unknown", status: generated.ApplicationRuntimeStatusUnknown, wantReason: "runtime_status_unknown", wantSkip: true},
 	}
@@ -2303,6 +2305,42 @@ func TestBrowseImportDirectoriesStaysRootRelative(t *testing.T) {
 	}
 	if len(result.Items) != 1 || result.Items[0].Path != "apps/orders" {
 		t.Fatalf("unexpected browse result: %#v", result.Items)
+	}
+}
+
+func TestImportRootOperationsRejectExternalDirectorySymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink probe is not reliable on windows")
+	}
+
+	root := t.TempDir()
+	externalDirectory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(externalDirectory, "compose.yaml"), []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatalf("write external compose file: %v", err)
+	}
+	if err := os.Symlink(externalDirectory, filepath.Join(root, "escape")); err != nil {
+		t.Fatalf("link external directory: %v", err)
+	}
+	service, err := NewService(&stubProjectRepository{}, WithSystemConfigResolver(stubCompositeConfigResolver{
+		values: map[string]string{
+			"ops.application.import.allowed_roots": `[{"id":"apps","label":"Apps","path":"` + root + `"}]`,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+
+	if _, err := service.BrowseImportDirectories(context.Background(), ImportDirectoryBrowseQuery{
+		Provider: importProviderLocal,
+		RootID:   "apps",
+		Path:     "escape",
+	}); !errors.Is(err, errProjectDirectoryForbidden) {
+		t.Fatalf("expected external symlink browse rejection, got %v", err)
+	}
+	if _, err := service.InspectImportDirectory(context.Background(), ImportInspectRequest{
+		DirectoryRef: ImportDirectoryReference{Provider: importProviderLocal, RootID: "apps", Path: "escape"},
+	}); !errors.Is(err, errProjectDirectoryForbidden) {
+		t.Fatalf("expected external symlink inspection rejection, got %v", err)
 	}
 }
 

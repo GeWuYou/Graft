@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -113,6 +114,85 @@ func TestSQLRepositoryTransitionsUseCompareAndSwap(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryCancelsUntrackedRunningStageWithDistinctDurations(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestSQLRepository(t)
+	created, stages, _, err := repository.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	startedAt := time.Now().UTC().Add(-time.Minute)
+	if err := repository.TransitionTask(context.Background(), TaskTransitionInput{TaskID: created.ID, From: moduleapi.TaskStatusPending, To: moduleapi.TaskStatusRunning, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition task to running: %v", err)
+	}
+	if err := repository.TransitionStage(context.Background(), StageTransitionInput{StageID: stages[0].ID, From: moduleapi.StageStatusPending, To: moduleapi.StageStatusRunning, Attempt: 1, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition stage to running: %v", err)
+	}
+	if _, err := repository.RequestCancellation(context.Background(), created.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("request cancellation: %v", err)
+	}
+	stageDurationMS, taskDurationMS := int64(1_000), int64(60_000)
+	if err := repository.CancelUntrackedRunningStage(context.Background(), created.ID, stages[0].ID, time.Now().UTC(), &stageDurationMS, &taskDurationMS); err != nil {
+		t.Fatalf("cancel untracked running stage: %v", err)
+	}
+	task, err := repository.Get(context.Background(), created.ID)
+	if err != nil || task.DurationMS == nil || *task.DurationMS != taskDurationMS {
+		t.Fatalf("cancelled task duration: task=%#v err=%v", task, err)
+	}
+	storedStages, err := repository.ListStages(context.Background(), created.ID)
+	if err != nil || len(storedStages) != 2 || storedStages[0].DurationMS == nil || *storedStages[0].DurationMS != stageDurationMS {
+		t.Fatalf("cancelled stage duration: stages=%#v err=%v", storedStages, err)
+	}
+}
+
+func TestSQLRepositoryRecoveryAppendsCancellationEventOnlyForCapturedTask(t *testing.T) {
+	t.Parallel()
+	repository, db := newTestSQLRepository(t)
+	cancelled, cancelledStages, _, err := repository.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatalf("create interrupted task: %v", err)
+	}
+	startedAt := time.Now().UTC().Add(-time.Minute)
+	if err := repository.TransitionTask(context.Background(), TaskTransitionInput{TaskID: cancelled.ID, From: moduleapi.TaskStatusPending, To: moduleapi.TaskStatusRunning, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition interrupted task: %v", err)
+	}
+	if err := repository.TransitionStage(context.Background(), StageTransitionInput{StageID: cancelledStages[0].ID, From: moduleapi.StageStatusPending, To: moduleapi.StageStatusRunning, Attempt: 1, StartedAt: &startedAt}); err != nil {
+		t.Fatalf("transition interrupted stage: %v", err)
+	}
+	if _, err := repository.RequestCancellation(context.Background(), cancelled.ID, time.Now().UTC()); err != nil {
+		t.Fatalf("request interrupted task cancellation: %v", err)
+	}
+
+	unrelatedInput := validCreateInput()
+	unrelatedInput.Task.Owner.ID = "unrelated-owner"
+	unrelated, _, _, err := repository.Create(context.Background(), unrelatedInput)
+	if err != nil {
+		t.Fatalf("create unrelated task: %v", err)
+	}
+	recoveryAt := time.Now().UTC()
+	if _, err := db.Exec(`UPDATE tasks SET status = ?, cancel_requested_at = ?, finished_at = ? WHERE id = ?`, moduleapi.TaskStatusCancelled, recoveryAt, recoveryAt, unrelated.ID); err != nil {
+		t.Fatalf("seed unrelated cancelled task: %v", err)
+	}
+	if count, err := repository.RecoverInterruptedStages(context.Background(), recoveryAt); err != nil || count != 1 {
+		t.Fatalf("recover interrupted cancellation: count=%d err=%v", count, err)
+	}
+	assertEventTypes(t, repository, cancelled.ID, []taskmodel.EventType{taskmodel.EventTypeCreated, taskmodel.EventTypeCancelled})
+	assertEventTypes(t, repository, unrelated.ID, []taskmodel.EventType{taskmodel.EventTypeCreated})
+}
+
+func assertEventTypes(t *testing.T, repository *SQLRepository, taskID uint64, want []taskmodel.EventType) {
+	t.Helper()
+	events, err := repository.ListEvents(context.Background(), taskID, 0, len(want)+1)
+	if err != nil || len(events) != len(want) {
+		t.Fatalf("task events: events=%#v err=%v", events, err)
+	}
+	for index, wantType := range want {
+		if events[index].Type != wantType {
+			t.Fatalf("event %d type = %q, want %q", index, events[index].Type, wantType)
+		}
+	}
+}
+
 func TestSQLRepositoryReplaysEventsAndLogsBySequence(t *testing.T) {
 	t.Parallel()
 
@@ -207,11 +287,17 @@ func assertLogSequences(t *testing.T, logs []taskmodel.Log, err error, want []in
 func TestSQLRepositoryListsOwnerScopedPageAndTotal(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)
-	for _, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
+	for index, ownerID := range []string{"owner-a", "owner-a", "owner-b"} {
 		input := validCreateInput()
 		input.Task.Owner = moduleapi.TaskOwner{Type: "application", ID: ownerID}
-		if _, _, _, err := repository.Create(context.Background(), input); err != nil {
+		created, _, _, err := repository.Create(context.Background(), input)
+		if err != nil {
 			t.Fatalf("create %q task: %v", ownerID, err)
+		}
+		if index == 0 {
+			if _, err := repository.db.Exec(`UPDATE tasks SET status = ? WHERE id = ?`, moduleapi.TaskStatusFailed, created.ID); err != nil {
+				t.Fatalf("complete first owner task: %v", err)
+			}
 		}
 	}
 	items, total, err := repository.List(context.Background(), moduleapi.TaskListFilter{Owner: moduleapi.TaskOwner{Type: "application", ID: "owner-a"}}, 1, 1)

@@ -282,6 +282,7 @@
         "container": "Containers",
         "running": "Running",
         "stopped": "Stopped",
+        "missing": "Missing",
         "transitioning": "Transitioning",
         "unknown": "Unknown",
         "issue": "Issue",
@@ -292,6 +293,7 @@
         "runtimeRunning": "🟢 Running",
         "runtimeDegraded": "🟡 Degraded",
         "runtimeStopped": "⚫ Stopped",
+        "runtimeMissing": "⚫ Missing",
         "runtimeTransitioning": "🟠 Transitioning"
       },
       "statusTooltip": {
@@ -301,6 +303,7 @@
         "runtimeRunning": "Current Page Running",
         "runtimeDegraded": "Current Page Degraded",
         "runtimeStopped": "Current Page Stopped",
+        "runtimeMissing": "Current Page Missing",
         "runtimeTransitioning": "Current Page Transitioning",
         "viewLatestTask": "Click to view the latest task execution."
       },

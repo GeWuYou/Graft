@@ -60,6 +60,28 @@ func TestRuntimeExecutesSerialPlanAndCompletesTask(t *testing.T) {
 	}
 }
 
+func TestRuntimeUpdatesCurrentStageWhenClaimingLaterStage(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	receipt, err := runtime.Submit(context.Background(), testSubmitInput(2, 1))
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("complete first stage: %v", err)
+	}
+	claim, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC())
+	if err != nil || !found || claim.Stage.Key != "stage-2" {
+		t.Fatalf("claim second stage: claim=%#v found=%t err=%v", claim, found, err)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.CurrentStageKey == nil || *task.CurrentStageKey != "stage-2" {
+		t.Fatalf("task current stage after second claim = %v, want stage-2", task.CurrentStageKey)
+	}
+}
+
 func TestRuntimeRetryableStageReturnsToPendingForNextAttempt(t *testing.T) {
 	t.Parallel()
 	runtime, repository := newRuntimeForTest(t)
@@ -120,6 +142,40 @@ func TestRepositoryRecoversRunningStageAsUnknownAndTaskNeedsAttention(t *testing
 		t.Fatalf("second recovery = %d, %v", count, err)
 	}
 	assertInterruptedTaskRecovery(t, repository, receipt.TaskID)
+}
+
+func TestRepositoryCancelsInterruptedStageWhenCancellationWasRequested(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Owner = moduleapi.TaskOwner{Type: "application", ID: "app-recovery-cancel"}
+	receipt, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	claimTaskStage(t, repository)
+	if _, err := repository.RequestCancellation(context.Background(), receipt.TaskID, time.Now().UTC()); err != nil {
+		t.Fatalf("request cancellation: %v", err)
+	}
+	if count, err := repository.RecoverInterruptedStages(context.Background(), time.Now().UTC()); err != nil || count != 1 {
+		t.Fatalf("recover requested cancellation = %d, %v", count, err)
+	}
+	assertInterruptedCancellation(t, repository, receipt.TaskID)
+	assertTaskCanBeResubmitted(t, runtime, input)
+}
+
+func assertInterruptedCancellation(t *testing.T, repository *taskstore.SQLRepository, taskID uint64) {
+	t.Helper()
+	if task := mustTask(t, repository, taskID); task.Status != moduleapi.TaskStatusCancelled {
+		t.Fatalf("task after interrupted cancellation = %#v", task)
+	}
+	stages, err := repository.ListStages(context.Background(), taskID)
+	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusCancelled {
+		t.Fatalf("stages after interrupted cancellation = %#v err=%v", stages, err)
+	}
 }
 
 func TestRuntimeSettlesExternalReceiptAfterCrashRecovery(t *testing.T) {
@@ -192,6 +248,92 @@ func TestRuntimePreservesClaimedExternalReceiptForLateSettlementAfterCancel(t *t
 	}
 }
 
+func TestRuntimeCancelsUntrackedRunningStageAndReleasesActiveOwner(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	input := testSubmitInput(1, 1)
+	input.Owner = moduleapi.TaskOwner{Type: "application", ID: "app-untracked-cancel"}
+	receipt, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	claimTaskStage(t, repository)
+	assertActiveOwnerBusy(t, runtime, input)
+	if err := runtime.Cancel(context.Background(), receipt.TaskID); err != nil {
+		t.Fatalf("cancel untracked running task: %v", err)
+	}
+	assertUntrackedCancellation(t, repository, receipt.TaskID)
+	assertTaskCanBeResubmitted(t, runtime, input)
+}
+
+func TestRuntimeCancelsUntrackedRunningStageWithDistinctTaskAndStageDurations(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	now := time.Now().UTC()
+	capturingRepository := &captureCancellationRepository{
+		Repository:     repository,
+		taskStartedAt:  now.Add(-10 * time.Second),
+		stageStartedAt: now.Add(-time.Second),
+	}
+	runtime.repository = capturingRepository
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	receipt, err := runtime.Submit(context.Background(), testSubmitInput(1, 1))
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	claimTaskStage(t, repository)
+	if err := runtime.Cancel(context.Background(), receipt.TaskID); err != nil {
+		t.Fatalf("cancel untracked running task: %v", err)
+	}
+	if capturingRepository.taskDurationMS == nil || capturingRepository.stageDurationMS == nil {
+		t.Fatal("untracked cancellation did not receive both durations")
+	}
+	if *capturingRepository.taskDurationMS < 9_000 || *capturingRepository.stageDurationMS < 900 || *capturingRepository.taskDurationMS-*capturingRepository.stageDurationMS < 7_000 {
+		t.Fatalf("durations must use independent start times: task=%d stage=%d", *capturingRepository.taskDurationMS, *capturingRepository.stageDurationMS)
+	}
+}
+
+func claimTaskStage(t *testing.T, repository *taskstore.SQLRepository) {
+	t.Helper()
+	if _, found, err := repository.ClaimNextStage(context.Background(), time.Now().UTC()); err != nil || !found {
+		t.Fatalf("claim stage: found=%t err=%v", found, err)
+	}
+}
+
+func assertActiveOwnerBusy(t *testing.T, runtime *Runtime, input moduleapi.SubmitTaskInput) {
+	t.Helper()
+	if _, err := runtime.Submit(context.Background(), input); !errors.Is(err, moduleapi.ErrTaskOwnerBusy) {
+		t.Fatalf("active owner submission error = %v", err)
+	}
+}
+
+func assertUntrackedCancellation(t *testing.T, repository *taskstore.SQLRepository, taskID uint64) {
+	t.Helper()
+	if task := mustTask(t, repository, taskID); task.Status != moduleapi.TaskStatusCancelled {
+		t.Fatalf("task after untracked cancellation = %#v", task)
+	}
+	stages, err := repository.ListStages(context.Background(), taskID)
+	if err != nil || len(stages) != 1 || stages[0].Status != moduleapi.StageStatusCancelled {
+		t.Fatalf("stages after untracked cancellation = %#v err=%v", stages, err)
+	}
+	events, err := repository.ListEvents(context.Background(), taskID, 0, 10)
+	if err != nil || len(events) != 3 || events[1].Type != taskmodel.EventTypeCancelRequested || events[2].Type != taskmodel.EventTypeCancelled {
+		t.Fatalf("untracked cancellation events = %#v err=%v", events, err)
+	}
+}
+
+func assertTaskCanBeResubmitted(t *testing.T, runtime *Runtime, input moduleapi.SubmitTaskInput) {
+	t.Helper()
+	if _, err := runtime.Submit(context.Background(), input); err != nil {
+		t.Fatalf("submit after untracked cancellation: %v", err)
+	}
+}
+
 func TestRuntimeRejectsUnregisteredOrdinaryStageExecutor(t *testing.T) {
 	t.Parallel()
 	runtime, _ := newRuntimeForTest(t)
@@ -246,6 +388,9 @@ func TestRuntimeSubmitWithoutIdempotencyKeyRemainsNonIdempotent(t *testing.T) {
 	first, err := runtime.Submit(context.Background(), input)
 	if err != nil {
 		t.Fatalf("first submit: %v", err)
+	}
+	if err := runtime.runOne(context.Background()); err != nil {
+		t.Fatalf("complete first task: %v", err)
 	}
 	second, err := runtime.Submit(context.Background(), input)
 	if err != nil {
@@ -376,7 +521,8 @@ func TestRuntimeWorkerIterationRecoversAndContinuesAfterPanic(t *testing.T) {
 	if err := runtime.RegisterStageExecutor(executor); err != nil {
 		t.Fatalf("register executor: %v", err)
 	}
-	if _, err := runtime.Submit(context.Background(), testSubmitInput(1, 1)); err != nil {
+	_, err := runtime.Submit(context.Background(), testSubmitInput(1, 1))
+	if err != nil {
 		t.Fatalf("submit task: %v", err)
 	}
 
@@ -388,6 +534,28 @@ func TestRuntimeWorkerIterationRecoversAndContinuesAfterPanic(t *testing.T) {
 	}
 	if calls := executor.calls(); calls != 1 {
 		t.Fatalf("executor calls after worker panic = %d, want 1", calls)
+	}
+}
+
+func TestRuntimeRemovesRunningStageWhenFinishClaimPanics(t *testing.T) {
+	t.Parallel()
+	runtime, repository := newRuntimeForTest(t)
+	runtime.repository = &panicOnGetRepository{Repository: repository}
+	if err := runtime.RegisterStageExecutor(&recordingExecutor{}); err != nil {
+		t.Fatalf("register executor: %v", err)
+	}
+	receipt, err := runtime.Submit(context.Background(), testSubmitInput(1, 1))
+	if err != nil {
+		t.Fatalf("submit task: %v", err)
+	}
+	if err := runtime.runWorkerIteration(context.Background()); err == nil || !strings.Contains(err.Error(), "task worker panicked") {
+		t.Fatalf("worker iteration error = %v, want recovered panic", err)
+	}
+	runtime.mu.RLock()
+	_, running := runtime.running[receipt.TaskID]
+	runtime.mu.RUnlock()
+	if running {
+		t.Fatal("running stage remained registered after finishClaim panic")
 	}
 }
 
@@ -631,6 +799,44 @@ type panicOnceRepository struct {
 	taskstore.Repository
 	mu       sync.Mutex
 	panicked bool
+}
+
+type panicOnGetRepository struct {
+	taskstore.Repository
+}
+
+func (r *panicOnGetRepository) Get(context.Context, uint64) (taskmodel.Task, error) {
+	panic("finish claim get")
+}
+
+type captureCancellationRepository struct {
+	taskstore.Repository
+	taskStartedAt   time.Time
+	stageStartedAt  time.Time
+	stageDurationMS *int64
+	taskDurationMS  *int64
+}
+
+func (r *captureCancellationRepository) RequestCancellation(ctx context.Context, taskID uint64, requestedAt time.Time) (taskmodel.Task, error) {
+	task, err := r.Repository.RequestCancellation(ctx, taskID, requestedAt)
+	if err == nil {
+		task.StartedAt = &r.taskStartedAt
+	}
+	return task, err
+}
+
+func (r *captureCancellationRepository) ListStages(ctx context.Context, taskID uint64) ([]taskmodel.Stage, error) {
+	stages, err := r.Repository.ListStages(ctx, taskID)
+	if err == nil && len(stages) == 1 {
+		stages[0].StartedAt = &r.stageStartedAt
+	}
+	return stages, err
+}
+
+func (r *captureCancellationRepository) CancelUntrackedRunningStage(ctx context.Context, taskID uint64, stageID uint64, finishedAt time.Time, stageDurationMS *int64, taskDurationMS *int64) error {
+	r.stageDurationMS = stageDurationMS
+	r.taskDurationMS = taskDurationMS
+	return r.Repository.CancelUntrackedRunningStage(ctx, taskID, stageID, finishedAt, stageDurationMS, taskDurationMS)
 }
 
 func (r *panicOnceRepository) ClaimNextStage(ctx context.Context, now time.Time) (taskstore.StageClaim, bool, error) {

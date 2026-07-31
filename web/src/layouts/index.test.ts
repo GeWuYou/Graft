@@ -33,6 +33,7 @@ const routerMock = vi.hoisted(() => ({
 const settingStoreProxy = vi.hoisted(() => ({
   value: null as null | {
     displayMode: string;
+    isAcrylicEnabled: boolean;
     isSidebarCompact: boolean;
     isSidebarFixed: boolean;
     layout: { value: string };
@@ -50,6 +51,7 @@ const storeState = vi.hoisted(() => ({
   },
   settingStore: {
     displayMode: 'light',
+    isAcrylicEnabled: false,
     isSidebarCompact: false,
     isSidebarFixed: true,
     layout: { value: 'side' },
@@ -202,6 +204,7 @@ describe('App layout route effects', () => {
     vi.useFakeTimers();
     settingStoreProxy.value ??= reactive(storeState.settingStore);
     settingStoreProxy.value.displayMode = 'light';
+    settingStoreProxy.value.isAcrylicEnabled = false;
     settingStoreProxy.value.isSidebarCompact = false;
     settingStoreProxy.value.isSidebarFixed = true;
     settingStoreProxy.value.layout = { value: 'side' };
@@ -324,6 +327,17 @@ describe('App layout route effects', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.get('.app-shell').attributes('data-sidebar-motion-phase')).toBe('compact');
     expect(storeState.realtimeSchedulerStore.freeze).toHaveBeenCalledWith('shell-sidebar-motion');
+  });
+
+  it('exposes the opt-in acrylic preference on the shell surface', async () => {
+    const wrapper = mountAppLayout();
+
+    expect(wrapper.get('.app-shell').attributes('data-acrylic-glass')).toBe('false');
+
+    settingStoreProxy.value!.isAcrylicEnabled = true;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.app-shell').attributes('data-acrylic-glass')).toBe('true');
   });
 
   it('moves an unfixed sidebar with the page scroll while keeping a fixed sidebar in place', async () => {

@@ -154,6 +154,7 @@ const shellSurfaceAttrs = computed(() => ({
   'data-sidebar-render-compact': String(effectiveSidebarRenderCompact.value),
   'data-sidebar-width-compact': String(effectiveSidebarWidthCompact.value),
   'data-sidebar-target-compact': String(settingStore.isSidebarCompact),
+  'data-acrylic-glass': String(settingStore.isAcrylicEnabled),
   'data-theme-mode': settingStore.displayMode,
   style: {
     '--graft-shell-sidebar-scroll-translate-y': settingStore.isSidebarFixed ? '0px' : `-${pageScrollTop.value}px`,

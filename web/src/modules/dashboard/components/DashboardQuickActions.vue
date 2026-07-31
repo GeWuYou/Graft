@@ -123,6 +123,29 @@ function go(location: string) {
 }
 </script>
 <style lang="less" scoped>
+@import '@/shared/components/card-surface.less';
+
+:deep(.app-shell[data-acrylic-glass='true']) .dashboard-quick-actions {
+  .graft-glass-surface();
+}
+
+:deep(.app-shell[data-acrylic-glass='true'])
+  .dashboard-quick-actions__item:not(.dashboard-quick-actions__item--drawer) {
+  .graft-glass-subtle-surface();
+}
+
+:deep(.app-shell[data-acrylic-glass='true'])
+  .dashboard-quick-actions__item:not(.dashboard-quick-actions__item--drawer):hover,
+:deep(.app-shell[data-acrylic-glass='true'])
+  .dashboard-quick-actions__item:not(.dashboard-quick-actions__item--drawer):focus-visible {
+  background: color-mix(in srgb, var(--td-brand-color) 12%, var(--graft-glass-bg));
+  border-color: var(--td-brand-color);
+  box-shadow:
+    inset 0 1px 0 var(--graft-glass-highlight),
+    var(--td-shadow-1);
+}
+</style>
+<style lang="less" scoped>
 .dashboard-quick-actions {
   min-width: 0;
 }

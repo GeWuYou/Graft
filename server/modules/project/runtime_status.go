@@ -36,8 +36,12 @@ func deriveProjectRuntimeStatus(
 		status := generated.ApplicationRuntimeStatusUnknown
 		return &status
 	}
-	if summary == nil || len(summary.Members) == 0 {
+	if summary == nil {
 		status := generated.ApplicationRuntimeStatusUnknown
+		return &status
+	}
+	if len(summary.Members) == 0 {
+		status := generated.ApplicationRuntimeStatusMissing
 		return &status
 	}
 

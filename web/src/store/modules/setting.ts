@@ -410,6 +410,7 @@ export const useSettingStore = defineStore('setting', {
         DEFAULT_THEME_PRESET_ID,
         options,
       );
+      this.updateConfig({ isAcrylicEnabled: STYLE_CONFIG.isAcrylicEnabled });
     },
     async resetDefaultThemeWithFeedback() {
       const feedbackKey = this.themeResetFeedbackKey + 1;

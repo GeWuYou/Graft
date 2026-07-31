@@ -26,9 +26,13 @@ func TestDeriveProjectRuntimeStatus(t *testing.T) {
 			want: generated.ApplicationRuntimeStatusUnknown,
 		},
 		{
-			name:    "unknown without runtime members",
+			name:    "missing without runtime members",
 			summary: &moduleapi.ContainerProjectRuntimeSummary{},
-			want:    generated.ApplicationRuntimeStatusUnknown,
+			want:    generated.ApplicationRuntimeStatusMissing,
+		},
+		{
+			name: "unknown without runtime summary",
+			want: generated.ApplicationRuntimeStatusUnknown,
 		},
 		{
 			name: "running when all members run",

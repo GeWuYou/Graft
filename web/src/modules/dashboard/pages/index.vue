@@ -379,6 +379,17 @@ function shouldResetContainerRealtimeState(error: unknown) {
 }
 </script>
 <style lang="less" scoped>
+@import '@/shared/components/card-surface.less';
+
+:deep(.app-shell[data-acrylic-glass='true']) .dashboard-page__summary {
+  .graft-glass-surface();
+}
+
+:deep(.app-shell[data-acrylic-glass='true']) .dashboard-page__summary-item {
+  .graft-glass-subtle-surface();
+}
+</style>
+<style lang="less" scoped>
 .dashboard-page {
   display: flex;
   flex-direction: column;

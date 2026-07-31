@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"strings"
 
 	generated "graft/server/internal/contract/openapi/generated"
@@ -188,11 +188,12 @@ func (s *Service) BrowseImportDirectories(ctx context.Context, query ImportDirec
 	if err != nil {
 		return ImportDirectoryBrowseResult{}, err
 	}
-	absolute, err := resolveRootPath(root, query.Path)
+	workspace, _, err := openImportRootDirectory(root, query.Path)
 	if err != nil {
 		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
 	}
-	entries, err := os.ReadDir(absolute)
+	defer func() { _ = closeManagedRootFS(workspace) }()
+	entries, err := fs.ReadDir(workspace.root.FS(), ".")
 	if err != nil {
 		return ImportDirectoryBrowseResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
@@ -225,11 +226,12 @@ func (s *Service) InspectImportDirectory(ctx context.Context, request ImportInsp
 	if err != nil {
 		return ImportInspectResult{}, err
 	}
-	absolute, err := resolveRootPath(root, request.DirectoryRef.Path)
+	workspace, absolute, err := openImportRootDirectory(root, request.DirectoryRef.Path)
 	if err != nil {
 		return ImportInspectResult{}, fmt.Errorf("%w: invalid relative path", errProjectDirectoryForbidden)
 	}
-	discovered, err := discoverImportFiles(absolute)
+	defer func() { _ = closeManagedRootFS(workspace) }()
+	discovered, err := discoverImportFilesInRoot(workspace)
 	if err != nil {
 		return ImportInspectResult{}, fmt.Errorf("%w: %w", errProjectImportValidation, err)
 	}
