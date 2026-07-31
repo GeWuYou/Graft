@@ -177,6 +177,33 @@ describe('openRealtimeTopicSocket', () => {
     expect(onError).toHaveBeenCalledWith('Unauthorized');
   });
 
+  it('retries a transient subscription route 404 during service recreation', async () => {
+    const issueTicket = vi.fn().mockRejectedValueOnce(createApiRequestError(404, 'Not Found')).mockResolvedValue({
+      topic: 'container.stats:container-1',
+      ticket: 'opaque-ticket',
+      websocket_url: '/ws?topic=container.stats%3Acontainer-1&ticket=opaque-ticket',
+      sse_url: '/sse?topic=container.stats%3Acontainer-1&ticket=opaque-ticket',
+      expires_at: '2026-06-24T08:00:30Z',
+    });
+
+    openRealtimeTopicSocket({ topic: 'container.stats:container-1', issueTicket });
+
+    await vi.runAllTicks();
+    expect(issueTicket).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(999);
+    await vi.runAllTicks();
+    expect(issueTicket).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.runAllTicks();
+
+    expect(issueTicket).toHaveBeenCalledTimes(2);
+    expect(MockWebSocket.instances).toHaveLength(1);
+  });
+
   it('retries ticket issuance failures with backoff until a later attempt succeeds', async () => {
     const issueTicket = vi
       .fn()

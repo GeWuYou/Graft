@@ -688,6 +688,7 @@ func (r *DockerRuntime) ListDockerVolumes(ctx context.Context) ([]DockerVolume, 
 		projected := dockerVolume(item)
 		if data, ok := usageByName[item.Name]; ok {
 			projected.ReferenceCount, projected.SizeBytes = nullableUsage(data.RefCount), nullableUsage(data.Size)
+			projected.RelationshipStatus = dockerRelationshipStatusFromReferenceCount(projected.ReferenceCount)
 		}
 		applyDockerVolumeContainerReferences(&projected, references[projected.Name], containersErr)
 		items = append(items, projected)

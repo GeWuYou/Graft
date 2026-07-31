@@ -66,3 +66,4 @@ __linux
 node_modules/
 .tmp/
 /.worktrees/
+.VSCodeCounter/

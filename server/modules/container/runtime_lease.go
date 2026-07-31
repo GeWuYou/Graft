@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"graft/server/modules/container/terminal"
@@ -285,6 +286,23 @@ func (l *runtimeLease) ReadDockerVolume(ctx context.Context, id string) (DockerV
 	}
 	defer done()
 	return r.ReadDockerVolume(ctx, id)
+}
+func (l *runtimeLease) RemoveDockerVolume(ctx context.Context, id string, force bool) error {
+	r, ok := l.runtime.(interface {
+		RemoveDockerVolume(context.Context, string, bool) error
+	})
+	if !ok {
+		return fmt.Errorf("remove docker volume: %w", errUnsupportedContainerRuntime)
+	}
+	done, err := l.acquire()
+	if err != nil {
+		return fmt.Errorf("remove docker volume: acquire runtime lease: %w", err)
+	}
+	defer done()
+	if err := r.RemoveDockerVolume(ctx, id, force); err != nil {
+		return fmt.Errorf("remove docker volume %q: %w", id, err)
+	}
+	return nil
 }
 func (l *runtimeLease) PullDockerImage(ctx context.Context, ref string, emit func(DockerImagePullEvent) error) error {
 	r, ok := l.runtime.(DockerImageWriter)

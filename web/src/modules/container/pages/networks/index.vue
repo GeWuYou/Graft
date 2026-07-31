@@ -271,7 +271,10 @@
       width="760px"
       @confirm="submitCleanup"
     >
-      <docker-cleanup-loading-host :loading="cleanup.loading.value">
+      <docker-cleanup-loading-host
+        :empty="!cleanup.loading.value && !cleanup.items.value.length"
+        :loading="cleanup.loading.value"
+      >
         <t-alert v-if="cleanup.items.value.length" theme="warning" :message="t('container.networks.cleanup.warning')" />
         <section v-if="cleanup.items.value.length" class="docker-network-cleanup__preview">
           <div class="docker-network-cleanup__head">
