@@ -386,7 +386,7 @@ function shouldResetContainerRealtimeState(error: unknown) {
 }
 
 :deep(.app-shell[data-acrylic-glass='true']) .dashboard-page__summary-item {
-  .graft-glass-surface(var(--graft-card-bg-hover), var(--td-radius-medium));
+  .graft-glass-content-surface(var(--graft-card-bg-hover));
 }
 </style>
 <style lang="less" scoped>

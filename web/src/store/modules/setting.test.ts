@@ -715,12 +715,18 @@ describe('setting store theme authority', () => {
     store.initializeThemeWorkbenchRuntime();
 
     expect(store.themeResolvedTokens.light).toMatchObject({
-      '--graft-glass-bg': 'rgba(255, 255, 255, 0.72)',
-      '--graft-glass-blur': '10px',
+      '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 7%, transparent)',
+      '--graft-glass-bg': 'rgba(255, 255, 255, 0.54)',
+      '--graft-glass-blur': '28px',
+      '--graft-glass-content-bg': 'rgba(255, 255, 255, 0.72)',
+      '--graft-glass-content-blur': '22px',
     });
     expect(store.themeResolvedTokens.dark).toMatchObject({
-      '--graft-glass-bg': 'rgba(21, 27, 36, 0.62)',
-      '--graft-glass-blur': '16px',
+      '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 9%, transparent)',
+      '--graft-glass-bg': 'rgba(15, 20, 27, 0.58)',
+      '--graft-glass-blur': '28px',
+      '--graft-glass-content-bg': 'rgba(24, 31, 41, 0.72)',
+      '--graft-glass-content-blur': '22px',
     });
   });
 

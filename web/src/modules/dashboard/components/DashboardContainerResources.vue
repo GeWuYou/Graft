@@ -705,7 +705,7 @@ type ResourceDisplayState = 'running' | 'notApplicable' | 'notCollected' | 'unkn
     .dashboard-container-resources__consumer-card--warning,
     .dashboard-container-resources__consumer-card--danger
   ) {
-  .graft-glass-subtle-surface();
+  .graft-glass-content-surface();
 }
 </style>
 <style lang="less" scoped>
