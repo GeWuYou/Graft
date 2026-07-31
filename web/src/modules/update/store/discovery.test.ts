@@ -52,6 +52,23 @@ describe('update discovery store', () => {
     expect(store.hasUpdate).toBe(true);
   });
 
+  it('exposes a newer verified pinned Beta candidate even though latest is reserved for tracking strategies', () => {
+    const store = useUpdateDiscoveryStore();
+
+    store.replaceSnapshot({
+      current_version: '0.11.0-beta.27',
+      channel: 'beta',
+      image_tag: 'v0.11.0-beta.27',
+      deployment_strategy: 'pinned_beta',
+      latest: undefined,
+      available_releases: [{ version: '0.11.0-beta.28', channel: 'beta', published_at: '2026-07-31T00:00:00Z' }],
+      cache_stale: false,
+      check_error: '',
+    } as never);
+
+    expect(store.hasUpdate).toBe(true);
+  });
+
   it('allows a failed discovery request to be retried', async () => {
     const permissions = usePermissionStore();
     permissions.setBootstrapSnapshot({ permissions: ['platform-update.read'] } as never);

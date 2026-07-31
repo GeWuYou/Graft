@@ -41,12 +41,14 @@
         </t-card>
 
         <t-card :title="t('update.center.latest.title')" bordered>
-          <template v-if="status.latest && !status.cache_stale && !status.check_error">
+          <template v-if="availableUpdateRelease && !status.cache_stale && !status.check_error">
             <div class="update-center__version">
-              <strong>{{ status.latest.version }}</strong>
-              <t-tag size="small" theme="success" variant="light">{{ channelLabel(status.latest.channel) }}</t-tag>
+              <strong>{{ availableUpdateRelease.version }}</strong>
+              <t-tag size="small" theme="success" variant="light">{{
+                channelLabel(availableUpdateRelease.channel)
+              }}</t-tag>
             </div>
-            <p>{{ t('update.center.latest.available', { date: formatDate(status.latest.published_at) }) }}</p>
+            <p>{{ t('update.center.latest.available', { date: formatDate(availableUpdateRelease.published_at) }) }}</p>
           </template>
           <template v-else-if="status.cache_stale || status.check_error">
             <strong class="update-center__up-to-date">{{ t('update.center.latest.unavailable') }}</strong>
@@ -343,6 +345,11 @@ import { isApiRequestError } from '@/utils/request';
 
 import { createUpdateOperation, getUpdateFailureDiagnostic, getUpdateOperations } from '../../api/update';
 import DiagnosticDrawer from '../../components/DiagnosticDrawer.vue';
+import {
+  getAvailableUpdateRelease,
+  getFixedUpdateReleaseCandidates,
+  isFixedStrategy as isFixedDeploymentStrategy,
+} from '../../composables/releaseSelection';
 import { isUpdateOperationFailureCode, UPDATE_OPERATION_FAILURE_MESSAGE_KEY } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
@@ -412,17 +419,10 @@ const hasSelectedCandidate = computed(
     composeCandidates.value.some(({ key }) => key === selectedCandidateKey.value),
 );
 const deploymentStrategy = computed<DeploymentStrategy>(() => status.value?.deployment_strategy ?? 'unknown');
-const isFixedStrategy = computed(
-  () => deploymentStrategy.value === 'pinned_stable' || deploymentStrategy.value === 'pinned_beta',
-);
-const releaseForUpgrade = computed(
-  () => status.value?.latest ?? (isFixedStrategy.value ? fixedReleaseCandidates.value[0] : undefined),
-);
-const canOpenUpgradeFlow = computed(
-  () =>
-    isUpgradePrerequisiteEligible.value &&
-    (isFixedStrategy.value ? Boolean(fixedReleaseCandidates.value.length) : Boolean(status.value?.latest?.version)),
-);
+const isFixedStrategy = computed(() => isFixedDeploymentStrategy(deploymentStrategy.value));
+const availableUpdateRelease = computed(() => getAvailableUpdateRelease(status.value));
+const releaseForUpgrade = availableUpdateRelease;
+const canOpenUpgradeFlow = computed(() => isUpgradePrerequisiteEligible.value && Boolean(releaseForUpgrade.value));
 const isUpgradePrerequisiteEligible = computed(
   () =>
     Boolean(status.value) &&
@@ -434,13 +434,9 @@ const isUpgradePrerequisiteEligible = computed(
 );
 const selectedTargetVersion = computed(() => {
   if (isFixedStrategy.value) return selectedFixedVersion.value;
-  return status.value?.latest?.version ?? '';
+  return releaseForUpgrade.value?.version ?? '';
 });
-const fixedReleaseCandidates = computed(() =>
-  (status.value?.available_releases ?? [])
-    .filter((release) => isFixedReleaseCandidate(release.version, release.channel))
-    .sort((left, right) => compareReleaseVersions(right.version, left.version)),
-);
+const fixedReleaseCandidates = computed(() => getFixedUpdateReleaseCandidates(status.value));
 const fixedReleaseOptions = computed(() =>
   fixedReleaseCandidates.value.map((release) => ({
     label: `${release.version} (${channelLabel(release.channel)})`,
@@ -759,37 +755,6 @@ function deploymentStrategyLabel(strategy: DeploymentStrategy) {
 
 function deploymentStrategyDescription(strategy: DeploymentStrategy) {
   return t(`update.center.strategy.options.${strategy}.description`);
-}
-
-function isFixedReleaseCandidate(version: string, channel: UpdateChannel) {
-  const current = status.value;
-  if (!current || !isFixedStrategy.value || channel !== fixedStrategyChannel(deploymentStrategy.value)) {
-    return false;
-  }
-  return compareReleaseVersions(version, current.current_version) > 0;
-}
-
-function fixedStrategyChannel(strategy: DeploymentStrategy): UpdateChannel {
-  return strategy === 'pinned_beta' ? 'beta' : 'stable';
-}
-
-function compareReleaseVersions(left: string, right: string) {
-  const leftParts = parseReleaseVersion(left);
-  const rightParts = parseReleaseVersion(right);
-  if (!leftParts || !rightParts) return 0;
-
-  for (let index = 0; index < 3; index += 1) {
-    const difference = leftParts[index] - rightParts[index];
-    if (difference !== 0) return difference;
-  }
-  return leftParts[3] - rightParts[3];
-}
-
-function parseReleaseVersion(version: string): [number, number, number, number] | null {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/.exec(version.trim());
-  if (!match) return null;
-  // 候选在进入比较前已按部署策略限定为同一发布通道。
-  return [Number(match[1]), Number(match[2]), Number(match[3]), Number(match[4] ?? 0)];
 }
 
 function readinessTheme(severity: UpdateReadinessCheck['severity']) {

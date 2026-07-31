@@ -127,6 +127,33 @@ describe('UpdateVersionEntry', () => {
     expect(wrapper.text()).not.toContain('Fixes');
   });
 
+  it('shows a newer pinned Beta candidate when latest is absent', () => {
+    const discovery = useUpdateDiscoveryStore();
+    discovery.replaceSnapshot(
+      status({
+        current_version: '0.11.0-beta.27',
+        channel: 'beta',
+        image_tag: 'v0.11.0-beta.27',
+        deployment_strategy: 'pinned_beta',
+        latest: undefined,
+        available_releases: [
+          {
+            version: '0.11.0-beta.28',
+            channel: 'beta',
+            notes_url: 'https://github.com/GeWuYou/Graft/releases/tag/v0.11.0-beta.28',
+          },
+        ],
+      }),
+    );
+
+    const wrapper = mountEntry();
+
+    expect(wrapper.get('[data-testid="update-version-tooltip"]').attributes('data-tooltip-content')).toBe(
+      'update.versionEntry.updateAvailable:0.11.0-beta.28',
+    );
+    expect(wrapper.text()).toContain('update.preview.availableVersion:0.11.0-beta.28');
+  });
+
   it('shows unavailable messaging and hides stale release details', () => {
     const discovery = useUpdateDiscoveryStore();
     discovery.replaceSnapshot(status({ latest: { version: '1.1.0', upgrade_notes: 'Stale' }, cache_stale: true }));
