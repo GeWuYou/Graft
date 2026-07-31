@@ -37,4 +37,16 @@ describe('DockerCleanupLoadingHost', () => {
     expect(wrapper.get('[data-testid="cleanup-loading"]').attributes('data-loading')).toBe('false');
     expect(wrapper.text()).toContain('candidate content');
   });
+
+  it('centers the empty result inside the stable cleanup area', () => {
+    const wrapper = mount(DockerCleanupLoadingHost, {
+      props: { empty: true, loading: false },
+      slots: { default: '<p>empty result</p>' },
+      global: { components: { 't-loading': LoadingStub } },
+    });
+
+    expect(wrapper.get('.docker-cleanup-loading-host').classes()).toContain('docker-cleanup-loading-host--empty');
+    expect(wrapper.text()).toContain('empty result');
+    expect(sourceText).toContain('place-items: center;');
+  });
 });

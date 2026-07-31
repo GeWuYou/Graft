@@ -65,7 +65,8 @@ describe('Docker network management page', () => {
 
   it('uses the shared cleanup snapshot for removable unused networks', () => {
     expect(sourceText).toContain('useDockerCleanup<DockerNetwork>');
-    expect(sourceText).toContain('<docker-cleanup-loading-host :loading="cleanup.loading.value">');
+    expect(sourceText).toContain(':empty="!cleanup.loading.value && !cleanup.items.value.length"');
+    expect(sourceText).toContain('<docker-cleanup-loading-host');
     expect(sourceText).toContain("usage: 'unused'");
     expect(sourceText).toContain('network.removable !== false');
     expect(sourceText).toContain('selectedNetworkIds');

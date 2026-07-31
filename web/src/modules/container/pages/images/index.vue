@@ -535,7 +535,7 @@
           </div>
         </header>
 
-        <docker-cleanup-loading-host :loading="cleanupLoading">
+        <docker-cleanup-loading-host :empty="!cleanupLoading && !cleanupImages.length" :loading="cleanupLoading">
           <t-card v-if="cleanupImages.length" class="docker-images-cleanup-summary" :bordered="false">
             <div class="docker-images-cleanup-summary__stats">
               <div>
@@ -630,9 +630,8 @@
               </div>
             </div>
           </section>
+          <t-empty v-if="!cleanupLoading && !cleanupImages.length" :title="t('container.images.cleanup.empty')" />
         </docker-cleanup-loading-host>
-
-        <t-empty v-if="!cleanupLoading && !cleanupImages.length" :title="t('container.images.cleanup.empty')" />
       </div>
       <template #footer>
         <div class="docker-images-cleanup-footer">
