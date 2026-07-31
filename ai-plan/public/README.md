@@ -21,6 +21,9 @@ Overlay note:
 - `migration-governance`
   - Recovery entry: `ai-plan/public/migration-governance/README.md`
 
+- `pipeline-governance`
+  - Recovery entry: `ai-plan/public/pipeline-governance/README.md`
+
 - `docker-resource-context-ia`
   - Recovery entry: `ai-plan/public/docker-resource-context-ia/README.md`
 

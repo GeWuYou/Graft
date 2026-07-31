@@ -23,6 +23,8 @@ POSTGRES_DATABASE = "graft"
 READINESS_ATTEMPTS = 30
 READINESS_DELAY_SECONDS = 1
 REQUIRED_STABLE_READINESS_CHECKS = 3
+IMAGE_PULL_ATTEMPTS = 3
+IMAGE_PULL_DELAY_SECONDS = 2
 
 @dataclass(frozen=True)
 class BootstrapTarget:
@@ -52,7 +54,26 @@ def format_command_failure(command: list[str], result: subprocess.CompletedProce
     return f"command failed ({result.returncode}): {' '.join(command)}\n{output}"
 
 
+def pull_postgres_image() -> None:
+    command = ["docker", "pull", POSTGRES_IMAGE]
+    last_result: subprocess.CompletedProcess[str] | None = None
+    for attempt in range(1, IMAGE_PULL_ATTEMPTS + 1):
+        result = run_command(command, check=False)
+        if result.returncode == 0:
+            return
+        last_result = result
+        if attempt < IMAGE_PULL_ATTEMPTS:
+            print(
+                f"PostgreSQL image pull attempt {attempt}/{IMAGE_PULL_ATTEMPTS} failed; retrying.",
+                file=sys.stderr,
+            )
+            time.sleep(IMAGE_PULL_DELAY_SECONDS)
+    assert last_result is not None
+    raise CommandError(format_command_failure(command, last_result), stdout=last_result.stdout)
+
+
 def start_postgres(container_name: str) -> BootstrapTarget:
+    pull_postgres_image()
     run_command(
         [
             "docker",

@@ -25,6 +25,10 @@ func TestRegisterSSEGatewayStreamsAuthorizedTopicEvents(t *testing.T) {
 		t.Fatalf("issue SSE ticket: %v", err)
 	}
 	hub := NewHub()
+	memoryHub, ok := hub.(*memoryHub)
+	if !ok {
+		t.Fatal("expected memory hub implementation")
+	}
 	engine := gin.New()
 	if err := RegisterSSEGateway(engine, GatewayRegistration{Hub: hub, Tickets: tickets, WebSocketAllowOrigins: []string{"http://client.example"}}); err != nil {
 		t.Fatalf("register SSE gateway: %v", err)
@@ -46,6 +50,7 @@ func TestRegisterSSEGatewayStreamsAuthorizedTopicEvents(t *testing.T) {
 	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" {
 		t.Fatalf("unexpected SSE response: %d %q", response.StatusCode, response.Header.Get("Content-Type"))
 	}
+	waitForTopicSubscriberCount(t, memoryHub, topic, 1)
 	hub.Publish(topic, map[string]string{"status": "PULLING"})
 	reader := bufio.NewReader(response.Body)
 	line, err := reader.ReadString('\n')
