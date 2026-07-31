@@ -24,6 +24,10 @@ permissions:
   actions: read
   contents: read
 
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('{0}-pr-{1}', github.workflow, github.event.pull_request.number) || format('{0}-push-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   GOLANGCI_LINT_VERSION: v2.12.2
 
@@ -35,6 +39,7 @@ jobs:
     name: Secret Scan
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -48,11 +53,12 @@ jobs:
           path: .
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --exclude-globs=server/modules/update/rollout_diagnostics_test.go,server/modules/update/testdata/rollout-diagnostics/sensitive-inputs.txt
+          extra_args: --exclude-paths=.trufflehog-exclude-paths.txt
 
   contract-governance-check:
     name: Contract Governance Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -86,6 +92,7 @@ jobs:
   contract-drift-report:
     name: Contract Drift Report
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     continue-on-error: true
     steps:
       - name: Checkout repository
@@ -188,6 +195,7 @@ jobs:
   cross-boundary-contract-freshness:
     name: Cross-Boundary Contract Freshness
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -236,6 +244,7 @@ jobs:
   server-lint:
     name: Server Lint Stage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -306,6 +315,7 @@ jobs:
   server-lint-audit:
     name: Server Lint Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     continue-on-error: true
     steps:
       - name: Checkout repository
@@ -349,6 +359,7 @@ jobs:
   server-build-test:
     name: Server Build/Test Stage
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
@@ -371,6 +382,7 @@ jobs:
   server-test-report:
     name: Server Test Report
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       checks: write
       contents: read

@@ -49,6 +49,7 @@ closeout:
 - [x] Preserve the Compose Smoke probe URL in the job summary without shell command substitution.
 - [x] Keep the topic README Owned Scope aligned with the migration contract checker package.
 - [x] Record this review batch without changing the existing Work Contract, Recovery Point, or Batch State.
+- [x] Link the transient PostgreSQL image-pull retry to `pipeline-governance` while retaining this topic's bootstrap authority.
 
 ## Acceptance Conditions
 
