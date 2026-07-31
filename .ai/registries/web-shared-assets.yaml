@@ -1,6 +1,25 @@
 schema_version: 1
 updated_at: "2026-07-13"
 assets:
+  - name: "realtime-topic-clients"
+    type: "frontend-utility"
+    path: "web/src/shared/realtime"
+    owner: "web/shared/realtime"
+    purpose: "Generic topic ticket issuance plus WebSocket and one-way SSE clients; SSE reads only a server-issued single-use URL because ordinary request adapters buffer streaming responses."
+    use_when:
+      - "A module needs an authorized canonical realtime topic stream and does not own the transport lifecycle."
+      - "A one-way status stream benefits from SSE reconnection instead of periodic HTTP polling."
+    do_not_use_when:
+      - "A module needs bidirectional commands, which remain a WebSocket concern."
+      - "A stream URL was not issued through the canonical authenticated realtime subscription endpoint."
+    examples:
+      - "web/src/modules/update/api/update.ts"
+      - "web/src/shared/realtime/sse-client.ts"
+    related_assets:
+      - "openapi-contracts"
+    validation_commands:
+      - "cd web && bun run check"
+
   - name: "responsive-sidebar"
     type: "frontend-component"
     path: "web/src/shared/components/responsive/ResponsiveSidebar.vue"

@@ -31,6 +31,11 @@ type ComposeRunnerReceiptReader interface {
 	ReadRunnerReceipts(context.Context) ([]RunnerReceipt, error)
 }
 
+// ComposeRunnerProgressReader 读取保留 runner 日志中无秘密的固定阶段标记。
+type ComposeRunnerProgressReader interface {
+	ReadRunnerProgress(context.Context) ([]RunnerOperationProgress, error)
+}
+
 // ComposeRunnerReceiptCleanup 按稳定 operation ID 清理已成功结算的 runner 容器。
 type ComposeRunnerReceiptCleanup interface {
 	RemoveRunner(context.Context, string) error
@@ -51,6 +56,25 @@ type dockerRunnerClient interface {
 
 // RunnerReceiptLogMarker 是 runner 回执日志使用的稳定协议标记，写入与读取必须共用这一 authority。
 const RunnerReceiptLogMarker = "GRAFT_UPDATE_RECEIPT:"
+
+// RunnerProgressLogMarker 是 runner 阶段日志使用的稳定标记；标记后仅允许固定枚举值。
+const RunnerProgressLogMarker = "GRAFT_UPDATE_STAGE:"
+
+// RunnerOperationProgress 将 runner operation identity 与一个受限阶段关联。
+type RunnerOperationProgress struct {
+	OperationID string
+	Progress    RunnerProgress
+}
+
+func parseRunnerProgressLog(line string) (RunnerProgress, bool) {
+	value := strings.TrimSpace(line)
+	progress := RunnerProgress(strings.TrimSpace(strings.TrimPrefix(value, RunnerProgressLogMarker)))
+	if !strings.HasPrefix(value, RunnerProgressLogMarker) {
+		return "", false
+	}
+	_, ok := outcomeForRunnerProgress(progress)
+	return progress, ok
+}
 
 func parseRunnerReceiptLog(line string) (RunnerReceipt, bool) {
 	value := strings.TrimSpace(line)
@@ -177,6 +201,61 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([
 		receipts = append(receipts, containerReceipts...)
 	}
 	return receipts, nil
+}
+
+// ReadRunnerProgress 从保留 runner 容器中恢复最后一次可识别的阶段标记。
+func (l *dockerComposeRunnerLauncher) ReadRunnerProgress(ctx context.Context) ([]RunnerOperationProgress, error) {
+	if l == nil || l.client == nil {
+		return nil, errors.New("compose runner progress reader is unavailable")
+	}
+	filters := make(mobyclient.Filters).Add("label", "io.graft.update.protocol="+runnerProtocol)
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("list retained compose runners: %w", err)
+	}
+	progresses := make([]RunnerOperationProgress, 0, len(result.Items))
+	for _, item := range result.Items {
+		progress, ok, err := l.readContainerProgress(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			progresses = append(progresses, progress)
+		}
+	}
+	return progresses, nil
+}
+
+func (l *dockerComposeRunnerLauncher) readContainerProgress(ctx context.Context, item containertypes.Summary) (RunnerOperationProgress, bool, error) {
+	operationID := item.Labels["io.graft.update.operation"]
+	if !runnerOperationID.MatchString(operationID) {
+		return RunnerOperationProgress{}, false, nil
+	}
+	logs, err := l.client.ContainerLogs(ctx, item.ID, mobyclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	if err != nil {
+		return RunnerOperationProgress{}, false, fmt.Errorf("read retained compose runner logs: %w", err)
+	}
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, logs); err != nil {
+		_ = logs.Close()
+		return RunnerOperationProgress{}, false, fmt.Errorf("decode retained compose runner logs: %w", err)
+	}
+	_ = logs.Close()
+	progress, ok := latestRunnerProgress(stdout.String() + "\n" + stderr.String())
+	if !ok {
+		return RunnerOperationProgress{}, false, nil
+	}
+	return RunnerOperationProgress{OperationID: operationID, Progress: progress}, true, nil
+}
+
+func latestRunnerProgress(logs string) (RunnerProgress, bool) {
+	var latest RunnerProgress
+	for _, line := range strings.Split(logs, "\n") {
+		if progress, ok := parseRunnerProgressLog(line); ok {
+			latest = progress
+		}
+	}
+	return latest, latest != ""
 }
 
 // RemoveRunner 删除指定 operation ID 对应的 runner；调用方应仅在 receipt 成功结算后调用。

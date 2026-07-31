@@ -6,6 +6,8 @@ const SRC_DIR = join(ROOT_DIR.pathname, 'src');
 
 const ALLOWED_RUNTIME_FILES = new Set([
   'src/utils/request.ts',
+  // SSE 读取服务端签发的一次性 URL，不能经 Axios 缓冲；该客户端不承载普通 API 请求。
+  'src/shared/realtime/sse-client.ts',
   'src/contracts/api/envelope.ts',
   'src/types/axios.d.ts',
 ]);
@@ -123,7 +125,7 @@ function collectFindings() {
       }
     }
 
-    if (rel !== 'src/utils/request.ts') {
+    if (!ALLOWED_RUNTIME_FILES.has(rel)) {
       if (FETCH_PATTERN.test(source)) {
         runtimeBypasses.push({
           file: rel,

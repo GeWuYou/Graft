@@ -119,6 +119,7 @@ export function createViteConfig(mode: string): UserConfig {
     '/openapi.yaml',
     '/mcp/docs',
     '/mcp/docs.json',
+    '/sse',
   ] as const;
   const websocketProxyPaths = ['/ws'] as const;
 

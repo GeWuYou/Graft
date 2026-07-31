@@ -13,6 +13,7 @@ import (
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
+	"graft/server/internal/realtime"
 	updatecontract "graft/server/modules/update/contract"
 )
 
@@ -132,6 +133,9 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
 	m.rollout.SetAppLogger(ctx.AppLogger)
+	if hub, err := module.ResolveService[realtime.Hub](ctx.Services, (*realtime.Hub)(nil)); err == nil {
+		m.rollout.SetRealtimePublisher(hub)
+	}
 	return nil
 }
 

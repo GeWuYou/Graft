@@ -17,7 +17,14 @@ type OperationStore interface {
 	Settle(context.Context, ComposeUpdateOperation) error
 }
 
+// OperationProgressStore 是 OperationStore 的可选扩展，供 runner 日志恢复推进非终态阶段。
+type OperationProgressStore interface {
+	Advance(context.Context, string, ExecutionOutcome) (ComposeUpdateOperation, bool, error)
+}
+
 var errUpdateOperationNotFound = errors.New("update operation not found")
+
+const updateOperationStatusPlaceholderStart = 3
 
 type sqlOperationStore struct{ db *sql.DB }
 
@@ -33,8 +40,8 @@ func (s *sqlOperationStore) Create(ctx context.Context, value ComposeUpdateOpera
 		return errors.New("update operation is invalid")
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO update_operations
-	 (operation_id, request_id, source_version, target_version, deployment_strategy, task_id, requested_by, status, created_at, started_at)
-	 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, nullableString(value.RequestID), value.SourceVersion,
+	 (operation_id, request_id, source_version, target_version, deployment_strategy, task_id, requested_by, status, created_at, started_at, updated_at)
+	 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, value.OperationID, nullableString(value.RequestID), value.SourceVersion,
 		value.TargetVersion, value.DeploymentStrategy, value.TaskID, nullableUint64(value.RequestedBy), value.Outcome)
 	if err != nil {
 		return fmt.Errorf("create update operation: %w", err)
@@ -48,7 +55,7 @@ func (s *sqlOperationStore) Get(ctx context.Context, operationID string) (Compos
 	}
 	return scanOperation(s.db.QueryRowContext(ctx, `SELECT operation_id, request_id, source_version, target_version, deployment_strategy, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
-	 created_at, started_at, finished_at,
+	 created_at, started_at, updated_at, finished_at,
  EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
  FROM update_operations WHERE operation_id = $1`, operationID))
 }
@@ -59,7 +66,7 @@ func (s *sqlOperationStore) List(ctx context.Context, limit int) ([]ComposeUpdat
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT operation_id, request_id, source_version, target_version, deployment_strategy, task_id,
  backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed,
- created_at, started_at, finished_at,
+	 created_at, started_at, updated_at, finished_at,
  EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)
  FROM update_operations ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
@@ -80,12 +87,33 @@ func (s *sqlOperationStore) List(ctx context.Context, limit int) ([]ComposeUpdat
 	return items, nil
 }
 
+// Advance 持久化 runner 已证明的非终态阶段，并拒绝倒退、重复和任何终态覆盖。
+func (s *sqlOperationStore) Advance(ctx context.Context, operationID string, outcome ExecutionOutcome) (ComposeUpdateOperation, bool, error) {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) || !isProgressOutcome(outcome) {
+		return ComposeUpdateOperation{}, false, errors.New("update operation progress is invalid")
+	}
+	allowed := progressPredecessors(outcome)
+	query := `UPDATE update_operations SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE operation_id = $2 AND status IN (` + placeholders(len(allowed), updateOperationStatusPlaceholderStart) + `) RETURNING operation_id, request_id, source_version, target_version, deployment_strategy, task_id, backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed, created_at, started_at, updated_at, finished_at, EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)`
+	args := []any{outcome, operationID}
+	for _, previous := range allowed {
+		args = append(args, previous)
+	}
+	item, err := scanOperation(s.db.QueryRowContext(ctx, query, args...))
+	if errors.Is(err, errUpdateOperationNotFound) {
+		return ComposeUpdateOperation{}, false, nil
+	}
+	if err != nil {
+		return ComposeUpdateOperation{}, false, err
+	}
+	return item, true, nil
+}
+
 func (s *sqlOperationStore) Settle(ctx context.Context, value ComposeUpdateOperation) error {
 	if s == nil || s.db == nil || !runnerOperationID.MatchString(value.OperationID) || !validOutcome(value.Outcome) {
 		return errors.New("settled update operation is invalid")
 	}
 	result, err := s.db.ExecContext(ctx, `UPDATE update_operations SET backup_id = $1, status = $2,
- receipt_integrity_sha256 = $3, failure_code = $4, recovery_completed = $5, finished_at = CURRENT_TIMESTAMP
+ receipt_integrity_sha256 = $3, failure_code = $4, recovery_completed = $5, updated_at = CURRENT_TIMESTAMP, finished_at = CURRENT_TIMESTAMP
 	WHERE operation_id = $6`, nullableUint64(value.BackupID), value.Outcome, value.ReceiptIntegritySHA256,
 		nullableString(value.FailureCode), value.RecoveryCompleted, value.OperationID)
 	if err != nil {
@@ -107,18 +135,45 @@ func scanOperation(row operationScanner) (ComposeUpdateOperation, error) {
 	var item ComposeUpdateOperation
 	var backupID, requestedBy sql.NullInt64
 	var requestID, integrity, failure sql.NullString
-	var created, started time.Time
+	var created, started, updated time.Time
 	var finished sql.NullTime
 	if err := row.Scan(&item.OperationID, &requestID, &item.SourceVersion, &item.TargetVersion, &item.DeploymentStrategy, &item.TaskID, &backupID,
-		&requestedBy, &item.Outcome, &integrity, &failure, &item.RecoveryCompleted, &created, &started, &finished, &item.FailureDiagnosticAvailable); err != nil {
+		&requestedBy, &item.Outcome, &integrity, &failure, &item.RecoveryCompleted, &created, &started, &updated, &finished, &item.FailureDiagnosticAvailable); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ComposeUpdateOperation{}, errUpdateOperationNotFound
 		}
 		return ComposeUpdateOperation{}, fmt.Errorf("scan update operation: %w", err)
 	}
 	assignOperationNullableFields(&item, operationNullableFields{requestID: requestID, backupID: backupID, requestedBy: requestedBy, integrity: integrity, failure: failure, finished: finished})
-	item.CreatedAt, item.StartedAt = created.UTC(), started.UTC()
+	item.CreatedAt, item.StartedAt, item.UpdatedAt = created.UTC(), started.UTC(), updated.UTC()
 	return item, nil
+}
+
+func isProgressOutcome(outcome ExecutionOutcome) bool {
+	return outcome == ExecutionOutcomeBackingUp || outcome == ExecutionOutcomePulling || outcome == ExecutionOutcomeMigrating || outcome == ExecutionOutcomeRecreating || outcome == ExecutionOutcomeVerifying
+}
+func progressPredecessors(outcome ExecutionOutcome) []ExecutionOutcome {
+	switch outcome {
+	case ExecutionOutcomeBackingUp:
+		return []ExecutionOutcome{ExecutionOutcomePlanning}
+	case ExecutionOutcomePulling:
+		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp}
+	case ExecutionOutcomeMigrating:
+		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling}
+	case ExecutionOutcomeRecreating:
+		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling, ExecutionOutcomeMigrating}
+	case ExecutionOutcomeVerifying:
+		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling, ExecutionOutcomeMigrating, ExecutionOutcomeRecreating}
+	default:
+		return nil
+	}
+}
+func placeholders(count, start int) string {
+	values := make([]string, count)
+	for index := range values {
+		values[index] = fmt.Sprintf("$%d", index+start)
+	}
+	return strings.Join(values, ", ")
 }
 
 type operationNullableFields struct {

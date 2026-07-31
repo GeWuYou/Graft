@@ -30,6 +30,15 @@ func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
 	}
 }
 
+func TestRunnerProgressMapsOnlyFixedStages(t *testing.T) {
+	if outcome, ok := outcomeForRunnerProgress(RunnerProgressVerifying); !ok || outcome != ExecutionOutcomeVerifying {
+		t.Fatalf("verifying progress = %q, %t", outcome, ok)
+	}
+	if _, ok := outcomeForRunnerProgress(RunnerProgress("PULLING:/secret")); ok {
+		t.Fatal("unsafe progress must be rejected")
+	}
+}
+
 func TestExecuteComposeRunnerMigrationFailureNeverRestoresDatabase(t *testing.T) {
 	input := fixtureRunnerInput(t.TempDir())
 	actions := &tracingRunnerActions{failAt: "bootstrap migrate up"}

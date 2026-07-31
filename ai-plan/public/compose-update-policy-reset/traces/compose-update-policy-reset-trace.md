@@ -43,15 +43,21 @@
 - No fallback, alias, dual-read, or migration path exists for the removed legacy image configuration.
 - Deployment context is the single source of truth for deployment interpretation; every controlled operation consumes an immutable manager-produced context or frozen snapshot.
 
+## 2026-07-31 unified SSE update progress
+
+- Update progress remains an `UpdateOperation` lifecycle fact, but transport is now owned by the existing core realtime boundary.
+- The core gateway supports SSE alongside WebSocket, sharing canonical topics, topic issuers, permission and resource checks, one-time tickets, and disconnect cleanup. Modules must not add private stream endpoints.
+- Update publishes only sanitized operation snapshots to `platform.update.operations:<operationID>`. Runner stage markers make the persisted state progress while execution is running; the terminal receipt remains authoritative for final settlement.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["compose-contract-and-governance-reset", "runner-policy-and-receipt-reliability", "server-contract-and-app-log-evidence", "web-policy-selection-and-progress-rendering"],
-  "pending_batches": ["deployment-runtime-context-convergence", "cross-boundary-validation-and-archive-readiness"],
-  "current_batch": "deployment-runtime-context-convergence",
-  "next_batch": "cross-boundary-validation-and-archive-readiness",
-  "closeout_status": "active"
+  "completed_batches": ["compose-contract-and-governance-reset", "runner-policy-and-receipt-reliability", "server-contract-and-app-log-evidence", "web-policy-selection-and-progress-rendering", "deployment-runtime-context-convergence", "unified-realtime-sse-update-progress", "cross-boundary-validation-and-archive-readiness"],
+  "pending_batches": [],
+  "current_batch": "cross-boundary-validation-and-archive-readiness",
+  "next_batch": null,
+  "closeout_status": "archive-ready"
 }
 ```

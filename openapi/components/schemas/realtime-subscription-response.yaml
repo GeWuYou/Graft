@@ -3,6 +3,7 @@ required:
   - topic
   - ticket
   - websocket_url
+  - sse_url
   - expires_at
 properties:
   topic:
@@ -14,6 +15,9 @@ properties:
   websocket_url:
     type: string
     description: Relative WebSocket URL containing the issued ticket and topic for immediate upgrade.
+  sse_url:
+    type: string
+    description: Relative Server-Sent Events URL containing the issued ticket and topic for one-way realtime streaming.
   expires_at:
     type: string
     format: date-time

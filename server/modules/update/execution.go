@@ -104,6 +104,39 @@ const (
 	ExecutionOutcomeNeedsAttention ExecutionOutcome = "NEEDS_ATTENTION"
 )
 
+// RunnerProgress 阶段标记仅描述 runner 已开始的固定动作，不能包含命令输出、路径或部署秘密。
+type RunnerProgress string
+
+const (
+	// RunnerProgressBackingUp 表示 runner 已开始创建更新前备份。
+	RunnerProgressBackingUp RunnerProgress = "BACKING_UP"
+	// RunnerProgressPulling 表示 runner 已开始拉取目标镜像。
+	RunnerProgressPulling RunnerProgress = "PULLING"
+	// RunnerProgressMigrating 表示 runner 已进入 forward-only 数据迁移边界。
+	RunnerProgressMigrating RunnerProgress = "MIGRATING"
+	// RunnerProgressRecreating 表示 runner 已开始重建平台服务。
+	RunnerProgressRecreating RunnerProgress = "RECREATING"
+	// RunnerProgressVerifying 表示 runner 正在验证 Docker 健康状态。
+	RunnerProgressVerifying RunnerProgress = "VERIFYING"
+)
+
+func outcomeForRunnerProgress(progress RunnerProgress) (ExecutionOutcome, bool) {
+	switch progress {
+	case RunnerProgressBackingUp:
+		return ExecutionOutcomeBackingUp, true
+	case RunnerProgressPulling:
+		return ExecutionOutcomePulling, true
+	case RunnerProgressMigrating:
+		return ExecutionOutcomeMigrating, true
+	case RunnerProgressRecreating:
+		return ExecutionOutcomeRecreating, true
+	case RunnerProgressVerifying:
+		return ExecutionOutcomeVerifying, true
+	default:
+		return "", false
+	}
+}
+
 // ValidateComposePreflight 拒绝不能证明为官方单节点 Compose 安装的输入。
 func ValidateComposePreflight(value ComposePreflight) error {
 	if normalizeMode(value.DeclaredMode) != "compose" || strings.TrimSpace(value.DetectedMode) != "compose" {

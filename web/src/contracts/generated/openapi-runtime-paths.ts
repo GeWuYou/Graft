@@ -90,6 +90,7 @@ export const OPENAPI_RUNTIME_PATH = {
   getPlatformUpdateStatus: '/api/platform/updates/status',
   getPublishedApplicationTemplate: '/api/ops/applications/templates/{templateId}/published',
   getPublishedApplicationTemplateVersion: '/api/ops/applications/template-versions/{templateVersionId}',
+  getRealtimeSSE: '/sse',
   getRealtimeWebSocket: '/ws',
   getRole: '/api/roles/{id}',
   getRolePermissions: '/api/roles/{id}/permissions',

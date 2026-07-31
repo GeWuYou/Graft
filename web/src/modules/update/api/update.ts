@@ -1,5 +1,6 @@
 import { buildOpenApiRuntimePath } from '@/contracts/generated/openapi-runtime-paths';
 import type { paths } from '@/contracts/openapi/generated/schema';
+import { openRealtimeTopicEventStream, type RealtimeTopicEventStreamController } from '@/shared/realtime/sse-client';
 import { request } from '@/utils/request';
 
 import { UPDATE_API_PATH } from '../contract/paths';
@@ -9,6 +10,8 @@ import type {
   UpdateOperation,
   UpdateStatus,
 } from '../types/update';
+
+const updateOperationTopic = (operationID: string) => `platform.update.operations.${operationID}`;
 
 type UpdateStatusEnvelope =
   paths[typeof UPDATE_API_PATH.STATUS]['get']['responses'][200]['content']['application/json'];
@@ -37,6 +40,21 @@ export function getUpdateOperation(operationID: string) {
   return request.get<UpdateOperation>({
     url: buildOpenApiRuntimePath('getPlatformUpdateOperation', { operationID }),
   }) as Promise<UpdateOperation>;
+}
+
+/** 订阅单次升级操作的服务端快照；票据和断线重连由统一实时 SSE 客户端拥有。 */
+export function subscribeToUpdateOperation(
+  operationID: string,
+  options: Readonly<{
+    onOperation: (operation: UpdateOperation) => void | Promise<void>;
+    onStateChange?: (state: 'idle' | 'connecting' | 'open' | 'closed' | 'error') => void;
+  }>,
+): RealtimeTopicEventStreamController {
+  return openRealtimeTopicEventStream<UpdateOperation>({
+    topic: updateOperationTopic(operationID),
+    onMessage: options.onOperation,
+    onStateChange: options.onStateChange,
+  });
 }
 
 /** 操作结束后读取服务端映射出的脱敏失败原因，不透传 runner 原始输出。 */

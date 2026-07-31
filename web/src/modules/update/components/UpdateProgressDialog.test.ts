@@ -15,6 +15,10 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: routerPush }),
 }));
+vi.mock('../api/update', () => ({
+  getUpdateOperationDiagnostic: vi.fn(),
+  subscribeToUpdateOperation: vi.fn(() => ({ close: vi.fn(), reconnect: vi.fn() })),
+}));
 
 const dialogStub = defineComponent({
   props: { visible: Boolean },
@@ -52,6 +56,7 @@ function mountDialog() {
 
 describe('UpdateProgressDialog', () => {
   beforeEach(() => {
+    sessionStorage.clear();
     setActivePinia(createPinia());
     routerPush.mockReset();
   });
@@ -66,16 +71,29 @@ describe('UpdateProgressDialog', () => {
     expect(progress.phase).toBe('idle');
   });
 
-  it('does not display a completed percentage while an operation is still running', () => {
+  it('shows the milestone percentage and an indeterminate current-stage bar while running', () => {
     const progress = useUpdateProgressStore();
     progress.$patch({ operation: { operation_id: 'update-1', status: 'PULLING' } as never, phase: 'running' });
     const wrapper = mountDialog();
 
-    expect(wrapper.get('[data-testid="progress"]').attributes()).toMatchObject({
+    expect(wrapper.get('[data-testid="update-progress-overall"]').attributes()).toMatchObject({
+      'data-percentage': '30',
+      'data-label': 'true',
+      'data-indeterminate': 'false',
+    });
+    expect(wrapper.get('[data-testid="update-progress-stage"]').attributes()).toMatchObject({
       'data-percentage': '0',
       'data-label': 'false',
       'data-indeterminate': 'true',
     });
+  });
+
+  it('maps migration to its own milestone instead of collapsing it into image pulling', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({ operation: { operation_id: 'update-1', status: 'MIGRATING' } as never, phase: 'running' });
+    const wrapper = mountDialog();
+
+    expect(wrapper.get('[data-testid="update-progress-overall"]').attributes('data-percentage')).toBe('55');
   });
 
   it('clears progress before opening application logs', async () => {

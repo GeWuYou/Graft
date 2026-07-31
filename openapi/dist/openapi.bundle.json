@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Graft Server API",
-    "version": "2.3.3",
+    "version": "0.1.0-phase-2a",
     "description": "Graft Server API is described using OpenAPI 3.1 and provides unified API documentation, interactive testing, and client code generation."
   },
   "x-graft-mcp-schema": {
@@ -11829,7 +11829,7 @@
         ],
         "summary": "Issue realtime subscription ticket",
         "operationId": "postRealtimeSubscription",
-        "description": "Issues a short-lived single-use realtime subscription ticket for one canonical topic after normal HTTP authentication, topic-level permission checks, and topic/resource scope validation succeed. The returned ticket must be consumed by the unified WebSocket gateway before it expires.\n",
+        "description": "Issues a short-lived single-use realtime subscription ticket for one canonical topic after normal HTTP authentication, topic-level permission checks, and topic/resource scope validation succeed. The returned ticket can be consumed once by either unified realtime gateway URL before it expires.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/locale-header"
@@ -11975,6 +11975,99 @@
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "description": "Ticket scope mismatch, topic permission denied, or Origin denied.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ticket already used or expired, or the topic is not currently available.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/sse": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Open unified realtime Server-Sent Events stream",
+        "operationId": "getRealtimeSSE",
+        "description": "Opens a one-way Server-Sent Events stream for one canonical realtime topic after the server validates and atomically consumes the single-use realtime ticket, confirms the ticket topic binding matches the requested topic, and validates the request Origin against the configured realtime allowlist. The stream emits `message` events whose data is the shared realtime event envelope. This operation is documented for contract governance; successful requests keep the HTTP response open instead of returning a JSON body.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/realtime-ticket-query"
+          },
+          {
+            "$ref": "#/components/parameters/realtime-topic-query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream accepted after ticket validation and consumption.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Disables intermediary caching and response transformation for the event stream."
+              },
+              "X-Accel-Buffering": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Disables Nginx response buffering for the event stream."
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Server-Sent Events stream containing event: message and a JSON realtime event envelope."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or malformed realtime ticket or topic.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "403": {
             "description": "Ticket scope mismatch, topic permission denied, or Origin denied.",
@@ -27011,7 +27104,7 @@
           },
           "failure_stage": {
             "type": "string",
-            "description": "Server-side update-start stage that failed."
+            "description": "Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt."
           },
           "summary": {
             "type": "string",
@@ -27019,7 +27112,7 @@
           },
           "detail": {
             "type": "string",
-            "description": "Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted."
+            "description": "Controlled operator-facing detail. Terminal runner diagnostics are synthesized from bounded receipt facts and never include raw stderr, credentials, tokens, cookies, DSN passwords, or deployment environment contents."
           },
           "occurred_at": {
             "type": "string",
@@ -28637,6 +28730,7 @@
           "topic",
           "ticket",
           "websocket_url",
+          "sse_url",
           "expires_at"
         ],
         "properties": {
@@ -28651,6 +28745,10 @@
           "websocket_url": {
             "type": "string",
             "description": "Relative WebSocket URL containing the issued ticket and topic for immediate upgrade."
+          },
+          "sse_url": {
+            "type": "string",
+            "description": "Relative Server-Sent Events URL containing the issued ticket and topic for one-way realtime streaming."
           },
           "expires_at": {
             "type": "string",
@@ -37639,7 +37737,7 @@
         "name": "ticket",
         "in": "query",
         "required": true,
-        "description": "Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.\n",
+        "description": "Opaque single-use realtime subscription ticket issued by the authenticated realtime subscription endpoint. The server must validate and consume this ticket before opening the requested unified realtime gateway transport.\n",
         "schema": {
           "type": "string",
           "minLength": 1,

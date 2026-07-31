@@ -1,4 +1,4 @@
-h1:+gsVe+6TFPri1gm05husPr8SDTrBjwubXaJY8bI3A+8=
+h1:soXk9q9sdtm1OO11slha8+fcYk1I7aImWZcriQl4/V4=
 202607220004_update_operations.sql h1:kJkxHi56/Wb+tZG4u8CHHBaAPIzXB3g8G0wOMeSDPHE=
 202607230001_update_discovery_cache.sql h1:v3WS3BxynKEFAy0Qj8I/O0JRoARNwuESJUJj2HsyWHk=
 202607230002_update_operation_lifecycle.sql h1:hdql7ryIO7DImtQGjPlnE5lJNEFEbHMUbXIkA1+Bl2Y=
@@ -6,3 +6,4 @@ h1:+gsVe+6TFPri1gm05husPr8SDTrBjwubXaJY8bI3A+8=
 202607280001_update_operation_failure_diagnostics.sql h1:pmTW9v4jfy5hXsjGsXc0QjyWVv9Aps5uj3qUE6e904Q=
 202607300001_update_operation_mode.sql h1:7TmZZKk9AKMnTQG3yB9dZRKcKdn0iYzWHhAq7Ot0Hb0=
 202607300002_rename_update_operation_deployment_strategy.sql h1:C1fLhZG3RSeQXGSio2GIGI5Nmw+0U/0hXHExXh0P4UE=
+202607310001_update_operation_updated_at.sql h1:aDedh3Yk4zAGcP4ZNQQSkXvDnTHQDVf0Sq3KvB3UZ6o=

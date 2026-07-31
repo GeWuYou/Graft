@@ -189,7 +189,15 @@
           "success": "升级完成，正在刷新页面…",
           "failed": "升级未完成，请查看已脱敏的失败原因。"
         },
-        "steps": { "planning": "准备", "pulling": "拉取发行镜像", "recreating": "重建服务", "verifying": "验证服务" },
+        "steps": {
+          "planning": "准备",
+          "backingUp": "备份",
+          "pulling": "拉取发行镜像",
+          "migrating": "执行迁移",
+          "recreating": "重建服务",
+          "verifying": "验证服务"
+        },
+        "currentStage": "当前阶段",
         "diagnosticUnavailable": "暂时无法读取本次升级的诊断详情，请在应用日志中按请求 ID 查询。",
         "viewAppLogs": "查看应用日志",
         "close": "关闭"

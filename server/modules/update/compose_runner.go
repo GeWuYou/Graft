@@ -95,6 +95,7 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 		receipt.FailureCode = runnerFailureInvalidInput
 		return finalizeRunnerReceipt(receipt, err)
 	}
+	emitRunnerProgress(RunnerProgressBackingUp)
 	if err := actions.Backup(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
 		receipt.FailureStage, receipt.FailureDetail = runnerBackupFailureDiagnostic(err)
@@ -108,6 +109,7 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 		return finalizeRunnerReceipt(receipt, err)
 	}
 	receipt.BackupCompletion = &completion
+	emitRunnerProgress(RunnerProgressPulling)
 	if err := actions.Pull(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailurePull
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
@@ -120,15 +122,18 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	}
 
 	// Atlas 是 forward-only：调用 bootstrap 前便跨过自动数据库恢复边界。
+	emitRunnerProgress(RunnerProgressMigrating)
 	receipt.MigrationStarted = true
 	if err := actions.BootstrapMigrate(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureMigration
 		return finalizeRunnerReceipt(receipt, err)
 	}
+	emitRunnerProgress(RunnerProgressRecreating)
 	if err := actions.Recreate(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureRecreate
 		return finalizeRunnerReceipt(receipt, err)
 	}
+	emitRunnerProgress(RunnerProgressVerifying)
 	if err := actions.DockerHealth(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureDockerHealth
 		return finalizeRunnerReceipt(receipt, err)
@@ -139,6 +144,10 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 	}
 	receipt.Succeeded = true
 	return finalizeRunnerReceipt(receipt, nil)
+}
+
+func emitRunnerProgress(progress RunnerProgress) {
+	_, _ = fmt.Println(RunnerProgressLogMarker + string(progress))
 }
 
 func runnerBackupFailureDiagnostic(err error) (string, string) {

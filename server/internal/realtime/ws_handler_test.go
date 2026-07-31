@@ -1,6 +1,8 @@
 package realtime
 
 import (
+	"bufio"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +14,53 @@ import (
 
 	"graft/server/internal/realtimeauth"
 )
+
+func TestRegisterSSEGatewayStreamsAuthorizedTopicEvents(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tickets := realtimeauth.NewMemoryService()
+	topic := "topic.runtime.sse"
+	issued, err := tickets.Issue(t.Context(), realtimeauth.IssueRequest{UserID: 1, ResourceType: WebSocketTopicResourceType, ResourceID: topic, Scope: WebSocketTopicScope})
+	if err != nil {
+		t.Fatalf("issue SSE ticket: %v", err)
+	}
+	hub := NewHub()
+	engine := gin.New()
+	if err := RegisterSSEGateway(engine, GatewayRegistration{Hub: hub, Tickets: tickets, WebSocketAllowOrigins: []string{"http://client.example"}}); err != nil {
+		t.Fatalf("register SSE gateway: %v", err)
+	}
+	server := httptest.NewServer(engine)
+	defer server.Close()
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"/sse?topic="+url.QueryEscape(topic)+"&ticket="+url.QueryEscape(issued.Ticket), nil)
+	if err != nil {
+		t.Fatalf("create SSE request: %v", err)
+	}
+	request.Header.Set("Origin", "http://client.example")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("open SSE stream: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("unexpected SSE response: %d %q", response.StatusCode, response.Header.Get("Content-Type"))
+	}
+	hub.Publish(topic, map[string]string{"status": "PULLING"})
+	reader := bufio.NewReader(response.Body)
+	line, err := reader.ReadString('\n')
+	if err != nil || line != "event: message\n" {
+		t.Fatalf("event line = %q, %v", line, err)
+	}
+	line, err = reader.ReadString('\n')
+	if err != nil {
+		t.Fatalf("data line: %v", err)
+	}
+	var event Event
+	if err := json.Unmarshal([]byte(line[len("data: "):]), &event); err != nil {
+		t.Fatalf("decode SSE event: %v", err)
+	}
+	if event.Topic != topic {
+		t.Fatalf("event topic = %q", event.Topic)
+	}
+}
 
 func TestRegisterWebSocketGatewayStopsSubscriptionOnClientDisconnect(t *testing.T) {
 	gin.SetMode(gin.TestMode)
