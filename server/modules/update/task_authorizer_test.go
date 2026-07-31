@@ -95,7 +95,7 @@ func TestModuleRegisterRegistersPlatformUpdateTaskOwnerAuthorizer(t *testing.T) 
 	}
 
 	instance := NewModule(&memoryOperationStore{}, failureDiagnosticStoreStub{}, nil)
-	if err := instance.Register(&module.Context{Services: services, I18n: localizer, PermissionRegistry: permission.NewRegistry(), MenuRegistry: menu.NewRegistry()}); err != nil {
+	if err := instance.Register(&module.Context{Services: services, Config: &config.Config{Backup: config.BackupConfig{ArtifactRoot: "/var/lib/graft/backups"}}, I18n: localizer, PermissionRegistry: permission.NewRegistry(), MenuRegistry: menu.NewRegistry()}); err != nil {
 		t.Fatalf("register platform update module: %v", err)
 	}
 	defer func() { _ = instance.Shutdown(nil) }()

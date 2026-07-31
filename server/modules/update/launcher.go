@@ -147,7 +147,7 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([
 	if l == nil || l.client == nil {
 		return nil, errors.New("compose runner receipt reader is unavailable")
 	}
-	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.protocol=compose-runner/v1")})
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.protocol="+runnerProtocol)})
 	if err != nil {
 		return nil, fmt.Errorf("list retained compose runners: %w", err)
 	}
@@ -186,12 +186,12 @@ func (l *dockerComposeRunnerLauncher) RemoveRunner(ctx context.Context, operatio
 	if !runnerOperationID.MatchString(operationID) {
 		return errors.New("compose runner receipt cleanup operation ID is invalid")
 	}
-	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.operation="+operationID).Add("label", "io.graft.update.protocol=compose-runner/v1")})
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: make(mobyclient.Filters).Add("label", "io.graft.update.operation="+operationID).Add("label", "io.graft.update.protocol="+runnerProtocol)})
 	if err != nil {
 		return fmt.Errorf("list settled compose runners: %w", err)
 	}
 	for _, item := range result.Items {
-		if item.Labels["io.graft.update.operation"] != operationID || item.Labels["io.graft.update.protocol"] != "compose-runner/v1" {
+		if item.Labels["io.graft.update.operation"] != operationID || item.Labels["io.graft.update.protocol"] != runnerProtocol {
 			continue
 		}
 		if _, err := l.client.ContainerRemove(ctx, item.ID, mobyclient.ContainerRemoveOptions{}); err != nil {
@@ -218,8 +218,8 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containe
 			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
 		}
 	}
-	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "65532:65532", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
+	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
-		"io.graft.update.protocol":  "compose-runner/v1",
+		"io.graft.update.protocol":  runnerProtocol,
 	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }

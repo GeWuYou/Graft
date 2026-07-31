@@ -738,12 +738,12 @@ func externalReceiptSubmitInput() moduleapi.SubmitTaskInput {
 	input := testSubmitInput(1, 1)
 	input.Plan.Stages[0].ExecutorType = "platform.update.compose-runner"
 	input.Plan.Stages[0].RecoveryPolicy = moduleapi.StageRecoveryManualReconcile
-	input.Plan.Stages[0].ExternalReceipt = &moduleapi.ExternalReceiptExpectation{Protocol: "compose-runner/v1", OperationID: "operation-123"}
+	input.Plan.Stages[0].ExternalReceipt = &moduleapi.ExternalReceiptExpectation{Protocol: "compose-runner/v2", OperationID: "operation-123"}
 	return input
 }
 
 func externalReceipt(taskID uint64, outcome moduleapi.ExternalReceiptOutcome, failureCode string) moduleapi.ExternalTaskReceipt {
-	return moduleapi.ExternalTaskReceipt{TaskID: taskID, ExecutorType: "platform.update.compose-runner", Protocol: "compose-runner/v1", OperationID: "operation-123", Outcome: outcome, FailureCode: failureCode, IntegritySHA256: strings.Repeat("a", 64)}
+	return moduleapi.ExternalTaskReceipt{TaskID: taskID, ExecutorType: "platform.update.compose-runner", Protocol: "compose-runner/v2", OperationID: "operation-123", Outcome: outcome, FailureCode: failureCode, IntegritySHA256: strings.Repeat("a", 64)}
 }
 
 func claimedExternalReceiptTask(t *testing.T) (*Runtime, *taskstore.SQLRepository, moduleapi.TaskReceipt) {

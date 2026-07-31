@@ -93,17 +93,17 @@ type actions struct {
 }
 
 func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
-	root := filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID)
-	if err := os.MkdirAll(root, directoryPermission); err != nil {
-		return err
+	stagingRoot := filepath.Join(in.Preflight.ComposeRoot, ".graft-update", "backups", in.OperationID)
+	if err := os.MkdirAll(stagingRoot, directoryPermission); err != nil {
+		return backupFailure(update.RunnerBackupFailureStageArtifactDirectory, err)
 	}
-	if err := copyFile(filepath.Join(in.Preflight.ComposeRoot, ".env"), filepath.Join(root, "config.snapshot")); err != nil {
-		return err
+	if err := copyFile(filepath.Join(in.Preflight.ComposeRoot, ".env"), filepath.Join(stagingRoot, "config.snapshot")); err != nil {
+		return backupFailure(update.RunnerBackupFailureStageConfigSnapshot, err)
 	}
 	// #nosec G304 -- root derives from a preflight-validated host compose root and operation ID.
-	dump, err := os.OpenFile(filepath.Join(root, "database.dump"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, privateFilePermission)
+	dump, err := os.OpenFile(filepath.Join(stagingRoot, "database.dump"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, privateFilePermission)
 	if err != nil {
-		return err
+		return backupFailure(update.RunnerBackupFailureStageDatabaseDump, err)
 	}
 	args := append([]string{"compose", "--env-file", ".env"}, composeFileArgs(in.Preflight.ComposeFiles)...)
 	args = append(args, "exec", "-T", "postgres", "sh", "-ec", "pg_dump -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"")
@@ -113,21 +113,55 @@ func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
 	err = command.Run()
 	closeErr := dump.Close()
 	if err != nil {
-		return err
+		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageDatabaseDump, update.RunnerBackupFailureDetailCommandFailed, err)
 	}
 	if closeErr != nil {
-		return closeErr
+		return backupFailure(update.RunnerBackupFailureStageDatabaseDump, closeErr)
 	}
-	configHash, configSize, err := digest(filepath.Join(root, "config.snapshot"))
+	configHash, configSize, err := digest(filepath.Join(stagingRoot, "config.snapshot"))
 	if err != nil {
-		return err
+		return backupFailure(update.RunnerBackupFailureStageArtifactDigest, err)
 	}
-	dumpHash, dumpSize, err := digest(filepath.Join(root, "database.dump"))
+	dumpHash, dumpSize, err := digest(filepath.Join(stagingRoot, "database.dump"))
 	if err != nil {
+		return backupFailure(update.RunnerBackupFailureStageArtifactDigest, err)
+	}
+	if err := transferBackupArtifacts(ctx, in, stagingRoot); err != nil {
 		return err
 	}
 	a.backup = moduleapi.CompleteBackupRunnerHandoffInput{OperationID: in.OperationID, TaskID: in.TaskID, ConfigSnapshotSHA256: configHash, ConfigSnapshotBytes: configSize, DatabaseDumpSHA256: dumpHash, DatabaseDumpBytes: dumpSize}
 	return nil
+}
+
+// transferBackupArtifacts 将临时快照送入 server 容器的受控工件挂载；目标由服务端配置和 RunnerInput 冻结，
+// runner 只执行固定 Compose 命令，不能接受调用方命令或任意目标路径。
+func transferBackupArtifacts(ctx context.Context, in update.RunnerInput, stagingRoot string) error {
+	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "mkdir", "-p", in.BackupArtifactRoot); err != nil {
+		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
+	}
+	for _, name := range []string{"config.snapshot", "database.dump"} {
+		if err := compose(ctx, in, "cp", filepath.Join(stagingRoot, name), "server:"+filepath.Join(in.BackupArtifactRoot, name)); err != nil {
+			return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
+		}
+	}
+	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "chown", "-R", "10001:10001", in.BackupArtifactRoot); err != nil {
+		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
+	}
+	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "chmod", "0700", in.BackupArtifactRoot); err != nil {
+		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
+	}
+	if err := compose(ctx, in, "exec", "-T", "--user", "0:0", "server", "chmod", "0600", filepath.Join(in.BackupArtifactRoot, "config.snapshot"), filepath.Join(in.BackupArtifactRoot, "database.dump")); err != nil {
+		return update.NewRunnerBackupFailure(update.RunnerBackupFailureStageArtifactDirectory, update.RunnerBackupFailureDetailCommandFailed, err)
+	}
+	return nil
+}
+
+func backupFailure(stage update.RunnerBackupFailureStage, err error) error {
+	detail := update.RunnerBackupFailureDetailIOFailed
+	if errors.Is(err, os.ErrPermission) {
+		detail = update.RunnerBackupFailureDetailPermissionDenied
+	}
+	return update.NewRunnerBackupFailure(stage, detail, err)
 }
 func (a *actions) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput { return a.backup }
 func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {

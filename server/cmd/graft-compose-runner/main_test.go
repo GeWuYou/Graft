@@ -14,7 +14,7 @@ import (
 )
 
 func TestReadRunnerInputPrefersInlinePayload(t *testing.T) {
-	input := update.RunnerInput{ProtocolVersion: 1, OperationID: "inline-operation"}
+	input := update.RunnerInput{ProtocolVersion: 2, OperationID: "inline-operation"}
 	contents, err := json.Marshal(input)
 	if err != nil {
 		t.Fatalf("marshal runner input: %v", err)
@@ -43,7 +43,7 @@ func TestReadRunnerInputRejectsInvalidInlinePayloadWithoutFileFallback(t *testin
 }
 
 func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
-	receipt := update.RunnerReceipt{ProtocolVersion: 1, OperationID: "receipt-operation", Succeeded: true}
+	receipt := update.RunnerReceipt{ProtocolVersion: 2, OperationID: "receipt-operation", Succeeded: true}
 	var output bytes.Buffer
 	if err := writeRunnerReceiptLog(&output, receipt); err != nil {
 		t.Fatalf("write runner receipt log: %v", err)
@@ -63,6 +63,13 @@ func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
 	}
 	if got != receipt {
 		t.Fatalf("receipt = %#v, want %#v", got, receipt)
+	}
+}
+
+func TestBackupFailureDoesNotExposeFilesystemDetails(t *testing.T) {
+	err := backupFailure(update.RunnerBackupFailureStageConfigSnapshot, &os.PathError{Op: "open", Path: "/opt/graft/.env", Err: os.ErrPermission})
+	if got := err.Error(); got != "env_snapshot: permission_denied" {
+		t.Fatalf("safe backup error = %q", got)
 	}
 }
 

@@ -63,7 +63,7 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 	}
 	task, err := c.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
 		Type: composeUpdateTaskType, Owner: moduleapi.TaskOwner{Type: platformUpdateTaskOwnerType, ID: operation.OperationID}, RequestedBy: requestedBy, Input: input,
-		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "compose_runner", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: "compose-runner/v1", OperationID: operation.OperationID}}}},
+		Plan: moduleapi.TaskPlan{Stages: []moduleapi.StagePlan{{Key: "compose_runner", ExecutorType: composeUpdateExecutor, RecoveryPolicy: moduleapi.StageRecoveryManualReconcile, ExternalReceipt: &moduleapi.ExternalReceiptExpectation{Protocol: runnerProtocol, OperationID: operation.OperationID}}}},
 	})
 	if err != nil {
 		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("submit compose update task: %w", err)
@@ -82,7 +82,7 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 		}
 		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("validate prepared backup handoff: %w", err)
 	}
-	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, TaskID: task.TaskID}, nil
+	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, TaskID: task.TaskID, BackupArtifactRoot: prepared.ArtifactRoot}, nil
 }
 
 // CancelBeforeLaunch 通过各 owner capability 清理 runner 尚未启动时的 Task 与 Backup handoff，避免 Update 写入其它模块的事实表。
@@ -114,7 +114,7 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 	if err != nil {
 		return ComposeUpdateOperation{}, err
 	}
-	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: "compose-runner/v1", OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity})
+	settlement, err := c.tasks.SettleExternalReceipt(ctx, moduleapi.ExternalTaskReceipt{TaskID: operation.TaskID, ExecutorType: composeUpdateExecutor, Protocol: runnerProtocol, OperationID: operation.OperationID, Outcome: externalOutcome, FailureCode: receipt.FailureCode, IntegritySHA256: integrity})
 	if err != nil {
 		return ComposeUpdateOperation{}, fmt.Errorf("settle compose runner receipt: %w", err)
 	}

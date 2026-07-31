@@ -118,7 +118,7 @@ func fixtureRunnerInput(root string) RunnerInput {
 	serverDigest := "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	webDigest := "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	runnerDigest := "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-	return RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "fixture-operation-1", TaskID: 7, Preflight: ComposePreflight{
+	return RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "fixture-operation-1", TaskID: 7, BackupArtifactRoot: "/var/lib/graft/backups/fixture-operation-1", Preflight: ComposePreflight{
 		DeclaredMode: "compose", DeploymentStrategy: DeploymentStrategyBetaTracking, ImageTag: "beta", DetectedMode: "compose", ComposeRoot: root, Platform: "linux/amd64", DockerSocket: "/var/run/docker.sock", ComposeFiles: []string{filepath.Join(root, "compose.yml")}, BundledPostgres: true,
 		OfficialServerImage: "ghcr.io/gewuyou/graft-server", OfficialWebImage: "ghcr.io/gewuyou/graft-web", OfficialRunnerImage: "ghcr.io/gewuyou/graft-compose-runner",
 		ServerDigest: serverDigest, WebDigest: webDigest, RunnerDigest: runnerDigest,
@@ -129,6 +129,7 @@ func fixtureRunnerInput(root string) RunnerInput {
 type tracingRunnerActions struct {
 	trace             []string
 	failAt            string
+	backupErr         error
 	recover           bool
 	omitBackupReceipt bool
 	backup            moduleapi.CompleteBackupRunnerHandoffInput
@@ -142,6 +143,9 @@ func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, Runner
 }
 
 func (actions *tracingRunnerActions) Backup(context.Context, RunnerInput) error {
+	if actions.backupErr != nil {
+		return actions.backupErr
+	}
 	return actions.run("backup")
 }
 

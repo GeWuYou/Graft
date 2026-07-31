@@ -131,11 +131,13 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	discovery.lastSuccessfulAt = &fresh
 	operations := &memoryOperationStore{}
 	launcher := &recordingLauncher{}
-	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, &stubBackupService{}, launcher)
+	backups := &stubBackupService{}
+	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, backups, launcher)
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); !errors.Is(err, errRolloutInstallationUnavailable) {
 		t.Fatalf("start without deployment runtime error = %v, want installation unavailable", err)
 	}
 	rollout.SetDeploymentRuntime(composeDeploymentRuntime(root))
+	rollout.SetBackupArtifactRoot("/var/lib/graft/backups")
 	rollout.newOperation = func() string { return "update-77" }
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.0.9"}); err == nil {
 		t.Fatal("expected target version rejection")
@@ -149,6 +151,9 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	}
 	if launcher.input.Preflight.ComposeRoot != root || launcher.input.OperationID != operation.OperationID || operations.items[operation.OperationID].TaskID != 77 {
 		t.Fatalf("runner input or persisted operation lost constrained identity: %#v", operations.items)
+	}
+	if launcher.input.BackupArtifactRoot != "/var/lib/graft/backups/update-77" || backups.plan.ArtifactRoot != launcher.input.BackupArtifactRoot {
+		t.Fatalf("backup handoff did not use the server artifact root: input=%q plan=%q", launcher.input.BackupArtifactRoot, backups.plan.ArtifactRoot)
 	}
 }
 
@@ -171,6 +176,7 @@ func TestRolloutLaunchFailureCancelsTaskAndBackupHandoffThroughCapabilities(t *t
 	operations := &memoryOperationStore{}
 	rollout := NewRolloutService(discovery, operations, tasks, backups, &recordingLauncher{launchErr: errors.New("docker unavailable")})
 	rollout.SetDeploymentRuntime(composeDeploymentRuntime(root))
+	rollout.SetBackupArtifactRoot("/var/lib/graft/backups")
 	rollout.newOperation = func() string { return "update-78" }
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); err == nil {
 		t.Fatal("expected launcher failure")
@@ -208,11 +214,15 @@ func TestLogTerminalFailureWithoutRequestIDStillWritesAppLog(t *testing.T) {
 	rollout := NewRolloutService(NewService(nil), &memoryOperationStore{}, &stubTaskService{}, &stubBackupService{}, &recordingLauncher{})
 	rollout.SetAppLogger(logger.NewAppLogger(zap.New(core)))
 
-	rollout.logTerminalFailure(t.Context(), ComposeUpdateOperation{OperationID: "update-84", TaskID: 84, TargetVersion: "1.1.0", Outcome: ExecutionOutcomeFailed}, RunnerReceipt{FailureCode: runnerFailureHealthz})
+	rollout.logTerminalFailure(t.Context(), ComposeUpdateOperation{OperationID: "update-84", TaskID: 84, TargetVersion: "1.1.0", Outcome: ExecutionOutcomeFailed}, RunnerReceipt{FailureCode: runnerFailureBackup, FailureStage: string(RunnerBackupFailureStageConfigSnapshot), FailureDetail: string(RunnerBackupFailureDetailPermissionDenied)})
 
 	entries := observed.All()
 	if len(entries) != 1 || entries[0].Message != runnerFailureDiagnosticSummary {
 		t.Fatalf("expected terminal failure app log without request ID, got %#v", entries)
+	}
+	fields := entries[0].ContextMap()
+	if fields["failure_stage"] != string(RunnerBackupFailureStageConfigSnapshot) || fields[logger.FieldError] != "deployment environment snapshot was denied by deployment filesystem permissions" {
+		t.Fatalf("expected bounded terminal diagnostic in app log, got %#v", fields)
 	}
 }
 
@@ -427,14 +437,14 @@ func TestSettlePersistedReceiptStoresControlledOperationDiagnostic(t *testing.T)
 	diagnostics := &failureDiagnosticStoreRecorder{}
 	rollout := NewRolloutService(NewService(nil), operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 86}}, &stubBackupService{}, &recordingLauncher{})
 	rollout.SetFailureDiagnosticStore(diagnostics)
-	_, err := rollout.SettlePersistedReceipt(t.Context(), RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "update-86", FailureCode: "receipt_write_failed"})
+	_, err := rollout.SettlePersistedReceipt(t.Context(), RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: "update-86", FailureCode: runnerFailureBackup, FailureStage: string(RunnerBackupFailureStageConfigSnapshot), FailureDetail: string(RunnerBackupFailureDetailPermissionDenied)})
 	if err != nil {
 		t.Fatalf("settle failed receipt: %v", err)
 	}
-	if diagnostics.value.OperationID != "update-86" || diagnostics.value.RequestID != "request-86" || diagnostics.value.FailureCode != rolloutFailureRunnerTerminal || diagnostics.value.FailureStage != "runner_receipt" {
+	if diagnostics.value.OperationID != "update-86" || diagnostics.value.RequestID != "request-86" || diagnostics.value.FailureCode != rolloutFailureRunnerTerminal || diagnostics.value.FailureStage != string(RunnerBackupFailureStageConfigSnapshot) {
 		t.Fatalf("unexpected controlled terminal diagnostic: %#v", diagnostics.value)
 	}
-	if strings.Contains(diagnostics.value.Detail, "stderr") {
+	if diagnostics.value.Detail != "deployment environment snapshot was denied by deployment filesystem permissions" || strings.Contains(diagnostics.value.Detail, "stderr") {
 		t.Fatalf("terminal diagnostic must not expose runner logs: %q", diagnostics.value.Detail)
 	}
 }

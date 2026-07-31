@@ -125,6 +125,10 @@ func (m *Module) configureRollout(ctx *module.Context) error {
 		return fmt.Errorf("resolve deployment runtime: %w", err)
 	}
 	m.rollout.SetDeploymentRuntime(runtime)
+	if ctx.Config == nil {
+		return errors.New("platform-update config is unavailable")
+	}
+	m.rollout.SetBackupArtifactRoot(ctx.Config.Backup.ArtifactRoot)
 	m.rollout.SetFailureDiagnosticStore(m.diagnostics)
 	m.rollout.SetAuditPublisher(ctx.EventPublisher, ctx.Logger)
 	m.rollout.SetAppLogger(ctx.AppLogger)

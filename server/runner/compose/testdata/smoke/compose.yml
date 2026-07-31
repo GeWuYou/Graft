@@ -20,6 +20,8 @@ services:
   server:
     image: graft-runner-fixture/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
     pull_policy: never
+    volumes:
+      - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH}:${GRAFT_BACKUP_ARTIFACT_ROOT}
   web:
     image: graft-runner-fixture/graft-web:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
     pull_policy: never

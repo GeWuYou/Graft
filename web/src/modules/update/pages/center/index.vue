@@ -318,7 +318,7 @@
           </div>
           <div>
             <dt>{{ t('update.center.confirmation.diagnosticStage') }}</dt>
-            <dd>{{ operationDiagnostic.failure_stage }}</dd>
+            <dd>{{ failureStageLabel(operationDiagnostic.failure_stage) }}</dd>
           </div>
         </dl>
         <pre>{{ operationDiagnostic.detail }}</pre>
@@ -727,6 +727,17 @@ function resolveOperationErrorMessage(error: unknown) {
   return isUpdateOperationFailureCode(error.code)
     ? t(UPDATE_OPERATION_FAILURE_MESSAGE_KEY[error.code])
     : t('update.center.confirmation.failure.generic');
+}
+
+function failureStageLabel(stage: string) {
+  const keyByStage: Record<string, string> = {
+    artifact_directory: 'backupArtifactDirectory',
+    env_snapshot: 'backupConfigSnapshot',
+    postgres_dump: 'backupDatabaseDump',
+    artifact_digest: 'backupArtifactDigest',
+    runner_receipt: 'runnerReceipt',
+  };
+  return t(`update.center.confirmation.diagnosticStages.${keyByStage[stage] ?? 'unknown'}`);
 }
 
 function capabilityRow(key: string, compose: string, binary: string) {

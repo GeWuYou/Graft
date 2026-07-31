@@ -41,7 +41,7 @@ func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(
 }
 
 func runnerLabels(operationID string) map[string]string {
-	return map[string]string{"io.graft.update.operation": operationID, "io.graft.update.protocol": "compose-runner/v1"}
+	return map[string]string{"io.graft.update.operation": operationID, "io.graft.update.protocol": runnerProtocol}
 }
 
 func multiplexRunnerLog(t *testing.T, marker string, receipt RunnerReceipt) []byte {

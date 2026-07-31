@@ -13,6 +13,7 @@ const (
 	updateFailureDiagnosticSummary = "platform update rollout start failed"
 	runnerFailureDiagnosticSummary = "platform update runner reported a terminal failure"
 	maxFailureDiagnosticDetailSize = 32 * 1024
+	runnerFailureStageReceipt      = "runner_receipt"
 )
 
 var errUpdateFailureDiagnosticNotFound = errors.New("update failure diagnostic not found")
@@ -114,10 +115,7 @@ func newFailureDiagnostic(requestID, operationID, targetVersion, failureCode, fa
 }
 
 func runnerTerminalFailureDiagnostic(operation ComposeUpdateOperation, receipt RunnerReceipt) FailureDiagnostic {
-	detail := "runner reported a terminal failure"
-	if code := strings.TrimSpace(receipt.FailureCode); code != "" {
-		detail += " (" + code + ")"
-	}
+	stage, detail := runnerReceiptFailureDiagnostic(receipt)
 	if receipt.MigrationStarted {
 		detail += "; migration had started and operator attention is required"
 	}
@@ -127,10 +125,53 @@ func runnerTerminalFailureDiagnostic(operation ComposeUpdateOperation, receipt R
 		TaskID:        operation.TaskID,
 		TargetVersion: operation.TargetVersion,
 		FailureCode:   rolloutFailureRunnerTerminal,
-		FailureStage:  "runner_receipt",
+		FailureStage:  stage,
 		Summary:       runnerFailureDiagnosticSummary,
 		Detail:        detail,
 		OccurredAt:    time.Now().UTC(),
+	}
+}
+
+// runnerReceiptFailureDiagnostic 只接受 runner 的固定无秘密备份事实，未知字段降级为通用诊断，避免透传 runner 输出。
+func runnerReceiptFailureDiagnostic(receipt RunnerReceipt) (string, string) {
+	stage := runnerFailureStageReceipt
+	if receipt.FailureCode == runnerFailureBackup {
+		switch strings.TrimSpace(receipt.FailureStage) {
+		case string(RunnerBackupFailureStageArtifactDirectory), string(RunnerBackupFailureStageConfigSnapshot), string(RunnerBackupFailureStageDatabaseDump), string(RunnerBackupFailureStageArtifactDigest):
+			stage = strings.TrimSpace(receipt.FailureStage)
+		}
+	}
+
+	detail := "runner reported a terminal failure"
+	if receipt.FailureCode == runnerFailureBackup {
+		detail = backupFailureDiagnosticDetail(stage, receipt.FailureDetail)
+	} else if code := strings.TrimSpace(receipt.FailureCode); code != "" {
+		detail += " (" + code + ")"
+	}
+	return stage, detail
+}
+
+func backupFailureDiagnosticDetail(stage, reason string) string {
+	step := "backup step"
+	switch stage {
+	case string(RunnerBackupFailureStageArtifactDirectory):
+		step = "backup artifact directory creation"
+	case string(RunnerBackupFailureStageConfigSnapshot):
+		step = "deployment environment snapshot"
+	case string(RunnerBackupFailureStageDatabaseDump):
+		step = "PostgreSQL dump"
+	case string(RunnerBackupFailureStageArtifactDigest):
+		step = "backup artifact digest"
+	}
+	switch strings.TrimSpace(reason) {
+	case "permission_denied":
+		return step + " was denied by deployment filesystem permissions"
+	case "command_failed":
+		return step + " failed"
+	case "io_failed":
+		return step + " could not access required backup artifacts"
+	default:
+		return step + " failed"
 	}
 }
 

@@ -7,7 +7,7 @@ properties:
   task_id: { type: integer, format: int64, description: "Task runtime identifier when one was created before the failure." }
   target_version: { type: string, description: "Requested release version." }
   failure_code: { $ref: ./platform-update-rollout-failure-code.yaml }
-  failure_stage: { type: string, description: "Server-side update-start stage that failed." }
+  failure_stage: { type: string, description: "Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt." }
   summary: { type: string, description: "Controlled operator-facing failure summary." }
-  detail: { type: string, description: "Sanitized diagnostic detail with credentials, tokens, cookies, and DSN passwords redacted." }
+  detail: { type: string, description: "Controlled operator-facing detail. Terminal runner diagnostics are synthesized from bounded receipt facts and never include raw stderr, credentials, tokens, cookies, DSN passwords, or deployment environment contents." }
   occurred_at: { type: string, format: date-time, description: "UTC time at which the update start failed." }
