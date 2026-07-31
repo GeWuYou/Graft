@@ -311,11 +311,11 @@ export function createThemeAuthoritySourceSnapshot(
     brandTheme: preset?.brandTheme ?? STYLE_CONFIG.brandTheme,
     selectedThemePresetId: currentState.selectedThemePresetId,
     themeSource: currentState.themeSource,
-    fontFamilyPreset: 'system',
-    fontSizePreset: 'standard',
-    radiusPreset: 'standard',
-    shadowPreset: 'standard',
-    densityPreset: 'standard',
+    fontFamilyPreset: preset?.authorityPatch?.fontFamilyPreset ?? 'system',
+    fontSizePreset: preset?.authorityPatch?.fontSizePreset ?? 'standard',
+    radiusPreset: preset?.authorityPatch?.radiusPreset ?? 'standard',
+    shadowPreset: preset?.authorityPatch?.shadowPreset ?? 'standard',
+    densityPreset: preset?.authorityPatch?.densityPreset ?? 'standard',
     themeTokenOverrides: createEmptyThemeModeTokenState(),
   };
 }

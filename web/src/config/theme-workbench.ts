@@ -8,7 +8,7 @@ import type {
   ThemeWorkbenchStylePatch,
 } from '@/types/theme';
 
-export const DEFAULT_THEME_PRESET_ID = 'tdesign-default';
+export const DEFAULT_THEME_PRESET_ID = 'one-dark-pro';
 
 export const GRAFT_BASE_THEME_TOKENS: ThemeModeTokenState = {
   light: {
@@ -369,6 +369,55 @@ const SOURCE_HAN_ROUNDED_AUTHORITY_PATCH: ThemeWorkbenchAuthorityPatch = {
   densityPreset: 'comfortable',
 };
 
+function createDarkPalette(page: string, container: string, sidebar: string, border: string, hover: string) {
+  return {
+    dark: {
+      '--td-bg-color-page': page,
+      '--td-bg-color-container': container,
+      '--td-bg-color-container-hover': hover,
+      '--td-bg-color-secondarycontainer': sidebar,
+      '--td-bg-color-component': hover,
+      '--td-text-color-primary': '#E6EAF0',
+      '--td-text-color-secondary': '#ABB2BF',
+      '--td-text-color-placeholder': '#7F8796',
+      '--td-component-border': border,
+      '--td-component-stroke': border,
+      '--td-border-level-1-color': border,
+      '--td-scrollbar-color': border,
+      '--graft-scrollbar-track-color': sidebar,
+      '--graft-scrollbar-thumb-hover-color': '#5C6370',
+      '--graft-shell-bg': page,
+      '--graft-shell-header-bg': container,
+      '--graft-shell-sidebar-bg': sidebar,
+      '--graft-shell-content-bg': page,
+      '--graft-shell-border-color': border,
+      '--graft-card-bg': container,
+      '--graft-card-bg-hover': hover,
+      '--graft-card-border-color': border,
+      '--graft-chart-text-color': '#E6EAF0',
+      '--graft-chart-placeholder-color': '#7F8796',
+      '--graft-chart-border-color': border,
+      '--graft-chart-container-color': container,
+    },
+  } satisfies Partial<ThemeModeTokenState>;
+}
+
+function createAcrylicMaterial(surface: string, shadow: string) {
+  return {
+    dark: {
+      '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 10%, transparent)',
+      '--graft-glass-bg': surface,
+      '--graft-glass-border': 'rgba(255, 255, 255, 0.1)',
+      '--graft-glass-shadow': shadow,
+      '--graft-glass-blur': '30px',
+      '--graft-glass-content-bg': surface,
+      '--graft-glass-content-border': 'rgba(255, 255, 255, 0.12)',
+      '--graft-glass-content-shadow': shadow,
+      '--graft-glass-content-blur': '24px',
+    },
+  } satisfies Partial<ThemeModeTokenState>;
+}
+
 // 内置预设保持为纯前端本地配置，先服务当前工作台预览，不与后端契约耦合。
 export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
   {
@@ -434,7 +483,6 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
     labelKey: 'layout.setting.workbench.presets.midnightBlue.label',
     descriptionKey: 'layout.setting.workbench.presets.midnightBlue.description',
     category: 'night',
-    featured: true,
     brandTheme: '#3B82F6',
     mode: 'dark',
     authorityPatch: {
@@ -665,6 +713,106 @@ export const THEME_PRESET_DEFINITIONS: ThemePresetDefinition[] = [
       densityPreset: 'standard',
     },
     stylePatch: MIX_LAYOUT_STYLE_PATCH,
+  },
+  {
+    id: 'one-dark-pro',
+    labelKey: 'layout.setting.workbench.presets.oneDarkPro.label',
+    descriptionKey: 'layout.setting.workbench.presets.oneDarkPro.description',
+    category: 'night',
+    featured: true,
+    brandTheme: '#61AFEF',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#282C34', '#21252B', '#1E2227', '#3E4451', '#2C313A'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(33, 37, 43, 0.72)', '0 14px 34px rgba(0, 0, 0, 0.24)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, densityPreset: 'comfortable', shadowPreset: 'floating' },
+    stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
+  },
+  {
+    id: 'atom-one-dark',
+    labelKey: 'layout.setting.workbench.presets.atomOneDark.label',
+    descriptionKey: 'layout.setting.workbench.presets.atomOneDark.description',
+    category: 'night',
+    brandTheme: '#61AFEF',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#282C34', '#21252B', '#20242B', '#3E4451', '#2C313A'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(33, 37, 43, 0.7)', '0 12px 30px rgba(0, 0, 0, 0.22)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, shadowPreset: 'floating' },
+    stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
+  },
+  {
+    id: 'material-oceanic',
+    labelKey: 'layout.setting.workbench.presets.materialOceanic.label',
+    descriptionKey: 'layout.setting.workbench.presets.materialOceanic.description',
+    category: 'night',
+    brandTheme: '#80CBC4',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#263238', '#2B3B42', '#1F2A30', '#3B5058', '#34474F'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(43, 59, 66, 0.72)', '0 14px 34px rgba(0, 0, 0, 0.26)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, densityPreset: 'comfortable', shadowPreset: 'floating' },
+    stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
+  },
+  {
+    id: 'github-dark',
+    labelKey: 'layout.setting.workbench.presets.githubDark.label',
+    descriptionKey: 'layout.setting.workbench.presets.githubDark.description',
+    category: 'operations',
+    featured: true,
+    brandTheme: '#58A6FF',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#0D1117', '#161B22', '#010409', '#30363D', '#21262D'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(22, 27, 34, 0.74)', '0 10px 28px rgba(0, 0, 0, 0.28)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, densityPreset: 'compact' },
+    stylePatch: { ...SIDE_LAYOUT_STYLE_PATCH, isAcrylicEnabled: false, isUseTabsRouter: true },
+  },
+  {
+    id: 'dracula',
+    labelKey: 'layout.setting.workbench.presets.dracula.label',
+    descriptionKey: 'layout.setting.workbench.presets.dracula.description',
+    category: 'focused',
+    brandTheme: '#BD93F9',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#282A36', '#343746', '#21222C', '#44475A', '#3A3D4D'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(52, 55, 70, 0.72)', '0 14px 34px rgba(20, 20, 32, 0.28)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, radiusPreset: 'rounded', shadowPreset: 'floating' },
+    stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
+  },
+  {
+    id: 'nord',
+    labelKey: 'layout.setting.workbench.presets.nord.label',
+    descriptionKey: 'layout.setting.workbench.presets.nord.description',
+    category: 'balanced',
+    brandTheme: '#88C0D0',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#2E3440', '#3B4252', '#272C36', '#4C566A', '#434C5E'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(59, 66, 82, 0.7)', '0 12px 30px rgba(18, 24, 34, 0.24)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, shadowPreset: 'flat' },
+    stylePatch: { ...SIDE_LAYOUT_STYLE_PATCH, isAcrylicEnabled: false },
+  },
+  {
+    id: 'tokyo-night',
+    labelKey: 'layout.setting.workbench.presets.tokyoNight.label',
+    descriptionKey: 'layout.setting.workbench.presets.tokyoNight.description',
+    category: 'night',
+    featured: true,
+    brandTheme: '#7AA2F7',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#1A1B26', '#24283B', '#16161E', '#414868', '#292E42'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(36, 40, 59, 0.72)', '0 14px 36px rgba(0, 0, 0, 0.3)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, shadowPreset: 'floating' },
+    stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
+  },
+  {
+    id: 'catppuccin-mocha',
+    labelKey: 'layout.setting.workbench.presets.catppuccinMocha.label',
+    descriptionKey: 'layout.setting.workbench.presets.catppuccinMocha.description',
+    category: 'night',
+    featured: true,
+    brandTheme: '#CBA6F7',
+    mode: 'dark',
+    tokenOverrides: createDarkPalette('#1E1E2E', '#313244', '#181825', '#45475A', '#3B3D50'),
+    materialTokenOverrides: createAcrylicMaterial('rgba(49, 50, 68, 0.72)', '0 14px 34px rgba(17, 17, 27, 0.3)'),
+    authorityPatch: { ...STANDARD_SYSTEM_AUTHORITY_PATCH, radiusPreset: 'rounded', shadowPreset: 'floating' },
+    stylePatch: { ...MIX_LAYOUT_STYLE_PATCH, isAcrylicEnabled: true },
   },
 ];
 

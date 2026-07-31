@@ -69,7 +69,9 @@ describe('setting store theme authority', () => {
 
     expect(store.fontSizePreset).toBe('standard');
     expect(store.menuAlwaysExpanded).toBe(false);
-    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.preserveThemePersonalization).toBe(true);
+    expect(store.selectedThemePresetId).toBe('one-dark-pro');
     expect(store.createThemeAuthoritySnapshot().fontSizePreset).toBe('standard');
   });
 
@@ -80,15 +82,15 @@ describe('setting store theme authority', () => {
     expect(store.themeAuthorityDiff).toHaveLength(0);
 
     store.openThemeWorkbench('appearance');
-    store.updateConfig({ isAcrylicEnabled: true });
+    store.updateConfig({ isAcrylicEnabled: false });
 
-    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.isAcrylicEnabled).toBe(false);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
     expect(store.themeAuthorityDiff).toHaveLength(0);
 
     store.cancelThemeDraft();
 
-    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.isAcrylicEnabled).toBe(true);
   });
 
   it('applies and resets the acrylic workbench preference with the draft lifecycle', () => {
@@ -104,12 +106,12 @@ describe('setting store theme authority', () => {
     store.openThemeWorkbench('appearance');
     store.resetThemeDraftToDefault();
 
-    expect(store.isAcrylicEnabled).toBe(false);
-    expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
 
     store.applyThemeDraft();
 
-    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.isAcrylicEnabled).toBe(true);
   });
 
   it('keeps always-expanded and auto-collapse preferences mutually exclusive', () => {
@@ -212,16 +214,16 @@ describe('setting store theme authority', () => {
 
     store.openThemeWorkbench('layout');
 
-    expect(store.layout).toBe('side');
+    expect(store.layout).toBe('mix');
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
 
-    store.updateConfig({ layout: 'mix' });
+    store.updateConfig({ layout: 'side' });
 
-    expect(store.layout).toBe('mix');
+    expect(store.layout).toBe('side');
     expect(store.hasThemeDraftPendingChanges).toBe(false);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(true);
 
-    store.updateConfig({ layout: 'side' });
+    store.updateConfig({ layout: 'mix' });
 
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
   });
@@ -239,8 +241,8 @@ describe('setting store theme authority', () => {
 
     store.cancelThemeDraft();
 
-    expect(store.layout).toBe('side');
-    expect(store.splitMenu).toBe(false);
+    expect(store.layout).toBe('mix');
+    expect(store.splitMenu).toBe(true);
     expect(store.isSidebarFixed).toBe(true);
     expect(store.showThemeWorkbench).toBe(false);
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
@@ -270,13 +272,13 @@ describe('setting store theme authority', () => {
     const store = useSettingStore();
 
     store.openThemeWorkbench('layout');
-    store.updateConfig({ layout: 'mix', splitMenu: true });
+    store.updateConfig({ layout: 'side', splitMenu: false });
     const modifiedBeforeApply = store.themeAuthorityLastModifiedAt;
 
     store.applyThemeDraft();
 
-    expect(store.layout).toBe('mix');
-    expect(store.splitMenu).toBe(true);
+    expect(store.layout).toBe('side');
+    expect(store.splitMenu).toBe(false);
     expect(store.showThemeWorkbench).toBe(false);
     expect(store.themeDraft).toBeNull();
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
@@ -296,7 +298,7 @@ describe('setting store theme authority', () => {
 
     store.cancelThemeDraft();
 
-    expect(store.layout).toBe('side');
+    expect(store.layout).toBe('mix');
     expect(store.fontSizePreset).toBe('standard');
     expect(store.hasThemeWorkbenchPendingChanges).toBe(false);
   });
@@ -363,6 +365,7 @@ describe('setting store theme authority', () => {
       borderColor: '#stale',
       containerColor: '#stale',
     };
+    store.mode = 'light';
 
     store.changeBrandTheme('#2BA471');
 
@@ -394,6 +397,7 @@ describe('setting store theme authority', () => {
 
   it('resets font size preset to the default theme authority', () => {
     const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
 
     store.updateThemeDraftAppearance({ fontSizePreset: 'small' });
     store.resetThemeDraftToDefault();
@@ -405,6 +409,7 @@ describe('setting store theme authority', () => {
 
   it('keeps reset-to-default applicable when the saved theme differs from the default authority', () => {
     const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
 
     store.assignThemeAuthorityState({
       ...store.createThemeAuthoritySnapshot(),
@@ -443,6 +448,7 @@ describe('setting store theme authority', () => {
 
   it('tracks reset-to-default feedback while keeping the draft semantics', async () => {
     const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
     let finishResetFeedback: (() => void) | undefined;
 
     Object.defineProperty(window, 'setTimeout', {
@@ -499,6 +505,7 @@ describe('setting store theme authority', () => {
 
   it('persists reset-to-default drafts and closes the workbench after apply', () => {
     const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
 
     store.assignThemeAuthorityState({
       ...store.createThemeAuthoritySnapshot(),
@@ -514,9 +521,9 @@ describe('setting store theme authority', () => {
 
     store.applyThemeDraft();
 
-    expect(store.mode).toBe('light');
-    expect(store.brandTheme).toBe('#0052D9');
-    expect(store.selectedThemePresetId).toBe('tdesign-default');
+    expect(store.mode).toBe('dark');
+    expect(store.brandTheme).toBe('#61AFEF');
+    expect(store.selectedThemePresetId).toBe('one-dark-pro');
     expect(store.fontSizePreset).toBe('standard');
     expect(store.themeSource).toBe('preset');
     expect(store.showThemeWorkbench).toBe(false);
@@ -566,9 +573,9 @@ describe('setting store theme authority', () => {
 
     store.cancelThemeDraft();
 
-    expect(store.densityPreset).toBe('standard');
-    expect(store.mode).toBe('light');
-    expect(store.layout).toBe('side');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.mode).toBe('dark');
+    expect(store.layout).toBe('mix');
   });
 
   it('applies scenario presets to both theme authority and shell layout draft state', () => {
@@ -593,6 +600,7 @@ describe('setting store theme authority', () => {
 
   it('applies official theme presets with their bundled appearance and layout defaults', () => {
     const store = useSettingStore();
+    store.updateConfig({ preserveThemePersonalization: false });
 
     store.openThemeWorkbench('overview');
     store.updateConfig({ menuAlwaysExpanded: true });
@@ -678,20 +686,8 @@ describe('setting store theme authority', () => {
   });
 
   it('declares a fixed light or dark mode for every built-in theme preset', () => {
-    expect(THEME_PRESET_DEFINITIONS.map((preset) => ({ id: preset.id, mode: preset.mode }))).toEqual([
-      { id: 'tdesign-default', mode: 'light' },
-      { id: 'tencent-cloud', mode: 'light' },
-      { id: 'mountain-green', mode: 'light' },
-      { id: 'midnight-blue', mode: 'dark' },
-      { id: 'graphite-slate', mode: 'dark' },
-      { id: 'sunset-amber', mode: 'light' },
-      { id: 'ocean-teal', mode: 'light' },
-      { id: 'frost-silver', mode: 'light' },
-      { id: 'violet-haze', mode: 'light' },
-      { id: 'signal-rose', mode: 'dark' },
-      { id: 'forest-night', mode: 'dark' },
-      { id: 'amethyst-night', mode: 'dark' },
-    ]);
+    expect(THEME_PRESET_DEFINITIONS).toHaveLength(20);
+    expect(THEME_PRESET_DEFINITIONS.every((preset) => preset.mode === 'light' || preset.mode === 'dark')).toBe(true);
   });
 
   it('resolves scrollbar tracks and hover states from the selected theme preset', () => {
@@ -722,11 +718,11 @@ describe('setting store theme authority', () => {
       '--graft-glass-content-blur': '22px',
     });
     expect(store.themeResolvedTokens.dark).toMatchObject({
-      '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 9%, transparent)',
-      '--graft-glass-bg': 'rgba(15, 20, 27, 0.58)',
-      '--graft-glass-blur': '28px',
-      '--graft-glass-content-bg': 'rgba(24, 31, 41, 0.72)',
-      '--graft-glass-content-blur': '22px',
+      '--graft-glass-ambient-color': 'color-mix(in srgb, var(--td-brand-color) 10%, transparent)',
+      '--graft-glass-bg': 'rgba(33, 37, 43, 0.72)',
+      '--graft-glass-blur': '30px',
+      '--graft-glass-content-bg': 'rgba(33, 37, 43, 0.72)',
+      '--graft-glass-content-blur': '24px',
     });
   });
 
@@ -809,5 +805,70 @@ describe('setting store theme authority', () => {
     expect(document.documentElement.animate).not.toHaveBeenCalled();
     expect(document.documentElement.classList.add).not.toHaveBeenCalledWith('graft-theme-css-transition');
     expect(document.documentElement.classList.add).not.toHaveBeenCalledWith('graft-theme-view-transition');
+  });
+
+  it('uses One Dark Pro as the complete first-run default', () => {
+    const store = useSettingStore();
+
+    store.initializeThemeWorkbenchRuntime();
+
+    expect(store.selectedThemePresetId).toBe('one-dark-pro');
+    expect(store.mode).toBe('dark');
+    expect(store.brandTheme).toBe('#61AFEF');
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.layout).toBe('mix');
+    expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
+  });
+
+  it('preserves personalization while applying a preset palette by default', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large', densityPreset: 'compact' });
+    store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
+
+    store.selectThemePreset('tokyo-night');
+
+    expect(store.mode).toBe('dark');
+    expect(store.brandTheme).toBe('#7AA2F7');
+    expect(store.fontSizePreset).toBe('large');
+    expect(store.densityPreset).toBe('compact');
+    expect(store.layout).toBe('side');
+    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
+  });
+
+  it('applies the complete preset package when personalization preservation is disabled', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.updateConfig({ preserveThemePersonalization: false, isAcrylicEnabled: false, layout: 'side' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+    store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
+
+    store.selectThemePreset('one-dark-pro');
+
+    expect(store.fontSizePreset).toBe('standard');
+    expect(store.densityPreset).toBe('comfortable');
+    expect(store.layout).toBe('mix');
+    expect(store.isAcrylicEnabled).toBe(true);
+    expect(store.themeTokenOverrides.dark).toEqual({});
+    expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
+  });
+
+  it('resets only palette and mode when personalization preservation is enabled', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.updateConfig({ isAcrylicEnabled: false, layout: 'side' });
+    store.updateThemeDraftAppearance({ fontSizePreset: 'large' });
+    store.updateThemeToken('dark', '--graft-chart-text-color', '#123456');
+
+    store.resetThemeDraftToDefault();
+
+    expect(store.selectedThemePresetId).toBe('one-dark-pro');
+    expect(store.mode).toBe('dark');
+    expect(store.fontSizePreset).toBe('large');
+    expect(store.layout).toBe('side');
+    expect(store.isAcrylicEnabled).toBe(false);
+    expect(store.themeTokenOverrides.dark['--graft-chart-text-color']).toBe('#123456');
   });
 });

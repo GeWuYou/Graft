@@ -33,6 +33,7 @@ export type ThemeWorkbenchStylePatch = Partial<
     | 'showBreadcrumb'
     | 'menuAutoCollapsed'
     | 'menuAlwaysExpanded'
+    | 'isAcrylicEnabled'
   >
 >;
 
@@ -85,6 +86,7 @@ export interface ThemePresetDefinition {
   brandTheme: string;
   mode?: ModeType | 'auto';
   tokenOverrides?: Partial<ThemeModeTokenState>;
+  materialTokenOverrides?: Partial<ThemeModeTokenState>;
   authorityPatch?: ThemeWorkbenchAuthorityPatch;
   stylePatch?: ThemeWorkbenchStylePatch;
 }

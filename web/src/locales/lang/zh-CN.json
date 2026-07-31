@@ -143,7 +143,10 @@
         },
         "presets": {
           "title": "内置预设",
-          "description": "预设会同时调整外观、布局和阅读密度，可在应用前预览完整效果。",
+          "description": "浏览精选视觉方向，并选择每套预设的应用范围。",
+          "preserveThemePersonalization": "仅应用色彩与模式",
+          "preserveThemePersonalizationHint": "保留字体、密度、布局、亚克力和其他个性化设置。",
+          "completePresetHint": "应用预设推荐的完整外观、材质、密度与布局。",
           "featured": "精选预设",
           "all": "全部预设",
           "more": "更多预设",
@@ -209,6 +212,38 @@
           "amethystNight": {
             "label": "紫晶夜",
             "description": "深紫控制台强化层次与标签辨识，适合夜间高频切换。"
+          },
+          "oneDarkPro": {
+            "label": "One Dark Pro",
+            "description": "石墨灰工作区搭配冷调蓝色强调，适合长期开发与运维。"
+          },
+          "atomOneDark": {
+            "label": "Atom One Dark",
+            "description": "更沉稳、更高对比的 One Dark 变体，适合桌面级专注工作。"
+          },
+          "materialOceanic": {
+            "label": "Material Oceanic",
+            "description": "深海表面与青绿色高亮，为仪表盘带来克制的 Material 气质。"
+          },
+          "githubDark": {
+            "label": "GitHub Dark",
+            "description": "熟悉的高信息密度深色工作区，以克制对比服务企业管理。"
+          },
+          "dracula": {
+            "label": "Dracula",
+            "description": "紫、粉、青三色强调，为运维视图带来高度可识别的开发者调色板。"
+          },
+          "nord": {
+            "label": "Nord",
+            "description": "冷蓝灰表面营造低刺激、面向基础设施的工作区。"
+          },
+          "tokyoNight": {
+            "label": "Tokyo Night",
+            "description": "面向 Cloud、AI 与 DevOps 工作区的现代靛蓝夜间配色。"
+          },
+          "catppuccinMocha": {
+            "label": "Catppuccin Mocha",
+            "description": "柔和的粉彩深色调，适合 OLED 与深夜长时间使用。"
           }
         },
         "overview": {

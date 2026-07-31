@@ -143,7 +143,10 @@
         },
         "presets": {
           "title": "Built-in Presets",
-          "description": "Presets update appearance, layout, and reading density together. Preview the complete result before applying.",
+          "description": "Browse curated visual directions and choose how broadly each preset is applied.",
+          "preserveThemePersonalization": "Only Apply Colors and Mode",
+          "preserveThemePersonalizationHint": "Keep your font, density, layout, acrylic, and other personalized settings.",
+          "completePresetHint": "Apply the preset's complete appearance, material, density, and layout recommendation.",
           "featured": "Featured Presets",
           "all": "All Presets",
           "more": "More Presets",
@@ -209,6 +212,38 @@
           "amethystNight": {
             "label": "Amethyst Night",
             "description": "A deep violet console sharpens hierarchy and tag recognition during frequent night switching."
+          },
+          "oneDarkPro": {
+            "label": "One Dark Pro",
+            "description": "A balanced graphite workspace with cool blue accents for sustained development and operations."
+          },
+          "atomOneDark": {
+            "label": "Atom One Dark",
+            "description": "A steadier, higher-contrast One Dark interpretation for focused desktop-style work."
+          },
+          "materialOceanic": {
+            "label": "Material Oceanic",
+            "description": "Deep ocean surfaces and teal highlights give dashboards a composed Material feel."
+          },
+          "githubDark": {
+            "label": "GitHub Dark",
+            "description": "A familiar high-density dark workspace with restrained contrast for enterprise administration."
+          },
+          "dracula": {
+            "label": "Dracula",
+            "description": "Purple, pink, and cyan accents bring a recognizable developer palette to operational views."
+          },
+          "nord": {
+            "label": "Nord",
+            "description": "Cool blue-gray surfaces create a low-stimulation, infrastructure-focused workspace."
+          },
+          "tokyoNight": {
+            "label": "Tokyo Night",
+            "description": "A modern indigo night palette for cloud, AI, and DevOps workspaces."
+          },
+          "catppuccinMocha": {
+            "label": "Catppuccin Mocha",
+            "description": "A soft pastel dark palette designed for comfortable OLED and late-night use."
           }
         },
         "overview": {

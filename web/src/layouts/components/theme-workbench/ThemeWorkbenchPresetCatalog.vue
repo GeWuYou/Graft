@@ -5,6 +5,28 @@
       <div class="section-desc">{{ t('layout.setting.workbench.presets.description') }}</div>
     </div>
 
+    <div class="preset-catalog__apply-mode">
+      <div>
+        <div class="preset-catalog__apply-mode-title">
+          {{ t('layout.setting.workbench.presets.preserveThemePersonalization') }}
+        </div>
+        <div class="preset-catalog__apply-mode-hint">
+          {{
+            t(
+              props.preserveThemePersonalization
+                ? 'layout.setting.workbench.presets.preserveThemePersonalizationHint'
+                : 'layout.setting.workbench.presets.completePresetHint',
+            )
+          }}
+        </div>
+      </div>
+      <t-switch
+        :model-value="preserveThemePersonalization"
+        :aria-label="t('layout.setting.workbench.presets.preserveThemePersonalization')"
+        @update:model-value="$emit('update:preserveThemePersonalization', $event)"
+      />
+    </div>
+
     <div class="preset-catalog__toolbar">
       <t-input
         v-model:value="keyword"
@@ -71,10 +93,12 @@ type PresetFilter = 'all' | ThemePresetCategory;
 const props = defineProps<{
   presets: ThemePresetDefinition[];
   activePresetId: string | null;
+  preserveThemePersonalization: boolean;
 }>();
 
 defineEmits<{
   select: [presetId: string];
+  'update:preserveThemePersonalization': [value: boolean];
 }>();
 
 const { locale } = useLocale();
@@ -153,6 +177,29 @@ function handleCategoryChange(value: string | number | boolean) {
   gap: var(--graft-density-gap-10);
   grid-auto-flow: dense;
   grid-template-columns: minmax(180px, 1fr) auto;
+}
+
+.preset-catalog__apply-mode {
+  align-items: center;
+  background: var(--td-bg-color-secondarycontainer);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  display: flex;
+  gap: var(--graft-density-gap-16);
+  justify-content: space-between;
+  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+}
+
+.preset-catalog__apply-mode-title {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-body-medium);
+  font-weight: 600;
+}
+
+.preset-catalog__apply-mode-hint {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  margin-top: var(--graft-density-gap-4);
 }
 
 .preset-catalog__search {
