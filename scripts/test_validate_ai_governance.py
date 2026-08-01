@@ -75,6 +75,98 @@ class WorktreeManagerGovernanceTests(unittest.TestCase):
     def test_worktree_manager_governance_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_worktree_manager_skill(), [])
 
+    def test_worktree_manager_governance_rejects_missing_integration_authorization_terms(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.WORKTREE_MANAGER_SKILL
+        current_text = original_read_text(target)
+        mutated_text = current_text.replace("source ref/commit", "source reference", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == target:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any("source ref/commit" in finding.message for finding in findings))
+
+    def test_worktree_manager_governance_rejects_missing_fail_closed_receipt_rule(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.AGENTS
+        current_text = original_read_text(target)
+        mutated_text = current_text.replace("complete integration authorization evidence", "integration evidence", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == target:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any("complete integration authorization evidence" in finding.message for finding in findings))
+
+    def test_worktree_manager_governance_rejects_command_authorization_mismatch(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.AGENTS
+        current_text = original_read_text(target)
+        mutated_text = current_text.replace(
+            "actual merge or cherry-pick command differs from the authorized operation record",
+            "actual integration command is checked",
+            1,
+        )
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == target:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(
+            any(
+                "actual merge or cherry-pick command differs from the authorized operation record" in finding.message
+                for finding in findings
+            )
+        )
+
+    def test_worktree_manager_governance_checks_root_authority_source(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.AGENTS
+        current_text = original_read_text(target)
+        required_term = "complete integration authorization evidence"
+        mutated_text = current_text.replace(required_term, "integration evidence", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == target else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any(finding.path == target and required_term in finding.message for finding in findings))
+
+    def test_worktree_manager_governance_checks_tracking_authority_source(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.AI_TASK_TRACKING_DOC
+        current_text = original_read_text(target)
+        required_term = "最终仓库状态 authority"
+        mutated_text = current_text.replace(required_term, "仓库状态", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == target else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any(finding.path == target and required_term in finding.message for finding in findings))
+
 
 class OpenApiWorktreeGovernanceTests(unittest.TestCase):
     def test_openapi_worktree_governance_is_currently_satisfied(self) -> None:

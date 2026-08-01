@@ -174,6 +174,7 @@ import { resolveManagedColumns, TableActionMenu } from '@/shared/components/mana
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
 import { formatLocaleDateTime } from '@/shared/observability';
 
+import { localizeContainerResourceError } from '../shared/localize-resource-error';
 import {
   buildContainerResourceColumns,
   type ContainerResourceMetric,
@@ -247,7 +248,7 @@ const emit = defineEmits<{
 const current = defineModel<number>('current', { required: true });
 const pageSize = defineModel<number>('pageSize', { required: true });
 
-const { locale, t, te } = useI18n();
+const { locale, t } = useI18n();
 const cellSlotNames = [
   'state',
   'name',
@@ -465,24 +466,7 @@ function formatBytes(value?: number) {
 }
 
 function resourceUnavailableSummary(row: ContainerSummaryRecord) {
-  const reason = localizeResourceUnavailableReason(
-    row.resource?.stats_error_message || row.resource?.stats_error_key || row.resource?.unavailable_reason,
-  );
-  return reason || t('container.list.stats.unavailable');
-}
-
-function localizeResourceUnavailableReason(reason?: string | null) {
-  const normalizedReason = reason?.trim();
-  if (!normalizedReason) {
-    return '';
-  }
-  if (!normalizedReason.startsWith('ops.container.error.') && !normalizedReason.startsWith('container.stats:')) {
-    return normalizedReason;
-  }
-  if (te(normalizedReason)) {
-    return t(normalizedReason);
-  }
-  return t('container.list.stats.unavailableReasonFallback');
+  return localizeContainerResourceError(t, row.resource, 'container.list.stats.unavailableReasonFallback');
 }
 </script>
 <style scoped lang="less">

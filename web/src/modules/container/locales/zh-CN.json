@@ -1273,7 +1273,38 @@
         "shellContainerNotRunning": "当前容器未处于运行状态，无法建立交互式 Shell 会话。",
         "shellUnsupportedControlMessage": "当前终端控制消息不受支持。",
         "imageInUse": "Docker 镜像正被一个或多个容器引用",
-        "imageRemoveFailed": "Docker 镜像删除失败"
+        "imageRemoveFailed": "Docker 镜像删除失败",
+        "containerMountNotFound": "容器挂载不存在",
+        "invalidBatchAction": "批量容器操作请求不合法",
+        "eventsUnavailable": "当前暂无法读取容器运行时事件",
+        "shellTicketInvalid": "容器 Shell 会话票据无效",
+        "shellTicketExpired": "容器 Shell 会话票据已过期",
+        "shellTicketUsed": "容器 Shell 会话票据已使用",
+        "shellOriginDenied": "当前请求来源不允许建立容器 Shell 连接",
+        "shellCommandNotFound": "所选 Shell 命令在容器内不存在",
+        "shellInvalidSize": "请求的 Shell 终端尺寸不合法",
+        "shellSessionFailed": "容器 Shell 会话建立失败",
+        "mountUsageUnsupported": "该挂载不支持用量统计",
+        "invalidImageReference": "无效的 Docker 镜像引用",
+        "imageReferencedByMultipleTags": "Docker 镜像仍被多个 Repository:Tag 引用",
+        "imageNotFound": "Docker 镜像不存在，可能已被删除",
+        "dockerCommunication": "无法连接 Docker",
+        "imagePullFailed": "Docker 镜像拉取失败",
+        "imageTagFailed": "Docker 镜像打标签失败",
+        "imageTagNotAssociated": "该 Docker 镜像标签不引用当前镜像",
+        "volumeNotFound": "Docker 数据卷不存在",
+        "volumeConflict": "Docker 数据卷正在使用，无法删除"
+      }
+    },
+    "docker": {
+      "network": {
+        "error": {
+          "invalidRequest": "Docker 网络请求不合法",
+          "notFound": "Docker 网络不存在",
+          "confirmationMismatch": "Docker 网络名称确认不匹配",
+          "defaultProtected": "Docker 默认网络不能删除",
+          "inUse": "Docker 网络仍有连接容器，不能删除"
+        }
       }
     }
   }

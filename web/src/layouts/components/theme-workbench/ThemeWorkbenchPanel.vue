@@ -214,10 +214,7 @@
                       {{ t('layout.setting.workbench.appearance.acrylicGlassHint') }}
                     </div>
                   </div>
-                  <t-switch
-                    :model-value="settingStore.isAcrylicEnabled"
-                    @update:model-value="(value) => settingStore.updateConfig({ isAcrylicEnabled: value })"
-                  />
+                  <t-switch :model-value="settingStore.isAcrylicEnabled" @update:model-value="updateIsAcrylicEnabled" />
                 </div>
               </div>
             </div>
@@ -317,7 +314,7 @@
                   <t-switch
                     :model-value="settingStore.splitMenu"
                     :disabled="!splitMenuAvailable"
-                    @update:model-value="(value) => settingStore.updateConfig({ splitMenu: value })"
+                    @update:model-value="updateSplitMenu"
                   />
                 </div>
                 <div class="switch-item">
@@ -328,7 +325,7 @@
                   <t-switch
                     :model-value="settingStore.isSidebarFixed"
                     :disabled="!fixedSidebarAvailable"
-                    @update:model-value="(value) => settingStore.updateConfig({ isSidebarFixed: value })"
+                    @update:model-value="updateIsSidebarFixed"
                   />
                 </div>
                 <div class="switch-item">
@@ -340,7 +337,7 @@
                   </div>
                   <t-switch
                     :model-value="settingStore.menuAutoCollapsed"
-                    @update:model-value="(value) => settingStore.updateConfig({ menuAutoCollapsed: value })"
+                    @update:model-value="updateMenuAutoCollapsed"
                   />
                 </div>
                 <div class="switch-item">
@@ -353,7 +350,7 @@
                   <t-switch
                     :model-value="settingStore.menuAlwaysExpanded"
                     :disabled="!menuAlwaysExpandedAvailable"
-                    @update:model-value="(value) => settingStore.updateConfig({ menuAlwaysExpanded: value })"
+                    @update:model-value="updateMenuAlwaysExpanded"
                   />
                 </div>
               </div>
@@ -368,40 +365,28 @@
                     <div class="switch-item__label">{{ t('layout.setting.element.showHeader') }}</div>
                     <div class="switch-item__hint">{{ t('layout.setting.workbench.layout.showHeaderHint') }}</div>
                   </div>
-                  <t-switch
-                    :model-value="settingStore.showHeader"
-                    @update:model-value="(value) => settingStore.updateConfig({ showHeader: value })"
-                  />
+                  <t-switch :model-value="settingStore.showHeader" @update:model-value="updateShowHeader" />
                 </div>
                 <div class="switch-item">
                   <div class="switch-item__content">
                     <div class="switch-item__label">{{ t('layout.setting.element.showBreadcrumb') }}</div>
                     <div class="switch-item__hint">{{ t('layout.setting.workbench.layout.showBreadcrumbHint') }}</div>
                   </div>
-                  <t-switch
-                    :model-value="settingStore.showBreadcrumb"
-                    @update:model-value="(value) => settingStore.updateConfig({ showBreadcrumb: value })"
-                  />
+                  <t-switch :model-value="settingStore.showBreadcrumb" @update:model-value="updateShowBreadcrumb" />
                 </div>
                 <div v-if="footerOptionVisible" class="switch-item">
                   <div class="switch-item__content">
                     <div class="switch-item__label">{{ t('layout.setting.element.showFooter') }}</div>
                     <div class="switch-item__hint">{{ t('layout.setting.workbench.layout.showFooterHint') }}</div>
                   </div>
-                  <t-switch
-                    :model-value="settingStore.showFooter"
-                    @update:model-value="(value) => settingStore.updateConfig({ showFooter: value })"
-                  />
+                  <t-switch :model-value="settingStore.showFooter" @update:model-value="updateShowFooter" />
                 </div>
                 <div class="switch-item">
                   <div class="switch-item__content">
                     <div class="switch-item__label">{{ t('layout.setting.element.useTagTabs') }}</div>
                     <div class="switch-item__hint">{{ t('layout.setting.workbench.layout.useTagTabsHint') }}</div>
                   </div>
-                  <t-switch
-                    :model-value="settingStore.isUseTabsRouter"
-                    @update:model-value="(value) => settingStore.updateConfig({ isUseTabsRouter: value })"
-                  />
+                  <t-switch :model-value="settingStore.isUseTabsRouter" @update:model-value="updateIsUseTabsRouter" />
                 </div>
                 <div class="switch-item">
                   <div class="switch-item__content">
@@ -412,7 +397,7 @@
                   </div>
                   <t-switch
                     :model-value="settingStore.showThemeWorkbenchDock"
-                    @update:model-value="(value) => settingStore.updateConfig({ showThemeWorkbenchDock: value })"
+                    @update:model-value="updateShowThemeWorkbenchDock"
                   />
                 </div>
               </div>
@@ -691,6 +676,7 @@ import { DEFAULT_COLOR_OPTIONS } from '@/config/color';
 import { t } from '@/locales';
 import { warnTranslationLengthBudget } from '@/locales/length-budgets';
 import { useLocale } from '@/locales/useLocale';
+import type { TState } from '@/store';
 import { useSettingStore } from '@/store';
 import type {
   ThemeAuthorityState,
@@ -897,6 +883,27 @@ const quickDensityOptions = computed(() =>
     value,
   })),
 );
+
+type BooleanSettingKey = {
+  [K in keyof TState]-?: TState[K] extends boolean ? K : never;
+}[keyof TState];
+
+const createBooleanConfigUpdater =
+  <K extends BooleanSettingKey>(key: K) =>
+  (value: TState[K]) => {
+    settingStore.updateConfig({ [key]: value } as Pick<TState, K>);
+  };
+
+const updateIsAcrylicEnabled = createBooleanConfigUpdater('isAcrylicEnabled');
+const updateSplitMenu = createBooleanConfigUpdater('splitMenu');
+const updateIsSidebarFixed = createBooleanConfigUpdater('isSidebarFixed');
+const updateMenuAutoCollapsed = createBooleanConfigUpdater('menuAutoCollapsed');
+const updateMenuAlwaysExpanded = createBooleanConfigUpdater('menuAlwaysExpanded');
+const updateShowHeader = createBooleanConfigUpdater('showHeader');
+const updateShowBreadcrumb = createBooleanConfigUpdater('showBreadcrumb');
+const updateShowFooter = createBooleanConfigUpdater('showFooter');
+const updateIsUseTabsRouter = createBooleanConfigUpdater('isUseTabsRouter');
+const updateShowThemeWorkbenchDock = createBooleanConfigUpdater('showThemeWorkbenchDock');
 
 const modeLabel = computed(() => {
   const matched = modeOptions.value.find((item) => item.type === effectiveTheme.value.mode);

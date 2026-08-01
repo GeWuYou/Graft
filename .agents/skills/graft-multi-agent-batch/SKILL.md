@@ -27,8 +27,9 @@ topic loop
 ```
 
 Control returns upward only: `worker -> batch coordinator -> outer loop controller`. Batch completion returns control
-to the outer controller; it never completes the topic loop. The batch coordinator cannot mutate outer loop state,
-choose the next loop batch, or terminate the outer loop. A worker closeout cannot override loop state.
+to the outer controller; it never completes or suspends the topic loop. The batch coordinator cannot mutate outer loop
+state, choose the next loop batch, resume the current loop batch, dispatch a repaired worker, or terminate the outer
+loop. A worker closeout cannot override loop state.
 
 ## Waiting Terms
 
@@ -156,7 +157,9 @@ Use this skill only when all of the following are true:
 13. If a worker slice cannot produce a usable final closeout:
    - retry the same bounded slice once with a fresh worker
    - pass the retry worker the previous failure reason, partial owned-scope diff, and relevant validation evidence
-   - if the second worker still fails, mark that slice blocked or stop the batch wave explicitly
+   - if the second worker still fails, return retry-exhaustion as wave evidence to the caller with its
+     `required_context` and `recovery_requirements` (including the failed round, evidence, repair authority, and safe
+     retry inputs); the caller may use it as recovery input, but it is not a topic stop or terminal decision
    - do not recover the implementation locally and do not silently continue outside the declared batch contract
 14. Stop the wave when ownership boundaries start to overlap, validation changes strategy, or the batch becomes harder to review than to implement locally.
 
@@ -171,7 +174,8 @@ Before accepting a subagent result, confirm:
 * the reported validation is enough for that slice
 * the result still follows plugin, DI, and `menu + route + page + api + permission` boundaries
 * any checkpoint response was treated as a health report, not a handoff or implicit stop signal
-* any retry-exhausted slice was reported as blocked or wave-stop rather than being completed locally by the main agent
+* any retry-exhausted slice was reported as wave evidence or recovery input rather than being completed locally by the
+  main agent or interpreted as a loop stop; only the outer controller may resolve it to a terminal state
 * when nested in `graft-multi-agent-loop`, the wave returned evidence upward without asserting topic completion or
   changing outer controller state
 
@@ -187,9 +191,13 @@ For every delegated `worker`, require one of these response shapes:
    - `validation_evidence`
    - `risks`
    - `blockers`
+   - `required_context` when retry, repair, or scope recovery needs prior evidence
+   - optional `recovery_requirements`, which describe recovery evidence for the caller and never suspend or transition
+     the topic
    - `parent_model`, `worker_model`, `model_relation`, `model_rank_verified`, and `higher_model_approval`
    - optional `suggested_follow_up`, which is advisory evidence for the caller and never a controller decision
-   - do not emit or infer `continue`, `pending_batches`, `next_batch`, `archive_ready`, or `topic_complete`
+   - do not emit or infer `continue`, `pending_batches`, `next_batch`, `archive_ready`, `topic_complete`,
+     `stop_loop`, `suspend_topic`, or `wait_for_user`
 2. Checkpoint status for a still-running slice:
    - begin with `Checkpoint status:`
    - include `current_phase`, `changed_files`, `last_validation`, `next_action`, `can_continue`,
@@ -204,6 +212,8 @@ For every delegated `worker`, require one of these response shapes:
 * do not let checkpoint interrupts turn the batch into real-time remote control of workers
 * do not let an active delegated slice silently downgrade into untracked main-agent execution
 * do not treat batch completion, worker success, commit success, or validation success as topic completion
+* do not treat batch failure, retry exhaustion, wave stop, scope conflict, or a recovery receipt as permission to
+  suspend or terminate the topic; return evidence to the outer controller
 * do not assume a subagent can inherit unstated governance; pass the inherited startup context explicitly
 * do not use batch delegation to bypass `$graft-pr-review` inventory closure; `Outside diff range comments`,
   `Nitpick comments`, and other folded latest-review findings remain mandatory dispositions even when repairs are split

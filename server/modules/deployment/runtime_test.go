@@ -32,7 +32,7 @@ func (s dockerFactsStub) CurrentContainer(context.Context) (moduleapi.DockerCont
 func TestRuntimeExplicitRootWinsOverDockerFacts(t *testing.T) {
 	runtime := NewRuntime(func(key string) (string, bool) {
 		return map[string]string{deploymentRuntimeEnv: "compose", deploymentComposeRootEnv: "/opt/graft"}[key], key == deploymentRuntimeEnv || key == deploymentComposeRootEnv
-	}, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Labels: map[string]string{composeWorkingDirLabel: "/other"}}})
+	}, dockerFactsStub{facts: deploymentFacts(map[string]string{composeWorkingDirLabel: "/other"})})
 	current := runtime.Current(context.Background())
 	if !current.IsAvailable() || current.ComposeRootSource() != "explicit_config" || current.ComposeCandidates()[0].Root() != "/opt/graft" {
 		t.Fatalf("explicit declaration did not win: %#v", current)
@@ -49,9 +49,9 @@ func TestRuntimeInvalidExplicitRootFailsClosed(t *testing.T) {
 }
 
 func TestRuntimeDiscoversUniqueComposeLabelsAndFreezesSnapshot(t *testing.T) {
-	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Labels: map[string]string{
+	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{facts: deploymentFacts(map[string]string{
 		composeWorkingDirLabel: "/srv/graft", composeConfigFilesLabel: "/srv/graft/compose.yml,/srv/graft/compose.override.yml", composeProjectLabel: "graft",
-	}}})
+	})})
 	current := runtime.Current(context.Background())
 	if !current.IsAvailable() || current.IsComposeConfirmationRequired() || len(current.ComposeCandidates()) != 1 {
 		t.Fatalf("expected unique high confidence candidate: %#v", current)
@@ -63,7 +63,7 @@ func TestRuntimeDiscoversUniqueComposeLabelsAndFreezesSnapshot(t *testing.T) {
 }
 
 func TestRuntimeRequiresSelectionForAmbiguousBindCandidates(t *testing.T) {
-	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Mounts: []moduleapi.DockerMountFact{{Type: "bind", Source: "/one"}, {Type: "bind", Source: "/two"}}}})
+	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Mounts: []moduleapi.DockerMountFact{{Type: dockerVolumeMountType, Destination: runnerStateRoot}, {Type: "bind", Source: "/one"}, {Type: "bind", Source: "/two"}}}})
 	current := runtime.Current(context.Background())
 	if !current.IsAvailable() || !current.IsComposeConfirmationRequired() {
 		t.Fatalf("expected confirmation-required candidates: %#v", current)
@@ -86,8 +86,8 @@ func TestRuntimeReportsDockerFactsFailure(t *testing.T) {
 
 func TestRuntimeFreezeUsesFreshDockerFacts(t *testing.T) {
 	provider := &changingDockerFactsStub{facts: []moduleapi.DockerContainerFacts{
-		{Labels: map[string]string{composeWorkingDirLabel: "/before"}},
-		{Labels: map[string]string{composeWorkingDirLabel: "/after"}},
+		deploymentFacts(map[string]string{composeWorkingDirLabel: "/before"}),
+		deploymentFacts(map[string]string{composeWorkingDirLabel: "/after"}),
 	}}
 	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, provider)
 	if current := runtime.Current(context.Background()); current.ComposeCandidates()[0].Root() != "/before" {
@@ -109,10 +109,35 @@ func TestRuntimeDefaultsToComposeWhenRuntimeIsUnsetOrEmpty(t *testing.T) {
 	for name, lookup := range lookups {
 		t.Run(name, func(t *testing.T) {
 			runtime := NewRuntime(lookup, dockerFactsStub{})
-			if current := runtime.Current(context.Background()); current.Mode() != "compose" || current.IsAvailable() || current.Diagnostics()[0].Code != "compose_candidate_unavailable" {
+			if current := runtime.Current(context.Background()); current.Mode() != "compose" || current.IsAvailable() || current.Diagnostics()[0].Code != "runner_state_volume_missing" {
 				t.Fatalf("runtime did not default to Compose discovery: %#v", current)
 			}
 		})
+	}
+}
+
+func TestRuntimeRequiresRunnerStateVolumeForExplicitRoot(t *testing.T) {
+	runtime := NewRuntime(func(key string) (string, bool) {
+		return map[string]string{deploymentRuntimeEnv: "compose", deploymentComposeRootEnv: "/opt/graft"}[key], key == deploymentRuntimeEnv || key == deploymentComposeRootEnv
+	}, dockerFactsStub{})
+	current := runtime.Current(context.Background())
+	if current.IsAvailable() || current.Diagnostics()[0].Code != "runner_state_volume_missing" || current.Diagnostics()[0].MessageKey != "deployment.diagnostics.runner_state_volume_missing" {
+		t.Fatalf("explicit root without runner state volume did not fail closed: %#v", current)
+	}
+}
+
+func TestRuntimeRequiresRunnerStateVolumeForDiscoveredRoot(t *testing.T) {
+	runtime := NewRuntime(func(key string) (string, bool) { return "compose", key == deploymentRuntimeEnv }, dockerFactsStub{facts: moduleapi.DockerContainerFacts{Labels: map[string]string{composeWorkingDirLabel: "/srv/graft"}}})
+	current := runtime.Current(context.Background())
+	if current.IsAvailable() || current.Diagnostics()[0].Code != "runner_state_volume_missing" {
+		t.Fatalf("discovered root without runner state volume did not fail closed: %#v", current)
+	}
+}
+
+func deploymentFacts(labels map[string]string) moduleapi.DockerContainerFacts {
+	return moduleapi.DockerContainerFacts{
+		Labels: labels,
+		Mounts: []moduleapi.DockerMountFact{{Type: dockerVolumeMountType, Destination: runnerStateRoot}},
 	}
 }
 

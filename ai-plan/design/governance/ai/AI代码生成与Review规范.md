@@ -30,7 +30,7 @@
 - 大范围 rename wave、目录迁移、批量移动文件
 - 以“统一风格”为名的仓库级格式化或整理 import
 
-Agent 也不得执行最终 merge 或 cherry-pick。普通改动可以在临时工作树中完成验证并提交经过验证的任务分支；开发者在主工作区 review 后负责集成。若 authority discovery 已将 OpenAPI 变更确定为 bounded cross-boundary slice，则它不因同时触及 `openapi/**`、server generated binding 和 web generated schema 而成为禁区。
+Agent 默认不得执行最终 merge 或 cherry-pick；开发者在当前任务中明确授权具体集成操作后，Agent 可以在主工作区执行该操作，但不因此取得最终仓库状态 authority。普通改动可以在临时工作树中完成验证并提交经过验证的任务分支；开发者在主工作区 review 后负责集成。若 authority discovery 已将 OpenAPI 变更确定为 bounded cross-boundary slice，则它不因同时触及 `openapi/**`、server generated binding 和 web generated schema 而成为禁区。
 
 Atlas migration、非 OpenAPI generated code、lock file 和 snapshot 继续属于线性资源。OpenAPI source 与确定性 generated artifacts 则属于同一个 task-owned contract closure：Agent 修改 API contract 时必须在任务分支中同步生成、验证并提交 `openapi/**` source、bundle、server binding、runtime embedded bundle 与 web schema，并执行 `just generate`、`just openapi-check` 及 task class 要求的完成态验证，不能把 freshness drift 留给集成阶段。并行分支发生冲突时，开发者先合并 canonical source，再从合并后的 canonical OpenAPI source 重新生成并复验，而不是手工拼接生成文件。
 

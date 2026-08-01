@@ -1522,6 +1522,7 @@ import {
   selectContainerEventsView,
   selectContainerEventsViewportState,
 } from '../../shared/events-manager';
+import { localizeContainerResourceError } from '../../shared/localize-resource-error';
 import {
   acquireContainerStatsSubscription,
   clearContainerDetail,
@@ -4488,7 +4489,7 @@ function resourceStatus(nextDetail: ContainerDetail) {
   if (resource?.stats_error_message || resource?.stats_error_key || resource?.unavailable_reason) {
     return {
       collectedAt: '-',
-      description: resource.stats_error_message || resource.stats_error_key || resource.unavailable_reason || '-',
+      description: localizeContainerResourceError(t, resource, 'container.list.stats.unavailableReasonFallback'),
       theme: 'warning' as const,
       value: t('container.detail.resources.unavailable'),
     };

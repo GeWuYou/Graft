@@ -20,6 +20,7 @@
     "format:check": "prettier . --check",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "typecheck:ts7:node": "bunx --no-install --bun --package typescript7 tsc --noEmit -p tsconfig.node.json",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -37,7 +38,7 @@
     "openapi:types": "mkdir -p src/contracts/openapi/generated && bunx openapi-typescript ../openapi/openapi.yaml -o src/contracts/openapi/generated/schema.ts && bunx prettier --write src/contracts/openapi/generated/schema.ts",
     "openapi:types:check": "sh -c 'mkdir -p .tmp; tmp=.tmp/openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bunx openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bunx prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
     "openapi:frontend-governance:check": "bun run scripts/check-openapi-frontend-governance.ts",
-    "check": "bun run --parallel --no-exit-on-error format:check typecheck openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check && bun run --parallel --no-exit-on-error test:run build:release"
+    "check": "bun run --parallel --no-exit-on-error format:check typecheck typecheck:ts7:node openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check && bun run --parallel --no-exit-on-error test:run build:release"
   },
   "dependencies": {
     "@iconify-icons/lucide": "^1.2.135",
@@ -110,8 +111,9 @@
     "stylelint": "^16.19.1",
     "stylelint-config-standard": "^38.0.0",
     "stylelint-order": "^7.0.0",
-    "typescript": "^5.8.3",
+    "typescript": "6.0.3",
     "typescript-eslint": "^8.65.0",
+    "typescript7": "npm:typescript@7.0.2",
     "unocss": "^66.7.5",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-vue-components": "^32.1.0",
@@ -119,7 +121,7 @@
     "vite-plugin-mock": "^3.0.1",
     "vite-svg-loader": "^5.1.0",
     "vitest": "^4.1.9",
-    "vue-tsc": "^2.2.10"
+    "vue-tsc": "3.3.9"
   },
   "lint-staged": {
     "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue}": [

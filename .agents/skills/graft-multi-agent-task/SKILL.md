@@ -65,8 +65,9 @@ Typical triggers:
      repair edit, the worker must return the root `AGENTS.md` `Repair Confirmation Interaction Contract` proposal to
      the outer agent; the outer agent must invoke the user's native structured-choice control, and only
      `execute_repair` permits the declared repair, validation rerun, or later `$graft-commit`
-   - a fixable validation failure without `execute_repair` is a blocked closeout, not permission for worker self-repair;
-     record the proposal, selected option, and any ownership or authority conflict
+   - a fixable validation failure without `execute_repair` is recovery evidence for the outer controller, not
+     permission for worker self-repair or a topic-level blocked decision; record the proposal, selected option, and any
+     ownership or authority conflict in `required_context` and `recovery_requirements`
 11. When the current task is being orchestrated by `graft-multi-agent-loop`, it may receive bounded checkpoint requests
     from the outer main agent:
 
@@ -82,14 +83,21 @@ Typical triggers:
 - after replying to a checkpoint with `can_continue=true`, expect the same round to continue under the current worker;
   do not treat the checkpoint reply as permission to stop before emitting the required final closeout
 
-12. If a delegated round cannot safely emit the required closeout, stop and return a clearly blocked state to the main
-    agent instead of silently continuing outside the loop contract.
+12. If a delegated round cannot safely emit the required closeout, return retry-exhaustion or another clearly blocked
+    round result with its `required_context` and `recovery_requirements` to the main agent instead of silently
+    continuing outside the loop contract. Retry exhaustion is wave evidence/recovery input only; it does not suspend
+   or terminate the topic, and only the outer controller may resolve it into a terminal state.
+    For retry exhaustion, `required_context` must preserve the failed round and evidence, while
+    `recovery_requirements` must identify repair authority, repair eligibility, and safe retry inputs without naming a
+    controller transition.
 13. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
 
 - it must not assume the outer loop orchestrator will finish the implementation locally
 - it must return a usable closeout or an explicit blocked state for the current round
 - it must not decide topic completion, update `pending_batches`, choose `next_batch`, or mark the topic
   `archive-ready`
+- it must not resume the current batch, dispatch a repaired worker, create a topic recovery receipt, suspend the
+  topic, or declare a terminal state
 
 ## Boundaries
 
@@ -118,9 +126,17 @@ When reporting progress or closeout from this wrapper, keep the result brief and
    - `validation_evidence`
    - `risks`
    - `blockers`
+   - `required_context` when recovery or retry needs prior evidence
+   - optional `recovery_requirements`, containing cause, repair proposal reference, authority evidence, and safe retry
+     inputs without directing controller state
    - `model_delegation_evidence`
    - optional `suggested_follow_up`
-   - do not include `continue`, `pending_batches`, `next_batch`, `archive_ready`, or `topic_complete`
+  - do not include `continue`, `pending_batches`, `next_batch`, `archive_ready`, `topic_complete`, `stop_loop`,
+    `suspend_topic`, or `wait_for_user`
+
+The worker JSON above is evidence only. The outer controller must separately emit the canonical controller closeout
+record defined by `graft-multi-agent-loop`; a worker must never substitute that record with its own `pending_batches`,
+`next_batch`, terminal state, or recovery transition.
 
 When a loop-orchestrated worker answers a checkpoint request instead of a final closeout, keep the response short and
 structured. It must include:
@@ -146,4 +162,4 @@ When this wrapper runs as a `graft-multi-agent-loop` worker in the default `topi
 - worker completion returns round evidence to the outer main agent; it never completes the topic loop
 - `suggested_follow_up` may preserve recovery context or describe candidate next work, but it is non-authoritative
 - only the outer controller maintains `completed_batches`, `pending_batches`, `current_batch`, and `next_batch`, and
-  only it can select `archive-ready` or `blocked`
+  only it can select recovery transitions, `archive-ready`, or `blocked`

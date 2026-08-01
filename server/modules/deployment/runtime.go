@@ -18,6 +18,10 @@ const (
 	composeProjectLabel      = "com.docker.compose.project"
 	composeWorkingDirLabel   = "com.docker.compose.project.working_dir"
 	composeConfigFilesLabel  = "com.docker.compose.project.config_files"
+	// runnerStateRoot 与 dockerVolumeMountType 定义 update runner 状态的持久化挂载契约；Compose rollout
+	// 预检依赖该挂载，缺失时 Current 会拒绝返回可用的运行时上下文。
+	runnerStateRoot       = "/var/lib/graft/update-state"
+	dockerVolumeMountType = "volume"
 )
 
 type environmentLookup func(string) (string, bool)
@@ -36,26 +40,65 @@ func (r runtime) Current(ctx context.Context) moduleapi.DeploymentContext {
 	mode := deploymentRuntime(r.lookup)
 	root, configured := environmentValue(r.lookup, deploymentComposeRootEnv)
 	if configured {
-		if mode != "compose" {
-			return unavailableContext(mode, "deployment_runtime_unsupported", "deployment.diagnostics.runtime_unsupported", "deployment runtime must be compose when a Compose root is configured")
-		}
-		return r.explicitContext(mode, root)
+		return r.explicitComposeContext(ctx, mode, root)
 	}
+	return r.discoveredComposeContext(ctx, mode)
+}
+
+func (r runtime) explicitComposeContext(ctx context.Context, mode, root string) moduleapi.DeploymentContext {
+	if mode != "compose" {
+		return unavailableContext(mode, "deployment_runtime_unsupported", "deployment.diagnostics.runtime_unsupported", "deployment runtime must be compose when a Compose root is configured")
+	}
+	context := r.explicitContext(mode, root)
+	if !context.IsAvailable() {
+		return context
+	}
+	facts, err := r.currentContainerFacts(ctx)
+	if err != nil {
+		return unavailableContext(mode, "docker_facts_unavailable", "deployment.diagnostics.docker_facts_unavailable", err.Error())
+	}
+	if !hasRunnerStateVolume(facts) {
+		return runnerStateVolumeMissingContext(mode)
+	}
+	return context
+}
+
+func (r runtime) discoveredComposeContext(ctx context.Context, mode string) moduleapi.DeploymentContext {
 	if mode != "compose" {
 		return moduleapi.NewDeploymentContext(mode, "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: "deployment_mode_unsupported", MessageKey: "deployment.diagnostics.mode_unsupported", Message: "deployment mode must be compose before Compose runtime discovery can run"}})
 	}
-	if r.provider == nil {
-		return unavailableContext(mode, "docker_facts_unavailable", "deployment.diagnostics.docker_facts_unavailable", "Docker facts provider is unavailable")
-	}
-	facts, err := r.provider.CurrentContainer(ctx)
+	facts, err := r.currentContainerFacts(ctx)
 	if err != nil {
-		return unavailableContext(mode, "docker_facts_unavailable", "deployment.diagnostics.docker_facts_unavailable", "current server Docker inspect facts are unavailable")
+		return unavailableContext(mode, "docker_facts_unavailable", "deployment.diagnostics.docker_facts_unavailable", err.Error())
+	}
+	if !hasRunnerStateVolume(facts) {
+		return runnerStateVolumeMissingContext(mode)
 	}
 	candidates := composeCandidates(facts)
 	if len(candidates) == 0 {
 		return unavailableContext(mode, "compose_candidate_unavailable", "deployment.diagnostics.compose_candidate_unavailable", "no Compose root candidate was found in current Docker facts")
 	}
 	return moduleapi.NewDeploymentContext(mode, "docker_discovered", len(candidates) != 1 || candidates[0].Confidence() != "high", candidates, nil)
+}
+
+func (r runtime) currentContainerFacts(ctx context.Context) (moduleapi.DockerContainerFacts, error) {
+	if r.provider == nil {
+		return moduleapi.DockerContainerFacts{}, errors.New("docker facts provider is unavailable")
+	}
+	facts, err := r.provider.CurrentContainer(ctx)
+	if err != nil {
+		return moduleapi.DockerContainerFacts{}, errors.New("current server Docker inspect facts are unavailable")
+	}
+	return facts, nil
+}
+
+func hasRunnerStateVolume(facts moduleapi.DockerContainerFacts) bool {
+	for _, mount := range facts.Mounts {
+		if strings.TrimSpace(mount.Type) == dockerVolumeMountType && filepath.Clean(strings.TrimSpace(mount.Destination)) == runnerStateRoot {
+			return true
+		}
+	}
+	return false
 }
 
 func (r runtime) Freeze(ctx context.Context, request moduleapi.DeploymentFreezeRequest) (moduleapi.DeploymentSnapshot, error) {
@@ -83,6 +126,10 @@ func (r runtime) explicitContext(mode, rawRoot string) moduleapi.DeploymentConte
 
 func unavailableContext(mode, code, messageKey, message string) moduleapi.DeploymentContext {
 	return moduleapi.NewDeploymentContext(mode, "unavailable", false, nil, []moduleapi.DeploymentDiagnostic{{Code: code, MessageKey: messageKey, Message: message}})
+}
+
+func runnerStateVolumeMissingContext(mode string) moduleapi.DeploymentContext {
+	return unavailableContext(mode, "runner_state_volume_missing", "deployment.diagnostics.runner_state_volume_missing", "")
 }
 
 func deploymentRuntime(lookup environmentLookup) string {

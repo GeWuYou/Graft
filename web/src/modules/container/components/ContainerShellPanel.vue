@@ -303,6 +303,10 @@ function localizeShellMessage(message: string, messageKey?: string) {
   if (localizedByKey) {
     return localizedByKey;
   }
+  const localizedCanonicalMessage = localizedApiErrorMessage(t, messageKey, '');
+  if (localizedCanonicalMessage) {
+    return localizedCanonicalMessage;
+  }
   const normalized = message.trim().toLowerCase();
   const localeKey = SHELL_FALLBACK_MESSAGE_TO_LOCALE_KEY[normalized];
   if (localeKey) {
