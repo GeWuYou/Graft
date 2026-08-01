@@ -298,6 +298,39 @@ const TCheckboxStub = defineComponent({
   },
 });
 
+const TDropdownStub = defineComponent({
+  name: 'TDropdownStub',
+  setup(_props, { slots }) {
+    return () => h('div', { 'data-stub': 'TDropdown' }, [slots.default?.()]);
+  },
+});
+
+const TDropdownMenuStub = defineComponent({
+  name: 'TDropdownMenuStub',
+  setup(_props, { slots }) {
+    return () => h('div', { 'data-stub': 'TDropdownMenu' }, slots.default?.());
+  },
+});
+
+const TDropdownItemStub = defineComponent({
+  name: 'TDropdownItemStub',
+  props: {
+    disabled: { type: Boolean, default: false },
+  },
+  emits: ['click'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'button',
+        {
+          disabled: props.disabled,
+          onClick: (event: MouseEvent) => emit('click', event),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
 const TTableStub = defineComponent({
   name: 'TTableStub',
   props: {
@@ -520,6 +553,9 @@ function mountPage() {
         't-checkbox': TCheckboxStub,
         't-checkbox-group': slotStub('TCheckboxGroup'),
         't-dialog': TDialogStub,
+        't-dropdown': TDropdownStub,
+        't-dropdown-item': TDropdownItemStub,
+        't-dropdown-menu': TDropdownMenuStub,
         't-drawer': slotStub('TDrawer'),
         't-empty': slotStub('TEmpty'),
         't-input': TInputStub,
@@ -554,6 +590,9 @@ function mountKeepAlivePage() {
           't-checkbox': TCheckboxStub,
           't-checkbox-group': slotStub('TCheckboxGroup'),
           't-dialog': TDialogStub,
+          't-dropdown': TDropdownStub,
+          't-dropdown-item': TDropdownItemStub,
+          't-dropdown-menu': TDropdownMenuStub,
           't-drawer': slotStub('TDrawer'),
           't-empty': slotStub('TEmpty'),
           't-input': TInputStub,
