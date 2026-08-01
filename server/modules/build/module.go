@@ -9,15 +9,19 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	buildcontract "graft/server/modules/build/contract"
+	buildstore "graft/server/modules/build/store"
 )
 
 const moduleID = "build"
 
 // Module 声明 Build domain 的生命周期边界，并在 Register 阶段接入其 Task executor 与 HTTP API。
-type Module struct{ service *Service }
+type Module struct {
+	service    *Service
+	repository buildstore.Repository
+}
 
 // NewModule 创建由 Task Runtime 消费的无常驻 Build 模块。
-func NewModule() *Module { return &Module{} }
+func NewModule(repository buildstore.Repository) *Module { return &Module{repository: repository} }
 
 // Register 注册 Build 权限、导航、Task executor 和 HTTP API，不启动独立 worker。
 //
@@ -52,11 +56,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve Docker image build capability: %w", err)
 	}
-	service, err := NewService(contexts, tasks, docker)
+	service, err := NewService(contexts, tasks, docker, m.repository)
 	if err != nil {
 		return err
 	}
-	if err := registerBuildTaskExecutor(registrar, contexts, docker); err != nil {
+	if err := registerBuildTaskExecutor(registrar, m.repository, docker); err != nil {
 		return err
 	}
 	m.service = service

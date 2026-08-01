@@ -1,0 +1,170 @@
+// Package store 持久化 Build 所有的冻结作业快照与不可变产物。
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+
+	"graft/server/internal/moduleapi"
+)
+
+// ErrNotFound 表示不存在与给定 Task 标识对应的 Build 记录。
+var ErrNotFound = errors.New("build record not found")
+
+// JobSnapshot 是请求期授权后冻结的 Build 所有执行输入。
+type JobSnapshot struct {
+	BuildID         string
+	TaskID          uint64
+	ApplicationID   uint64
+	ApplicationName string
+	WorkspaceRoot   string
+	ContextPath     string
+	DockerfilePath  string
+	RuntimeTargetID uint64
+	RuntimeProvider string
+	ImageRepository string
+	ImageTag        string
+	BuildArgs       []moduleapi.DockerImageBuildArg
+	RequestedBy     uint64
+}
+
+// Repository 是提交与执行器路径使用的窄 Build 持久化边界。
+type Repository interface {
+	CreateJob(context.Context, JobSnapshot) error
+	GetJobByTaskID(context.Context, uint64) (JobSnapshot, error)
+	SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error
+}
+
+// SQLRepository 持久化 Build 事实而不拥有 Task 执行状态。
+type SQLRepository struct{ db *sql.DB }
+
+// NewSQLRepository 从平台 SQL 连接创建 Build 仓储。
+func NewSQLRepository(db *sql.DB) (*SQLRepository, error) {
+	if db == nil {
+		return nil, errors.New("build repository requires a non-nil sql db")
+	}
+	return &SQLRepository{db: db}, nil
+}
+
+// CreateJob 在 Task 分配稳定任务标识后存储 Build 快照。
+func (r *SQLRepository) CreateJob(ctx context.Context, value JobSnapshot) error {
+	if r == nil || r.db == nil || !validJobSnapshot(value) {
+		return errors.New("invalid build job snapshot")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin build job: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	jobID, created, err := insertJob(ctx, tx, value)
+	if err != nil {
+		return err
+	}
+	if !created {
+		return r.verifyExistingJob(ctx, value)
+	}
+	if err := insertBuildArgs(ctx, tx, jobID, value.BuildArgs); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit build job: %w", err)
+	}
+	return nil
+}
+
+func validJobSnapshot(value JobSnapshot) bool {
+	return value.TaskID != 0 && value.BuildID != "" && value.WorkspaceRoot != ""
+}
+
+func insertJob(ctx context.Context, tx *sql.Tx, value JobSnapshot) (uint64, bool, error) {
+	var jobID uint64
+	err := tx.QueryRowContext(ctx, `INSERT INTO build_jobs (build_id, task_id, application_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, executor_kind, image_repository, image_tag, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13, 0))
+		ON CONFLICT (task_id) DO NOTHING RETURNING id`, value.BuildID, value.TaskID, value.ApplicationID, value.ApplicationName, value.ContextPath, value.WorkspaceRoot, value.DockerfilePath, value.RuntimeTargetID, value.RuntimeProvider, "dockerfile", value.ImageRepository, value.ImageTag, value.RequestedBy).Scan(&jobID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("insert build job: %w", err)
+	}
+	return jobID, true, nil
+}
+
+func (r *SQLRepository) verifyExistingJob(ctx context.Context, value JobSnapshot) error {
+	existing, err := r.GetJobByTaskID(ctx, value.TaskID)
+	if err != nil {
+		return err
+	}
+	if existing.ApplicationID != value.ApplicationID || existing.WorkspaceRoot != value.WorkspaceRoot || existing.ContextPath != value.ContextPath || existing.DockerfilePath != value.DockerfilePath || existing.ImageRepository != value.ImageRepository || existing.ImageTag != value.ImageTag {
+		return errors.New("build task snapshot conflict")
+	}
+	return nil
+}
+
+func insertBuildArgs(ctx context.Context, tx *sql.Tx, jobID uint64, args []moduleapi.DockerImageBuildArg) error {
+	for _, arg := range args {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO build_job_args (build_job_id, name, value) VALUES ($1,$2,$3)`, jobID, arg.Name, arg.Value); err != nil {
+			return fmt.Errorf("insert build argument: %w", err)
+		}
+	}
+	return nil
+}
+
+// GetJobByTaskID 为后台执行只读取 Build 所有的冻结数据。
+func (r *SQLRepository) GetJobByTaskID(ctx context.Context, taskID uint64) (JobSnapshot, error) {
+	var value JobSnapshot
+	err := r.db.QueryRowContext(ctx, `SELECT build_id, task_id, application_id, application_name_snapshot, workspace_context_path, workspace_root, dockerfile_path, runtime_target_id, runtime_provider, image_repository, image_tag, COALESCE(created_by, 0)
+		FROM build_jobs WHERE task_id = $1`, taskID).Scan(&value.BuildID, &value.TaskID, &value.ApplicationID, &value.ApplicationName, &value.ContextPath, &value.WorkspaceRoot, &value.DockerfilePath, &value.RuntimeTargetID, &value.RuntimeProvider, &value.ImageRepository, &value.ImageTag, &value.RequestedBy)
+	if errors.Is(err, sql.ErrNoRows) {
+		return JobSnapshot{}, ErrNotFound
+	}
+	if err != nil {
+		return JobSnapshot{}, fmt.Errorf("get build job: %w", err)
+	}
+	args, err := r.listBuildArgs(ctx, taskID)
+	if err != nil {
+		return JobSnapshot{}, err
+	}
+	value.BuildArgs = args
+	return value, nil
+}
+
+func (r *SQLRepository) listBuildArgs(ctx context.Context, taskID uint64) (args []moduleapi.DockerImageBuildArg, err error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT name, value FROM build_job_args WHERE build_job_id = (SELECT id FROM build_jobs WHERE task_id = $1) ORDER BY id`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list build arguments: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); err == nil && closeErr != nil {
+			err = fmt.Errorf("close build argument rows: %w", closeErr)
+		}
+	}()
+	for rows.Next() {
+		var arg moduleapi.DockerImageBuildArg
+		if err := rows.Scan(&arg.Name, &arg.Value); err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
+// SettleDockerArtifact 为 Build 作业写入或更新唯一主 Docker 产物。
+func (r *SQLRepository) SettleDockerArtifact(ctx context.Context, taskID uint64, result moduleapi.DockerImageBuildResult) error {
+	if result.ImageID == "" {
+		return errors.New("docker build result has no image id")
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO build_artifacts (artifact_id, build_job_id, role, artifact_type, media_type, runtime_provider, runtime_target_id, image_id, digest, repository, tag, size_bytes, os, architecture, variant, producer_version)
+		SELECT 'artifact-' || task_id::text, id, 'primary', 'container_image', 'application/vnd.oci.image.manifest.v1+json', runtime_provider, runtime_target_id, $2, $3, $4, $5, $6, $7, $8, $9, 'docker'
+		FROM build_jobs WHERE task_id = $1
+		ON CONFLICT (build_job_id, role) DO UPDATE SET image_id=EXCLUDED.image_id, digest=EXCLUDED.digest, repository=EXCLUDED.repository, tag=EXCLUDED.tag, size_bytes=EXCLUDED.size_bytes, os=EXCLUDED.os, architecture=EXCLUDED.architecture, variant=EXCLUDED.variant`, taskID, result.ImageID, result.Digest, result.Repository, result.Tag, result.SizeBytes, result.OS, result.Architecture, result.Variant)
+	if err != nil {
+		return fmt.Errorf("settle build artifact: %w", err)
+	}
+	return nil
+}

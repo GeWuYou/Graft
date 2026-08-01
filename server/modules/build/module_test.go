@@ -11,6 +11,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	buildcontract "graft/server/modules/build/contract"
+	buildstore "graft/server/modules/build/store"
 )
 
 type testBuildContexts struct{}
@@ -36,6 +37,16 @@ func (testBuildDocker) BuildImage(context.Context, moduleapi.DockerImageBuildInp
 	return moduleapi.DockerImageBuildResult{}, nil
 }
 
+type testBuildRepository struct{}
+
+func (testBuildRepository) CreateJob(context.Context, buildstore.JobSnapshot) error { return nil }
+func (testBuildRepository) GetJobByTaskID(context.Context, uint64) (buildstore.JobSnapshot, error) {
+	return buildstore.JobSnapshot{}, nil
+}
+func (testBuildRepository) SettleDockerArtifact(context.Context, uint64, moduleapi.DockerImageBuildResult) error {
+	return nil
+}
+
 type testBuildRegistrar struct{}
 
 func (testBuildRegistrar) RegisterStageExecutor(moduleapi.StageExecutor) error { return nil }
@@ -59,7 +70,7 @@ func TestModuleRegistersBuildPermissionsAndMenu(t *testing.T) {
 		}
 	}
 
-	if err := NewModule().Register(&module.Context{
+	if err := NewModule(testBuildRepository{}).Register(&module.Context{
 		MenuRegistry:       menuRegistry,
 		PermissionRegistry: permissionRegistry,
 		Services:           services,
