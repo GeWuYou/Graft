@@ -182,9 +182,14 @@ describe('Header', () => {
   it('keeps the operations surface transparent so the shared header separator remains visible', () => {
     expect(headerSource).toContain(':deep(.t-head-menu__inner) {');
     expect(headerSource).toContain('border-bottom: 1px solid var(--graft-shell-border-color);');
+    expect(headerSource).toContain('.t-menu--dark {\n  background: var(--graft-shell-header-bg);');
+    expect(headerSource).toContain(
+      ':deep(.t-head-menu__inner),\n  :deep(.t-menu__logo),\n  :deep(.t-menu),\n  .header-operate-left,',
+    );
     expect(headerSource).toContain(':deep(.t-head-menu__operations) {\n    background: transparent;');
     expect(headerSource).not.toContain('box-shadow: inset 0 -1px 0 var(--graft-shell-border-color);');
     expect(headerSource).not.toContain(':deep(.t-head-menu) {\n  position: relative;');
+    expect(headerSource).not.toContain(':deep(.t-menu__operations),\n  .header-operate-left,');
     expect(shellSource).not.toContain('border-bottom: 1px solid var(--graft-shell-border-color);');
   });
 
