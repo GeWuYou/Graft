@@ -208,3 +208,5 @@ For every delegated `worker`, require one of these response shapes:
 * do not use batch delegation to bypass `$graft-pr-review` inventory closure; `Outside diff range comments`,
   `Nitpick comments`, and other folded latest-review findings remain mandatory dispositions even when repairs are split
   across workers
+* after changing this skill or the related loop/task worker contract, manually run
+  `python3 scripts/validate_loop_controller_contract.py`; it is not a normal repository completion gate

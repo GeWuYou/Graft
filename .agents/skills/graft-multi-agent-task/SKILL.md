@@ -98,6 +98,8 @@ Typical triggers:
 - do not duplicate `graft-task-closeout` or `graft-commit`
 - do not invent a second governance source, second closeout format, or second commit workflow
 - do not broaden ownership beyond the confirmed slice
+- after changing this skill or the related loop/batch worker contract, manually run
+  `python3 scripts/validate_loop_controller_contract.py`; it is not a normal repository completion gate
 
 ## Output Expectations
 

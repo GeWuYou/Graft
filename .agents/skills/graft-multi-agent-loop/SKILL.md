@@ -367,6 +367,17 @@ END
 
 This is invalid because worker success is not a controller terminal state.
 
+## Manual Contract Regression Check
+
+After changing this skill or the related batch/task worker contract, run:
+
+```bash
+python3 scripts/validate_loop_controller_contract.py
+```
+
+This is a targeted manual regression check. It is not part of `validate_ai_governance.py`, CI, hooks, or default test
+discovery.
+
 ## Boundaries
 
 * do not use this skill as a substitute for `graft-boot`
