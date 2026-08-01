@@ -159,6 +159,18 @@ func TestRolloutRequiresCurrentVerifiedTargetAndPersistsLauncherOperation(t *tes
 	launcher := &recordingLauncher{}
 	backups := &stubBackupService{}
 	rollout := NewRolloutService(discovery, operations, &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 77}}, backups, launcher)
+	discovery.profile = func() InstallationProfile {
+		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "manual_guidance_blocked"}
+	}
+	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); !errors.Is(err, errRolloutInstallationUnavailable) {
+		t.Fatalf("start with blocked installation error = %v, want installation unavailable", err)
+	}
+	if len(operations.items) != 0 || launcher.input.OperationID != "" {
+		t.Fatalf("blocked installation created a rollout side effect: operations=%#v launcher=%#v", operations.items, launcher.input)
+	}
+	discovery.profile = func() InstallationProfile {
+		return InstallationProfile{DeclaredMode: "compose", DetectedMode: "compose", Capability: "compose_upgrade_available"}
+	}
 	if _, err := rollout.Start(t.Context(), StartRolloutInput{RequestedBy: 9, TargetVersion: "1.1.0"}); !errors.Is(err, errRolloutInstallationUnavailable) {
 		t.Fatalf("start without deployment runtime error = %v, want installation unavailable", err)
 	}

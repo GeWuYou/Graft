@@ -3,3 +3,4 @@ deployment.diagnostics.runtime_unsupported: Deployment runtime must be Compose w
 deployment.diagnostics.docker_facts_unavailable: Docker facts are unavailable.
 deployment.diagnostics.compose_candidate_unavailable: No Compose root candidate was found in current Docker facts.
 deployment.diagnostics.configured_compose_root_invalid: GRAFT_DEPLOYMENT_COMPOSE_ROOT must be a non-root absolute host path.
+deployment.diagnostics.runner_state_volume_missing: The current server container is missing the state volume required by the update runner.
