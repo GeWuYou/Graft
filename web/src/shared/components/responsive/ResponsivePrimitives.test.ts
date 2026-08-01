@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
+import responsiveStyleSource from '@/style/responsive.less?raw';
+
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
 import ResourceDetailContent from './ResourceDetailContent.vue';
 import resourceDetailContentSource from './ResourceDetailContent.vue?raw';
@@ -59,6 +61,25 @@ const overlaySurfaceStub = defineComponent({
         },
         slots.default?.(),
       );
+  },
+});
+
+const drawerOverlayStub = defineComponent({
+  name: 'TDrawerStub',
+  props: {
+    attach: { type: String, required: true },
+    closeOnOverlayClick: { type: Boolean, default: true },
+  },
+  emits: ['update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('aside', { 'data-testid': 'responsive-drawer-overlay', attach: props.attach }, [
+        h('button', {
+          class: 't-drawer__mask',
+          onClick: () => props.closeOnOverlayClick && emit('update:visible', false),
+        }),
+        slots.default?.(),
+      ]);
   },
 });
 
@@ -260,14 +281,14 @@ describe('responsive primitives', () => {
     const wrapper = mount(ResourceDetailLayout, {
       props: { backLabel: 'Back', title: 'Network detail', visible: true },
       slots: { default: '<p>Network configuration</p>' },
-      global: { stubs: { 't-drawer': overlaySurfaceStub } },
+      global: { stubs: { 't-drawer': drawerOverlayStub } },
     });
     await nextTick();
 
-    const surface = wrapper.get('[data-testid="responsive-overlay-surface"]');
-    expect(surface.attributes('data-close-on-overlay-click')).toBe('true');
+    const surface = wrapper.get('[data-testid="responsive-drawer-overlay"]');
+    expect(surface.attributes('attach')).toBe('body');
 
-    await surface.trigger('click');
+    await surface.get('.t-drawer__mask').trigger('click');
 
     expect(wrapper.emitted('update:visible')).toEqual([[false]]);
   });
@@ -338,7 +359,7 @@ describe('responsive primitives', () => {
     expect(wrapper.find('.resource-detail-content').classes()).toContain('resource-detail-content--embedded');
   });
 
-  it('lets large detail drawers use the available width through comfortable and spacious densities', async () => {
+  it('caps large detail drawers at the shared readable width across desktop densities', async () => {
     const DrawerStub = defineComponent({
       name: 'TDrawerStub',
       props: { size: { type: String, required: true } },
@@ -357,7 +378,7 @@ describe('responsive primitives', () => {
     await nextTick();
 
     expect(comfortableWrapper.get('[data-testid="responsive-detail-drawer"]').attributes('data-size')).toBe(
-      'var(--graft-resource-detail-large-comfortable-width)',
+      'var(--graft-resource-detail-large-fluid-width)',
     );
     comfortableWrapper.unmount();
 
@@ -372,5 +393,9 @@ describe('responsive primitives', () => {
     expect(wrapper.get('[data-testid="responsive-detail-drawer"]').attributes('data-size')).toBe(
       'var(--graft-resource-detail-large-fluid-width)',
     );
+    expect(responsiveStyleSource).toContain('--graft-resource-detail-large-width),');
+    expect(responsiveStyleSource).toContain('calc(100vw - 2 * var(--graft-responsive-content-gutter))');
+    expect(responsiveStyleSource).not.toContain('72vw');
+    expect(responsiveStyleSource).not.toContain('84rem');
   });
 });

@@ -10,8 +10,10 @@
   --graft-resource-detail-compact-width: 27rem;
   --graft-resource-detail-medium-width: 45rem;
   --graft-resource-detail-large-width: 60rem;
-  --graft-resource-detail-large-comfortable-width: calc(100% - 2 * var(--graft-responsive-content-gutter));
-  --graft-resource-detail-large-fluid-width: clamp(var(--graft-resource-detail-large-width), 72vw, 84rem);
+  --graft-resource-detail-large-fluid-width: min(
+    var(--graft-resource-detail-large-width),
+    calc(100vw - 2 * var(--graft-responsive-content-gutter))
+  );
 }
 
 .graft-responsive-container {

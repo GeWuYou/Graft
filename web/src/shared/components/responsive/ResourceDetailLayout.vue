@@ -2,13 +2,13 @@
   <t-drawer
     v-if="presentation === 'overlay' && variant.density !== 'compact'"
     :visible="visible"
+    attach="body"
     :size="drawerSize"
     placement="right"
     :footer="false"
     :header="false"
     :close-on-overlay-click="true"
     destroy-on-close
-    @overlay-click="close"
     @update:visible="emitVisible"
   >
     <resource-detail-content :title="title" :back-label="backLabel" @back="close">
@@ -75,12 +75,10 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:visible': [visible: boolean] }>();
 const variant = useViewportResponsiveVariant();
 const drawerSize = computed(() => {
-  if (variant.value.density === 'comfortable') {
-    return props.size === 'large' ? 'var(--graft-resource-detail-large-comfortable-width)' : '70%';
-  }
-  if (variant.value.density === 'spacious' && props.size === 'large') {
+  if (props.size === 'large') {
     return 'var(--graft-resource-detail-large-fluid-width)';
   }
+  if (variant.value.density === 'comfortable') return '70%';
   return `var(--graft-resource-detail-${props.size}-width)`;
 });
 

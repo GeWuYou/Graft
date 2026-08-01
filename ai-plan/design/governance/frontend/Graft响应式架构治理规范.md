@@ -124,7 +124,7 @@ Container Resize
 
 `ResponsiveDialog` 的默认映射为：短确认/动作流在 Mobile 使用 Bottom Sheet；详情或短表单按可用空间使用 Dialog/Drawer；复杂表单在 Mobile 使用 Fullscreen；`workspace` 不承诺编辑能力，改为只读、复制、检索或引导至 Desktop。
 
-`ResourceDetailLayout` 的 `large` overlay 在 `comfortable` 视口使用“满宽减 gutter”的 shared token，在 `spacious` 视口使用既有 60rem 基线与 84rem 上限之间的 fluid token；日志、终端等高密度详情必须使用这条 shared 策略填充可用阅读宽度，不得在业务组件内重新定义 Drawer 宽度。
+`ResourceDetailLayout` 的 `large` overlay 使用不超过 60rem 的 shared token，并在窄视口以“满宽减 gutter”适配；日志、终端等高密度详情必须使用这条共享阅读宽度策略，不得在业务组件内重新定义 Drawer 宽度。
 
 ## 8. 页面策略
 
