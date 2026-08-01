@@ -1,0 +1,12 @@
+{
+  "build": {
+    "jobs": {
+      "title": "Build Jobs",
+      "placeholder": "Build job history will appear here.",
+      "create": {
+        "title": "Create Build Job",
+        "placeholder": "Build configuration will be available here."
+      }
+    }
+  }
+}

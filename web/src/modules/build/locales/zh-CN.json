@@ -1,0 +1,12 @@
+{
+  "build": {
+    "jobs": {
+      "title": "构建任务",
+      "placeholder": "构建任务历史将在此显示。",
+      "create": {
+        "title": "创建构建任务",
+        "placeholder": "构建配置将在此提供。"
+      }
+    }
+  }
+}
