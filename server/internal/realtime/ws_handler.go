@@ -61,7 +61,7 @@ func RegisterWebSocketGateway(router gin.IRouter, registration GatewayRegistrati
 		if !consumeGatewayTicket(ctx, registration, request) {
 			return
 		}
-		conn, err := websocketUpgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+		conn, err := httpx.UpgradeWebSocket(ctx, &websocketUpgrader, nil)
 		if err != nil {
 			return
 		}

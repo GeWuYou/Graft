@@ -78,7 +78,7 @@ func (r routeRuntime) runShellWebSocketBridge(
 	ref Ref,
 	handshake ShellHandshake,
 ) {
-	conn, err := shellWebSocketUpgrader.Upgrade(ginCtx.Writer, ginCtx.Request, nil)
+	conn, err := httpx.UpgradeWebSocket(ginCtx, &shellWebSocketUpgrader, nil)
 	if err != nil {
 		r.service.publishShellSessionFailed(
 			requestCtx,
@@ -88,7 +88,6 @@ func (r routeRuntime) runShellWebSocketBridge(
 		)
 		return
 	}
-
 	session, err := r.service.OpenShellTerminalSession(requestCtx, ref, handshake)
 	if err != nil {
 		if closeErr := conn.Close(); closeErr != nil {
