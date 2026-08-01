@@ -1,0 +1,18 @@
+get:
+  tags: [platform-update]
+  summary: Read the active self-update operation
+  operationId: getPlatformUpdateActiveOperation
+  description: Returns the runner-owned active operation for tab recovery, or null when no runner is active. The response never invents live READY progress when runner state is unavailable.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  responses:
+    '200':
+      description: Current active update operation, or null when no update runner is active.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-active-operation.yaml }
+    '503': { description: Runner state source is temporarily unavailable. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

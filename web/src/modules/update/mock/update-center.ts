@@ -214,6 +214,8 @@ export function createUpdateCenterPreviewDataSource(): UpdateCenterDataSource {
         phase: 'READY',
         progress: 0,
         message: '',
+        state_source: 'runner_state',
+        state_available: true,
         started_at: now,
         updated_at: now,
       };

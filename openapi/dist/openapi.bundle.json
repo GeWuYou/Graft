@@ -8836,6 +8836,50 @@
         }
       }
     },
+    "/api/platform/updates/operations/active": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Read the active self-update operation",
+        "operationId": "getPlatformUpdateActiveOperation",
+        "description": "Returns the runner-owned active operation for tab recovery, or null when no runner is active. The response never invents live READY progress when runner state is unavailable.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current active update operation, or null when no update runner is active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-active-operation"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "503": {
+            "description": "Runner state source is temporarily unavailable."
+          }
+        }
+      }
+    },
     "/api/platform/updates/diagnostics/{requestId}": {
       "get": {
         "tags": [
@@ -8951,6 +8995,75 @@
           },
           "404": {
             "description": "Update operation not found."
+          }
+        }
+      }
+    },
+    "/api/platform/updates/operations/{operationID}/events": {
+      "get": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Replay self-update node events",
+        "operationId": "getPlatformUpdateOperationEvents",
+        "description": "Replays validated, operation-scoped runner node events after the requested revision. Records contain only allowlisted phase and message codes, never command output, host paths, credentials, or backup locations.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "operationID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "after_revision",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered operation node events after the supplied cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-operation-event-list"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid operation identity or revision cursor."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Update operation not found."
+          },
+          "503": {
+            "description": "Runner state source is temporarily unavailable."
           }
         }
       }
@@ -12203,6 +12316,199 @@
         }
       }
     },
+    "/api/ops/containers/saved-views": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List private container-list saved views",
+        "operationId": "getContainerSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's container-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Create a private container-list saved view",
+        "operationId": "postContainerSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/ops/containers/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Update a private container-list saved view",
+        "operationId": "putContainerSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Delete a private container-list saved view",
+        "operationId": "deleteContainerSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/ops/containers/dashboard-summary": {
       "get": {
         "tags": [
@@ -13557,6 +13863,199 @@
         }
       }
     },
+    "/api/docker/images/saved-views": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List private Docker image-list saved views",
+        "operationId": "getDockerImageSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's Docker image-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Create a private Docker image-list saved view",
+        "operationId": "postDockerImageSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/docker/images/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Update a private Docker image-list saved view",
+        "operationId": "putDockerImageSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Delete a private Docker image-list saved view",
+        "operationId": "deleteDockerImageSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/ops/docker/images/pull": {
       "post": {
         "tags": [
@@ -14019,6 +14518,199 @@
         }
       }
     },
+    "/api/ops/docker/networks/saved-views": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List private Docker network-list saved views",
+        "operationId": "getDockerNetworkSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's Docker network-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Create a private Docker network-list saved view",
+        "operationId": "postDockerNetworkSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/ops/docker/networks/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Update a private Docker network-list saved view",
+        "operationId": "putDockerNetworkSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Delete a private Docker network-list saved view",
+        "operationId": "deleteDockerNetworkSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          }
+        }
+      }
+    },
     "/api/ops/docker/networks/{id}": {
       "get": {
         "tags": [
@@ -14226,6 +14918,199 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes/saved-views": {
+      "get": {
+        "tags": [
+          "container"
+        ],
+        "summary": "List private Docker volume-list saved views",
+        "operationId": "getDockerVolumeSavedViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's Docker volume-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Create a private Docker volume-list saved view",
+        "operationId": "postDockerVolumeSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/ops/docker/volumes/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Update a private Docker volume-list saved view",
+        "operationId": "putDockerVolumeSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "container"
+        ],
+        "summary": "Delete a private Docker volume-list saved view",
+        "operationId": "deleteDockerVolumeSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Saved view was not found."
           }
         }
       }
@@ -19167,17 +20052,29 @@
       "PlatformUpdateOperationList": {
         "$ref": "#/components/schemas/platform-update-operation-list"
       },
+      "PlatformUpdateOperationEvent": {
+        "$ref": "#/components/schemas/platform-update-operation-event"
+      },
+      "PlatformUpdateOperationEventList": {
+        "$ref": "#/components/schemas/platform-update-operation-event-list"
+      },
       "CreatePlatformUpdateOperationRequest": {
         "$ref": "#/components/schemas/create-platform-update-operation-request"
       },
       "EnvelopedPlatformUpdateOperation": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation"
       },
+      "EnvelopedPlatformUpdateActiveOperation": {
+        "$ref": "#/components/schemas/enveloped-platform-update-active-operation"
+      },
       "EnvelopedPlatformUpdateOperationLaunchAcknowledgement": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation-launch-acknowledgement"
       },
       "EnvelopedPlatformUpdateOperationList": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation-list"
+      },
+      "EnvelopedPlatformUpdateOperationEventList": {
+        "$ref": "#/components/schemas/enveloped-platform-update-operation-event-list"
       },
       "PlatformUpdateFailureDiagnostic": {
         "$ref": "#/components/schemas/platform-update-failure-diagnostic"
@@ -26868,6 +27765,8 @@
           "phase",
           "progress",
           "message",
+          "state_source",
+          "state_available",
           "started_at",
           "updated_at"
         ],
@@ -26918,6 +27817,19 @@
           "message": {
             "type": "string",
             "description": "Controlled runner message key; never raw command output or deployment secrets."
+          },
+          "state_source": {
+            "type": "string",
+            "enum": [
+              "runner_state",
+              "terminal_history",
+              "runner_state_unavailable"
+            ],
+            "description": "Authority that produced this projection; runner_state_unavailable never represents live runner progress."
+          },
+          "state_available": {
+            "type": "boolean",
+            "description": "Whether runner lifecycle state was available to verify this projection."
           },
           "error": {
             "type": "string",
@@ -27105,6 +28017,38 @@
           }
         }
       },
+      "enveloped-platform-update-active-operation": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/platform-update-operation"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "platform-update-failure-diagnostic": {
         "type": "object",
         "description": "Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.",
@@ -27208,6 +28152,84 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-update-operation"
+          }
+        }
+      },
+      "platform-update-operation-event": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "revision",
+          "phase",
+          "message",
+          "occurred_at"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "PREFLIGHT",
+              "BACKUP",
+              "PULL_IMAGES",
+              "STOP_SERVICES",
+              "APPLY_UPDATE",
+              "MIGRATION",
+              "START_SERVICES",
+              "HEALTH_CHECK",
+              "SUCCESS",
+              "FAILED",
+              "ROLLBACK"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "Allowlisted runner node message key; never raw command output or deployment secrets."
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "platform-update-operation-event-list": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/platform-update-operation-event"
+        }
+      },
+      "enveloped-platform-update-operation-event-list": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-operation-event-list"
           }
         }
       },

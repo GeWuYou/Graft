@@ -635,6 +635,8 @@ type GetAppLogSavedViews403JSONResponseBodySuccess bool
 
 // PostAppLogSavedViewJSONBody defines parameters for PostAppLogSavedView.
 type PostAppLogSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`
@@ -675,6 +677,8 @@ type DeleteAppLogSavedView403JSONResponseBodySuccess bool
 
 // PutAppLogSavedViewJSONBody defines parameters for PutAppLogSavedView.
 type PutAppLogSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`

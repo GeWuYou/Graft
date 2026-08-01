@@ -1,12 +1,12 @@
 package update
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFileRunnerStateStorePublishesVerifiedMonotonicSnapshots(t *testing.T) {
@@ -30,7 +30,7 @@ func TestFileRunnerStateStorePublishesVerifiedMonotonicSnapshots(t *testing.T) {
 	if err != nil || got.Revision != 2 || got.Phase != RunnerPhasePreflight || got.Digest == "" {
 		t.Fatalf("state = %#v, %v", got, err)
 	}
-	if _, err := os.Stat(store.root + "/events/00000000000000000002.json"); err != nil {
+	if _, err := os.Stat(filepath.Join(store.root, "events", input.OperationID, "00000000000000000002.json")); err != nil {
 		t.Fatalf("state event: %v", err)
 	}
 	if err := store.Write(ready); err == nil {
@@ -49,7 +49,7 @@ func TestFileRunnerStateStoreRetriesAfterEventPublishFailure(t *testing.T) {
 		t.Fatalf("write ready state: %v", err)
 	}
 	next := NewRunnerState(input, "runner-state-retry", RunnerPhasePreflight, 5, "checking_environment", "", ready)
-	eventPath := filepath.Join(store.root, "events", "00000000000000000002.json")
+	eventPath := filepath.Join(store.root, "events", input.OperationID, "00000000000000000002.json")
 	failOnce := true
 	store.renameFile = func(oldPath, newPath string) error {
 		if failOnce && newPath == eventPath {
@@ -81,15 +81,46 @@ func assertRunnerStateEventMatchesCurrent(t *testing.T, store *FileRunnerStateSt
 	if err != nil {
 		t.Fatalf("read published event: %v", err)
 	}
-	if string(current) != strings.TrimSuffix(string(event), "\n") {
-		t.Fatalf("event and current snapshots differ: event=%s current=%s", event, current)
+	if len(current) == 0 || len(event) == 0 {
+		t.Fatalf("published state or event is empty")
 	}
-	var eventState RunnerState
-	if err := json.Unmarshal(event, &eventState); err != nil {
-		t.Fatalf("decode published event: %v", err)
+	events, err := store.ReadEvents(want.OperationID, want.Revision-1, 10)
+	if err != nil || len(events) != 1 {
+		t.Fatalf("read published event = %#v, %v", events, err)
 	}
-	if eventState.Revision != want.Revision || eventState.OperationID != want.OperationID {
-		t.Fatalf("published event state = %#v", eventState)
+	if events[0].Revision != want.Revision || events[0].OperationID != want.OperationID || events[0].Phase != want.Phase || events[0].Message != want.Message {
+		t.Fatalf("published event = %#v, want state %#v", events[0], want)
+	}
+}
+
+func TestFileRunnerStateStoreReadsOnlyOperationScopedVerifiedEvents(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-event-scope", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	ready := NewRunnerState(input, "runner-event-scope", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	preflight := NewRunnerState(input, "runner-event-scope", RunnerPhasePreflight, 5, "checking_environment", "", ready)
+	if err := store.Write(ready); err != nil {
+		t.Fatalf("write ready state: %v", err)
+	}
+	if err := store.Write(preflight); err != nil {
+		t.Fatalf("write preflight state: %v", err)
+	}
+	events, err := store.ReadEvents(input.OperationID, ready.Revision, 10)
+	if err != nil || len(events) != 1 || events[0].Revision != preflight.Revision || events[0].Message != "checking_environment" {
+		t.Fatalf("replayed events = %#v, %v", events, err)
+	}
+	other, err := store.ReadEvents("update-other-operation", 0, 10)
+	if err != nil || len(other) != 0 {
+		t.Fatalf("other operation events = %#v, %v", other, err)
+	}
+	path := filepath.Join(store.root, "events", input.OperationID, "00000000000000000002.json")
+	if err := os.WriteFile(path, []byte(`{"schema_version":1,"operation_id":"update-event-scope"}`), runnerStateFilePermission); err != nil {
+		t.Fatalf("tamper operation event: %v", err)
+	}
+	if _, err := store.ReadEvents(input.OperationID, ready.Revision, 10); err == nil {
+		t.Fatal("expected tampered operation event to be rejected")
 	}
 }
 
@@ -100,6 +131,37 @@ func TestNewFileRunnerStateStoreEnforcesOwnershipOnlyForOfficialVolume(t *testin
 	}
 	if !store.enforceOwnership {
 		t.Fatal("official state volume must enforce server ownership")
+	}
+}
+
+func TestFileRunnerStateStoreKeepsDirectoriesRunnerWritableAndFilesServerOwned(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	store.enforceOwnership = true
+	input := RunnerInput{OperationID: "update-state-ownership", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-state-ownership", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write state with ownership enforcement: %v", err)
+	}
+	for _, path := range []string{store.root, filepath.Join(store.root, "events"), filepath.Join(store.root, "events", input.OperationID)} {
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			t.Fatalf("stat runner directory %q: %v", path, statErr)
+		}
+		if info.Mode().Perm() != runnerStateDirectoryPermission {
+			t.Fatalf("runner directory %q = %#o, %v", path, info.Mode().Perm(), statErr)
+		}
+	}
+	for _, path := range []string{filepath.Join(store.root, "current.json"), filepath.Join(store.root, "events", input.OperationID, "00000000000000000001.json")} {
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			t.Fatalf("stat server state file %q: %v", path, statErr)
+		}
+		if info.Mode().Perm() != runnerStateFilePermission {
+			t.Fatalf("server state file %q = %#o, %v", path, info.Mode().Perm(), statErr)
+		}
 	}
 }
 
@@ -172,6 +234,38 @@ func TestRolloutReadsActiveRunnerStateBeforeDatabaseHistory(t *testing.T) {
 	}
 }
 
+func TestRolloutMarksUnsettledOperationWithoutRunnerStateUnavailable(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	operation := ComposeUpdateOperation{OperationID: "update-state-missing", RunnerID: "runner-state-missing", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning, StartedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
+	rollout := &RolloutService{stateStore: store, operations: &memoryOperationStore{items: map[string]ComposeUpdateOperation{operation.OperationID: operation}}}
+	view, err := rollout.GetOperation(t.Context(), operation.OperationID)
+	if err != nil || view.StateAvailable || view.StateSource != "runner_state_unavailable" || view.Message != "runner_state_unavailable" {
+		t.Fatalf("missing runner state projection = %#v, %v", view, err)
+	}
+	if _, err := rollout.GetOperationEvents(t.Context(), operation.OperationID, 0, maxRunnerStateEventReplay); !errors.Is(err, errRunnerStateUnavailable) {
+		t.Fatalf("missing runner state event replay error = %v", err)
+	}
+}
+
+func TestRolloutReadsActiveRunnerStateWithoutHistoryStore(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-active-state", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-active-state", RunnerPhaseBackup, 15, "creating_backup", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write active state: %v", err)
+	}
+	view, err := (&RolloutService{stateStore: store}).GetActiveOperation(t.Context())
+	if err != nil || view == nil || view.OperationID != state.OperationID || !view.StateAvailable {
+		t.Fatalf("active runner state = %#v, %v", view, err)
+	}
+}
+
 func TestRolloutGetOperationReturnsCorruptRunnerStateError(t *testing.T) {
 	store, err := NewFileRunnerStateStore(t.TempDir())
 	if err != nil {
@@ -181,7 +275,7 @@ func TestRolloutGetOperationReturnsCorruptRunnerStateError(t *testing.T) {
 		t.Fatalf("write corrupt state: %v", err)
 	}
 	rollout := &RolloutService{stateStore: store}
-	if _, err := rollout.GetOperation(t.Context(), "update-state-corrupt"); err == nil || !strings.Contains(err.Error(), "read runner state") {
+	if _, err := rollout.GetOperation(t.Context(), "update-state-corrupt"); err == nil || !errors.Is(err, errRunnerStateUnavailable) {
 		t.Fatalf("get corrupt runner state error = %v", err)
 	}
 }

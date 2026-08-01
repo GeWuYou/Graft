@@ -62,6 +62,11 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher),
 		routes.handleList,
 	)
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve saved-view service: %w", err)
+	}
+	registerContainerSavedViewRoutes(ctx, savedViews, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher))
 	group.GET(
 		containercontract.ContainerDashboardSummaryRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher),

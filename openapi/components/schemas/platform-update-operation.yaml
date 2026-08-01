@@ -1,5 +1,5 @@
 type: object
-required: [operation_id, operation, runner_id, source_version, target_version, deployment_strategy, phase, progress, message, started_at, updated_at]
+required: [operation_id, operation, runner_id, source_version, target_version, deployment_strategy, phase, progress, message, state_source, state_available, started_at, updated_at]
 properties:
   operation_id: { type: string }
   operation: { type: string, enum: [self_update] }
@@ -10,6 +10,8 @@ properties:
   phase: { type: string, enum: [READY, PREFLIGHT, BACKUP, PULL_IMAGES, STOP_SERVICES, APPLY_UPDATE, MIGRATION, START_SERVICES, HEALTH_CHECK, SUCCESS, FAILED, ROLLBACK] }
   progress: { type: integer, minimum: 0, maximum: 100 }
   message: { type: string, description: "Controlled runner message key; never raw command output or deployment secrets." }
+  state_source: { type: string, enum: [runner_state, terminal_history, runner_state_unavailable], description: "Authority that produced this projection; runner_state_unavailable never represents live runner progress." }
+  state_available: { type: boolean, description: "Whether runner lifecycle state was available to verify this projection." }
   error: { type: string, description: "Controlled runner failure code; never raw command output or deployment secrets." }
   failure_diagnostic_available: { type: boolean, description: "Whether a manager may retrieve controlled failure diagnostics for this operation." }
   started_at: { type: string, format: date-time }

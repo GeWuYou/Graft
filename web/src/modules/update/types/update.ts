@@ -15,6 +15,11 @@ export type UpdateReadinessCheck = UpdateReadiness['checks'][number];
 export type UpdateReadinessAction = NonNullable<UpdateReadiness['next_action']>;
 export type UpdateReadinessEvidence = UpdateReadinessCheck['evidence'][number];
 export type UpdateOperation = UpdateSchemas['platform-update-operation'];
+/** 更新事件只携带 runner 已许可的节点消息码，界面不得把它替换为命令输出。 */
+export type UpdateOperationEvent = UpdateSchemas['platform-update-operation-event'];
+/** 同一实时主题同时投递状态快照与可回放的节点事件。 */
+export type UpdateOperationRealtimeMessage =
+  UpdateOperation | { event: UpdateOperationEvent; operation?: UpdateOperation };
 /** runner 接管后，创建请求只确认已接受的操作与执行器身份，真实阶段必须再读取状态快照。 */
 export type UpdateOperationLaunchAcknowledgement = Pick<UpdateOperation, 'operation_id' | 'runner_id'>;
 /** runner 状态中的阶段是当前执行事实，不能由页面自行推导或补写。 */

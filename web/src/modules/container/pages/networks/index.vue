@@ -38,102 +38,15 @@
 
     <management-statistics-bar :items="metrics" aria-live="polite" layout="summary" />
 
-    <management-toolbar class="docker-network-page__toolbar">
-      <template #filters>
-        <t-input
-          v-model="draftFilters.keyword"
-          class="management-list-search"
-          clearable
-          :placeholder="t('container.networks.filters.search')"
-          @enter="applyFilters"
-        >
-          <template #prefix-icon><search-icon /></template>
-        </t-input>
-        <t-select
-          v-model="draftFilters.usage"
-          class="management-toolbar__select"
-          :placeholder="t('container.networks.filters.usage')"
-          clearable
-        >
-          <t-option value="used" :label="t('container.networks.filters.inUse')" />
-          <t-option value="unused" :label="t('container.networks.filters.unused')" />
-        </t-select>
-        <t-tooltip v-if="isCompactDensity" :content="t('container.resourceContext.moreFilters')">
-          <t-button
-            class="docker-network-page__advanced-trigger"
-            shape="square"
-            variant="outline"
-            :aria-label="t('container.resourceContext.moreFilters')"
-            @click="openAdvancedFilters"
-          >
-            <template #icon><filter-icon /></template>
-          </t-button>
-        </t-tooltip>
-        <t-button v-else variant="outline" @click="openAdvancedFilters">
-          {{ t('container.resourceContext.moreFilters') }}
-        </t-button>
-        <t-button class="docker-network-page__query-trigger" theme="primary" @click="applyFilters">{{
-          t('container.networks.filters.apply')
-        }}</t-button>
-        <t-button v-if="!isCompactDensity" variant="text" @click="resetFilters">{{
-          t('container.networks.filters.reset')
-        }}</t-button>
-        <template v-if="advancedFiltersVisible && !isCompactDensity">
-          <docker-resource-context-filters
-            v-model:compose-project="draftFilters.compose_project"
-            v-model:source="draftFilters.source"
-            @apply="applyFilters"
-          />
-          <t-select
-            v-model="draftFilters.driver"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.networks.filters.driver')"
-          >
-            <t-option v-for="driver in drivers" :key="driver" :value="driver" :label="driverLabel(driver)" />
-          </t-select>
-          <t-select
-            v-model="draftFilters.scope"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.networks.filters.scope')"
-          >
-            <t-option value="local" :label="t('container.networks.scopes.local')" />
-            <t-option value="swarm" :label="t('container.networks.scopes.swarm')" />
-            <t-option value="global" :label="t('container.networks.scopes.global')" />
-          </t-select>
-        </template>
-      </template>
-    </management-toolbar>
-
-    <t-drawer
-      v-model:visible="advancedFiltersDrawerVisible"
-      :header="t('container.networks.filters.advancedTitle')"
-      placement="bottom"
-      size="min(78vh, 560px)"
+    <resource-query-panel
+      v-model="resourceQueryState"
+      :config="queryConfig"
+      :loading="networkQuery.isFetching.value"
+      @reset="resetFilters"
+      @search="applyQueryState"
     >
-      <div class="docker-network-page__advanced-filters">
-        <docker-resource-context-filters
-          v-model:compose-project="draftFilters.compose_project"
-          v-model:source="draftFilters.source"
-          @apply="applyAdvancedFilters"
-        />
-        <t-select v-model="draftFilters.driver" clearable :placeholder="t('container.networks.filters.driver')">
-          <t-option v-for="driver in drivers" :key="driver" :value="driver" :label="driverLabel(driver)" />
-        </t-select>
-        <t-select v-model="draftFilters.scope" clearable :placeholder="t('container.networks.filters.scope')">
-          <t-option value="local" :label="t('container.networks.scopes.local')" />
-          <t-option value="swarm" :label="t('container.networks.scopes.swarm')" />
-          <t-option value="global" :label="t('container.networks.scopes.global')" />
-        </t-select>
-      </div>
-      <template #footer>
-        <t-space>
-          <t-button variant="outline" @click="resetFilters">{{ t('container.networks.filters.reset') }}</t-button>
-          <t-button theme="primary" @click="applyAdvancedFilters">{{ t('container.networks.filters.apply') }}</t-button>
-        </t-space>
-      </template>
-    </t-drawer>
+      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+    </resource-query-panel>
 
     <t-alert
       v-if="networkQuery.isError.value"
@@ -526,10 +439,10 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon, FilterIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -539,10 +452,16 @@ import {
   ManagementBatchBar,
   ManagementPageHeader,
   ManagementStatisticsBar,
-  ManagementToolbar,
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import {
+  type ResourceQueryConfig,
+  ResourceQueryPanel,
+  type ResourceQueryState,
+  SavedQueryViewControl,
+  type SavedQueryViewOperation,
+} from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
 import { useViewportResponsiveVariant } from '@/shared/composables';
@@ -552,14 +471,17 @@ import { usePermissionStore } from '@/store';
 
 import {
   createDockerNetwork,
+  deleteDockerNetworkSavedView,
   type DockerNetworkListQuery,
   getDockerNetworks,
+  getDockerNetworkSavedViews,
+  postDockerNetworkSavedView,
+  putDockerNetworkSavedView,
   removeDockerNetwork,
 } from '../../api/container';
 import ContainerDangerZone from '../../components/ContainerDangerZone.vue';
 import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
 import DockerResourceContextCard from '../../components/DockerResourceContextCard.vue';
-import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import DockerCleanupLoadingHost from '../../shared/cleanup/DockerCleanupLoadingHost.vue';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
@@ -569,10 +491,12 @@ import {
   useDockerNetworkDetailQuery,
   useDockerNetworkListQuery,
 } from '../../shared/docker-network-queries';
+import { useDockerResourceSavedViews } from '../../shared/docker-resource-saved-views';
 import {
   getDockerResourceRelationEmptyLabel,
   getDockerResourceRelationshipPresentation,
   getDockerResourceSourceDescription,
+  getDockerResourceSourceLabel,
 } from '../../shared/resource-presentation';
 import type { DockerNetwork, DockerNetworkCreateRequest, DockerNetworkDriver } from '../../types/docker-network';
 
@@ -625,8 +549,6 @@ const selectedNetworkNames = computed(() =>
 );
 const selectedNetwork = ref<DockerNetwork | null>(null);
 const removeConfirmation = ref('');
-const advancedFiltersVisible = ref(false);
-const advancedFiltersDrawerVisible = ref(false);
 const drivers: DockerNetworkDriver[] = ['bridge', 'overlay', 'macvlan', 'ipvlan', 'none'];
 const createForm = reactive({
   name: '',
@@ -636,6 +558,81 @@ const createForm = reactive({
   labelsText: '',
   subnet: '',
   gateway: '',
+});
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'docker-network.list',
+  search: true,
+  filterBuilder: { enabled: true },
+  placeholder: t('container.networks.filters.search'),
+  savedView: true,
+  filters: [
+    {
+      key: 'driver',
+      label: t('container.networks.filters.driver'),
+      type: 'select',
+      options: drivers.map((value) => ({ value, label: driverLabel(value) })),
+    },
+    {
+      key: 'scope',
+      label: t('container.networks.filters.scope'),
+      type: 'select',
+      options: ['local', 'swarm', 'global'].map((value) => ({ value, label: scopeLabel(value) })),
+    },
+    {
+      key: 'usage',
+      label: t('container.networks.filters.usage'),
+      type: 'select',
+      options: [
+        { value: 'used', label: t('container.networks.filters.inUse') },
+        { value: 'unused', label: t('container.networks.filters.unused') },
+      ],
+    },
+    {
+      key: 'source',
+      label: t('container.resourceContext.source'),
+      type: 'select',
+      options: ['compose', 'docker_default', 'docker', 'managed', 'imported', 'unknown'].map((value) => ({
+        value,
+        label: getDockerResourceSourceLabel(t, value as DockerResourceSource),
+      })),
+    },
+    { key: 'compose_project', label: t('container.resourceContext.project'), type: 'input' },
+  ],
+}));
+const resourceQueryState = computed<ResourceQueryState>({
+  get: () => ({
+    keyword: draftFilters.keyword,
+    filters: { ...draftFilters },
+    page: pagination.current,
+    pageSize: pagination.pageSize,
+  }),
+  set: (value) => {
+    Object.assign(draftFilters, {
+      keyword: value.keyword,
+      driver: value.filters.driver ?? '',
+      scope: value.filters.scope ?? '',
+      usage: value.filters.usage ?? '',
+      source: value.filters.source ?? '',
+      compose_project: value.filters.compose_project ?? '',
+    });
+    pagination.current = value.page;
+    pagination.pageSize = value.pageSize;
+  },
+});
+const savedViews = useDockerResourceSavedViews({
+  api: {
+    list: getDockerNetworkSavedViews,
+    create: postDockerNetworkSavedView,
+    update: putDockerNetworkSavedView,
+    remove: deleteDockerNetworkSavedView,
+  },
+  applyState: (state) => {
+    resourceQueryState.value = state.queryState;
+    applyFilters();
+  },
+  getState: () => ({ pageSize: pagination.pageSize, queryState: resourceQueryState.value, visibleColumns: [] }),
+  onError: (error: unknown, operation: SavedQueryViewOperation) =>
+    MessagePlugin.error(`${operation}: ${String(error)}`),
 });
 
 const networks = computed(() => networkQuery.data.value?.items ?? []);
@@ -678,6 +675,7 @@ const allColumns = computed<TableProps['columns']>(() => [
 const cleanupColumns = computed<TableProps['columns']>(() =>
   (allColumns.value ?? []).filter((column) => ['row-select', 'name', 'status'].includes(String(column.colKey))),
 );
+onMounted(() => void savedViews.load());
 async function fetchCleanupCandidates() {
   const first = await getDockerNetworks({ limit: 100, offset: 0, usage: 'unused' });
   const all = [...first.items];
@@ -806,21 +804,13 @@ function applyFilters() {
   };
   pagination.current = 1;
 }
-function openAdvancedFilters() {
-  if (isCompactDensity.value) {
-    advancedFiltersDrawerVisible.value = true;
-    return;
-  }
-  advancedFiltersVisible.value = !advancedFiltersVisible.value;
-}
-function applyAdvancedFilters() {
+function applyQueryState(value: ResourceQueryState) {
+  resourceQueryState.value = value;
   applyFilters();
-  advancedFiltersDrawerVisible.value = false;
 }
 function resetFilters() {
   Object.assign(draftFilters, { keyword: '', driver: '', scope: '', usage: '', source: '', compose_project: '' });
   applyFilters();
-  advancedFiltersDrawerVisible.value = false;
 }
 function parseLabels(source: string) {
   const labels = Object.fromEntries(
@@ -901,34 +891,6 @@ async function submitBatchRemove() {
 }
 </script>
 <style scoped>
-.docker-network-page__toolbar {
-  margin-bottom: var(--td-comp-margin-l);
-}
-
-.docker-network-page__toolbar :deep(.management-list-search) {
-  flex-basis: clamp(220px, 22vw, 280px);
-  width: clamp(220px, 22vw, 280px);
-}
-
-.docker-network-page__toolbar :deep(.management-toolbar__select) {
-  flex-basis: clamp(140px, 15vw, 180px);
-  width: clamp(140px, 15vw, 180px);
-}
-
-.docker-network-page__advanced-filters {
-  display: grid;
-  gap: var(--graft-density-gap-16);
-}
-
-.docker-network-page__advanced-filters :deep(.docker-resource-context-filters) {
-  display: grid;
-  gap: var(--graft-density-gap-16);
-}
-
-.docker-network-page__batch {
-  margin-bottom: var(--td-comp-margin-m);
-}
-
 .docker-network-page__section {
   margin-top: var(--td-comp-margin-xl);
 }
@@ -1149,21 +1111,6 @@ async function submitBatchRemove() {
 
   .docker-network-page__danger-zone :deep(.t-button) {
     width: 100%;
-  }
-
-  .docker-network-page__toolbar :deep(.management-list-search) {
-    flex-basis: 100%;
-    width: 100%;
-  }
-
-  .docker-network-page__toolbar :deep(.management-toolbar__select) {
-    flex: 1 1 0;
-    min-width: 0;
-    width: auto;
-  }
-
-  .docker-network-page__toolbar :deep(.t-button) {
-    flex: 0 0 auto;
   }
 }
 </style>

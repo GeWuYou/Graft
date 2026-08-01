@@ -3497,6 +3497,75 @@ func (e PlatformUpdateOperationPhase) Valid() bool {
 	}
 }
 
+// Defines values for PlatformUpdateOperationStateSource.
+const (
+	RunnerState            PlatformUpdateOperationStateSource = "runner_state"
+	RunnerStateUnavailable PlatformUpdateOperationStateSource = "runner_state_unavailable"
+	TerminalHistory        PlatformUpdateOperationStateSource = "terminal_history"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateOperationStateSource enum.
+func (e PlatformUpdateOperationStateSource) Valid() bool {
+	switch e {
+	case RunnerState:
+		return true
+	case RunnerStateUnavailable:
+		return true
+	case TerminalHistory:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateOperationEventPhase.
+const (
+	PlatformUpdateOperationEventPhaseAPPLYUPDATE   PlatformUpdateOperationEventPhase = "APPLY_UPDATE"
+	PlatformUpdateOperationEventPhaseBACKUP        PlatformUpdateOperationEventPhase = "BACKUP"
+	PlatformUpdateOperationEventPhaseFAILED        PlatformUpdateOperationEventPhase = "FAILED"
+	PlatformUpdateOperationEventPhaseHEALTHCHECK   PlatformUpdateOperationEventPhase = "HEALTH_CHECK"
+	PlatformUpdateOperationEventPhaseMIGRATION     PlatformUpdateOperationEventPhase = "MIGRATION"
+	PlatformUpdateOperationEventPhasePREFLIGHT     PlatformUpdateOperationEventPhase = "PREFLIGHT"
+	PlatformUpdateOperationEventPhasePULLIMAGES    PlatformUpdateOperationEventPhase = "PULL_IMAGES"
+	PlatformUpdateOperationEventPhaseREADY         PlatformUpdateOperationEventPhase = "READY"
+	PlatformUpdateOperationEventPhaseROLLBACK      PlatformUpdateOperationEventPhase = "ROLLBACK"
+	PlatformUpdateOperationEventPhaseSTARTSERVICES PlatformUpdateOperationEventPhase = "START_SERVICES"
+	PlatformUpdateOperationEventPhaseSTOPSERVICES  PlatformUpdateOperationEventPhase = "STOP_SERVICES"
+	PlatformUpdateOperationEventPhaseSUCCESS       PlatformUpdateOperationEventPhase = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateOperationEventPhase enum.
+func (e PlatformUpdateOperationEventPhase) Valid() bool {
+	switch e {
+	case PlatformUpdateOperationEventPhaseAPPLYUPDATE:
+		return true
+	case PlatformUpdateOperationEventPhaseBACKUP:
+		return true
+	case PlatformUpdateOperationEventPhaseFAILED:
+		return true
+	case PlatformUpdateOperationEventPhaseHEALTHCHECK:
+		return true
+	case PlatformUpdateOperationEventPhaseMIGRATION:
+		return true
+	case PlatformUpdateOperationEventPhasePREFLIGHT:
+		return true
+	case PlatformUpdateOperationEventPhasePULLIMAGES:
+		return true
+	case PlatformUpdateOperationEventPhaseREADY:
+		return true
+	case PlatformUpdateOperationEventPhaseROLLBACK:
+		return true
+	case PlatformUpdateOperationEventPhaseSTARTSERVICES:
+		return true
+	case PlatformUpdateOperationEventPhaseSTOPSERVICES:
+		return true
+	case PlatformUpdateOperationEventPhaseSUCCESS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateReadinessOverall.
 const (
 	StatusUnknown  PlatformUpdateReadinessOverall = "status_unknown"
@@ -5311,22 +5380,22 @@ func (e GetAuditLogsParamsResult) Valid() bool {
 
 // Defines values for GetAuditLogsParamsResults.
 const (
-	DENIED  GetAuditLogsParamsResults = "DENIED"
-	ERROR   GetAuditLogsParamsResults = "ERROR"
-	FAILED  GetAuditLogsParamsResults = "FAILED"
-	SUCCESS GetAuditLogsParamsResults = "SUCCESS"
+	GetAuditLogsParamsResultsDENIED  GetAuditLogsParamsResults = "DENIED"
+	GetAuditLogsParamsResultsERROR   GetAuditLogsParamsResults = "ERROR"
+	GetAuditLogsParamsResultsFAILED  GetAuditLogsParamsResults = "FAILED"
+	GetAuditLogsParamsResultsSUCCESS GetAuditLogsParamsResults = "SUCCESS"
 )
 
 // Valid indicates whether the value is a known member of the GetAuditLogsParamsResults enum.
 func (e GetAuditLogsParamsResults) Valid() bool {
 	switch e {
-	case DENIED:
+	case GetAuditLogsParamsResultsDENIED:
 		return true
-	case ERROR:
+	case GetAuditLogsParamsResultsERROR:
 		return true
-	case FAILED:
+	case GetAuditLogsParamsResultsFAILED:
 		return true
-	case SUCCESS:
+	case GetAuditLogsParamsResultsSUCCESS:
 		return true
 	default:
 		return false
@@ -10460,6 +10529,15 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformUpdateActiveOperation defines model for enveloped-platform-update-active-operation.
+type EnvelopedPlatformUpdateActiveOperation struct {
+	Code    string                   `json:"code"`
+	Data    *PlatformUpdateOperation `json:"data"`
+	Message string                   `json:"message"`
+	Success bool                     `json:"success"`
+	TraceId string                   `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateFailureDiagnostic defines model for enveloped-platform-update-failure-diagnostic.
 type EnvelopedPlatformUpdateFailureDiagnostic struct {
 	Code string `json:"code"`
@@ -10478,6 +10556,15 @@ type EnvelopedPlatformUpdateOperation struct {
 	Message string                  `json:"message"`
 	Success bool                    `json:"success"`
 	TraceId string                  `json:"traceId"`
+}
+
+// EnvelopedPlatformUpdateOperationEventList defines model for enveloped-platform-update-operation-event-list.
+type EnvelopedPlatformUpdateOperationEventList struct {
+	Code    string                           `json:"code"`
+	Data    PlatformUpdateOperationEventList `json:"data"`
+	Message string                           `json:"message"`
+	Success bool                             `json:"success"`
+	TraceId string                           `json:"traceId"`
 }
 
 // EnvelopedPlatformUpdateOperationLaunchAcknowledgement defines model for enveloped-platform-update-operation-launch-acknowledgement.
@@ -11619,8 +11706,14 @@ type PlatformUpdateOperation struct {
 	RunnerId      string                           `json:"runner_id"`
 	SourceVersion string                           `json:"source_version"`
 	StartedAt     time.Time                        `json:"started_at"`
-	TargetVersion string                           `json:"target_version"`
-	UpdatedAt     time.Time                        `json:"updated_at"`
+
+	// StateAvailable Whether runner lifecycle state was available to verify this projection.
+	StateAvailable bool `json:"state_available"`
+
+	// StateSource Authority that produced this projection; runner_state_unavailable never represents live runner progress.
+	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
+	TargetVersion string                             `json:"target_version"`
+	UpdatedAt     time.Time                          `json:"updated_at"`
 }
 
 // PlatformUpdateOperationOperation defines model for PlatformUpdateOperation.Operation.
@@ -11628,6 +11721,25 @@ type PlatformUpdateOperationOperation string
 
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
+
+// PlatformUpdateOperationStateSource Authority that produced this projection; runner_state_unavailable never represents live runner progress.
+type PlatformUpdateOperationStateSource string
+
+// PlatformUpdateOperationEvent defines model for platform-update-operation-event.
+type PlatformUpdateOperationEvent struct {
+	// Message Allowlisted runner node message key; never raw command output or deployment secrets.
+	Message     string                            `json:"message"`
+	OccurredAt  time.Time                         `json:"occurred_at"`
+	OperationId string                            `json:"operation_id"`
+	Phase       PlatformUpdateOperationEventPhase `json:"phase"`
+	Revision    int64                             `json:"revision"`
+}
+
+// PlatformUpdateOperationEventPhase defines model for PlatformUpdateOperationEvent.Phase.
+type PlatformUpdateOperationEventPhase string
+
+// PlatformUpdateOperationEventList defines model for platform-update-operation-event-list.
+type PlatformUpdateOperationEventList = []PlatformUpdateOperationEvent
 
 // PlatformUpdateOperationLaunchAcknowledgement defines model for platform-update-operation-launch-acknowledgement.
 type PlatformUpdateOperationLaunchAcknowledgement struct {
@@ -14228,6 +14340,46 @@ type GetDashboardWidgetParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetDockerImageSavedViewsParams defines parameters for GetDockerImageSavedViews.
+type GetDockerImageSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerImageSavedViewParams defines parameters for PostDockerImageSavedView.
+type PostDockerImageSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteDockerImageSavedViewParams defines parameters for DeleteDockerImageSavedView.
+type DeleteDockerImageSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutDockerImageSavedViewParams defines parameters for PutDockerImageSavedView.
+type PutDockerImageSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetModulesRuntimeParams defines parameters for GetModulesRuntime.
 type GetModulesRuntimeParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -14960,6 +15112,46 @@ type GetContainerDashboardSummaryParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetContainerSavedViewsParams defines parameters for GetContainerSavedViews.
+type GetContainerSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerSavedViewParams defines parameters for PostContainerSavedView.
+type PostContainerSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteContainerSavedViewParams defines parameters for DeleteContainerSavedView.
+type DeleteContainerSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutContainerSavedViewParams defines parameters for PutContainerSavedView.
+type PutContainerSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetContainerParams defines parameters for GetContainer.
 type GetContainerParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15169,6 +15361,46 @@ type GetDockerNetworksParams struct {
 // GetDockerNetworksParamsUsage defines parameters for GetDockerNetworks.
 type GetDockerNetworksParamsUsage string
 
+// GetDockerNetworkSavedViewsParams defines parameters for GetDockerNetworkSavedViews.
+type GetDockerNetworkSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerNetworkSavedViewParams defines parameters for PostDockerNetworkSavedView.
+type PostDockerNetworkSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteDockerNetworkSavedViewParams defines parameters for DeleteDockerNetworkSavedView.
+type DeleteDockerNetworkSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutDockerNetworkSavedViewParams defines parameters for PutDockerNetworkSavedView.
+type PutDockerNetworkSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetDockerVolumesParams defines parameters for GetDockerVolumes.
 type GetDockerVolumesParams struct {
 	// Limit Optional maximum number of Docker volumes to return. The runtime accepts values from 1 to 100.
@@ -15238,6 +15470,46 @@ type GetDockerVolumesParamsSortOrder string
 
 // PostDockerVolumeBatchRemoveParams defines parameters for PostDockerVolumeBatchRemove.
 type PostDockerVolumeBatchRemoveParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerVolumeSavedViewsParams defines parameters for GetDockerVolumeSavedViews.
+type GetDockerVolumeSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerVolumeSavedViewParams defines parameters for PostDockerVolumeSavedView.
+type PostDockerVolumeSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteDockerVolumeSavedViewParams defines parameters for DeleteDockerVolumeSavedView.
+type DeleteDockerVolumeSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutDockerVolumeSavedViewParams defines parameters for PutDockerVolumeSavedView.
+type PutDockerVolumeSavedViewParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -15367,6 +15639,16 @@ type PostPlatformUpdateOperationParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPlatformUpdateActiveOperationParams defines parameters for GetPlatformUpdateActiveOperation.
+type GetPlatformUpdateActiveOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // GetPlatformUpdateOperationParams defines parameters for GetPlatformUpdateOperation.
 type GetPlatformUpdateOperationParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15379,6 +15661,18 @@ type GetPlatformUpdateOperationParams struct {
 
 // GetPlatformUpdateOperationFailureDiagnosticParams defines parameters for GetPlatformUpdateOperationFailureDiagnostic.
 type GetPlatformUpdateOperationFailureDiagnosticParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformUpdateOperationEventsParams defines parameters for GetPlatformUpdateOperationEvents.
+type GetPlatformUpdateOperationEventsParams struct {
+	AfterRevision *int64 `form:"after_revision,omitempty" json:"after_revision,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -16109,6 +16403,12 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 // PostAuthPersonalAccessTokensJSONRequestBody defines body for PostAuthPersonalAccessTokens for application/json ContentType.
 type PostAuthPersonalAccessTokensJSONRequestBody = PersonalAccessTokenCreateRequest
 
+// PostDockerImageSavedViewJSONRequestBody defines body for PostDockerImageSavedView for application/json ContentType.
+type PostDockerImageSavedViewJSONRequestBody = SavedViewRequest
+
+// PutDockerImageSavedViewJSONRequestBody defines body for PutDockerImageSavedView for application/json ContentType.
+type PutDockerImageSavedViewJSONRequestBody = SavedViewRequest
+
 // PostNotificationsReadAllJSONRequestBody defines body for PostNotificationsReadAll for application/json ContentType.
 type PostNotificationsReadAllJSONRequestBody = NotificationReadAllRequest
 
@@ -16175,6 +16475,12 @@ type PutApplicationLifecycleConfigurationJSONRequestBody = ApplicationLifecycleC
 // PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
 type PostContainerBatchActionsJSONRequestBody = ContainerBatchActionRequest
 
+// PostContainerSavedViewJSONRequestBody defines body for PostContainerSavedView for application/json ContentType.
+type PostContainerSavedViewJSONRequestBody = SavedViewRequest
+
+// PutContainerSavedViewJSONRequestBody defines body for PutContainerSavedView for application/json ContentType.
+type PutContainerSavedViewJSONRequestBody = SavedViewRequest
+
 // PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
 type PostContainerRemoveJSONRequestBody = ContainerRemoveRequest
 
@@ -16199,11 +16505,23 @@ type PostDockerImageUntagJSONRequestBody = DockerImageUntagRequest
 // PostDockerNetworkJSONRequestBody defines body for PostDockerNetwork for application/json ContentType.
 type PostDockerNetworkJSONRequestBody = DockerNetworkCreateRequest
 
+// PostDockerNetworkSavedViewJSONRequestBody defines body for PostDockerNetworkSavedView for application/json ContentType.
+type PostDockerNetworkSavedViewJSONRequestBody = SavedViewRequest
+
+// PutDockerNetworkSavedViewJSONRequestBody defines body for PutDockerNetworkSavedView for application/json ContentType.
+type PutDockerNetworkSavedViewJSONRequestBody = SavedViewRequest
+
 // DeleteDockerNetworkJSONRequestBody defines body for DeleteDockerNetwork for application/json ContentType.
 type DeleteDockerNetworkJSONRequestBody = DockerNetworkRemoveRequest
 
 // PostDockerVolumeBatchRemoveJSONRequestBody defines body for PostDockerVolumeBatchRemove for application/json ContentType.
 type PostDockerVolumeBatchRemoveJSONRequestBody = DockerVolumeBatchRemoveRequest
+
+// PostDockerVolumeSavedViewJSONRequestBody defines body for PostDockerVolumeSavedView for application/json ContentType.
+type PostDockerVolumeSavedViewJSONRequestBody = SavedViewRequest
+
+// PutDockerVolumeSavedViewJSONRequestBody defines body for PutDockerVolumeSavedView for application/json ContentType.
+type PutDockerVolumeSavedViewJSONRequestBody = SavedViewRequest
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest

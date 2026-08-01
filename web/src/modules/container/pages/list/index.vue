@@ -10,69 +10,15 @@
 
     <container-stats :items="containerStatistics" :label="t('container.list.tableSummary', { count: listTotal })" />
 
-    <management-toolbar class="container-toolbar">
-      <template #filters>
-        <container-filter
-          :model-value="filters"
-          @update:model-value="Object.assign(filters, $event)"
-          @apply="applyFilters"
-          @reset="resetFilters"
-        >
-          <t-select
-            v-model="filters.status"
-            class="management-toolbar__select"
-            data-testid="container-filter-status"
-            :placeholder="t('container.list.filters.status')"
-          >
-            <t-option value="all" :label="t('container.list.filters.allStatuses')" />
-            <t-option v-for="status in statusOptions" :key="status" :value="status" :label="stateLabel(status)" />
-          </t-select>
-          <t-select
-            v-model="filters.deploymentType"
-            class="management-toolbar__select"
-            data-testid="container-filter-deployment-type"
-            :placeholder="t('container.list.filters.deploymentType')"
-          >
-            <t-option value="all" :label="t('container.list.filters.allDeploymentTypes')" />
-            <t-option
-              v-for="deploymentType in deploymentTypeOptions"
-              :key="deploymentType"
-              :value="deploymentType"
-              :label="deploymentTypeLabel(deploymentType)"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.runtimeTargetId"
-            class="management-toolbar__select"
-            data-testid="container-filter-runtime-target"
-            :placeholder="t('container.list.filters.runtimeTarget')"
-          >
-            <t-option value="all" :label="t('container.list.filters.allRuntimeTargets')" />
-            <t-option
-              v-for="target in runtimeTargets"
-              :key="target.id"
-              :value="target.id"
-              :label="target.displayName"
-            />
-          </t-select>
-          <t-select
-            v-model="filters.health"
-            class="management-toolbar__select"
-            data-testid="container-filter-health"
-            :placeholder="t('container.list.filters.health')"
-          >
-            <t-option value="all" :label="t('container.list.filters.allHealth')" />
-            <t-option v-for="health in healthOptions" :key="health" :value="health" :label="healthLabel(health)" />
-          </t-select>
-          <t-button data-testid="container-filter-apply" theme="primary" @click="applyFilters">
-            {{ t('container.list.filters.query') }}
-          </t-button>
-          <t-button data-testid="container-filter-reset" theme="default" variant="text" @click="resetFilters">
-            {{ t('container.list.filters.reset') }}
-          </t-button>
-        </container-filter>
-      </template>
-    </management-toolbar>
+    <resource-query-panel
+      v-model="resourceQueryState"
+      :config="queryConfig"
+      :loading="tableLoading"
+      @reset="resetFilters"
+      @search="applyQueryState"
+    >
+      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+    </resource-query-panel>
 
     <container-list
       :presentation="listPresentation"
@@ -268,13 +214,14 @@ import { resolveComposeApplicationReferences } from '@/modules/project/contract/
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
+import { ManagementBatchBar, ManagementPageHeader, TableViewToolbar } from '@/shared/components/management';
 import {
-  ManagementBatchBar,
-  ManagementPageHeader,
-  ManagementToolbar,
-  TableViewToolbar,
-} from '@/shared/components/management';
-import { AdvancedQueryColumnDrawer } from '@/shared/components/query-list';
+  type ResourceQueryConfig,
+  ResourceQueryPanel,
+  type ResourceQueryState,
+  SavedQueryViewControl,
+  type SavedQueryViewOperation,
+} from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore, useTabsRouterStore } from '@/store';
 import { createLogger } from '@/utils/logger';
@@ -283,7 +230,11 @@ import type { AppRouteMeta } from '@/utils/types';
 
 import {
   batchContainerActions,
+  deleteContainerSavedView,
   getContainers,
+  getContainerSavedViews,
+  postContainerSavedView,
+  putContainerSavedView,
   removeContainer,
   restartContainer,
   startContainer,
@@ -291,6 +242,7 @@ import {
 } from '../../api/container';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
+import { useDockerResourceSavedViews } from '../../shared/docker-resource-saved-views';
 import {
   buildContainerResourceColumnSettingOptions,
   CONTAINER_RESOURCE_ALL_COLUMN_KEYS,
@@ -318,7 +270,6 @@ import type {
   ContainerState,
   ContainerSummaryRecord,
 } from '../../types/container';
-import ContainerFilter from './ContainerFilter.vue';
 import ContainerList from './ContainerList.vue';
 import ContainerStats from './ContainerStats.vue';
 
@@ -397,6 +348,93 @@ const pagination = reactive({
   current: 1,
   pageSize: CONTAINER_DEFAULT_PAGE_SIZE,
 });
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'container.list',
+  search: true,
+  filterBuilder: { enabled: true },
+  placeholder: t('container.list.filters.keyword'),
+  savedView: true,
+  filters: [
+    {
+      key: 'status',
+      label: t('container.list.filters.status'),
+      type: 'select',
+      options: [
+        { value: 'all', label: t('container.list.filters.allStatuses') },
+        ...statusOptions.map((value) => ({ value, label: stateLabel(value) })),
+      ],
+    },
+    {
+      key: 'deploymentType',
+      label: t('container.list.filters.deploymentType'),
+      type: 'select',
+      options: [
+        { value: 'all', label: t('container.list.filters.allDeploymentTypes') },
+        ...deploymentTypeOptions.map((value) => ({ value, label: deploymentTypeLabel(value) })),
+      ],
+    },
+    {
+      key: 'runtimeTargetId',
+      label: t('container.list.filters.runtimeTarget'),
+      type: 'select',
+      options: [
+        { value: 'all', label: t('container.list.filters.allRuntimeTargets') },
+        ...runtimeTargets.value.map((target) => ({ value: target.id, label: target.displayName })),
+      ],
+    },
+    {
+      key: 'health',
+      label: t('container.list.filters.health'),
+      type: 'select',
+      options: [
+        { value: 'all', label: t('container.list.filters.allHealth') },
+        ...healthOptions.map((value) => ({ value, label: healthLabel(value) })),
+      ],
+    },
+  ],
+}));
+const resourceQueryState = computed<ResourceQueryState>({
+  get: () => ({
+    keyword: filters.keyword,
+    filters: {
+      status: filters.status,
+      deploymentType: filters.deploymentType,
+      runtimeTargetId: filters.runtimeTargetId,
+      health: filters.health,
+    },
+    page: pagination.current,
+    pageSize: pagination.pageSize,
+  }),
+  set: (value) => {
+    filters.keyword = value.keyword;
+    filters.status = (value.filters.status as ContainerFilters['status']) || 'all';
+    filters.deploymentType = (value.filters.deploymentType as ContainerFilters['deploymentType']) || 'all';
+    filters.runtimeTargetId = (value.filters.runtimeTargetId as ContainerFilters['runtimeTargetId']) ?? 'all';
+    filters.health = (value.filters.health as ContainerFilters['health']) || 'all';
+    pagination.current = value.page;
+    pagination.pageSize = value.pageSize;
+  },
+});
+const savedViews = useDockerResourceSavedViews({
+  api: {
+    list: getContainerSavedViews,
+    create: postContainerSavedView,
+    update: putContainerSavedView,
+    remove: deleteContainerSavedView,
+  },
+  applyState: (state) => {
+    resourceQueryState.value = state.queryState;
+    pagination.pageSize = state.pageSize;
+    applyFilters();
+  },
+  getState: () => ({
+    pageSize: pagination.pageSize,
+    queryState: resourceQueryState.value,
+    visibleColumns: visibleColumnKeys.value,
+  }),
+  onError: (error: unknown, operation: SavedQueryViewOperation) =>
+    logger.error(`saved container view ${operation} failed`, error),
+});
 const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
 let listRealtimeSubscribed = false;
@@ -467,6 +505,7 @@ let refreshRequestSeq = 0;
 onMounted(() => {
   listRealtimeActive.value = true;
   void loadRuntimeTargets();
+  void savedViews.load();
   void refreshContainers();
 });
 
@@ -613,6 +652,11 @@ function applyFilters() {
   commitSubmittedFilters();
   clearSelection();
   requestFirstPage();
+}
+
+function applyQueryState(value: ResourceQueryState) {
+  resourceQueryState.value = value;
+  applyFilters();
 }
 
 function resetFilters() {

@@ -48,9 +48,10 @@ closeout:
   materials required by the Work Contract.
 - ADR-009 is the lifecycle authority: the runner writes active state to a named volume, server only verifies and
   projects it, and database history is terminal-only.
-- Runner state durability, recovery behavior, server/UI consumers, and Compose wiring are implemented. The active
-  recovery point is cross-boundary validation and archive-readiness review; do not reopen an implementation batch
-  unless validation identifies a concrete authority repair.
+- Production beta evidence identified a concrete authority repair: the runner can fail before its first state write,
+  leaving the request projection falsely at `READY/0%` and therefore absent from terminal-only history. This batch
+  repairs the narrow runner capability/state-write boundary and adds validated, replayable allowlisted action events
+  to the existing server API/realtime projection and Update Center.
 
 ## Task Checklist
 
@@ -60,6 +61,7 @@ closeout:
 - [x] official Compose state-volume contract and runner lifecycle integration
 - [x] server request admission, read-only projection, terminal-history migration, API, and realtime convergence
 - [x] Update Center active-state recovery rendering and localization
+- [x] runner state-write repair, replayable node-event projection, and Update Center recovery rendering
 - [ ] cross-boundary validation, Compose interruption/restart evidence, and archive-readiness review
 
 ## Acceptance Conditions
@@ -72,6 +74,10 @@ closeout:
 - A failed pre-migration operation can record controlled rollback; post-migration failure never claims automatic
   database rollback and stale work requires the manual recovery controller path.
 - Public contracts expose no old server-owned lifecycle aliases or raw runner diagnostics.
+- A failed runner initialization is explicit to the user and cannot remain indefinitely indistinguishable from
+  `runner_starting`; verified terminal results remain eligible for exactly-once history projection.
+- A new tab and an SSE reconnect recover the current operation plus bounded, revision-deduplicated allowlisted node
+  events without treating browser storage or the SSE stream as state authority.
 
 ## Loop Batch State
 
@@ -98,6 +104,7 @@ closeout:
 
 - PR #237 has completed the web, contract-governance, migration-governance, and static security checks for this
   refactor.
-- The current backend validation gap is limited to runner-state tests that attempt to change temporary state-root
-  ownership with `chown`; the execution environment rejects that operation. Resolve and revalidate this issue before
-  archive readiness is assessed.
+- Runner ownership, API/OpenAPI freshness, and complete backend validation now pass. The Update Center's strict
+  typecheck and focused upgrade tests pass. The repository-wide `bun run check` remains blocked only by unrelated
+  in-progress Container saved-view lint, i18n, and unused-export findings; those files are outside this topic's
+  ownership and must be resolved before archive readiness can claim a full frontend gate.

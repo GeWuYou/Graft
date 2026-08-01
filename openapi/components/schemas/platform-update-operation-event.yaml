@@ -1,0 +1,8 @@
+type: object
+required: [operation_id, revision, phase, message, occurred_at]
+properties:
+  operation_id: { type: string }
+  revision: { type: integer, format: int64, minimum: 1 }
+  phase: { type: string, enum: [READY, PREFLIGHT, BACKUP, PULL_IMAGES, STOP_SERVICES, APPLY_UPDATE, MIGRATION, START_SERVICES, HEALTH_CHECK, SUCCESS, FAILED, ROLLBACK] }
+  message: { type: string, description: "Allowlisted runner node message key; never raw command output or deployment secrets." }
+  occurred_at: { type: string, format: date-time }

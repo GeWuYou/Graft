@@ -1,0 +1,11 @@
+type: object
+required: [success, code, message, traceId, data]
+properties:
+  success: { type: boolean }
+  code: { type: string }
+  message: { type: string }
+  traceId: { type: string }
+  data:
+    allOf:
+      - { $ref: ./platform-update-operation.yaml }
+    nullable: true

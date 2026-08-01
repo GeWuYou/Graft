@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,11 +19,13 @@ import (
 const RunnerStateRoot = "/var/lib/graft/update-state"
 
 const runnerStateSchemaVersion = 1
+const runnerStateEventSchemaVersion = 1
+const maxRunnerStateEventReplay = 100
 
 const (
 	runnerStateServerUID                       = 10001
 	runnerStateServerGID                       = 10001
-	runnerStateDirectoryPermission os.FileMode = 0o750
+	runnerStateDirectoryPermission os.FileMode = 0o755
 	runnerStateFilePermission      os.FileMode = 0o600
 )
 
@@ -71,6 +74,26 @@ type RunnerState struct {
 type RunnerStateStore interface {
 	Read() (RunnerState, error)
 	Write(RunnerState) error
+}
+
+// RunnerStateEventReader 读取按 operation 隔离的受控节点事件；事件是重连回放事实，不能由 Docker 日志替代。
+type RunnerStateEventReader interface {
+	ReadEvents(operationID string, afterRevision uint64, limit int) ([]RunnerOperationEvent, error)
+}
+
+// RunnerOperationEvent 是可回放的升级节点记录，只保留 allowlisted 阶段和消息码。
+type RunnerOperationEvent struct {
+	OperationID string      `json:"operation_id"`
+	Revision    uint64      `json:"revision"`
+	Phase       RunnerPhase `json:"phase"`
+	Message     string      `json:"message"`
+	OccurredAt  time.Time   `json:"occurred_at"`
+}
+
+type runnerStateEventRecord struct {
+	SchemaVersion int `json:"schema_version"`
+	RunnerOperationEvent
+	Digest string `json:"digest"`
 }
 
 // FileRunnerStateStore 原子替换当前快照，并追加可校验关联的事件记录。
@@ -129,15 +152,26 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// 官方状态卷不保存秘密，server 以非 root 用户只读挂载，故 runner 写入必须转交给该用户。
-	if err := os.MkdirAll(filepath.Join(s.root, "events"), runnerStateDirectoryPermission); err != nil {
+	if err := validateRunnerState(next); err != nil {
+		return err
+	}
+	// 目录保持 runner 所有且可遍历，单个 JSON 文件才转交给 server 用户；这样只需 CAP_CHOWN 仍可持续发布后续 revision。
+	if err := s.prepareRunnerWritableDirectory(s.root, "root"); err != nil {
+		return err
+	}
+	eventsRoot := filepath.Join(s.root, "events")
+	if err := os.MkdirAll(eventsRoot, runnerStateDirectoryPermission); err != nil {
 		return fmt.Errorf("create runner state directory: %w", err)
 	}
-	if err := s.assignServerOwnership(s.root, "root"); err != nil {
-		return fmt.Errorf("assign runner state root owner: %w", err)
+	if err := s.prepareRunnerWritableDirectory(eventsRoot, "event"); err != nil {
+		return err
 	}
-	if err := s.assignServerOwnership(filepath.Join(s.root, "events"), "event"); err != nil {
-		return fmt.Errorf("assign runner state event owner: %w", err)
+	eventDirectory := filepath.Join(eventsRoot, next.OperationID)
+	if err := os.MkdirAll(eventDirectory, runnerStateDirectoryPermission); err != nil {
+		return fmt.Errorf("create runner operation event directory: %w", err)
+	}
+	if err := s.prepareRunnerWritableDirectory(eventDirectory, "operation event"); err != nil {
+		return err
 	}
 	previous, err := s.Read()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -150,9 +184,6 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 		if previous.OperationID == next.OperationID && (next.Revision <= previous.Revision || phaseOrdinal(next.Phase) < phaseOrdinal(previous.Phase)) {
 			return errors.New("runner state transition is invalid")
 		}
-	}
-	if err := validateRunnerState(next); err != nil {
-		return err
 	}
 	next.Digest = ""
 	payload, err := json.Marshal(next)
@@ -172,8 +203,12 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	if err := s.assignServerOwnership(temporary, "state"); err != nil {
 		return fmt.Errorf("assign runner state owner: %w", err)
 	}
-	event := append(payload, '\n')
-	eventPath := filepath.Join(s.root, "events", fmt.Sprintf("%020d.json", next.Revision))
+	event, err := marshalRunnerStateEvent(newRunnerOperationEvent(next))
+	if err != nil {
+		return err
+	}
+	event = append(event, '\n')
+	eventPath := filepath.Join(eventDirectory, fmt.Sprintf("%020d.json", next.Revision))
 	eventTemporary := eventPath + ".tmp"
 	if err := os.WriteFile(eventTemporary, event, runnerStateFilePermission); err != nil {
 		return fmt.Errorf("write runner state event: %w", err)
@@ -190,6 +225,50 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	return nil
 }
 
+// ReadEvents 返回 revision 严格大于游标的已校验事件，供 HTTP 回放和 realtime 断线补偿共用。
+//
+//nolint:cyclop,gocognit,gocyclo // 目录边界、文件名、operation 绑定和完整性验证必须依次成立，不能把受控日志退化为原始文件遍历。
+func (s *FileRunnerStateStore) ReadEvents(operationID string, afterRevision uint64, limit int) ([]RunnerOperationEvent, error) {
+	if s == nil || !runnerOperationID.MatchString(operationID) || limit < 1 || limit > maxRunnerStateEventReplay {
+		return nil, errors.New("runner state event query is invalid")
+	}
+	directory := filepath.Join(s.root, "events", operationID)
+	entries, err := os.ReadDir(directory)
+	if errors.Is(err, os.ErrNotExist) {
+		return []RunnerOperationEvent{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read runner state events: %w", err)
+	}
+	events := make([]RunnerOperationEvent, 0, min(limit, len(entries)))
+	for _, entry := range entries {
+		if entry.IsDir() || strings.HasSuffix(entry.Name(), ".tmp") {
+			continue
+		}
+		revision, ok := parseRunnerStateEventRevision(entry.Name())
+		if !ok || revision <= afterRevision {
+			continue
+		}
+		// #nosec G304 -- entry.Name 已经通过固定宽度 revision 文件名校验，目录由安全 operation ID 构成。
+		contents, readErr := os.ReadFile(filepath.Join(directory, entry.Name()))
+		if readErr != nil {
+			return nil, fmt.Errorf("read runner state event: %w", readErr)
+		}
+		event, decodeErr := unmarshalRunnerStateEvent(contents)
+		if decodeErr != nil {
+			return nil, decodeErr
+		}
+		if event.OperationID != operationID || event.Revision != revision {
+			return nil, errors.New("runner state event binding is invalid")
+		}
+		events = append(events, event)
+		if len(events) == limit {
+			break
+		}
+	}
+	return events, nil
+}
+
 func (s *FileRunnerStateStore) assignServerOwnership(path, kind string) error {
 	if s == nil || !s.enforceOwnership {
 		return nil
@@ -198,6 +277,78 @@ func (s *FileRunnerStateStore) assignServerOwnership(path, kind string) error {
 		return fmt.Errorf("assign runner state %s owner: %w", kind, err)
 	}
 	return nil
+}
+
+func (s *FileRunnerStateStore) prepareRunnerWritableDirectory(path, kind string) error {
+	if s == nil || !s.enforceOwnership {
+		return nil
+	}
+	if err := os.Chown(path, 0, 0); err != nil {
+		return fmt.Errorf("assign runner state %s directory owner: %w", kind, err)
+	}
+	if err := os.Chmod(path, runnerStateDirectoryPermission); err != nil {
+		return fmt.Errorf("assign runner state %s directory permission: %w", kind, err)
+	}
+	return nil
+}
+
+func newRunnerOperationEvent(state RunnerState) RunnerOperationEvent {
+	return RunnerOperationEvent{OperationID: state.OperationID, Revision: state.Revision, Phase: state.Phase, Message: state.Message, OccurredAt: state.UpdatedAt}
+}
+
+func marshalRunnerStateEvent(event RunnerOperationEvent) ([]byte, error) {
+	record := runnerStateEventRecord{SchemaVersion: runnerStateEventSchemaVersion, RunnerOperationEvent: event}
+	if err := validateRunnerStateEvent(record); err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(record)
+	if err != nil {
+		return nil, fmt.Errorf("encode runner state event: %w", err)
+	}
+	digest := sha256.Sum256(payload)
+	record.Digest = hex.EncodeToString(digest[:])
+	payload, err = json.Marshal(record)
+	if err != nil {
+		return nil, fmt.Errorf("encode runner state event with digest: %w", err)
+	}
+	return payload, nil
+}
+
+func unmarshalRunnerStateEvent(contents []byte) (RunnerOperationEvent, error) {
+	var record runnerStateEventRecord
+	if err := json.Unmarshal(contents, &record); err != nil {
+		return RunnerOperationEvent{}, fmt.Errorf("decode runner state event: %w", err)
+	}
+	if err := validateRunnerStateEvent(record); err != nil {
+		return RunnerOperationEvent{}, err
+	}
+	digest := record.Digest
+	record.Digest = ""
+	payload, err := json.Marshal(record)
+	if err != nil {
+		return RunnerOperationEvent{}, fmt.Errorf("encode runner state event integrity: %w", err)
+	}
+	want := sha256.Sum256(payload)
+	if digest != hex.EncodeToString(want[:]) {
+		return RunnerOperationEvent{}, errors.New("runner state event integrity check failed")
+	}
+	return record.RunnerOperationEvent, nil
+}
+
+func validateRunnerStateEvent(record runnerStateEventRecord) error {
+	event := record.RunnerOperationEvent
+	if record.SchemaVersion != runnerStateEventSchemaVersion || !runnerOperationID.MatchString(event.OperationID) || event.Revision == 0 || !validRunnerPhase(event.Phase) || !validRunnerStateMessage(event.Message) || event.OccurredAt.IsZero() {
+		return errors.New("runner state event is invalid")
+	}
+	return nil
+}
+
+func parseRunnerStateEventRevision(name string) (uint64, bool) {
+	if len(name) != len("00000000000000000000.json") || !strings.HasSuffix(name, ".json") {
+		return 0, false
+	}
+	revision, err := strconv.ParseUint(strings.TrimSuffix(name, ".json"), 10, 64)
+	return revision, err == nil && revision > 0
 }
 
 // NewRunnerState 返回具有单调 revision 的新状态转换。
@@ -216,15 +367,33 @@ func NewRunnerState(input RunnerInput, runnerID string, phase RunnerPhase, progr
 	return state
 }
 
-//nolint:cyclop // 单个快照的全部不变量必须在读取边界一次性验证。
+//nolint:cyclop,gocyclo // 单个快照的全部不变量必须在读取边界一次性验证。
 func validateRunnerState(value RunnerState) error {
-	if value.SchemaVersion != runnerStateSchemaVersion || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(value.Strategy)) || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
+	if value.SchemaVersion != runnerStateSchemaVersion || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(value.Strategy)) || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || !validRunnerStateMessage(value.Message) || !validRunnerStateFailure(value.Error) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
 		return errors.New("runner state is invalid")
 	}
 	if isTerminalRunnerPhase(value.Phase) != (value.FinishedAt != nil) {
 		return errors.New("runner state terminal timestamp is invalid")
 	}
 	return nil
+}
+
+func validRunnerStateMessage(message string) bool {
+	switch message {
+	case "runner_starting", "runner_accepted", "checking_environment", "creating_backup", "pulling_images", "verifying_images", "stopping_services", "applying_update", "running_migrations", "starting_services", "checking_health", "update_completed", "update_failed", "rollback_completed":
+		return true
+	default:
+		return false
+	}
+}
+
+func validRunnerStateFailure(failure string) bool {
+	switch failure {
+	case "", runnerFailureInvalidInput, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz:
+		return true
+	default:
+		return false
+	}
 }
 
 func validRunnerPhase(value RunnerPhase) bool { return phaseOrdinal(value) >= 0 }

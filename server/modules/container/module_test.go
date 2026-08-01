@@ -230,6 +230,11 @@ func newTestContext() *module.Context {
 	}); err != nil {
 		panic(fmt.Sprintf("register task runtime registrar: %v", err))
 	}
+	if err := services.RegisterSingleton((*moduleapi.SavedViewService)(nil), func(containerdi.Resolver) (any, error) {
+		return savedViewServiceStub{}, nil
+	}); err != nil {
+		panic(fmt.Sprintf("register saved view service: %v", err))
+	}
 	return &module.Context{
 		I18n:               localizer,
 		MenuRegistry:       menu.NewRegistry(),

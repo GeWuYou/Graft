@@ -391,6 +391,8 @@ type GetAccessLogSavedViews403JSONResponseBodySuccess bool
 
 // PostAccessLogSavedViewJSONBody defines parameters for PostAccessLogSavedView.
 type PostAccessLogSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`
@@ -431,6 +433,8 @@ type DeleteAccessLogSavedView403JSONResponseBodySuccess bool
 
 // PutAccessLogSavedViewJSONBody defines parameters for PutAccessLogSavedView.
 type PutAccessLogSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`

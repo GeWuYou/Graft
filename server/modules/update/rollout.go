@@ -49,6 +49,7 @@ type RolloutService struct {
 }
 
 const receiptPollInterval = 15 * time.Second
+const maxActiveOperationScan = 100
 
 // runnerStatePollInterval 仅保持 server 投影的新鲜度，不构成 runner 执行心跳或生命周期租约。
 const runnerStatePollInterval = 2 * time.Second
@@ -71,6 +72,8 @@ var (
 	errRolloutSourceVersionUnsupported = errors.New("compose update source version is unsupported")
 	errRolloutComposeCandidateInvalid  = errors.New("compose update candidate is invalid")
 	errRolloutComposePreflightFailed   = errors.New("compose update preflight failed")
+	errRunnerStateUnavailable          = errors.New("runner state is unavailable")
+	errActiveUpdateOperationNotFound   = errors.New("active update operation not found")
 )
 
 // SetAuditPublisher 注入 durable 审计事件发布端和失败日志器；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
@@ -189,6 +192,8 @@ func (s *RolloutService) ensureNoActiveRunner() error {
 }
 
 // GetOperation 返回活动 runner 快照，或已结算的数据库终态历史。
+//
+//nolint:cyclop // runner 状态读取、不可用投影和终态历史有不同 authority，必须保留可审计分支。
 func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (OperationView, error) {
 	if s == nil || !runnerOperationID.MatchString(operationID) {
 		return OperationView{}, errors.New("update operation identity is invalid")
@@ -202,14 +207,72 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 			if s.logger != nil {
 				s.logger.Warn("platform update runner state read failed", zap.Error(err))
 			}
-			return OperationView{}, fmt.Errorf("read runner state: %w", err)
+			return OperationView{}, fmt.Errorf("%w: %v", errRunnerStateUnavailable, err)
 		}
+	}
+	if s.operations == nil {
+		return OperationView{}, errors.New("update operation store is unavailable")
 	}
 	operation, err := s.operations.Get(ctx, operationID)
 	if err != nil {
 		return OperationView{}, err
 	}
+	if !isTerminalOutcome(operation.Outcome) {
+		return updateOperationViewFromUnavailableRunnerState(operation), nil
+	}
 	return updateOperationViewFromHistory(operation), nil
+}
+
+// GetActiveOperation 返回 runner 当前接管的操作；缺失状态卷时保留受控不可用投影，不能伪造 READY 进度。
+//
+//nolint:cyclop // runner 快照优先，状态缺失时才回退到受限数据库请求记录，分支对应不同事实来源。
+func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView, error) {
+	if s == nil {
+		return nil, errors.New("update operation service is unavailable")
+	}
+	if s.stateStore != nil {
+		state, err := s.stateStore.Read()
+		switch {
+		case err == nil && !isTerminalRunnerPhase(state.Phase):
+			view := updateOperationViewFromRunnerState(state)
+			return &view, nil
+		case err != nil && !errors.Is(err, os.ErrNotExist):
+			return nil, fmt.Errorf("%w: %v", errRunnerStateUnavailable, err)
+		}
+	}
+	if s.operations == nil {
+		return nil, errors.New("update operation store is unavailable")
+	}
+	items, err := s.operations.List(ctx, maxActiveOperationScan)
+	if err != nil {
+		return nil, err
+	}
+	for _, operation := range items {
+		if !isTerminalOutcome(operation.Outcome) {
+			view := updateOperationViewFromUnavailableRunnerState(operation)
+			return &view, nil
+		}
+	}
+	return nil, errActiveUpdateOperationNotFound
+}
+
+// GetOperationEvents 返回 runner 状态卷中按 revision 回放的受控节点日志。
+func (s *RolloutService) GetOperationEvents(ctx context.Context, operationID string, afterRevision uint64, limit int) ([]RunnerOperationEvent, error) {
+	if s == nil || !runnerOperationID.MatchString(operationID) {
+		return nil, errors.New("update operation identity is invalid")
+	}
+	view, err := s.GetOperation(ctx, operationID)
+	if err != nil {
+		return nil, err
+	}
+	if !view.StateAvailable {
+		return nil, errRunnerStateUnavailable
+	}
+	reader, ok := s.stateStore.(RunnerStateEventReader)
+	if !ok {
+		return nil, errRunnerStateUnavailable
+	}
+	return reader.ReadEvents(operationID, afterRevision, limit)
 }
 
 // ListOperations 返回数据库中的终态业务历史，活动操作只能通过 GetOperation 读取状态卷快照。
@@ -670,7 +733,11 @@ func (s *RolloutService) publishRunnerState(state RunnerState) {
 	if s == nil || s.realtime == nil || !runnerOperationID.MatchString(state.OperationID) {
 		return
 	}
-	s.realtime.Publish(updateOperationTopic(state.OperationID), updateOperationViewFromRunnerState(state))
+	view := updateOperationViewFromRunnerState(state)
+	s.realtime.Publish(updateOperationTopic(state.OperationID), struct {
+		Event     RunnerOperationEvent `json:"event"`
+		Operation OperationView        `json:"operation"`
+	}{Event: newRunnerOperationEvent(state), Operation: view})
 }
 
 func (s *RolloutService) reconcileAvailableReceipts(ctx context.Context, reader ComposeRunnerReceiptReader) error {

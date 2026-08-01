@@ -8,8 +8,10 @@ import { buildUpdateOperationTopicName } from '../contract/realtime';
 import {
   checkForUpdates,
   createUpdateOperation,
+  getActiveUpdateOperation,
   getUpdateOperation,
   getUpdateOperationDiagnostic,
+  getUpdateOperationEvents,
   getUpdateOperations,
   getUpdateStatus,
   subscribeToUpdateOperation,
@@ -72,10 +74,19 @@ describe('platform update api', () => {
     requestGet.mockResolvedValue({ operation_id: 'update-1' } as never);
 
     await getUpdateOperation('update-1');
+    await getActiveUpdateOperation();
+    await getUpdateOperationEvents('update-1', 8);
     await getUpdateOperationDiagnostic('update-1');
 
     expect(requestGet).toHaveBeenNthCalledWith(1, { url: '/api/platform/updates/operations/update-1' });
     expect(requestGet).toHaveBeenNthCalledWith(2, {
+      url: '/api/platform/updates/operations/active',
+    });
+    expect(requestGet).toHaveBeenNthCalledWith(3, {
+      url: '/api/platform/updates/operations/update-1/events',
+      params: { after_revision: 8 },
+    });
+    expect(requestGet).toHaveBeenNthCalledWith(4, {
       url: '/api/platform/updates/operations/update-1/diagnostic',
     });
   });

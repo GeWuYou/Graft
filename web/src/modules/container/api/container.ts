@@ -102,6 +102,28 @@ type PostContainerBatchActionsRequest = NonNullable<
 export type ContainerListResponse = GetContainersData;
 
 type DockerImagesOperation = paths['/api/ops/docker/images']['get'];
+type DockerImageSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getDockerImageSavedViews;
+type DockerImageSavedViewsOperation = paths[DockerImageSavedViewsPath];
+type DockerImageSavedViewRequest = NonNullable<
+  DockerImageSavedViewsOperation['post']['requestBody']
+>['content']['application/json'];
+type DockerImageSavedView = NonNullable<
+  DockerImageSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>['items'][number];
+type DockerImageSavedViewList = NonNullable<
+  DockerImageSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>;
+type DockerResourceSavedViewsPath = typeof OPENAPI_RUNTIME_PATH.getContainerSavedViews;
+type DockerResourceSavedViewsOperation = paths[DockerResourceSavedViewsPath];
+type DockerResourceSavedViewRequest = NonNullable<
+  DockerResourceSavedViewsOperation['post']['requestBody']
+>['content']['application/json'];
+type DockerResourceSavedView = NonNullable<
+  DockerResourceSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>['items'][number];
+type DockerResourceSavedViewList = NonNullable<
+  DockerResourceSavedViewsOperation['get']['responses'][200]['content']['application/json']['data']
+>;
 type DockerVolumeBatchRemoveOperation = paths['/api/ops/docker/volumes/batch-remove']['post'];
 export type DockerVolumeBatchRemoveRequest =
   DockerVolumeBatchRemoveOperation['requestBody']['content']['application/json'];
@@ -141,6 +163,10 @@ type DockerSystemData = NonNullable<
 
 export type DockerImageRecord = DockerImagesData['items'][number];
 
+export type DockerSavedViewPayload = DockerImageSavedViewRequest;
+export type DockerSavedViewRecord = DockerImageSavedView | DockerResourceSavedView;
+export type DockerSavedViewList = DockerImageSavedViewList | DockerResourceSavedViewList;
+
 export const getDockerImages = (query?: DockerImageListQuery) =>
   request.get<DockerImagesData>({
     url: OPENAPI_RUNTIME_PATH.getDockerImages,
@@ -151,6 +177,58 @@ export const getDockerImage = (imageId: string) =>
   request.get<DockerImageRecord>({
     url: buildOpenApiRuntimePath('getDockerImage', { id: imageId }),
   }) as Promise<DockerImageRecord>;
+
+export const getDockerImageSavedViews = () =>
+  request
+    .get<DockerImageSavedViewList>({ url: OPENAPI_RUNTIME_PATH.getDockerImageSavedViews })
+    .then((response) => response.items);
+export const postDockerImageSavedView = (data: DockerSavedViewPayload) =>
+  request.post<DockerImageSavedView>({ url: OPENAPI_RUNTIME_PATH.postDockerImageSavedView, data });
+export const putDockerImageSavedView = (id: number, data: DockerSavedViewPayload) =>
+  request.put<DockerImageSavedView>({ url: buildOpenApiRuntimePath('putDockerImageSavedView', { viewId: id }), data });
+export const deleteDockerImageSavedView = (id: number) =>
+  request.delete({ url: buildOpenApiRuntimePath('deleteDockerImageSavedView', { viewId: id }) }).then(() => undefined);
+
+export const getContainerSavedViews = () =>
+  request
+    .get<DockerResourceSavedViewList>({ url: OPENAPI_RUNTIME_PATH.getContainerSavedViews })
+    .then((response) => response.items);
+export const postContainerSavedView = (data: DockerResourceSavedViewRequest) =>
+  request.post<DockerResourceSavedView>({ url: OPENAPI_RUNTIME_PATH.postContainerSavedView, data });
+export const putContainerSavedView = (id: number, data: DockerResourceSavedViewRequest) =>
+  request.put<DockerResourceSavedView>({ url: buildOpenApiRuntimePath('putContainerSavedView', { viewId: id }), data });
+export const deleteContainerSavedView = (id: number) =>
+  request.delete({ url: buildOpenApiRuntimePath('deleteContainerSavedView', { viewId: id }) }).then(() => undefined);
+
+export const getDockerNetworkSavedViews = () =>
+  request
+    .get<DockerResourceSavedViewList>({ url: OPENAPI_RUNTIME_PATH.getDockerNetworkSavedViews })
+    .then((response) => response.items);
+export const postDockerNetworkSavedView = (data: DockerResourceSavedViewRequest) =>
+  request.post<DockerResourceSavedView>({ url: OPENAPI_RUNTIME_PATH.postDockerNetworkSavedView, data });
+export const putDockerNetworkSavedView = (id: number, data: DockerResourceSavedViewRequest) =>
+  request.put<DockerResourceSavedView>({
+    url: buildOpenApiRuntimePath('putDockerNetworkSavedView', { viewId: id }),
+    data,
+  });
+export const deleteDockerNetworkSavedView = (id: number) =>
+  request
+    .delete({ url: buildOpenApiRuntimePath('deleteDockerNetworkSavedView', { viewId: id }) })
+    .then(() => undefined);
+
+export const getDockerVolumeSavedViews = () =>
+  request
+    .get<DockerResourceSavedViewList>({ url: OPENAPI_RUNTIME_PATH.getDockerVolumeSavedViews })
+    .then((response) => response.items);
+export const postDockerVolumeSavedView = (data: DockerResourceSavedViewRequest) =>
+  request.post<DockerResourceSavedView>({ url: OPENAPI_RUNTIME_PATH.postDockerVolumeSavedView, data });
+export const putDockerVolumeSavedView = (id: number, data: DockerResourceSavedViewRequest) =>
+  request.put<DockerResourceSavedView>({
+    url: buildOpenApiRuntimePath('putDockerVolumeSavedView', { viewId: id }),
+    data,
+  });
+export const deleteDockerVolumeSavedView = (id: number) =>
+  request.delete({ url: buildOpenApiRuntimePath('deleteDockerVolumeSavedView', { viewId: id }) }).then(() => undefined);
 export type DockerNetworkListQuery = NonNullable<
   paths[typeof OPENAPI_RUNTIME_PATH.getDockerNetworks]['get']['parameters']['query']
 >;

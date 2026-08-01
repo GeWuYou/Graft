@@ -50,8 +50,10 @@ func registerRoutes(ctx *module.Context, service *Service, rollout *RolloutServi
 		return errors.New("platform-update rollout service is unavailable")
 	}
 	group.GET(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.list)
+	group.GET(updatecontract.UpdateActiveOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.getActive)
 	group.GET(updatecontract.UpdateFailureDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.getFailureDiagnostic)
 	group.GET(updatecontract.UpdateOperationDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.getOperationFailureDiagnostic)
+	group.GET(updatecontract.UpdateOperationEventsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.getEvents)
 	group.GET(updatecontract.UpdateOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.get)
 	group.POST(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.start)
 	return nil
@@ -112,11 +114,64 @@ func (h updateRouteHandlers) get(c *gin.Context) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusNotFound, messagecontract.CommonNotFound.String(), nil)
 		return
 	}
+	if errors.Is(err, errRunnerStateUnavailable) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusServiceUnavailable, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
 	if err != nil {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, item)
+}
+
+func (h updateRouteHandlers) getActive(c *gin.Context) {
+	item, err := h.rollout.GetActiveOperation(c.Request.Context())
+	if errors.Is(err, errActiveUpdateOperationNotFound) {
+		var noActive *OperationView
+		httpx.WriteSuccess(c, http.StatusOK, noActive)
+		return
+	}
+	if errors.Is(err, errRunnerStateUnavailable) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusServiceUnavailable, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
+	if err != nil {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, item)
+}
+
+func (h updateRouteHandlers) getEvents(c *gin.Context) {
+	operationID := c.Param("operationID")
+	if !runnerOperationID.MatchString(operationID) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	afterRevision := uint64(0)
+	if raw := c.Query("after_revision"); raw != "" {
+		parsed, err := strconv.ParseUint(raw, 10, 64)
+		if err != nil {
+			httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+			return
+		}
+		afterRevision = parsed
+	}
+	events, err := h.rollout.GetOperationEvents(c.Request.Context(), operationID, afterRevision, maxRunnerStateEventReplay)
+	if errors.Is(err, errUpdateOperationNotFound) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusNotFound, messagecontract.CommonNotFound.String(), nil)
+		return
+	}
+	if errors.Is(err, errRunnerStateUnavailable) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusServiceUnavailable, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
+	if err != nil {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, events)
 }
 
 func (h updateRouteHandlers) getFailureDiagnostic(c *gin.Context) {

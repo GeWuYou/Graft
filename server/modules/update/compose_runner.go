@@ -164,6 +164,9 @@ func runRunnerPreMigration(ctx context.Context, input RunnerInput, actions Compo
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
 		return finalizeRunnerError(*receipt, errors.Join(err, reportReceiptFailure(reporter, *receipt)))
 	}
+	if err := reportRunnerState(reporter, RunnerPhasePullImages, runnerProgressPullImages, "verifying_images", ""); err != nil {
+		return fmt.Errorf("persist runner image verification state: %w", err)
+	}
 	if err := actions.VerifyImages(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureImageVerify
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)

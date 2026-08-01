@@ -25,10 +25,11 @@
       v-model="resourceQueryState"
       :config="queryConfig"
       :loading="loading"
-      :saved-view-controller="savedViews"
       @reset="resetFilters"
       @search="applyFilters"
-    />
+    >
+      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+    </resource-query-panel>
 
     <management-paged-table
       v-model:current="pagination.current"
@@ -316,6 +317,7 @@ import {
   type ResourceQueryConfig,
   ResourceQueryPanel,
   type ResourceQueryState,
+  SavedQueryViewControl,
   type SavedQueryViewOperation,
 } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';

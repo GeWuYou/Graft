@@ -19,6 +19,8 @@ type OperationView struct {
 	FinishedAt                 *time.Time  `json:"finished_at,omitempty"`
 	Error                      string      `json:"error,omitempty"`
 	FailureDiagnosticAvailable bool        `json:"failure_diagnostic_available,omitempty"`
+	StateSource                string      `json:"state_source"`
+	StateAvailable             bool        `json:"state_available"`
 }
 
 // OperationLaunchAcknowledgement 只确认 runner 启动请求已被 Docker 接受。
@@ -29,7 +31,7 @@ type OperationLaunchAcknowledgement struct {
 }
 
 func updateOperationViewFromRunnerState(state RunnerState) OperationView {
-	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: state.Message, StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, FinishedAt: state.FinishedAt, Error: state.Error}
+	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: state.Message, StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, FinishedAt: state.FinishedAt, Error: state.Error, StateSource: "runner_state", StateAvailable: true}
 }
 
 func updateOperationViewFromHistory(operation ComposeUpdateOperation) OperationView {
@@ -44,5 +46,9 @@ func updateOperationViewFromHistory(operation ComposeUpdateOperation) OperationV
 	case ExecutionOutcomeFailed, ExecutionOutcomeNeedsAttention:
 		phase, progress, message = RunnerPhaseFailed, 100, "update_failed"
 	}
-	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: phase, Progress: progress, Message: message, StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, FinishedAt: operation.FinishedAt, Error: operation.FailureCode, FailureDiagnosticAvailable: operation.FailureDiagnosticAvailable}
+	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: phase, Progress: progress, Message: message, StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, FinishedAt: operation.FinishedAt, Error: operation.FailureCode, FailureDiagnosticAvailable: operation.FailureDiagnosticAvailable, StateSource: "terminal_history", StateAvailable: true}
+}
+
+func updateOperationViewFromUnavailableRunnerState(operation ComposeUpdateOperation) OperationView {
+	return OperationView{OperationID: operation.OperationID, Operation: "self_update", RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, DeploymentStrategy: string(operation.DeploymentStrategy), Phase: RunnerPhaseReady, Progress: 0, Message: "runner_state_unavailable", StartedAt: operation.StartedAt, UpdatedAt: operation.UpdatedAt, StateSource: "runner_state_unavailable", StateAvailable: false}
 }
