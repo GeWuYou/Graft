@@ -179,7 +179,15 @@
           "ROLLBACK": "已回滚"
         },
         "messages": {
+          "runner_accepted": "升级已受理",
+          "checking_environment": "正在检查环境",
+          "creating_backup": "正在创建备份",
           "pulling_images": "正在拉取镜像",
+          "stopping_services": "正在停止服务",
+          "applying_update": "正在应用更新",
+          "running_migrations": "正在执行迁移",
+          "starting_services": "正在启动服务",
+          "checking_health": "正在检查服务健康状态",
           "update_completed": "更新已完成",
           "update_failed": "更新失败",
           "rollback_completed": "回滚已完成"

@@ -194,7 +194,15 @@
           "ROLLBACK": "Rolled back"
         },
         "messages": {
+          "runner_accepted": "Update accepted",
+          "checking_environment": "Checking environment",
+          "creating_backup": "Creating backup",
           "pulling_images": "Pulling images",
+          "stopping_services": "Stopping services",
+          "applying_update": "Applying update",
+          "running_migrations": "Running migrations",
+          "starting_services": "Starting services",
+          "checking_health": "Checking service health",
           "update_completed": "Update completed",
           "update_failed": "Update failed",
           "rollback_completed": "Rollback completed"

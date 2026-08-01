@@ -77,6 +77,7 @@ type RunnerStateStore interface {
 type FileRunnerStateStore struct {
 	root             string
 	enforceOwnership bool
+	renameFile       func(string, string) error
 	mu               sync.Mutex
 }
 
@@ -86,7 +87,7 @@ func NewFileRunnerStateStore(root string) (*FileRunnerStateStore, error) {
 	if !filepath.IsAbs(root) {
 		return nil, errors.New("runner state root must be absolute")
 	}
-	return &FileRunnerStateStore{root: root, enforceOwnership: root == RunnerStateRoot}, nil
+	return &FileRunnerStateStore{root: root, enforceOwnership: root == RunnerStateRoot, renameFile: os.Rename}, nil
 }
 
 // Read 读取并校验最近一次原子写入的快照。
@@ -180,10 +181,10 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	if err := s.assignServerOwnership(eventTemporary, "event"); err != nil {
 		return fmt.Errorf("assign runner state event owner: %w", err)
 	}
-	if err := os.Rename(eventTemporary, eventPath); err != nil {
+	if err := s.renameFile(eventTemporary, eventPath); err != nil {
 		return fmt.Errorf("publish runner state event: %w", err)
 	}
-	if err := os.Rename(temporary, filepath.Join(s.root, "current.json")); err != nil {
+	if err := s.renameFile(temporary, filepath.Join(s.root, "current.json")); err != nil {
 		return fmt.Errorf("publish runner state: %w", err)
 	}
 	return nil

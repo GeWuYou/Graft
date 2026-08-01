@@ -1,6 +1,7 @@
 package update
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -34,6 +35,61 @@ func TestFileRunnerStateStorePublishesVerifiedMonotonicSnapshots(t *testing.T) {
 	}
 	if err := store.Write(ready); err == nil {
 		t.Fatal("expected stale state revision to be rejected")
+	}
+}
+
+func TestFileRunnerStateStoreRetriesAfterEventPublishFailure(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-state-retry", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	ready := NewRunnerState(input, "runner-state-retry", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(ready); err != nil {
+		t.Fatalf("write ready state: %v", err)
+	}
+	next := NewRunnerState(input, "runner-state-retry", RunnerPhasePreflight, 5, "checking_environment", "", ready)
+	eventPath := filepath.Join(store.root, "events", "00000000000000000002.json")
+	failOnce := true
+	store.renameFile = func(oldPath, newPath string) error {
+		if failOnce && newPath == eventPath {
+			failOnce = false
+			return errors.New("event publish unavailable")
+		}
+		return os.Rename(oldPath, newPath)
+	}
+	if err := store.Write(next); err == nil || !strings.Contains(err.Error(), "publish runner state event") {
+		t.Fatalf("event publish failure = %v", err)
+	}
+	if got, err := store.Read(); err != nil || got.Revision != ready.Revision {
+		t.Fatalf("current snapshot after failed publish = %#v, %v", got, err)
+	}
+	if err := store.Write(next); err != nil {
+		t.Fatalf("retry state write: %v", err)
+	}
+	assertRunnerStateEventMatchesCurrent(t, store, eventPath, next)
+}
+
+func assertRunnerStateEventMatchesCurrent(t *testing.T, store *FileRunnerStateStore, eventPath string, want RunnerState) {
+	t.Helper()
+	current, err := os.ReadFile(filepath.Join(store.root, "current.json"))
+	if err != nil {
+		t.Fatalf("read current snapshot: %v", err)
+	}
+	// #nosec G304 -- eventPath 由 t.TempDir() 创建的测试状态卷推导。
+	event, err := os.ReadFile(eventPath)
+	if err != nil {
+		t.Fatalf("read published event: %v", err)
+	}
+	if string(current) != strings.TrimSuffix(string(event), "\n") {
+		t.Fatalf("event and current snapshots differ: event=%s current=%s", event, current)
+	}
+	var eventState RunnerState
+	if err := json.Unmarshal(event, &eventState); err != nil {
+		t.Fatalf("decode published event: %v", err)
+	}
+	if eventState.Revision != want.Revision || eventState.OperationID != want.OperationID {
+		t.Fatalf("published event state = %#v", eventState)
 	}
 }
 
