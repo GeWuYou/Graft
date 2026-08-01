@@ -2,23 +2,27 @@ package build
 
 import (
 	"errors"
+	"fmt"
 
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
+	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	buildcontract "graft/server/modules/build/contract"
 )
 
 const moduleID = "build"
 
-// Module 声明 Build domain 的生命周期边界；具体 executor 和 API 在后续阶段接入。
-type Module struct{}
+// Module 声明 Build domain 的生命周期边界，并在 Register 阶段接入其 Task executor 与 HTTP API。
+type Module struct{ service *Service }
 
-// NewModule 创建无常驻资源的 Build 模块。
+// NewModule 创建由 Task Runtime 消费的无常驻 Build 模块。
 func NewModule() *Module { return &Module{} }
 
-// Register 注册 Build 权限和导航入口，不启动构建行为。
-func (*Module) Register(ctx *module.Context) error {
+// Register 注册 Build 权限、导航、Task executor 和 HTTP API，不启动独立 worker。
+//
+//nolint:cyclop // 显式解析跨模块 capability 保持 Build 的依赖与注册顺序可审计。
+func (m *Module) Register(ctx *module.Context) error {
 	if ctx == nil || ctx.PermissionRegistry == nil || ctx.MenuRegistry == nil {
 		return errors.New("build module registries are unavailable")
 	}
@@ -32,7 +36,31 @@ func (*Module) Register(ctx *module.Context) error {
 		ctx.PermissionRegistry.Register(item)
 	}
 	ctx.MenuRegistry.Register(menu.Item{Code: "build.jobs", ParentCode: "domain.build", Kind: menu.NodeKindEntry, TitleKey: "menu.build.jobs.title", Path: "/build/jobs", Icon: "build", Order: 1, Permission: buildcontract.BuildReadPermission, Module: moduleID})
-	return nil
+	contexts, err := module.ResolveService[moduleapi.ApplicationBuildContextResolver](ctx.Services, (*moduleapi.ApplicationBuildContextResolver)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve application build context resolver: %w", err)
+	}
+	tasks, err := module.ResolveService[moduleapi.TaskService](ctx.Services, (*moduleapi.TaskService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task service: %w", err)
+	}
+	registrar, err := module.ResolveService[moduleapi.TaskRuntimeRegistrar](ctx.Services, (*moduleapi.TaskRuntimeRegistrar)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve task runtime registrar: %w", err)
+	}
+	docker, err := module.ResolveService[moduleapi.DockerImageBuildCapability](ctx.Services, (*moduleapi.DockerImageBuildCapability)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve Docker image build capability: %w", err)
+	}
+	service, err := NewService(contexts, tasks, docker)
+	if err != nil {
+		return err
+	}
+	if err := registerBuildTaskExecutor(registrar, contexts, docker); err != nil {
+		return err
+	}
+	m.service = service
+	return registerRoutes(ctx, service)
 }
 
 // Boot 当前无常驻构建资源。

@@ -227,6 +227,10 @@
       "description": "Compose 项目管理"
     },
     {
+      "name": "build",
+      "description": "Dockerfile 构建作业管理"
+    },
+    {
       "name": "runtime-target",
       "description": "运行目标管理"
     }
@@ -16052,6 +16056,64 @@
           },
           "404": {
             "description": "Saved view was not found."
+          }
+        }
+      }
+    },
+    "/api/build/jobs": {
+      "post": {
+        "tags": [
+          "build"
+        ],
+        "operationId": "postBuildJob",
+        "summary": "Submit a Dockerfile build Task for an authorized Application",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/build-job-create-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Dockerfile build Task accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-task-receipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid build request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "409": {
+            "description": "Idempotency-Key was previously used with different build input."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       }
@@ -35776,6 +35838,67 @@
             }
           }
         ]
+      },
+      "build-job-create-request": {
+        "type": "object",
+        "required": [
+          "application_id",
+          "context_path",
+          "dockerfile_path",
+          "image_repository",
+          "image_tag"
+        ],
+        "properties": {
+          "application_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "context_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "dockerfile_path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "image_repository": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "image_tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "build_args": {
+            "type": "array",
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "value"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "docker-image-pull-request": {
         "type": "object",

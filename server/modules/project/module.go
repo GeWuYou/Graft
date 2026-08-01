@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	containerdi "graft/server/internal/container"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/realtime"
@@ -33,6 +34,11 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	if err := registerProjectTaskExecutors(taskRegistrar, m.service); err != nil {
+		return err
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ApplicationBuildContextResolver)(nil), func(containerdi.Resolver) (any, error) {
+		return m.service, nil
+	}); err != nil {
 		return err
 	}
 	if err := m.service.registerRealtimeTopics(); err != nil {

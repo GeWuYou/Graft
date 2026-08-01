@@ -8092,6 +8092,19 @@ type BootstrapResponse struct {
 	User               LoginUser       `json:"user"`
 }
 
+// BuildJobCreateRequest defines model for build-job-create-request.
+type BuildJobCreateRequest struct {
+	ApplicationId int64 `json:"application_id"`
+	BuildArgs     *[]struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"build_args,omitempty"`
+	ContextPath     string `json:"context_path"`
+	DockerfilePath  string `json:"dockerfile_path"`
+	ImageRepository string `json:"image_repository"`
+	ImageTag        string `json:"image_tag"`
+}
+
 // ChangePasswordRequest defines model for change-password-request.
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
@@ -15302,6 +15315,11 @@ type PostAuthSessionRevokeParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostBuildJobParams defines parameters for PostBuildJob.
+type PostBuildJobParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
 // GetDashboardSummaryParams defines parameters for GetDashboardSummary.
 type GetDashboardSummaryParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -17700,6 +17718,9 @@ type PostAuthLoginJSONRequestBody = LoginRequest
 
 // PostAuthPersonalAccessTokensJSONRequestBody defines body for PostAuthPersonalAccessTokens for application/json ContentType.
 type PostAuthPersonalAccessTokensJSONRequestBody = PersonalAccessTokenCreateRequest
+
+// PostBuildJobJSONRequestBody defines body for PostBuildJob for application/json ContentType.
+type PostBuildJobJSONRequestBody = BuildJobCreateRequest
 
 // PostDockerImageSavedViewJSONRequestBody defines body for PostDockerImageSavedView for application/json ContentType.
 type PostDockerImageSavedViewJSONRequestBody = SavedViewRequest

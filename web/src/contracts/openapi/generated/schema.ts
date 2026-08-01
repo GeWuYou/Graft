@@ -3087,6 +3087,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/build/jobs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit a Dockerfile build Task for an authorized Application */
+    post: operations['postBuildJob'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/images/pull': {
     parameters: {
       query?: never;
@@ -8890,6 +8907,18 @@ export interface components {
     };
     'enveloped-docker-image-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['docker-image-list-response'];
+    };
+    'build-job-create-request': {
+      /** Format: int64 */
+      application_id: number;
+      context_path: string;
+      dockerfile_path: string;
+      image_repository: string;
+      image_tag: string;
+      build_args?: {
+        name: string;
+        value: string;
+      }[];
     };
     'docker-image-pull-request': {
       /** @description Complete image reference resolved by the configured Docker daemon credential store. */
@@ -19800,6 +19829,49 @@ export interface operations {
         };
         content?: never;
       };
+    };
+  };
+  postBuildJob: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['build-job-create-request'];
+      };
+    };
+    responses: {
+      /** @description Dockerfile build Task accepted. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-task-receipt'];
+        };
+      };
+      /** @description Invalid build request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Idempotency-Key was previously used with different build input. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
     };
   };
   postDockerImagePull: {
