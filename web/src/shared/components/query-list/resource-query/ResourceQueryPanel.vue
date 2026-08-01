@@ -27,32 +27,28 @@
             />
             <slot name="toolbar-after-search" />
             <t-button
-              v-if="filters.length && !compact"
+              v-if="filters.length"
               class="resource-query-panel__filter-trigger"
               data-testid="resource-query-builder-trigger"
               :aria-expanded="filtersVisible"
+              size="medium"
               :theme="filtersVisible ? 'primary' : 'default'"
               :variant="filtersVisible ? 'base' : 'outline'"
-              @click="toggleFilters"
-            >
-              {{ t('app.queryBar.moreFilters') }}
-            </t-button>
-            <t-button
-              v-else-if="filters.length"
-              class="resource-query-panel__filter-trigger"
-              data-testid="resource-query-builder-trigger"
-              :aria-expanded="filtersVisible"
-              :theme="filtersVisible ? 'primary' : 'default'"
-              :variant="filtersVisible ? 'base' : 'outline'"
-              @click="openFilters"
+              @click="compact ? openFilters() : toggleFilters()"
             >
               {{ t('app.queryBar.moreFilters') }}
             </t-button>
             <div class="resource-query-panel__commands">
-              <t-button data-testid="resource-query-search" theme="primary" :loading="loading" @click="apply">
+              <t-button
+                data-testid="resource-query-search"
+                size="medium"
+                theme="primary"
+                :loading="loading"
+                @click="apply"
+              >
                 {{ t('app.queryBar.search') }}
               </t-button>
-              <t-button data-testid="resource-query-reset" variant="outline" @click="reset">
+              <t-button data-testid="resource-query-reset" size="medium" variant="outline" @click="reset">
                 {{ t('app.queryBar.reset') }}
               </t-button>
             </div>
@@ -105,8 +101,8 @@
         >
           <filter-fields v-model="draft.filters" :items="layout.fields" />
           <template #footer>
-            <t-button variant="outline" @click="clearDraft">{{ t('app.queryBar.clear') }}</t-button>
-            <t-button theme="primary" @click="apply">{{ t('app.queryBar.apply') }}</t-button>
+            <t-button size="medium" variant="outline" @click="clearDraft">{{ t('app.queryBar.clear') }}</t-button>
+            <t-button size="medium" theme="primary" @click="apply">{{ t('app.queryBar.apply') }}</t-button>
           </template>
         </t-drawer>
       </template>

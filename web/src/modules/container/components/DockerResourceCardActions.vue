@@ -1,10 +1,10 @@
 <template>
   <div class="docker-resource-card-actions" @click.stop>
-    <t-button theme="primary" variant="outline" @click="$emit('detail')">
+    <t-button size="medium" theme="primary" variant="outline" @click="$emit('detail')">
       {{ detailLabel }}
     </t-button>
     <t-dropdown v-if="dropdownOptions.length" :options="dropdownOptions" trigger="click" @click="handleAction">
-      <t-button theme="default" variant="outline">
+      <t-button size="medium" theme="default" variant="outline">
         {{ moreLabel }}
       </t-button>
     </t-dropdown>

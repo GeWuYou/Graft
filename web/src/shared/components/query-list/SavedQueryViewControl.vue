@@ -11,6 +11,7 @@
         :filter="() => true"
         :loading="controller.loading.value"
         :placeholder="t('app.savedQueryViews.placeholder')"
+        size="medium"
         :input-value="viewSearchText"
         @update:input-value="viewSearchText = normalizeSearchValue($event)"
         @update:model-value="selectView"
@@ -18,12 +19,12 @@
         <t-option v-for="view in displayedViews" :key="view.id" :value="view.id" :label="view.name" />
       </t-select>
     </t-tooltip>
-    <t-button size="small" variant="outline" :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
+    <t-button size="medium" variant="outline" :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
       {{ t('app.savedQueryViews.actions.saveAs') }}
     </t-button>
     <t-dropdown trigger="click">
       <t-tooltip :content="t('app.savedQueryViews.label')">
-        <t-button shape="square" size="small" variant="outline" :aria-label="t('app.savedQueryViews.label')">
+        <t-button shape="square" size="medium" variant="outline" :aria-label="t('app.savedQueryViews.label')">
           <template #icon><ellipsis-icon /></template>
         </t-button>
       </t-tooltip>

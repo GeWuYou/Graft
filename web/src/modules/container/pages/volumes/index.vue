@@ -8,7 +8,13 @@
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #actions>
-        <t-button v-if="canRemove" size="small" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
+        <t-button
+          v-if="canRemove"
+          size="medium"
+          variant="outline"
+          :loading="cleanup.loading.value"
+          @click="openCleanup"
+        >
           {{ t('container.volume.actions.cleanup') }}
         </t-button>
       </template>
@@ -54,12 +60,13 @@
     >
       <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
+          button-size="medium"
           :selected-label="t('container.volume.batch.selected', { count: selectedRowKeys.length })"
           :clear-label="t('container.volume.batch.cancelSelection')"
           clear-test-id="docker-volume-batch-clear"
           @clear="clearSelection"
         >
-          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
+          <t-button v-if="canRemove" size="medium" theme="danger" variant="outline" @click="handleBatchRemove">
             {{ t('container.volume.batch.remove') }}
           </t-button>
         </management-batch-bar>
@@ -83,7 +90,9 @@
           "
         >
           <template v-if="hasActiveFilters" #action>
-            <t-button variant="outline" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
+            <t-button size="medium" variant="outline" @click="resetFilters">{{
+              t('container.volume.filters.reset')
+            }}</t-button>
           </template>
         </t-empty>
         <div v-else class="docker-volume-page__cards">
@@ -165,7 +174,7 @@
       <template #empty>
         <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
           <template #action>
-            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
+            <t-button v-if="hasActiveFilters" size="medium" variant="outline" @click="resetFilters">
               {{ t('container.volume.filters.reset') }}
             </t-button>
           </template>
@@ -251,10 +260,15 @@
       </docker-cleanup-loading-host>
       <template #footer>
         <t-space>
-          <t-button variant="outline" @click="cleanup.visible.value = false">{{
+          <t-button size="medium" variant="outline" @click="cleanup.visible.value = false">{{
             t('container.volume.cleanup.cancel')
           }}</t-button>
-          <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="confirmCleanupRemoval">
+          <t-button
+            size="medium"
+            theme="danger"
+            :disabled="!cleanup.selectedIds.value.length"
+            @click="confirmCleanupRemoval"
+          >
             {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
           </t-button>
         </t-space>

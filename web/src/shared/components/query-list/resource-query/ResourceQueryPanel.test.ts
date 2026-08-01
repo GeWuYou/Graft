@@ -1,7 +1,11 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createI18n } from 'vue-i18n';
+
+vi.mock('@/shared/composables/useContainerSize', () => ({
+  useContainerSize: () => ref({ height: 640, width: 1200 }),
+}));
 
 import ResourceQueryPanel from './ResourceQueryPanel.vue';
 import type { ResourceQueryFilterDefinition, ResourceQueryState } from './types';
@@ -121,6 +125,14 @@ function mountPanel(
 }
 
 describe('ResourceQueryPanel', () => {
+  it('uses the medium size for the primary query actions', () => {
+    const { wrapper } = mountPanel();
+
+    expect(wrapper.get('[data-testid="resource-query-builder-trigger"]').attributes('size')).toBe('medium');
+    expect(wrapper.get('[data-testid="resource-query-search"]').attributes('size')).toBe('medium');
+    expect(wrapper.get('[data-testid="resource-query-reset"]').attributes('size')).toBe('medium');
+  });
+
   it('applies configured filters from the first page and renders active tags', async () => {
     const { wrapper } = mountPanel();
     await wrapper.get('[data-testid="resource-query-search"]').trigger('click');
