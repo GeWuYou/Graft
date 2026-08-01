@@ -576,6 +576,8 @@ def validate_worktree_manager_skill() -> list[Finding]:
                 "before-and-after validation",
                 "rollback procedure",
                 "invalidation conditions",
+                "complete integration authorization evidence",
+                "actual merge or cherry-pick command differs from the authorized operation record",
             ),
         ),
         (

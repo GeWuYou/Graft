@@ -592,6 +592,8 @@ For repository work:
 - developers review, merge, or cherry-pick in the primary checkout; after the developer explicitly authorizes the exact
   integration operation in the current task, an agent may perform it without assuming final repository ownership
 - an explicit integration authorization is an auditable record, not an implicit handoff: record the operation, source ref/commit, target workspace, owned scope, before-and-after validation, rollback procedure, and invalidation conditions
+- the complete integration authorization evidence must be recorded in the startup receipt or task closeout before the operation is executed; missing evidence is fail-closed
+- if the actual merge or cherry-pick command differs from the authorized operation record, stop immediately and fail closed
 - numbered agent worktrees are non-runtime execution environments: agents must not start frontend or backend services,
   development servers, Docker/Compose stacks, or other long-running runtime processes from a worktree
 - agents must not apply SQL migrations or execute state-changing database operations from a worktree, including
