@@ -38,6 +38,9 @@
     <template #saved-query-views>
       <slot name="saved-query-views" />
     </template>
+    <template #toolbar-after-search>
+      <slot name="toolbar-after-search" />
+    </template>
   </advanced-query-filter-builder>
 </template>
 <script setup lang="ts">

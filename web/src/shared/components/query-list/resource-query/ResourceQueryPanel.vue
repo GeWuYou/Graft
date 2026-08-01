@@ -2,6 +2,7 @@
   <section class="resource-query-panel" :data-resource="config.resource" data-testid="resource-query-panel">
     <advanced-query-filter-builder-frame v-if="frame" :frame="frame" v-bind="{ messagePrefix }">
       <template #saved-query-views><slot name="saved-query-views" /></template>
+      <template #toolbar-after-search><slot name="toolbar-after-search" /></template>
     </advanced-query-filter-builder-frame>
     <graft-query-bar
       v-else

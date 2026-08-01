@@ -12,6 +12,7 @@
             @enter="$emit('search')"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
+          <slot name="toolbar-after-search" />
           <template v-if="!effectiveCompactMode">
             <slot name="saved-query-views" />
             <div class="query-filter-builder__actions">
