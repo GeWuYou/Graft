@@ -91,7 +91,7 @@ func (h updateRouteHandlers) list(c *gin.Context) {
 		}
 		limit = parsed
 	}
-	items, err := h.rollout.operations.List(c.Request.Context(), limit)
+	items, err := h.rollout.ListOperations(c.Request.Context(), limit)
 	if err != nil {
 		if h.appLogger != nil {
 			h.appLogger.Named("modules.update.routes").Error(c.Request.Context(), "list platform update operations failed",
@@ -107,7 +107,7 @@ func (h updateRouteHandlers) list(c *gin.Context) {
 }
 
 func (h updateRouteHandlers) get(c *gin.Context) {
-	item, err := h.rollout.operations.Get(c.Request.Context(), c.Param("operationID"))
+	item, err := h.rollout.GetOperation(c.Request.Context(), c.Param("operationID"))
 	if errors.Is(err, errUpdateOperationNotFound) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusNotFound, messagecontract.CommonNotFound.String(), nil)
 		return
@@ -184,7 +184,7 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)
 		return
 	}
-	httpx.WriteSuccess(c, http.StatusAccepted, operation)
+	httpx.WriteSuccess(c, http.StatusAccepted, OperationLaunchAcknowledgement{OperationID: operation.OperationID, RunnerID: operation.RunnerID})
 }
 
 func (h updateRouteHandlers) writeStartFailure(c *gin.Context, actorID uint64, targetVersion, _ string, err error) {

@@ -1,16 +1,18 @@
 import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getUpdateOperationDiagnostic, subscribeToUpdateOperation } from '../api/update';
+import { getUpdateOperation, subscribeToUpdateOperation } from '../api/update';
 import { useUpdateProgressStore } from './progress';
 
 vi.mock('../api/update', () => ({
-  getUpdateOperationDiagnostic: vi.fn(),
+  getUpdateOperation: vi.fn(),
   subscribeToUpdateOperation: vi.fn(),
 }));
 
-const operation = (operationID: string, status = 'PLANNING') => ({ operation_id: operationID, status }) as never;
+const operation = (operationID: string, phase = 'READY', progress = 0) =>
+  ({ operation_id: operationID, runner_id: 'runner-1', phase, progress, message: '' }) as never;
+const acknowledgement = (operationID: string) => ({ operation_id: operationID, runner_id: 'runner-1' }) as never;
 const streamController = () => ({ close: vi.fn(), reconnect: vi.fn() });
 
 describe('update progress store', () => {
@@ -18,14 +20,19 @@ describe('update progress store', () => {
     sessionStorage.clear();
     setActivePinia(createPinia());
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.mocked(getUpdateOperation).mockResolvedValue(operation('operation-1'));
     vi.mocked(subscribeToUpdateOperation).mockImplementation(streamController);
   });
 
-  it('uses one authenticated stream instead of polling when an update begins', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('reads the runner snapshot before subscribing when an update begins', async () => {
     const store = useUpdateProgressStore();
 
-    store.begin(operation('operation-1'));
+    await store.begin(acknowledgement('operation-1'));
 
+    expect(getUpdateOperation).toHaveBeenCalledWith('operation-1');
     expect(subscribeToUpdateOperation).toHaveBeenCalledWith(
       'operation-1',
       expect.objectContaining({ onOperation: expect.any(Function), onStateChange: expect.any(Function) }),
@@ -33,53 +40,69 @@ describe('update progress store', () => {
     expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBe('operation-1');
   });
 
-  it('discards an old stream event after a new update session begins', async () => {
+  it('discards an old snapshot after a new update session begins', async () => {
+    let resolveFirst: (value: never) => void = () => undefined;
+    vi.mocked(getUpdateOperation).mockImplementationOnce(
+      () => new Promise((resolve) => (resolveFirst = resolve as (value: never) => void)),
+    );
+    vi.mocked(getUpdateOperation).mockResolvedValueOnce(operation('operation-2'));
     const store = useUpdateProgressStore();
-    store.begin(operation('operation-1'));
-    const firstCallback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
-    store.begin(operation('operation-2'));
+    const first = store.begin(acknowledgement('operation-1'));
+    await store.begin(acknowledgement('operation-2'));
 
-    await firstCallback(operation('operation-1', 'FAILED'));
+    resolveFirst(operation('operation-1'));
+    await first;
 
-    expect(store.operation?.operation_id).toBe('operation-2');
-    expect(store.phase).toBe('running');
-    expect(getUpdateOperationDiagnostic).not.toHaveBeenCalled();
+    expect(store.operationID).toBe('operation-2');
+    expect(store.operation?.operation_id).not.toBe('operation-1');
   });
 
-  it('restores an unfinished operation from same-tab session storage', async () => {
+  it('restores an unfinished operation by reading its snapshot before reopening SSE', async () => {
     sessionStorage.setItem('graft.platform-update.operation-id', 'operation-1');
     setActivePinia(createPinia());
     const store = useUpdateProgressStore();
 
-    expect(store.visible).toBe(true);
-    expect(store.operation?.operation_id).toBe('operation-1');
     store.resume();
     await flushPromises();
 
+    expect(getUpdateOperation).toHaveBeenCalledWith('operation-1');
     expect(subscribeToUpdateOperation).toHaveBeenCalledWith('operation-1', expect.any(Object));
   });
 
-  it('stops the stream and loads controlled diagnostics after a terminal failure', async () => {
-    vi.mocked(getUpdateOperationDiagnostic).mockResolvedValue({ request_id: 'request-1' } as never);
+  it('stops the stream and preserves a terminal runner failure snapshot', async () => {
     const store = useUpdateProgressStore();
-    store.begin(operation('operation-1'));
+    await store.begin(acknowledgement('operation-1'));
     const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
 
-    await callback(operation('operation-1', 'FAILED'));
+    await callback(operation('operation-1', 'FAILED', 100));
 
     expect(store.phase).toBe('failed');
-    expect(store.lastActiveStatus).toBe('PLANNING');
-    expect(store.diagnostic?.request_id).toBe('request-1');
+    expect(store.operation?.phase).toBe('FAILED');
     expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
   });
 
-  it('treats a closed transport as reconnecting until the next stream opens', () => {
+  it('polls the runner snapshot while the realtime transport is unavailable', async () => {
     const store = useUpdateProgressStore();
-    store.begin(operation('operation-1'));
+    await store.begin(acknowledgement('operation-1'));
     const onStateChange = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onStateChange;
 
     onStateChange?.('closed');
+    await vi.advanceTimersByTimeAsync(3000);
 
-    expect(store.phase).toBe('reconnecting');
+    expect(store.phase).toBe('running');
+    expect(getUpdateOperation).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops fallback polling after the realtime transport reopens', async () => {
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const onStateChange = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onStateChange;
+
+    onStateChange?.('closed');
+    onStateChange?.('open');
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(store.phase).toBe('running');
+    expect(getUpdateOperation).toHaveBeenCalledOnce();
   });
 });

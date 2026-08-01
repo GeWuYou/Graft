@@ -6,18 +6,9 @@ import { defineComponent } from 'vue';
 import { useUpdateProgressStore } from '../store/progress';
 import UpdateProgressDialog from './UpdateProgressDialog.vue';
 
-const routerPush = vi.fn();
-
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({ t: (key: string) => key }),
-}));
-vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: routerPush }),
-}));
-vi.mock('../api/update', () => ({
-  getUpdateOperationDiagnostic: vi.fn(),
-  subscribeToUpdateOperation: vi.fn(() => ({ close: vi.fn(), reconnect: vi.fn() })),
 }));
 
 const dialogStub = defineComponent({
@@ -56,12 +47,14 @@ describe('UpdateProgressDialog', () => {
   beforeEach(() => {
     sessionStorage.clear();
     setActivePinia(createPinia());
-    routerPush.mockReset();
   });
 
   it('releases the shell when a terminal dialog is closed', async () => {
     const progress = useUpdateProgressStore();
-    progress.$patch({ operation: { operation_id: 'update-1', status: 'FAILED' } as never, phase: 'failed' });
+    progress.$patch({
+      operation: { operation_id: 'update-1', phase: 'FAILED', progress: 100 } as never,
+      phase: 'failed',
+    });
     const wrapper = mountDialog();
 
     await wrapper.get('[data-testid="dialog-close"]').trigger('click');
@@ -69,65 +62,35 @@ describe('UpdateProgressDialog', () => {
     expect(progress.phase).toBe('idle');
   });
 
-  it('shows the milestone percentage for the current stage while running', () => {
+  it('uses the runner-reported percentage for the current phase', () => {
     const progress = useUpdateProgressStore();
-    progress.$patch({ operation: { operation_id: 'update-1', status: 'PULLING' } as never, phase: 'running' });
+    progress.$patch({
+      operation: { operation_id: 'update-1', phase: 'PULL_IMAGES', progress: 45 } as never,
+      phase: 'running',
+    });
     const wrapper = mountDialog();
 
     expect(wrapper.get('[data-testid="update-progress-overall"]').attributes()).toMatchObject({
-      'data-percentage': '30',
+      'data-percentage': '45',
       'data-label': 'true',
     });
     expect(wrapper.get('[data-testid="update-progress-stage"]').attributes()).toMatchObject({
-      'data-percentage': '30',
+      'data-percentage': '45',
       'data-label': 'false',
     });
-    expect(wrapper.text()).toContain('update.center.history.statuses.PULLING');
-    expect(wrapper.text()).not.toContain('update.center.history.status.PULLING');
+    expect(wrapper.text()).toContain('update.center.history.phases.PULL_IMAGES');
   });
 
-  it('keeps the failed stage visible with its last known milestone', () => {
+  it('keeps the terminal failure phase and runner message visible', () => {
     const progress = useUpdateProgressStore();
     progress.$patch({
-      operation: { operation_id: 'update-1', status: 'FAILED' } as never,
-      lastActiveStatus: 'MIGRATING' as never,
+      operation: { operation_id: 'update-1', phase: 'FAILED', progress: 100, message: 'safe failure reason' } as never,
+      lastActivePhase: 'MIGRATION' as never,
       phase: 'failed',
     });
     const wrapper = mountDialog();
 
-    expect(wrapper.get('[data-testid="update-progress-stage"]').attributes('data-percentage')).toBe('55');
-  });
-
-  it('uses the final active milestone when a restored terminal session has no stage history', () => {
-    const progress = useUpdateProgressStore();
-    progress.$patch({ operation: { operation_id: 'update-1', status: 'FAILED' } as never, phase: 'failed' });
-    const wrapper = mountDialog();
-
-    expect(wrapper.get('[data-testid="update-progress-stage"]').attributes('data-percentage')).toBe('90');
-  });
-
-  it('maps migration to its own milestone instead of collapsing it into image pulling', () => {
-    const progress = useUpdateProgressStore();
-    progress.$patch({ operation: { operation_id: 'update-1', status: 'MIGRATING' } as never, phase: 'running' });
-    const wrapper = mountDialog();
-
-    expect(wrapper.get('[data-testid="update-progress-overall"]').attributes('data-percentage')).toBe('55');
-  });
-
-  it('clears progress before opening application logs', async () => {
-    const progress = useUpdateProgressStore();
-    progress.$patch({
-      operation: { operation_id: 'update-1', status: 'FAILED' } as never,
-      diagnostic: { request_id: 'request-42' } as never,
-      phase: 'failed',
-    });
-    const wrapper = mountDialog();
-
-    await wrapper.get('button').trigger('click');
-
-    expect(progress.phase).toBe('idle');
-    expect(routerPush).toHaveBeenCalledWith(
-      expect.objectContaining({ query: expect.objectContaining({ request_id: 'request-42' }) }),
-    );
+    expect(wrapper.get('[data-testid="update-progress-stage"]').attributes('data-percentage')).toBe('100');
+    expect(wrapper.text()).toContain('safe failure reason');
   });
 });

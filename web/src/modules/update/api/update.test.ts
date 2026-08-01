@@ -52,7 +52,7 @@ describe('platform update api', () => {
     const requestGet = vi.mocked(request.get);
     const requestPost = vi.mocked(request.post);
     requestGet.mockResolvedValueOnce([] as never);
-    requestPost.mockResolvedValueOnce({ operation_id: 'update-1' } as never);
+    requestPost.mockResolvedValueOnce({ operation_id: 'update-1', runner_id: 'runner-1' } as never);
 
     await getUpdateOperations();
     await createUpdateOperation({

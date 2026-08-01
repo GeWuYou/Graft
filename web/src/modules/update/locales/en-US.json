@@ -179,17 +179,19 @@
         "started": "Started",
         "viewCause": "View cause",
         "causeUnavailable": "The diagnostic detail for this update is temporarily unavailable.",
-        "statuses": {
-          "PLANNING": "Planning",
-          "BACKING_UP": "Backing up",
-          "PULLING": "Pulling",
-          "MIGRATING": "Migrating",
-          "RECREATING": "Recreating",
-          "VERIFYING": "Verifying",
+        "phases": {
+          "READY": "Ready",
+          "PREFLIGHT": "Checking environment",
+          "BACKUP": "Backing up",
+          "PULL_IMAGES": "Pulling images",
+          "STOP_SERVICES": "Stopping services",
+          "APPLY_UPDATE": "Applying update",
+          "MIGRATION": "Running migration",
+          "START_SERVICES": "Starting services",
+          "HEALTH_CHECK": "Checking service health",
           "SUCCESS": "Completed",
-          "RECOVERED": "Recovered",
           "FAILED": "Failed",
-          "NEEDS_ATTENTION": "Needs attention"
+          "ROLLBACK": "Rolled back"
         },
         "loadFailed": "Unable to load update history.",
         "retry": "Reload",
@@ -205,12 +207,14 @@
           "failed": "The upgrade did not complete. Review the sanitized cause."
         },
         "steps": {
-          "planning": "Prepare",
-          "backingUp": "Back up",
-          "pulling": "Pull release images",
-          "migrating": "Run migrations",
-          "recreating": "Recreate services",
-          "verifying": "Verify services"
+          "ready": "Ready",
+          "preflight": "Check environment",
+          "backup": "Back up",
+          "pullImages": "Pull release images",
+          "applyUpdate": "Apply update",
+          "migration": "Run migration",
+          "startServices": "Start services",
+          "healthCheck": "Check service health"
         },
         "currentStage": "Current stage",
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",

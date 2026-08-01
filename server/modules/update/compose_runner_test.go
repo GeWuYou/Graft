@@ -24,7 +24,7 @@ func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
 	if !receipt.Succeeded || !receipt.MigrationStarted {
 		t.Fatalf("unexpected receipt: %#v", receipt)
 	}
-	want := []string{"backup", "compose pull", "verify images", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz"}
+	want := []string{"backup", "compose pull", "verify images", "stop server web", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz"}
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
 	}
@@ -49,7 +49,7 @@ func TestExecuteComposeRunnerMigrationFailureNeverRestoresDatabase(t *testing.T)
 	if receipt.FailureCode != runnerFailureMigration || !receipt.MigrationStarted || ClassifyRunnerReceipt(receipt) != ExecutionOutcomeNeedsAttention {
 		t.Fatalf("unexpected receipt: %#v", receipt)
 	}
-	want := []string{"backup", "compose pull", "verify images", "bootstrap migrate up"}
+	want := []string{"backup", "compose pull", "verify images", "stop server web", "bootstrap migrate up"}
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
 	}
@@ -174,6 +174,10 @@ func (actions *tracingRunnerActions) Pull(context.Context, RunnerInput) error {
 
 func (actions *tracingRunnerActions) VerifyImages(context.Context, RunnerInput) error {
 	return actions.run("verify images")
+}
+
+func (actions *tracingRunnerActions) StopServices(context.Context, RunnerInput) error {
+	return actions.run("stop server web")
 }
 
 func (actions *tracingRunnerActions) BootstrapMigrate(context.Context, RunnerInput) error {

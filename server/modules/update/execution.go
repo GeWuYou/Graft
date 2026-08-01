@@ -60,6 +60,9 @@ type ComposePreflight struct {
 type RunnerInput struct {
 	ProtocolVersion    int              `json:"protocol_version"`
 	OperationID        string           `json:"operation_id"`
+	RunnerID           string           `json:"runner_id"`
+	SourceVersion      string           `json:"source_version"`
+	TargetVersion      string           `json:"target_version"`
 	TaskID             uint64           `json:"task_id"`
 	BackupArtifactRoot string           `json:"backup_artifact_root"`
 	Preflight          ComposePreflight `json:"preflight"`
@@ -69,6 +72,7 @@ type RunnerInput struct {
 type RunnerReceipt struct {
 	ProtocolVersion   int                                         `json:"protocol_version"`
 	OperationID       string                                      `json:"operation_id"`
+	RunnerID          string                                      `json:"runner_id"`
 	MigrationStarted  bool                                        `json:"migration_started"`
 	Succeeded         bool                                        `json:"succeeded"`
 	FailureCode       string                                      `json:"failure_code,omitempty"`
@@ -285,7 +289,7 @@ func ValidateRunnerInput(value RunnerInput) error {
 
 // RunnerSequence is the only command order a runner may execute. The actual command adapter must not accept caller supplied commands.
 func RunnerSequence() []string {
-	return []string{"backup", "compose pull", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz", "write receipt"}
+	return []string{"backup", "compose pull", "stop server web", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz", "write receipt"}
 }
 
 // ClassifyRunnerReceipt preserves the forward-only schema boundary in the durable operation state.

@@ -21,7 +21,7 @@
       <t-steps v-if="progress.operation" :current="currentStep" layout="vertical" readonly>
         <t-step v-for="step in steps" :key="step" :title="t(`update.center.progress.steps.${step}`)" />
       </t-steps>
-      <section v-if="progress.operation && progress.phase !== 'success'" class="update-progress__current-stage">
+      <section v-if="progress.operation" class="update-progress__current-stage">
         <div class="update-progress__current-stage-heading">
           <span>{{ t('update.center.progress.currentStage') }}</span>
           <strong>{{ currentStageLabel }}</strong>
@@ -29,10 +29,7 @@
         <t-progress data-testid="update-progress-stage" :percentage="currentStagePercentage" :label="false" />
       </section>
       <section v-if="progress.phase === 'failed'" class="update-progress__failure">
-        <p>{{ progress.diagnostic?.detail || t('update.center.progress.diagnosticUnavailable') }}</p>
-        <t-button v-if="requestId" variant="text" @click="openAppLogs">{{
-          t('update.center.progress.viewAppLogs')
-        }}</t-button>
+        <p>{{ progress.operation?.message || t('update.center.progress.diagnosticUnavailable') }}</p>
       </section>
       <t-button v-if="terminal" class="update-progress__close" @click="closeTerminalDialog">
         {{ t('update.center.progress.close') }}
@@ -43,49 +40,46 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
-
-import { buildAppLogLocation } from '@/modules/app-log/contract/deep-link';
 
 import { useUpdateProgressStore } from '../store/progress';
 
-// 后台壳唯一挂载的升级会话表面：恢复同标签页会话，并在运行中阻止误关弹窗。
+// 后台壳只呈现 runner 快照；服务重建中的连接状态不能覆盖 runner 报告的真实进度。
 const { t } = useI18n();
-const router = useRouter();
 const progress = useUpdateProgressStore();
-const steps = ['planning', 'backingUp', 'pulling', 'migrating', 'recreating', 'verifying'] as const;
+const steps = [
+  'ready',
+  'preflight',
+  'backup',
+  'pullImages',
+  'applyUpdate',
+  'migration',
+  'startServices',
+  'healthCheck',
+] as const;
 const stageIndex: Record<string, number> = {
-  PLANNING: 0,
-  BACKING_UP: 1,
-  PULLING: 2,
-  MIGRATING: 3,
-  RECREATING: 4,
-  VERIFYING: 5,
-  SUCCESS: 5,
-  RECOVERED: 5,
-};
-const stagePercentage: Record<string, number> = {
-  PLANNING: 0,
-  BACKING_UP: 10,
-  PULLING: 30,
-  MIGRATING: 55,
-  RECREATING: 75,
-  VERIFYING: 90,
-  SUCCESS: 100,
-  RECOVERED: 100,
+  READY: 0,
+  PREFLIGHT: 1,
+  BACKUP: 2,
+  PULL_IMAGES: 3,
+  STOP_SERVICES: 4,
+  APPLY_UPDATE: 4,
+  MIGRATION: 5,
+  START_SERVICES: 6,
+  HEALTH_CHECK: 7,
+  SUCCESS: 7,
+  FAILED: 7,
+  ROLLBACK: 7,
 };
 const stageStatus = computed(() => {
-  if (progress.lastActiveStatus) return progress.lastActiveStatus;
-  if (progress.phase === 'success' || progress.phase === 'failed') return 'VERIFYING';
-  return progress.operation?.status ?? 'PLANNING';
+  if (progress.lastActivePhase) return progress.lastActivePhase;
+  return progress.operation?.phase ?? 'READY';
 });
 const currentStep = computed(() => stageIndex[stageStatus.value] ?? 0);
-const overallPercentage = computed(() => stagePercentage[stageStatus.value] ?? 0);
+const overallPercentage = computed(() => progress.operation?.progress ?? 0);
 const currentStagePercentage = computed(() => overallPercentage.value);
 const currentStageLabel = computed(() => {
-  return t(`update.center.history.statuses.${stageStatus.value}`);
+  return t(`update.center.history.phases.${stageStatus.value}`);
 });
-const requestId = computed(() => progress.diagnostic?.request_id?.trim() ?? '');
 const phaseMessage = computed(() => t(`update.center.progress.phase.${progress.phase}`));
 const terminal = computed(() => progress.phase === 'success' || progress.phase === 'failed');
 
@@ -93,13 +87,6 @@ onMounted(() => progress.resume());
 
 function closeTerminalDialog() {
   if (terminal.value) progress.reset();
-}
-
-function openAppLogs() {
-  const operationRequestId = requestId.value;
-  if (!operationRequestId) return;
-  progress.reset();
-  void router.push(buildAppLogLocation({ request_id: operationRequestId }));
 }
 </script>
 <style scoped lang="less">

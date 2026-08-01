@@ -2,19 +2,20 @@ import { defineStore } from 'pinia';
 
 import type { RealtimeTopicEventStreamController } from '@/shared/realtime/sse-client';
 
-import { getUpdateOperationDiagnostic, subscribeToUpdateOperation } from '../api/update';
-import type { UpdateFailureDiagnostic, UpdateOperation } from '../types/update';
+import { getUpdateOperation, subscribeToUpdateOperation } from '../api/update';
+import type { UpdateOperation, UpdateOperationLaunchAcknowledgement } from '../types/update';
 
 type ProgressPhase = 'idle' | 'running' | 'reconnecting' | 'success' | 'failed';
 
 const SESSION_STORAGE_KEY = 'graft.platform-update.operation-id';
-const terminalSuccess = new Set<UpdateOperation['status']>(['SUCCESS', 'RECOVERED']);
-const terminalFailure = new Set<UpdateOperation['status']>(['FAILED', 'NEEDS_ATTENTION']);
+const terminalSuccess = new Set<UpdateOperation['phase']>(['SUCCESS']);
+const terminalFailure = new Set<UpdateOperation['phase']>(['FAILED', 'ROLLBACK']);
+const POLL_INTERVAL_MS = 3000;
 
 function restoreOperation() {
   try {
     const operationID = window.sessionStorage.getItem(SESSION_STORAGE_KEY)?.trim();
-    return operationID ? ({ operation_id: operationID, status: 'PLANNING' } as UpdateOperation) : null;
+    return operationID || null;
   } catch {
     return null;
   }
@@ -29,74 +30,95 @@ function persistOperation(operationID: string | null) {
   }
 }
 
-/** 壳层唯一的升级会话状态：以 SSE 快照驱动，并在服务重建期间恢复连接。 */
+/** 壳层唯一的升级会话状态：runner 快照优先于 SSE，服务重建时轮询同一状态事实。 */
 export const useUpdateProgressStore = defineStore('update-progress', {
   state: () => {
-    const operation = restoreOperation();
+    const operationID = restoreOperation();
     return {
-      operation,
-      diagnostic: null as UpdateFailureDiagnostic | null,
-      phase: (operation ? 'running' : 'idle') as ProgressPhase,
-      lastActiveStatus: (operation?.status ?? null) as UpdateOperation['status'] | null,
+      operation: null as UpdateOperation | null,
+      operationID,
+      phase: (operationID ? 'reconnecting' : 'idle') as ProgressPhase,
+      lastActivePhase: null as UpdateOperation['phase'] | null,
       session: 0,
       stream: null as RealtimeTopicEventStreamController | null,
+      pollTimer: null as number | null,
     };
   },
   getters: {
     visible: (state) => state.phase !== 'idle',
   },
   actions: {
-    begin(operation: UpdateOperation) {
+    async begin(acknowledgement: UpdateOperationLaunchAcknowledgement) {
       this.session += 1;
       this.stopStream();
-      persistOperation(operation.operation_id);
-      this.operation = operation;
-      this.lastActiveStatus = operation.status;
-      this.diagnostic = null;
-      this.phase = 'running';
-      this.connect(this.session);
+      this.stopPolling();
+      persistOperation(acknowledgement.operation_id);
+      this.operationID = acknowledgement.operation_id;
+      this.operation = null;
+      this.lastActivePhase = null;
+      this.phase = 'reconnecting';
+      await this.refreshSnapshot(this.session);
     },
     resume() {
-      if (this.operation && !this.stream && this.phase !== 'idle' && !this.isTerminal()) {
-        this.connect(this.session);
+      if (this.operationID && !this.stream && this.phase !== 'idle' && !this.isTerminal()) {
+        void this.refreshSnapshot(this.session);
+      }
+    },
+    async refreshSnapshot(session: number) {
+      const operationID = this.operationID;
+      if (!operationID || session !== this.session) return;
+      try {
+        const operation = await getUpdateOperation(operationID);
+        await this.applyOperation(session, operation);
+        if (session === this.session && !this.isTerminal() && !this.stream) this.connect(session);
+      } catch {
+        if (session !== this.session || this.isTerminal()) return;
+        this.phase = 'reconnecting';
+        this.startPolling(session);
       }
     },
     connect(session: number) {
-      const operationID = this.operation?.operation_id;
+      const operationID = this.operationID;
       if (!operationID || session !== this.session) return;
       this.stream = subscribeToUpdateOperation(operationID, {
         onOperation: async (operation) => this.applyOperation(session, operation),
         onStateChange: (state) => {
           if (session !== this.session || this.isTerminal()) return;
-          this.phase = state === 'open' ? 'running' : state === 'idle' ? 'idle' : 'reconnecting';
+          if (state === 'open') {
+            this.phase = 'running';
+            this.stopPolling();
+          } else if (state !== 'idle') {
+            this.phase = 'reconnecting';
+            this.startPolling(session);
+          }
         },
       });
     },
     async applyOperation(session: number, operation: UpdateOperation) {
       if (session !== this.session) return;
+      if (this.operationID && operation.operation_id !== this.operationID) return;
       this.operation = operation;
-      if (terminalSuccess.has(operation.status)) {
+      this.operationID = operation.operation_id;
+      if (terminalSuccess.has(operation.phase)) {
         this.phase = 'success';
         this.stopStream();
+        this.stopPolling();
         persistOperation(null);
+        this.operationID = null;
         window.setTimeout(() => {
           if (session === this.session) window.location.reload();
         }, 1200);
         return;
       }
-      if (terminalFailure.has(operation.status)) {
+      if (terminalFailure.has(operation.phase)) {
         this.phase = 'failed';
         this.stopStream();
+        this.stopPolling();
         persistOperation(null);
-        try {
-          const diagnostic = await getUpdateOperationDiagnostic(operation.operation_id);
-          if (session === this.session) this.diagnostic = diagnostic;
-        } catch {
-          if (session === this.session) this.diagnostic = null;
-        }
+        this.operationID = null;
         return;
       }
-      this.lastActiveStatus = operation.status;
+      this.lastActivePhase = operation.phase;
       this.phase = 'running';
     },
     isTerminal() {
@@ -106,13 +128,22 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.stream?.close();
       this.stream = null;
     },
+    startPolling(session: number) {
+      if (this.pollTimer !== null || session !== this.session) return;
+      this.pollTimer = window.setInterval(() => void this.refreshSnapshot(session), POLL_INTERVAL_MS);
+    },
+    stopPolling() {
+      if (this.pollTimer !== null) window.clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    },
     reset() {
       this.session += 1;
       this.stopStream();
+      this.stopPolling();
       persistOperation(null);
       this.operation = null;
-      this.lastActiveStatus = null;
-      this.diagnostic = null;
+      this.operationID = null;
+      this.lastActivePhase = null;
       this.phase = 'idle';
     },
   },

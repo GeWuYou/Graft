@@ -16,8 +16,10 @@ import UpdateCenter from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   createUpdateOperation: vi.fn(),
+  getUpdateOperation: vi.fn(),
   getUpdateFailureDiagnostic: vi.fn(),
   getUpdateOperations: vi.fn(),
+  subscribeToUpdateOperation: vi.fn(() => ({ close: vi.fn(), reconnect: vi.fn() })),
 }));
 
 const updateStartFailure = (code: string, traceId = 'request-update-42') =>
@@ -139,8 +141,15 @@ describe('UpdateCenter', () => {
     } as never);
     useUpdateDiscoveryStore().replaceSnapshot(status([]));
     apiMocks.getUpdateOperations.mockResolvedValue([]);
+    apiMocks.getUpdateOperation.mockResolvedValue({
+      operation_id: 'operation-1',
+      runner_id: 'runner-1',
+      phase: 'READY',
+      progress: 0,
+      message: '',
+    });
     apiMocks.getUpdateFailureDiagnostic.mockResolvedValue(null);
-    apiMocks.createUpdateOperation.mockResolvedValue({ operation_id: 'operation-1' });
+    apiMocks.createUpdateOperation.mockResolvedValue({ operation_id: 'operation-1', runner_id: 'runner-1' });
     vi.clearAllMocks();
   });
 
@@ -444,7 +453,7 @@ describe('UpdateCenter', () => {
         ),
       getOperations: vi.fn().mockResolvedValue([]),
       getFailureDiagnostic: vi.fn().mockResolvedValue(null),
-      createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation' }),
+      createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation', runner_id: 'preview-runner' }),
     };
     const wrapper = mountCenter(dataSource);
     await flushPromises();
@@ -510,8 +519,10 @@ describe('UpdateCenter', () => {
       getOperations: vi.fn().mockResolvedValue([
         {
           operation_id: 'preview-operation',
-          status: 'FAILED',
-          failure_diagnostic_available: true,
+          runner_id: 'preview-runner',
+          phase: 'FAILED',
+          progress: 100,
+          message: 'preview failure',
         },
       ]),
       getFailureDiagnostic: vi.fn().mockResolvedValue(null),

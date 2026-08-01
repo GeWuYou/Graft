@@ -316,5 +316,16 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containe
 	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
 		"io.graft.update.protocol":  runnerProtocol,
-	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
+	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", runnerStateVolumeName() + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
+}
+
+func runnerStateVolumeName() string {
+	name := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_STATE_VOLUME"))
+	if name == "" {
+		return "graft-update-state"
+	}
+	if !runnerOperationID.MatchString(name) {
+		return "graft-update-state"
+	}
+	return name
 }

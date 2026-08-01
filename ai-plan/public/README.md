@@ -15,6 +15,12 @@ Overlay note:
 
 ## Active Topics
 
+- `build-center`
+  - Recovery entry: `ai-plan/public/build-center/README.md`
+
+- `self-update-controller-refactor`
+  - Recovery entry: `ai-plan/public/self-update-controller-refactor/README.md`
+
 - `compose-update-policy-reset`
   - Recovery entry: `ai-plan/public/compose-update-policy-reset/README.md`
 

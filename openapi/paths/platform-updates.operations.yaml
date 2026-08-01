@@ -33,10 +33,10 @@ post:
         schema: { $ref: ../components/schemas/create-platform-update-operation-request.yaml }
   responses:
     '202':
-      description: The one-shot runner was accepted by Docker.
+      description: The one-shot runner was accepted by Docker. This is not a lifecycle state; read the operation snapshot for runner-owned progress.
       content:
         application/json:
-          schema: { $ref: ../components/schemas/enveloped-platform-update-operation.yaml }
+          schema: { $ref: ../components/schemas/enveloped-platform-update-operation-launch-acknowledgement.yaml }
     '400':
       description: Invalid target version or request payload.
       content:

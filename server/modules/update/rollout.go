@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -33,6 +34,12 @@ type RolloutService struct {
 	appLogger          logger.AppLogger
 	realtime           realtime.Publisher
 	backupArtifactRoot string
+	stateStore         RunnerStateStore
+	statePollMu        sync.Mutex
+	statePollCancel    context.CancelFunc
+	statePollDone      chan struct{}
+	statePollClosed    bool
+	statePollEvery     time.Duration
 	receiptPollMu      sync.Mutex
 	receiptPollCancel  context.CancelFunc
 	receiptPollDone    chan struct{}
@@ -41,6 +48,9 @@ type RolloutService struct {
 }
 
 const receiptPollInterval = 15 * time.Second
+
+// runnerStatePollInterval 仅保持 server 投影的新鲜度，不构成 runner 执行心跳或生命周期租约。
+const runnerStatePollInterval = 2 * time.Second
 
 type receiptPolling struct {
 	reader   ComposeRunnerReceiptReader
@@ -89,7 +99,15 @@ func newOperationID() string { return fmt.Sprintf("update-%d", time.Now().UTC().
 
 // NewRolloutService 组合已注册的窄 capability 与受限 Docker launcher。
 func NewRolloutService(discovery *Service, operations OperationStore, tasks moduleapi.TaskService, backups moduleapi.BackupService, launcher ComposeRunnerLauncher) *RolloutService {
-	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID}
+	stateStore, _ := NewFileRunnerStateStore(RunnerStateRoot)
+	return &RolloutService{discovery: discovery, operations: operations, coordinator: NewComposeExecutionCoordinator(tasks, backups), launcher: launcher, newOperation: newOperationID, stateStore: stateStore}
+}
+
+// SetRunnerStateStore 注入只读 runner 状态源；server 永不通过该边界写入生命周期阶段。
+func (s *RolloutService) SetRunnerStateStore(store RunnerStateStore) {
+	if s != nil {
+		s.stateStore = store
+	}
 }
 
 // SetDeploymentRuntime 注入唯一可解释部署事实的能力；每次升级启动前都必须重新冻结快照。
@@ -120,13 +138,17 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || input.RequestedBy == 0 {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
 	}
+	if err := s.ensureNoActiveRunner(); err != nil {
+		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_state", "", err)
+	}
 	candidateKey := strings.TrimSpace(input.CandidateKey)
 	status, preflight, mode, err := s.confirmedPreflight(ctx, input.TargetVersion, candidateKey)
 	if err != nil {
 		code := classifyRolloutPreflightFailure(err)
 		return ComposeUpdateOperation{}, newRolloutStartFailure(code, "preflight", "", err)
 	}
-	operation := ComposeUpdateOperation{OperationID: s.newOperation(), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, DeploymentStrategy: mode, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
+	operationID := s.newOperation()
+	operation := ComposeUpdateOperation{OperationID: operationID, RunnerID: "runner-" + strings.TrimPrefix(operationID, "update-"), RequestID: rolloutRequestID(ctx), SourceVersion: status.CurrentVersion, TargetVersion: input.TargetVersion, DeploymentStrategy: mode, RequestedBy: input.RequestedBy, Outcome: ExecutionOutcomePlanning}
 	if !filepath.IsAbs(s.backupArtifactRoot) {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "backup", operation.OperationID, errors.New("backup artifact root is unavailable"))
 	}
@@ -144,6 +166,58 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 		return ComposeUpdateOperation{}, err
 	}
 	return prepared, nil
+}
+
+func (s *RolloutService) ensureNoActiveRunner() error {
+	if s == nil || s.stateStore == nil {
+		return nil
+	}
+	state, err := s.stateStore.Read()
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read runner state before launch: %w", err)
+	}
+	if !isTerminalRunnerPhase(state.Phase) {
+		return errors.New("a platform update runner is already active")
+	}
+	return nil
+}
+
+// GetOperation 返回活动 runner 快照，或已结算的数据库终态历史。
+func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (OperationView, error) {
+	if s == nil || !runnerOperationID.MatchString(operationID) {
+		return OperationView{}, errors.New("update operation identity is invalid")
+	}
+	if s.stateStore != nil {
+		if state, err := s.stateStore.Read(); err == nil && state.OperationID == operationID {
+			return updateOperationViewFromRunnerState(state), nil
+		}
+	}
+	operation, err := s.operations.Get(ctx, operationID)
+	if err != nil {
+		return OperationView{}, err
+	}
+	return updateOperationViewFromHistory(operation), nil
+}
+
+// ListOperations 返回数据库中的终态业务历史，活动操作只能通过 GetOperation 读取状态卷快照。
+func (s *RolloutService) ListOperations(ctx context.Context, limit int) ([]OperationView, error) {
+	if s == nil || s.operations == nil {
+		return nil, errors.New("update operation store is unavailable")
+	}
+	items, err := s.operations.List(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]OperationView, 0, len(items))
+	for _, item := range items {
+		if isTerminalOutcome(item.Outcome) {
+			views = append(views, updateOperationViewFromHistory(item))
+		}
+	}
+	return views, nil
 }
 
 //nolint:cyclop,gocognit,gocyclo,revive // 每个拒绝分支都是可独立审计的发布安全门。
@@ -244,6 +318,19 @@ func (s *RolloutService) Close() error {
 	if s == nil {
 		return nil
 	}
+	s.statePollMu.Lock()
+	s.statePollClosed = true
+	stateCancel := s.statePollCancel
+	stateDone := s.statePollDone
+	s.statePollCancel = nil
+	s.statePollDone = nil
+	s.statePollMu.Unlock()
+	if stateCancel != nil {
+		stateCancel()
+	}
+	if stateDone != nil {
+		<-stateDone
+	}
 	s.receiptPollMu.Lock()
 	s.receiptPollClosed = true
 	cancel := s.receiptPollCancel
@@ -261,6 +348,65 @@ func (s *RolloutService) Close() error {
 		return nil
 	}
 	return s.launcher.Close()
+}
+
+// StartRunnerStateProjection 将 runner 所有的快照发布到既有实时通道。
+// server 停止只会暂停投影；状态卷仍为事实源，并在下次启动时重新收敛。
+func (s *RolloutService) StartRunnerStateProjection(ctx context.Context) {
+	if s == nil || s.stateStore == nil {
+		return
+	}
+	pollCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	s.statePollMu.Lock()
+	if s.statePollClosed || s.statePollCancel != nil {
+		s.statePollMu.Unlock()
+		cancel()
+		return
+	}
+	s.statePollCancel = cancel
+	s.statePollDone = done
+	interval := s.statePollEvery
+	if interval <= 0 {
+		interval = runnerStatePollInterval
+	}
+	s.statePollMu.Unlock()
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		var publishedOperation string
+		var publishedRevision uint64
+		for {
+			select {
+			case <-pollCtx.Done():
+				return
+			case <-ticker.C:
+				state, err := s.readRunnerState()
+				if err != nil {
+					if s.logger != nil && !errors.Is(err, os.ErrNotExist) {
+						s.logger.Warn("platform update runner state projection deferred", zap.Error(err))
+					}
+					continue
+				}
+				if state.OperationID != publishedOperation || state.Revision != publishedRevision {
+					s.publishRunnerState(state)
+					publishedOperation, publishedRevision = state.OperationID, state.Revision
+				}
+				if isTerminalRunnerPhase(state.Phase) && state.Receipt != nil {
+					if state.Receipt.OperationID != state.OperationID || state.Receipt.RunnerID != state.RunnerID {
+						if s.logger != nil {
+							s.logger.Warn("platform update runner terminal receipt does not match state snapshot")
+						}
+						continue
+					}
+					if _, err := s.SettlePersistedReceipt(pollCtx, *state.Receipt); err != nil && s.logger != nil {
+						s.logger.Warn("platform update runner terminal settlement deferred", zap.Error(err))
+					}
+				}
+			}
+		}
+	}()
 }
 
 // StartReceiptPolling 在 server 重建后持续读取保留 runner 的日志回执。
@@ -334,7 +480,6 @@ func (s *RolloutService) persistAndLaunch(ctx context.Context, operation Compose
 		return newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_launch", operation.OperationID, fmt.Errorf("launch compose update runner: %w", err))
 	}
 	s.publishAudit(ctx, operation, true, "")
-	s.publishStoredOperation(ctx, operation)
 	return nil
 }
 
@@ -362,7 +507,6 @@ func (s *RolloutService) SettlePersistedReceipt(ctx context.Context, receipt Run
 	if persisted, getErr := s.operations.Get(ctx, settled.OperationID); getErr == nil {
 		settled = persisted
 	}
-	s.publishOperation(settled)
 	s.persistTerminalFailureDiagnostic(ctx, settled, receipt)
 	s.logTerminalFailure(ctx, settled, receipt)
 	s.publishAudit(ctx, settled, settled.Outcome == ExecutionOutcomeSuccess, settled.FailureCode)
@@ -468,6 +612,44 @@ func (s *RolloutService) SetRealtimePublisher(publisher realtime.Publisher) {
 	}
 }
 
+// ReconcileRunnerState 只读取 runner 状态卷；活动阶段不写回数据库。
+// 当 runner 已持久化终态 receipt 时，server 幂等结算其派生的 Task、Backup 和历史记录。
+func (s *RolloutService) ReconcileRunnerState(ctx context.Context) error {
+	if s == nil || s.stateStore == nil {
+		return nil
+	}
+	state, err := s.readRunnerState()
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read runner state: %w", err)
+	}
+	s.publishRunnerState(state)
+	if !isTerminalRunnerPhase(state.Phase) || state.Receipt == nil {
+		return nil
+	}
+	if state.Receipt.OperationID != state.OperationID || state.Receipt.RunnerID != state.RunnerID {
+		return errors.New("runner terminal receipt does not match state snapshot")
+	}
+	_, err = s.SettlePersistedReceipt(ctx, *state.Receipt)
+	return err
+}
+
+func (s *RolloutService) readRunnerState() (RunnerState, error) {
+	if s == nil || s.stateStore == nil {
+		return RunnerState{}, os.ErrNotExist
+	}
+	return s.stateStore.Read()
+}
+
+func (s *RolloutService) publishRunnerState(state RunnerState) {
+	if s == nil || s.realtime == nil || !runnerOperationID.MatchString(state.OperationID) {
+		return
+	}
+	s.realtime.Publish(updateOperationTopic(state.OperationID), updateOperationViewFromRunnerState(state))
+}
+
 func (s *RolloutService) reconcileAvailableReceipts(ctx context.Context, reader ComposeRunnerReceiptReader) error {
 	progressErr := s.collectRunnerProgress(ctx)
 	receipts, err := reader.ReadRunnerReceipts(ctx)
@@ -530,15 +712,6 @@ func (s *RolloutService) publishOperation(operation ComposeUpdateOperation) {
 		return
 	}
 	s.realtime.Publish(updateOperationTopic(operation.OperationID), operation)
-}
-
-func (s *RolloutService) publishStoredOperation(ctx context.Context, operation ComposeUpdateOperation) {
-	if s == nil || s.operations == nil {
-		return
-	}
-	if persisted, err := s.operations.Get(ctx, operation.OperationID); err == nil {
-		s.publishOperation(persisted)
-	}
 }
 
 func updateOperationTopic(operationID string) string {

@@ -26,6 +26,11 @@ type ComposeRunnerActions interface {
 	Healthz(context.Context, RunnerInput) error
 }
 
+// RunnerStateReporter 由 runner 入口实现；执行核心只报告受控生命周期阶段，不直接持有状态卷写入能力。
+type RunnerStateReporter interface {
+	Report(RunnerPhase, int, string, string) error
+}
+
 const (
 	runnerFailureInvalidInput = "invalid_input"
 	runnerFailureBackup       = "backup_failed"
@@ -35,6 +40,15 @@ const (
 	runnerFailureRecreate     = "recreate_failed"
 	runnerFailureDockerHealth = "docker_health_failed"
 	runnerFailureHealthz      = "healthz_failed"
+	runnerProgressPreflight   = 5
+	runnerProgressBackup      = 15
+	runnerProgressPullImages  = 30
+	runnerProgressStop        = 45
+	runnerProgressApply       = 60
+	runnerProgressMigration   = 70
+	runnerProgressStart       = 82
+	runnerProgressHealth      = 92
+	runnerProgressTerminal    = 100
 )
 
 // RunnerBackupFailureStage 标识备份期间可安全暴露给操作者的固定失败阶段。
@@ -87,63 +101,114 @@ func NewRunnerBackupFailure(stage RunnerBackupFailureStage, detail RunnerBackupF
 	return &runnerBackupFailure{stage: stage, detail: detail, cause: cause}
 }
 
-// ExecuteComposeRunner 执行唯一允许的 Compose 更新顺序，并把每个终态交给入口写入容器日志回执。
+// ExecuteComposeRunner 执行唯一允许的 Compose 更新顺序，并把每个终态交给入口写入状态卷 receipt。
 // Backup 成功后必须先校验 BackupReceipt；migration 动作开始前即记录边界，确保后续失败永远不会被解释为可自动恢复数据库的失败。
+//
+//nolint:cyclop,funlen // 每一个失败分支都对应不可折叠的升级安全边界和受控终态。
 func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) (RunnerReceipt, error) {
-	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID}
+	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID}
+	reporter, _ := actions.(RunnerStateReporter)
+	if err := reportRunnerState(reporter, RunnerPhasePreflight, runnerProgressPreflight, "checking_environment", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner preflight state: %w", err)
+	}
 	if err := validateRunnerExecution(input, actions); err != nil {
 		receipt.FailureCode = runnerFailureInvalidInput
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportRunnerState(reporter, RunnerPhaseFailed, runnerProgressTerminal, "update_failed", receipt.FailureCode)))
 	}
 	emitRunnerProgress(RunnerProgressBackingUp)
+	if err := reportRunnerState(reporter, RunnerPhaseBackup, runnerProgressBackup, "creating_backup", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner backup state: %w", err)
+	}
 	if err := actions.Backup(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
 		receipt.FailureStage, receipt.FailureDetail = runnerBackupFailureDiagnostic(err)
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportRunnerState(reporter, RunnerPhaseFailed, runnerProgressTerminal, "update_failed", receipt.FailureCode)))
 	}
 	completion := actions.BackupReceipt()
 	if err := validateBackupReceipt(completion, input); err != nil {
 		receipt.FailureCode = runnerFailureBackup
 		receipt.FailureStage = string(RunnerBackupFailureStageArtifactDigest)
 		receipt.FailureDetail = string(RunnerBackupFailureDetailIOFailed)
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportRunnerState(reporter, RunnerPhaseFailed, runnerProgressTerminal, "update_failed", receipt.FailureCode)))
 	}
 	receipt.BackupCompletion = &completion
 	emitRunnerProgress(RunnerProgressPulling)
+	if err := reportRunnerState(reporter, RunnerPhasePullImages, runnerProgressPullImages, "pulling_images", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner image pull state: %w", err)
+	}
 	if err := actions.Pull(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailurePull
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
 	}
 	if err := actions.VerifyImages(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureImageVerify
 		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
 	}
 
 	// Atlas 是 forward-only：调用 bootstrap 前便跨过自动数据库恢复边界。
+	// Compose bootstrap 可能替换服务容器，故控制器在迁移前持久化停止和应用边界。
+	if err := reportRunnerState(reporter, RunnerPhaseStopServices, runnerProgressStop, "stopping_services", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner stop-services state: %w", err)
+	}
+	if stopper, ok := actions.(interface {
+		StopServices(context.Context, RunnerInput) error
+	}); ok {
+		if err := stopper.StopServices(ctx, input); err != nil {
+			receipt.FailureCode = runnerFailureRecreate
+			receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
+			return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
+		}
+	}
+	if err := reportRunnerState(reporter, RunnerPhaseApplyUpdate, runnerProgressApply, "applying_update", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner apply-update state: %w", err)
+	}
 	emitRunnerProgress(RunnerProgressMigrating)
+	if err := reportRunnerState(reporter, RunnerPhaseMigration, runnerProgressMigration, "running_migrations", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner migration state: %w", err)
+	}
 	receipt.MigrationStarted = true
 	if err := actions.BootstrapMigrate(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureMigration
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
 	}
 	emitRunnerProgress(RunnerProgressRecreating)
+	if err := reportRunnerState(reporter, RunnerPhaseStartServices, runnerProgressStart, "starting_services", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner start-services state: %w", err)
+	}
 	if err := actions.Recreate(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureRecreate
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
 	}
 	emitRunnerProgress(RunnerProgressVerifying)
+	if err := reportRunnerState(reporter, RunnerPhaseHealthCheck, runnerProgressHealth, "checking_health", ""); err != nil {
+		return receipt, fmt.Errorf("persist runner health-check state: %w", err)
+	}
 	if err := actions.DockerHealth(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureDockerHealth
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
 	}
 	if err := actions.Healthz(ctx, input); err != nil {
 		receipt.FailureCode = runnerFailureHealthz
-		return finalizeRunnerReceipt(receipt, err)
+		return finalizeRunnerReceipt(receipt, errors.Join(err, reportReceiptFailure(reporter, receipt)))
 	}
 	receipt.Succeeded = true
-	return finalizeRunnerReceipt(receipt, nil)
+	return finalizeRunnerReceipt(receipt, reportRunnerState(reporter, RunnerPhaseSuccess, runnerProgressTerminal, "update_completed", ""))
+}
+
+func reportReceiptFailure(reporter RunnerStateReporter, receipt RunnerReceipt) error {
+	if receipt.RecoveryCompleted {
+		return reportRunnerState(reporter, RunnerPhaseRollback, runnerProgressTerminal, "rollback_completed", receipt.FailureCode)
+	}
+	return reportRunnerState(reporter, RunnerPhaseFailed, runnerProgressTerminal, "update_failed", receipt.FailureCode)
+}
+
+func reportRunnerState(reporter RunnerStateReporter, phase RunnerPhase, progress int, message, failure string) error {
+	if reporter != nil {
+		return reporter.Report(phase, progress, message, failure)
+	}
+	return nil
 }
 
 func emitRunnerProgress(progress RunnerProgress) {

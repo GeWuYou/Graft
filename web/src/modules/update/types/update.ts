@@ -15,6 +15,10 @@ export type UpdateReadinessCheck = UpdateReadiness['checks'][number];
 export type UpdateReadinessAction = NonNullable<UpdateReadiness['next_action']>;
 export type UpdateReadinessEvidence = UpdateReadinessCheck['evidence'][number];
 export type UpdateOperation = UpdateSchemas['platform-update-operation'];
+/** runner 接管后，创建请求只确认已接受的操作与执行器身份，真实阶段必须再读取状态快照。 */
+export type UpdateOperationLaunchAcknowledgement = Pick<UpdateOperation, 'operation_id' | 'runner_id'>;
+/** runner 状态中的阶段是当前执行事实，不能由页面自行推导或补写。 */
+export type UpdateOperationPhase = UpdateOperation['phase'];
 /** 更新启动失败诊断只由受权限保护的诊断接口返回，不进入通用错误响应。 */
 export type UpdateFailureDiagnostic = UpdateSchemas['platform-update-failure-diagnostic'];
 export type CreateUpdateOperationRequest = UpdateSchemas['create-platform-update-operation-request'];

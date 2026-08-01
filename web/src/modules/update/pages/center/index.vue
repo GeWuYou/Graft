@@ -215,21 +215,21 @@
           :description="t('update.center.history.emptyDescription')"
         />
         <t-table v-else :data="operations" row-key="operation_id" :columns="operationColumns" size="small">
-          <template #status="{ row }">
-            <t-tag size="small" :theme="operationStatusTheme(row.status)" variant="light-outline">
-              {{ t(`update.center.history.statuses.${row.status}`) }}
+          <template #phase="{ row }">
+            <t-tag size="small" :theme="operationPhaseTheme(row.phase)" variant="light-outline">
+              {{ t(`update.center.history.phases.${row.phase}`) }}
             </t-tag>
           </template>
-          <template #failure_code="{ row }">
+          <template #message="{ row }">
             <t-button
-              v-if="hasFailureDiagnostic(row) && !dataSource"
+              v-if="hasRunnerFailure(row) && !dataSource"
               size="small"
               variant="text"
               @click="showHistoryCause(row)"
             >
               {{ t('update.center.history.viewCause') }}
             </t-button>
-            <span v-else>{{ row.failure_code || '-' }}</span>
+            <span v-else>{{ row.message || '-' }}</span>
           </template>
         </t-table>
       </t-card>
@@ -478,13 +478,13 @@ const capabilityRows = computed(() => [
 
 const operationColumns = computed<PrimaryTableCol[]>(() => [
   { colKey: 'target_version', title: t('update.center.history.target'), width: 140 },
-  { colKey: 'status', title: t('update.center.history.status'), width: 160 },
-  { colKey: 'failure_code', title: t('update.center.history.result'), ellipsis: true },
+  { colKey: 'phase', title: t('update.center.history.status'), width: 160 },
+  { colKey: 'message', title: t('update.center.history.result'), ellipsis: true },
   {
-    colKey: 'created_at',
+    colKey: 'started_at',
     title: t('update.center.history.started'),
     width: 190,
-    cell: (_h, { row }) => formatDate((row as UpdateOperation).created_at),
+    cell: (_h, { row }) => formatDate((row as UpdateOperation).started_at),
   },
 ]);
 
@@ -632,15 +632,15 @@ async function submitUpgrade() {
         ? { compose_candidate_key: selectedCandidateKey.value }
         : {}),
     };
-    let operation: UpdateOperation;
+    let acknowledgement;
     if (props.dataSource) {
-      operation = await props.dataSource.createOperation(payload);
+      acknowledgement = await props.dataSource.createOperation(payload);
     } else {
-      operation = await createUpdateOperation(payload);
+      acknowledgement = await createUpdateOperation(payload);
     }
     confirmationVisible.value = false;
     if (!props.dataSource) {
-      progressStore.begin(operation);
+      await progressStore.begin(acknowledgement);
     }
     await loadHistory();
   } catch (error) {
@@ -668,23 +668,21 @@ function openAppLogs() {
   void router.push(buildAppLogLocation({ request_id: operationRequestId.value }));
 }
 
-function hasFailureDiagnostic(operation: UpdateOperation) {
-  return Boolean(
-    operation.failure_diagnostic_available && (operation.status === 'FAILED' || operation.status === 'NEEDS_ATTENTION'),
-  );
+function hasRunnerFailure(operation: UpdateOperation) {
+  return operation.phase === 'FAILED' || operation.phase === 'ROLLBACK';
 }
 
 function showHistoryCause(operation: UpdateOperation) {
   if (props.dataSource) {
     return;
   }
-  progressStore.begin(operation);
+  void progressStore.begin(operation);
 }
 
-function operationStatusTheme(status: UpdateOperation['status']) {
-  if (status === 'FAILED' || status === 'NEEDS_ATTENTION') return 'danger';
-  if (status === 'SUCCESS' || status === 'RECOVERED') return 'success';
-  if (status === 'RECREATING' || status === 'VERIFYING') return 'warning';
+function operationPhaseTheme(phase: UpdateOperation['phase']) {
+  if (phase === 'FAILED' || phase === 'ROLLBACK') return 'danger';
+  if (phase === 'SUCCESS') return 'success';
+  if (phase === 'STOP_SERVICES' || phase === 'APPLY_UPDATE' || phase === 'HEALTH_CHECK') return 'warning';
   return 'primary';
 }
 

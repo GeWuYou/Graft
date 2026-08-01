@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -30,6 +31,7 @@ const (
 	composeFileArgumentCapacityMultiplier             = 2
 	runnerExecutionTimeout                            = 15 * time.Minute
 	healthzCurlTimeoutSeconds                         = "30"
+	runnerIDRandomBytes                               = 12
 )
 
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
@@ -38,9 +40,19 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+	reporter, err := newStateReporter(input)
+	if err != nil {
+		fatal(err)
+	}
+	if err := reporter.Initialize(); err != nil {
+		fatal(err)
+	}
 	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
 	defer cancel()
-	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{})
+	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{reporter: reporter})
+	if finalizeErr := reporter.Finalize(receipt); finalizeErr != nil {
+		fatal(fmt.Errorf("persist terminal update runner state: %w", finalizeErr))
+	}
 	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
 		// 回执不能泄露宿主路径或备份内容，保留原终态以便 server 结算。
 		_, _ = fmt.Fprintln(os.Stderr, "remove backup staging directory: failed")
@@ -105,7 +117,90 @@ func writeRunnerReceiptLog(writer io.Writer, receipt update.RunnerReceipt) error
 func fatal(err error) { _, _ = fmt.Fprintln(os.Stderr, err); os.Exit(1) }
 
 type actions struct {
-	backup moduleapi.CompleteBackupRunnerHandoffInput
+	backup   moduleapi.CompleteBackupRunnerHandoffInput
+	reporter *stateReporter
+}
+
+// Report 让执行核心报告受限生命周期阶段，状态卷协议仍由入口独占。
+func (a *actions) Report(phase update.RunnerPhase, progress int, message, failure string) error {
+	if a != nil && a.reporter != nil {
+		return a.reporter.Report(phase, progress, message, failure)
+	}
+	return errors.New("runner state reporter is unavailable")
+}
+
+type stateReporter struct {
+	store    update.RunnerStateStore
+	input    update.RunnerInput
+	runnerID string
+	current  update.RunnerState
+}
+
+func newStateReporter(input update.RunnerInput) (*stateReporter, error) {
+	store, err := update.NewFileRunnerStateStore(update.RunnerStateRoot)
+	if err != nil {
+		return nil, err
+	}
+	identifier := input.RunnerID
+	if identifier == "" {
+		identifier, err = newRunnerID()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &stateReporter{store: store, input: input, runnerID: identifier}, nil
+}
+
+func newRunnerID() (string, error) {
+	bytes := make([]byte, runnerIDRandomBytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate runner identity: %w", err)
+	}
+	return "runner-" + hex.EncodeToString(bytes), nil
+}
+
+func (r *stateReporter) Report(phase update.RunnerPhase, progress int, message, failure string) error {
+	return r.write(phase, progress, message, failure)
+}
+
+// Initialize 先持久化 READY；状态卷不可用时不得执行可能停止 server 的升级动作。
+func (r *stateReporter) Initialize() error {
+	return r.write(update.RunnerPhaseReady, 0, "runner_accepted", "")
+}
+
+func (r *stateReporter) write(phase update.RunnerPhase, progress int, message, failure string) error {
+	if r == nil || r.store == nil {
+		return errors.New("runner state reporter is unavailable")
+	}
+	next := update.NewRunnerState(r.input, r.runnerID, phase, progress, message, failure, r.current)
+	if err := r.store.Write(next); err != nil {
+		return err
+	}
+	r.current = next
+	return nil
+}
+
+// Finalize 将受控 receipt 附加到最终快照，供新 server 只读结算终态历史。
+func (r *stateReporter) Finalize(receipt update.RunnerReceipt) error {
+	if r == nil || r.store == nil || r.current.OperationID == "" {
+		return errors.New("runner state reporter is unavailable")
+	}
+	receipt.RunnerID = r.runnerID
+	phase, progress, message, failure := r.current.Phase, r.current.Progress, r.current.Message, r.current.Error
+	if receipt.Succeeded {
+		phase, progress, message, failure = update.RunnerPhaseSuccess, 100, "update_completed", ""
+	} else if receipt.RecoveryCompleted {
+		phase, progress, message, failure = update.RunnerPhaseRollback, 100, "rollback_completed", receipt.FailureCode
+	} else if receipt.FailureCode != "" {
+		phase, progress, message, failure = update.RunnerPhaseFailed, 100, "update_failed", receipt.FailureCode
+	}
+	next := update.NewRunnerState(r.input, r.runnerID, phase, progress, message, failure, r.current)
+	next.Receipt = &receipt
+	if err := r.store.Write(next); err != nil {
+		return err
+	}
+	r.current = next
+	return nil
 }
 
 func (a *actions) Backup(ctx context.Context, in update.RunnerInput) error {
@@ -185,6 +280,9 @@ func (a *actions) Pull(ctx context.Context, in update.RunnerInput) error {
 		return err
 	}
 	return compose(ctx, in, "pull")
+}
+func (a *actions) StopServices(ctx context.Context, in update.RunnerInput) error {
+	return compose(ctx, in, "stop", "server", "web")
 }
 func (a *actions) VerifyImages(ctx context.Context, in update.RunnerInput) error {
 	if err := verifyImageDigest(ctx, in.Preflight.ServerReference, in.Preflight.ServerDigest); err != nil {

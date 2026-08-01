@@ -151,10 +151,10 @@ func (m *Module) Boot(ctx *module.Context) error {
 	if m == nil || m.rollout == nil || ctx == nil {
 		return nil
 	}
-	if err := m.rollout.SettleAvailableReceipts(ctx.LifecycleContext); err != nil && ctx.Logger != nil {
-		ctx.Logger.Warn("platform update runner receipt reconciliation deferred")
+	if err := m.rollout.ReconcileRunnerState(ctx.LifecycleContext); err != nil && ctx.Logger != nil {
+		ctx.Logger.Warn("platform update runner state reconciliation deferred")
 	}
-	m.rollout.StartReceiptPolling(ctx.LifecycleContext)
+	m.rollout.StartRunnerStateProjection(ctx.LifecycleContext)
 	return nil
 }
 

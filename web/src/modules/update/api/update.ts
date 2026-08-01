@@ -13,6 +13,7 @@ import type {
   CreateUpdateOperationRequest,
   UpdateFailureDiagnostic,
   UpdateOperation,
+  UpdateOperationLaunchAcknowledgement,
   UpdateStatus,
 } from '../types/update';
 
@@ -68,9 +69,13 @@ export function getUpdateOperationDiagnostic(operationID: string) {
 }
 
 export function createUpdateOperation(payload: CreateUpdateOperationRequest) {
-  return request.post<UpdateOperation>({ url: UPDATE_API_PATH.OPERATIONS, data: payload }) as Promise<UpdateOperation>;
+  return request.post<UpdateOperationLaunchAcknowledgement>({
+    url: UPDATE_API_PATH.OPERATIONS,
+    data: payload,
+  }) as Promise<UpdateOperationLaunchAcknowledgement>;
 }
 
+/** 仅启动 runner 恢复流程；恢复后的真实状态仍须通过操作快照读取。 */
 type UpdateFailureDiagnosticEnvelope =
   paths['/api/platform/updates/diagnostics/{requestId}']['get']['responses'][200]['content']['application/json'];
 type UpdateFailureDiagnosticData = NonNullable<UpdateFailureDiagnosticEnvelope['data']>;
