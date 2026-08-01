@@ -18,7 +18,19 @@ LOOP_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-loop" / "SKIL
 BATCH_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-batch" / "SKILL.md"
 TASK_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-multi-agent-task" / "SKILL.md"
 WORKER_CONTROLLER_FIELDS = frozenset(
-    {"continue", "pending_batches", "next_batch", "archive_ready", "topic_complete"}
+    {
+        "continue",
+        "pending_batches",
+        "next_batch",
+        "archive_ready",
+        "topic_complete",
+        "stop_loop",
+        "suspend_topic",
+        "wait_for_user",
+    }
+)
+RECOVERY_NONTERMINAL_STATES = frozenset(
+    {"RECOVERY_REQUIRED", "RECOVERY_CONTEXT_RESTORED", "CONTEXT_RESTORED", "AUTHORITY_CONFIRMED", "RECOVERY_COMPLETE", "RESUME_CURRENT_BATCH"}
 )
 
 
@@ -56,6 +68,7 @@ def validate_worker_handoff(worker: Mapping[str, Any], scenario: str) -> list[Fi
 
 def validate_controller_transition(controller: Mapping[str, Any], scenario: str) -> list[Finding]:
     findings: list[Finding] = []
+    source_state = controller.get("source_state")
     target_state = controller.get("target_state")
     pending_batches = controller.get("pending_batches", [])
     archive_checked = controller.get("archive_readiness_completed", False)
@@ -71,6 +84,25 @@ def validate_controller_transition(controller: Mapping[str, Any], scenario: str)
 
     if target_state == "END":
         findings.append(Finding(scenario, "END is not a controller state; transition to ARCHIVE_READY or BLOCKED"))
+
+    if source_state in RECOVERY_NONTERMINAL_STATES and target_state == "END":
+        findings.append(Finding(scenario, f"{source_state} is non-terminal and cannot transition to END"))
+
+    if source_state == "RECOVERY_COMPLETE" and target_state != "RESUME_CURRENT_BATCH":
+        findings.append(Finding(scenario, "RECOVERY_COMPLETE must transition to RESUME_CURRENT_BATCH"))
+
+    if source_state == "RESUME_CURRENT_BATCH" and target_state != "DISPATCH":
+        findings.append(Finding(scenario, "RESUME_CURRENT_BATCH must transition to DISPATCH"))
+    return findings
+
+
+def validate_controller_path(states: tuple[str, ...], scenario: str) -> list[Finding]:
+    findings: list[Finding] = []
+    required_suffix = ("RECOVERY_COMPLETE", "RESUME_CURRENT_BATCH", "DISPATCH")
+    if "RECOVERY_COMPLETE" in states:
+        recovery_index = states.index("RECOVERY_COMPLETE")
+        if states[recovery_index : recovery_index + len(required_suffix)] != required_suffix:
+            findings.append(Finding(scenario, "recovery completion must resume and dispatch the current batch"))
     return findings
 
 
@@ -83,6 +115,8 @@ def validate_skill_contracts() -> list[Finding]:
             (
                 (r"outer\s+main\s+agent|outer\s+controller", r"topic\s+lifecycle\s+owner", r"terminal\s+decision\s+owner"),
                 (r"INIT", r"DISPATCH", r"VERIFY", r"SETTLE", r"ARCHIVE_CHECK"),
+                (r"RECOVERY_REQUIRED", r"RECOVERY_CONTEXT_RESTORED", r"RECOVERY_COMPLETE", r"RESUME_CURRENT_BATCH"),
+                (r"RECOVERY_COMPLETE.*RESUME_CURRENT_BATCH.*DISPATCH",),
                 (r"worker\s+completion", r"never\s+completes\s+a\s+topic\s+loop"),
                 (r"suggested_follow_up",),
                 (r"worker.*must\s+not.*continue", r"worker.*must\s+not.*pending_batches", r"worker.*must\s+not.*next_batch"),
@@ -94,7 +128,7 @@ def validate_skill_contracts() -> list[Finding]:
             (
                 (r"one\s+execution\s+wave",),
                 (r"returns?\s+control", r"outer\s+(loop\s+)?controller"),
-                (r"never\s+completes\s+the\s+topic\s+loop",),
+                (r"never\s+completes(?:\s+or\s+suspends)?\s+the\s+topic\s+loop",),
                 (r"suggested_follow_up",),
             ),
         ),
@@ -105,6 +139,7 @@ def validate_skill_contracts() -> list[Finding]:
                 (r"round\s+evidence", r"suggested_follow_up"),
                 (r"only\s+the\s+outer\s+(main\s+agent|controller)", r"next\s+batch"),
                 (r"must\s+not\s+decide\s+topic\s+completion",),
+                (r"must\s+not\s+resume\s+the\s+current\s+batch",),
             ),
         ),
     )
@@ -132,6 +167,24 @@ def run_validation() -> list[Finding]:
             "archive-ready-requires-settled-topic",
         )
     )
+    findings.extend(
+        validate_controller_transition(
+            {"source_state": "RECOVERY_COMPLETE", "target_state": "END"},
+            "recovery-complete-cannot-end",
+        )
+    )
+    findings.extend(
+        validate_controller_transition(
+            {"source_state": "CONTEXT_RESTORED", "target_state": "END"},
+            "context-restored-cannot-end",
+        )
+    )
+    findings.extend(
+        validate_controller_transition(
+            {"source_state": "AUTHORITY_CONFIRMED", "target_state": "END"},
+            "authority-confirmed-cannot-end",
+        )
+    )
 
     if validate_worker_handoff({"suggested_follow_up": {"next_batch": "phase-next"}}, "advisory-follow-up"):
         findings.append(Finding("advisory-follow-up", "suggested_follow_up must remain valid advisory metadata"))
@@ -140,6 +193,11 @@ def run_validation() -> list[Finding]:
         "archive-ready-after-check",
     ):
         findings.append(Finding("archive-ready-after-check", "valid controller archive transition was rejected"))
+    if validate_controller_path(
+        ("VALIDATION_FAILED", "RECOVERY_COMPLETE", "RESUME_CURRENT_BATCH", "DISPATCH", "WAIT", "VERIFY"),
+        "validation-failure-recovery-resumes-current-batch",
+    ):
+        findings.append(Finding("validation-failure-recovery-resumes-current-batch", "valid recovery path was rejected"))
     return findings
 
 
@@ -153,6 +211,9 @@ def main() -> int:
         "worker-continue-cannot-terminate",
         "worker-next-batch-is-not-controller-state",
         "archive-ready-requires-settled-topic",
+        "recovery-complete-cannot-end",
+        "context-restored-cannot-end",
+        "authority-confirmed-cannot-end",
     }
     observed_scenarios = {finding.scenario for finding in findings}
     for scenario in sorted(expected_failures - observed_scenarios):

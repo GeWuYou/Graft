@@ -49,6 +49,14 @@ INIT
   -> DISPATCH
 
 SETTLE -> ARCHIVE_CHECK -> ARCHIVE_READY | BLOCKED
+
+VERIFY -> RECOVERY_REQUIRED
+  -> RECOVERY_CONTEXT_RESTORED
+  -> RECOVERY_COMPLETE
+  -> RESUME_CURRENT_BATCH
+  -> DISPATCH
+  -> WAIT
+  -> VERIFY
 ```
 
 Rules:
@@ -58,6 +66,13 @@ Rules:
 * non-empty `pending_batches` requires `ADVANCE` followed by `DISPATCH_NEXT`
 * `ARCHIVE_CHECK` is allowed only after the controller has settled an empty pending set
 * `ARCHIVE_READY` and `BLOCKED` are the only terminal states; `END` is reachable only from one of them
+* `RECOVERY_REQUIRED`, `RECOVERY_CONTEXT_RESTORED`, `RECOVERY_COMPLETE`, and `RESUME_CURRENT_BATCH` are non-terminal
+  controller states; they must never transition to `END`, `ARCHIVE_READY`, or `BLOCKED` without an explicit terminal
+  decision
+* `RECOVERY_COMPLETE` requires restored controller state, confirmed repair authority, a safe bounded repair or retry,
+  and `execute_repair` when root `AGENTS.md` requires repair authorization
+* after `RECOVERY_COMPLETE`, the controller must enter `RESUME_CURRENT_BATCH` and dispatch a repaired worker for the
+  preserved logical batch; it must not wait for a separate user request to restart execution
 
 Termination invariant:
 
@@ -65,6 +80,8 @@ Termination invariant:
 * batch completion never completes a topic loop
 * commit success never completes a topic loop
 * validation success never completes a topic loop
+* recovery receipt creation, recovery-context restoration, authority confirmation, and recovery completion never
+  complete a topic loop
 * only a controller terminal state can complete a topic loop
 * the main agent must not emit final completion while controller state is non-terminal, or before `pending_batches` is
   empty and the archive-readiness check has completed
@@ -150,6 +167,15 @@ Typical triggers:
    - treat worker health as a nested state machine: `running -> checkpoint_requested -> checkpoint_received ->
      waiting_for_final_closeout -> completed | retry_pending | blocked`; this nested state never replaces controller
      state
+   - when validation failure, scope conflict, or another recoverable blocker ends a worker round, enter
+     `RECOVERY_REQUIRED` rather than settling the batch or ending the topic
+   - preserve `current_batch` and `pending_batches`; do not add the failed batch to `completed_batches`, choose a
+     `next_batch`, or enter `ADVANCE` while recovery is active
+   - persist a recovery receipt with the failed-round evidence, required context, repair authority, repair-eligibility
+     result, and the required `RESUME_CURRENT_BATCH` target
+   - after a new session completes startup preflight, restore that receipt as `RECOVERY_CONTEXT_RESTORED`; once the
+     recovery conditions are satisfied, transition through `RECOVERY_COMPLETE` and automatically resume the current
+     batch
 7. In `topic-completion-loop`, batch success must continue by default:
    - after an accepted worker closeout, the outer main agent must:
      - verify owned scope stayed bounded
@@ -295,19 +321,23 @@ Typical triggers:
    - the topic reaches `archive-ready`
    - the loop becomes `blocked`
    - a user-defined hard limit is exhausted
-   - the worker reports a non-recoverable validation failure, a required repair proposal was not accepted with
-     `execute_repair`, or the repair is unsafe or out of scope
+   - the worker reports a non-recoverable validation failure, the user cancels the required repair, or the repair is
+     unsafe or out of scope and no safe bounded recovery can be defined
    - a worker closeout fails twice under the retry-once policy
    - the delegated round expands scope or reports high risk
    - the worktree becomes unsafe for scoped worker continuation
    - the user explicitly stops the loop
    - a reference metric overrun combines with a substantive safety, validation, scope, closeout, retry, risk, or
      user-stop reason
-14. Use `Next-session startup prompt:` only for terminal handoff states:
+14. Use `Next-session startup prompt:` for either a terminal handoff or a recoverable handoff:
    - `blocked`
    - `archive-ready`
    - `explicit stop`
-   - do not use it as the normal continuation mechanism for `topic-completion-loop`
+   - `RECOVERY_REQUIRED` when the receipt identifies the preserved `current_batch`, the recovery context, and the
+     `RESUME_CURRENT_BATCH` target
+   - a recoverable handoff is not a stop signal and must not be represented as `blocked`; after preflight and recovery
+     completion, the controller resumes without user re-dispatch
+   - do not use it as the normal continuation mechanism for ordinary `topic-completion-loop` batch success
 
 ## Output Contract
 
@@ -323,19 +353,28 @@ round evidence:
 - `validation_evidence`
 - `risks`
 - `blockers`
+- `required_context` when recovery or retry needs prior evidence
+- optional `recovery_requirements`, containing evidence only and never a controller transition
 - `parent_model`, `worker_model`, `model_relation`, `model_rank_verified`, and `higher_model_approval`
 - optional `suggested_follow_up`
 
 `suggested_follow_up` may contain candidate work or recovery context, but is advisory only. A worker must not emit or
-infer `continue`, `pending_batches`, `next_batch`, `archive_ready`, or `topic_complete`. It must not emit a
-`Next-session startup prompt:` unless the outer controller explicitly directs a terminal handoff.
+infer `continue`, `pending_batches`, `next_batch`, `archive_ready`, `topic_complete`, `stop_loop`, `suspend_topic`,
+or `wait_for_user`. It must not emit a `Next-session startup prompt:`; the outer controller alone may emit terminal
+or recoverable handoff output.
 
 ### Controller Decision Record
 
 The outer main agent treats worker evidence as input, not as a control decision. After `VERIFY`, it alone records the
 controller transition and owns `controller_state`, `current_batch`, `completed_batches`, `pending_batches`,
-`next_batch`, budget, and any terminal reason. It may dispatch the next worker only from `DISPATCH_NEXT`, and may emit
-final completion only from `ARCHIVE_READY` or `BLOCKED`.
+`next_batch`, budget, recovery receipt, and any terminal reason. It may dispatch the next worker only from
+`DISPATCH_NEXT`, may dispatch the repaired current batch only from `RESUME_CURRENT_BATCH`, and may emit final
+completion only from `ARCHIVE_READY` or `BLOCKED`.
+
+The recovery receipt is context for the controller, not a batch success record. During recovery, `current_batch` and
+`pending_batches` remain unchanged, the failed batch remains unsettled, and `ADVANCE` is forbidden. Batch, worker,
+and receipt output cannot suspend or terminate the topic; only the controller may resolve the receipt into
+`RECOVERY_COMPLETE`, `RESUME_CURRENT_BATCH`, or a terminal state.
 
 `pending_batches=[]` alone is not a stop condition. The controller must first run `ARCHIVE_CHECK`, which may produce
 `ARCHIVE_READY`, regenerated `pending_batches`, or `BLOCKED`.

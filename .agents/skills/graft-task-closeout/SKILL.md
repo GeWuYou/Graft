@@ -73,7 +73,8 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
 
 The closeout result should stay concise and should contain:
 
-1. `closeout status`: `completed_no_handoff`, `committed_and_handed_off`, `handoff_only`, or `blocked`
+1. `closeout status`: `completed_no_handoff`, `committed_and_handed_off`, `handoff_only`, `recovery_handoff`,
+   `blocked`, `cancelled`, `unsafe`, or `exhausted_retry`
 2. `validation`: exact command run or the exact limitation
 3. `next-step startup prompt`: only when a future turn is expected
 4. `experience capture`: `none`, `added`, `updated`, `promoted`, or `deprecated`, with the lesson/doc targets when applicable
@@ -94,6 +95,7 @@ The closeout result should stay concise and should contain:
    - `remaining_budget`
    - `scope_expanded`
    - `risk_level`
+   - `recovery`
 
 Use plain language, but keep the startup prompt explicit enough that the next turn can rerun startup preflight without
 guessing the inherited context.
@@ -112,9 +114,15 @@ When a caller such as `graft-multi-agent-loop` requests machine-readable closeou
   - `continue=true` requires `next_batch` and `next_batch_prompt` when batches remain
   - `pending_batches=[]` requires a final archive-readiness check before the loop may stop
   - `continue=true` requires `next_prompt=null`
-  - `Next-session startup prompt:` must appear only for terminal handoff states such as `blocked`, `archive-ready`, or
-    explicit stop
-- `continue=false` requires `next_prompt=null` unless the closeout is a terminal handoff to a future turn
+  - a terminal handoff is limited to `blocked`, `cancelled`, `unsafe`, `exhausted_retry`, `archive-ready`, or explicit
+    stop; it must include a terminal reason
+  - a `recovery_handoff` is non-terminal and may emit `Next-session startup prompt:` only when `recovery.status` is
+    `required`, `current_batch` and `pending_batches` are preserved, `recovery.resume_target` is
+    `RESUME_CURRENT_BATCH`, and the failed batch is unsettled
+  - after startup preflight restores the receipt and recovery becomes eligible, the outer controller must transition
+    `RECOVERY_COMPLETE -> RESUME_CURRENT_BATCH -> DISPATCH`; it must not wait for a user re-dispatch
+- `continue=false` requires `next_prompt=null` unless the closeout is a terminal or recoverable handoff to a future
+  turn
 - `validation.status` should be one of `passed`, `failed`, or `not_run`
 - `risk_level` should be one of `low`, `medium`, or `high`
 - `consumed_budget` must describe only the current slice or delegated round
@@ -124,7 +132,7 @@ Recommended JSON shape:
 
 ```json
 {
-  "closeout_status": "completed_no_handoff | committed_and_handed_off | handoff_only | blocked",
+  "closeout_status": "completed_no_handoff | committed_and_handed_off | handoff_only | recovery_handoff | blocked | cancelled | unsafe | exhausted_retry",
   "continue": true,
   "loop_mode": "topic-completion-loop | checkpoint-loop | null",
   "current_batch": "string or null",
@@ -157,7 +165,16 @@ Recommended JSON shape:
     "runtime_minutes": 80
   },
   "scope_expanded": false,
-  "risk_level": "low"
+  "risk_level": "low",
+  "recovery": {
+    "status": "none | required | context_restored | complete",
+    "resume_target": "RESUME_CURRENT_BATCH | null",
+    "current_batch_preserved": true,
+    "pending_batches_preserved": true,
+    "failed_batch_settled": false,
+    "repair_eligible": false,
+    "required_context": "object or null"
+  }
 }
 ```
 
@@ -165,7 +182,8 @@ For `graft-multi-agent-loop` in the default `topic-completion-loop` mode, prefer
 
 - `continue=true` with `next_prompt=null` means same-session continuation
 - `next_batch` and `next_batch_prompt` drive the next delegated worker round
-- `Next-session startup prompt:` is emitted only when the loop reaches a terminal handoff state
+- `Next-session startup prompt:` is emitted for terminal handoff or a structured `recovery_handoff`; recovery is not a
+  terminal state and must resume the preserved current batch after its eligibility conditions are met
 
 ## Boundaries
 
