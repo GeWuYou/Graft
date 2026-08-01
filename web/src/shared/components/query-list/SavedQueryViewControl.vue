@@ -166,12 +166,13 @@ function normalizeSearchValue(value: string | number | undefined) {
 .saved-query-view-control {
   align-items: center;
   display: flex;
-  flex: 0 1 32rem;
+  flex: 1 1 clamp(17rem, 40cqi, 32rem);
   flex-wrap: nowrap;
   gap: var(--graft-density-gap-8);
+  inline-size: clamp(17rem, 40cqi, 32rem);
   margin-left: auto;
-  max-width: 32rem;
-  min-width: 17rem;
+  max-inline-size: 32rem;
+  min-inline-size: 17rem;
 }
 
 .saved-query-view-control__select {

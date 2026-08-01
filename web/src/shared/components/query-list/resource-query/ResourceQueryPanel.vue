@@ -19,13 +19,15 @@
             <t-input
               v-if="searchEnabled"
               :model-value="draft.keyword"
-              class="management-query-search"
+              class="resource-query-panel__keyword management-query-search"
               clearable
               :placeholder="config.placeholder ?? t('app.queryBar.searchPlaceholder')"
               @enter="apply"
               @update:model-value="updateKeyword"
             />
-            <slot name="toolbar-after-search" />
+            <div v-if="$slots['toolbar-after-search']" class="resource-query-panel__after-search">
+              <slot name="toolbar-after-search" />
+            </div>
             <t-button
               v-if="filters.length"
               class="resource-query-panel__filter-trigger"
@@ -76,8 +78,7 @@
               {{ quick.label }}
             </t-button>
           </div>
-          <div v-if="activeTags.length" class="resource-query-panel__tags" data-testid="resource-query-tags">
-            <span class="resource-query-panel__tags-label">{{ t('app.queryBar.applied') }}</span>
+          <div class="resource-query-panel__tags" data-testid="resource-query-tags">
             <t-tag
               v-for="tag in activeTags"
               :key="tag.key"
@@ -89,7 +90,6 @@
             >
               {{ tag.label }}
             </t-tag>
-            <t-button size="small" variant="text" @click="reset">{{ t('app.queryBar.clearAll') }}</t-button>
           </div>
         </div>
         <t-drawer
@@ -358,22 +358,38 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   align-items: center;
   display: grid;
   gap: var(--graft-density-gap-8);
-  grid-template-columns: minmax(18rem, 28rem) max-content max-content max-content minmax(17rem, 1fr);
+  grid-template-areas: 'search after-search filter commands toolbar';
+  grid-template-columns: minmax(18rem, 1.1fr) max-content max-content max-content minmax(17rem, 0.9fr);
   width: 100%;
 }
 
-.resource-query-panel__main[data-command-layout='split'] {
-  grid-template-areas:
-    'search filter query reset'
-    'toolbar toolbar toolbar toolbar';
+.resource-query-panel__keyword {
+  grid-area: search;
+}
+
+.resource-query-panel__after-search {
+  grid-area: after-search;
+  min-width: 0;
+}
+
+.resource-query-panel__filter-trigger {
+  grid-area: filter;
 }
 
 .resource-query-panel__main[data-command-layout='stacked'] {
+  grid-template-areas:
+    'search after-search filter commands'
+    'toolbar toolbar toolbar toolbar';
   grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
 }
 
 .resource-query-panel__main[data-command-layout='compact'] {
-  grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+  grid-template-areas:
+    'search commands'
+    'after-search after-search'
+    'filter filter'
+    'toolbar toolbar';
+  grid-template-columns: minmax(0, 1fr) max-content;
 }
 
 .resource-query-panel__main :deep(.management-query-search) {
@@ -382,22 +398,31 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
 }
 
 .resource-query-panel__commands {
-  display: contents;
+  grid-area: commands;
 }
 
 .resource-query-panel__toolbar-actions {
   align-items: center;
   display: flex;
   gap: var(--graft-density-gap-8);
-  grid-column: auto;
+  grid-area: toolbar;
   justify-content: flex-end;
   min-width: 0;
+}
+
+.resource-query-panel__main[data-command-layout='stacked'] .resource-query-panel__toolbar-actions,
+.resource-query-panel__main[data-command-layout='compact'] .resource-query-panel__toolbar-actions {
+  justify-content: flex-start;
 }
 
 .resource-query-panel__tags {
   flex-wrap: nowrap;
   overflow-x: auto;
   padding-bottom: var(--graft-density-gap-2);
+}
+
+.resource-query-panel__tags > :deep(.t-tag) {
+  flex: 0 0 auto;
 }
 
 .resource-query-panel__expanded-filters {
@@ -476,25 +501,12 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   min-width: 0;
 }
 
-.resource-query-panel__range-separator,
-.resource-query-panel__tags-label {
+.resource-query-panel__range-separator {
   color: var(--td-text-color-secondary);
 }
 
-.resource-query-panel__tags-label {
-  font: var(--td-font-body-small);
-  white-space: nowrap;
-}
-
-@container (width < @screen-lg) {
-  .resource-query-panel__toolbar-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-}
-
 @container (width < @screen-md) {
-  .resource-query-panel__main {
+  .resource-query-panel__main[data-command-layout='stacked'] {
     grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
   }
 

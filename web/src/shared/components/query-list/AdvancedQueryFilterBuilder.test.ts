@@ -108,6 +108,28 @@ describe('AdvancedQueryFilterBuilder', () => {
     expect(wrapper.emitted('reset')).toHaveLength(1);
   });
 
+  it('always renders the active-filter row, including when no tags are active', async () => {
+    const wrapper = mount(AdvancedQueryFilterBuilder, {
+      props: { ...defaultProps, compactMode: true, tags: [] },
+      global: {
+        stubs: {
+          't-button': passthroughStub,
+          't-popup': popupStub,
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
+          't-input': inputStub,
+          't-tag': tagStub,
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toBe('');
+
+    await wrapper.setProps({ tags: defaultProps.tags });
+
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toContain('Keyword: active');
+  });
+
   it('keeps compact filter controls inside the collapsed panel while presets remain outside it', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: {

@@ -73,8 +73,6 @@ const i18n = createI18n({
           moreFilters: 'More Filters',
           search: 'Search',
           reset: 'Reset',
-          applied: 'Applied:',
-          clearAll: 'Clear All',
           clear: 'Clear',
           apply: 'Apply',
           yes: 'Yes',
@@ -125,19 +123,28 @@ function mountPanel(
 }
 
 describe('ResourceQueryPanel', () => {
-  it('uses the medium size for the primary query actions', () => {
+  it('uses the inline command-bar layout for wide query surfaces', () => {
     const { wrapper } = mountPanel();
 
     expect(wrapper.get('[data-testid="resource-query-builder-trigger"]').attributes('size')).toBe('medium');
     expect(wrapper.get('[data-testid="resource-query-search"]').attributes('size')).toBe('medium');
     expect(wrapper.get('[data-testid="resource-query-reset"]').attributes('size')).toBe('medium');
+    expect(wrapper.get('.resource-query-panel__main').attributes('data-command-layout')).toBe('inline');
   });
 
-  it('applies configured filters from the first page and renders active tags', async () => {
+  it('applies configured filters from the first page and renders active tags without redundant actions', async () => {
     const { wrapper } = mountPanel();
     await wrapper.get('[data-testid="resource-query-search"]').trigger('click');
     expect(wrapper.emitted('search')?.[0]?.[0]).toMatchObject({ page: 1, filters: { status: 'running' } });
     expect(wrapper.get('[data-testid="resource-query-tags"]').text()).toContain('Status=Running');
+    expect(wrapper.get('[data-testid="resource-query-tags"]').text()).not.toContain('Applied:');
+    expect(wrapper.get('[data-testid="resource-query-tags"]').text()).not.toContain('Clear All');
+  });
+
+  it('keeps the active-tag row visible when no filters are active', () => {
+    const { wrapper } = mountPanel({ keyword: '', filters: {}, page: 1, pageSize: 20 });
+
+    expect(wrapper.get('[data-testid="resource-query-tags"]').text()).toBe('');
   });
 
   it('does not reserve a second row until page-provided simple filters are explicitly expanded', async () => {

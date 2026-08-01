@@ -256,7 +256,7 @@
           </t-button>
         </div>
 
-        <div v-if="(!effectiveCompactMode || compactExpanded) && tags.length" class="query-filter-builder__tag-row">
+        <div class="query-filter-builder__tag-row" data-testid="query-filter-builder-tags">
           <t-tag
             v-for="tag in tags"
             :key="tag.key"
@@ -361,7 +361,6 @@ const builderVisible = ref(false);
 const filterPanels = ref<string[]>(['filters']);
 const viewportVariant = useViewportResponsiveVariant();
 const effectiveCompactMode = computed(() => props.compactMode || viewportVariant.value.density === 'compact');
-const compactExpanded = computed(() => filterPanels.value.includes('filters'));
 const compactFilterSummary = computed(() => {
   if (props.tags.length > 0) {
     return `${props.compactToggleLabel || props.filtersGroupLabel} (${props.tags.length})`;
@@ -594,9 +593,17 @@ function normalizeRange(value: string[] | undefined) {
 }
 
 .query-filter-builder__tag-row {
+  align-items: center;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--graft-density-gap-8);
+  min-height: 32px;
+  overflow-x: auto;
+  padding-bottom: var(--graft-density-gap-2);
+}
+
+.query-filter-builder__tag-row > :deep(.t-tag) {
+  flex: 0 0 auto;
 }
 
 @media (width <= 900px) {
