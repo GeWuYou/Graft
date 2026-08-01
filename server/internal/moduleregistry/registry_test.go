@@ -75,6 +75,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/backup/migrations",
 		"modules/update/migrations",
 		"modules/project/migrations",
+		"modules/build/migrations",
 	}
 	if !reflect.DeepEqual(dirs, expected) {
 		t.Fatalf("expected %v, got %v", expected, dirs)

@@ -1,3 +1,4 @@
+// Package build 定义 Build domain 的模块生命周期与编译期接线入口，保持任务、执行器和 HTTP 能力在各自后续边界中实现。
 package build
 
 import "graft/server/internal/module"
