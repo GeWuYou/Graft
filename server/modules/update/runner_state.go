@@ -75,17 +75,18 @@ type RunnerStateStore interface {
 
 // FileRunnerStateStore 原子替换当前快照，并追加可校验关联的事件记录。
 type FileRunnerStateStore struct {
-	root string
-	mu   sync.Mutex
+	root             string
+	enforceOwnership bool
+	mu               sync.Mutex
 }
 
-// NewFileRunnerStateStore 创建状态卷适配器；调用方只能传入官方挂载根目录。
+// NewFileRunnerStateStore 创建状态卷适配器。仅官方 RunnerStateRoot 强制 runner 写入后归属 server 运行用户；其他绝对目录仅用于本地测试。
 func NewFileRunnerStateStore(root string) (*FileRunnerStateStore, error) {
 	root = filepath.Clean(strings.TrimSpace(root))
 	if !filepath.IsAbs(root) {
 		return nil, errors.New("runner state root must be absolute")
 	}
-	return &FileRunnerStateStore{root: root}, nil
+	return &FileRunnerStateStore{root: root, enforceOwnership: root == RunnerStateRoot}, nil
 }
 
 // Read 读取并校验最近一次原子写入的快照。
@@ -127,14 +128,14 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// 状态卷不保存秘密，server 以非 root 用户只读挂载，故文件必须允许该用户读取。
+	// 官方状态卷不保存秘密，server 以非 root 用户只读挂载，故 runner 写入必须转交给该用户。
 	if err := os.MkdirAll(filepath.Join(s.root, "events"), runnerStateDirectoryPermission); err != nil {
 		return fmt.Errorf("create runner state directory: %w", err)
 	}
-	if err := os.Chown(s.root, runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := s.assignServerOwnership(s.root, "root"); err != nil {
 		return fmt.Errorf("assign runner state root owner: %w", err)
 	}
-	if err := os.Chown(filepath.Join(s.root, "events"), runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := s.assignServerOwnership(filepath.Join(s.root, "events"), "event"); err != nil {
 		return fmt.Errorf("assign runner state event owner: %w", err)
 	}
 	previous, err := s.Read()
@@ -167,7 +168,7 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	if err := os.WriteFile(temporary, payload, runnerStateFilePermission); err != nil {
 		return fmt.Errorf("write runner state: %w", err)
 	}
-	if err := os.Chown(temporary, runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := s.assignServerOwnership(temporary, "state"); err != nil {
 		return fmt.Errorf("assign runner state owner: %w", err)
 	}
 	event := append(payload, '\n')
@@ -176,7 +177,7 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	if err := os.WriteFile(eventTemporary, event, runnerStateFilePermission); err != nil {
 		return fmt.Errorf("write runner state event: %w", err)
 	}
-	if err := os.Chown(eventTemporary, runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := s.assignServerOwnership(eventTemporary, "event"); err != nil {
 		return fmt.Errorf("assign runner state event owner: %w", err)
 	}
 	if err := os.Rename(eventTemporary, eventPath); err != nil {
@@ -184,6 +185,16 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	}
 	if err := os.Rename(temporary, filepath.Join(s.root, "current.json")); err != nil {
 		return fmt.Errorf("publish runner state: %w", err)
+	}
+	return nil
+}
+
+func (s *FileRunnerStateStore) assignServerOwnership(path, kind string) error {
+	if s == nil || !s.enforceOwnership {
+		return nil
+	}
+	if err := os.Chown(path, runnerStateServerUID, runnerStateServerGID); err != nil {
+		return fmt.Errorf("assign runner state %s owner: %w", kind, err)
 	}
 	return nil
 }

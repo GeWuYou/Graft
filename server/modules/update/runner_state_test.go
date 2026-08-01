@@ -18,6 +18,9 @@ func TestFileRunnerStateStorePublishesVerifiedMonotonicSnapshots(t *testing.T) {
 	if err := store.Write(ready); err != nil {
 		t.Fatalf("write ready state: %v", err)
 	}
+	if store.enforceOwnership {
+		t.Fatal("local state store must not require production volume ownership")
+	}
 	preflight := NewRunnerState(input, "runner-state-1", RunnerPhasePreflight, 5, "checking_environment", "", ready)
 	if err := store.Write(preflight); err != nil {
 		t.Fatalf("write preflight state: %v", err)
@@ -31,6 +34,16 @@ func TestFileRunnerStateStorePublishesVerifiedMonotonicSnapshots(t *testing.T) {
 	}
 	if err := store.Write(ready); err == nil {
 		t.Fatal("expected stale state revision to be rejected")
+	}
+}
+
+func TestNewFileRunnerStateStoreEnforcesOwnershipOnlyForOfficialVolume(t *testing.T) {
+	store, err := NewFileRunnerStateStore(RunnerStateRoot)
+	if err != nil {
+		t.Fatalf("new official state store: %v", err)
+	}
+	if !store.enforceOwnership {
+		t.Fatal("official state volume must enforce server ownership")
 	}
 }
 
