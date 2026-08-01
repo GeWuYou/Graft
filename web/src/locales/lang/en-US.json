@@ -479,6 +479,7 @@
       "noResults": "No matching saved filters",
       "namePlaceholder": "Enter a filter name",
       "nameRequired": "Enter a filter name.",
+      "default": "Set as default view",
       "actions": {
         "saveAs": "Save Filter",
         "save": "Save",
@@ -492,6 +493,18 @@
         "deleteTitle": "Delete Filter",
         "deleteDescription": "Delete filter \"{name}\"? This cannot be undone."
       }
+    },
+    "queryBar": {
+      "searchPlaceholder": "Search Keywords",
+      "moreFilters": "More Filters",
+      "search": "Search",
+      "reset": "Reset",
+      "applied": "Applied:",
+      "clearAll": "Clear All",
+      "clear": "Clear",
+      "apply": "Apply",
+      "yes": "Yes",
+      "no": "No"
     },
     "auth": {
       "login": {

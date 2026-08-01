@@ -19,6 +19,26 @@ import (
 
 const httpStatusBadRequest = 400
 
+const websocketUpgradeSucceededContextKey = "httpx.websocket_upgrade_succeeded"
+
+// UpgradeWebSocket 执行 WebSocket 协议升级，并把成功升级的连接从普通请求性能统计中排除。
+// Gorilla WebSocket 会直接劫持底层连接，Gin 的响应状态可能仍保持为 200；包装器只在握手成功后写入
+// 访问日志分类标记，失败握手仍按普通 HTTP 请求处理。
+func UpgradeWebSocket(ctx *gin.Context, upgrader *websocket.Upgrader, responseHeader http.Header) (*websocket.Conn, error) {
+	if ctx == nil || ctx.Request == nil || ctx.Writer == nil {
+		return nil, errors.New("websocket upgrade context is unavailable")
+	}
+	if upgrader == nil {
+		return nil, errors.New("websocket upgrader is unavailable")
+	}
+	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, responseHeader)
+	if err != nil {
+		return nil, err
+	}
+	markWebSocketUpgrade(ctx)
+	return conn, nil
+}
+
 func newAccessLogMiddleware(logger *zap.Logger, target any, activeRequests *activeRequestTracker, options AccessLogOptions) gin.HandlerFunc {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -129,15 +149,30 @@ func buildAccessLogRecord(ctx *gin.Context, requestID string, traceID string, st
 	return record
 }
 
-// currentAccessLogConnectionType classifies a request as HTTP or WebSocket based on its upgrade status.
+// currentAccessLogConnectionType 根据实际成功的协议升级结果区分 HTTP 请求和 WebSocket 连接。
 func currentAccessLogConnectionType(ctx *gin.Context) AccessLogConnectionType {
 	if ctx == nil || ctx.Request == nil || ctx.Writer == nil {
 		return AccessLogConnectionTypeHTTP
 	}
-	if websocket.IsWebSocketUpgrade(ctx.Request) && ctx.Writer.Status() == http.StatusSwitchingProtocols {
+	if websocket.IsWebSocketUpgrade(ctx.Request) && websocketUpgradeSucceeded(ctx) {
 		return AccessLogConnectionTypeWebSocket
 	}
 	return AccessLogConnectionTypeHTTP
+}
+
+func websocketUpgradeSucceeded(ctx *gin.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	value, exists := ctx.Get(websocketUpgradeSucceededContextKey)
+	succeeded, ok := value.(bool)
+	return exists && ok && succeeded
+}
+
+func markWebSocketUpgrade(ctx *gin.Context) {
+	if ctx != nil {
+		ctx.Set(websocketUpgradeSucceededContextKey, true)
+	}
 }
 
 // persistAccessLog 将访问日志记录持久化到仓储；写入受独立 deadline 约束，失败不会改变原始 HTTP 响应。

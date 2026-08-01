@@ -198,17 +198,17 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('<template #compactActions>');
     expect(sourceText).toContain('compactHeaderActions');
     expect(sourceText).toContain('handleCompactHeaderAction');
-    expect(sourceText).toContain('sticky-compact');
+    expect(sourceText).toContain('<resource-query-panel');
     expect(sourceText).toContain("t('container.images.searchCompact')");
     expect(sourceText).toContain('layout="chips"');
   });
 
-  it('resets server pagination when submitting or clearing the keyword', () => {
-    expect(sourceText).toContain('@enter="applyKeyword"');
-    expect(sourceText).toContain('@clear="clearKeyword"');
-    expect(sourceText).toContain('submittedKeyword.value = keyword.value.trim();');
-    expect(sourceText).toContain("submittedKeyword.value = '';");
-    expect(sourceText).toContain('pagination.current = 1;');
+  it('maps shared Query Bar search and unused-image filtering to server pagination', () => {
+    expect(sourceText).toContain('v-model="resourceQueryState"');
+    expect(sourceText).toContain("key: 'unused'");
+    expect(sourceText).toContain('submittedKeyword.value = value.keyword.trim();');
+    expect(sourceText).toContain('imageQueryUnused.value = value.filters.unused === true;');
+    expect(sourceText).toContain('unused: imageQueryUnused.value || undefined');
   });
 
   it('renders a TDesign empty state with a keyword reset action', () => {

@@ -21,8 +21,9 @@ const logFilterBuilderStub = defineComponent({
     'removeSorterLabel',
     'moveUpLabel',
     'moveDownLabel',
+    'presets',
   ],
-  emits: ['close-tag'],
+  emits: ['apply-preset', 'close-tag'],
   setup(props, { emit }) {
     return () =>
       h('div', [
@@ -36,6 +37,7 @@ const logFilterBuilderStub = defineComponent({
         h('span', { 'data-testid': 'sort-move-up-disabled' }, JSON.stringify(props.sortMoveUpDisabled)),
         h('span', { 'data-testid': 'sort-move-down-disabled' }, JSON.stringify(props.sortMoveDownDisabled)),
         h('button', { 'data-testid': 'close-sorter', onClick: () => emit('close-tag', 'sorter:0') }),
+        h('button', { 'data-testid': 'apply-preset', onClick: () => emit('apply-preset', 'status5xx') }),
       ]);
   },
 });
@@ -241,5 +243,35 @@ describe('AccessLogFilters', () => {
     await wrapper.get('[data-testid="close-sorter"]').trigger('click');
 
     expect(wrapper.emitted('reset')).toHaveLength(1);
+  });
+
+  it('routes builder preset clicks through the page apply-preset event', async () => {
+    const wrapper = mount(AccessLogFilters, {
+      props: {
+        activePreset: 'all',
+        modelValue: {
+          keyword: '',
+          startedRange: [],
+          occurredRange: [],
+          requestId: '',
+          userId: '',
+          username: '',
+          method: '',
+          path: '',
+          pathMatch: 'exact',
+          route: '',
+          statusCode: '',
+          durationMinMs: '',
+          durationMaxMs: '',
+          sorters: [],
+        },
+        presets: [{ key: 'status5xx', title: '5xx' }],
+      },
+      global: { plugins: [i18n], stubs: { AdvancedQueryFilterBuilder: logFilterBuilderStub } },
+    });
+
+    await wrapper.get('[data-testid="apply-preset"]').trigger('click');
+
+    expect(wrapper.emitted('apply-preset')).toEqual([['status5xx']]);
   });
 });

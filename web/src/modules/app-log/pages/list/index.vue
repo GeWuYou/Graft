@@ -109,6 +109,7 @@ import {
   AdvancedQueryListPage,
   applySavedQueryViewPresentation,
   normalizeSavedQueryView,
+  serializeSavedQueryViewRequest,
   useSavedQueryViews,
 } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/shared/localized-api-error';
@@ -649,13 +650,12 @@ function currentAppLogSavedViewQueryState(): AppLogSavedQueryState {
   return query;
 }
 
-function toAppLogSavedViewRequest(input: { name: string; state: AppLogSavedQueryViewState }): AppLogSavedViewRequest {
-  return {
-    name: input.name,
-    page_size: input.state.pageSize,
-    query_state: input.state.queryState as unknown as Record<string, unknown>,
-    visible_columns: input.state.visibleColumns,
-  };
+function toAppLogSavedViewRequest(input: {
+  name: string;
+  isDefault: boolean;
+  state: AppLogSavedQueryViewState;
+}): AppLogSavedViewRequest {
+  return serializeSavedQueryViewRequest(input);
 }
 
 function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {
@@ -689,6 +689,10 @@ function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {
 }
 
 onMounted(() => {
-  void appLogSavedViews.load();
+  const routeQuery = parseAppLogRouteQuery(route.query);
+  const hasExplicitState = Object.values(routeQuery).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  );
+  void appLogSavedViews.load({ hasExplicitState });
 });
 </script>

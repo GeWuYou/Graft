@@ -736,7 +736,7 @@ function handleVolumeAction(action: string, row: ImportInspectVolumeRow) {
   detailDialogVisible.value = true;
 }
 
-function handleSortChange(resource: ImportInspectResourceKey, sort: TableSort) {
+function handleSortChange(resource: ImportInspectResourceKey, sort: TableSort | undefined) {
   resourceSort[resource] = sort;
 }
 

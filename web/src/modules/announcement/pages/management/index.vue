@@ -492,7 +492,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import type { ButtonProps, FormRule, PageInfo, SortInfo, SubmitContext, TdBaseTableProps } from 'tdesign-vue-next';
+import type { ButtonProps, FormRule, PageInfo, SubmitContext, TableSort, TdBaseTableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -837,7 +837,7 @@ function handlePageChange(pageInfo: PageInfo) {
   pagination.pageSize = pageInfo.pageSize;
 }
 
-function handleSortChange(sort: SortInfo | SortInfo[]) {
+function handleSortChange(sort: TableSort | undefined) {
   const nextSort = Array.isArray(sort) ? sort[0] : sort;
   filters.sort = nextSort?.descending === false ? 'publish_desc' : 'updated_desc';
 }

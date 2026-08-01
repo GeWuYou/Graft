@@ -241,7 +241,7 @@ const emit = defineEmits<{
   (e: 'page-change', pageInfo: PageInfo): void;
   (e: 'row-click', row: ContainerSummaryRecord): void;
   (e: 'select-change', rowKeys: Array<string | number>): void;
-  (e: 'sort-change', sort: TableSort): void;
+  (e: 'sort-change', sort: TableSort | undefined): void;
   (e: 'application-context', applicationId: string): void;
 }>();
 

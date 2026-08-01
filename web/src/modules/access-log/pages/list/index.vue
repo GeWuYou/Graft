@@ -95,6 +95,7 @@ import {
   AdvancedQueryListPage,
   applySavedQueryViewPresentation,
   normalizeSavedQueryView,
+  serializeSavedQueryViewRequest,
   useSavedQueryViews,
 } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAccessLogErrorMessage } from '@/shared/localized-api-error';
@@ -685,14 +686,10 @@ function currentAccessLogSavedViewQueryState(): AccessLogSavedQueryState {
 
 function toAccessLogSavedViewRequest(input: {
   name: string;
+  isDefault: boolean;
   state: AccessLogSavedQueryViewState;
 }): AccessLogSavedViewRequest {
-  return {
-    name: input.name,
-    page_size: input.state.pageSize,
-    query_state: input.state.queryState as unknown as Record<string, unknown>,
-    visible_columns: input.state.visibleColumns,
-  };
+  return serializeSavedQueryViewRequest(input);
 }
 
 function applyAccessLogSavedQueryView(savedState: AccessLogSavedQueryViewState) {
@@ -730,6 +727,10 @@ function applyAccessLogSavedQueryView(savedState: AccessLogSavedQueryViewState) 
 }
 
 onMounted(() => {
-  void accessLogSavedViews.load();
+  const routeQuery = parseAccessLogRouteQuery(route.query);
+  const hasExplicitState = Object.values(routeQuery).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  );
+  void accessLogSavedViews.load({ hasExplicitState });
 });
 </script>

@@ -1,21 +1,23 @@
 <template>
   <section class="saved-query-view-control" :aria-label="t('app.savedQueryViews.label')">
-    <t-select
-      :model-value="selectedId"
-      class="saved-query-view-control__select"
-      clearable
-      :disabled="controller.isBusy.value"
-      :empty="t('app.savedQueryViews.noResults')"
-      filterable
-      :filter="() => true"
-      :loading="controller.loading.value"
-      :placeholder="t('app.savedQueryViews.placeholder')"
-      :input-value="viewSearchText"
-      @update:input-value="viewSearchText = normalizeSearchValue($event)"
-      @update:model-value="selectView"
-    >
-      <t-option v-for="view in displayedViews" :key="view.id" :value="view.id" :label="view.name" />
-    </t-select>
+    <t-tooltip :content="selectedViewName" :disabled="!selectedViewName" placement="top">
+      <t-select
+        :model-value="selectedId"
+        class="saved-query-view-control__select"
+        clearable
+        :disabled="controller.isBusy.value"
+        :empty="t('app.savedQueryViews.noResults')"
+        filterable
+        :filter="() => true"
+        :loading="controller.loading.value"
+        :placeholder="t('app.savedQueryViews.placeholder')"
+        :input-value="viewSearchText"
+        @update:input-value="viewSearchText = normalizeSearchValue($event)"
+        @update:model-value="selectView"
+      >
+        <t-option v-for="view in displayedViews" :key="view.id" :value="view.id" :label="view.name" />
+      </t-select>
+    </t-tooltip>
     <div class="saved-query-view-control__actions">
       <t-button size="small" variant="text" :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
         {{ t('app.savedQueryViews.actions.saveAs') }}
@@ -60,6 +62,7 @@
         :placeholder="t('app.savedQueryViews.namePlaceholder')"
         @update:model-value="nameError = ''"
       />
+      <t-checkbox v-model="draftIsDefault">{{ t('app.savedQueryViews.default') }}</t-checkbox>
       <p v-if="nameError" class="saved-query-view-control__validation-error">{{ nameError }}</p>
     </t-dialog>
 
@@ -92,10 +95,12 @@ const saveDialogVisible = ref(false);
 const deleteDialogVisible = ref(false);
 const saveDialogMode = ref<'create' | 'update'>('create');
 const draftName = ref('');
+const draftIsDefault = ref(false);
 const nameError = ref('');
 const viewSearchText = ref('');
 
 const selectedId = computed(() => props.controller.selectedId.value);
+const selectedViewName = computed(() => props.controller.selectedView.value?.name ?? '');
 const displayedViews = computed(() => {
   const search = viewSearchText.value.trim().toLowerCase();
   const matchingViews = props.controller.views.value.filter((view) =>
@@ -114,6 +119,7 @@ const displayedViews = computed(() => {
 function openSaveDialog(mode: 'create' | 'update') {
   saveDialogMode.value = mode;
   draftName.value = mode === 'update' ? (props.controller.selectedView.value?.name ?? '') : '';
+  draftIsDefault.value = mode === 'update' ? Boolean(props.controller.selectedView.value?.isDefault) : false;
   nameError.value = '';
   saveDialogVisible.value = true;
 }
@@ -124,7 +130,7 @@ async function saveView() {
     return;
   }
 
-  if (await props.controller.save(draftName.value, saveDialogMode.value)) {
+  if (await props.controller.save(draftName.value, saveDialogMode.value, draftIsDefault.value)) {
     saveDialogVisible.value = false;
   }
 }
@@ -152,19 +158,22 @@ function normalizeSearchValue(value: string | number | undefined) {
 .saved-query-view-control {
   align-items: center;
   display: flex;
-  flex: 1 1 320px;
-  flex-wrap: wrap;
+  flex: 0 1 380px;
+  flex-wrap: nowrap;
   gap: var(--graft-density-gap-8);
-  min-width: min(100%, 280px);
+  margin-left: auto;
+  max-width: 380px;
+  min-width: 300px;
 }
 
 .saved-query-view-control__select {
-  flex: 1 1 180px;
-  min-width: 180px;
+  min-width: 0;
+  width: 100%;
 }
 
 .saved-query-view-control__actions {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: var(--graft-density-gap-4);
 }
@@ -176,6 +185,10 @@ function normalizeSearchValue(value: string | number | undefined) {
 }
 
 @media (width <= 768px) {
+  .saved-query-view-control {
+    margin-left: 0;
+  }
+
   .saved-query-view-control__select {
     min-width: 0;
   }

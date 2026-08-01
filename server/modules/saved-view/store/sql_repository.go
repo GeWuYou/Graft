@@ -38,7 +38,7 @@ func (r *SQLRepository) List(ctx context.Context, ownerUserID uint64, surfaceKey
 	if err := validateOwnerAndSurface(ownerUserID, surfaceKey); err != nil {
 		return nil, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, created_at, updated_at
+	rows, err := r.db.QueryContext(ctx, `SELECT id, owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, is_default, created_at, updated_at
 		FROM saved_views WHERE owner_user_id = $1 AND surface_key = $2 AND deleted_at = 0 ORDER BY updated_at DESC, id DESC`, ownerUserID, strings.TrimSpace(surfaceKey))
 	if err != nil {
 		return nil, fmt.Errorf("list saved views: %w", err)
@@ -68,13 +68,26 @@ func (r *SQLRepository) Create(ctx context.Context, input moduleapi.SavedViewCre
 	if err != nil {
 		return moduleapi.SavedView{}, moduleapi.ErrSavedViewInvalidInput
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return moduleapi.SavedView{}, fmt.Errorf("begin create saved view transaction: %w", err)
+	}
+	defer rollback(tx)
+	if input.IsDefault {
+		if err := clearDefault(ctx, tx, input.OwnerUserID, input.SurfaceKey, 0); err != nil {
+			return moduleapi.SavedView{}, err
+		}
+	}
 	var item moduleapi.SavedView
-	err = r.db.QueryRowContext(ctx, `INSERT INTO saved_views (owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, created_by, updated_by, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$1,$1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
-		RETURNING id, owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, created_at, updated_at`, input.OwnerUserID, input.SurfaceKey, input.Name, input.QueryState, input.PageSize, columnsJSON).Scan(
-		&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.CreatedAt, &item.UpdatedAt)
+	err = tx.QueryRowContext(ctx, `INSERT INTO saved_views (owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, is_default, created_by, updated_by, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$1,$1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+		RETURNING id, owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, is_default, created_at, updated_at`, input.OwnerUserID, input.SurfaceKey, input.Name, input.QueryState, input.PageSize, columnsJSON, input.IsDefault).Scan(
+		&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.IsDefault, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return moduleapi.SavedView{}, mapWriteError(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return moduleapi.SavedView{}, fmt.Errorf("commit create saved view: %w", err)
 	}
 	return item, nil
 }
@@ -89,15 +102,45 @@ func (r *SQLRepository) Update(ctx context.Context, input moduleapi.SavedViewUpd
 	if err != nil {
 		return moduleapi.SavedView{}, moduleapi.ErrSavedViewInvalidInput
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return moduleapi.SavedView{}, fmt.Errorf("begin update saved view transaction: %w", err)
+	}
+	defer rollback(tx)
+	if input.IsDefault {
+		if err := clearDefault(ctx, tx, input.OwnerUserID, input.SurfaceKey, input.ID); err != nil {
+			return moduleapi.SavedView{}, err
+		}
+	}
 	var item moduleapi.SavedView
-	err = r.db.QueryRowContext(ctx, `UPDATE saved_views SET name=$1, query_state_json=$2, page_size=$3, visible_columns_json=$4, updated_at=CURRENT_TIMESTAMP, updated_by=$5
-		WHERE id=$6 AND owner_user_id=$5 AND surface_key=$7 AND deleted_at=0
-		RETURNING id, owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, created_at, updated_at`, input.Name, input.QueryState, input.PageSize, columnsJSON, input.OwnerUserID, input.ID, input.SurfaceKey).Scan(
-		&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.CreatedAt, &item.UpdatedAt)
+	err = tx.QueryRowContext(ctx, `UPDATE saved_views SET name=$1, query_state_json=$2, page_size=$3, visible_columns_json=$4, is_default=$5, updated_at=CURRENT_TIMESTAMP, updated_by=$6
+		WHERE id=$7 AND owner_user_id=$6 AND surface_key=$8 AND deleted_at=0
+		RETURNING id, owner_user_id, surface_key, name, query_state_json, page_size, visible_columns_json, is_default, created_at, updated_at`, input.Name, input.QueryState, input.PageSize, columnsJSON, input.IsDefault, input.OwnerUserID, input.ID, input.SurfaceKey).Scan(
+		&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.IsDefault, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return moduleapi.SavedView{}, mapReadError(err)
 	}
+	if err := tx.Commit(); err != nil {
+		return moduleapi.SavedView{}, fmt.Errorf("commit update saved view: %w", err)
+	}
 	return item, nil
+}
+
+// clearDefault 在同一写事务内撤销当前用户和列表页面的旧默认视图，确保后续写入可以安全设为默认。
+func clearDefault(ctx context.Context, tx *sql.Tx, ownerUserID uint64, surfaceKey string, exceptID uint64) error {
+	_, err := tx.ExecContext(ctx, `UPDATE saved_views SET is_default=FALSE, updated_at=CURRENT_TIMESTAMP, updated_by=$1
+		WHERE owner_user_id=$1 AND surface_key=$2 AND deleted_at=0 AND is_default=TRUE AND id<>$3`, ownerUserID, surfaceKey, exceptID)
+	if err != nil {
+		return fmt.Errorf("clear saved view default: %w", err)
+	}
+	return nil
+}
+
+// rollback 仅在提前返回时回滚未提交事务，保留原始错误作为调用方的失败原因。
+func rollback(tx *sql.Tx) {
+	if tx != nil {
+		_ = tx.Rollback()
+	}
 }
 
 // Delete 软删除一个归属指定用户和消费界面的视图；重复删除和越权访问均表现为 ErrSavedViewNotFound。
@@ -195,7 +238,7 @@ func closeRows(rows *sql.Rows) {
 // scanView 将数据库行扫描为保存视图；扫描失败时返回错误。
 func scanView(row rowScanner) (moduleapi.SavedView, error) {
 	var item moduleapi.SavedView
-	if err := row.Scan(&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.CreatedAt, &item.UpdatedAt); err != nil {
+	if err := row.Scan(&item.ID, &item.OwnerUserID, &item.SurfaceKey, &item.Name, &item.QueryState, &item.PageSize, columnScanner(&item.VisibleColumns), &item.IsDefault, &item.CreatedAt, &item.UpdatedAt); err != nil {
 		return moduleapi.SavedView{}, fmt.Errorf("scan saved view: %w", err)
 	}
 	return item, nil

@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
+import responsiveStyleSource from '@/style/responsive.less?raw';
+
 import { resolveResponsiveDialogPolicy } from './dialog-policy';
 import ResourceDetailContent from './ResourceDetailContent.vue';
 import resourceDetailContentSource from './ResourceDetailContent.vue?raw';
@@ -41,6 +43,45 @@ class ResizeObserverMock {
     this.callback([{ contentRect: { height: 0, width } } as ResizeObserverEntry], this as unknown as ResizeObserver);
   }
 }
+
+const overlaySurfaceStub = defineComponent({
+  name: 'OverlaySurfaceStub',
+  props: {
+    closeOnOverlayClick: { type: Boolean, default: false },
+  },
+  emits: ['update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          'data-close-on-overlay-click': String(props.closeOnOverlayClick),
+          'data-testid': 'responsive-overlay-surface',
+          onClick: () => emit('update:visible', false),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
+const drawerOverlayStub = defineComponent({
+  name: 'TDrawerStub',
+  props: {
+    attach: { type: String, required: true },
+    closeOnOverlayClick: { type: Boolean, default: true },
+  },
+  emits: ['update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('aside', { 'data-testid': 'responsive-drawer-overlay', attach: props.attach }, [
+        h('button', {
+          class: 't-drawer__mask',
+          onClick: () => props.closeOnOverlayClick && emit('update:visible', false),
+        }),
+        slots.default?.(),
+      ]);
+  },
+});
 
 describe('responsive primitives', () => {
   afterEach(() => {
@@ -235,6 +276,40 @@ describe('responsive primitives', () => {
     expect(Object.keys(wrapper.props())).not.toContain('isMobile');
   });
 
+  it('closes a desktop detail drawer when its overlay is clicked', async () => {
+    vi.stubGlobal('innerWidth', 1440);
+    const wrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', title: 'Network detail', visible: true },
+      slots: { default: '<p>Network configuration</p>' },
+      global: { stubs: { 't-drawer': drawerOverlayStub } },
+    });
+    await nextTick();
+
+    const surface = wrapper.get('[data-testid="responsive-drawer-overlay"]');
+    expect(surface.attributes('attach')).toBe('body');
+
+    await surface.get('.t-drawer__mask').trigger('click');
+
+    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
+  });
+
+  it('closes a compact detail dialog when its overlay is clicked', async () => {
+    vi.stubGlobal('innerWidth', 390);
+    const wrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', title: 'Network detail', visible: true },
+      slots: { default: '<p>Network configuration</p>' },
+      global: { stubs: { 't-dialog': overlaySurfaceStub } },
+    });
+    await nextTick();
+
+    const surface = wrapper.get('[data-testid="responsive-overlay-surface"]');
+    expect(surface.attributes('data-close-on-overlay-click')).toBe('true');
+
+    await surface.trigger('click');
+
+    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
+  });
+
   it('keeps footer actions outside the independently scrollable detail body', () => {
     const wrapper = mount(ResourceDetailContent, {
       props: { backLabel: 'Back', title: 'System settings' },
@@ -284,7 +359,7 @@ describe('responsive primitives', () => {
     expect(wrapper.find('.resource-detail-content').classes()).toContain('resource-detail-content--embedded');
   });
 
-  it('lets large detail drawers use the available width through comfortable and spacious densities', async () => {
+  it('caps large detail drawers at the shared readable width across desktop densities', async () => {
     const DrawerStub = defineComponent({
       name: 'TDrawerStub',
       props: { size: { type: String, required: true } },
@@ -303,7 +378,7 @@ describe('responsive primitives', () => {
     await nextTick();
 
     expect(comfortableWrapper.get('[data-testid="responsive-detail-drawer"]').attributes('data-size')).toBe(
-      'var(--graft-resource-detail-large-comfortable-width)',
+      'var(--graft-resource-detail-large-fluid-width)',
     );
     comfortableWrapper.unmount();
 
@@ -318,5 +393,9 @@ describe('responsive primitives', () => {
     expect(wrapper.get('[data-testid="responsive-detail-drawer"]').attributes('data-size')).toBe(
       'var(--graft-resource-detail-large-fluid-width)',
     );
+    expect(responsiveStyleSource).toContain('--graft-resource-detail-large-width),');
+    expect(responsiveStyleSource).toContain('calc(100vw - 2 * var(--graft-responsive-content-gutter))');
+    expect(responsiveStyleSource).not.toContain('72vw');
+    expect(responsiveStyleSource).not.toContain('84rem');
   });
 });

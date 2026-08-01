@@ -999,12 +999,17 @@ function currentAuditSavedViewQueryState(): AuditSavedQueryState {
   return query;
 }
 
-function toAuditSavedViewRequest(input: { name: string; state: AuditSavedQueryViewState }): AuditSavedViewRequest {
+function toAuditSavedViewRequest(input: {
+  name: string;
+  isDefault: boolean;
+  state: AuditSavedQueryViewState;
+}): AuditSavedViewRequest {
   return {
     name: input.name,
     page_size: input.state.pageSize,
     query_state: input.state.queryState as unknown as Record<string, unknown>,
     visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
   };
 }
 
@@ -1132,7 +1137,11 @@ watch(
 );
 
 onMounted(() => {
-  void auditSavedViews.load();
+  const routeQuery = parseAuditLogsRouteQuery(route.query);
+  const hasExplicitState = Object.values(routeQuery).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  );
+  void auditSavedViews.load({ hasExplicitState });
 });
 
 onActivated(() => {

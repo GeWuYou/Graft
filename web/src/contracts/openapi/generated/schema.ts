@@ -4573,6 +4573,8 @@ export interface components {
       };
       page_size: number;
       visible_columns: string[];
+      /** @description Whether this user view is applied by default for its list surface. */
+      is_default: boolean;
       /** Format: date-time */
       created_at: string;
       /** Format: date-time */
@@ -4591,6 +4593,11 @@ export interface components {
       };
       page_size: number;
       visible_columns: string[];
+      /**
+       * @description Whether this view becomes the user's default for this list surface.
+       * @default false
+       */
+      is_default: boolean;
     };
     'enveloped-saved-view': components['schemas']['api-envelope'] & {
       data: components['schemas']['saved-view'];
@@ -8062,6 +8069,8 @@ export interface components {
       };
       page_size: number;
       visible_columns: string[];
+      /** @description Whether this user view is applied by default for its list surface. */
+      is_default: boolean;
       /** Format: date-time */
       created_at: string;
       /** Format: date-time */
@@ -8103,6 +8112,11 @@ export interface components {
         | 'drift'
         | 'operation'
       )[];
+      /**
+       * @description Whether this view becomes the user's default for this list surface.
+       * @default false
+       */
+      is_default: boolean;
     };
     'enveloped-application-saved-view': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-saved-view'];

@@ -58,3 +58,7 @@ properties:
         - drift
         - operation
       minLength: 1
+  is_default:
+    type: boolean
+    default: false
+    description: Whether this view becomes the user's default for this list surface.

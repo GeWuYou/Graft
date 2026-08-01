@@ -21,20 +21,16 @@
       aria-live="polite"
     />
 
-    <management-toolbar class="docker-volume-page__toolbar">
-      <template #filters>
-        <t-input
-          v-model="filters.keyword"
-          class="management-list-search"
-          clearable
-          :placeholder="t('container.volume.filters.keyword')"
-          @enter="applyFilters"
-        />
-        <t-select
-          v-model="filters.usage"
-          class="management-toolbar__select"
-          :placeholder="t('container.volume.filters.usage')"
-        >
+    <resource-query-panel
+      v-model="resourceQueryState"
+      :config="queryConfig"
+      :loading="loading"
+      :simple-filters-visible="advancedFiltersVisible"
+      @reset="resetFilters"
+      @search="applyFilters"
+    >
+      <template #toolbar-after-search>
+        <t-select v-model="filters.usage" class="management-toolbar__select">
           <t-option value="all" :label="t('container.volume.filters.allUsage')" />
           <t-option value="used" :label="t('container.volume.status.inUse')" />
           <t-option value="unused" :label="t('container.volume.status.unused')" />
@@ -43,38 +39,29 @@
         <t-button variant="outline" @click="advancedFiltersVisible = !advancedFiltersVisible">
           {{ t('container.resourceContext.moreFilters') }}
         </t-button>
-        <t-button theme="primary" @click="applyFilters">{{ t('container.volume.filters.query') }}</t-button>
-        <t-button variant="text" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
-        <template v-if="advancedFiltersVisible">
-          <docker-resource-context-filters
-            v-model:compose-project="filters.compose_project"
-            v-model:source="filters.source"
-            @apply="applyFilters"
-          />
-          <t-input
-            v-model="filters.driver"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.volume.filters.driver')"
-            @enter="applyFilters"
-          />
-          <t-input
-            v-model="filters.scope"
-            class="management-toolbar__select"
-            clearable
-            :placeholder="t('container.volume.filters.scope')"
-            @enter="applyFilters"
-          />
-        </template>
       </template>
-      <template #actions>
-        <table-view-toolbar
-          :refresh-label="t('container.list.refresh')"
-          :refresh-loading="loading"
-          @refresh="refresh"
+      <template #simple-filters>
+        <docker-resource-context-filters
+          v-model:compose-project="filters.compose_project"
+          v-model:source="filters.source"
+          @apply="applyFilters"
+        />
+        <t-input
+          v-model="filters.driver"
+          class="management-toolbar__select"
+          clearable
+          :placeholder="t('container.volume.filters.driver')"
+          @enter="applyFilters"
+        />
+        <t-input
+          v-model="filters.scope"
+          class="management-toolbar__select"
+          clearable
+          :placeholder="t('container.volume.filters.scope')"
+          @enter="applyFilters"
         />
       </template>
-    </management-toolbar>
+    </resource-query-panel>
 
     <management-paged-table
       v-model:current="pagination.current"
@@ -93,11 +80,9 @@
       row-key="name"
       :rows="rows"
       :selected-row-keys="selectedRowKeys"
-      :sort="sort"
       :total="pagination.total"
       @page-change="handlePageChange"
       @select-change="handleSelectChange"
-      @sort-change="handleSortChange"
     >
       <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
@@ -344,7 +329,7 @@
 </template>
 <script setup lang="ts">
 // 数据卷页负责 Docker 数据卷查询与操作，清理流程通过现有批量删除契约执行未使用候选。
-import type { TableProps, TableSort } from 'tdesign-vue-next';
+import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -357,11 +342,10 @@ import {
   ManagementPageHeader,
   type ManagementStatisticItem,
   ManagementStatisticsBar,
-  ManagementToolbar,
   TableActionMenu,
-  TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateOnly, formatLocaleDateTime } from '@/shared/observability';
@@ -412,6 +396,26 @@ const filters = reactive<{
 });
 const applied = ref({ ...filters });
 const advancedFiltersVisible = ref(false);
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'container-volume',
+  search: true,
+  filterBuilder: { enabled: false },
+  placeholder: t('container.volume.filters.keyword'),
+}));
+const resourceQueryState = computed<ResourceQueryState>({
+  get: () => ({
+    keyword: filters.keyword,
+    filters: { usage: filters.usage },
+    page: pagination.current,
+    pageSize: pagination.pageSize,
+  }),
+  set: (value) => {
+    filters.keyword = value.keyword;
+    filters.usage = (value.filters.usage as UsageFilter) || 'all';
+    pagination.current = value.page;
+    pagination.pageSize = value.pageSize;
+  },
+});
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 });
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VOLUME_REMOVE));
 const hasActiveFilters = computed(() =>
@@ -429,7 +433,6 @@ const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref('');
-const sort = ref<TableSort>({ sortBy: 'size', descending: true });
 const volumeSummary = ref<Awaited<ReturnType<typeof listDockerVolumes>>['summary'] | null>(null);
 const abnormalCount = computed(() => volumeSummary.value?.reference_unknown ?? 0);
 const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
@@ -449,7 +452,7 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 },
   { colKey: 'status', title: t('container.volume.columns.status'), width: 120 },
-  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const, sorter: true },
+  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const },
   { colKey: 'references', title: t('container.volume.columns.mountedContainers'), minWidth: 260 },
   { colKey: 'driver', title: t('container.volume.columns.driver'), width: 120 },
   { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
@@ -489,7 +492,7 @@ function buildQuery(): DockerVolumeListQuery {
     source: applied.value.source || undefined,
     compose_project: applied.value.compose_project || undefined,
     sort_by: 'size_bytes',
-    sort_order: (Array.isArray(sort.value) ? sort.value[0]?.descending : sort.value.descending) ? 'desc' : 'asc',
+    sort_order: 'desc',
   };
 }
 async function refresh() {
@@ -535,12 +538,6 @@ function resetFilters() {
 function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.current = page.current;
   pagination.pageSize = page.pageSize;
-}
-function handleSortChange(nextSort: TableSort) {
-  sort.value = nextSort;
-  const previousPage = pagination.current;
-  pagination.current = 1;
-  if (previousPage === 1) void refresh();
 }
 function volumeRowActions(_row: VolumeRow) {
   return [

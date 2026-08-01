@@ -88,7 +88,7 @@ func handleCreateAppLogSavedView(localizer *i18n.Service, service moduleapi.Save
 			httpx.WriteSavedViewError(ctx, localizer, err)
 			return
 		}
-		view, err := service.Create(ctx.Request.Context(), moduleapi.SavedViewCreateInput{OwnerUserID: owner, SurfaceKey: appLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns})
+		view, err := service.Create(ctx.Request.Context(), moduleapi.SavedViewCreateInput{OwnerUserID: owner, SurfaceKey: appLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
 		if err != nil {
 			httpx.WriteSavedViewError(ctx, localizer, err)
 			return
@@ -115,7 +115,7 @@ func handleUpdateAppLogSavedView(localizer *i18n.Service, service moduleapi.Save
 			httpx.WriteSavedViewError(ctx, localizer, err)
 			return
 		}
-		view, err := service.Update(ctx.Request.Context(), moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: owner, SurfaceKey: appLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns})
+		view, err := service.Update(ctx.Request.Context(), moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: owner, SurfaceKey: appLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
 		if err != nil {
 			httpx.WriteSavedViewError(ctx, localizer, err)
 			return

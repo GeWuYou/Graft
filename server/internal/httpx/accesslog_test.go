@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
@@ -48,6 +49,7 @@ type stubAccessLogRepository struct {
 	listErr              error
 	createErr            error
 	waitForCreateContext bool
+	createdSignal        chan CreateAccessLogInput
 }
 
 func (r *stubAccessLogRepository) CreateAccessLog(ctx context.Context, input CreateAccessLogInput) (AccessLog, error) {
@@ -59,6 +61,9 @@ func (r *stubAccessLogRepository) CreateAccessLog(ctx context.Context, input Cre
 		return AccessLog{}, r.createErr
 	}
 	r.created = append(r.created, input)
+	if r.createdSignal != nil {
+		r.createdSignal <- input
+	}
 	return normalizeCreateAccessLogInput(input), nil
 }
 
@@ -407,9 +412,10 @@ func TestAccessLogMiddlewareClassifiesWebSocketUpgrades(t *testing.T) {
 		name           string
 		status         int
 		connection     string
+		markUpgrade    bool
 		wantConnection AccessLogConnectionType
 	}{
-		{name: "successful upgrade", status: http.StatusSwitchingProtocols, connection: "keep-alive, Upgrade", wantConnection: AccessLogConnectionTypeWebSocket},
+		{name: "successful upgrade", status: http.StatusOK, connection: "keep-alive, Upgrade", markUpgrade: true, wantConnection: AccessLogConnectionTypeWebSocket},
 		{name: "failed upgrade", status: http.StatusUnauthorized, connection: "Upgrade", wantConnection: AccessLogConnectionTypeHTTP},
 	}
 
@@ -419,6 +425,9 @@ func TestAccessLogMiddlewareClassifiesWebSocketUpgrades(t *testing.T) {
 			server := NewServer(zap.NewNop(), repo)
 			server.Engine().GET("/ws", func(ctx *gin.Context) {
 				ctx.Status(testCase.status)
+				if testCase.markUpgrade {
+					markWebSocketUpgrade(ctx)
+				}
 			})
 
 			request := httptest.NewRequest(http.MethodGet, "/ws", nil)
@@ -430,6 +439,39 @@ func TestAccessLogMiddlewareClassifiesWebSocketUpgrades(t *testing.T) {
 				t.Fatalf("expected connection type %q, got %#v", testCase.wantConnection, repo.created)
 			}
 		})
+	}
+}
+
+func TestUpgradeWebSocketMarksSuccessfulHandshakeForAccessLog(t *testing.T) {
+	repo := &stubAccessLogRepository{createdSignal: make(chan CreateAccessLogInput, 1)}
+	server := NewServer(zap.NewNop(), repo)
+	server.Engine().GET("/ws", func(ctx *gin.Context) {
+		conn, err := UpgradeWebSocket(ctx, &websocket.Upgrader{}, nil)
+		if err != nil {
+			return
+		}
+		_ = conn.Close()
+	})
+
+	httpServer := httptest.NewServer(server.Engine())
+	defer httpServer.Close()
+	wsURL := "ws" + strings.TrimPrefix(httpServer.URL, "http") + "/ws"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close websocket: %v", err)
+	}
+	var created CreateAccessLogInput
+	select {
+	case created = <-repo.createdSignal:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for access log persistence")
+	}
+
+	if created.ConnectionType != AccessLogConnectionTypeWebSocket {
+		t.Fatalf("expected successful websocket to be classified as websocket, got %#v", created)
 	}
 }
 

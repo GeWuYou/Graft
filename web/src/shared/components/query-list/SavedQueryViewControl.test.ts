@@ -54,6 +54,7 @@ const i18n = createI18n({
           noResults: 'No matching saved filters',
           namePlaceholder: 'Enter a filter name',
           nameRequired: 'Enter a filter name.',
+          default: 'Set as default view',
           actions: {
             saveAs: 'Save Filter',
             update: 'Update Filter',

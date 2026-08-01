@@ -42,15 +42,14 @@ describe('docker volume asset management page', () => {
       [...[selection, name, status, size, references, driver, createdAt, actions]].sort((left, right) => left - right),
     );
     expect(sourceText).toContain("colKey: 'size',");
-    expect(sourceText).toContain('sorter: true');
+    expect(sourceText).not.toContain('sorter: true');
     expect(sourceText).not.toContain("colKey: 'context'");
   });
 
-  it('defaults the server query to capacity descending and supports sort changes', () => {
-    expect(sourceText).toContain("const sort = ref<TableSort>({ sortBy: 'size', descending: true })");
+  it('keeps the server query on the default capacity order without exposing a column sorter', () => {
     expect(sourceText).toContain("sort_by: 'size_bytes'");
-    expect(sourceText).toContain("? 'desc' : 'asc'");
-    expect(sourceText).toContain('@sort-change="handleSortChange"');
+    expect(sourceText).toContain("sort_order: 'desc'");
+    expect(sourceText).not.toContain('@sort-change="handleSortChange"');
   });
 
   it('uses the volume-specific three-state presentation', () => {

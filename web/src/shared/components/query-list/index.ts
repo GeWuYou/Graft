@@ -25,6 +25,16 @@ export {
   useAdvancedQuerySorterControlsForModel,
   useAdvancedQuerySorterUiState,
 } from './query-filter-builder-helpers';
+export { default as ResourceQueryPanel } from './resource-query/ResourceQueryPanel.vue';
+export type {
+  ResourceQueryConfig,
+  ResourceQueryFilterDefinition,
+  ResourceQueryFilterOption,
+  ResourceQueryFilterType,
+  ResourceQueryFilterValue,
+  ResourceQueryQuickFilter,
+  ResourceQueryState,
+} from './resource-query/types';
 export type {
   PersistedSavedQueryView,
   SavedQueryView,
@@ -35,7 +45,13 @@ export type {
   SavedQueryViewOperation,
   SavedQueryViewPresentationTarget,
   SavedQueryViewSuccess,
+  SerializedSavedQueryViewRequest,
   UseSavedQueryViewsOptions,
 } from './saved-query-views';
-export { applySavedQueryViewPresentation, normalizeSavedQueryView, useSavedQueryViews } from './saved-query-views';
+export {
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  serializeSavedQueryViewRequest,
+  useSavedQueryViews,
+} from './saved-query-views';
 export { default as SavedQueryViewControl } from './SavedQueryViewControl.vue';

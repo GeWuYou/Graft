@@ -6,13 +6,44 @@ export type SavedQueryViewId = number | string;
 export type SavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId> = {
   id: TId;
   name: string;
+  isDefault: boolean;
   state: TState;
 };
 
 export type SavedQueryViewInput<TState> = {
   name: string;
+  isDefault: boolean;
   state: TState;
 };
+
+export type SavedQueryViewLoadOptions = {
+  hasExplicitState?: boolean;
+};
+
+export type SerializedSavedQueryViewRequest = {
+  name: string;
+  page_size: number;
+  query_state: Record<string, unknown>;
+  visible_columns: string[];
+  is_default: boolean;
+};
+
+/** 将页面状态序列化为后端保存查询视图请求的公共字段。 */
+export function serializeSavedQueryViewRequest<
+  TState extends {
+    pageSize: number;
+    queryState: unknown;
+    visibleColumns: string[];
+  },
+>(input: SavedQueryViewInput<TState>): SerializedSavedQueryViewRequest {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState as Record<string, unknown>,
+    visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
+  };
+}
 
 export type PersistedSavedQueryView<TId extends SavedQueryViewId = SavedQueryViewId> = {
   id: TId;
@@ -20,6 +51,7 @@ export type PersistedSavedQueryView<TId extends SavedQueryViewId = SavedQueryVie
   page_size: number;
   query_state: unknown;
   visible_columns: string[];
+  is_default: boolean;
 };
 
 /**
@@ -34,6 +66,7 @@ export function normalizeSavedQueryView<TState, TId extends SavedQueryViewId = S
   return {
     id: view.id,
     name: view.name,
+    isDefault: view.is_default,
     state: {
       pageSize: view.page_size,
       queryState: view.query_state as TState,
@@ -52,6 +85,18 @@ export function normalizeSavedQueryView<TState, TId extends SavedQueryViewId = S
 export function resolveSavedQueryViewColumns(visibleColumns: string[], supportedColumns: Iterable<string>) {
   const supported = new Set(supportedColumns);
   return visibleColumns.filter((key) => supported.has(key));
+}
+
+/** 仅在没有显式 URL 状态且服务端只声明一个默认视图时返回该视图。 */
+export function resolveDefaultSavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId>(
+  views: SavedQueryView<TState, TId>[],
+  hasExplicitState = false,
+) {
+  if (hasExplicitState) {
+    return undefined;
+  }
+  const defaults = views.filter((view) => view.isDefault);
+  return defaults.length === 1 ? defaults[0] : undefined;
 }
 
 export type SavedQueryViewPresentationTarget = {
@@ -102,10 +147,10 @@ export type SavedQueryViewController<TState, TId extends SavedQueryViewId = Save
   deleting: Ref<boolean>;
   hasSelectedView: ComputedRef<boolean>;
   isBusy: ComputedRef<boolean>;
-  load: () => Promise<boolean>;
+  load: (options?: SavedQueryViewLoadOptions) => Promise<boolean>;
   loading: Ref<boolean>;
   removeSelected: () => Promise<boolean>;
-  save: (name: string, mode: 'create' | 'update') => Promise<boolean>;
+  save: (name: string, mode: 'create' | 'update', isDefault?: boolean) => Promise<boolean>;
   selectedId: Ref<TId | undefined>;
   selectedView: ComputedRef<SavedQueryView<TState, TId> | undefined>;
   select: (id: SavedQueryViewId | undefined) => Promise<boolean>;
@@ -138,7 +183,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    *
    * @returns 成功加载时为 `true`，发生错误时为 `false`。
    */
-  async function load() {
+  async function load(loadOptions: SavedQueryViewLoadOptions = {}) {
     if (isBusy.value) {
       return false;
     }
@@ -149,6 +194,11 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
       views.value = nextViews;
       if (!nextViews.some((view) => view.id === selectedId.value)) {
         selectedId.value = undefined;
+      }
+      const defaultView = resolveDefaultSavedQueryView(nextViews, loadOptions.hasExplicitState);
+      if (defaultView) {
+        await options.applyView(defaultView);
+        selectedId.value = defaultView.id;
       }
       options.onSuccess?.({ operation: 'load' });
       return true;
@@ -203,7 +253,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    * @param mode - 保存模式，创建新视图或更新当前选中的视图
    * @returns 保存成功时为 `true`，否则为 `false`
    */
-  async function save(name: string, mode: 'create' | 'update') {
+  async function save(name: string, mode: 'create' | 'update', isDefault = selectedView.value?.isDefault ?? false) {
     const normalizedName = name.trim();
     if (!normalizedName || (mode === 'update' && !selectedView.value) || isBusy.value) {
       return false;
@@ -214,6 +264,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
     try {
       const input: SavedQueryViewInput<TState> = {
         name: normalizedName,
+        isDefault,
         state: options.serializeCurrentState(),
       };
       const view =
@@ -222,10 +273,13 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
           : await options.adapter.create(input);
 
       const index = views.value.findIndex((candidate) => candidate.id === view.id);
-      views.value =
+      const nextViews =
         index === -1
           ? [...views.value, view]
           : views.value.map((candidate) => (candidate.id === view.id ? view : candidate));
+      views.value = view.isDefault
+        ? nextViews.map((candidate) => (candidate.id === view.id ? candidate : { ...candidate, isDefault: false }))
+        : nextViews;
       selectedId.value = view.id;
       options.onSuccess?.({ operation, view });
       return true;

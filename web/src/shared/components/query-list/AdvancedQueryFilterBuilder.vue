@@ -8,9 +8,11 @@
             class="query-filter-builder__keyword management-query-search"
             clearable
             :placeholder="keywordPlaceholder"
+            :title="keyword || keywordPlaceholder"
             @enter="$emit('search')"
             @update:model-value="$emit('update:keyword', normalizeTextValue($event))"
           />
+          <slot name="toolbar-after-search" />
           <template v-if="!effectiveCompactMode">
             <slot name="saved-query-views" />
             <div class="query-filter-builder__actions">
@@ -435,7 +437,9 @@ function normalizeRange(value: string[] | undefined) {
 }
 
 .query-filter-builder__keyword {
-  min-width: 360px;
+  flex: 0 1 360px;
+  max-width: 360px;
+  min-width: 280px;
 }
 
 .query-filter-builder__actions {
@@ -448,7 +452,7 @@ function normalizeRange(value: string[] | undefined) {
 }
 
 .query-filter-builder__filters-collapse {
-  width: 100%;
+  width: fit-content;
 }
 
 .query-filter-builder__filters-collapse:not(.query-filter-builder__filters-collapse--compact)
@@ -468,19 +472,15 @@ function normalizeRange(value: string[] | undefined) {
 }
 
 .query-filter-builder__group {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-large);
-  padding: var(--graft-density-gap-12) var(--graft-density-gap-14);
+  padding: 0;
 }
 
 .query-filter-builder__group-header {
-  margin-bottom: var(--graft-density-gap-10);
+  display: none;
 }
 
 .query-filter-builder__group-title {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-title-small);
+  display: none;
 }
 
 .query-filter-builder__popup {
