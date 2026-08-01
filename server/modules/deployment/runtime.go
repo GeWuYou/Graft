@@ -18,8 +18,10 @@ const (
 	composeProjectLabel      = "com.docker.compose.project"
 	composeWorkingDirLabel   = "com.docker.compose.project.working_dir"
 	composeConfigFilesLabel  = "com.docker.compose.project.config_files"
-	runnerStateRoot          = "/var/lib/graft/update-state"
-	dockerVolumeMountType    = "volume"
+	// runnerStateRoot 与 dockerVolumeMountType 定义 update runner 状态的持久化挂载契约；Compose rollout
+	// 预检依赖该挂载，缺失时 Current 会拒绝返回可用的运行时上下文。
+	runnerStateRoot       = "/var/lib/graft/update-state"
+	dockerVolumeMountType = "volume"
 )
 
 type environmentLookup func(string) (string, bool)

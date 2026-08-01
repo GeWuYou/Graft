@@ -83,9 +83,13 @@ Typical triggers:
 - after replying to a checkpoint with `can_continue=true`, expect the same round to continue under the current worker;
   do not treat the checkpoint reply as permission to stop before emitting the required final closeout
 
-12. If a delegated round cannot safely emit the required closeout, return a clearly blocked round result with its
-    `required_context` and `recovery_requirements` to the main agent instead of silently continuing outside the loop
-    contract. That result does not suspend or terminate the topic.
+12. If a delegated round cannot safely emit the required closeout, return retry-exhaustion or another clearly blocked
+    round result with its `required_context` and `recovery_requirements` to the main agent instead of silently
+    continuing outside the loop contract. Retry exhaustion is wave evidence/recovery input only; it does not suspend
+   or terminate the topic, and only the outer controller may resolve it into a terminal state.
+    For retry exhaustion, `required_context` must preserve the failed round and evidence, while
+    `recovery_requirements` must identify repair authority, repair eligibility, and safe retry inputs without naming a
+    controller transition.
 13. When this wrapper is running under `graft-multi-agent-loop`, it owns only the delegated round:
 
 - it must not assume the outer loop orchestrator will finish the implementation locally
@@ -127,8 +131,12 @@ When reporting progress or closeout from this wrapper, keep the result brief and
      inputs without directing controller state
    - `model_delegation_evidence`
    - optional `suggested_follow_up`
-   - do not include `continue`, `pending_batches`, `next_batch`, `archive_ready`, `topic_complete`, `stop_loop`,
-     `suspend_topic`, or `wait_for_user`
+  - do not include `continue`, `pending_batches`, `next_batch`, `archive_ready`, `topic_complete`, `stop_loop`,
+    `suspend_topic`, or `wait_for_user`
+
+The worker JSON above is evidence only. The outer controller must separately emit the canonical controller closeout
+record defined by `graft-multi-agent-loop`; a worker must never substitute that record with its own `pending_batches`,
+`next_batch`, terminal state, or recovery transition.
 
 When a loop-orchestrated worker answers a checkpoint request instead of a final closeout, keep the response short and
 structured. It must include:

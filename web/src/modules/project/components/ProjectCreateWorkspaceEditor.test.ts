@@ -411,8 +411,11 @@ describe('ApplicationCreateWorkspaceEditor', () => {
 
     await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 620, clientY: 280 });
 
-    expect(wrapper.get('.project-workspace-editor__context-menu').attributes('style')).toContain('left: 60px');
-    expect(wrapper.get('.project-workspace-editor__context-menu').attributes('style')).toContain('top: 60px');
+    const contextMenu = wrapper.get('.project-workspace-editor__context-menu').element;
+    expect(contextMenu.getAttribute('style')).toContain('left: 60px');
+    expect(contextMenu.getAttribute('style')).toContain('top: 60px');
+    expect(getComputedStyle(contextMenu).position).toBe('absolute');
+    wrapper.unmount();
   });
 
   it('keeps the root context menu available when the workspace is empty', async () => {

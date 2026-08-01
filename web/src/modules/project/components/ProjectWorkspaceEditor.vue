@@ -478,6 +478,7 @@ function changeActivePath(path: string | number) {
 function openMenu(row: ApplicationWorkspaceEditorRow | null, event: MouseEvent, focusMenu = false) {
   const editorBounds = workspaceEditorRootRef.value?.getBoundingClientRect();
   contextMenu.row = row;
+  // 将视口坐标转换为 position: relative 根容器的局部坐标，供 position: absolute 菜单定位使用。
   contextMenu.x = event.clientX - (editorBounds?.left ?? 0);
   contextMenu.y = event.clientY - (editorBounds?.top ?? 0);
   contextMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;

@@ -75,6 +75,23 @@ class WorktreeManagerGovernanceTests(unittest.TestCase):
     def test_worktree_manager_governance_is_currently_satisfied(self) -> None:
         self.assertEqual(MODULE.validate_worktree_manager_skill(), [])
 
+    def test_worktree_manager_governance_rejects_missing_integration_authorization_terms(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.WORKTREE_MANAGER_SKILL
+        current_text = original_read_text(target)
+        mutated_text = current_text.replace("source ref/commit", "source reference", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            if path == target:
+                return mutated_text
+            return original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any("source ref/commit" in finding.message for finding in findings))
+
 
 class OpenApiWorktreeGovernanceTests(unittest.TestCase):
     def test_openapi_worktree_governance_is_currently_satisfied(self) -> None:

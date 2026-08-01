@@ -23,6 +23,7 @@ GITIGNORE = REPO_ROOT / ".gitignore"
 AGENTS = REPO_ROOT / "AGENTS.md"
 AI_PLAN_AGENTS = REPO_ROOT / "ai-plan" / "AGENTS.md"
 AI_PLAN_README = REPO_ROOT / "ai-plan" / "README.md"
+AI_TASK_TRACKING_DOC = REPO_ROOT / "ai-plan" / "design" / "governance" / "ai" / "AI任务追踪与恢复设计.md"
 WEB_BROWSER_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-web-browser-agent" / "SKILL.md"
 PR_REVIEW_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-review" / "SKILL.md"
 PR_CREATE_SKILL = REPO_ROOT / ".agents" / "skills" / "graft-pr-create" / "SKILL.md"
@@ -539,21 +540,60 @@ def validate_worktree_manager_skill() -> list[Finding]:
     if not WORKTREE_MANAGER_SKILL.is_file():
         return [Finding(WORKTREE_MANAGER_SKILL, "worktree manager skill is missing")]
 
-    text = read_text(WORKTREE_MANAGER_SKILL)
-    findings = missing_exact_terms(
-        text,
-        WORKTREE_MANAGER_SKILL,
-        "worktree manager",
+    checks = (
         (
-            "`status`",
-            "`acquire`",
-            "`release`",
-            "`main` is the stable baseline",
-            "must not perform the final merge or cherry-pick",
-            "linear resources",
-            "`git worktree remove`",
+            WORKTREE_MANAGER_SKILL,
+            "worktree manager",
+            (
+                "`status`",
+                "`acquire`",
+                "`release`",
+                "`main` is the stable baseline",
+                "must not perform the final merge or cherry-pick",
+                "Review remains developer-owned and is not an Agent-executable integration operation.",
+                "exact integration operation in the current task",
+                "primary checkout",
+                "final repository authority",
+                "auditable",
+                "source ref/commit",
+                "target workspace",
+                "owned scope",
+                "before-and-after validation",
+                "rollback procedure",
+                "invalidation conditions",
+                "linear resources",
+                "`git worktree remove`",
+            ),
+        ),
+        (
+            AGENTS,
+            "root worktree integration governance",
+            (
+                "an explicit integration authorization is an auditable record",
+                "source ref/commit",
+                "target workspace",
+                "owned scope",
+                "before-and-after validation",
+                "rollback procedure",
+                "invalidation conditions",
+            ),
+        ),
+        (
+            AI_TASK_TRACKING_DOC,
+            "AI task tracking integration governance",
+            (
+                "review 是开发者负责的审查活动，不是 Agent 可执行的集成操作",
+                "merge 或 cherry-pick 默认不由 Agent 执行",
+                "最终仓库状态 authority",
+            ),
         ),
     )
+    findings: list[Finding] = []
+    for path, label, terms in checks:
+        if not path.is_file():
+            findings.append(Finding(path, f"{label} source is missing"))
+            continue
+        findings.extend(missing_exact_terms(read_text(path), path, label, terms))
     helper = WORKTREE_MANAGER_SKILL.parent / "scripts" / "worktree_manager.py"
     test = WORKTREE_MANAGER_SKILL.parent / "scripts" / "test_worktree_manager.py"
     for path in (helper, test):

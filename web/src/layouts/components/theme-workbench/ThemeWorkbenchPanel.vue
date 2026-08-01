@@ -676,8 +676,8 @@ import { DEFAULT_COLOR_OPTIONS } from '@/config/color';
 import { t } from '@/locales';
 import { warnTranslationLengthBudget } from '@/locales/length-budgets';
 import { useLocale } from '@/locales/useLocale';
+import type { TState } from '@/store';
 import { useSettingStore } from '@/store';
-import type { TState } from '@/store/modules/setting';
 import type {
   ThemeAuthorityState,
   ThemeTokenGroupKey,

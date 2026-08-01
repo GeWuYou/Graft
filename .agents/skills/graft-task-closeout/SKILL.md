@@ -74,7 +74,8 @@ Prefer this skill over `graft-commit` when the main question is task closeout ra
 The closeout result should stay concise and should contain:
 
 1. `closeout status`: `completed_no_handoff`, `committed_and_handed_off`, `handoff_only`, `recovery_handoff`,
-   `blocked`, `cancelled`, `unsafe`, or `exhausted_retry`
+   `blocked`, `cancelled`, or `unsafe`; `exhausted_retry` is not a closeout status and is recorded only as batch-wave
+   evidence/recovery input for the outer controller
 2. `validation`: exact command run or the exact limitation
 3. `next-step startup prompt`: only when a future turn is expected
 4. `experience capture`: `none`, `added`, `updated`, `promoted`, or `deprecated`, with the lesson/doc targets when applicable
@@ -114,8 +115,8 @@ When a caller such as `graft-multi-agent-loop` requests machine-readable closeou
   - `continue=true` requires `next_batch` and `next_batch_prompt` when batches remain
   - `pending_batches=[]` requires a final archive-readiness check before the loop may stop
   - `continue=true` requires `next_prompt=null`
-  - a terminal handoff is limited to `blocked`, `cancelled`, `unsafe`, `exhausted_retry`, `archive-ready`, or explicit
-    stop; it must include a terminal reason
+  - a terminal handoff is limited to `blocked`, `cancelled`, `unsafe`, `archive-ready`, or explicit stop; it must
+    include a terminal reason resolved by the outer controller
   - a `recovery_handoff` is non-terminal and may emit `Next-session startup prompt:` only when `recovery.status` is
     `required`, `current_batch` and `pending_batches` are preserved, `recovery.resume_target` is
     `RESUME_CURRENT_BATCH`, and the failed batch is unsettled
@@ -132,7 +133,7 @@ Recommended JSON shape:
 
 ```json
 {
-  "closeout_status": "completed_no_handoff | committed_and_handed_off | handoff_only | recovery_handoff | blocked | cancelled | unsafe | exhausted_retry",
+  "closeout_status": "completed_no_handoff | committed_and_handed_off | handoff_only | recovery_handoff | blocked | cancelled | unsafe",
   "continue": true,
   "loop_mode": "topic-completion-loop | checkpoint-loop | null",
   "current_batch": "string or null",
@@ -172,11 +173,23 @@ Recommended JSON shape:
     "current_batch_preserved": true,
     "pending_batches_preserved": true,
     "failed_batch_settled": false,
+    "retry_exhausted": false,
+    "repair_authority": "string or null",
     "repair_eligible": false,
-    "required_context": "object or null"
+    "required_context": {
+      "failed_round": "object",
+      "evidence": "object"
+    }
   }
 }
 ```
+
+When this closeout is consumed by `graft-multi-agent-loop`, the `recovery` object is evidence input and the outer
+controller owns the canonical decision record. Its controller record must preserve `current_batch` and
+`pending_batches` during recovery and include `controller_state`, `terminal_reason`, and the complete recovery fields
+shown in the loop skill. `retry_exhausted=true` records wave evidence only; it does not make `closeout_status`
+terminal and does not authorize a worker or closeout helper to choose `BLOCKED`, `ARCHIVE_READY`, or a recovery
+transition.
 
 For `graft-multi-agent-loop` in the default `topic-completion-loop` mode, prefer this interpretation:
 
