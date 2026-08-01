@@ -17,8 +17,9 @@ final integration.
   feature branches or topic ownership records. Each pool slot has a local-only marker branch such as `main-01`.
 - Every acquired task gets one globally unique `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `chore/*`, `build/*`, or
   `ci/*` branch. Do not create new `feat/*` or `wt-*` branches.
-- An agent may commit its validated work but must not perform the final merge or cherry-pick. The developer integrates
-  it in the primary checkout.
+- An agent may commit its validated work but must not perform the final merge or cherry-pick by default. After the
+  developer explicitly authorizes the exact integration operation in the current task, the agent may perform it in the
+  primary checkout without assuming final repository ownership.
 
 ## Commands
 

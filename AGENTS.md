@@ -588,8 +588,9 @@ For repository work:
 - an acquired numbered worktree has a local lifecycle lease: after its owned changes are committed, validated, and clean,
   task closeout records manager `closeout`; a new leased task cannot be released before that receipt, while explicitly
   reported historical `legacy-untracked` branches retain the existing clean-and-integrated release path during migration
-- agents may read, modify, validate, and commit their task branch, but must not perform the final merge or cherry-pick
-- developers review, merge, or cherry-pick in the primary checkout; no agent may assume it owns final repository state
+- agents may read, modify, validate, and commit their task branch; final merge or cherry-pick is prohibited by default
+- developers review, merge, or cherry-pick in the primary checkout; after the developer explicitly authorizes the exact
+  integration operation in the current task, an agent may perform it without assuming final repository ownership
 - numbered agent worktrees are non-runtime execution environments: agents must not start frontend or backend services,
   development servers, Docker/Compose stacks, or other long-running runtime processes from a worktree
 - agents must not apply SQL migrations or execute state-changing database operations from a worktree, including

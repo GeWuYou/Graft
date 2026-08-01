@@ -293,7 +293,7 @@ bootstrap、loop、closeout 和归档消费的统一输入。
 - task branch：一次 Agent 任务的唯一分支；完成集成后可删除，默认不写入 active-topic 映射。
 - reusable worktree：编号固定的临时目录；用完回到 `main` 基线并可被下一任务复用。
 
-`main` 是稳定基线。开发者主工作区负责 review、merge 或 cherry-pick，分支名可按当前集成需要变化；Agent 不负责最终集成。`ai-plan/public/README.md` 只映射 active topic 与恢复文件，最多记录当前任务分支作为辅助线索。
+`main` 是稳定基线。开发者主工作区负责 review、merge 或 cherry-pick；这些操作默认不由 Agent 执行，但开发者在当前任务中明确授权具体集成操作后，Agent 可以执行该操作，且不因此取得最终仓库状态 authority。分支名可按当前集成需要变化。`ai-plan/public/README.md` 只映射 active topic 与恢复文件，最多记录当前任务分支作为辅助线索。
 
 ### 4.1 可复用工作树生命周期
 
