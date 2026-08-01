@@ -32,20 +32,7 @@
 
     <management-statistics-bar layout="chips" :items="metrics" :compact-items="compactMetrics" aria-live="polite" />
 
-    <management-toolbar sticky-compact>
-      <template #filters>
-        <t-input
-          v-model="keyword"
-          class="management-list-search"
-          clearable
-          :placeholder="t('container.images.searchCompact')"
-          @clear="clearKeyword"
-          @enter="applyKeyword"
-        >
-          <template #prefix-icon><search-icon /></template>
-        </t-input>
-      </template>
-    </management-toolbar>
+    <resource-query-panel v-model="resourceQueryState" :config="queryConfig" :loading="query.isFetching.value" />
 
     <management-paged-table
       v-model:current="pagination.current"
@@ -684,7 +671,7 @@
 </template>
 <script setup lang="ts">
 // 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，结构化拒绝直接展示稳定错误，网络结果未知时才通过详情查询对账。
-import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import { computed, onUnmounted, reactive, ref } from 'vue';
@@ -699,11 +686,11 @@ import {
   ManagementBatchBar,
   ManagementPageHeader,
   ManagementStatisticsBar,
-  ManagementToolbar,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
+import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
@@ -747,10 +734,34 @@ const permissionStore = usePermissionStore();
 const pagination = reactive({ current: 1, pageSize: 20 });
 const keyword = ref('');
 const submittedKeyword = ref('');
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'container-image',
+  search: true,
+  filterBuilder: { enabled: true },
+  placeholder: t('container.images.searchCompact'),
+  filters: [{ key: 'unused', label: t('container.images.unused'), type: 'boolean' }],
+}));
+const resourceQueryState = computed<ResourceQueryState>({
+  get: () => ({
+    keyword: keyword.value,
+    filters: imageQueryUnused.value ? { unused: true } : {},
+    page: pagination.current,
+    pageSize: pagination.pageSize,
+  }),
+  set: (value) => {
+    keyword.value = value.keyword;
+    submittedKeyword.value = value.keyword.trim();
+    imageQueryUnused.value = value.filters.unused === true;
+    pagination.current = value.page;
+    pagination.pageSize = value.pageSize;
+  },
+});
+const imageQueryUnused = ref(false);
 const imageQuery = computed<DockerImageQueryState>(() => ({
   pageSize: pagination.pageSize,
   offset: (pagination.current - 1) * pagination.pageSize,
   keyword: submittedKeyword.value,
+  unused: imageQueryUnused.value || undefined,
 }));
 const query = useDockerImageQuery(imageQuery);
 const selectedImage = ref<DockerImage | null>(null);
@@ -907,14 +918,8 @@ function shortId(value: string) {
 function refresh() {
   return query.refetch();
 }
-function applyKeyword() {
-  submittedKeyword.value = keyword.value.trim();
-  pagination.current = 1;
-}
 function clearKeyword() {
-  keyword.value = '';
-  submittedKeyword.value = '';
-  pagination.current = 1;
+  resourceQueryState.value = { keyword: '', filters: {}, page: 1, pageSize: pagination.pageSize };
 }
 function handleSelectChange(rowKeys: Array<string | number>) {
   images.value.forEach((image) => selectedImages.value.set(image.id, image));

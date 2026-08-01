@@ -1,68 +1,68 @@
-import type { GraftQueryState } from './graft-query-bar';
+import type { ResourceQueryState } from './resource-query/types';
 
-export type GraftQueryStateSource = 'default-view' | 'defaults' | 'recent' | 'url';
+export type ResourceQueryStateSource = 'default-view' | 'defaults' | 'recent' | 'url';
 
-export type GraftQueryStateResolution = {
-  source: GraftQueryStateSource;
-  state: GraftQueryState;
+export type ResourceQueryStateResolution = {
+  source: ResourceQueryStateSource;
+  state: ResourceQueryState;
 };
 
-export type GraftQueryStateRestoreOptions = {
-  defaultState: GraftQueryState;
-  defaultViewState?: GraftQueryState;
-  recentState?: GraftQueryState;
-  urlState?: GraftQueryState;
+export type ResourceQueryStateRestoreOptions = {
+  defaultState: ResourceQueryState;
+  defaultViewState?: ResourceQueryState;
+  recentState?: ResourceQueryState;
+  urlState?: ResourceQueryState;
 };
 
 /** 返回页面稳定的最近查询存储键，surface 由列表页面 owner 定义。 */
-export function graftQueryStorageKey(surface: string) {
+export function resourceQueryStorageKey(surface: string) {
   return `graft.query.${surface}`;
 }
 
 /** 按 URL、默认视图、最近查询和静态默认值的优先级恢复查询状态。 */
-export function resolveGraftQueryState(options: GraftQueryStateRestoreOptions): GraftQueryStateResolution {
-  const candidates: Array<[GraftQueryStateSource, GraftQueryState | undefined]> = [
+export function resolveResourceQueryState(options: ResourceQueryStateRestoreOptions): ResourceQueryStateResolution {
+  const candidates: Array<[ResourceQueryStateSource, ResourceQueryState | undefined]> = [
     ['url', options.urlState],
     ['default-view', options.defaultViewState],
     ['recent', options.recentState],
     ['defaults', options.defaultState],
   ];
   const [source, state] = candidates.find(([, candidate]) => candidate !== undefined) as [
-    GraftQueryStateSource,
-    GraftQueryState,
+    ResourceQueryStateSource,
+    ResourceQueryState,
   ];
-  return { source, state: cloneGraftQueryState(state) };
+  return { source, state: cloneResourceQueryState(state) };
 }
 
 /** 读取并验证某个页面的最近查询；无效或过期结构直接丢弃。 */
-export function readGraftQueryState(surface: string): GraftQueryState | undefined {
+export function readResourceQueryState(surface: string): ResourceQueryState | undefined {
   if (typeof window === 'undefined') return undefined;
   try {
-    const raw = window.localStorage.getItem(graftQueryStorageKey(surface));
+    const raw = window.localStorage.getItem(resourceQueryStorageKey(surface));
     if (!raw) return undefined;
     const value: unknown = JSON.parse(raw);
-    return isGraftQueryState(value) ? cloneGraftQueryState(value) : undefined;
+    return isResourceQueryState(value) ? cloneResourceQueryState(value) : undefined;
   } catch {
     return undefined;
   }
 }
 
 /** 保存最近查询时不含当前页，避免返回列表时落在陈旧页码。 */
-export function writeGraftQueryState(surface: string, state: GraftQueryState) {
+export function writeResourceQueryState(surface: string, state: ResourceQueryState) {
   if (typeof window === 'undefined') return;
   try {
-    const persisted = { ...cloneGraftQueryState(state), page: 1 };
-    window.localStorage.setItem(graftQueryStorageKey(surface), JSON.stringify(persisted));
+    const persisted = { ...cloneResourceQueryState(state), page: 1 };
+    window.localStorage.setItem(resourceQueryStorageKey(surface), JSON.stringify(persisted));
   } catch {
     // Storage may be disabled or full; querying must remain usable.
   }
 }
 
-export function cloneGraftQueryState(state: GraftQueryState): GraftQueryState {
+function cloneResourceQueryState(state: ResourceQueryState): ResourceQueryState {
   return { ...state, filters: { ...state.filters } };
 }
 
-function isGraftQueryState(value: unknown): value is GraftQueryState {
+function isResourceQueryState(value: unknown): value is ResourceQueryState {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
   return (
