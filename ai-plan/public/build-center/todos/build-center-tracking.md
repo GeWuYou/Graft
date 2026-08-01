@@ -42,14 +42,15 @@ closeout:
 
 ## Current Recovery Point
 
-- Topic bootstrap and design authority are being established.
-- Workers are split by server and web ownership.
-- Next step: integrate bounded Phase 0 results before starting persistence/API work.
+- Topic bootstrap and Phase 0 contracts are complete.
+- Phase 1 backend foundation is committed; generated module registration is still pending.
+- Next step: integrate generated registry/migration closure before API and executor work.
 
 ## Task Checklist
 
-- [ ] Establish moduleapi and Build module Phase 0 server contracts.
-- [ ] Establish web module registration and Build contract paths.
+- [x] Establish moduleapi and Build module Phase 0 server contracts.
+- [x] Establish web module registration and Build contract paths.
+- [x] Add Build module descriptor, permissions/menu skeleton, and foundation migration.
 - [ ] Add persistence, API, Docker executor, and task stage in a later bounded batch.
 - [ ] Add generated projections and end-to-end validation.
 
@@ -65,10 +66,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
-  "pending_batches": ["phase-0-server-contracts", "phase-0-web-contracts", "phase-0-integration"],
-  "current_batch": "phase-0-server-contracts-and-web-contracts",
-  "next_batch": "phase-0-integration",
+  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation"],
+  "pending_batches": ["phase-1-generated-registration", "phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
+  "current_batch": "phase-1-generated-registration",
+  "next_batch": "phase-1-build-api-and-task-submission",
   "closeout_status": "in-progress"
 }
 ```
