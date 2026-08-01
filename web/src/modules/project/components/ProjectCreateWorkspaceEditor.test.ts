@@ -391,6 +391,30 @@ describe('ApplicationCreateWorkspaceEditor', () => {
     expect(wrapper.find('.project-workspace-editor__tree-row--selected').text()).toContain('start');
   });
 
+  it('positions the tree context menu relative to the workspace editor', async () => {
+    const wrapper = mount(ApplicationCreateWorkspaceEditor, {
+      attachTo: document.body,
+      props: { files: [{ path: 'compose.yaml', content: 'services: {}' }] },
+    });
+    const editorRoot = wrapper.get('.project-workspace-editor').element;
+    vi.spyOn(editorRoot, 'getBoundingClientRect').mockReturnValue({
+      bottom: 700,
+      height: 480,
+      left: 560,
+      right: 1360,
+      top: 220,
+      width: 800,
+      x: 560,
+      y: 220,
+      toJSON: () => ({}),
+    });
+
+    await wrapper.find('.project-workspace-editor__tree').trigger('contextmenu', { clientX: 620, clientY: 280 });
+
+    expect(wrapper.get('.project-workspace-editor__context-menu').attributes('style')).toContain('left: 60px');
+    expect(wrapper.get('.project-workspace-editor__context-menu').attributes('style')).toContain('top: 60px');
+  });
+
   it('keeps the root context menu available when the workspace is empty', async () => {
     const wrapper = mount(ApplicationCreateWorkspaceEditor, {
       props: { files: [] },

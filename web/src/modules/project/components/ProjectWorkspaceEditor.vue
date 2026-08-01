@@ -476,9 +476,10 @@ function changeActivePath(path: string | number) {
 }
 
 function openMenu(row: ApplicationWorkspaceEditorRow | null, event: MouseEvent, focusMenu = false) {
+  const editorBounds = workspaceEditorRootRef.value?.getBoundingClientRect();
   contextMenu.row = row;
-  contextMenu.x = event.clientX;
-  contextMenu.y = event.clientY;
+  contextMenu.x = event.clientX - (editorBounds?.left ?? 0);
+  contextMenu.y = event.clientY - (editorBounds?.top ?? 0);
   contextMenuTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
   contextMenu.visible = true;
   if (focusMenu)
@@ -665,6 +666,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .project-workspace-editor {
   min-width: 0;
+  position: relative;
 
   --graft-workspace-editor-surface: color-mix(
     in srgb,
@@ -1046,7 +1048,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   min-width: 152px;
   padding: var(--graft-density-gap-4);
-  position: fixed;
+  position: absolute;
   z-index: 1000;
 }
 
