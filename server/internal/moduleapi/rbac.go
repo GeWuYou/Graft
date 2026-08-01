@@ -2,6 +2,24 @@ package moduleapi
 
 import "context"
 
+// PermissionScope describes the effective resource extent of an RBAC permission.
+type PermissionScope string
+
+const (
+	// PermissionScopeNone 表示主体不拥有目标权限。
+	PermissionScopeNone PermissionScope = "none"
+	// PermissionScopeOwned 表示主体只能访问自己创建的资源。
+	PermissionScopeOwned PermissionScope = "owned"
+	// PermissionScopeAll 表示主体可以访问该权限覆盖的全部资源。
+	PermissionScopeAll PermissionScope = "all"
+)
+
+// PermissionScopeResolver exposes the effective RBAC binding scope without
+// exposing role membership or persistence internals to resource modules.
+type PermissionScopeResolver interface {
+	ResolvePermissionScope(ctx context.Context, userID uint64, permission string) (PermissionScope, error)
+}
+
 // PermissionSeed 描述 RBAC 初始化或对齐权限点时需要的最小稳定元数据。
 type PermissionSeed struct {
 	Code           string

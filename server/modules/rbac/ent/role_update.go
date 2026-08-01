@@ -92,6 +92,54 @@ func (_u *RoleUpdate) SetNillableBuiltin(v *bool) *RoleUpdate {
 	return _u
 }
 
+// SetType sets the "type" field.
+func (_u *RoleUpdate) SetType(v string) *RoleUpdate {
+	_u.mutation.SetType(v)
+	return _u
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_u *RoleUpdate) SetNillableType(v *string) *RoleUpdate {
+	if v != nil {
+		_u.SetType(*v)
+	}
+	return _u
+}
+
+// SetBuiltinKey sets the "builtin_key" field.
+func (_u *RoleUpdate) SetBuiltinKey(v string) *RoleUpdate {
+	_u.mutation.SetBuiltinKey(v)
+	return _u
+}
+
+// SetNillableBuiltinKey sets the "builtin_key" field if the given value is not nil.
+func (_u *RoleUpdate) SetNillableBuiltinKey(v *string) *RoleUpdate {
+	if v != nil {
+		_u.SetBuiltinKey(*v)
+	}
+	return _u
+}
+
+// ClearBuiltinKey clears the value of the "builtin_key" field.
+func (_u *RoleUpdate) ClearBuiltinKey() *RoleUpdate {
+	_u.mutation.ClearBuiltinKey()
+	return _u
+}
+
+// SetEditable sets the "editable" field.
+func (_u *RoleUpdate) SetEditable(v bool) *RoleUpdate {
+	_u.mutation.SetEditable(v)
+	return _u
+}
+
+// SetNillableEditable sets the "editable" field if the given value is not nil.
+func (_u *RoleUpdate) SetNillableEditable(v *bool) *RoleUpdate {
+	if v != nil {
+		_u.SetEditable(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *RoleUpdate) SetUpdatedAt(v time.Time) *RoleUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -337,6 +385,18 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Builtin(); ok {
 		_spec.SetField(role.FieldBuiltin, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.GetType(); ok {
+		_spec.SetField(role.FieldType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BuiltinKey(); ok {
+		_spec.SetField(role.FieldBuiltinKey, field.TypeString, value)
+	}
+	if _u.mutation.BuiltinKeyCleared() {
+		_spec.ClearField(role.FieldBuiltinKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.Editable(); ok {
+		_spec.SetField(role.FieldEditable, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(role.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -532,6 +592,54 @@ func (_u *RoleUpdateOne) SetBuiltin(v bool) *RoleUpdateOne {
 func (_u *RoleUpdateOne) SetNillableBuiltin(v *bool) *RoleUpdateOne {
 	if v != nil {
 		_u.SetBuiltin(*v)
+	}
+	return _u
+}
+
+// SetType sets the "type" field.
+func (_u *RoleUpdateOne) SetType(v string) *RoleUpdateOne {
+	_u.mutation.SetType(v)
+	return _u
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_u *RoleUpdateOne) SetNillableType(v *string) *RoleUpdateOne {
+	if v != nil {
+		_u.SetType(*v)
+	}
+	return _u
+}
+
+// SetBuiltinKey sets the "builtin_key" field.
+func (_u *RoleUpdateOne) SetBuiltinKey(v string) *RoleUpdateOne {
+	_u.mutation.SetBuiltinKey(v)
+	return _u
+}
+
+// SetNillableBuiltinKey sets the "builtin_key" field if the given value is not nil.
+func (_u *RoleUpdateOne) SetNillableBuiltinKey(v *string) *RoleUpdateOne {
+	if v != nil {
+		_u.SetBuiltinKey(*v)
+	}
+	return _u
+}
+
+// ClearBuiltinKey clears the value of the "builtin_key" field.
+func (_u *RoleUpdateOne) ClearBuiltinKey() *RoleUpdateOne {
+	_u.mutation.ClearBuiltinKey()
+	return _u
+}
+
+// SetEditable sets the "editable" field.
+func (_u *RoleUpdateOne) SetEditable(v bool) *RoleUpdateOne {
+	_u.mutation.SetEditable(v)
+	return _u
+}
+
+// SetNillableEditable sets the "editable" field if the given value is not nil.
+func (_u *RoleUpdateOne) SetNillableEditable(v *bool) *RoleUpdateOne {
+	if v != nil {
+		_u.SetEditable(*v)
 	}
 	return _u
 }
@@ -810,6 +918,18 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 	}
 	if value, ok := _u.mutation.Builtin(); ok {
 		_spec.SetField(role.FieldBuiltin, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.GetType(); ok {
+		_spec.SetField(role.FieldType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BuiltinKey(); ok {
+		_spec.SetField(role.FieldBuiltinKey, field.TypeString, value)
+	}
+	if _u.mutation.BuiltinKeyCleared() {
+		_spec.ClearField(role.FieldBuiltinKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.Editable(); ok {
+		_spec.SetField(role.FieldEditable, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(role.FieldUpdatedAt, field.TypeTime, value)

@@ -34,6 +34,10 @@ func toRoleListItem(role rbacstore.Role) (generated.RoleListItem, error) {
 		Display:         role.Display,
 		Description:     role.Description,
 		Builtin:         role.Builtin,
+		System:          role.Type == "system",
+		Type:            generated.RoleListItemType(role.Type),
+		BuiltinKey:      role.BuiltinKey,
+		Editable:        role.Editable,
 		Status:          generated.RoleListItemStatus(role.Status),
 		UpdatedAt:       role.UpdatedAt.UTC().Format(time.RFC3339),
 		PermissionCount: role.PermissionCount,
@@ -63,15 +67,20 @@ func toRoleDetailResponse(role rbacstore.Role) (generated.RoleDetailResponse, er
 
 func toRolePermissionBindingResponse(bindings []rbacstore.RolePermissionBinding) (generated.RolePermissionBindingResponse, error) {
 	permissionIDs := make([]int64, 0, len(bindings))
+	items := make([]generated.RolePermissionBindingItem, 0, len(bindings))
 	for _, item := range bindings {
 		permissionID, err := mustConvertGeneratedID(item.PermissionID, "rbac permission id")
 		if err != nil {
 			return generated.RolePermissionBindingResponse{}, err
 		}
 		permissionIDs = append(permissionIDs, permissionID)
+		items = append(items, generated.RolePermissionBindingItem{
+			PermissionId: permissionID,
+			Scope:        generated.RolePermissionBindingItemScope(item.Scope),
+		})
 	}
 
-	return generated.RolePermissionBindingResponse{PermissionIds: permissionIDs}, nil
+	return generated.RolePermissionBindingResponse{PermissionIds: permissionIDs, Bindings: items}, nil
 }
 
 func toUserRoleBindingResponse(roleIDs []uint64) (generated.UserRoleBindingResponse, error) {
@@ -114,6 +123,9 @@ func toPermissionListItem(item rbacstore.Permission) (generated.PermissionListIt
 		Description:      item.Description,
 		DescriptionKey:   item.DescriptionKey,
 		Module:           item.Module,
+		Resource:         item.Resource,
+		Action:           item.Action,
+		RiskLevel:        generated.PermissionListItemRiskLevel(item.RiskLevel),
 		CreatedAt:        item.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:        item.UpdatedAt.UTC().Format(time.RFC3339),
 		RoleBindingCount: item.RoleBindingCount,

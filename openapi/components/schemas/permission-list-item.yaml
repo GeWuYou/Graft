@@ -1,6 +1,6 @@
 type: object
 required:
-  [id, code, display, module, created_at, updated_at, role_binding_count]
+  [id, code, display, module, resource, action, risk_level, created_at, updated_at, role_binding_count]
 properties:
   id:
     type: integer
@@ -23,6 +23,15 @@ properties:
     description: Stable localization key for the permission description text.
   module:
     type: string
+  resource:
+    type: string
+    description: Canonical permission domain used to group authorization controls.
+  action:
+    type: string
+    description: Canonical operation within the permission resource domain.
+  risk_level:
+    type: string
+    enum: [read, write, destructive, security]
   created_at:
     type: string
   updated_at:

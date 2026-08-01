@@ -3305,6 +3305,30 @@ func (e NotificationTargetType) Valid() bool {
 	}
 }
 
+// Defines values for PermissionListItemRiskLevel.
+const (
+	PermissionListItemRiskLevelDestructive PermissionListItemRiskLevel = "destructive"
+	PermissionListItemRiskLevelRead        PermissionListItemRiskLevel = "read"
+	PermissionListItemRiskLevelSecurity    PermissionListItemRiskLevel = "security"
+	PermissionListItemRiskLevelWrite       PermissionListItemRiskLevel = "write"
+)
+
+// Valid indicates whether the value is a known member of the PermissionListItemRiskLevel enum.
+func (e PermissionListItemRiskLevel) Valid() bool {
+	switch e {
+	case PermissionListItemRiskLevelDestructive:
+		return true
+	case PermissionListItemRiskLevelRead:
+		return true
+	case PermissionListItemRiskLevelSecurity:
+		return true
+	case PermissionListItemRiskLevelWrite:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformBackupDetailStatus.
 const (
 	PlatformBackupDetailStatusAVAILABLE PlatformBackupDetailStatus = "AVAILABLE"
@@ -3965,6 +3989,24 @@ func (e RoleDetailResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for RoleDetailResponseType.
+const (
+	RoleDetailResponseTypeCustom RoleDetailResponseType = "custom"
+	RoleDetailResponseTypeSystem RoleDetailResponseType = "system"
+)
+
+// Valid indicates whether the value is a known member of the RoleDetailResponseType enum.
+func (e RoleDetailResponseType) Valid() bool {
+	switch e {
+	case RoleDetailResponseTypeCustom:
+		return true
+	case RoleDetailResponseTypeSystem:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RoleListItemStatus.
 const (
 	RoleListItemStatusDisabled RoleListItemStatus = "disabled"
@@ -3977,6 +4019,42 @@ func (e RoleListItemStatus) Valid() bool {
 	case RoleListItemStatusDisabled:
 		return true
 	case RoleListItemStatusEnabled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RoleListItemType.
+const (
+	RoleListItemTypeCustom RoleListItemType = "custom"
+	RoleListItemTypeSystem RoleListItemType = "system"
+)
+
+// Valid indicates whether the value is a known member of the RoleListItemType enum.
+func (e RoleListItemType) Valid() bool {
+	switch e {
+	case RoleListItemTypeCustom:
+		return true
+	case RoleListItemTypeSystem:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RolePermissionBindingItemScope.
+const (
+	RolePermissionBindingItemScopeAll   RolePermissionBindingItemScope = "all"
+	RolePermissionBindingItemScopeOwned RolePermissionBindingItemScope = "owned"
+)
+
+// Valid indicates whether the value is a known member of the RolePermissionBindingItemScope enum.
+func (e RolePermissionBindingItemScope) Valid() bool {
+	switch e {
+	case RolePermissionBindingItemScopeAll:
+		return true
+	case RolePermissionBindingItemScopeOwned:
 		return true
 	default:
 		return false
@@ -4753,16 +4831,16 @@ func (e SystemConfigItemRuntimeApplyMode) Valid() bool {
 
 // Defines values for SystemConfigItemStatus.
 const (
-	Default  SystemConfigItemStatus = "default"
-	Modified SystemConfigItemStatus = "modified"
+	SystemConfigItemStatusDefault  SystemConfigItemStatus = "default"
+	SystemConfigItemStatusModified SystemConfigItemStatus = "modified"
 )
 
 // Valid indicates whether the value is a known member of the SystemConfigItemStatus enum.
 func (e SystemConfigItemStatus) Valid() bool {
 	switch e {
-	case Default:
+	case SystemConfigItemStatusDefault:
 		return true
-	case Modified:
+	case SystemConfigItemStatusModified:
 		return true
 	default:
 		return false
@@ -4855,19 +4933,19 @@ func (e TaskLogEntryLevel) Valid() bool {
 
 // Defines values for TaskLogEntryStream.
 const (
-	Stderr TaskLogEntryStream = "stderr"
-	Stdout TaskLogEntryStream = "stdout"
-	System TaskLogEntryStream = "system"
+	TaskLogEntryStreamStderr TaskLogEntryStream = "stderr"
+	TaskLogEntryStreamStdout TaskLogEntryStream = "stdout"
+	TaskLogEntryStreamSystem TaskLogEntryStream = "system"
 )
 
 // Valid indicates whether the value is a known member of the TaskLogEntryStream enum.
 func (e TaskLogEntryStream) Valid() bool {
 	switch e {
-	case Stderr:
+	case TaskLogEntryStreamStderr:
 		return true
-	case Stdout:
+	case TaskLogEntryStreamStdout:
 		return true
-	case System:
+	case TaskLogEntryStreamSystem:
 		return true
 	default:
 		return false
@@ -7793,6 +7871,18 @@ type BootstrapResponse struct {
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
+}
+
+// CloneRoleRequest defines model for clone-role-request.
+type CloneRoleRequest struct {
+	// Description Optional custom-role description.
+	Description *string `json:"description,omitempty"`
+
+	// Display User-facing display name for the newly created custom role.
+	Display string `json:"display"`
+
+	// Name Stable name for the newly created custom role.
+	Name string `json:"name"`
 }
 
 // CompleteRequiredPasswordChangeRequest defines model for complete-required-password-change-request.
@@ -10922,6 +11012,46 @@ type EnvelopedRuntimeTargetResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedRuntimeTargetUserAssignment defines model for enveloped-runtime-target-user-assignment.
+type EnvelopedRuntimeTargetUserAssignment struct {
+	// Code Existing canonical response code.
+	Code string                      `json:"code"`
+	Data RuntimeTargetUserAssignment `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+// EnvelopedRuntimeTargetUserAssignmentListResponse defines model for enveloped-runtime-target-user-assignment-list-response.
+type EnvelopedRuntimeTargetUserAssignmentListResponse struct {
+	// Code Existing canonical response code.
+	Code string                                  `json:"code"`
+	Data RuntimeTargetUserAssignmentListResponse `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
 // EnvelopedSavedView defines model for enveloped-saved-view.
 type EnvelopedSavedView struct {
 	// Code Existing canonical response code.
@@ -11668,6 +11798,9 @@ type PermissionDetailResponse = PermissionListItem
 
 // PermissionListItem defines model for permission-list-item.
 type PermissionListItem struct {
+	// Action Canonical operation within the permission resource domain.
+	Action string `json:"action"`
+
 	// Code Stable permission code contract.
 	Code      string `json:"code"`
 	CreatedAt string `json:"created_at"`
@@ -11682,12 +11815,19 @@ type PermissionListItem struct {
 	Display string `json:"display"`
 
 	// DisplayKey Stable localization key for the permission display text.
-	DisplayKey       *string `json:"display_key,omitempty"`
-	Id               int64   `json:"id"`
-	Module           string  `json:"module"`
-	RoleBindingCount int     `json:"role_binding_count"`
-	UpdatedAt        string  `json:"updated_at"`
+	DisplayKey *string `json:"display_key,omitempty"`
+	Id         int64   `json:"id"`
+	Module     string  `json:"module"`
+
+	// Resource Canonical permission domain used to group authorization controls.
+	Resource         string                      `json:"resource"`
+	RiskLevel        PermissionListItemRiskLevel `json:"risk_level"`
+	RoleBindingCount int                         `json:"role_binding_count"`
+	UpdatedAt        string                      `json:"updated_at"`
 }
+
+// PermissionListItemRiskLevel defines model for PermissionListItem.RiskLevel.
+type PermissionListItemRiskLevel string
 
 // PermissionListResponse defines model for permission-list-response.
 type PermissionListResponse struct {
@@ -12138,9 +12278,19 @@ type RealtimeSubscriptionResponse struct {
 
 // ReplaceRolePermissionsRequest defines model for replace-role-permissions-request.
 type ReplaceRolePermissionsRequest struct {
-	// PermissionIds Replaces the role's permission bindings with the provided stable permission id set.
-	PermissionIds []int64 `json:"permission_ids"`
+	Bindings *[]RolePermissionBindingItem `json:"bindings,omitempty"`
+
+	// PermissionIds Legacy all-scope binding input. New clients must submit bindings.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	PermissionIds *[]int64 `json:"permission_ids,omitempty"`
+	union         json.RawMessage
 }
+
+// ReplaceRolePermissionsRequest0 defines model for .
+type ReplaceRolePermissionsRequest0 = interface{}
+
+// ReplaceRolePermissionsRequest1 defines model for .
+type ReplaceRolePermissionsRequest1 = interface{}
 
 // ReplaceUserRolesRequest defines model for replace-user-roles-request.
 type ReplaceUserRolesRequest struct {
@@ -12273,44 +12423,88 @@ type ResetUserPasswordRequest struct {
 
 // RoleDetailResponse defines model for role-detail-response.
 type RoleDetailResponse struct {
-	Builtin         bool                     `json:"builtin"`
-	CreatedAt       string                   `json:"created_at"`
-	Description     *string                  `json:"description,omitempty"`
-	Display         string                   `json:"display"`
+	// Builtin Compatibility projection for legacy consumers. Use system and type.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	Builtin bool `json:"builtin"`
+
+	// BuiltinKey Stable key for a version-managed system role; null for custom roles.
+	BuiltinKey  *string `json:"builtin_key,omitempty"`
+	CreatedAt   string  `json:"created_at"`
+	Description *string `json:"description,omitempty"`
+	Display     string  `json:"display"`
+
+	// Editable Whether role metadata and permission bindings may be changed through role management APIs.
+	Editable        bool                     `json:"editable"`
 	Id              int64                    `json:"id"`
 	Name            string                   `json:"name"`
 	PermissionCount int                      `json:"permission_count"`
 	Status          RoleDetailResponseStatus `json:"status"`
-	UpdatedAt       string                   `json:"updated_at"`
-	UserCount       int                      `json:"user_count"`
+
+	// System True when this version-managed system role cannot be changed through role management APIs.
+	System    bool                   `json:"system"`
+	Type      RoleDetailResponseType `json:"type"`
+	UpdatedAt string                 `json:"updated_at"`
+	UserCount int                    `json:"user_count"`
 }
 
 // RoleDetailResponseStatus defines model for RoleDetailResponse.Status.
 type RoleDetailResponseStatus string
 
+// RoleDetailResponseType defines model for RoleDetailResponse.Type.
+type RoleDetailResponseType string
+
 // RoleListItem defines model for role-list-item.
 type RoleListItem struct {
-	Builtin         bool               `json:"builtin"`
-	Description     *string            `json:"description,omitempty"`
-	Display         string             `json:"display"`
+	// Builtin Compatibility projection for legacy consumers. Use system and type.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	Builtin bool `json:"builtin"`
+
+	// BuiltinKey Stable key for a version-managed system role; null for custom roles.
+	BuiltinKey  *string `json:"builtin_key,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Display     string  `json:"display"`
+
+	// Editable Whether role metadata and permission bindings may be changed through role management APIs.
+	Editable        bool               `json:"editable"`
 	Id              int64              `json:"id"`
 	Name            string             `json:"name"`
 	PermissionCount int                `json:"permission_count"`
 	Status          RoleListItemStatus `json:"status"`
-	UpdatedAt       string             `json:"updated_at"`
-	UserCount       int                `json:"user_count"`
+
+	// System True when this version-managed system role cannot be changed through role management APIs.
+	System    bool             `json:"system"`
+	Type      RoleListItemType `json:"type"`
+	UpdatedAt string           `json:"updated_at"`
+	UserCount int              `json:"user_count"`
 }
 
 // RoleListItemStatus defines model for RoleListItem.Status.
 type RoleListItemStatus string
+
+// RoleListItemType defines model for RoleListItem.Type.
+type RoleListItemType string
 
 // RoleListResponse defines model for role-list-response.
 type RoleListResponse struct {
 	Items []RoleListItem `json:"items"`
 }
 
+// RolePermissionBindingItem defines model for role-permission-binding-item.
+type RolePermissionBindingItem struct {
+	PermissionId int64 `json:"permission_id"`
+
+	// Scope owned is valid only for resources that expose creator ownership authorization.
+	Scope RolePermissionBindingItemScope `json:"scope"`
+}
+
+// RolePermissionBindingItemScope owned is valid only for resources that expose creator ownership authorization.
+type RolePermissionBindingItemScope string
+
 // RolePermissionBindingResponse defines model for role-permission-binding-response.
 type RolePermissionBindingResponse struct {
+	Bindings []RolePermissionBindingItem `json:"bindings"`
+
+	// PermissionIds Deprecated compatibility projection of bindings.
 	PermissionIds []int64 `json:"permission_ids"`
 }
 
@@ -12457,6 +12651,24 @@ type RuntimeTargetUsageMetric struct {
 
 	// UsedBytes Bytes currently used by the resource.
 	UsedBytes int64 `json:"usedBytes"`
+}
+
+// RuntimeTargetUserAssignment defines model for runtime-target-user-assignment.
+type RuntimeTargetUserAssignment struct {
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy *int64    `json:"created_by,omitempty"`
+	TargetId  int64     `json:"target_id"`
+	UserId    int64     `json:"user_id"`
+}
+
+// RuntimeTargetUserAssignmentListResponse defines model for runtime-target-user-assignment-list-response.
+type RuntimeTargetUserAssignmentListResponse struct {
+	Items []RuntimeTargetUserAssignment `json:"items"`
+}
+
+// RuntimeTargetUserAssignmentRequest defines model for runtime-target-user-assignment-request.
+type RuntimeTargetUserAssignmentRequest struct {
+	UserId int64 `json:"user_id"`
 }
 
 // SavedView defines model for saved-view.
@@ -15936,6 +16148,16 @@ type GetRoleParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// PostRoleCloneParams defines parameters for PostRoleClone.
+type PostRoleCloneParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostRoleDeleteParams defines parameters for PostRoleDelete.
 type PostRoleDeleteParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -16051,6 +16273,36 @@ type PostRuntimeTargetsDiscoverLocalDockerParams struct {
 
 // GetRuntimeTargetParams defines parameters for GetRuntimeTarget.
 type GetRuntimeTargetParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetRuntimeTargetAssignmentsParams defines parameters for GetRuntimeTargetAssignments.
+type GetRuntimeTargetAssignmentsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRuntimeTargetAssignmentParams defines parameters for PostRuntimeTargetAssignment.
+type PostRuntimeTargetAssignmentParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostRuntimeTargetAssignmentDeleteParams defines parameters for PostRuntimeTargetAssignmentDelete.
+type PostRuntimeTargetAssignmentDeleteParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -16759,6 +17011,9 @@ type PostRealtimeSubscriptionJSONRequestBody = RealtimeSubscriptionRequest
 // PostRolesJSONRequestBody defines body for PostRoles for application/json ContentType.
 type PostRolesJSONRequestBody = CreateRoleRequest
 
+// PostRoleCloneJSONRequestBody defines body for PostRoleClone for application/json ContentType.
+type PostRoleCloneJSONRequestBody = CloneRoleRequest
+
 // PostRolePermissionsAddJSONRequestBody defines body for PostRolePermissionsAdd for application/json ContentType.
 type PostRolePermissionsAddJSONRequestBody = ReplaceRolePermissionsRequest
 
@@ -16779,6 +17034,9 @@ type PostRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
 
 // PutRuntimeTargetSavedViewJSONRequestBody defines body for PutRuntimeTargetSavedView for application/json ContentType.
 type PutRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
+
+// PostRuntimeTargetAssignmentJSONRequestBody defines body for PostRuntimeTargetAssignment for application/json ContentType.
+type PostRuntimeTargetAssignmentJSONRequestBody = RuntimeTargetUserAssignmentRequest
 
 // PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
 type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest
@@ -16997,5 +17255,115 @@ func (t ApplicationWorkspaceEntryCreateRequest) MarshalJSON() ([]byte, error) {
 
 func (t *ApplicationWorkspaceEntryCreateRequest) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsReplaceRolePermissionsRequest0 returns the union data inside the ReplaceRolePermissionsRequest as a ReplaceRolePermissionsRequest0
+func (t ReplaceRolePermissionsRequest) AsReplaceRolePermissionsRequest0() (ReplaceRolePermissionsRequest0, error) {
+	var body ReplaceRolePermissionsRequest0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromReplaceRolePermissionsRequest0 overwrites any union data inside the ReplaceRolePermissionsRequest as the provided ReplaceRolePermissionsRequest0
+func (t *ReplaceRolePermissionsRequest) FromReplaceRolePermissionsRequest0(v ReplaceRolePermissionsRequest0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeReplaceRolePermissionsRequest0 performs a merge with any union data inside the ReplaceRolePermissionsRequest, using the provided ReplaceRolePermissionsRequest0
+func (t *ReplaceRolePermissionsRequest) MergeReplaceRolePermissionsRequest0(v ReplaceRolePermissionsRequest0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsReplaceRolePermissionsRequest1 returns the union data inside the ReplaceRolePermissionsRequest as a ReplaceRolePermissionsRequest1
+func (t ReplaceRolePermissionsRequest) AsReplaceRolePermissionsRequest1() (ReplaceRolePermissionsRequest1, error) {
+	var body ReplaceRolePermissionsRequest1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromReplaceRolePermissionsRequest1 overwrites any union data inside the ReplaceRolePermissionsRequest as the provided ReplaceRolePermissionsRequest1
+func (t *ReplaceRolePermissionsRequest) FromReplaceRolePermissionsRequest1(v ReplaceRolePermissionsRequest1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeReplaceRolePermissionsRequest1 performs a merge with any union data inside the ReplaceRolePermissionsRequest, using the provided ReplaceRolePermissionsRequest1
+func (t *ReplaceRolePermissionsRequest) MergeReplaceRolePermissionsRequest1(v ReplaceRolePermissionsRequest1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ReplaceRolePermissionsRequest) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if t.Bindings != nil {
+		object["bindings"], err = json.Marshal(t.Bindings)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'bindings': %w", err)
+		}
+	}
+
+	if t.PermissionIds != nil {
+		object["permission_ids"], err = json.Marshal(t.PermissionIds)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'permission_ids': %w", err)
+		}
+	}
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *ReplaceRolePermissionsRequest) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["bindings"]; found {
+		err = json.Unmarshal(raw, &t.Bindings)
+		if err != nil {
+			return fmt.Errorf("error reading 'bindings': %w", err)
+		}
+	}
+
+	if raw, found := object["permission_ids"]; found {
+		err = json.Unmarshal(raw, &t.PermissionIds)
+		if err != nil {
+			return fmt.Errorf("error reading 'permission_ids': %w", err)
+		}
+	}
+
 	return err
 }

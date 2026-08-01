@@ -42,49 +42,14 @@ func (s bootstrapService) EnsureDefaultAdminAccess(
 		return fmt.Errorf("ensure default admin role: %w", err)
 	}
 
-	if err := ensureRolePermissions(ctx, s.rbac, role.ID, permissions); err != nil {
-		return err
-	}
+	// 系统角色策略由版本化迁移同步。启动阶段只保证首位平台管理员拥有 Admin 角色，
+	// 绝不能因为新注册权限而把它隐式授予历史角色。
+	_ = permissions
 	if err := s.rbac.AssignRoleToUser(ctx, rbacstore.AssignRoleToUserInput{
 		UserID: userID,
 		RoleID: role.ID,
 	}); err != nil {
 		return fmt.Errorf("assign default admin role to user: %w", err)
-	}
-
-	return nil
-}
-
-func ensureRolePermissions(
-	ctx context.Context,
-	rbac rbacstore.Repository,
-	roleID uint64,
-	permissions []moduleapi.PermissionSeed,
-) error {
-	permissionIDs := make([]uint64, 0, len(permissions))
-	for _, item := range permissions {
-		record, err := rbac.EnsurePermission(ctx, rbacstore.EnsurePermissionInput{
-			Code:           item.Code,
-			Display:        item.Display,
-			DisplayKey:     stringPtrOrNil(item.DisplayKey),
-			Description:    stringPtrOrNil(item.Description),
-			DescriptionKey: stringPtrOrNil(item.DescriptionKey),
-			Module:         item.Module,
-		})
-		if err != nil {
-			return fmt.Errorf("ensure permission %s: %w", item.Code, err)
-		}
-		permissionIDs = append(permissionIDs, record.ID)
-	}
-	if len(permissionIDs) == 0 {
-		return nil
-	}
-
-	if err := rbac.AssignPermissionsToRole(ctx, rbacstore.AssignPermissionsToRoleInput{
-		RoleID:        roleID,
-		PermissionIDs: permissionIDs,
-	}); err != nil {
-		return fmt.Errorf("assign permissions to default admin role: %w", err)
 	}
 
 	return nil

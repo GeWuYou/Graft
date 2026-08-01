@@ -129,6 +129,11 @@ func resolveUserServices(ctx *module.Context) (moduleapi.UserService, moduleapi.
 // registerModuleServices 注册 RBAC 访问、bootstrap 与授权服务。
 // 只有用户安全摘要读取器可用时才注册安全态势服务，避免把可选观测能力误当成授权运行时依赖。
 func registerModuleServices(ctx *module.Context, repository rbacstore.Repository, users moduleapi.UserSecurityReader) error {
+	if err := ctx.Services.RegisterSingleton((*moduleapi.PermissionScopeResolver)(nil), func(_ container.Resolver) (any, error) {
+		return authorizer{rbac: repository}, nil
+	}); err != nil {
+		return err
+	}
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RBACAccessService)(nil), func(_ container.Resolver) (any, error) {
 		return accessService{rbac: repository}, nil
 	}); err != nil {
@@ -195,6 +200,55 @@ type authorizer struct {
 	rbac rbacstore.Repository
 }
 
+// ResolvePermissionScope returns the broadest effective binding scope for one permission.
+func (a authorizer) ResolvePermissionScope(ctx context.Context, userID uint64, permission string) (moduleapi.PermissionScope, error) {
+	if a.rbac == nil || userID == 0 || strings.TrimSpace(permission) == "" {
+		return moduleapi.PermissionScopeNone, moduleapi.ErrPermissionDenied
+	}
+	roles, err := a.rbac.ListRolesByUserID(ctx, userID)
+	if err != nil {
+		return moduleapi.PermissionScopeNone, err
+	}
+	result := moduleapi.PermissionScopeNone
+	for _, role := range roles {
+		scope, err := a.resolveRolePermissionScope(ctx, role.ID, permission)
+		if err != nil {
+			return moduleapi.PermissionScopeNone, err
+		}
+		if scope == moduleapi.PermissionScopeAll {
+			return scope, nil
+		}
+		if scope == moduleapi.PermissionScopeOwned {
+			result = scope
+		}
+	}
+	return result, nil
+}
+
+func (a authorizer) resolveRolePermissionScope(ctx context.Context, roleID uint64, permission string) (moduleapi.PermissionScope, error) {
+	bindings, err := a.rbac.ListRolePermissionBindings(ctx, roleID)
+	if err != nil {
+		return moduleapi.PermissionScopeNone, err
+	}
+	result := moduleapi.PermissionScopeNone
+	for _, binding := range bindings {
+		item, err := a.rbac.GetPermissionByID(ctx, binding.PermissionID)
+		if err != nil {
+			return moduleapi.PermissionScopeNone, err
+		}
+		if item.Code != permission {
+			continue
+		}
+		if binding.Scope == string(moduleapi.PermissionScopeAll) {
+			return moduleapi.PermissionScopeAll, nil
+		}
+		if binding.Scope == string(moduleapi.PermissionScopeOwned) {
+			result = moduleapi.PermissionScopeOwned
+		}
+	}
+	return result, nil
+}
+
 // Authorize 基于稳定 RBAC 仓储判断请求主体是否拥有指定权限。
 func (a authorizer) Authorize(ctx context.Context, request moduleapi.RequestAuthContext, permission string) error {
 	if request.User == nil || request.User.ID == 0 {
@@ -221,3 +275,4 @@ func (a authorizer) Authorize(ctx context.Context, request moduleapi.RequestAuth
 }
 
 var _ moduleapi.Authorizer = authorizer{}
+var _ moduleapi.PermissionScopeResolver = authorizer{}

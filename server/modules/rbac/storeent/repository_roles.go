@@ -65,6 +65,53 @@ func (r *repository) CreateRole(ctx context.Context, input rbacstore.CreateRoleI
 	return record, nil
 }
 
+// CloneRole 在同一事务中创建自定义角色并复制来源角色的权限绑定。
+func (r *repository) CloneRole(ctx context.Context, input rbacstore.CloneRoleInput) (rbacstore.Role, error) {
+	sourceID, err := toDBID(input.SourceRoleID)
+	if err != nil {
+		return rbacstore.Role{}, err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return rbacstore.Role{}, fmt.Errorf("start clone role tx: %w", err)
+	}
+	committed := false
+	defer rollbackUncommitted(tx, &committed)
+
+	var sourceExists bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM roles WHERE id = $1 AND deleted_at = 0)`, sourceID).Scan(&sourceExists); err != nil {
+		return rbacstore.Role{}, fmt.Errorf("check source role for clone: %w", err)
+	}
+	if !sourceExists {
+		return rbacstore.Role{}, rbacstore.ErrRoleNotFound
+	}
+
+	now := time.Now().UTC()
+	role, err := scanRole(tx.QueryRowContext(
+		ctx,
+		`INSERT INTO roles (name, display, description, builtin, type, builtin_key, editable, created_at, created_by, updated_at, updated_by, disabled_at, deleted_at, deleted_by)
+		VALUES ($1, $2, $3, FALSE, 'custom', NULL, TRUE, $4, 0, $4, 0, 0, 0, 0)
+		RETURNING id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at, 0, 0`,
+		strings.TrimSpace(input.Name), input.Display, nullableString(input.Description), now,
+	))
+	if err != nil {
+		if isUniqueViolation(err) {
+			return rbacstore.Role{}, rbacstore.ErrRoleNameConflict
+		}
+		return rbacstore.Role{}, fmt.Errorf("create cloned role: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `INSERT INTO role_permissions (role_id, permission_id, scope, created_at)
+		SELECT $1, permission_id, scope, $2 FROM role_permissions WHERE role_id = $3`, role.ID, now, sourceID); err != nil {
+		return rbacstore.Role{}, fmt.Errorf("copy role permissions: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return rbacstore.Role{}, fmt.Errorf("commit clone role: %w", err)
+	}
+	committed = true
+	return r.GetRoleByID(ctx, role.ID)
+}
+
 func (r *repository) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
 	roleID, err := toDBID(input.ID)
 	if err != nil {
@@ -197,7 +244,7 @@ func (r *repository) ListRoles(ctx context.Context, filter rbacstore.RoleFilter)
 		ctx,
 		r.executor(ctx),
 		"list roles",
-		fmt.Sprintf(`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		fmt.Sprintf(`SELECT id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -223,7 +270,7 @@ func (r *repository) enableRole(ctx context.Context, inputID uint64, roleID int6
 		`UPDATE roles
 		SET disabled_at = 0, updated_at = $2, updated_by = 0
 		WHERE id = $1 AND deleted_at = 0 AND disabled_at <> 0
-		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		RETURNING id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,
@@ -256,7 +303,7 @@ func (r *repository) disableRole(ctx context.Context, inputID uint64, roleID int
 			updated_at = $3,
 			updated_by = 0
 		WHERE id = $1 AND deleted_at = 0
-		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		RETURNING id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,
@@ -306,7 +353,7 @@ func (r *repository) updateRoleRecord(ctx context.Context, roleID int64, record 
 		`UPDATE roles
 		SET name = $2, display = $3, description = $4, updated_at = $5, updated_by = 0
 		WHERE id = $1 AND deleted_at = 0
-		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		RETURNING id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		roleID,

@@ -28,6 +28,7 @@ func registerModuleMetadata(ctx *module.Context, moduleName string) error {
 	for _, item := range []permission.Item{
 		{Code: contract.ViewPermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetView.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetView.description", Module: moduleName},
 		{Code: contract.ManagePermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetManage.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetManage.description", Module: moduleName},
+		{Code: contract.AssignmentManagePermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetAssignmentManage.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetAssignmentManage.description", Module: moduleName},
 		{Code: contract.RefreshPermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetRefresh.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetRefresh.description", Module: moduleName},
 	} {
 		ctx.PermissionRegistry.Register(item)

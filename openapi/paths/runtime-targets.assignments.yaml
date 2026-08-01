@@ -1,0 +1,47 @@
+get:
+  tags: [runtime-target]
+  summary: List deployment users assigned to a runtime target
+  operationId: getRuntimeTargetAssignments
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+  responses:
+    '200':
+      description: Active user assignments for the runtime target.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-runtime-target-user-assignment-list-response.yaml
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Runtime target not found}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}
+post:
+  tags: [runtime-target]
+  summary: Grant a user deployment use of a runtime target
+  operationId: postRuntimeTargetAssignment
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/runtime-target-user-assignment-request.yaml
+  responses:
+    '200':
+      description: User granted deployment use of the runtime target.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-runtime-target-user-assignment.yaml
+    '400': {description: Invalid target or user id}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Runtime target or user not found}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

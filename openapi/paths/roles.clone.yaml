@@ -1,0 +1,35 @@
+post:
+  tags: [rbac]
+  summary: Clone role as a custom role
+  operationId: postRoleClone
+  description: Creates an editable custom role and atomically copies the source role permission bindings and scopes.
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  security: [{bearerAuth: []}]
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../components/schemas/clone-role-request.yaml
+  responses:
+    '200':
+      description: Custom role created from the source role.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-role-item-response.yaml
+    '400': {description: Invalid clone request}
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Source role not found}
+    '409': {description: Role name conflict}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

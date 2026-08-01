@@ -29,6 +29,12 @@ type Permission struct {
 	DescriptionKey *string `json:"description_key,omitempty"`
 	// 权限归属模块标识，例如 user、rbac、core.httpx
 	Module string `json:"module,omitempty"`
+	// 权限所属资源领域，用于目录分组
+	Resource string `json:"resource,omitempty"`
+	// 资源上的稳定动作
+	Action string `json:"action,omitempty"`
+	// 权限风险等级：read、write、destructive 或 security
+	RiskLevel string `json:"risk_level,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 创建人用户 ID，0 表示系统
@@ -72,7 +78,7 @@ func (*Permission) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case permission.FieldID, permission.FieldCreatedBy, permission.FieldUpdatedBy, permission.FieldDeletedAt, permission.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
-		case permission.FieldCode, permission.FieldDisplay, permission.FieldDisplayKey, permission.FieldDescription, permission.FieldDescriptionKey, permission.FieldModule:
+		case permission.FieldCode, permission.FieldDisplay, permission.FieldDisplayKey, permission.FieldDescription, permission.FieldDescriptionKey, permission.FieldModule, permission.FieldResource, permission.FieldAction, permission.FieldRiskLevel:
 			values[i] = new(sql.NullString)
 		case permission.FieldCreatedAt, permission.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -135,6 +141,24 @@ func (_m *Permission) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field module", values[i])
 			} else if value.Valid {
 				_m.Module = value.String
+			}
+		case permission.FieldResource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field resource", values[i])
+			} else if value.Valid {
+				_m.Resource = value.String
+			}
+		case permission.FieldAction:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field action", values[i])
+			} else if value.Valid {
+				_m.Action = value.String
+			}
+		case permission.FieldRiskLevel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field risk_level", values[i])
+			} else if value.Valid {
+				_m.RiskLevel = value.String
 			}
 		case permission.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -236,6 +260,15 @@ func (_m *Permission) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("module=")
 	builder.WriteString(_m.Module)
+	builder.WriteString(", ")
+	builder.WriteString("resource=")
+	builder.WriteString(_m.Resource)
+	builder.WriteString(", ")
+	builder.WriteString("action=")
+	builder.WriteString(_m.Action)
+	builder.WriteString(", ")
+	builder.WriteString("risk_level=")
+	builder.WriteString(_m.RiskLevel)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

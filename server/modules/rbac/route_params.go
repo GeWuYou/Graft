@@ -77,7 +77,7 @@ func readGeneratedRolePermissionReplaceRequest(ginCtx *gin.Context) (rbacopenapi
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		return rbacopenapi.PostRolePermissionsReplaceJSONRequestBody{}, nil, err
 	}
-	return request, optionalStableIDs(request.PermissionIds), nil
+	return request, optionalStableIDPointer(request.PermissionIds), nil
 }
 
 func readGeneratedRolePermissionAddRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionsAddJSONRequestBody, []uint64, error) {
@@ -85,7 +85,7 @@ func readGeneratedRolePermissionAddRequest(ginCtx *gin.Context) (rbacopenapi.Pos
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		return rbacopenapi.PostRolePermissionsAddJSONRequestBody{}, nil, err
 	}
-	return request, optionalStableIDs(request.PermissionIds), nil
+	return request, optionalStableIDPointer(request.PermissionIds), nil
 }
 
 func readGeneratedRolePermissionRemoveRequest(ginCtx *gin.Context) (rbacopenapi.PostRolePermissionsRemoveJSONRequestBody, []uint64, error) {
@@ -93,7 +93,7 @@ func readGeneratedRolePermissionRemoveRequest(ginCtx *gin.Context) (rbacopenapi.
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		return rbacopenapi.PostRolePermissionsRemoveJSONRequestBody{}, nil, err
 	}
-	return request, optionalStableIDs(request.PermissionIds), nil
+	return request, optionalStableIDPointer(request.PermissionIds), nil
 }
 
 func readGeneratedUserRoleReplaceRequest(ginCtx *gin.Context) (rbacopenapi.PostUserRolesReplaceJSONRequestBody, []uint64, error) {
@@ -176,6 +176,13 @@ func optionalStableIDs(ids []int64) []uint64 {
 		stableIDs = append(stableIDs, uint64(id))
 	}
 	return stableIDs
+}
+
+func optionalStableIDPointer(ids *[]int64) []uint64 {
+	if ids == nil {
+		return nil
+	}
+	return optionalStableIDs(*ids)
 }
 
 func normalizeOptionalString(input *string) *string {

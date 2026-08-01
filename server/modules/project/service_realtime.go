@@ -184,6 +184,13 @@ func (s *Service) issueProjectScopedRealtimeSubscription(
 	if err != nil {
 		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
 	}
+	aggregate, err := s.getAggregate(ctx, projectID)
+	if err != nil {
+		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
+	}
+	if err := s.ensureApplicationScope(ctx, aggregate, projectcontract.ApplicationViewPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
+	}
 	if err := ensureStreaming(topic, projectID); err != nil {
 		return realtime.SubscriptionResponse{}, realtime.ErrTopicConflict
 	}
@@ -209,6 +216,9 @@ func (s *Service) issueProjectLogsRealtimeSubscription(
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
 		return realtime.SubscriptionResponse{}, mapProjectRealtimeError(err)
+	}
+	if err := s.ensureApplicationScope(ctx, aggregate, projectcontract.ApplicationViewPermission.String()); err != nil {
+		return realtime.SubscriptionResponse{}, realtime.ErrTopicForbidden
 	}
 	if err := s.ensureProjectLogsTopicStreaming(topic, aggregate.Application.ApplicationRecordID, LogQuery{
 		Tail:       defaultProjectLogsTail,

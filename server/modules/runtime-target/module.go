@@ -45,6 +45,7 @@ type Module struct {
 	i18n            *i18n.Service
 	events          event.TransactionalPublisher
 	savedViews      moduleapi.SavedViewService
+	users           moduleapi.UserIdentityProvider
 }
 
 // NewModule 构造 runtime-target 模块实例。
@@ -68,29 +69,62 @@ func (m *Module) Register(ctx *module.Context) error {
 		return errors.New("runtime target event transaction publisher is unavailable")
 	}
 	m.events = ctx.EventTxPublisher
-	auth, err := module.ResolveService[moduleapi.AuthService](ctx.Services, (*moduleapi.AuthService)(nil))
+	services, err := m.resolveRegistrationServices(ctx)
 	if err != nil {
 		return err
+	}
+	m.users = services.users
+	m.savedViews = services.savedViews
+	if err := m.configureRealtime(ctx, services.authorizer); err != nil {
+		return err
+	}
+	if err := m.registerReaders(ctx); err != nil {
+		return err
+	}
+	m.registerRoutes(ctx, services.auth, services.authorizer)
+	return nil
+}
+
+type registrationServices struct {
+	auth       moduleapi.AuthService
+	authorizer moduleapi.Authorizer
+	users      moduleapi.UserIdentityProvider
+	savedViews moduleapi.SavedViewService
+}
+
+func (m *Module) resolveRegistrationServices(ctx *module.Context) (registrationServices, error) {
+	auth, err := module.ResolveService[moduleapi.AuthService](ctx.Services, (*moduleapi.AuthService)(nil))
+	if err != nil {
+		return registrationServices{}, err
 	}
 	authorizer, err := module.ResolveService[moduleapi.Authorizer](ctx.Services, (*moduleapi.Authorizer)(nil))
 	if err != nil {
-		return err
+		return registrationServices{}, err
 	}
-	if err := m.configureRealtime(ctx, authorizer); err != nil {
-		return err
+	users, err := module.ResolveService[moduleapi.UserIdentityProvider](ctx.Services, (*moduleapi.UserIdentityProvider)(nil))
+	if err != nil {
+		return registrationServices{}, err
 	}
 	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
 	if err != nil {
+		return registrationServices{}, err
+	}
+	return registrationServices{auth: auth, authorizer: authorizer, users: users, savedViews: savedViews}, nil
+}
+
+func (m *Module) registerReaders(ctx *module.Context) error {
+	reader := func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }
+	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), reader); err != nil {
 		return err
 	}
-	m.savedViews = savedViews
+	if err := ctx.Services.RegisterSingleton((*moduleapi.ComposeRuntimeTargetReader)(nil), reader); err != nil {
+		return err
+	}
+	return ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetDeploymentAssignmentReader)(nil), reader)
+}
+
+func (m *Module) registerRoutes(ctx *module.Context, auth moduleapi.AuthService, authorizer moduleapi.Authorizer) {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
-	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
-		return err
-	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.ComposeRuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
-		return err
-	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
 	ctx.Router.GET("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewList)
 	ctx.Router.POST("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewCreate)
@@ -99,7 +133,39 @@ func (m *Module) Register(ctx *module.Context) error {
 	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
-	return nil
+	ctx.Router.GET(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleListAssignments)
+	ctx.Router.POST(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleGrantAssignment)
+	ctx.Router.POST(contract.AssignmentDeleteRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleRevokeAssignment)
+}
+
+// ListAssignedComposeTargets 仅返回指定用户获授权用于部署的目标摘要。
+func (r runtimeTargetReader) ListAssignedComposeTargets(ctx context.Context, userID uint64) ([]moduleapi.ComposeRuntimeTargetSummary, error) {
+	items, err := r.repository.ListAssignedComposeTargets(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]moduleapi.ComposeRuntimeTargetSummary, 0, len(items))
+	for _, target := range items {
+		if summary, ok := composeTargetSummary(target); ok {
+			results = append(results, summary)
+		}
+	}
+	return results, nil
+}
+
+// CanUseComposeTarget 判断用户是否对具备 Compose 能力的目标拥有有效部署使用授权。
+func (r runtimeTargetReader) CanUseComposeTarget(ctx context.Context, userID uint64, targetID uint64) (bool, error) {
+	if r.repository == nil || userID == 0 || targetID == 0 {
+		return false, nil
+	}
+	target, err := r.repository.Get(ctx, targetID)
+	if err != nil {
+		return false, normalizeRuntimeTargetLookupError(err)
+	}
+	if _, ok := composeTargetSummary(target); !ok {
+		return false, nil
+	}
+	return r.repository.HasActiveUserAssignment(ctx, targetID, userID)
 }
 
 func (m *Module) configureRealtime(ctx *module.Context, authorizer moduleapi.Authorizer) error {

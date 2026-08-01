@@ -5,6 +5,7 @@ import (
 	entsql "entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/mixin"
 )
 
@@ -71,6 +72,11 @@ func (RolePermission) Mixin() []ent.Mixin {
 			right: "permission_id",
 		},
 	}
+}
+
+// Fields returns the binding scope in addition to the shared relation identifiers.
+func (RolePermission) Fields() []ent.Field {
+	return []ent.Field{field.String("scope").Comment("权限绑定范围：all 或 owned").Default("all")}
 }
 
 // Edges returns the role-permission join edges.

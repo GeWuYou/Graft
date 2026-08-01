@@ -38,7 +38,7 @@ HEALTH_ARGS = [
 ]
 RBAC_MANAGEMENT_ARGS = [
     "--include-operation-ids",
-    "getPermission,getPermissions,getRole,getRoles,getRolePermissions,postRoleDelete,postRolePermissionsAdd,postRolePermissionsRemove,postRolePermissionsReplace,postRoles,postRoleStatus,postRoleUpdate,getUserRoles,postUserRolesAdd,postUserRolesRemove,postUserRolesReplace,postUsersRolesAdd,postUsersRolesRemove,postUsersRolesReplace",
+    "getPermission,getPermissions,getRole,getRoles,getRolePermissions,postRoleClone,postRoleDelete,postRolePermissionsAdd,postRolePermissionsRemove,postRolePermissionsReplace,postRoles,postRoleStatus,postRoleUpdate,getUserRoles,postUserRolesAdd,postUserRolesRemove,postUserRolesReplace,postUsersRolesAdd,postUsersRolesRemove,postUsersRolesReplace",
     "--generate",
     "types",
     "--package",

@@ -15,12 +15,23 @@ func (a projectTaskOwnerAuthorizer) AuthorizeTaskOwner(ctx context.Context, acto
 	if actor == nil || a.service == nil || a.service.authorizer == nil {
 		return errProjectActorAttribution
 	}
-	if _, err := a.service.ResolveApplicationID(ctx, owner.ID); err != nil {
+	projectID, err := a.service.ResolveApplicationID(ctx, owner.ID)
+	if err != nil {
 		return err
 	}
 	permission := projectcontract.ApplicationViewPermission.String()
 	if action == moduleapi.TaskOwnerActionCancel || action == moduleapi.TaskOwnerActionRetry {
 		permission = projectcontract.ApplicationLifecyclePermission.String()
 	}
-	return a.service.authorizer.Authorize(ctx, moduleapi.RequestAuthContext{User: actor}, permission)
+	if err := a.service.authorizer.Authorize(ctx, moduleapi.RequestAuthContext{User: actor}, permission); err != nil {
+		return err
+	}
+	if a.service.permissionScopes == nil {
+		return nil
+	}
+	aggregate, err := a.service.getAggregate(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	return a.service.ensureApplicationScope(ctx, aggregate, permission)
 }

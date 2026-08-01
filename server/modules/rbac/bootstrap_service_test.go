@@ -178,40 +178,11 @@ func assertDefaultAdminBootstrap(t *testing.T, repo *bootstrapServiceTestReposit
 	if repo.ensureRoleInput.Name != builtinAdminRoleName || repo.ensureRoleInput.Display != "管理员" || !repo.ensureRoleInput.Builtin {
 		t.Fatalf("unexpected role seed: %#v", repo.ensureRoleInput)
 	}
-	if len(repo.ensurePermissionInputs) != 2 {
-		t.Fatalf("expected 2 permission seeds, got %d", len(repo.ensurePermissionInputs))
-	}
-	if repo.ensurePermissionInputs[0].Description != nil {
-		t.Fatalf("expected blank permission description to become nil, got %#v", repo.ensurePermissionInputs[0].Description)
-	}
-	assertPermissionInputKeys(t, repo.ensurePermissionInputs[0], "rbac.permissionCatalog.userRead.display", "rbac.permissionCatalog.userRead.description")
-	if repo.ensurePermissionInputs[1].Description == nil || *repo.ensurePermissionInputs[1].Description != "write users" {
-		t.Fatalf("expected non-blank permission description to be preserved, got %#v", repo.ensurePermissionInputs[1].Description)
-	}
-	if repo.ensurePermissionInputs[0].Module != "user" || repo.ensurePermissionInputs[1].Module != "user" {
-		t.Fatalf("expected permission module metadata to be preserved, got %#v", repo.ensurePermissionInputs)
-	}
-	if len(repo.assignPermissionsInput.PermissionIDs) != 2 || repo.assignPermissionsInput.RoleID != repo.roleToReturn.ID {
-		t.Fatalf("unexpected permission assignment: %#v", repo.assignPermissionsInput)
+	if len(repo.ensurePermissionInputs) != 0 || len(repo.assignPermissionsInput.PermissionIDs) != 0 {
+		t.Fatalf("startup must not synchronize system role permissions: %#v %#v", repo.ensurePermissionInputs, repo.assignPermissionsInput)
 	}
 	if repo.assignRoleInput.UserID != 7 || repo.assignRoleInput.RoleID != repo.roleToReturn.ID {
 		t.Fatalf("unexpected role assignment: %#v", repo.assignRoleInput)
-	}
-}
-
-func assertPermissionInputKeys(
-	t *testing.T,
-	input rbacstore.EnsurePermissionInput,
-	displayKey string,
-	descriptionKey string,
-) {
-	t.Helper()
-
-	if input.DisplayKey == nil || *input.DisplayKey != displayKey {
-		t.Fatalf("expected permission display key %q, got %#v", displayKey, input)
-	}
-	if input.DescriptionKey == nil || *input.DescriptionKey != descriptionKey {
-		t.Fatalf("expected permission description key %q, got %#v", descriptionKey, input)
 	}
 }
 
@@ -220,23 +191,6 @@ func TestBootstrapServiceWrapsRepositoryErrors(t *testing.T) {
 		repo := &bootstrapServiceTestRepository{ensureRoleErr: errors.New("boom")}
 		err := bootstrapService{rbac: repo}.EnsureDefaultAdminAccess(context.Background(), 7, nil)
 		if err == nil || !errors.Is(err, repo.ensureRoleErr) || err.Error() != "ensure default admin role: boom" {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("ensure permission", func(t *testing.T) {
-		repo := &bootstrapServiceTestRepository{ensurePermissionErr: errors.New("perm boom")}
-		err := bootstrapService{rbac: repo}.EnsureDefaultAdminAccess(context.Background(), 7, []moduleapi.PermissionSeed{{Code: "user.read", Display: "Read users"}})
-		if err == nil || !errors.Is(err, repo.ensurePermissionErr) || err.Error() != "ensure permission user.read: perm boom" {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("assign permissions", func(t *testing.T) {
-		repo := &bootstrapServiceTestRepository{assignPermissionsErr: errors.New("assign perms boom")}
-		err := bootstrapService{rbac: repo}.EnsureDefaultAdminAccess(context.Background(), 7, []moduleapi.PermissionSeed{{Code: "user.read", Display: "Read users"}})
-		want := "assign permissions to default admin role: assign perms boom"
-		if err == nil || !errors.Is(err, repo.assignPermissionsErr) || err.Error() != want {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})

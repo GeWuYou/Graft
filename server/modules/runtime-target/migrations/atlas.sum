@@ -1,3 +1,4 @@
-h1:YTkAsUH31b7G94pEVv9T1oBnJBDJl1i1oV8c4IDg3iQ=
+h1:eIV6ZnS8s83Nw0AH7opmF/wf3Dol1WMp/J+lXeb968s=
 202607120003_runtime_targets.sql h1:kFgZyuTFO7blG3S5B7wvsZ0xB5+/zgflmeGnBa6bWnE=
 202607130001_runtime_target_display_name_uniqueness.sql h1:H970+BQhE7RfJJe5MpIN9OFVGjmeXHyqxWLdRPtLZgg=
+202608020002_runtime_target_user_assignments.sql h1:ksVKmrzHN38TTgQr2UgjRD46GNef2TmNifgPL/hfue8=

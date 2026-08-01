@@ -1,0 +1,13 @@
+type: object
+required: [name, display]
+properties:
+  name:
+    type: string
+    description: Stable name for the newly created custom role.
+  display:
+    type: string
+    description: User-facing display name for the newly created custom role.
+  description:
+    type: string
+    nullable: true
+    description: Optional custom-role description.

@@ -57,6 +57,20 @@ func (_u *RolePermissionUpdate) SetNillablePermissionID(v *int) *RolePermissionU
 	return _u
 }
 
+// SetScope sets the "scope" field.
+func (_u *RolePermissionUpdate) SetScope(v string) *RolePermissionUpdate {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *RolePermissionUpdate) SetNillableScope(v *string) *RolePermissionUpdate {
+	if v != nil {
+		_u.SetScope(*v)
+	}
+	return _u
+}
+
 // SetRole sets the "role" edge to the Role entity.
 func (_u *RolePermissionUpdate) SetRole(v *Role) *RolePermissionUpdate {
 	return _u.SetRoleID(v.ID)
@@ -133,6 +147,9 @@ func (_u *RolePermissionUpdate) sqlSave(ctx context.Context) (_node int, err err
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(rolepermission.FieldScope, field.TypeString, value)
 	}
 	if _u.mutation.RoleCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -236,6 +253,20 @@ func (_u *RolePermissionUpdateOne) SetPermissionID(v int) *RolePermissionUpdateO
 func (_u *RolePermissionUpdateOne) SetNillablePermissionID(v *int) *RolePermissionUpdateOne {
 	if v != nil {
 		_u.SetPermissionID(*v)
+	}
+	return _u
+}
+
+// SetScope sets the "scope" field.
+func (_u *RolePermissionUpdateOne) SetScope(v string) *RolePermissionUpdateOne {
+	_u.mutation.SetScope(v)
+	return _u
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_u *RolePermissionUpdateOne) SetNillableScope(v *string) *RolePermissionUpdateOne {
+	if v != nil {
+		_u.SetScope(*v)
 	}
 	return _u
 }
@@ -346,6 +377,9 @@ func (_u *RolePermissionUpdateOne) sqlSave(ctx context.Context) (_node *RolePerm
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Scope(); ok {
+		_spec.SetField(rolepermission.FieldScope, field.TypeString, value)
 	}
 	if _u.mutation.RoleCleared() {
 		edge := &sqlgraph.EdgeSpec{

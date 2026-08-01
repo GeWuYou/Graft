@@ -1,11 +1,19 @@
 type: object
-required: [permission_ids]
+required: [permission_ids, bindings]
 properties:
   permission_ids:
     type: array
+    description: Deprecated compatibility projection of bindings.
     items:
       type: integer
       format: int64
       minimum: 1
+  bindings:
+    type: array
+    items:
+      $ref: ./role-permission-binding-item.yaml
 example:
   permission_ids: [1, 2, 9]
+  bindings:
+    - permission_id: 1
+      scope: all

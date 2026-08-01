@@ -70,6 +70,11 @@ func CreatedAt(v time.Time) predicate.RolePermission {
 	return predicate.RolePermission(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// Scope applies equality check predicate on the "scope" field. It's identical to ScopeEQ.
+func Scope(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldEQ(FieldScope, v))
+}
+
 // RoleIDEQ applies the EQ predicate on the "role_id" field.
 func RoleIDEQ(v int) predicate.RolePermission {
 	return predicate.RolePermission(sql.FieldEQ(FieldRoleID, v))
@@ -148,6 +153,71 @@ func CreatedAtLT(v time.Time) predicate.RolePermission {
 // CreatedAtLTE applies the LTE predicate on the "created_at" field.
 func CreatedAtLTE(v time.Time) predicate.RolePermission {
 	return predicate.RolePermission(sql.FieldLTE(FieldCreatedAt, v))
+}
+
+// ScopeEQ applies the EQ predicate on the "scope" field.
+func ScopeEQ(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldEQ(FieldScope, v))
+}
+
+// ScopeNEQ applies the NEQ predicate on the "scope" field.
+func ScopeNEQ(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldNEQ(FieldScope, v))
+}
+
+// ScopeIn applies the In predicate on the "scope" field.
+func ScopeIn(vs ...string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldIn(FieldScope, vs...))
+}
+
+// ScopeNotIn applies the NotIn predicate on the "scope" field.
+func ScopeNotIn(vs ...string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldNotIn(FieldScope, vs...))
+}
+
+// ScopeGT applies the GT predicate on the "scope" field.
+func ScopeGT(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldGT(FieldScope, v))
+}
+
+// ScopeGTE applies the GTE predicate on the "scope" field.
+func ScopeGTE(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldGTE(FieldScope, v))
+}
+
+// ScopeLT applies the LT predicate on the "scope" field.
+func ScopeLT(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldLT(FieldScope, v))
+}
+
+// ScopeLTE applies the LTE predicate on the "scope" field.
+func ScopeLTE(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldLTE(FieldScope, v))
+}
+
+// ScopeContains applies the Contains predicate on the "scope" field.
+func ScopeContains(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldContains(FieldScope, v))
+}
+
+// ScopeHasPrefix applies the HasPrefix predicate on the "scope" field.
+func ScopeHasPrefix(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldHasPrefix(FieldScope, v))
+}
+
+// ScopeHasSuffix applies the HasSuffix predicate on the "scope" field.
+func ScopeHasSuffix(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldHasSuffix(FieldScope, v))
+}
+
+// ScopeEqualFold applies the EqualFold predicate on the "scope" field.
+func ScopeEqualFold(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldEqualFold(FieldScope, v))
+}
+
+// ScopeContainsFold applies the ContainsFold predicate on the "scope" field.
+func ScopeContainsFold(v string) predicate.RolePermission {
+	return predicate.RolePermission(sql.FieldContainsFold(FieldScope, v))
 }
 
 // HasRole applies the HasEdge predicate on the "role" edge.

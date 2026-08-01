@@ -1,0 +1,11 @@
+type: object
+required: [permission_id, scope]
+properties:
+  permission_id:
+    type: integer
+    format: int64
+    minimum: 1
+  scope:
+    type: string
+    enum: [all, owned]
+    description: owned is valid only for resources that expose creator ownership authorization.

@@ -1,0 +1,27 @@
+post:
+  tags: [runtime-target]
+  summary: Revoke a user deployment assignment
+  operationId: postRuntimeTargetAssignmentDelete
+  security: [{bearerAuth: []}]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/runtime-target-id-path.yaml
+    - name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  responses:
+    '200':
+      description: User deployment assignment revoked.
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/enveloped-empty-response.yaml
+    '401': {$ref: ../components/responses/unauthorized.yaml}
+    '403': {$ref: ../components/responses/forbidden.yaml}
+    '404': {description: Active assignment not found}
+    '500': {$ref: ../components/responses/internal-server-error.yaml}

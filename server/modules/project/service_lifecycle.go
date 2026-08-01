@@ -75,6 +75,9 @@ func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uin
 	if err != nil {
 		return ActionResult{}, err
 	}
+	if err := s.ensureApplicationScope(ctx, aggregate, projectcontract.ApplicationDestroyPermission.String()); err != nil {
+		return ActionResult{}, err
+	}
 	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ApplicationActionResponseActionApplicationActionUnregister, actorID)
 	if err != nil {
 		return blocked, err
@@ -88,6 +91,9 @@ func (s *Service) Unregister(ctx context.Context, projectID uint64, actorID *uin
 func (s *Service) Destroy(ctx context.Context, projectID uint64, request DestroyRequest) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
+		return ActionResult{}, err
+	}
+	if err := s.ensureApplicationScope(ctx, aggregate, projectcontract.ApplicationDestroyPermission.String()); err != nil {
 		return ActionResult{}, err
 	}
 	actor, blocked, err := s.requireActionActor(ctx, projectID, generated.ApplicationActionResponseActionApplicationActionDestroy, request.ActorID)
@@ -195,6 +201,9 @@ func (s *Service) UnsupportedLifecycleAction(projectID uint64, action generated.
 func (s *Service) submitLifecycleTask(ctx context.Context, projectID uint64, actorID *uint64, action generated.ApplicationActionResponseAction) (ActionResult, error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
+		return ActionResult{}, err
+	}
+	if err := s.ensureApplicationScope(ctx, aggregate, projectcontract.ApplicationLifecyclePermission.String()); err != nil {
 		return ActionResult{}, err
 	}
 	actor, blocked, err := s.requireActionActor(ctx, projectID, action, actorID)
@@ -780,6 +789,13 @@ func (s *Service) batchActionItem(
 ) (itemResult BatchActionItemResult, itemErr error) {
 	aggregate, err := s.getAggregate(ctx, projectID)
 	if err != nil {
+		return BatchActionItemResult{}, err
+	}
+	permission, ok := batchActionPermission(request.Action)
+	if !ok {
+		return BatchActionItemResult{}, errProjectInvalidArgument
+	}
+	if err := s.ensureApplicationScope(ctx, aggregate, permission); err != nil {
 		return BatchActionItemResult{}, err
 	}
 	defer func() {

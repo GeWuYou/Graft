@@ -26,6 +26,12 @@ const (
 	FieldDescriptionKey = "description_key"
 	// FieldModule holds the string denoting the module field in the database.
 	FieldModule = "module"
+	// FieldResource holds the string denoting the resource field in the database.
+	FieldResource = "resource"
+	// FieldAction holds the string denoting the action field in the database.
+	FieldAction = "action"
+	// FieldRiskLevel holds the string denoting the risk_level field in the database.
+	FieldRiskLevel = "risk_level"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -60,6 +66,9 @@ var Columns = []string{
 	FieldDescription,
 	FieldDescriptionKey,
 	FieldModule,
+	FieldResource,
+	FieldAction,
+	FieldRiskLevel,
 	FieldCreatedAt,
 	FieldCreatedBy,
 	FieldUpdatedAt,
@@ -85,6 +94,12 @@ var (
 	DisplayValidator func(string) error
 	// DefaultModule holds the default value on creation for the "module" field.
 	DefaultModule string
+	// DefaultResource holds the default value on creation for the "resource" field.
+	DefaultResource string
+	// DefaultAction holds the default value on creation for the "action" field.
+	DefaultAction string
+	// DefaultRiskLevel holds the default value on creation for the "risk_level" field.
+	DefaultRiskLevel string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
@@ -137,6 +152,21 @@ func ByDescriptionKey(opts ...sql.OrderTermOption) OrderOption {
 // ByModule orders the results by the module field.
 func ByModule(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModule, opts...).ToFunc()
+}
+
+// ByResource orders the results by the resource field.
+func ByResource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResource, opts...).ToFunc()
+}
+
+// ByAction orders the results by the action field.
+func ByAction(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAction, opts...).ToFunc()
+}
+
+// ByRiskLevel orders the results by the risk_level field.
+func ByRiskLevel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRiskLevel, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

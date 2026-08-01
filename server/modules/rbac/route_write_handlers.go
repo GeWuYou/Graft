@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	messagecontract "graft/server/internal/contract/message"
+	generated "graft/server/internal/contract/openapi/generated"
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -28,12 +29,44 @@ func registerRoleWriteRoutes(
 	group.POST(rbaccontract.RoleUpdateRoute, guards.roleUpdate, func(ginCtx *gin.Context) {
 		handleUpdateRoleRoute(ginCtx, ctx, moduleName, writer)
 	})
+	group.POST(rbaccontract.RoleCloneRoute, guards.roleCreate, func(ginCtx *gin.Context) {
+		handleCloneRoleRoute(ginCtx, ctx, moduleName, writer)
+	})
 
 	group.POST(rbaccontract.RoleStatusRoute, guards.roleStatus, func(ginCtx *gin.Context) { handleUpdateRoleStatusRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.RoleDeleteRoute, guards.roleDelete, func(ginCtx *gin.Context) { handleDeleteRoleRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.RolePermissionReplaceRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleReplaceRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.RolePermissionAddRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleAddRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
 	group.POST(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleRemoveRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
+}
+
+func handleCloneRoleRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
+	roleID, err := parseManagementID(ginCtx.Param("id"))
+	if err != nil {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"})
+		return
+	}
+	var request generated.CloneRoleRequest
+	if err := ginCtx.ShouldBindJSON(&request); err != nil || strings.TrimSpace(request.Name) == "" || strings.TrimSpace(request.Display) == "" {
+		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "body"})
+		return
+	}
+	role, err := writer.CloneRole(ginCtx.Request.Context(), rbacstore.CloneRoleInput{
+		SourceRoleID: roleID,
+		Name:         strings.TrimSpace(request.Name),
+		Display:      strings.TrimSpace(request.Display),
+		Description:  normalizeOptionalString(request.Description),
+	})
+	if err != nil {
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "name")
+		return
+	}
+	payload, err := toRoleListItem(role)
+	if err != nil {
+		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 }
 
 func handleCreateRoleRoute(

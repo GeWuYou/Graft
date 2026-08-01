@@ -62,6 +62,48 @@ func (_c *RoleCreate) SetNillableBuiltin(v *bool) *RoleCreate {
 	return _c
 }
 
+// SetType sets the "type" field.
+func (_c *RoleCreate) SetType(v string) *RoleCreate {
+	_c.mutation.SetType(v)
+	return _c
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (_c *RoleCreate) SetNillableType(v *string) *RoleCreate {
+	if v != nil {
+		_c.SetType(*v)
+	}
+	return _c
+}
+
+// SetBuiltinKey sets the "builtin_key" field.
+func (_c *RoleCreate) SetBuiltinKey(v string) *RoleCreate {
+	_c.mutation.SetBuiltinKey(v)
+	return _c
+}
+
+// SetNillableBuiltinKey sets the "builtin_key" field if the given value is not nil.
+func (_c *RoleCreate) SetNillableBuiltinKey(v *string) *RoleCreate {
+	if v != nil {
+		_c.SetBuiltinKey(*v)
+	}
+	return _c
+}
+
+// SetEditable sets the "editable" field.
+func (_c *RoleCreate) SetEditable(v bool) *RoleCreate {
+	_c.mutation.SetEditable(v)
+	return _c
+}
+
+// SetNillableEditable sets the "editable" field if the given value is not nil.
+func (_c *RoleCreate) SetNillableEditable(v *bool) *RoleCreate {
+	if v != nil {
+		_c.SetEditable(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *RoleCreate) SetCreatedAt(v time.Time) *RoleCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -229,6 +271,14 @@ func (_c *RoleCreate) defaults() {
 		v := role.DefaultBuiltin
 		_c.mutation.SetBuiltin(v)
 	}
+	if _, ok := _c.mutation.GetType(); !ok {
+		v := role.DefaultType
+		_c.mutation.SetType(v)
+	}
+	if _, ok := _c.mutation.Editable(); !ok {
+		v := role.DefaultEditable
+		_c.mutation.SetEditable(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := role.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -279,6 +329,12 @@ func (_c *RoleCreate) check() error {
 	}
 	if _, ok := _c.mutation.Builtin(); !ok {
 		return &ValidationError{Name: "builtin", err: errors.New(`ent: missing required field "Role.builtin"`)}
+	}
+	if _, ok := _c.mutation.GetType(); !ok {
+		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "Role.type"`)}
+	}
+	if _, ok := _c.mutation.Editable(); !ok {
+		return &ValidationError{Name: "editable", err: errors.New(`ent: missing required field "Role.editable"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Role.created_at"`)}
@@ -342,6 +398,18 @@ func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Builtin(); ok {
 		_spec.SetField(role.FieldBuiltin, field.TypeBool, value)
 		_node.Builtin = value
+	}
+	if value, ok := _c.mutation.GetType(); ok {
+		_spec.SetField(role.FieldType, field.TypeString, value)
+		_node.Type = value
+	}
+	if value, ok := _c.mutation.BuiltinKey(); ok {
+		_spec.SetField(role.FieldBuiltinKey, field.TypeString, value)
+		_node.BuiltinKey = &value
+	}
+	if value, ok := _c.mutation.Editable(); ok {
+		_spec.SetField(role.FieldEditable, field.TypeBool, value)
+		_node.Editable = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(role.FieldCreatedAt, field.TypeTime, value)

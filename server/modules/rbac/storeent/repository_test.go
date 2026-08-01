@@ -40,6 +40,9 @@ func openTestDB(t *testing.T) *sql.DB {
 			display TEXT NOT NULL,
 			description TEXT NULL,
 			builtin BOOLEAN NOT NULL DEFAULT 0,
+			type TEXT NOT NULL DEFAULT 'custom',
+			builtin_key TEXT NULL,
+			editable BOOLEAN NOT NULL DEFAULT 1,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			created_by INTEGER NOT NULL DEFAULT 0,
@@ -56,6 +59,9 @@ func openTestDB(t *testing.T) *sql.DB {
 			description TEXT NULL,
 			description_key TEXT NULL,
 			module TEXT NOT NULL DEFAULT '',
+			resource TEXT NOT NULL DEFAULT '',
+			action TEXT NOT NULL DEFAULT '',
+			risk_level TEXT NOT NULL DEFAULT 'read',
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			created_by INTEGER NOT NULL DEFAULT 0,
@@ -75,6 +81,7 @@ func openTestDB(t *testing.T) *sql.DB {
 			created_at DATETIME NOT NULL,
 			permission_id INTEGER NOT NULL,
 			role_id INTEGER NOT NULL,
+			scope TEXT NOT NULL DEFAULT 'all',
 			UNIQUE(role_id, permission_id)
 		);`,
 	}
@@ -516,6 +523,39 @@ func TestRepositoryEnsurePermissionAndListPermissionsIncludeTimestamps(t *testin
 		t.Fatalf("reconcile permission metadata: %v", err)
 	}
 	assertReconciledPermissionRecord(t, updated)
+}
+
+func TestRepositoryCloneRoleCopiesBindingsAsCustomRole(t *testing.T) {
+	db := openTestDB(t)
+	repo := &repository{db: db}
+	source, err := repo.CreateRole(context.Background(), rbacstore.CreateRoleInput{Name: "operator", Display: "Operator"})
+	if err != nil {
+		t.Fatalf("create source role: %v", err)
+	}
+	permission, err := repo.EnsurePermission(context.Background(), rbacstore.EnsurePermissionInput{
+		Code: "application.deploy", Display: "Deploy", Module: "project", Resource: "application", Action: "deploy", RiskLevel: "write",
+	})
+	if err != nil {
+		t.Fatalf("ensure permission: %v", err)
+	}
+	if err := repo.AssignPermissionsToRole(context.Background(), rbacstore.AssignPermissionsToRoleInput{RoleID: source.ID, PermissionIDs: []uint64{permission.ID}}); err != nil {
+		t.Fatalf("assign source permission: %v", err)
+	}
+
+	cloned, err := repo.CloneRole(context.Background(), rbacstore.CloneRoleInput{SourceRoleID: source.ID, Name: "production_operator", Display: "Production Operator"})
+	if err != nil {
+		t.Fatalf("clone role: %v", err)
+	}
+	if cloned.Builtin || cloned.Type != "custom" || !cloned.Editable || cloned.BuiltinKey != nil {
+		t.Fatalf("clone must be editable custom role: %#v", cloned)
+	}
+	bindings, err := repo.ListRolePermissionBindings(context.Background(), cloned.ID)
+	if err != nil {
+		t.Fatalf("list cloned bindings: %v", err)
+	}
+	if len(bindings) != 1 || bindings[0].PermissionID != permission.ID || bindings[0].Scope != "all" {
+		t.Fatalf("unexpected cloned bindings: %#v", bindings)
+	}
 }
 
 func assertEnsuredPermissionRecord(t *testing.T, record rbacstore.Permission) {

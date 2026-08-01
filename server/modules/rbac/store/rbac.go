@@ -31,6 +31,9 @@ var (
 	// ErrRolePermissionsImmutable 表示目标角色的权限绑定不允许被修改。
 	ErrRolePermissionsImmutable = errors.New("role permissions are immutable")
 
+	// ErrInvalidPermissionMetadata 表示模块注册的权限缺少可用于分组和风险审查的元数据。
+	ErrInvalidPermissionMetadata = errors.New("invalid permission metadata")
+
 	// ErrRoleEnabledDeletionForbidden 表示启用中的角色不能直接删除。
 	ErrRoleEnabledDeletionForbidden = errors.New("enabled role cannot be deleted")
 
@@ -58,6 +61,9 @@ type Role struct {
 	Display         string
 	Description     *string
 	Builtin         bool
+	Type            string
+	BuiltinKey      *string
+	Editable        bool
 	Status          string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
@@ -74,6 +80,9 @@ type Permission struct {
 	Description      *string
 	DescriptionKey   *string
 	Module           string
+	Resource         string
+	Action           string
+	RiskLevel        string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	RoleBindingCount int
@@ -96,6 +105,7 @@ type PermissionFilter struct {
 type RolePermissionBinding struct {
 	RoleID       uint64
 	PermissionID uint64
+	Scope        string
 }
 
 // EnsureRoleInput 描述一次最小角色存在性保障所需的输入。
@@ -115,6 +125,9 @@ type EnsurePermissionInput struct {
 	Description    *string
 	DescriptionKey *string
 	Module         string
+	Resource       string
+	Action         string
+	RiskLevel      string
 }
 
 // CreateRoleInput 描述一次显式角色创建所需的输入。
@@ -123,6 +136,14 @@ type CreateRoleInput struct {
 	Display     string
 	Description *string
 	Builtin     bool
+}
+
+// CloneRoleInput 描述从现有角色原子复制一个可编辑自定义角色的输入。
+type CloneRoleInput struct {
+	SourceRoleID uint64
+	Name         string
+	Display      string
+	Description  *string
 }
 
 // UpdateRoleInput 描述一次显式角色更新所需的输入。

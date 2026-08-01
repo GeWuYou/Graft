@@ -29,6 +29,7 @@ const builtinAdminRoleName = "admin"
 
 type writeManagementService interface {
 	CreateRole(ctx context.Context, input rbacstore.CreateRoleInput) (rbacstore.Role, error)
+	CloneRole(ctx context.Context, input rbacstore.CloneRoleInput) (rbacstore.Role, error)
 	UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error)
 	SetRoleStatus(ctx context.Context, input rbacstore.SetRoleStatusInput) (rbacstore.Role, error)
 	SoftDeleteRole(ctx context.Context, input rbacstore.SoftDeleteRoleInput) error
@@ -53,6 +54,10 @@ type managementWriter struct {
 	users  moduleapi.UserService
 	rbac   rbacstore.Repository
 	events event.TransactionalPublisher
+}
+
+type cloneRoleRepository interface {
+	CloneRole(ctx context.Context, input rbacstore.CloneRoleInput) (rbacstore.Role, error)
 }
 
 type rolePermissionAuditLabels struct {
@@ -94,6 +99,21 @@ func (w managementWriter) CreateRole(ctx context.Context, input rbacstore.Create
 	})
 }
 
+func (w managementWriter) CloneRole(ctx context.Context, input rbacstore.CloneRoleInput) (rbacstore.Role, error) {
+	if w.rbac == nil {
+		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
+	}
+	repository, ok := w.rbac.(cloneRoleRepository)
+	if !ok {
+		return rbacstore.Role{}, errors.New("rbac clone role repository is unavailable")
+	}
+	return w.runRoleMutation(ctx, func(txCtx context.Context) (rbacstore.Role, error) {
+		return repository.CloneRole(txCtx, input)
+	}, roleAuditLabels{
+		action: "rbac.role.clone", messageKey: "rbac.audit.roleCreated", message: "role cloned", metadata: roleAuditMetadata,
+	})
+}
+
 func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.UpdateRoleInput) (rbacstore.Role, error) {
 	if w.rbac == nil {
 		return rbacstore.Role{}, errors.New("rbac repository is unavailable")
@@ -105,6 +125,9 @@ func (w managementWriter) UpdateRole(ctx context.Context, input rbacstore.Update
 	}
 	if current.Builtin && strings.TrimSpace(current.Name) != strings.TrimSpace(input.Name) {
 		return rbacstore.Role{}, errBuiltinRoleNameImmutable
+	}
+	if isSystemRole(current) {
+		return rbacstore.Role{}, rbacstore.ErrRoleBuiltinImmutable
 	}
 
 	return w.runRoleMutation(ctx, func(txCtx context.Context) (rbacstore.Role, error) {
@@ -156,7 +179,7 @@ func (w managementWriter) ReplacePermissionsForRole(ctx context.Context, input r
 	if err != nil {
 		return err
 	}
-	if isBuiltinAdminRole(role) {
+	if isSystemRole(role) {
 		return rbacstore.ErrRolePermissionsImmutable
 	}
 	if err := ensurePermissionIDsExist(ctx, w.rbac, input.PermissionIDs); err != nil {
@@ -218,7 +241,7 @@ func (w managementWriter) mutateRolePermissions(
 	if err != nil {
 		return err
 	}
-	if isBuiltinAdminRole(role) {
+	if isSystemRole(role) {
 		return rbacstore.ErrRolePermissionsImmutable
 	}
 	if err := ensurePermissionIDsExist(ctx, w.rbac, permissionIDs); err != nil {
@@ -236,8 +259,8 @@ func (w managementWriter) mutateRolePermissions(
 	})
 }
 
-func isBuiltinAdminRole(role rbacstore.Role) bool {
-	return role.Builtin && role.Name == builtinAdminRoleName
+func isSystemRole(role rbacstore.Role) bool {
+	return role.Builtin || role.Type == "system"
 }
 
 func (w managementWriter) ReplaceRolesForUser(ctx context.Context, input rbacstore.ReplaceRolesForUserInput) error {

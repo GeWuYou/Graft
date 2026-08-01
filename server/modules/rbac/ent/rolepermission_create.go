@@ -48,6 +48,20 @@ func (_c *RolePermissionCreate) SetNillableCreatedAt(v *time.Time) *RolePermissi
 	return _c
 }
 
+// SetScope sets the "scope" field.
+func (_c *RolePermissionCreate) SetScope(v string) *RolePermissionCreate {
+	_c.mutation.SetScope(v)
+	return _c
+}
+
+// SetNillableScope sets the "scope" field if the given value is not nil.
+func (_c *RolePermissionCreate) SetNillableScope(v *string) *RolePermissionCreate {
+	if v != nil {
+		_c.SetScope(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" edge to the Role entity.
 func (_c *RolePermissionCreate) SetRole(v *Role) *RolePermissionCreate {
 	return _c.SetRoleID(v.ID)
@@ -97,6 +111,10 @@ func (_c *RolePermissionCreate) defaults() {
 		v := rolepermission.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	if _, ok := _c.mutation.Scope(); !ok {
+		v := rolepermission.DefaultScope
+		_c.mutation.SetScope(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -109,6 +127,9 @@ func (_c *RolePermissionCreate) check() error {
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "RolePermission.created_at"`)}
+	}
+	if _, ok := _c.mutation.Scope(); !ok {
+		return &ValidationError{Name: "scope", err: errors.New(`ent: missing required field "RolePermission.scope"`)}
 	}
 	if len(_c.mutation.RoleIDs()) == 0 {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required edge "RolePermission.role"`)}
@@ -145,6 +166,10 @@ func (_c *RolePermissionCreate) createSpec() (*RolePermission, *sqlgraph.CreateS
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(rolepermission.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
+	}
+	if value, ok := _c.mutation.Scope(); ok {
+		_spec.SetField(rolepermission.FieldScope, field.TypeString, value)
+		_node.Scope = value
 	}
 	if nodes := _c.mutation.RoleIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

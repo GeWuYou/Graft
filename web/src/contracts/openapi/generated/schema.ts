@@ -602,6 +602,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/roles/{id}/clone': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Clone role as a custom role
+     * @description Creates an editable custom role and atomically copies the source role permission bindings and scopes.
+     */
+    post: operations['postRoleClone'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/roles/{id}/update': {
     parameters: {
       query?: never;
@@ -3102,6 +3122,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/runtime-targets/{id}/assignments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List deployment users assigned to a runtime target */
+    get: operations['getRuntimeTargetAssignments'];
+    put?: never;
+    /** Grant a user deployment use of a runtime target */
+    post: operations['postRuntimeTargetAssignment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/{id}/assignments/{userId}/delete': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revoke a user deployment assignment */
+    post: operations['postRuntimeTargetAssignmentDelete'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/applications/import/validate': {
     parameters: {
       query?: never;
@@ -4381,6 +4436,8 @@ export interface components {
     EnvelopedSavedView: components['schemas']['enveloped-saved-view'];
     EnvelopedSavedViewListResponse: components['schemas']['enveloped-saved-view-list-response'];
     RuntimeTarget: components['schemas']['runtime-target'];
+    RolePermissionBindingItem: components['schemas']['role-permission-binding-item'];
+    CloneRoleRequest: components['schemas']['clone-role-request'];
     RuntimeTargetSummary: components['schemas']['runtime-target-summary'];
     RuntimeTargetCountMetric: components['schemas']['runtime-target-count-metric'];
     RuntimeTargetImageMetric: components['schemas']['runtime-target-image-metric'];
@@ -4388,6 +4445,11 @@ export interface components {
     RuntimeTargetListResponse: components['schemas']['runtime-target-list-response'];
     EnvelopedRuntimeTargetListResponse: components['schemas']['enveloped-runtime-target-list-response'];
     EnvelopedRuntimeTargetResponse: components['schemas']['enveloped-runtime-target-response'];
+    RuntimeTargetUserAssignment: components['schemas']['runtime-target-user-assignment'];
+    RuntimeTargetUserAssignmentRequest: components['schemas']['runtime-target-user-assignment-request'];
+    RuntimeTargetUserAssignmentListResponse: components['schemas']['runtime-target-user-assignment-list-response'];
+    EnvelopedRuntimeTargetUserAssignment: components['schemas']['enveloped-runtime-target-user-assignment'];
+    EnvelopedRuntimeTargetUserAssignmentListResponse: components['schemas']['enveloped-runtime-target-user-assignment-list-response'];
     'health-response': {
       /** @enum {string} */
       status: 'ok';
@@ -4615,7 +4677,19 @@ export interface components {
       name: string;
       display: string;
       description?: string;
+      /**
+       * @deprecated
+       * @description Compatibility projection for legacy consumers. Use system and type.
+       */
       builtin: boolean;
+      /** @description True when this version-managed system role cannot be changed through role management APIs. */
+      system: boolean;
+      /** @enum {string} */
+      type: 'system' | 'custom';
+      /** @description Stable key for a version-managed system role; null for custom roles. */
+      builtin_key?: string | null;
+      /** @description Whether role metadata and permission bindings may be changed through role management APIs. */
+      editable: boolean;
       /** @enum {string} */
       status: 'enabled' | 'disabled';
       updated_at: string;
@@ -4645,24 +4719,56 @@ export interface components {
     'enveloped-role-detail-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-detail-response'];
     };
+    'role-permission-binding-item': {
+      /** Format: int64 */
+      permission_id: number;
+      /**
+       * @description owned is valid only for resources that expose creator ownership authorization.
+       * @enum {string}
+       */
+      scope: 'all' | 'owned';
+    };
     /**
      * @example {
      *       "permission_ids": [
      *         1,
      *         2,
      *         9
+     *       ],
+     *       "bindings": [
+     *         {
+     *           "permission_id": 1,
+     *           "scope": "all"
+     *         }
      *       ]
      *     }
      */
     'role-permission-binding-response': {
+      /** @description Deprecated compatibility projection of bindings. */
       permission_ids: number[];
+      bindings: components['schemas']['role-permission-binding-item'][];
     };
     'enveloped-role-permission-binding-response': components['schemas']['api-envelope'] & {
       data?: components['schemas']['role-permission-binding-response'];
     };
-    'replace-role-permissions-request': {
-      /** @description Replaces the role's permission bindings with the provided stable permission id set. */
-      permission_ids: number[];
+    'replace-role-permissions-request':
+      | {
+          /**
+           * @deprecated
+           * @description Legacy all-scope binding input. New clients must submit bindings.
+           */
+          permission_ids?: number[];
+          bindings?: components['schemas']['role-permission-binding-item'][];
+        }
+      | unknown
+      | unknown;
+    'clone-role-request': {
+      /** @description Stable name for the newly created custom role. */
+      name: string;
+      /** @description User-facing display name for the newly created custom role. */
+      display: string;
+      /** @description Optional custom-role description. */
+      description?: string | null;
     };
     'update-role-request': {
       /** @description Stable role name. The server trims surrounding whitespace and rejects an empty result. */
@@ -4690,6 +4796,12 @@ export interface components {
       /** @description Stable localization key for the permission description text. */
       description_key?: string;
       module: string;
+      /** @description Canonical permission domain used to group authorization controls. */
+      resource: string;
+      /** @description Canonical operation within the permission resource domain. */
+      action: string;
+      /** @enum {string} */
+      risk_level: 'read' | 'write' | 'destructive' | 'security';
       created_at: string;
       updated_at: string;
       role_binding_count: number;
@@ -8558,6 +8670,29 @@ export interface components {
     'enveloped-runtime-target-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target'];
     };
+    'runtime-target-user-assignment': {
+      /** Format: int64 */
+      target_id: number;
+      /** Format: int64 */
+      user_id: number;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: int64 */
+      created_by?: number;
+    };
+    'runtime-target-user-assignment-list-response': {
+      items: components['schemas']['runtime-target-user-assignment'][];
+    };
+    'enveloped-runtime-target-user-assignment-list-response': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-user-assignment-list-response'];
+    };
+    'runtime-target-user-assignment-request': {
+      /** Format: int64 */
+      user_id: number;
+    };
+    'enveloped-runtime-target-user-assignment': components['schemas']['api-envelope'] & {
+      data: components['schemas']['runtime-target-user-assignment'];
+    };
     'application-import-validate-request': {
       workspace_path: string;
       /** @description Ordered Compose file list. Phase 1 UI may submit one file, but the authority contract stays multi-file. */
@@ -11332,6 +11467,64 @@ export interface operations {
         content: {
           'application/json': components['schemas']['error-response'];
         };
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRoleClone: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['clone-role-request'];
+      };
+    };
+    responses: {
+      /** @description Custom role created from the source role. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-role-item-response'];
+        };
+      };
+      /** @description Invalid clone request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Source role not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Role name conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       500: components['responses']['internal-server-error'];
     };
@@ -19094,6 +19287,141 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Runtime target not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTargetAssignments: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Active user assignments for the runtime target. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-user-assignment-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetAssignment: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['runtime-target-user-assignment-request'];
+      };
+    };
+    responses: {
+      /** @description User granted deployment use of the runtime target. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-runtime-target-user-assignment'];
+        };
+      };
+      /** @description Invalid target or user id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runtime target or user not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      500: components['responses']['internal-server-error'];
+    };
+  };
+  postRuntimeTargetAssignmentDelete: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Runtime target numeric identifier. */
+        id: components['parameters']['runtime-target-id-path'];
+        userId: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User deployment assignment revoked. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-empty-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Active assignment not found */
       404: {
         headers: {
           [name: string]: unknown;

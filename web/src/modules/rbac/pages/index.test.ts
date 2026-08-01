@@ -9,6 +9,7 @@ import RolePage from './index.vue';
 
 const rbacApiMocks = vi.hoisted(() => ({
   addRolePermissions: vi.fn(),
+  cloneRole: vi.fn(),
   createRole: vi.fn(),
   deleteRole: vi.fn(),
   getPermissions: vi.fn(),
@@ -38,6 +39,7 @@ const tabSnapshotState = vi.hoisted(() => ({
 
 vi.mock('../api/rbac', () => ({
   addRolePermissions: rbacApiMocks.addRolePermissions,
+  cloneRole: rbacApiMocks.cloneRole,
   createRole: rbacApiMocks.createRole,
   deleteRole: rbacApiMocks.deleteRole,
   getPermissions: rbacApiMocks.getPermissions,
@@ -631,6 +633,13 @@ const checkboxStub = defineComponent({
   },
 });
 
+const collapsePanelStub = defineComponent({
+  name: 'TCollapsePanelStub',
+  setup(_, { slots }) {
+    return () => h('section', [slots.header?.(), slots.default?.()]);
+  },
+});
+
 function createRoleListResponse() {
   return {
     items: [
@@ -733,6 +742,8 @@ function mountRolePage() {
         't-card': cardStub,
         't-checkbox': checkboxStub,
         't-checkbox-group': checkboxGroupStub,
+        't-collapse': passthroughStub,
+        't-collapse-panel': collapsePanelStub,
         't-descriptions': descriptionsStub,
         't-descriptions-item': descriptionsItemStub,
         't-dialog': dialogStub,
@@ -895,6 +906,28 @@ describe('RolePage', () => {
     const wrapper = mountRolePage();
     await flushPromises();
 
+    expect(wrapper.find('[data-testid="role-edit"]').exists()).toBe(false);
+  });
+
+  it('treats a system role from the new contract as immutable even without the legacy builtin flag', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_UPDATE];
+    rbacApiMocks.getRoles.mockResolvedValue({
+      items: [
+        {
+          ...createRoleListResponse().items[0],
+          builtin: false,
+          system: true,
+          type: 'system',
+          editable: false,
+        },
+      ],
+    });
+    rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="role-row-0"]').text()).toContain('rbac.roleList.form.type.system');
     expect(wrapper.find('[data-testid="role-edit"]').exists()).toBe(false);
   });
 
@@ -1268,6 +1301,34 @@ describe('RolePage', () => {
     expect(wrapper.text()).not.toContain('Read audit logs');
   });
 
+  it('groups permissions by resource and renders risk and scope metadata when supplied by the contract', async () => {
+    permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
+    rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
+    rbacApiMocks.getPermissions.mockResolvedValue({
+      items: [
+        {
+          ...createPermissionListResponse().items[0],
+          action: 'deploy',
+          resource: 'application',
+          risk_level: 'write',
+          scope: 'owned',
+        },
+      ],
+    });
+    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [] });
+
+    const wrapper = mountRolePage();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="role-assign-permissions"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Application');
+    expect(wrapper.text()).toContain('deploy');
+    expect(wrapper.text()).toContain('rbac.roleList.permissionDialog.risk.write');
+    expect(wrapper.text()).toContain('rbac.roleList.permissionDialog.scope.owned');
+  });
+
   it('prefers backend permission locale keys when they are present', async () => {
     permissionState.grantedCodes = [RBAC_PERMISSION_CODE.PERMISSION_READ, RBAC_PERMISSION_CODE.ROLE_PERMISSION_ASSIGN];
     rbacApiMocks.getRoles.mockResolvedValue(createRoleListResponse());
@@ -1458,7 +1519,7 @@ describe('RolePage', () => {
     expect(wrapper.find('[data-testid="role-drawer-delete"]').exists()).toBe(false);
   });
 
-  it('copies a built-in role as a custom role with the source permission set', async () => {
+  it('copies a built-in role as a custom role atomically', async () => {
     permissionState.grantedCodes = [
       RBAC_PERMISSION_CODE.PERMISSION_READ,
       RBAC_PERMISSION_CODE.ROLE_CREATE,
@@ -1466,8 +1527,7 @@ describe('RolePage', () => {
     ];
     rbacApiMocks.getRoles.mockResolvedValue(createBuiltinAdminRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
-    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [3, 1] });
-    rbacApiMocks.createRole.mockResolvedValue({
+    rbacApiMocks.cloneRole.mockResolvedValue({
       id: 9,
       name: 'custom-admin',
       display: 'Custom Admin',
@@ -1478,7 +1538,6 @@ describe('RolePage', () => {
       permission_count: 0,
       user_count: 0,
     });
-    rbacApiMocks.replaceRolePermissions.mockResolvedValue(null);
 
     const wrapper = mountRolePage();
     await flushPromises();
@@ -1486,7 +1545,6 @@ describe('RolePage', () => {
     await emitRoleDropdownAction(wrapper, 'copy-role');
     await flushPromises();
 
-    expect(rbacApiMocks.getRolePermissionBindings).toHaveBeenCalledWith(1);
     expect(
       (wrapper.get('input[placeholder="rbac.roleList.form.namePlaceholder"]').element as HTMLInputElement).value,
     ).toBe('');
@@ -1498,18 +1556,15 @@ describe('RolePage', () => {
     await wrapper.get('[data-testid="role-form"]').trigger('submit');
     await flushPromises();
 
-    expect(rbacApiMocks.createRole).toHaveBeenCalledWith({
+    expect(rbacApiMocks.cloneRole).toHaveBeenCalledWith(1, {
       name: 'custom-admin',
       display: 'rbac.roleList.copyDisplayTemplate',
       description: 'Builtin administrator',
     });
-    expect(rbacApiMocks.replaceRolePermissions).toHaveBeenCalledWith(9, {
-      permission_ids: [1, 3],
-    });
     expect(messageMocks.success).toHaveBeenCalledWith('rbac.roleList.copySuccess');
   });
 
-  it('keeps a copied role visible when permission copy fails after creation', async () => {
+  it('keeps the role form open when atomic clone fails', async () => {
     permissionState.grantedCodes = [
       RBAC_PERMISSION_CODE.PERMISSION_READ,
       RBAC_PERMISSION_CODE.ROLE_CREATE,
@@ -1517,19 +1572,7 @@ describe('RolePage', () => {
     ];
     rbacApiMocks.getRoles.mockResolvedValue(createBuiltinAdminRoleListResponse());
     rbacApiMocks.getPermissions.mockResolvedValue(createPermissionListResponse());
-    rbacApiMocks.getRolePermissionBindings.mockResolvedValue({ permission_ids: [3, 1] });
-    rbacApiMocks.createRole.mockResolvedValue({
-      id: 9,
-      name: 'custom-admin',
-      display: 'Custom Admin',
-      description: 'Builtin administrator',
-      builtin: false,
-      status: 'enabled',
-      updated_at: '2026-05-19T00:00:00Z',
-      permission_count: 0,
-      user_count: 0,
-    });
-    rbacApiMocks.replaceRolePermissions.mockRejectedValue(new Error('permission copy failed'));
+    rbacApiMocks.cloneRole.mockRejectedValue(new Error('clone failed'));
 
     const wrapper = mountRolePage();
     await flushPromises();
@@ -1540,16 +1583,13 @@ describe('RolePage', () => {
     await wrapper.get('[data-testid="role-form"]').trigger('submit');
     await flushPromises();
 
-    expect(rbacApiMocks.createRole).toHaveBeenCalledWith({
+    expect(rbacApiMocks.cloneRole).toHaveBeenCalledWith(1, {
       name: 'custom-admin',
       display: 'rbac.roleList.copyDisplayTemplate',
       description: 'Builtin administrator',
     });
-    expect(rbacApiMocks.replaceRolePermissions).toHaveBeenCalledWith(9, {
-      permission_ids: [1, 3],
-    });
-    expect(wrapper.text()).toContain('Custom Admin');
-    expect(messageMocks.warning).toHaveBeenCalledWith('rbac.roleList.copyPermissionsPartialSuccess');
+    expect(wrapper.find('[data-testid="role-drawer-save"]').exists()).toBe(true);
+    expect(messageMocks.error).toHaveBeenCalled();
     expect(messageMocks.success).not.toHaveBeenCalledWith('rbac.roleList.copySuccess');
   });
 
