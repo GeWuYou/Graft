@@ -6,6 +6,7 @@ import { noHardcodedTemplateTextRule } from './no-hardcoded-template-text';
 import { noHardcodedUiPropRule } from './no-hardcoded-ui-prop';
 import { noLocaleCatalogDriftRule } from './no-locale-catalog-drift';
 import { noMissingLocaleKeyRule } from './no-missing-locale-key';
+import { noMissingModuleErrorWebLocaleRule } from './no-missing-module-error-web-locale';
 import { noMissingRbacPermissionCatalogWebLocaleRule } from './no-missing-rbac-permission-catalog-web-locale';
 import { noRawNotificationTechnicalDisplayRule } from './no-raw-notification-technical-display';
 import { noRawScheduledTaskResultDisplayRule } from './no-raw-scheduled-task-result-display';
@@ -17,6 +18,7 @@ import { notificationRequiredKeysetRule } from './notification-required-keyset';
 
 export const rules: I18nGovernanceRule[] = [
   noMissingLocaleKeyRule,
+  noMissingModuleErrorWebLocaleRule,
   noMissingRbacPermissionCatalogWebLocaleRule,
   notificationRequiredKeysetRule,
   noLocaleCatalogDriftRule,

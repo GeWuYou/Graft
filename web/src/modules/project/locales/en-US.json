@@ -2,6 +2,8 @@
   "ops": {
     "application": {
       "error": {
+        "invalidApplicationId": "Invalid application identifier.",
+        "invalidFileId": "Invalid application file identifier.",
         "invalidArgument": "Invalid application request.",
         "invalidCompose": "Compose configuration is invalid.",
         "workspaceUnsafe": "The existing application workspace is not a safe directory.",
@@ -12,8 +14,11 @@
         "invalidComposeProjectName": "Compose Project Name must start with a lowercase letter or digit and may only contain lowercase letters, digits, hyphens, and underscores.",
         "conflict": "Application action is blocked by a conflicting application state.",
         "composeProjectNameOccupied": "The Compose project name is already in use on the selected Runtime Target.",
+        "templateNameOccupied": "This template name is already in use. Choose another name.",
         "notFound": "Application was not found.",
+        "templateNotFound": "Template was not found.",
         "unsupportedLifecycle": "Application lifecycle action is not available for the current application state.",
+        "runtimeUnavailable": "The selected runtime target is currently unavailable. The workspace was preserved and can be deployed when the target recovers.",
         "importValidationFailed": "Application import inspection failed validation.",
         "managedRootUnconfigured": "Managed application root is not configured.",
         "managedRootInvalid": "Managed application root is invalid.",
@@ -21,7 +26,10 @@
         "sourceUnsupported": "Application source is not supported in the current phase.",
         "directoryBrowseForbidden": "Application import directory is outside the allowed roots.",
         "inspectionExpired": "Application import inspection has expired.",
-        "inspectionStale": "Application import inspection no longer matches the filesystem."
+        "inspectionStale": "Application import inspection no longer matches the filesystem.",
+        "savedViewInvalid": "The saved view state is invalid for the application list.",
+        "savedViewConflict": "A saved view with the same name already exists.",
+        "savedViewNotFound": "Saved view was not found."
       }
     }
   },

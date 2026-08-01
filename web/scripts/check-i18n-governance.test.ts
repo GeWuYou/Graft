@@ -44,6 +44,13 @@ function writeServerModule(root: string, file: string, source: string) {
   writeFileSync(filePath, source);
 }
 
+function writeServerLocaleCatalogs(root: string, messages: string) {
+  const localeDir = join(root, '..', 'server/modules/demo/locales');
+  mkdirSync(localeDir, { recursive: true });
+  writeFileSync(join(localeDir, 'en-US.yaml'), messages);
+  writeFileSync(join(localeDir, 'zh-CN.yaml'), messages);
+}
+
 async function runGovernanceScript(source: string) {
   const root = createTempWebRoot(source);
   const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
@@ -857,6 +864,56 @@ describe('check-i18n-governance split legacy rules', () => {
     const result = await runGovernanceScriptWithFixture(valid);
 
     expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
+    expect(result.stderr).toBe('');
+  });
+});
+
+describe('check-i18n-governance module error web locale scan', () => {
+  it('requires matching web module catalogs for backend module error keys', () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    writeServerLocaleCatalogs(root, 'ops.demo.error.runtimeUnavailable: Runtime unavailable');
+    writeServerModule(
+      root,
+      'errors.go',
+      'package demo\ntype errorResponse struct { MessageKey string }\nvar response = errorResponse{MessageKey: "ops.demo.error.runtimeUnavailable"}\n',
+    );
+
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain('no-missing-module-error-web-locale');
+    expect(result.stdout).toContain(
+      'module error locale key ops.demo.error.runtimeUnavailable is missing from the en-US web locale catalog',
+    );
+    expect(result.stdout).toContain(
+      'module error locale key ops.demo.error.runtimeUnavailable is missing from the zh-CN web locale catalog',
+    );
+    expect(result.stderr).toBe('');
+  });
+
+  it('passes when both web module locale catalogs define the backend error key', () => {
+    const root = createTempWebRoot('<template><span /></template>');
+    writeLocaleCatalogs(
+      root,
+      JSON.stringify({ ops: { demo: { error: { runtimeUnavailable: 'Runtime unavailable' } } } }),
+    );
+    writeServerLocaleCatalogs(root, 'ops.demo.error.runtimeUnavailable: Runtime unavailable');
+    writeServerModule(
+      root,
+      'errors.go',
+      'package demo\ntype errorResponse struct { MessageKey string }\nvar response = errorResponse{MessageKey: "ops.demo.error.runtimeUnavailable"}\n',
+    );
+
+    const result = spawnSync('bun', ['run', 'scripts/check-i18n-governance.ts'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+
+    expect(result.status).toBe(0);
     expect(result.stdout).toContain('No hard-coded UI text or locale governance issues found.');
     expect(result.stderr).toBe('');
   });

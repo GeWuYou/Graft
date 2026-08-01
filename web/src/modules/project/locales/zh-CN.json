@@ -2,6 +2,8 @@
   "ops": {
     "application": {
       "error": {
+        "invalidApplicationId": "应用标识不合法。",
+        "invalidFileId": "应用文件标识不合法。",
         "invalidArgument": "应用请求参数不合法。",
         "invalidCompose": "Compose 配置无效。",
         "workspaceUnsafe": "已有应用工作区不是安全目录。",
@@ -12,8 +14,11 @@
         "invalidComposeProjectName": "Compose Project Name 不符合 Compose 命名规则，必须以小写字母或数字开头，且只能包含小写字母、数字、中横线和下划线。",
         "conflict": "当前应用状态存在冲突，无法执行该操作。",
         "composeProjectNameOccupied": "所选运行目标上已有同名 Compose 项目名称，无法继续操作。",
+        "templateNameOccupied": "模板名称已被占用，请使用其他名称。",
         "notFound": "未找到对应的应用。",
+        "templateNotFound": "未找到对应的模板。",
         "unsupportedLifecycle": "当前应用状态不支持该生命周期操作。",
+        "runtimeUnavailable": "所选运行目标当前不可用。工作区已保留，待运行目标恢复后即可部署。",
         "importValidationFailed": "应用导入检查未通过校验。",
         "managedRootUnconfigured": "受管应用根目录尚未配置。",
         "managedRootInvalid": "受管应用根目录配置无效。",
@@ -21,7 +26,10 @@
         "sourceUnsupported": "当前阶段不支持该应用来源。",
         "directoryBrowseForbidden": "应用导入目录超出允许的根目录范围。",
         "inspectionExpired": "应用导入检查已过期。",
-        "inspectionStale": "应用导入检查结果已与文件系统不一致。"
+        "inspectionStale": "应用导入检查结果已与文件系统不一致。",
+        "savedViewInvalid": "保存视图状态不符合应用列表要求。",
+        "savedViewConflict": "已存在同名保存视图。",
+        "savedViewNotFound": "未找到保存视图。"
       }
     }
   },

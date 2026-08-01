@@ -173,6 +173,7 @@ const i18n = createI18n({
             shellForbidden: 'Required Permission: ops.container.shell',
             shellContainerNotRunning:
               'The current container is not running, so an interactive shell session cannot be opened.',
+            shellTicketInvalid: 'The container shell session ticket is invalid.',
           },
         },
       },
@@ -406,6 +407,19 @@ describe('ContainerShellPanel', () => {
     await nextTick();
 
     expect(wrapper.text()).toContain('The shell session ticket expired. Reconnect to continue.');
+  });
+
+  it('uses the canonical web catalog for unmapped shell message keys', async () => {
+    shellSessionMock.mockRejectedValue(
+      createApiError('ops.container.error.shellTicketInvalid', 'ops.container.error.shellTicketInvalid'),
+    );
+
+    const wrapper = mountPanel({ active: true });
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain('The container shell session ticket is invalid.');
+    expect(wrapper.text()).not.toContain('ops.container.error.shellTicketInvalid');
   });
 
   it('reconnects by requesting a fresh shell session', async () => {
