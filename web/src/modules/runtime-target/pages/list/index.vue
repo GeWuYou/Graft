@@ -171,6 +171,7 @@ import { parseRuntimeTargetSummaryPayload } from '../../contract/realtime';
 
 type Change = 'up' | 'down' | 'none';
 type MetricChanges = Record<'cpu' | 'memory' | 'storage', Change>;
+const CHANGE_HIGHLIGHT_MS = 800;
 const { t } = useI18n();
 const loading = ref(false);
 const discovering = ref(false);
@@ -195,7 +196,8 @@ const statistics = computed(() => [
 ]);
 const active = ref(false);
 let realtimeController: RealtimeTopicSocketController | null = null;
-const changeTimers = new Map<number, number>();
+const changeExpiryByID = new Map<number, number>();
+let changeExpiryTimer: number | null = null;
 
 function metricText(metric: RuntimeTargetUsageMetric) {
   if (!metric.available) return t('runtimeTarget.metrics.unavailable');
@@ -307,10 +309,94 @@ const tableColumns = columns as unknown as PrimaryTableCol[];
 function compare(previous: number, next: number): Change {
   return next > previous ? 'up' : next < previous ? 'down' : 'none';
 }
+
+function hasMetricChanged(previous: RuntimeTargetUsageMetric, next: RuntimeTargetUsageMetric) {
+  return (
+    previous.available !== next.available ||
+    previous.usagePercent !== next.usagePercent ||
+    previous.usedBytes !== next.usedBytes ||
+    previous.totalBytes !== next.totalBytes ||
+    previous.unavailableReason !== next.unavailableReason
+  );
+}
+
+function hasRuntimeTargetChanged(previous: RuntimeTarget, next: RuntimeTarget) {
+  return (
+    previous.id !== next.id ||
+    previous.displayName !== next.displayName ||
+    previous.runtime.provider !== next.runtime.provider ||
+    previous.runtime.type !== next.runtime.type ||
+    previous.runtime.version !== next.runtime.version ||
+    previous.runtime.apiVersion !== next.runtime.apiVersion ||
+    previous.connection.endpoint !== next.connection.endpoint ||
+    previous.connection.kind !== next.connection.kind ||
+    previous.health.status !== next.health.status ||
+    previous.health.lastCheckedAt !== next.health.lastCheckedAt ||
+    previous.health.diagnostic !== next.health.diagnostic ||
+    previous.resources.workloads.available !== next.resources.workloads.available ||
+    previous.resources.workloads.total !== next.resources.workloads.total ||
+    previous.resources.workloads.active !== next.resources.workloads.active ||
+    previous.resources.workloads.unavailableReason !== next.resources.workloads.unavailableReason ||
+    hasMetricChanged(previous.resources.cpu, next.resources.cpu) ||
+    hasMetricChanged(previous.resources.memory, next.resources.memory) ||
+    hasMetricChanged(previous.resources.storage, next.resources.storage)
+  );
+}
+
+function clearChangeExpiryScheduler() {
+  if (changeExpiryTimer !== null) {
+    window.clearTimeout(changeExpiryTimer);
+    changeExpiryTimer = null;
+  }
+  changeExpiryByID.clear();
+}
+
+// 合并同一快照中的多个高亮状态，避免每个目标分别触发一次 Vue 更新。
+function scheduleChangeExpiry() {
+  if (changeExpiryTimer !== null || changeExpiryByID.size === 0) {
+    return;
+  }
+
+  const nextExpiry = Math.min(...changeExpiryByID.values());
+  const now = Date.now();
+  changeExpiryTimer = window.setTimeout(
+    () => {
+      changeExpiryTimer = null;
+      const currentTime = Date.now();
+      const nextChanges = { ...changes.value };
+      let changed = false;
+
+      changeExpiryByID.forEach((expiresAt, id) => {
+        if (expiresAt > currentTime) {
+          return;
+        }
+
+        changeExpiryByID.delete(id);
+        if (id in nextChanges) {
+          delete nextChanges[id];
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        changes.value = nextChanges;
+      }
+      scheduleChangeExpiry();
+    },
+    Math.max(0, nextExpiry - now),
+  );
+}
+
+function markChanged(id: number, nextChanges: MetricChanges) {
+  changes.value = { ...changes.value, [id]: nextChanges };
+  changeExpiryByID.set(id, Date.now() + CHANGE_HIGHLIGHT_MS);
+  scheduleChangeExpiry();
+}
+
 function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
-  const nextByID = new Map(nextItems.map((item) => [item.id, item]));
-  items.value = nextItems.map((next) => {
-    const current = items.value.find((item) => item.id === next.id);
+  const currentByID = new Map(items.value.map((item) => [item.id, item]));
+  const nextPage = nextItems.map((next) => {
+    const current = currentByID.get(next.id);
     if (!current) return next;
     const nextChanges: MetricChanges = {
       cpu: compare(current.resources.cpu.usagePercent, next.resources.cpu.usagePercent),
@@ -318,22 +404,29 @@ function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
       storage: compare(current.resources.storage.usagePercent, next.resources.storage.usagePercent),
     };
     if (Object.values(nextChanges).some((value) => value !== 'none')) {
-      changes.value = { ...changes.value, [current.id]: nextChanges };
-      const oldTimer = changeTimers.get(current.id);
-      if (oldTimer) window.clearTimeout(oldTimer);
-      changeTimers.set(
-        current.id,
-        window.setTimeout(() => {
-          const { [current.id]: _, ...rest } = changes.value;
-          changes.value = rest;
-        }, 800),
-      );
+      markChanged(current.id, nextChanges);
     }
-    return next;
+    return hasRuntimeTargetChanged(current, next) ? next : current;
   });
-  changes.value = Object.fromEntries(
-    Object.entries(changes.value).filter(([id]) => nextByID.has(Number(id))),
-  ) as Record<number, MetricChanges>;
+
+  const samePage =
+    nextPage.length === items.value.length && nextPage.every((item, index) => item === items.value[index]);
+  if (!samePage) {
+    items.value = nextPage;
+  }
+
+  const activeIDs = new Set(nextItems.map((item) => item.id));
+  const staleChangeIDs = Object.keys(changes.value).filter((id) => !activeIDs.has(Number(id)));
+  if (staleChangeIDs.length > 0) {
+    const retainedChanges = { ...changes.value };
+    staleChangeIDs.forEach((id) => delete retainedChanges[Number(id)]);
+    changes.value = retainedChanges;
+  }
+  changeExpiryByID.forEach((_expiresAt, id) => {
+    if (!activeIDs.has(id)) {
+      changeExpiryByID.delete(id);
+    }
+  });
 }
 function applyRealtime(itemsUpdate: RuntimeTarget[]) {
   const offset = (pagination.current - 1) * pagination.pageSize;
@@ -399,7 +492,7 @@ onDeactivated(() => {
 });
 onUnmounted(() => {
   stopRealtime();
-  changeTimers.forEach((timer) => window.clearTimeout(timer));
+  clearChangeExpiryScheduler();
 });
 </script>
 <style scoped lang="less">

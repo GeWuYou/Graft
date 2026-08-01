@@ -110,6 +110,7 @@ function mountPage() {
 describe('RuntimeTargetListPage', () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it('loads paged target overview cards with the shared page-size choices', async () => {
@@ -210,6 +211,51 @@ describe('RuntimeTargetListPage', () => {
 
     expect(apiMocks.listRuntimeTargetPage).toHaveBeenCalledOnce();
     expect(wrapper.get('[data-testid="runtime-target-table"]').attributes('data-ids')).toBe('7');
+  });
+
+  it('does not schedule change work for an identical realtime snapshot', async () => {
+    vi.useFakeTimers();
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(7)],
+      total: 1,
+      limit: 10,
+      offset: 0,
+      summary: { total: 1, healthy: 1, unavailable: 0 },
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    options?.onMessage({ topic: 'runtime-target.summary.list', items: [target(7)] });
+
+    expect(vi.getTimerCount()).toBe(0);
+    wrapper.unmount();
+  });
+
+  it('coalesces simultaneous metric highlights into one expiry timer', async () => {
+    vi.useFakeTimers();
+    apiMocks.listRuntimeTargetPage.mockResolvedValue({
+      items: [target(1), target(2)],
+      total: 2,
+      limit: 10,
+      offset: 0,
+      summary: { total: 2, healthy: 2, unavailable: 0 },
+    });
+
+    const wrapper = mountPage();
+    await flushPromises();
+    const options = realtimeMocks.openRealtimeTopicSocket.mock.calls[0]?.[0];
+    const first = target(1);
+    const second = target(2);
+    first.resources.cpu.usagePercent += 10;
+    second.resources.memory.usagePercent += 10;
+    options?.onMessage({ topic: 'runtime-target.summary.list', items: [first, second] });
+
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(800);
+    await flushPromises();
+    expect(vi.getTimerCount()).toBe(0);
+    wrapper.unmount();
   });
 
   it('subscribes while the initial page is empty and fills it from a realtime snapshot', async () => {
