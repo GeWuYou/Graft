@@ -20,7 +20,7 @@
     "format:check": "prettier . --check",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "typecheck:ts7:node": "bunx --bun --package typescript7 tsc --noEmit -p tsconfig.node.json",
+    "typecheck:ts7:node": "bunx --no-install --bun --package typescript7 tsc --noEmit -p tsconfig.node.json",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",

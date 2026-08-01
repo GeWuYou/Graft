@@ -159,12 +159,12 @@ def validate_outer_controller_closeout(closeout: Mapping[str, Any], scenario: st
     if missing_recovery:
         findings.append(Finding(scenario, f"recovery is missing fields: {', '.join(missing_recovery)}"))
 
-    if recovery.get("retry_exhausted") is True and closeout.get("closeout_status") in {
-        "blocked",
-        "cancelled",
-        "unsafe",
-    }:
-        findings.append(Finding(scenario, "retry exhaustion cannot by itself authorize a terminal closeout"))
+    if (
+        recovery.get("retry_exhausted") is True
+        and closeout.get("closeout_status") in {"blocked", "cancelled", "unsafe"}
+        and recovery.get("failed_batch_settled") is not True
+    ):
+        findings.append(Finding(scenario, "retry exhaustion must be settled before a terminal closeout"))
 
     if recovery.get("status") == "required":
         required_context = recovery.get("required_context")
@@ -338,6 +338,18 @@ def run_validation() -> list[Finding]:
             "invalid-retry-exhaustion-terminal-closeout",
         )
     )
+    settled_terminal_closeout = {
+        **valid_closeout,
+        "closeout_status": "blocked",
+        "recovery": {
+            **valid_closeout["recovery"],
+            "status": "complete",
+            "resume_target": None,
+            "failed_batch_settled": True,
+        },
+    }
+    if validate_outer_controller_closeout(settled_terminal_closeout, "valid-settled-terminal-closeout"):
+        findings.append(Finding("valid-settled-terminal-closeout", "settled retry exhaustion was rejected"))
     return findings
 
 

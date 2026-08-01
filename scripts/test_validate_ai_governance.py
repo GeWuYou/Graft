@@ -135,6 +135,38 @@ class WorktreeManagerGovernanceTests(unittest.TestCase):
             )
         )
 
+    def test_worktree_manager_governance_checks_root_authority_source(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.AGENTS
+        current_text = original_read_text(target)
+        required_term = "complete integration authorization evidence"
+        mutated_text = current_text.replace(required_term, "integration evidence", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == target else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any(finding.path == target and required_term in finding.message for finding in findings))
+
+    def test_worktree_manager_governance_checks_tracking_authority_source(self) -> None:
+        original_read_text = MODULE.read_text
+        target = MODULE.AI_TASK_TRACKING_DOC
+        current_text = original_read_text(target)
+        required_term = "最终仓库状态 authority"
+        mutated_text = current_text.replace(required_term, "仓库状态", 1)
+        self.assertNotEqual(current_text, mutated_text)
+
+        def read_mutated(path: MODULE.Path) -> str:
+            return mutated_text if path == target else original_read_text(path)
+
+        with mock.patch.object(MODULE, "read_text", side_effect=read_mutated):
+            findings = MODULE.validate_worktree_manager_skill()
+
+        self.assertTrue(any(finding.path == target and required_term in finding.message for finding in findings))
+
 
 class OpenApiWorktreeGovernanceTests(unittest.TestCase):
     def test_openapi_worktree_governance_is_currently_satisfied(self) -> None:

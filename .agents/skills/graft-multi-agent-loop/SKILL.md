@@ -370,18 +370,18 @@ or recoverable handoff output.
 ### Controller Decision Record
 
 The outer main agent treats worker evidence as input, not as a control decision. After `VERIFY`, it alone records the
-controller transition and owns `controller_state`, `current_batch`, `completed_batches`, `pending_batches`,
-`next_batch`, budget, recovery receipt, and any terminal reason. It may dispatch the next worker only from
+controller transition and owns `closeout_status`, `current_batch`, `completed_batches`, `pending_batches`,
+`next_batch`, budget, recovery receipt, and any stop reason. It may dispatch the next worker only from
 `DISPATCH_NEXT`, may dispatch the repaired current batch only from `RESUME_CURRENT_BATCH`, and may emit final
 completion only from `ARCHIVE_READY` or `BLOCKED`.
 
 The canonical outer-controller closeout schema is the only machine-readable controller decision record. It must contain
-controller_state, current_batch, completed_batches, pending_batches, next_batch, stop_reason, terminal_reason, and
-recovery. controller_state is authoritative; terminal_reason is required only when the controller resolves to
-ARCHIVE_READY or BLOCKED. recovery must contain status, resume_target, current_batch_preserved,
+closeout_status, current_batch, completed_batches, pending_batches, next_batch, stop_reason, and
+recovery. closeout_status is authoritative; stop_reason records why a terminal closeout_status such as
+ARCHIVE_READY or BLOCKED was reached. recovery must contain status, resume_target, current_batch_preserved,
 pending_batches_preserved, failed_batch_settled, retry_exhausted, repair_authority, repair_eligible, and
 required_context. Retry-exhausted wave output supplies evidence to recovery.required_context; it never supplies
-controller_state or a terminal decision. Only the outer controller may emit this record or resolve that evidence to
+closeout_status or a terminal decision. Only the outer controller may emit this record or resolve that evidence to
 RECOVERY_REQUIRED, BLOCKED, or another legal transition.
 
 The recovery receipt is context for the controller, not a batch success record. During recovery, `current_batch` and
@@ -429,10 +429,11 @@ closeouts are evidence inputs and must not add controller state fields to it. Re
 }
 ```
 
-`retry_exhausted` is wave evidence and recovery input only. It never authorizes `BLOCKED`, `ARCHIVE_READY`, or any
-other terminal decision. When `recovery.status` is `required`, `required_context` must preserve the failed round,
-validation evidence, repair authority, repair eligibility, and the `RESUME_CURRENT_BATCH` target. The outer controller
-must settle that evidence before emitting a terminal closeout.
+`retry_exhausted` is wave evidence and recovery input until the outer controller verifies and settles it. A terminal
+`BLOCKED`, `CANCELLED`, or `UNSAFE` closeout is legal only after that settlement sets `failed_batch_settled` to `true`;
+unsettled evidence must remain a recovery handoff. When `recovery.status` is `required`, `required_context` must
+preserve the failed round, validation evidence, repair authority, repair eligibility, and the `RESUME_CURRENT_BATCH`
+target. The outer controller alone may settle that evidence before emitting a terminal closeout.
 
 Checkpoint responses are not a second closeout format. They are bounded health reports used only to decide the next
 wait window or whether to return retry-exhaustion evidence for an outer-controller recovery or terminal decision; their
