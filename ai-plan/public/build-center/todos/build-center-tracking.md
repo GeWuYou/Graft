@@ -43,16 +43,16 @@ closeout:
 ## Current Recovery Point
 
 - Topic bootstrap and Phase 0 contracts are complete.
-- Phase 1 backend foundation is committed; generated module registration is still pending.
-- Next step: integrate generated registry/migration closure before API and executor work.
+- Phase 1 backend foundation and generated module registration are committed.
+- Current step: implement the Build API and Task submission boundary; Docker executor and web workflow remain later batches.
 
 ## Task Checklist
 
 - [x] Establish moduleapi and Build module Phase 0 server contracts.
 - [x] Establish web module registration and Build contract paths.
 - [x] Add Build module descriptor, permissions/menu skeleton, and foundation migration.
-- [ ] Add persistence, API, Docker executor, and task stage in a later bounded batch.
-- [ ] Add generated projections and end-to-end validation.
+- [x] Add Build module to the canonical generated registry and validate migration/dependency/permission/menu registration.
+- [ ] Add persistence, API, Docker executor, and task stage in later bounded batches.
 
 ## Acceptance Conditions
 
@@ -66,10 +66,10 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation"],
-  "pending_batches": ["phase-1-generated-registration", "phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
-  "current_batch": "phase-1-generated-registration",
-  "next_batch": "phase-1-build-api-and-task-submission",
+  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration"],
+  "pending_batches": ["phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
+  "current_batch": "phase-1-build-api-and-task-submission",
+  "next_batch": "phase-1-docker-executor-and-web-workflow",
   "closeout_status": "in-progress"
 }
 ```

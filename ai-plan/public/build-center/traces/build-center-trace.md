@@ -12,6 +12,14 @@
 - Kept executor, API, and Task submission wiring for later bounded batches.
 - Validation passed: Build/moduleapi tests, migration validation, diff checks, and repository pre-commit governance.
 
+## 2026-08-01 Phase 1 Generated Registration
+
+- Registered Build through the canonical generated module registry and embedded its module-owned migration assets.
+- Validated owner-aligned migration ordering plus Build dependency, permission, menu, and menu-icon registration.
+- Added only the required Chinese package and permission-contract documentation to satisfy the backend comment gate.
+- Committed `f58b150f` (`build(module-registry): register Build module`).
+- Validation passed: generated registry refresh, focused Build/registry/app tests, SQL migration gate, `git diff --check`, and `cd server && go run ./cmd/graft validate backend`.
+
 ## Locked Decisions
 
 - Canonical route: `/build/jobs`.
@@ -23,10 +31,10 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation"],
-  "pending_batches": ["phase-1-generated-registration", "phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
-  "current_batch": "phase-1-generated-registration",
-  "next_batch": "phase-1-build-api-and-task-submission",
+  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration"],
+  "pending_batches": ["phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
+  "current_batch": "phase-1-build-api-and-task-submission",
+  "next_batch": "phase-1-docker-executor-and-web-workflow",
   "closeout_status": "in-progress"
 }
 ```
