@@ -80,7 +80,7 @@
               {{ t(`update.center.overall.${readiness.overall}.title`) }}
             </t-tag>
             <t-button
-              v-if="readiness.next_action"
+              v-if="readiness.next_action && !isDuplicateCheckAction(readiness.next_action)"
               size="small"
               theme="primary"
               variant="outline"
@@ -583,6 +583,10 @@ function openConfirmation() {
 function openDiagnostic(check: UpdateReadinessCheck) {
   selectedDiagnostic.value = check;
   diagnosticVisible.value = true;
+}
+
+function isDuplicateCheckAction(action: UpdateReadinessAction) {
+  return action.type === 'recheck' || action.id === 'check_updates';
 }
 
 async function handleDiagnosticAction(action: UpdateReadinessAction) {

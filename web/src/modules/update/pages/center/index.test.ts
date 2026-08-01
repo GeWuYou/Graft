@@ -634,6 +634,7 @@ describe('UpdateCenter', () => {
       overall: 'upgrade_blocked',
       ready_count: 0,
       total_count: 1,
+      next_action: { id: 'check_updates', type: 'recheck', label_key: 'update.center.check' },
       checks: [
         {
           id: 'compose',
@@ -674,6 +675,8 @@ describe('UpdateCenter', () => {
     };
     const wrapper = mountCenter(dataSource);
     await flushPromises();
+
+    expect(wrapper.findAll('button').filter((button) => button.text() === 'update.center.check')).toHaveLength(0);
 
     await wrapper.get('[data-testid="update-readiness-detail-compose"]').trigger('click');
     const diagnosticDrawer = wrapper.getComponent(DiagnosticDrawer);
