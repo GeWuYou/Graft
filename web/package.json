@@ -20,6 +20,7 @@
     "format:check": "prettier . --check",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "typecheck:ts7": "bunx --bun --package typescript7 tsc --noEmit -p tsconfig.node.json",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -37,7 +38,7 @@
     "openapi:types": "mkdir -p src/contracts/openapi/generated && bunx openapi-typescript ../openapi/openapi.yaml -o src/contracts/openapi/generated/schema.ts && bunx prettier --write src/contracts/openapi/generated/schema.ts",
     "openapi:types:check": "sh -c 'mkdir -p .tmp; tmp=.tmp/openapi-types-check.ts; trap \"rm -f \\\"$tmp\\\"\" EXIT; bunx openapi-typescript ../openapi/openapi.yaml -o \"$tmp\" >/dev/null && bunx prettier --config .prettierrc.json --ignore-path .prettierignore --no-error-on-unmatched-pattern --write \"$tmp\" >/dev/null && cmp -s \"$tmp\" src/contracts/openapi/generated/schema.ts'",
     "openapi:frontend-governance:check": "bun run scripts/check-openapi-frontend-governance.ts",
-    "check": "bun run --parallel --no-exit-on-error format:check typecheck openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check && bun run --parallel --no-exit-on-error test:run build:release"
+    "check": "bun run --parallel --no-exit-on-error format:check typecheck typecheck:ts7 openapi:frontend-governance:check lint:i18n lint stylelint hygiene:check && bun run --parallel --no-exit-on-error test:run build:release"
   },
   "dependencies": {
     "@iconify-icons/lucide": "^1.2.135",
