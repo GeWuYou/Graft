@@ -206,17 +206,19 @@ export function createUpdateCenterPreviewDataSource(): UpdateCenterDataSource {
       const now = new Date().toISOString();
       const operation: UpdateOperation = {
         operation_id: `preview-${operations.length + 1}`,
+        operation: 'self_update',
+        runner_id: `preview-runner-${operations.length + 1}`,
         source_version: updateCenterPreviewStatus.current_version,
         target_version: payload.target_version,
         deployment_strategy: updateCenterPreviewStatus.deployment_strategy,
-        task_id: operations.length + 1,
-        status: 'PLANNING',
-        recovery_completed: false,
-        created_at: now,
+        phase: 'READY',
+        progress: 0,
+        message: '',
         started_at: now,
+        updated_at: now,
       };
       operations.unshift(operation);
-      return operation;
+      return { operation_id: operation.operation_id, runner_id: operation.runner_id };
     },
   };
 }

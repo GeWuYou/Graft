@@ -29,6 +29,46 @@ workflow.
 
 If `loop_mode` is omitted, the loop must run as `topic-completion-loop`.
 
+## Controller Ownership And State Machine
+
+The outer main agent is the only topic lifecycle owner, loop state owner, batch transition owner, and terminal decision
+owner. Workers own implementation for one delegated round only. They may return evidence and an optional advisory
+`suggested_follow_up`; they must not decide whether the topic continues, choose the next batch, update
+`pending_batches`, or mark the topic `archive-ready`.
+
+The controller must use this state machine:
+
+```text
+INIT
+  -> DISPATCH
+  -> WAIT
+  -> VERIFY
+  -> SETTLE
+  -> ADVANCE
+  -> DISPATCH_NEXT
+  -> DISPATCH
+
+SETTLE -> ARCHIVE_CHECK -> ARCHIVE_READY | BLOCKED
+```
+
+Rules:
+
+* a worker return enters `VERIFY` only; it never enters a terminal state directly
+* an accepted batch enters `SETTLE`; the controller alone updates batch state there
+* non-empty `pending_batches` requires `ADVANCE` followed by `DISPATCH_NEXT`
+* `ARCHIVE_CHECK` is allowed only after the controller has settled an empty pending set
+* `ARCHIVE_READY` and `BLOCKED` are the only terminal states; `END` is reachable only from one of them
+
+Termination invariant:
+
+* worker completion never completes a topic loop
+* batch completion never completes a topic loop
+* commit success never completes a topic loop
+* validation success never completes a topic loop
+* only a controller terminal state can complete a topic loop
+* the main agent must not emit final completion while controller state is non-terminal, or before `pending_batches` is
+  empty and the archive-readiness check has completed
+
 ## When To Use
 
 Use this skill when all of the following are true:
@@ -81,7 +121,8 @@ Typical triggers:
    - `pending_batches`
    - `current_batch`
    - `next_batch`
-   - in `topic-completion-loop`, this state is mandatory and must be updated after every accepted closeout
+   - in `topic-completion-loop`, this state is mandatory, controller-owned, and must be updated after every accepted
+     closeout during `SETTLE`
 5. Keep orchestration in the main agent and delegate each bounded implementation round to exactly one `worker`
    subagent by default:
    - build one round prompt that restates the inherited startup context, loop mode, owned scope, remaining budget,
@@ -102,23 +143,26 @@ Typical triggers:
 6. During an active round, keep the outer main agent limited to orchestration work:
    - inspect repository state or returned artifacts as needed for acceptance
    - wait for the worker result
-   - parse the closeout JSON and track remaining budget
-   - decide whether to accept, retry, continue, or stop
+   - parse worker evidence, verify it, and track remaining budget
+   - make the controller transition from `WAIT` to `VERIFY`; decide whether to accept, retry, or block only after
+     verification
    - do not edit repo-tracked implementation files for the active round
-   - treat the round as a simple state machine: `running -> checkpoint_requested -> checkpoint_received ->
-     waiting_for_final_closeout -> completed | retry_pending | blocked`
+   - treat worker health as a nested state machine: `running -> checkpoint_requested -> checkpoint_received ->
+     waiting_for_final_closeout -> completed | retry_pending | blocked`; this nested state never replaces controller
+     state
 7. In `topic-completion-loop`, batch success must continue by default:
    - after an accepted worker closeout, the outer main agent must:
      - verify owned scope stayed bounded
      - verify validation and commit results for the current batch
      - refuse to dispatch the next implementation batch when a successful validated batch has uncommitted owned
        changes, unless the worker reported a concrete validation or ownership blocker under `$graft-commit`
-     - update `completed_batches`
+     - enter `SETTLE` and update `completed_batches`
      - update `pending_batches`
      - update topic recovery materials such as trace and todos when the loop owns them
-     - automatically choose `next_batch`
-     - when `pending_batches` is not empty, dispatch the next worker unless a terminal stop condition applies
-     - when `pending_batches` becomes empty, do not stop immediately; run one final archive-readiness check first
+     - enter `ADVANCE` and automatically choose `next_batch`
+     - when `pending_batches` is not empty, enter `DISPATCH_NEXT` and dispatch the next worker unless a terminal stop
+       condition applies
+     - when `pending_batches` becomes empty, do not stop immediately; enter `ARCHIVE_CHECK` first
    - the final archive-readiness check must verify the topic-level acceptance conditions before the loop may stop
    - after the final archive-readiness check:
      - if all acceptance conditions pass, mark the loop `archive-ready` and commit any owned archive or closeout docs
@@ -218,8 +262,8 @@ Typical triggers:
      result rather than freezing the earlier checkpoint as terminal state
    - incomplete checkpoint content alone is not retry justification; first use the post-checkpoint grace rule unless
      the worker explicitly cannot continue
-11. Let the main agent decide whether to continue based on:
-   - closeout JSON
+11. Let the main agent decide whether to continue based on controller-owned state and verified worker evidence:
+   - `round_status`, implementation, commit, validation, risk, and blocker evidence
    - loop mode
    - batch state
    - scope expansion
@@ -267,61 +311,72 @@ Typical triggers:
 
 ## Output Contract
 
-Every delegated round run through this loop must end with:
+### Worker Round Closeout
 
-1. a concise human-readable closeout
-2. `Next-session startup prompt: <prompt>` only when the round ends in a terminal handoff state that requires a future
-   turn
-3. a fenced JSON block containing:
-   - `closeout_status`
-   - `continue`
-   - `loop_mode`
-   - `current_batch`
-   - `completed_batches`
-   - `pending_batches`
-   - `next_batch`
-   - `next_batch_prompt`
-   - `next_prompt`
-   - `stop_reason`
-   - `validation`
-   - `commit`
-   - `parent_model`
-   - `worker_model`
-   - `model_relation`
-   - `model_rank_verified`
-   - `higher_model_approval`
-   - `consumed_budget`
-   - `remaining_budget`
-   - `scope_expanded`
-   - `risk_level`
+Every delegated worker round must end with a concise human-readable closeout and a fenced JSON block containing only
+round evidence:
 
-The main agent treats the JSON block as the primary control surface. In `topic-completion-loop`, `continue=true`
-means the outer main agent must keep the same-session loop alive. It must not downgrade that signal into a mere hint or
-fall back to `checkpoint-loop` because `loop_mode` was omitted.
+- `round_status`
+- `implementation_result`
+- `changed_scope`
+- `commit`
+- `validation_evidence`
+- `risks`
+- `blockers`
+- `parent_model`, `worker_model`, `model_relation`, `model_rank_verified`, and `higher_model_approval`
+- optional `suggested_follow_up`
 
-In `topic-completion-loop`:
+`suggested_follow_up` may contain candidate work or recovery context, but is advisory only. A worker must not emit or
+infer `continue`, `pending_batches`, `next_batch`, `archive_ready`, or `topic_complete`. It must not emit a
+`Next-session startup prompt:` unless the outer controller explicitly directs a terminal handoff.
 
-* `continue=true` requires:
-  - `loop_mode=topic-completion-loop`
-  - non-empty `current_batch`
-  - updated `completed_batches`
-  - updated `pending_batches`
-  - a non-empty `next_batch` and `next_batch_prompt` when batches remain
-  - `next_prompt=null`
-* `continue=false` requires one explicit terminal reason such as:
-  - `archive-ready`
-  - `blocked`
-  - `validation failed`
-  - `retry exhausted`
-  - `owned scope conflict`
-  - `explicit user stop`
-* `pending_batches=[]` alone is not a stop condition:
-  - the outer main agent must run the final archive-readiness check first
-  - only that check may convert an empty pending set into `archive-ready`, regenerated `pending_batches`, or
-    `blocked`
+### Controller Decision Record
+
+The outer main agent treats worker evidence as input, not as a control decision. After `VERIFY`, it alone records the
+controller transition and owns `controller_state`, `current_batch`, `completed_batches`, `pending_batches`,
+`next_batch`, budget, and any terminal reason. It may dispatch the next worker only from `DISPATCH_NEXT`, and may emit
+final completion only from `ARCHIVE_READY` or `BLOCKED`.
+
+`pending_batches=[]` alone is not a stop condition. The controller must first run `ARCHIVE_CHECK`, which may produce
+`ARCHIVE_READY`, regenerated `pending_batches`, or `BLOCKED`.
 
 Checkpoint responses are not a second closeout format. They are bounded health reports used only to decide the next
-wait window or whether to enter `retry_once_then_blocked`.
+wait window or whether to enter `retry_once_then_blocked`; their `can_continue` field describes worker health, never
+topic lifecycle.
+
+## Orchestration Examples
+
+Valid flow:
+
+```text
+Main Agent: INIT, then dispatch phase-1-generated-registration
+Worker: implement changes, validate, commit, return round evidence
+Main Agent: VERIFY evidence, SETTLE the accepted batch, update controller state
+Main Agent: pending batches remain, so ADVANCE and DISPATCH_NEXT
+Main Agent: repeat until ARCHIVE_CHECK reaches ARCHIVE_READY or BLOCKED
+```
+
+Invalid flow:
+
+```text
+Main Agent: dispatch worker
+Worker: success
+Main Agent: summarize
+END
+```
+
+This is invalid because worker success is not a controller terminal state.
+
+## Manual Contract Regression Check
+
+After changing this skill or the related batch/task worker contract, run:
+
+```bash
+python3 scripts/validate_loop_controller_contract.py
+```
+
+This is a targeted manual regression check. It is not part of `validate_ai_governance.py`, CI, hooks, or default test
+discovery.
 
 ## Boundaries
 

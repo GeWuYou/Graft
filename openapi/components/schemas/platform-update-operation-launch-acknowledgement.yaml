@@ -1,0 +1,5 @@
+type: object
+required: [operation_id, runner_id]
+properties:
+  operation_id: { type: string }
+  runner_id: { type: string }

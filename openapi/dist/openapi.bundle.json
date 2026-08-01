@@ -8783,11 +8783,11 @@
         },
         "responses": {
           "202": {
-            "description": "The one-shot runner was accepted by Docker.",
+            "description": "The one-shot runner was accepted by Docker. This is not a lifecycle state; read the operation snapshot for runner-owned progress.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/enveloped-platform-update-operation"
+                  "$ref": "#/components/schemas/enveloped-platform-update-operation-launch-acknowledgement"
                 }
               }
             }
@@ -19173,6 +19173,9 @@
       "EnvelopedPlatformUpdateOperation": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation"
       },
+      "EnvelopedPlatformUpdateOperationLaunchAcknowledgement": {
+        "$ref": "#/components/schemas/enveloped-platform-update-operation-launch-acknowledgement"
+      },
       "EnvelopedPlatformUpdateOperationList": {
         "$ref": "#/components/schemas/enveloped-platform-update-operation-list"
       },
@@ -26847,17 +26850,28 @@
         "type": "object",
         "required": [
           "operation_id",
+          "operation",
+          "runner_id",
           "source_version",
           "target_version",
           "deployment_strategy",
-          "task_id",
-          "status",
-          "recovery_completed",
-          "created_at",
-          "started_at"
+          "phase",
+          "progress",
+          "message",
+          "started_at",
+          "updated_at"
         ],
         "properties": {
           "operation_id": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "self_update"
+            ]
+          },
+          "runner_id": {
             "type": "string"
           },
           "source_version": {
@@ -26869,48 +26883,45 @@
           "deployment_strategy": {
             "$ref": "#/components/schemas/platform-deployment-strategy"
           },
-          "task_id": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "backup_id": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "requested_by": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "status": {
+          "phase": {
             "type": "string",
             "enum": [
-              "PLANNING",
-              "BACKING_UP",
-              "PULLING",
-              "MIGRATING",
-              "RECREATING",
-              "VERIFYING",
+              "READY",
+              "PREFLIGHT",
+              "BACKUP",
+              "PULL_IMAGES",
+              "STOP_SERVICES",
+              "APPLY_UPDATE",
+              "MIGRATION",
+              "START_SERVICES",
+              "HEALTH_CHECK",
               "SUCCESS",
               "FAILED",
-              "RECOVERED",
-              "NEEDS_ATTENTION"
+              "ROLLBACK"
             ]
           },
-          "failure_code": {
-            "type": "string"
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "message": {
+            "type": "string",
+            "description": "Controlled runner message key; never raw command output or deployment secrets."
+          },
+          "error": {
+            "type": "string",
+            "description": "Controlled runner failure code; never raw command output or deployment secrets."
           },
           "failure_diagnostic_available": {
             "type": "boolean",
             "description": "Whether a manager may retrieve controlled failure diagnostics for this operation."
           },
-          "recovery_completed": {
-            "type": "boolean"
-          },
-          "created_at": {
+          "started_at": {
             "type": "string",
             "format": "date-time"
           },
-          "started_at": {
+          "updated_at": {
             "type": "string",
             "format": "date-time"
           },
@@ -26972,7 +26983,22 @@
           }
         }
       },
-      "enveloped-platform-update-operation": {
+      "platform-update-operation-launch-acknowledgement": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "runner_id"
+        ],
+        "properties": {
+          "operation_id": {
+            "type": "string"
+          },
+          "runner_id": {
+            "type": "string"
+          }
+        }
+      },
+      "enveloped-platform-update-operation-launch-acknowledgement": {
         "type": "object",
         "required": [
           "success",
@@ -26995,7 +27021,7 @@
             "type": "string"
           },
           "data": {
-            "$ref": "#/components/schemas/platform-update-operation"
+            "$ref": "#/components/schemas/platform-update-operation-launch-acknowledgement"
           }
         }
       },
@@ -27145,6 +27171,33 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-update-failure-diagnostic"
+          }
+        }
+      },
+      "enveloped-platform-update-operation": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-update-operation"
           }
         }
       },

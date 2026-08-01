@@ -3826,6 +3826,7 @@ export interface components {
     PlatformUpdateOperationList: components['schemas']['platform-update-operation-list'];
     CreatePlatformUpdateOperationRequest: components['schemas']['create-platform-update-operation-request'];
     EnvelopedPlatformUpdateOperation: components['schemas']['enveloped-platform-update-operation'];
+    EnvelopedPlatformUpdateOperationLaunchAcknowledgement: components['schemas']['enveloped-platform-update-operation-launch-acknowledgement'];
     EnvelopedPlatformUpdateOperationList: components['schemas']['enveloped-platform-update-operation-list'];
     PlatformUpdateFailureDiagnostic: components['schemas']['platform-update-failure-diagnostic'];
     EnvelopedPlatformUpdateFailureDiagnostic: components['schemas']['enveloped-platform-update-failure-diagnostic'];
@@ -6418,35 +6419,37 @@ export interface components {
     };
     'platform-update-operation': {
       operation_id: string;
+      /** @enum {string} */
+      operation: 'self_update';
+      runner_id: string;
       source_version: string;
       target_version: string;
       deployment_strategy: components['schemas']['platform-deployment-strategy'];
-      /** Format: int64 */
-      task_id: number;
-      /** Format: int64 */
-      backup_id?: number;
-      /** Format: int64 */
-      requested_by?: number;
       /** @enum {string} */
-      status:
-        | 'PLANNING'
-        | 'BACKING_UP'
-        | 'PULLING'
-        | 'MIGRATING'
-        | 'RECREATING'
-        | 'VERIFYING'
+      phase:
+        | 'READY'
+        | 'PREFLIGHT'
+        | 'BACKUP'
+        | 'PULL_IMAGES'
+        | 'STOP_SERVICES'
+        | 'APPLY_UPDATE'
+        | 'MIGRATION'
+        | 'START_SERVICES'
+        | 'HEALTH_CHECK'
         | 'SUCCESS'
         | 'FAILED'
-        | 'RECOVERED'
-        | 'NEEDS_ATTENTION';
-      failure_code?: string;
+        | 'ROLLBACK';
+      progress: number;
+      /** @description Controlled runner message key; never raw command output or deployment secrets. */
+      message: string;
+      /** @description Controlled runner failure code; never raw command output or deployment secrets. */
+      error?: string;
       /** @description Whether a manager may retrieve controlled failure diagnostics for this operation. */
       failure_diagnostic_available?: boolean;
-      recovery_completed: boolean;
-      /** Format: date-time */
-      created_at: string;
       /** Format: date-time */
       started_at: string;
+      /** Format: date-time */
+      updated_at: string;
       /** Format: date-time */
       finished_at?: string;
     };
@@ -6463,12 +6466,16 @@ export interface components {
       /** @description Opaque server-issued Compose root candidate key. Required only when the installation profile uses Docker discovery. */
       compose_candidate_key?: string;
     };
-    'enveloped-platform-update-operation': {
+    'platform-update-operation-launch-acknowledgement': {
+      operation_id: string;
+      runner_id: string;
+    };
+    'enveloped-platform-update-operation-launch-acknowledgement': {
       success: boolean;
       code: string;
       message: string;
       traceId: string;
-      data: components['schemas']['platform-update-operation'];
+      data: components['schemas']['platform-update-operation-launch-acknowledgement'];
     };
     /**
      * @description Stable safe failure code returned when a confirmed platform update cannot start.
@@ -6536,6 +6543,13 @@ export interface components {
       message: string;
       traceId: string;
       data: components['schemas']['platform-update-failure-diagnostic'];
+    };
+    'enveloped-platform-update-operation': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-operation'];
     };
     /** @description Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned. */
     'platform-backup-summary': {
@@ -13710,13 +13724,13 @@ export interface operations {
       };
     };
     responses: {
-      /** @description The one-shot runner was accepted by Docker. */
+      /** @description The one-shot runner was accepted by Docker. This is not a lifecycle state; read the operation snapshot for runner-owned progress. */
       202: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['enveloped-platform-update-operation'];
+          'application/json': components['schemas']['enveloped-platform-update-operation-launch-acknowledgement'];
         };
       };
       /** @description Invalid target version or request payload. */

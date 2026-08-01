@@ -13,6 +13,23 @@ The main agent coordinates the batch wave. Delegated `worker` subagents keep imp
 bounded slices until they emit a final closeout, return an explicit blocked state, report an owned-scope conflict, or
 exhaust the retry policy.
 
+## Execution Hierarchy
+
+A batch is one execution wave only. It is not a topic lifecycle controller and does not determine whether the caller's
+conversation, topic, or loop is complete.
+
+When this skill runs inside `graft-multi-agent-loop`, the hierarchy is:
+
+```text
+topic loop
+  -> batch wave
+    -> worker execution
+```
+
+Control returns upward only: `worker -> batch coordinator -> outer loop controller`. Batch completion returns control
+to the outer controller; it never completes the topic loop. The batch coordinator cannot mutate outer loop state,
+choose the next loop batch, or terminate the outer loop. A worker closeout cannot override loop state.
+
 ## Waiting Terms
 
 Use these terms consistently when deciding whether to wait, checkpoint, retry, or stop a delegated `worker`:
@@ -48,6 +65,8 @@ Use this skill only when all of the following are true:
 3. Identify the immediate blocking step and keep it local to the current execution owner.
    - when this batch runs inside one `graft-multi-agent-loop` round, the current execution owner is the delegated
      worker subagent, not the outer loop orchestrator
+   - return the completed wave and its evidence to that outer controller; do not present the wave as a topic or loop
+     terminal state
    - when the batch is spawned from `$graft-pr-review`, keep the exhaustive finding inventory local to the main agent
      before delegation; `Outside diff range comments`, `Nitpick comments`, and other folded latest-review sections are
      mandatory inventory scope and must not be dropped from the dispatch set
@@ -153,18 +172,24 @@ Before accepting a subagent result, confirm:
 * the result still follows plugin, DI, and `menu + route + page + api + permission` boundaries
 * any checkpoint response was treated as a health report, not a handoff or implicit stop signal
 * any retry-exhausted slice was reported as blocked or wave-stop rather than being completed locally by the main agent
+* when nested in `graft-multi-agent-loop`, the wave returned evidence upward without asserting topic completion or
+  changing outer controller state
 
 ## Output Expectations
 
 For every delegated `worker`, require one of these response shapes:
 
 1. Final closeout for the bounded slice:
-   - concise human-readable result
-   - owned scope or changed files
-   - validation performed
+   - `round_status`: `complete`, `blocked`, `retry-needed`, or `owned-scope-conflict`
+   - `implementation_result`
+   - `changed_scope`
+   - `commit`
+   - `validation_evidence`
+   - `risks`
+   - `blockers`
    - `parent_model`, `worker_model`, `model_relation`, `model_rank_verified`, and `higher_model_approval`
-   - risks or blockers
-   - explicit outcome such as complete, blocked, retry-needed, or owned-scope conflict
+   - optional `suggested_follow_up`, which is advisory evidence for the caller and never a controller decision
+   - do not emit or infer `continue`, `pending_batches`, `next_batch`, `archive_ready`, or `topic_complete`
 2. Checkpoint status for a still-running slice:
    - begin with `Checkpoint status:`
    - include `current_phase`, `changed_files`, `last_validation`, `next_action`, `can_continue`,
@@ -178,7 +203,10 @@ For every delegated `worker`, require one of these response shapes:
 * do not delegate overlapping write scopes
 * do not let checkpoint interrupts turn the batch into real-time remote control of workers
 * do not let an active delegated slice silently downgrade into untracked main-agent execution
+* do not treat batch completion, worker success, commit success, or validation success as topic completion
 * do not assume a subagent can inherit unstated governance; pass the inherited startup context explicitly
 * do not use batch delegation to bypass `$graft-pr-review` inventory closure; `Outside diff range comments`,
   `Nitpick comments`, and other folded latest-review findings remain mandatory dispositions even when repairs are split
   across workers
+* after changing this skill or the related loop/task worker contract, manually run
+  `python3 scripts/validate_loop_controller_contract.py`; it is not a normal repository completion gate

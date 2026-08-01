@@ -16,8 +16,10 @@ import UpdateCenter from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
   createUpdateOperation: vi.fn(),
+  getUpdateOperation: vi.fn(),
   getUpdateFailureDiagnostic: vi.fn(),
   getUpdateOperations: vi.fn(),
+  subscribeToUpdateOperation: vi.fn(() => ({ close: vi.fn(), reconnect: vi.fn() })),
 }));
 
 const updateStartFailure = (code: string, traceId = 'request-update-42') =>
@@ -35,7 +37,12 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   useI18n: () => ({
     locale: { value: 'en-US' },
     t: (key: string, params?: Record<string, unknown>) =>
-      params?.requestId ? `${key}:${String(params.requestId)}` : key,
+      params?.requestId
+        ? `${key}:${String(params.requestId)}`
+        : key === 'update.center.history.messages.update_completed'
+          ? 'Update completed'
+          : key,
+    te: (key: string) => key === 'update.center.history.messages.update_completed',
   }),
 }));
 vi.mock('@/shared/observability', () => ({ formatLocaleDateTime: (value: string) => value }));
@@ -123,7 +130,10 @@ function mountCenter(dataSource?: UpdateCenterDataSource) {
           emits: ['update:modelValue'],
           template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)" />',
         }),
-        't-table': passthrough,
+        't-table': defineComponent({
+          props: { data: { type: Array, default: () => [] } },
+          template: '<section><slot name="message" :row="data[0]" /></section>',
+        }),
         't-tag': passthrough,
         ManagementEmptyState: passthrough,
       },
@@ -139,8 +149,15 @@ describe('UpdateCenter', () => {
     } as never);
     useUpdateDiscoveryStore().replaceSnapshot(status([]));
     apiMocks.getUpdateOperations.mockResolvedValue([]);
+    apiMocks.getUpdateOperation.mockResolvedValue({
+      operation_id: 'operation-1',
+      runner_id: 'runner-1',
+      phase: 'READY',
+      progress: 0,
+      message: '',
+    });
     apiMocks.getUpdateFailureDiagnostic.mockResolvedValue(null);
-    apiMocks.createUpdateOperation.mockResolvedValue({ operation_id: 'operation-1' });
+    apiMocks.createUpdateOperation.mockResolvedValue({ operation_id: 'operation-1', runner_id: 'runner-1' });
     vi.clearAllMocks();
   });
 
@@ -444,7 +461,7 @@ describe('UpdateCenter', () => {
         ),
       getOperations: vi.fn().mockResolvedValue([]),
       getFailureDiagnostic: vi.fn().mockResolvedValue(null),
-      createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation' }),
+      createOperation: vi.fn().mockResolvedValue({ operation_id: 'preview-operation', runner_id: 'preview-runner' }),
     };
     const wrapper = mountCenter(dataSource);
     await flushPromises();
@@ -510,8 +527,10 @@ describe('UpdateCenter', () => {
       getOperations: vi.fn().mockResolvedValue([
         {
           operation_id: 'preview-operation',
-          status: 'FAILED',
-          failure_diagnostic_available: true,
+          runner_id: 'preview-runner',
+          phase: 'FAILED',
+          progress: 100,
+          message: 'preview failure',
         },
       ]),
       getFailureDiagnostic: vi.fn().mockResolvedValue(null),
@@ -521,6 +540,30 @@ describe('UpdateCenter', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('update.center.history.viewCause');
+  });
+
+  it('localizes known runner history messages instead of rendering their internal codes', async () => {
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi.fn().mockResolvedValue(status([])),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([
+        {
+          operation_id: 'completed-operation',
+          runner_id: 'completed-runner',
+          phase: 'SUCCESS',
+          progress: 100,
+          message: 'update_completed',
+        },
+      ]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(null),
+      createOperation: vi.fn(),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Update completed');
+    expect(wrapper.text()).not.toContain('update_completed');
   });
 
   it('keeps server readiness checks scannable and opens diagnostics on demand', async () => {

@@ -83,6 +83,19 @@ func TestComposeExecutionCoordinatorMarksPostMigrationFailureNeedsAttention(t *t
 	}
 }
 
+func TestComposeExecutionCoordinatorPreservesVerifiedRunnerIDWhenReceiptOmitsIt(t *testing.T) {
+	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 54, Status: moduleapi.TaskStatusPending}}
+	coordinator := NewComposeExecutionCoordinator(tasks, &stubBackupService{})
+	operation := ComposeUpdateOperation{OperationID: "update-54", RunnerID: "runner-update-54", SourceVersion: "v1.0.0", TargetVersion: "v1.1.0", TaskID: 54}
+	settled, err := coordinator.SettleReceipt(t.Context(), operation, RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, Succeeded: true})
+	if err != nil {
+		t.Fatalf("settle receipt: %v", err)
+	}
+	if settled.RunnerID != operation.RunnerID {
+		t.Fatalf("runner ID = %q, want %q", settled.RunnerID, operation.RunnerID)
+	}
+}
+
 func TestComposeExecutionCoordinatorSettlesLegacyRunnerReceiptWithItsProtocol(t *testing.T) {
 	tasks := &stubTaskService{receipt: moduleapi.TaskReceipt{TaskID: 53, Status: moduleapi.TaskStatusPending}}
 	coordinator := NewComposeExecutionCoordinator(tasks, &stubBackupService{})
@@ -385,11 +398,11 @@ func TestRolloutRejectsBelowManifestMinimumSourceVersion(t *testing.T) {
 
 func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testing.T) {
 	input := fixtureRunnerInput("/opt/graft")
-	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json")
+	config, host := composeRunnerContainerConfig(input, "/opt/graft/.graft-update/inputs/fixture-operation-1.json", "graft-update-state")
 	if config.Image != input.Preflight.RunnerReference || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_INPUT_B64=/opt/graft/.graft-update/inputs/fixture-operation-1.json" {
 		t.Fatalf("runner config is not constrained: %#v", config)
 	}
-	if len(host.Binds) != 2 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.NetworkMode != "none" || host.AutoRemove {
+	if len(host.Binds) != 3 || host.Binds[0] != "/opt/graft:/opt/graft:rw" || host.Binds[1] != "/var/run/docker.sock:/var/run/docker.sock:rw" || host.Binds[2] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || host.AutoRemove {
 		t.Fatalf("runner host config is not constrained: %#v", host)
 	}
 }
@@ -400,7 +413,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, runner_id TEXT, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -408,7 +421,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("new operation store: %v", err)
 	}
-	created := ComposeUpdateOperation{OperationID: "update-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
+	created := ComposeUpdateOperation{OperationID: "update-history-1", RunnerID: "runner-history-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", DeploymentStrategy: DeploymentStrategyBetaTracking, TaskID: 9, RequestedBy: 3, Outcome: ExecutionOutcomePulling}
 	if err := store.Create(t.Context(), created); err != nil {
 		t.Fatalf("create operation: %v", err)
 	}
@@ -420,7 +433,7 @@ CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_
 	if err != nil {
 		t.Fatalf("get operation: %v", err)
 	}
-	if loaded.DeploymentStrategy != DeploymentStrategyBetaTracking || loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
+	if loaded.RunnerID != "runner-history-1" || loaded.DeploymentStrategy != DeploymentStrategyBetaTracking || loaded.Outcome != ExecutionOutcomeNeedsAttention || loaded.BackupID != 7 || loaded.FailureCode != "healthz_failed" || loaded.ReceiptIntegritySHA256 != strings.Repeat("a", 64) {
 		t.Fatalf("unexpected durable history: %#v", loaded)
 	}
 }
@@ -440,17 +453,6 @@ func TestSQLOperationStoreRejectsUnsupportedDeploymentStrategy(t *testing.T) {
 	})
 	if err == nil || err.Error() != "update operation is invalid" {
 		t.Fatalf("expected invalid deployment strategy to be rejected, got %v", err)
-	}
-}
-
-func TestMemoryOperationStoreAdvanceIsMonotonic(t *testing.T) {
-	store := &memoryOperationStore{items: map[string]ComposeUpdateOperation{"update-progress-1": {OperationID: "update-progress-1", Outcome: ExecutionOutcomePlanning}}}
-	advanced, changed, err := store.Advance(t.Context(), "update-progress-1", ExecutionOutcomeMigrating)
-	if err != nil || !changed || advanced.Outcome != ExecutionOutcomeMigrating || advanced.UpdatedAt.IsZero() {
-		t.Fatalf("advance = %#v, %t, %v", advanced, changed, err)
-	}
-	if _, changed, err := store.Advance(t.Context(), "update-progress-1", ExecutionOutcomePulling); err != nil || changed {
-		t.Fatalf("backward advance changed=%t err=%v", changed, err)
 	}
 }
 
@@ -545,20 +547,6 @@ func (s *memoryOperationStore) Get(_ context.Context, id string) (ComposeUpdateO
 }
 func (s *memoryOperationStore) List(context.Context, int) ([]ComposeUpdateOperation, error) {
 	return nil, nil
-}
-func (s *memoryOperationStore) Advance(_ context.Context, id string, outcome ExecutionOutcome) (ComposeUpdateOperation, bool, error) {
-	item, ok := s.items[id]
-	if !ok {
-		return ComposeUpdateOperation{}, false, nil
-	}
-	for _, allowed := range progressPredecessors(outcome) {
-		if item.Outcome == allowed {
-			item.Outcome, item.UpdatedAt = outcome, time.Now().UTC()
-			s.items[id] = item
-			return item, true, nil
-		}
-	}
-	return ComposeUpdateOperation{}, false, nil
 }
 func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOperation) error {
 	s.items[item.OperationID] = item

@@ -106,11 +106,13 @@ DeploymentContext {
 
 ## Update Lifecycle
 
-更新目录的候选状态是 `AVAILABLE`；持久 UpdateOperation 的标准生命周期为 `PLANNING -> BACKING_UP -> PULLING -> MIGRATING -> RECREATING -> VERIFYING -> SUCCESS`，任一阶段可到 `FAILED`。runner 在每个执行阶段开始时写入无秘密 marker，server 将单调阶段持久化为 operation 快照；runner 交接后由 receipt 结算最终阶段。迁移后失败固定为 `NEEDS_ATTENTION`，迁移前完成配置和镜像恢复则为 `RECOVERED`。不能把 forward-only schema migration 伪装成自动数据库 rollback。
+更新目录的候选状态是 `AVAILABLE`。用户确认后，server 持久化受授权的 update request，但该记录不是执行状态。`graft-compose-runner` 随后取得一个 operation lease，成为该 operation 的唯一 lifecycle controller，并在官方 Compose 的 named update-state volume 中持久化版本化原子 `current.json` snapshot 和 append-only event records。runner 是唯一 writer，server 只读挂载并在 schema、operation binding、revision 与完整性校验成功后消费状态。状态包含 `operation`、`phase`、`progress`、safe `message`、`started_at`、`finished_at`、safe structured `error`、`runner_id` 和绑定目标/冻结 deployment snapshot 的版本化 identity；不包含凭证、host path、backup location/content、命令输出或 Docker stderr。
 
-`platform.update.operations.<operationID>` 是 Update 进度的 canonical realtime topic。Update 只发布已授权读取的 `PlatformUpdateOperation` 快照；它不单独维护 SSE 或 WebSocket endpoint。`server/internal/realtime` 统一签发受 topic 和调用者绑定的一次性 ticket；同一 ticket 可由 WebSocket 或 SSE gateway 任一方单次消费。升级重建中断连接后，客户端必须重新申请 ticket 并订阅；新 server 的首个快照或 terminal receipt 是恢复权威，不依赖浏览器定时轮询。
+执行 phase 固定为 `READY -> PREFLIGHT -> BACKUP -> PULL_IMAGES -> STOP_SERVICES -> APPLY_UPDATE -> MIGRATION -> START_SERVICES -> HEALTH_CHECK -> SUCCESS`；任一阶段可至 `FAILED`，而迁移前的受控配置/镜像恢复以 `ROLLBACK` 终止。runner 在每个不可逆动作前先持久化 transition。迁移开始后不执行自动数据库 rollback/restore，失败只能记录 `FAILED` 与人工恢复证据。runner crash 或 host interruption 留下 state volume 中的最后 snapshot/events；stale non-terminal work 只能由已授权 manual recovery runner 接管，server 不得改写 phase 模拟恢复。
 
-所有阶段写入 Task Runtime、审计事件、不可变 target manifest digest、backup reference、migration 和 health receipt。权限分为 `platform-update.read`、`platform-update.check` 和 `platform-update.manage`；Phase 1 不暴露一个看似可执行但没有执行能力的 `execute` 权限。
+`platform.update.operations.<operationID>` 是 Update 进度的 canonical realtime topic。Update 只发布已授权读取、已验证的 runner snapshot；它不单独维护 SSE 或 WebSocket endpoint。`server/internal/realtime` 统一签发受 topic 和调用者绑定的一次性 ticket；同一 ticket 可由 WebSocket 或 SSE gateway 任一方单次消费。升级重建中断连接时，浏览器先通过 API 获取当前状态，再重新申请 ticket 并订阅。SSE/WebSocket 是 transport，不是事实源；server 不可用期间 runner 继续写 state volume，server 恢复后重新 reconcile 最新 snapshot 或 terminal result。
+
+runner 没有 PostgreSQL credentials、HTTP API、SSE 或 WebSocket service。server 记录请求与审计启动事实，并将已验证 terminal runner result 幂等投影为 PostgreSQL update history、backup/audit references 和安全诊断；数据库是 terminal business history authority，不是 active phase/progress owner。权限分为 `platform-update.read`、`platform-update.check` 和 `platform-update.manage`；Phase 1 不暴露一个看似可执行但没有执行能力的 `execute` 权限。
 
 ### Update Operation Deployment Strategy Snapshot
 
@@ -135,12 +137,14 @@ DeploymentContext {
 
 ## Compose Execution Boundary
 
-官方 Compose 安装的已确认升级由短生命周期 runner 执行。runner 没有业务状态、HTTP API 或常驻生命周期；它只接收由 server 预检并固定的目标完整镜像引用、预期 manifest digest、host compose root 和受限 Compose 命令。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 后执行备份，以 runner-scoped Compose override 使用 manifest-derived explicit target，`docker compose pull`、验证实际 digest、bootstrap migration、受控 recreate、health check，并将 marker-bounded receipt 写入带 operation/protocol labels 的保留容器日志。它不得将已声明的 `latest` 或 `beta` 改写为解析出的 release tag。server 通过 Docker API 读取、校验并结算 receipt 后才清理 runner。
+官方 Compose 安装的已确认升级由短生命周期 `graft-compose-runner` 执行。runner 接收由 server 预检并冻结的 target immutable references、manifest identity、operation identity、host Compose root 与受限 Compose command input，并成为该 operation 的 controller。输入通过 Docker API inline 传入，不要求 server 直接访问自动发现的宿主路径；runner 挂载 Docker socket 和其专用 named update-state volume 后执行备份、runner-scoped Compose override、`docker compose pull`、实际 digest 验证、bootstrap migration、受控 recreate 与 health check。它不得将已声明的 `latest` 或 `beta` 改写为解析出的 release tag，也不得以 retained container logs 作为状态存储或向数据库直写。
 
-冻结的 `DeploymentContext.ComposeRoot` 必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载；Docker daemon 返回的 Linux host path 是执行权威。变量未设置时，Docker API 发现结果只作为待确认候选，不能由 server 容器路径、WSL 映射路径或前端输入推导和替代。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。详细信任边界由 `ADR-006` 与 ADR-008 固定。
+state volume 是 active execution/recovery authority：runner 使用原子 snapshot/event persistence、lease 和 heartbeat 保证只有一个 non-terminal operation。server 仅用 read-only mount 重新 reconcile、校验并投影 terminal history；state corruption、operation mismatch 或 stale lease 均 fail closed 并要求受保护的 recovery-runner 操作。runner logs 可以保留诊断证据，但不结算 update operation。详细的 lifecycle ownership 由 ADR-009 固定。
+
+冻结的 `DeploymentContext.ComposeRoot` 必须是宿主机绝对路径，并在 runner 中以相同绝对路径挂载；Docker daemon 返回的 Linux host path 是执行权威。变量未设置时，Docker API 发现结果只作为待确认候选，不能由 server 容器路径、WSL 映射路径或前端输入推导和替代。server 不直接在自身容器中执行 Compose：它会在 recreate 中被停止，且容器内 CLI 和路径不能可靠代表 host daemon。Compose-root 与 Deployment Runtime 信任边界由 ADR-006（未被 ADR-009 取代的部分）与 ADR-008 固定。
 
 ## Scope
 
 当前主题实现：release manifest、read-only discovery、顶部轻量更新提醒、`Platform -> System Maintenance -> Updates` 管理页、独立 backup capability、管理员确认的 Compose 执行、历史和恢复证据。顶部提醒只消费认证壳生命周期内的单一 discovery snapshot；它不承担独立轮询或第二套发现请求。
 
-明确延后：无确认自动安装、多节点编排、Kubernetes executor、持久 Update Agent、容器内 binary replacement、host/systemd binary replacement，以及承诺自动 schema rollback。
+明确延后：无确认自动安装、多节点编排、Kubernetes executor、持久 Update Agent、容器内 binary replacement、host/systemd binary replacement，以及承诺自动 schema rollback。runner 是短生命周期 controller，不是持久 Update Agent。

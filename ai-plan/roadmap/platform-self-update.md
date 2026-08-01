@@ -14,8 +14,9 @@
    - 交付 `Platform -> System Maintenance -> Updates` 和顶部轻量版本提醒。提醒只展示当前/最新版本、更新摘要和受控升级入口；完整 release notes、安装与校验详情、能力矩阵、历史和不可执行原因保留在管理员管理页。
 4. **Independent backup capability**
    - 交付 `platform-backup` module 的配置与 PostgreSQL backup metadata、恢复入口和审计边界；更新只通过 capability 消费它。
-5. **Confirmed Compose execution and recovery**
-   - 交付一次性 receipt-writing runner、Task Runtime 状态、explicit migration、manifest-verified recreate、health receipt、history 和 Restore Backup 操作。
+5. **Runner-owned Compose execution and recovery**
+   - 交付 runner-owned named state volume、版本化原子状态快照与 append events、互斥 lease、explicit migration、manifest-verified recreate、health confirmation、手动 recovery runner，以及 server 的只读 API/realtime/terminal-history projection。
+   - runner 是 active lifecycle controller；`server` 只记录已授权用户请求、验证并转发 runner state，且只将已验证 terminal result 投影到 history/audit/backup facts。runner 不接收 PostgreSQL credentials，也不提供 HTTP/realtime endpoint。
    - 自动化含义仅为管理员确认后的工作流自动执行，不包含无人值守更新。
    - 在 Beta 可靠性收敛中，Compose `.env` 使用完整 server/web 镜像引用与 `stable|beta|fixed|manual` 策略；runner pull 后验证 manifest digest，且 `manual` 不执行镜像变更。`nightly` 延后且不暴露。
 6. **Archive readiness**
@@ -24,11 +25,11 @@
 ## MVP Acceptance
 
 - 管理员可发现新版本、阅读 release、检查 capability，并手动确认官方 Compose 升级。
-- 升级保留配置和数据库，创建可审计 backup，显式运行 Atlas migration，验证 `/healthz`，持久记录成功或失败 receipt。
+- 升级保留配置和数据库，创建可审计 backup，显式运行 Atlas migration，验证 `/healthz`，由 runner 持久记录阶段和 terminal result；服务恢复后由 server 验证并投影业务历史。
 - binary 用户获得 release/checksum 和与安装方式匹配的步骤，不会得到错误的自动升级按钮。
 
 ## Deferred Phase 2
 
 - 可配置更新 channel、更新窗口与通知策略。
 - 多节点滚动升级、Kubernetes executor、systemd host integration。
-- 有条件的 rollback automation；数据库恢复仍须受 forward-only migration policy 约束。
+- 有条件的 rollback automation；数据库恢复仍须受 forward-only migration policy 约束。当前范围仅允许迁移前的受控配置/镜像回滚，迁移后失败必须走人工恢复。

@@ -3434,42 +3434,63 @@ func (e PlatformUpdateComposeRootSource) Valid() bool {
 	}
 }
 
-// Defines values for PlatformUpdateOperationStatus.
+// Defines values for PlatformUpdateOperationOperation.
 const (
-	PlatformUpdateOperationStatusBACKINGUP      PlatformUpdateOperationStatus = "BACKING_UP"
-	PlatformUpdateOperationStatusFAILED         PlatformUpdateOperationStatus = "FAILED"
-	PlatformUpdateOperationStatusMIGRATING      PlatformUpdateOperationStatus = "MIGRATING"
-	PlatformUpdateOperationStatusNEEDSATTENTION PlatformUpdateOperationStatus = "NEEDS_ATTENTION"
-	PlatformUpdateOperationStatusPLANNING       PlatformUpdateOperationStatus = "PLANNING"
-	PlatformUpdateOperationStatusPULLING        PlatformUpdateOperationStatus = "PULLING"
-	PlatformUpdateOperationStatusRECOVERED      PlatformUpdateOperationStatus = "RECOVERED"
-	PlatformUpdateOperationStatusRECREATING     PlatformUpdateOperationStatus = "RECREATING"
-	PlatformUpdateOperationStatusSUCCESS        PlatformUpdateOperationStatus = "SUCCESS"
-	PlatformUpdateOperationStatusVERIFYING      PlatformUpdateOperationStatus = "VERIFYING"
+	SelfUpdate PlatformUpdateOperationOperation = "self_update"
 )
 
-// Valid indicates whether the value is a known member of the PlatformUpdateOperationStatus enum.
-func (e PlatformUpdateOperationStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the PlatformUpdateOperationOperation enum.
+func (e PlatformUpdateOperationOperation) Valid() bool {
 	switch e {
-	case PlatformUpdateOperationStatusBACKINGUP:
+	case SelfUpdate:
 		return true
-	case PlatformUpdateOperationStatusFAILED:
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformUpdateOperationPhase.
+const (
+	PlatformUpdateOperationPhaseAPPLYUPDATE   PlatformUpdateOperationPhase = "APPLY_UPDATE"
+	PlatformUpdateOperationPhaseBACKUP        PlatformUpdateOperationPhase = "BACKUP"
+	PlatformUpdateOperationPhaseFAILED        PlatformUpdateOperationPhase = "FAILED"
+	PlatformUpdateOperationPhaseHEALTHCHECK   PlatformUpdateOperationPhase = "HEALTH_CHECK"
+	PlatformUpdateOperationPhaseMIGRATION     PlatformUpdateOperationPhase = "MIGRATION"
+	PlatformUpdateOperationPhasePREFLIGHT     PlatformUpdateOperationPhase = "PREFLIGHT"
+	PlatformUpdateOperationPhasePULLIMAGES    PlatformUpdateOperationPhase = "PULL_IMAGES"
+	PlatformUpdateOperationPhaseREADY         PlatformUpdateOperationPhase = "READY"
+	PlatformUpdateOperationPhaseROLLBACK      PlatformUpdateOperationPhase = "ROLLBACK"
+	PlatformUpdateOperationPhaseSTARTSERVICES PlatformUpdateOperationPhase = "START_SERVICES"
+	PlatformUpdateOperationPhaseSTOPSERVICES  PlatformUpdateOperationPhase = "STOP_SERVICES"
+	PlatformUpdateOperationPhaseSUCCESS       PlatformUpdateOperationPhase = "SUCCESS"
+)
+
+// Valid indicates whether the value is a known member of the PlatformUpdateOperationPhase enum.
+func (e PlatformUpdateOperationPhase) Valid() bool {
+	switch e {
+	case PlatformUpdateOperationPhaseAPPLYUPDATE:
 		return true
-	case PlatformUpdateOperationStatusMIGRATING:
+	case PlatformUpdateOperationPhaseBACKUP:
 		return true
-	case PlatformUpdateOperationStatusNEEDSATTENTION:
+	case PlatformUpdateOperationPhaseFAILED:
 		return true
-	case PlatformUpdateOperationStatusPLANNING:
+	case PlatformUpdateOperationPhaseHEALTHCHECK:
 		return true
-	case PlatformUpdateOperationStatusPULLING:
+	case PlatformUpdateOperationPhaseMIGRATION:
 		return true
-	case PlatformUpdateOperationStatusRECOVERED:
+	case PlatformUpdateOperationPhasePREFLIGHT:
 		return true
-	case PlatformUpdateOperationStatusRECREATING:
+	case PlatformUpdateOperationPhasePULLIMAGES:
 		return true
-	case PlatformUpdateOperationStatusSUCCESS:
+	case PlatformUpdateOperationPhaseREADY:
 		return true
-	case PlatformUpdateOperationStatusVERIFYING:
+	case PlatformUpdateOperationPhaseROLLBACK:
+		return true
+	case PlatformUpdateOperationPhaseSTARTSERVICES:
+		return true
+	case PlatformUpdateOperationPhaseSTOPSERVICES:
+		return true
+	case PlatformUpdateOperationPhaseSUCCESS:
 		return true
 	default:
 		return false
@@ -10454,6 +10475,15 @@ type EnvelopedPlatformUpdateOperation struct {
 	TraceId string                  `json:"traceId"`
 }
 
+// EnvelopedPlatformUpdateOperationLaunchAcknowledgement defines model for enveloped-platform-update-operation-launch-acknowledgement.
+type EnvelopedPlatformUpdateOperationLaunchAcknowledgement struct {
+	Code    string                                       `json:"code"`
+	Data    PlatformUpdateOperationLaunchAcknowledgement `json:"data"`
+	Message string                                       `json:"message"`
+	Success bool                                         `json:"success"`
+	TraceId string                                       `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateOperationList defines model for enveloped-platform-update-operation-list.
 type EnvelopedPlatformUpdateOperationList struct {
 	Code    string                      `json:"code"`
@@ -11565,28 +11595,40 @@ type PlatformUpdateFailureDiagnostic struct {
 
 // PlatformUpdateOperation defines model for platform-update-operation.
 type PlatformUpdateOperation struct {
-	BackupId  *int64    `json:"backup_id,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-
 	// DeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
 	DeploymentStrategy PlatformDeploymentStrategy `json:"deployment_strategy"`
-	FailureCode        *string                    `json:"failure_code,omitempty"`
+
+	// Error Controlled runner failure code; never raw command output or deployment secrets.
+	Error *string `json:"error,omitempty"`
 
 	// FailureDiagnosticAvailable Whether a manager may retrieve controlled failure diagnostics for this operation.
-	FailureDiagnosticAvailable *bool                         `json:"failure_diagnostic_available,omitempty"`
-	FinishedAt                 *time.Time                    `json:"finished_at,omitempty"`
-	OperationId                string                        `json:"operation_id"`
-	RecoveryCompleted          bool                          `json:"recovery_completed"`
-	RequestedBy                *int64                        `json:"requested_by,omitempty"`
-	SourceVersion              string                        `json:"source_version"`
-	StartedAt                  time.Time                     `json:"started_at"`
-	Status                     PlatformUpdateOperationStatus `json:"status"`
-	TargetVersion              string                        `json:"target_version"`
-	TaskId                     int64                         `json:"task_id"`
+	FailureDiagnosticAvailable *bool      `json:"failure_diagnostic_available,omitempty"`
+	FinishedAt                 *time.Time `json:"finished_at,omitempty"`
+
+	// Message Controlled runner message key; never raw command output or deployment secrets.
+	Message       string                           `json:"message"`
+	Operation     PlatformUpdateOperationOperation `json:"operation"`
+	OperationId   string                           `json:"operation_id"`
+	Phase         PlatformUpdateOperationPhase     `json:"phase"`
+	Progress      int                              `json:"progress"`
+	RunnerId      string                           `json:"runner_id"`
+	SourceVersion string                           `json:"source_version"`
+	StartedAt     time.Time                        `json:"started_at"`
+	TargetVersion string                           `json:"target_version"`
+	UpdatedAt     time.Time                        `json:"updated_at"`
 }
 
-// PlatformUpdateOperationStatus defines model for PlatformUpdateOperation.Status.
-type PlatformUpdateOperationStatus string
+// PlatformUpdateOperationOperation defines model for PlatformUpdateOperation.Operation.
+type PlatformUpdateOperationOperation string
+
+// PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
+type PlatformUpdateOperationPhase string
+
+// PlatformUpdateOperationLaunchAcknowledgement defines model for platform-update-operation-launch-acknowledgement.
+type PlatformUpdateOperationLaunchAcknowledgement struct {
+	OperationId string `json:"operation_id"`
+	RunnerId    string `json:"runner_id"`
+}
 
 // PlatformUpdateOperationList defines model for platform-update-operation-list.
 type PlatformUpdateOperationList = []PlatformUpdateOperation

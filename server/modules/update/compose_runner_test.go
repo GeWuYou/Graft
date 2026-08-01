@@ -24,9 +24,16 @@ func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
 	if !receipt.Succeeded || !receipt.MigrationStarted {
 		t.Fatalf("unexpected receipt: %#v", receipt)
 	}
-	want := []string{"backup", "compose pull", "verify images", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz"}
+	want := []string{"backup", "compose pull", "verify images", "stop server web", "bootstrap migrate up", "compose recreate server web", "docker health", "healthz"}
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
+	}
+}
+
+func TestExecuteComposeRunnerRequiresRunnerStateReporter(t *testing.T) {
+	input := fixtureRunnerInput(t.TempDir())
+	if _, err := ExecuteComposeRunner(t.Context(), input, runnerActionsWithoutReporter{}); err == nil || !strings.Contains(err.Error(), "state reporter is required") {
+		t.Fatalf("missing state reporter error = %v", err)
 	}
 }
 
@@ -49,7 +56,7 @@ func TestExecuteComposeRunnerMigrationFailureNeverRestoresDatabase(t *testing.T)
 	if receipt.FailureCode != runnerFailureMigration || !receipt.MigrationStarted || ClassifyRunnerReceipt(receipt) != ExecutionOutcomeNeedsAttention {
 		t.Fatalf("unexpected receipt: %#v", receipt)
 	}
-	want := []string{"backup", "compose pull", "verify images", "bootstrap migrate up"}
+	want := []string{"backup", "compose pull", "verify images", "stop server web", "bootstrap migrate up"}
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
 	}
@@ -64,6 +71,18 @@ func TestExecuteComposeRunnerRecoversOnlyBeforeMigration(t *testing.T) {
 	}
 	if receipt.MigrationStarted || !receipt.RecoveryCompleted || ClassifyRunnerReceipt(receipt) != ExecutionOutcomeRecovered {
 		t.Fatalf("unexpected receipt: %#v", receipt)
+	}
+}
+
+func TestExecuteComposeRunnerClassifiesStopServicesFailureSeparately(t *testing.T) {
+	input := fixtureRunnerInput(t.TempDir())
+	actions := &tracingRunnerActions{failAt: "stop server web", recover: true}
+	receipt, err := ExecuteComposeRunner(t.Context(), input, actions)
+	if err == nil {
+		t.Fatal("expected stop-services failure")
+	}
+	if receipt.FailureCode != runnerFailureStopServices || !receipt.RecoveryCompleted || receipt.MigrationStarted {
+		t.Fatalf("unexpected stop-services receipt: %#v", receipt)
 	}
 }
 
@@ -144,6 +163,20 @@ type tracingRunnerActions struct {
 	backup            moduleapi.CompleteBackupRunnerHandoffInput
 }
 
+type runnerActionsWithoutReporter struct{}
+
+func (runnerActionsWithoutReporter) Backup(context.Context, RunnerInput) error { return nil }
+func (runnerActionsWithoutReporter) BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput {
+	return moduleapi.CompleteBackupRunnerHandoffInput{}
+}
+func (runnerActionsWithoutReporter) Pull(context.Context, RunnerInput) error             { return nil }
+func (runnerActionsWithoutReporter) VerifyImages(context.Context, RunnerInput) error     { return nil }
+func (runnerActionsWithoutReporter) StopServices(context.Context, RunnerInput) error     { return nil }
+func (runnerActionsWithoutReporter) BootstrapMigrate(context.Context, RunnerInput) error { return nil }
+func (runnerActionsWithoutReporter) Recreate(context.Context, RunnerInput) error         { return nil }
+func (runnerActionsWithoutReporter) DockerHealth(context.Context, RunnerInput) error     { return nil }
+func (runnerActionsWithoutReporter) Healthz(context.Context, RunnerInput) error          { return nil }
+
 func (actions *tracingRunnerActions) RecoverPreMigration(context.Context, RunnerInput) error {
 	if !actions.recover {
 		return errors.New("fixture recovery unavailable")
@@ -174,6 +207,14 @@ func (actions *tracingRunnerActions) Pull(context.Context, RunnerInput) error {
 
 func (actions *tracingRunnerActions) VerifyImages(context.Context, RunnerInput) error {
 	return actions.run("verify images")
+}
+
+func (actions *tracingRunnerActions) StopServices(context.Context, RunnerInput) error {
+	return actions.run("stop server web")
+}
+
+func (actions *tracingRunnerActions) Report(_ RunnerPhase, _ int, _ string, _ string) error {
+	return nil
 }
 
 func (actions *tracingRunnerActions) BootstrapMigrate(context.Context, RunnerInput) error {

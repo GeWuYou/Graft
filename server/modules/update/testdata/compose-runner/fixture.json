@@ -11,6 +11,7 @@
   "expected_trace": [
     "backup",
     "compose pull",
+    "stop server web",
     "bootstrap migrate up",
     "compose recreate server web",
     "docker health",

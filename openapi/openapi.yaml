@@ -743,6 +743,8 @@ components:
       $ref: ./components/schemas/create-platform-update-operation-request.yaml
     EnvelopedPlatformUpdateOperation:
       $ref: ./components/schemas/enveloped-platform-update-operation.yaml
+    EnvelopedPlatformUpdateOperationLaunchAcknowledgement:
+      $ref: ./components/schemas/enveloped-platform-update-operation-launch-acknowledgement.yaml
     EnvelopedPlatformUpdateOperationList:
       $ref: ./components/schemas/enveloped-platform-update-operation-list.yaml
     PlatformUpdateFailureDiagnostic:

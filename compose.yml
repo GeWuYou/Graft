@@ -136,6 +136,8 @@ services:
       - ${GRAFT_PROJECT_IMPORT_HOST_PATH:-./.data/imports}:${GRAFT_PROJECT_IMPORT_CONTAINER_PATH:-/srv/graft-imports}:ro
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
       - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
+      # 更新 runner 独占写入该卷；server 重启后只能读取并投影状态。
+      - graft-update-state:/var/lib/graft/update-state:ro
 
   web:
     image: ghcr.io/gewuyou/graft-web:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
@@ -147,3 +149,7 @@ services:
         condition: service_healthy
     ports:
       - "${GRAFT_WEB_HOST_PORT:-3000}:80"
+
+volumes:
+  graft-update-state:
+    name: ${GRAFT_UPDATE_STATE_VOLUME:-graft-update-state}

@@ -19,6 +19,7 @@ const (
 // ComposeUpdateOperation 是 Update 编排层持有的冻结关联；Task 和 Backup 的持久事实仍分别由各自模块拥有。
 type ComposeUpdateOperation struct {
 	OperationID                string             `json:"operation_id"`
+	RunnerID                   string             `json:"runner_id"`
 	RequestID                  string             `json:"-"`
 	SourceVersion              string             `json:"source_version"`
 	TargetVersion              string             `json:"target_version"`
@@ -83,7 +84,7 @@ func (c *ComposeExecutionCoordinator) Start(ctx context.Context, operation Compo
 		}
 		return ComposeUpdateOperation{}, RunnerInput{}, fmt.Errorf("validate prepared backup handoff: %w", err)
 	}
-	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, TaskID: task.TaskID, BackupArtifactRoot: prepared.ArtifactRoot}, nil
+	return operation, RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: operation.OperationID, RunnerID: operation.RunnerID, SourceVersion: operation.SourceVersion, TargetVersion: operation.TargetVersion, TaskID: task.TaskID, BackupArtifactRoot: prepared.ArtifactRoot}, nil
 }
 
 // CancelBeforeLaunch 通过各 owner capability 清理 runner 尚未启动时的 Task 与 Backup handoff，避免 Update 写入其它模块的事实表。
@@ -121,6 +122,7 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 		return ComposeUpdateOperation{}, fmt.Errorf("settle compose runner receipt: %w", err)
 	}
 	operation.Outcome = outcome
+	operation.RunnerID = settledRunnerID(operation.RunnerID, receipt.RunnerID)
 	operation.ReceiptIntegritySHA256 = integrity
 	operation.FailureCode = receipt.FailureCode
 	operation.RecoveryCompleted = receipt.RecoveryCompleted
@@ -131,10 +133,29 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 }
 
 func validateReceiptSettlement(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation, receipt RunnerReceipt) error {
-	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || !supportedRunnerProtocolVersion(receipt.ProtocolVersion) || receipt.OperationID != operation.OperationID {
+	verifiedRunnerID := settledRunnerID(operation.RunnerID, receipt.RunnerID)
+	if !validReceiptSettlementDependencies(c, operation) || !validReceiptIdentity(operation, receipt, verifiedRunnerID) {
 		return errors.New("invalid")
 	}
 	return nil
+}
+
+func validReceiptSettlementDependencies(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation) bool {
+	return c != nil && c.tasks != nil && c.backups != nil && operation.TaskID != 0
+}
+
+func validReceiptIdentity(operation ComposeUpdateOperation, receipt RunnerReceipt, verifiedRunnerID string) bool {
+	return supportedRunnerProtocolVersion(receipt.ProtocolVersion) &&
+		receipt.OperationID == operation.OperationID &&
+		(verifiedRunnerID == "" || runnerOperationID.MatchString(verifiedRunnerID)) &&
+		(operation.RunnerID == "" || receipt.RunnerID == "" || operation.RunnerID == receipt.RunnerID)
+}
+
+func settledRunnerID(operationRunnerID, receiptRunnerID string) string {
+	if strings.TrimSpace(receiptRunnerID) != "" {
+		return receiptRunnerID
+	}
+	return operationRunnerID
 }
 
 func (c *ComposeExecutionCoordinator) completeBackupHandoff(ctx context.Context, operation ComposeUpdateOperation, input *moduleapi.CompleteBackupRunnerHandoffInput) (uint64, error) {
