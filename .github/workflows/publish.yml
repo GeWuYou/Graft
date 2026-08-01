@@ -47,7 +47,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags --prune origin main:refs/remotes/origin/main
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          git rev-parse --verify 'refs/remotes/origin/main^{commit}'
 
           base_ref="refs/remotes/origin/main"
           if git merge-base --is-ancestor HEAD "${base_ref}"; then
