@@ -103,7 +103,7 @@ assets:
     type: "frontend-component-suite"
     path: "web/src/shared/components/query-list"
     owner: "web/shared"
-    purpose: "Advanced query list page, filter builder, saved-query-view control, column drawer, and paged table components for log-style list/detail workflows."
+    purpose: "Resource Query panel plus advanced query list page, filter builder, saved-query-view control, column drawer, and paged table components for log-style list/detail workflows."
     use_when:
       - "Building searchable list pages with URL-backed filters, server-persisted private query views, sorters, column visibility, or detail drawer coupling."
     do_not_use_when:

@@ -1,10 +1,10 @@
 <template>
-  <advanced-query-filter-builder-frame :frame="builderFrame" message-prefix="accessLog">
+  <resource-query-panel :config="queryConfig" :frame="builderFrame" message-prefix="accessLog">
     <template #saved-query-views>
       <saved-query-view-control v-if="savedViewController" :controller="savedViewController" />
       <slot name="saved-query-views" />
     </template>
-  </advanced-query-filter-builder-frame>
+  </resource-query-panel>
 </template>
 <script setup lang="ts">
 // 筛选器维护可编辑的查询草稿，提交与 URL 同步由列表页的查询边界负责。
@@ -12,7 +12,6 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
-  AdvancedQueryFilterBuilderFrame,
   type AdvancedQueryFilterFieldDefinition,
   type AdvancedQueryFilterTag,
   type AdvancedQueryTimeRangeField,
@@ -20,6 +19,8 @@ import {
   buildAdvancedQueryTimeTag,
   createAdvancedQueryBuilderListeners,
   createAdvancedQueryFilterBuilderFrameStateFromSource,
+  type ResourceQueryConfig,
+  ResourceQueryPanel,
   SavedQueryViewControl,
   type SavedQueryViewController,
   type SavedQueryViewId,
@@ -56,6 +57,16 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'access-log',
+  search: true,
+  filterBuilder: { enabled: true },
+  savedView: true,
+  quickFilters: props.presets.map((preset) => ({ key: preset.key, label: preset.title, patch: {} })),
+  sorting: true,
+  timeRange: true,
+}));
 
 const selectedFieldKey = ref<BuilderFieldKey>('timeRange');
 
