@@ -9,13 +9,37 @@ import type { ResourceQueryFilterDefinition, ResourceQueryState } from './types'
 const valueStub = defineComponent({
   props: ['modelValue', 'value'],
   emits: ['update:modelValue', 'update:value', 'enter'],
-  setup(_, { attrs, emit, slots }) {
-    return () => h('button', { ...attrs, onClick: () => emit('update:modelValue', 'updated') }, slots.default?.());
+  setup(props, { attrs, emit, slots }) {
+    return () =>
+      h(
+        'button',
+        {
+          ...attrs,
+          modelvalue: props.modelValue,
+          value: props.value,
+          onClick: () => emit('update:modelValue', 'updated'),
+        },
+        slots.default?.(),
+      );
   },
 });
 const passthroughStub = defineComponent({
   setup(_, { slots }) {
     return () => h('div', [slots.default?.(), slots.content?.()]);
+  },
+});
+const popupStub = defineComponent({
+  props: { visible: Boolean },
+  emits: ['update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          onClick: () => emit('update:visible', !props.visible),
+        },
+        [slots.default?.(), slots.content?.()],
+      );
   },
 });
 const managementToolbarStub = defineComponent({
@@ -86,7 +110,7 @@ function mountPanel(
         't-date-range-picker': valueStub,
         't-input-number': valueStub,
         't-switch': valueStub,
-        't-popup': passthroughStub,
+        't-popup': popupStub,
         't-drawer': passthroughStub,
         't-button': buttonStub,
         't-tag': tagStub,
@@ -110,13 +134,46 @@ describe('ResourceQueryPanel', () => {
     expect(wrapper.find('.resource-query-panel__simple-filters').exists()).toBe(false);
   });
 
-  it('binds boolean filters through the switch modelValue contract', () => {
+  it('binds boolean filters through the switch modelValue contract', async () => {
     const { wrapper } = mountPanel({ keyword: '', filters: { enabled: true }, page: 1, pageSize: 20 }, [
       { key: 'enabled', label: 'Enabled', type: 'boolean' },
     ]);
 
-    const switchStub = wrapper.get('t-switch');
+    await wrapper.get('[data-testid="resource-query-builder-trigger"]').trigger('click');
+    const switchStub = wrapper.get('.resource-query-panel__field button');
     expect(switchStub.attributes('modelvalue')).toBe('true');
     expect(switchStub.attributes('value')).toBeUndefined();
+  });
+
+  it('marks the more-filters trigger as pressed while its popup is open', async () => {
+    const { wrapper } = mountPanel();
+    const trigger = wrapper.get('[data-testid="resource-query-builder-trigger"]');
+
+    expect(trigger.attributes('theme')).toBe('default');
+    expect(trigger.attributes('variant')).toBe('outline');
+    expect(trigger.attributes('aria-expanded')).toBe('false');
+
+    await trigger.trigger('click');
+
+    expect(trigger.attributes('theme')).toBe('primary');
+    expect(trigger.attributes('variant')).toBe('base');
+    expect(trigger.attributes('aria-expanded')).toBe('true');
+  });
+
+  it('keeps the expanded filters visible after searching', async () => {
+    const { wrapper } = mountPanel();
+    const trigger = wrapper.get('[data-testid="resource-query-builder-trigger"]');
+
+    await trigger.trigger('click');
+    await wrapper.get('[data-testid="resource-query-search"]').trigger('click');
+
+    expect(trigger.attributes('aria-expanded')).toBe('true');
+    expect(wrapper.find('.resource-query-panel__expanded-filters').exists()).toBe(true);
+  });
+
+  it('does not render a more-filters trigger without filter definitions', () => {
+    const { wrapper } = mountPanel({ keyword: '', filters: {}, page: 1, pageSize: 20 }, []);
+
+    expect(wrapper.find('[data-testid="resource-query-builder-trigger"]').exists()).toBe(false);
   });
 });

@@ -19,6 +19,14 @@ const passthroughStub = defineComponent({
     return () => h('button', { ...attrs, onClick: () => emit('click') }, slots.default?.());
   },
 });
+const popupStub = defineComponent({
+  props: { visible: Boolean },
+  emits: ['update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('div', { onClick: () => emit('update:visible', !props.visible) }, [slots.default?.(), slots.content?.()]);
+  },
+});
 
 const inputStub = defineComponent({
   emits: ['enter'],
@@ -86,6 +94,7 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
+          't-popup': popupStub,
           't-collapse': collapseStub,
           't-collapse-panel': collapsePanelStub,
           't-input': inputStub,
@@ -113,6 +122,7 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
+          't-popup': popupStub,
           't-collapse': collapseStub,
           't-collapse-panel': collapsePanelStub,
           't-input': inputStub,
@@ -131,5 +141,36 @@ describe('AdvancedQueryFilterBuilder', () => {
       .find((button) => button.text().trim() === 'Search')
       ?.trigger('click');
     expect(wrapper.emitted('search')).toHaveLength(1);
+  });
+
+  it('marks the add-filter trigger as pressed while its popup is open', async () => {
+    const wrapper = mount(AdvancedQueryFilterBuilder, {
+      props: {
+        ...defaultProps,
+        fields: [{ key: 'status', kind: 'select', label: 'Status' }],
+      },
+      global: {
+        stubs: {
+          't-button': passthroughStub,
+          't-popup': popupStub,
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
+          't-input': inputStub,
+        },
+      },
+    });
+    const trigger = wrapper.findAll('button').find((button) => button.text().trim() === 'Add Filter');
+
+    expect(trigger).toBeDefined();
+
+    expect(trigger?.attributes('theme')).toBe('default');
+    expect(trigger?.attributes('variant')).toBe('dashed');
+    expect(trigger?.attributes('aria-expanded')).toBe('false');
+
+    await trigger?.trigger('click');
+
+    expect(trigger?.attributes('theme')).toBe('primary');
+    expect(trigger?.attributes('variant')).toBe('base');
+    expect(trigger?.attributes('aria-expanded')).toBe('true');
   });
 });

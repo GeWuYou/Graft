@@ -230,7 +230,12 @@
                     </div>
                   </template>
 
-                  <t-button theme="default" variant="dashed">{{ addFilterLabel }}</t-button>
+                  <t-button
+                    :aria-expanded="builderVisible"
+                    :theme="builderVisible ? 'primary' : 'default'"
+                    :variant="builderVisible ? 'base' : 'dashed'"
+                    >{{ addFilterLabel }}</t-button
+                  >
                 </t-popup>
               </div>
             </section>
@@ -487,6 +492,9 @@ function normalizeRange(value: string[] | undefined) {
   display: grid;
   gap: var(--graft-density-gap-16);
   grid-template-columns: minmax(180px, 220px) minmax(320px, 420px);
+  inline-size: min(660px, calc(100vw - 32px));
+  min-inline-size: 560px;
+  min-width: 0;
   padding: var(--graft-density-gap-8);
 }
 
@@ -594,6 +602,8 @@ function normalizeRange(value: string[] | undefined) {
 @media (width <= 900px) {
   .query-filter-builder__popup {
     grid-template-columns: 1fr;
+    inline-size: min(420px, calc(100vw - 32px));
+    min-inline-size: 0;
   }
 }
 

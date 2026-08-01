@@ -7,7 +7,7 @@
       </template>
       <template #toolbar-after-search><slot name="toolbar-after-search" /></template>
     </advanced-query-filter-builder-frame>
-    <management-toolbar v-else data-testid="resource-query-toolbar">
+    <management-toolbar v-else class="resource-query-panel__toolbar" data-testid="resource-query-toolbar">
       <template #filters>
         <div class="resource-query-panel__content">
           <div class="resource-query-panel__main">
@@ -21,27 +21,13 @@
               @update:model-value="updateKeyword"
             />
             <slot name="toolbar-after-search" />
-            <t-popup
-              v-if="filters.length && !compact"
-              v-model:visible="filtersVisible"
-              attach="body"
-              placement="bottom-left"
-              trigger="click"
-            >
-              <template #content>
-                <div class="resource-query-panel__filter-popup">
-                  <filter-fields v-model="draft.filters" :filters="filters" />
-                </div>
-              </template>
-              <t-button data-testid="resource-query-builder-trigger" variant="outline">{{
-                t('app.queryBar.moreFilters')
-              }}</t-button>
-            </t-popup>
             <t-button
-              v-else-if="filters.length"
+              v-if="filters.length && !compact"
               data-testid="resource-query-builder-trigger"
-              variant="outline"
-              @click="filtersVisible = true"
+              :aria-expanded="filtersVisible"
+              :theme="filtersVisible ? 'primary' : 'default'"
+              :variant="filtersVisible ? 'base' : 'outline'"
+              @click="filtersVisible = !filtersVisible"
             >
               {{ t('app.queryBar.moreFilters') }}
             </t-button>
@@ -53,6 +39,10 @@
                 {{ t('app.queryBar.reset') }}
               </t-button>
             </div>
+          </div>
+
+          <div v-if="filtersVisible && !compact && filters.length" class="resource-query-panel__expanded-filters">
+            <filter-fields v-model="draft.filters" :filters="filters" />
           </div>
 
           <div v-if="simpleFiltersVisible && $slots['simple-filters']" class="resource-query-panel__simple-filters">
@@ -108,7 +98,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, defineComponent, h, type PropType, ref, watch } from 'vue';
+import { computed, defineComponent, h, type PropType, ref, resolveComponent, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
@@ -134,6 +124,11 @@ const FilterFields = defineComponent({
   },
   emits: ['update:modelValue'],
   setup(fieldProps, { emit: emitField }) {
+    const inputComponent = resolveComponent('t-input');
+    const selectComponent = resolveComponent('t-select');
+    const dateRangePickerComponent = resolveComponent('t-date-range-picker');
+    const inputNumberComponent = resolveComponent('t-input-number');
+    const switchComponent = resolveComponent('t-switch');
     const setValue = (key: string, value: ResourceQueryFilterValue) =>
       emitField('update:modelValue', { ...fieldProps.modelValue, [key]: value });
     return () =>
@@ -145,7 +140,7 @@ const FilterFields = defineComponent({
           const common = { disabled: field.disabled, placeholder: field.placeholder, value };
           let control;
           if (field.type === 'select' || field.type === 'multi-select') {
-            control = h('t-select', {
+            control = h(selectComponent, {
               ...common,
               modelValue: value,
               multiple: field.type === 'multi-select',
@@ -154,7 +149,7 @@ const FilterFields = defineComponent({
               'onUpdate:modelValue': (next: ResourceQueryFilterValue) => setValue(field.key, next),
             });
           } else if (field.type === 'date-range') {
-            control = h('t-date-range-picker', {
+            control = h(dateRangePickerComponent, {
               ...common,
               modelValue: value,
               clearable: true,
@@ -163,26 +158,26 @@ const FilterFields = defineComponent({
           } else if (field.type === 'number-range') {
             const range = Array.isArray(value) ? value : [];
             control = h('div', { class: 'resource-query-panel__number-range' }, [
-              h('t-input-number', {
+              h(inputNumberComponent, {
                 ...common,
                 modelValue: range[0],
                 'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [next ?? '', range[1] ?? '']),
               }),
               h('span', { class: 'resource-query-panel__range-separator' }, '-'),
-              h('t-input-number', {
+              h(inputNumberComponent, {
                 ...common,
                 modelValue: range[1],
                 'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [range[0] ?? '', next ?? '']),
               }),
             ]);
           } else if (field.type === 'boolean') {
-            control = h('t-switch', {
+            control = h(switchComponent, {
               disabled: field.disabled,
               modelValue: Boolean(value),
               'onUpdate:modelValue': (next: boolean) => setValue(field.key, next),
             });
           } else {
-            control = h('t-input', {
+            control = h(inputComponent, {
               ...common,
               modelValue: typeof value === 'string' ? value : '',
               clearable: true,
@@ -274,7 +269,9 @@ function apply() {
   const next = { ...cloneState(draft.value), page: 1 };
   emit('update:modelValue', next);
   emit('search', next);
-  filtersVisible.value = false;
+  if (compact.value) {
+    filtersVisible.value = false;
+  }
 }
 
 function reset() {
@@ -305,6 +302,10 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
 <style scoped lang="less">
 .resource-query-panel {
   min-width: 0;
+}
+
+.resource-query-panel :deep(.resource-query-panel__toolbar) {
+  align-items: flex-start;
 }
 
 .resource-query-panel__content {
@@ -353,25 +354,70 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   padding-bottom: var(--graft-density-gap-2);
 }
 
-.resource-query-panel__filter-popup {
-  max-height: min(560px, calc(100vh - 160px));
-  overflow: auto;
-  padding: var(--graft-density-gap-16);
-  width: min(560px, calc(100vw - 32px));
+.resource-query-panel__expanded-filters {
+  width: 100%;
 }
 
 .resource-query-panel__fields {
-  display: grid;
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: nowrap;
   gap: var(--graft-density-gap-14);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.resource-query-panel :deep(.resource-query-panel__fields) {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--graft-density-gap-14);
+  width: 100%;
 }
 
 .resource-query-panel__field {
+  align-items: center;
   color: var(--td-text-color-secondary);
   display: flex;
-  flex-direction: column;
+  flex: 1 1 0;
   font: var(--td-font-body-small);
   gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.resource-query-panel__field > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.resource-query-panel__field > :deep(.t-input),
+.resource-query-panel__field > :deep(.t-select),
+.resource-query-panel__field > :deep(.t-date-range-picker),
+.resource-query-panel__field > :deep(.t-input-number),
+.resource-query-panel__field > :deep(.resource-query-panel__number-range) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.resource-query-panel :deep(.resource-query-panel__field) {
+  align-items: center;
+  display: flex;
+  flex: 1 1 0;
+  gap: var(--graft-density-gap-8);
+  min-width: 0;
+}
+
+.resource-query-panel :deep(.resource-query-panel__field > span) {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.resource-query-panel :deep(.resource-query-panel__field > .t-input),
+.resource-query-panel :deep(.resource-query-panel__field > .t-select),
+.resource-query-panel :deep(.resource-query-panel__field > .t-date-range-picker),
+.resource-query-panel :deep(.resource-query-panel__field > .t-input-number),
+.resource-query-panel :deep(.resource-query-panel__field > .resource-query-panel__number-range) {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .resource-query-panel__number-range {
@@ -411,7 +457,21 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   }
 
   .resource-query-panel__fields {
-    grid-template-columns: 1fr;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .resource-query-panel__field {
+    flex-basis: 100%;
+  }
+
+  .resource-query-panel :deep(.resource-query-panel__fields) {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .resource-query-panel :deep(.resource-query-panel__field) {
+    flex-basis: 100%;
   }
 }
 </style>
