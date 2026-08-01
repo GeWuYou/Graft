@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 
 import type { RealtimeTopicEventStreamController } from '@/shared/realtime/sse-client';
+import { isApiRequestError } from '@/utils/request';
 
 import { getUpdateOperation, subscribeToUpdateOperation } from '../api/update';
 import type { UpdateOperation, UpdateOperationLaunchAcknowledgement } from '../types/update';
@@ -11,6 +12,11 @@ const SESSION_STORAGE_KEY = 'graft.platform-update.operation-id';
 const terminalSuccess = new Set<UpdateOperation['phase']>(['SUCCESS']);
 const terminalFailure = new Set<UpdateOperation['phase']>(['FAILED', 'ROLLBACK']);
 const POLL_INTERVAL_MS = 3000;
+const MAX_SNAPSHOT_RETRIES = 5;
+
+function isUnrecoverableSnapshotError(error: unknown) {
+  return isApiRequestError(error) && error.status >= 400 && error.status < 500;
+}
 
 function restoreOperation() {
   try {
@@ -42,6 +48,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       session: 0,
       stream: null as RealtimeTopicEventStreamController | null,
       pollTimer: null as number | null,
+      snapshotRetryCount: 0,
     };
   },
   getters: {
@@ -56,6 +63,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operationID = acknowledgement.operation_id;
       this.operation = null;
       this.lastActivePhase = null;
+      this.snapshotRetryCount = 0;
       this.phase = 'reconnecting';
       await this.refreshSnapshot(this.session);
     },
@@ -69,10 +77,16 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       if (!operationID || session !== this.session) return;
       try {
         const operation = await getUpdateOperation(operationID);
+        this.snapshotRetryCount = 0;
         await this.applyOperation(session, operation);
         if (session === this.session && !this.isTerminal() && !this.stream) this.connect(session);
-      } catch {
+      } catch (error) {
         if (session !== this.session || this.isTerminal()) return;
+        this.snapshotRetryCount += 1;
+        if (isUnrecoverableSnapshotError(error) || this.snapshotRetryCount >= MAX_SNAPSHOT_RETRIES) {
+          this.failSnapshotRecovery();
+          return;
+        }
         this.phase = 'reconnecting';
         this.startPolling(session);
       }
@@ -136,6 +150,13 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       if (this.pollTimer !== null) window.clearInterval(this.pollTimer);
       this.pollTimer = null;
     },
+    failSnapshotRecovery() {
+      this.phase = 'failed';
+      this.stopStream();
+      this.stopPolling();
+      persistOperation(null);
+      this.operationID = null;
+    },
     reset() {
       this.session += 1;
       this.stopStream();
@@ -144,6 +165,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operation = null;
       this.operationID = null;
       this.lastActivePhase = null;
+      this.snapshotRetryCount = 0;
       this.phase = 'idle';
     },
   },

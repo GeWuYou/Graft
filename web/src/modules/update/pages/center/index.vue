@@ -229,7 +229,7 @@
             >
               {{ t('update.center.history.viewCause') }}
             </t-button>
-            <span v-else>{{ row.message || '-' }}</span>
+            <span v-else>{{ historyMessage(row.message) }}</span>
           </template>
         </t-table>
       </t-card>
@@ -370,7 +370,7 @@ const props = defineProps<{
   dataSource?: UpdateCenterDataSource;
 }>();
 
-const { locale, t } = useI18n();
+const { locale, t, te } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const permissionStore = usePermissionStore();
@@ -676,7 +676,12 @@ function showHistoryCause(operation: UpdateOperation) {
   if (props.dataSource) {
     return;
   }
-  void progressStore.begin(operation);
+  void progressStore.begin({ operation_id: operation.operation_id, runner_id: operation.runner_id });
+}
+
+function historyMessage(message: string | undefined) {
+  const key = message ? `update.center.history.messages.${message}` : '';
+  return key && te(key) ? t(key) : message || '-';
 }
 
 function operationPhaseTheme(phase: UpdateOperation['phase']) {

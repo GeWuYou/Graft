@@ -10,9 +10,11 @@
   bounded runner, server/OpenAPI, Web, Compose, and validation batches.
 - Canonical authority: ADR-009, the platform self-update design, official Compose deployment contract, and frozen
   Deployment Runtime snapshots.
-- Completed so far: Work Intake bootstrap, ADR-009, and design/roadmap authority convergence.
-- Not started yet: runtime state-store, controller lifecycle, server projection/API, Web recovery, and end-to-end
-  validation.
+- Completed so far: Work Intake bootstrap, ADR-009, design/roadmap authority convergence, runner state-store and
+  controller lifecycle, Compose state-volume integration, server projection/API/realtime convergence, and Update
+  Center recovery rendering.
+- In progress: cross-boundary validation and archive-readiness review. PR #237 backend validation still needs the
+  current runner-state ownership test failure resolved before the topic can be considered archive-ready.
 
 ## Recovery Receipt
 
@@ -47,8 +49,8 @@ Out of scope:
 ## Current Recovery Point
 
 - ADR-009 replaces only ADR-006's server-owned lifecycle/log-receipt premise and preserves Compose trust boundaries.
-- Next step: implement the state-volume schema, atomic writer, lease/recovery semantics, and runner phase controller
-  before changing server or UI consumers.
+- Next step: complete the remaining backend validation remediation, rerun the required cross-boundary validation, and
+  then perform the archive-readiness review. Do not restart an already-completed implementation batch.
 
 ## Work Intake
 

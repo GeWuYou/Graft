@@ -26,7 +26,6 @@
           <span>{{ t('update.center.progress.currentStage') }}</span>
           <strong>{{ currentStageLabel }}</strong>
         </div>
-        <t-progress data-testid="update-progress-stage" :percentage="currentStagePercentage" :label="false" />
       </section>
       <section v-if="progress.phase === 'failed'" class="update-progress__failure">
         <p>{{ progress.operation?.message || t('update.center.progress.diagnosticUnavailable') }}</p>
@@ -42,6 +41,7 @@ import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useUpdateProgressStore } from '../store/progress';
+import type { UpdateOperationPhase } from '../types/update';
 
 // 后台壳只呈现 runner 快照；服务重建中的连接状态不能覆盖 runner 报告的真实进度。
 const { t } = useI18n();
@@ -56,7 +56,7 @@ const steps = [
   'startServices',
   'healthCheck',
 ] as const;
-const stageIndex: Record<string, number> = {
+const stageIndex: Record<UpdateOperationPhase, number> = {
   READY: 0,
   PREFLIGHT: 1,
   BACKUP: 2,
@@ -74,9 +74,8 @@ const stageStatus = computed(() => {
   if (progress.lastActivePhase) return progress.lastActivePhase;
   return progress.operation?.phase ?? 'READY';
 });
-const currentStep = computed(() => stageIndex[stageStatus.value] ?? 0);
+const currentStep = computed(() => stageIndex[stageStatus.value]);
 const overallPercentage = computed(() => progress.operation?.progress ?? 0);
-const currentStagePercentage = computed(() => overallPercentage.value);
 const currentStageLabel = computed(() => {
   return t(`update.center.history.phases.${stageStatus.value}`);
 });

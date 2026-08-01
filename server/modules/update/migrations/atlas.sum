@@ -1,4 +1,4 @@
-h1:vMFYWIP3RLCm9FyclsCd7n4EHQ8TvywAsgMry2HmOkk=
+h1:nox0BV1yclyVRIySArump4N51OdbzjVRPZ/yeFkqTI8=
 202607220004_update_operations.sql h1:kJkxHi56/Wb+tZG4u8CHHBaAPIzXB3g8G0wOMeSDPHE=
 202607230001_update_discovery_cache.sql h1:v3WS3BxynKEFAy0Qj8I/O0JRoARNwuESJUJj2HsyWHk=
 202607230002_update_operation_lifecycle.sql h1:hdql7ryIO7DImtQGjPlnE5lJNEFEbHMUbXIkA1+Bl2Y=
@@ -8,3 +8,4 @@ h1:vMFYWIP3RLCm9FyclsCd7n4EHQ8TvywAsgMry2HmOkk=
 202607300002_rename_update_operation_deployment_strategy.sql h1:C1fLhZG3RSeQXGSio2GIGI5Nmw+0U/0hXHExXh0P4UE=
 202607310001_update_operation_updated_at.sql h1:aDedh3Yk4zAGcP4ZNQQSkXvDnTHQDVf0Sq3KvB3UZ6o=
 202608010001_update_operation_runner_id.sql h1:kRcCgLx/H2Uf/T8KnHiP+Juv3X51duJVlcrW/n4T9QI=
+202608010002_update_operations_table_comment.sql h1:3x4QEg1DmapkdNKzJII7Wy1D6JUpADvSofnXeF42o5k=

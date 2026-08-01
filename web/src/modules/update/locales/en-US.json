@@ -193,6 +193,12 @@
           "FAILED": "Failed",
           "ROLLBACK": "Rolled back"
         },
+        "messages": {
+          "pulling_images": "Pulling images",
+          "update_completed": "Update completed",
+          "update_failed": "Update failed",
+          "rollback_completed": "Rollback completed"
+        },
         "loadFailed": "Unable to load update history.",
         "retry": "Reload",
         "emptyTitle": "No update records",

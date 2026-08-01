@@ -20,6 +20,7 @@ type ComposeRunnerActions interface {
 	BackupReceipt() moduleapi.CompleteBackupRunnerHandoffInput
 	Pull(context.Context, RunnerInput) error
 	VerifyImages(context.Context, RunnerInput) error
+	StopServices(context.Context, RunnerInput) error
 	BootstrapMigrate(context.Context, RunnerInput) error
 	Recreate(context.Context, RunnerInput) error
 	DockerHealth(context.Context, RunnerInput) error
@@ -36,6 +37,7 @@ const (
 	runnerFailureBackup       = "backup_failed"
 	runnerFailurePull         = "pull_failed"
 	runnerFailureImageVerify  = "image_verification_failed"
+	runnerFailureStopServices = "stop_services_failed"
 	runnerFailureMigration    = "migration_failed"
 	runnerFailureRecreate     = "recreate_failed"
 	runnerFailureDockerHealth = "docker_health_failed"
@@ -107,7 +109,10 @@ func NewRunnerBackupFailure(stage RunnerBackupFailureStage, detail RunnerBackupF
 //nolint:cyclop,funlen // 每一个失败分支都对应不可折叠的升级安全边界和受控终态。
 func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions ComposeRunnerActions) (RunnerReceipt, error) {
 	receipt := RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID}
-	reporter, _ := actions.(RunnerStateReporter)
+	reporter, ok := actions.(RunnerStateReporter)
+	if !ok || reporter == nil {
+		return receipt, errors.New("compose runner state reporter is required")
+	}
 	if err := reportRunnerState(reporter, RunnerPhasePreflight, runnerProgressPreflight, "checking_environment", ""); err != nil {
 		return receipt, fmt.Errorf("persist runner preflight state: %w", err)
 	}
@@ -170,14 +175,10 @@ func runRunnerPreMigration(ctx context.Context, input RunnerInput, actions Compo
 	if err := reportRunnerState(reporter, RunnerPhaseStopServices, runnerProgressStop, "stopping_services", ""); err != nil {
 		return fmt.Errorf("persist runner stop-services state: %w", err)
 	}
-	if stopper, ok := actions.(interface {
-		StopServices(context.Context, RunnerInput) error
-	}); ok {
-		if err := stopper.StopServices(ctx, input); err != nil {
-			receipt.FailureCode = runnerFailureRecreate
-			receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
-			return finalizeRunnerError(*receipt, errors.Join(err, reportReceiptFailure(reporter, *receipt)))
-		}
+	if err := actions.StopServices(ctx, input); err != nil {
+		receipt.FailureCode = runnerFailureStopServices
+		receipt.RecoveryCompleted = recoverPreMigration(ctx, input, actions)
+		return finalizeRunnerError(*receipt, errors.Join(err, reportReceiptFailure(reporter, *receipt)))
 	}
 	return nil
 }
@@ -226,10 +227,10 @@ func reportReceiptFailure(reporter RunnerStateReporter, receipt RunnerReceipt) e
 }
 
 func reportRunnerState(reporter RunnerStateReporter, phase RunnerPhase, progress int, message, failure string) error {
-	if reporter != nil {
-		return reporter.Report(phase, progress, message, failure)
+	if reporter == nil {
+		return errors.New("compose runner state reporter is required")
 	}
-	return nil
+	return reporter.Report(phase, progress, message, failure)
 }
 
 func emitRunnerProgress(progress RunnerProgress) {

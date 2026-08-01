@@ -50,15 +50,19 @@ func main() {
 	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
 	defer cancel()
 	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{reporter: reporter})
-	if finalizeErr := reporter.Finalize(receipt); finalizeErr != nil {
-		fatal(fmt.Errorf("persist terminal update runner state: %w", finalizeErr))
-	}
+	finalizeErr := reporter.Finalize(receipt)
 	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
 		// 回执不能泄露宿主路径或备份内容，保留原终态以便 server 结算。
 		_, _ = fmt.Fprintln(os.Stderr, "remove backup staging directory: failed")
 	}
 	if err := writeRunnerReceiptLog(os.Stdout, receipt); err != nil {
+		if finalizeErr != nil {
+			fatal(fmt.Errorf("persist terminal update runner state: %w; write runner receipt log: %v", finalizeErr, err))
+		}
 		fatal(fmt.Errorf("write runner receipt log: %w", err))
+	}
+	if finalizeErr != nil {
+		fatal(fmt.Errorf("persist terminal update runner state: %w", finalizeErr))
 	}
 	if executionErr != nil {
 		fatal(executionErr)

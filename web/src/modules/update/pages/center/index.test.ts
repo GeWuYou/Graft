@@ -37,7 +37,12 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   useI18n: () => ({
     locale: { value: 'en-US' },
     t: (key: string, params?: Record<string, unknown>) =>
-      params?.requestId ? `${key}:${String(params.requestId)}` : key,
+      params?.requestId
+        ? `${key}:${String(params.requestId)}`
+        : key === 'update.center.history.messages.update_completed'
+          ? 'Update completed'
+          : key,
+    te: (key: string) => key === 'update.center.history.messages.update_completed',
   }),
 }));
 vi.mock('@/shared/observability', () => ({ formatLocaleDateTime: (value: string) => value }));
@@ -125,7 +130,10 @@ function mountCenter(dataSource?: UpdateCenterDataSource) {
           emits: ['update:modelValue'],
           template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)" />',
         }),
-        't-table': passthrough,
+        't-table': defineComponent({
+          props: { data: { type: Array, default: () => [] } },
+          template: '<section><slot name="message" :row="data[0]" /></section>',
+        }),
         't-tag': passthrough,
         ManagementEmptyState: passthrough,
       },
@@ -532,6 +540,30 @@ describe('UpdateCenter', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('update.center.history.viewCause');
+  });
+
+  it('localizes known runner history messages instead of rendering their internal codes', async () => {
+    const dataSource: UpdateCenterDataSource = {
+      permissions: { check: true, manage: true },
+      getStatus: vi.fn().mockResolvedValue(status([])),
+      checkForUpdates: vi.fn(),
+      getOperations: vi.fn().mockResolvedValue([
+        {
+          operation_id: 'completed-operation',
+          runner_id: 'completed-runner',
+          phase: 'SUCCESS',
+          progress: 100,
+          message: 'update_completed',
+        },
+      ]),
+      getFailureDiagnostic: vi.fn().mockResolvedValue(null),
+      createOperation: vi.fn(),
+    };
+    const wrapper = mountCenter(dataSource);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('Update completed');
+    expect(wrapper.text()).not.toContain('update_completed');
   });
 
   it('keeps server readiness checks scannable and opens diagnostics on demand', async () => {

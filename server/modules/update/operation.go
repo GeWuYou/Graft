@@ -122,9 +122,7 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 		return ComposeUpdateOperation{}, fmt.Errorf("settle compose runner receipt: %w", err)
 	}
 	operation.Outcome = outcome
-	if receipt.RunnerID != "" {
-		operation.RunnerID = receipt.RunnerID
-	}
+	operation.RunnerID = settledRunnerID(operation.RunnerID, receipt.RunnerID)
 	operation.ReceiptIntegritySHA256 = integrity
 	operation.FailureCode = receipt.FailureCode
 	operation.RecoveryCompleted = receipt.RecoveryCompleted
@@ -135,10 +133,29 @@ func (c *ComposeExecutionCoordinator) SettleReceipt(ctx context.Context, operati
 }
 
 func validateReceiptSettlement(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation, receipt RunnerReceipt) error {
-	if c == nil || c.tasks == nil || c.backups == nil || operation.TaskID == 0 || !supportedRunnerProtocolVersion(receipt.ProtocolVersion) || receipt.OperationID != operation.OperationID {
+	verifiedRunnerID := settledRunnerID(operation.RunnerID, receipt.RunnerID)
+	if !validReceiptSettlementDependencies(c, operation) || !validReceiptIdentity(operation, receipt, verifiedRunnerID) {
 		return errors.New("invalid")
 	}
 	return nil
+}
+
+func validReceiptSettlementDependencies(c *ComposeExecutionCoordinator, operation ComposeUpdateOperation) bool {
+	return c != nil && c.tasks != nil && c.backups != nil && operation.TaskID != 0
+}
+
+func validReceiptIdentity(operation ComposeUpdateOperation, receipt RunnerReceipt, verifiedRunnerID string) bool {
+	return supportedRunnerProtocolVersion(receipt.ProtocolVersion) &&
+		receipt.OperationID == operation.OperationID &&
+		(verifiedRunnerID == "" || runnerOperationID.MatchString(verifiedRunnerID)) &&
+		(operation.RunnerID == "" || receipt.RunnerID == "" || operation.RunnerID == receipt.RunnerID)
+}
+
+func settledRunnerID(operationRunnerID, receiptRunnerID string) string {
+	if strings.TrimSpace(receiptRunnerID) != "" {
+		return receiptRunnerID
+	}
+	return operationRunnerID
 }
 
 func (c *ComposeExecutionCoordinator) completeBackupHandoff(ctx context.Context, operation ComposeUpdateOperation, input *moduleapi.CompleteBackupRunnerHandoffInput) (uint64, error) {

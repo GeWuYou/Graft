@@ -48,16 +48,18 @@ closeout:
   materials required by the Work Contract.
 - ADR-009 is the lifecycle authority: the runner writes active state to a named volume, server only verifies and
   projects it, and database history is terminal-only.
-- The first implementation batch must establish runner state durability and recovery before server/UI changes consume
-  it.
+- Runner state durability, recovery behavior, server/UI consumers, and Compose wiring are implemented. The active
+  recovery point is cross-boundary validation and archive-readiness review; do not reopen an implementation batch
+  unless validation identifies a concrete authority repair.
 
 ## Task Checklist
 
 - [x] Work Intake contract, active-topic bootstrap, ADR-009, release-design and roadmap convergence
-- [ ] runner state store, atomic snapshot/events, lease, phase controller, and manual recovery runner
-- [ ] official Compose state-volume contract and runner lifecycle integration
-- [ ] server request admission, read-only projection, terminal-history migration, API, and realtime convergence
-- [ ] Update Center active-state recovery rendering and localization
+- [x] runner state store, atomic snapshot/events, operation mutual exclusion, phase controller, and manual recovery
+  runner
+- [x] official Compose state-volume contract and runner lifecycle integration
+- [x] server request admission, read-only projection, terminal-history migration, API, and realtime convergence
+- [x] Update Center active-state recovery rendering and localization
 - [ ] cross-boundary validation, Compose interruption/restart evidence, and archive-readiness review
 
 ## Acceptance Conditions
@@ -77,17 +79,25 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "work-intake-and-design-authority"
-  ],
-  "pending_batches": [
+    "work-intake-and-design-authority",
     "runner-state-controller-foundation",
     "compose-state-volume-and-lifecycle-integration",
     "server-projection-history-api-and-realtime",
-    "update-center-recovery-rendering",
+    "update-center-recovery-rendering"
+  ],
+  "pending_batches": [
     "cross-boundary-validation-and-archive-readiness"
   ],
-  "current_batch": "runner-state-controller-foundation",
-  "next_batch": "compose-state-volume-and-lifecycle-integration",
+  "current_batch": "cross-boundary-validation-and-archive-readiness",
+  "next_batch": null,
   "closeout_status": "active"
 }
 ```
+
+## Validation Milestone
+
+- PR #237 has completed the web, contract-governance, migration-governance, and static security checks for this
+  refactor.
+- The current backend validation gap is limited to runner-state tests that attempt to change temporary state-root
+  ownership with `chown`; the execution environment rejects that operation. Resolve and revalidate this issue before
+  archive readiness is assessed.

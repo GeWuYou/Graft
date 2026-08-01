@@ -74,6 +74,18 @@ func TestFileRunnerStateStoreRejectsDigestMismatch(t *testing.T) {
 	}
 }
 
+func TestFileRunnerStateStoreRejectsInvalidDeploymentStrategy(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	state := NewRunnerState(RunnerInput{OperationID: "update-state-strategy", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-state-strategy", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	state.Strategy = "unsupported"
+	if err := store.Write(state); err == nil {
+		t.Fatal("expected invalid deployment strategy rejection")
+	}
+}
+
 func TestRolloutReadsActiveRunnerStateBeforeDatabaseHistory(t *testing.T) {
 	store, err := NewFileRunnerStateStore(t.TempDir())
 	if err != nil {
@@ -88,6 +100,20 @@ func TestRolloutReadsActiveRunnerStateBeforeDatabaseHistory(t *testing.T) {
 	view, err := rollout.GetOperation(t.Context(), state.OperationID)
 	if err != nil || view.Phase != RunnerPhasePullImages || view.Progress != 30 || view.RunnerID != state.RunnerID {
 		t.Fatalf("runner state projection = %#v, %v", view, err)
+	}
+}
+
+func TestRolloutGetOperationReturnsCorruptRunnerStateError(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(store.root, "current.json"), []byte(`{"schema_version":1}`), 0o600); err != nil {
+		t.Fatalf("write corrupt state: %v", err)
+	}
+	rollout := &RolloutService{stateStore: store}
+	if _, err := rollout.GetOperation(t.Context(), "update-state-corrupt"); err == nil || !strings.Contains(err.Error(), "read runner state") {
+		t.Fatalf("get corrupt runner state error = %v", err)
 	}
 }
 

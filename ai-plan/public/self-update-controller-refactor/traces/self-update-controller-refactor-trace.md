@@ -20,21 +20,33 @@
 - A stale non-terminal operation is recovered by an authorized manual recovery runner, not by a server write or an
   automatic database rollback.
 
+## 2026-08-01 Implementation And Validation Recovery Point
+
+- Completed the runner state-store/controller, Compose state-volume integration, server projection/history/API/realtime
+  work, and Update Center recovery rendering described by the first four implementation batches.
+- Moved the active batch to `cross-boundary-validation-and-archive-readiness`; the implementation batches must not be
+  restarted solely because older recovery material still listed them as pending.
+- PR #237 completed web, contract-governance, migration-governance, and static security checks. Backend runner-state
+  tests currently fail where the test state-root setup invokes `chown`, which the execution environment rejects;
+  resolve that validation issue and rerun the required cross-boundary checks before archive readiness.
+
 ## Loop Batch State
 
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["work-intake-and-design-authority"],
-  "pending_batches": [
+  "completed_batches": [
+    "work-intake-and-design-authority",
     "runner-state-controller-foundation",
     "compose-state-volume-and-lifecycle-integration",
     "server-projection-history-api-and-realtime",
-    "update-center-recovery-rendering",
+    "update-center-recovery-rendering"
+  ],
+  "pending_batches": [
     "cross-boundary-validation-and-archive-readiness"
   ],
-  "current_batch": "runner-state-controller-foundation",
-  "next_batch": "compose-state-volume-and-lifecycle-integration",
+  "current_batch": "cross-boundary-validation-and-archive-readiness",
+  "next_batch": null,
   "closeout_status": "active"
 }
 ```

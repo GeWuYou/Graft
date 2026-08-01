@@ -51,11 +51,11 @@ identity needed to bind it to the accepted request. Phases are `READY`, `PREFLIG
   safe diagnostics. PostgreSQL is the business-history authority after verified terminal projection, never the
   authority for active runner phase or progress.
 
-The runner has no PostgreSQL credentials and no runner HTTP, SSE, or WebSocket service. It acquires a state-volume
-lease and heartbeat before execution so only one non-terminal operation exists. A stale lease, invalid state, or
-integrity mismatch fails closed. A stale non-terminal operation is recovered only by a newly authorized manual
-recovery runner, which reads the prior state and writes its own bound recovery transition; `server` must not mutate a
-runner phase to simulate recovery.
+The runner has no PostgreSQL credentials and no runner HTTP, SSE, or WebSocket service. The state store enforces one
+non-terminal operation by rejecting a write for a different `OperationID` while the prior snapshot is non-terminal.
+Invalid state or an integrity mismatch fails closed. A stale non-terminal operation is recovered only by a newly
+authorized manual recovery runner, which reads the prior state and writes its own bound recovery transition; `server`
+must not mutate a runner phase to simulate recovery.
 
 The controlled order is `PREFLIGHT -> BACKUP -> PULL_IMAGES -> STOP_SERVICES -> APPLY_UPDATE -> MIGRATION ->
 START_SERVICES -> HEALTH_CHECK -> terminal`. Before migration begins, a failure may restore the configuration/image

@@ -68,6 +68,7 @@ export function getUpdateOperationDiagnostic(operationID: string) {
   }) as Promise<UpdateFailureDiagnostic>;
 }
 
+/** 仅启动 runner 恢复流程；恢复后的真实状态仍须通过操作快照读取。 */
 export function createUpdateOperation(payload: CreateUpdateOperationRequest) {
   return request.post<UpdateOperationLaunchAcknowledgement>({
     url: UPDATE_API_PATH.OPERATIONS,
@@ -75,7 +76,6 @@ export function createUpdateOperation(payload: CreateUpdateOperationRequest) {
   }) as Promise<UpdateOperationLaunchAcknowledgement>;
 }
 
-/** 仅启动 runner 恢复流程；恢复后的真实状态仍须通过操作快照读取。 */
 type UpdateFailureDiagnosticEnvelope =
   paths['/api/platform/updates/diagnostics/{requestId}']['get']['responses'][200]['content']['application/json'];
 type UpdateFailureDiagnosticData = NonNullable<UpdateFailureDiagnosticEnvelope['data']>;

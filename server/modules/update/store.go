@@ -17,14 +17,7 @@ type OperationStore interface {
 	Settle(context.Context, ComposeUpdateOperation) error
 }
 
-// OperationProgressStore 是 OperationStore 的可选扩展，供 runner 日志恢复推进非终态阶段。
-type OperationProgressStore interface {
-	Advance(context.Context, string, ExecutionOutcome) (ComposeUpdateOperation, bool, error)
-}
-
 var errUpdateOperationNotFound = errors.New("update operation not found")
-
-const updateOperationStatusPlaceholderStart = 3
 
 type sqlOperationStore struct{ db *sql.DB }
 
@@ -87,29 +80,8 @@ func (s *sqlOperationStore) List(ctx context.Context, limit int) ([]ComposeUpdat
 	return items, nil
 }
 
-// Advance 持久化 runner 已证明的非终态阶段，并拒绝倒退、重复和任何终态覆盖。
-func (s *sqlOperationStore) Advance(ctx context.Context, operationID string, outcome ExecutionOutcome) (ComposeUpdateOperation, bool, error) {
-	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) || !isProgressOutcome(outcome) {
-		return ComposeUpdateOperation{}, false, errors.New("update operation progress is invalid")
-	}
-	allowed := progressPredecessors(outcome)
-	query := `UPDATE update_operations SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE operation_id = $2 AND status IN (` + placeholders(len(allowed), updateOperationStatusPlaceholderStart) + `) RETURNING operation_id, runner_id, request_id, source_version, target_version, deployment_strategy, task_id, backup_id, requested_by, status, receipt_integrity_sha256, failure_code, recovery_completed, created_at, started_at, updated_at, finished_at, EXISTS(SELECT 1 FROM update_failure_diagnostics WHERE update_failure_diagnostics.operation_id = update_operations.operation_id)`
-	args := []any{outcome, operationID}
-	for _, previous := range allowed {
-		args = append(args, previous)
-	}
-	item, err := scanOperation(s.db.QueryRowContext(ctx, query, args...))
-	if errors.Is(err, errUpdateOperationNotFound) {
-		return ComposeUpdateOperation{}, false, nil
-	}
-	if err != nil {
-		return ComposeUpdateOperation{}, false, err
-	}
-	return item, true, nil
-}
-
 func (s *sqlOperationStore) Settle(ctx context.Context, value ComposeUpdateOperation) error {
-	if s == nil || s.db == nil || !runnerOperationID.MatchString(value.OperationID) || !validOutcome(value.Outcome) {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || !validOutcome(value.Outcome) {
 		return errors.New("settled update operation is invalid")
 	}
 	result, err := s.db.ExecContext(ctx, `UPDATE update_operations SET runner_id = $1, backup_id = $2, status = $3,
@@ -147,33 +119,6 @@ func scanOperation(row operationScanner) (ComposeUpdateOperation, error) {
 	assignOperationNullableFields(&item, operationNullableFields{runnerID: runnerID, requestID: requestID, backupID: backupID, requestedBy: requestedBy, integrity: integrity, failure: failure, finished: finished})
 	item.CreatedAt, item.StartedAt, item.UpdatedAt = created.UTC(), started.UTC(), updated.UTC()
 	return item, nil
-}
-
-func isProgressOutcome(outcome ExecutionOutcome) bool {
-	return outcome == ExecutionOutcomeBackingUp || outcome == ExecutionOutcomePulling || outcome == ExecutionOutcomeMigrating || outcome == ExecutionOutcomeRecreating || outcome == ExecutionOutcomeVerifying
-}
-func progressPredecessors(outcome ExecutionOutcome) []ExecutionOutcome {
-	switch outcome {
-	case ExecutionOutcomeBackingUp:
-		return []ExecutionOutcome{ExecutionOutcomePlanning}
-	case ExecutionOutcomePulling:
-		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp}
-	case ExecutionOutcomeMigrating:
-		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling}
-	case ExecutionOutcomeRecreating:
-		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling, ExecutionOutcomeMigrating}
-	case ExecutionOutcomeVerifying:
-		return []ExecutionOutcome{ExecutionOutcomePlanning, ExecutionOutcomeBackingUp, ExecutionOutcomePulling, ExecutionOutcomeMigrating, ExecutionOutcomeRecreating}
-	default:
-		return nil
-	}
-}
-func placeholders(count, start int) string {
-	values := make([]string, count)
-	for index := range values {
-		values[index] = fmt.Sprintf("$%d", index+start)
-	}
-	return strings.Join(values, ", ")
 }
 
 type operationNullableFields struct {

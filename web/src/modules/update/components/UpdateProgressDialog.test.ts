@@ -62,7 +62,7 @@ describe('UpdateProgressDialog', () => {
     expect(progress.phase).toBe('idle');
   });
 
-  it('uses the runner-reported percentage for the current phase', () => {
+  it('uses the runner-reported percentage and displays the current phase label', () => {
     const progress = useUpdateProgressStore();
     progress.$patch({
       operation: { operation_id: 'update-1', phase: 'PULL_IMAGES', progress: 45 } as never,
@@ -74,10 +74,7 @@ describe('UpdateProgressDialog', () => {
       'data-percentage': '45',
       'data-label': 'true',
     });
-    expect(wrapper.get('[data-testid="update-progress-stage"]').attributes()).toMatchObject({
-      'data-percentage': '45',
-      'data-label': 'false',
-    });
+    expect(wrapper.find('[data-testid="update-progress-stage"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('update.center.history.phases.PULL_IMAGES');
   });
 
@@ -90,7 +87,7 @@ describe('UpdateProgressDialog', () => {
     });
     const wrapper = mountDialog();
 
-    expect(wrapper.get('[data-testid="update-progress-stage"]').attributes('data-percentage')).toBe('100');
+    expect(wrapper.find('[data-testid="update-progress-stage"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('safe failure reason');
   });
 });

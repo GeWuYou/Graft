@@ -54,7 +54,7 @@ describe('update progress store', () => {
     await first;
 
     expect(store.operationID).toBe('operation-2');
-    expect(store.operation?.operation_id).not.toBe('operation-1');
+    expect(store.operation?.operation_id).toBe('operation-2');
   });
 
   it('restores an unfinished operation by reading its snapshot before reopening SSE', async () => {
@@ -104,5 +104,30 @@ describe('update progress store', () => {
 
     expect(store.phase).toBe('running');
     expect(getUpdateOperation).toHaveBeenCalledOnce();
+  });
+
+  it('clears a persisted operation after an unrecoverable snapshot error', async () => {
+    vi.mocked(getUpdateOperation).mockRejectedValueOnce(
+      Object.assign(new Error('operation not found'), { isApiRequestError: true, status: 404 }),
+    );
+    const store = useUpdateProgressStore();
+
+    await store.begin(acknowledgement('operation-1'));
+
+    expect(store.phase).toBe('failed');
+    expect(store.operationID).toBeNull();
+    expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
+  });
+
+  it('stops retrying after repeated recoverable snapshot errors', async () => {
+    vi.mocked(getUpdateOperation).mockRejectedValue(new Error('service unavailable'));
+    const store = useUpdateProgressStore();
+
+    await store.begin(acknowledgement('operation-1'));
+    await vi.advanceTimersByTimeAsync(12_000);
+
+    expect(store.phase).toBe('failed');
+    expect(store.operationID).toBeNull();
+    expect(getUpdateOperation).toHaveBeenCalledTimes(5);
   });
 });

@@ -55,6 +55,13 @@ func TestReadRunnerProgressKeepsOnlyBoundedLatestMarker(t *testing.T) {
 	}
 }
 
+func TestRunnerStateVolumeNameRejectsInvalidConfiguredValue(t *testing.T) {
+	t.Setenv("GRAFT_UPDATE_STATE_VOLUME", "invalid/name")
+	if _, err := runnerStateVolumeName(); err == nil {
+		t.Fatal("expected invalid state volume name rejection")
+	}
+}
+
 func runnerLabels(operationID string) map[string]string {
 	return runnerLabelsForProtocol(operationID, runnerProtocol)
 }

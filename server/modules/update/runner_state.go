@@ -167,19 +167,23 @@ func (s *FileRunnerStateStore) Write(next RunnerState) error {
 	if err := os.WriteFile(temporary, payload, runnerStateFilePermission); err != nil {
 		return fmt.Errorf("write runner state: %w", err)
 	}
-	if err := os.Rename(temporary, filepath.Join(s.root, "current.json")); err != nil {
-		return fmt.Errorf("publish runner state: %w", err)
-	}
-	if err := os.Chown(filepath.Join(s.root, "current.json"), runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := os.Chown(temporary, runnerStateServerUID, runnerStateServerGID); err != nil {
 		return fmt.Errorf("assign runner state owner: %w", err)
 	}
 	event := append(payload, '\n')
-	path := filepath.Join(s.root, "events", fmt.Sprintf("%020d.json", next.Revision))
-	if err := os.WriteFile(path, event, runnerStateFilePermission); err != nil {
+	eventPath := filepath.Join(s.root, "events", fmt.Sprintf("%020d.json", next.Revision))
+	eventTemporary := eventPath + ".tmp"
+	if err := os.WriteFile(eventTemporary, event, runnerStateFilePermission); err != nil {
 		return fmt.Errorf("write runner state event: %w", err)
 	}
-	if err := os.Chown(path, runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := os.Chown(eventTemporary, runnerStateServerUID, runnerStateServerGID); err != nil {
 		return fmt.Errorf("assign runner state event owner: %w", err)
+	}
+	if err := os.Rename(eventTemporary, eventPath); err != nil {
+		return fmt.Errorf("publish runner state event: %w", err)
+	}
+	if err := os.Rename(temporary, filepath.Join(s.root, "current.json")); err != nil {
+		return fmt.Errorf("publish runner state: %w", err)
 	}
 	return nil
 }
@@ -202,7 +206,7 @@ func NewRunnerState(input RunnerInput, runnerID string, phase RunnerPhase, progr
 
 //nolint:cyclop // 单个快照的全部不变量必须在读取边界一次性验证。
 func validateRunnerState(value RunnerState) error {
-	if value.SchemaVersion != runnerStateSchemaVersion || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
+	if value.SchemaVersion != runnerStateSchemaVersion || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(value.Strategy)) || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
 		return errors.New("runner state is invalid")
 	}
 	if isTerminalRunnerPhase(value.Phase) != (value.FinishedAt != nil) {

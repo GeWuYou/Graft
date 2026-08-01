@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"go.uber.org/zap"
+
 	"graft/server/internal/container"
 	"graft/server/internal/cronx"
 	"graft/server/internal/i18n"
@@ -152,7 +154,7 @@ func (m *Module) Boot(ctx *module.Context) error {
 		return nil
 	}
 	if err := m.rollout.ReconcileRunnerState(ctx.LifecycleContext); err != nil && ctx.Logger != nil {
-		ctx.Logger.Warn("platform update runner state reconciliation deferred")
+		ctx.Logger.Warn("platform update runner state reconciliation deferred", zap.Error(err))
 	}
 	m.rollout.StartRunnerStateProjection(ctx.LifecycleContext)
 	return nil

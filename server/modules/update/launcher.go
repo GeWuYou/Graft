@@ -133,7 +133,11 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 	if err := pulled.Close(); err != nil {
 		return fmt.Errorf("close compose runner pull result: %w", err)
 	}
-	configuration, host := composeRunnerContainerConfig(input, encodedInput)
+	stateVolume, err := runnerStateVolumeName()
+	if err != nil {
+		return fmt.Errorf("validate compose runner state volume: %w", err)
+	}
+	configuration, host := composeRunnerContainerConfig(input, encodedInput, stateVolume)
 	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}}
 	options.Name = composeRunnerContainerName(input.OperationID)
 	created, err := l.client.ContainerCreate(ctx, options)
@@ -304,7 +308,7 @@ func encodeRunnerInput(input RunnerInput) (string, error) {
 	return base64.RawStdEncoding.EncodeToString(contents), nil
 }
 
-func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containertypes.Config, containertypes.HostConfig) {
+func composeRunnerContainerConfig(input RunnerInput, inputPath, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
 	root := input.Preflight.ComposeRoot
 	socket := input.Preflight.DockerSocket
 	groups := []string{}
@@ -316,16 +320,16 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath string) (containe
 	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
 		"io.graft.update.protocol":  runnerProtocol,
-	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", runnerStateVolumeName() + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
+	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", stateVolume + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }
 
-func runnerStateVolumeName() string {
+func runnerStateVolumeName() (string, error) {
 	name := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_STATE_VOLUME"))
 	if name == "" {
-		return "graft-update-state"
+		return "graft-update-state", nil
 	}
 	if !runnerOperationID.MatchString(name) {
-		return "graft-update-state"
+		return "", errors.New("configured update state volume name is invalid")
 	}
-	return name
+	return name, nil
 }

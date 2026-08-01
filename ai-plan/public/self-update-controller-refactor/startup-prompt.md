@@ -41,10 +41,12 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Implement runner state-volume schema, atomic persistence, operation lease, phase controller, and recovery runner.
-2. Replace server lifecycle ownership with request admission, read-only projection, terminal history migration, and
-   API/realtime contract convergence.
-3. Update Compose, Update Center recovery rendering, and cross-boundary tests; then complete archive-readiness review.
+1. Completed: runner state-volume schema, atomic persistence, operation mutual exclusion, phase controller, and
+   recovery path.
+2. Completed: server request admission, read-only projection, terminal history migration, API/realtime contract
+   convergence, Compose state-volume wiring, and Update Center recovery rendering.
+3. Current: resolve outstanding validation remediation, rerun cross-boundary validation, and perform the
+   archive-readiness review. Do not restart the completed implementation batches.
 
 Loop instructions:
 

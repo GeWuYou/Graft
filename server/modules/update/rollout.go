@@ -35,6 +35,7 @@ type RolloutService struct {
 	realtime           realtime.Publisher
 	backupArtifactRoot string
 	stateStore         RunnerStateStore
+	startMu            sync.Mutex
 	statePollMu        sync.Mutex
 	statePollCancel    context.CancelFunc
 	statePollDone      chan struct{}
@@ -138,6 +139,8 @@ func (s *RolloutService) Start(ctx context.Context, input StartRolloutInput) (Co
 	if s == nil || s.discovery == nil || s.operations == nil || s.coordinator == nil || s.launcher == nil || input.RequestedBy == 0 {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "availability", "", errors.New("compose update rollout is unavailable"))
 	}
+	s.startMu.Lock()
+	defer s.startMu.Unlock()
 	if err := s.ensureNoActiveRunner(); err != nil {
 		return ComposeUpdateOperation{}, newRolloutStartFailure(rolloutFailureOperationStartFailed, "runner_state", "", err)
 	}
@@ -191,8 +194,15 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 		return OperationView{}, errors.New("update operation identity is invalid")
 	}
 	if s.stateStore != nil {
-		if state, err := s.stateStore.Read(); err == nil && state.OperationID == operationID {
+		state, err := s.stateStore.Read()
+		switch {
+		case err == nil && state.OperationID == operationID:
 			return updateOperationViewFromRunnerState(state), nil
+		case err != nil && !errors.Is(err, os.ErrNotExist):
+			if s.logger != nil {
+				s.logger.Warn("platform update runner state read failed", zap.Error(err))
+			}
+			return OperationView{}, fmt.Errorf("read runner state: %w", err)
 		}
 	}
 	operation, err := s.operations.Get(ctx, operationID)
@@ -613,7 +623,7 @@ func (s *RolloutService) SettleAvailableReceipts(ctx context.Context) error {
 	}
 	reader, ok := s.launcher.(ComposeRunnerReceiptReader)
 	if !ok {
-		return s.collectRunnerProgress(ctx)
+		return nil
 	}
 	return s.reconcileAvailableReceipts(ctx, reader)
 }
@@ -664,10 +674,9 @@ func (s *RolloutService) publishRunnerState(state RunnerState) {
 }
 
 func (s *RolloutService) reconcileAvailableReceipts(ctx context.Context, reader ComposeRunnerReceiptReader) error {
-	progressErr := s.collectRunnerProgress(ctx)
 	receipts, err := reader.ReadRunnerReceipts(ctx)
 	if err != nil {
-		return errors.Join(progressErr, fmt.Errorf("read retained compose runner receipts: %w", err))
+		return fmt.Errorf("read retained compose runner receipts: %w", err)
 	}
 	var settlementErr error
 	for _, receipt := range receipts {
@@ -675,7 +684,7 @@ func (s *RolloutService) reconcileAvailableReceipts(ctx context.Context, reader 
 			settlementErr = errors.Join(settlementErr, fmt.Errorf("settle retained compose runner receipt: %w", err))
 		}
 	}
-	return errors.Join(progressErr, settlementErr)
+	return settlementErr
 }
 
 // logReceiptReconciliationDeferred 保留固定、无敏感信息的运维信号；下一轮轮询会继续读取未删除的 runner receipt。
@@ -687,44 +696,6 @@ func (s *RolloutService) logReceiptReconciliationDeferred() {
 		zap.String("module", moduleID),
 		zap.String("reason", "runner_receipt_reconciliation_failed"),
 	)
-}
-
-func (s *RolloutService) collectRunnerProgress(ctx context.Context) error {
-	reader, ok := s.launcher.(ComposeRunnerProgressReader)
-	if !ok {
-		return nil
-	}
-	operations, ok := s.operations.(OperationProgressStore)
-	if !ok {
-		return nil
-	}
-	progresses, err := reader.ReadRunnerProgress(ctx)
-	if err != nil {
-		return fmt.Errorf("read retained compose runner progress: %w", err)
-	}
-	var advanceErr error
-	for _, progress := range progresses {
-		outcome, valid := outcomeForRunnerProgress(progress.Progress)
-		if !valid {
-			continue
-		}
-		item, advanced, err := operations.Advance(ctx, progress.OperationID, outcome)
-		if err != nil {
-			advanceErr = errors.Join(advanceErr, fmt.Errorf("advance compose runner progress: %w", err))
-			continue
-		}
-		if advanced {
-			s.publishOperation(item)
-		}
-	}
-	return advanceErr
-}
-
-func (s *RolloutService) publishOperation(operation ComposeUpdateOperation) {
-	if s == nil || s.realtime == nil || !runnerOperationID.MatchString(operation.OperationID) {
-		return
-	}
-	s.realtime.Publish(updateOperationTopic(operation.OperationID), operation)
 }
 
 func updateOperationTopic(operationID string) string {

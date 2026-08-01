@@ -178,6 +178,12 @@
           "FAILED": "失败",
           "ROLLBACK": "已回滚"
         },
+        "messages": {
+          "pulling_images": "正在拉取镜像",
+          "update_completed": "更新已完成",
+          "update_failed": "更新失败",
+          "rollback_completed": "回滚已完成"
+        },
         "loadFailed": "无法加载更新历史。",
         "retry": "重新加载",
         "emptyTitle": "暂无升级记录",
