@@ -18,6 +18,7 @@ type QueryState = {
 const initialView: SavedQueryView<QueryState, number> = {
   id: 1,
   name: 'Running applications',
+  isDefault: false,
   state: { keyword: 'running', pageSize: 20 },
 };
 
@@ -130,12 +131,20 @@ describe('useSavedQueryViews', () => {
     expect(controller.selectedId.value).toBe(1);
 
     await expect(controller.save(' Pending applications ', 'create')).resolves.toBe(true);
-    expect(adapter.create).toHaveBeenCalledWith({ name: 'Pending applications', state: currentState });
+    expect(adapter.create).toHaveBeenCalledWith({
+      name: 'Pending applications',
+      isDefault: false,
+      state: currentState,
+    });
     expect(controller.selectedId.value).toBe(2);
 
     await expect(controller.select(1)).resolves.toBe(true);
     await expect(controller.save('Updated running applications', 'update')).resolves.toBe(true);
-    expect(adapter.update).toHaveBeenCalledWith(1, { name: 'Updated running applications', state: currentState });
+    expect(adapter.update).toHaveBeenCalledWith(1, {
+      name: 'Updated running applications',
+      isDefault: false,
+      state: currentState,
+    });
     expect(controller.selectedView.value?.name).toBe('Updated running applications');
 
     await expect(controller.removeSelected()).resolves.toBe(true);

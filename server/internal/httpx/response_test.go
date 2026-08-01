@@ -143,6 +143,30 @@ func TestWriteAppErrorRejectsUnsupportedDescriptorKind(t *testing.T) {
 	}
 }
 
+func TestWriteSavedViewErrorLogsUnexpectedCause(t *testing.T) {
+	core, entries := observer.New(zapcore.ErrorLevel)
+	restoreGlobals := zap.ReplaceGlobals(zap.New(core))
+	defer restoreGlobals()
+
+	ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/api/access-log/saved-views", nil)
+	ginCtx.Request.Header.Set(RequestIDHeader, "request-saved-view")
+	unexpected := errors.New("column saved_views.is_default does not exist")
+
+	WriteSavedViewError(ginCtx, nil, unexpected)
+
+	if got := entries.Len(); got != 1 {
+		t.Fatalf("expected one internal-error log entry, got %d", got)
+	}
+	entry := entries.All()[0]
+	if entry.Message != "unreported internal error" {
+		t.Fatalf("unexpected log message %q", entry.Message)
+	}
+	if got := entry.ContextMap()["error"]; got != unexpected.Error() {
+		t.Fatalf("logged cause = %#v, want %q", got, unexpected.Error())
+	}
+}
+
 func assertLocalizedErrorEnvelope(t *testing.T, payload ErrorResponse) {
 	t.Helper()
 

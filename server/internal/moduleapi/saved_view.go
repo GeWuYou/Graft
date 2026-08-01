@@ -26,8 +26,10 @@ type SavedView struct {
 	QueryState     json.RawMessage
 	PageSize       int
 	VisibleColumns []string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// IsDefault 表示该视图会在所属用户打开同一列表页面时自动应用。
+	IsDefault bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // SavedViewCreateInput 描述消费者完成 surface 和查询状态校验后创建视图所需的输入。
@@ -38,6 +40,8 @@ type SavedViewCreateInput struct {
 	QueryState     json.RawMessage
 	PageSize       int
 	VisibleColumns []string
+	// IsDefault 为 true 时原子撤销同一用户和页面上的既有默认视图。
+	IsDefault bool
 }
 
 // SavedViewUpdateInput 描述更新 OwnerUserID 所有的已有视图所需的输入。
@@ -49,6 +53,8 @@ type SavedViewUpdateInput struct {
 	QueryState     json.RawMessage
 	PageSize       int
 	VisibleColumns []string
+	// IsDefault 为 true 时原子撤销同一用户和页面上的既有默认视图。
+	IsDefault bool
 }
 
 // SavedViewService 是通用持久化边界；授权和载荷语义仍由消费者拥有。

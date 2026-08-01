@@ -1,5 +1,5 @@
 type: object
-required: [id, name, query_state, page_size, visible_columns, created_at, updated_at]
+required: [id, name, query_state, page_size, visible_columns, is_default, created_at, updated_at]
 properties:
   id:
     type: integer
@@ -23,6 +23,9 @@ properties:
       type: string
       minLength: 1
       maxLength: 120
+  is_default:
+    type: boolean
+    description: Whether this user view is applied by default for its list surface.
   created_at:
     type: string
     format: date-time

@@ -649,12 +649,17 @@ function currentAppLogSavedViewQueryState(): AppLogSavedQueryState {
   return query;
 }
 
-function toAppLogSavedViewRequest(input: { name: string; state: AppLogSavedQueryViewState }): AppLogSavedViewRequest {
+function toAppLogSavedViewRequest(input: {
+  name: string;
+  isDefault: boolean;
+  state: AppLogSavedQueryViewState;
+}): AppLogSavedViewRequest {
   return {
     name: input.name,
     page_size: input.state.pageSize,
     query_state: input.state.queryState as unknown as Record<string, unknown>,
     visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
   };
 }
 

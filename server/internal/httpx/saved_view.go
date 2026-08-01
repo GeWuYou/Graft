@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/i18n"
@@ -23,6 +24,7 @@ type SavedViewRequest struct {
 	QueryState     json.RawMessage `json:"query_state"`
 	PageSize       int             `json:"page_size"`
 	VisibleColumns []string        `json:"visible_columns"`
+	IsDefault      bool            `json:"is_default"`
 }
 
 // SavedViewResponse is the shared wire representation returned by consumer-owned saved-view routes.
@@ -32,6 +34,7 @@ type SavedViewResponse struct {
 	QueryState     json.RawMessage `json:"query_state"`
 	PageSize       int             `json:"page_size"`
 	VisibleColumns []string        `json:"visible_columns"`
+	IsDefault      bool            `json:"is_default"`
 	CreatedAt      string          `json:"created_at"`
 	UpdatedAt      string          `json:"updated_at"`
 }
@@ -95,6 +98,7 @@ func ToSavedViewResponse(view moduleapi.SavedView) (SavedViewResponse, error) {
 		QueryState:     append(json.RawMessage(nil), view.QueryState...),
 		PageSize:       view.PageSize,
 		VisibleColumns: append([]string(nil), view.VisibleColumns...),
+		IsDefault:      view.IsDefault,
 		CreatedAt:      view.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:      view.UpdatedAt.UTC().Format(time.RFC3339),
 	}, nil
@@ -209,6 +213,9 @@ func WriteSavedViewError(ctx *gin.Context, localizer *i18n.Service, err error) {
 	case errors.Is(err, moduleapi.ErrSavedViewNotFound):
 		status = http.StatusNotFound
 		messageKey = "common.not_found"
+	}
+	if status == http.StatusInternalServerError && err != nil {
+		logUnreportedInternalError(ctx, zap.L(), err)
 	}
 	AbortLocalizedError(ctx, localizer, status, messageKey, nil)
 }

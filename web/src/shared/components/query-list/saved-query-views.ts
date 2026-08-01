@@ -6,11 +6,13 @@ export type SavedQueryViewId = number | string;
 export type SavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId> = {
   id: TId;
   name: string;
+  isDefault: boolean;
   state: TState;
 };
 
 export type SavedQueryViewInput<TState> = {
   name: string;
+  isDefault: boolean;
   state: TState;
 };
 
@@ -20,6 +22,7 @@ export type PersistedSavedQueryView<TId extends SavedQueryViewId = SavedQueryVie
   page_size: number;
   query_state: unknown;
   visible_columns: string[];
+  is_default: boolean;
 };
 
 /**
@@ -34,6 +37,7 @@ export function normalizeSavedQueryView<TState, TId extends SavedQueryViewId = S
   return {
     id: view.id,
     name: view.name,
+    isDefault: view.is_default,
     state: {
       pageSize: view.page_size,
       queryState: view.query_state as TState,
@@ -105,7 +109,7 @@ export type SavedQueryViewController<TState, TId extends SavedQueryViewId = Save
   load: () => Promise<boolean>;
   loading: Ref<boolean>;
   removeSelected: () => Promise<boolean>;
-  save: (name: string, mode: 'create' | 'update') => Promise<boolean>;
+  save: (name: string, mode: 'create' | 'update', isDefault?: boolean) => Promise<boolean>;
   selectedId: Ref<TId | undefined>;
   selectedView: ComputedRef<SavedQueryView<TState, TId> | undefined>;
   select: (id: SavedQueryViewId | undefined) => Promise<boolean>;
@@ -203,7 +207,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    * @param mode - 保存模式，创建新视图或更新当前选中的视图
    * @returns 保存成功时为 `true`，否则为 `false`
    */
-  async function save(name: string, mode: 'create' | 'update') {
+  async function save(name: string, mode: 'create' | 'update', isDefault = selectedView.value?.isDefault ?? false) {
     const normalizedName = name.trim();
     if (!normalizedName || (mode === 'update' && !selectedView.value) || isBusy.value) {
       return false;
@@ -214,6 +218,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
     try {
       const input: SavedQueryViewInput<TState> = {
         name: normalizedName,
+        isDefault,
         state: options.serializeCurrentState(),
       };
       const view =

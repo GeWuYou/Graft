@@ -6918,8 +6918,11 @@ type ApplicationRuntimeTargetSummaryProvider string
 type ApplicationSavedView struct {
 	CreatedAt time.Time `json:"created_at"`
 	Id        int64     `json:"id"`
-	Name      string    `json:"name"`
-	PageSize  int       `json:"page_size"`
+
+	// IsDefault Whether this user view is applied by default for its list surface.
+	IsDefault bool   `json:"is_default"`
+	Name      string `json:"name"`
+	PageSize  int    `json:"page_size"`
 
 	// QueryState Consumer-validated filter and query state. It never contains the current page number.
 	QueryState     map[string]interface{} `json:"query_state"`
@@ -6934,8 +6937,10 @@ type ApplicationSavedViewListResponse struct {
 
 // ApplicationSavedViewRequest defines model for application-saved-view-request.
 type ApplicationSavedViewRequest struct {
-	Name     string `json:"name"`
-	PageSize int    `json:"page_size"`
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault *bool  `json:"is_default,omitempty"`
+	Name      string `json:"name"`
+	PageSize  int    `json:"page_size"`
 
 	// QueryState Application-list filter state. The server validates this payload for the application saved-view surface.
 	QueryState struct {
@@ -12176,8 +12181,11 @@ type RuntimeTargetUsageMetric struct {
 
 // SavedView defines model for saved-view.
 type SavedView struct {
-	CreatedAt      time.Time              `json:"created_at"`
-	Id             int64                  `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	Id        int64     `json:"id"`
+
+	// IsDefault Whether this user view is applied by default for its list surface.
+	IsDefault      bool                   `json:"is_default"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`
@@ -12192,6 +12200,8 @@ type SavedViewListResponse struct {
 
 // SavedViewRequest defines model for saved-view-request.
 type SavedViewRequest struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`

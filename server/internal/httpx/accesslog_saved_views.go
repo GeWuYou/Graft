@@ -57,7 +57,7 @@ func listAccessLogSavedViews(ctx context.Context, service moduleapi.SavedViewSer
 // createAccessLogSavedView 创建并返回访问日志的已保存视图。
 // 如果服务、所有者标识或请求无效，则返回相应错误。
 //
- // 参数 ownerID 指定已保存视图的所有者。
+// 参数 ownerID 指定已保存视图的所有者。
 //
 // 返回创建的已保存视图及错误。
 func createAccessLogSavedView(ctx context.Context, service moduleapi.SavedViewService, ownerID uint64, request SavedViewRequest) (moduleapi.SavedView, error) {
@@ -67,7 +67,7 @@ func createAccessLogSavedView(ctx context.Context, service moduleapi.SavedViewSe
 	if err := validateAccessLogSavedView(request); err != nil {
 		return moduleapi.SavedView{}, err
 	}
-	return service.Create(ctx, moduleapi.SavedViewCreateInput{OwnerUserID: ownerID, SurfaceKey: accessLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns})
+	return service.Create(ctx, moduleapi.SavedViewCreateInput{OwnerUserID: ownerID, SurfaceKey: accessLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
 }
 
 // updateAccessLogSavedView validates and updates an access log saved view.
@@ -80,7 +80,7 @@ func updateAccessLogSavedView(ctx context.Context, service moduleapi.SavedViewSe
 	if err := validateAccessLogSavedView(request); err != nil {
 		return moduleapi.SavedView{}, err
 	}
-	return service.Update(ctx, moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: ownerID, SurfaceKey: accessLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns})
+	return service.Update(ctx, moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: ownerID, SurfaceKey: accessLogSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
 }
 
 // registerAccessLogSavedViewRoutes registers the HTTP routes for managing access log saved views.

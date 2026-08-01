@@ -1474,6 +1474,7 @@ function currentSavedViewQueryState(): ApplicationSavedViewQueryState {
 
 function toApplicationSavedViewRequest(input: {
   name: string;
+  isDefault: boolean;
   state: ApplicationSavedQueryViewState;
 }): ApplicationSavedViewRequest {
   return {
@@ -1481,6 +1482,7 @@ function toApplicationSavedViewRequest(input: {
     page_size: input.state.pageSize,
     query_state: input.state.queryState,
     visible_columns: input.state.visibleColumns as ApplicationSavedViewRequest['visible_columns'],
+    is_default: input.isDefault,
   };
 }
 

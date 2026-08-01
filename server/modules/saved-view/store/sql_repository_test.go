@@ -95,6 +95,100 @@ func TestSQLRepositoryUpdateReplacesOwnedViewAndRejectsConflicts(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryDefaultViewIsUniqueWithinOwnerAndSurface(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestRepository(t)
+	ctx := context.Background()
+	firstInput := createInput(7, "project.list", "first")
+	firstInput.IsDefault = true
+	first, err := repository.Create(ctx, firstInput)
+	if err != nil {
+		t.Fatalf("create first default view: %v", err)
+	}
+	if !first.IsDefault {
+		t.Fatalf("first view must be returned as default: %#v", first)
+	}
+	secondInput := createInput(7, "project.list", "second")
+	secondInput.IsDefault = true
+	second, err := repository.Create(ctx, secondInput)
+	if err != nil {
+		t.Fatalf("create replacement default view: %v", err)
+	}
+	items, err := repository.List(ctx, 7, "project.list")
+	if err != nil {
+		t.Fatalf("list default views: %v", err)
+	}
+	if len(items) != 2 || countDefaults(items) != 1 || !findView(items, second.ID).IsDefault || findView(items, first.ID).IsDefault {
+		t.Fatalf("expected only second view as default: %#v", items)
+	}
+}
+
+func TestSQLRepositoryUpdateDefaultReplacesExistingDefault(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestRepository(t)
+	ctx := context.Background()
+	defaultInput := createInput(7, "project.list", "default")
+	defaultInput.IsDefault = true
+	created, err := repository.Create(ctx, defaultInput)
+	if err != nil {
+		t.Fatalf("create default view: %v", err)
+	}
+	second, err := repository.Create(ctx, createInput(7, "project.list", "second"))
+	if err != nil {
+		t.Fatalf("create second view: %v", err)
+	}
+	update := updateInput(second, "second")
+	update.IsDefault = true
+	if _, err := repository.Update(ctx, update); err != nil {
+		t.Fatalf("replace default via update: %v", err)
+	}
+	items, err := repository.List(ctx, 7, "project.list")
+	if err != nil || len(items) != 2 || countDefaults(items) != 1 || findView(items, created.ID).IsDefault || !findView(items, second.ID).IsDefault {
+		t.Fatalf("expected update to replace default atomically: %#v, %v", items, err)
+	}
+}
+
+func TestSQLRepositoryMissingDefaultUpdateRollsBackPriorDefault(t *testing.T) {
+	t.Parallel()
+	repository, _ := newTestRepository(t)
+	ctx := context.Background()
+	defaultInput := createInput(7, "project.list", "default")
+	defaultInput.IsDefault = true
+	created, err := repository.Create(ctx, defaultInput)
+	if err != nil {
+		t.Fatalf("create default view: %v", err)
+	}
+	missing := updateInput(created, "missing")
+	missing.ID = created.ID + 100
+	missing.IsDefault = true
+	if _, err := repository.Update(ctx, missing); !errors.Is(err, moduleapi.ErrSavedViewNotFound) {
+		t.Fatalf("expected missing view error, got %v", err)
+	}
+	items, err := repository.List(ctx, 7, "project.list")
+	if err != nil || len(items) != 1 || !items[0].IsDefault {
+		t.Fatalf("failed update must retain prior default: %#v, %v", items, err)
+	}
+}
+
+func countDefaults(items []moduleapi.SavedView) int {
+	count := 0
+	for _, item := range items {
+		if item.IsDefault {
+			count++
+		}
+	}
+	return count
+}
+
+func findView(items []moduleapi.SavedView, id uint64) moduleapi.SavedView {
+	for _, item := range items {
+		if item.ID == id {
+			return item
+		}
+	}
+	return moduleapi.SavedView{}
+}
+
 func TestColumnsValueScanAcceptsDatabaseJSONValues(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -154,9 +248,11 @@ func newTestRepository(t *testing.T) (*SQLRepository, *sql.DB) {
 	if _, err := db.Exec(`CREATE TABLE saved_views (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, owner_user_id INTEGER NOT NULL, surface_key TEXT NOT NULL, name TEXT NOT NULL,
 		query_state_json BLOB NOT NULL, page_size INTEGER NOT NULL, visible_columns_json BLOB NOT NULL,
+		is_default BOOLEAN NOT NULL DEFAULT FALSE,
 		created_at DATETIME NOT NULL, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL, updated_by INTEGER NOT NULL,
 		deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0
-	); CREATE UNIQUE INDEX uq_saved_views_owner_surface_name_live ON saved_views (owner_user_id, surface_key, name) WHERE deleted_at = 0;`); err != nil {
+	); CREATE UNIQUE INDEX uq_saved_views_owner_surface_name_live ON saved_views (owner_user_id, surface_key, name) WHERE deleted_at = 0;
+	CREATE UNIQUE INDEX uq_saved_views_owner_surface_default_live ON saved_views (owner_user_id, surface_key) WHERE deleted_at = 0 AND is_default = TRUE;`); err != nil {
 		t.Fatalf("create saved view test table: %v", err)
 	}
 	repository, err := NewSQLRepository(db)

@@ -33,6 +33,7 @@ type savedViewRequest struct {
 	QueryState     json.RawMessage `json:"query_state"`
 	PageSize       int             `json:"page_size"`
 	VisibleColumns []string        `json:"visible_columns"`
+	IsDefault      bool            `json:"is_default"`
 }
 
 func (s *Service) listSavedViews(ctx context.Context, ownerUserID uint64) ([]moduleapi.SavedView, error) {
@@ -49,7 +50,7 @@ func (s *Service) createSavedView(ctx context.Context, ownerUserID uint64, reque
 	if err := validateProjectListSavedView(request); err != nil {
 		return moduleapi.SavedView{}, err
 	}
-	view, err := s.savedViews.Create(ctx, moduleapi.SavedViewCreateInput{OwnerUserID: ownerUserID, SurfaceKey: projectListSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns})
+	view, err := s.savedViews.Create(ctx, moduleapi.SavedViewCreateInput{OwnerUserID: ownerUserID, SurfaceKey: projectListSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
 	return view, mapSavedViewError(err)
 }
 
@@ -60,7 +61,7 @@ func (s *Service) updateSavedView(ctx context.Context, ownerUserID, id uint64, r
 	if err := validateProjectListSavedView(request); err != nil {
 		return moduleapi.SavedView{}, err
 	}
-	view, err := s.savedViews.Update(ctx, moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: ownerUserID, SurfaceKey: projectListSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns})
+	view, err := s.savedViews.Update(ctx, moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: ownerUserID, SurfaceKey: projectListSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
 	return view, mapSavedViewError(err)
 }
 
@@ -216,7 +217,7 @@ func projectSavedViewRequestFromGenerated(request generated.ApplicationSavedView
 	for index, column := range request.VisibleColumns {
 		visibleColumns[index] = string(column)
 	}
-	return savedViewRequest{Name: request.Name, QueryState: queryState, PageSize: request.PageSize, VisibleColumns: visibleColumns}, nil
+	return savedViewRequest{Name: request.Name, QueryState: queryState, PageSize: request.PageSize, VisibleColumns: visibleColumns, IsDefault: request.IsDefault != nil && *request.IsDefault}, nil
 }
 
 // toGeneratedProjectSavedView 将已保存视图转换为生成的项目视图模型。
@@ -229,5 +230,5 @@ func toGeneratedProjectSavedView(view moduleapi.SavedView) (generated.Applicatio
 	if err := json.Unmarshal(view.QueryState, &queryState); err != nil {
 		return generated.ApplicationSavedView{}, errProjectInvalidArgument
 	}
-	return generated.ApplicationSavedView{Id: int64(view.ID), Name: view.Name, QueryState: queryState, PageSize: view.PageSize, VisibleColumns: append([]string(nil), view.VisibleColumns...), CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}, nil
+	return generated.ApplicationSavedView{Id: int64(view.ID), Name: view.Name, QueryState: queryState, PageSize: view.PageSize, VisibleColumns: append([]string(nil), view.VisibleColumns...), IsDefault: view.IsDefault, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}, nil
 }

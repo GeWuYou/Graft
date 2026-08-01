@@ -21593,6 +21593,7 @@
           "query_state",
           "page_size",
           "visible_columns",
+          "is_default",
           "created_at",
           "updated_at"
         ],
@@ -21621,6 +21622,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this user view is applied by default for its list surface."
           },
           "created_at": {
             "type": "string",
@@ -21693,6 +21698,11 @@
             "items": {
               "type": "string"
             }
+          },
+          "is_default": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this view becomes the user's default for this list surface."
           }
         }
       },
@@ -32355,6 +32365,7 @@
           "query_state",
           "page_size",
           "visible_columns",
+          "is_default",
           "created_at",
           "updated_at"
         ],
@@ -32386,6 +32397,10 @@
               "minLength": 1,
               "maxLength": 120
             }
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this user view is applied by default for its list surface."
           },
           "created_at": {
             "type": "string",
@@ -32517,6 +32532,11 @@
               ],
               "minLength": 1
             }
+          },
+          "is_default": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether this view becomes the user's default for this list surface."
           }
         }
       },

@@ -685,6 +685,7 @@ function currentAccessLogSavedViewQueryState(): AccessLogSavedQueryState {
 
 function toAccessLogSavedViewRequest(input: {
   name: string;
+  isDefault: boolean;
   state: AccessLogSavedQueryViewState;
 }): AccessLogSavedViewRequest {
   return {
@@ -692,6 +693,7 @@ function toAccessLogSavedViewRequest(input: {
     page_size: input.state.pageSize,
     query_state: input.state.queryState as unknown as Record<string, unknown>,
     visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
   };
 }
 
