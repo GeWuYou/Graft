@@ -58,10 +58,9 @@ Typical triggers:
 10. When the current task is being orchestrated by `graft-multi-agent-loop`, treat the current slice as one delegated
    round and end the closeout with one fenced ` ```json ` block containing the machine-readable closeout result:
    - in the default `topic-completion-loop` mode, ordinary batch success must not emit `Next-session startup prompt:`
-   - in `topic-completion-loop`, return updated batch-state fields so the outer main agent can continue in the same
-     session
-   - use `Next-session startup prompt:` only for terminal handoff states such as `blocked`, `archive-ready`, or
-     explicit stop
+   - return round evidence and, when useful, an advisory `suggested_follow_up` containing candidate work or recovery
+     context; do not return controller state or terminal decisions
+   - only the outer main agent decides whether to continue, selects any next batch, and emits terminal handoff output
    - ordinary lint, type, style, or test failures remain owned by the current round worker for diagnosis. Before any
      repair edit, the worker must return the root `AGENTS.md` `Repair Confirmation Interaction Contract` proposal to
      the outer agent; the outer agent must invoke the user's native structured-choice control, and only
@@ -89,6 +88,8 @@ Typical triggers:
 
 - it must not assume the outer loop orchestrator will finish the implementation locally
 - it must return a usable closeout or an explicit blocked state for the current round
+- it must not decide topic completion, update `pending_batches`, choose `next_batch`, or mark the topic
+  `archive-ready`
 
 ## Boundaries
 
@@ -108,27 +109,16 @@ When reporting progress or closeout from this wrapper, keep the result brief and
 4. whether `graft-lessons-learned` was reached through `graft-task-closeout` or explicit lesson delegation
 5. the next-session startup prompt, if a handoff is required
 6. when the task is loop-orchestrated, a trailing JSON closeout object for the current delegated round with:
-   - `closeout_status`
-   - `continue`
-   - `loop_mode`
-   - `current_batch`
-   - `completed_batches`
-   - `pending_batches`
-   - `next_batch`
-   - `next_batch_prompt`
-   - `next_prompt`
-   - `stop_reason`
-   - `validation`
+   - `round_status`
+   - `implementation_result`
+   - `changed_scope`
    - `commit`
-   - `parent_model`
-   - `worker_model`
-   - `model_relation`
-   - `model_rank_verified`
-   - `higher_model_approval`
-   - `consumed_budget`
-   - `remaining_budget`
-   - `scope_expanded`
-   - `risk_level`
+   - `validation_evidence`
+   - `risks`
+   - `blockers`
+   - `model_delegation_evidence`
+   - optional `suggested_follow_up`
+   - do not include `continue`, `pending_batches`, `next_batch`, `archive_ready`, or `topic_complete`
 
 When a loop-orchestrated worker answers a checkpoint request instead of a final closeout, keep the response short and
 structured. It must include:
@@ -151,7 +141,7 @@ Checkpoint responses should also follow these formatting rules:
 
 When this wrapper runs as a `graft-multi-agent-loop` worker in the default `topic-completion-loop` mode:
 
-- `continue=true` means the outer main agent must continue the same-session loop
-- the worker must not treat `continue=true` as a request for a next-session handoff
-- if batches remain, `next_batch` and `next_batch_prompt` must be populated for the outer main agent
-- `next_prompt` must stay `null` unless the current round ends in a terminal handoff state
+- worker completion returns round evidence to the outer main agent; it never completes the topic loop
+- `suggested_follow_up` may preserve recovery context or describe candidate next work, but it is non-authoritative
+- only the outer controller maintains `completed_batches`, `pending_batches`, `current_batch`, and `next_batch`, and
+  only it can select `archive-ready` or `blocked`
