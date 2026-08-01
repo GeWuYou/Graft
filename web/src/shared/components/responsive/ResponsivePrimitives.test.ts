@@ -42,6 +42,26 @@ class ResizeObserverMock {
   }
 }
 
+const overlaySurfaceStub = defineComponent({
+  name: 'OverlaySurfaceStub',
+  props: {
+    closeOnOverlayClick: { type: Boolean, default: false },
+  },
+  emits: ['overlay-click'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h(
+        'div',
+        {
+          'data-close-on-overlay-click': String(props.closeOnOverlayClick),
+          'data-testid': 'responsive-overlay-surface',
+          onClick: () => emit('overlay-click'),
+        },
+        slots.default?.(),
+      );
+  },
+});
+
 describe('responsive primitives', () => {
   afterEach(() => {
     ResizeObserverMock.instances = [];
@@ -233,6 +253,40 @@ describe('responsive primitives', () => {
     expect(wrapper.text()).toContain('app-shared-postgres');
     expect(wrapper.find('.resource-detail-content__actions').exists()).toBe(false);
     expect(Object.keys(wrapper.props())).not.toContain('isMobile');
+  });
+
+  it('closes a desktop detail drawer when its overlay is clicked', async () => {
+    vi.stubGlobal('innerWidth', 1440);
+    const wrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', title: 'Network detail', visible: true },
+      slots: { default: '<p>Network configuration</p>' },
+      global: { stubs: { 't-drawer': overlaySurfaceStub } },
+    });
+    await nextTick();
+
+    const surface = wrapper.get('[data-testid="responsive-overlay-surface"]');
+    expect(surface.attributes('data-close-on-overlay-click')).toBe('true');
+
+    await surface.trigger('click');
+
+    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
+  });
+
+  it('closes a compact detail dialog when its overlay is clicked', async () => {
+    vi.stubGlobal('innerWidth', 390);
+    const wrapper = mount(ResourceDetailLayout, {
+      props: { backLabel: 'Back', title: 'Network detail', visible: true },
+      slots: { default: '<p>Network configuration</p>' },
+      global: { stubs: { 't-dialog': overlaySurfaceStub } },
+    });
+    await nextTick();
+
+    const surface = wrapper.get('[data-testid="responsive-overlay-surface"]');
+    expect(surface.attributes('data-close-on-overlay-click')).toBe('true');
+
+    await surface.trigger('click');
+
+    expect(wrapper.emitted('update:visible')).toEqual([[false]]);
   });
 
   it('keeps footer actions outside the independently scrollable detail body', () => {

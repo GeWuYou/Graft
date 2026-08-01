@@ -6,8 +6,9 @@
     placement="right"
     :footer="false"
     :header="false"
-    :close-on-overlay-click="false"
+    :close-on-overlay-click="true"
     destroy-on-close
+    @overlay-click="close"
     @update:visible="emitVisible"
   >
     <resource-detail-content :title="title" :back-label="backLabel" @back="close">
@@ -23,10 +24,11 @@
     :footer="false"
     :header="false"
     :close-btn="false"
-    :close-on-overlay-click="false"
+    :close-on-overlay-click="true"
     :width="'100vw'"
     class="resource-detail-layout__fullscreen-dialog"
     destroy-on-close
+    @overlay-click="close"
     @update:visible="emitVisible"
   >
     <resource-detail-content :title="title" :back-label="backLabel" @back="close">
