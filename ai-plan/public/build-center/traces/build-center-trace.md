@@ -20,6 +20,12 @@
 - Committed `f58b150f` (`build(module-registry): register Build module`).
 - Validation passed: generated registry refresh, focused Build/registry/app tests, SQL migration gate, `git diff --check`, and `cd server && go run ./cmd/graft validate backend`.
 
+## 2026-08-01 API And Task Submission Scope Conflict
+
+- No API implementation was accepted because `Task Runtime.Submit` rejects ordinary plans whose stage executor has not registered.
+- Build currently has neither its Docker Task executor nor the Project-owned `ApplicationBuildContextResolver` provider required to resolve an authorized workspace context.
+- The API batch explicitly excludes those authority repairs; accepting a request that deterministically fails or substituting an external receipt would violate the Build architecture.
+
 ## Locked Decisions
 
 - Canonical route: `/build/jobs`.
@@ -35,6 +41,7 @@
   "pending_batches": ["phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
   "current_batch": "phase-1-build-api-and-task-submission",
   "next_batch": "phase-1-docker-executor-and-web-workflow",
-  "closeout_status": "in-progress"
+  "closeout_status": "blocked",
+  "stop_reason": "scope conflict: Build submission requires the Project build-context provider and Build Task executor"
 }
 ```

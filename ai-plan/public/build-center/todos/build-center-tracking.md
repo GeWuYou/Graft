@@ -44,7 +44,7 @@ closeout:
 
 - Topic bootstrap and Phase 0 contracts are complete.
 - Phase 1 backend foundation and generated module registration are committed.
-- Current step: implement the Build API and Task submission boundary; Docker executor and web workflow remain later batches.
+- Blocked: a usable Build API submission path requires the Project build-context provider and registered Build Task executor; the current batch forbids both.
 
 ## Task Checklist
 
@@ -70,6 +70,7 @@ closeout:
   "pending_batches": ["phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
   "current_batch": "phase-1-build-api-and-task-submission",
   "next_batch": "phase-1-docker-executor-and-web-workflow",
-  "closeout_status": "in-progress"
+  "closeout_status": "blocked",
+  "stop_reason": "scope conflict: Build submission requires the Project build-context provider and Build Task executor"
 }
 ```
