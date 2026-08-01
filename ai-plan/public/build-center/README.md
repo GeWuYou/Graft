@@ -9,15 +9,15 @@
 - Canonical authority:
   - `ai-plan/design/architecture/docker-build-center.md`
   - `server/modules/build/**` and `web/src/modules/build/**`
-- Completed so far: topic bootstrap and architecture decision.
-- Not started yet: end-to-end persistence, task execution, and UI workflow.
+- Completed so far: topic bootstrap, Phase 0 contracts, Build module registration, and the Docker execution foundation with persisted frozen snapshots and artifact settlement.
+- Next bounded batch: Build read API and the web Build Jobs workflow.
 
 ## Recovery Receipt
 
 - governance source: root `AGENTS.md`
 - task class: `cross-boundary`
-- recovery source: none
-- authority summary: Build owns build jobs and artifacts; Task owns execution state; Container owns Docker execution.
+- recovery source: parent topic `build-center`
+- authority summary: Build owns jobs, artifacts, and frozen snapshots; Task owns execution state/logs/cancel/retry; Container owns Docker execution; Project owns request-time authorization and workspace authority.
 
 ## Owned Scope
 
@@ -47,9 +47,9 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Topic bootstrap is complete; workers are implementing disjoint Phase 0 slices.
-- Risk: generated registries and OpenAPI projections must remain derived outputs.
-- Next step: accept worker closeouts, integrate authority repairs, and run focused validation.
+- Docker execution foundation is committed in `e6d0f5c4` after backend, web, OpenAPI, migration, and diff validation.
+- Risk: generated registries and OpenAPI projections remain derived outputs; web workflow must consume Build-owned read contracts rather than Task or Docker internals.
+- Next step: implement the minimal Build read API and standalone Build Jobs web workflow.
 
 ## Work Intake
 
@@ -58,13 +58,16 @@ Out of scope:
 
 ## Pending Batch Direction
 
-- Accept server Phase 0 contract/module work.
-- Accept web Phase 0 registration/contract work.
-- Follow with one integration batch for generated registration and validation.
+- Add only the Build read API contracts required for the Build Jobs workflow.
+- Build the standalone list/create/detail workflow under `web/src/modules/build/**` using those canonical contracts.
 
 ## Validation Targets
 
 ```bash
+cd server && go run ./cmd/graft validate backend
+cd web && bun run check
+just openapi-check
+python3 scripts/validate_sql_migrations.py
 git diff --check
 ```
 

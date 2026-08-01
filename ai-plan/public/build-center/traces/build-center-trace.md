@@ -20,11 +20,12 @@
 - Committed `f58b150f` (`build(module-registry): register Build module`).
 - Validation passed: generated registry refresh, focused Build/registry/app tests, SQL migration gate, `git diff --check`, and `cd server && go run ./cmd/graft validate backend`.
 
-## 2026-08-01 API And Task Submission Scope Conflict
+## 2026-08-01 Execution Foundation Recovery And Settlement
 
-- No API implementation was accepted because `Task Runtime.Submit` rejects ordinary plans whose stage executor has not registered.
-- Build currently has neither its Docker Task executor nor the Project-owned `ApplicationBuildContextResolver` provider required to resolve an authorized workspace context.
-- The API batch explicitly excludes those authority repairs; accepting a request that deterministically fails or substituting an external receipt would violate the Build architecture.
+- The first `phase-1-build-execution-foundation` worker implemented the Build-owned persisted snapshot, request-time authorization boundary, Task executor runtime-identity repair, artifact settlement, migration, generated registry refresh, and focused regression tests.
+- Backend lint initially identified two complexity findings, unchecked `rows.Close`, an exported error comment, and a capitalized error string. Controller preserved the batch, recorded recovery, and dispatched one explicitly authorized bounded repair worker.
+- The repaired execution scope committed as `e6d0f5c4` (`fix(build): complete frozen execution settlement`). Controller independently verified `cd server && go run ./cmd/graft validate backend`, `cd web && bun run check`, `just openapi-check`, `python3 scripts/validate_sql_migrations.py`, and `git diff --check`.
+- `phase-1-build-execution-foundation` is settled. The non-duplicative remaining Phase 1 batch is `phase-1-build-read-api-and-web-workflow`: expose only Build-owned read contracts required for the standalone Build Jobs list/create/detail workflow.
 
 ## Locked Decisions
 
@@ -37,11 +38,11 @@
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration"],
-  "pending_batches": ["phase-1-build-api-and-task-submission", "phase-1-docker-executor-and-web-workflow"],
-  "current_batch": "phase-1-build-api-and-task-submission",
-  "next_batch": "phase-1-docker-executor-and-web-workflow",
-  "closeout_status": "blocked",
-  "stop_reason": "scope conflict: Build submission requires the Project build-context provider and Build Task executor"
+  "completed_batches": ["phase-0-contracts", "phase-1-build-backend-foundation", "phase-1-generated-registration", "phase-1-build-execution-foundation"],
+  "pending_batches": ["phase-1-build-read-api-and-web-workflow"],
+  "current_batch": "phase-1-build-read-api-and-web-workflow",
+  "next_batch": null,
+  "closeout_status": "active",
+  "stop_reason": null
 }
 ```
