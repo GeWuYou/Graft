@@ -727,6 +727,10 @@ function applyAccessLogSavedQueryView(savedState: AccessLogSavedQueryViewState) 
 }
 
 onMounted(() => {
-  void accessLogSavedViews.load();
+  const routeQuery = parseAccessLogRouteQuery(route.query);
+  const hasExplicitState = Object.values(routeQuery).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  );
+  void accessLogSavedViews.load({ hasExplicitState });
 });
 </script>

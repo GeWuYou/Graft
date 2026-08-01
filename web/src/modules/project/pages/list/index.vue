@@ -1121,7 +1121,7 @@ async function loadRuntimeTargets() {
 }
 
 async function loadSavedViews() {
-  const loaded = await projectSavedViews.load();
+  const loaded = await projectSavedViews.load({ hasExplicitState: false });
   if (!loaded) {
     logger.error('failed to load project saved views');
     MessagePlugin.error(t('project.list.savedViews.loadFailed'));

@@ -2,6 +2,8 @@ import type { ResourceQueryState } from './resource-query/types';
 
 export type ResourceQueryStateSource = 'default-view' | 'defaults' | 'recent' | 'url';
 
+export const RESOURCE_QUERY_PAGE_SIZES = [10, 20, 50, 100] as const;
+
 export type ResourceQueryStateResolution = {
   source: ResourceQueryStateSource;
   state: ResourceQueryState;
@@ -72,7 +74,7 @@ function isResourceQueryState(value: unknown): value is ResourceQueryState {
     candidate.page > 0 &&
     typeof candidate.pageSize === 'number' &&
     Number.isInteger(candidate.pageSize) &&
-    candidate.pageSize > 0 &&
+    RESOURCE_QUERY_PAGE_SIZES.includes(candidate.pageSize as (typeof RESOURCE_QUERY_PAGE_SIZES)[number]) &&
     candidate.filters !== null &&
     typeof candidate.filters === 'object' &&
     !Array.isArray(candidate.filters)

@@ -16,6 +16,10 @@ export type SavedQueryViewInput<TState> = {
   state: TState;
 };
 
+export type SavedQueryViewLoadOptions = {
+  hasExplicitState?: boolean;
+};
+
 export type SerializedSavedQueryViewRequest = {
   name: string;
   page_size: number;
@@ -83,6 +87,18 @@ export function resolveSavedQueryViewColumns(visibleColumns: string[], supported
   return visibleColumns.filter((key) => supported.has(key));
 }
 
+/** 仅在没有显式 URL 状态且服务端只声明一个默认视图时返回该视图。 */
+export function resolveDefaultSavedQueryView<TState, TId extends SavedQueryViewId = SavedQueryViewId>(
+  views: SavedQueryView<TState, TId>[],
+  hasExplicitState = false,
+) {
+  if (hasExplicitState) {
+    return undefined;
+  }
+  const defaults = views.filter((view) => view.isDefault);
+  return defaults.length === 1 ? defaults[0] : undefined;
+}
+
 export type SavedQueryViewPresentationTarget = {
   pagination: { current: number; pageSize: number };
   supportedColumns: Iterable<string>;
@@ -131,7 +147,7 @@ export type SavedQueryViewController<TState, TId extends SavedQueryViewId = Save
   deleting: Ref<boolean>;
   hasSelectedView: ComputedRef<boolean>;
   isBusy: ComputedRef<boolean>;
-  load: () => Promise<boolean>;
+  load: (options?: SavedQueryViewLoadOptions) => Promise<boolean>;
   loading: Ref<boolean>;
   removeSelected: () => Promise<boolean>;
   save: (name: string, mode: 'create' | 'update', isDefault?: boolean) => Promise<boolean>;
@@ -167,7 +183,7 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
    *
    * @returns 成功加载时为 `true`，发生错误时为 `false`。
    */
-  async function load() {
+  async function load(loadOptions: SavedQueryViewLoadOptions = {}) {
     if (isBusy.value) {
       return false;
     }
@@ -178,6 +194,11 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
       views.value = nextViews;
       if (!nextViews.some((view) => view.id === selectedId.value)) {
         selectedId.value = undefined;
+      }
+      const defaultView = resolveDefaultSavedQueryView(nextViews, loadOptions.hasExplicitState);
+      if (defaultView) {
+        await options.applyView(defaultView);
+        selectedId.value = defaultView.id;
       }
       options.onSuccess?.({ operation: 'load' });
       return true;
@@ -252,10 +273,13 @@ export function useSavedQueryViews<TState, TId extends SavedQueryViewId = SavedQ
           : await options.adapter.create(input);
 
       const index = views.value.findIndex((candidate) => candidate.id === view.id);
-      views.value =
+      const nextViews =
         index === -1
           ? [...views.value, view]
           : views.value.map((candidate) => (candidate.id === view.id ? view : candidate));
+      views.value = view.isDefault
+        ? nextViews.map((candidate) => (candidate.id === view.id ? candidate : { ...candidate, isDefault: false }))
+        : nextViews;
       selectedId.value = view.id;
       options.onSuccess?.({ operation, view });
       return true;

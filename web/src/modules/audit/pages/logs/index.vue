@@ -1137,7 +1137,11 @@ watch(
 );
 
 onMounted(() => {
-  void auditSavedViews.load();
+  const routeQuery = parseAuditLogsRouteQuery(route.query);
+  const hasExplicitState = Object.values(routeQuery).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  );
+  void auditSavedViews.load({ hasExplicitState });
 });
 
 onActivated(() => {

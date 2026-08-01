@@ -49,7 +49,7 @@ const overlaySurfaceStub = defineComponent({
   props: {
     closeOnOverlayClick: { type: Boolean, default: false },
   },
-  emits: ['overlay-click'],
+  emits: ['update:visible'],
   setup(props, { emit, slots }) {
     return () =>
       h(
@@ -57,7 +57,7 @@ const overlaySurfaceStub = defineComponent({
         {
           'data-close-on-overlay-click': String(props.closeOnOverlayClick),
           'data-testid': 'responsive-overlay-surface',
-          onClick: () => emit('overlay-click'),
+          onClick: () => emit('update:visible', false),
         },
         slots.default?.(),
       );

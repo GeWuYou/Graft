@@ -28,7 +28,6 @@
     :width="'100vw'"
     class="resource-detail-layout__fullscreen-dialog"
     destroy-on-close
-    @overlay-click="close"
     @update:visible="emitVisible"
   >
     <resource-detail-content :title="title" :back-label="backLabel" @back="close">

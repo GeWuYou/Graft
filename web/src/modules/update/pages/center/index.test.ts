@@ -11,7 +11,7 @@ import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
 import { useUpdateDiscoveryStore } from '../../store/discovery';
 import type { UpdateCenterDataSource } from '../../types/preview';
-import type { UpdateStatus } from '../../types/update';
+import type { UpdateReadinessAction, UpdateStatus } from '../../types/update';
 import UpdateCenter from './index.vue';
 
 const apiMocks = vi.hoisted(() => ({
@@ -628,63 +628,75 @@ describe('UpdateCenter', () => {
     expect(diagnosticDrawer.props('check')).toMatchObject({ id: 'first' });
   });
 
-  it('closes a diagnostic after a successful recheck so it cannot show stale readiness', async () => {
-    const source = status([]);
-    source.readiness = {
-      overall: 'upgrade_blocked',
-      ready_count: 0,
-      total_count: 1,
-      next_action: { id: 'check_updates', type: 'recheck', label_key: 'update.center.check' },
-      checks: [
-        {
-          id: 'compose',
-          order: 10,
-          state: 'failed',
-          severity: 'critical',
-          blocking: true,
-          title_key: 'platformUpdate.readiness.officialCompose.title',
-          summary_key: 'platformUpdate.readiness.officialCompose.failed',
-          evidence: [],
-          actions: [{ id: 'check_updates', type: 'recheck', label_key: 'update.center.check' }],
-        },
-      ],
-    };
-    const refreshedSource = {
-      ...source,
-      readiness: {
-        ...source.readiness,
-        overall: 'upgrade_ready' as const,
-        ready_count: 1,
+  it.each([
+    {
+      name: 'recheck action type',
+      action: { id: 'start_upgrade', type: 'recheck' },
+    },
+    {
+      name: 'check_updates action id',
+      action: { id: 'check_updates', type: 'command', target: 'ignored' },
+    },
+  ] satisfies Array<{ name: string; action: Omit<UpdateReadinessAction, 'label_key'> }>)(
+    'closes a diagnostic after a successful $name so it cannot show stale readiness',
+    async ({ action }) => {
+      const source = status([]);
+      source.readiness = {
+        overall: 'upgrade_blocked',
+        ready_count: 0,
+        total_count: 1,
+        next_action: { ...action, label_key: 'update.center.check' },
         checks: [
           {
-            ...source.readiness.checks[0],
-            state: 'passed' as const,
-            severity: 'success' as const,
-            blocking: false,
+            id: 'compose',
+            order: 10,
+            state: 'failed',
+            severity: 'critical',
+            blocking: true,
+            title_key: 'platformUpdate.readiness.officialCompose.title',
+            summary_key: 'platformUpdate.readiness.officialCompose.failed',
+            evidence: [],
+            actions: [{ ...action, label_key: 'update.center.check' }],
           },
         ],
-      },
-    };
-    const dataSource: UpdateCenterDataSource = {
-      permissions: { check: true, manage: true },
-      getStatus: vi.fn().mockResolvedValue(source),
-      checkForUpdates: vi.fn().mockResolvedValue(refreshedSource),
-      getOperations: vi.fn().mockResolvedValue([]),
-      getFailureDiagnostic: vi.fn(),
-      createOperation: vi.fn(),
-    };
-    const wrapper = mountCenter(dataSource);
-    await flushPromises();
+      };
+      const refreshedSource = {
+        ...source,
+        readiness: {
+          ...source.readiness,
+          overall: 'upgrade_ready' as const,
+          ready_count: 1,
+          checks: [
+            {
+              ...source.readiness.checks[0],
+              state: 'passed' as const,
+              severity: 'success' as const,
+              blocking: false,
+            },
+          ],
+        },
+      };
+      const dataSource: UpdateCenterDataSource = {
+        permissions: { check: true, manage: true },
+        getStatus: vi.fn().mockResolvedValue(source),
+        checkForUpdates: vi.fn().mockResolvedValue(refreshedSource),
+        getOperations: vi.fn().mockResolvedValue([]),
+        getFailureDiagnostic: vi.fn(),
+        createOperation: vi.fn(),
+      };
+      const wrapper = mountCenter(dataSource);
+      await flushPromises();
 
-    expect(wrapper.findAll('button').filter((button) => button.text() === 'update.center.check')).toHaveLength(0);
+      expect(wrapper.findAll('button').filter((button) => button.text() === 'update.center.check')).toHaveLength(0);
 
-    await wrapper.get('[data-testid="update-readiness-detail-compose"]').trigger('click');
-    const diagnosticDrawer = wrapper.getComponent(DiagnosticDrawer);
-    diagnosticDrawer.vm.$emit('action', source.readiness.checks[0].actions[0]);
-    await flushPromises();
+      await wrapper.get('[data-testid="update-readiness-detail-compose"]').trigger('click');
+      const diagnosticDrawer = wrapper.getComponent(DiagnosticDrawer);
+      diagnosticDrawer.vm.$emit('action', source.readiness.checks[0].actions[0]);
+      await flushPromises();
 
-    expect(dataSource.checkForUpdates).toHaveBeenCalledOnce();
-    expect(diagnosticDrawer.props('visible')).toBe(false);
-    expect(diagnosticDrawer.props('check')).toBeNull();
-  });
+      expect(dataSource.checkForUpdates).toHaveBeenCalledOnce();
+      expect(diagnosticDrawer.props('visible')).toBe(false);
+      expect(diagnosticDrawer.props('check')).toBeNull();
+    },
+  );
 });

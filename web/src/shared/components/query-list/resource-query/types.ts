@@ -40,5 +40,4 @@ export type ResourceQueryConfig = {
   quickFilters?: ResourceQueryQuickFilter[];
   timeRange?: boolean;
   sorting?: boolean;
-  columnSetting?: boolean;
 };

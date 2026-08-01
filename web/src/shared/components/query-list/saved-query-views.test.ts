@@ -3,6 +3,7 @@ import { ref } from 'vue';
 
 import {
   applySavedQueryViewPresentation,
+  resolveDefaultSavedQueryView,
   resolveSavedQueryViewColumns,
   type SavedQueryView,
   type SavedQueryViewController,
@@ -24,6 +25,36 @@ const initialView: SavedQueryView<QueryState, number> = {
 };
 
 describe('useSavedQueryViews', () => {
+  it('applies the unique default view only without explicit URL state', async () => {
+    const defaultView = { ...initialView, isDefault: true };
+    const applyView = vi.fn();
+    const controller = useSavedQueryViews({
+      adapter: {
+        list: vi.fn().mockResolvedValue([defaultView]),
+        create: vi.fn(),
+        update: vi.fn(),
+        remove: vi.fn(),
+      },
+      applyView,
+      serializeCurrentState: () => initialView.state,
+    });
+
+    await expect(controller.load({ hasExplicitState: true })).resolves.toBe(true);
+    expect(applyView).not.toHaveBeenCalled();
+    await expect(controller.load()).resolves.toBe(true);
+    expect(applyView).toHaveBeenCalledWith(defaultView);
+    expect(controller.selectedId.value).toBe(defaultView.id);
+  });
+
+  it('does not resolve an ambiguous default view set', () => {
+    const views = [
+      { ...initialView, isDefault: true },
+      { ...initialView, id: 2, isDefault: true },
+    ];
+    expect(resolveDefaultSavedQueryView(views, false)).toBeUndefined();
+    expect(resolveDefaultSavedQueryView([{ ...initialView, isDefault: true }], true)).toBeUndefined();
+  });
+
   it('serializes the common persisted request fields', () => {
     expect(
       serializeSavedQueryViewRequest({
@@ -168,6 +199,25 @@ describe('useSavedQueryViews', () => {
     expect(adapter.remove).toHaveBeenCalledWith(1);
     expect(controller.selectedId.value).toBeUndefined();
     expect(controller.views.value.map((view) => view.id)).toEqual([2]);
+  });
+
+  it('clears other local defaults when the saved result is default', async () => {
+    const existingDefault = { ...initialView, isDefault: true };
+    const savedView = { ...initialView, id: 2, name: 'Pending applications', isDefault: true };
+    const controller = useSavedQueryViews({
+      adapter: {
+        list: vi.fn().mockResolvedValue([existingDefault]),
+        create: vi.fn().mockResolvedValue(savedView),
+        update: vi.fn(),
+        remove: vi.fn(),
+      },
+      applyView: vi.fn(),
+      serializeCurrentState: () => initialView.state,
+    });
+
+    await controller.load({ hasExplicitState: true });
+    await expect(controller.save('Pending applications', 'create', true)).resolves.toBe(true);
+    expect(controller.views.value).toEqual([{ ...existingDefault, isDefault: false }, savedView]);
   });
 
   it('keeps the selected view when applying a replacement fails and delegates errors to the page', async () => {

@@ -689,6 +689,10 @@ function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {
 }
 
 onMounted(() => {
-  void appLogSavedViews.load();
+  const routeQuery = parseAppLogRouteQuery(route.query);
+  const hasExplicitState = Object.values(routeQuery).some((value) =>
+    Array.isArray(value) ? value.length > 0 : Boolean(value),
+  );
+  void appLogSavedViews.load({ hasExplicitState });
 });
 </script>

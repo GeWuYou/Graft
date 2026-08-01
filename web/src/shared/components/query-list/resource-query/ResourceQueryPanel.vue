@@ -177,9 +177,9 @@ const FilterFields = defineComponent({
             ]);
           } else if (field.type === 'boolean') {
             control = h('t-switch', {
-              ...common,
-              value: Boolean(value),
-              'onUpdate:value': (next: boolean) => setValue(field.key, next),
+              disabled: field.disabled,
+              modelValue: Boolean(value),
+              'onUpdate:modelValue': (next: boolean) => setValue(field.key, next),
             });
           } else {
             control = h('t-input', {

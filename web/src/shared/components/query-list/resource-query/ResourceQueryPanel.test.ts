@@ -4,7 +4,7 @@ import { defineComponent, h, ref } from 'vue';
 import { createI18n } from 'vue-i18n';
 
 import ResourceQueryPanel from './ResourceQueryPanel.vue';
-import type { ResourceQueryState } from './types';
+import type { ResourceQueryFilterDefinition, ResourceQueryState } from './types';
 
 const valueStub = defineComponent({
   props: ['modelValue', 'value'],
@@ -15,7 +15,7 @@ const valueStub = defineComponent({
 });
 const passthroughStub = defineComponent({
   setup(_, { slots }) {
-    return () => h('div', slots.default?.());
+    return () => h('div', [slots.default?.(), slots.content?.()]);
   },
 });
 const managementToolbarStub = defineComponent({
@@ -59,6 +59,9 @@ const i18n = createI18n({
 
 function mountPanel(
   modelValue: ResourceQueryState = { keyword: '', filters: { status: 'running' }, page: 3, pageSize: 20 },
+  filterDefinitions: ResourceQueryFilterDefinition[] = [
+    { key: 'status', label: 'Status', type: 'select' as const, options: [{ label: 'Running', value: 'running' }] },
+  ],
 ) {
   const model = ref<ResourceQueryState>(modelValue);
   const wrapper = mount(ResourceQueryPanel, {
@@ -66,9 +69,7 @@ function mountPanel(
       modelValue: model.value,
       config: {
         resource: 'test-resource',
-        filters: [
-          { key: 'status', label: 'Status', type: 'select', options: [{ label: 'Running', value: 'running' }] },
-        ],
+        filters: filterDefinitions,
         quickFilters: [{ key: 'failed', label: 'Failed', patch: { status: 'failed' } }],
       },
       'onUpdate:modelValue': (value: ResourceQueryState) => {
@@ -107,5 +108,15 @@ describe('ResourceQueryPanel', () => {
     const { wrapper } = mountPanel({ keyword: '', filters: {}, page: 1, pageSize: 20 });
     await wrapper.setProps({ simpleFiltersVisible: true });
     expect(wrapper.find('.resource-query-panel__simple-filters').exists()).toBe(false);
+  });
+
+  it('binds boolean filters through the switch modelValue contract', () => {
+    const { wrapper } = mountPanel({ keyword: '', filters: { enabled: true }, page: 1, pageSize: 20 }, [
+      { key: 'enabled', label: 'Enabled', type: 'boolean' },
+    ]);
+
+    const switchStub = wrapper.get('t-switch');
+    expect(switchStub.attributes('modelvalue')).toBe('true');
+    expect(switchStub.attributes('value')).toBeUndefined();
   });
 });

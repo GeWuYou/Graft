@@ -463,7 +463,12 @@ func TestUpgradeWebSocketMarksSuccessfulHandshakeForAccessLog(t *testing.T) {
 	if err := conn.Close(); err != nil {
 		t.Fatalf("close websocket: %v", err)
 	}
-	created := <-repo.createdSignal
+	var created CreateAccessLogInput
+	select {
+	case created = <-repo.createdSignal:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for access log persistence")
+	}
 
 	if created.ConnectionType != AccessLogConnectionTypeWebSocket {
 		t.Fatalf("expected successful websocket to be classified as websocket, got %#v", created)

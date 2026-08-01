@@ -64,7 +64,8 @@ const queryConfig = computed<ResourceQueryConfig>(() => ({
   search: true,
   filterBuilder: { enabled: true },
   savedView: true,
-  quickFilters: props.presets.map((preset) => ({ key: preset.key, label: preset.title, patch: {} })),
+  // 构建器模式由 frame listener 负责应用 preset，避免通用快捷筛选再执行空 patch。
+  quickFilters: [],
   sorting: true,
   timeRange: true,
 }));

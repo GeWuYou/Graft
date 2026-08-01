@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   readResourceQueryState,
   resolveResourceQueryState,
+  RESOURCE_QUERY_PAGE_SIZES,
   resourceQueryStorageKey,
   writeResourceQueryState,
 } from './resource-query-state';
@@ -38,5 +39,22 @@ describe('resource query state', () => {
       expect.stringContaining('"page":1'),
     );
     vi.unstubAllGlobals();
+  });
+
+  it.each([0, 15, 25, 101, 20.5])('rejects unsupported page size %s from persisted state', (pageSize) => {
+    const getItem = vi.fn(() => JSON.stringify({ ...defaults, pageSize }));
+    vi.stubGlobal('window', { localStorage: { getItem, setItem: vi.fn() } });
+    expect(readResourceQueryState('container.images')).toBeUndefined();
+    vi.unstubAllGlobals();
+  });
+
+  it('accepts every supported page size', () => {
+    for (const pageSize of RESOURCE_QUERY_PAGE_SIZES) {
+      vi.stubGlobal('window', {
+        localStorage: { getItem: vi.fn(() => JSON.stringify({ ...defaults, pageSize })) },
+      });
+      expect(readResourceQueryState('container.images')?.pageSize).toBe(pageSize);
+      vi.unstubAllGlobals();
+    }
   });
 });
