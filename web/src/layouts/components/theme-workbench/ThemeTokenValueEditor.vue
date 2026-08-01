@@ -20,7 +20,7 @@
         :model-value="hexDraft"
         placeholder="#0052D9"
         :status="hexInputStatus"
-        @update:model-value="(value) => (hexDraft = String(value ?? ''))"
+        @update:model-value="updateHexDraft"
         @change="commitColorDraft"
         @blur="commitColorDraft"
       />
@@ -34,7 +34,7 @@
         suffix="%"
         type="number"
         :status="opacityInputStatus"
-        @update:model-value="(value) => (opacityDraft = String(value ?? ''))"
+        @update:model-value="updateOpacityDraft"
         @change="commitColorDraft"
         @blur="commitColorDraft"
       />
@@ -44,7 +44,7 @@
       <div class="editor-row__label">{{ t('layout.setting.workbench.token.value') }}</div>
       <t-input
         :model-value="rawValue"
-        @update:model-value="(value) => (rawValue = String(value ?? ''))"
+        @update:model-value="updateRawValue"
         @change="commitRawValue"
         @blur="commitRawValue"
       />
@@ -86,6 +86,18 @@ const colorPickerModes: Array<'monochrome'> = ['monochrome'];
 const rawValue = ref('');
 const hexDraft = ref('');
 const opacityDraft = ref('100');
+
+const updateHexDraft = (value: unknown) => {
+  hexDraft.value = String(value ?? '');
+};
+
+const updateOpacityDraft = (value: unknown) => {
+  opacityDraft.value = String(value ?? '');
+};
+
+const updateRawValue = (value: unknown) => {
+  rawValue.value = String(value ?? '');
+};
 
 const isColorToken = computed(() => isThemeTokenColorKey(props.token.key));
 const parsedColor = computed(() => parseThemeTokenColor(rawValue.value) ?? parseThemeTokenColor(props.value));
