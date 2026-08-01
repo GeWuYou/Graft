@@ -109,6 +109,7 @@ import {
   AdvancedQueryListPage,
   applySavedQueryViewPresentation,
   normalizeSavedQueryView,
+  serializeSavedQueryViewRequest,
   useSavedQueryViews,
 } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage as resolveAppLogErrorMessage } from '@/shared/localized-api-error';
@@ -654,13 +655,7 @@ function toAppLogSavedViewRequest(input: {
   isDefault: boolean;
   state: AppLogSavedQueryViewState;
 }): AppLogSavedViewRequest {
-  return {
-    name: input.name,
-    page_size: input.state.pageSize,
-    query_state: input.state.queryState as unknown as Record<string, unknown>,
-    visible_columns: input.state.visibleColumns,
-    is_default: input.isDefault,
-  };
+  return serializeSavedQueryViewRequest(input);
 }
 
 function applyAppLogSavedQueryView(savedState: AppLogSavedQueryViewState) {

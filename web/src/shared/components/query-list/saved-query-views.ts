@@ -16,6 +16,31 @@ export type SavedQueryViewInput<TState> = {
   state: TState;
 };
 
+export type SerializedSavedQueryViewRequest = {
+  name: string;
+  page_size: number;
+  query_state: Record<string, unknown>;
+  visible_columns: string[];
+  is_default: boolean;
+};
+
+/** 将页面状态序列化为后端保存查询视图请求的公共字段。 */
+export function serializeSavedQueryViewRequest<
+  TState extends {
+    pageSize: number;
+    queryState: unknown;
+    visibleColumns: string[];
+  },
+>(input: SavedQueryViewInput<TState>): SerializedSavedQueryViewRequest {
+  return {
+    name: input.name,
+    page_size: input.state.pageSize,
+    query_state: input.state.queryState as Record<string, unknown>,
+    visible_columns: input.state.visibleColumns,
+    is_default: input.isDefault,
+  };
+}
+
 export type PersistedSavedQueryView<TId extends SavedQueryViewId = SavedQueryViewId> = {
   id: TId;
   name: string;

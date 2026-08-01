@@ -7,6 +7,7 @@ import {
   type SavedQueryView,
   type SavedQueryViewController,
   type SavedQueryViewId,
+  serializeSavedQueryViewRequest,
   useSavedQueryViews,
 } from './saved-query-views';
 
@@ -23,6 +24,22 @@ const initialView: SavedQueryView<QueryState, number> = {
 };
 
 describe('useSavedQueryViews', () => {
+  it('serializes the common persisted request fields', () => {
+    expect(
+      serializeSavedQueryViewRequest({
+        name: 'Pending applications',
+        isDefault: true,
+        state: { pageSize: 25, queryState: { keyword: 'pending' }, visibleColumns: ['name'] },
+      }),
+    ).toEqual({
+      name: 'Pending applications',
+      page_size: 25,
+      query_state: { keyword: 'pending' },
+      visible_columns: ['name'],
+      is_default: true,
+    });
+  });
+
   it('blocks busy re-entry while preserving select(undefined) clearing behavior', async () => {
     let resolveList!: (views: SavedQueryView<QueryState, number>[]) => void;
     const list = vi.fn(
