@@ -373,40 +373,53 @@ func (s *RolloutService) StartRunnerStateProjection(ctx context.Context) {
 	s.statePollMu.Unlock()
 	go func() {
 		defer close(done)
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		var publishedOperation string
-		var publishedRevision uint64
-		for {
-			select {
-			case <-pollCtx.Done():
-				return
-			case <-ticker.C:
-				state, err := s.readRunnerState()
-				if err != nil {
-					if s.logger != nil && !errors.Is(err, os.ErrNotExist) {
-						s.logger.Warn("platform update runner state projection deferred", zap.Error(err))
-					}
-					continue
-				}
-				if state.OperationID != publishedOperation || state.Revision != publishedRevision {
-					s.publishRunnerState(state)
-					publishedOperation, publishedRevision = state.OperationID, state.Revision
-				}
-				if isTerminalRunnerPhase(state.Phase) && state.Receipt != nil {
-					if state.Receipt.OperationID != state.OperationID || state.Receipt.RunnerID != state.RunnerID {
-						if s.logger != nil {
-							s.logger.Warn("platform update runner terminal receipt does not match state snapshot")
-						}
-						continue
-					}
-					if _, err := s.SettlePersistedReceipt(pollCtx, *state.Receipt); err != nil && s.logger != nil {
-						s.logger.Warn("platform update runner terminal settlement deferred", zap.Error(err))
-					}
-				}
-			}
-		}
+		s.runRunnerStateProjection(pollCtx, interval)
 	}()
+}
+
+func (s *RolloutService) runRunnerStateProjection(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	var publishedOperation string
+	var publishedRevision uint64
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			state, err := s.readRunnerState()
+			if err != nil {
+				s.logRunnerStateProjectionError(err)
+				continue
+			}
+			if state.OperationID != publishedOperation || state.Revision != publishedRevision {
+				s.publishRunnerState(state)
+				publishedOperation, publishedRevision = state.OperationID, state.Revision
+			}
+			s.settleRunnerState(ctx, state)
+		}
+	}
+}
+
+func (s *RolloutService) logRunnerStateProjectionError(err error) {
+	if s.logger != nil && !errors.Is(err, os.ErrNotExist) {
+		s.logger.Warn("platform update runner state projection deferred", zap.Error(err))
+	}
+}
+
+func (s *RolloutService) settleRunnerState(ctx context.Context, state RunnerState) {
+	if !isTerminalRunnerPhase(state.Phase) || state.Receipt == nil {
+		return
+	}
+	if state.Receipt.OperationID != state.OperationID || state.Receipt.RunnerID != state.RunnerID {
+		if s.logger != nil {
+			s.logger.Warn("platform update runner terminal receipt does not match state snapshot")
+		}
+		return
+	}
+	if _, err := s.SettlePersistedReceipt(ctx, *state.Receipt); err != nil && s.logger != nil {
+		s.logger.Warn("platform update runner terminal settlement deferred", zap.Error(err))
+	}
 }
 
 // StartReceiptPolling 在 server 重建后持续读取保留 runner 的日志回执。

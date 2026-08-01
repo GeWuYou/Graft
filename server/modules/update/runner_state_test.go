@@ -3,6 +3,7 @@ package update
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -59,12 +60,13 @@ func TestFileRunnerStateStoreRejectsDigestMismatch(t *testing.T) {
 	if err := store.Write(state); err != nil {
 		t.Fatalf("write state: %v", err)
 	}
-	contents, err := os.ReadFile(store.root + "/current.json")
+	contents, err := os.ReadFile(filepath.Join(store.root, "current.json"))
 	if err != nil {
 		t.Fatalf("read state: %v", err)
 	}
 	contents = append(contents[:len(contents)-2], []byte("x\"}")...)
-	if err := os.WriteFile(store.root+"/current.json", contents, 0o600); err != nil {
+	// #nosec G703 -- store.root is created from t.TempDir().
+	if err := os.WriteFile(filepath.Join(store.root, "current.json"), contents, 0o600); err != nil {
 		t.Fatalf("tamper state: %v", err)
 	}
 	if _, err := store.Read(); err == nil || !strings.Contains(err.Error(), "integrity") {
