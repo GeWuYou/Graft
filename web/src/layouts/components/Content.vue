@@ -1,24 +1,16 @@
 <template>
-  <div class="route-view-host route-loading-host">
-    <t-loading
-      class="route-page-loading"
-      :delay="80"
-      :loading="isPageLoading"
-      size="small"
-      :text="t('layout.routeLoading')"
-    >
-      <div class="route-view-shell">
-        <router-view v-if="!isFramePage" v-slot="{ Component }">
-          <transition name="fade" mode="out-in" @after-leave="handleAfterLeave">
-            <keep-alive v-if="shouldKeepActiveViewAlive">
-              <component :is="Component" :key="activeViewKey" />
-            </keep-alive>
-            <component :is="Component" v-else :key="activeViewKey" />
-          </transition>
-        </router-view>
-        <frame-page v-else />
-      </div>
-    </t-loading>
+  <div class="route-view-host route-loading-host" :aria-busy="isPageLoading">
+    <div class="route-view-shell">
+      <router-view v-if="!isFramePage" v-slot="{ Component }">
+        <transition name="fade" mode="out-in" @after-leave="handleAfterLeave">
+          <keep-alive v-if="shouldKeepActiveViewAlive">
+            <component :is="Component" :key="activeViewKey" />
+          </keep-alive>
+          <component :is="Component" v-else :key="activeViewKey" />
+        </transition>
+      </router-view>
+      <frame-page v-else />
+    </div>
   </div>
 </template>
 <script setup lang="ts">
@@ -28,7 +20,6 @@ import { computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 import FramePage from '@/layouts/frame/index.vue';
-import { t } from '@/locales';
 import { routeLoading } from '@/router/route-loading';
 import { useTabsRouterStore } from '@/store';
 import { resolvePageSurfaceType } from '@/utils/route/meta';
@@ -134,8 +125,6 @@ function sanitizeDebugPath(path?: string) {
   position: relative;
 }
 
-.route-page-loading,
-.route-loading-host :deep(.t-loading__parent),
 .route-view-shell {
   display: flex;
   flex: 1;

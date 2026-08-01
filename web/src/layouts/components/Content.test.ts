@@ -56,27 +56,6 @@ const TransitionStub = defineComponent({
   },
 });
 
-const LoadingStub = defineComponent({
-  name: 'TLoading',
-  props: {
-    loading: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  setup(props, { slots }) {
-    return () =>
-      h(
-        'div',
-        {
-          'data-testid': 'route-loading',
-          'data-loading': String(props.loading),
-        },
-        slots.default?.(),
-      );
-  },
-});
-
 vi.mock('vue-router', () => ({
   useRoute: () => routeState,
 }));
@@ -141,7 +120,6 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: LoadingStub,
         },
       },
     });
@@ -184,7 +162,6 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: LoadingStub,
         },
       },
     });
@@ -221,7 +198,6 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: LoadingStub,
         },
       },
     });
@@ -253,7 +229,6 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: LoadingStub,
         },
       },
     });
@@ -282,15 +257,21 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: LoadingStub,
         },
       },
     });
 
-    expect(wrapper.get('[data-testid="route-loading"]').attributes('data-loading')).toBe('true');
+    expect(wrapper.get('.route-loading-host').attributes('aria-busy')).toBe('true');
+    expect(wrapper.find('[data-testid="route-loading"]').exists()).toBe(false);
+    expect(wrapper.find('.route-page-loading-indicator').exists()).toBe(false);
     expect(wrapper.find('.route-loading-host').exists()).toBe(true);
     expect(wrapper.find('.route-refresh-placeholder').exists()).toBe(false);
     expect(wrapper.findComponent({ name: 'RouteContentProbe' }).exists()).toBe(true);
+
+    tabStoreProxy.value!.refreshing = false;
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.get('.route-loading-host').attributes('aria-busy')).toBe('false');
   });
 
   it('changes the rendered route key when the active tab refresh nonce changes', async () => {
@@ -312,7 +293,6 @@ describe('Content', () => {
             template: '<div data-testid="keep-alive" :data-include="include"><slot /></div>',
           },
           FramePage: true,
-          TLoading: LoadingStub,
         },
       },
     });

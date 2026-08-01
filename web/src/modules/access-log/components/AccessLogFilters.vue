@@ -1,11 +1,9 @@
 <template>
-  <resource-query-panel
-    :config="queryConfig"
-    :frame="builderFrame"
-    message-prefix="accessLog"
-    :saved-view-controller="savedViewController"
-  >
-    <template #saved-query-views><slot name="saved-query-views" /></template>
+  <resource-query-panel :config="queryConfig" :frame="builderFrame" message-prefix="accessLog">
+    <template #saved-query-views>
+      <saved-query-view-control v-if="savedViewController" :controller="savedViewController" />
+      <slot name="saved-query-views" />
+    </template>
   </resource-query-panel>
 </template>
 <script setup lang="ts">
@@ -23,6 +21,7 @@ import {
   createAdvancedQueryFilterBuilderFrameStateFromSource,
   type ResourceQueryConfig,
   ResourceQueryPanel,
+  SavedQueryViewControl,
   type SavedQueryViewController,
   type SavedQueryViewId,
   updateAdvancedQueryFilterStateField,
