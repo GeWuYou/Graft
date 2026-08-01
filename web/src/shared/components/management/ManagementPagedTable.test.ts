@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 
 import ManagementPagedTable from './ManagementPagedTable.vue';
 
@@ -82,6 +82,27 @@ describe('ManagementPagedTable', () => {
     await wrapper.get('[data-testid="pagination-change"]').trigger('click');
 
     expect(wrapper.emitted('page-change')?.[0]).toEqual([{ current: 2, pageSize: 20, previous: 1 }]);
+  });
+
+  it('forwards the undefined sort value emitted when sorting is cleared', async () => {
+    const wrapper = mount(ManagementPagedTable, {
+      global: { stubs: { 't-pagination': TPaginationStub, 't-table': TTableStub } },
+      props: {
+        columns: [{ colKey: 'name', title: 'Name' }],
+        current: 1,
+        emptyDescription: 'No rows',
+        emptyTitle: 'Empty',
+        footerSummary: '0-0 / 0',
+        pageSize: 10,
+        rows: [],
+        total: 0,
+      },
+    });
+
+    wrapper.findComponent(TTableStub).vm.$emit('sort-change', undefined);
+    await nextTick();
+
+    expect(wrapper.emitted('sort-change')).toEqual([[undefined]]);
   });
 
   it('lets callers override the default pagination total content', () => {

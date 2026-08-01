@@ -93,11 +93,9 @@
       row-key="name"
       :rows="rows"
       :selected-row-keys="selectedRowKeys"
-      :sort="sort"
       :total="pagination.total"
       @page-change="handlePageChange"
       @select-change="handleSelectChange"
-      @sort-change="handleSortChange"
     >
       <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
@@ -344,7 +342,7 @@
 </template>
 <script setup lang="ts">
 // 数据卷页负责 Docker 数据卷查询与操作，清理流程通过现有批量删除契约执行未使用候选。
-import type { TableProps, TableSort } from 'tdesign-vue-next';
+import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -429,7 +427,6 @@ const selectedVolume = ref<DockerVolumeDetail | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);
 const detailError = ref('');
-const sort = ref<TableSort>({ sortBy: 'size', descending: true });
 const volumeSummary = ref<Awaited<ReturnType<typeof listDockerVolumes>>['summary'] | null>(null);
 const abnormalCount = computed(() => volumeSummary.value?.reference_unknown ?? 0);
 const volumeStatistics = computed<ManagementStatisticItem[]>(() => [
@@ -449,7 +446,7 @@ const columns = computed<TableProps['columns']>(() => [
   { colKey: 'row-select', type: 'multiple' as const, width: 48 },
   { colKey: 'name', title: t('container.volume.columns.name'), minWidth: 280 },
   { colKey: 'status', title: t('container.volume.columns.status'), width: 120 },
-  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const, sorter: true },
+  { colKey: 'size', title: t('container.volume.columns.size'), width: 120, align: 'right' as const },
   { colKey: 'references', title: t('container.volume.columns.mountedContainers'), minWidth: 260 },
   { colKey: 'driver', title: t('container.volume.columns.driver'), width: 120 },
   { colKey: 'created_at', title: t('container.volume.columns.createdAt'), width: 180 },
@@ -489,7 +486,7 @@ function buildQuery(): DockerVolumeListQuery {
     source: applied.value.source || undefined,
     compose_project: applied.value.compose_project || undefined,
     sort_by: 'size_bytes',
-    sort_order: (Array.isArray(sort.value) ? sort.value[0]?.descending : sort.value.descending) ? 'desc' : 'asc',
+    sort_order: 'desc',
   };
 }
 async function refresh() {
@@ -535,12 +532,6 @@ function resetFilters() {
 function handlePageChange(page: { current: number; pageSize: number }) {
   pagination.current = page.current;
   pagination.pageSize = page.pageSize;
-}
-function handleSortChange(nextSort: TableSort) {
-  sort.value = nextSort;
-  const previousPage = pagination.current;
-  pagination.current = 1;
-  if (previousPage === 1) void refresh();
 }
 function volumeRowActions(_row: VolumeRow) {
   return [

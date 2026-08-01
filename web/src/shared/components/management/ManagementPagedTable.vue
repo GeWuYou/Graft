@@ -174,7 +174,7 @@ const emit = defineEmits<{
   (e: 'page-change', pageInfo: PageInfo): void;
   (e: 'row-click', row: TableRowData): void;
   (e: 'select-change', rowKeys: Array<string | number>): void;
-  (e: 'sort-change', sort: TableSort): void;
+  (e: 'sort-change', sort: TableSort | undefined): void;
 }>();
 
 const current = defineModel<number>('current', { required: true });
@@ -225,7 +225,7 @@ function emitSelectChange(rowKeys: Array<string | number>) {
   emit('select-change', rowKeys);
 }
 
-function emitSortChange(sort: TableSort) {
+function emitSortChange(sort: TableSort | undefined) {
   emit('sort-change', sort);
 }
 </script>
