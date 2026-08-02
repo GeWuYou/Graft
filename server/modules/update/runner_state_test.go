@@ -140,6 +140,19 @@ func TestFileRunnerStateStoreKeepsDirectoriesRunnerWritableAndFilesServerOwned(t
 		t.Fatalf("new state store: %v", err)
 	}
 	store.enforceOwnership = true
+	var ownershipCalls []struct {
+		path string
+		uid  int
+		gid  int
+	}
+	store.chown = func(path string, uid, gid int) error {
+		ownershipCalls = append(ownershipCalls, struct {
+			path string
+			uid  int
+			gid  int
+		}{path: path, uid: uid, gid: gid})
+		return nil
+	}
 	input := RunnerInput{OperationID: "update-state-ownership", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
 	state := NewRunnerState(input, "runner-state-ownership", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
 	if err := store.Write(state); err != nil {
@@ -161,6 +174,19 @@ func TestFileRunnerStateStoreKeepsDirectoriesRunnerWritableAndFilesServerOwned(t
 		}
 		if info.Mode().Perm() != runnerStateFilePermission {
 			t.Fatalf("server state file %q = %#o, %v", path, info.Mode().Perm(), statErr)
+		}
+	}
+	if len(ownershipCalls) != 5 {
+		t.Fatalf("ownership calls = %#v, want root/events/event directories and two files", ownershipCalls)
+	}
+	for _, call := range ownershipCalls[:3] {
+		if call.uid != 0 || call.gid != 0 {
+			t.Fatalf("runner directory ownership = (%d, %d), want (0, 0)", call.uid, call.gid)
+		}
+	}
+	for _, call := range ownershipCalls[3:] {
+		if call.uid != runnerStateServerUID || call.gid != runnerStateServerGID {
+			t.Fatalf("server file ownership = (%d, %d), want (%d, %d)", call.uid, call.gid, runnerStateServerUID, runnerStateServerGID)
 		}
 	}
 }

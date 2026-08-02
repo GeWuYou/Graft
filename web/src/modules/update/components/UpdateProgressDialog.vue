@@ -41,7 +41,7 @@
       </section>
       <section v-if="progress.events.length" class="update-progress__events" data-testid="update-progress-events">
         <h3>{{ t('update.center.progress.events.title') }}</h3>
-        <ol>
+        <ol class="graft-scrollbar">
           <li v-for="event in progress.events" :key="event.revision">
             <strong>{{ t(`update.center.history.phases.${event.phase}`) }}</strong>
             <span>{{ eventMessage(event.message) }}</span>
@@ -98,9 +98,7 @@ const currentStageLabel = computed(() => {
   return t(`update.center.history.phases.${stageStatus.value}`);
 });
 const phaseMessage = computed(() => t(`update.center.progress.phase.${progress.phase}`));
-const terminal = computed(
-  () => progress.phase === 'success' || progress.phase === 'failed' || progress.phase === 'unavailable',
-);
+const terminal = computed(() => progress.isTerminal());
 
 const eventMessageKeys = new Set([
   'runner_starting',

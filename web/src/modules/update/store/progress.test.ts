@@ -98,6 +98,21 @@ describe('update progress store', () => {
     expect(subscribeToUpdateOperation).toHaveBeenCalledWith('operation-1', expect.any(Object));
   });
 
+  it('keeps active-operation recovery bound to its captured session after an async continuation', async () => {
+    vi.mocked(getActiveUpdateOperation).mockResolvedValue(operation('operation-1'));
+    const store = useUpdateProgressStore();
+    vi.spyOn(store, 'applyOperation').mockImplementation(async () => {
+      store.session += 1;
+    });
+    const refreshEvents = vi.spyOn(store, 'refreshEvents').mockResolvedValue();
+    const connect = vi.spyOn(store, 'connect').mockImplementation(() => undefined);
+
+    await store.resume();
+
+    expect(refreshEvents).toHaveBeenCalledWith(1);
+    expect(connect).toHaveBeenCalledWith(1);
+  });
+
   it('keeps the shell idle when active operation discovery is temporarily unavailable', async () => {
     vi.mocked(getActiveUpdateOperation).mockRejectedValue(new Error('service unavailable'));
     const store = useUpdateProgressStore();

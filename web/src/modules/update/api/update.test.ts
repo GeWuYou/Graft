@@ -80,7 +80,7 @@ describe('platform update api', () => {
 
     expect(requestGet).toHaveBeenNthCalledWith(1, { url: '/api/platform/updates/operations/update-1' });
     expect(requestGet).toHaveBeenNthCalledWith(2, {
-      url: '/api/platform/updates/operations/active',
+      url: '/api/platform/updates/active-operation',
     });
     expect(requestGet).toHaveBeenNthCalledWith(3, {
       url: '/api/platform/updates/operations/update-1/events',

@@ -220,7 +220,6 @@ import {
   ResourceQueryPanel,
   type ResourceQueryState,
   SavedQueryViewControl,
-  type SavedQueryViewOperation,
 } from '@/shared/components/query-list';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { usePermissionStore, useTabsRouterStore } from '@/store';
@@ -432,8 +431,8 @@ const savedViews = useDockerResourceSavedViews({
     queryState: resourceQueryState.value,
     visibleColumns: visibleColumnKeys.value,
   }),
-  onError: (error: unknown, operation: SavedQueryViewOperation) =>
-    logger.error(`saved container view ${operation} failed`, error),
+  onError: (error: unknown) =>
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.loadFailed'))),
 });
 const rows = computed<ContainerSummaryRecord[]>(() => selectContainerListViews());
 const listRealtimeActive = ref(false);
@@ -502,11 +501,11 @@ const selectedRows = computed(() => {
 });
 let refreshRequestSeq = 0;
 
-onMounted(() => {
+onMounted(async () => {
   listRealtimeActive.value = true;
   void loadRuntimeTargets();
-  void savedViews.load();
-  void refreshContainers();
+  await refreshContainers();
+  await savedViews.load();
 });
 
 async function loadRuntimeTargets() {

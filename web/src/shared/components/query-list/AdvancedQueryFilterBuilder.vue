@@ -256,7 +256,7 @@
           </t-button>
         </div>
 
-        <div class="query-filter-builder__tag-row" data-testid="query-filter-builder-tags">
+        <div class="query-filter-builder__tag-row graft-scrollbar" data-testid="query-filter-builder-tags">
           <t-tag
             v-for="tag in tags"
             :key="tag.key"

@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,6 +27,38 @@ func (savedViewServiceStub) Update(context.Context, moduleapi.SavedViewUpdateInp
 	return moduleapi.SavedView{}, nil
 }
 func (savedViewServiceStub) Delete(context.Context, uint64, string, uint64) error { return nil }
+
+type recordedSavedViewService struct {
+	listSurface   string
+	createInput   moduleapi.SavedViewCreateInput
+	updateInput   moduleapi.SavedViewUpdateInput
+	deleteOwnerID uint64
+	deleteSurface string
+	deleteID      uint64
+}
+
+func (s *recordedSavedViewService) List(_ context.Context, ownerID uint64, surface string) ([]moduleapi.SavedView, error) {
+	if ownerID != 7 {
+		return nil, moduleapi.ErrSavedViewInvalidInput
+	}
+	s.listSurface = surface
+	return []moduleapi.SavedView{{ID: 41, Name: "Saved", QueryState: json.RawMessage(`{"keyword":"api"}`), PageSize: 20, VisibleColumns: []string{"name"}, CreatedAt: time.Unix(1, 0), UpdatedAt: time.Unix(2, 0)}}, nil
+}
+
+func (s *recordedSavedViewService) Create(_ context.Context, input moduleapi.SavedViewCreateInput) (moduleapi.SavedView, error) {
+	s.createInput = input
+	return moduleapi.SavedView{ID: 42, Name: input.Name, QueryState: input.QueryState, PageSize: input.PageSize, VisibleColumns: input.VisibleColumns, IsDefault: input.IsDefault, CreatedAt: time.Unix(1, 0), UpdatedAt: time.Unix(2, 0)}, nil
+}
+
+func (s *recordedSavedViewService) Update(_ context.Context, input moduleapi.SavedViewUpdateInput) (moduleapi.SavedView, error) {
+	s.updateInput = input
+	return moduleapi.SavedView{ID: input.ID, Name: input.Name, QueryState: input.QueryState, PageSize: input.PageSize, VisibleColumns: input.VisibleColumns, IsDefault: input.IsDefault, CreatedAt: time.Unix(1, 0), UpdatedAt: time.Unix(2, 0)}, nil
+}
+
+func (s *recordedSavedViewService) Delete(_ context.Context, ownerID uint64, surface string, id uint64) error {
+	s.deleteOwnerID, s.deleteSurface, s.deleteID = ownerID, surface, id
+	return nil
+}
 
 func TestContainerSavedViewValidationUsesListBinders(t *testing.T) {
 	t.Parallel()
@@ -85,6 +120,64 @@ func TestContainerSavedViewRoutesUseCanonicalImagePath(t *testing.T) {
 	}
 	if _, ok := routes[http.MethodGet+" /ops/docker/images/saved-views"]; ok {
 		t.Fatal("deprecated ops image saved-view route must not be registered")
+	}
+}
+
+func TestContainerSavedViewRoutesServeCRUDForEachSurface(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	moduleCtx := newTestContext()
+	service := &recordedSavedViewService{}
+	engine := gin.New()
+	moduleCtx.Router = engine
+	registerContainerSavedViewRoutes(moduleCtx, service, func(ctx *gin.Context) {
+		ctx.Request = ctx.Request.WithContext(moduleapi.WithRequestAuthContext(ctx.Request.Context(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}))
+	})
+
+	surfaces := []struct {
+		name       string
+		path       string
+		surface    string
+		queryState string
+		column     string
+	}{
+		{"container", "/ops/containers/saved-views", containerListSavedViewSurface, `{"state":"running"}`, "name"},
+		{"image", "/docker/images/saved-views", dockerImageListSavedViewSurface, `{"unused":true}`, "tags"},
+		{"network", "/ops/docker/networks/saved-views", dockerNetworkListSavedViewSurface, `{"usage":"used"}`, "name"},
+		{"volume", "/ops/docker/volumes/saved-views", dockerVolumeListSavedViewSurface, `{"sort_order":"asc"}`, "name"},
+	}
+	for _, test := range surfaces {
+		t.Run(test.name, func(t *testing.T) {
+			requestBody := `{"name":"Saved","query_state":` + test.queryState + `,"page_size":20,"visible_columns":["` + test.column + `"]}`
+			assertSavedViewHTTPStatus(t, engine, http.MethodGet, test.path, "", http.StatusOK)
+			if service.listSurface != test.surface {
+				t.Fatalf("list surface = %q, want %q", service.listSurface, test.surface)
+			}
+			assertSavedViewHTTPStatus(t, engine, http.MethodPost, test.path, requestBody, http.StatusCreated)
+			if service.createInput.OwnerUserID != 7 || service.createInput.SurfaceKey != test.surface {
+				t.Fatalf("create input = %#v, want owner 7 and surface %q", service.createInput, test.surface)
+			}
+			assertSavedViewHTTPStatus(t, engine, http.MethodPut, test.path+"/42", requestBody, http.StatusOK)
+			if service.updateInput.ID != 42 || service.updateInput.OwnerUserID != 7 || service.updateInput.SurfaceKey != test.surface {
+				t.Fatalf("update input = %#v, want id 42, owner 7 and surface %q", service.updateInput, test.surface)
+			}
+			assertSavedViewHTTPStatus(t, engine, http.MethodDelete, test.path+"/42", "", http.StatusNoContent)
+			if service.deleteOwnerID != 7 || service.deleteSurface != test.surface || service.deleteID != 42 {
+				t.Fatalf("delete input = (%d, %q, %d), want (7, %q, 42)", service.deleteOwnerID, service.deleteSurface, service.deleteID, test.surface)
+			}
+		})
+	}
+}
+
+func assertSavedViewHTTPStatus(t *testing.T, engine http.Handler, method, path, body string, wantStatus int) {
+	t.Helper()
+	request := httptest.NewRequest(method, path, strings.NewReader(body))
+	if body != "" {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != wantStatus {
+		t.Fatalf("%s %s status = %d, want %d: %s", method, path, response.Code, wantStatus, response.Body.String())
 	}
 }
 

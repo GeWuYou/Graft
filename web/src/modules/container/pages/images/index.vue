@@ -697,7 +697,6 @@ import {
   ResourceQueryPanel,
   type ResourceQueryState,
   SavedQueryViewControl,
-  type SavedQueryViewOperation,
 } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -784,8 +783,8 @@ const savedViews = useDockerResourceSavedViews({
     pagination.pageSize = state.pageSize;
   },
   getState: () => ({ pageSize: pagination.pageSize, queryState: resourceQueryState.value, visibleColumns: [] }),
-  onError: (error: unknown, operation: SavedQueryViewOperation) =>
-    logger.error(`saved image view ${operation} failed`, error),
+  onError: (error: unknown) =>
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.images.loadFailed'))),
 });
 const imageQuery = computed<DockerImageQueryState>(() => ({
   pageSize: pagination.pageSize,

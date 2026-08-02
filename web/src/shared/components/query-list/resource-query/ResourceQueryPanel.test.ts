@@ -164,6 +164,19 @@ describe('ResourceQueryPanel', () => {
     expect(switchStub.attributes('value')).toBeUndefined();
   });
 
+  it('binds each number-range input through matching value and modelValue endpoints', async () => {
+    const { wrapper } = mountPanel({ keyword: '', filters: { ports: [8080, 8443] }, page: 1, pageSize: 20 }, [
+      { key: 'ports', label: 'Ports', type: 'number-range' },
+    ]);
+
+    await wrapper.get('[data-testid="resource-query-builder-trigger"]').trigger('click');
+    const inputs = wrapper.findAll('.resource-query-panel__number-range button');
+
+    expect(inputs).toHaveLength(2);
+    expect(inputs.map((input) => input.attributes('modelvalue'))).toEqual(['8080', '8443']);
+    expect(inputs.map((input) => input.attributes('value'))).toEqual(['8080', '8443']);
+  });
+
   it('marks the more-filters trigger as pressed while its popup is open', async () => {
     const { wrapper } = mountPanel();
     const trigger = wrapper.get('[data-testid="resource-query-builder-trigger"]');

@@ -1549,7 +1549,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/platform/updates/operations/active': {
+  '/api/platform/updates/active-operation': {
     parameters: {
       query?: never;
       header?: never;
@@ -1558,7 +1558,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery, or null when no runner is active. The response never invents live READY progress when runner state is unavailable.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -14029,7 +14029,7 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Current active update operation, or null when no update runner is active. */
+      /** @description Current active update operation, an explicit unavailable-state projection, or null when no unfinished operation exists. */
       200: {
         headers: {
           [name: string]: unknown;

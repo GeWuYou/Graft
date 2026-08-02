@@ -102,6 +102,7 @@ describe('UpdateProgressDialog', () => {
     });
     const wrapper = mountDialog();
 
+    expect(wrapper.get('[data-testid="update-progress-events"] ol').classes()).toContain('graft-scrollbar');
     expect(wrapper.get('[data-testid="update-progress-events"]').text()).toContain(
       'update.center.history.messages.checking_environment',
     );

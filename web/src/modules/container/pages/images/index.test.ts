@@ -105,6 +105,13 @@ function mountSelectionPage() {
 }
 
 describe('docker image list page', () => {
+  it('shows localized feedback when saved-view operations fail', () => {
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.images.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('saved image view ${operation} failed');
+  });
+
   it('centers a standalone detail loading indicator before the request resolves', () => {
     expect(sourceText).toContain('class="docker-images-detail-loading-host"');
     expect(sourceText).toContain('.docker-images-detail-loading-host {\n  min-height: 240px;');

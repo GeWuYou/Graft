@@ -151,12 +151,13 @@ const FilterFields = defineComponent({
         fieldProps.items.map(({ field, span }) => {
           const value = fieldProps.modelValue[field.key];
           const definition = resolveResourceQueryField(field);
-          const common = { disabled: definition.disabled, placeholder: definition.placeholder, value };
+          const common = { disabled: definition.disabled, placeholder: definition.placeholder };
           let control;
           if (definition.type === 'select' || definition.type === 'multi-select') {
             control = h(selectComponent, {
               ...common,
               modelValue: value,
+              value,
               multiple: definition.type === 'multi-select',
               options: definition.options ?? [],
               clearable: true,
@@ -166,6 +167,7 @@ const FilterFields = defineComponent({
             control = h(dateRangePickerComponent, {
               ...common,
               modelValue: value,
+              value,
               clearable: true,
               'onUpdate:modelValue': (next: ResourceQueryFilterValue) => setValue(field.key, next),
             });
@@ -175,12 +177,14 @@ const FilterFields = defineComponent({
               h(inputNumberComponent, {
                 ...common,
                 modelValue: range[0],
+                value: range[0],
                 'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [next ?? '', range[1] ?? '']),
               }),
               h('span', { class: 'resource-query-panel__range-separator' }, '-'),
               h(inputNumberComponent, {
                 ...common,
                 modelValue: range[1],
+                value: range[1],
                 'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [range[0] ?? '', next ?? '']),
               }),
             ]);
@@ -194,6 +198,7 @@ const FilterFields = defineComponent({
             control = h(inputComponent, {
               ...common,
               modelValue: typeof value === 'string' ? value : '',
+              value: typeof value === 'string' ? value : '',
               clearable: true,
               'onUpdate:modelValue': (next: string) => setValue(field.key, next),
             });

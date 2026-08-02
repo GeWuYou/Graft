@@ -27,6 +27,12 @@ type containerSavedViewDefinition struct {
 	bind           func(*gin.Context, *module.Context) bool
 }
 
+// containerSavedViewListResponse 是容器资源列表保存视图的显式 HTTP 响应 DTO。
+// 它保持与 OpenAPI saved-view-list-response wrapper 一致，避免 map 形状成为隐式契约。
+type containerSavedViewListResponse struct {
+	Items []httpx.SavedViewResponse `json:"items"`
+}
+
 var containerSavedViewDefinitions = []containerSavedViewDefinition{
 	{
 		surface: containerListSavedViewSurface,
@@ -158,7 +164,7 @@ func handleContainerSavedViewList(localizer *i18n.Service, service moduleapi.Sav
 			}
 			items = append(items, mapped)
 		}
-		httpx.WriteSuccess(ctx, http.StatusOK, map[string]any{"items": items})
+		httpx.WriteSuccess(ctx, http.StatusOK, containerSavedViewListResponse{Items: items})
 	}
 }
 

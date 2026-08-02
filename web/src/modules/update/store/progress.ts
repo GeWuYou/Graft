@@ -99,12 +99,13 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         const operation = await getActiveUpdateOperation();
         if (!operation || this.operationID || this.phase !== 'idle') return;
         this.session += 1;
+        const session = this.session;
         persistOperation(operation.operation_id);
         this.operationID = operation.operation_id;
         this.phase = 'reconnecting';
-        await this.applyOperation(this.session, operation);
-        if (!this.isTerminal()) await this.refreshEvents(this.session);
-        if (!this.isTerminal() && !this.stream) this.connect(this.session);
+        await this.applyOperation(session, operation);
+        if (!this.isTerminal()) await this.refreshEvents(session);
+        if (!this.isTerminal() && !this.stream) this.connect(session);
       } catch {
         // 未知是否存在升级时，不能仅因 active 查询短暂失败而阻断后台壳；已知操作仍由快照恢复路径明确报告不可用。
       } finally {

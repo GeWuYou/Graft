@@ -460,7 +460,6 @@ import {
   ResourceQueryPanel,
   type ResourceQueryState,
   SavedQueryViewControl,
-  type SavedQueryViewOperation,
 } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import ResponsiveCardList from '@/shared/components/responsive/ResponsiveCardList.vue';
@@ -631,8 +630,8 @@ const savedViews = useDockerResourceSavedViews({
     applyFilters();
   },
   getState: () => ({ pageSize: pagination.pageSize, queryState: resourceQueryState.value, visibleColumns: [] }),
-  onError: (error: unknown, operation: SavedQueryViewOperation) =>
-    MessagePlugin.error(`${operation}: ${String(error)}`),
+  onError: (error: unknown) =>
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.networks.loadFailed'))),
 });
 
 const networks = computed(() => networkQuery.data.value?.items ?? []);

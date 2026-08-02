@@ -332,7 +332,6 @@ import {
   ResourceQueryPanel,
   type ResourceQueryState,
   SavedQueryViewControl,
-  type SavedQueryViewOperation,
 } from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
@@ -455,11 +454,11 @@ const savedViews = useDockerResourceSavedViews({
   applyState: (state) => {
     resourceQueryState.value = state.queryState;
     pagination.pageSize = state.pageSize;
-    applyFilters();
+    void refresh();
   },
   getState: () => ({ pageSize: pagination.pageSize, queryState: resourceQueryState.value, visibleColumns: [] }),
-  onError: (cause: unknown, operation: SavedQueryViewOperation) =>
-    MessagePlugin.error(`${operation}: ${String(cause)}`),
+  onError: (cause: unknown) =>
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.list.loadFailed'))),
 });
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VOLUME_REMOVE));
 const hasActiveFilters = computed(() =>
@@ -520,9 +519,9 @@ const paginationSummary = computed(() => {
     total: pagination.total,
   });
 });
-onMounted(() => {
-  void refresh();
-  void savedViews.load();
+onMounted(async () => {
+  await refresh();
+  await savedViews.load();
 });
 watch(
   () => [pagination.current, pagination.pageSize],

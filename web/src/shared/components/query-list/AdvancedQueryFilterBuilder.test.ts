@@ -123,6 +123,7 @@ describe('AdvancedQueryFilterBuilder', () => {
       },
     });
 
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').classes()).toContain('graft-scrollbar');
     expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toBe('');
 
     await wrapper.setProps({ tags: defaultProps.tags });

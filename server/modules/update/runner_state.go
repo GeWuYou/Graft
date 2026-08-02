@@ -101,6 +101,7 @@ type FileRunnerStateStore struct {
 	root             string
 	enforceOwnership bool
 	renameFile       func(string, string) error
+	chown            func(string, int, int) error
 	mu               sync.Mutex
 }
 
@@ -110,7 +111,7 @@ func NewFileRunnerStateStore(root string) (*FileRunnerStateStore, error) {
 	if !filepath.IsAbs(root) {
 		return nil, errors.New("runner state root must be absolute")
 	}
-	return &FileRunnerStateStore{root: root, enforceOwnership: root == RunnerStateRoot, renameFile: os.Rename}, nil
+	return &FileRunnerStateStore{root: root, enforceOwnership: root == RunnerStateRoot, renameFile: os.Rename, chown: os.Chown}, nil
 }
 
 // Read 读取并校验最近一次原子写入的快照。
@@ -273,7 +274,7 @@ func (s *FileRunnerStateStore) assignServerOwnership(path, kind string) error {
 	if s == nil || !s.enforceOwnership {
 		return nil
 	}
-	if err := os.Chown(path, runnerStateServerUID, runnerStateServerGID); err != nil {
+	if err := s.chown(path, runnerStateServerUID, runnerStateServerGID); err != nil {
 		return fmt.Errorf("assign runner state %s owner: %w", kind, err)
 	}
 	return nil
@@ -283,7 +284,7 @@ func (s *FileRunnerStateStore) prepareRunnerWritableDirectory(path, kind string)
 	if s == nil || !s.enforceOwnership {
 		return nil
 	}
-	if err := os.Chown(path, 0, 0); err != nil {
+	if err := s.chown(path, 0, 0); err != nil {
 		return fmt.Errorf("assign runner state %s directory owner: %w", kind, err)
 	}
 	if err := os.Chmod(path, runnerStateDirectoryPermission); err != nil {

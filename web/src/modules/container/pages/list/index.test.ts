@@ -6,6 +6,7 @@ import { LOCALE } from '@/contracts/i18n/locales';
 
 import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import ContainerListPage from './index.vue';
+import sourceText from './index.vue?raw';
 
 const apiMocks = vi.hoisted(() => ({
   batchContainerActions: vi.fn(),
@@ -458,6 +459,14 @@ vi.mock('@/shared/composables', async (importOriginal) => ({
 }));
 
 describe('container list page', () => {
+  it('loads saved views only after the initial resource refresh and localizes saved-view failures', () => {
+    expect(sourceText).toContain('await refreshContainers();\n  await savedViews.load();');
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('saved container view ${operation} failed');
+  });
+
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();

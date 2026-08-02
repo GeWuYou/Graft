@@ -88,6 +88,13 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('compose_project: appliedFilters.value.compose_project || undefined');
   });
 
+  it('shows localized feedback when saved-view operations fail', () => {
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.networks.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('`${operation}: ${String(error)}`');
+  });
+
   it('uses the shared cleanup snapshot for removable unused networks', () => {
     expect(sourceText).toContain('useDockerCleanup<DockerNetwork>');
     expect(sourceText).toContain(':empty="!cleanup.loading.value && !cleanup.items.value.length"');

@@ -12,7 +12,8 @@ const (
 	// UpdateOperationRoute 读取一条不含秘密部署数据的操作记录。
 	UpdateOperationRoute = "/operations/:operationID"
 	// UpdateActiveOperationRoute 读取由 runner 接管的当前操作，供新标签页恢复升级会话。
-	UpdateActiveOperationRoute = "/operations/active"
+	// 它不位于 :operationID 参数路由下，避免保留字与操作标识发生路由语义冲突。
+	UpdateActiveOperationRoute = "/active-operation"
 	// UpdateOperationEventsRoute 回放一次 operation 的受控节点事件，不代理 runner 原始输出。
 	UpdateOperationEventsRoute = "/operations/:operationID/events"
 	// UpdateFailureDiagnosticRoute 读取一次更新启动失败的受控诊断详情。
