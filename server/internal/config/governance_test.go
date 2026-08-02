@@ -104,6 +104,7 @@ func TestValidateComposeFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read official compose fixture: %v", err)
 	}
+	// #nosec G703 -- valid 是 t.TempDir() 下固定的 compose.yml 文件名，不接受外部路径输入。
 	if err := os.WriteFile(valid, contents, 0o600); err != nil {
 		t.Fatalf("write compose fixture: %v", err)
 	}
