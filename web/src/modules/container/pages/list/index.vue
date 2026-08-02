@@ -1148,10 +1148,14 @@ function createBatchIdempotencyKey(action: DangerousContainerAction) {
 }
 
 function resolveLifecycleTaskType(taskType: string) {
-  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_START) return t('container.list.actions.start');
-  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_STOP) return t('container.list.actions.stop');
-  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_RESTART) return t('container.list.actions.restart');
-  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_REMOVE) return t('container.list.actions.remove');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_START || taskType === CONTAINER_TASK_TYPE.LIFECYCLE_START_BATCH)
+    return t('container.list.actions.start');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_STOP || taskType === CONTAINER_TASK_TYPE.LIFECYCLE_STOP_BATCH)
+    return t('container.list.actions.stop');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_RESTART || taskType === CONTAINER_TASK_TYPE.LIFECYCLE_RESTART_BATCH)
+    return t('container.list.actions.restart');
+  if (taskType === CONTAINER_TASK_TYPE.LIFECYCLE_REMOVE || taskType === CONTAINER_TASK_TYPE.LIFECYCLE_REMOVE_BATCH)
+    return t('container.list.actions.remove');
   return undefined;
 }
 
