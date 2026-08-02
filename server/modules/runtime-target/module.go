@@ -92,10 +92,10 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
-	ctx.Router.GET("/runtime-targets/saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewList)
-	ctx.Router.POST("/runtime-targets/saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewCreate)
-	ctx.Router.PUT("/runtime-targets/saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewUpdate)
-	ctx.Router.DELETE("/runtime-targets/saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewDelete)
+	ctx.Router.GET("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewList)
+	ctx.Router.POST("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewCreate)
+	ctx.Router.PUT("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewUpdate)
+	ctx.Router.DELETE("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewDelete)
 	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))

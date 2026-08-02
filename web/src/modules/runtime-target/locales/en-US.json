@@ -11,6 +11,7 @@
       "columnSettings": "Columns",
       "resetColumns": "Reset Columns",
       "savedViewError": "The saved view could not be updated.",
+      "savedViewDeleteError": "The saved view could not be deleted.",
       "discoverLocalDocker": "Discover Local Docker",
       "discoverSuccess": "Local Docker discovery completed.",
       "discoverError": "Local Docker discovery failed.",

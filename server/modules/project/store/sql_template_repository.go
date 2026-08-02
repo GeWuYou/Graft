@@ -64,6 +64,9 @@ func (r *SQLRepository) ListTemplateManagementPage(ctx context.Context, query Te
 	if err := r.ensureReady(); err != nil {
 		return TemplateManagementPage{}, err
 	}
+	if query.Limit < 1 || query.Limit > templateManagementPageSizeMax || query.Offset < 0 {
+		return TemplateManagementPage{}, ErrInvalidInput
+	}
 	where, args := templateManagementFilters(query)
 	join := "JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0 AND (v.status = 'draft' OR (v.status = 'published' AND NOT EXISTS (SELECT 1 FROM application_template_versions draft WHERE draft.template_id = t.template_id AND draft.deleted_at = 0 AND draft.status = 'draft')))"
 	countSQL := `SELECT COUNT(*) FROM application_templates t ` + join + ` WHERE ` + strings.Join(where, " AND ")

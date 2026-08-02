@@ -11,6 +11,7 @@
       "columnSettings": "列设置",
       "resetColumns": "重置列",
       "savedViewError": "保存的筛选无法完成操作。",
+      "savedViewDeleteError": "无法删除保存的筛选。",
       "discoverLocalDocker": "发现本机 Docker",
       "discoverSuccess": "本机 Docker 发现完成。",
       "discoverError": "本机 Docker 发现失败。",

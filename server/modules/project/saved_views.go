@@ -122,7 +122,7 @@ func (s *Service) deleteTemplateSavedView(ctx context.Context, owner, id uint64)
 
 //nolint:gocognit,gocyclo,cyclop // 保存视图状态的字段和值均须逐项匹配模板查询契约。
 func validateTemplateListSavedView(request savedViewRequest) error {
-	if strings.TrimSpace(request.Name) == "" || request.PageSize < 1 || request.PageSize > 100 || !json.Valid(request.QueryState) {
+	if strings.TrimSpace(request.Name) == "" || !isTemplateManagementPageSize(request.PageSize) || !json.Valid(request.QueryState) {
 		return errProjectInvalidArgument
 	}
 	var raw map[string]json.RawMessage
@@ -151,7 +151,7 @@ func validateTemplateListSavedView(request savedViewRequest) error {
 		return errProjectInvalidArgument
 	}
 	for _, value := range state.Sort {
-		if value != "updated_at:asc" && value != "updated_at:desc" && value != "display_name:asc" && value != "display_name:desc" && value != "status:asc" && value != "status:desc" && value != "version_number:asc" && value != "version_number:desc" {
+		if !isTemplateManagementSort(value) || value == "" {
 			return errProjectInvalidArgument
 		}
 	}
@@ -194,8 +194,13 @@ func toGeneratedSavedView(view moduleapi.SavedView) (generated.SavedView, error)
 		return generated.SavedView{}, errProjectInvalidArgument
 	}
 	state := map[string]interface{}{}
-	if err := json.Unmarshal(view.QueryState, &state); err != nil {
-		return generated.SavedView{}, errProjectInvalidArgument
+	if len(view.QueryState) > 0 {
+		if err := json.Unmarshal(view.QueryState, &state); err != nil {
+			return generated.SavedView{}, errProjectInvalidArgument
+		}
+	}
+	if state == nil {
+		state = map[string]interface{}{}
 	}
 	return generated.SavedView{Id: int64(view.ID), Name: view.Name, QueryState: state, PageSize: view.PageSize, VisibleColumns: append([]string(nil), view.VisibleColumns...), IsDefault: view.IsDefault, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}, nil
 }

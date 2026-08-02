@@ -165,13 +165,13 @@ func (s *Service) ListApplicationTemplates(ctx context.Context, includeArchived 
 //nolint:gocyclo,cyclop // 查询状态白名单与边界值必须显式校验，避免将排序传入仓储 SQL。
 func (s *Service) ListApplicationTemplateManagementPage(ctx context.Context, query projectstore.TemplateManagementQuery) (projectstore.TemplateManagementPage, error) {
 	query.Keyword, query.Status, query.Sort = strings.TrimSpace(query.Keyword), strings.TrimSpace(query.Status), strings.TrimSpace(query.Sort)
-	if query.Limit != 10 && query.Limit != 20 && query.Limit != 50 && query.Limit != 100 || query.Offset < 0 || len(query.Keyword) > templateManagementSearchMaxLength {
+	if !isTemplateManagementPageSize(query.Limit) || query.Offset < 0 || len(query.Keyword) > templateManagementSearchMaxLength {
 		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
 	}
 	if query.Status != "" && query.Status != "draft" && query.Status != "published" && query.Status != "archived" {
 		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
 	}
-	if query.Sort != "" && query.Sort != "updated_at:asc" && query.Sort != "updated_at:desc" && query.Sort != "display_name:asc" && query.Sort != "display_name:desc" && query.Sort != "status:asc" && query.Sort != "status:desc" && query.Sort != "version_number:asc" && query.Sort != "version_number:desc" {
+	if !isTemplateManagementSort(query.Sort) {
 		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
 	}
 	if query.UpdatedAfter != nil && query.UpdatedBefore != nil && query.UpdatedAfter.After(*query.UpdatedBefore) {
@@ -182,6 +182,19 @@ func (s *Service) ListApplicationTemplateManagementPage(ctx context.Context, que
 		return projectstore.TemplateManagementPage{}, err
 	}
 	return repository.ListTemplateManagementPage(ctx, query)
+}
+
+func isTemplateManagementPageSize(size int) bool {
+	return size == 10 || size == 20 || size == 50 || size == 100
+}
+
+func isTemplateManagementSort(value string) bool {
+	switch value {
+	case "", "updated_at:asc", "updated_at:desc", "display_name:asc", "display_name:desc", "status:asc", "status:desc", "version_number:asc", "version_number:desc":
+		return true
+	default:
+		return false
+	}
 }
 
 // GetApplicationTemplate 返回模板当前草稿；没有草稿时返回最新已发布版本。

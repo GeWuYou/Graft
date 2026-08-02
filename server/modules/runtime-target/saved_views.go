@@ -72,7 +72,7 @@ func validRuntimeTargetSavedView(input runtimeTargetSavedViewInput) bool {
 	}
 	for _, column := range input.VisibleColumns {
 		switch strings.TrimSpace(column) {
-		case "displayName", "provider", "endpoint", "connectionKind", "health", "lastCheckedAt", "operation":
+		case "displayName", "provider", "endpoint", "connectionKind", "health", "lastCheckedAt", "workloads", "cpu", "memory", "storage", "operation":
 		default:
 			return false
 		}

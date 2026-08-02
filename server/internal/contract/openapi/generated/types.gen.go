@@ -5659,34 +5659,34 @@ func (e GetApplicationManagedTemplatesParamsStatus) Valid() bool {
 
 // Defines values for GetApplicationManagedTemplatesParamsSort.
 const (
-	GetApplicationManagedTemplatesParamsSortDisplayNameAsc    GetApplicationManagedTemplatesParamsSort = "display_name:asc"
-	GetApplicationManagedTemplatesParamsSortDisplayNameDesc   GetApplicationManagedTemplatesParamsSort = "display_name:desc"
-	GetApplicationManagedTemplatesParamsSortStatusAsc         GetApplicationManagedTemplatesParamsSort = "status:asc"
-	GetApplicationManagedTemplatesParamsSortStatusDesc        GetApplicationManagedTemplatesParamsSort = "status:desc"
-	GetApplicationManagedTemplatesParamsSortUpdatedAtAsc      GetApplicationManagedTemplatesParamsSort = "updated_at:asc"
-	GetApplicationManagedTemplatesParamsSortUpdatedAtDesc     GetApplicationManagedTemplatesParamsSort = "updated_at:desc"
-	GetApplicationManagedTemplatesParamsSortVersionNumberAsc  GetApplicationManagedTemplatesParamsSort = "version_number:asc"
-	GetApplicationManagedTemplatesParamsSortVersionNumberDesc GetApplicationManagedTemplatesParamsSort = "version_number:desc"
+	DisplayNameAsc    GetApplicationManagedTemplatesParamsSort = "display_name:asc"
+	DisplayNameDesc   GetApplicationManagedTemplatesParamsSort = "display_name:desc"
+	StatusAsc         GetApplicationManagedTemplatesParamsSort = "status:asc"
+	StatusDesc        GetApplicationManagedTemplatesParamsSort = "status:desc"
+	UpdatedAtAsc      GetApplicationManagedTemplatesParamsSort = "updated_at:asc"
+	UpdatedAtDesc     GetApplicationManagedTemplatesParamsSort = "updated_at:desc"
+	VersionNumberAsc  GetApplicationManagedTemplatesParamsSort = "version_number:asc"
+	VersionNumberDesc GetApplicationManagedTemplatesParamsSort = "version_number:desc"
 )
 
 // Valid indicates whether the value is a known member of the GetApplicationManagedTemplatesParamsSort enum.
 func (e GetApplicationManagedTemplatesParamsSort) Valid() bool {
 	switch e {
-	case GetApplicationManagedTemplatesParamsSortDisplayNameAsc:
+	case DisplayNameAsc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortDisplayNameDesc:
+	case DisplayNameDesc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortStatusAsc:
+	case StatusAsc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortStatusDesc:
+	case StatusDesc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortUpdatedAtAsc:
+	case UpdatedAtAsc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortUpdatedAtDesc:
+	case UpdatedAtDesc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortVersionNumberAsc:
+	case VersionNumberAsc:
 		return true
-	case GetApplicationManagedTemplatesParamsSortVersionNumberDesc:
+	case VersionNumberDesc:
 		return true
 	default:
 		return false
@@ -5947,16 +5947,16 @@ func (e GetRuntimeTargetsParamsConnectionKind) Valid() bool {
 
 // Defines values for GetRuntimeTargetsParamsHealth.
 const (
-	Healthy     GetRuntimeTargetsParamsHealth = "healthy"
-	Unavailable GetRuntimeTargetsParamsHealth = "unavailable"
+	GetRuntimeTargetsParamsHealthHealthy     GetRuntimeTargetsParamsHealth = "healthy"
+	GetRuntimeTargetsParamsHealthUnavailable GetRuntimeTargetsParamsHealth = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsHealth enum.
 func (e GetRuntimeTargetsParamsHealth) Valid() bool {
 	switch e {
-	case Healthy:
+	case GetRuntimeTargetsParamsHealthHealthy:
 		return true
-	case Unavailable:
+	case GetRuntimeTargetsParamsHealthUnavailable:
 		return true
 	default:
 		return false

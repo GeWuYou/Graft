@@ -2,15 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { buildOpenApiRuntimePath, OPENAPI_RUNTIME_PATH } from '@/contracts/generated/openapi-runtime-paths';
 
-const requestMocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+const requestMocks = vi.hoisted(() => ({ delete: vi.fn(), get: vi.fn(), post: vi.fn(), put: vi.fn() }));
 
 vi.mock('@/utils/request', () => ({ request: requestMocks }));
 
 import {
+  deleteRuntimeTargetSavedView,
   discoverLocalDocker,
   getRuntimeTarget,
   listRuntimeTargets,
   postRuntimeTargetSavedView,
+  putRuntimeTargetSavedView,
   refreshRuntimeTarget,
 } from './runtime-target';
 
@@ -41,6 +43,34 @@ describe('listRuntimeTargets', () => {
       url: OPENAPI_RUNTIME_PATH.getRuntimeTargets,
       params: { limit: 100, offset: 100 },
     });
+  });
+});
+
+it('maps saved-view update and delete paths through generated placeholders', async () => {
+  requestMocks.put.mockResolvedValueOnce({ id: 3 });
+  requestMocks.delete.mockResolvedValueOnce(undefined);
+
+  await putRuntimeTargetSavedView(3, {
+    name: 'Healthy Edge',
+    pageSize: 20,
+    queryState: { health: 'healthy' },
+    visibleColumns: ['health'],
+    isDefault: false,
+  });
+  await deleteRuntimeTargetSavedView(3);
+
+  expect(requestMocks.put).toHaveBeenCalledWith({
+    url: buildOpenApiRuntimePath('putRuntimeTargetSavedView', { viewId: 3 }),
+    data: {
+      name: 'Healthy Edge',
+      page_size: 20,
+      query_state: { health: 'healthy' },
+      visible_columns: ['health'],
+      is_default: false,
+    },
+  });
+  expect(requestMocks.delete).toHaveBeenCalledWith({
+    url: buildOpenApiRuntimePath('deleteRuntimeTargetSavedView', { viewId: 3 }),
   });
 });
 

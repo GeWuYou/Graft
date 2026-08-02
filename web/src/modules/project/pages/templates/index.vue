@@ -23,8 +23,6 @@
       <management-statistics-bar
         :items="[
           { label: t('project.templates.total'), value: catalogTotal },
-          { label: t('project.templates.statusPublished'), value: summary.published },
-          { label: t('project.templates.statusDraft'), value: summary.draft },
         ]"
         :label="t('project.templates.summaryLabel')"
         layout="summary"
@@ -151,7 +149,7 @@
 import { AddIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { isNavigationFailure, NavigationFailureType, useRoute, useRouter } from 'vue-router';
 
@@ -210,7 +208,6 @@ const loading = ref(false);
 const cloning = ref(false);
 const deleting = ref(false);
 const errorMessage = ref('');
-const summary = ref({ draft: 0, published: 0 });
 const catalogTotal = ref(0);
 const pagination = ref({ current: 1, pageSize: 20, total: 0 });
 const filters = ref<TemplateFilters>(createDefaultFilters());
@@ -222,6 +219,7 @@ const deleteVisible = ref(false);
 const selectedTemplate = ref<ApplicationTemplate | null>(null);
 const cloneDisplayName = ref('');
 const applyingRoute = ref(false);
+let routeSyncTimer: ReturnType<typeof setTimeout> | undefined;
 
 const isCompact = computed(() => viewportVariant.value.density === 'compact');
 const isTablePresentation = computed(() => viewportVariant.value.density === 'spacious');
@@ -260,7 +258,7 @@ const filterTags = computed<AdvancedQueryFilterTag[]>(() => [
   { key: 'sort', label: `${t('project.templates.filters.sort')}=${filters.value.sorter.field}:${filters.value.sorter.direction}` },
 ]);
 const columnOptions = computed(() => [
-  { label: t('project.templates.name'), value: 'name' }, { label: t('project.templates.adapter'), value: 'adapter' },
+  { label: t('project.templates.name'), value: 'displayName' }, { label: t('project.templates.descriptionField'), value: 'description' },
   { label: t('project.templates.status'), value: 'status' }, { label: t('project.templates.version'), value: 'version' },
   { label: t('project.templates.updatedAtColumn'), value: 'updatedAt' }, { label: t('project.templates.operation'), value: 'operation' },
 ]);
@@ -289,8 +287,9 @@ onMounted(async () => {
   await savedViews.load({ hasExplicitState: hasExplicitRouteState() });
   await loadTemplates();
 });
-watch([filters, () => pagination.value.current, () => pagination.value.pageSize], () => { if (!applyingRoute.value) void replaceRoute(); }, { deep: true });
-watch(visibleColumnKeys, () => { if (!applyingRoute.value) void replaceRoute(); }, { deep: true });
+onBeforeUnmount(() => { if (routeSyncTimer) clearTimeout(routeSyncTimer); });
+watch([filters, () => pagination.value.current, () => pagination.value.pageSize], () => { if (!applyingRoute.value) scheduleRouteReplace(); }, { deep: true });
+watch(visibleColumnKeys, () => { if (!applyingRoute.value) scheduleRouteReplace(); }, { deep: true });
 
 function createDefaultFilters(): TemplateFilters { return { keyword: '', status: '', updatedAfter: '', updatedBefore: '', sorter: { field: 'updated_at', direction: 'desc' } }; }
 function currentQueryState(): TemplateSavedQueryState { return { ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}), ...(filters.value.status ? { status: filters.value.status } : {}), ...(filters.value.updatedAfter ? { updated_after: localDateTimeToUtcIso(filters.value.updatedAfter) } : {}), ...(filters.value.updatedBefore ? { updated_before: localDateTimeToUtcIso(filters.value.updatedBefore) } : {}), sort: `${filters.value.sorter.field}:${filters.value.sorter.direction}` as TemplateSort }; }
@@ -306,10 +305,14 @@ function updateSortField(payload: { value: string | number | Array<string | numb
 function updateSortDirection(payload: { value: string | number | Array<string | number> | undefined }) { filters.value.sorter.direction = (Array.isArray(payload.value) ? payload.value[0] : payload.value) === 'asc' ? 'asc' : 'desc'; applyQuery(); }
 function updateTimeField(payload: { key: string; value: string[] }) { if (payload.key === 'updatedRange') { filters.value.updatedAfter = payload.value[0] ?? ''; filters.value.updatedBefore = payload.value[1] ?? ''; } }
 function handlePageChange() { void loadTemplates(); }
-async function loadTemplates() { loading.value = true; errorMessage.value = ''; try { const response = await getApplicationManagedTemplates(requestQuery()); templates.value = response.items; pagination.value.total = response.total; pagination.value.pageSize = response.limit; pagination.value.current = Math.floor(response.offset / response.limit) + 1; catalogTotal.value = response.total; summary.value = { draft: 0, published: 0 }; } catch (error) { errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templates.loadFailed')); } finally { loading.value = false; } }
+async function loadTemplates() { loading.value = true; errorMessage.value = ''; try { const response = await getApplicationManagedTemplates(requestQuery()); templates.value = response.items; pagination.value.total = response.total; pagination.value.pageSize = response.limit; pagination.value.current = Math.floor(response.offset / response.limit) + 1; catalogTotal.value = response.total; } catch (error) { errorMessage.value = resolveLocalizedErrorMessage(t, error, t('project.templates.loadFailed')); } finally { loading.value = false; } }
 function hasExplicitRouteState() { return ['keyword', 'status', 'updated_after', 'updated_before', 'sort', 'page', 'page_size', 'columns'].some((key) => route.query[key] !== undefined); }
 function hydrateFromRoute() { applyingRoute.value = true; const query = route.query; const range = normalizeRouteRangeForPageState([stringQuery(query.updated_after), stringQuery(query.updated_before)]); filters.value = { keyword: stringQuery(query.keyword), status: isStatus(stringQuery(query.status)) ? (stringQuery(query.status) as TemplateStatus) : '', updatedAfter: range[0] ?? '', updatedBefore: range[1] ?? '', sorter: parseSorter(stringQuery(query.sort)) }; pagination.value.current = Math.max(1, Number(stringQuery(query.page)) || 1); pagination.value.pageSize = [10, 20, 50, 100].includes(Number(stringQuery(query.page_size))) ? Number(stringQuery(query.page_size)) : 20; const columns = stringQuery(query.columns).split(',').filter((key) => DEFAULT_COLUMNS.includes(key)); visibleColumnKeys.value = columns.length ? columns : [...DEFAULT_COLUMNS]; applyingRoute.value = false; }
 async function replaceRoute() { await router.replace({ query: { ...(filters.value.keyword.trim() ? { keyword: filters.value.keyword.trim() } : {}), ...(filters.value.status ? { status: filters.value.status } : {}), ...(filters.value.updatedAfter ? { updated_after: localDateTimeToUtcIso(filters.value.updatedAfter) } : {}), ...(filters.value.updatedBefore ? { updated_before: localDateTimeToUtcIso(filters.value.updatedBefore) } : {}), sort: `${filters.value.sorter.field}:${filters.value.sorter.direction}`, page: String(pagination.value.current), page_size: String(pagination.value.pageSize), columns: visibleColumnKeys.value.join(',') } }); }
+function scheduleRouteReplace() {
+  if (routeSyncTimer) clearTimeout(routeSyncTimer);
+  routeSyncTimer = setTimeout(() => { routeSyncTimer = undefined; void replaceRoute(); }, 200);
+}
 function stringQuery(value: unknown) { return Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : ''; }
 function isStatus(value: string): value is TemplateStatus { return ['draft', 'published', 'archived'].includes(value); }
 function parseSorter(value?: string): TemplateFilters['sorter'] { const [field, direction] = (value || 'updated_at:desc').split(':'); return { field: sortOptions.value.some((option) => option.value === field) ? (field as TemplateSortField) : 'updated_at', direction: direction === 'asc' ? 'asc' : 'desc' }; }

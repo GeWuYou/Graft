@@ -82,6 +82,7 @@ type TemplateCatalogQuery struct {
 }
 
 const (
+	templateManagementPageSizeMax  = 100
 	templateCatalogPageSizeDefault = 24
 	templateCatalogPageSizeMax     = 100
 )

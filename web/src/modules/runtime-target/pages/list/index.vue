@@ -46,7 +46,7 @@
         @search="applyQuery"
       >
         <template #toolbar-after-search>
-          <t-select v-model="filters.sort" class="runtime-target-sort" :options="sortOptions" />
+          <t-select v-model="filters.sort" class="runtime-target-sort" :options="sortOptions" @change="applySort" />
         </template>
         <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
       </resource-query-panel>
@@ -182,6 +182,7 @@ import { MessagePlugin } from 'tdesign-vue-next/es/message';
 import {
   computed,
   h,
+  nextTick,
   onActivated,
   onDeactivated,
   onMounted,
@@ -375,7 +376,10 @@ const savedViews = useSavedQueryViews<RuntimeTargetSavedViewState, number>({
     await replaceRoute();
     await load();
   },
-  onError: () => (MessagePlugin.error ?? MessagePlugin.success)(t('runtimeTarget.list.savedViewError')),
+  onError: (_error, operation) =>
+    MessagePlugin.error(
+      t(operation === 'delete' ? 'runtimeTarget.list.savedViewDeleteError' : 'runtimeTarget.list.savedViewError'),
+    ),
   serializeCurrentState: () => ({
     pageSize: pagination.pageSize,
     queryState: currentSavedQueryState(),
@@ -418,6 +422,11 @@ function applyQuery(value: ResourceQueryState) {
   pagination.current = 1;
   void load();
 }
+function applySort() {
+  if (applyingRoute.value) return;
+  pagination.current = 1;
+  void load();
+}
 function resetQuery() {
   Object.assign(filters, createDefaultFilters());
   pagination.current = 1;
@@ -456,7 +465,9 @@ function hydrateFromRoute() {
     .split(',')
     .filter((key) => DEFAULT_VISIBLE_COLUMNS.includes(key));
   visibleColumnKeys.value = columns.length ? columns : [...DEFAULT_VISIBLE_COLUMNS];
-  applyingRoute.value = false;
+  void nextTick(() => {
+    applyingRoute.value = false;
+  });
 }
 async function replaceRoute() {
   if (!router) return;

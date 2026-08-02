@@ -63,16 +63,16 @@ func (e GetRuntimeTargetsParamsConnectionKind) Valid() bool {
 
 // Defines values for GetRuntimeTargetsParamsHealth.
 const (
-	Healthy     GetRuntimeTargetsParamsHealth = "healthy"
-	Unavailable GetRuntimeTargetsParamsHealth = "unavailable"
+	GetRuntimeTargetsParamsHealthHealthy     GetRuntimeTargetsParamsHealth = "healthy"
+	GetRuntimeTargetsParamsHealthUnavailable GetRuntimeTargetsParamsHealth = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsHealth enum.
 func (e GetRuntimeTargetsParamsHealth) Valid() bool {
 	switch e {
-	case Healthy:
+	case GetRuntimeTargetsParamsHealthHealthy:
 		return true
-	case Unavailable:
+	case GetRuntimeTargetsParamsHealthUnavailable:
 		return true
 	default:
 		return false
@@ -81,28 +81,28 @@ func (e GetRuntimeTargetsParamsHealth) Valid() bool {
 
 // Defines values for GetRuntimeTargetsParamsSort.
 const (
-	DisplayNameAsc  GetRuntimeTargetsParamsSort = "display_name:asc"
-	DisplayNameDesc GetRuntimeTargetsParamsSort = "display_name:desc"
-	HealthAsc       GetRuntimeTargetsParamsSort = "health:asc"
-	HealthDesc      GetRuntimeTargetsParamsSort = "health:desc"
-	ProviderAsc     GetRuntimeTargetsParamsSort = "provider:asc"
-	ProviderDesc    GetRuntimeTargetsParamsSort = "provider:desc"
+	GetRuntimeTargetsParamsSortDisplayNameAsc  GetRuntimeTargetsParamsSort = "display_name:asc"
+	GetRuntimeTargetsParamsSortDisplayNameDesc GetRuntimeTargetsParamsSort = "display_name:desc"
+	GetRuntimeTargetsParamsSortHealthAsc       GetRuntimeTargetsParamsSort = "health:asc"
+	GetRuntimeTargetsParamsSortHealthDesc      GetRuntimeTargetsParamsSort = "health:desc"
+	GetRuntimeTargetsParamsSortProviderAsc     GetRuntimeTargetsParamsSort = "provider:asc"
+	GetRuntimeTargetsParamsSortProviderDesc    GetRuntimeTargetsParamsSort = "provider:desc"
 )
 
 // Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsSort enum.
 func (e GetRuntimeTargetsParamsSort) Valid() bool {
 	switch e {
-	case DisplayNameAsc:
+	case GetRuntimeTargetsParamsSortDisplayNameAsc:
 		return true
-	case DisplayNameDesc:
+	case GetRuntimeTargetsParamsSortDisplayNameDesc:
 		return true
-	case HealthAsc:
+	case GetRuntimeTargetsParamsSortHealthAsc:
 		return true
-	case HealthDesc:
+	case GetRuntimeTargetsParamsSortHealthDesc:
 		return true
-	case ProviderAsc:
+	case GetRuntimeTargetsParamsSortProviderAsc:
 		return true
-	case ProviderDesc:
+	case GetRuntimeTargetsParamsSortProviderDesc:
 		return true
 	default:
 		return false

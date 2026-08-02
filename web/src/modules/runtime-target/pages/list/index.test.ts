@@ -13,7 +13,7 @@ const apiMocks = vi.hoisted(() => ({
   putRuntimeTargetSavedView: vi.fn(),
 }));
 
-const messageMocks = vi.hoisted(() => ({ success: vi.fn() }));
+const messageMocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 const realtimeMocks = vi.hoisted(() => ({
   openRealtimeTopicSocket: vi.fn<
     (options: { topic: string; onMessage: (payload: { topic: string; items: unknown[] }) => void }) => {

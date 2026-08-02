@@ -22,14 +22,6 @@ type RuntimeTargetSavedViewsOperation = paths[typeof OPENAPI_RUNTIME_PATH.getRun
 type RuntimeTargetSavedViewsData = NonNullable<
   RuntimeTargetSavedViewsOperation['responses'][200]['content']['application/json']['data']
 >;
-type RuntimeTargetCreateSavedViewOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRuntimeTargetSavedView]['post'];
-type RuntimeTargetCreateSavedViewData = NonNullable<
-  RuntimeTargetCreateSavedViewOperation['responses'][201]['content']['application/json']['data']
->;
-type RuntimeTargetUpdateSavedViewOperation = paths[typeof OPENAPI_RUNTIME_PATH.putRuntimeTargetSavedView]['put'];
-type RuntimeTargetUpdateSavedViewData = NonNullable<
-  RuntimeTargetUpdateSavedViewOperation['responses'][200]['content']['application/json']['data']
->;
 export type RuntimeTargetSavedView = components['schemas']['saved-view'];
 type RuntimeTargetSavedViewRequest = components['schemas']['saved-view-request'];
 export type RuntimeTargetSavedViewInput = {
@@ -65,18 +57,21 @@ export async function getRuntimeTargetSavedViews(): Promise<RuntimeTargetSavedVi
   return data.items;
 }
 
-export function postRuntimeTargetSavedView(input: RuntimeTargetSavedViewInput) {
-  return request.post<RuntimeTargetCreateSavedViewData>({
+export function postRuntimeTargetSavedView(input: RuntimeTargetSavedViewInput): Promise<RuntimeTargetSavedView> {
+  return request.post<RuntimeTargetSavedView>({
     url: OPENAPI_RUNTIME_PATH.postRuntimeTargetSavedView,
     data: toRuntimeTargetSavedViewRequest(input),
-  }) as Promise<RuntimeTargetSavedView>;
+  });
 }
 
-export function putRuntimeTargetSavedView(viewId: number, input: RuntimeTargetSavedViewInput) {
-  return request.put<RuntimeTargetUpdateSavedViewData>({
+export function putRuntimeTargetSavedView(
+  viewId: number,
+  input: RuntimeTargetSavedViewInput,
+): Promise<RuntimeTargetSavedView> {
+  return request.put<RuntimeTargetSavedView>({
     url: buildOpenApiRuntimePath('putRuntimeTargetSavedView', { viewId }),
     data: toRuntimeTargetSavedViewRequest(input),
-  }) as Promise<RuntimeTargetSavedView>;
+  });
 }
 
 function toRuntimeTargetSavedViewRequest(input: RuntimeTargetSavedViewInput): RuntimeTargetSavedViewRequest {

@@ -15919,6 +15919,10 @@
               "enum": [
                 "healthy",
                 "unavailable"
+              ],
+              "x-enum-varnames": [
+                "GetRuntimeTargetsParamsHealthHealthy",
+                "GetRuntimeTargetsParamsHealthUnavailable"
               ]
             }
           },
@@ -15934,6 +15938,14 @@
                 "provider:desc",
                 "health:asc",
                 "health:desc"
+              ],
+              "x-enum-varnames": [
+                "GetRuntimeTargetsParamsSortDisplayNameAsc",
+                "GetRuntimeTargetsParamsSortDisplayNameDesc",
+                "GetRuntimeTargetsParamsSortProviderAsc",
+                "GetRuntimeTargetsParamsSortProviderDesc",
+                "GetRuntimeTargetsParamsSortHealthAsc",
+                "GetRuntimeTargetsParamsSortHealthDesc"
               ],
               "default": "display_name:asc"
             }
@@ -15962,13 +15974,26 @@
         }
       }
     },
-    "/api/runtime-targets/saved-views": {
+    "/api/runtime-target-saved-views": {
       "get": {
         "tags": [
           "runtime-target"
         ],
         "summary": "List private runtime-target saved views",
         "operationId": "getRuntimeTargetSavedViews",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Reads the caller's saved runtime-target-list views without changing preferences.",
+            "reversible": true,
+            "impact": "Does not change saved views or runtime targets."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -15984,6 +16009,15 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       },
@@ -15993,6 +16027,19 @@
         ],
         "summary": "Create a private runtime-target saved view",
         "operationId": "postRuntimeTargetSavedView",
+        "x-graft-mcp": {
+          "risk": {
+            "level": "low",
+            "reason": "Creates a private saved runtime-target-list preference for the caller.",
+            "reversible": true,
+            "impact": "Adds one caller-owned saved view without changing runtime targets."
+          },
+          "confirmation": {
+            "required": false,
+            "strategy": "none",
+            "ttl": "PT0S"
+          }
+        },
         "security": [
           {
             "bearerAuth": []
@@ -16022,13 +16069,22 @@
           "400": {
             "description": "Invalid saved-view state."
           },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
           "409": {
             "description": "Duplicate saved-view name."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       }
     },
-    "/api/runtime-targets/saved-views/{viewId}": {
+    "/api/runtime-target-saved-views/{viewId}": {
       "put": {
         "tags": [
           "runtime-target"
@@ -16069,11 +16125,20 @@
           "400": {
             "description": "Invalid saved-view state."
           },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
           "404": {
             "description": "Saved view was not found."
           },
           "409": {
             "description": "Duplicate saved-view name."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       },
@@ -16097,8 +16162,17 @@
           "204": {
             "description": "Saved view deleted."
           },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
           "404": {
             "description": "Saved view was not found."
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           }
         }
       }

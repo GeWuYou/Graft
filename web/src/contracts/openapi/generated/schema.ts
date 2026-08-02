@@ -2995,7 +2995,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/runtime-targets/saved-views': {
+  '/api/runtime-target-saved-views': {
     parameters: {
       query?: never;
       header?: never;
@@ -3013,7 +3013,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/runtime-targets/saved-views/{viewId}': {
+  '/api/runtime-target-saved-views/{viewId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -18758,6 +18758,9 @@ export interface operations {
           'application/json': components['schemas']['enveloped-saved-view-list-response'];
         };
       };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      500: components['responses']['internal-server-error'];
     };
   };
   postRuntimeTargetSavedView: {
@@ -18789,6 +18792,8 @@ export interface operations {
         };
         content?: never;
       };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       /** @description Duplicate saved-view name. */
       409: {
         headers: {
@@ -18796,6 +18801,7 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
     };
   };
   putRuntimeTargetSavedView: {
@@ -18830,6 +18836,8 @@ export interface operations {
         };
         content?: never;
       };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       /** @description Saved view was not found. */
       404: {
         headers: {
@@ -18844,6 +18852,7 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
     };
   };
   deleteRuntimeTargetSavedView: {
@@ -18865,6 +18874,8 @@ export interface operations {
         };
         content?: never;
       };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
       /** @description Saved view was not found. */
       404: {
         headers: {
@@ -18872,6 +18883,7 @@ export interface operations {
         };
         content?: never;
       };
+      500: components['responses']['internal-server-error'];
     };
   };
   postRuntimeTargetsDiscoverLocalDocker: {

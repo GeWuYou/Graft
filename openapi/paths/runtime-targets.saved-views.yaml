@@ -2,12 +2,42 @@ get:
   tags: [runtime-target]
   summary: List private runtime-target saved views
   operationId: getRuntimeTargetSavedViews
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Reads the caller's saved runtime-target-list views without changing preferences.
+      reversible: true
+      impact: Does not change saved views or runtime targets.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   security: [{ bearerAuth: [] }]
-  responses: { '200': { description: Current user's runtime-target views., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view-list-response.yaml } } } } }
+  responses:
+    '200': { description: Current user's runtime-target views., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view-list-response.yaml } } } }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
 post:
   tags: [runtime-target]
   summary: Create a private runtime-target saved view
   operationId: postRuntimeTargetSavedView
+  x-graft-mcp:
+    risk:
+      level: low
+      reason: Creates a private saved runtime-target-list preference for the caller.
+      reversible: true
+      impact: Adds one caller-owned saved view without changing runtime targets.
+    confirmation:
+      required: false
+      strategy: none
+      ttl: PT0S
   security: [{ bearerAuth: [] }]
   requestBody: { required: true, content: { application/json: { schema: { $ref: ../components/schemas/saved-view-request.yaml } } } }
-  responses: { '201': { description: Saved view created., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view.yaml } } } }, '400': { description: Invalid saved-view state. }, '409': { description: Duplicate saved-view name. } }
+  responses:
+    '201': { description: Saved view created., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view.yaml } } } }
+    '400': { description: Invalid saved-view state. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '409': { description: Duplicate saved-view name. }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }

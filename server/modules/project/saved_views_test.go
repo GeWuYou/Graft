@@ -3,7 +3,9 @@ package project
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
+	"graft/server/internal/moduleapi"
 	projectstore "graft/server/modules/project/store"
 )
 
@@ -26,6 +28,22 @@ func TestValidateProjectListSavedViewRejectsUnknownConsumerFields(t *testing.T) 
 	}
 	if err := validateProjectListSavedView(savedViewRequest{Name: "Legacy columns", QueryState: valid, PageSize: 20, VisibleColumns: []string{"runtime_status"}}); err == nil {
 		t.Fatal("legacy project-list column must be rejected")
+	}
+}
+
+func TestTemplateSavedViewUsesTemplateManagementQueryContract(t *testing.T) {
+	t.Parallel()
+	state, _ := json.Marshal(map[string]any{"sort": []string{"updated_at:desc"}})
+	if err := validateTemplateListSavedView(savedViewRequest{Name: "Recent", QueryState: state, PageSize: 20, VisibleColumns: []string{"displayName"}}); err != nil {
+		t.Fatalf("valid template saved view rejected: %v", err)
+	}
+	if err := validateTemplateListSavedView(savedViewRequest{Name: "Unsupported size", QueryState: state, PageSize: 25, VisibleColumns: []string{"displayName"}}); err == nil {
+		t.Fatal("unsupported template page size accepted")
+	}
+
+	view, err := toGeneratedSavedView(moduleapi.SavedView{ID: 1, Name: "Legacy", QueryState: nil, PageSize: 20, CreatedAt: time.Now(), UpdatedAt: time.Now()})
+	if err != nil || len(view.QueryState) != 0 {
+		t.Fatalf("empty persisted query state = %#v, %v", view.QueryState, err)
 	}
 }
 

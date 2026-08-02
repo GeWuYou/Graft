@@ -100,7 +100,7 @@ func templateManagementWindow(c *gin.Context) (int, int, error) {
 	limit, offset := 20, 0
 	if raw := c.Query("limit"); raw != "" {
 		parsed, err := strconv.Atoi(raw)
-		if err != nil || (parsed != 10 && parsed != 20 && parsed != 50 && parsed != 100) {
+		if err != nil || !isTemplateManagementPageSize(parsed) {
 			return 0, 0, errProjectInvalidArgument
 		}
 		limit = parsed
