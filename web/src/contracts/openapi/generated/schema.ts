@@ -2995,6 +2995,42 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/runtime-targets/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private runtime-target saved views */
+    get: operations['getRuntimeTargetSavedViews'];
+    put?: never;
+    /** Create a private runtime-target saved view */
+    post: operations['postRuntimeTargetSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/runtime-targets/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private runtime-target saved view */
+    put: operations['putRuntimeTargetSavedView'];
+    post?: never;
+    /** Delete a private runtime-target saved view */
+    delete: operations['deleteRuntimeTargetSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/runtime-targets/discover-local-docker': {
     parameters: {
       query?: never;
@@ -3356,6 +3392,42 @@ export interface paths {
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private application-template saved views */
+    get: operations['getApplicationTemplateSavedViews'];
+    put?: never;
+    /** Create a private application-template saved view */
+    post: operations['postApplicationTemplateSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/applications/templates/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private application-template saved view */
+    put: operations['putApplicationTemplateSavedView'];
+    post?: never;
+    /** Delete a private application-template saved view */
+    delete: operations['deleteApplicationTemplateSavedView'];
     options?: never;
     head?: never;
     patch?: never;
@@ -9057,6 +9129,10 @@ export interface components {
     };
     'application-template-list-response': {
       items: components['schemas']['application-template-response'][];
+      /** Format: int64 */
+      total: number;
+      limit: number;
+      offset: number;
     };
     'enveloped-application-template-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['application-template-list-response'];
@@ -18629,6 +18705,12 @@ export interface operations {
       query?: {
         limit?: 10 | 20 | 50 | 100;
         offset?: number;
+        keyword?: string;
+        provider?: 'docker';
+        connection_kind?: 'unix_socket';
+        health?: 'healthy' | 'unavailable';
+        sort?:
+          'display_name:asc' | 'display_name:desc' | 'provider:asc' | 'provider:desc' | 'health:asc' | 'health:desc';
       };
       header?: {
         /** @description Explicit locale override header already supported by the runtime. */
@@ -18656,6 +18738,140 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getRuntimeTargetSavedViews: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's runtime-target views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+    };
+  };
+  postRuntimeTargetSavedView: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putRuntimeTargetSavedView: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteRuntimeTargetSavedView: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   postRuntimeTargetsDiscoverLocalDocker: {
@@ -19471,7 +19687,23 @@ export interface operations {
   };
   getApplicationManagedTemplates: {
     parameters: {
-      query?: never;
+      query?: {
+        keyword?: string;
+        status?: 'draft' | 'published' | 'archived';
+        updated_after?: string;
+        updated_before?: string;
+        sort?:
+          | 'updated_at:asc'
+          | 'updated_at:desc'
+          | 'display_name:asc'
+          | 'display_name:desc'
+          | 'status:asc'
+          | 'status:desc'
+          | 'version_number:asc'
+          | 'version_number:desc';
+        limit?: 10 | 20 | 50 | 100;
+        offset?: number;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -19489,6 +19721,140 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+    };
+  };
+  getApplicationTemplateSavedViews: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's template-list views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+    };
+  };
+  postApplicationTemplateSavedView: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putApplicationTemplateSavedView: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteApplicationTemplateSavedView: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getApplicationTemplate: {

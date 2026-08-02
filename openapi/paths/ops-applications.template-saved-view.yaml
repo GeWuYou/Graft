@@ -1,0 +1,15 @@
+put:
+  tags: [application]
+  summary: Update a private application-template saved view
+  operationId: putApplicationTemplateSavedView
+  parameters: [{ $ref: ../components/parameters/saved-view-id.yaml }]
+  security: [{ bearerAuth: [] }]
+  requestBody: { required: true, content: { application/json: { schema: { $ref: ../components/schemas/saved-view-request.yaml } } } }
+  responses: { '200': { description: Saved view updated., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view.yaml } } } }, '400': { description: Invalid saved-view state. }, '404': { description: Saved view was not found. }, '409': { description: Duplicate saved-view name. } }
+delete:
+  tags: [application]
+  summary: Delete a private application-template saved view
+  operationId: deleteApplicationTemplateSavedView
+  parameters: [{ $ref: ../components/parameters/saved-view-id.yaml }]
+  security: [{ bearerAuth: [] }]
+  responses: { '204': { description: Saved view deleted. }, '404': { description: Saved view was not found. } }

@@ -7,6 +7,10 @@
       "title": "Runtime Targets",
       "description": "Manage Docker, Kubernetes, and other runtime environments.",
       "reload": "Reload",
+      "searchPlaceholder": "Search name or endpoint",
+      "columnSettings": "Columns",
+      "resetColumns": "Reset Columns",
+      "savedViewError": "The saved view could not be updated.",
       "discoverLocalDocker": "Discover Local Docker",
       "discoverSuccess": "Local Docker discovery completed.",
       "discoverError": "Local Docker discovery failed.",
@@ -37,6 +41,18 @@
       "lastCheckedAt": "Last Checked"
     },
     "columns": { "name": "Name", "provider": "Provider", "health": "Health" },
+    "filters": { "provider": "Provider", "connectionKind": "Connection" },
+    "connectionKinds": { "unixSocket": "Unix Socket" },
+    "providers": { "docker": "Docker" },
+    "presets": { "all": "All" },
+    "sort": {
+      "nameAsc": "Name: Ascending",
+      "nameDesc": "Name: Descending",
+      "providerAsc": "Provider: Ascending",
+      "providerDesc": "Provider: Descending",
+      "healthAsc": "Health: Ascending",
+      "healthDesc": "Health: Descending"
+    },
     "status": { "healthy": "Healthy", "unavailable": "Unavailable" },
     "metrics": {
       "workloads": "Workloads",

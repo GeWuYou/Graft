@@ -1172,6 +1172,44 @@
       "versionValue": "版本 {version}",
       "operation": "操作",
       "searchPlaceholder": "搜索模板名称或说明",
+      "updatedAtColumn": "更新时间",
+      "columnSettings": "列设置",
+      "resetColumns": "恢复默认列",
+      "paginationSummary": "共 {total} 个模板",
+      "presets": {
+        "all": "全部"
+      },
+      "sort": {
+        "updatedAt": "更新时间",
+        "name": "模板名称",
+        "status": "状态",
+        "version": "版本号",
+        "asc": "升序",
+        "desc": "降序"
+      },
+      "filters": {
+        "title": "筛选条件",
+        "add": "添加筛选条件",
+        "addSort": "添加排序",
+        "filter": "筛选",
+        "moveDown": "下移排序",
+        "moveUp": "上移排序",
+        "presets": "快捷筛选",
+        "removeSort": "移除排序",
+        "reset": "重置",
+        "search": "查询",
+        "sort": "排序",
+        "sortDirection": "选择排序方向",
+        "sortField": "选择排序字段",
+        "updatedRange": "更新时间范围",
+        "updatedAfter": "开始时间",
+        "updatedBefore": "结束时间",
+        "updatedRangeActive": "已设置更新时间范围"
+      },
+      "savedViews": {
+        "deleteFailed": "删除保存筛选失败。",
+        "conflict": "保存筛选失败，请检查名称或筛选条件。"
+      },
       "noDescription": "暂无说明",
       "statusDraft": "草稿",
       "statusPublished": "已发布",

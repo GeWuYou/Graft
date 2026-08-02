@@ -1,0 +1,13 @@
+get:
+  tags: [runtime-target]
+  summary: List private runtime-target saved views
+  operationId: getRuntimeTargetSavedViews
+  security: [{ bearerAuth: [] }]
+  responses: { '200': { description: Current user's runtime-target views., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view-list-response.yaml } } } } }
+post:
+  tags: [runtime-target]
+  summary: Create a private runtime-target saved view
+  operationId: postRuntimeTargetSavedView
+  security: [{ bearerAuth: [] }]
+  requestBody: { required: true, content: { application/json: { schema: { $ref: ../components/schemas/saved-view-request.yaml } } } }
+  responses: { '201': { description: Saved view created., content: { application/json: { schema: { $ref: ../components/schemas/enveloped-saved-view.yaml } } } }, '400': { description: Invalid saved-view state. }, '409': { description: Duplicate saved-view name. } }

@@ -1,41 +1,66 @@
 <template>
-  <div class="runtime-target-page" data-page-type="list-form-detail">
-    <management-page-content>
-      <management-page-header
-        action-layout="inline"
-        compact
-        :title="t('runtimeTarget.list.title')"
-        :description="t('runtimeTarget.list.description')"
-        :source="{ labelKey: 'runtimeTarget.list.eyebrow', fallback: t('runtimeTarget.list.eyebrow') }"
-      >
-        <template v-if="total > 0" #actions>
-          <t-tooltip :content="t('runtimeTarget.list.discoverLocalDocker')" placement="bottom">
-            <t-button
-              class="runtime-target-discover-button"
-              shape="square"
-              theme="default"
-              variant="outline"
-              :aria-label="t('runtimeTarget.list.discoverLocalDocker')"
-              :loading="discovering"
-              data-testid="runtime-target-discover-local"
-              @click="discoverLocal"
-            >
-              <template #icon><search-icon /></template>
-            </t-button>
-          </t-tooltip>
-        </template>
-      </management-page-header>
+  <advanced-query-list-page
+    root-class="runtime-target-page"
+    page-type="query-builder-list-detail"
+    :title="t('runtimeTarget.list.title')"
+    :description="t('runtimeTarget.list.description')"
+    :error-message="errorMessage"
+    :error-title="t('runtimeTarget.list.emptyTitle')"
+    :loading="loading"
+    :reload-label="t('runtimeTarget.list.reload')"
+    :retry-label="t('runtimeTarget.list.reload')"
+    :source="{ labelKey: 'runtimeTarget.list.eyebrow', fallback: t('runtimeTarget.list.eyebrow') }"
+    @reload="load"
+  >
+    <template #actions>
+      <template v-if="total > 0">
+        <t-tooltip :content="t('runtimeTarget.list.discoverLocalDocker')" placement="bottom">
+          <t-button
+            class="runtime-target-discover-button"
+            shape="square"
+            theme="default"
+            variant="outline"
+            :aria-label="t('runtimeTarget.list.discoverLocalDocker')"
+            :loading="discovering"
+            data-testid="runtime-target-discover-local"
+            @click="discoverLocal"
+          >
+            <template #icon><search-icon /></template>
+          </t-button>
+        </t-tooltip>
+      </template>
+    </template>
+    <template #feedback-extra>
       <management-statistics-bar
         layout="summary"
         :items="statistics"
         :label="t('runtimeTarget.list.summary', { count: total })"
       />
-      <t-alert v-if="errorMessage" theme="error" :message="errorMessage" class="runtime-target-feedback" />
+    </template>
+    <template #filters>
+      <resource-query-panel
+        v-model="queryState"
+        :config="queryConfig"
+        :loading="loading"
+        @reset="resetQuery"
+        @search="applyQuery"
+      >
+        <template #toolbar-after-search>
+          <t-select v-model="filters.sort" class="runtime-target-sort" :options="sortOptions" />
+        </template>
+        <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+      </resource-query-panel>
+    </template>
+    <template #table>
       <management-table-card>
         <template #toolbar>
-          <t-button theme="default" variant="text" :loading="loading" @click="load">
-            <template #icon><refresh-icon /></template>{{ t('runtimeTarget.list.reload') }}
-          </t-button>
+          <table-view-toolbar
+            :column-settings-label="t('runtimeTarget.list.columnSettings')"
+            :refresh-label="t('runtimeTarget.list.reload')"
+            :refresh-loading="loading"
+            @column-settings="columnDrawerVisible = true"
+            @refresh="load"
+          />
         </template>
         <responsive-table entity-card-layout="adaptive" presentation="entity">
           <template #cards>
@@ -136,43 +161,81 @@
           </management-table-pagination>
         </template>
       </management-table-card>
-    </management-page-content>
-  </div>
+    </template>
+    <template #detail>
+      <advanced-query-column-drawer
+        v-model:visible="columnDrawerVisible"
+        v-model:selected-keys="visibleColumnKeys"
+        :columns="columnOptions"
+        :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+        :reset-label="t('runtimeTarget.list.resetColumns')"
+        :title="t('runtimeTarget.list.columnSettings')"
+      />
+    </template>
+  </advanced-query-list-page>
 </template>
 <script setup lang="ts">
 // 列表页负责发现/刷新运行时目标并维护列表请求状态，详情数据由详情路由独立加载。
-import { RefreshIcon, SearchIcon } from 'tdesign-icons-vue-next';
+import { SearchIcon } from 'tdesign-icons-vue-next';
 import type { PrimaryTableCol } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, h, onActivated, onDeactivated, onMounted, onUnmounted, reactive, ref, resolveComponent } from 'vue';
+import {
+  computed,
+  h,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onUnmounted,
+  reactive,
+  ref,
+  resolveComponent,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { RUNTIME_TARGET_REALTIME_TOPIC } from '@/contracts/generated/modules/runtime-target';
 import {
-  ManagementPageContent,
-  ManagementPageHeader,
   ManagementStatisticsBar,
   ManagementTableCard,
   ManagementTablePagination,
+  TableViewToolbar,
 } from '@/shared/components/management';
 import { RealtimeResourceMetricCell } from '@/shared/components/metrics';
+import {
+  AdvancedQueryColumnDrawer,
+  AdvancedQueryListPage,
+  applySavedQueryViewPresentation,
+  normalizeSavedQueryView,
+  type ResourceQueryConfig,
+  ResourceQueryPanel,
+  type ResourceQueryState,
+  SavedQueryViewControl,
+  useSavedQueryViews,
+} from '@/shared/components/query-list';
 import ResponsiveTable from '@/shared/components/responsive/ResponsiveTable.vue';
 import { formatBytes } from '@/shared/observability';
 import { openRealtimeTopicSocket, type RealtimeTopicSocketController } from '@/shared/realtime';
 
 import {
+  deleteRuntimeTargetSavedView,
   discoverLocalDocker,
+  getRuntimeTargetSavedViews,
   listRuntimeTargetPage,
+  postRuntimeTargetSavedView,
+  putRuntimeTargetSavedView,
   type RuntimeTarget,
   type RuntimeTargetUsageMetric,
 } from '../../api/runtime-target';
 import { runtimeTargetDetailPath } from '../../contract/paths';
 import { parseRuntimeTargetSummaryPayload } from '../../contract/realtime';
 
+const { t } = useI18n();
 type Change = 'up' | 'down' | 'none';
 type MetricChanges = Record<'cpu' | 'memory' | 'storage', Change>;
 const CHANGE_HIGHLIGHT_MS = 800;
-const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 const loading = ref(false);
 const discovering = ref(false);
 const errorMessage = ref('');
@@ -180,7 +243,30 @@ const items = ref<RuntimeTarget[]>([]);
 const total = ref(0);
 const summary = ref({ total: 0, healthy: 0, unavailable: 0 });
 const pagination = reactive({ current: 1, pageSize: 10 });
-const changes = ref<Record<number, MetricChanges>>({});
+const DEFAULT_VISIBLE_COLUMNS = ['displayName', 'provider', 'health', 'workloads', 'cpu', 'memory', 'storage'];
+type RuntimeTargetFilters = {
+  keyword: string;
+  provider: '' | 'docker';
+  connectionKind: '' | 'unix_socket';
+  health: '' | 'healthy' | 'unavailable';
+  sort: 'display_name:asc' | 'display_name:desc' | 'provider:asc' | 'provider:desc' | 'health:asc' | 'health:desc';
+};
+type RuntimeTargetSavedQueryState = {
+  keyword?: string;
+  provider?: 'docker';
+  connection_kind?: 'unix_socket';
+  health?: 'healthy' | 'unavailable';
+  sort?: RuntimeTargetFilters['sort'];
+};
+type RuntimeTargetSavedViewState = {
+  pageSize: number;
+  queryState: RuntimeTargetSavedQueryState;
+  visibleColumns: string[];
+};
+const filters = reactive<RuntimeTargetFilters>(createDefaultFilters());
+const visibleColumnKeys = ref([...DEFAULT_VISIBLE_COLUMNS]);
+const columnDrawerVisible = ref(false);
+const applyingRoute = ref(false);
 const statistics = computed(() => [
   { label: t('runtimeTarget.list.targetCount'), value: summary.value.total },
   {
@@ -196,8 +282,193 @@ const statistics = computed(() => [
 ]);
 const active = ref(false);
 let realtimeController: RealtimeTopicSocketController | null = null;
+const changes = ref<Record<number, MetricChanges>>({});
 const changeExpiryByID = new Map<number, number>();
 let changeExpiryTimer: number | null = null;
+
+const sortOptions = computed(() => [
+  { label: t('runtimeTarget.sort.nameAsc'), value: 'display_name:asc' },
+  { label: t('runtimeTarget.sort.nameDesc'), value: 'display_name:desc' },
+  { label: t('runtimeTarget.sort.providerAsc'), value: 'provider:asc' },
+  { label: t('runtimeTarget.sort.providerDesc'), value: 'provider:desc' },
+  { label: t('runtimeTarget.sort.healthAsc'), value: 'health:asc' },
+  { label: t('runtimeTarget.sort.healthDesc'), value: 'health:desc' },
+]);
+const queryConfig = computed<ResourceQueryConfig>(() => ({
+  resource: 'runtime-target.list',
+  placeholder: t('runtimeTarget.list.searchPlaceholder'),
+  filters: [
+    {
+      key: 'provider',
+      label: t('runtimeTarget.filters.provider'),
+      type: 'select',
+      options: [{ value: 'docker', label: t('runtimeTarget.providers.docker') }],
+    },
+    {
+      key: 'connectionKind',
+      label: t('runtimeTarget.filters.connectionKind'),
+      type: 'select',
+      options: [{ value: 'unix_socket', label: t('runtimeTarget.connectionKinds.unixSocket') }],
+    },
+    {
+      key: 'health',
+      label: t('runtimeTarget.columns.health'),
+      type: 'select',
+      options: [
+        { value: 'healthy', label: t('runtimeTarget.status.healthy') },
+        { value: 'unavailable', label: t('runtimeTarget.status.unavailable') },
+      ],
+    },
+  ],
+  quickFilters: [
+    { key: 'all', label: t('runtimeTarget.presets.all'), patch: { provider: '', connectionKind: '', health: '' } },
+    { key: 'healthy', label: t('runtimeTarget.status.healthy'), patch: { health: 'healthy' } },
+    { key: 'unavailable', label: t('runtimeTarget.status.unavailable'), patch: { health: 'unavailable' } },
+  ],
+}));
+const queryState = computed<ResourceQueryState>({
+  get: () => ({
+    keyword: filters.keyword,
+    filters: { provider: filters.provider, connectionKind: filters.connectionKind, health: filters.health },
+    page: pagination.current,
+    pageSize: pagination.pageSize,
+  }),
+  set: (value) => {
+    filters.keyword = value.keyword;
+    filters.provider = value.filters.provider === 'docker' ? 'docker' : '';
+    filters.connectionKind = value.filters.connectionKind === 'unix_socket' ? 'unix_socket' : '';
+    filters.health =
+      value.filters.health === 'healthy' || value.filters.health === 'unavailable' ? value.filters.health : '';
+    pagination.current = value.page;
+    pagination.pageSize = value.pageSize;
+  },
+});
+const columnOptions = computed(() => [
+  { label: t('runtimeTarget.columns.name'), value: 'displayName' },
+  { label: t('runtimeTarget.columns.provider'), value: 'provider' },
+  { label: t('runtimeTarget.columns.health'), value: 'health' },
+  { label: t('runtimeTarget.metrics.workloads'), value: 'workloads' },
+  { label: t('runtimeTarget.metrics.cpu'), value: 'cpu' },
+  { label: t('runtimeTarget.metrics.memory'), value: 'memory' },
+  { label: t('runtimeTarget.metrics.storage'), value: 'storage' },
+]);
+const savedViews = useSavedQueryViews<RuntimeTargetSavedViewState, number>({
+  adapter: {
+    list: async () =>
+      (await getRuntimeTargetSavedViews()).map((view) =>
+        normalizeSavedQueryView<RuntimeTargetSavedQueryState, number>(view),
+      ),
+    create: async (input) =>
+      normalizeSavedQueryView<RuntimeTargetSavedQueryState, number>(
+        await postRuntimeTargetSavedView(toSavedViewInput(input)),
+      ),
+    update: async (id, input) =>
+      normalizeSavedQueryView<RuntimeTargetSavedQueryState, number>(
+        await putRuntimeTargetSavedView(id, toSavedViewInput(input)),
+      ),
+    remove: async (id) => {
+      await deleteRuntimeTargetSavedView(id);
+    },
+  },
+  applyView: async (view) => {
+    applySavedState(view.state);
+    await replaceRoute();
+    await load();
+  },
+  onError: () => (MessagePlugin.error ?? MessagePlugin.success)(t('runtimeTarget.list.savedViewError')),
+  serializeCurrentState: () => ({
+    pageSize: pagination.pageSize,
+    queryState: currentSavedQueryState(),
+    visibleColumns: [...visibleColumnKeys.value],
+  }),
+});
+
+function createDefaultFilters(): RuntimeTargetFilters {
+  return { keyword: '', provider: '', connectionKind: '', health: '', sort: 'display_name:asc' };
+}
+function currentSavedQueryState(): RuntimeTargetSavedQueryState {
+  return {
+    ...(filters.keyword.trim() ? { keyword: filters.keyword.trim() } : {}),
+    ...(filters.provider ? { provider: filters.provider } : {}),
+    ...(filters.connectionKind ? { connection_kind: filters.connectionKind } : {}),
+    ...(filters.health ? { health: filters.health } : {}),
+    sort: filters.sort,
+  };
+}
+function toSavedViewInput(input: { name: string; isDefault: boolean; state: RuntimeTargetSavedViewState }) {
+  return {
+    name: input.name,
+    pageSize: input.state.pageSize,
+    queryState: input.state.queryState,
+    visibleColumns: input.state.visibleColumns,
+    isDefault: input.isDefault,
+  };
+}
+function applySavedState(state: RuntimeTargetSavedViewState) {
+  const query = state.queryState;
+  filters.keyword = query.keyword ?? '';
+  filters.provider = query.provider ?? '';
+  filters.connectionKind = query.connection_kind ?? '';
+  filters.health = query.health ?? '';
+  filters.sort = isSort(query.sort) ? query.sort : 'display_name:asc';
+  applySavedQueryViewPresentation(state, { pagination, supportedColumns: DEFAULT_VISIBLE_COLUMNS, visibleColumnKeys });
+}
+function applyQuery(value: ResourceQueryState) {
+  queryState.value = value;
+  pagination.current = 1;
+  void load();
+}
+function resetQuery() {
+  Object.assign(filters, createDefaultFilters());
+  pagination.current = 1;
+  void load();
+}
+function isSort(value: unknown): value is RuntimeTargetFilters['sort'] {
+  return typeof value === 'string' && sortOptions.value.some((option) => option.value === value);
+}
+function stringQuery(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+function routeQuery() {
+  return route?.query ?? {};
+}
+function hasExplicitRouteState() {
+  const query = routeQuery();
+  return ['keyword', 'provider', 'connection_kind', 'health', 'sort', 'page', 'page_size', 'columns'].some(
+    (key) => query[key] !== undefined,
+  );
+}
+function hydrateFromRoute() {
+  applyingRoute.value = true;
+  const query = routeQuery();
+  filters.keyword = stringQuery(query.keyword);
+  filters.provider = stringQuery(query.provider) === 'docker' ? 'docker' : '';
+  filters.connectionKind = stringQuery(query.connection_kind) === 'unix_socket' ? 'unix_socket' : '';
+  const routeHealth = stringQuery(query.health);
+  filters.health = routeHealth === 'healthy' || routeHealth === 'unavailable' ? routeHealth : '';
+  const routeSort = stringQuery(query.sort);
+  filters.sort = isSort(routeSort) ? routeSort : 'display_name:asc';
+  pagination.current = Math.max(1, Number(stringQuery(query.page)) || 1);
+  pagination.pageSize = [10, 20, 50, 100].includes(Number(stringQuery(query.page_size)))
+    ? Number(stringQuery(query.page_size))
+    : 10;
+  const columns = stringQuery(query.columns)
+    .split(',')
+    .filter((key) => DEFAULT_VISIBLE_COLUMNS.includes(key));
+  visibleColumnKeys.value = columns.length ? columns : [...DEFAULT_VISIBLE_COLUMNS];
+  applyingRoute.value = false;
+}
+async function replaceRoute() {
+  if (!router) return;
+  await router.replace({
+    query: {
+      ...currentSavedQueryState(),
+      page: String(pagination.current),
+      page_size: String(pagination.pageSize),
+      columns: visibleColumnKeys.value.join(','),
+    },
+  });
+}
 
 function metricText(metric: RuntimeTargetUsageMetric) {
   if (!metric.available) return t('runtimeTarget.metrics.unavailable');
@@ -304,7 +575,12 @@ const columns = computed<PrimaryTableCol<RuntimeTarget>[]>(() => [
     cell: (_h, { row }) => metricCell(row.id, 'storage', row.resources.storage),
   },
 ]);
-const tableColumns = columns as unknown as PrimaryTableCol[];
+const tableColumns = computed(
+  () =>
+    columns.value.filter((column) =>
+      visibleColumnKeys.value.includes(String(column.colKey)),
+    ) as unknown as PrimaryTableCol[],
+);
 
 function compare(previous: number, next: number): Change {
   return next > previous ? 'up' : next < previous ? 'down' : 'none';
@@ -398,6 +674,7 @@ function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
   const nextPage = nextItems.map((next) => {
     const current = currentByID.get(next.id);
     if (!current) return next;
+
     const nextChanges: MetricChanges = {
       cpu: compare(current.resources.cpu.usagePercent, next.resources.cpu.usagePercent),
       memory: compare(current.resources.memory.usagePercent, next.resources.memory.usagePercent),
@@ -428,6 +705,7 @@ function reconcileRealtimePage(nextItems: RuntimeTarget[]) {
     }
   });
 }
+
 function applyRealtime(itemsUpdate: RuntimeTarget[]) {
   const offset = (pagination.current - 1) * pagination.pageSize;
   if (offset >= itemsUpdate.length) return;
@@ -451,8 +729,9 @@ async function load() {
   errorMessage.value = '';
   try {
     const page = await listRuntimeTargetPage({
-      limit: pagination.pageSize,
+      limit: pagination.pageSize as 10 | 20 | 50 | 100,
       offset: (pagination.current - 1) * pagination.pageSize,
+      ...currentSavedQueryState(),
     });
     items.value = page.items;
     total.value = page.total;
@@ -480,8 +759,19 @@ async function discoverLocal() {
 }
 onMounted(() => {
   active.value = true;
-  void load();
+  hydrateFromRoute();
+  void (async () => {
+    await savedViews.load({ hasExplicitState: hasExplicitRouteState() });
+    await load();
+  })();
 });
+watch(
+  [filters, () => pagination.current, () => pagination.pageSize, visibleColumnKeys],
+  () => {
+    if (!applyingRoute.value) void replaceRoute();
+  },
+  { deep: true },
+);
 onActivated(() => {
   active.value = true;
   startRealtime();

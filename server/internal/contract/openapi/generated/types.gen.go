@@ -5636,6 +5636,87 @@ func (e GetApplicationTemplatesParamsSort) Valid() bool {
 	}
 }
 
+// Defines values for GetApplicationManagedTemplatesParamsStatus.
+const (
+	Archived  GetApplicationManagedTemplatesParamsStatus = "archived"
+	Draft     GetApplicationManagedTemplatesParamsStatus = "draft"
+	Published GetApplicationManagedTemplatesParamsStatus = "published"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationManagedTemplatesParamsStatus enum.
+func (e GetApplicationManagedTemplatesParamsStatus) Valid() bool {
+	switch e {
+	case Archived:
+		return true
+	case Draft:
+		return true
+	case Published:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetApplicationManagedTemplatesParamsSort.
+const (
+	GetApplicationManagedTemplatesParamsSortDisplayNameAsc    GetApplicationManagedTemplatesParamsSort = "display_name:asc"
+	GetApplicationManagedTemplatesParamsSortDisplayNameDesc   GetApplicationManagedTemplatesParamsSort = "display_name:desc"
+	GetApplicationManagedTemplatesParamsSortStatusAsc         GetApplicationManagedTemplatesParamsSort = "status:asc"
+	GetApplicationManagedTemplatesParamsSortStatusDesc        GetApplicationManagedTemplatesParamsSort = "status:desc"
+	GetApplicationManagedTemplatesParamsSortUpdatedAtAsc      GetApplicationManagedTemplatesParamsSort = "updated_at:asc"
+	GetApplicationManagedTemplatesParamsSortUpdatedAtDesc     GetApplicationManagedTemplatesParamsSort = "updated_at:desc"
+	GetApplicationManagedTemplatesParamsSortVersionNumberAsc  GetApplicationManagedTemplatesParamsSort = "version_number:asc"
+	GetApplicationManagedTemplatesParamsSortVersionNumberDesc GetApplicationManagedTemplatesParamsSort = "version_number:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationManagedTemplatesParamsSort enum.
+func (e GetApplicationManagedTemplatesParamsSort) Valid() bool {
+	switch e {
+	case GetApplicationManagedTemplatesParamsSortDisplayNameAsc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortDisplayNameDesc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortStatusAsc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortStatusDesc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortUpdatedAtAsc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortUpdatedAtDesc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortVersionNumberAsc:
+		return true
+	case GetApplicationManagedTemplatesParamsSortVersionNumberDesc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetApplicationManagedTemplatesParamsLimit.
+const (
+	GetApplicationManagedTemplatesParamsLimitN10  GetApplicationManagedTemplatesParamsLimit = 10
+	GetApplicationManagedTemplatesParamsLimitN100 GetApplicationManagedTemplatesParamsLimit = 100
+	GetApplicationManagedTemplatesParamsLimitN20  GetApplicationManagedTemplatesParamsLimit = 20
+	GetApplicationManagedTemplatesParamsLimitN50  GetApplicationManagedTemplatesParamsLimit = 50
+)
+
+// Valid indicates whether the value is a known member of the GetApplicationManagedTemplatesParamsLimit enum.
+func (e GetApplicationManagedTemplatesParamsLimit) Valid() bool {
+	switch e {
+	case GetApplicationManagedTemplatesParamsLimitN10:
+		return true
+	case GetApplicationManagedTemplatesParamsLimitN100:
+		return true
+	case GetApplicationManagedTemplatesParamsLimitN20:
+		return true
+	case GetApplicationManagedTemplatesParamsLimitN50:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainersParamsState.
 const (
 	GetContainersParamsStateContainerListStateCreated    GetContainersParamsState = "created"
@@ -5812,22 +5893,100 @@ func (e GetRolesParamsStatus) Valid() bool {
 
 // Defines values for GetRuntimeTargetsParamsLimit.
 const (
-	N10  GetRuntimeTargetsParamsLimit = 10
-	N100 GetRuntimeTargetsParamsLimit = 100
-	N20  GetRuntimeTargetsParamsLimit = 20
-	N50  GetRuntimeTargetsParamsLimit = 50
+	GetRuntimeTargetsParamsLimitN10  GetRuntimeTargetsParamsLimit = 10
+	GetRuntimeTargetsParamsLimitN100 GetRuntimeTargetsParamsLimit = 100
+	GetRuntimeTargetsParamsLimitN20  GetRuntimeTargetsParamsLimit = 20
+	GetRuntimeTargetsParamsLimitN50  GetRuntimeTargetsParamsLimit = 50
 )
 
 // Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsLimit enum.
 func (e GetRuntimeTargetsParamsLimit) Valid() bool {
 	switch e {
-	case N10:
+	case GetRuntimeTargetsParamsLimitN10:
 		return true
-	case N100:
+	case GetRuntimeTargetsParamsLimitN100:
 		return true
-	case N20:
+	case GetRuntimeTargetsParamsLimitN20:
 		return true
-	case N50:
+	case GetRuntimeTargetsParamsLimitN50:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsProvider.
+const (
+	Docker GetRuntimeTargetsParamsProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsProvider enum.
+func (e GetRuntimeTargetsParamsProvider) Valid() bool {
+	switch e {
+	case Docker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsConnectionKind.
+const (
+	UnixSocket GetRuntimeTargetsParamsConnectionKind = "unix_socket"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsConnectionKind enum.
+func (e GetRuntimeTargetsParamsConnectionKind) Valid() bool {
+	switch e {
+	case UnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsHealth.
+const (
+	Healthy     GetRuntimeTargetsParamsHealth = "healthy"
+	Unavailable GetRuntimeTargetsParamsHealth = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsHealth enum.
+func (e GetRuntimeTargetsParamsHealth) Valid() bool {
+	switch e {
+	case Healthy:
+		return true
+	case Unavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsSort.
+const (
+	GetRuntimeTargetsParamsSortDisplayNameAsc  GetRuntimeTargetsParamsSort = "display_name:asc"
+	GetRuntimeTargetsParamsSortDisplayNameDesc GetRuntimeTargetsParamsSort = "display_name:desc"
+	GetRuntimeTargetsParamsSortHealthAsc       GetRuntimeTargetsParamsSort = "health:asc"
+	GetRuntimeTargetsParamsSortHealthDesc      GetRuntimeTargetsParamsSort = "health:desc"
+	GetRuntimeTargetsParamsSortProviderAsc     GetRuntimeTargetsParamsSort = "provider:asc"
+	GetRuntimeTargetsParamsSortProviderDesc    GetRuntimeTargetsParamsSort = "provider:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsSort enum.
+func (e GetRuntimeTargetsParamsSort) Valid() bool {
+	switch e {
+	case GetRuntimeTargetsParamsSortDisplayNameAsc:
+		return true
+	case GetRuntimeTargetsParamsSortDisplayNameDesc:
+		return true
+	case GetRuntimeTargetsParamsSortHealthAsc:
+		return true
+	case GetRuntimeTargetsParamsSortHealthDesc:
+		return true
+	case GetRuntimeTargetsParamsSortProviderAsc:
+		return true
+	case GetRuntimeTargetsParamsSortProviderDesc:
 		return true
 	default:
 		return false
@@ -7161,7 +7320,10 @@ type ApplicationTemplateDraftRequestDeploymentAdapterKind string
 
 // ApplicationTemplateListResponse defines model for application-template-list-response.
 type ApplicationTemplateListResponse struct {
-	Items []ApplicationTemplateResponse `json:"items"`
+	Items  []ApplicationTemplateResponse `json:"items"`
+	Limit  int                           `json:"limit"`
+	Offset int                           `json:"offset"`
+	Total  int64                         `json:"total"`
 }
 
 // ApplicationTemplateResponse defines model for application-template-response.
@@ -14828,6 +14990,26 @@ type GetApplicationTemplatesParamsDeploymentAdapterKind string
 // GetApplicationTemplatesParamsSort defines parameters for GetApplicationTemplates.
 type GetApplicationTemplatesParamsSort string
 
+// GetApplicationManagedTemplatesParams defines parameters for GetApplicationManagedTemplates.
+type GetApplicationManagedTemplatesParams struct {
+	Keyword       *string                                     `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Status        *GetApplicationManagedTemplatesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	UpdatedAfter  *time.Time                                  `form:"updated_after,omitempty" json:"updated_after,omitempty"`
+	UpdatedBefore *time.Time                                  `form:"updated_before,omitempty" json:"updated_before,omitempty"`
+	Sort          *GetApplicationManagedTemplatesParamsSort   `form:"sort,omitempty" json:"sort,omitempty"`
+	Limit         *GetApplicationManagedTemplatesParamsLimit  `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset        *int                                        `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetApplicationManagedTemplatesParamsStatus defines parameters for GetApplicationManagedTemplates.
+type GetApplicationManagedTemplatesParamsStatus string
+
+// GetApplicationManagedTemplatesParamsSort defines parameters for GetApplicationManagedTemplates.
+type GetApplicationManagedTemplatesParamsSort string
+
+// GetApplicationManagedTemplatesParamsLimit defines parameters for GetApplicationManagedTemplates.
+type GetApplicationManagedTemplatesParamsLimit int
+
 // PostApplicationTemplateCloneJSONBody defines parameters for PostApplicationTemplateClone.
 type PostApplicationTemplateCloneJSONBody struct {
 	DisplayName string `json:"display_name"`
@@ -15597,6 +15779,16 @@ type GetPlatformBackupParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPlatformUpdateActiveOperationParams defines parameters for GetPlatformUpdateActiveOperation.
+type GetPlatformUpdateActiveOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
 // PostPlatformUpdateCheckParams defines parameters for PostPlatformUpdateCheck.
 type PostPlatformUpdateCheckParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15631,16 +15823,6 @@ type GetPlatformUpdateOperationsParams struct {
 
 // PostPlatformUpdateOperationParams defines parameters for PostPlatformUpdateOperation.
 type PostPlatformUpdateOperationParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
-// GetPlatformUpdateActiveOperationParams defines parameters for GetPlatformUpdateActiveOperation.
-type GetPlatformUpdateActiveOperationParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 
@@ -15810,8 +15992,13 @@ type PostRoleUpdateParams struct {
 
 // GetRuntimeTargetsParams defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParams struct {
-	Limit  *GetRuntimeTargetsParamsLimit `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int                          `form:"offset,omitempty" json:"offset,omitempty"`
+	Limit          *GetRuntimeTargetsParamsLimit          `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset         *int                                   `form:"offset,omitempty" json:"offset,omitempty"`
+	Keyword        *string                                `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Provider       *GetRuntimeTargetsParamsProvider       `form:"provider,omitempty" json:"provider,omitempty"`
+	ConnectionKind *GetRuntimeTargetsParamsConnectionKind `form:"connection_kind,omitempty" json:"connection_kind,omitempty"`
+	Health         *GetRuntimeTargetsParamsHealth         `form:"health,omitempty" json:"health,omitempty"`
+	Sort           *GetRuntimeTargetsParamsSort           `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
@@ -15823,6 +16010,18 @@ type GetRuntimeTargetsParams struct {
 
 // GetRuntimeTargetsParamsLimit defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParamsLimit int
+
+// GetRuntimeTargetsParamsProvider defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsProvider string
+
+// GetRuntimeTargetsParamsConnectionKind defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsConnectionKind string
+
+// GetRuntimeTargetsParamsHealth defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsHealth string
+
+// GetRuntimeTargetsParamsSort defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsSort string
 
 // PostRuntimeTargetsDiscoverLocalDockerParams defines parameters for PostRuntimeTargetsDiscoverLocalDocker.
 type PostRuntimeTargetsDiscoverLocalDockerParams struct {
@@ -16448,6 +16647,12 @@ type PutApplicationSavedViewJSONRequestBody = ApplicationSavedViewRequest
 // PostApplicationTemplateJSONRequestBody defines body for PostApplicationTemplate for application/json ContentType.
 type PostApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
 
+// PostApplicationTemplateSavedViewJSONRequestBody defines body for PostApplicationTemplateSavedView for application/json ContentType.
+type PostApplicationTemplateSavedViewJSONRequestBody = SavedViewRequest
+
+// PutApplicationTemplateSavedViewJSONRequestBody defines body for PutApplicationTemplateSavedView for application/json ContentType.
+type PutApplicationTemplateSavedViewJSONRequestBody = SavedViewRequest
+
 // PutApplicationTemplateJSONRequestBody defines body for PutApplicationTemplate for application/json ContentType.
 type PutApplicationTemplateJSONRequestBody = ApplicationTemplateDraftRequest
 
@@ -16552,6 +16757,12 @@ type PostRoleStatusJSONRequestBody = UpdateRoleStatusRequest
 
 // PostRoleUpdateJSONRequestBody defines body for PostRoleUpdate for application/json ContentType.
 type PostRoleUpdateJSONRequestBody = UpdateRoleRequest
+
+// PostRuntimeTargetSavedViewJSONRequestBody defines body for PostRuntimeTargetSavedView for application/json ContentType.
+type PostRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
+
+// PutRuntimeTargetSavedViewJSONRequestBody defines body for PutRuntimeTargetSavedView for application/json ContentType.
+type PutRuntimeTargetSavedViewJSONRequestBody = SavedViewRequest
 
 // PostScheduledTaskJSONRequestBody defines body for PostScheduledTask for application/json ContentType.
 type PostScheduledTaskJSONRequestBody = CreateScheduledTaskRequest

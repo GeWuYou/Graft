@@ -8836,14 +8836,14 @@
         }
       }
     },
-    "/api/platform/updates/operations/active": {
+    "/api/platform/updates/active-operation": {
       "get": {
         "tags": [
           "platform-update"
         ],
         "summary": "Read the active self-update operation",
         "operationId": "getPlatformUpdateActiveOperation",
-        "description": "Returns the runner-owned active operation for tab recovery, or null when no runner is active. The response never invents live READY progress when runner state is unavailable.",
+        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. A 503 is reserved for a runner-state source that cannot be read.",
         "security": [
           {
             "bearerAuth": []
@@ -8859,7 +8859,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Current active update operation, or null when no update runner is active.",
+            "description": "Current active update operation, an explicit unavailable-state projection, or null when no unfinished operation exists.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15882,6 +15882,61 @@
               "minimum": 0,
               "default": 0
             }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "docker"
+              ]
+            }
+          },
+          {
+            "name": "connection_kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unix_socket"
+              ]
+            }
+          },
+          {
+            "name": "health",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "healthy",
+                "unavailable"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "display_name:asc",
+                "display_name:desc",
+                "provider:asc",
+                "provider:desc",
+                "health:asc",
+                "health:desc"
+              ],
+              "default": "display_name:asc"
+            }
           }
         ],
         "responses": {
@@ -15903,6 +15958,147 @@
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/saved-views": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "List private runtime-target saved views",
+        "operationId": "getRuntimeTargetSavedViews",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's runtime-target views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Create a private runtime-target saved view",
+        "operationId": "postRuntimeTargetSavedView",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Update a private runtime-target saved view",
+        "operationId": "putRuntimeTargetSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Delete a private runtime-target saved view",
+        "operationId": "deleteRuntimeTargetSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "404": {
+            "description": "Saved view was not found."
           }
         }
       }
@@ -17335,6 +17531,85 @@
         ],
         "summary": "List all Application templates for management",
         "operationId": "getApplicationManagedTemplates",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "published",
+                "archived"
+              ]
+            }
+          },
+          {
+            "name": "updated_after",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "updated_before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "updated_at:asc",
+                "updated_at:desc",
+                "display_name:asc",
+                "display_name:desc",
+                "status:asc",
+                "status:desc",
+                "version_number:asc",
+                "version_number:desc"
+              ],
+              "default": "updated_at:desc"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                10,
+                20,
+                50,
+                100
+              ],
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Application template management catalog, including drafts and archived templates.",
@@ -17351,6 +17626,147 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/saved-views": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "List private application-template saved views",
+        "operationId": "getApplicationTemplateSavedViews",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user's template-list views.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view-list-response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create a private application-template saved view",
+        "operationId": "postApplicationTemplateSavedView",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved view created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      }
+    },
+    "/api/ops/applications/templates/saved-views/{viewId}": {
+      "put": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Update a private application-template saved view",
+        "operationId": "putApplicationTemplateSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/saved-view-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved view updated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-saved-view"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid saved-view state."
+          },
+          "404": {
+            "description": "Saved view was not found."
+          },
+          "409": {
+            "description": "Duplicate saved-view name."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Delete a private application-template saved view",
+        "operationId": "deleteApplicationTemplateSavedView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/saved-view-id"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Saved view deleted."
+          },
+          "404": {
+            "description": "Saved view was not found."
           }
         }
       }
@@ -36483,7 +36899,10 @@
       "application-template-list-response": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "total",
+          "limit",
+          "offset"
         ],
         "properties": {
           "items": {
@@ -36491,6 +36910,19 @@
             "items": {
               "$ref": "#/components/schemas/application-template-response"
             }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },

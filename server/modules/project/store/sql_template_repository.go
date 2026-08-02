@@ -59,6 +59,88 @@ func (r *SQLRepository) ListTemplates(ctx context.Context, query TemplateListQue
 	return items, rows.Err()
 }
 
+// ListTemplateManagementPage 返回管理列表的过滤分页结果；归档状态始终优先于当前版本状态。
+func (r *SQLRepository) ListTemplateManagementPage(ctx context.Context, query TemplateManagementQuery) (TemplateManagementPage, error) {
+	if err := r.ensureReady(); err != nil {
+		return TemplateManagementPage{}, err
+	}
+	where, args := templateManagementFilters(query)
+	join := "JOIN application_template_versions v ON v.template_id = t.template_id AND v.deleted_at = 0 AND (v.status = 'draft' OR (v.status = 'published' AND NOT EXISTS (SELECT 1 FROM application_template_versions draft WHERE draft.template_id = t.template_id AND draft.deleted_at = 0 AND draft.status = 'draft')))"
+	countSQL := `SELECT COUNT(*) FROM application_templates t ` + join + ` WHERE ` + strings.Join(where, " AND ")
+	var total int64
+	if err := r.db.QueryRowContext(ctx, r.placeholder.rebind(countSQL), args...).Scan(&total); err != nil {
+		return TemplateManagementPage{}, fmt.Errorf("count application templates: %w", err)
+	}
+	querySQL := `SELECT t.template_id, t.display_name, t.description, t.category, t.deployment_adapter_kind, t.archived_at, t.created_by, t.updated_by, t.deleted_by, t.created_at, t.updated_at, t.deleted_at,
+		v.template_version_id, v.version_number, v.status, v.definition_schema_version, v.definition_json, v.published_at, v.published_by, v.withdrawn_at, v.withdrawn_by, v.created_by, v.updated_by, v.created_at, v.updated_at, v.deleted_at
+		FROM application_templates t ` + join + ` WHERE ` + strings.Join(where, " AND ") + ` ORDER BY ` + templateManagementOrder(query.Sort) + ` LIMIT ? OFFSET ?`
+	args = append(args, query.Limit, query.Offset)
+	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(querySQL), args...)
+	if err != nil {
+		return TemplateManagementPage{}, fmt.Errorf("list managed application templates: %w", err)
+	}
+	defer closeRows(rows)
+	items := make([]ApplicationTemplateAggregate, 0, query.Limit)
+	for rows.Next() {
+		item, scanErr := scanTemplateAggregate(rows)
+		if scanErr != nil {
+			return TemplateManagementPage{}, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return TemplateManagementPage{}, err
+	}
+	return TemplateManagementPage{Items: items, Total: total}, nil
+}
+
+func templateManagementFilters(query TemplateManagementQuery) ([]string, []any) {
+	where, args := []string{"t.deleted_at = 0"}, []any{}
+	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
+		where = append(where, "(LOWER(t.display_name) LIKE LOWER(?) OR LOWER(t.description) LIKE LOWER(?))")
+		like := "%" + keyword + "%"
+		args = append(args, like, like)
+	}
+	if query.UpdatedAfter != nil {
+		where = append(where, "t.updated_at >= ?")
+		args = append(args, *query.UpdatedAfter)
+	}
+	if query.UpdatedBefore != nil {
+		where = append(where, "t.updated_at <= ?")
+		args = append(args, *query.UpdatedBefore)
+	}
+	switch query.Status {
+	case "draft":
+		where = append(where, "t.archived_at IS NULL AND v.status = 'draft'")
+	case "published":
+		where = append(where, "t.archived_at IS NULL AND v.status = 'published'")
+	case "archived":
+		where = append(where, "t.archived_at IS NOT NULL")
+	}
+	return where, args
+}
+
+func templateManagementOrder(sort string) string {
+	switch sort {
+	case "updated_at:asc":
+		return "t.updated_at ASC, t.template_id ASC"
+	case "display_name:asc":
+		return "t.display_name ASC, t.template_id ASC"
+	case "display_name:desc":
+		return "t.display_name DESC, t.template_id DESC"
+	case "status:asc":
+		return "CASE WHEN t.archived_at IS NOT NULL THEN 'archived' ELSE v.status END ASC, t.template_id ASC"
+	case "status:desc":
+		return "CASE WHEN t.archived_at IS NOT NULL THEN 'archived' ELSE v.status END DESC, t.template_id DESC"
+	case "version_number:asc":
+		return "v.version_number ASC, t.template_id ASC"
+	case "version_number:desc":
+		return "v.version_number DESC, t.template_id DESC"
+	default:
+		return "t.updated_at DESC, t.template_id DESC"
+	}
+}
+
 // ListTemplateCatalog 返回面向创建者的已发布模板摘要，并以多取一条记录判断后续页。
 func (r *SQLRepository) ListTemplateCatalog(ctx context.Context, query TemplateCatalogQuery) (TemplateCatalogPage, error) {
 	if err := r.ensureReady(); err != nil {

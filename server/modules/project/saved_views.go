@@ -5,15 +5,27 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 )
 
 const projectListSavedViewSurface = "application.list"
+const templateListSavedViewSurface = "application-template.list"
 
 var projectListSavedViewColumns = map[string]struct{}{
 	"row-select": {}, "name": {}, "applicationType": {}, "runtimeTarget": {}, "provider": {}, "source": {}, "runtime": {}, "resources": {}, "drift": {}, "operation": {},
+}
+
+var templateListSavedViewColumns = map[string]struct{}{"displayName": {}, "description": {}, "status": {}, "version": {}, "updatedAt": {}, "category": {}, "operation": {}}
+
+type templateListQueryState struct {
+	Keyword       *string  `json:"keyword"`
+	Status        *string  `json:"status"`
+	UpdatedAfter  *string  `json:"updated_after"`
+	UpdatedBefore *string  `json:"updated_before"`
+	Sort          []string `json:"sort"`
 }
 
 type projectListQueryState struct {
@@ -43,6 +55,7 @@ func (s *Service) listSavedViews(ctx context.Context, ownerUserID uint64) ([]mod
 	return s.savedViews.List(ctx, ownerUserID, projectListSavedViewSurface)
 }
 
+//nolint:dupl // 应用和模板列表有独立 surface 与验证器，但共用存储服务。
 func (s *Service) createSavedView(ctx context.Context, ownerUserID uint64, request savedViewRequest) (moduleapi.SavedView, error) {
 	if s == nil || s.savedViews == nil || ownerUserID == 0 {
 		return moduleapi.SavedView{}, errProjectInvalidArgument
@@ -70,6 +83,121 @@ func (s *Service) deleteSavedView(ctx context.Context, ownerUserID, id uint64) e
 		return errProjectInvalidArgument
 	}
 	return mapSavedViewError(s.savedViews.Delete(ctx, ownerUserID, projectListSavedViewSurface, id))
+}
+
+func (s *Service) listTemplateSavedViews(ctx context.Context, owner uint64) ([]moduleapi.SavedView, error) {
+	if s == nil || s.savedViews == nil || owner == 0 {
+		return nil, errProjectInvalidArgument
+	}
+	return s.savedViews.List(ctx, owner, templateListSavedViewSurface)
+}
+
+//nolint:dupl // 应用和模板列表有独立 surface 与验证器，但共用存储服务。
+func (s *Service) createTemplateSavedView(ctx context.Context, owner uint64, request savedViewRequest) (moduleapi.SavedView, error) {
+	if s == nil || s.savedViews == nil || owner == 0 {
+		return moduleapi.SavedView{}, errProjectInvalidArgument
+	}
+	if err := validateTemplateListSavedView(request); err != nil {
+		return moduleapi.SavedView{}, err
+	}
+	view, err := s.savedViews.Create(ctx, moduleapi.SavedViewCreateInput{OwnerUserID: owner, SurfaceKey: templateListSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
+	return view, mapSavedViewError(err)
+}
+func (s *Service) updateTemplateSavedView(ctx context.Context, owner, id uint64, request savedViewRequest) (moduleapi.SavedView, error) {
+	if s == nil || s.savedViews == nil || owner == 0 || id == 0 {
+		return moduleapi.SavedView{}, errProjectInvalidArgument
+	}
+	if err := validateTemplateListSavedView(request); err != nil {
+		return moduleapi.SavedView{}, err
+	}
+	view, err := s.savedViews.Update(ctx, moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: owner, SurfaceKey: templateListSavedViewSurface, Name: request.Name, QueryState: request.QueryState, PageSize: request.PageSize, VisibleColumns: request.VisibleColumns, IsDefault: request.IsDefault})
+	return view, mapSavedViewError(err)
+}
+func (s *Service) deleteTemplateSavedView(ctx context.Context, owner, id uint64) error {
+	if s == nil || s.savedViews == nil || owner == 0 || id == 0 {
+		return errProjectInvalidArgument
+	}
+	return mapSavedViewError(s.savedViews.Delete(ctx, owner, templateListSavedViewSurface, id))
+}
+
+//nolint:gocognit,gocyclo,cyclop // 保存视图状态的字段和值均须逐项匹配模板查询契约。
+func validateTemplateListSavedView(request savedViewRequest) error {
+	if strings.TrimSpace(request.Name) == "" || request.PageSize < 1 || request.PageSize > 100 || !json.Valid(request.QueryState) {
+		return errProjectInvalidArgument
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(request.QueryState, &raw); err != nil || raw == nil {
+		return errProjectInvalidArgument
+	}
+	for key := range raw {
+		if key != "keyword" && key != "status" && key != "updated_after" && key != "updated_before" && key != "sort" {
+			return errProjectInvalidArgument
+		}
+	}
+	var state templateListQueryState
+	if err := json.Unmarshal(request.QueryState, &state); err != nil {
+		return errProjectInvalidArgument
+	}
+	if state.Keyword != nil && (strings.TrimSpace(*state.Keyword) == "" || len(*state.Keyword) > templateManagementSearchMaxLength) {
+		return errProjectInvalidArgument
+	}
+	if state.Status != nil && *state.Status != "draft" && *state.Status != "published" && *state.Status != "archived" {
+		return errProjectInvalidArgument
+	}
+	if !validTemplateSavedViewTimeRange(state) {
+		return errProjectInvalidArgument
+	}
+	if len(state.Sort) > 1 {
+		return errProjectInvalidArgument
+	}
+	for _, value := range state.Sort {
+		if value != "updated_at:asc" && value != "updated_at:desc" && value != "display_name:asc" && value != "display_name:desc" && value != "status:asc" && value != "status:desc" && value != "version_number:asc" && value != "version_number:desc" {
+			return errProjectInvalidArgument
+		}
+	}
+	for _, column := range request.VisibleColumns {
+		if _, ok := templateListSavedViewColumns[strings.TrimSpace(column)]; !ok {
+			return errProjectInvalidArgument
+		}
+	}
+	return nil
+}
+
+func validTemplateSavedViewTimeRange(state templateListQueryState) bool {
+	var after, before *time.Time
+	if state.UpdatedAfter != nil {
+		value, err := time.Parse(time.RFC3339, *state.UpdatedAfter)
+		if err != nil {
+			return false
+		}
+		after = &value
+	}
+	if state.UpdatedBefore != nil {
+		value, err := time.Parse(time.RFC3339, *state.UpdatedBefore)
+		if err != nil {
+			return false
+		}
+		before = &value
+	}
+	return after == nil || before == nil || !after.After(*before)
+}
+
+func genericSavedViewRequestFromGenerated(request generated.SavedViewRequest) (savedViewRequest, error) {
+	raw, err := json.Marshal(request.QueryState)
+	if err != nil {
+		return savedViewRequest{}, errProjectInvalidArgument
+	}
+	return savedViewRequest{Name: request.Name, QueryState: raw, PageSize: request.PageSize, VisibleColumns: append([]string(nil), request.VisibleColumns...), IsDefault: request.IsDefault != nil && *request.IsDefault}, nil
+}
+func toGeneratedSavedView(view moduleapi.SavedView) (generated.SavedView, error) {
+	if view.ID == 0 || view.ID > uint64(^uint64(0)>>1) {
+		return generated.SavedView{}, errProjectInvalidArgument
+	}
+	state := map[string]interface{}{}
+	if err := json.Unmarshal(view.QueryState, &state); err != nil {
+		return generated.SavedView{}, errProjectInvalidArgument
+	}
+	return generated.SavedView{Id: int64(view.ID), Name: view.Name, QueryState: state, PageSize: view.PageSize, VisibleColumns: append([]string(nil), view.VisibleColumns...), IsDefault: view.IsDefault, CreatedAt: view.CreatedAt, UpdatedAt: view.UpdatedAt}, nil
 }
 
 // validateProjectListSavedView 校验应用列表保存视图的名称、页大小、查询状态和可见列；任一字段无效时返回 errProjectInvalidArgument。

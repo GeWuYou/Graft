@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -115,6 +116,14 @@ type Page struct {
 	Summary Summary
 }
 
+// ListQuery 描述运行目标目录允许的服务端筛选与单排序条件。
+type ListQuery struct {
+	Limit, Offset                                   int
+	Keyword, Provider, ConnectionKind, Health, Sort string
+}
+
+const targetListPaginationArgumentCount = 2
+
 // Summary 是未软删除运行时目标的全量健康聚合，不受当前分页窗口影响。
 type Summary struct {
 	Total       int64
@@ -136,6 +145,11 @@ func (r *SQLRepository) List(ctx context.Context) ([]Target, error) {
 
 // ListPage 返回一个未软删除的运行时目标分页窗口及总数；limit 和 offset 由调用方负责先行校验。
 func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, error) {
+	return r.ListQueryPage(ctx, ListQuery{Limit: limit, Offset: offset, Sort: "display_name:asc"})
+}
+
+// ListQueryPage 返回过滤结果和未过滤 fleet 摘要；实时资源指标不参与此查询。
+func (r *SQLRepository) ListQueryPage(ctx context.Context, query ListQuery) (Page, error) {
 	if r == nil || r.db == nil {
 		return Page{Items: []Target{}}, nil
 	}
@@ -143,7 +157,15 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	if err := r.executor(ctx).QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE availability = true), COUNT(*) FILTER (WHERE availability = false) FROM runtime_targets WHERE deleted_at = 0`).Scan(&summary.Total, &summary.Healthy, &summary.Unavailable); err != nil {
 		return Page{}, err
 	}
-	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE deleted_at = 0 ORDER BY provider, display_name, id LIMIT $1 OFFSET $2`, limit, offset)
+	where, args := targetListFilters(query)
+	countSQL := `SELECT COUNT(*) FROM runtime_targets WHERE ` + strings.Join(where, " AND ")
+	var total int64
+	if err := r.executor(ctx).QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
+		return Page{}, err
+	}
+	itemsSQL := `SELECT id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, checked_at FROM runtime_targets WHERE ` + strings.Join(where, " AND ") + ` ORDER BY ` + targetListOrder(query.Sort) + ` LIMIT $` + fmt.Sprint(len(args)+1) + ` OFFSET $` + fmt.Sprint(len(args)+targetListPaginationArgumentCount)
+	args = append(args, query.Limit, query.Offset)
+	rows, err := r.executor(ctx).QueryContext(ctx, itemsSQL, args...)
 	if err != nil {
 		return Page{}, err
 	}
@@ -151,7 +173,47 @@ func (r *SQLRepository) ListPage(ctx context.Context, limit, offset int) (Page, 
 	if err != nil {
 		return Page{}, err
 	}
-	return Page{Items: items, Total: summary.Total, Summary: summary}, nil
+	return Page{Items: items, Total: total, Summary: summary}, nil
+}
+
+func targetListFilters(query ListQuery) ([]string, []any) {
+	where, args := []string{"deleted_at = 0"}, []any{}
+	if value := strings.TrimSpace(query.Keyword); value != "" {
+		where = append(where, "(LOWER(display_name) LIKE LOWER($1) OR LOWER(endpoint_label) LIKE LOWER($1))")
+		args = append(args, "%"+value+"%")
+	}
+	next := len(args) + 1
+	if value := strings.TrimSpace(query.Provider); value != "" {
+		where = append(where, "provider = $"+fmt.Sprint(next))
+		args = append(args, value)
+		next++
+	}
+	if value := strings.TrimSpace(query.ConnectionKind); value != "" {
+		where = append(where, "connection_kind = $"+fmt.Sprint(next))
+		args = append(args, value)
+		next++
+	}
+	if value := strings.TrimSpace(query.Health); value != "" {
+		where = append(where, "availability = $"+fmt.Sprint(next))
+		args = append(args, value == "healthy")
+	}
+	return where, args
+}
+func targetListOrder(sort string) string {
+	switch sort {
+	case "display_name:desc":
+		return "display_name DESC, id DESC"
+	case "provider:asc":
+		return "provider ASC, display_name ASC, id ASC"
+	case "provider:desc":
+		return "provider DESC, display_name DESC, id DESC"
+	case "health:asc":
+		return "availability ASC, display_name ASC, id ASC"
+	case "health:desc":
+		return "availability DESC, display_name ASC, id ASC"
+	default:
+		return "display_name ASC, id ASC"
+	}
 }
 
 // scanTargets 读取 runtime-target 列表投影，并始终关闭结果集以释放数据库资源。

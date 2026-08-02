@@ -98,6 +98,10 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	group.GET(projectcontract.ApplicationTemplatePublishedRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplateDetail)
 	group.GET(projectcontract.ApplicationTemplateVersionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplateVersion)
 	group.GET(projectcontract.ApplicationTemplateManagementRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleManagedTemplates)
+	group.GET(projectcontract.ApplicationTemplateSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewList)
+	group.POST(projectcontract.ApplicationTemplateSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewCreate)
+	group.PUT(projectcontract.ApplicationTemplateSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewUpdate)
+	group.DELETE(projectcontract.ApplicationTemplateSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewDelete)
 	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCreateTemplateDraft)
 	group.GET(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateDetail)
 	group.PUT(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleUpdateTemplateDraft)
@@ -316,6 +320,105 @@ func (r routeRuntime) handleSavedViewDelete(ginCtx *gin.Context) {
 		return
 	}
 	ginCtx.Status(http.StatusNoContent)
+}
+
+func (r routeRuntime) handleTemplateSavedViewList(c *gin.Context) {
+	owner, ok := currentUserID(c)
+	if !ok {
+		r.writeInvalidArgumentError(c)
+		return
+	}
+	items, err := r.service.listTemplateSavedViews(c.Request.Context(), owner)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	mapped := make([]generated.SavedView, 0, len(items))
+	for _, item := range items {
+		view, mapErr := toGeneratedSavedView(item)
+		if mapErr != nil {
+			r.writeSavedViewError(c, mapErr)
+			return
+		}
+		mapped = append(mapped, view)
+	}
+	httpx.WriteSuccess(c, http.StatusOK, generated.SavedViewListResponse{Items: mapped})
+}
+func (r routeRuntime) handleTemplateSavedViewCreate(c *gin.Context) {
+	owner, ok := currentUserID(c)
+	if !ok {
+		r.writeInvalidArgumentError(c)
+		return
+	}
+	var body generated.PostApplicationTemplateSavedViewJSONRequestBody
+	if !bindJSON(c, r.ctx, &body) {
+		return
+	}
+	request, err := genericSavedViewRequestFromGenerated(body)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	view, err := r.service.createTemplateSavedView(c.Request.Context(), owner, request)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	mapped, err := toGeneratedSavedView(view)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusCreated, mapped)
+}
+func (r routeRuntime) handleTemplateSavedViewUpdate(c *gin.Context) {
+	owner, ok := currentUserID(c)
+	if !ok {
+		r.writeInvalidArgumentError(c)
+		return
+	}
+	id, ok := bindSavedViewID(c)
+	if !ok {
+		r.writeInvalidArgumentError(c)
+		return
+	}
+	var body generated.PutApplicationTemplateSavedViewJSONRequestBody
+	if !bindJSON(c, r.ctx, &body) {
+		return
+	}
+	request, err := genericSavedViewRequestFromGenerated(body)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	view, err := r.service.updateTemplateSavedView(c.Request.Context(), owner, id, request)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	mapped, err := toGeneratedSavedView(view)
+	if err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, mapped)
+}
+func (r routeRuntime) handleTemplateSavedViewDelete(c *gin.Context) {
+	owner, ok := currentUserID(c)
+	if !ok {
+		r.writeInvalidArgumentError(c)
+		return
+	}
+	id, ok := bindSavedViewID(c)
+	if !ok {
+		r.writeInvalidArgumentError(c)
+		return
+	}
+	if err := r.service.deleteTemplateSavedView(c.Request.Context(), owner, id); err != nil {
+		r.writeSavedViewError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
