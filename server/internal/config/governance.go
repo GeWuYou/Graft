@@ -162,14 +162,22 @@ func validateEnvironmentRules(rules []EnvironmentRule) error {
 		if rule.Removed && rule.Required {
 			return fmt.Errorf("removed configuration %s cannot be required", rule.Name)
 		}
-		if rule.Deprecated || rule.Removed {
-			if !rule.replacementDeclared {
-				return fmt.Errorf("deprecated or removed configuration %s requires replacement declaration", rule.Name)
-			}
-			if rule.Severity != SeverityError && rule.Severity != SeverityWarning {
-				return fmt.Errorf("deprecated or removed configuration %s requires severity error or warning", rule.Name)
-			}
+		if err := validateMigrationRule(rule); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func validateMigrationRule(rule EnvironmentRule) error {
+	if !rule.Deprecated && !rule.Removed {
+		return nil
+	}
+	if !rule.replacementDeclared {
+		return fmt.Errorf("deprecated or removed configuration %s requires replacement declaration", rule.Name)
+	}
+	if rule.Severity != SeverityError && rule.Severity != SeverityWarning {
+		return fmt.Errorf("deprecated or removed configuration %s requires severity error or warning", rule.Name)
 	}
 	return nil
 }

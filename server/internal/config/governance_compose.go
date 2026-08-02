@@ -241,8 +241,10 @@ func findVolumeEntry(volume yaml.Node, target string) (composeVolume, bool) {
 
 const volumePartsMinimum = 2
 
+const composeVolumePartsCapacity = 3
+
 func splitComposeVolume(value string) []string {
-	parts := make([]string, 0, 3)
+	parts := make([]string, 0, composeVolumePartsCapacity)
 	start, interpolationDepth := 0, 0
 	for index := 0; index < len(value); index++ {
 		switch value[index] {
