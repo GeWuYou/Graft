@@ -14,6 +14,7 @@ cleanup() {
   set +e
   mkdir -p "${log_dir}"
   "${compose[@]}" ps -a > "${log_dir}/compose-ps.txt" 2>&1
+  "${compose[@]}" logs config-validate > "${log_dir}/compose-config-validate.log" 2>&1
   "${compose[@]}" logs bootstrap > "${log_dir}/compose-bootstrap.log" 2>&1
   "${compose[@]}" logs application-root-init > "${log_dir}/compose-application-root-init.log" 2>&1
   "${compose[@]}" logs backup-root-init > "${log_dir}/compose-backup-root-init.log" 2>&1
@@ -34,6 +35,7 @@ docker image inspect "${web_image}:${image_tag}" >/dev/null
 cat > "${workspace}/.env" <<EOF
 # compose.smoke.yml resolves official server and web repositories using this shared release tag.
 GRAFT_IMAGE_TAG=${image_tag}
+GRAFT_CONFIG_SCHEMA_VERSION=1
 GRAFT_RELEASE_SERVER_IMAGE=${server_image}
 GRAFT_RELEASE_WEB_IMAGE=${web_image}
 GRAFT_RELEASE_IMAGE_TAG=${image_tag}
@@ -49,6 +51,32 @@ GRAFT_WEB_HOST_PORT=3000
 EOF
 
 "${compose[@]}" config --quiet
+"${compose[@]}" up -d config-validate
+
+for _ in $(seq 1 30); do
+  config_validate_id="$("${compose[@]}" ps -aq config-validate)"
+  if [[ -z "${config_validate_id}" ]]; then
+    sleep 1
+    continue
+  fi
+  status="$(docker inspect -f '{{.State.Status}}' "${config_validate_id}")"
+  exit_code="$(docker inspect -f '{{.State.ExitCode}}' "${config_validate_id}")"
+  if [[ "${status}" == "exited" && "${exit_code}" == "0" ]]; then
+    break
+  fi
+  if [[ "${status}" == "exited" && "${exit_code}" != "0" ]]; then
+    echo "config-validate failed with exit code ${exit_code}"
+    exit 1
+  fi
+  sleep 1
+done
+
+config_validate_id="$("${compose[@]}" ps -aq config-validate)"
+if [[ -z "${config_validate_id}" || "$(docker inspect -f '{{.State.Status}}' "${config_validate_id}")" != "exited" || "$(docker inspect -f '{{.State.ExitCode}}' "${config_validate_id}")" != "0" ]]; then
+  echo "config-validate did not complete successfully"
+  exit 1
+fi
+
 "${compose[@]}" up -d postgres redis
 "${compose[@]}" up -d bootstrap
 

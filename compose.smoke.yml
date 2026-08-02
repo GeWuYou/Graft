@@ -1,4 +1,7 @@
 services:
+  config-validate:
+    image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
+    pull_policy: never
   postgres:
     volumes:
       - postgres-smoke-data:/var/lib/postgresql/data

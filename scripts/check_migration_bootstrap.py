@@ -130,6 +130,7 @@ def migration_environment(target: BootstrapTarget) -> dict[str, str]:
     environment.update(
         {
             "GRAFT_APP_ENV": "ci",
+            "GRAFT_CONFIG_SCHEMA_VERSION": "1",
             "GRAFT_DATABASE_DRIVER": "postgres",
             "GRAFT_DATABASE_URL": (
                 f"postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@127.0.0.1:{target.port}/"

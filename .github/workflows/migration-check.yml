@@ -27,6 +27,13 @@ jobs:
           cache-dependency-path: |
             server/go.mod
             server/go.sum
+      - name: Build configuration validation CLI
+        working-directory: server
+        run: go build -o "${RUNNER_TEMP}/graft" ./cmd/graft
+      - name: Validate official deployment configuration templates
+        working-directory: server
+        run: |
+          "${RUNNER_TEMP}/graft" config validate --env-file ../compose.env.example --compose-file ../compose.yml
       - name: Test migration governance helpers
         run: python3 -m unittest scripts/test_check_migration_bootstrap.py
       - name: Validate SQL migration policy

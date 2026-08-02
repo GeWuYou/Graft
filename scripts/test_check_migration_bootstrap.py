@@ -26,6 +26,7 @@ class MigrationEnvironmentTests(unittest.TestCase):
         environment = MODULE.migration_environment(target)
 
         self.assertEqual(environment["GRAFT_APP_ENV"], "ci")
+        self.assertEqual(environment["GRAFT_CONFIG_SCHEMA_VERSION"], "1")
         self.assertEqual(
             environment["GRAFT_DATABASE_URL"],
             f"postgres://graft:graft@127.0.0.1:{target.port}/graft?sslmode=disable",

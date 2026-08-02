@@ -27,9 +27,11 @@ func (r *serveRecorderRuntime) Run(ctx context.Context) error {
 func TestRunServeUsesCommandContextWhenPresent(t *testing.T) {
 	originalNewRuntime := serveNewRuntime
 	originalNotifyContext := serveNotifyContext
+	originalConfigValidator := serveConfigValidator
 	defer func() {
 		serveNewRuntime = originalNewRuntime
 		serveNotifyContext = originalNotifyContext
+		serveConfigValidator = originalConfigValidator
 	}()
 
 	expectedCtx := context.WithValue(context.Background(), serveTestContextKey{}, "serve")
@@ -42,6 +44,7 @@ func TestRunServeUsesCommandContextWhenPresent(t *testing.T) {
 	serveNotifyContext = func(parent context.Context, _ ...os.Signal) (context.Context, context.CancelFunc) {
 		return parent, func() {}
 	}
+	serveConfigValidator = func(*cobra.Command) error { return nil }
 
 	cmd := &cobra.Command{}
 	cmd.SetContext(expectedCtx)
@@ -61,9 +64,12 @@ func TestRunServeUsesCommandContextWhenPresent(t *testing.T) {
 // TestRunServeReportsRuntimeConstructionFailure 验证 runtime 构造失败会直接阻断 serve。
 func TestRunServeReportsRuntimeConstructionFailure(t *testing.T) {
 	originalNewRuntime := serveNewRuntime
+	originalConfigValidator := serveConfigValidator
 	defer func() {
 		serveNewRuntime = originalNewRuntime
+		serveConfigValidator = originalConfigValidator
 	}()
+	serveConfigValidator = func(*cobra.Command) error { return nil }
 
 	serveNewRuntime = func(context.Context) (runtimeRunner, error) {
 		return nil, errors.New("runtime build failed")
@@ -75,5 +81,28 @@ func TestRunServeReportsRuntimeConstructionFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "create runtime") {
 		t.Fatalf("expected runtime construction context, got %v", err)
+	}
+}
+
+func TestRunServeStopsBeforeRuntimeWhenConfigurationIsInvalid(t *testing.T) {
+	originalNewRuntime := serveNewRuntime
+	originalConfigValidator := serveConfigValidator
+	defer func() {
+		serveNewRuntime = originalNewRuntime
+		serveConfigValidator = originalConfigValidator
+	}()
+
+	called := false
+	serveNewRuntime = func(context.Context) (runtimeRunner, error) {
+		called = true
+		return &serveRecorderRuntime{}, nil
+	}
+	serveConfigValidator = func(*cobra.Command) error { return errors.New("configuration validation failed") }
+
+	if err := runServe(&cobra.Command{}, nil); err == nil {
+		t.Fatal("expected configuration validation failure")
+	}
+	if called {
+		t.Fatal("runtime must not be constructed after configuration validation failure")
 	}
 }

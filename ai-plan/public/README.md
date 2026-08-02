@@ -15,6 +15,9 @@ Overlay note:
 
 ## Active Topics
 
+- `configuration-governance`
+  - Recovery entry: `ai-plan/public/configuration-governance/README.md`
+
 - `build-center`
   - Recovery entry: `ai-plan/public/build-center/README.md`
 

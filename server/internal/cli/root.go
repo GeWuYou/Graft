@@ -7,7 +7,7 @@ import "github.com/spf13/cobra"
 // 约束：
 //   - 根命令不接受位置参数。
 //   - 不带子命令执行时只输出帮助信息。
-//   - `version`、`serve`、`migrate`、`dev` 与 `validate` 子命令始终注册到根命令下。
+//   - `version`、`serve`、`migrate`、`dev`、`validate` 与 `config` 子命令始终注册到根命令下。
 //
 // 使用边界：
 //   - `graft version` 只读取 build identity，不触发运行时启动、迁移或外部依赖连接。
@@ -16,7 +16,9 @@ import "github.com/spf13/cobra"
 //   - 后端完成态质量链通过 `graft validate backend` 显式触发。
 //   - OpenAPI 契约校验通过 `graft validate openapi` 或 `graft validate backend --stage openapi` 显式触发。
 //   - release-grade 二进制契约校验通过 `graft validate release` 显式触发。
-// NewRootCommand 构造并返回 graft CLI 的根命令。该命令注册 version、dev、serve、migrate 和 validate 子命令。如果不提供子命令，则仅打印帮助信息。
+//   - 部署配置契约校验通过 `graft config validate` 显式触发，且不连接运行时外部资源。
+//
+// NewRootCommand 构造并返回 graft CLI 的根命令。该命令注册 version、dev、serve、migrate、validate 和 config 子命令。如果不提供子命令，则仅打印帮助信息。
 func NewRootCommand() *cobra.Command {
 	root := &cobra.Command{
 		Use:          "graft",
@@ -37,5 +39,6 @@ func NewRootCommand() *cobra.Command {
 	root.AddCommand(newServeCommand())
 	root.AddCommand(newMigrateCommand())
 	root.AddCommand(newValidateCommand())
+	root.AddCommand(newConfigCommand())
 	return root
 }
