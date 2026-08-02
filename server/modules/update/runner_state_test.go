@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+type runnerOwnershipCall struct {
+	path string
+	uid  int
+	gid  int
+}
+
 func TestFileRunnerStateStorePublishesVerifiedMonotonicSnapshots(t *testing.T) {
 	store, err := NewFileRunnerStateStore(t.TempDir())
 	if err != nil {
@@ -140,17 +146,9 @@ func TestFileRunnerStateStoreKeepsDirectoriesRunnerWritableAndFilesServerOwned(t
 		t.Fatalf("new state store: %v", err)
 	}
 	store.enforceOwnership = true
-	var ownershipCalls []struct {
-		path string
-		uid  int
-		gid  int
-	}
+	var ownershipCalls []runnerOwnershipCall
 	store.chown = func(path string, uid, gid int) error {
-		ownershipCalls = append(ownershipCalls, struct {
-			path string
-			uid  int
-			gid  int
-		}{path: path, uid: uid, gid: gid})
+		ownershipCalls = append(ownershipCalls, runnerOwnershipCall{path: path, uid: uid, gid: gid})
 		return nil
 	}
 	input := RunnerInput{OperationID: "update-state-ownership", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
@@ -158,33 +156,35 @@ func TestFileRunnerStateStoreKeepsDirectoriesRunnerWritableAndFilesServerOwned(t
 	if err := store.Write(state); err != nil {
 		t.Fatalf("write state with ownership enforcement: %v", err)
 	}
-	for _, path := range []string{store.root, filepath.Join(store.root, "events"), filepath.Join(store.root, "events", input.OperationID)} {
-		info, statErr := os.Stat(path)
-		if statErr != nil {
-			t.Fatalf("stat runner directory %q: %v", path, statErr)
+	assertRunnerStatePermissions(t, []string{store.root, filepath.Join(store.root, "events"), filepath.Join(store.root, "events", input.OperationID)}, runnerStateDirectoryPermission)
+	assertRunnerStatePermissions(t, []string{filepath.Join(store.root, "current.json"), filepath.Join(store.root, "events", input.OperationID, "00000000000000000001.json")}, runnerStateFilePermission)
+	assertRunnerOwnershipCalls(t, ownershipCalls)
+}
+
+func assertRunnerStatePermissions(t *testing.T, paths []string, want os.FileMode) {
+	t.Helper()
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat runner state %q: %v", path, err)
 		}
-		if info.Mode().Perm() != runnerStateDirectoryPermission {
-			t.Fatalf("runner directory %q = %#o, %v", path, info.Mode().Perm(), statErr)
-		}
-	}
-	for _, path := range []string{filepath.Join(store.root, "current.json"), filepath.Join(store.root, "events", input.OperationID, "00000000000000000001.json")} {
-		info, statErr := os.Stat(path)
-		if statErr != nil {
-			t.Fatalf("stat server state file %q: %v", path, statErr)
-		}
-		if info.Mode().Perm() != runnerStateFilePermission {
-			t.Fatalf("server state file %q = %#o, %v", path, info.Mode().Perm(), statErr)
+		if info.Mode().Perm() != want {
+			t.Fatalf("runner state %q permission = %#o, want %#o", path, info.Mode().Perm(), want)
 		}
 	}
-	if len(ownershipCalls) != 5 {
-		t.Fatalf("ownership calls = %#v, want root/events/event directories and two files", ownershipCalls)
+}
+
+func assertRunnerOwnershipCalls(t *testing.T, calls []runnerOwnershipCall) {
+	t.Helper()
+	if len(calls) != 5 {
+		t.Fatalf("ownership calls = %#v, want root/events/event directories and two files", calls)
 	}
-	for _, call := range ownershipCalls[:3] {
+	for _, call := range calls[:3] {
 		if call.uid != 0 || call.gid != 0 {
 			t.Fatalf("runner directory ownership = (%d, %d), want (0, 0)", call.uid, call.gid)
 		}
 	}
-	for _, call := range ownershipCalls[3:] {
+	for _, call := range calls[3:] {
 		if call.uid != runnerStateServerUID || call.gid != runnerStateServerGID {
 			t.Fatalf("server file ownership = (%d, %d), want (%d, %d)", call.uid, call.gid, runnerStateServerUID, runnerStateServerGID)
 		}
