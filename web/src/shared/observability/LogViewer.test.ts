@@ -554,11 +554,12 @@ describe('LogViewer', () => {
         ...labels,
         emptyDescriptionLabel: undefined,
         entries: [],
+        paused: true,
       },
       global: { components: tdesignComponents, plugins: [createTestI18n()] },
     });
 
-    expect(wrapper.find('.legacy-empty-placeholder').text()).toBe('暂无日志');
+    expect(wrapper.get('.stream-viewport-state-surface--paused').text()).toBe('暂无日志');
   });
 });
 

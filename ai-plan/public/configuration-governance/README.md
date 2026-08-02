@@ -4,11 +4,10 @@
 
 - Topic objective: establish versioned, source-aware governance for deployment environment configuration and the official Compose topology.
 - Current status: `active`
-- Task class: `docs/automation with server impact`
+- Task class: `server`
 - Intake summary: long-running platform governance feature requiring an authoritative design, ADR, implementation roadmap, and bounded delivery batches.
 - Canonical authority:
-  - `server/internal/config/**`
-  - `compose.yml` and `compose.env.example`
+  - `server/internal/config/schema/vN.yaml` embedded by `server/internal/config`
   - `ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
 - Completed so far: architecture analysis, Schema v1, runtime preflight, official Compose contract and production gate, CI validation, and regression coverage.
 - Future evolution: expand environment-rule coverage as config owners are added, and add a new immutable Schema snapshot for each published contract version.
@@ -23,8 +22,6 @@
 ## Owned Scope
 
 - `server/internal/config/**`
-- `server/internal/cli/**`
-- `server/internal/app/**`
 - `compose.yml`, `compose.env.example`, and Compose validation tests
 - `.github/workflows/**` configuration-validation wiring
 - `ai-plan/**` configuration-governance design, ADR, roadmap, and recovery materials
@@ -32,7 +29,10 @@
 Out of scope:
 
 - Writing or automatically mutating operator `.env` files.
-- System Config runtime-policy behavior, database schema changes, and web feature work.
+- System Config runtime-policy behavior and its persisted overrides.
+- Deployment Runtime context discovery or runtime-preflight behavior; those consumers must follow the embedded Schema
+  but are not this topic's canonical authority.
+- Database schema changes and web feature work.
 
 ## Locked Decisions
 
@@ -49,9 +49,10 @@ Out of scope:
 
 ## Current Recovery Point
 
-- Current batch: initial implementation is complete.
+- Current batch: `release-integration-review`.
 - Risk: the Compose contract intentionally covers only the official production topology; alternate deployment profiles require an explicit future Schema profile.
-- Next step: review this completed slice for release integration, then advance Schema versions through the documented lifecycle.
+- Next step: complete release-integration review against the embedded Schema authority, then advance Schema versions
+  through the documented lifecycle.
 
 ## Work Intake
 
@@ -68,8 +69,12 @@ Out of scope:
 ```bash
 git diff --check
 python3 scripts/validate_ai_plan_structure.py
-cd server && go test ./internal/config ./internal/cli
+cd server && go run ./cmd/graft validate backend
 ```
+
+The backend completion entrypoint runs the repository's ordered chain: default migration-version uniqueness,
+`graft validate backend --stage lint`, focused Go tests, and `go build ./cmd/graft`; add `graft validate smoke` only
+when the slice needs runtime proof.
 
 ## Loop Entry
 

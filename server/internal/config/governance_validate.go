@@ -13,9 +13,10 @@ import (
 
 // ResolveOptions 控制配置治理解析所读取的来源。
 type ResolveOptions struct {
-	EnvFile     string
-	Set         []string
-	Environment map[string]string
+	EnvFile         string
+	Set             []string
+	Environment     map[string]string
+	DiscoverEnvFile bool
 }
 
 type resolvedInputs struct {
@@ -94,7 +95,7 @@ func ResolveAndValidate(options ResolveOptions) (Report, error) {
 }
 
 func resolveInputs(options ResolveOptions) (resolvedInputs, error) {
-	envFile, err := readGovernedEnvFile(options.EnvFile, options.Environment == nil)
+	envFile, err := readGovernedEnvFile(options.EnvFile, options.DiscoverEnvFile)
 	if err != nil {
 		return resolvedInputs{}, err
 	}
@@ -115,23 +116,16 @@ func validateRule(report *Report, rule EnvironmentRule, inputs resolvedInputs) {
 		report.Values[rule.Name] = ResolvedValue{Value: value, Source: source}
 	}
 	if rule.Removed && present {
-		report.Findings = append(report.Findings, finding("removed", removalSeverity(rule), rule, source))
+		report.Findings = append(report.Findings, finding("removed", rule.Severity, rule, source))
 		return
 	}
 	report.Findings = append(report.Findings, validateRuleFindings(rule, value, source, present)...)
 }
 
-func removalSeverity(rule EnvironmentRule) Severity {
-	if rule.Severity != "" {
-		return rule.Severity
-	}
-	return SeverityError
-}
-
 func validateRuleFindings(rule EnvironmentRule, value string, source Source, present bool) []Finding {
 	var findings []Finding
 	if rule.Deprecated && present {
-		findings = append(findings, finding("deprecated", SeverityWarning, rule, source))
+		findings = append(findings, finding("deprecated", rule.Severity, rule, source))
 	}
 	if rule.Required && strings.TrimSpace(value) == "" {
 		return append(findings, finding("required", SeverityError, rule, source))
@@ -153,7 +147,11 @@ func validateAnyOfRules(report *Report, rules []AnyOfRule) {
 }
 
 func finding(code string, severity Severity, rule EnvironmentRule, source Source) Finding {
-	return Finding{Code: code, Severity: severity, Key: rule.Name, Source: source, Description: rule.Description, Introduced: rule.Introduced, Replacement: rule.Replacement}
+	replacement := ""
+	if rule.Replacement != nil {
+		replacement = *rule.Replacement
+	}
+	return Finding{Code: code, Severity: severity, Key: rule.Name, Source: source, Description: rule.Description, Introduced: rule.Introduced, Replacement: replacement}
 }
 
 func resolveValue(rule EnvironmentRule, cli, environment, envFile map[string]string) (string, Source, bool) {

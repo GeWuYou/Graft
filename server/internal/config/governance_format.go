@@ -30,9 +30,9 @@ func (r Report) FormatText() string {
 
 // FormatJSON 将报告编码为不泄露配置值的 JSON。
 func (r Report) FormatJSON() ([]byte, error) {
-	copy := r
-	copy.Values = nil
-	return json.MarshalIndent(copy, "", "  ")
+	reportCopy := r
+	reportCopy.Values = nil
+	return json.MarshalIndent(reportCopy, "", "  ")
 }
 
 // FormatPatch 生成只读的 .env 迁移建议，敏感值始终保留为待填写占位符。

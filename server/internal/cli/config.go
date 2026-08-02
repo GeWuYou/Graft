@@ -50,9 +50,18 @@ func runConfigValidate(cmd *cobra.Command, opts configValidateOptions) error {
 		return fmt.Errorf("unsupported configuration report format %q", opts.format)
 	}
 	if err := config.ValidateComposeFile(opts.composeFile); err != nil {
+		report := config.Report{Findings: []config.Finding{{
+			Code:        "compose",
+			Severity:    config.SeverityError,
+			Key:         "compose",
+			Description: err.Error(),
+		}}}
+		if writeErr := config.WriteReport(cmd.OutOrStdout(), report, opts.format); writeErr != nil {
+			return writeErr
+		}
 		return err
 	}
-	report, err := config.ResolveAndValidate(config.ResolveOptions{EnvFile: opts.envFile, Set: opts.set})
+	report, err := config.ResolveAndValidate(config.ResolveOptions{EnvFile: opts.envFile, Set: opts.set, DiscoverEnvFile: true})
 	if writeErr := config.WriteReport(cmd.OutOrStdout(), report, opts.format); writeErr != nil {
 		return writeErr
 	}

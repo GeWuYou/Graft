@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"graft/server/internal/httpx"
@@ -93,37 +94,52 @@ func TestBatchLifecycleActionSubmitsOneTaskWithOrderedContainerStages(t *testing
 	if err != nil {
 		t.Fatalf("submit batch lifecycle action: %v", err)
 	}
-	assertBatchLifecycleTaskSubmission(t, tasks, result)
+	assertBatchLifecycleTaskSubmission(t, tasks, result, []string{"container-1", "container-2"})
 }
 
-func assertBatchLifecycleTaskSubmission(t *testing.T, tasks *containerTaskRuntimeStub, result BatchLifecycleActionResult) {
+func assertBatchLifecycleTaskSubmission(t *testing.T, tasks *containerTaskRuntimeStub, result BatchLifecycleActionResult, expectedRefs []string) {
 	t.Helper()
-	if len(tasks.submissions) != 1 || result.AcceptedCount != 2 || len(result.Items) != 2 {
-		t.Fatalf("expected one accepted task for two containers, got submissions=%#v result=%#v", tasks.submissions, result)
+	if len(tasks.submissions) != 1 || result.AcceptedCount != len(expectedRefs) || len(result.Items) != len(expectedRefs) {
+		t.Fatalf("expected one accepted task for %d containers, got submissions=%#v result=%#v", len(expectedRefs), tasks.submissions, result)
 	}
 	submission := tasks.submissions[0]
 	if submission.Type != containerLifecycleBatchTaskType(containerActionRemove) || submission.Owner.Type != containerLifecycleBatchOwnerType(containerActionRemove) || submission.IdempotencyKey != "batch-key" {
 		t.Fatalf("unexpected batch task submission %#v", submission)
 	}
-	ownerRefs := batchLifecycleTaskOwnerRefs(t, submission.Owner.ID)
-	assertBatchLifecycleTaskStages(t, submission.Plan.Stages)
-	assertBatchLifecycleTaskItems(t, result.Items, ownerRefs)
-}
-
-func batchLifecycleTaskOwnerRefs(t *testing.T, ownerID string) []string {
-	t.Helper()
-	var ownerRefs []string
-	if err := json.Unmarshal([]byte(ownerID), &ownerRefs); err != nil || len(ownerRefs) != 2 || ownerRefs[0] != "container-1" || ownerRefs[1] != "container-2" {
-		t.Fatalf("unexpected batch owner %q: %v", ownerID, err)
+	if !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
+		t.Fatalf("expected fixed-length batch owner digest, got %q", submission.Owner.ID)
 	}
-	return ownerRefs
+	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, len(expectedRefs))
+	assertBatchLifecycleTaskItems(t, result.Items, expectedRefs)
 }
 
-func assertBatchLifecycleTaskStages(t *testing.T, stages []moduleapi.StagePlan) {
+func assertBatchLifecycleTaskStages(t *testing.T, stages []moduleapi.StagePlan, expectedCount int) {
 	t.Helper()
-	if len(stages) != 2 || stages[0].Key != "remove-1" || stages[1].Key != "remove-2" {
+	if len(stages) != expectedCount || stages[0].Key != "remove-1" || stages[len(stages)-1].Key != fmt.Sprintf("remove-%d", expectedCount) {
 		t.Fatalf("unexpected batch stages %#v", stages)
 	}
+}
+
+func TestSubmitContainerLifecycleBatchActionUsesFixedLengthOwnerForMaximumBatch(t *testing.T) {
+	t.Parallel()
+
+	refs := make([]Ref, maxContainerBatchActionIDs)
+	for index := range refs {
+		refs[index] = Ref{Value: fmt.Sprintf("%064x", index)}
+	}
+	tasks := &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}}
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true, tasks: tasks})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if _, err := service.SubmitContainerLifecycleBatchAction(context.Background(), refs, containerActionRemove, ActionOptions{Force: true}, 7, "batch-key"); err != nil {
+		t.Fatalf("submit maximum batch lifecycle task: %v", err)
+	}
+	submission := tasks.submissions[0]
+	if len(submission.Owner.ID) > 191 || !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
+		t.Fatalf("expected owner id to fit tasks.owner_id, got %q", submission.Owner.ID)
+	}
+	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, maxContainerBatchActionIDs)
 }
 
 func assertBatchLifecycleTaskItems(t *testing.T, items []BatchLifecycleActionItem, ownerRefs []string) {
@@ -252,6 +268,46 @@ func TestContainerLifecycleTaskExecutorWritesFailureResultLog(t *testing.T) {
 	}
 }
 
+func TestContainerLifecycleTaskExecutorKeepsSuccessfulActionWhenResultLogFails(t *testing.T) {
+	t.Parallel()
+
+	logErr := errors.New("append log failed")
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
+	if err != nil {
+		t.Fatalf("marshal task input: %v", err)
+	}
+	run := &lifecycleTaskStageRun{dockerImagePullStageRun: dockerImagePullStageRun{input: input, stageID: 13}, appendLogErr: logErr}
+	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRestart, cancels: make(map[uint64]context.CancelFunc)}
+	if err := executor.Execute(context.Background(), run); err != nil {
+		t.Fatalf("successful lifecycle action must not fail when result log append fails: %v", err)
+	}
+}
+
+func TestContainerLifecycleTaskExecutorJoinsActionAndResultLogFailures(t *testing.T) {
+	t.Parallel()
+
+	actionErr := errors.New("runtime action failed")
+	logErr := errors.New("append log failed")
+	service, err := newRouteTestService(containerServiceOptions{runtime: failingRuntime{err: actionErr}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
+	if err != nil {
+		t.Fatalf("marshal task input: %v", err)
+	}
+	run := &lifecycleTaskStageRun{dockerImagePullStageRun: dockerImagePullStageRun{input: input, stageID: 13}, appendLogErr: logErr}
+	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRemove, cancels: make(map[uint64]context.CancelFunc)}
+	err = executor.Execute(context.Background(), run)
+	if !errors.Is(err, actionErr) || !errors.Is(err, logErr) {
+		t.Fatalf("expected joined action and log failures, got %v", err)
+	}
+}
+
 func TestContainerLifecycleTaskExecutorRetainsDangerousActionPolicy(t *testing.T) {
 	t.Parallel()
 
@@ -280,6 +336,31 @@ func TestContainerLifecycleTaskOwnerAuthorizerUsesActionPermission(t *testing.T)
 			}
 		})
 	}
+}
+
+func TestValidateContainerLifecycleTaskOwnerWrapsMalformedLegacyBatchOwner(t *testing.T) {
+	t.Parallel()
+
+	err := validateContainerLifecycleTaskOwner("not-json", true)
+	var syntaxErr *json.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("expected wrapped JSON syntax error, got %v", err)
+	}
+	if err := validateContainerLifecycleTaskOwner(`[]`, true); err == nil {
+		t.Fatal("expected empty legacy batch owner to stay invalid")
+	}
+}
+
+type lifecycleTaskStageRun struct {
+	dockerImagePullStageRun
+	appendLogErr error
+}
+
+func (r *lifecycleTaskStageRun) AppendLog(ctx context.Context, entry moduleapi.TaskLogEntry) error {
+	if r.appendLogErr != nil {
+		return r.appendLogErr
+	}
+	return r.dockerImagePullStageRun.AppendLog(ctx, entry)
 }
 
 func assertContainerLifecycleTaskOwnerAuthorization(t *testing.T, action string, batch bool) {

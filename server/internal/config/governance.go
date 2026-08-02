@@ -46,9 +46,36 @@ type EnvironmentRule struct {
 	Introduced  string   `yaml:"introduced" json:"introduced"`
 	Deprecated  bool     `yaml:"deprecated" json:"deprecated"`
 	Removed     bool     `yaml:"removed" json:"removed"`
-	Replacement string   `yaml:"replacement" json:"replacement,omitempty"`
+	Replacement *string  `yaml:"replacement" json:"replacement,omitempty"`
 	Severity    Severity `yaml:"severity" json:"severity,omitempty"`
 	Sensitive   bool     `yaml:"sensitive" json:"sensitive"`
+
+	replacementDeclared bool
+}
+
+// UnmarshalYAML 保留 replacement 是否显式声明，使 null 与缺失可被配置 Schema 校验区分。
+func (r *EnvironmentRule) UnmarshalYAML(value *yaml.Node) error {
+	type rawEnvironmentRule EnvironmentRule
+	var decoded rawEnvironmentRule
+	if err := value.Decode(&decoded); err != nil {
+		return err
+	}
+	*r = EnvironmentRule(decoded)
+	for index := 0; index+1 < len(value.Content); index += 2 {
+		if value.Content[index].Value == "replacement" {
+			r.replacementDeclared = true
+			break
+		}
+	}
+	return nil
+}
+
+// SchemaChange 描述当前 Schema 相对前一版本的操作员可读变更记录。
+type SchemaChange struct {
+	Kind        string `yaml:"kind" json:"kind"`
+	Key         string `yaml:"key" json:"key"`
+	Description string `yaml:"description" json:"description"`
+	Migration   string `yaml:"migration" json:"migration"`
 }
 
 // AnyOfRule 描述至少一个非空配置必须存在的联合约束。
@@ -63,6 +90,7 @@ type Schema struct {
 	Environment []EnvironmentRule `yaml:"environment" json:"environment"`
 	AnyOf       []AnyOfRule       `yaml:"any_of" json:"any_of"`
 	Compose     ComposeRule       `yaml:"compose" json:"compose"`
+	Changes     []SchemaChange    `yaml:"changes" json:"changes"`
 }
 
 // ComposeRule 描述官方 Compose 部署所需的服务拓扑与字段契约。
@@ -133,6 +161,14 @@ func validateEnvironmentRules(rules []EnvironmentRule) error {
 		seen[rule.Name] = struct{}{}
 		if rule.Removed && rule.Required {
 			return fmt.Errorf("removed configuration %s cannot be required", rule.Name)
+		}
+		if rule.Deprecated || rule.Removed {
+			if !rule.replacementDeclared {
+				return fmt.Errorf("deprecated or removed configuration %s requires replacement declaration", rule.Name)
+			}
+			if rule.Severity != SeverityError && rule.Severity != SeverityWarning {
+				return fmt.Errorf("deprecated or removed configuration %s requires severity error or warning", rule.Name)
+			}
 		}
 	}
 	return nil

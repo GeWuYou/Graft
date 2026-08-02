@@ -28,6 +28,16 @@
 - Added daemon-free CI validation of `compose.env.example` plus `compose.yml` before migration-governance tests, and supplied the required Schema version to the disposable migration environment.
 - Verified focused Go packages, the built CLI, Compose template checks, migration bootstrap helper tests, shell syntax and ai-plan structure.
 
+## 2026-08-03 Release integration review
+
+- Reconfirmed that the embedded `server/internal/config/schema/vN.yaml` is the deployment configuration-contract
+  authority. `any_of` is a top-level Schema constraint: one listed key must resolve to a non-empty value.
+- Narrowed the recovery scope so System Config and Deployment Runtime context/preflight behavior remain separate
+  owners or consumers rather than competing configuration authorities.
+- Recorded `cd server && go run ./cmd/graft validate backend` as the full backend completion entrypoint; it includes
+  migration-version uniqueness, lint, focused tests, and the CLI build, with smoke validation only when runtime proof
+  is required.
+
 ## Loop Batch State
 
 ```json
@@ -39,8 +49,8 @@
     "ci-and-operator-regression-coverage"
   ],
   "pending_batches": [],
-  "current_batch": "none",
-  "next_batch": "release-integration-review",
-  "closeout_status": "implementation-complete"
+  "current_batch": "release-integration-review",
+  "next_batch": "schema-version-evolution",
+  "closeout_status": "release-integration-review"
 }
 ```

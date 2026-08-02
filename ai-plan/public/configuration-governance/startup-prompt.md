@@ -3,7 +3,7 @@ Continue the configuration-governance topic after completing root `AGENTS.md` st
 Round context:
 
 - governance source: root `AGENTS.md`
-- task class: `docs/automation with server impact`
+- task class: `server`
 - recovery source: `none`
 - recovery entry: `ai-plan/public/configuration-governance/README.md`
 - local execution truth:
@@ -37,14 +37,20 @@ Implementation guardrails:
 
 Current batch plan:
 
-1. Land design authority and Schema data model.
-2. Implement resolver and CLI validation path.
+1. Run `release-integration-review` against the embedded Schema and its consumers without broadening the Schema's
+   authority to System Config or Deployment Runtime context/preflight behavior.
+2. Record validated review findings in the tracking and trace files; only then begin the next immutable Schema version.
 
 Validation expectations:
 
 ```bash
 git diff --check
+python3 scripts/validate_ai_plan_structure.py
+cd server && go run ./cmd/graft validate backend
 ```
+
+`graft validate backend` is the full backend completion entrypoint. Its fixed chain includes migration-version
+uniqueness, the lint stage, focused tests, and the CLI build; run `graft validate smoke` only for runtime proof.
 
 Required closeout:
 

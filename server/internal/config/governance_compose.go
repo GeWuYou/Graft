@@ -226,23 +226,56 @@ func findVolumeEntry(volume yaml.Node, target string) (composeVolume, bool) {
 	if volume.Kind != yaml.ScalarNode {
 		return composeVolume{}, false
 	}
-	if strings.Contains(volume.Value, target) {
-		return composeVolume{readOnly: strings.HasSuffix(volume.Value, ":ro")}, true
-	}
-	parts := strings.Split(volume.Value, ":")
+	parts := splitComposeVolume(volume.Value)
 	if len(parts) < volumePartsMinimum {
 		return composeVolume{}, false
 	}
-	if parts[len(parts)-2] == target {
+	if matchesVolumeTarget(parts[len(parts)-2], target) {
 		return composeVolume{readOnly: parts[len(parts)-1] == "ro"}, true
 	}
-	if parts[len(parts)-1] == target {
+	if matchesVolumeTarget(parts[len(parts)-1], target) {
 		return composeVolume{}, true
 	}
 	return composeVolume{}, false
 }
 
 const volumePartsMinimum = 2
+
+func splitComposeVolume(value string) []string {
+	parts := make([]string, 0, 3)
+	start, interpolationDepth := 0, 0
+	for index := 0; index < len(value); index++ {
+		switch value[index] {
+		case '$':
+			if index+1 < len(value) && value[index+1] == '{' {
+				interpolationDepth++
+				index++
+			}
+		case '}':
+			if interpolationDepth > 0 {
+				interpolationDepth--
+			}
+		case ':':
+			if interpolationDepth == 0 {
+				parts = append(parts, value[start:index])
+				start = index + 1
+			}
+		}
+	}
+	return append(parts, value[start:])
+}
+
+// matchesVolumeTarget 仅接受完整目标或 Compose 默认插值，避免相邻路径名称发生子串误匹配。
+func matchesVolumeTarget(value, target string) bool {
+	if value == target {
+		return true
+	}
+	if !strings.HasPrefix(value, "${") || !strings.HasSuffix(value, "}") {
+		return false
+	}
+	defaultOffset := strings.LastIndex(value, ":-")
+	return defaultOffset > 1 && value[defaultOffset+2:len(value)-1] == target
+}
 
 func hasPort(node yaml.Node, target string) bool {
 	node = unwrapNode(node)

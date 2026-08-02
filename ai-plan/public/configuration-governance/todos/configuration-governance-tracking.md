@@ -6,14 +6,15 @@ Configuration Governance
 
 ## Scope
 
-Introduce a versioned configuration contract for `.env`, resolved process configuration, official Compose topology, startup preflight, and CI validation.
+Introduce a versioned configuration contract for `.env`, resolved process configuration, official Compose topology,
+and CI validation. Runtime-preflight consumers use that contract but do not own it.
 
 ## Repository Truth
 
 - `AGENTS.md`
 - `server/AGENTS.md`
 - `ai-plan/design/governance/platform/部署配置与运行时策略治理规范.md`
-- `server/internal/config/**`
+- `server/internal/config/schema/vN.yaml`
 - `compose.yml`
 
 ## Work Contract
@@ -47,9 +48,12 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: initial implementation and CI regression coverage complete.
+- Current batch: `release-integration-review`.
 - The embedded Schema remains the repository-wide configuration-contract authority.
-- Next step: release review, then evolve Schema snapshots through the documented deprecation and removal lifecycle.
+- System Config and Deployment Runtime context/preflight behavior are consumers or separate owners, not this topic's
+  authority.
+- Next step: complete release integration review, then evolve Schema snapshots through the documented deprecation and
+  removal lifecycle.
 
 ## Task Checklist
 
@@ -76,8 +80,8 @@ closeout:
     "ci-and-operator-regression-coverage"
   ],
   "pending_batches": [],
-  "current_batch": "none",
-  "next_batch": "release-integration-review",
-  "closeout_status": "implementation-complete"
+  "current_batch": "release-integration-review",
+  "next_batch": "schema-version-evolution",
+  "closeout_status": "release-integration-review"
 }
 ```

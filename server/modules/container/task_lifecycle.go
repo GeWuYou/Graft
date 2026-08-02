@@ -2,17 +2,21 @@ package container
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"graft/server/internal/moduleapi"
 )
 
 const (
-	containerLifecycleTaskOwnerPrefix  = "container_lifecycle_"
-	containerLifecycleBatchOwnerPrefix = "container_lifecycle_batch_"
+	containerLifecycleTaskOwnerPrefix    = "container_lifecycle_"
+	containerLifecycleBatchOwnerPrefix   = "container_lifecycle_batch_"
+	containerLifecycleBatchOwnerIDPrefix = "sha256:"
 )
 
 type containerLifecycleTaskInput struct {
@@ -67,9 +71,7 @@ func (e *containerLifecycleTaskExecutor) Execute(ctx context.Context, run module
 		}
 		return actionErr
 	}
-	if logErr != nil {
-		return fmt.Errorf("append container lifecycle task result log: %w", logErr)
-	}
+	// 结果日志只提供可观测性，不能把已经完成的容器副作用改写为失败。
 	return nil
 }
 
@@ -120,8 +122,16 @@ func validateContainerLifecycleTaskOwner(ownerID string, batch bool) error {
 		_, err := parseRef(ownerID)
 		return err
 	}
+	if isContainerLifecycleBatchOwnerID(ownerID) {
+		return nil
+	}
+	// COMPAT(owner=container module Task owner, cleanup=all pre-hash batch Tasks reach terminal state)
+	// 旧 Task 的 owner 仍是引用列表 JSON；仅用于授权已持久化任务，新的批量提交一律写入固定长度摘要。
 	var refs []string
-	if err := json.Unmarshal([]byte(ownerID), &refs); err != nil || len(refs) == 0 {
+	if err := json.Unmarshal([]byte(ownerID), &refs); err != nil {
+		return fmt.Errorf("decode container lifecycle batch owner: %w", err)
+	}
+	if len(refs) == 0 {
 		return errors.New("container lifecycle batch owner is invalid")
 	}
 	for _, rawRef := range refs {
@@ -219,17 +229,34 @@ func (s *service) SubmitContainerLifecycleBatchAction(ctx context.Context, refs 
 			RecoveryPolicy: moduleapi.StageRecoveryManualReconcile,
 		})
 	}
-	ownerID, err := json.Marshal(ownerRefs)
+	ownerID, err := containerLifecycleBatchOwnerID(ownerRefs)
 	if err != nil {
 		return moduleapi.TaskReceipt{}, fmt.Errorf("marshal container lifecycle batch owner: %w", err)
 	}
 	return s.tasks.Submit(ctx, moduleapi.SubmitTaskInput{
 		Type:           containerLifecycleBatchTaskType(action),
-		Owner:          moduleapi.TaskOwner{Type: containerLifecycleBatchOwnerType(action), ID: string(ownerID)},
+		Owner:          moduleapi.TaskOwner{Type: containerLifecycleBatchOwnerType(action), ID: ownerID},
 		RequestedBy:    requestedBy,
 		IdempotencyKey: idempotencyKey,
 		Plan:           moduleapi.TaskPlan{Stages: stages},
 	})
+}
+
+func containerLifecycleBatchOwnerID(refs []string) (string, error) {
+	encodedRefs, err := json.Marshal(refs)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256(encodedRefs)
+	return containerLifecycleBatchOwnerIDPrefix + hex.EncodeToString(digest[:]), nil
+}
+
+func isContainerLifecycleBatchOwnerID(ownerID string) bool {
+	if !strings.HasPrefix(ownerID, containerLifecycleBatchOwnerIDPrefix) {
+		return false
+	}
+	digest, err := hex.DecodeString(strings.TrimPrefix(ownerID, containerLifecycleBatchOwnerIDPrefix))
+	return err == nil && len(digest) == sha256.Size && hex.EncodeToString(digest) == strings.TrimPrefix(ownerID, containerLifecycleBatchOwnerIDPrefix)
 }
 
 func containerLifecycleTaskActions() []string {

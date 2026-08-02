@@ -37,6 +37,67 @@ func TestResolveAndValidateUsesDocumentedPrecedence(t *testing.T) {
 	}
 }
 
+func TestResolveAndValidateDiscoversEnvFileIndependentlyFromEnvironment(t *testing.T) {
+	workingDirectory := t.TempDir()
+	previousDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(workingDirectory); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(previousDirectory) })
+	if err := os.WriteFile(".env", []byte("GRAFT_CONFIG_SCHEMA_VERSION=1\nGRAFT_AUTH_JWT_SECRET=dotenv-secret\n"), 0o600); err != nil {
+		t.Fatalf("write dotenv fixture: %v", err)
+	}
+
+	report, err := ResolveAndValidate(ResolveOptions{
+		Environment:     map[string]string{},
+		DiscoverEnvFile: true,
+	})
+	if err != nil {
+		t.Fatalf("resolve discovered dotenv: %v", err)
+	}
+	if value := report.Values["GRAFT_AUTH_JWT_SECRET"]; value.Source != SourceEnvFile {
+		t.Fatalf("expected discovered dotenv source, got %#v", value)
+	}
+}
+
+func TestSchemaValidatesMigrationDeclarations(t *testing.T) {
+	invalid := `schema_version: 1
+environment:
+  - name: GRAFT_OLD_VALUE
+    type: string
+    deprecated: true
+`
+	var schema Schema
+	if err := yaml.Unmarshal([]byte(invalid), &schema); err != nil {
+		t.Fatalf("decode invalid schema fixture: %v", err)
+	}
+	if err := schema.Validate(); err == nil || !strings.Contains(err.Error(), "replacement declaration") {
+		t.Fatalf("expected replacement declaration error, got %v", err)
+	}
+
+	valid := `schema_version: 1
+environment:
+  - name: GRAFT_REMOVED_VALUE
+    type: string
+    removed: true
+    replacement: null
+    severity: warning
+changes: []
+`
+	if err := yaml.Unmarshal([]byte(valid), &schema); err != nil {
+		t.Fatalf("decode valid schema fixture: %v", err)
+	}
+	if err := schema.Validate(); err != nil {
+		t.Fatalf("validate schema fixture: %v", err)
+	}
+	if schema.Changes == nil {
+		t.Fatal("expected changes declaration to be preserved")
+	}
+}
+
 func TestResolveAndValidateReportsMissingSigningMaterial(t *testing.T) {
 	report, err := ResolveAndValidate(ResolveOptions{Environment: map[string]string{"GRAFT_CONFIG_SCHEMA_VERSION": "1"}})
 	var validationError *ValidationError
@@ -219,5 +280,12 @@ func TestComposeFieldHelpersSupportLongSyntax(t *testing.T) {
 	}
 	if !hasSecret(secrets, "signing-key") {
 		t.Fatal("expected long secret syntax to match source")
+	}
+}
+
+func TestFindVolumeEntryRequiresExactScalarTarget(t *testing.T) {
+	volume := yaml.Node{Kind: yaml.ScalarNode, Value: "data:/opt/userdata:ro"}
+	if _, found := findVolumeEntry(volume, "/data"); found {
+		t.Fatal("expected path substring not to match volume target")
 	}
 }
