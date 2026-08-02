@@ -17,6 +17,7 @@ type OperationStore interface {
 	Settle(context.Context, ComposeUpdateOperation) error
 	ClaimRecovery(context.Context, string, string) (bool, error)
 	ReleaseRecoveryClaim(context.Context, string, string) error
+	RecoveryClaim(context.Context, string) (string, error)
 }
 
 var errUpdateOperationNotFound = errors.New("update operation not found")
@@ -135,6 +136,21 @@ func (s *sqlOperationStore) ReleaseRecoveryClaim(ctx context.Context, operationI
 		return fmt.Errorf("release update operation recovery claim: %w", err)
 	}
 	return nil
+}
+
+// RecoveryClaim 返回未终态操作当前的恢复认领，用于在进程中断后核验容器是否已经创建。
+func (s *sqlOperationStore) RecoveryClaim(ctx context.Context, operationID string) (string, error) {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
+		return "", errors.New("update recovery claim query is invalid")
+	}
+	var claim sql.NullString
+	if err := s.db.QueryRowContext(ctx, `SELECT recovery_claim_id FROM update_operations WHERE operation_id = $1`, operationID).Scan(&claim); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", errUpdateOperationNotFound
+		}
+		return "", fmt.Errorf("read update operation recovery claim: %w", err)
+	}
+	return strings.TrimSpace(claim.String), nil
 }
 
 type operationScanner interface{ Scan(...any) error }

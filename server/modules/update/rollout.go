@@ -455,7 +455,16 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 		return ComposeUpdateOperation{}, fmt.Errorf("%w: claim recovery launch: %v", errRecoveryUnavailable, err)
 	}
 	if !claimed {
-		return ComposeUpdateOperation{}, errRecoveryConflict
+		if err := s.reconcileRecoveryClaim(ctx, operationID); err != nil {
+			return ComposeUpdateOperation{}, err
+		}
+		claimed, err = s.operations.ClaimRecovery(ctx, operationID, claimID)
+		if err != nil {
+			return ComposeUpdateOperation{}, fmt.Errorf("%w: reclaim recovery launch: %v", errRecoveryUnavailable, err)
+		}
+		if !claimed {
+			return ComposeUpdateOperation{}, errRecoveryConflict
+		}
 	}
 	s.startMu.Unlock()
 	defer s.startMu.Lock()
@@ -468,6 +477,32 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 		return ComposeUpdateOperation{}, fmt.Errorf("%w: launch terminated compose runner recovery: %v", errRecoveryUnavailable, err)
 	}
 	return operation, nil
+}
+
+// reconcileRecoveryClaim 仅在 Docker 明确证明 claim 容器不存在时释放遗留认领。
+func (s *RolloutService) reconcileRecoveryClaim(ctx context.Context, operationID string) error {
+	claimID, err := s.operations.RecoveryClaim(ctx, operationID)
+	if err != nil {
+		return fmt.Errorf("%w: read recovery claim: %v", errRecoveryUnavailable, err)
+	}
+	if claimID == "" {
+		return errRecoveryConflict
+	}
+	inspector, ok := s.launcher.(ComposeRunnerRecoveryClaimInspector)
+	if !ok {
+		return fmt.Errorf("%w: recovery claim inspector is unavailable", errRecoveryUnavailable)
+	}
+	exists, err := inspector.RecoveryContainerExists(ctx, operationID, claimID)
+	if err != nil {
+		return fmt.Errorf("%w: inspect recovery claim container: %v", errRecoveryUnavailable, err)
+	}
+	if exists {
+		return errRecoveryConflict
+	}
+	if err := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); err != nil {
+		return fmt.Errorf("%w: release absent recovery claim: %v", errRecoveryUnavailable, err)
+	}
+	return nil
 }
 
 func newRecoveryClaimID() (string, error) {

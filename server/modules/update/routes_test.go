@@ -33,6 +33,9 @@ func (s failingOperationStore) ClaimRecovery(context.Context, string, string) (b
 func (s failingOperationStore) ReleaseRecoveryClaim(context.Context, string, string) error {
 	return s.err
 }
+func (s failingOperationStore) RecoveryClaim(context.Context, string) (string, error) {
+	return "", s.err
+}
 
 type updateAuthorizerStub struct{ err error }
 

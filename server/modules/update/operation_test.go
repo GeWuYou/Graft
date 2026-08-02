@@ -611,6 +611,12 @@ func (s *memoryOperationStore) ReleaseRecoveryClaim(_ context.Context, operation
 	}
 	return nil
 }
+func (s *memoryOperationStore) RecoveryClaim(_ context.Context, operationID string) (string, error) {
+	if _, ok := s.items[operationID]; !ok {
+		return "", errUpdateOperationNotFound
+	}
+	return s.recoveryClaims[operationID], nil
+}
 
 type recordingLauncher struct {
 	input     RunnerInput
@@ -628,20 +634,27 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 func (*recordingLauncher) Close() error { return nil }
 
 type recoveryLauncher struct {
-	failures     []RunnerFailureEvidence
-	recovered    RunnerState
-	recoveryErr  error
-	failureReads int
+	failures                []RunnerFailureEvidence
+	recovered               RunnerState
+	recoveryErr             error
+	failureReads            int
+	recoveryContainerExists bool
 }
 
 func (*recoveryLauncher) Launch(context.Context, RunnerInput) error { return nil }
 func (*recoveryLauncher) Close() error                              { return nil }
+func (l *recoveryLauncher) RecoveryContainerExists(context.Context, string, string) (bool, error) {
+	return l.recoveryContainerExists, nil
+}
 func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error) {
 	l.failureReads++
 	return l.failures, nil
 }
 func (l *recoveryLauncher) LaunchRecovery(_ context.Context, state RunnerState, _, _ string) error {
 	l.recovered = state
+	if l.recoveryErr == nil {
+		l.recoveryContainerExists = true
+	}
 	return l.recoveryErr
 }
 

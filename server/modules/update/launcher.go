@@ -74,6 +74,11 @@ type ComposeRunnerReceiptCleanup interface {
 	RemoveRunner(context.Context, string) error
 }
 
+// ComposeRunnerRecoveryClaimInspector 核验一个持久 recovery claim 是否已创建其绑定容器。
+type ComposeRunnerRecoveryClaimInspector interface {
+	RecoveryContainerExists(context.Context, string, string) (bool, error)
+}
+
 type dockerComposeRunnerLauncher struct{ client dockerRunnerClient }
 
 type dockerRunnerClient interface {
@@ -270,6 +275,19 @@ func (l *dockerComposeRunnerLauncher) LaunchRecovery(ctx context.Context, state 
 		return fmt.Errorf("start compose runner recovery: %w", err)
 	}
 	return nil
+}
+
+// RecoveryContainerExists 只按 claim 绑定的确定容器名核验，Docker 不可用时由调用方保持认领并 fail closed。
+func (l *dockerComposeRunnerLauncher) RecoveryContainerExists(ctx context.Context, operationID, claimID string) (bool, error) {
+	if l == nil || l.client == nil || !runnerOperationID.MatchString(operationID) || strings.TrimSpace(claimID) == "" {
+		return false, errors.New("compose runner recovery inspector is unavailable")
+	}
+	filters := make(mobyclient.Filters).Add("name", composeRunnerRecoveryContainerName(operationID, claimID))
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: filters})
+	if err != nil {
+		return false, fmt.Errorf("list compose runner recovery container: %w", err)
+	}
+	return len(result.Items) != 0, nil
 }
 
 func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context, id string) error {
