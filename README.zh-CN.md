@@ -68,6 +68,8 @@ docker compose up -d
 ```bash
 # 终端 1
 cd server
+# 首次运行：cp .env.example .env
+# 升级后：go run ./cmd/graft config validate --format patch
 go run ./cmd/graft dev
 
 # 终端 2

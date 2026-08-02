@@ -68,6 +68,8 @@ For local development, use the source-tree entrypoints:
 ```bash
 # Terminal 1
 cd server
+# First run only: cp .env.example .env
+# After an upgrade: go run ./cmd/graft config validate --format patch
 go run ./cmd/graft dev
 
 # Terminal 2
