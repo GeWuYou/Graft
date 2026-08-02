@@ -177,6 +177,23 @@ describe('ResourceQueryPanel', () => {
     expect(inputs.map((input) => input.attributes('value'))).toEqual(['8080', '8443']);
   });
 
+  it('normalizes a cleared number range to an empty filter value', async () => {
+    const { model, wrapper } = mountPanel({ keyword: '', filters: { ports: [8080, ''] }, page: 1, pageSize: 20 }, [
+      { key: 'ports', label: 'Ports', type: 'number-range' },
+    ]);
+
+    await wrapper.get('[data-testid="resource-query-builder-trigger"]').trigger('click');
+    wrapper
+      .find('.resource-query-panel__number-range')
+      .findComponent(valueStub)
+      .vm.$emit('update:modelValue', undefined);
+    await wrapper.vm.$nextTick();
+
+    await wrapper.get('[data-testid="resource-query-search"]').trigger('click');
+
+    expect(model.value).toMatchObject({ filters: { ports: [] } });
+  });
+
   it('marks the more-filters trigger as pressed while its popup is open', async () => {
     const { wrapper } = mountPanel();
     const trigger = wrapper.get('[data-testid="resource-query-builder-trigger"]');

@@ -173,19 +173,24 @@ const FilterFields = defineComponent({
             });
           } else if (definition.type === 'number-range') {
             const range = Array.isArray(value) ? value : [];
+            const setRangeValue = (index: 0 | 1, next: number | undefined) => {
+              const nextRange = [range[0] ?? '', range[1] ?? ''];
+              nextRange[index] = next ?? '';
+              setValue(field.key, nextRange.every((item) => item === '') ? [] : nextRange);
+            };
             control = h('div', { class: 'resource-query-panel__number-range' }, [
               h(inputNumberComponent, {
                 ...common,
                 modelValue: range[0],
                 value: range[0],
-                'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [next ?? '', range[1] ?? '']),
+                'onUpdate:modelValue': (next: number | undefined) => setRangeValue(0, next),
               }),
               h('span', { class: 'resource-query-panel__range-separator' }, '-'),
               h(inputNumberComponent, {
                 ...common,
                 modelValue: range[1],
                 value: range[1],
-                'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [range[0] ?? '', next ?? '']),
+                'onUpdate:modelValue': (next: number | undefined) => setRangeValue(1, next),
               }),
             ]);
           } else if (definition.type === 'boolean') {
