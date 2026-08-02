@@ -256,6 +256,7 @@
         "allDriftStatuses": "All Sync States",
         "allRefreshStatuses": "All Refresh States",
         "filter": "Filter",
+        "addFilter": "Add Filter",
         "query": "Query",
         "reset": "Reset",
         "sorterBuilder": "Sort By",

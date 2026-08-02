@@ -1727,6 +1727,10 @@ describe('RolePage', () => {
     expect(wrapper.find('[data-testid="role-empty-clear-filters"]').exists()).toBe(false);
 
     await wrapper.get('input[placeholder="rbac.roleList.toolbar.searchPlaceholder"]').setValue('editor');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'rbac.roleList.toolbar.query')
+      ?.trigger('click');
     await flushPromises();
 
     expect(wrapper.find('[data-testid="role-empty-clear-filters"]').exists()).toBe(true);

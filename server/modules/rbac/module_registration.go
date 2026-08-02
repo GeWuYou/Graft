@@ -29,6 +29,7 @@ func NewModule(repository rbacstore.Repository) *Module {
 	return &Module{repository: repository}
 }
 
+//nolint:cyclop // 权限、服务和保存视图路由必须在同一显式装配边界内完成，避免隐藏依赖顺序。
 // Register 注册跨模块可复用的授权服务。
 //
 // Register 阶段只做稳定能力暴露与管理只读路由装配，不执行任何后台行为或耗时初始化。
@@ -79,6 +80,17 @@ func (p *Module) Register(ctx *module.Context) error {
 
 	routeAuthorizer := authorizer{rbac: repository}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
+	var savedViews moduleapi.SavedViewService
+	resolvedSavedViews, err := ctx.Services.Resolve((*moduleapi.SavedViewService)(nil))
+	if err == nil {
+		var ok bool
+		savedViews, ok = resolvedSavedViews.(moduleapi.SavedViewService)
+		if !ok {
+			return fmt.Errorf("resolve saved-view service: unexpected type %T", resolvedSavedViews)
+		}
+	} else if !errors.Is(err, container.ErrServiceNotRegistered) {
+		return fmt.Errorf("resolve saved-view service: %w", err)
+	}
 	registerManagementRoutes(
 		ctx,
 		moduleID,
@@ -95,6 +107,7 @@ func (p *Module) Register(ctx *module.Context) error {
 			userRoleRead:         httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleReadPermission.String(), publisher),
 			userRoleAssign:       httpx.RequirePermission(ctx.I18n, authService, routeAuthorizer, rbaccontract.UserRoleAssignPermission.String(), publisher),
 		},
+		savedViews,
 	)
 
 	return nil

@@ -358,6 +358,10 @@ describe('PermissionPage', () => {
     await flushPromises();
 
     await wrapper.get('.management-list-search').setValue('user.create');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'rbac.permissionList.toolbar.query')
+      ?.trigger('click');
     await flushPromises();
 
     expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'user.create' });
@@ -444,6 +448,10 @@ describe('PermissionPage', () => {
     await flushPromises();
 
     await wrapper.get('.management-list-search').setValue('no-match');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'rbac.permissionList.toolbar.query')
+      ?.trigger('click');
     await flushPromises();
 
     expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match' });
@@ -455,7 +463,6 @@ describe('PermissionPage', () => {
     await clearButton?.trigger('click');
     await flushPromises();
 
-    expect(rbacApiMocks.getPermissions).toHaveBeenLastCalledWith({ keyword: 'no-match' });
     expect((wrapper.get('.management-list-search').element as HTMLInputElement).value).toBe('');
     expect(wrapper.text()).toContain('Read Permissions Localized');
   });

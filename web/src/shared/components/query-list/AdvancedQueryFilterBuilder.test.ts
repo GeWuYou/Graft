@@ -88,7 +88,7 @@ const defaultProps = {
 };
 
 describe('AdvancedQueryFilterBuilder', () => {
-  it('emits reset when any active filter tag is closed', async () => {
+  it('emits the closed filter tag key', async () => {
     const wrapper = mount(AdvancedQueryFilterBuilder, {
       props: defaultProps,
       global: {
@@ -105,7 +105,7 @@ describe('AdvancedQueryFilterBuilder', () => {
 
     await wrapper.get('[data-testid="close-filter-tag"]').trigger('click');
 
-    expect(wrapper.emitted('reset')).toHaveLength(1);
+    expect(wrapper.emitted('close-tag')).toEqual([['keyword']]);
   });
 
   it('always renders the active-filter row, including when no tags are active', async () => {

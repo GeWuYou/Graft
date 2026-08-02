@@ -60,13 +60,13 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"internal/logger/migrations",
 		"internal/drilldown/migrations",
 		"internal/event/migrations",
+		"modules/saved-view/migrations",
 		"modules/user/migrations",
 		"modules/auth/migrations",
 		"modules/rbac/migrations",
 		"modules/announcement/migrations",
-		"modules/notification/migrations",
-		"modules/saved-view/migrations",
 		"modules/audit/migrations",
+		"modules/notification/migrations",
 		"modules/runtime-target/migrations",
 		"modules/system-config/migrations",
 		"modules/network/migrations",
@@ -239,12 +239,12 @@ func TestFilteredOrderedModuleSpecsRequiresTaskRouteProviders(t *testing.T) {
 		t.Fatal("expected task to require its route service providers")
 	}
 
-	got, err := FilteredOrderedModuleSpecs([]string{"user", "auth", "rbac", "task"})
+	got, err := FilteredOrderedModuleSpecs([]string{"saved-view", "user", "auth", "rbac", "task"})
 	if err != nil {
 		t.Fatalf("filter task module providers: %v", err)
 	}
 
-	want := []string{"user", "auth", "rbac", "task"}
+	want := []string{"saved-view", "user", "auth", "rbac", "task"}
 	if len(got) != len(want) {
 		t.Fatalf("expected %d modules, got %d", len(want), len(got))
 	}
@@ -256,12 +256,12 @@ func TestFilteredOrderedModuleSpecsRequiresTaskRouteProviders(t *testing.T) {
 }
 
 func TestFilteredOrderedModuleSpecsFiltersEnabledSet(t *testing.T) {
-	got, err := FilteredOrderedModuleSpecs([]string{"user", "auth"})
+	got, err := FilteredOrderedModuleSpecs([]string{"saved-view", "user", "auth"})
 	if err != nil {
 		t.Fatalf("filtered ordered module specs: %v", err)
 	}
 
-	want := []string{"user", "auth"}
+	want := []string{"saved-view", "user", "auth"}
 	if len(got) != len(want) {
 		t.Fatalf("expected %d modules, got %d", len(want), len(got))
 	}

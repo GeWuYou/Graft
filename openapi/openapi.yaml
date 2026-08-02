@@ -107,6 +107,10 @@ paths:
     $ref: ./paths/mcp.streamable.yaml
   /api/users:
     $ref: ./paths/users.yaml
+  /api/users/saved-views:
+    $ref: ./paths/users.saved-views.yaml
+  /api/users/saved-views/{viewId}:
+    $ref: ./paths/users.saved-view.yaml
   /api/users/{id}:
     $ref: ./paths/users.detail.yaml
   /api/users/{id}/update:
@@ -125,6 +129,10 @@ paths:
     $ref: ./paths/users.sessions.revoke-all.yaml
   /api/roles:
     $ref: ./paths/roles.list.yaml
+  /api/roles/saved-views:
+    $ref: ./paths/roles.saved-views.yaml
+  /api/roles/saved-views/{viewId}:
+    $ref: ./paths/roles.saved-view.yaml
   /api/roles/{id}:
     $ref: ./paths/roles.detail.yaml
   /api/roles/{id}/permissions:
@@ -145,6 +153,10 @@ paths:
     $ref: ./paths/roles.delete.yaml
   /api/permissions:
     $ref: ./paths/permissions.list.yaml
+  /api/permissions/saved-views:
+    $ref: ./paths/permissions.saved-views.yaml
+  /api/permissions/saved-views/{viewId}:
+    $ref: ./paths/permissions.saved-view.yaml
   /api/permissions/{id}:
     $ref: ./paths/permissions.detail.yaml
   /api/users/{id}/roles:

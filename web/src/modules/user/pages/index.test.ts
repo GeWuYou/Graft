@@ -1317,8 +1317,7 @@ describe('UserPage', () => {
     await wrapper.get('[data-testid="user-batch-manage-roles"]').trigger('click');
     await flushPromises();
 
-    const selects = wrapper.findAll('select');
-    await selects[2]?.setValue('add');
+    await wrapper.get('select.assignment-toolbar__select').setValue('add');
     await flushPromises();
     updateRoleSelection(wrapper, [2]);
     await flushPromises();
@@ -1403,6 +1402,10 @@ describe('UserPage', () => {
     expect(wrapper.find('[data-testid="user-empty-clear-filters"]').exists()).toBe(false);
 
     await wrapper.get('input[placeholder="user.userList.toolbar.searchPlaceholder"]').setValue('alice');
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'user.userList.toolbar.query')
+      ?.trigger('click');
     await flushPromises();
 
     expect(wrapper.find('[data-testid="user-empty-clear-filters"]').exists()).toBe(true);
