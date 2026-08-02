@@ -637,6 +637,7 @@ type recoveryLauncher struct {
 	failures                []RunnerFailureEvidence
 	recovered               RunnerState
 	recoveryErr             error
+	recoveryContainerErr    error
 	failureReads            int
 	recoveryContainerExists bool
 }
@@ -644,7 +645,7 @@ type recoveryLauncher struct {
 func (*recoveryLauncher) Launch(context.Context, RunnerInput) error { return nil }
 func (*recoveryLauncher) Close() error                              { return nil }
 func (l *recoveryLauncher) RecoveryContainerExists(context.Context, string, string) (bool, error) {
-	return l.recoveryContainerExists, nil
+	return l.recoveryContainerExists, l.recoveryContainerErr
 }
 func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error) {
 	l.failureReads++

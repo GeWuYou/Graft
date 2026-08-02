@@ -47,8 +47,8 @@ type ComposeRunnerRecoveryLauncher interface {
 	LaunchRecovery(context.Context, RunnerState, string, string) error
 }
 
-// recoveryLaunchError 标记恢复容器尚未创建前的 Docker 失败。
-// ContainerCreate 之后的错误保持不确定性，并保留持久恢复认领。
+// recoveryLaunchError 标记 Docker 已证明恢复容器没有启动的失败。
+// ContainerCreate 后只有成功清理未运行容器时才可重试；其余错误保持不确定性并保留持久恢复认领。
 type recoveryLaunchError struct {
 	err      error
 	preStart bool
@@ -272,7 +272,7 @@ func (l *dockerComposeRunnerLauncher) LaunchRecovery(ctx context.Context, state 
 		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
 			return fmt.Errorf("start compose runner recovery: %w; clean up recovery runner: %v", err, cleanupErr)
 		}
-		return fmt.Errorf("start compose runner recovery: %w", err)
+		return preStartRecoveryLaunchError(fmt.Errorf("start compose runner recovery: %w", err))
 	}
 	return nil
 }

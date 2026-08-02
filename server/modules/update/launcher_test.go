@@ -8,9 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"iter"
+	"strings"
 	"testing"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/jsonstream"
 	mobyclient "github.com/moby/moby/client"
 )
 
@@ -65,6 +68,31 @@ func TestRunnerStateVolumeNameRejectsInvalidConfiguredValue(t *testing.T) {
 	}
 }
 
+func TestLaunchRecoveryMarksClaimReleasableAfterSuccessfulUnstartedCleanup(t *testing.T) {
+	client := &receiptDockerClient{
+		imagePull: recoveryImagePullResponse{ReadCloser: io.NopCloser(bytes.NewReader(nil))},
+		created:   mobyclient.ContainerCreateResult{ID: "recovery-container"},
+		startErr:  errors.New("container start unavailable"),
+		inspected: mobyclient.ContainerInspectResult{Container: containertypes.InspectResponse{State: &containertypes.State{Running: false}}},
+	}
+	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-cleanup", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-cleanup", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	err := (&dockerComposeRunnerLauncher{client: client}).LaunchRecovery(context.Background(), state, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "recovery-claim")
+	if !recoveryLaunchFailedBeforeContainerStart(err) {
+		t.Fatalf("successful cleanup must prove a releasable recovery failure: %v", err)
+	}
+	if len(client.removed) != 1 || client.removed[0] != "recovery-container" {
+		t.Fatalf("removed containers = %#v, want [recovery-container]", client.removed)
+	}
+}
+
+type recoveryImagePullResponse struct{ io.ReadCloser }
+
+func (recoveryImagePullResponse) JSONMessages(context.Context) iter.Seq2[jsonstream.Message, error] {
+	return func(func(jsonstream.Message, error) bool) {}
+}
+
+func (recoveryImagePullResponse) Wait(context.Context) error { return nil }
+
 func runnerLabels(operationID string) map[string]string {
 	return runnerLabelsForProtocol(operationID, runnerProtocol)
 }
@@ -101,22 +129,38 @@ func multiplexRunnerLines(line string) []byte {
 }
 
 type receiptDockerClient struct {
-	items   []containertypes.Summary
-	logs    map[string][]byte
-	removed []string
-	logOpts []mobyclient.ContainerLogsOptions
+	items     []containertypes.Summary
+	logs      map[string][]byte
+	removed   []string
+	logOpts   []mobyclient.ContainerLogsOptions
+	imagePull mobyclient.ImagePullResponse
+	created   mobyclient.ContainerCreateResult
+	startErr  error
+	inspected mobyclient.ContainerInspectResult
 }
 
 func (c *receiptDockerClient) ImagePull(context.Context, string, mobyclient.ImagePullOptions) (mobyclient.ImagePullResponse, error) {
+	if c.imagePull != nil {
+		return c.imagePull, nil
+	}
 	return nil, errors.New("not implemented")
 }
 func (c *receiptDockerClient) ContainerCreate(context.Context, mobyclient.ContainerCreateOptions) (mobyclient.ContainerCreateResult, error) {
+	if c.created.ID != "" {
+		return c.created, nil
+	}
 	return mobyclient.ContainerCreateResult{}, errors.New("not implemented")
 }
 func (c *receiptDockerClient) ContainerStart(context.Context, string, mobyclient.ContainerStartOptions) (mobyclient.ContainerStartResult, error) {
+	if c.startErr != nil {
+		return mobyclient.ContainerStartResult{}, c.startErr
+	}
 	return mobyclient.ContainerStartResult{}, errors.New("not implemented")
 }
 func (c *receiptDockerClient) ContainerInspect(context.Context, string, mobyclient.ContainerInspectOptions) (mobyclient.ContainerInspectResult, error) {
+	if c.inspected.Container.State != nil {
+		return c.inspected, nil
+	}
 	return mobyclient.ContainerInspectResult{}, errors.New("not implemented")
 }
 func (c *receiptDockerClient) ContainerRemove(_ context.Context, id string, _ mobyclient.ContainerRemoveOptions) (mobyclient.ContainerRemoveResult, error) {
