@@ -530,16 +530,16 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath, stateVolume stri
 		groups = append(groups, stateGroup)
 	}
 	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
-		"io.graft.update.operation": input.OperationID,
-		"io.graft.update.protocol":  runnerProtocol,
+		runnerOperationLabel: input.OperationID,
+		runnerProtocolLabel:  runnerProtocol,
 	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", stateVolume + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }
 
 func composeRunnerRecoveryContainerConfig(state RunnerState, image, encodedState, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
 	return containertypes.Config{Image: image, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=" + encodedState}, Labels: map[string]string{
-		"io.graft.update.operation": state.OperationID,
-		"io.graft.update.protocol":  runnerProtocol,
-		"io.graft.update.recovery":  "true",
+		runnerOperationLabel:       state.OperationID,
+		runnerProtocolLabel:        runnerProtocol,
+		"io.graft.update.recovery": "true",
 	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{stateVolume + ":" + RunnerStateRoot + ":rw"}, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN", "DAC_OVERRIDE"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }
 
