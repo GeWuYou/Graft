@@ -54,5 +54,5 @@ func updateOperationViewFromUnavailableRunnerState(operation ComposeUpdateOperat
 }
 
 func updateOperationViewFromTerminatedRunner(state RunnerState) OperationView {
-	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: "runner_terminated", StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, Error: rolloutFailureRunnerTerminated, FailureDiagnosticAvailable: true, StateSource: "runner_terminated", StateAvailable: false}
+	return OperationView{OperationID: state.OperationID, Operation: state.Operation, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: state.Strategy, Phase: state.Phase, Progress: state.Progress, Message: state.Message, StartedAt: state.StartedAt, UpdatedAt: state.UpdatedAt, Error: rolloutFailureRunnerTerminated, FailureDiagnosticAvailable: true, StateSource: "runner_terminated", StateAvailable: false}
 }

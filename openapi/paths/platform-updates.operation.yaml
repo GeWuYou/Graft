@@ -20,28 +20,3 @@ get:
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
     '404': { description: Update operation not found. }
-post:
-  tags: [platform-update]
-  summary: Recover a terminated self-update runner
-  operationId: postPlatformUpdateOperationRecovery
-  description: Starts one protected, one-shot recovery runner for an operation whose bound runner exited before publishing a terminal snapshot. The server accepts recovery only for a matching exited runner and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
-  security: [{ bearerAuth: [] }]
-  parameters:
-    - $ref: ../components/parameters/locale-header.yaml
-    - $ref: ../components/parameters/request-id-header.yaml
-    - name: operationID
-      in: path
-      required: true
-      schema: { type: string, maxLength: 128 }
-  responses:
-    '202':
-      description: Recovery runner accepted by Docker. Read the operation snapshot for the recovery result.
-      content:
-        application/json:
-          schema: { $ref: ../components/schemas/enveloped-platform-update-operation-launch-acknowledgement.yaml }
-    '400': { description: "Invalid operation identity or recovery precondition." }
-    '401': { $ref: ../components/responses/unauthorized.yaml }
-    '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Update operation not found. }
-    '409': { description: "The runner is still running, the operation is already terminal, or recovery has already been accepted." }
-    '503': { description: Runner state source is temporarily unavailable. }

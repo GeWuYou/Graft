@@ -53,6 +53,9 @@ func TestReadRunnerProgressKeepsOnlyBoundedLatestMarker(t *testing.T) {
 	if len(progress) != 1 || progress[0] != (RunnerOperationProgress{OperationID: "operation-1", Progress: RunnerProgressPulling}) {
 		t.Fatalf("progress = %#v", progress)
 	}
+	if len(client.logOpts) != 1 || client.logOpts[0].Tail != retainedRunnerLogTail {
+		t.Fatalf("runner log options = %#v", client.logOpts)
+	}
 }
 
 func TestRunnerStateVolumeNameRejectsInvalidConfiguredValue(t *testing.T) {
@@ -101,6 +104,7 @@ type receiptDockerClient struct {
 	items   []containertypes.Summary
 	logs    map[string][]byte
 	removed []string
+	logOpts []mobyclient.ContainerLogsOptions
 }
 
 func (c *receiptDockerClient) ImagePull(context.Context, string, mobyclient.ImagePullOptions) (mobyclient.ImagePullResponse, error) {
@@ -122,7 +126,8 @@ func (c *receiptDockerClient) ContainerRemove(_ context.Context, id string, _ mo
 func (c *receiptDockerClient) ContainerList(context.Context, mobyclient.ContainerListOptions) (mobyclient.ContainerListResult, error) {
 	return mobyclient.ContainerListResult{Items: c.items}, nil
 }
-func (c *receiptDockerClient) ContainerLogs(_ context.Context, id string, _ mobyclient.ContainerLogsOptions) (mobyclient.ContainerLogsResult, error) {
+func (c *receiptDockerClient) ContainerLogs(_ context.Context, id string, options mobyclient.ContainerLogsOptions) (mobyclient.ContainerLogsResult, error) {
+	c.logOpts = append(c.logOpts, options)
 	return io.NopCloser(bytes.NewReader(c.logs[id])), nil
 }
 func (c *receiptDockerClient) Close() error { return nil }

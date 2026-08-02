@@ -68,6 +68,40 @@ func TestWriteRunnerReceiptLogUsesFixedMarkerAndBase64JSON(t *testing.T) {
 	}
 }
 
+func TestRecoverTerminatedRunnerWritesARecoveryRunnerIdentity(t *testing.T) {
+	store, err := update.NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new runner state store: %v", err)
+	}
+	input := update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "update-recovery-identity", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategyBetaTracking}}
+	persisted := update.NewRunnerState(input, "runner-original", update.RunnerPhaseReady, 0, "runner_accepted", "", update.RunnerState{})
+	if err := store.Write(persisted); err != nil {
+		t.Fatalf("write persisted runner state: %v", err)
+	}
+	persisted, err = store.Read()
+	if err != nil {
+		t.Fatalf("read persisted runner state: %v", err)
+	}
+	contents, err := json.Marshal(persisted)
+	if err != nil {
+		t.Fatalf("marshal persisted runner state: %v", err)
+	}
+	var output bytes.Buffer
+	if err := recoverTerminatedRunnerWithStore(base64.RawStdEncoding.EncodeToString(contents), store, &output); err != nil {
+		t.Fatalf("recover terminated runner: %v", err)
+	}
+	recovered, err := store.Read()
+	if err != nil {
+		t.Fatalf("read recovered runner state: %v", err)
+	}
+	if recovered.RunnerID == persisted.RunnerID || recovered.Receipt == nil || recovered.Receipt.RunnerID != recovered.RunnerID {
+		t.Fatalf("recovery identity was not persisted: state=%#v", recovered)
+	}
+	if !strings.Contains(output.String(), update.RunnerReceiptLogMarker) {
+		t.Fatalf("recovery receipt was not emitted: %q", output.String())
+	}
+}
+
 func TestHealthzArgsBoundsCurlExecution(t *testing.T) {
 	args := healthzArgs()
 	maxTimeIndex := slices.Index(args, "--max-time")

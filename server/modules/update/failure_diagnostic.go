@@ -134,7 +134,7 @@ func runnerTerminalFailureDiagnostic(operation ComposeUpdateOperation, receipt R
 
 func runnerTerminatedFailureDiagnostic(operation ComposeUpdateOperation, evidence RunnerFailureEvidence) FailureDiagnostic {
 	detail := "runner exited before publishing a terminal state"
-	if evidence.FailureCode == "runner_state_write_failed" && evidence.FailureStage == "permission_denied" {
+	if evidence.FailureCode == RunnerFailureCodeStateWriteFailed && evidence.FailureStage == RunnerFailureStagePermissionDenied {
 		detail = "runner could not access the update state volume"
 	}
 	return FailureDiagnostic{RequestID: operation.RequestID, OperationID: operation.OperationID, TaskID: operation.TaskID, TargetVersion: operation.TargetVersion, FailureCode: rolloutFailureRunnerTerminated, FailureStage: evidence.FailureCode, Summary: runnerFailureDiagnosticSummary, Detail: detail, OccurredAt: time.Now().UTC()}

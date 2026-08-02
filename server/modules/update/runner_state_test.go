@@ -314,6 +314,12 @@ func TestRolloutRecoverRequiresBoundTerminatedRunnerEvidence(t *testing.T) {
 	}
 
 	launcher.recovered = RunnerState{}
+	launcher.failures[0].RunnerID = ""
+	if _, err := rollout.Recover(t.Context(), state.OperationID); err != nil {
+		t.Fatalf("recover with fallback terminated evidence: %v", err)
+	}
+
+	launcher.recovered = RunnerState{}
 	launcher.failures[0].RunnerID = "runner-other"
 	if _, err := rollout.Recover(t.Context(), state.OperationID); !errors.Is(err, errRecoveryConflict) {
 		t.Fatalf("unbound recovery evidence error = %v", err)
@@ -336,7 +342,7 @@ func TestRolloutActiveOperationProjectsTerminatedRunner(t *testing.T) {
 	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
 	launcher := &recoveryLauncher{failures: []RunnerFailureEvidence{{ProtocolVersion: runnerProtocolVersion, OperationID: state.OperationID, RunnerID: state.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: "permission_denied"}}}
 	view, err := (&RolloutService{stateStore: store, operations: operations, launcher: launcher}).GetActiveOperation(t.Context())
-	if err != nil || view == nil || view.StateSource != "runner_terminated" || view.StateAvailable || view.Error != rolloutFailureRunnerTerminated {
+	if err != nil || view == nil || view.StateSource != "runner_terminated" || view.Message != state.Message || view.StateAvailable || view.Error != rolloutFailureRunnerTerminated {
 		t.Fatalf("terminated runner view = %#v, %v", view, err)
 	}
 }

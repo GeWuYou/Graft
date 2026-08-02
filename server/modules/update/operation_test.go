@@ -13,6 +13,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	containertypes "github.com/moby/moby/api/types/container"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 	"graft/server/internal/buildinfo"
@@ -432,8 +433,16 @@ func TestComposeRunnerRecoveryContainerConfigOnlyMountsStateVolume(t *testing.T)
 	if config.Image == "" || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=bound-state" || config.Labels["io.graft.update.recovery"] != "true" {
 		t.Fatalf("recovery runner config is not bound: %#v", config)
 	}
-	if len(host.Binds) != 1 || host.Binds[0] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || len(host.CapAdd) != 2 || host.CapAdd[0] != "CHOWN" || host.CapAdd[1] != "DAC_OVERRIDE" {
+	assertRecoveryRunnerHardening(t, config.User, host)
+}
+
+func assertRecoveryRunnerHardening(t *testing.T, user string, host containertypes.HostConfig) {
+	t.Helper()
+	if user != "0:0" || len(host.Binds) != 1 || host.Binds[0] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || !host.ReadonlyRootfs || host.AutoRemove {
 		t.Fatalf("recovery runner host config exceeds state-only scope: %#v", host)
+	}
+	if len(host.CapDrop) != 1 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 2 || host.CapAdd[0] != "CHOWN" || host.CapAdd[1] != "DAC_OVERRIDE" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("recovery runner capability hardening changed: %#v", host)
 	}
 }
 

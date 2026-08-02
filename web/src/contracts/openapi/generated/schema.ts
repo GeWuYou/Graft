@@ -1599,6 +1599,22 @@ export interface paths {
     /** Read a self-update operation */
     get: operations['getPlatformUpdateOperation'];
     put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/updates/operations/{operationID}/recovery': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
     /**
      * Recover a terminated self-update runner
      * @description Starts one protected, one-shot recovery runner for an operation whose bound runner exited before publishing a terminal snapshot. The server accepts recovery only for a matching exited runner and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
@@ -6811,7 +6827,7 @@ export interface components {
       /** @description Requested release version. */
       target_version: string;
       failure_code: components['schemas']['platform-update-rollout-failure-code'];
-      /** @description Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt. */
+      /** @description Controlled update failure stage. Update-start failures report availability, runner_state, preflight, backup, handoff, operation_persist, runner_launch, or internal. Terminal runner receipts report artifact_directory, env_snapshot, postgres_dump, artifact_digest, or runner_receipt. A runner that exits before publishing a terminal snapshot reports runner_state_write_failed or runner_exited. Older persisted diagnostics can contain other values. */
       failure_stage: string;
       /** @description Controlled operator-facing failure summary. */
       summary: string;

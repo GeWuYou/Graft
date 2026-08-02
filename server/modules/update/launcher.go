@@ -71,6 +71,19 @@ const RunnerReceiptLogMarker = "GRAFT_UPDATE_RECEIPT:"
 // RunnerFailureLogMarker 将早期 runner 失败绑定到操作，且不暴露 runner 原始输出。
 const RunnerFailureLogMarker = "GRAFT_UPDATE_FAILURE:"
 
+const (
+	// RunnerFailureCodeStateWriteFailed identifies a runner that could not publish its terminal state.
+	RunnerFailureCodeStateWriteFailed = "runner_state_write_failed"
+	// RunnerFailureCodeExited identifies a retained runner that exited without a protocol failure marker.
+	RunnerFailureCodeExited = "runner_exited"
+	// RunnerFailureStagePermissionDenied identifies state-volume permission failures.
+	RunnerFailureStagePermissionDenied = "permission_denied"
+	// RunnerFailureStageIOFailed identifies non-permission state-volume write failures.
+	RunnerFailureStageIOFailed = "io_failed"
+)
+
+const retainedRunnerLogTail = "200"
+
 // RunnerProgressLogMarker 是 runner 阶段日志使用的稳定标记；标记后仅允许固定枚举值。
 const RunnerProgressLogMarker = "GRAFT_UPDATE_STAGE:"
 
@@ -133,7 +146,7 @@ func parseRunnerFailureLog(line string) (RunnerFailureEvidence, bool) {
 }
 
 func validRunnerFailureEvidence(value RunnerFailureEvidence) bool {
-	return value.FailureCode == "runner_state_write_failed" && (value.FailureStage == "permission_denied" || value.FailureStage == "io_failed")
+	return value.FailureCode == RunnerFailureCodeStateWriteFailed && (value.FailureStage == RunnerFailureStagePermissionDenied || value.FailureStage == RunnerFailureStageIOFailed)
 }
 
 // Close 释放 Docker API client 持有的连接。
@@ -343,7 +356,7 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerFailures(ctx context.Context) ([
 		if inspected.Container.State == nil || inspected.Container.State.Running || inspected.Container.State.ExitCode == 0 {
 			continue
 		}
-		evidence := RunnerFailureEvidence{OperationID: operationID, FailureCode: "runner_exited", FailureStage: "unknown"}
+		evidence := RunnerFailureEvidence{OperationID: operationID, FailureCode: RunnerFailureCodeExited, FailureStage: "unknown"}
 		logs, logErr := l.readContainerLogs(ctx, item.ID)
 		if logErr != nil {
 			return nil, logErr
@@ -375,7 +388,7 @@ func (l *dockerComposeRunnerLauncher) readContainerProgress(ctx context.Context,
 }
 
 func (l *dockerComposeRunnerLauncher) readContainerLogs(ctx context.Context, id string) (string, error) {
-	logs, err := l.client.ContainerLogs(ctx, id, mobyclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	logs, err := l.client.ContainerLogs(ctx, id, mobyclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Tail: retainedRunnerLogTail})
 	if err != nil {
 		return "", fmt.Errorf("read retained compose runner logs: %w", err)
 	}

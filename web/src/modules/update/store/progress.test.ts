@@ -231,6 +231,32 @@ describe('update progress store', () => {
     expect(store.pollTimer).toBeNull();
   });
 
+  it('ignores a snapshot that returns after runner termination invalidates its session', async () => {
+    let resolveSnapshot: (value: UpdateOperation) => void = () => undefined;
+    vi.mocked(getUpdateOperation)
+      .mockResolvedValueOnce(operation('operation-1'))
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (resolveSnapshot = resolve as (value: UpdateOperation) => void)),
+      );
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const staleRefresh = store.refreshSnapshot(store.session);
+    const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
+
+    await callback({
+      ...operation('operation-1'),
+      state_available: false,
+      state_source: 'runner_terminated',
+      failure_diagnostic_available: false,
+    } as UpdateOperation);
+    resolveSnapshot(operation('operation-1', 'BACKUP', 20));
+    await staleRefresh;
+
+    expect(store.phase).toBe('failed');
+    expect(store.operationID).toBeNull();
+    expect(store.operation?.state_source).toBe('runner_terminated');
+  });
+
   it('polls the runner snapshot while the realtime transport is unavailable', async () => {
     const store = useUpdateProgressStore();
     await store.begin(acknowledgement('operation-1'));

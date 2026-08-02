@@ -232,6 +232,8 @@ paths:
     $ref: ./paths/platform-updates.diagnostic.yaml
   /api/platform/updates/operations/{operationID}:
     $ref: ./paths/platform-updates.operation.yaml
+  /api/platform/updates/operations/{operationID}/recovery:
+    $ref: ./paths/platform-updates.operation-recovery.yaml
   /api/platform/updates/operations/{operationID}/events:
     $ref: ./paths/platform-updates.operation-events.yaml
   /api/platform/updates/operations/{operationID}/diagnostic:

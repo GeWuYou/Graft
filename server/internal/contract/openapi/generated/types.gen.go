@@ -11831,7 +11831,7 @@ type PlatformUpdateFailureDiagnostic struct {
 	// FailureCode Stable safe failure code returned when a confirmed platform update cannot start.
 	FailureCode PlatformUpdateRolloutFailureCode `json:"failure_code"`
 
-	// FailureStage Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt.
+	// FailureStage Controlled update failure stage. Update-start failures report availability, runner_state, preflight, backup, handoff, operation_persist, runner_launch, or internal. Terminal runner receipts report artifact_directory, env_snapshot, postgres_dump, artifact_digest, or runner_receipt. A runner that exits before publishing a terminal snapshot reports runner_state_write_failed or runner_exited. Older persisted diagnostics can contain other values.
 	FailureStage string `json:"failure_stage"`
 
 	// OccurredAt UTC time at which the update start failed.
@@ -15847,16 +15847,6 @@ type GetPlatformUpdateOperationParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
-// PostPlatformUpdateOperationRecoveryParams defines parameters for PostPlatformUpdateOperationRecovery.
-type PostPlatformUpdateOperationRecoveryParams struct {
-	// XGraftLocale Explicit locale override header already supported by the runtime.
-	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
-}
-
 // GetPlatformUpdateOperationFailureDiagnosticParams defines parameters for GetPlatformUpdateOperationFailureDiagnostic.
 type GetPlatformUpdateOperationFailureDiagnosticParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -15871,6 +15861,16 @@ type GetPlatformUpdateOperationFailureDiagnosticParams struct {
 type GetPlatformUpdateOperationEventsParams struct {
 	AfterRevision *int64 `form:"after_revision,omitempty" json:"after_revision,omitempty"`
 
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPlatformUpdateOperationRecoveryParams defines parameters for PostPlatformUpdateOperationRecovery.
+type PostPlatformUpdateOperationRecoveryParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

@@ -243,7 +243,7 @@ func (s *RolloutService) runnerTerminationView(ctx context.Context, state Runner
 		return OperationView{}, false
 	}
 	for _, evidence := range failures {
-		if evidence.OperationID != state.OperationID || (evidence.RunnerID != "" && evidence.RunnerID != state.RunnerID) {
+		if evidence.OperationID != state.OperationID || !runnerFailureMatchesState(evidence, state) {
 			continue
 		}
 		operation, getErr := s.operations.Get(ctx, state.OperationID)
@@ -338,7 +338,7 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	}
 	matched := false
 	for _, evidence := range failures {
-		if evidence.OperationID == operationID && evidence.RunnerID == state.RunnerID {
+		if evidence.OperationID == operationID && runnerFailureMatchesState(evidence, state) {
 			matched = true
 			break
 		}
@@ -354,6 +354,10 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 		return ComposeUpdateOperation{}, fmt.Errorf("launch terminated compose runner recovery: %w", err)
 	}
 	return operation, nil
+}
+
+func runnerFailureMatchesState(evidence RunnerFailureEvidence, state RunnerState) bool {
+	return evidence.RunnerID == "" || evidence.RunnerID == state.RunnerID
 }
 
 func (s *RolloutService) recoveryRunnerImage() (string, error) {

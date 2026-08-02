@@ -678,7 +678,7 @@ describe('LayoutContent', () => {
     expect(scrollbarStyleSource).toContain('.graft-scrollbar-tabs .t-tabs__nav-scroll');
     expect(scrollbarStyleSource).toContain('scrollbar-width: none;');
     expect(layoutContentStyleSource).not.toContain('.t-tabs__nav-scroll::-webkit-scrollbar');
-    expect(scrollbarStyleSource).toContain('.t-tabs__nav-scroll::-webkit-scrollbar');
+    expect(scrollbarStyleSource).toContain('.graft-scrollbar-tabs .t-tabs__nav-scroll::-webkit-scrollbar');
     expect(layoutStyleSource).toContain('flex: 1 0 auto;');
     expect(layoutStyleSource).toContain('min-height: 0;');
   });

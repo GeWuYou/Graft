@@ -8997,7 +8997,9 @@
             "description": "Update operation not found."
           }
         }
-      },
+      }
+    },
+    "/api/platform/updates/operations/{operationID}/recovery": {
       "post": {
         "tags": [
           "platform-update"
@@ -28636,7 +28638,7 @@
           },
           "failure_stage": {
             "type": "string",
-            "description": "Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt."
+            "description": "Controlled update failure stage. Update-start failures report availability, runner_state, preflight, backup, handoff, operation_persist, runner_launch, or internal. Terminal runner receipts report artifact_directory, env_snapshot, postgres_dump, artifact_digest, or runner_receipt. A runner that exits before publishing a terminal snapshot reports runner_state_write_failed or runner_exited. Older persisted diagnostics can contain other values."
           },
           "summary": {
             "type": "string",

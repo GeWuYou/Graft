@@ -199,7 +199,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postPlatformBackup: '/api/platform/backups',
   postPlatformUpdateCheck: '/api/platform/updates/check',
   postPlatformUpdateOperation: '/api/platform/updates/operations',
-  postPlatformUpdateOperationRecovery: '/api/platform/updates/operations/{operationID}',
+  postPlatformUpdateOperationRecovery: '/api/platform/updates/operations/{operationID}/recovery',
   postRealtimeSubscription: '/api/realtime/subscriptions',
   postRoleDelete: '/api/roles/{id}/delete',
   postRolePermissionsAdd: '/api/roles/{id}/permissions/add',

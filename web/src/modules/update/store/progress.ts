@@ -198,6 +198,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operation = operation;
       this.operationID = operation.operation_id;
       if (operation.state_source === 'runner_terminated') {
+        const terminalSession = ++this.session;
         this.phase = 'failed';
         this.lastActivePhase = null;
         this.stopStream();
@@ -205,7 +206,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         persistOperation(null);
         this.operationID = null;
         if (operation.failure_diagnostic_available !== false) {
-          await this.loadFailureDiagnostic(session, operation.operation_id);
+          await this.loadFailureDiagnostic(terminalSession, operation.operation_id);
         } else {
           this.failureDiagnosticError = true;
         }
