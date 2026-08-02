@@ -7,6 +7,7 @@ import {
   getUpdateOperation,
   getUpdateOperationDiagnostic,
   getUpdateOperationEvents,
+  recoverUpdateOperation,
   subscribeToUpdateOperation,
 } from '../api/update';
 import type { UpdateOperation } from '../types/update';
@@ -14,6 +15,7 @@ import { useUpdateProgressStore } from './progress';
 
 vi.mock('../api/update', () => ({
   getActiveUpdateOperation: vi.fn(),
+  recoverUpdateOperation: vi.fn(),
   getUpdateOperation: vi.fn(),
   getUpdateOperationDiagnostic: vi.fn(),
   getUpdateOperationEvents: vi.fn(),
@@ -40,6 +42,10 @@ describe('update progress store', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.mocked(getActiveUpdateOperation).mockResolvedValue(null);
+    vi.mocked(recoverUpdateOperation).mockResolvedValue({
+      operation_id: 'operation-1',
+      runner_id: 'recovery-runner-1',
+    } as never);
     vi.mocked(getUpdateOperation).mockResolvedValue(operation('operation-1'));
     vi.mocked(getUpdateOperationEvents).mockResolvedValue([]);
     vi.mocked(getUpdateOperationDiagnostic).mockResolvedValue({
@@ -229,6 +235,80 @@ describe('update progress store', () => {
     expect(store.failureDiagnosticError).toBe(true);
     expect(store.stream).toBeNull();
     expect(store.pollTimer).toBeNull();
+  });
+
+  it('starts the protected recovery runner and resumes the returned operation session', async () => {
+    const store = useUpdateProgressStore();
+    store.$patch({
+      operation: {
+        ...operation('operation-1'),
+        state_available: false,
+        state_source: 'runner_terminated',
+      } as UpdateOperation,
+      phase: 'failed',
+    });
+
+    await store.recoverTerminatedRunner();
+
+    expect(recoverUpdateOperation).toHaveBeenCalledWith('operation-1');
+    expect(getUpdateOperation).toHaveBeenCalledWith('operation-1');
+    expect(store.phase).toBe('running');
+    expect(store.operationID).toBe('operation-1');
+    expect(store.recoveryError).toBe(false);
+  });
+
+  it('keeps the terminated runner visible when protected recovery cannot be accepted', async () => {
+    vi.mocked(recoverUpdateOperation).mockRejectedValueOnce(new Error('recovery unavailable'));
+    const store = useUpdateProgressStore();
+    store.$patch({
+      operation: {
+        ...operation('operation-1'),
+        state_available: false,
+        state_source: 'runner_terminated',
+      } as UpdateOperation,
+      phase: 'failed',
+    });
+
+    await store.recoverTerminatedRunner();
+
+    expect(store.phase).toBe('failed');
+    expect(store.operation?.state_source).toBe('runner_terminated');
+    expect(store.recoveryError).toBe(true);
+  });
+
+  it('keeps polling when the recovery acknowledgement is followed by the stale terminated projection', async () => {
+    vi.mocked(getUpdateOperation)
+      .mockResolvedValueOnce({
+        ...operation('operation-1'),
+        state_available: false,
+        state_source: 'runner_terminated',
+      } as UpdateOperation)
+      .mockResolvedValueOnce(operation('operation-1', 'FAILED', 100));
+    const store = useUpdateProgressStore();
+    store.$patch({
+      operation: {
+        ...operation('operation-1'),
+        state_available: false,
+        state_source: 'runner_terminated',
+      } as UpdateOperation,
+      phase: 'failed',
+    });
+
+    await store.recoverTerminatedRunner();
+
+    expect(store.phase).toBe('reconnecting');
+    expect(store.recoveryPending).toBe(true);
+    expect(store.operationID).toBe('operation-1');
+    const onStateChange = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onStateChange;
+    onStateChange?.('open');
+    await flushPromises();
+
+    expect(store.phase).toBe('reconnecting');
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(store.phase).toBe('failed');
+    expect(store.recoveryPending).toBe(false);
+    expect(store.operation?.phase).toBe('FAILED');
   });
 
   it('ignores a snapshot that returns after runner termination invalidates its session', async () => {

@@ -14,6 +14,7 @@ import {
   getUpdateOperationEvents,
   getUpdateOperations,
   getUpdateStatus,
+  recoverUpdateOperation,
   subscribeToUpdateOperation,
 } from './update';
 
@@ -88,6 +89,17 @@ describe('platform update api', () => {
     });
     expect(requestGet).toHaveBeenNthCalledWith(4, {
       url: '/api/platform/updates/operations/update-1/diagnostic',
+    });
+  });
+
+  it('starts terminated-runner recovery through the canonical operation endpoint', async () => {
+    const requestPost = vi.mocked(request.post);
+    requestPost.mockResolvedValueOnce({ operation_id: 'update-1', runner_id: 'recovery-runner-1' } as never);
+
+    await recoverUpdateOperation('update-1');
+
+    expect(requestPost).toHaveBeenCalledWith({
+      url: '/api/platform/updates/operations/update-1/recovery',
     });
   });
 

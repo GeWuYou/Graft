@@ -40,8 +40,11 @@ func TestReadRunnerReceiptsRetainsValidAndInvalidContainersUntilExplicitCleanup(
 	if err := launcher.RemoveRunner(context.Background(), valid.OperationID); err != nil {
 		t.Fatalf("remove settled runner: %v", err)
 	}
-	if len(client.removed) != 1 || client.removed[0] != "valid" {
-		t.Fatalf("removed containers after cleanup = %#v, want [valid]", client.removed)
+	if err := launcher.RemoveRunner(context.Background(), legacy.OperationID); err != nil {
+		t.Fatalf("remove settled legacy runner: %v", err)
+	}
+	if len(client.removed) != 2 || client.removed[0] != "valid" || client.removed[1] != "legacy" {
+		t.Fatalf("removed containers after cleanup = %#v, want [valid legacy]", client.removed)
 	}
 }
 
@@ -58,6 +61,29 @@ func TestReadRunnerProgressKeepsOnlyBoundedLatestMarker(t *testing.T) {
 	}
 	if len(client.logOpts) != 1 || client.logOpts[0].Tail != retainedRunnerLogTail {
 		t.Fatalf("runner log options = %#v", client.logOpts)
+	}
+}
+
+func TestReadRunnerFailuresFindsExitedV2RunnerWithDockerLabelAndSemantics(t *testing.T) {
+	client := &receiptDockerClient{
+		items: []containertypes.Summary{
+			{ID: "exited-v2", Labels: runnerLabels("operation-exited-v2")},
+			{ID: "legacy", Labels: runnerLabelsForProtocol("operation-legacy", legacyRunnerProtocol)},
+		},
+		logs: map[string][]byte{"exited-v2": multiplexRunnerLines("runner terminated\n")},
+		inspectedByID: map[string]mobyclient.ContainerInspectResult{
+			"exited-v2": {Container: containertypes.InspectResponse{State: &containertypes.State{ExitCode: 1}}},
+			"legacy":    {Container: containertypes.InspectResponse{State: &containertypes.State{ExitCode: 0}}},
+		},
+	}
+
+	failures, err := (&dockerComposeRunnerLauncher{client: client}).ReadRunnerFailures(context.Background())
+	if err != nil {
+		t.Fatalf("read runner failures: %v", err)
+	}
+	want := []RunnerFailureEvidence{{OperationID: "operation-exited-v2", FailureCode: RunnerFailureCodeExited, FailureStage: "unknown"}}
+	if len(failures) != 1 || failures[0] != want[0] {
+		t.Fatalf("failures = %#v, want %#v", failures, want)
 	}
 }
 
@@ -129,14 +155,15 @@ func multiplexRunnerLines(line string) []byte {
 }
 
 type receiptDockerClient struct {
-	items     []containertypes.Summary
-	logs      map[string][]byte
-	removed   []string
-	logOpts   []mobyclient.ContainerLogsOptions
-	imagePull mobyclient.ImagePullResponse
-	created   mobyclient.ContainerCreateResult
-	startErr  error
-	inspected mobyclient.ContainerInspectResult
+	items         []containertypes.Summary
+	logs          map[string][]byte
+	removed       []string
+	logOpts       []mobyclient.ContainerLogsOptions
+	imagePull     mobyclient.ImagePullResponse
+	created       mobyclient.ContainerCreateResult
+	startErr      error
+	inspected     mobyclient.ContainerInspectResult
+	inspectedByID map[string]mobyclient.ContainerInspectResult
 }
 
 func (c *receiptDockerClient) ImagePull(context.Context, string, mobyclient.ImagePullOptions) (mobyclient.ImagePullResponse, error) {
@@ -157,7 +184,10 @@ func (c *receiptDockerClient) ContainerStart(context.Context, string, mobyclient
 	}
 	return mobyclient.ContainerStartResult{}, errors.New("not implemented")
 }
-func (c *receiptDockerClient) ContainerInspect(context.Context, string, mobyclient.ContainerInspectOptions) (mobyclient.ContainerInspectResult, error) {
+func (c *receiptDockerClient) ContainerInspect(_ context.Context, id string, _ mobyclient.ContainerInspectOptions) (mobyclient.ContainerInspectResult, error) {
+	if inspected, ok := c.inspectedByID[id]; ok {
+		return inspected, nil
+	}
 	if c.inspected.Container.State != nil {
 		return c.inspected, nil
 	}
@@ -167,8 +197,14 @@ func (c *receiptDockerClient) ContainerRemove(_ context.Context, id string, _ mo
 	c.removed = append(c.removed, id)
 	return mobyclient.ContainerRemoveResult{}, nil
 }
-func (c *receiptDockerClient) ContainerList(context.Context, mobyclient.ContainerListOptions) (mobyclient.ContainerListResult, error) {
-	return mobyclient.ContainerListResult{Items: c.items}, nil
+func (c *receiptDockerClient) ContainerList(_ context.Context, options mobyclient.ContainerListOptions) (mobyclient.ContainerListResult, error) {
+	items := make([]containertypes.Summary, 0, len(c.items))
+	for _, item := range c.items {
+		if dockerContainerMatchesFilters(item, options.Filters) {
+			items = append(items, item)
+		}
+	}
+	return mobyclient.ContainerListResult{Items: items}, nil
 }
 func (c *receiptDockerClient) ContainerLogs(_ context.Context, id string, options mobyclient.ContainerLogsOptions) (mobyclient.ContainerLogsResult, error) {
 	c.logOpts = append(c.logOpts, options)
@@ -177,3 +213,21 @@ func (c *receiptDockerClient) ContainerLogs(_ context.Context, id string, option
 func (c *receiptDockerClient) Close() error { return nil }
 
 var _ dockerRunnerClient = (*receiptDockerClient)(nil)
+
+func dockerContainerMatchesFilters(item containertypes.Summary, filters mobyclient.Filters) bool {
+	for term, values := range filters {
+		switch term {
+		case "label":
+			for value := range values {
+				key, expected, hasExpected := strings.Cut(value, "=")
+				actual, ok := item.Labels[key]
+				if !ok || hasExpected && actual != expected {
+					return false
+				}
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}

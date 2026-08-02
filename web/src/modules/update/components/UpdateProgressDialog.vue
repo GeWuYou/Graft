@@ -47,6 +47,18 @@
         <p v-else-if="progress.failureDiagnosticError">{{ t('update.center.progress.diagnosticUnavailable') }}</p>
         <p v-else>{{ progress.operation?.message || t('update.center.progress.diagnosticUnavailable') }}</p>
       </section>
+      <section v-if="canRecoverTerminatedRunner" class="update-progress__recovery">
+        <p>{{ t('update.center.progress.recovery.description') }}</p>
+        <t-alert v-if="progress.recoveryError" theme="error" :message="t('update.center.progress.recovery.failed')" />
+        <t-button
+          data-testid="update-progress-recovery"
+          theme="primary"
+          :loading="progress.recoveryLoading"
+          @click="recoverTerminatedRunner"
+        >
+          {{ t('update.center.progress.recovery.action') }}
+        </t-button>
+      </section>
       <section v-if="progress.phase === 'unavailable'" class="update-progress__failure">
         <p>{{ t('update.center.progress.sourceUnavailable') }}</p>
       </section>
@@ -69,12 +81,16 @@
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { usePermissionStore } from '@/store';
+
+import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateProgressStore } from '../store/progress';
 import type { UpdateOperationPhase } from '../types/update';
 
 // 后台壳只呈现服务端验证的操作投影；服务重建中的连接状态不能覆盖其报告的真实进度。
 const { t } = useI18n();
 const progress = useUpdateProgressStore();
+const permissionStore = usePermissionStore();
 const steps = [
   'ready',
   'preflight',
@@ -104,6 +120,10 @@ const stageStatus = computed(() => {
   return progress.operation?.phase ?? 'READY';
 });
 const runnerTerminated = computed(() => progress.operation?.state_source === 'runner_terminated');
+const canRecoverTerminatedRunner = computed(
+  () =>
+    runnerTerminated.value && !progress.recoveryPending && permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
+);
 const showProgress = computed(() => !runnerTerminated.value);
 const showRunnerStage = computed(() => Boolean(progress.operation) && !runnerTerminated.value);
 const currentStep = computed(() => stageIndex[stageStatus.value]);
@@ -137,6 +157,10 @@ function closeTerminalDialog() {
   if (terminal.value) progress.reset();
 }
 
+function recoverTerminatedRunner() {
+  void progress.recoverTerminatedRunner();
+}
+
 function eventMessage(message: string) {
   return eventMessageKeys.has(message)
     ? t(`update.center.history.messages.${message}`)
@@ -159,6 +183,16 @@ function eventMessage(message: string) {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.update-progress__recovery {
+  display: grid;
+  gap: var(--td-comp-margin-s);
+}
+
+.update-progress__recovery p {
+  color: var(--td-text-color-secondary);
+  margin: 0;
 }
 
 .update-progress__current-stage {

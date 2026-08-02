@@ -238,6 +238,11 @@
         "diagnosticLoading": "Reading the sanitized failure diagnostic...",
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",
         "sourceUnavailable": "The platform cannot currently read the update runner state. Received stage records remain available here.",
+        "recovery": {
+          "description": "The update runner exited early. A controlled recovery writes the actual failed or rollback result.",
+          "action": "Start Controlled Recovery",
+          "failed": "The controlled recovery could not be started. Try again later."
+        },
         "events": { "title": "Upgrade stages", "recorded": "Recorded upgrade stage" },
         "viewAppLogs": "View application logs",
         "close": "Close"
