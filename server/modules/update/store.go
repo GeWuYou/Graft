@@ -17,6 +17,7 @@ type OperationStore interface {
 	Settle(context.Context, ComposeUpdateOperation) error
 	ClaimRecovery(context.Context, string, string) (bool, error)
 	ReleaseRecoveryClaim(context.Context, string, string) error
+	// RecoveryClaim 返回操作当前的恢复认领；未认领时返回空字符串，操作不存在时返回 errUpdateOperationNotFound，查询失败时返回数据库错误。
 	RecoveryClaim(context.Context, string) (string, error)
 }
 
@@ -138,7 +139,7 @@ func (s *sqlOperationStore) ReleaseRecoveryClaim(ctx context.Context, operationI
 	return nil
 }
 
-// RecoveryClaim 返回未终态操作当前的恢复认领，用于在进程中断后核验容器是否已经创建。
+// RecoveryClaim 返回操作当前的恢复认领，用于在进程中断后核验 claim 绑定容器是否已经创建。
 func (s *sqlOperationStore) RecoveryClaim(ctx context.Context, operationID string) (string, error) {
 	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
 		return "", errors.New("update recovery claim query is invalid")
