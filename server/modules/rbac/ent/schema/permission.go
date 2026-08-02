@@ -58,7 +58,10 @@ func (Permission) Fields() []ent.Field {
 			Comment("资源上的稳定动作").
 			Default(""),
 		field.String("risk_level").
-			Comment("权限风险等级：read、write、destructive 或 security").
+			Comment("权限严重级别：low、medium、high 或 critical").
+			Default("low"),
+		field.String("risk_category").
+			Comment("权限操作类别：read、write、destructive 或 security").
 			Default("read"),
 		field.Time("created_at").
 			Comment("创建时间").

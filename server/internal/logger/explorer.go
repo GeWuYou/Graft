@@ -113,12 +113,20 @@ func registerAppLogExplorerPermissions(registry *permission.Registry) {
 		DisplayKey:     "rbac.permissionCatalog.appLogRead.display",
 		DescriptionKey: "rbac.permissionCatalog.appLogRead.description",
 		Module:         appLogModuleOwner,
+		Resource:       "app_log",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 	registry.Register(permission.Item{
 		Code:           AppLogDeletePermission,
 		DisplayKey:     "rbac.permissionCatalog.appLogDelete.display",
 		DescriptionKey: "rbac.permissionCatalog.appLogDelete.description",
 		Module:         appLogModuleOwner,
+		Resource:       "app_log",
+		Action:         "delete",
+		RiskLevel:      permission.RiskLevelHigh,
+		RiskCategory:   permission.RiskCategoryDestructive,
 	})
 }
 

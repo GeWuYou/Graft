@@ -316,6 +316,10 @@ func registerMonitorPermissions(registry *permission.Registry, moduleName string
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.monitorServerStatusRead.description",
 		Module:         moduleName,
+		Resource:       "monitor.server-status",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 }
 

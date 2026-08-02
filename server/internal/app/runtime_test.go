@@ -1314,7 +1314,7 @@ func TestRegisterCoreRoutesHealthzReportsRegistryCounts(t *testing.T) {
 	menuRegistry.Register(menu.Item{Code: "users", Path: "/users"})
 
 	permissionRegistry := permission.NewRegistry()
-	permissionRegistry.Register(permission.Item{Code: "dashboard.view"})
+	permissionRegistry.Register(permission.Item{Code: "dashboard.view", Module: "dashboard", Resource: "dashboard", Action: "view", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead})
 
 	cronRegistry := cronx.NewRegistry()
 	cronRegistry.Register(cronx.Job{Name: "cleanup", Schedule: "0 * * * *"})

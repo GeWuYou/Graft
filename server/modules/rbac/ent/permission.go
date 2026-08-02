@@ -33,8 +33,10 @@ type Permission struct {
 	Resource string `json:"resource,omitempty"`
 	// 资源上的稳定动作
 	Action string `json:"action,omitempty"`
-	// 权限风险等级：read、write、destructive 或 security
+	// 权限严重级别：low、medium、high 或 critical
 	RiskLevel string `json:"risk_level,omitempty"`
+	// 权限操作类别：read、write、destructive 或 security
+	RiskCategory string `json:"risk_category,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 创建人用户 ID，0 表示系统
@@ -78,7 +80,7 @@ func (*Permission) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case permission.FieldID, permission.FieldCreatedBy, permission.FieldUpdatedBy, permission.FieldDeletedAt, permission.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
-		case permission.FieldCode, permission.FieldDisplay, permission.FieldDisplayKey, permission.FieldDescription, permission.FieldDescriptionKey, permission.FieldModule, permission.FieldResource, permission.FieldAction, permission.FieldRiskLevel:
+		case permission.FieldCode, permission.FieldDisplay, permission.FieldDisplayKey, permission.FieldDescription, permission.FieldDescriptionKey, permission.FieldModule, permission.FieldResource, permission.FieldAction, permission.FieldRiskLevel, permission.FieldRiskCategory:
 			values[i] = new(sql.NullString)
 		case permission.FieldCreatedAt, permission.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -159,6 +161,12 @@ func (_m *Permission) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field risk_level", values[i])
 			} else if value.Valid {
 				_m.RiskLevel = value.String
+			}
+		case permission.FieldRiskCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field risk_category", values[i])
+			} else if value.Valid {
+				_m.RiskCategory = value.String
 			}
 		case permission.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -269,6 +277,9 @@ func (_m *Permission) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("risk_level=")
 	builder.WriteString(_m.RiskLevel)
+	builder.WriteString(", ")
+	builder.WriteString("risk_category=")
+	builder.WriteString(_m.RiskCategory)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

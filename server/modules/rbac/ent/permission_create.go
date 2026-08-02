@@ -131,6 +131,20 @@ func (_c *PermissionCreate) SetNillableRiskLevel(v *string) *PermissionCreate {
 	return _c
 }
 
+// SetRiskCategory sets the "risk_category" field.
+func (_c *PermissionCreate) SetRiskCategory(v string) *PermissionCreate {
+	_c.mutation.SetRiskCategory(v)
+	return _c
+}
+
+// SetNillableRiskCategory sets the "risk_category" field if the given value is not nil.
+func (_c *PermissionCreate) SetNillableRiskCategory(v *string) *PermissionCreate {
+	if v != nil {
+		_c.SetRiskCategory(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *PermissionCreate) SetCreatedAt(v time.Time) *PermissionCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -281,6 +295,10 @@ func (_c *PermissionCreate) defaults() {
 		v := permission.DefaultRiskLevel
 		_c.mutation.SetRiskLevel(v)
 	}
+	if _, ok := _c.mutation.RiskCategory(); !ok {
+		v := permission.DefaultRiskCategory
+		_c.mutation.SetRiskCategory(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := permission.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -336,6 +354,9 @@ func (_c *PermissionCreate) check() error {
 	}
 	if _, ok := _c.mutation.RiskLevel(); !ok {
 		return &ValidationError{Name: "risk_level", err: errors.New(`ent: missing required field "Permission.risk_level"`)}
+	}
+	if _, ok := _c.mutation.RiskCategory(); !ok {
+		return &ValidationError{Name: "risk_category", err: errors.New(`ent: missing required field "Permission.risk_category"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Permission.created_at"`)}
@@ -416,6 +437,10 @@ func (_c *PermissionCreate) createSpec() (*Permission, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RiskLevel(); ok {
 		_spec.SetField(permission.FieldRiskLevel, field.TypeString, value)
 		_node.RiskLevel = value
+	}
+	if value, ok := _c.mutation.RiskCategory(); ok {
+		_spec.SetField(permission.FieldRiskCategory, field.TypeString, value)
+		_node.RiskCategory = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(permission.FieldCreatedAt, field.TypeTime, value)

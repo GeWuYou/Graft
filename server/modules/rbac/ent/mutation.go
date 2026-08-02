@@ -48,6 +48,7 @@ type PermissionMutation struct {
 	resource                *string
 	action                  *string
 	risk_level              *string
+	risk_category           *string
 	created_at              *time.Time
 	created_by              *uint64
 	addcreated_by           *int64
@@ -528,6 +529,42 @@ func (m *PermissionMutation) ResetRiskLevel() {
 	m.risk_level = nil
 }
 
+// SetRiskCategory sets the "risk_category" field.
+func (m *PermissionMutation) SetRiskCategory(s string) {
+	m.risk_category = &s
+}
+
+// RiskCategory returns the value of the "risk_category" field in the mutation.
+func (m *PermissionMutation) RiskCategory() (r string, exists bool) {
+	v := m.risk_category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRiskCategory returns the old "risk_category" field's value of the Permission entity.
+// If the Permission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PermissionMutation) OldRiskCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRiskCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRiskCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRiskCategory: %w", err)
+	}
+	return oldValue.RiskCategory, nil
+}
+
+// ResetRiskCategory resets all changes to the "risk_category" field.
+func (m *PermissionMutation) ResetRiskCategory() {
+	m.risk_category = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *PermissionMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -912,7 +949,7 @@ func (m *PermissionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PermissionMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.code != nil {
 		fields = append(fields, permission.FieldCode)
 	}
@@ -939,6 +976,9 @@ func (m *PermissionMutation) Fields() []string {
 	}
 	if m.risk_level != nil {
 		fields = append(fields, permission.FieldRiskLevel)
+	}
+	if m.risk_category != nil {
+		fields = append(fields, permission.FieldRiskCategory)
 	}
 	if m.created_at != nil {
 		fields = append(fields, permission.FieldCreatedAt)
@@ -984,6 +1024,8 @@ func (m *PermissionMutation) Field(name string) (ent.Value, bool) {
 		return m.Action()
 	case permission.FieldRiskLevel:
 		return m.RiskLevel()
+	case permission.FieldRiskCategory:
+		return m.RiskCategory()
 	case permission.FieldCreatedAt:
 		return m.CreatedAt()
 	case permission.FieldCreatedBy:
@@ -1023,6 +1065,8 @@ func (m *PermissionMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldAction(ctx)
 	case permission.FieldRiskLevel:
 		return m.OldRiskLevel(ctx)
+	case permission.FieldRiskCategory:
+		return m.OldRiskCategory(ctx)
 	case permission.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case permission.FieldCreatedBy:
@@ -1106,6 +1150,13 @@ func (m *PermissionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRiskLevel(v)
+		return nil
+	case permission.FieldRiskCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRiskCategory(v)
 		return nil
 	case permission.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1296,6 +1347,9 @@ func (m *PermissionMutation) ResetField(name string) error {
 		return nil
 	case permission.FieldRiskLevel:
 		m.ResetRiskLevel()
+		return nil
+	case permission.FieldRiskCategory:
+		m.ResetRiskCategory()
 		return nil
 	case permission.FieldCreatedAt:
 		m.ResetCreatedAt()

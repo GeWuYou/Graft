@@ -19,28 +19,36 @@ type Item struct {
 	Resource string
 	// Action 是资源上的稳定动作，例如 view、deploy、delete。
 	Action string
-	// RiskLevel 标识授权变更的风险级别：read、write、destructive 或 security。
+	// RiskLevel 标识权限变更的严重级别：low、medium、high 或 critical。
 	RiskLevel string
+	// RiskCategory 标识权限操作类别：read、write、destructive 或 security。
+	RiskCategory string
 }
 
+// Risk levels 表示权限严重级别，Risk categories 表示权限操作类别。
 const (
-	// RiskLevelRead 表示只读权限。
-	RiskLevelRead = "read"
-	// RiskLevelWrite 表示会修改业务资源的权限。
-	RiskLevelWrite = "write"
-	// RiskLevelDestructive 表示删除或不可逆修改资源的权限。
-	RiskLevelDestructive = "destructive"
-	// RiskLevelSecurity 表示身份、安全或访问控制相关权限。
-	RiskLevelSecurity = "security"
+	RiskLevelLow            = "low"
+	RiskLevelMedium         = "medium"
+	RiskLevelHigh           = "high"
+	RiskLevelCritical       = "critical"
+	RiskCategoryRead        = "read"
+	RiskCategoryWrite       = "write"
+	RiskCategoryDestructive = "destructive"
+	RiskCategorySecurity    = "security"
 )
 
 // Valid 仅接受可分组且可风险审查的权限声明。
 func (i Item) Valid() bool {
-	if i.Code == "" || i.Module == "" || i.Resource == "" || i.Action == "" {
+	if i.Code == "" || i.Module == "" || i.Resource == "" || i.Action == "" || i.RiskCategory == "" {
 		return false
 	}
 	switch i.RiskLevel {
-	case RiskLevelRead, RiskLevelWrite, RiskLevelDestructive, RiskLevelSecurity:
+	case RiskLevelLow, RiskLevelMedium, RiskLevelHigh, RiskLevelCritical:
+	default:
+		return false
+	}
+	switch i.RiskCategory {
+	case RiskCategoryRead, RiskCategoryWrite, RiskCategoryDestructive, RiskCategorySecurity:
 		return true
 	default:
 		return false

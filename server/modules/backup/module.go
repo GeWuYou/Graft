@@ -31,8 +31,8 @@ func (m *Module) Register(ctx *module.Context) error {
 	if ctx.PermissionRegistry == nil {
 		return errors.New("backup permission registry is unavailable")
 	}
-	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupReadPermission, DisplayKey: "rbac.permissionCatalog.platformBackupRead.display", DescriptionKey: "rbac.permissionCatalog.platformBackupRead.description", Module: moduleID})
-	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupCreatePermission, DisplayKey: "rbac.permissionCatalog.platformBackupCreate.display", DescriptionKey: "rbac.permissionCatalog.platformBackupCreate.description", Module: moduleID})
+	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupReadPermission, DisplayKey: "rbac.permissionCatalog.platformBackupRead.display", DescriptionKey: "rbac.permissionCatalog.platformBackupRead.description", Module: moduleID, Resource: "platform-backup", Action: "read", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead})
+	ctx.PermissionRegistry.Register(permission.Item{Code: backupcontract.BackupCreatePermission, DisplayKey: "rbac.permissionCatalog.platformBackupCreate.display", DescriptionKey: "rbac.permissionCatalog.platformBackupCreate.description", Module: moduleID, Resource: "platform-backup", Action: "create", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryWrite})
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
 		return err
 	}

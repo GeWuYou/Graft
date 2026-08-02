@@ -173,6 +173,20 @@ func (_u *PermissionUpdate) SetNillableRiskLevel(v *string) *PermissionUpdate {
 	return _u
 }
 
+// SetRiskCategory sets the "risk_category" field.
+func (_u *PermissionUpdate) SetRiskCategory(v string) *PermissionUpdate {
+	_u.mutation.SetRiskCategory(v)
+	return _u
+}
+
+// SetNillableRiskCategory sets the "risk_category" field if the given value is not nil.
+func (_u *PermissionUpdate) SetNillableRiskCategory(v *string) *PermissionUpdate {
+	if v != nil {
+		_u.SetRiskCategory(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *PermissionUpdate) SetUpdatedAt(v time.Time) *PermissionUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -381,6 +395,9 @@ func (_u *PermissionUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.RiskLevel(); ok {
 		_spec.SetField(permission.FieldRiskLevel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskCategory(); ok {
+		_spec.SetField(permission.FieldRiskCategory, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(permission.FieldUpdatedAt, field.TypeTime, value)
@@ -608,6 +625,20 @@ func (_u *PermissionUpdateOne) SetRiskLevel(v string) *PermissionUpdateOne {
 func (_u *PermissionUpdateOne) SetNillableRiskLevel(v *string) *PermissionUpdateOne {
 	if v != nil {
 		_u.SetRiskLevel(*v)
+	}
+	return _u
+}
+
+// SetRiskCategory sets the "risk_category" field.
+func (_u *PermissionUpdateOne) SetRiskCategory(v string) *PermissionUpdateOne {
+	_u.mutation.SetRiskCategory(v)
+	return _u
+}
+
+// SetNillableRiskCategory sets the "risk_category" field if the given value is not nil.
+func (_u *PermissionUpdateOne) SetNillableRiskCategory(v *string) *PermissionUpdateOne {
+	if v != nil {
+		_u.SetRiskCategory(*v)
 	}
 	return _u
 }
@@ -850,6 +881,9 @@ func (_u *PermissionUpdateOne) sqlSave(ctx context.Context) (_node *Permission, 
 	}
 	if value, ok := _u.mutation.RiskLevel(); ok {
 		_spec.SetField(permission.FieldRiskLevel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskCategory(); ok {
+		_spec.SetField(permission.FieldRiskCategory, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(permission.FieldUpdatedAt, field.TypeTime, value)

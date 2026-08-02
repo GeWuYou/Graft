@@ -55,30 +55,34 @@ func init() {
 	permissionDescRiskLevel := permissionFields[8].Descriptor()
 	// permission.DefaultRiskLevel holds the default value on creation for the risk_level field.
 	permission.DefaultRiskLevel = permissionDescRiskLevel.Default.(string)
+	// permissionDescRiskCategory is the schema descriptor for risk_category field.
+	permissionDescRiskCategory := permissionFields[9].Descriptor()
+	// permission.DefaultRiskCategory holds the default value on creation for the risk_category field.
+	permission.DefaultRiskCategory = permissionDescRiskCategory.Default.(string)
 	// permissionDescCreatedAt is the schema descriptor for created_at field.
-	permissionDescCreatedAt := permissionFields[9].Descriptor()
+	permissionDescCreatedAt := permissionFields[10].Descriptor()
 	// permission.DefaultCreatedAt holds the default value on creation for the created_at field.
 	permission.DefaultCreatedAt = permissionDescCreatedAt.Default.(func() time.Time)
 	// permissionDescCreatedBy is the schema descriptor for created_by field.
-	permissionDescCreatedBy := permissionFields[10].Descriptor()
+	permissionDescCreatedBy := permissionFields[11].Descriptor()
 	// permission.DefaultCreatedBy holds the default value on creation for the created_by field.
 	permission.DefaultCreatedBy = permissionDescCreatedBy.Default.(uint64)
 	// permissionDescUpdatedAt is the schema descriptor for updated_at field.
-	permissionDescUpdatedAt := permissionFields[11].Descriptor()
+	permissionDescUpdatedAt := permissionFields[12].Descriptor()
 	// permission.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	permission.DefaultUpdatedAt = permissionDescUpdatedAt.Default.(func() time.Time)
 	// permission.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	permission.UpdateDefaultUpdatedAt = permissionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// permissionDescUpdatedBy is the schema descriptor for updated_by field.
-	permissionDescUpdatedBy := permissionFields[12].Descriptor()
+	permissionDescUpdatedBy := permissionFields[13].Descriptor()
 	// permission.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	permission.DefaultUpdatedBy = permissionDescUpdatedBy.Default.(uint64)
 	// permissionDescDeletedAt is the schema descriptor for deleted_at field.
-	permissionDescDeletedAt := permissionFields[13].Descriptor()
+	permissionDescDeletedAt := permissionFields[14].Descriptor()
 	// permission.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	permission.DefaultDeletedAt = permissionDescDeletedAt.Default.(int64)
 	// permissionDescDeletedBy is the schema descriptor for deleted_by field.
-	permissionDescDeletedBy := permissionFields[14].Descriptor()
+	permissionDescDeletedBy := permissionFields[15].Descriptor()
 	// permission.DefaultDeletedBy holds the default value on creation for the deleted_by field.
 	permission.DefaultDeletedBy = permissionDescDeletedBy.Default.(uint64)
 	roleFields := schema.Role{}.Fields()

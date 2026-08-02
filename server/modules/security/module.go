@@ -83,6 +83,10 @@ func registerPermissions(registry *permission.Registry) {
 		DisplayKey:     securitycontract.OverviewReadDisplay.String(),
 		DescriptionKey: securitycontract.OverviewReadDescription.String(),
 		Module:         moduleID,
+		Resource:       "security.overview",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 }
 

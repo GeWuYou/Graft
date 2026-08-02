@@ -44,6 +44,10 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementRead.description",
 			Module:         moduleName,
+			Resource:       "announcement",
+			Action:         "read",
+			RiskLevel:      permission.RiskLevelLow,
+			RiskCategory:   permission.RiskCategoryRead,
 		},
 		{
 			Code:           announcementcontract.AnnouncementCreatePermission.String(),
@@ -52,6 +56,10 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementCreate.description",
 			Module:         moduleName,
+			Resource:       "announcement",
+			Action:         "create",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 		{
 			Code:           announcementcontract.AnnouncementUpdatePermission.String(),
@@ -60,6 +68,10 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementUpdate.description",
 			Module:         moduleName,
+			Resource:       "announcement",
+			Action:         "update",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 		{
 			Code:           announcementcontract.AnnouncementPublishPermission.String(),
@@ -68,6 +80,10 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementPublish.description",
 			Module:         moduleName,
+			Resource:       "announcement",
+			Action:         "publish",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 		{
 			Code:           announcementcontract.AnnouncementDeletePermission.String(),
@@ -76,6 +92,10 @@ func registerAnnouncementPermissions(registry *permission.Registry, moduleName s
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.announcementDelete.description",
 			Module:         moduleName,
+			Resource:       "announcement",
+			Action:         "delete",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryDestructive,
 		},
 	} {
 		registry.Register(item)

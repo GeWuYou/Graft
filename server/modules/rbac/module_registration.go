@@ -187,7 +187,13 @@ func rbacMessageKeys() []rbaccontract.MessageKey {
 }
 
 // Boot 当前没有额外运行时行为需要启动。
-func (p *Module) Boot(_ *module.Context) error {
+func (p *Module) Boot(ctx *module.Context) error {
+	if ctx == nil || ctx.PermissionRegistry == nil {
+		return errors.New("rbac policy validation context is unavailable")
+	}
+	if err := ValidateSystemRoleDatabase(ctx.LifecycleContext, p.repository, ctx.PermissionRegistry.Items()); err != nil {
+		return fmt.Errorf("validate system role policy consistency: %w", err)
+	}
 	return nil
 }
 

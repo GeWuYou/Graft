@@ -62,6 +62,10 @@ func registerAccessLogExplorerPermissions(registry *permission.Registry) {
 		DisplayKey:     "rbac.permissionCatalog.accessLogRead.display",
 		DescriptionKey: "rbac.permissionCatalog.accessLogRead.description",
 		Module:         accessLogModuleOwner,
+		Resource:       "access_log",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 }
 

@@ -68,7 +68,7 @@ func registerRBACMenu(registry *menu.Registry, moduleName string) {
 }
 
 func rbacPermissionItems(moduleName string) []permission.Item {
-	return []permission.Item{
+	items := []permission.Item{
 		{
 			Code:           rbaccontract.RoleReadPermission.String(),
 			Name:           "",
@@ -142,6 +142,27 @@ func rbacPermissionItems(moduleName string) []permission.Item {
 			Module:         moduleName,
 		},
 	}
+	metadata := map[string]struct {
+		action   string
+		level    string
+		category string
+	}{
+		"role.read":              {"read", permission.RiskLevelLow, permission.RiskCategoryRead},
+		"role.create":            {"create", permission.RiskLevelHigh, permission.RiskCategorySecurity},
+		"role.update":            {"update", permission.RiskLevelHigh, permission.RiskCategorySecurity},
+		"role.status.update":     {"status.update", permission.RiskLevelHigh, permission.RiskCategorySecurity},
+		"role.delete":            {"delete", permission.RiskLevelHigh, permission.RiskCategorySecurity},
+		"role.permission.assign": {"permission.assign", permission.RiskLevelCritical, permission.RiskCategorySecurity},
+		"permission.read":        {"read", permission.RiskLevelLow, permission.RiskCategoryRead},
+		"user.role.read":         {"role.read", permission.RiskLevelLow, permission.RiskCategoryRead},
+		"user.role.assign":       {"role.assign", permission.RiskLevelCritical, permission.RiskCategorySecurity},
+	}
+	for index := range items {
+		item := &items[index]
+		value := metadata[item.Code]
+		item.Resource, item.Action, item.RiskLevel, item.RiskCategory = "rbac", value.action, value.level, value.category
+	}
+	return items
 }
 
 func registerManagementRoutes(

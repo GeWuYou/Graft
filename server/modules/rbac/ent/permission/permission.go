@@ -32,6 +32,8 @@ const (
 	FieldAction = "action"
 	// FieldRiskLevel holds the string denoting the risk_level field in the database.
 	FieldRiskLevel = "risk_level"
+	// FieldRiskCategory holds the string denoting the risk_category field in the database.
+	FieldRiskCategory = "risk_category"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -69,6 +71,7 @@ var Columns = []string{
 	FieldResource,
 	FieldAction,
 	FieldRiskLevel,
+	FieldRiskCategory,
 	FieldCreatedAt,
 	FieldCreatedBy,
 	FieldUpdatedAt,
@@ -100,6 +103,8 @@ var (
 	DefaultAction string
 	// DefaultRiskLevel holds the default value on creation for the "risk_level" field.
 	DefaultRiskLevel string
+	// DefaultRiskCategory holds the default value on creation for the "risk_category" field.
+	DefaultRiskCategory string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
@@ -167,6 +172,11 @@ func ByAction(opts ...sql.OrderTermOption) OrderOption {
 // ByRiskLevel orders the results by the risk_level field.
 func ByRiskLevel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRiskLevel, opts...).ToFunc()
+}
+
+// ByRiskCategory orders the results by the risk_category field.
+func ByRiskCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRiskCategory, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

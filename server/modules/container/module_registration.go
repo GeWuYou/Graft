@@ -133,6 +133,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerView.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "view", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead,
 		},
 		{
 			Code:           containercontract.ContainerDetailPermission.String(),
@@ -141,6 +142,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerDetail.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "detail", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead,
 		},
 		{
 			Code:           containercontract.ContainerEventsPermission.String(),
@@ -149,6 +151,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerEvents.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "events", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead,
 		},
 		{
 			Code:           containercontract.ContainerEnvironmentPermission.String(),
@@ -157,6 +160,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerEnvironment.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "environment", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategorySecurity,
 		},
 		{
 			Code:           containercontract.ContainerLogsPermission.String(),
@@ -165,6 +169,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerLogs.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "logs", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead,
 		},
 		{
 			Code:           containercontract.ContainerShellPermission.String(),
@@ -173,6 +178,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerShell.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "shell", RiskLevel: permission.RiskLevelCritical, RiskCategory: permission.RiskCategorySecurity,
 		},
 		{
 			Code:           containercontract.ContainerStartPermission.String(),
@@ -181,6 +187,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerStart.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "start", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite,
 		},
 		{
 			Code:           containercontract.ContainerStopPermission.String(),
@@ -189,6 +196,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerStop.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "stop", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite,
 		},
 		{
 			Code:           containercontract.ContainerRestartPermission.String(),
@@ -197,6 +205,7 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerRestart.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "restart", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite,
 		},
 		{
 			Code:           containercontract.ContainerRemovePermission.String(),
@@ -205,12 +214,14 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.containerRemove.description",
 			Module:         moduleName,
+			Resource:       "container", Action: "remove", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive,
 		},
 		{
 			Code:           containercontract.ContainerVolumeRemovePermission.String(),
 			DisplayKey:     "rbac.permissionCatalog.containerVolumeRemove.display",
 			DescriptionKey: "rbac.permissionCatalog.containerVolumeRemove.description",
 			Module:         moduleName,
+			Resource:       "container.volume", Action: "remove", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive,
 		},
 	}
 	return append(items, dockerImagePermissionItems(moduleName)...)
@@ -224,32 +235,36 @@ func dockerImagePermissionItems(moduleName string) []permission.Item {
 			DisplayKey:     "rbac.permissionCatalog.dockerImagePull.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImagePull.description",
 			Module:         moduleName,
+			Resource:       "container.image", Action: "pull", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite,
 		},
 		{
 			Code:           containercontract.DockerImageTagPermission.String(),
 			DisplayKey:     "rbac.permissionCatalog.dockerImageTag.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageTag.description",
 			Module:         moduleName,
+			Resource:       "container.image", Action: "tag", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite,
 		},
 		{
 			Code:           containercontract.DockerImageUntagPermission.String(),
 			DisplayKey:     "rbac.permissionCatalog.dockerImageUntag.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageUntag.description",
 			Module:         moduleName,
+			Resource:       "container.image", Action: "untag", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive,
 		},
 		{
 			Code:           containercontract.DockerImageRemovePermission.String(),
 			DisplayKey:     "rbac.permissionCatalog.dockerImageRemove.display",
 			DescriptionKey: "rbac.permissionCatalog.dockerImageRemove.description",
 			Module:         moduleName,
+			Resource:       "container.image", Action: "remove", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive,
 		},
 	}, dockerNetworkPermissionItems(moduleName)...)
 }
 
 func dockerNetworkPermissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
-		{Code: containercontract.DockerNetworkCreatePermission.String(), DisplayKey: "rbac.permissionCatalog.dockerNetworkCreate.display", DescriptionKey: "rbac.permissionCatalog.dockerNetworkCreate.description", Module: moduleName},
-		{Code: containercontract.DockerNetworkRemovePermission.String(), DisplayKey: "rbac.permissionCatalog.dockerNetworkRemove.display", DescriptionKey: "rbac.permissionCatalog.dockerNetworkRemove.description", Module: moduleName},
+		{Code: containercontract.DockerNetworkCreatePermission.String(), DisplayKey: "rbac.permissionCatalog.dockerNetworkCreate.display", DescriptionKey: "rbac.permissionCatalog.dockerNetworkCreate.description", Module: moduleName, Resource: "container.network", Action: "create", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite},
+		{Code: containercontract.DockerNetworkRemovePermission.String(), DisplayKey: "rbac.permissionCatalog.dockerNetworkRemove.display", DescriptionKey: "rbac.permissionCatalog.dockerNetworkRemove.description", Module: moduleName, Resource: "container.network", Action: "remove", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategoryDestructive},
 	}
 }
 
