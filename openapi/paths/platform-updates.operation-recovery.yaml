@@ -22,4 +22,4 @@ post:
     '403': { $ref: ../components/responses/forbidden.yaml }
     '404': { description: Update operation not found. }
     '409': { description: "The runner is still running, the operation is already terminal, or recovery has already been accepted." }
-    '503': { description: Runner state source is temporarily unavailable. }
+    '503': { description: "Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable." }

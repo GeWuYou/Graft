@@ -258,6 +258,10 @@ func (h updateRouteHandlers) recover(c *gin.Context) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusServiceUnavailable, messagecontract.CommonInternalError.String(), nil)
 		return
 	}
+	if errors.Is(err, errRecoveryUnavailable) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusServiceUnavailable, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
 	if errors.Is(err, errRecoveryConflict) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
 		return

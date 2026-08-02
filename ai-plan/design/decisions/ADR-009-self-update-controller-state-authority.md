@@ -78,6 +78,12 @@ safe terminal result; it never resumes the upgrade. Running, terminal, mismatche
 or post-migration operations fail closed. After that terminal result is projected, the normal new-update path may
 evaluate eligibility again.
 
+Before the potentially slow Docker image pull, server atomically records an opaque recovery-launch coordination claim
+on the request record. This is authorization and duplicate-launch evidence only, not a runner phase or progress
+projection. A claim is released only when Docker is proven not to have created a recovery container; after container
+creation is attempted it remains durable so retries fail closed until the recovery runner publishes its terminal
+result.
+
 The controlled order is `PREFLIGHT -> BACKUP -> PULL_IMAGES -> STOP_SERVICES -> APPLY_UPDATE -> MIGRATION ->
 START_SERVICES -> HEALTH_CHECK -> terminal`. Before migration begins, a failure may restore the configuration/image
 snapshot and conclude `ROLLBACK`; after migration starts, no automatic database rollback or restore is permitted and

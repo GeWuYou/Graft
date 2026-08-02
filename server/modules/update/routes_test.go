@@ -26,6 +26,12 @@ func (s failingOperationStore) List(context.Context, int) ([]ComposeUpdateOperat
 	return nil, s.err
 }
 func (s failingOperationStore) Settle(context.Context, ComposeUpdateOperation) error { return s.err }
+func (s failingOperationStore) ClaimRecovery(context.Context, string, string) (bool, error) {
+	return false, s.err
+}
+func (s failingOperationStore) ReleaseRecoveryClaim(context.Context, string, string) error {
+	return s.err
+}
 
 type updateAuthorizerStub struct{ err error }
 

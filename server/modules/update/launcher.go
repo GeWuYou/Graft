@@ -44,7 +44,29 @@ type ComposeRunnerFailureReader interface {
 
 // ComposeRunnerRecoveryLauncher 启动仅能写入已验证终态的恢复 runner。
 type ComposeRunnerRecoveryLauncher interface {
-	LaunchRecovery(context.Context, RunnerState, string) error
+	LaunchRecovery(context.Context, RunnerState, string, string) error
+}
+
+// recoveryLaunchError 标记恢复容器尚未创建前的 Docker 失败。
+// ContainerCreate 之后的错误保持不确定性，并保留持久恢复认领。
+type recoveryLaunchError struct {
+	err      error
+	preStart bool
+}
+
+func (e *recoveryLaunchError) Error() string { return e.err.Error() }
+func (e *recoveryLaunchError) Unwrap() error { return e.err }
+
+func preStartRecoveryLaunchError(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &recoveryLaunchError{err: err, preStart: true}
+}
+
+func recoveryLaunchFailedBeforeContainerStart(err error) bool {
+	var launchErr *recoveryLaunchError
+	return errors.As(err, &launchErr) && launchErr.preStart
 }
 
 // ComposeRunnerReceiptCleanup 按稳定 operation ID 清理已成功结算的 runner 容器。
@@ -212,34 +234,34 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 // LaunchRecovery 从原 runner 的 digest-pinned image 启动仅挂载状态卷的恢复容器。
 //
 //nolint:cyclop // 镜像、状态卷和 Docker 创建的每个失败边界都必须显式保留。
-func (l *dockerComposeRunnerLauncher) LaunchRecovery(ctx context.Context, state RunnerState, recoveryImage string) error {
-	if l == nil || l.client == nil || validateRunnerState(state) != nil || isTerminalRunnerPhase(state.Phase) || !strings.Contains(recoveryImage, "@sha256:") {
-		return errors.New("compose runner recovery launcher is unavailable")
+func (l *dockerComposeRunnerLauncher) LaunchRecovery(ctx context.Context, state RunnerState, recoveryImage, claimID string) error {
+	if l == nil || l.client == nil || validateRunnerState(state) != nil || isTerminalRunnerPhase(state.Phase) || !strings.Contains(recoveryImage, "@sha256:") || strings.TrimSpace(claimID) == "" {
+		return preStartRecoveryLaunchError(errors.New("compose runner recovery launcher is unavailable"))
 	}
 	pulled, err := l.client.ImagePull(ctx, recoveryImage, mobyclient.ImagePullOptions{})
 	if err != nil {
-		return fmt.Errorf("pull digest-pinned compose runner recovery: %w", err)
+		return preStartRecoveryLaunchError(fmt.Errorf("pull digest-pinned compose runner recovery: %w", err))
 	}
 	if _, err := io.Copy(io.Discard, pulled); err != nil {
 		_ = pulled.Close()
-		return fmt.Errorf("read compose runner recovery pull result: %w", err)
+		return preStartRecoveryLaunchError(fmt.Errorf("read compose runner recovery pull result: %w", err))
 	}
 	if err := pulled.Close(); err != nil {
-		return fmt.Errorf("close compose runner recovery pull result: %w", err)
+		return preStartRecoveryLaunchError(fmt.Errorf("close compose runner recovery pull result: %w", err))
 	}
 	encoded, err := encodeRunnerRecoveryState(state)
 	if err != nil {
-		return err
+		return preStartRecoveryLaunchError(err)
 	}
 	stateVolume, err := runnerStateVolumeName()
 	if err != nil {
-		return fmt.Errorf("validate compose runner state volume: %w", err)
+		return preStartRecoveryLaunchError(fmt.Errorf("validate compose runner state volume: %w", err))
 	}
 	configuration, host := composeRunnerRecoveryContainerConfig(state, recoveryImage, encoded, stateVolume)
-	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}, Name: composeRunnerRecoveryContainerName(state.OperationID)}
+	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}, Name: composeRunnerRecoveryContainerName(state.OperationID, claimID)}
 	created, err := l.client.ContainerCreate(ctx, options)
 	if err != nil {
-		return fmt.Errorf("create compose runner recovery: %w", err)
+		return preStartRecoveryLaunchError(fmt.Errorf("create compose runner recovery: %w", err))
 	}
 	if _, err := l.client.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
 		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
@@ -267,8 +289,8 @@ func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context,
 
 func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
 
-func composeRunnerRecoveryContainerName(operationID string) string {
-	return "graft-update-recovery-" + operationID
+func composeRunnerRecoveryContainerName(operationID, claimID string) string {
+	return "graft-update-recovery-" + operationID + "-" + claimID
 }
 
 //nolint:cyclop // 读取与解码分别对应 Docker 日志和回执协议的失败边界。

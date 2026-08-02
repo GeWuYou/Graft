@@ -313,6 +313,12 @@ func TestRolloutRecoverRequiresBoundTerminatedRunnerEvidence(t *testing.T) {
 		t.Fatalf("recovery state binding = %#v", launcher.recovered)
 	}
 
+	if _, err := rollout.Recover(t.Context(), state.OperationID); !errors.Is(err, errRecoveryConflict) {
+		t.Fatalf("second recovery must retain the accepted launch claim: %v", err)
+	}
+
+	operations = &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
+	rollout.operations = operations
 	launcher.recovered = RunnerState{}
 	launcher.failures[0].RunnerID = ""
 	if _, err := rollout.Recover(t.Context(), state.OperationID); err != nil {
@@ -326,6 +332,45 @@ func TestRolloutRecoverRequiresBoundTerminatedRunnerEvidence(t *testing.T) {
 	}
 	if launcher.recovered.OperationID != "" {
 		t.Fatalf("recovery launch occurred without a bound runner: %#v", launcher.recovered)
+	}
+}
+
+func TestRolloutRecoverReleasesClaimOnlyForProvenPreStartFailure(t *testing.T) {
+	t.Setenv("GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE", "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64))
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-recovery-prestart", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-recovery-prestart", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
+	launcher := &recoveryLauncher{failures: []RunnerFailureEvidence{{ProtocolVersion: runnerProtocolVersion, OperationID: state.OperationID, RunnerID: state.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: "permission_denied"}}, recoveryErr: preStartRecoveryLaunchError(errors.New("image pull unavailable"))}
+	rollout := &RolloutService{stateStore: store, operations: operations, launcher: launcher}
+	if _, err := rollout.Recover(t.Context(), state.OperationID); !errors.Is(err, errRecoveryUnavailable) {
+		t.Fatalf("pre-start failure = %v", err)
+	}
+	launcher.recoveryErr = nil
+	if _, err := rollout.Recover(t.Context(), state.OperationID); err != nil {
+		t.Fatalf("released pre-start claim must permit retry: %v", err)
+	}
+}
+
+func TestRolloutRunnerTerminationCacheUsesVerifiedSnapshotIdentity(t *testing.T) {
+	state := NewRunnerState(RunnerInput{OperationID: "update-termination-cache", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-termination-cache", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	launcher := &recoveryLauncher{failures: []RunnerFailureEvidence{{ProtocolVersion: runnerProtocolVersion, OperationID: state.OperationID, RunnerID: state.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: "permission_denied"}}}
+	rollout := &RolloutService{launcher: launcher}
+	if _, terminated, err := rollout.runnerTerminationEvidence(t.Context(), state); err != nil || !terminated {
+		t.Fatalf("first termination evidence = terminated:%t err:%v", terminated, err)
+	}
+	if _, terminated, err := rollout.runnerTerminationEvidence(t.Context(), state); err != nil || !terminated || launcher.failureReads != 1 {
+		t.Fatalf("cached termination evidence = terminated:%t reads:%d err:%v", terminated, launcher.failureReads, err)
+	}
+	next := NewRunnerState(RunnerInput{OperationID: state.OperationID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, state.RunnerID, RunnerPhasePreflight, 5, "checking_environment", "", state)
+	if _, terminated, err := rollout.runnerTerminationEvidence(t.Context(), next); err != nil || !terminated || launcher.failureReads != 2 {
+		t.Fatalf("new snapshot must miss cache = terminated:%t reads:%d err:%v", terminated, launcher.failureReads, err)
 	}
 }
 

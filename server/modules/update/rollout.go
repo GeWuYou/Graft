@@ -2,6 +2,8 @@ package update
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,6 +38,9 @@ type RolloutService struct {
 	backupArtifactRoot string
 	stateStore         RunnerStateStore
 	startMu            sync.Mutex
+	terminationMu      sync.Mutex
+	terminationCache   map[runnerTerminationCacheKey]runnerTerminationCacheEntry
+	terminationFlights map[runnerTerminationCacheKey]*runnerTerminationFlight
 	statePollMu        sync.Mutex
 	statePollCancel    context.CancelFunc
 	statePollDone      chan struct{}
@@ -53,6 +58,25 @@ const maxActiveOperationScan = 100
 
 // runnerStatePollInterval 仅保持 server 投影的新鲜度，不构成 runner 执行心跳或生命周期租约。
 const runnerStatePollInterval = 2 * time.Second
+
+const runnerTerminationNegativeCacheTTL = 2 * time.Second
+const runnerTerminationPositiveCacheTTL = 30 * time.Second
+const recoveryClaimRandomBytes = 16
+
+type runnerTerminationCacheKey struct {
+	operationID string
+	runnerID    string
+	revision    uint64
+	digest      string
+}
+
+type runnerTerminationCacheEntry struct {
+	evidence   RunnerFailureEvidence
+	terminated bool
+	expiresAt  time.Time
+}
+
+type runnerTerminationFlight struct{ done chan struct{} }
 
 type receiptPolling struct {
 	reader   ComposeRunnerReceiptReader
@@ -75,6 +99,7 @@ var (
 	errRunnerStateUnavailable          = errors.New("runner state is unavailable")
 	errActiveUpdateOperationNotFound   = errors.New("active update operation not found")
 	errRecoveryConflict                = errors.New("runner recovery precondition is not met")
+	errRecoveryUnavailable             = errors.New("update operation recovery is unavailable")
 )
 
 // SetAuditPublisher 注入 durable 审计事件发布端和失败日志器；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
@@ -229,23 +254,19 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 
 // runnerTerminationView 投影保留 runner 的退出证据，但不改写 runner 所有的生命周期状态。
 //
-//nolint:cyclop,gocognit,gocyclo // Docker 证据、持久操作和受控诊断分别属于独立的不可降级安全门。
+//nolint:cyclop,gocognit,gocyclo,nestif // Docker 证据、持久操作和受控诊断分别属于独立的不可降级安全门。
 func (s *RolloutService) runnerTerminationView(ctx context.Context, state RunnerState) (OperationView, bool) {
-	reader, ok := s.launcher.(ComposeRunnerFailureReader)
-	if !ok || s.operations == nil {
+	if s.operations == nil {
 		return OperationView{}, false
 	}
-	failures, err := reader.ReadRunnerFailures(ctx)
+	evidence, terminated, err := s.runnerTerminationEvidence(ctx, state)
 	if err != nil {
 		if s.logger != nil {
 			s.logger.Warn("platform update runner failure inspection deferred", zap.Error(err))
 		}
 		return OperationView{}, false
 	}
-	for _, evidence := range failures {
-		if evidence.OperationID != state.OperationID || !runnerFailureMatchesState(evidence, state) {
-			continue
-		}
+	if terminated {
 		operation, getErr := s.operations.Get(ctx, state.OperationID)
 		if getErr != nil || isTerminalOutcome(operation.Outcome) {
 			return OperationView{}, false
@@ -259,6 +280,66 @@ func (s *RolloutService) runnerTerminationView(ctx context.Context, state Runner
 		return updateOperationViewFromTerminatedRunner(state), true
 	}
 	return OperationView{}, false
+}
+
+//nolint:cyclop,nestif // 缓存命中、同 key 合并和 Docker 读取失败必须保持各自可审计的失效语义。
+func (s *RolloutService) runnerTerminationEvidence(ctx context.Context, state RunnerState) (RunnerFailureEvidence, bool, error) {
+	reader, ok := s.launcher.(ComposeRunnerFailureReader)
+	if !ok {
+		return RunnerFailureEvidence{}, false, nil
+	}
+	key := runnerTerminationCacheKey{operationID: state.OperationID, runnerID: state.RunnerID, revision: state.Revision, digest: state.Digest}
+	now := time.Now()
+	s.terminationMu.Lock()
+	if s.terminationCache != nil {
+		if cached, found := s.terminationCache[key]; found && now.Before(cached.expiresAt) {
+			s.terminationMu.Unlock()
+			return cached.evidence, cached.terminated, nil
+		}
+	}
+	if flight := s.terminationFlights[key]; flight != nil {
+		done := flight.done
+		s.terminationMu.Unlock()
+		select {
+		case <-done:
+			return s.runnerTerminationEvidence(ctx, state)
+		case <-ctx.Done():
+			return RunnerFailureEvidence{}, false, ctx.Err()
+		}
+	}
+	if s.terminationFlights == nil {
+		s.terminationFlights = map[runnerTerminationCacheKey]*runnerTerminationFlight{}
+	}
+	flight := &runnerTerminationFlight{done: make(chan struct{})}
+	s.terminationFlights[key] = flight
+	s.terminationMu.Unlock()
+
+	failures, err := reader.ReadRunnerFailures(ctx)
+	evidence, terminated := matchingRunnerFailure(state, failures)
+	s.terminationMu.Lock()
+	if err == nil {
+		ttl := runnerTerminationNegativeCacheTTL
+		if terminated {
+			ttl = runnerTerminationPositiveCacheTTL
+		}
+		if s.terminationCache == nil {
+			s.terminationCache = map[runnerTerminationCacheKey]runnerTerminationCacheEntry{}
+		}
+		s.terminationCache[key] = runnerTerminationCacheEntry{evidence: evidence, terminated: terminated, expiresAt: time.Now().Add(ttl)}
+	}
+	delete(s.terminationFlights, key)
+	close(flight.done)
+	s.terminationMu.Unlock()
+	return evidence, terminated, err
+}
+
+func matchingRunnerFailure(state RunnerState, failures []RunnerFailureEvidence) (RunnerFailureEvidence, bool) {
+	for _, evidence := range failures {
+		if evidence.OperationID == state.OperationID && runnerFailureMatchesState(evidence, state) {
+			return evidence, true
+		}
+	}
+	return RunnerFailureEvidence{}, false
 }
 
 // GetActiveOperation 返回 runner 当前接管的操作；缺失状态卷时保留受控不可用投影，不能伪造 READY 进度。
@@ -303,11 +384,11 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 //nolint:cyclop,gocognit,gocyclo // 状态、operation、退出证据和一次性 launcher 的绑定必须按序 fail closed。
 func (s *RolloutService) Recover(ctx context.Context, operationID string) (ComposeUpdateOperation, error) {
 	if s == nil || !runnerOperationID.MatchString(operationID) || s.stateStore == nil || s.operations == nil {
-		return ComposeUpdateOperation{}, errors.New("update operation recovery is unavailable")
+		return ComposeUpdateOperation{}, errRecoveryUnavailable
 	}
 	recoveryLauncher, ok := s.launcher.(ComposeRunnerRecoveryLauncher)
 	if !ok {
-		return ComposeUpdateOperation{}, errors.New("update operation recovery launcher is unavailable")
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: launcher is unavailable", errRecoveryUnavailable)
 	}
 	s.startMu.Lock()
 	defer s.startMu.Unlock()
@@ -330,11 +411,11 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	}
 	failureReader, ok := s.launcher.(ComposeRunnerFailureReader)
 	if !ok {
-		return ComposeUpdateOperation{}, errors.New("update operation failure reader is unavailable")
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: failure reader is unavailable", errRecoveryUnavailable)
 	}
 	failures, err := failureReader.ReadRunnerFailures(ctx)
 	if err != nil {
-		return ComposeUpdateOperation{}, fmt.Errorf("inspect terminated compose runner: %w", err)
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: inspect terminated compose runner: %v", errRecoveryUnavailable, err)
 	}
 	matched := false
 	for _, evidence := range failures {
@@ -348,12 +429,38 @@ func (s *RolloutService) Recover(ctx context.Context, operationID string) (Compo
 	}
 	recoveryImage, err := s.recoveryRunnerImage()
 	if err != nil {
-		return ComposeUpdateOperation{}, err
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: %v", errRecoveryUnavailable, err)
 	}
-	if err := recoveryLauncher.LaunchRecovery(ctx, state, recoveryImage); err != nil {
-		return ComposeUpdateOperation{}, fmt.Errorf("launch terminated compose runner recovery: %w", err)
+	claimID, err := newRecoveryClaimID()
+	if err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: create recovery claim: %v", errRecoveryUnavailable, err)
+	}
+	claimed, err := s.operations.ClaimRecovery(ctx, operationID, claimID)
+	if err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: claim recovery launch: %v", errRecoveryUnavailable, err)
+	}
+	if !claimed {
+		return ComposeUpdateOperation{}, errRecoveryConflict
+	}
+	s.startMu.Unlock()
+	defer s.startMu.Lock()
+	if err := recoveryLauncher.LaunchRecovery(ctx, state, recoveryImage, claimID); err != nil {
+		if recoveryLaunchFailedBeforeContainerStart(err) {
+			if releaseErr := s.operations.ReleaseRecoveryClaim(ctx, operationID, claimID); releaseErr != nil && s.logger != nil {
+				s.logger.Error("release pre-start recovery claim failed", zap.String("operation_id", operationID), zap.Error(releaseErr))
+			}
+		}
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: launch terminated compose runner recovery: %v", errRecoveryUnavailable, err)
 	}
 	return operation, nil
+}
+
+func newRecoveryClaimID() (string, error) {
+	value := make([]byte, recoveryClaimRandomBytes)
+	if _, err := rand.Read(value); err != nil {
+		return "", err
+	}
+	return "recovery-" + hex.EncodeToString(value), nil
 }
 
 func runnerFailureMatchesState(evidence RunnerFailureEvidence, state RunnerState) bool {

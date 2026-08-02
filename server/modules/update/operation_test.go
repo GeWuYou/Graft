@@ -452,7 +452,7 @@ func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, runner_id TEXT, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, runner_id TEXT, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, recovery_claim_id TEXT, recovery_claimed_at TIMESTAMP, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -547,7 +547,8 @@ func TestRolloutAuditCarriesRequestIDAndLogsPublishFailure(t *testing.T) {
 }
 
 type memoryOperationStore struct {
-	items map[string]ComposeUpdateOperation
+	items          map[string]ComposeUpdateOperation
+	recoveryClaims map[string]string
 }
 
 type rolloutAuditPublisher struct {
@@ -591,6 +592,25 @@ func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOpera
 	s.items[item.OperationID] = item
 	return nil
 }
+func (s *memoryOperationStore) ClaimRecovery(_ context.Context, operationID, claimID string) (bool, error) {
+	if _, ok := s.items[operationID]; !ok {
+		return false, errUpdateOperationNotFound
+	}
+	if s.recoveryClaims == nil {
+		s.recoveryClaims = map[string]string{}
+	}
+	if s.recoveryClaims[operationID] != "" {
+		return false, nil
+	}
+	s.recoveryClaims[operationID] = claimID
+	return true, nil
+}
+func (s *memoryOperationStore) ReleaseRecoveryClaim(_ context.Context, operationID, claimID string) error {
+	if s.recoveryClaims[operationID] == claimID {
+		delete(s.recoveryClaims, operationID)
+	}
+	return nil
+}
 
 type recordingLauncher struct {
 	input     RunnerInput
@@ -608,18 +628,21 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 func (*recordingLauncher) Close() error { return nil }
 
 type recoveryLauncher struct {
-	failures  []RunnerFailureEvidence
-	recovered RunnerState
+	failures     []RunnerFailureEvidence
+	recovered    RunnerState
+	recoveryErr  error
+	failureReads int
 }
 
 func (*recoveryLauncher) Launch(context.Context, RunnerInput) error { return nil }
 func (*recoveryLauncher) Close() error                              { return nil }
 func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error) {
+	l.failureReads++
 	return l.failures, nil
 }
-func (l *recoveryLauncher) LaunchRecovery(_ context.Context, state RunnerState, _ string) error {
+func (l *recoveryLauncher) LaunchRecovery(_ context.Context, state RunnerState, _, _ string) error {
 	l.recovered = state
-	return nil
+	return l.recoveryErr
 }
 
 type receiptReaderCleanupLauncher struct {

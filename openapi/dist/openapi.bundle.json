@@ -9056,7 +9056,7 @@
             "description": "The runner is still running, the operation is already terminal, or recovery has already been accepted."
           },
           "503": {
-            "description": "Runner state source is temporarily unavailable."
+            "description": "Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable."
           }
         }
       }
