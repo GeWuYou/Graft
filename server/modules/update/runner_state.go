@@ -25,7 +25,7 @@ const maxRunnerStateEventReplay = 100
 const (
 	runnerStateServerUID                       = 10001
 	runnerStateServerGID                       = 10001
-	runnerStateDirectoryPermission os.FileMode = 0o755
+	runnerStateDirectoryPermission os.FileMode = 0o750
 	runnerStateFilePermission      os.FileMode = 0o600
 )
 
@@ -284,7 +284,7 @@ func (s *FileRunnerStateStore) prepareRunnerWritableDirectory(path, kind string)
 	if s == nil || !s.enforceOwnership {
 		return nil
 	}
-	if err := s.chown(path, 0, 0); err != nil {
+	if err := s.chown(path, 0, runnerStateServerGID); err != nil {
 		return fmt.Errorf("assign runner state %s directory owner: %w", kind, err)
 	}
 	if err := os.Chmod(path, runnerStateDirectoryPermission); err != nil {

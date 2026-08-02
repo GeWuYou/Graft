@@ -180,8 +180,8 @@ func assertRunnerOwnershipCalls(t *testing.T, calls []runnerOwnershipCall) {
 		t.Fatalf("ownership calls = %#v, want root/events/event directories and two files", calls)
 	}
 	for _, call := range calls[:3] {
-		if call.uid != 0 || call.gid != 0 {
-			t.Fatalf("runner directory ownership = (%d, %d), want (0, 0)", call.uid, call.gid)
+		if call.uid != 0 || call.gid != runnerStateServerGID {
+			t.Fatalf("runner directory ownership = (%d, %d), want (0, %d)", call.uid, call.gid, runnerStateServerGID)
 		}
 	}
 	for _, call := range calls[3:] {
