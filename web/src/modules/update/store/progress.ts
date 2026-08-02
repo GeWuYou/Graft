@@ -8,6 +8,7 @@ import {
   getUpdateOperation,
   getUpdateOperationDiagnostic,
   getUpdateOperationEvents,
+  recoverUpdateOperation,
   subscribeToUpdateOperation,
 } from '../api/update';
 import type {
@@ -73,13 +74,16 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       failureDiagnosticError: false,
       latestEventRevision: 0,
       recoveringActiveOperation: false,
+      recoveryLoading: false,
+      recoveryError: false,
+      recoveryPending: false,
     };
   },
   getters: {
     visible: (state) => state.phase !== 'idle',
   },
   actions: {
-    async begin(acknowledgement: UpdateOperationLaunchAcknowledgement) {
+    async begin(acknowledgement: UpdateOperationLaunchAcknowledgement, recoveryPending = false) {
       this.session += 1;
       this.stopStream();
       this.stopPolling();
@@ -93,6 +97,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.failureDiagnosticLoading = false;
       this.failureDiagnosticError = false;
       this.latestEventRevision = 0;
+      this.recoveryLoading = false;
+      this.recoveryError = false;
+      this.recoveryPending = recoveryPending;
       this.phase = 'reconnecting';
       await this.refreshSnapshot(this.session);
     },
@@ -150,6 +157,11 @@ export const useUpdateProgressStore = defineStore('update-progress', {
           if (state === 'open') {
             void this.refreshEvents(session).finally(() => {
               if (session === this.session && !this.isTerminal()) {
+                if (this.recoveryPending && this.operation?.state_source === 'runner_terminated') {
+                  this.phase = 'reconnecting';
+                  this.startPolling(session);
+                  return;
+                }
                 this.phase = 'running';
                 this.stopPolling();
               }
@@ -198,6 +210,11 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operation = operation;
       this.operationID = operation.operation_id;
       if (operation.state_source === 'runner_terminated') {
+        if (this.recoveryPending) {
+          this.phase = 'reconnecting';
+          this.startPolling(session);
+          return;
+        }
         const terminalSession = ++this.session;
         this.phase = 'failed';
         this.lastActivePhase = null;
@@ -212,6 +229,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         }
         return;
       }
+      this.recoveryPending = false;
       if (!operation.state_available || operation.state_source === 'runner_state_unavailable') {
         this.failSnapshotRecovery();
         return;
@@ -237,6 +255,24 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       }
       this.lastActivePhase = operation.phase;
       this.phase = 'running';
+    },
+    async recoverTerminatedRunner() {
+      const operation = this.operation;
+      if (this.recoveryLoading || operation?.state_source !== 'runner_terminated') return;
+      const recoverySession = this.session;
+      const operationID = operation.operation_id;
+      const isCurrentRecovery = () => this.session === recoverySession && this.operation?.operation_id === operationID;
+      this.recoveryLoading = true;
+      this.recoveryError = false;
+      try {
+        const acknowledgement = await recoverUpdateOperation(operationID);
+        if (!isCurrentRecovery()) return;
+        await this.begin(acknowledgement, true);
+      } catch {
+        if (isCurrentRecovery()) this.recoveryError = true;
+      } finally {
+        if (isCurrentRecovery()) this.recoveryLoading = false;
+      }
     },
     isTerminal() {
       return this.phase === 'success' || this.phase === 'failed' || this.phase === 'unavailable';
@@ -285,6 +321,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.failureDiagnosticError = false;
       this.latestEventRevision = 0;
       this.recoveringActiveOperation = false;
+      this.recoveryLoading = false;
+      this.recoveryError = false;
+      this.recoveryPending = false;
       this.phase = 'idle';
     },
   },

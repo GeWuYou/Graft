@@ -55,6 +55,13 @@ export function getUpdateOperation(operationID: string) {
   }) as Promise<UpdateOperation>;
 }
 
+/** 仅接受已终止 runner 的受控恢复；恢复结果仍以操作快照为准。 */
+export function recoverUpdateOperation(operationID: string) {
+  return request.post<UpdateOperationLaunchAcknowledgement>({
+    url: buildOpenApiRuntimePath('postPlatformUpdateOperationRecovery', { operationID }),
+  }) as Promise<UpdateOperationLaunchAcknowledgement>;
+}
+
 /** 订阅单次升级操作的服务端快照；票据和断线重连由统一实时 SSE 客户端拥有。 */
 export function subscribeToUpdateOperation(
   operationID: string,

@@ -858,6 +858,20 @@ describe('setting store theme authority', () => {
     expect(store.themeResolvedTokens.dark['--graft-glass-blur']).toBe('30px');
   });
 
+  it('applies Atom One Dark with its green accent and distinct graphite surfaces', () => {
+    const store = useSettingStore();
+    store.openThemeWorkbench('presets');
+    store.updateConfig({ preserveThemePersonalization: false });
+
+    store.selectThemePreset('atom-one-dark');
+
+    expect(store.mode).toBe('dark');
+    expect(store.brandTheme).toBe('#98C379');
+    expect(store.themeResolvedTokens.dark['--graft-shell-sidebar-bg']).toBe('#1B1F24');
+    expect(store.themeResolvedTokens.dark['--td-component-stroke']).toBe('#3A414B');
+    expect(store.themeResolvedTokens.dark['--graft-glass-bg']).toBe('rgba(27, 31, 36, 0.74)');
+  });
+
   it('resets only palette and mode when personalization preservation is enabled', () => {
     const store = useSettingStore();
     store.openThemeWorkbench('presets');

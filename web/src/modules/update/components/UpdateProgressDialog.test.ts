@@ -3,6 +3,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
 
+import { usePermissionStore } from '@/store';
+
+import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateProgressStore } from '../store/progress';
 import UpdateProgressDialog from './UpdateProgressDialog.vue';
 
@@ -135,5 +138,48 @@ describe('UpdateProgressDialog', () => {
     expect(wrapper.get('[data-testid="update-progress-diagnostic-detail"]').text()).toContain(
       'The runner could not persist its terminal state.',
     );
+  });
+
+  it('only offers runner recovery to update managers', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({
+      operation: {
+        operation_id: 'update-1',
+        phase: 'READY',
+        progress: 0,
+        state_source: 'runner_terminated',
+        state_available: false,
+      } as never,
+      phase: 'failed',
+    });
+
+    expect(mountDialog().find('[data-testid="update-progress-recovery"]').exists()).toBe(false);
+
+    usePermissionStore().setBootstrapSnapshot({ permissions: [UPDATE_PERMISSION_CODE.MANAGE] } as never);
+
+    expect(mountDialog().get('[data-testid="update-progress-recovery"]').text()).toContain(
+      'update.center.progress.recovery.action',
+    );
+  });
+
+  it('starts controlled runner recovery from the terminal dialog', async () => {
+    const progress = useUpdateProgressStore();
+    const recover = vi.spyOn(progress, 'recoverTerminatedRunner').mockResolvedValue();
+    usePermissionStore().setBootstrapSnapshot({ permissions: [UPDATE_PERMISSION_CODE.MANAGE] } as never);
+    progress.$patch({
+      operation: {
+        operation_id: 'update-1',
+        phase: 'READY',
+        progress: 0,
+        state_source: 'runner_terminated',
+        state_available: false,
+      } as never,
+      phase: 'failed',
+    });
+    const wrapper = mountDialog();
+
+    await wrapper.get('[data-testid="update-progress-recovery"]').trigger('click');
+
+    expect(recover).toHaveBeenCalledOnce();
   });
 });

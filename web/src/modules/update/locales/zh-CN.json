@@ -223,6 +223,11 @@
         "diagnosticLoading": "正在读取已脱敏的失败诊断…",
         "diagnosticUnavailable": "暂时无法读取本次升级的诊断详情，请在应用日志中按请求 ID 查询。",
         "sourceUnavailable": "平台暂时无法读取升级运行器状态。已接收的节点记录仍保留在此处。",
+        "recovery": {
+          "description": "升级运行器已提前退出。启动受控恢复后，平台会写入真实的失败或回滚结果。",
+          "action": "启动受控恢复",
+          "failed": "暂时无法启动受控恢复，请稍后重试。"
+        },
         "events": { "title": "升级节点", "recorded": "已记录升级节点" },
         "viewAppLogs": "查看应用日志",
         "close": "关闭"
