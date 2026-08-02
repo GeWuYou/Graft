@@ -146,6 +146,17 @@
         "onlySelected": "Show selected only",
         "assignedBadge": "Assigned",
         "categoryBadge": "{category}",
+        "domainCount": "{count} permissions",
+        "risk": {
+          "read": "Read",
+          "write": "Write",
+          "destructive": "Destructive",
+          "security": "Security"
+        },
+        "scope": {
+          "all": "All Resources",
+          "owned": "Owned Resources"
+        },
         "retry": "Retry",
         "selectionLoadFailed": "Failed to load the current role permissions. Retry before saving.",
         "selectionUnavailable": "The current role permissions are unavailable, so overwrite save is blocked.",
@@ -493,6 +504,10 @@
       "runtimeTargetRefresh": {
         "display": "Refresh Runtime Targets",
         "description": "Allows refreshing runtime target availability and capabilities."
+      },
+      "runtimeTargetAssignmentManage": {
+        "display": "Manage Runtime Target Assignments",
+        "description": "Allows granting and revoking deployment use of runtime targets."
       },
       "applicationTemplateManage": {
         "display": "Manage Application Templates",

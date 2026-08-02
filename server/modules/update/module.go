@@ -199,10 +199,13 @@ func registerPermissions(registry *permission.Registry) error {
 		return errors.New("permission registry is unavailable")
 	}
 	for _, item := range []struct {
-		code updatecontract.PermissionCode
-		key  string
-	}{{updatecontract.UpdateReadPermission, "platformUpdateRead"}, {updatecontract.UpdateCheckPermission, "platformUpdateCheck"}, {updatecontract.UpdateManagePermission, "platformUpdateManage"}} {
-		registry.Register(permission.Item{Code: item.code.String(), DisplayKey: "rbac.permissionCatalog." + item.key + ".display", DescriptionKey: "rbac.permissionCatalog." + item.key + ".description", Module: moduleID})
+		code         updatecontract.PermissionCode
+		key          string
+		action       string
+		riskLevel    string
+		riskCategory string
+	}{{updatecontract.UpdateReadPermission, "platformUpdateRead", "read", permission.RiskLevelLow, permission.RiskCategoryRead}, {updatecontract.UpdateCheckPermission, "platformUpdateCheck", "check", permission.RiskLevelMedium, permission.RiskCategoryWrite}, {updatecontract.UpdateManagePermission, "platformUpdateManage", "manage", permission.RiskLevelHigh, permission.RiskCategorySecurity}} {
+		registry.Register(permission.Item{Code: item.code.String(), DisplayKey: "rbac.permissionCatalog." + item.key + ".display", DescriptionKey: "rbac.permissionCatalog." + item.key + ".description", Module: moduleID, Resource: "platform-update", Action: item.action, RiskLevel: item.riskLevel, RiskCategory: item.riskCategory})
 	}
 	return nil
 }

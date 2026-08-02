@@ -12,7 +12,7 @@ import (
 func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Role, error) {
 	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		`SELECT id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -24,7 +24,7 @@ func (r *repository) queryRoleByID(ctx context.Context, id int64) (rbacstore.Rol
 func (r *repository) queryRoleByIDIncludingDisabled(ctx context.Context, id int64) (rbacstore.Role, error) {
 	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		`SELECT id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -36,7 +36,7 @@ func (r *repository) queryRoleByIDIncludingDisabled(ctx context.Context, id int6
 func (r *repository) findRoleByName(ctx context.Context, name string) (rbacstore.Role, error) {
 	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
-		`SELECT id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		`SELECT id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count
 		FROM roles
@@ -49,9 +49,9 @@ func (r *repository) createRoleRecord(ctx context.Context, input rbacstore.Ensur
 	now := time.Now().UTC()
 	return scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
-		`INSERT INTO roles (name, display, description, builtin, created_at, created_by, updated_at, updated_by, disabled_at, deleted_at, deleted_by)
-		VALUES ($1, $2, $3, $4, $5, 0, $6, 0, 0, 0, 0)
-		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		`INSERT INTO roles (name, display, description, builtin, type, builtin_key, editable, created_at, created_by, updated_at, updated_by, disabled_at, deleted_at, deleted_by)
+		VALUES ($1, $2, $3, $4, CASE WHEN $4 THEN 'system' ELSE 'custom' END, NULL, NOT $4, $5, 0, $6, 0, 0, 0, 0)
+		RETURNING id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			0 AS permission_count,
 			0 AS user_count`,
 		strings.TrimSpace(input.Name),
@@ -72,9 +72,9 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 	record, err := scanRole(r.executor(ctx).QueryRowContext(
 		ctx,
 		`UPDATE roles
-		SET builtin = $2, updated_at = $3, updated_by = 0
+		SET builtin = $2, type = CASE WHEN $2 THEN 'system' ELSE 'custom' END, editable = NOT $2, updated_at = $3, updated_by = 0
 		WHERE id = $1
-		RETURNING id, name, display, description, builtin, disabled_at, deleted_at, created_at, updated_at,
+		RETURNING id, name, display, description, builtin, type, builtin_key, editable, disabled_at, deleted_at, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = roles.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = roles.id) AS user_count`,
 		dbID,
@@ -90,7 +90,7 @@ func (r *repository) setRoleBuiltin(ctx context.Context, id uint64, builtin bool
 func (r *repository) findPermissionByCode(ctx context.Context, code string) (rbacstore.Permission, error) {
 	return scanPermission(r.executor(ctx).QueryRowContext(
 		ctx,
-		`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at, 0 AS role_binding_count
+		`SELECT id, code, display, display_key, description, description_key, module, resource, action, risk_level, created_at, updated_at, 0 AS role_binding_count
 		FROM permissions
 		WHERE code = $1 AND deleted_at = 0`,
 		strings.TrimSpace(code),
@@ -100,7 +100,7 @@ func (r *repository) findPermissionByCode(ctx context.Context, code string) (rba
 func (r *repository) queryPermissionByID(ctx context.Context, id int64) (rbacstore.Permission, error) {
 	return scanPermission(r.executor(ctx).QueryRowContext(
 		ctx,
-		`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at,
+		`SELECT id, code, display, display_key, description, description_key, module, resource, action, risk_level, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
 		FROM permissions
 		WHERE id = $1 AND deleted_at = 0`,
@@ -112,15 +112,18 @@ func (r *repository) createPermissionRecord(ctx context.Context, input rbacstore
 	now := time.Now().UTC()
 	return scanPermission(r.executor(ctx).QueryRowContext(
 		ctx,
-		`INSERT INTO permissions (code, display, display_key, description, description_key, module, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, 0, 0, 0)
-		RETURNING id, code, display, display_key, description, description_key, module, created_at, updated_at, 0 AS role_binding_count`,
+		`INSERT INTO permissions (code, display, display_key, description, description_key, module, resource, action, risk_level, created_at, created_by, updated_at, updated_by, deleted_at, deleted_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0, $11, 0, 0, 0)
+		RETURNING id, code, display, display_key, description, description_key, module, resource, action, risk_level, created_at, updated_at, 0 AS role_binding_count`,
 		strings.TrimSpace(input.Code),
 		input.Display,
 		nullableString(input.DisplayKey),
 		nullableString(input.Description),
 		nullableString(input.DescriptionKey),
 		input.Module,
+		input.Resource,
+		input.Action,
+		input.RiskLevel,
 		now,
 		now,
 	))
@@ -157,6 +160,9 @@ type permissionMetadata struct {
 	description    *string
 	descriptionKey *string
 	module         string
+	resource       string
+	action         string
+	riskLevel      string
 }
 
 func permissionMetadataFromInput(record rbacstore.Permission, input rbacstore.EnsurePermissionInput) permissionMetadata {
@@ -174,6 +180,9 @@ func permissionMetadataFromInput(record rbacstore.Permission, input rbacstore.En
 		description:    input.Description,
 		descriptionKey: input.DescriptionKey,
 		module:         module,
+		resource:       strings.TrimSpace(input.Resource),
+		action:         strings.TrimSpace(input.Action),
+		riskLevel:      strings.TrimSpace(input.RiskLevel),
 	}
 }
 
@@ -182,7 +191,10 @@ func permissionMetadataEqual(record rbacstore.Permission, metadata permissionMet
 		stringPtrEqual(record.DisplayKey, metadata.displayKey) &&
 		stringPtrEqual(record.Description, metadata.description) &&
 		stringPtrEqual(record.DescriptionKey, metadata.descriptionKey) &&
-		record.Module == metadata.module
+		record.Module == metadata.module &&
+		record.Resource == metadata.resource &&
+		record.Action == metadata.action &&
+		record.RiskLevel == metadata.riskLevel
 }
 
 func (r *repository) updatePermissionMetadata(
@@ -195,13 +207,16 @@ func (r *repository) updatePermissionMetadata(
 	result, err := r.executor(ctx).ExecContext(
 		ctx,
 		`UPDATE permissions
-		SET display = $1, display_key = $2, description = $3, description_key = $4, module = $5, updated_at = $6, updated_by = 0
-		WHERE id = $7 AND deleted_at = 0`,
+			SET display = $1, display_key = $2, description = $3, description_key = $4, module = $5, resource = $6, action = $7, risk_level = $8, updated_at = $9, updated_by = 0
+			WHERE id = $10 AND deleted_at = 0`,
 		metadata.display,
 		nullableString(metadata.displayKey),
 		nullableString(metadata.description),
 		nullableString(metadata.descriptionKey),
 		metadata.module,
+		metadata.resource,
+		metadata.action,
+		metadata.riskLevel,
 		now,
 		permissionID,
 	)

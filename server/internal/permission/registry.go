@@ -15,6 +15,44 @@ type Item struct {
 	DescriptionKey string
 	// Module 标记权限声明来源，便于定位冲突与后续按模块聚合能力。
 	Module string
+	// Resource 是权限所属领域，用于权限目录分组和内置策略声明。
+	Resource string
+	// Action 是资源上的稳定动作，例如 view、deploy、delete。
+	Action string
+	// RiskLevel 标识权限变更的严重级别：low、medium、high 或 critical。
+	RiskLevel string
+	// RiskCategory 标识权限操作类别：read、write、destructive 或 security。
+	RiskCategory string
+}
+
+// Risk levels 表示权限严重级别，Risk categories 表示权限操作类别。
+const (
+	RiskLevelLow            = "low"
+	RiskLevelMedium         = "medium"
+	RiskLevelHigh           = "high"
+	RiskLevelCritical       = "critical"
+	RiskCategoryRead        = "read"
+	RiskCategoryWrite       = "write"
+	RiskCategoryDestructive = "destructive"
+	RiskCategorySecurity    = "security"
+)
+
+// Valid 仅接受可分组且可风险审查的权限声明。
+func (i Item) Valid() bool {
+	if i.Code == "" || i.Module == "" || i.Resource == "" || i.Action == "" || i.RiskCategory == "" {
+		return false
+	}
+	switch i.RiskLevel {
+	case RiskLevelLow, RiskLevelMedium, RiskLevelHigh, RiskLevelCritical:
+	default:
+		return false
+	}
+	switch i.RiskCategory {
+	case RiskCategoryRead, RiskCategoryWrite, RiskCategoryDestructive, RiskCategorySecurity:
+		return true
+	default:
+		return false
+	}
 }
 
 // Registry 按注册顺序保存权限声明，供后续鉴权与菜单装配复用。

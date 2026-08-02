@@ -25,6 +25,12 @@ type Role struct {
 	Description *string `json:"description,omitempty"`
 	// 是否为系统内置角色
 	Builtin bool `json:"builtin,omitempty"`
+	// 角色类型，system 表示内置角色，custom 表示自定义角色
+	Type string `json:"type,omitempty"`
+	// 内置角色的稳定策略键，自定义角色为空
+	BuiltinKey *string `json:"builtin_key,omitempty"`
+	// 角色核心定义和权限绑定是否可编辑
+	Editable bool `json:"editable,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// 创建人用户 ID，0 表示系统
@@ -79,11 +85,11 @@ func (*Role) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case role.FieldBuiltin:
+		case role.FieldBuiltin, role.FieldEditable:
 			values[i] = new(sql.NullBool)
 		case role.FieldID, role.FieldCreatedBy, role.FieldUpdatedBy, role.FieldDisabledAt, role.FieldDeletedAt, role.FieldDeletedBy:
 			values[i] = new(sql.NullInt64)
-		case role.FieldName, role.FieldDisplay, role.FieldDescription:
+		case role.FieldName, role.FieldDisplay, role.FieldDescription, role.FieldType, role.FieldBuiltinKey:
 			values[i] = new(sql.NullString)
 		case role.FieldCreatedAt, role.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -132,6 +138,25 @@ func (_m *Role) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field builtin", values[i])
 			} else if value.Valid {
 				_m.Builtin = value.Bool
+			}
+		case role.FieldType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field type", values[i])
+			} else if value.Valid {
+				_m.Type = value.String
+			}
+		case role.FieldBuiltinKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field builtin_key", values[i])
+			} else if value.Valid {
+				_m.BuiltinKey = new(string)
+				*_m.BuiltinKey = value.String
+			}
+		case role.FieldEditable:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field editable", values[i])
+			} else if value.Valid {
+				_m.Editable = value.Bool
 			}
 		case role.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -234,6 +259,17 @@ func (_m *Role) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("builtin=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Builtin))
+	builder.WriteString(", ")
+	builder.WriteString("type=")
+	builder.WriteString(_m.Type)
+	builder.WriteString(", ")
+	if v := _m.BuiltinKey; v != nil {
+		builder.WriteString("builtin_key=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("editable=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Editable))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

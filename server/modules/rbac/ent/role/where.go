@@ -75,6 +75,21 @@ func Builtin(v bool) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldBuiltin, v))
 }
 
+// Type applies equality check predicate on the "type" field. It's identical to TypeEQ.
+func Type(v string) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldType, v))
+}
+
+// BuiltinKey applies equality check predicate on the "builtin_key" field. It's identical to BuiltinKeyEQ.
+func BuiltinKey(v string) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldBuiltinKey, v))
+}
+
+// Editable applies equality check predicate on the "editable" field. It's identical to EditableEQ.
+func Editable(v bool) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldEditable, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldCreatedAt, v))
@@ -323,6 +338,156 @@ func BuiltinEQ(v bool) predicate.Role {
 // BuiltinNEQ applies the NEQ predicate on the "builtin" field.
 func BuiltinNEQ(v bool) predicate.Role {
 	return predicate.Role(sql.FieldNEQ(FieldBuiltin, v))
+}
+
+// TypeEQ applies the EQ predicate on the "type" field.
+func TypeEQ(v string) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldType, v))
+}
+
+// TypeNEQ applies the NEQ predicate on the "type" field.
+func TypeNEQ(v string) predicate.Role {
+	return predicate.Role(sql.FieldNEQ(FieldType, v))
+}
+
+// TypeIn applies the In predicate on the "type" field.
+func TypeIn(vs ...string) predicate.Role {
+	return predicate.Role(sql.FieldIn(FieldType, vs...))
+}
+
+// TypeNotIn applies the NotIn predicate on the "type" field.
+func TypeNotIn(vs ...string) predicate.Role {
+	return predicate.Role(sql.FieldNotIn(FieldType, vs...))
+}
+
+// TypeGT applies the GT predicate on the "type" field.
+func TypeGT(v string) predicate.Role {
+	return predicate.Role(sql.FieldGT(FieldType, v))
+}
+
+// TypeGTE applies the GTE predicate on the "type" field.
+func TypeGTE(v string) predicate.Role {
+	return predicate.Role(sql.FieldGTE(FieldType, v))
+}
+
+// TypeLT applies the LT predicate on the "type" field.
+func TypeLT(v string) predicate.Role {
+	return predicate.Role(sql.FieldLT(FieldType, v))
+}
+
+// TypeLTE applies the LTE predicate on the "type" field.
+func TypeLTE(v string) predicate.Role {
+	return predicate.Role(sql.FieldLTE(FieldType, v))
+}
+
+// TypeContains applies the Contains predicate on the "type" field.
+func TypeContains(v string) predicate.Role {
+	return predicate.Role(sql.FieldContains(FieldType, v))
+}
+
+// TypeHasPrefix applies the HasPrefix predicate on the "type" field.
+func TypeHasPrefix(v string) predicate.Role {
+	return predicate.Role(sql.FieldHasPrefix(FieldType, v))
+}
+
+// TypeHasSuffix applies the HasSuffix predicate on the "type" field.
+func TypeHasSuffix(v string) predicate.Role {
+	return predicate.Role(sql.FieldHasSuffix(FieldType, v))
+}
+
+// TypeEqualFold applies the EqualFold predicate on the "type" field.
+func TypeEqualFold(v string) predicate.Role {
+	return predicate.Role(sql.FieldEqualFold(FieldType, v))
+}
+
+// TypeContainsFold applies the ContainsFold predicate on the "type" field.
+func TypeContainsFold(v string) predicate.Role {
+	return predicate.Role(sql.FieldContainsFold(FieldType, v))
+}
+
+// BuiltinKeyEQ applies the EQ predicate on the "builtin_key" field.
+func BuiltinKeyEQ(v string) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyNEQ applies the NEQ predicate on the "builtin_key" field.
+func BuiltinKeyNEQ(v string) predicate.Role {
+	return predicate.Role(sql.FieldNEQ(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyIn applies the In predicate on the "builtin_key" field.
+func BuiltinKeyIn(vs ...string) predicate.Role {
+	return predicate.Role(sql.FieldIn(FieldBuiltinKey, vs...))
+}
+
+// BuiltinKeyNotIn applies the NotIn predicate on the "builtin_key" field.
+func BuiltinKeyNotIn(vs ...string) predicate.Role {
+	return predicate.Role(sql.FieldNotIn(FieldBuiltinKey, vs...))
+}
+
+// BuiltinKeyGT applies the GT predicate on the "builtin_key" field.
+func BuiltinKeyGT(v string) predicate.Role {
+	return predicate.Role(sql.FieldGT(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyGTE applies the GTE predicate on the "builtin_key" field.
+func BuiltinKeyGTE(v string) predicate.Role {
+	return predicate.Role(sql.FieldGTE(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyLT applies the LT predicate on the "builtin_key" field.
+func BuiltinKeyLT(v string) predicate.Role {
+	return predicate.Role(sql.FieldLT(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyLTE applies the LTE predicate on the "builtin_key" field.
+func BuiltinKeyLTE(v string) predicate.Role {
+	return predicate.Role(sql.FieldLTE(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyContains applies the Contains predicate on the "builtin_key" field.
+func BuiltinKeyContains(v string) predicate.Role {
+	return predicate.Role(sql.FieldContains(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyHasPrefix applies the HasPrefix predicate on the "builtin_key" field.
+func BuiltinKeyHasPrefix(v string) predicate.Role {
+	return predicate.Role(sql.FieldHasPrefix(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyHasSuffix applies the HasSuffix predicate on the "builtin_key" field.
+func BuiltinKeyHasSuffix(v string) predicate.Role {
+	return predicate.Role(sql.FieldHasSuffix(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyIsNil applies the IsNil predicate on the "builtin_key" field.
+func BuiltinKeyIsNil() predicate.Role {
+	return predicate.Role(sql.FieldIsNull(FieldBuiltinKey))
+}
+
+// BuiltinKeyNotNil applies the NotNil predicate on the "builtin_key" field.
+func BuiltinKeyNotNil() predicate.Role {
+	return predicate.Role(sql.FieldNotNull(FieldBuiltinKey))
+}
+
+// BuiltinKeyEqualFold applies the EqualFold predicate on the "builtin_key" field.
+func BuiltinKeyEqualFold(v string) predicate.Role {
+	return predicate.Role(sql.FieldEqualFold(FieldBuiltinKey, v))
+}
+
+// BuiltinKeyContainsFold applies the ContainsFold predicate on the "builtin_key" field.
+func BuiltinKeyContainsFold(v string) predicate.Role {
+	return predicate.Role(sql.FieldContainsFold(FieldBuiltinKey, v))
+}
+
+// EditableEQ applies the EQ predicate on the "editable" field.
+func EditableEQ(v bool) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldEditable, v))
+}
+
+// EditableNEQ applies the NEQ predicate on the "editable" field.
+func EditableNEQ(v bool) predicate.Role {
+	return predicate.Role(sql.FieldNEQ(FieldEditable, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

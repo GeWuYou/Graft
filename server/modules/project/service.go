@@ -447,7 +447,9 @@ type Service struct {
 	configResolver               moduleapi.SystemConfigResolver
 	savedViews                   moduleapi.SavedViewService
 	runtimeTargets               moduleapi.ComposeRuntimeTargetReader
+	runtimeTargetAssignments     moduleapi.RuntimeTargetDeploymentAssignmentReader
 	authorizer                   moduleapi.Authorizer
+	permissionScopes             moduleapi.PermissionScopeResolver
 	realtimeTickets              realtimeauth.Service
 	realtimeHub                  realtime.Hub
 	topicIssuers                 realtime.TopicIssuerRegistry
@@ -541,6 +543,11 @@ func WithAuthorizer(authorizer moduleapi.Authorizer) ServiceOption {
 	})
 }
 
+// WithPermissionScopeResolver 配置由 RBAC 提供的资源范围解析器。
+func WithPermissionScopeResolver(resolver moduleapi.PermissionScopeResolver) ServiceOption {
+	return serviceOptionFunc(func(s *Service) { s.permissionScopes = resolver })
+}
+
 // WithRealtime 注入统一实时 topic 签发依赖。
 func WithRealtime(
 	tickets realtimeauth.Service,
@@ -600,6 +607,20 @@ func (s *Service) SetRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetRe
 	}
 }
 
+// SetRuntimeTargetAssignmentReader 注入部署安全的运行目标分配读取边界。
+func (s *Service) SetRuntimeTargetAssignmentReader(reader moduleapi.RuntimeTargetDeploymentAssignmentReader) {
+	if s != nil {
+		s.runtimeTargetAssignments = reader
+	}
+}
+
+// SetPermissionScopeResolver 注入 RBAC 拥有的有效权限范围解析器。
+func (s *Service) SetPermissionScopeResolver(resolver moduleapi.PermissionScopeResolver) {
+	if s != nil {
+		s.permissionScopes = resolver
+	}
+}
+
 // WithRuntimeTargetReader 配置服务使用的 Compose Runtime Target 读取器。
 func WithRuntimeTargetReader(reader moduleapi.ComposeRuntimeTargetReader) ServiceOption {
 	return serviceOptionFunc(func(s *Service) {
@@ -645,28 +666,12 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	if err != nil {
 		return ListResult{}, err
 	}
-	if query.DeploymentAdapterKind != "" && query.DeploymentAdapterKind != projectcontract.DeploymentAdapterKindCompose.String() {
-		return ListResult{}, errProjectInvalidArgument
+	if result, handled, err := validateApplicationListQuery(query); handled {
+		return result, err
 	}
-	if query.Provider != "" && query.Provider != "docker" {
-		return ListResult{Items: []generated.ApplicationListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
-	}
-	targets, err := s.listComposeTargets(ctx)
+	storeQuery, targetByID, err := s.prepareApplicationList(ctx, query)
 	if err != nil {
 		return ListResult{}, err
-	}
-	targetByID := runtimeTargetLookup(targets)
-	if !validRuntimeTargetID(query.RuntimeTargetID, targetByID) {
-		return ListResult{}, errProjectInvalidArgument
-	}
-	storeQuery := projectstore.ListQuery{
-		Limit:           query.Limit,
-		Offset:          query.Offset,
-		Keyword:         strings.TrimSpace(query.Keyword),
-		Sort:            strings.TrimSpace(query.Sort),
-		RuntimeTargetID: query.RuntimeTargetID,
-		SourceType:      strings.TrimSpace(query.SourceType),
-		DriftStatus:     strings.TrimSpace(query.DriftStatus),
 	}
 	if query.RuntimeStatus != "" {
 		return s.listRuntimeStatusPage(ctx, repository, storeQuery, query, targetByID)
@@ -677,6 +682,55 @@ func (s *Service) List(ctx context.Context, query ListQuery) (ListResult, error)
 	}
 	items := s.mapProjectListItems(ctx, storeResult.Items, targetByID, "")
 	return ListResult{Items: items, Total: storeResult.Total, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, nil
+}
+
+func validateApplicationListQuery(query ListQuery) (ListResult, bool, error) {
+	if query.DeploymentAdapterKind != "" && query.DeploymentAdapterKind != projectcontract.DeploymentAdapterKindCompose.String() {
+		return ListResult{}, true, errProjectInvalidArgument
+	}
+	if query.Provider != "" && query.Provider != "docker" {
+		return ListResult{Items: []generated.ApplicationListItem{}, Limit: normalizeListLimit(query.Limit), Offset: maxInt(query.Offset, 0)}, true, nil
+	}
+	return ListResult{}, false, nil
+}
+
+func (s *Service) prepareApplicationList(ctx context.Context, query ListQuery) (projectstore.ListQuery, map[uint64]moduleapi.ComposeRuntimeTargetSummary, error) {
+	scope, err := s.permissionScope(ctx, projectcontract.ApplicationViewPermission.String())
+	if err != nil {
+		return projectstore.ListQuery{}, nil, err
+	}
+	if scope == moduleapi.PermissionScopeNone {
+		return projectstore.ListQuery{}, nil, moduleapi.ErrPermissionDenied
+	}
+	targets, err := s.listComposeTargetsForScope(ctx, scope)
+	if err != nil {
+		return projectstore.ListQuery{}, nil, err
+	}
+	targetByID := runtimeTargetLookup(targets)
+	if !validRuntimeTargetID(query.RuntimeTargetID, targetByID) {
+		return projectstore.ListQuery{}, nil, errProjectInvalidArgument
+	}
+	storeQuery := toProjectStoreListQuery(query)
+	if err := s.applyOwnedListScope(ctx, scope, &storeQuery); err != nil {
+		return projectstore.ListQuery{}, nil, err
+	}
+	return storeQuery, targetByID, nil
+}
+
+func toProjectStoreListQuery(query ListQuery) projectstore.ListQuery {
+	return projectstore.ListQuery{Limit: query.Limit, Offset: query.Offset, Keyword: strings.TrimSpace(query.Keyword), Sort: strings.TrimSpace(query.Sort), RuntimeTargetID: query.RuntimeTargetID, SourceType: strings.TrimSpace(query.SourceType), DriftStatus: strings.TrimSpace(query.DriftStatus)}
+}
+
+func (s *Service) applyOwnedListScope(ctx context.Context, scope moduleapi.PermissionScope, query *projectstore.ListQuery) error {
+	if scope != moduleapi.PermissionScopeOwned {
+		return nil
+	}
+	owner, ok := currentProjectActorID(ctx)
+	if !ok {
+		return errProjectActorAttribution
+	}
+	query.OwnerUserID = &owner
+	return nil
 }
 
 // 当 ID 为空时返回 true；当 ID 小于 1 或不对应已知目标时返回 false。

@@ -20,6 +20,8 @@ const (
 	FieldPermissionID = "permission_id"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldScope holds the string denoting the scope field in the database.
+	FieldScope = "scope"
 	// EdgeRole holds the string denoting the role edge name in mutations.
 	EdgeRole = "role"
 	// EdgePermission holds the string denoting the permission edge name in mutations.
@@ -48,6 +50,7 @@ var Columns = []string{
 	FieldRoleID,
 	FieldPermissionID,
 	FieldCreatedAt,
+	FieldScope,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -63,6 +66,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// DefaultScope holds the default value on creation for the "scope" field.
+	DefaultScope string
 )
 
 // OrderOption defines the ordering options for the RolePermission queries.
@@ -86,6 +91,11 @@ func ByPermissionID(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByScope orders the results by the scope field.
+func ByScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldScope, opts...).ToFunc()
 }
 
 // ByRoleField orders the results by role field.

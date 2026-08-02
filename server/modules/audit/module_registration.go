@@ -27,12 +27,20 @@ func registerAuditPermissions(registry *permission.Registry, moduleName string) 
 		DisplayKey:     "rbac.permissionCatalog.auditRead.display",
 		DescriptionKey: "rbac.permissionCatalog.auditRead.description",
 		Module:         moduleName,
+		Resource:       "audit",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 	registry.Register(permission.Item{
 		Code:           auditcontract.AuditManagePermission.String(),
 		DisplayKey:     "rbac.permissionCatalog.auditManage.display",
 		DescriptionKey: "rbac.permissionCatalog.auditManage.description",
 		Module:         moduleName,
+		Resource:       "audit",
+		Action:         "manage",
+		RiskLevel:      permission.RiskLevelHigh,
+		RiskCategory:   permission.RiskCategorySecurity,
 	})
 }
 

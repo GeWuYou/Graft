@@ -112,6 +112,8 @@ rbac.permissionCatalog.runtimeTargetView.display: Runtime Target View
 rbac.permissionCatalog.runtimeTargetView.description: Allows reading runtime target connection and capability state.
 rbac.permissionCatalog.runtimeTargetManage.display: Runtime Target Manage
 rbac.permissionCatalog.runtimeTargetManage.description: Reserved for future runtime target configuration management.
+rbac.permissionCatalog.runtimeTargetAssignmentManage.display: Manage Runtime Target Assignments
+rbac.permissionCatalog.runtimeTargetAssignmentManage.description: Assign or revoke developers' deployment access to runtime targets without exposing credentials.
 rbac.permissionCatalog.runtimeTargetRefresh.display: Runtime Target Refresh
 rbac.permissionCatalog.runtimeTargetRefresh.description: Allows refreshing runtime target availability and capabilities.
 rbac.permissionCatalog.applicationView.display: View Compose Applications

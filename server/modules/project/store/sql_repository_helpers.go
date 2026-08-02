@@ -78,25 +78,36 @@ func (r *SQLRepository) ensureReady() error {
 // normalizeListQuery 规范化项目列表查询条件，并将分页参数限制在允许范围内。
 // 排序值只允许稳定的 created_at + id 组合；无效筛选、关键字或运行目标 ID 返回 ErrInvalidInput。
 func normalizeListQuery(query ListQuery) (ListQuery, error) {
+	if err := normalizeListQueryFilters(&query); err != nil {
+		return ListQuery{}, err
+	}
+	return normalizeListPagination(query), nil
+}
+
+func normalizeListQueryFilters(query *ListQuery) error {
 	normalizedSort, err := normalizeApplicationListSort(query.Sort)
 	if err != nil {
-		return ListQuery{}, ErrInvalidInput
+		return ErrInvalidInput
 	}
 	query.Sort = normalizedSort
 
 	var normalizeErr error
 	query.SourceType, normalizeErr = normalizeOptionalContractValue(query.SourceType, isValidSourceType)
 	if normalizeErr != nil {
-		return ListQuery{}, normalizeErr
+		return normalizeErr
 	}
 	query.DriftStatus, normalizeErr = normalizeOptionalContractValue(query.DriftStatus, isValidDriftStatus)
 	if normalizeErr != nil {
-		return ListQuery{}, normalizeErr
+		return normalizeErr
 	}
 	query.Keyword = strings.TrimSpace(query.Keyword)
-	if len(query.Keyword) > 128 || (query.RuntimeTargetID != nil && *query.RuntimeTargetID < 1) {
-		return ListQuery{}, ErrInvalidInput
+	if len(query.Keyword) > 128 || (query.RuntimeTargetID != nil && *query.RuntimeTargetID < 1) || (query.OwnerUserID != nil && *query.OwnerUserID == 0) {
+		return ErrInvalidInput
 	}
+	return nil
+}
+
+func normalizeListPagination(query ListQuery) ListQuery {
 	if query.Limit <= 0 {
 		query.Limit = defaultListLimit
 	}
@@ -106,7 +117,7 @@ func normalizeListQuery(query ListQuery) (ListQuery, error) {
 	if query.Offset < 0 {
 		query.Offset = 0
 	}
-	return query, nil
+	return query
 }
 
 // normalizeApplicationListSort 校验项目列表排序表达式，并返回可安全映射到固定 SQL 子句的值。

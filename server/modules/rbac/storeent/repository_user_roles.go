@@ -188,7 +188,7 @@ func (r *repository) ListRolesByUserID(ctx context.Context, userID uint64) ([]rb
 		ctx,
 		r.db,
 		"list roles by user id",
-		`SELECT r.id, r.name, r.display, r.description, r.builtin, r.disabled_at, r.deleted_at, r.created_at, r.updated_at,
+		`SELECT r.id, r.name, r.display, r.description, r.builtin, r.type, r.builtin_key, r.editable, r.disabled_at, r.deleted_at, r.created_at, r.updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur2 WHERE ur2.role_id = r.id) AS user_count
 		FROM user_roles ur
@@ -211,7 +211,7 @@ func (r *repository) ListRolesByUserIDs(ctx context.Context, userIDs []uint64) (
 	}
 
 	query, args := buildDollarInQuery(
-		`SELECT ur.user_id, r.id, r.name, r.display, r.description, r.builtin, r.disabled_at, r.deleted_at, r.created_at, r.updated_at,
+		`SELECT ur.user_id, r.id, r.name, r.display, r.description, r.builtin, r.type, r.builtin_key, r.editable, r.disabled_at, r.deleted_at, r.created_at, r.updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
 			(SELECT COUNT(*) FROM user_roles ur2 WHERE ur2.role_id = r.id) AS user_count
 		FROM user_roles ur

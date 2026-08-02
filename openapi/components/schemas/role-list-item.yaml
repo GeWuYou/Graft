@@ -1,5 +1,5 @@
 type: object
-required: [id, name, display, builtin, status, updated_at, permission_count, user_count]
+required: [id, name, display, builtin, system, type, editable, status, updated_at, permission_count, user_count]
 properties:
   id:
     type: integer
@@ -13,6 +13,21 @@ properties:
     type: string
   builtin:
     type: boolean
+    deprecated: true
+    description: Compatibility projection for legacy consumers. Use system and type.
+  system:
+    type: boolean
+    description: True when this version-managed system role cannot be changed through role management APIs.
+  type:
+    type: string
+    enum: [system, custom]
+  builtin_key:
+    type: string
+    nullable: true
+    description: Stable key for a version-managed system role; null for custom roles.
+  editable:
+    type: boolean
+    description: Whether role metadata and permission bindings may be changed through role management APIs.
   status:
     type: string
     enum: [enabled, disabled]

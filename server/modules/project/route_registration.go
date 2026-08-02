@@ -1526,6 +1526,9 @@ func (r routeRuntime) bindApplicationRecordID(ginCtx *gin.Context) (uint64, stri
 		ginCtx.Abort()
 		return 0, "", false
 	}
+	aggregate, err := r.service.getAggregate(ginCtx.Request.Context(), projectID)
+	if err != nil { r.writeRouteError(ginCtx, err); return 0, "", false }
+	if err := r.service.ensureApplicationScope(ginCtx.Request.Context(), aggregate, projectcontract.ApplicationViewPermission.String()); err != nil { r.writeRouteError(ginCtx, err); return 0, "", false }
 	return projectID, raw, true
 }
 

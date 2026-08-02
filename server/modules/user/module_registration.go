@@ -56,6 +56,10 @@ func userPermissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userRead.description",
 			Module:         moduleName,
+			Resource:       "user",
+			Action:         "read",
+			RiskLevel:      permission.RiskLevelLow,
+			RiskCategory:   permission.RiskCategorySecurity,
 		},
 		{
 			Code:           usercontract.UserCreatePermission.String(),
@@ -64,6 +68,10 @@ func userPermissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userCreate.description",
 			Module:         moduleName,
+			Resource:       "user",
+			Action:         "create",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategorySecurity,
 		},
 		{
 			Code:           usercontract.UserUpdatePermission.String(),
@@ -72,6 +80,10 @@ func userPermissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userUpdate.description",
 			Module:         moduleName,
+			Resource:       "user",
+			Action:         "update",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategorySecurity,
 		},
 		{
 			Code:           usercontract.UserDisablePermission.String(),
@@ -80,6 +92,10 @@ func userPermissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userDisable.description",
 			Module:         moduleName,
+			Resource:       "user",
+			Action:         "disable",
+			RiskLevel:      permission.RiskLevelHigh,
+			RiskCategory:   permission.RiskCategorySecurity,
 		},
 		{
 			Code:           usercontract.UserSessionRevokePermission.String(),
@@ -88,6 +104,10 @@ func userPermissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userSessionRevoke.description",
 			Module:         moduleName,
+			Resource:       "user.session",
+			Action:         "revoke",
+			RiskLevel:      permission.RiskLevelHigh,
+			RiskCategory:   permission.RiskCategorySecurity,
 		},
 		{
 			Code:           usercontract.UserSessionReadPermission.String(),
@@ -96,6 +116,10 @@ func userPermissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.userSessionRead.description",
 			Module:         moduleName,
+			Resource:       "user.session",
+			Action:         "read",
+			RiskLevel:      permission.RiskLevelLow,
+			RiskCategory:   permission.RiskCategorySecurity,
 		},
 	}
 }

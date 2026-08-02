@@ -25,6 +25,8 @@ type RolePermission struct {
 	PermissionID int `json:"permission_id,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at,omitempty"`
+	// 权限绑定范围：all 或 owned
+	Scope string `json:"scope,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the RolePermissionQuery when eager-loading is set.
 	Edges        RolePermissionEdges `json:"edges"`
@@ -71,6 +73,8 @@ func (*RolePermission) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case rolepermission.FieldID, rolepermission.FieldRoleID, rolepermission.FieldPermissionID:
 			values[i] = new(sql.NullInt64)
+		case rolepermission.FieldScope:
+			values[i] = new(sql.NullString)
 		case rolepermission.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
@@ -111,6 +115,12 @@ func (_m *RolePermission) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
 			} else if value.Valid {
 				_m.CreatedAt = value.Time
+			}
+		case rolepermission.FieldScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field scope", values[i])
+			} else if value.Valid {
+				_m.Scope = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -166,6 +176,9 @@ func (_m *RolePermission) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("scope=")
+	builder.WriteString(_m.Scope)
 	builder.WriteByte(')')
 	return builder.String()
 }

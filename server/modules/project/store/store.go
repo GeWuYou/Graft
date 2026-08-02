@@ -114,6 +114,7 @@ type ListQuery struct {
 	RuntimeTargetID *int64
 	SourceType      string
 	DriftStatus     string
+	OwnerUserID     *uint64
 }
 
 // ListResult 返回一页应用分页结果。

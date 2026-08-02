@@ -109,6 +109,14 @@ type Target struct {
 	CheckedAt      *time.Time `json:"checkedAt"`
 }
 
+// UserAssignment 表示一条有效部署使用授权，不携带运行目标凭据。
+type UserAssignment struct {
+	TargetID  uint64
+	UserID    uint64
+	CreatedAt time.Time
+	CreatedBy uint64
+}
+
 // Page 表示一个稳定的运行时目标分页窗口；Total 与 Items 使用同一份未软删除数据集计算。
 type Page struct {
 	Items   []Target
@@ -275,6 +283,84 @@ func (r *SQLRepository) Get(ctx context.Context, id uint64) (Target, error) {
 		return Target{}, err
 	}
 	return item, nil
+}
+
+// ListAssignedComposeTargets 仅返回指定用户获授权且具备 Compose 能力的存活目标。
+func (r *SQLRepository) ListAssignedComposeTargets(ctx context.Context, userID uint64) ([]Target, error) {
+	if r == nil || r.db == nil || userID == 0 {
+		return []Target{}, nil
+	}
+	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT t.id, t.provider, t.display_name, t.endpoint_label, t.connection_kind, t.capabilities_json, t.availability, t.last_error, t.checked_at
+		FROM runtime_targets t INNER JOIN runtime_target_user_assignments a ON a.runtime_target_id = t.id
+		WHERE t.deleted_at = 0 AND a.deleted_at = 0 AND a.user_id = $1 ORDER BY t.provider, t.display_name, t.id`, userID)
+	if err != nil {
+		return nil, err
+	}
+	return scanTargets(rows)
+}
+
+// HasActiveUserAssignment 判断有效部署使用授权是否存在。
+func (r *SQLRepository) HasActiveUserAssignment(ctx context.Context, targetID, userID uint64) (bool, error) {
+	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
+		return false, nil
+	}
+	var found bool
+	err := r.executor(ctx).QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM runtime_target_user_assignments a INNER JOIN runtime_targets t ON t.id = a.runtime_target_id WHERE a.runtime_target_id = $1 AND a.user_id = $2 AND a.deleted_at = 0 AND t.deleted_at = 0)`, targetID, userID).Scan(&found)
+	return found, err
+}
+
+// ListUserAssignments 按稳定用户顺序返回运行目标的有效授权。
+func (r *SQLRepository) ListUserAssignments(ctx context.Context, targetID uint64) ([]UserAssignment, error) {
+	if r == nil || r.db == nil || targetID == 0 {
+		return []UserAssignment{}, nil
+	}
+	rows, err := r.executor(ctx).QueryContext(ctx, `SELECT runtime_target_id, user_id, created_at, created_by FROM runtime_target_user_assignments WHERE runtime_target_id = $1 AND deleted_at = 0 ORDER BY user_id`, targetID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	items := []UserAssignment{}
+	for rows.Next() {
+		var item UserAssignment
+		if err := rows.Scan(&item.TargetID, &item.UserID, &item.CreatedAt, &item.CreatedBy); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// GrantUserAssignment 幂等恢复或创建部署使用授权。
+func (r *SQLRepository) GrantUserAssignment(ctx context.Context, targetID, userID, actorID uint64) (UserAssignment, error) {
+	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
+		return UserAssignment{}, ErrNotFound
+	}
+	_, err := r.executor(ctx).ExecContext(ctx, `INSERT INTO runtime_target_user_assignments (runtime_target_id, user_id, created_by, updated_by, deleted_at, deleted_by) VALUES ($1, $2, $3, $3, 0, 0) ON CONFLICT (runtime_target_id, user_id) DO UPDATE SET deleted_at = 0, deleted_by = 0, updated_at = CURRENT_TIMESTAMP, updated_by = EXCLUDED.updated_by`, targetID, userID, actorID)
+	if err != nil {
+		return UserAssignment{}, err
+	}
+	var item UserAssignment
+	err = r.executor(ctx).QueryRowContext(ctx, `SELECT runtime_target_id, user_id, created_at, created_by FROM runtime_target_user_assignments WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID).Scan(&item.TargetID, &item.UserID, &item.CreatedAt, &item.CreatedBy)
+	if errors.Is(err, sql.ErrNoRows) {
+		return UserAssignment{}, ErrNotFound
+	}
+	return item, err
+}
+
+// RevokeUserAssignment 软删除一条有效部署使用授权。
+func (r *SQLRepository) RevokeUserAssignment(ctx context.Context, targetID, userID, actorID uint64) error {
+	if r == nil || r.db == nil || targetID == 0 || userID == 0 {
+		return ErrNotFound
+	}
+	active, err := r.HasActiveUserAssignment(ctx, targetID, userID)
+	if err != nil {
+		return err
+	}
+	if !active {
+		return ErrNotFound
+	}
+	_, err = r.executor(ctx).ExecContext(ctx, `UPDATE runtime_target_user_assignments SET deleted_at = $3, deleted_by = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $4 WHERE runtime_target_id = $1 AND user_id = $2 AND deleted_at = 0`, targetID, userID, time.Now().UTC().Unix(), actorID)
+	return err
 }
 
 // UpsertLocalDocker 写入系统托管的本机 Docker 探测结果，并通过 provider 与 endpoint 的活跃记录唯一键更新已有记录。

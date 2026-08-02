@@ -197,7 +197,7 @@ func (r *repository) ListPermissions(ctx context.Context, filter rbacstore.Permi
 		ctx,
 		r.db,
 		"list permissions",
-		fmt.Sprintf(`SELECT id, code, display, display_key, description, description_key, module, created_at, updated_at,
+		fmt.Sprintf(`SELECT id, code, display, display_key, description, description_key, module, resource, action, risk_level, created_at, updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = permissions.id) AS role_binding_count
 		FROM permissions
 		WHERE %s
@@ -217,7 +217,7 @@ func (r *repository) ListPermissionsByUserID(ctx context.Context, userID uint64)
 		ctx,
 		r.db,
 		"list permissions by user id",
-		`SELECT DISTINCT p.id, p.code, p.display, p.display_key, p.description, p.description_key, p.module, p.created_at, p.updated_at,
+		`SELECT DISTINCT p.id, p.code, p.display, p.display_key, p.description, p.description_key, p.module, p.resource, p.action, p.risk_level, p.created_at, p.updated_at,
 			(SELECT COUNT(*) FROM role_permissions rp WHERE rp.permission_id = p.id) AS role_binding_count
 		FROM user_roles ur
 		INNER JOIN roles r ON r.id = ur.role_id
@@ -272,7 +272,7 @@ func (r *repository) ListRolePermissionBindings(ctx context.Context, roleID uint
 
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT permission_id
+		`SELECT permission_id, scope
 		FROM role_permissions
 		WHERE role_id = $1
 		ORDER BY permission_id ASC`,
@@ -287,12 +287,14 @@ func (r *repository) ListRolePermissionBindings(ctx context.Context, roleID uint
 	bindings := make([]rbacstore.RolePermissionBinding, 0)
 	for rows.Next() {
 		var permissionID int64
-		if err := rows.Scan(&permissionID); err != nil {
+		var scope string
+		if err := rows.Scan(&permissionID, &scope); err != nil {
 			return nil, fmt.Errorf("scan role permission binding: %w", err)
 		}
 		bindings = append(bindings, rbacstore.RolePermissionBinding{
 			RoleID:       roleID,
 			PermissionID: toStoreID(permissionID),
+			Scope:        scope,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -352,8 +354,8 @@ func (r *repository) requireRoleForPermissionBindingMutation(ctx context.Context
 func insertRolePermission(ctx context.Context, roleID int64, permissionID int64, target execQuerier) error {
 	_, err := target.ExecContext(
 		ctx,
-		`INSERT INTO role_permissions (role_id, permission_id, created_at)
-		VALUES ($1, $2, $3)
+		`INSERT INTO role_permissions (role_id, permission_id, scope, created_at)
+		VALUES ($1, $2, 'all', $3)
 		ON CONFLICT (role_id, permission_id) DO NOTHING`,
 		roleID,
 		permissionID,

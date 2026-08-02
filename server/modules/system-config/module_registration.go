@@ -44,6 +44,10 @@ func registerSystemConfigPermissions(registry *permission.Registry, moduleName s
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.systemConfigRead.description",
 		Module:         moduleName,
+		Resource:       "system-config",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 	registry.Register(permission.Item{
 		Code:           systemconfigcontract.SystemConfigWritePermission.String(),
@@ -52,6 +56,10 @@ func registerSystemConfigPermissions(registry *permission.Registry, moduleName s
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.systemConfigWrite.description",
 		Module:         moduleName,
+		Resource:       "system-config",
+		Action:         "write",
+		RiskLevel:      permission.RiskLevelCritical,
+		RiskCategory:   permission.RiskCategorySecurity,
 	})
 	return nil
 }

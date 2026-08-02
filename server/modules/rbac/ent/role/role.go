@@ -22,6 +22,12 @@ const (
 	FieldDescription = "description"
 	// FieldBuiltin holds the string denoting the builtin field in the database.
 	FieldBuiltin = "builtin"
+	// FieldType holds the string denoting the type field in the database.
+	FieldType = "type"
+	// FieldBuiltinKey holds the string denoting the builtin_key field in the database.
+	FieldBuiltinKey = "builtin_key"
+	// FieldEditable holds the string denoting the editable field in the database.
+	FieldEditable = "editable"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
@@ -65,6 +71,9 @@ var Columns = []string{
 	FieldDisplay,
 	FieldDescription,
 	FieldBuiltin,
+	FieldType,
+	FieldBuiltinKey,
+	FieldEditable,
 	FieldCreatedAt,
 	FieldCreatedBy,
 	FieldUpdatedAt,
@@ -91,6 +100,10 @@ var (
 	DisplayValidator func(string) error
 	// DefaultBuiltin holds the default value on creation for the "builtin" field.
 	DefaultBuiltin bool
+	// DefaultType holds the default value on creation for the "type" field.
+	DefaultType string
+	// DefaultEditable holds the default value on creation for the "editable" field.
+	DefaultEditable bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultCreatedBy holds the default value on creation for the "created_by" field.
@@ -135,6 +148,21 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByBuiltin orders the results by the builtin field.
 func ByBuiltin(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBuiltin, opts...).ToFunc()
+}
+
+// ByType orders the results by the type field.
+func ByType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldType, opts...).ToFunc()
+}
+
+// ByBuiltinKey orders the results by the builtin_key field.
+func ByBuiltinKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBuiltinKey, opts...).ToFunc()
+}
+
+// ByEditable orders the results by the editable field.
+func ByEditable(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEditable, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

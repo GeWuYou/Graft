@@ -53,6 +53,10 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskRead.description",
 		Module:         moduleName,
+		Resource:       "scheduled-task",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 	registry.Register(permission.Item{
 		Code:           schedulercontract.ScheduledTaskCreatePermission.String(),
@@ -61,6 +65,10 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskCreate.description",
 		Module:         moduleName,
+		Resource:       "scheduled-task",
+		Action:         "create",
+		RiskLevel:      permission.RiskLevelMedium,
+		RiskCategory:   permission.RiskCategoryWrite,
 	})
 	registry.Register(permission.Item{
 		Code:           schedulercontract.ScheduledTaskUpdatePermission.String(),
@@ -69,6 +77,10 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskUpdate.description",
 		Module:         moduleName,
+		Resource:       "scheduled-task",
+		Action:         "update",
+		RiskLevel:      permission.RiskLevelMedium,
+		RiskCategory:   permission.RiskCategoryWrite,
 	})
 	registry.Register(permission.Item{
 		Code:           schedulercontract.ScheduledTaskDeletePermission.String(),
@@ -77,6 +89,10 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskDelete.description",
 		Module:         moduleName,
+		Resource:       "scheduled-task",
+		Action:         "delete",
+		RiskLevel:      permission.RiskLevelMedium,
+		RiskCategory:   permission.RiskCategoryDestructive,
 	})
 	registry.Register(permission.Item{
 		Code:           schedulercontract.ScheduledTaskRunPermission.String(),
@@ -85,6 +101,10 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskRun.description",
 		Module:         moduleName,
+		Resource:       "scheduled-task",
+		Action:         "run",
+		RiskLevel:      permission.RiskLevelMedium,
+		RiskCategory:   permission.RiskCategoryWrite,
 	})
 	registry.Register(permission.Item{
 		Code:           schedulercontract.ScheduledTaskEnablePermission.String(),
@@ -93,6 +113,10 @@ func registerSchedulerPermissions(registry *permission.Registry, moduleName stri
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.scheduledTaskEnable.description",
 		Module:         moduleName,
+		Resource:       "scheduled-task",
+		Action:         "enable",
+		RiskLevel:      permission.RiskLevelMedium,
+		RiskCategory:   permission.RiskCategoryWrite,
 	})
 	return nil
 }

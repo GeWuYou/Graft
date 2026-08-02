@@ -5,6 +5,7 @@ import { request } from '@/utils/request';
 import type { RoleListItem, RoleListResponse } from '../contract/role';
 import type { PermissionDetailResponse, PermissionFilters, PermissionListResponse } from '../types/permission';
 import type {
+  CloneRolePayload,
   CreateRolePayload,
   ReplaceRolePermissionsPayload,
   RoleDetailResponse,
@@ -22,6 +23,7 @@ type GetPermissionsOperation = paths[PermissionsPath]['get'];
 type GetRolesOperation = paths[RolesPath]['get'];
 type GetRolePermissionsOperation = paths[RolePermissionsPath]['get'];
 type PostRolesOperation = paths[RolesPath]['post'];
+type PostRoleCloneOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRoleClone]['post'];
 type PostRoleUpdateOperation = paths[typeof OPENAPI_RUNTIME_PATH.postRoleUpdate]['post'];
 type PostRolePermissionsReplaceOperation = paths[RolePermissionsReplacePath]['post'];
 type GetPermissionsEnvelope = GetPermissionsOperation['responses'][200]['content']['application/json'];
@@ -31,6 +33,7 @@ type GetPermissionsData = NonNullable<GetPermissionsEnvelope['data']>;
 type GetRolesData = NonNullable<GetRolesEnvelope['data']>;
 type GetRolePermissionsData = NonNullable<GetRolePermissionsEnvelope['data']>;
 type PostRolesRequest = PostRolesOperation['requestBody']['content']['application/json'];
+type PostRoleCloneRequest = PostRoleCloneOperation['requestBody']['content']['application/json'];
 type PostRoleUpdateRequest = PostRoleUpdateOperation['requestBody']['content']['application/json'];
 type PostRolePermissionsReplaceRequest =
   PostRolePermissionsReplaceOperation['requestBody']['content']['application/json'];
@@ -69,6 +72,13 @@ export function getRolePermissionBindings(roleId: number) {
 export function createRole(payload: PostRolesRequest & CreateRolePayload) {
   return request.post<RoleListItem>({
     url: OPENAPI_RUNTIME_PATH.postRoles,
+    data: payload,
+  });
+}
+
+export function cloneRole(roleId: number, payload: PostRoleCloneRequest & CloneRolePayload) {
+  return request.post<RoleListItem>({
+    url: buildOpenApiRuntimePath('postRoleClone', { id: roleId }),
     data: payload,
   });
 }

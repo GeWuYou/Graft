@@ -146,6 +146,17 @@
         "onlySelected": "只看已选",
         "assignedBadge": "已拥有",
         "categoryBadge": "{category}",
+        "domainCount": "{count} 项权限",
+        "risk": {
+          "read": "读取",
+          "write": "写入",
+          "destructive": "破坏性",
+          "security": "安全"
+        },
+        "scope": {
+          "all": "全部资源",
+          "owned": "所属资源"
+        },
         "retry": "重试",
         "selectionLoadFailed": "当前角色权限加载失败，请重试后再保存",
         "selectionUnavailable": "当前角色权限不可用，已阻止覆盖保存",
@@ -493,6 +504,10 @@
       "runtimeTargetRefresh": {
         "display": "刷新运行目标",
         "description": "允许重新探测运行目标可用性与能力。"
+      },
+      "runtimeTargetAssignmentManage": {
+        "display": "管理运行目标授权",
+        "description": "允许授予和撤销用户对运行目标的部署使用权。"
       },
       "applicationTemplateManage": {
         "display": "管理应用模板",

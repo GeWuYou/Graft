@@ -1,6 +1,7 @@
 import type { components } from '@/contracts/openapi/generated/schema';
 
 export type CreateRolePayload = components['schemas']['CreateRoleRequest'];
+export type CloneRolePayload = components['schemas']['CloneRoleRequest'];
 export type UpdateRolePayload = components['schemas']['UpdateRoleRequest'];
 export type ReplaceRolePermissionsPayload = components['schemas']['ReplaceRolePermissionsRequest'];
 export type RolePermissionMutationPayload = components['schemas']['ReplaceRolePermissionsRequest'];

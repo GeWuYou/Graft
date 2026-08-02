@@ -85,6 +85,26 @@ func Module(v string) predicate.Permission {
 	return predicate.Permission(sql.FieldEQ(FieldModule, v))
 }
 
+// Resource applies equality check predicate on the "resource" field. It's identical to ResourceEQ.
+func Resource(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldResource, v))
+}
+
+// Action applies equality check predicate on the "action" field. It's identical to ActionEQ.
+func Action(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldAction, v))
+}
+
+// RiskLevel applies equality check predicate on the "risk_level" field. It's identical to RiskLevelEQ.
+func RiskLevel(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldRiskLevel, v))
+}
+
+// RiskCategory applies equality check predicate on the "risk_category" field. It's identical to RiskCategoryEQ.
+func RiskCategory(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldRiskCategory, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Permission {
 	return predicate.Permission(sql.FieldEQ(FieldCreatedAt, v))
@@ -533,6 +553,266 @@ func ModuleEqualFold(v string) predicate.Permission {
 // ModuleContainsFold applies the ContainsFold predicate on the "module" field.
 func ModuleContainsFold(v string) predicate.Permission {
 	return predicate.Permission(sql.FieldContainsFold(FieldModule, v))
+}
+
+// ResourceEQ applies the EQ predicate on the "resource" field.
+func ResourceEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldResource, v))
+}
+
+// ResourceNEQ applies the NEQ predicate on the "resource" field.
+func ResourceNEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldNEQ(FieldResource, v))
+}
+
+// ResourceIn applies the In predicate on the "resource" field.
+func ResourceIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldIn(FieldResource, vs...))
+}
+
+// ResourceNotIn applies the NotIn predicate on the "resource" field.
+func ResourceNotIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldNotIn(FieldResource, vs...))
+}
+
+// ResourceGT applies the GT predicate on the "resource" field.
+func ResourceGT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGT(FieldResource, v))
+}
+
+// ResourceGTE applies the GTE predicate on the "resource" field.
+func ResourceGTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGTE(FieldResource, v))
+}
+
+// ResourceLT applies the LT predicate on the "resource" field.
+func ResourceLT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLT(FieldResource, v))
+}
+
+// ResourceLTE applies the LTE predicate on the "resource" field.
+func ResourceLTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLTE(FieldResource, v))
+}
+
+// ResourceContains applies the Contains predicate on the "resource" field.
+func ResourceContains(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContains(FieldResource, v))
+}
+
+// ResourceHasPrefix applies the HasPrefix predicate on the "resource" field.
+func ResourceHasPrefix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasPrefix(FieldResource, v))
+}
+
+// ResourceHasSuffix applies the HasSuffix predicate on the "resource" field.
+func ResourceHasSuffix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasSuffix(FieldResource, v))
+}
+
+// ResourceEqualFold applies the EqualFold predicate on the "resource" field.
+func ResourceEqualFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEqualFold(FieldResource, v))
+}
+
+// ResourceContainsFold applies the ContainsFold predicate on the "resource" field.
+func ResourceContainsFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContainsFold(FieldResource, v))
+}
+
+// ActionEQ applies the EQ predicate on the "action" field.
+func ActionEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldAction, v))
+}
+
+// ActionNEQ applies the NEQ predicate on the "action" field.
+func ActionNEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldNEQ(FieldAction, v))
+}
+
+// ActionIn applies the In predicate on the "action" field.
+func ActionIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldIn(FieldAction, vs...))
+}
+
+// ActionNotIn applies the NotIn predicate on the "action" field.
+func ActionNotIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldNotIn(FieldAction, vs...))
+}
+
+// ActionGT applies the GT predicate on the "action" field.
+func ActionGT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGT(FieldAction, v))
+}
+
+// ActionGTE applies the GTE predicate on the "action" field.
+func ActionGTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGTE(FieldAction, v))
+}
+
+// ActionLT applies the LT predicate on the "action" field.
+func ActionLT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLT(FieldAction, v))
+}
+
+// ActionLTE applies the LTE predicate on the "action" field.
+func ActionLTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLTE(FieldAction, v))
+}
+
+// ActionContains applies the Contains predicate on the "action" field.
+func ActionContains(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContains(FieldAction, v))
+}
+
+// ActionHasPrefix applies the HasPrefix predicate on the "action" field.
+func ActionHasPrefix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasPrefix(FieldAction, v))
+}
+
+// ActionHasSuffix applies the HasSuffix predicate on the "action" field.
+func ActionHasSuffix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasSuffix(FieldAction, v))
+}
+
+// ActionEqualFold applies the EqualFold predicate on the "action" field.
+func ActionEqualFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEqualFold(FieldAction, v))
+}
+
+// ActionContainsFold applies the ContainsFold predicate on the "action" field.
+func ActionContainsFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContainsFold(FieldAction, v))
+}
+
+// RiskLevelEQ applies the EQ predicate on the "risk_level" field.
+func RiskLevelEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldRiskLevel, v))
+}
+
+// RiskLevelNEQ applies the NEQ predicate on the "risk_level" field.
+func RiskLevelNEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldNEQ(FieldRiskLevel, v))
+}
+
+// RiskLevelIn applies the In predicate on the "risk_level" field.
+func RiskLevelIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldIn(FieldRiskLevel, vs...))
+}
+
+// RiskLevelNotIn applies the NotIn predicate on the "risk_level" field.
+func RiskLevelNotIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldNotIn(FieldRiskLevel, vs...))
+}
+
+// RiskLevelGT applies the GT predicate on the "risk_level" field.
+func RiskLevelGT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGT(FieldRiskLevel, v))
+}
+
+// RiskLevelGTE applies the GTE predicate on the "risk_level" field.
+func RiskLevelGTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGTE(FieldRiskLevel, v))
+}
+
+// RiskLevelLT applies the LT predicate on the "risk_level" field.
+func RiskLevelLT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLT(FieldRiskLevel, v))
+}
+
+// RiskLevelLTE applies the LTE predicate on the "risk_level" field.
+func RiskLevelLTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLTE(FieldRiskLevel, v))
+}
+
+// RiskLevelContains applies the Contains predicate on the "risk_level" field.
+func RiskLevelContains(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContains(FieldRiskLevel, v))
+}
+
+// RiskLevelHasPrefix applies the HasPrefix predicate on the "risk_level" field.
+func RiskLevelHasPrefix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasPrefix(FieldRiskLevel, v))
+}
+
+// RiskLevelHasSuffix applies the HasSuffix predicate on the "risk_level" field.
+func RiskLevelHasSuffix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasSuffix(FieldRiskLevel, v))
+}
+
+// RiskLevelEqualFold applies the EqualFold predicate on the "risk_level" field.
+func RiskLevelEqualFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEqualFold(FieldRiskLevel, v))
+}
+
+// RiskLevelContainsFold applies the ContainsFold predicate on the "risk_level" field.
+func RiskLevelContainsFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContainsFold(FieldRiskLevel, v))
+}
+
+// RiskCategoryEQ applies the EQ predicate on the "risk_category" field.
+func RiskCategoryEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEQ(FieldRiskCategory, v))
+}
+
+// RiskCategoryNEQ applies the NEQ predicate on the "risk_category" field.
+func RiskCategoryNEQ(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldNEQ(FieldRiskCategory, v))
+}
+
+// RiskCategoryIn applies the In predicate on the "risk_category" field.
+func RiskCategoryIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldIn(FieldRiskCategory, vs...))
+}
+
+// RiskCategoryNotIn applies the NotIn predicate on the "risk_category" field.
+func RiskCategoryNotIn(vs ...string) predicate.Permission {
+	return predicate.Permission(sql.FieldNotIn(FieldRiskCategory, vs...))
+}
+
+// RiskCategoryGT applies the GT predicate on the "risk_category" field.
+func RiskCategoryGT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGT(FieldRiskCategory, v))
+}
+
+// RiskCategoryGTE applies the GTE predicate on the "risk_category" field.
+func RiskCategoryGTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldGTE(FieldRiskCategory, v))
+}
+
+// RiskCategoryLT applies the LT predicate on the "risk_category" field.
+func RiskCategoryLT(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLT(FieldRiskCategory, v))
+}
+
+// RiskCategoryLTE applies the LTE predicate on the "risk_category" field.
+func RiskCategoryLTE(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldLTE(FieldRiskCategory, v))
+}
+
+// RiskCategoryContains applies the Contains predicate on the "risk_category" field.
+func RiskCategoryContains(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContains(FieldRiskCategory, v))
+}
+
+// RiskCategoryHasPrefix applies the HasPrefix predicate on the "risk_category" field.
+func RiskCategoryHasPrefix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasPrefix(FieldRiskCategory, v))
+}
+
+// RiskCategoryHasSuffix applies the HasSuffix predicate on the "risk_category" field.
+func RiskCategoryHasSuffix(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldHasSuffix(FieldRiskCategory, v))
+}
+
+// RiskCategoryEqualFold applies the EqualFold predicate on the "risk_category" field.
+func RiskCategoryEqualFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldEqualFold(FieldRiskCategory, v))
+}
+
+// RiskCategoryContainsFold applies the ContainsFold predicate on the "risk_category" field.
+func RiskCategoryContainsFold(v string) predicate.Permission {
+	return predicate.Permission(sql.FieldContainsFold(FieldRiskCategory, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

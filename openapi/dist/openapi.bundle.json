@@ -3178,6 +3178,12 @@
                           1,
                           2,
                           9
+                        ],
+                        "bindings": [
+                          {
+                            "permission_id": 1,
+                            "scope": "all"
+                          }
                         ]
                       }
                     }
@@ -3548,6 +3554,79 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/roles/{id}/clone": {
+      "post": {
+        "tags": [
+          "rbac"
+        ],
+        "summary": "Clone role as a custom role",
+        "operationId": "postRoleClone",
+        "description": "Creates an editable custom role and atomically copies the source role permission bindings and scopes.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/clone-role-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Custom role created from the source role.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-role-item-response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid clone request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Source role not found"
+          },
+          "409": {
+            "description": "Role name conflict"
           },
           "500": {
             "$ref": "#/components/responses/internal-server-error"
@@ -16436,6 +16515,174 @@
         }
       }
     },
+    "/api/runtime-targets/{id}/assignments": {
+      "get": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "List deployment users assigned to a runtime target",
+        "operationId": "getRuntimeTargetAssignments",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active user assignments for the runtime target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment-list-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Grant a user deployment use of a runtime target",
+        "operationId": "postRuntimeTargetAssignment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/runtime-target-user-assignment-request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User granted deployment use of the runtime target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid target or user id"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Runtime target or user not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
+    "/api/runtime-targets/{id}/assignments/{userId}/delete": {
+      "post": {
+        "tags": [
+          "runtime-target"
+        ],
+        "summary": "Revoke a user deployment assignment",
+        "operationId": "postRuntimeTargetAssignmentDelete",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/runtime-target-id-path"
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deployment assignment revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-empty-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Active assignment not found"
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          }
+        }
+      }
+    },
     "/api/ops/applications/import/validate": {
       "post": {
         "tags": [
@@ -21478,6 +21725,12 @@
       "RuntimeTarget": {
         "$ref": "#/components/schemas/runtime-target"
       },
+      "RolePermissionBindingItem": {
+        "$ref": "#/components/schemas/role-permission-binding-item"
+      },
+      "CloneRoleRequest": {
+        "$ref": "#/components/schemas/clone-role-request"
+      },
       "RuntimeTargetSummary": {
         "$ref": "#/components/schemas/runtime-target-summary"
       },
@@ -21498,6 +21751,21 @@
       },
       "EnvelopedRuntimeTargetResponse": {
         "$ref": "#/components/schemas/enveloped-runtime-target-response"
+      },
+      "RuntimeTargetUserAssignment": {
+        "$ref": "#/components/schemas/runtime-target-user-assignment"
+      },
+      "RuntimeTargetUserAssignmentRequest": {
+        "$ref": "#/components/schemas/runtime-target-user-assignment-request"
+      },
+      "RuntimeTargetUserAssignmentListResponse": {
+        "$ref": "#/components/schemas/runtime-target-user-assignment-list-response"
+      },
+      "EnvelopedRuntimeTargetUserAssignment": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment"
+      },
+      "EnvelopedRuntimeTargetUserAssignmentListResponse": {
+        "$ref": "#/components/schemas/enveloped-runtime-target-user-assignment-list-response"
       },
       "health-response": {
         "type": "object",
@@ -22250,6 +22518,9 @@
           "name",
           "display",
           "builtin",
+          "system",
+          "type",
+          "editable",
           "status",
           "updated_at",
           "permission_count",
@@ -22271,7 +22542,29 @@
             "type": "string"
           },
           "builtin": {
-            "type": "boolean"
+            "type": "boolean",
+            "deprecated": true,
+            "description": "Compatibility projection for legacy consumers. Use system and type."
+          },
+          "system": {
+            "type": "boolean",
+            "description": "True when this version-managed system role cannot be changed through role management APIs."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "system",
+              "custom"
+            ]
+          },
+          "builtin_key": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stable key for a version-managed system role; null for custom roles."
+          },
+          "editable": {
+            "type": "boolean",
+            "description": "Whether role metadata and permission bindings may be changed through role management APIs."
           },
           "status": {
             "type": "string",
@@ -22390,18 +22683,48 @@
           }
         ]
       },
+      "role-permission-binding-item": {
+        "type": "object",
+        "required": [
+          "permission_id",
+          "scope"
+        ],
+        "properties": {
+          "permission_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "all",
+              "owned"
+            ],
+            "description": "owned is valid only for resources that expose creator ownership authorization."
+          }
+        }
+      },
       "role-permission-binding-response": {
         "type": "object",
         "required": [
-          "permission_ids"
+          "permission_ids",
+          "bindings"
         ],
         "properties": {
           "permission_ids": {
             "type": "array",
+            "description": "Deprecated compatibility projection of bindings.",
             "items": {
               "type": "integer",
               "format": "int64",
               "minimum": 1
+            }
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/role-permission-binding-item"
             }
           }
         },
@@ -22410,6 +22733,12 @@
             1,
             2,
             9
+          ],
+          "bindings": [
+            {
+              "permission_id": 1,
+              "scope": "all"
+            }
           ]
         }
       },
@@ -22430,17 +22759,55 @@
       },
       "replace-role-permissions-request": {
         "type": "object",
-        "required": [
-          "permission_ids"
-        ],
         "properties": {
           "permission_ids": {
             "type": "array",
-            "description": "Replaces the role's permission bindings with the provided stable permission id set.\n",
             "items": {
               "type": "integer",
               "format": "int64"
+            },
+            "deprecated": true,
+            "description": "Legacy all-scope binding input. New clients must submit bindings."
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/role-permission-binding-item"
             }
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "permission_ids"
+            ]
+          },
+          {
+            "required": [
+              "bindings"
+            ]
+          }
+        ]
+      },
+      "clone-role-request": {
+        "type": "object",
+        "required": [
+          "name",
+          "display"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Stable name for the newly created custom role."
+          },
+          "display": {
+            "type": "string",
+            "description": "User-facing display name for the newly created custom role."
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional custom-role description."
           }
         }
       },
@@ -22488,6 +22855,9 @@
           "code",
           "display",
           "module",
+          "resource",
+          "action",
+          "risk_level",
           "created_at",
           "updated_at",
           "role_binding_count"
@@ -22520,6 +22890,23 @@
           },
           "module": {
             "type": "string"
+          },
+          "resource": {
+            "type": "string",
+            "description": "Canonical permission domain used to group authorization controls."
+          },
+          "action": {
+            "type": "string",
+            "description": "Canonical operation within the permission resource domain."
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "destructive",
+              "security"
+            ]
           },
           "created_at": {
             "type": "string"
@@ -34550,6 +34937,98 @@
             "properties": {
               "data": {
                 "$ref": "#/components/schemas/runtime-target"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-user-assignment": {
+        "type": "object",
+        "required": [
+          "target_id",
+          "user_id",
+          "created_at"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_by": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "runtime-target-user-assignment-list-response": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/runtime-target-user-assignment"
+            }
+          }
+        }
+      },
+      "enveloped-runtime-target-user-assignment-list-response": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-user-assignment-list-response"
+              }
+            }
+          }
+        ]
+      },
+      "runtime-target-user-assignment-request": {
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
+          }
+        }
+      },
+      "enveloped-runtime-target-user-assignment": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/api-envelope"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/runtime-target-user-assignment"
               }
             }
           }

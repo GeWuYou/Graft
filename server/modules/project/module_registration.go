@@ -27,6 +27,16 @@ func registerPermissions(registry *permission.Registry, moduleName string) error
 
 // permissionItems 返回项目模块的权限目录条目列表，涵盖查看、导入、刷新、生命周期管理、销毁、创建、创建方式查看、发现候选和部署等权限。
 func permissionItems(moduleName string) []permission.Item {
+	items := applicationPermissionItems(moduleName)
+	return append(items, applicationTemplatePermissionItems(moduleName)...)
+}
+
+func applicationPermissionItems(moduleName string) []permission.Item {
+	items := applicationCorePermissionItems(moduleName)
+	return append(items, applicationExtendedPermissionItems(moduleName)...)
+}
+
+func applicationCorePermissionItems(moduleName string) []permission.Item {
 	return []permission.Item{
 		{
 			Code:           projectcontract.ApplicationViewPermission.String(),
@@ -35,6 +45,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationView.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "view",
+			RiskLevel:      permission.RiskLevelLow,
+			RiskCategory:   permission.RiskCategoryRead,
 		},
 		{
 			Code:           projectcontract.ApplicationImportPermission.String(),
@@ -43,6 +57,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationImport.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "import",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 		{
 			Code:           projectcontract.ApplicationRefreshPermission.String(),
@@ -51,6 +69,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationRefresh.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "refresh",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 		{
 			Code:           projectcontract.ApplicationLifecyclePermission.String(),
@@ -59,6 +81,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationLifecycle.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "lifecycle",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 		{
 			Code:           projectcontract.ApplicationDestroyPermission.String(),
@@ -67,6 +93,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationDestroy.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "destroy",
+			RiskLevel:      permission.RiskLevelHigh,
+			RiskCategory:   permission.RiskCategoryDestructive,
 		},
 		{
 			Code:           projectcontract.ApplicationCreatePermission.String(),
@@ -75,7 +105,16 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationCreate.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "create",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
+	}
+}
+
+func applicationExtendedPermissionItems(moduleName string) []permission.Item {
+	return []permission.Item{
 		{
 			Code:           projectcontract.ApplicationCreationMethodViewPermission.String(),
 			Name:           "",
@@ -83,6 +122,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationCreationMethodView.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "creation-method.view",
+			RiskLevel:      permission.RiskLevelLow,
+			RiskCategory:   permission.RiskCategoryRead,
 		},
 		{
 			Code:           projectcontract.ApplicationDiscoveryViewPermission.String(),
@@ -91,22 +134,10 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationDiscoveryView.description",
 			Module:         moduleName,
-		},
-		{
-			Code:           projectcontract.ApplicationTemplateManagePermission.String(),
-			Name:           "",
-			DisplayKey:     "rbac.permissionCatalog.applicationTemplateManage.display",
-			Description:    "",
-			DescriptionKey: "rbac.permissionCatalog.applicationTemplateManage.description",
-			Module:         moduleName,
-		},
-		{
-			Code:           projectcontract.ApplicationTemplatePublishPermission.String(),
-			Name:           "",
-			DisplayKey:     "rbac.permissionCatalog.applicationTemplatePublish.display",
-			Description:    "",
-			DescriptionKey: "rbac.permissionCatalog.applicationTemplatePublish.description",
-			Module:         moduleName,
+			Resource:       "application",
+			Action:         "discovery.view",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryRead,
 		},
 		{
 			Code:           projectcontract.ApplicationDeployPermission.String(),
@@ -115,6 +146,39 @@ func permissionItems(moduleName string) []permission.Item {
 			Description:    "",
 			DescriptionKey: "rbac.permissionCatalog.applicationDeploy.description",
 			Module:         moduleName,
+			Resource:       "application",
+			Action:         "deploy",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
+		},
+	}
+}
+
+func applicationTemplatePermissionItems(moduleName string) []permission.Item {
+	return []permission.Item{
+		{
+			Code:           projectcontract.ApplicationTemplateManagePermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.applicationTemplateManage.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.applicationTemplateManage.description",
+			Module:         moduleName,
+			Resource:       "application.template",
+			Action:         "manage",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
+		},
+		{
+			Code:           projectcontract.ApplicationTemplatePublishPermission.String(),
+			Name:           "",
+			DisplayKey:     "rbac.permissionCatalog.applicationTemplatePublish.display",
+			Description:    "",
+			DescriptionKey: "rbac.permissionCatalog.applicationTemplatePublish.description",
+			Module:         moduleName,
+			Resource:       "application.template",
+			Action:         "publish",
+			RiskLevel:      permission.RiskLevelMedium,
+			RiskCategory:   permission.RiskCategoryWrite,
 		},
 	}
 }

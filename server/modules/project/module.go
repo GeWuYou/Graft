@@ -84,6 +84,14 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	if err != nil {
 		return nil, err
 	}
+	runtimeTargetAssignments, err := module.ResolveService[moduleapi.RuntimeTargetDeploymentAssignmentReader](ctx.Services, (*moduleapi.RuntimeTargetDeploymentAssignmentReader)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve runtime target assignment reader: %w", err)
+	}
+	permissionScopes, err := module.ResolveService[moduleapi.PermissionScopeResolver](ctx.Services, (*moduleapi.PermissionScopeResolver)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve permission scope resolver: %w", err)
+	}
 	authorizer, err := resolveAuthorizer(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("resolve authorizer: %w", err)
@@ -102,6 +110,8 @@ func (m *Module) configureService(ctx *module.Context) (moduleapi.TaskRuntimeReg
 	m.service.SetSystemConfigResolver(configResolver)
 	m.service.SetSavedViewService(savedViews)
 	m.service.SetRuntimeTargetReader(runtimeTargets)
+	m.service.SetRuntimeTargetAssignmentReader(runtimeTargetAssignments)
+	m.service.SetPermissionScopeResolver(permissionScopes)
 	m.service.SetAuthorizer(authorizer)
 	m.service.SetRealtime(realtimeDeps.tickets, realtimeDeps.hub, realtimeDeps.issuers)
 	m.service.SetAuditPublisher(ctx.EventPublisher, ctx.Logger, moduleID)

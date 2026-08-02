@@ -19,6 +19,8 @@ const (
 	RoleDetailRoute = "/:id"
 	// RoleUpdateRoute 标识角色更新接口的路径片段。
 	RoleUpdateRoute = "/:id/update"
+	// RoleCloneRoute 标识从现有角色复制为自定义角色的路径片段。
+	RoleCloneRoute = "/:id/clone"
 	// RoleStatusRoute 标识角色状态更新接口的路径片段。
 	RoleStatusRoute = "/:id/status"
 	// RoleDeleteRoute 标识角色软删除接口的路径片段。

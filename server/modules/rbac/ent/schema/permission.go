@@ -51,6 +51,18 @@ func (Permission) Fields() []ent.Field {
 		field.String("module").
 			Comment("权限归属模块标识，例如 user、rbac、core.httpx").
 			Default(""),
+		field.String("resource").
+			Comment("权限所属资源领域，用于目录分组").
+			Default(""),
+		field.String("action").
+			Comment("资源上的稳定动作").
+			Default(""),
+		field.String("risk_level").
+			Comment("权限严重级别：low、medium、high 或 critical").
+			Default("low"),
+		field.String("risk_category").
+			Comment("权限操作类别：read、write、destructive 或 security").
+			Default("read"),
 		field.Time("created_at").
 			Comment("创建时间").
 			Immutable().

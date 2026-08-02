@@ -45,6 +45,10 @@ type PermissionMutation struct {
 	description             *string
 	description_key         *string
 	module                  *string
+	resource                *string
+	action                  *string
+	risk_level              *string
+	risk_category           *string
 	created_at              *time.Time
 	created_by              *uint64
 	addcreated_by           *int64
@@ -415,6 +419,150 @@ func (m *PermissionMutation) OldModule(ctx context.Context) (v string, err error
 // ResetModule resets all changes to the "module" field.
 func (m *PermissionMutation) ResetModule() {
 	m.module = nil
+}
+
+// SetResource sets the "resource" field.
+func (m *PermissionMutation) SetResource(s string) {
+	m.resource = &s
+}
+
+// Resource returns the value of the "resource" field in the mutation.
+func (m *PermissionMutation) Resource() (r string, exists bool) {
+	v := m.resource
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResource returns the old "resource" field's value of the Permission entity.
+// If the Permission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PermissionMutation) OldResource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResource: %w", err)
+	}
+	return oldValue.Resource, nil
+}
+
+// ResetResource resets all changes to the "resource" field.
+func (m *PermissionMutation) ResetResource() {
+	m.resource = nil
+}
+
+// SetAction sets the "action" field.
+func (m *PermissionMutation) SetAction(s string) {
+	m.action = &s
+}
+
+// Action returns the value of the "action" field in the mutation.
+func (m *PermissionMutation) Action() (r string, exists bool) {
+	v := m.action
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAction returns the old "action" field's value of the Permission entity.
+// If the Permission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PermissionMutation) OldAction(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAction is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAction requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAction: %w", err)
+	}
+	return oldValue.Action, nil
+}
+
+// ResetAction resets all changes to the "action" field.
+func (m *PermissionMutation) ResetAction() {
+	m.action = nil
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (m *PermissionMutation) SetRiskLevel(s string) {
+	m.risk_level = &s
+}
+
+// RiskLevel returns the value of the "risk_level" field in the mutation.
+func (m *PermissionMutation) RiskLevel() (r string, exists bool) {
+	v := m.risk_level
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRiskLevel returns the old "risk_level" field's value of the Permission entity.
+// If the Permission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PermissionMutation) OldRiskLevel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRiskLevel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRiskLevel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRiskLevel: %w", err)
+	}
+	return oldValue.RiskLevel, nil
+}
+
+// ResetRiskLevel resets all changes to the "risk_level" field.
+func (m *PermissionMutation) ResetRiskLevel() {
+	m.risk_level = nil
+}
+
+// SetRiskCategory sets the "risk_category" field.
+func (m *PermissionMutation) SetRiskCategory(s string) {
+	m.risk_category = &s
+}
+
+// RiskCategory returns the value of the "risk_category" field in the mutation.
+func (m *PermissionMutation) RiskCategory() (r string, exists bool) {
+	v := m.risk_category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRiskCategory returns the old "risk_category" field's value of the Permission entity.
+// If the Permission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PermissionMutation) OldRiskCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRiskCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRiskCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRiskCategory: %w", err)
+	}
+	return oldValue.RiskCategory, nil
+}
+
+// ResetRiskCategory resets all changes to the "risk_category" field.
+func (m *PermissionMutation) ResetRiskCategory() {
+	m.risk_category = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -801,7 +949,7 @@ func (m *PermissionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PermissionMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 16)
 	if m.code != nil {
 		fields = append(fields, permission.FieldCode)
 	}
@@ -819,6 +967,18 @@ func (m *PermissionMutation) Fields() []string {
 	}
 	if m.module != nil {
 		fields = append(fields, permission.FieldModule)
+	}
+	if m.resource != nil {
+		fields = append(fields, permission.FieldResource)
+	}
+	if m.action != nil {
+		fields = append(fields, permission.FieldAction)
+	}
+	if m.risk_level != nil {
+		fields = append(fields, permission.FieldRiskLevel)
+	}
+	if m.risk_category != nil {
+		fields = append(fields, permission.FieldRiskCategory)
 	}
 	if m.created_at != nil {
 		fields = append(fields, permission.FieldCreatedAt)
@@ -858,6 +1018,14 @@ func (m *PermissionMutation) Field(name string) (ent.Value, bool) {
 		return m.DescriptionKey()
 	case permission.FieldModule:
 		return m.Module()
+	case permission.FieldResource:
+		return m.Resource()
+	case permission.FieldAction:
+		return m.Action()
+	case permission.FieldRiskLevel:
+		return m.RiskLevel()
+	case permission.FieldRiskCategory:
+		return m.RiskCategory()
 	case permission.FieldCreatedAt:
 		return m.CreatedAt()
 	case permission.FieldCreatedBy:
@@ -891,6 +1059,14 @@ func (m *PermissionMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldDescriptionKey(ctx)
 	case permission.FieldModule:
 		return m.OldModule(ctx)
+	case permission.FieldResource:
+		return m.OldResource(ctx)
+	case permission.FieldAction:
+		return m.OldAction(ctx)
+	case permission.FieldRiskLevel:
+		return m.OldRiskLevel(ctx)
+	case permission.FieldRiskCategory:
+		return m.OldRiskCategory(ctx)
 	case permission.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case permission.FieldCreatedBy:
@@ -953,6 +1129,34 @@ func (m *PermissionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModule(v)
+		return nil
+	case permission.FieldResource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResource(v)
+		return nil
+	case permission.FieldAction:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAction(v)
+		return nil
+	case permission.FieldRiskLevel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRiskLevel(v)
+		return nil
+	case permission.FieldRiskCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRiskCategory(v)
 		return nil
 	case permission.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -1135,6 +1339,18 @@ func (m *PermissionMutation) ResetField(name string) error {
 	case permission.FieldModule:
 		m.ResetModule()
 		return nil
+	case permission.FieldResource:
+		m.ResetResource()
+		return nil
+	case permission.FieldAction:
+		m.ResetAction()
+		return nil
+	case permission.FieldRiskLevel:
+		m.ResetRiskLevel()
+		return nil
+	case permission.FieldRiskCategory:
+		m.ResetRiskCategory()
+		return nil
 	case permission.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -1251,6 +1467,9 @@ type RoleMutation struct {
 	display                 *string
 	description             *string
 	builtin                 *bool
+	_type                   *string
+	builtin_key             *string
+	editable                *bool
 	created_at              *time.Time
 	created_by              *uint64
 	addcreated_by           *int64
@@ -1528,6 +1747,127 @@ func (m *RoleMutation) OldBuiltin(ctx context.Context) (v bool, err error) {
 // ResetBuiltin resets all changes to the "builtin" field.
 func (m *RoleMutation) ResetBuiltin() {
 	m.builtin = nil
+}
+
+// SetType sets the "type" field.
+func (m *RoleMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *RoleMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *RoleMutation) ResetType() {
+	m._type = nil
+}
+
+// SetBuiltinKey sets the "builtin_key" field.
+func (m *RoleMutation) SetBuiltinKey(s string) {
+	m.builtin_key = &s
+}
+
+// BuiltinKey returns the value of the "builtin_key" field in the mutation.
+func (m *RoleMutation) BuiltinKey() (r string, exists bool) {
+	v := m.builtin_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBuiltinKey returns the old "builtin_key" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldBuiltinKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBuiltinKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBuiltinKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBuiltinKey: %w", err)
+	}
+	return oldValue.BuiltinKey, nil
+}
+
+// ClearBuiltinKey clears the value of the "builtin_key" field.
+func (m *RoleMutation) ClearBuiltinKey() {
+	m.builtin_key = nil
+	m.clearedFields[role.FieldBuiltinKey] = struct{}{}
+}
+
+// BuiltinKeyCleared returns if the "builtin_key" field was cleared in this mutation.
+func (m *RoleMutation) BuiltinKeyCleared() bool {
+	_, ok := m.clearedFields[role.FieldBuiltinKey]
+	return ok
+}
+
+// ResetBuiltinKey resets all changes to the "builtin_key" field.
+func (m *RoleMutation) ResetBuiltinKey() {
+	m.builtin_key = nil
+	delete(m.clearedFields, role.FieldBuiltinKey)
+}
+
+// SetEditable sets the "editable" field.
+func (m *RoleMutation) SetEditable(b bool) {
+	m.editable = &b
+}
+
+// Editable returns the value of the "editable" field in the mutation.
+func (m *RoleMutation) Editable() (r bool, exists bool) {
+	v := m.editable
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEditable returns the old "editable" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldEditable(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEditable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEditable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEditable: %w", err)
+	}
+	return oldValue.Editable, nil
+}
+
+// ResetEditable resets all changes to the "editable" field.
+func (m *RoleMutation) ResetEditable() {
+	m.editable = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -2024,7 +2364,7 @@ func (m *RoleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoleMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 14)
 	if m.name != nil {
 		fields = append(fields, role.FieldName)
 	}
@@ -2036,6 +2376,15 @@ func (m *RoleMutation) Fields() []string {
 	}
 	if m.builtin != nil {
 		fields = append(fields, role.FieldBuiltin)
+	}
+	if m._type != nil {
+		fields = append(fields, role.FieldType)
+	}
+	if m.builtin_key != nil {
+		fields = append(fields, role.FieldBuiltinKey)
+	}
+	if m.editable != nil {
+		fields = append(fields, role.FieldEditable)
 	}
 	if m.created_at != nil {
 		fields = append(fields, role.FieldCreatedAt)
@@ -2074,6 +2423,12 @@ func (m *RoleMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case role.FieldBuiltin:
 		return m.Builtin()
+	case role.FieldType:
+		return m.GetType()
+	case role.FieldBuiltinKey:
+		return m.BuiltinKey()
+	case role.FieldEditable:
+		return m.Editable()
 	case role.FieldCreatedAt:
 		return m.CreatedAt()
 	case role.FieldCreatedBy:
@@ -2105,6 +2460,12 @@ func (m *RoleMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDescription(ctx)
 	case role.FieldBuiltin:
 		return m.OldBuiltin(ctx)
+	case role.FieldType:
+		return m.OldType(ctx)
+	case role.FieldBuiltinKey:
+		return m.OldBuiltinKey(ctx)
+	case role.FieldEditable:
+		return m.OldEditable(ctx)
 	case role.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case role.FieldCreatedBy:
@@ -2155,6 +2516,27 @@ func (m *RoleMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetBuiltin(v)
+		return nil
+	case role.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case role.FieldBuiltinKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBuiltinKey(v)
+		return nil
+	case role.FieldEditable:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEditable(v)
 		return nil
 	case role.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -2301,6 +2683,9 @@ func (m *RoleMutation) ClearedFields() []string {
 	if m.FieldCleared(role.FieldDescription) {
 		fields = append(fields, role.FieldDescription)
 	}
+	if m.FieldCleared(role.FieldBuiltinKey) {
+		fields = append(fields, role.FieldBuiltinKey)
+	}
 	return fields
 }
 
@@ -2317,6 +2702,9 @@ func (m *RoleMutation) ClearField(name string) error {
 	switch name {
 	case role.FieldDescription:
 		m.ClearDescription()
+		return nil
+	case role.FieldBuiltinKey:
+		m.ClearBuiltinKey()
 		return nil
 	}
 	return fmt.Errorf("unknown Role nullable field %s", name)
@@ -2337,6 +2725,15 @@ func (m *RoleMutation) ResetField(name string) error {
 		return nil
 	case role.FieldBuiltin:
 		m.ResetBuiltin()
+		return nil
+	case role.FieldType:
+		m.ResetType()
+		return nil
+	case role.FieldBuiltinKey:
+		m.ResetBuiltinKey()
+		return nil
+	case role.FieldEditable:
+		m.ResetEditable()
 		return nil
 	case role.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -2480,6 +2877,7 @@ type RolePermissionMutation struct {
 	typ               string
 	id                *int
 	created_at        *time.Time
+	scope             *string
 	clearedFields     map[string]struct{}
 	role              *int
 	clearedrole       bool
@@ -2696,6 +3094,42 @@ func (m *RolePermissionMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// SetScope sets the "scope" field.
+func (m *RolePermissionMutation) SetScope(s string) {
+	m.scope = &s
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *RolePermissionMutation) Scope() (r string, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the RolePermission entity.
+// If the RolePermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RolePermissionMutation) OldScope(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *RolePermissionMutation) ResetScope() {
+	m.scope = nil
+}
+
 // ClearRole clears the "role" edge to the Role entity.
 func (m *RolePermissionMutation) ClearRole() {
 	m.clearedrole = true
@@ -2784,7 +3218,7 @@ func (m *RolePermissionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RolePermissionMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.role != nil {
 		fields = append(fields, rolepermission.FieldRoleID)
 	}
@@ -2793,6 +3227,9 @@ func (m *RolePermissionMutation) Fields() []string {
 	}
 	if m.created_at != nil {
 		fields = append(fields, rolepermission.FieldCreatedAt)
+	}
+	if m.scope != nil {
+		fields = append(fields, rolepermission.FieldScope)
 	}
 	return fields
 }
@@ -2808,6 +3245,8 @@ func (m *RolePermissionMutation) Field(name string) (ent.Value, bool) {
 		return m.PermissionID()
 	case rolepermission.FieldCreatedAt:
 		return m.CreatedAt()
+	case rolepermission.FieldScope:
+		return m.Scope()
 	}
 	return nil, false
 }
@@ -2823,6 +3262,8 @@ func (m *RolePermissionMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldPermissionID(ctx)
 	case rolepermission.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case rolepermission.FieldScope:
+		return m.OldScope(ctx)
 	}
 	return nil, fmt.Errorf("unknown RolePermission field %s", name)
 }
@@ -2852,6 +3293,13 @@ func (m *RolePermissionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
+		return nil
+	case rolepermission.FieldScope:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
 		return nil
 	}
 	return fmt.Errorf("unknown RolePermission field %s", name)
@@ -2913,6 +3361,9 @@ func (m *RolePermissionMutation) ResetField(name string) error {
 		return nil
 	case rolepermission.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case rolepermission.FieldScope:
+		m.ResetScope()
 		return nil
 	}
 	return fmt.Errorf("unknown RolePermission field %s", name)

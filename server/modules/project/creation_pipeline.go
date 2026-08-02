@@ -47,6 +47,9 @@ func (s *Service) createProjectFromWorkspace(ctx context.Context, command Creati
 	if err != nil {
 		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
+	if err := s.ensureComposeTargetUse(ctx, targetID); err != nil {
+		return projectstore.ApplicationAggregate{}, time.Time{}, err
+	}
 	if err := s.ensureComposeProjectNameAvailableForCreate(ctx, targetID, command.ComposeProjectName); err != nil {
 		return projectstore.ApplicationAggregate{}, time.Time{}, err
 	}
@@ -127,23 +130,29 @@ func (s *Service) resolveComposeRuntimeTarget(ctx context.Context, requested uin
 		return 0, nil // Unit tests construct the service without module wiring.
 	}
 	if requested == 0 {
-		targets, err := s.runtimeTargets.ListComposeTargets(ctx)
-		if err != nil || len(targets) != 1 || targets[0].ID < 1 {
-			return 0, errProjectInvalidArgument
-		}
-		return uint64(targets[0].ID), nil // #nosec G115 -- positivity is checked immediately above.
+		return s.resolveDefaultComposeRuntimeTarget(ctx)
 	}
-	var id *int64
 	if requested > uint64(^uint64(0)>>1) {
 		return 0, errProjectInvalidArgument
 	}
 	value := int64(requested)
-	id = &value
-	target, err := s.runtimeTargets.ReadComposeTarget(ctx, id)
+	target, err := s.runtimeTargets.ReadComposeTarget(ctx, &value)
 	if err != nil || target.ID < 1 {
 		return 0, errProjectInvalidArgument
 	}
 	return uint64(target.ID), nil
+}
+
+func (s *Service) resolveDefaultComposeRuntimeTarget(ctx context.Context) (uint64, error) {
+	scope, err := s.permissionScope(ctx, projectcontract.ApplicationCreatePermission.String())
+	if err != nil || scope == moduleapi.PermissionScopeNone {
+		return 0, moduleapi.ErrPermissionDenied
+	}
+	targets, err := s.listComposeTargetsForScope(ctx, scope)
+	if err != nil || len(targets) != 1 || targets[0].ID < 1 {
+		return 0, errProjectInvalidArgument
+	}
+	return uint64(targets[0].ID), nil // #nosec G115 -- positivity is checked immediately above.
 }
 
 // defaultManagedLifecycleConfig 返回用于受管项目的生命周期配置；未提供配置时使用默认配置。

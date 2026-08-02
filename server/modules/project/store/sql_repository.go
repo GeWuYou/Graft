@@ -632,6 +632,10 @@ func buildListWhere(query ListQuery) ([]string, []any) {
 		where = append(where, "runtime_target_id = ?")
 		args = append(args, *query.RuntimeTargetID)
 	}
+	if query.OwnerUserID != nil {
+		where = append(where, "created_by = ?")
+		args = append(args, *query.OwnerUserID)
+	}
 	return where, args
 }
 

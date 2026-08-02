@@ -26,9 +26,10 @@ func registerModuleMetadata(ctx *module.Context, moduleName string) error {
 		}
 	}
 	for _, item := range []permission.Item{
-		{Code: contract.ViewPermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetView.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetView.description", Module: moduleName},
-		{Code: contract.ManagePermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetManage.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetManage.description", Module: moduleName},
-		{Code: contract.RefreshPermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetRefresh.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetRefresh.description", Module: moduleName},
+		{Code: contract.ViewPermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetView.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetView.description", Module: moduleName, Resource: "runtime_target", Action: "view", RiskLevel: permission.RiskLevelLow, RiskCategory: permission.RiskCategoryRead},
+		{Code: contract.ManagePermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetManage.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetManage.description", Module: moduleName, Resource: "runtime_target", Action: "manage", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategorySecurity},
+		{Code: contract.AssignmentManagePermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetAssignmentManage.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetAssignmentManage.description", Module: moduleName, Resource: "runtime_target", Action: "assignment.manage", RiskLevel: permission.RiskLevelHigh, RiskCategory: permission.RiskCategorySecurity},
+		{Code: contract.RefreshPermission, DisplayKey: "rbac.permissionCatalog.runtimeTargetRefresh.display", DescriptionKey: "rbac.permissionCatalog.runtimeTargetRefresh.description", Module: moduleName, Resource: "runtime_target", Action: "refresh", RiskLevel: permission.RiskLevelMedium, RiskCategory: permission.RiskCategoryWrite},
 	} {
 		ctx.PermissionRegistry.Register(item)
 	}

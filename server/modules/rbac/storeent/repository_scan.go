@@ -25,6 +25,9 @@ func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 		display         string
 		description     sql.NullString
 		builtin         bool
+		roleType        string
+		builtinKey      sql.NullString
+		editable        bool
 		disabledAt      int64
 		deletedAt       int64
 		createdAt       time.Time
@@ -38,6 +41,9 @@ func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 		&display,
 		&description,
 		&builtin,
+		&roleType,
+		&builtinKey,
+		&editable,
 		&disabledAt,
 		&deletedAt,
 		&createdAt,
@@ -54,6 +60,9 @@ func scanRole(scanner roleScanner) (rbacstore.Role, error) {
 		Display:         display,
 		Description:     nullStringPtr(description),
 		Builtin:         builtin,
+		Type:            roleType,
+		BuiltinKey:      nullStringPtr(builtinKey),
+		Editable:        editable,
 		Status:          roleStatusFromDisabledAt(disabledAt),
 		CreatedAt:       createdAt,
 		UpdatedAt:       updatedAt,
@@ -90,6 +99,9 @@ func scanRoleWithUserID(scanner interface {
 		&record.Display,
 		&description,
 		&record.Builtin,
+		&record.Type,
+		new(sql.NullString),
+		&record.Editable,
 		new(int64),
 		new(int64),
 		&record.CreatedAt,
@@ -130,6 +142,9 @@ func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 		description      sql.NullString
 		descriptionKey   sql.NullString
 		module           string
+		resource         string
+		action           string
+		riskLevel        string
 		createdAt        time.Time
 		updatedAt        time.Time
 		roleBindingCount int
@@ -142,6 +157,9 @@ func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 		&description,
 		&descriptionKey,
 		&module,
+		&resource,
+		&action,
+		&riskLevel,
 		&createdAt,
 		&updatedAt,
 		&roleBindingCount,
@@ -160,6 +178,9 @@ func scanPermission(scanner permissionScanner) (rbacstore.Permission, error) {
 		Description:      nullStringPtr(description),
 		DescriptionKey:   nullStringPtr(descriptionKey),
 		Module:           module,
+		Resource:         resource,
+		Action:           action,
+		RiskLevel:        riskLevel,
 		CreatedAt:        createdAt,
 		UpdatedAt:        updatedAt,
 		RoleBindingCount: roleBindingCount,

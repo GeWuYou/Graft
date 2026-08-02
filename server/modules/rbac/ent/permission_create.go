@@ -89,6 +89,62 @@ func (_c *PermissionCreate) SetNillableModule(v *string) *PermissionCreate {
 	return _c
 }
 
+// SetResource sets the "resource" field.
+func (_c *PermissionCreate) SetResource(v string) *PermissionCreate {
+	_c.mutation.SetResource(v)
+	return _c
+}
+
+// SetNillableResource sets the "resource" field if the given value is not nil.
+func (_c *PermissionCreate) SetNillableResource(v *string) *PermissionCreate {
+	if v != nil {
+		_c.SetResource(*v)
+	}
+	return _c
+}
+
+// SetAction sets the "action" field.
+func (_c *PermissionCreate) SetAction(v string) *PermissionCreate {
+	_c.mutation.SetAction(v)
+	return _c
+}
+
+// SetNillableAction sets the "action" field if the given value is not nil.
+func (_c *PermissionCreate) SetNillableAction(v *string) *PermissionCreate {
+	if v != nil {
+		_c.SetAction(*v)
+	}
+	return _c
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (_c *PermissionCreate) SetRiskLevel(v string) *PermissionCreate {
+	_c.mutation.SetRiskLevel(v)
+	return _c
+}
+
+// SetNillableRiskLevel sets the "risk_level" field if the given value is not nil.
+func (_c *PermissionCreate) SetNillableRiskLevel(v *string) *PermissionCreate {
+	if v != nil {
+		_c.SetRiskLevel(*v)
+	}
+	return _c
+}
+
+// SetRiskCategory sets the "risk_category" field.
+func (_c *PermissionCreate) SetRiskCategory(v string) *PermissionCreate {
+	_c.mutation.SetRiskCategory(v)
+	return _c
+}
+
+// SetNillableRiskCategory sets the "risk_category" field if the given value is not nil.
+func (_c *PermissionCreate) SetNillableRiskCategory(v *string) *PermissionCreate {
+	if v != nil {
+		_c.SetRiskCategory(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *PermissionCreate) SetCreatedAt(v time.Time) *PermissionCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -227,6 +283,22 @@ func (_c *PermissionCreate) defaults() {
 		v := permission.DefaultModule
 		_c.mutation.SetModule(v)
 	}
+	if _, ok := _c.mutation.Resource(); !ok {
+		v := permission.DefaultResource
+		_c.mutation.SetResource(v)
+	}
+	if _, ok := _c.mutation.Action(); !ok {
+		v := permission.DefaultAction
+		_c.mutation.SetAction(v)
+	}
+	if _, ok := _c.mutation.RiskLevel(); !ok {
+		v := permission.DefaultRiskLevel
+		_c.mutation.SetRiskLevel(v)
+	}
+	if _, ok := _c.mutation.RiskCategory(); !ok {
+		v := permission.DefaultRiskCategory
+		_c.mutation.SetRiskCategory(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := permission.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -273,6 +345,18 @@ func (_c *PermissionCreate) check() error {
 	}
 	if _, ok := _c.mutation.Module(); !ok {
 		return &ValidationError{Name: "module", err: errors.New(`ent: missing required field "Permission.module"`)}
+	}
+	if _, ok := _c.mutation.Resource(); !ok {
+		return &ValidationError{Name: "resource", err: errors.New(`ent: missing required field "Permission.resource"`)}
+	}
+	if _, ok := _c.mutation.Action(); !ok {
+		return &ValidationError{Name: "action", err: errors.New(`ent: missing required field "Permission.action"`)}
+	}
+	if _, ok := _c.mutation.RiskLevel(); !ok {
+		return &ValidationError{Name: "risk_level", err: errors.New(`ent: missing required field "Permission.risk_level"`)}
+	}
+	if _, ok := _c.mutation.RiskCategory(); !ok {
+		return &ValidationError{Name: "risk_category", err: errors.New(`ent: missing required field "Permission.risk_category"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Permission.created_at"`)}
@@ -341,6 +425,22 @@ func (_c *PermissionCreate) createSpec() (*Permission, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Module(); ok {
 		_spec.SetField(permission.FieldModule, field.TypeString, value)
 		_node.Module = value
+	}
+	if value, ok := _c.mutation.Resource(); ok {
+		_spec.SetField(permission.FieldResource, field.TypeString, value)
+		_node.Resource = value
+	}
+	if value, ok := _c.mutation.Action(); ok {
+		_spec.SetField(permission.FieldAction, field.TypeString, value)
+		_node.Action = value
+	}
+	if value, ok := _c.mutation.RiskLevel(); ok {
+		_spec.SetField(permission.FieldRiskLevel, field.TypeString, value)
+		_node.RiskLevel = value
+	}
+	if value, ok := _c.mutation.RiskCategory(); ok {
+		_spec.SetField(permission.FieldRiskCategory, field.TypeString, value)
+		_node.RiskCategory = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(permission.FieldCreatedAt, field.TypeTime, value)

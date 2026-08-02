@@ -50,3 +50,10 @@ type ComposeRuntimeTargetReader interface {
 	ListComposeTargets(context.Context) ([]ComposeRuntimeTargetSummary, error)
 	CheckComposeProjectName(context.Context, int64, string) (ComposeProjectNameAvailability, error)
 }
+
+// RuntimeTargetDeploymentAssignmentReader 仅暴露部署安全的运行目标使用范围。
+// 此边界刻意不暴露端点和凭据，避免应用模块将部署授权扩大为目标管理权限。
+type RuntimeTargetDeploymentAssignmentReader interface {
+	ListAssignedComposeTargets(ctx context.Context, userID uint64) ([]ComposeRuntimeTargetSummary, error)
+	CanUseComposeTarget(ctx context.Context, userID uint64, targetID uint64) (bool, error)
+}

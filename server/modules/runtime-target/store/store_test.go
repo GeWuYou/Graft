@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -79,9 +80,36 @@ func TestSQLRepositoryRunInTransactionReusesContextTransaction(t *testing.T) {
 	}
 }
 
+func TestSQLRepositoryUserAssignmentsRestoreAndRestrictDeploymentCandidates(t *testing.T) {
+	db := openRuntimeTargetTestDB(t)
+	if _, err := db.Exec(`CREATE TABLE runtime_target_user_assignments (runtime_target_id INTEGER NOT NULL, user_id INTEGER NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_by INTEGER NOT NULL, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_by INTEGER NOT NULL, deleted_at INTEGER NOT NULL DEFAULT 0, deleted_by INTEGER NOT NULL DEFAULT 0, UNIQUE(runtime_target_id, user_id))`); err != nil {
+		t.Fatalf("create assignment table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO runtime_targets (id, provider, display_name, endpoint_label, connection_kind, capabilities_json, availability, last_error, deleted_at) VALUES (7, 'docker', 'Assigned', 'unix:///var/run/docker.sock', 'unix_socket', '["compose_execution","workspace_access"]', true, '', 0), (8, 'docker', 'Other', 'unix:///var/run/docker.sock', 'unix_socket', '["compose_execution","workspace_access"]', true, '', 0)`); err != nil {
+		t.Fatalf("seed runtime targets: %v", err)
+	}
+	repository := NewSQLRepository(db)
+	assignment, err := repository.GrantUserAssignment(context.Background(), 7, 11, 3)
+	if err != nil || assignment.TargetID != 7 || assignment.UserID != 11 || assignment.CreatedBy != 3 {
+		t.Fatalf("grant assignment = %#v, %v", assignment, err)
+	}
+	allowed, err := repository.HasActiveUserAssignment(context.Background(), 7, 11)
+	if err != nil || !allowed {
+		t.Fatalf("assigned target allowed = %v, %v", allowed, err)
+	}
+	allowed, err = repository.HasActiveUserAssignment(context.Background(), 8, 11)
+	if err != nil || allowed {
+		t.Fatalf("unassigned target allowed = %v, %v", allowed, err)
+	}
+	candidates, err := repository.ListAssignedComposeTargets(context.Background(), 11)
+	if err != nil || len(candidates) != 1 || candidates[0].ID != 7 {
+		t.Fatalf("assigned candidates = %#v, %v", candidates, err)
+	}
+}
+
 func openRuntimeTargetTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite3", "file:runtime-target-store?mode=memory&cache=shared")
+	db, err := sql.Open("sqlite3", "file:"+strings.ReplaceAll(t.Name(), "/", "-")+"?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatalf("open runtime-target test database: %v", err)
 	}

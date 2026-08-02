@@ -132,6 +132,8 @@ paths:
     $ref: ./paths/roles.permissions.add.yaml
   /api/roles/{id}/permissions/remove:
     $ref: ./paths/roles.permissions.remove.yaml
+  /api/roles/{id}/clone:
+    $ref: ./paths/roles.clone.yaml
   /api/roles/{id}/update:
     $ref: ./paths/roles.update.yaml
   /api/roles/{id}/status:
@@ -389,6 +391,10 @@ paths:
     $ref: ./paths/runtime-targets.detail.yaml
   /api/runtime-targets/{id}/refresh:
     $ref: ./paths/runtime-targets.refresh.yaml
+  /api/runtime-targets/{id}/assignments:
+    $ref: ./paths/runtime-targets.assignments.yaml
+  /api/runtime-targets/{id}/assignments/{userId}/delete:
+    $ref: ./paths/runtime-targets.assignment-delete.yaml
   /api/ops/applications/import/validate:
     $ref: ./paths/ops-applications.import-validate.yaml
   /api/ops/applications/import/runtime-candidates:
@@ -1331,6 +1337,10 @@ components:
       $ref: ./components/schemas/enveloped-saved-view-list-response.yaml
     RuntimeTarget:
       $ref: ./components/schemas/runtime-target.yaml
+    RolePermissionBindingItem:
+      $ref: ./components/schemas/role-permission-binding-item.yaml
+    CloneRoleRequest:
+      $ref: ./components/schemas/clone-role-request.yaml
     RuntimeTargetSummary:
       $ref: ./components/schemas/runtime-target-summary.yaml
     RuntimeTargetCountMetric:
@@ -1345,6 +1355,16 @@ components:
       $ref: ./components/schemas/enveloped-runtime-target-list-response.yaml
     EnvelopedRuntimeTargetResponse:
       $ref: ./components/schemas/enveloped-runtime-target-response.yaml
+    RuntimeTargetUserAssignment:
+      $ref: ./components/schemas/runtime-target-user-assignment.yaml
+    RuntimeTargetUserAssignmentRequest:
+      $ref: ./components/schemas/runtime-target-user-assignment-request.yaml
+    RuntimeTargetUserAssignmentListResponse:
+      $ref: ./components/schemas/runtime-target-user-assignment-list-response.yaml
+    EnvelopedRuntimeTargetUserAssignment:
+      $ref: ./components/schemas/enveloped-runtime-target-user-assignment.yaml
+    EnvelopedRuntimeTargetUserAssignmentListResponse:
+      $ref: ./components/schemas/enveloped-runtime-target-user-assignment-list-response.yaml
   securitySchemes:
     bearerAuth:
       $ref: ./components/security/bearer-auth.yaml

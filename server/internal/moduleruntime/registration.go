@@ -95,6 +95,10 @@ func registerPermissions(registry *permission.Registry) {
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.moduleRuntimeRead.description",
 		Module:         moduleOwner,
+		Resource:       "modules.runtime",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 }
 

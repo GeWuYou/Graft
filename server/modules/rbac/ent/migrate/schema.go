@@ -18,6 +18,10 @@ var (
 		{Name: "description", Type: field.TypeString, Nullable: true, Comment: "权限点描述"},
 		{Name: "description_key", Type: field.TypeString, Nullable: true, Comment: "权限点描述本地化 key"},
 		{Name: "module", Type: field.TypeString, Comment: "权限归属模块标识，例如 user、rbac、core.httpx", Default: ""},
+		{Name: "resource", Type: field.TypeString, Comment: "权限所属资源领域，用于目录分组", Default: ""},
+		{Name: "action", Type: field.TypeString, Comment: "资源上的稳定动作", Default: ""},
+		{Name: "risk_level", Type: field.TypeString, Comment: "权限严重级别：low、medium、high 或 critical", Default: "low"},
+		{Name: "risk_category", Type: field.TypeString, Comment: "权限操作类别：read、write、destructive 或 security", Default: "read"},
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "created_by", Type: field.TypeUint64, Comment: "创建人用户 ID，0 表示系统", Default: 0},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
@@ -39,6 +43,9 @@ var (
 		{Name: "display", Type: field.TypeString, Comment: "角色显示名称"},
 		{Name: "description", Type: field.TypeString, Nullable: true, Comment: "角色描述"},
 		{Name: "builtin", Type: field.TypeBool, Comment: "是否为系统内置角色", Default: false},
+		{Name: "type", Type: field.TypeString, Comment: "角色类型，system 表示内置角色，custom 表示自定义角色", Default: "custom"},
+		{Name: "builtin_key", Type: field.TypeString, Nullable: true, Comment: "内置角色的稳定策略键，自定义角色为空"},
+		{Name: "editable", Type: field.TypeBool, Comment: "角色核心定义和权限绑定是否可编辑", Default: true},
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "created_by", Type: field.TypeUint64, Comment: "创建人用户 ID，0 表示系统", Default: 0},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
@@ -58,6 +65,7 @@ var (
 	RolePermissionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "scope", Type: field.TypeString, Comment: "权限绑定范围：all 或 owned", Default: "all"},
 		{Name: "permission_id", Type: field.TypeInt, Comment: "权限 ID"},
 		{Name: "role_id", Type: field.TypeInt, Comment: "角色 ID"},
 	}
@@ -70,13 +78,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "role_permissions_permissions_role_permissions",
-				Columns:    []*schema.Column{RolePermissionsColumns[2]},
+				Columns:    []*schema.Column{RolePermissionsColumns[3]},
 				RefColumns: []*schema.Column{PermissionsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "role_permissions_roles_role_permissions",
-				Columns:    []*schema.Column{RolePermissionsColumns[3]},
+				Columns:    []*schema.Column{RolePermissionsColumns[4]},
 				RefColumns: []*schema.Column{RolesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -85,12 +93,12 @@ var (
 			{
 				Name:    "rolepermission_role_id_permission_id",
 				Unique:  true,
-				Columns: []*schema.Column{RolePermissionsColumns[3], RolePermissionsColumns[2]},
+				Columns: []*schema.Column{RolePermissionsColumns[4], RolePermissionsColumns[3]},
 			},
 			{
 				Name:    "rolepermission_permission_id",
 				Unique:  false,
-				Columns: []*schema.Column{RolePermissionsColumns[2]},
+				Columns: []*schema.Column{RolePermissionsColumns[3]},
 			},
 		},
 	}

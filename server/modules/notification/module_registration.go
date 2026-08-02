@@ -38,6 +38,10 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationView.description",
 		Module:         moduleName,
+		Resource:       "notification",
+		Action:         "view",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 	registry.Register(permission.Item{
 		Code:           notificationcontract.NotificationReadPermission.String(),
@@ -46,6 +50,10 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationRead.description",
 		Module:         moduleName,
+		Resource:       "notification",
+		Action:         "read",
+		RiskLevel:      permission.RiskLevelLow,
+		RiskCategory:   permission.RiskCategoryRead,
 	})
 	registry.Register(permission.Item{
 		Code:           notificationcontract.NotificationManagePermission.String(),
@@ -54,6 +62,10 @@ func registerNotificationPermissions(registry *permission.Registry, moduleName s
 		Description:    "",
 		DescriptionKey: "rbac.permissionCatalog.notificationManage.description",
 		Module:         moduleName,
+		Resource:       "notification",
+		Action:         "manage",
+		RiskLevel:      permission.RiskLevelMedium,
+		RiskCategory:   permission.RiskCategoryWrite,
 	})
 	return nil
 }

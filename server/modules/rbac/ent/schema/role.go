@@ -41,6 +41,16 @@ func (Role) Fields() []ent.Field {
 		field.Bool("builtin").
 			Comment("是否为系统内置角色").
 			Default(false),
+		field.String("type").
+			Comment("角色类型，system 表示内置角色，custom 表示自定义角色").
+			Default("custom"),
+		field.String("builtin_key").
+			Comment("内置角色的稳定策略键，自定义角色为空").
+			Optional().
+			Nillable(),
+		field.Bool("editable").
+			Comment("角色核心定义和权限绑定是否可编辑").
+			Default(true),
 		field.Time("created_at").
 			Comment("创建时间").
 			Immutable().

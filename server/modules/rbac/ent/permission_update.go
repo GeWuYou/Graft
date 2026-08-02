@@ -131,6 +131,62 @@ func (_u *PermissionUpdate) SetNillableModule(v *string) *PermissionUpdate {
 	return _u
 }
 
+// SetResource sets the "resource" field.
+func (_u *PermissionUpdate) SetResource(v string) *PermissionUpdate {
+	_u.mutation.SetResource(v)
+	return _u
+}
+
+// SetNillableResource sets the "resource" field if the given value is not nil.
+func (_u *PermissionUpdate) SetNillableResource(v *string) *PermissionUpdate {
+	if v != nil {
+		_u.SetResource(*v)
+	}
+	return _u
+}
+
+// SetAction sets the "action" field.
+func (_u *PermissionUpdate) SetAction(v string) *PermissionUpdate {
+	_u.mutation.SetAction(v)
+	return _u
+}
+
+// SetNillableAction sets the "action" field if the given value is not nil.
+func (_u *PermissionUpdate) SetNillableAction(v *string) *PermissionUpdate {
+	if v != nil {
+		_u.SetAction(*v)
+	}
+	return _u
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (_u *PermissionUpdate) SetRiskLevel(v string) *PermissionUpdate {
+	_u.mutation.SetRiskLevel(v)
+	return _u
+}
+
+// SetNillableRiskLevel sets the "risk_level" field if the given value is not nil.
+func (_u *PermissionUpdate) SetNillableRiskLevel(v *string) *PermissionUpdate {
+	if v != nil {
+		_u.SetRiskLevel(*v)
+	}
+	return _u
+}
+
+// SetRiskCategory sets the "risk_category" field.
+func (_u *PermissionUpdate) SetRiskCategory(v string) *PermissionUpdate {
+	_u.mutation.SetRiskCategory(v)
+	return _u
+}
+
+// SetNillableRiskCategory sets the "risk_category" field if the given value is not nil.
+func (_u *PermissionUpdate) SetNillableRiskCategory(v *string) *PermissionUpdate {
+	if v != nil {
+		_u.SetRiskCategory(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *PermissionUpdate) SetUpdatedAt(v time.Time) *PermissionUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -331,6 +387,18 @@ func (_u *PermissionUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.Module(); ok {
 		_spec.SetField(permission.FieldModule, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Resource(); ok {
+		_spec.SetField(permission.FieldResource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Action(); ok {
+		_spec.SetField(permission.FieldAction, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskLevel(); ok {
+		_spec.SetField(permission.FieldRiskLevel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskCategory(); ok {
+		_spec.SetField(permission.FieldRiskCategory, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(permission.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -515,6 +583,62 @@ func (_u *PermissionUpdateOne) SetModule(v string) *PermissionUpdateOne {
 func (_u *PermissionUpdateOne) SetNillableModule(v *string) *PermissionUpdateOne {
 	if v != nil {
 		_u.SetModule(*v)
+	}
+	return _u
+}
+
+// SetResource sets the "resource" field.
+func (_u *PermissionUpdateOne) SetResource(v string) *PermissionUpdateOne {
+	_u.mutation.SetResource(v)
+	return _u
+}
+
+// SetNillableResource sets the "resource" field if the given value is not nil.
+func (_u *PermissionUpdateOne) SetNillableResource(v *string) *PermissionUpdateOne {
+	if v != nil {
+		_u.SetResource(*v)
+	}
+	return _u
+}
+
+// SetAction sets the "action" field.
+func (_u *PermissionUpdateOne) SetAction(v string) *PermissionUpdateOne {
+	_u.mutation.SetAction(v)
+	return _u
+}
+
+// SetNillableAction sets the "action" field if the given value is not nil.
+func (_u *PermissionUpdateOne) SetNillableAction(v *string) *PermissionUpdateOne {
+	if v != nil {
+		_u.SetAction(*v)
+	}
+	return _u
+}
+
+// SetRiskLevel sets the "risk_level" field.
+func (_u *PermissionUpdateOne) SetRiskLevel(v string) *PermissionUpdateOne {
+	_u.mutation.SetRiskLevel(v)
+	return _u
+}
+
+// SetNillableRiskLevel sets the "risk_level" field if the given value is not nil.
+func (_u *PermissionUpdateOne) SetNillableRiskLevel(v *string) *PermissionUpdateOne {
+	if v != nil {
+		_u.SetRiskLevel(*v)
+	}
+	return _u
+}
+
+// SetRiskCategory sets the "risk_category" field.
+func (_u *PermissionUpdateOne) SetRiskCategory(v string) *PermissionUpdateOne {
+	_u.mutation.SetRiskCategory(v)
+	return _u
+}
+
+// SetNillableRiskCategory sets the "risk_category" field if the given value is not nil.
+func (_u *PermissionUpdateOne) SetNillableRiskCategory(v *string) *PermissionUpdateOne {
+	if v != nil {
+		_u.SetRiskCategory(*v)
 	}
 	return _u
 }
@@ -748,6 +872,18 @@ func (_u *PermissionUpdateOne) sqlSave(ctx context.Context) (_node *Permission, 
 	}
 	if value, ok := _u.mutation.Module(); ok {
 		_spec.SetField(permission.FieldModule, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Resource(); ok {
+		_spec.SetField(permission.FieldResource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Action(); ok {
+		_spec.SetField(permission.FieldAction, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskLevel(); ok {
+		_spec.SetField(permission.FieldRiskLevel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskCategory(); ok {
+		_spec.SetField(permission.FieldRiskCategory, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(permission.FieldUpdatedAt, field.TypeTime, value)

@@ -49,6 +49,9 @@ get:
                 traceId: 87ca6f72-b9ce-43d0-ba73-0dce4d28d7d9
                 data:
                   permission_ids: [1, 2, 9]
+                  bindings:
+                    - permission_id: 1
+                      scope: all
     '400':
       description: Invalid role id.
       headers:

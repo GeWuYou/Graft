@@ -43,30 +43,46 @@ func init() {
 	permissionDescModule := permissionFields[5].Descriptor()
 	// permission.DefaultModule holds the default value on creation for the module field.
 	permission.DefaultModule = permissionDescModule.Default.(string)
+	// permissionDescResource is the schema descriptor for resource field.
+	permissionDescResource := permissionFields[6].Descriptor()
+	// permission.DefaultResource holds the default value on creation for the resource field.
+	permission.DefaultResource = permissionDescResource.Default.(string)
+	// permissionDescAction is the schema descriptor for action field.
+	permissionDescAction := permissionFields[7].Descriptor()
+	// permission.DefaultAction holds the default value on creation for the action field.
+	permission.DefaultAction = permissionDescAction.Default.(string)
+	// permissionDescRiskLevel is the schema descriptor for risk_level field.
+	permissionDescRiskLevel := permissionFields[8].Descriptor()
+	// permission.DefaultRiskLevel holds the default value on creation for the risk_level field.
+	permission.DefaultRiskLevel = permissionDescRiskLevel.Default.(string)
+	// permissionDescRiskCategory is the schema descriptor for risk_category field.
+	permissionDescRiskCategory := permissionFields[9].Descriptor()
+	// permission.DefaultRiskCategory holds the default value on creation for the risk_category field.
+	permission.DefaultRiskCategory = permissionDescRiskCategory.Default.(string)
 	// permissionDescCreatedAt is the schema descriptor for created_at field.
-	permissionDescCreatedAt := permissionFields[6].Descriptor()
+	permissionDescCreatedAt := permissionFields[10].Descriptor()
 	// permission.DefaultCreatedAt holds the default value on creation for the created_at field.
 	permission.DefaultCreatedAt = permissionDescCreatedAt.Default.(func() time.Time)
 	// permissionDescCreatedBy is the schema descriptor for created_by field.
-	permissionDescCreatedBy := permissionFields[7].Descriptor()
+	permissionDescCreatedBy := permissionFields[11].Descriptor()
 	// permission.DefaultCreatedBy holds the default value on creation for the created_by field.
 	permission.DefaultCreatedBy = permissionDescCreatedBy.Default.(uint64)
 	// permissionDescUpdatedAt is the schema descriptor for updated_at field.
-	permissionDescUpdatedAt := permissionFields[8].Descriptor()
+	permissionDescUpdatedAt := permissionFields[12].Descriptor()
 	// permission.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	permission.DefaultUpdatedAt = permissionDescUpdatedAt.Default.(func() time.Time)
 	// permission.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	permission.UpdateDefaultUpdatedAt = permissionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// permissionDescUpdatedBy is the schema descriptor for updated_by field.
-	permissionDescUpdatedBy := permissionFields[9].Descriptor()
+	permissionDescUpdatedBy := permissionFields[13].Descriptor()
 	// permission.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	permission.DefaultUpdatedBy = permissionDescUpdatedBy.Default.(uint64)
 	// permissionDescDeletedAt is the schema descriptor for deleted_at field.
-	permissionDescDeletedAt := permissionFields[10].Descriptor()
+	permissionDescDeletedAt := permissionFields[14].Descriptor()
 	// permission.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	permission.DefaultDeletedAt = permissionDescDeletedAt.Default.(int64)
 	// permissionDescDeletedBy is the schema descriptor for deleted_by field.
-	permissionDescDeletedBy := permissionFields[11].Descriptor()
+	permissionDescDeletedBy := permissionFields[15].Descriptor()
 	// permission.DefaultDeletedBy holds the default value on creation for the deleted_by field.
 	permission.DefaultDeletedBy = permissionDescDeletedBy.Default.(uint64)
 	roleFields := schema.Role{}.Fields()
@@ -83,34 +99,42 @@ func init() {
 	roleDescBuiltin := roleFields[3].Descriptor()
 	// role.DefaultBuiltin holds the default value on creation for the builtin field.
 	role.DefaultBuiltin = roleDescBuiltin.Default.(bool)
+	// roleDescType is the schema descriptor for type field.
+	roleDescType := roleFields[4].Descriptor()
+	// role.DefaultType holds the default value on creation for the type field.
+	role.DefaultType = roleDescType.Default.(string)
+	// roleDescEditable is the schema descriptor for editable field.
+	roleDescEditable := roleFields[6].Descriptor()
+	// role.DefaultEditable holds the default value on creation for the editable field.
+	role.DefaultEditable = roleDescEditable.Default.(bool)
 	// roleDescCreatedAt is the schema descriptor for created_at field.
-	roleDescCreatedAt := roleFields[4].Descriptor()
+	roleDescCreatedAt := roleFields[7].Descriptor()
 	// role.DefaultCreatedAt holds the default value on creation for the created_at field.
 	role.DefaultCreatedAt = roleDescCreatedAt.Default.(func() time.Time)
 	// roleDescCreatedBy is the schema descriptor for created_by field.
-	roleDescCreatedBy := roleFields[5].Descriptor()
+	roleDescCreatedBy := roleFields[8].Descriptor()
 	// role.DefaultCreatedBy holds the default value on creation for the created_by field.
 	role.DefaultCreatedBy = roleDescCreatedBy.Default.(uint64)
 	// roleDescUpdatedAt is the schema descriptor for updated_at field.
-	roleDescUpdatedAt := roleFields[6].Descriptor()
+	roleDescUpdatedAt := roleFields[9].Descriptor()
 	// role.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	role.DefaultUpdatedAt = roleDescUpdatedAt.Default.(func() time.Time)
 	// role.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	role.UpdateDefaultUpdatedAt = roleDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// roleDescUpdatedBy is the schema descriptor for updated_by field.
-	roleDescUpdatedBy := roleFields[7].Descriptor()
+	roleDescUpdatedBy := roleFields[10].Descriptor()
 	// role.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	role.DefaultUpdatedBy = roleDescUpdatedBy.Default.(uint64)
 	// roleDescDisabledAt is the schema descriptor for disabled_at field.
-	roleDescDisabledAt := roleFields[8].Descriptor()
+	roleDescDisabledAt := roleFields[11].Descriptor()
 	// role.DefaultDisabledAt holds the default value on creation for the disabled_at field.
 	role.DefaultDisabledAt = roleDescDisabledAt.Default.(int64)
 	// roleDescDeletedAt is the schema descriptor for deleted_at field.
-	roleDescDeletedAt := roleFields[9].Descriptor()
+	roleDescDeletedAt := roleFields[12].Descriptor()
 	// role.DefaultDeletedAt holds the default value on creation for the deleted_at field.
 	role.DefaultDeletedAt = roleDescDeletedAt.Default.(int64)
 	// roleDescDeletedBy is the schema descriptor for deleted_by field.
-	roleDescDeletedBy := roleFields[10].Descriptor()
+	roleDescDeletedBy := roleFields[13].Descriptor()
 	// role.DefaultDeletedBy holds the default value on creation for the deleted_by field.
 	role.DefaultDeletedBy = roleDescDeletedBy.Default.(uint64)
 	rolepermissionMixin := schema.RolePermission{}.Mixin()
@@ -122,6 +146,10 @@ func init() {
 	rolepermissionDescCreatedAt := rolepermissionMixinFields0[2].Descriptor()
 	// rolepermission.DefaultCreatedAt holds the default value on creation for the created_at field.
 	rolepermission.DefaultCreatedAt = rolepermissionDescCreatedAt.Default.(func() time.Time)
+	// rolepermissionDescScope is the schema descriptor for scope field.
+	rolepermissionDescScope := rolepermissionFields[0].Descriptor()
+	// rolepermission.DefaultScope holds the default value on creation for the scope field.
+	rolepermission.DefaultScope = rolepermissionDescScope.Default.(string)
 	userroleMixin := schema.UserRole{}.Mixin()
 	userroleMixinFields0 := userroleMixin[0].Fields()
 	_ = userroleMixinFields0

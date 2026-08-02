@@ -112,6 +112,8 @@ rbac.permissionCatalog.runtimeTargetView.display: 运行目标查看
 rbac.permissionCatalog.runtimeTargetView.description: 允许读取运行目标连接与能力状态。
 rbac.permissionCatalog.runtimeTargetManage.display: 运行目标管理
 rbac.permissionCatalog.runtimeTargetManage.description: 预留给后续运行目标配置管理能力。
+rbac.permissionCatalog.runtimeTargetAssignmentManage.display: 管理运行目标分配
+rbac.permissionCatalog.runtimeTargetAssignmentManage.description: 为开发者分配或撤销运行目标部署访问权，不暴露凭据。
 rbac.permissionCatalog.runtimeTargetRefresh.display: 运行目标刷新
 rbac.permissionCatalog.runtimeTargetRefresh.description: 允许重新探测运行目标可用性与能力。
 rbac.permissionCatalog.applicationView.display: 查看 Compose 应用
