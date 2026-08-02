@@ -14274,12 +14274,14 @@ export interface operations {
           'application/json': components['schemas']['enveloped-platform-update-operation-launch-acknowledgement'];
         };
       };
-      /** @description Invalid operation identity or recovery precondition. */
+      /** @description Invalid operation identity. */
       400: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
@@ -14288,21 +14290,28 @@ export interface operations {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
       /** @description The runner is still running, the operation is already terminal, or recovery has already been accepted. */
       409: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
+      500: components['responses']['internal-server-error'];
       /** @description Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable. */
       503: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
     };
   };

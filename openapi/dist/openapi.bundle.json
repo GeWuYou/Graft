@@ -9041,7 +9041,14 @@
             }
           },
           "400": {
-            "description": "Invalid operation identity or recovery precondition."
+            "description": "Invalid operation identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -9050,13 +9057,37 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Update operation not found."
+            "description": "Update operation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "409": {
-            "description": "The runner is still running, the operation is already terminal, or recovery has already been accepted."
+            "description": "The runner is still running, the operation is already terminal, or recovery has already been accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
           },
           "503": {
-            "description": "Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable."
+            "description": "Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           }
         }
       }

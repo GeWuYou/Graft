@@ -259,11 +259,8 @@ func (s *RolloutService) runnerTerminationView(ctx context.Context, state Runner
 	if s.operations == nil {
 		return OperationView{}, false
 	}
-	evidence, terminated, err := s.runnerTerminationEvidence(ctx, state)
-	if err != nil {
-		if s.logger != nil {
-			s.logger.Warn("platform update runner failure inspection deferred", zap.Error(err))
-		}
+	evidence, terminated := s.cachedRunnerTerminationEvidence(state)
+	if !terminated {
 		return OperationView{}, false
 	}
 	if terminated {
@@ -280,6 +277,24 @@ func (s *RolloutService) runnerTerminationView(ctx context.Context, state Runner
 		return updateOperationViewFromTerminatedRunner(state), true
 	}
 	return OperationView{}, false
+}
+
+// refreshRunnerTerminationProjection 在后台投影边界读取 Docker 退出证据，避免 HTTP 查询触发 Docker I/O。
+func (s *RolloutService) refreshRunnerTerminationProjection(ctx context.Context, state RunnerState) {
+	if _, _, err := s.runnerTerminationEvidence(ctx, state); err != nil && s.logger != nil {
+		s.logger.Warn("platform update runner failure inspection deferred", zap.Error(err))
+	}
+}
+
+func (s *RolloutService) cachedRunnerTerminationEvidence(state RunnerState) (RunnerFailureEvidence, bool) {
+	key := runnerTerminationCacheKey{operationID: state.OperationID, runnerID: state.RunnerID, revision: state.Revision, digest: state.Digest}
+	s.terminationMu.Lock()
+	defer s.terminationMu.Unlock()
+	cached, found := s.terminationCache[key]
+	if !found || !time.Now().Before(cached.expiresAt) {
+		return RunnerFailureEvidence{}, false
+	}
+	return cached.evidence, cached.terminated
 }
 
 //nolint:cyclop,nestif // 缓存命中、同 key 合并和 Docker 读取失败必须保持各自可审计的失效语义。
@@ -685,6 +700,7 @@ func (s *RolloutService) runRunnerStateProjection(ctx context.Context, interval 
 				s.logRunnerStateProjectionError(err)
 				continue
 			}
+			s.refreshRunnerTerminationProjection(ctx, state)
 			if state.OperationID != publishedOperation || state.Revision != publishedRevision {
 				s.publishRunnerState(state)
 				publishedOperation, publishedRevision = state.OperationID, state.Revision
@@ -931,6 +947,7 @@ func (s *RolloutService) ReconcileRunnerState(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read runner state: %w", err)
 	}
+	s.refreshRunnerTerminationProjection(ctx, state)
 	s.publishRunnerState(state)
 	if !isTerminalRunnerPhase(state.Phase) || state.Receipt == nil {
 		return nil

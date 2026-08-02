@@ -267,7 +267,7 @@ func (h updateRouteHandlers) recover(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusInternalServerError, messagecontract.CommonInternalError.String(), nil)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusAccepted, OperationLaunchAcknowledgement{OperationID: operation.OperationID, RunnerID: operation.RunnerID})

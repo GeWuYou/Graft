@@ -17,9 +17,26 @@ post:
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-update-operation-launch-acknowledgement.yaml }
-    '400': { description: "Invalid operation identity or recovery precondition." }
+    '400':
+      description: Invalid operation identity.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Update operation not found. }
-    '409': { description: "The runner is still running, the operation is already terminal, or recovery has already been accepted." }
-    '503': { description: "Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable." }
+    '404':
+      description: Update operation not found.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '409':
+      description: The runner is still running, the operation is already terminal, or recovery has already been accepted.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }
+    '500': { $ref: ../components/responses/internal-server-error.yaml }
+    '503':
+      description: Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }

@@ -386,9 +386,18 @@ func TestRolloutActiveOperationProjectsTerminatedRunner(t *testing.T) {
 	}
 	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
 	launcher := &recoveryLauncher{failures: []RunnerFailureEvidence{{ProtocolVersion: runnerProtocolVersion, OperationID: state.OperationID, RunnerID: state.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: "permission_denied"}}}
-	view, err := (&RolloutService{stateStore: store, operations: operations, launcher: launcher}).GetActiveOperation(t.Context())
+	rollout := &RolloutService{stateStore: store, operations: operations, launcher: launcher}
+	persistedState, err := store.Read()
+	if err != nil {
+		t.Fatalf("read persisted runner state: %v", err)
+	}
+	rollout.refreshRunnerTerminationProjection(t.Context(), persistedState)
+	view, err := rollout.GetActiveOperation(t.Context())
 	if err != nil || view == nil || view.StateSource != "runner_terminated" || view.Message != state.Message || view.StateAvailable || view.Error != rolloutFailureRunnerTerminated {
 		t.Fatalf("terminated runner view = %#v, %v", view, err)
+	}
+	if launcher.failureReads != 1 {
+		t.Fatalf("GET must use the projection cache, failure reads = %d", launcher.failureReads)
 	}
 }
 
