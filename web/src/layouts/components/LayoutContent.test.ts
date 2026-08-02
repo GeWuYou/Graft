@@ -672,8 +672,8 @@ describe('LayoutContent', () => {
     expect(layoutStyleSource).toContain('overflow: hidden auto;');
     expect(layoutStyleSource).not.toContain('overflow: auto hidden;');
     expect(layoutStyleSource).toContain('overflow: hidden;');
-    expect(layoutContentStyleSource).toContain('scrollbar-width: none;');
-    expect(layoutContentStyleSource).toContain('.t-tabs__nav-scroll::-webkit-scrollbar');
+    expect(layoutContentStyleSource).not.toContain('scrollbar-width: none;');
+    expect(layoutContentStyleSource).not.toContain('.t-tabs__nav-scroll::-webkit-scrollbar');
     expect(layoutStyleSource).toContain('flex: 1 0 auto;');
     expect(layoutStyleSource).toContain('min-height: 0;');
   });

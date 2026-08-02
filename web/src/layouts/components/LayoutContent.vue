@@ -579,14 +579,7 @@ const handleDragend = (options: { currentIndex: number; targetIndex: number }) =
 
 :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-scroll) {
   overflow: auto hidden;
-  scrollbar-width: none;
   touch-action: pan-x;
-}
-
-:deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-scroll::-webkit-scrollbar) {
-  display: none;
-  height: 0;
-  width: 0;
 }
 
 :deep(.tdesign-starter-layout-tabs-nav .t-tabs__nav-wrap) {
