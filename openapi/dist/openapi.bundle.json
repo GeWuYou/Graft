@@ -8843,7 +8843,7 @@
         ],
         "summary": "Read the active self-update operation",
         "operationId": "getPlatformUpdateActiveOperation",
-        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. A 503 is reserved for a runner-state source that cannot be read.",
+        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. When the bound runner has exited before publishing a terminal snapshot, `data.state_source` is `runner_terminated`, `data.state_available` is false, `data.error` is `PLATFORM_UPDATE_RUNNER_TERMINATED`, and the last verified phase/progress/message fields are retained for diagnosis. A 503 is reserved for a runner-state source that cannot be read.",
         "security": [
           {
             "bearerAuth": []
@@ -8999,6 +8999,99 @@
         }
       }
     },
+    "/api/platform/updates/operations/{operationID}/recovery": {
+      "post": {
+        "tags": [
+          "platform-update"
+        ],
+        "summary": "Recover a terminated self-update runner",
+        "operationId": "postPlatformUpdateOperationRecovery",
+        "description": "Starts one protected, one-shot recovery runner for an operation whose bound runner exited before publishing a terminal snapshot. The server accepts recovery only for a matching exited runner and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "operationID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Recovery runner accepted by Docker. Read the operation snapshot for the recovery result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-update-operation-launch-acknowledgement"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid operation identity.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Update operation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The runner is still running, the operation is already terminal, or recovery has already been accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/internal-server-error"
+          },
+          "503": {
+            "description": "Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/platform/updates/operations/{operationID}/events": {
       "get": {
         "tags": [
@@ -9075,7 +9168,7 @@
         ],
         "summary": "Read controlled failure diagnostics for a self-update operation",
         "operationId": "getPlatformUpdateOperationFailureDiagnostic",
-        "description": "Returns immutable, sanitized diagnostics for a terminal runner failure. Raw runner logs and deployment secrets are never returned.",
+        "description": "Returns immutable, sanitized diagnostics for a runner failure or a runner that exited before publishing a terminal snapshot. Raw runner logs and deployment secrets are never returned.",
         "security": [
           {
             "bearerAuth": []
@@ -28313,13 +28406,14 @@
             "enum": [
               "runner_state",
               "terminal_history",
-              "runner_state_unavailable"
+              "runner_state_unavailable",
+              "runner_terminated"
             ],
-            "description": "Authority that produced this projection; runner_state_unavailable never represents live runner progress."
+            "description": "Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot."
           },
           "state_available": {
             "type": "boolean",
-            "description": "Whether runner lifecycle state was available to verify this projection."
+            "description": "Whether runner lifecycle state was available to verify this projection. A runner_terminated projection is explicitly unavailable even when it retains the last verified snapshot fields."
           },
           "error": {
             "type": "string",
@@ -28452,7 +28546,8 @@
           "PLATFORM_UPDATE_COMPOSE_CANDIDATE_INVALID",
           "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED",
           "PLATFORM_UPDATE_OPERATION_START_FAILED",
-          "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
+          "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED",
+          "PLATFORM_UPDATE_RUNNER_TERMINATED"
         ]
       },
       "platform-update-rollout-failure-data": {
@@ -28541,7 +28636,7 @@
       },
       "platform-update-failure-diagnostic": {
         "type": "object",
-        "description": "Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.",
+        "description": "Immutable, sanitized diagnostic evidence for a failed self-update request or a runner that exited before publishing a terminal snapshot. It is never embedded in normal update-start error responses.",
         "required": [
           "request_id",
           "target_version",
@@ -28574,7 +28669,7 @@
           },
           "failure_stage": {
             "type": "string",
-            "description": "Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt."
+            "description": "Controlled update failure stage. Update-start failures report availability, runner_state, preflight, backup, handoff, operation_persist, runner_launch, or internal. Terminal runner receipts report artifact_directory, env_snapshot, postgres_dump, artifact_digest, or runner_receipt. A runner that exits before publishing a terminal snapshot reports runner_state_write_failed or runner_exited. Older persisted diagnostics can contain other values."
           },
           "summary": {
             "type": "string",

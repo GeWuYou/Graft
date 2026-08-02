@@ -13,6 +13,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	containertypes "github.com/moby/moby/api/types/container"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 	"graft/server/internal/buildinfo"
@@ -426,13 +427,32 @@ func TestComposeRunnerContainerConfigAllowsOnlyChownForStateOwnership(t *testing
 	}
 }
 
+func TestComposeRunnerRecoveryContainerConfigOnlyMountsStateVolume(t *testing.T) {
+	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-config", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-config", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	config, host := composeRunnerRecoveryContainerConfig(state, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "bound-state", "graft-update-state")
+	if config.Image == "" || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=bound-state" || config.Labels["io.graft.update.recovery"] != "true" {
+		t.Fatalf("recovery runner config is not bound: %#v", config)
+	}
+	assertRecoveryRunnerHardening(t, config.User, host)
+}
+
+func assertRecoveryRunnerHardening(t *testing.T, user string, host containertypes.HostConfig) {
+	t.Helper()
+	if user != "0:0" || len(host.Binds) != 1 || host.Binds[0] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || !host.ReadonlyRootfs || host.AutoRemove {
+		t.Fatalf("recovery runner host config exceeds state-only scope: %#v", host)
+	}
+	if len(host.CapDrop) != 1 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 2 || host.CapAdd[0] != "CHOWN" || host.CapAdd[1] != "DAC_OVERRIDE" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("recovery runner capability hardening changed: %#v", host)
+	}
+}
+
 func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer func() { _ = db.Close() }()
-	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, runner_id TEXT, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
+	if _, err := db.Exec(`CREATE TABLE update_operations (operation_id TEXT PRIMARY KEY, runner_id TEXT, request_id TEXT, source_version TEXT, target_version TEXT, deployment_strategy TEXT, task_id INTEGER, backup_id INTEGER, requested_by INTEGER, status TEXT, receipt_integrity_sha256 TEXT, failure_code TEXT, recovery_completed BOOLEAN, recovery_claim_id TEXT, recovery_claimed_at TIMESTAMP, created_at TIMESTAMP, started_at TIMESTAMP, updated_at TIMESTAMP, finished_at TIMESTAMP);
 CREATE TABLE update_failure_diagnostics (request_id TEXT PRIMARY KEY, operation_id TEXT, task_id INTEGER, target_version TEXT, failure_code TEXT, failure_stage TEXT, summary TEXT, detail TEXT, occurred_at TIMESTAMP)`); err != nil {
 		t.Fatalf("create update operations: %v", err)
 	}
@@ -527,7 +547,8 @@ func TestRolloutAuditCarriesRequestIDAndLogsPublishFailure(t *testing.T) {
 }
 
 type memoryOperationStore struct {
-	items map[string]ComposeUpdateOperation
+	items          map[string]ComposeUpdateOperation
+	recoveryClaims map[string]string
 }
 
 type rolloutAuditPublisher struct {
@@ -571,6 +592,31 @@ func (s *memoryOperationStore) Settle(_ context.Context, item ComposeUpdateOpera
 	s.items[item.OperationID] = item
 	return nil
 }
+func (s *memoryOperationStore) ClaimRecovery(_ context.Context, operationID, claimID string) (bool, error) {
+	if _, ok := s.items[operationID]; !ok {
+		return false, errUpdateOperationNotFound
+	}
+	if s.recoveryClaims == nil {
+		s.recoveryClaims = map[string]string{}
+	}
+	if s.recoveryClaims[operationID] != "" {
+		return false, nil
+	}
+	s.recoveryClaims[operationID] = claimID
+	return true, nil
+}
+func (s *memoryOperationStore) ReleaseRecoveryClaim(_ context.Context, operationID, claimID string) error {
+	if s.recoveryClaims[operationID] == claimID {
+		delete(s.recoveryClaims, operationID)
+	}
+	return nil
+}
+func (s *memoryOperationStore) RecoveryClaim(_ context.Context, operationID string) (string, error) {
+	if _, ok := s.items[operationID]; !ok {
+		return "", errUpdateOperationNotFound
+	}
+	return s.recoveryClaims[operationID], nil
+}
 
 type recordingLauncher struct {
 	input     RunnerInput
@@ -586,6 +632,32 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 }
 
 func (*recordingLauncher) Close() error { return nil }
+
+type recoveryLauncher struct {
+	failures                []RunnerFailureEvidence
+	recovered               RunnerState
+	recoveryErr             error
+	recoveryContainerErr    error
+	failureReads            int
+	recoveryContainerExists bool
+}
+
+func (*recoveryLauncher) Launch(context.Context, RunnerInput) error { return nil }
+func (*recoveryLauncher) Close() error                              { return nil }
+func (l *recoveryLauncher) RecoveryContainerExists(context.Context, string, string) (bool, error) {
+	return l.recoveryContainerExists, l.recoveryContainerErr
+}
+func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error) {
+	l.failureReads++
+	return l.failures, nil
+}
+func (l *recoveryLauncher) LaunchRecovery(_ context.Context, state RunnerState, _, _ string) error {
+	l.recovered = state
+	if l.recoveryErr == nil {
+		l.recoveryContainerExists = true
+	}
+	return l.recoveryErr
+}
 
 type receiptReaderCleanupLauncher struct {
 	receipts []RunnerReceipt

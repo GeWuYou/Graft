@@ -10,8 +10,8 @@ properties:
   phase: { type: string, enum: [READY, PREFLIGHT, BACKUP, PULL_IMAGES, STOP_SERVICES, APPLY_UPDATE, MIGRATION, START_SERVICES, HEALTH_CHECK, SUCCESS, FAILED, ROLLBACK] }
   progress: { type: integer, minimum: 0, maximum: 100 }
   message: { type: string, description: "Controlled runner message key; never raw command output or deployment secrets." }
-  state_source: { type: string, enum: [runner_state, terminal_history, runner_state_unavailable], description: "Authority that produced this projection; runner_state_unavailable never represents live runner progress." }
-  state_available: { type: boolean, description: "Whether runner lifecycle state was available to verify this projection." }
+  state_source: { type: string, enum: [runner_state, terminal_history, runner_state_unavailable, runner_terminated], description: "Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot." }
+  state_available: { type: boolean, description: "Whether runner lifecycle state was available to verify this projection. A runner_terminated projection is explicitly unavailable even when it retains the last verified snapshot fields." }
   error: { type: string, description: "Controlled runner failure code; never raw command output or deployment secrets." }
   failure_diagnostic_available: { type: boolean, description: "Whether a manager may retrieve controlled failure diagnostics for this operation." }
   started_at: { type: string, format: date-time }

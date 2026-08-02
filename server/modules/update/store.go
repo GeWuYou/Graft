@@ -15,6 +15,10 @@ type OperationStore interface {
 	Get(context.Context, string) (ComposeUpdateOperation, error)
 	List(context.Context, int) ([]ComposeUpdateOperation, error)
 	Settle(context.Context, ComposeUpdateOperation) error
+	ClaimRecovery(context.Context, string, string) (bool, error)
+	ReleaseRecoveryClaim(context.Context, string, string) error
+	// RecoveryClaim 返回操作当前的恢复认领；未认领时返回空字符串，操作不存在时返回 errUpdateOperationNotFound，查询失败时返回数据库错误。
+	RecoveryClaim(context.Context, string) (string, error)
 }
 
 var errUpdateOperationNotFound = errors.New("update operation not found")
@@ -99,6 +103,55 @@ func (s *sqlOperationStore) Settle(ctx context.Context, value ComposeUpdateOpera
 		return errUpdateOperationNotFound
 	}
 	return nil
+}
+
+// ClaimRecovery 原子保留一个未终态操作供恢复启动使用。
+// 认领只是协调证据；runner 生命周期阶段仍由状态卷拥有。
+func (s *sqlOperationStore) ClaimRecovery(ctx context.Context, operationID, claimID string) (bool, error) {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) || strings.TrimSpace(claimID) == "" {
+		return false, errors.New("update recovery claim is invalid")
+	}
+	var claimedOperationID string
+	err := s.db.QueryRowContext(ctx, `UPDATE update_operations
+		SET recovery_claim_id = $2, recovery_claimed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+		WHERE operation_id = $1 AND recovery_claim_id IS NULL AND finished_at IS NULL
+		RETURNING operation_id`, operationID, claimID).Scan(&claimedOperationID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("claim update operation recovery: %w", err)
+	}
+	return claimedOperationID == operationID, nil
+}
+
+// ReleaseRecoveryClaim 只在已证明容器尚未启动的失败后清除调用方认领。
+func (s *sqlOperationStore) ReleaseRecoveryClaim(ctx context.Context, operationID, claimID string) error {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) || strings.TrimSpace(claimID) == "" {
+		return errors.New("update recovery claim is invalid")
+	}
+	_, err := s.db.ExecContext(ctx, `UPDATE update_operations
+		SET recovery_claim_id = NULL, recovery_claimed_at = NULL, updated_at = CURRENT_TIMESTAMP
+		WHERE operation_id = $1 AND recovery_claim_id = $2`, operationID, claimID)
+	if err != nil {
+		return fmt.Errorf("release update operation recovery claim: %w", err)
+	}
+	return nil
+}
+
+// RecoveryClaim 返回操作当前的恢复认领，用于在进程中断后核验 claim 绑定容器是否已经创建。
+func (s *sqlOperationStore) RecoveryClaim(ctx context.Context, operationID string) (string, error) {
+	if s == nil || s.db == nil || !runnerOperationID.MatchString(operationID) {
+		return "", errors.New("update recovery claim query is invalid")
+	}
+	var claim sql.NullString
+	if err := s.db.QueryRowContext(ctx, `SELECT recovery_claim_id FROM update_operations WHERE operation_id = $1`, operationID).Scan(&claim); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", errUpdateOperationNotFound
+		}
+		return "", fmt.Errorf("read update operation recovery claim: %w", err)
+	}
+	return strings.TrimSpace(claim.String), nil
 }
 
 type operationScanner interface{ Scan(...any) error }

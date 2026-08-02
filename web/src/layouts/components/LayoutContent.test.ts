@@ -13,6 +13,7 @@ import LayoutContent from './LayoutContent.vue';
 
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
 const layoutContentStyleSource = readFileSync(join(process.cwd(), 'src/layouts/components/LayoutContent.vue'), 'utf8');
+const scrollbarStyleSource = readFileSync(join(process.cwd(), 'src/style/scrollbar.less'), 'utf8');
 const cardSurfaceStyleSource = readFileSync(join(process.cwd(), 'src/shared/components/card-surface.less'), 'utf8');
 
 type DropdownPopupProps = {
@@ -657,6 +658,7 @@ describe('LayoutContent', () => {
     expect(pageContainer.classes()).toContain('page-scroll');
     expect(pageContainer.classes()).toContain('graft-scrollbar');
     expect(tabs.classes()).not.toContain('graft-scrollbar');
+    expect(tabs.classes()).toContain('graft-scrollbar-tabs');
     expect(routeHost.element.compareDocumentPosition(footer.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(routeHost.element.parentElement).toBe(pageContent.element);
     expect(footer.element.parentElement).toBe(pageContainer.element);
@@ -673,7 +675,10 @@ describe('LayoutContent', () => {
     expect(layoutStyleSource).not.toContain('overflow: auto hidden;');
     expect(layoutStyleSource).toContain('overflow: hidden;');
     expect(layoutContentStyleSource).not.toContain('scrollbar-width: none;');
+    expect(scrollbarStyleSource).toContain('.graft-scrollbar-tabs .t-tabs__nav-scroll');
+    expect(scrollbarStyleSource).toContain('scrollbar-width: none;');
     expect(layoutContentStyleSource).not.toContain('.t-tabs__nav-scroll::-webkit-scrollbar');
+    expect(scrollbarStyleSource).toContain('.graft-scrollbar-tabs .t-tabs__nav-scroll::-webkit-scrollbar');
     expect(layoutStyleSource).toContain('flex: 1 0 auto;');
     expect(layoutStyleSource).toContain('min-height: 0;');
   });

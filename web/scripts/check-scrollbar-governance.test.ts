@@ -51,11 +51,19 @@ describe('check-scrollbar-governance blacklist scan', () => {
   height: 10px;
   width: 10px;
 }
+
+.graft-scrollbar-tabs .t-tabs__nav-scroll {
+  scrollbar-width: none;
+}
+
+.graft-scrollbar-tabs .t-tabs__nav-scroll::-webkit-scrollbar {
+  height: 0;
+}
 `,
     );
 
     expect(result.debt).toHaveLength(0);
-    expect(result.exceptions).toHaveLength(2);
+    expect(result.exceptions).toHaveLength(4);
     expect(result.output).toContain('Scrollbar governance: no blacklisted native scrollbar styles found.');
   });
 

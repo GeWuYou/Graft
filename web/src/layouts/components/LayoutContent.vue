@@ -4,7 +4,7 @@
       v-if="showRouteTabs"
       drag-sort
       theme="card"
-      :class="`${prefix}-layout-tabs-nav`"
+      :class="[`${prefix}-layout-tabs-nav`, 'graft-scrollbar-tabs']"
       :value="activeTabKey"
       :style="{ position: 'sticky', top: 0, width: '100%' }"
       @change="(value) => handleChangeCurrentTab(value as string)"

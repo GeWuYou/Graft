@@ -13,6 +13,7 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	"graft/server/internal/moduleapi"
+	"graft/server/internal/testassert"
 	updatecontract "graft/server/modules/update/contract"
 )
 
@@ -26,6 +27,15 @@ func (s failingOperationStore) List(context.Context, int) ([]ComposeUpdateOperat
 	return nil, s.err
 }
 func (s failingOperationStore) Settle(context.Context, ComposeUpdateOperation) error { return s.err }
+func (s failingOperationStore) ClaimRecovery(context.Context, string, string) (bool, error) {
+	return false, s.err
+}
+func (s failingOperationStore) ReleaseRecoveryClaim(context.Context, string, string) error {
+	return s.err
+}
+func (s failingOperationStore) RecoveryClaim(context.Context, string) (string, error) {
+	return "", s.err
+}
 
 type updateAuthorizerStub struct{ err error }
 
@@ -87,5 +97,31 @@ func TestListOperationsLogsRequestCorrelatedStoreFailure(t *testing.T) {
 	fields := entries[0].ContextMap()
 	if fields[logger.FieldOperation] != "platform_update.operations.list" || fields[logger.FieldRequestID] != "request-history-91" {
 		t.Fatalf("missing operation or request correlation: %#v", fields)
+	}
+}
+
+func TestRecoverReturnsInternalErrorForUnexpectedOperationStoreFailure(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	stateStore, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-route-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-route-1", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := stateStore.Write(state); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "operationID", Value: state.OperationID}}
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/platform/updates/operations/"+state.OperationID+"/recovery", nil)
+
+	updateRouteHandlers{rollout: &RolloutService{stateStore: stateStore, operations: failingOperationStore{err: errors.New("database unavailable")}, launcher: &recoveryLauncher{}}}.recover(ctx)
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("recover response code = %d, want %d", recorder.Code, http.StatusInternalServerError)
+	}
+	payload := testassert.DecodeErrorResponse(t, recorder)
+	if payload.MessageKey != "common.internal_error" {
+		t.Fatalf("recover response = %#v, want common.internal_error", payload)
 	}
 }

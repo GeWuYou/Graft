@@ -26,7 +26,7 @@ const (
 	runnerStateServerUID                       = 10001
 	runnerStateServerGID                       = 10001
 	runnerStateDirectoryPermission os.FileMode = 0o750
-	runnerStateFilePermission      os.FileMode = 0o600
+	runnerStateFilePermission      os.FileMode = 0o640
 )
 
 // RunnerPhase 是 runner 控制面唯一的活动升级阶段枚举。

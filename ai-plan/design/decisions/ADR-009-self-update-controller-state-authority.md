@@ -64,6 +64,26 @@ Invalid state or an integrity mismatch fails closed. A stale non-terminal operat
 authorized manual recovery runner, which reads the prior state and writes its own bound recovery transition; `server`
 must not mutate a runner phase to simulate recovery.
 
+When Docker proves that the runner bound to a non-terminal snapshot has exited, `server` must not continue to project
+that snapshot as live execution. It preserves the last verified `phase`, `progress`, and safe `message` solely as
+diagnostic context, projects `state_source=runner_terminated`, `state_available=false`, and the stable safe error
+`PLATFORM_UPDATE_RUNNER_TERMINATED`, then persists one allowlisted operation diagnostic. Raw container logs, paths,
+commands, exit-detail text, and secrets remain host-operator evidence and never cross the API boundary. The browser
+must treat this projection as terminal for its current session rather than polling indefinitely.
+
+Recovery is an explicit `platform-update.manage` action, exposed as `POST /api/platform/updates/operations/{operationID}/recovery`.
+It can launch exactly one recovery runner only when the recorded runner identity matches an exited container and the
+verified snapshot is non-terminal and pre-migration. The recovery runner concludes the interrupted operation with a
+safe terminal result; it never resumes the upgrade. Running, terminal, mismatched, already-recovered, unavailable,
+or post-migration operations fail closed. After that terminal result is projected, the normal new-update path may
+evaluate eligibility again.
+
+Before the potentially slow Docker image pull, server atomically records an opaque recovery-launch coordination claim
+on the request record. This is authorization and duplicate-launch evidence only, not a runner phase or progress
+projection. A claim is released only when Docker is proven not to have created a recovery container; after container
+creation is attempted it remains durable so retries fail closed until the recovery runner publishes its terminal
+result.
+
 The controlled order is `PREFLIGHT -> BACKUP -> PULL_IMAGES -> STOP_SERVICES -> APPLY_UPDATE -> MIGRATION ->
 START_SERVICES -> HEALTH_CHECK -> terminal`. Before migration begins, a failure may restore the configuration/image
 snapshot and conclude `ROLLBACK`; after migration starts, no automatic database rollback or restore is permitted and

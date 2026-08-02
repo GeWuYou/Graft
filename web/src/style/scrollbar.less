@@ -24,3 +24,19 @@
 .graft-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: var(--graft-scrollbar-thumb-hover-color);
 }
+
+/* TDesign 将 Tabs 的实际滚动层置于带 graft-scrollbar-tabs 标记的根节点内部，统一在此隐藏其原生横向滚动条。 */
+.graft-scrollbar-tabs .t-tabs__nav-scroll {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
+}
+
+.graft-scrollbar-tabs .t-tabs__nav-scroll::-webkit-scrollbar,
+.graft-scrollbar-tabs .t-tabs__nav-scroll::-webkit-scrollbar-track,
+.graft-scrollbar-tabs .t-tabs__nav-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 0;
+  display: none;
+  height: 0;
+  width: 0;
+}

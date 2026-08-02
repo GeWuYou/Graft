@@ -1,5 +1,5 @@
 type: object
-description: "Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses."
+description: "Immutable, sanitized diagnostic evidence for a failed self-update request or a runner that exited before publishing a terminal snapshot. It is never embedded in normal update-start error responses."
 required: [request_id, target_version, failure_code, failure_stage, summary, detail, occurred_at]
 properties:
   request_id: { type: string, description: "Request identifier that correlates this diagnostic with application and access logs." }
@@ -7,7 +7,7 @@ properties:
   task_id: { type: integer, format: int64, description: "Task runtime identifier when one was created before the failure." }
   target_version: { type: string, description: "Requested release version." }
   failure_code: { $ref: ./platform-update-rollout-failure-code.yaml }
-  failure_stage: { type: string, description: "Controlled update failure stage. Terminal backup failures may report artifact_directory, env_snapshot, postgres_dump, or artifact_digest; other or older runner receipts report runner_receipt." }
+  failure_stage: { type: string, description: "Controlled update failure stage. Update-start failures report availability, runner_state, preflight, backup, handoff, operation_persist, runner_launch, or internal. Terminal runner receipts report artifact_directory, env_snapshot, postgres_dump, artifact_digest, or runner_receipt. A runner that exits before publishing a terminal snapshot reports runner_state_write_failed or runner_exited. Older persisted diagnostics can contain other values." }
   summary: { type: string, description: "Controlled operator-facing failure summary." }
   detail: { type: string, description: "Controlled operator-facing detail. Terminal runner diagnostics are synthesized from bounded receipt facts and never include raw stderr, credentials, tokens, cookies, DSN passwords, or deployment environment contents." }
   occurred_at: { type: string, format: date-time, description: "UTC time at which the update start failed." }
