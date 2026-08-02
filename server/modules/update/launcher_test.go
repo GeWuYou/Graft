@@ -214,16 +214,43 @@ func (c *receiptDockerClient) Close() error { return nil }
 
 var _ dockerRunnerClient = (*receiptDockerClient)(nil)
 
+func TestDockerContainerMatchesFiltersUsesOrWithinLabelTerm(t *testing.T) {
+	item := containertypes.Summary{Labels: map[string]string{
+		"io.graft.update.operation": "operation-1",
+		"io.graft.update.protocol":  runnerProtocol,
+	}}
+
+	filters := mobyclient.Filters{
+		"label": {
+			"io.graft.update.operation=operation-1": true,
+			"io.graft.update.operation=operation-2": true,
+		},
+	}
+	if !dockerContainerMatchesFilters(item, filters) {
+		t.Fatal("expected matching value within a label term to satisfy the filter")
+	}
+
+	filters["label"] = map[string]bool{"io.graft.update.operation=operation-2": true}
+	if dockerContainerMatchesFilters(item, filters) {
+		t.Fatal("expected a label term with no matching values to be rejected")
+	}
+}
+
 func dockerContainerMatchesFilters(item containertypes.Summary, filters mobyclient.Filters) bool {
 	for term, values := range filters {
 		switch term {
 		case "label":
+			matches := len(values) == 0
 			for value := range values {
 				key, expected, hasExpected := strings.Cut(value, "=")
 				actual, ok := item.Labels[key]
-				if !ok || hasExpected && actual != expected {
-					return false
+				if ok && (!hasExpected || actual == expected) {
+					matches = true
+					break
 				}
+			}
+			if !matches {
+				return false
 			}
 		default:
 			return false

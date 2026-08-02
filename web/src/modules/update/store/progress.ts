@@ -259,15 +259,19 @@ export const useUpdateProgressStore = defineStore('update-progress', {
     async recoverTerminatedRunner() {
       const operation = this.operation;
       if (this.recoveryLoading || operation?.state_source !== 'runner_terminated') return;
+      const recoverySession = this.session;
+      const operationID = operation.operation_id;
+      const isCurrentRecovery = () => this.session === recoverySession && this.operation?.operation_id === operationID;
       this.recoveryLoading = true;
       this.recoveryError = false;
       try {
-        const acknowledgement = await recoverUpdateOperation(operation.operation_id);
+        const acknowledgement = await recoverUpdateOperation(operationID);
+        if (!isCurrentRecovery()) return;
         await this.begin(acknowledgement, true);
       } catch {
-        this.recoveryError = true;
+        if (isCurrentRecovery()) this.recoveryError = true;
       } finally {
-        this.recoveryLoading = false;
+        if (isCurrentRecovery()) this.recoveryLoading = false;
       }
     },
     isTerminal() {

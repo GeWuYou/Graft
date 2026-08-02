@@ -10,7 +10,7 @@ import {
   recoverUpdateOperation,
   subscribeToUpdateOperation,
 } from '../api/update';
-import type { UpdateOperation } from '../types/update';
+import type { UpdateOperation, UpdateOperationLaunchAcknowledgement } from '../types/update';
 import { useUpdateProgressStore } from './progress';
 
 vi.mock('../api/update', () => ({
@@ -274,6 +274,37 @@ describe('update progress store', () => {
     expect(store.phase).toBe('failed');
     expect(store.operation?.state_source).toBe('runner_terminated');
     expect(store.recoveryError).toBe(true);
+  });
+
+  it('does not restart a terminated runner after the session is reset during recovery', async () => {
+    let resolveRecovery: (value: UpdateOperationLaunchAcknowledgement) => void = () => undefined;
+    vi.mocked(recoverUpdateOperation).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRecovery = resolve as (value: UpdateOperationLaunchAcknowledgement) => void;
+        }),
+    );
+    const store = useUpdateProgressStore();
+    store.$patch({
+      operation: {
+        ...operation('operation-1'),
+        state_available: false,
+        state_source: 'runner_terminated',
+      } as UpdateOperation,
+      phase: 'failed',
+    });
+
+    const recovery = store.recoverTerminatedRunner();
+    store.reset();
+    resolveRecovery(acknowledgement('operation-2'));
+    await recovery;
+
+    expect(store.phase).toBe('idle');
+    expect(store.operation).toBeNull();
+    expect(store.operationID).toBeNull();
+    expect(store.recoveryLoading).toBe(false);
+    expect(store.recoveryError).toBe(false);
+    expect(getUpdateOperation).not.toHaveBeenCalled();
   });
 
   it('keeps polling when the recovery acknowledgement is followed by the stale terminated projection', async () => {
