@@ -11,6 +11,8 @@ const (
 	UpdateOperationCollectionRoute = "/operations"
 	// UpdateOperationRoute 读取一条不含秘密部署数据的操作记录。
 	UpdateOperationRoute = "/operations/:operationID"
+	// UpdateOperationRecoveryRoute 启动已终止 runner 的一次性受保护恢复。
+	UpdateOperationRecoveryRoute = "/operations/:operationID/recovery"
 	// UpdateActiveOperationRoute 读取由 runner 接管的当前操作，供新标签页恢复升级会话。
 	// 它不位于 :operationID 参数路由下，避免保留字与操作标识发生路由语义冲突。
 	UpdateActiveOperationRoute = "/active-operation"

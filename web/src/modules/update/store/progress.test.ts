@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getActiveUpdateOperation,
   getUpdateOperation,
+  getUpdateOperationDiagnostic,
   getUpdateOperationEvents,
   subscribeToUpdateOperation,
 } from '../api/update';
@@ -14,6 +15,7 @@ import { useUpdateProgressStore } from './progress';
 vi.mock('../api/update', () => ({
   getActiveUpdateOperation: vi.fn(),
   getUpdateOperation: vi.fn(),
+  getUpdateOperationDiagnostic: vi.fn(),
   getUpdateOperationEvents: vi.fn(),
   subscribeToUpdateOperation: vi.fn(),
 }));
@@ -40,6 +42,10 @@ describe('update progress store', () => {
     vi.mocked(getActiveUpdateOperation).mockResolvedValue(null);
     vi.mocked(getUpdateOperation).mockResolvedValue(operation('operation-1'));
     vi.mocked(getUpdateOperationEvents).mockResolvedValue([]);
+    vi.mocked(getUpdateOperationDiagnostic).mockResolvedValue({
+      summary: 'Runner exited before the update could continue.',
+      detail: 'The runner could not persist its terminal state.',
+    } as never);
     vi.mocked(subscribeToUpdateOperation).mockImplementation(streamController);
   });
 
@@ -178,6 +184,51 @@ describe('update progress store', () => {
 
     expect(store.phase).toBe('unavailable');
     expect(store.operation?.operation_id).toBe('operation-1');
+  });
+
+  it('ends the browser session and loads protected diagnostics when the runner has terminated', async () => {
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
+
+    const runnerTerminatedOperation: UpdateOperation = {
+      ...operation('operation-1'),
+      state_available: false,
+      state_source: 'runner_terminated',
+      failure_diagnostic_available: true,
+    };
+    await callback(runnerTerminatedOperation);
+
+    expect(store.phase).toBe('failed');
+    expect(store.operation?.phase).toBe('READY');
+    expect(store.lastActivePhase).toBeNull();
+    expect(store.operationID).toBeNull();
+    expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
+    expect(getUpdateOperationDiagnostic).toHaveBeenCalledWith('operation-1');
+    expect(store.failureDiagnostic).toMatchObject({
+      summary: 'Runner exited before the update could continue.',
+    });
+  });
+
+  it('keeps runner termination terminal when the protected diagnostic cannot be read', async () => {
+    vi.mocked(getUpdateOperationDiagnostic).mockRejectedValueOnce(new Error('diagnostic unavailable'));
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
+    const runnerTerminatedOperation: UpdateOperation = {
+      ...operation('operation-1'),
+      state_available: false,
+      state_source: 'runner_terminated',
+      failure_diagnostic_available: true,
+    };
+
+    await callback(runnerTerminatedOperation);
+
+    expect(store.phase).toBe('failed');
+    expect(store.failureDiagnostic).toBeNull();
+    expect(store.failureDiagnosticError).toBe(true);
+    expect(store.stream).toBeNull();
+    expect(store.pollTimer).toBeNull();
   });
 
   it('polls the runner snapshot while the realtime transport is unavailable', async () => {

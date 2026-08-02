@@ -426,6 +426,17 @@ func TestComposeRunnerContainerConfigAllowsOnlyChownForStateOwnership(t *testing
 	}
 }
 
+func TestComposeRunnerRecoveryContainerConfigOnlyMountsStateVolume(t *testing.T) {
+	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-config", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-config", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	config, host := composeRunnerRecoveryContainerConfig(state, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "bound-state", "graft-update-state")
+	if config.Image == "" || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=bound-state" || config.Labels["io.graft.update.recovery"] != "true" {
+		t.Fatalf("recovery runner config is not bound: %#v", config)
+	}
+	if len(host.Binds) != 1 || host.Binds[0] != "graft-update-state:"+RunnerStateRoot+":rw" || host.NetworkMode != "none" || len(host.CapAdd) != 2 || host.CapAdd[0] != "CHOWN" || host.CapAdd[1] != "DAC_OVERRIDE" {
+		t.Fatalf("recovery runner host config exceeds state-only scope: %#v", host)
+	}
+}
+
 func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
@@ -586,6 +597,21 @@ func (l *recordingLauncher) Launch(_ context.Context, input RunnerInput) error {
 }
 
 func (*recordingLauncher) Close() error { return nil }
+
+type recoveryLauncher struct {
+	failures  []RunnerFailureEvidence
+	recovered RunnerState
+}
+
+func (*recoveryLauncher) Launch(context.Context, RunnerInput) error { return nil }
+func (*recoveryLauncher) Close() error                              { return nil }
+func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error) {
+	return l.failures, nil
+}
+func (l *recoveryLauncher) LaunchRecovery(_ context.Context, state RunnerState, _ string) error {
+	l.recovered = state
+	return nil
+}
 
 type receiptReaderCleanupLauncher struct {
 	receipts []RunnerReceipt

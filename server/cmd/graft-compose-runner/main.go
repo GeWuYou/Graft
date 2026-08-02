@@ -32,19 +32,30 @@ const (
 	runnerExecutionTimeout                            = 15 * time.Minute
 	healthzCurlTimeoutSeconds                         = "30"
 	runnerIDRandomBytes                               = 12
+	runnerProtocolVersion                             = 2
 )
 
 // main 只执行一次性 Compose runner 协议，不启动 HTTP、数据库连接或业务状态。
+//
+//nolint:cyclop // 正常执行与受保护恢复是两个互斥入口，各自保留显式失败输出边界。
 func main() {
+	if encoded := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64")); encoded != "" {
+		if err := recoverTerminatedRunner(encoded); err != nil {
+			fatal(err)
+		}
+		return
+	}
 	input, err := readRunnerInput()
 	if err != nil {
 		fatal(err)
 	}
 	reporter, err := newStateReporter(input)
 	if err != nil {
+		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
 		fatal(err)
 	}
 	if err := reporter.Initialize(); err != nil {
+		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
 		fatal(err)
 	}
 	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
@@ -62,11 +73,41 @@ func main() {
 		fatal(fmt.Errorf("write runner receipt log: %w", err))
 	}
 	if finalizeErr != nil {
+		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, finalizeErr))
 		fatal(fmt.Errorf("persist terminal update runner state: %w", finalizeErr))
 	}
 	if executionErr != nil {
 		fatal(executionErr)
 	}
+}
+
+// recoverTerminatedRunner 仅将已验证的中断快照结算为失败，绝不恢复或继续升级执行。
+func recoverTerminatedRunner(encoded string) error {
+	contents, err := base64.RawStdEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("decode recovery runner state: %w", err)
+	}
+	var state update.RunnerState
+	if err := json.Unmarshal(contents, &state); err != nil {
+		return fmt.Errorf("decode recovery runner state: %w", err)
+	}
+	store, err := update.NewFileRunnerStateStore(update.RunnerStateRoot)
+	if err != nil {
+		return err
+	}
+	persisted, err := store.Read()
+	if err != nil {
+		return fmt.Errorf("read persisted recovery runner state: %w", err)
+	}
+	if persisted.OperationID != state.OperationID || persisted.RunnerID != state.RunnerID || persisted.Revision != state.Revision || persisted.Digest != state.Digest {
+		return errors.New("recovery runner state binding changed")
+	}
+	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: persisted.OperationID, RunnerID: persisted.RunnerID, SourceVersion: persisted.SourceVersion, TargetVersion: persisted.TargetVersion}, runnerID: persisted.RunnerID, current: persisted}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: persisted.OperationID, RunnerID: persisted.RunnerID, FailureCode: "invalid_input", FailureStage: "runner_recovery", FailureDetail: "interrupted_before_migration"}
+	if err := reporter.Finalize(receipt); err != nil {
+		return fmt.Errorf("persist recovered terminal runner state: %w", err)
+	}
+	return writeRunnerReceiptLog(os.Stdout, receipt)
 }
 
 func cleanupBackupStaging(in update.RunnerInput) error {
@@ -116,6 +157,25 @@ func writeRunnerReceiptLog(writer io.Writer, receipt update.RunnerReceipt) error
 		return err
 	}
 	return nil
+}
+
+func writeRunnerFailureLog(writer io.Writer, evidence update.RunnerFailureEvidence) error {
+	contents, err := json.Marshal(evidence)
+	if err != nil {
+		return fmt.Errorf("encode runner failure evidence: %w", err)
+	}
+	if _, err := fmt.Fprintln(writer, update.RunnerFailureLogMarker+base64.RawStdEncoding.EncodeToString(contents)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func runnerStateFailureEvidence(input update.RunnerInput, err error) update.RunnerFailureEvidence {
+	stage := "io_failed"
+	if errors.Is(err, os.ErrPermission) {
+		stage = "permission_denied"
+	}
+	return update.RunnerFailureEvidence{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: input.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: stage}
 }
 
 func fatal(err error) { _, _ = fmt.Fprintln(os.Stderr, err); os.Exit(1) }

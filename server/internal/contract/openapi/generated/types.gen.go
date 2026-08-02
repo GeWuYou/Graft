@@ -3501,6 +3501,7 @@ func (e PlatformUpdateOperationPhase) Valid() bool {
 const (
 	RunnerState            PlatformUpdateOperationStateSource = "runner_state"
 	RunnerStateUnavailable PlatformUpdateOperationStateSource = "runner_state_unavailable"
+	RunnerTerminated       PlatformUpdateOperationStateSource = "runner_terminated"
 	TerminalHistory        PlatformUpdateOperationStateSource = "terminal_history"
 )
 
@@ -3510,6 +3511,8 @@ func (e PlatformUpdateOperationStateSource) Valid() bool {
 	case RunnerState:
 		return true
 	case RunnerStateUnavailable:
+		return true
+	case RunnerTerminated:
 		return true
 	case TerminalHistory:
 		return true
@@ -3762,6 +3765,7 @@ const (
 	PLATFORMUPDATENOELIGIBLENEWERRELEASE               PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_NO_ELIGIBLE_NEWER_RELEASE"
 	PLATFORMUPDATEOPERATIONSTARTFAILED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_OPERATION_START_FAILED"
 	PLATFORMUPDATERUNNERTERMINALFAILED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
+	PLATFORMUPDATERUNNERTERMINATED                     PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_RUNNER_TERMINATED"
 	PLATFORMUPDATESOURCEVERSIONUNSUPPORTED             PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
 )
 
@@ -3789,6 +3793,8 @@ func (e PlatformUpdateRolloutFailureCode) Valid() bool {
 	case PLATFORMUPDATEOPERATIONSTARTFAILED:
 		return true
 	case PLATFORMUPDATERUNNERTERMINALFAILED:
+		return true
+	case PLATFORMUPDATERUNNERTERMINATED:
 		return true
 	case PLATFORMUPDATESOURCEVERSIONUNSUPPORTED:
 		return true
@@ -10704,7 +10710,7 @@ type EnvelopedPlatformUpdateActiveOperation struct {
 type EnvelopedPlatformUpdateFailureDiagnostic struct {
 	Code string `json:"code"`
 
-	// Data Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.
+	// Data Immutable, sanitized diagnostic evidence for a failed self-update request or a runner that exited before publishing a terminal snapshot. It is never embedded in normal update-start error responses.
 	Data    PlatformUpdateFailureDiagnostic `json:"data"`
 	Message string                          `json:"message"`
 	Success bool                            `json:"success"`
@@ -11817,7 +11823,7 @@ type PlatformUpdateComposeRootCandidateConfidence string
 // PlatformUpdateComposeRootSource defines model for platform-update-compose-root-source.
 type PlatformUpdateComposeRootSource string
 
-// PlatformUpdateFailureDiagnostic Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses.
+// PlatformUpdateFailureDiagnostic Immutable, sanitized diagnostic evidence for a failed self-update request or a runner that exited before publishing a terminal snapshot. It is never embedded in normal update-start error responses.
 type PlatformUpdateFailureDiagnostic struct {
 	// Detail Controlled operator-facing detail. Terminal runner diagnostics are synthesized from bounded receipt facts and never include raw stderr, credentials, tokens, cookies, DSN passwords, or deployment environment contents.
 	Detail string `json:"detail"`
@@ -11869,10 +11875,10 @@ type PlatformUpdateOperation struct {
 	SourceVersion string                           `json:"source_version"`
 	StartedAt     time.Time                        `json:"started_at"`
 
-	// StateAvailable Whether runner lifecycle state was available to verify this projection.
+	// StateAvailable Whether runner lifecycle state was available to verify this projection. A runner_terminated projection is explicitly unavailable even when it retains the last verified snapshot fields.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection; runner_state_unavailable never represents live runner progress.
+	// StateSource Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -11884,7 +11890,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection; runner_state_unavailable never represents live runner progress.
+// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.
@@ -15833,6 +15839,16 @@ type PostPlatformUpdateOperationParams struct {
 
 // GetPlatformUpdateOperationParams defines parameters for GetPlatformUpdateOperation.
 type GetPlatformUpdateOperationParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PostPlatformUpdateOperationRecoveryParams defines parameters for PostPlatformUpdateOperationRecovery.
+type PostPlatformUpdateOperationRecoveryParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

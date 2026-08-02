@@ -13,7 +13,12 @@
     @close="closeTerminalDialog"
   >
     <section class="update-progress" data-testid="update-progress-dialog">
-      <t-progress data-testid="update-progress-overall" :percentage="overallPercentage" :label="true" />
+      <t-progress
+        v-if="showProgress"
+        data-testid="update-progress-overall"
+        :percentage="overallPercentage"
+        :label="true"
+      />
       <t-alert
         :theme="
           progress.phase === 'failed' || progress.phase === 'unavailable'
@@ -24,17 +29,23 @@
         "
         :message="phaseMessage"
       />
-      <t-steps v-if="progress.operation" :current="currentStep" layout="vertical" readonly>
+      <t-steps v-if="showRunnerStage" :current="currentStep" layout="vertical" readonly>
         <t-step v-for="step in steps" :key="step" :title="t(`update.center.progress.steps.${step}`)" />
       </t-steps>
-      <section v-if="progress.operation" class="update-progress__current-stage">
+      <section v-if="showRunnerStage" class="update-progress__current-stage">
         <div class="update-progress__current-stage-heading">
           <span>{{ t('update.center.progress.currentStage') }}</span>
           <strong>{{ currentStageLabel }}</strong>
         </div>
       </section>
       <section v-if="progress.phase === 'failed'" class="update-progress__failure">
-        <p>{{ progress.operation?.message || t('update.center.progress.diagnosticUnavailable') }}</p>
+        <template v-if="progress.failureDiagnostic">
+          <strong data-testid="update-progress-diagnostic-summary">{{ progress.failureDiagnostic.summary }}</strong>
+          <p data-testid="update-progress-diagnostic-detail">{{ progress.failureDiagnostic.detail }}</p>
+        </template>
+        <p v-else-if="progress.failureDiagnosticLoading">{{ t('update.center.progress.diagnosticLoading') }}</p>
+        <p v-else-if="progress.failureDiagnosticError">{{ t('update.center.progress.diagnosticUnavailable') }}</p>
+        <p v-else>{{ progress.operation?.message || t('update.center.progress.diagnosticUnavailable') }}</p>
       </section>
       <section v-if="progress.phase === 'unavailable'" class="update-progress__failure">
         <p>{{ t('update.center.progress.sourceUnavailable') }}</p>
@@ -61,7 +72,7 @@ import { useI18n } from 'vue-i18n';
 import { useUpdateProgressStore } from '../store/progress';
 import type { UpdateOperationPhase } from '../types/update';
 
-// 后台壳只呈现 runner 快照；服务重建中的连接状态不能覆盖 runner 报告的真实进度。
+// 后台壳只呈现服务端验证的操作投影；服务重建中的连接状态不能覆盖其报告的真实进度。
 const { t } = useI18n();
 const progress = useUpdateProgressStore();
 const steps = [
@@ -92,6 +103,9 @@ const stageStatus = computed(() => {
   if (progress.lastActivePhase) return progress.lastActivePhase;
   return progress.operation?.phase ?? 'READY';
 });
+const runnerTerminated = computed(() => progress.operation?.state_source === 'runner_terminated');
+const showProgress = computed(() => !runnerTerminated.value);
+const showRunnerStage = computed(() => Boolean(progress.operation) && !runnerTerminated.value);
 const currentStep = computed(() => stageIndex[stageStatus.value]);
 const overallPercentage = computed(() => progress.operation?.progress ?? 0);
 const currentStageLabel = computed(() => {

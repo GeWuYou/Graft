@@ -292,6 +292,55 @@ func TestRolloutReadsActiveRunnerStateWithoutHistoryStore(t *testing.T) {
 	}
 }
 
+func TestRolloutRecoverRequiresBoundTerminatedRunnerEvidence(t *testing.T) {
+	t.Setenv("GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE", "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64))
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-recovery-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-recovery-1", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
+	launcher := &recoveryLauncher{failures: []RunnerFailureEvidence{{ProtocolVersion: runnerProtocolVersion, OperationID: state.OperationID, RunnerID: state.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: "permission_denied"}}}
+	rollout := &RolloutService{stateStore: store, operations: operations, launcher: launcher}
+	if _, err := rollout.Recover(t.Context(), state.OperationID); err != nil {
+		t.Fatalf("recover terminated runner: %v", err)
+	}
+	if launcher.recovered.OperationID != state.OperationID || launcher.recovered.RunnerID != state.RunnerID {
+		t.Fatalf("recovery state binding = %#v", launcher.recovered)
+	}
+
+	launcher.recovered = RunnerState{}
+	launcher.failures[0].RunnerID = "runner-other"
+	if _, err := rollout.Recover(t.Context(), state.OperationID); !errors.Is(err, errRecoveryConflict) {
+		t.Fatalf("unbound recovery evidence error = %v", err)
+	}
+	if launcher.recovered.OperationID != "" {
+		t.Fatalf("recovery launch occurred without a bound runner: %#v", launcher.recovered)
+	}
+}
+
+func TestRolloutActiveOperationProjectsTerminatedRunner(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	input := RunnerInput{OperationID: "update-terminated-1", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
+	state := NewRunnerState(input, "runner-terminated-1", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
+	if err := store.Write(state); err != nil {
+		t.Fatalf("write state: %v", err)
+	}
+	operations := &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
+	launcher := &recoveryLauncher{failures: []RunnerFailureEvidence{{ProtocolVersion: runnerProtocolVersion, OperationID: state.OperationID, RunnerID: state.RunnerID, FailureCode: "runner_state_write_failed", FailureStage: "permission_denied"}}}
+	view, err := (&RolloutService{stateStore: store, operations: operations, launcher: launcher}).GetActiveOperation(t.Context())
+	if err != nil || view == nil || view.StateSource != "runner_terminated" || view.StateAvailable || view.Error != rolloutFailureRunnerTerminated {
+		t.Fatalf("terminated runner view = %#v, %v", view, err)
+	}
+}
+
 func TestRolloutGetOperationReturnsCorruptRunnerStateError(t *testing.T) {
 	store, err := NewFileRunnerStateStore(t.TempDir())
 	if err != nil {

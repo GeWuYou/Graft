@@ -6,10 +6,12 @@ import { isApiRequestError } from '@/utils/request';
 import {
   getActiveUpdateOperation,
   getUpdateOperation,
+  getUpdateOperationDiagnostic,
   getUpdateOperationEvents,
   subscribeToUpdateOperation,
 } from '../api/update';
 import type {
+  UpdateFailureDiagnostic,
   UpdateOperation,
   UpdateOperationEvent,
   UpdateOperationLaunchAcknowledgement,
@@ -66,6 +68,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       pollTimer: null as number | null,
       snapshotRetryCount: 0,
       events: [] as UpdateOperationEvent[],
+      failureDiagnostic: null as UpdateFailureDiagnostic | null,
+      failureDiagnosticLoading: false,
+      failureDiagnosticError: false,
       latestEventRevision: 0,
       recoveringActiveOperation: false,
     };
@@ -84,6 +89,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.lastActivePhase = null;
       this.snapshotRetryCount = 0;
       this.events = [];
+      this.failureDiagnostic = null;
+      this.failureDiagnosticLoading = false;
+      this.failureDiagnosticError = false;
       this.latestEventRevision = 0;
       this.phase = 'reconnecting';
       await this.refreshSnapshot(this.session);
@@ -189,6 +197,20 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       if (this.operationID && operation.operation_id !== this.operationID) return;
       this.operation = operation;
       this.operationID = operation.operation_id;
+      if (operation.state_source === 'runner_terminated') {
+        this.phase = 'failed';
+        this.lastActivePhase = null;
+        this.stopStream();
+        this.stopPolling();
+        persistOperation(null);
+        this.operationID = null;
+        if (operation.failure_diagnostic_available !== false) {
+          await this.loadFailureDiagnostic(session, operation.operation_id);
+        } else {
+          this.failureDiagnosticError = true;
+        }
+        return;
+      }
       if (!operation.state_available || operation.state_source === 'runner_state_unavailable') {
         this.failSnapshotRecovery();
         return;
@@ -235,6 +257,18 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.stopStream();
       this.stopPolling();
     },
+    async loadFailureDiagnostic(session: number, operationID: string) {
+      this.failureDiagnosticLoading = true;
+      this.failureDiagnosticError = false;
+      try {
+        const diagnostic = await getUpdateOperationDiagnostic(operationID);
+        if (session === this.session) this.failureDiagnostic = diagnostic;
+      } catch {
+        if (session === this.session) this.failureDiagnosticError = true;
+      } finally {
+        if (session === this.session) this.failureDiagnosticLoading = false;
+      }
+    },
     reset() {
       this.session += 1;
       this.stopStream();
@@ -245,6 +279,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.lastActivePhase = null;
       this.snapshotRetryCount = 0;
       this.events = [];
+      this.failureDiagnostic = null;
+      this.failureDiagnosticLoading = false;
+      this.failureDiagnosticError = false;
       this.latestEventRevision = 0;
       this.recoveringActiveOperation = false;
       this.phase = 'idle';

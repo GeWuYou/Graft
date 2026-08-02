@@ -74,6 +74,7 @@ var (
 	errRolloutComposePreflightFailed   = errors.New("compose update preflight failed")
 	errRunnerStateUnavailable          = errors.New("runner state is unavailable")
 	errActiveUpdateOperationNotFound   = errors.New("active update operation not found")
+	errRecoveryConflict                = errors.New("runner recovery precondition is not met")
 )
 
 // SetAuditPublisher 注入 durable 审计事件发布端和失败日志器；Update 只发布领域证据，审计事实仍由 Audit 模块拥有。
@@ -202,6 +203,9 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 		state, err := s.stateStore.Read()
 		switch {
 		case err == nil && state.OperationID == operationID:
+			if view, terminated := s.runnerTerminationView(ctx, state); terminated {
+				return view, nil
+			}
 			return updateOperationViewFromRunnerState(state), nil
 		case err != nil && !errors.Is(err, os.ErrNotExist):
 			if s.logger != nil {
@@ -223,6 +227,40 @@ func (s *RolloutService) GetOperation(ctx context.Context, operationID string) (
 	return updateOperationViewFromHistory(operation), nil
 }
 
+// runnerTerminationView 投影保留 runner 的退出证据，但不改写 runner 所有的生命周期状态。
+//
+//nolint:cyclop,gocognit,gocyclo // Docker 证据、持久操作和受控诊断分别属于独立的不可降级安全门。
+func (s *RolloutService) runnerTerminationView(ctx context.Context, state RunnerState) (OperationView, bool) {
+	reader, ok := s.launcher.(ComposeRunnerFailureReader)
+	if !ok || s.operations == nil {
+		return OperationView{}, false
+	}
+	failures, err := reader.ReadRunnerFailures(ctx)
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warn("platform update runner failure inspection deferred", zap.Error(err))
+		}
+		return OperationView{}, false
+	}
+	for _, evidence := range failures {
+		if evidence.OperationID != state.OperationID || (evidence.RunnerID != "" && evidence.RunnerID != state.RunnerID) {
+			continue
+		}
+		operation, getErr := s.operations.Get(ctx, state.OperationID)
+		if getErr != nil || isTerminalOutcome(operation.Outcome) {
+			return OperationView{}, false
+		}
+		if s.diagnostics != nil && operation.RequestID != "" && operation.RequestedBy != 0 {
+			diagnostic := runnerTerminatedFailureDiagnostic(operation, evidence)
+			if createErr := s.diagnostics.CreateFailureDiagnostic(ctx, diagnostic, operation.RequestedBy); createErr != nil && s.logger != nil {
+				s.logger.Error("persist terminated platform update runner diagnostic failed", zap.String("module", moduleID), zap.String("operation_id", state.OperationID), zap.Error(createErr))
+			}
+		}
+		return updateOperationViewFromTerminatedRunner(state), true
+	}
+	return OperationView{}, false
+}
+
 // GetActiveOperation 返回 runner 当前接管的操作；缺失状态卷时保留受控不可用投影，不能伪造 READY 进度。
 //
 //nolint:cyclop // runner 快照优先，状态缺失时才回退到受限数据库请求记录，分支对应不同事实来源。
@@ -234,6 +272,9 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 		state, err := s.stateStore.Read()
 		switch {
 		case err == nil && !isTerminalRunnerPhase(state.Phase):
+			if view, terminated := s.runnerTerminationView(ctx, state); terminated {
+				return &view, nil
+			}
 			view := updateOperationViewFromRunnerState(state)
 			return &view, nil
 		case err != nil && !errors.Is(err, os.ErrNotExist):
@@ -254,6 +295,74 @@ func (s *RolloutService) GetActiveOperation(ctx context.Context) (*OperationView
 		}
 	}
 	return nil, errActiveUpdateOperationNotFound
+}
+
+// Recover 只在已验证 runner 异常退出且尚未迁移时，启动一次性终态恢复 runner。
+// 它不执行 Compose 操作，也不由 server 伪造或改写 runner 生命周期快照。
+//
+//nolint:cyclop,gocognit,gocyclo // 状态、operation、退出证据和一次性 launcher 的绑定必须按序 fail closed。
+func (s *RolloutService) Recover(ctx context.Context, operationID string) (ComposeUpdateOperation, error) {
+	if s == nil || !runnerOperationID.MatchString(operationID) || s.stateStore == nil || s.operations == nil {
+		return ComposeUpdateOperation{}, errors.New("update operation recovery is unavailable")
+	}
+	recoveryLauncher, ok := s.launcher.(ComposeRunnerRecoveryLauncher)
+	if !ok {
+		return ComposeUpdateOperation{}, errors.New("update operation recovery launcher is unavailable")
+	}
+	s.startMu.Lock()
+	defer s.startMu.Unlock()
+	state, err := s.stateStore.Read()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ComposeUpdateOperation{}, errUpdateOperationNotFound
+		}
+		return ComposeUpdateOperation{}, fmt.Errorf("%w: %v", errRunnerStateUnavailable, err)
+	}
+	if state.OperationID != operationID || isTerminalRunnerPhase(state.Phase) || phaseOrdinal(state.Phase) >= phaseOrdinal(RunnerPhaseMigration) {
+		return ComposeUpdateOperation{}, errRecoveryConflict
+	}
+	operation, err := s.operations.Get(ctx, operationID)
+	if err != nil {
+		return ComposeUpdateOperation{}, err
+	}
+	if isTerminalOutcome(operation.Outcome) || operation.RunnerID != state.RunnerID {
+		return ComposeUpdateOperation{}, errRecoveryConflict
+	}
+	failureReader, ok := s.launcher.(ComposeRunnerFailureReader)
+	if !ok {
+		return ComposeUpdateOperation{}, errors.New("update operation failure reader is unavailable")
+	}
+	failures, err := failureReader.ReadRunnerFailures(ctx)
+	if err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("inspect terminated compose runner: %w", err)
+	}
+	matched := false
+	for _, evidence := range failures {
+		if evidence.OperationID == operationID && evidence.RunnerID == state.RunnerID {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return ComposeUpdateOperation{}, errRecoveryConflict
+	}
+	recoveryImage, err := s.recoveryRunnerImage()
+	if err != nil {
+		return ComposeUpdateOperation{}, err
+	}
+	if err := recoveryLauncher.LaunchRecovery(ctx, state, recoveryImage); err != nil {
+		return ComposeUpdateOperation{}, fmt.Errorf("launch terminated compose runner recovery: %w", err)
+	}
+	return operation, nil
+}
+
+func (s *RolloutService) recoveryRunnerImage() (string, error) {
+	image := strings.TrimSpace(os.Getenv("GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE"))
+	const officialRecoveryRunnerPrefix = "ghcr.io/gewuyou/graft-compose-runner@sha256:"
+	if !strings.HasPrefix(image, officialRecoveryRunnerPrefix) || !validDigest(strings.TrimPrefix(image, "ghcr.io/gewuyou/graft-compose-runner@")) {
+		return "", errors.New("a digest-pinned recovery runner image is required")
+	}
+	return image, nil
 }
 
 // GetOperationEvents 返回 runner 状态卷中按 revision 回放的受控节点日志。

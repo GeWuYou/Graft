@@ -1,5 +1,5 @@
 type: object
-description: "Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses."
+description: "Immutable, sanitized diagnostic evidence for a failed self-update request or a runner that exited before publishing a terminal snapshot. It is never embedded in normal update-start error responses."
 required: [request_id, target_version, failure_code, failure_stage, summary, detail, occurred_at]
 properties:
   request_id: { type: string, description: "Request identifier that correlates this diagnostic with application and access logs." }

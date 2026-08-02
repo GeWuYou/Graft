@@ -108,4 +108,32 @@ describe('UpdateProgressDialog', () => {
     );
     expect(wrapper.text()).toContain('update.center.progress.sourceUnavailable');
   });
+
+  it('shows the protected runner-termination diagnostic without presenting READY progress', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({
+      operation: {
+        operation_id: 'update-1',
+        phase: 'READY',
+        progress: 0,
+        state_source: 'runner_terminated',
+        state_available: false,
+      } as never,
+      phase: 'failed',
+      failureDiagnostic: {
+        summary: 'Runner stopped before the upgrade could continue.',
+        detail: 'The runner could not persist its terminal state.',
+      } as never,
+    });
+    const wrapper = mountDialog();
+
+    expect(wrapper.find('[data-testid="update-progress-overall"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('update.center.history.phases.READY');
+    expect(wrapper.get('[data-testid="update-progress-diagnostic-summary"]').text()).toContain(
+      'Runner stopped before the upgrade could continue.',
+    );
+    expect(wrapper.get('[data-testid="update-progress-diagnostic-detail"]').text()).toContain(
+      'The runner could not persist its terminal state.',
+    );
+  });
 });

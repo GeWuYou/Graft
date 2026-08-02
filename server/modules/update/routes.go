@@ -56,6 +56,7 @@ func registerRoutes(ctx *module.Context, service *Service, rollout *RolloutServi
 	group.GET(updatecontract.UpdateOperationEventsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.getEvents)
 	group.GET(updatecontract.UpdateOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.get)
 	group.POST(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.start)
+	group.POST(updatecontract.UpdateOperationRecoveryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.recover)
 	return nil
 }
 
@@ -237,6 +238,32 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	})
 	if err != nil {
 		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusAccepted, OperationLaunchAcknowledgement{OperationID: operation.OperationID, RunnerID: operation.RunnerID})
+}
+
+func (h updateRouteHandlers) recover(c *gin.Context) {
+	operationID := c.Param("operationID")
+	if !runnerOperationID.MatchString(operationID) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	operation, err := h.rollout.Recover(c.Request.Context(), operationID)
+	if errors.Is(err, errUpdateOperationNotFound) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusNotFound, messagecontract.CommonNotFound.String(), nil)
+		return
+	}
+	if errors.Is(err, errRunnerStateUnavailable) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusServiceUnavailable, messagecontract.CommonInternalError.String(), nil)
+		return
+	}
+	if errors.Is(err, errRecoveryConflict) {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	if err != nil {
+		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusAccepted, OperationLaunchAcknowledgement{OperationID: operation.OperationID, RunnerID: operation.RunnerID})

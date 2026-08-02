@@ -2,7 +2,7 @@ get:
   tags: [platform-update]
   summary: Read controlled failure diagnostics for a self-update operation
   operationId: getPlatformUpdateOperationFailureDiagnostic
-  description: Returns immutable, sanitized diagnostics for a terminal runner failure. Raw runner logs and deployment secrets are never returned.
+  description: Returns immutable, sanitized diagnostics for a runner failure or a runner that exited before publishing a terminal snapshot. Raw runner logs and deployment secrets are never returned.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml

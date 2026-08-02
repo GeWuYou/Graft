@@ -125,7 +125,10 @@ function collectInventory(rootDir: string, srcDir: string): InventoryItem[] {
       const allowlistEntry = resolveAllowlist(rel, selector);
       const isSharedScrollbarUtility =
         rel === 'src/style/scrollbar.less' &&
-        (selector === '.graft-scrollbar' || selector.includes('.graft-scrollbar::-webkit-scrollbar'));
+        (selector === '.graft-scrollbar' ||
+          selector.startsWith('.graft-scrollbar ') ||
+          selector.startsWith('.graft-scrollbar::') ||
+          selector.startsWith('.graft-scrollbar-tabs '));
 
       inventory.push({
         file: rel,

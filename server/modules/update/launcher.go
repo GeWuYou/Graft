@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -36,6 +37,16 @@ type ComposeRunnerProgressReader interface {
 	ReadRunnerProgress(context.Context) ([]RunnerOperationProgress, error)
 }
 
+// ComposeRunnerFailureReader 读取未能发布终态快照即退出的保留 runner 的受控失败证据。
+type ComposeRunnerFailureReader interface {
+	ReadRunnerFailures(context.Context) ([]RunnerFailureEvidence, error)
+}
+
+// ComposeRunnerRecoveryLauncher 启动仅能写入已验证终态的恢复 runner。
+type ComposeRunnerRecoveryLauncher interface {
+	LaunchRecovery(context.Context, RunnerState, string) error
+}
+
 // ComposeRunnerReceiptCleanup 按稳定 operation ID 清理已成功结算的 runner 容器。
 type ComposeRunnerReceiptCleanup interface {
 	RemoveRunner(context.Context, string) error
@@ -57,6 +68,9 @@ type dockerRunnerClient interface {
 // RunnerReceiptLogMarker 是 runner 回执日志使用的稳定协议标记，写入与读取必须共用这一 authority。
 const RunnerReceiptLogMarker = "GRAFT_UPDATE_RECEIPT:"
 
+// RunnerFailureLogMarker 将早期 runner 失败绑定到操作，且不暴露 runner 原始输出。
+const RunnerFailureLogMarker = "GRAFT_UPDATE_FAILURE:"
+
 // RunnerProgressLogMarker 是 runner 阶段日志使用的稳定标记；标记后仅允许固定枚举值。
 const RunnerProgressLogMarker = "GRAFT_UPDATE_STAGE:"
 
@@ -64,6 +78,15 @@ const RunnerProgressLogMarker = "GRAFT_UPDATE_STAGE:"
 type RunnerOperationProgress struct {
 	OperationID string
 	Progress    RunnerProgress
+}
+
+// RunnerFailureEvidence 是 runner 无法持久化终态快照时输出的受控诊断标记。
+type RunnerFailureEvidence struct {
+	ProtocolVersion int    `json:"protocol_version"`
+	OperationID     string `json:"operation_id"`
+	RunnerID        string `json:"runner_id"`
+	FailureCode     string `json:"failure_code"`
+	FailureStage    string `json:"failure_stage"`
 }
 
 func parseRunnerProgressLog(line string) (RunnerProgress, bool) {
@@ -91,6 +114,26 @@ func parseRunnerReceiptLog(line string) (RunnerReceipt, bool) {
 		return RunnerReceipt{}, false
 	}
 	return receipt, true
+}
+
+func parseRunnerFailureLog(line string) (RunnerFailureEvidence, bool) {
+	value := strings.TrimSpace(line)
+	if !strings.HasPrefix(value, RunnerFailureLogMarker) {
+		return RunnerFailureEvidence{}, false
+	}
+	contents, err := base64.RawStdEncoding.DecodeString(strings.TrimSpace(strings.TrimPrefix(value, RunnerFailureLogMarker)))
+	if err != nil {
+		return RunnerFailureEvidence{}, false
+	}
+	var evidence RunnerFailureEvidence
+	if err := json.Unmarshal(contents, &evidence); err != nil || !supportedRunnerProtocolVersion(evidence.ProtocolVersion) || !runnerOperationID.MatchString(evidence.OperationID) || !runnerOperationID.MatchString(evidence.RunnerID) || !validRunnerFailureEvidence(evidence) {
+		return RunnerFailureEvidence{}, false
+	}
+	return evidence, true
+}
+
+func validRunnerFailureEvidence(value RunnerFailureEvidence) bool {
+	return value.FailureCode == "runner_state_write_failed" && (value.FailureStage == "permission_denied" || value.FailureStage == "io_failed")
 }
 
 // Close 释放 Docker API client 持有的连接。
@@ -153,6 +196,47 @@ func (l *dockerComposeRunnerLauncher) Launch(ctx context.Context, input RunnerIn
 	return nil
 }
 
+// LaunchRecovery 从原 runner 的 digest-pinned image 启动仅挂载状态卷的恢复容器。
+//
+//nolint:cyclop // 镜像、状态卷和 Docker 创建的每个失败边界都必须显式保留。
+func (l *dockerComposeRunnerLauncher) LaunchRecovery(ctx context.Context, state RunnerState, recoveryImage string) error {
+	if l == nil || l.client == nil || validateRunnerState(state) != nil || isTerminalRunnerPhase(state.Phase) || !strings.Contains(recoveryImage, "@sha256:") {
+		return errors.New("compose runner recovery launcher is unavailable")
+	}
+	pulled, err := l.client.ImagePull(ctx, recoveryImage, mobyclient.ImagePullOptions{})
+	if err != nil {
+		return fmt.Errorf("pull digest-pinned compose runner recovery: %w", err)
+	}
+	if _, err := io.Copy(io.Discard, pulled); err != nil {
+		_ = pulled.Close()
+		return fmt.Errorf("read compose runner recovery pull result: %w", err)
+	}
+	if err := pulled.Close(); err != nil {
+		return fmt.Errorf("close compose runner recovery pull result: %w", err)
+	}
+	encoded, err := encodeRunnerRecoveryState(state)
+	if err != nil {
+		return err
+	}
+	stateVolume, err := runnerStateVolumeName()
+	if err != nil {
+		return fmt.Errorf("validate compose runner state volume: %w", err)
+	}
+	configuration, host := composeRunnerRecoveryContainerConfig(state, recoveryImage, encoded, stateVolume)
+	options := mobyclient.ContainerCreateOptions{Config: &configuration, HostConfig: &host, NetworkingConfig: &network.NetworkingConfig{}, Name: composeRunnerRecoveryContainerName(state.OperationID)}
+	created, err := l.client.ContainerCreate(ctx, options)
+	if err != nil {
+		return fmt.Errorf("create compose runner recovery: %w", err)
+	}
+	if _, err := l.client.ContainerStart(ctx, created.ID, mobyclient.ContainerStartOptions{}); err != nil {
+		if cleanupErr := l.removeUnstartedRunner(ctx, created.ID); cleanupErr != nil {
+			return fmt.Errorf("start compose runner recovery: %w; clean up recovery runner: %v", err, cleanupErr)
+		}
+		return fmt.Errorf("start compose runner recovery: %w", err)
+	}
+	return nil
+}
+
 func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context, id string) error {
 	inspected, err := l.client.ContainerInspect(ctx, id, mobyclient.ContainerInspectOptions{})
 	if err != nil {
@@ -169,6 +253,10 @@ func (l *dockerComposeRunnerLauncher) removeUnstartedRunner(ctx context.Context,
 }
 
 func composeRunnerContainerName(operationID string) string { return "graft-update-" + operationID }
+
+func composeRunnerRecoveryContainerName(operationID string) string {
+	return "graft-update-recovery-" + operationID
+}
 
 //nolint:cyclop // 读取与解码分别对应 Docker 日志和回执协议的失败边界。
 func (l *dockerComposeRunnerLauncher) ReadRunnerReceipts(ctx context.Context) ([]RunnerReceipt, error) {
@@ -230,26 +318,73 @@ func (l *dockerComposeRunnerLauncher) ReadRunnerProgress(ctx context.Context) ([
 	return progresses, nil
 }
 
+// ReadRunnerFailures 仅从非零退出的保留 runner 读取受控失败证据。
+//
+//nolint:cyclop,gocognit,gocyclo // 容器、退出状态、日志协议和 identity 的独立校验均为信任边界。
+func (l *dockerComposeRunnerLauncher) ReadRunnerFailures(ctx context.Context) ([]RunnerFailureEvidence, error) {
+	if l == nil || l.client == nil {
+		return nil, errors.New("compose runner failure reader is unavailable")
+	}
+	filters := make(mobyclient.Filters).Add("label", "io.graft.update.protocol="+runnerProtocol).Add("label", "io.graft.update.protocol="+legacyRunnerProtocol)
+	result, err := l.client.ContainerList(ctx, mobyclient.ContainerListOptions{All: true, Filters: filters})
+	if err != nil {
+		return nil, fmt.Errorf("list retained compose runners: %w", err)
+	}
+	failures := make([]RunnerFailureEvidence, 0, len(result.Items))
+	for _, item := range result.Items {
+		operationID := item.Labels["io.graft.update.operation"]
+		if !runnerOperationID.MatchString(operationID) || !supportedRunnerProtocol(item.Labels["io.graft.update.protocol"]) {
+			continue
+		}
+		inspected, inspectErr := l.client.ContainerInspect(ctx, item.ID, mobyclient.ContainerInspectOptions{})
+		if inspectErr != nil {
+			return nil, fmt.Errorf("inspect retained compose runner: %w", inspectErr)
+		}
+		if inspected.Container.State == nil || inspected.Container.State.Running || inspected.Container.State.ExitCode == 0 {
+			continue
+		}
+		evidence := RunnerFailureEvidence{OperationID: operationID, FailureCode: "runner_exited", FailureStage: "unknown"}
+		logs, logErr := l.readContainerLogs(ctx, item.ID)
+		if logErr != nil {
+			return nil, logErr
+		}
+		for _, line := range strings.Split(logs, "\n") {
+			if parsed, ok := parseRunnerFailureLog(line); ok && parsed.OperationID == operationID && runnerProtocolMatchesVersion(item.Labels["io.graft.update.protocol"], parsed.ProtocolVersion) {
+				evidence = parsed
+			}
+		}
+		failures = append(failures, evidence)
+	}
+	return failures, nil
+}
+
 func (l *dockerComposeRunnerLauncher) readContainerProgress(ctx context.Context, item containertypes.Summary) (RunnerOperationProgress, bool, error) {
 	operationID := item.Labels["io.graft.update.operation"]
 	if !runnerOperationID.MatchString(operationID) {
 		return RunnerOperationProgress{}, false, nil
 	}
-	logs, err := l.client.ContainerLogs(ctx, item.ID, mobyclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	logs, err := l.readContainerLogs(ctx, item.ID)
 	if err != nil {
-		return RunnerOperationProgress{}, false, fmt.Errorf("read retained compose runner logs: %w", err)
+		return RunnerOperationProgress{}, false, err
 	}
-	var stdout, stderr bytes.Buffer
-	if _, err := stdcopy.StdCopy(&stdout, &stderr, logs); err != nil {
-		_ = logs.Close()
-		return RunnerOperationProgress{}, false, fmt.Errorf("decode retained compose runner logs: %w", err)
-	}
-	_ = logs.Close()
-	progress, ok := latestRunnerProgress(stdout.String() + "\n" + stderr.String())
+	progress, ok := latestRunnerProgress(logs)
 	if !ok {
 		return RunnerOperationProgress{}, false, nil
 	}
 	return RunnerOperationProgress{OperationID: operationID, Progress: progress}, true, nil
+}
+
+func (l *dockerComposeRunnerLauncher) readContainerLogs(ctx context.Context, id string) (string, error) {
+	logs, err := l.client.ContainerLogs(ctx, id, mobyclient.ContainerLogsOptions{ShowStdout: true, ShowStderr: true})
+	if err != nil {
+		return "", fmt.Errorf("read retained compose runner logs: %w", err)
+	}
+	defer func() { _ = logs.Close() }()
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, logs); err != nil {
+		return "", fmt.Errorf("decode retained compose runner logs: %w", err)
+	}
+	return stdout.String() + "\n" + stderr.String(), nil
 }
 
 func latestRunnerProgress(logs string) (RunnerProgress, bool) {
@@ -308,6 +443,14 @@ func encodeRunnerInput(input RunnerInput) (string, error) {
 	return base64.RawStdEncoding.EncodeToString(contents), nil
 }
 
+func encodeRunnerRecoveryState(state RunnerState) (string, error) {
+	contents, err := json.Marshal(state)
+	if err != nil {
+		return "", fmt.Errorf("encode compose runner recovery state: %w", err)
+	}
+	return base64.RawStdEncoding.EncodeToString(contents), nil
+}
+
 func composeRunnerContainerConfig(input RunnerInput, inputPath, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
 	root := input.Preflight.ComposeRoot
 	socket := input.Preflight.DockerSocket
@@ -317,10 +460,22 @@ func composeRunnerContainerConfig(input RunnerInput, inputPath, stateVolume stri
 			groups = append(groups, strconv.FormatUint(uint64(details.Gid), 10))
 		}
 	}
+	stateGroup := strconv.Itoa(runnerStateServerGID)
+	if !slices.Contains(groups, stateGroup) {
+		groups = append(groups, stateGroup)
+	}
 	return containertypes.Config{Image: input.Preflight.RunnerReference, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_INPUT_B64=" + inputPath}, Labels: map[string]string{
 		"io.graft.update.operation": input.OperationID,
 		"io.graft.update.protocol":  runnerProtocol,
 	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{root + ":" + root + ":rw", socket + ":" + socket + ":rw", stateVolume + ":" + RunnerStateRoot + ":rw"}, GroupAdd: groups, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN"}, SecurityOpt: []string{"no-new-privileges:true"}}
+}
+
+func composeRunnerRecoveryContainerConfig(state RunnerState, image, encodedState, stateVolume string) (containertypes.Config, containertypes.HostConfig) {
+	return containertypes.Config{Image: image, User: "0:0", Env: []string{"GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=" + encodedState}, Labels: map[string]string{
+		"io.graft.update.operation": state.OperationID,
+		"io.graft.update.protocol":  runnerProtocol,
+		"io.graft.update.recovery":  "true",
+	}}, containertypes.HostConfig{AutoRemove: false, Binds: []string{stateVolume + ":" + RunnerStateRoot + ":rw"}, NetworkMode: "none", ReadonlyRootfs: true, CapDrop: []string{"ALL"}, CapAdd: []string{"CHOWN", "DAC_OVERRIDE"}, SecurityOpt: []string{"no-new-privileges:true"}}
 }
 
 func runnerStateVolumeName() (string, error) {
