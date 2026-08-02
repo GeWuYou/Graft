@@ -14297,7 +14297,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Runner state source is temporarily unavailable. */
+      /** @description Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable. */
       503: {
         headers: {
           [name: string]: unknown;
