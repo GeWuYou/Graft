@@ -55,12 +55,44 @@ describe('Docker network management page', () => {
   it('uses responsive breakpoints to reduce tablet columns and move mobile actions into a consistent card action bar', () => {
     expect(sourceText).toContain('useViewportResponsiveVariant()');
     expect(sourceText).toContain("comfortable: ['name', 'context', 'status', 'operation']");
-    expect(sourceText).toContain('advancedFiltersDrawerVisible');
-    expect(sourceText).toContain('placement="bottom"');
+    expect(sourceText).toContain("resource: 'docker-network.list'");
+    expect(sourceText).toContain('#toolbar-actions');
+    expect(sourceText).toContain('<saved-query-view-control :controller="savedViews" />');
     expect(sourceText).toContain('networkActionOptions');
     expect(sourceText).toContain('<docker-resource-card-actions');
     expect(sourceText).toContain("danger: true, label: t('container.networks.remove')");
     expect(sourceText).toContain("t('container.networks.removeRisk')");
+  });
+
+  it('uses ResourceQueryPanel as the only list filter surface', () => {
+    expect(sourceText).toContain('<resource-query-panel');
+    expect(sourceText).toContain(':config="queryConfig"');
+    expect(sourceText).toContain('v-model="resourceQueryState"');
+    expect(sourceText).toContain('filterBuilder: { enabled: true }');
+    expect(sourceText).toContain('filters: [');
+    expect(sourceText).toContain('getDockerResourceSourceLabel(t, value as DockerResourceSource)');
+    expect(sourceText).not.toContain('<management-toolbar');
+    expect(sourceText).not.toContain('<docker-resource-context-filters');
+    expect(sourceText).not.toContain('advancedFiltersVisible');
+    expect(sourceText).not.toContain('advancedFiltersDrawerVisible');
+    expect(sourceText).not.toContain('simple-filters');
+    expect(sourceText).not.toContain('toolbar-after-search');
+  });
+
+  it('maps shared query state back to the network list query', () => {
+    expect(sourceText).toContain('const resourceQueryState = computed<ResourceQueryState>');
+    expect(sourceText).toContain('filters: { ...draftFilters }');
+    expect(sourceText).toContain('resourceQueryState.value = value');
+    expect(sourceText).toContain('applyFilters();');
+    expect(sourceText).toContain('source: appliedFilters.value.source || undefined');
+    expect(sourceText).toContain('compose_project: appliedFilters.value.compose_project || undefined');
+  });
+
+  it('shows localized feedback when saved-view operations fail', () => {
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.networks.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('`${operation}: ${String(error)}`');
   });
 
   it('uses the shared cleanup snapshot for removable unused networks', () => {
@@ -101,7 +133,7 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('<t-collapse');
     expect(sourceText).toContain('<container-danger-zone');
     expect(sourceText).toContain(':description="t(\'container.networks.removeRisk\')"');
-    expect(sourceText).toContain('advancedFiltersVisible');
+    expect(sourceText).toContain("resource: 'docker-network.list'");
   });
 
   it('keeps network detail loading, error, empty, and data states mutually exclusive', () => {

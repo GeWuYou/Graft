@@ -1549,6 +1549,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/updates/active-operation': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read the active self-update operation
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. A 503 is reserved for a runner-state source that cannot be read.
+     */
+    get: operations['getPlatformUpdateActiveOperation'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/platform/updates/diagnostics/{requestId}': {
     parameters: {
       query?: never;
@@ -1578,6 +1598,26 @@ export interface paths {
     };
     /** Read a self-update operation */
     get: operations['getPlatformUpdateOperation'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/updates/operations/{operationID}/events': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Replay self-update node events
+     * @description Replays validated, operation-scoped runner node events after the requested revision. Records contain only allowlisted phase and message codes, never command output, host paths, credentials, or backup locations.
+     */
+    get: operations['getPlatformUpdateOperationEvents'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2206,6 +2246,42 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/containers/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private container-list saved views */
+    get: operations['getContainerSavedViews'];
+    put?: never;
+    /** Create a private container-list saved view */
+    post: operations['postContainerSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/containers/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private container-list saved view */
+    put: operations['putContainerSavedView'];
+    post?: never;
+    /** Delete a private container-list saved view */
+    delete: operations['deleteContainerSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/containers/dashboard-summary': {
     parameters: {
       query?: never;
@@ -2486,6 +2562,42 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/docker/images/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private Docker image-list saved views */
+    get: operations['getDockerImageSavedViews'];
+    put?: never;
+    /** Create a private Docker image-list saved view */
+    post: operations['postDockerImageSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/docker/images/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private Docker image-list saved view */
+    put: operations['putDockerImageSavedView'];
+    post?: never;
+    /** Delete a private Docker image-list saved view */
+    delete: operations['deleteDockerImageSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/images/pull': {
     parameters: {
       query?: never;
@@ -2612,6 +2724,42 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/ops/docker/networks/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private Docker network-list saved views */
+    get: operations['getDockerNetworkSavedViews'];
+    put?: never;
+    /** Create a private Docker network-list saved view */
+    post: operations['postDockerNetworkSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/networks/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private Docker network-list saved view */
+    put: operations['putDockerNetworkSavedView'];
+    post?: never;
+    /** Delete a private Docker network-list saved view */
+    delete: operations['deleteDockerNetworkSavedView'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/ops/docker/networks/{id}': {
     parameters: {
       query?: never;
@@ -2642,6 +2790,42 @@ export interface paths {
     put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/volumes/saved-views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List private Docker volume-list saved views */
+    get: operations['getDockerVolumeSavedViews'];
+    put?: never;
+    /** Create a private Docker volume-list saved view */
+    post: operations['postDockerVolumeSavedView'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/ops/docker/volumes/saved-views/{viewId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Update a private Docker volume-list saved view */
+    put: operations['putDockerVolumeSavedView'];
+    post?: never;
+    /** Delete a private Docker volume-list saved view */
+    delete: operations['deleteDockerVolumeSavedView'];
     options?: never;
     head?: never;
     patch?: never;
@@ -3824,10 +4008,14 @@ export interface components {
     EnvelopedPlatformUpdateStatus: components['schemas']['enveloped-platform-update-status'];
     PlatformUpdateOperation: components['schemas']['platform-update-operation'];
     PlatformUpdateOperationList: components['schemas']['platform-update-operation-list'];
+    PlatformUpdateOperationEvent: components['schemas']['platform-update-operation-event'];
+    PlatformUpdateOperationEventList: components['schemas']['platform-update-operation-event-list'];
     CreatePlatformUpdateOperationRequest: components['schemas']['create-platform-update-operation-request'];
     EnvelopedPlatformUpdateOperation: components['schemas']['enveloped-platform-update-operation'];
+    EnvelopedPlatformUpdateActiveOperation: components['schemas']['enveloped-platform-update-active-operation'];
     EnvelopedPlatformUpdateOperationLaunchAcknowledgement: components['schemas']['enveloped-platform-update-operation-launch-acknowledgement'];
     EnvelopedPlatformUpdateOperationList: components['schemas']['enveloped-platform-update-operation-list'];
+    EnvelopedPlatformUpdateOperationEventList: components['schemas']['enveloped-platform-update-operation-event-list'];
     PlatformUpdateFailureDiagnostic: components['schemas']['platform-update-failure-diagnostic'];
     EnvelopedPlatformUpdateFailureDiagnostic: components['schemas']['enveloped-platform-update-failure-diagnostic'];
     AccessLogDetailResponse: components['schemas']['access-log-detail-response'];
@@ -6449,6 +6637,13 @@ export interface components {
       progress: number;
       /** @description Controlled runner message key; never raw command output or deployment secrets. */
       message: string;
+      /**
+       * @description Authority that produced this projection; runner_state_unavailable never represents live runner progress.
+       * @enum {string}
+       */
+      state_source: 'runner_state' | 'terminal_history' | 'runner_state_unavailable';
+      /** @description Whether runner lifecycle state was available to verify this projection. */
+      state_available: boolean;
       /** @description Controlled runner failure code; never raw command output or deployment secrets. */
       error?: string;
       /** @description Whether a manager may retrieve controlled failure diagnostics for this operation. */
@@ -6518,6 +6713,13 @@ export interface components {
       traceId: string;
       data: components['schemas']['platform-update-rollout-failure-data'];
     };
+    'enveloped-platform-update-active-operation': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-operation'] | null;
+    };
     /** @description Immutable, sanitized diagnostic evidence for a failed self-update start request. It is never embedded in normal update-start error responses. */
     'platform-update-failure-diagnostic': {
       /** @description Request identifier that correlates this diagnostic with application and access logs. */
@@ -6557,6 +6759,37 @@ export interface components {
       message: string;
       traceId: string;
       data: components['schemas']['platform-update-operation'];
+    };
+    'platform-update-operation-event': {
+      operation_id: string;
+      /** Format: int64 */
+      revision: number;
+      /** @enum {string} */
+      phase:
+        | 'READY'
+        | 'PREFLIGHT'
+        | 'BACKUP'
+        | 'PULL_IMAGES'
+        | 'STOP_SERVICES'
+        | 'APPLY_UPDATE'
+        | 'MIGRATION'
+        | 'START_SERVICES'
+        | 'HEALTH_CHECK'
+        | 'SUCCESS'
+        | 'FAILED'
+        | 'ROLLBACK';
+      /** @description Allowlisted runner node message key; never raw command output or deployment secrets. */
+      message: string;
+      /** Format: date-time */
+      occurred_at: string;
+    };
+    'platform-update-operation-event-list': components['schemas']['platform-update-operation-event'][];
+    'enveloped-platform-update-operation-event-list': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-update-operation-event-list'];
     };
     /** @description Safe Backup history projection. Artifact locations, configuration snapshots, dumps, commands, and secrets are never returned. */
     'platform-backup-summary': {
@@ -13779,6 +14012,43 @@ export interface operations {
       };
     };
   };
+  getPlatformUpdateActiveOperation: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current active update operation, an explicit unavailable-state projection, or null when no unfinished operation exists. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-active-operation'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Runner state source is temporarily unavailable. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getPlatformUpdateFailureDiagnostic: {
     parameters: {
       query?: never;
@@ -13872,6 +14142,61 @@ export interface operations {
       403: components['responses']['forbidden'];
       /** @description Update operation not found. */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getPlatformUpdateOperationEvents: {
+    parameters: {
+      query?: {
+        after_revision?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        operationID: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Ordered operation node events after the supplied cursor. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-update-operation-event-list'];
+        };
+      };
+      /** @description Invalid operation identity or revision cursor. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Update operation not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Runner state source is temporarily unavailable. */
+      503: {
         headers: {
           [name: string]: unknown;
         };
@@ -15763,6 +16088,180 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getContainerSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's container-list views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postContainerSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putContainerSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteContainerSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getContainerDashboardSummary: {
     parameters: {
       query?: never;
@@ -16601,6 +17100,180 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getDockerImageSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's Docker image-list views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postDockerImageSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putDockerImageSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteDockerImageSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   postDockerImagePull: {
     parameters: {
       query?: never;
@@ -16968,6 +17641,180 @@ export interface operations {
       500: components['responses']['internal-server-error'];
     };
   };
+  getDockerNetworkSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's Docker network-list views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postDockerNetworkSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putDockerNetworkSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteDockerNetworkSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   getDockerNetwork: {
     parameters: {
       query?: never;
@@ -17125,6 +17972,180 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getDockerVolumeSavedViews: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current user's Docker volume-list views. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view-list-response'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postDockerVolumeSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  putDockerVolumeSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['saved-view-request'];
+      };
+    };
+    responses: {
+      /** @description Saved view updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-saved-view'];
+        };
+      };
+      /** @description Invalid saved-view state. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Duplicate saved-view name. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  deleteDockerVolumeSavedView: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        /** @description Private saved-view identifier. */
+        viewId: components['parameters']['saved-view-id'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Saved view deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Saved view was not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   postDockerVolumeBatchRemove: {

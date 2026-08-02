@@ -195,9 +195,11 @@
         },
         "messages": {
           "runner_accepted": "Update accepted",
+          "runner_starting": "Starting update runner",
           "checking_environment": "Checking environment",
           "creating_backup": "Creating backup",
           "pulling_images": "Pulling images",
+          "verifying_images": "Verifying images",
           "stopping_services": "Stopping services",
           "applying_update": "Applying update",
           "running_migrations": "Running migrations",
@@ -218,7 +220,8 @@
           "running": "The upgrade is in progress. Keep this page open.",
           "reconnecting": "The service is being recreated. Reconnecting to the upgrade status...",
           "success": "Upgrade complete. Refreshing the application...",
-          "failed": "The upgrade did not complete. Review the sanitized cause."
+          "failed": "The upgrade did not complete. Review the sanitized cause.",
+          "unavailable": "The upgrade state is temporarily unavailable. Review the recorded stages and try again later."
         },
         "steps": {
           "ready": "Ready",
@@ -232,6 +235,8 @@
         },
         "currentStage": "Current stage",
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",
+        "sourceUnavailable": "The platform cannot currently read the update runner state. Received stage records remain available here.",
+        "events": { "title": "Upgrade stages", "recorded": "Recorded upgrade stage" },
         "viewAppLogs": "View application logs",
         "close": "Close"
       },

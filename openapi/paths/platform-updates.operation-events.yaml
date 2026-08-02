@@ -1,0 +1,27 @@
+get:
+  tags: [platform-update]
+  summary: Replay self-update node events
+  operationId: getPlatformUpdateOperationEvents
+  description: Replays validated, operation-scoped runner node events after the requested revision. Records contain only allowlisted phase and message codes, never command output, host paths, credentials, or backup locations.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: operationID
+      in: path
+      required: true
+      schema: { type: string, maxLength: 128 }
+    - name: after_revision
+      in: query
+      schema: { type: integer, format: int64, minimum: 0, default: 0 }
+  responses:
+    '200':
+      description: Ordered operation node events after the supplied cursor.
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-update-operation-event-list.yaml }
+    '400': { description: Invalid operation identity or revision cursor. }
+    '404': { description: Update operation not found. }
+    '503': { description: Runner state source is temporarily unavailable. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

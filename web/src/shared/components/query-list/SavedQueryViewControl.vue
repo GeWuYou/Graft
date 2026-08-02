@@ -11,6 +11,7 @@
         :filter="() => true"
         :loading="controller.loading.value"
         :placeholder="t('app.savedQueryViews.placeholder')"
+        size="medium"
         :input-value="viewSearchText"
         @update:input-value="viewSearchText = normalizeSearchValue($event)"
         @update:model-value="selectView"
@@ -18,28 +19,34 @@
         <t-option v-for="view in displayedViews" :key="view.id" :value="view.id" :label="view.name" />
       </t-select>
     </t-tooltip>
-    <div class="saved-query-view-control__actions">
-      <t-button size="small" variant="text" :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
-        {{ t('app.savedQueryViews.actions.saveAs') }}
-      </t-button>
-      <t-button
-        size="small"
-        variant="text"
-        :disabled="controller.isBusy.value || !controller.hasSelectedView.value"
-        @click="openSaveDialog('update')"
-      >
-        {{ t('app.savedQueryViews.actions.update') }}
-      </t-button>
-      <t-button
-        size="small"
-        theme="danger"
-        variant="text"
-        :disabled="controller.isBusy.value || !controller.hasSelectedView.value"
-        @click="deleteDialogVisible = true"
-      >
-        {{ t('app.savedQueryViews.actions.delete') }}
-      </t-button>
-    </div>
+    <t-button size="medium" variant="outline" :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
+      {{ t('app.savedQueryViews.actions.saveAs') }}
+    </t-button>
+    <t-dropdown trigger="click">
+      <t-tooltip :content="t('app.savedQueryViews.label')">
+        <t-button shape="square" size="medium" variant="outline" :aria-label="t('app.savedQueryViews.label')">
+          <template #icon><ellipsis-icon /></template>
+        </t-button>
+      </t-tooltip>
+      <t-dropdown-menu>
+        <t-dropdown-item
+          :disabled="controller.isBusy.value || !controller.hasSelectedView.value"
+          @click="openSaveDialog('update')"
+        >
+          {{ t('app.savedQueryViews.actions.update') }}
+        </t-dropdown-item>
+        <t-dropdown-item :disabled="controller.isBusy.value" @click="openSaveDialog('create')">
+          {{ t('app.savedQueryViews.actions.saveAs') }}
+        </t-dropdown-item>
+        <t-dropdown-item
+          theme="error"
+          :disabled="controller.isBusy.value || !controller.hasSelectedView.value"
+          @click="deleteDialogVisible = true"
+        >
+          {{ t('app.savedQueryViews.actions.delete') }}
+        </t-dropdown-item>
+      </t-dropdown-menu>
+    </t-dropdown>
 
     <t-dialog
       v-model:visible="saveDialogVisible"
@@ -80,6 +87,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import { EllipsisIcon } from 'tdesign-icons-vue-next';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -158,24 +166,18 @@ function normalizeSearchValue(value: string | number | undefined) {
 .saved-query-view-control {
   align-items: center;
   display: flex;
-  flex: 0 1 380px;
+  flex: 1 1 clamp(17rem, 40cqi, 32rem);
   flex-wrap: nowrap;
   gap: var(--graft-density-gap-8);
+  inline-size: clamp(17rem, 40cqi, 32rem);
   margin-left: auto;
-  max-width: 380px;
-  min-width: 300px;
+  max-inline-size: 32rem;
+  min-inline-size: 17rem;
 }
 
 .saved-query-view-control__select {
   min-width: 0;
   width: 100%;
-}
-
-.saved-query-view-control__actions {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: var(--graft-density-gap-4);
 }
 
 .saved-query-view-control__validation-error {
@@ -184,7 +186,7 @@ function normalizeSearchValue(value: string | number | undefined) {
   margin: var(--graft-density-gap-8) 0 0;
 }
 
-@media (width <= 768px) {
+@container (width < @screen-sm) {
   .saved-query-view-control {
     margin-left: 0;
   }

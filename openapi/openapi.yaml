@@ -226,10 +226,14 @@ paths:
     $ref: ./paths/platform-updates.check.yaml
   /api/platform/updates/operations:
     $ref: ./paths/platform-updates.operations.yaml
+  /api/platform/updates/active-operation:
+    $ref: ./paths/platform-updates.active-operation.yaml
   /api/platform/updates/diagnostics/{requestId}:
     $ref: ./paths/platform-updates.diagnostic.yaml
   /api/platform/updates/operations/{operationID}:
     $ref: ./paths/platform-updates.operation.yaml
+  /api/platform/updates/operations/{operationID}/events:
+    $ref: ./paths/platform-updates.operation-events.yaml
   /api/platform/updates/operations/{operationID}/diagnostic:
     $ref: ./paths/platform-updates.operation-diagnostic.yaml
   /api/platform/backups:
@@ -292,6 +296,10 @@ paths:
     $ref: ./paths/realtime-sse.yaml
   /api/ops/containers:
     $ref: ./paths/ops-containers.collection.yaml
+  /api/ops/containers/saved-views:
+    $ref: ./paths/ops-containers.saved-views.yaml
+  /api/ops/containers/saved-views/{viewId}:
+    $ref: ./paths/ops-containers.saved-view.yaml
   /api/ops/containers/dashboard-summary:
     $ref: ./paths/ops-containers.dashboard-summary.yaml
   /api/ops/containers/batch-actions:
@@ -320,6 +328,10 @@ paths:
     $ref: ./paths/ops-containers.remove.yaml
   /api/ops/docker/images:
     $ref: ./paths/ops-docker-images.collection.yaml
+  /api/docker/images/saved-views:
+    $ref: ./paths/docker-images.saved-views.yaml
+  /api/docker/images/saved-views/{viewId}:
+    $ref: ./paths/docker-images.saved-view.yaml
   /api/ops/docker/images/pull:
     $ref: ./paths/ops-docker-images.pull.yaml
   /api/ops/docker/images/{id}:
@@ -334,10 +346,18 @@ paths:
     $ref: ./paths/ops-docker-images.batch-remove.yaml
   /api/ops/docker/networks:
     $ref: ./paths/ops-docker-networks.collection.yaml
+  /api/ops/docker/networks/saved-views:
+    $ref: ./paths/ops-docker-networks.saved-views.yaml
+  /api/ops/docker/networks/saved-views/{viewId}:
+    $ref: ./paths/ops-docker-networks.saved-view.yaml
   /api/ops/docker/networks/{id}:
     $ref: ./paths/ops-docker-networks.detail.yaml
   /api/ops/docker/volumes:
     $ref: ./paths/ops-docker-volumes.collection.yaml
+  /api/ops/docker/volumes/saved-views:
+    $ref: ./paths/ops-docker-volumes.saved-views.yaml
+  /api/ops/docker/volumes/saved-views/{viewId}:
+    $ref: ./paths/ops-docker-volumes.saved-view.yaml
 
   /api/ops/docker/volumes/batch-remove:
     $ref: ./paths/ops-docker-volumes.batch-remove.yaml
@@ -739,14 +759,22 @@ components:
       $ref: ./components/schemas/platform-update-operation.yaml
     PlatformUpdateOperationList:
       $ref: ./components/schemas/platform-update-operation-list.yaml
+    PlatformUpdateOperationEvent:
+      $ref: ./components/schemas/platform-update-operation-event.yaml
+    PlatformUpdateOperationEventList:
+      $ref: ./components/schemas/platform-update-operation-event-list.yaml
     CreatePlatformUpdateOperationRequest:
       $ref: ./components/schemas/create-platform-update-operation-request.yaml
     EnvelopedPlatformUpdateOperation:
       $ref: ./components/schemas/enveloped-platform-update-operation.yaml
+    EnvelopedPlatformUpdateActiveOperation:
+      $ref: ./components/schemas/enveloped-platform-update-active-operation.yaml
     EnvelopedPlatformUpdateOperationLaunchAcknowledgement:
       $ref: ./components/schemas/enveloped-platform-update-operation-launch-acknowledgement.yaml
     EnvelopedPlatformUpdateOperationList:
       $ref: ./components/schemas/enveloped-platform-update-operation-list.yaml
+    EnvelopedPlatformUpdateOperationEventList:
+      $ref: ./components/schemas/enveloped-platform-update-operation-event-list.yaml
     PlatformUpdateFailureDiagnostic:
       $ref: ./components/schemas/platform-update-failure-diagnostic.yaml
     EnvelopedPlatformUpdateFailureDiagnostic:

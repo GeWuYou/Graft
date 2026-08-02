@@ -896,6 +896,11 @@ func newRouteTestContextWithOptions(options routeTestContextOptions) (*module.Co
 	}); err != nil {
 		panic(err)
 	}
+	if err := services.RegisterSingleton((*moduleapi.SavedViewService)(nil), func(internalcontainer.Resolver) (any, error) {
+		return savedViewServiceStub{}, nil
+	}); err != nil {
+		panic(err)
+	}
 	if options.systemConfig != nil {
 		if err := services.RegisterSingleton((*moduleapi.SystemConfigResolver)(nil), func(internalcontainer.Resolver) (any, error) {
 			return options.systemConfig, nil

@@ -30,6 +30,23 @@
   tests currently fail where the test state-root setup invokes `chown`, which the execution environment rejects;
   resolve that validation issue and rerun the required cross-boundary checks before archive readiness.
 
+## 2026-08-01 Production Beta Repair
+
+- Beta tracking reported an accepted operation permanently projected as `READY/0%` with `runner_starting`, while a
+  new tab could enter the application and terminal-only history remained empty. The likely upstream failure is the
+  runner state-volume initialization path: the runner is intentionally root but drops all Linux capabilities while
+  the state store changes ownership to its unprivileged state user.
+- The repair grants only the required ownership-changing capability while retaining the existing drop-all baseline,
+  and treats a request without validated runner state as an explicit unavailable source rather than synthetic
+  progress.
+- The same bounded repair adds operation-scoped, allowlisted action events. Server validates and replays events via
+  the existing update realtime topic and read-only API; Web recovers active state and missed revisions on a new tab or
+  reconnect. Raw Compose/Docker output, paths, backup locations, credentials, and arbitrary runner diagnostics stay
+  outside this contract.
+- Validation passed: `go run ./cmd/graft validate backend`, `just openapi-check`, Web `bun run typecheck`, and 22
+  focused Update Center tests. The full Web entrypoint was also run but remains blocked by unrelated Container
+  saved-view lint, i18n, and unused-export failures already present in the worktree.
+
 ## Loop Batch State
 
 ```json

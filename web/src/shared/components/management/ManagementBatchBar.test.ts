@@ -62,9 +62,28 @@ describe('ManagementBatchBar', () => {
       props: { clearLabel: 'Cancel', clearTestId: 'batch-clear', selectedLabel: 'Selected 1 item' },
     });
 
+    expect(wrapper.get('[data-testid="batch-clear"]').attributes('size')).toBe('small');
     await wrapper.get('[data-testid="batch-clear"]').trigger('click');
 
     expect(wrapper.emitted('clear')).toHaveLength(1);
+  });
+
+  it('allows a page to opt into medium-sized batch controls without changing the default', () => {
+    const wrapper = mount(ManagementBatchBar, {
+      global: { components: { 't-button': ButtonStub, 't-dropdown': DropdownStub, 't-space': SpaceStub } },
+      props: {
+        buttonSize: 'medium',
+        clearLabel: 'Cancel',
+        clearTestId: 'batch-clear',
+        compactActionLabel: 'Batch actions',
+        compactActionTestId: 'batch-actions',
+        compactActions: [{ content: 'Assign roles', value: 'assign-roles' }],
+        selectedLabel: 'Selected 1 item',
+      },
+    });
+
+    expect(wrapper.get('[data-testid="batch-clear"]').attributes('size')).toBe('medium');
+    expect(wrapper.get('[data-testid="batch-actions"]').attributes('size')).toBe('medium');
   });
 
   it('exposes compact batch actions through one shared dropdown trigger', async () => {
@@ -80,6 +99,7 @@ describe('ManagementBatchBar', () => {
     });
 
     expect(wrapper.get('[data-testid="batch-actions"]').text()).toBe('Batch actions');
+    expect(wrapper.get('[data-testid="batch-actions"]').attributes('size')).toBe('small');
     await wrapper.get('[data-testid="compact-action-assign-roles"]').trigger('click');
 
     expect(wrapper.emitted('action')).toEqual([['assign-roles']]);

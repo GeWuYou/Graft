@@ -28,6 +28,9 @@ func TestExecuteComposeRunnerUsesFixedOrderAndWritesReceipt(t *testing.T) {
 	if !reflect.DeepEqual(actions.trace, want) {
 		t.Fatalf("runner trace = %#v, want %#v", actions.trace, want)
 	}
+	if !containsRunnerReport(actions.reports, RunnerPhasePullImages, "verifying_images") {
+		t.Fatalf("runner reports do not contain image verification boundary: %#v", actions.reports)
+	}
 }
 
 func TestExecuteComposeRunnerRequiresRunnerStateReporter(t *testing.T) {
@@ -161,6 +164,12 @@ type tracingRunnerActions struct {
 	recover           bool
 	omitBackupReceipt bool
 	backup            moduleapi.CompleteBackupRunnerHandoffInput
+	reports           []runnerReport
+}
+
+type runnerReport struct {
+	phase   RunnerPhase
+	message string
 }
 
 type runnerActionsWithoutReporter struct{}
@@ -213,8 +222,18 @@ func (actions *tracingRunnerActions) StopServices(context.Context, RunnerInput) 
 	return actions.run("stop server web")
 }
 
-func (actions *tracingRunnerActions) Report(_ RunnerPhase, _ int, _ string, _ string) error {
+func (actions *tracingRunnerActions) Report(phase RunnerPhase, _ int, message, _ string) error {
+	actions.reports = append(actions.reports, runnerReport{phase: phase, message: message})
 	return nil
+}
+
+func containsRunnerReport(reports []runnerReport, phase RunnerPhase, message string) bool {
+	for _, report := range reports {
+		if report.phase == phase && report.message == message {
+			return true
+		}
+	}
+	return false
 }
 
 func (actions *tracingRunnerActions) BootstrapMigrate(context.Context, RunnerInput) error {

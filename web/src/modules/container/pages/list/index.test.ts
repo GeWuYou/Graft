@@ -6,12 +6,17 @@ import { LOCALE } from '@/contracts/i18n/locales';
 
 import { applyContainerRealtimeStats, resetContainerStatsManager } from '../../shared/stats-manager';
 import ContainerListPage from './index.vue';
+import sourceText from './index.vue?raw';
 
 const apiMocks = vi.hoisted(() => ({
   batchContainerActions: vi.fn(),
   getContainer: vi.fn(),
   getContainerLogs: vi.fn(),
   getContainers: vi.fn(),
+  getContainerSavedViews: vi.fn().mockResolvedValue([]),
+  postContainerSavedView: vi.fn(),
+  putContainerSavedView: vi.fn(),
+  deleteContainerSavedView: vi.fn(),
   removeContainer: vi.fn(),
   restartContainer: vi.fn(),
   startContainer: vi.fn(),
@@ -355,6 +360,10 @@ vi.mock('../../api/container', () => ({
   getContainer: apiMocks.getContainer,
   getContainerLogs: apiMocks.getContainerLogs,
   getContainers: apiMocks.getContainers,
+  getContainerSavedViews: apiMocks.getContainerSavedViews,
+  postContainerSavedView: apiMocks.postContainerSavedView,
+  putContainerSavedView: apiMocks.putContainerSavedView,
+  deleteContainerSavedView: apiMocks.deleteContainerSavedView,
   removeContainer: apiMocks.removeContainer,
   restartContainer: apiMocks.restartContainer,
   startContainer: apiMocks.startContainer,
@@ -450,6 +459,14 @@ vi.mock('@/shared/composables', async (importOriginal) => ({
 }));
 
 describe('container list page', () => {
+  it('loads saved views only after the initial resource refresh and localizes saved-view failures', () => {
+    expect(sourceText).toContain('await refreshContainers();\n  await savedViews.load();');
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.list.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('saved container view ${operation} failed');
+  });
+
   beforeEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
@@ -700,7 +717,7 @@ describe('container list page', () => {
 
     expect(wrapper.get('[data-testid="container-presentation-card"]').attributes('aria-label')).toBe('卡片视图');
     expect(wrapper.get('[data-testid="container-presentation-table"]').attributes('aria-label')).toBe('表格视图');
-    expect(wrapper.findAll('[data-testid="container-filter-keyword"]')).toHaveLength(1);
+    expect(wrapper.find('[data-testid="resource-query-panel"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="container-presentation-card"]').trigger('click');
     await nextTick();
@@ -1398,77 +1415,42 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('未知部署');
   });
 
-  it('serializes deployment type and runtime target independently without a provider filter', async () => {
+  it('uses the shared query panel for container filters', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
     expect(runtimeTargetMocks.listRuntimeTargets).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain('Local Docker');
-    expect(wrapper.find('[data-testid="container-filter-orchestrator"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="container-filter-source-scope-kind"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="container-filter-source-scope"]').exists()).toBe(false);
+    const panel = wrapper.get('[data-testid="resource-query-panel"]');
+    expect(panel.find('[data-testid="resource-query-builder-trigger"]').exists()).toBe(true);
+    expect(panel.find('[data-testid="container-filter-apply"]').exists()).toBe(false);
+    expect(panel.find('[data-testid="container-filter-reset"]').exists()).toBe(false);
 
-    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('compose');
-    await wrapper.get('[data-testid="container-filter-runtime-target"]').setValue('7');
-    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
-    await flushPromises();
+    await panel.get('[data-testid="resource-query-builder-trigger"]').trigger('click');
+    await nextTick();
 
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      deployment_type: 'compose',
-      health: undefined,
-      keyword: undefined,
-      limit: 20,
-      offset: 0,
-      runtime_target_id: 7,
-      state: undefined,
-    });
+    expect(panel.findAll('.resource-query-panel__field')).toHaveLength(4);
+    expect(panel.text()).toContain('状态');
+    expect(panel.text()).toContain('部署类型');
+    expect(panel.text()).toContain('运行目标');
+    expect(panel.text()).toContain('健康状态');
   });
 
-  it('keeps submitted deployment and runtime target filters stable until applied again', async () => {
+  it('maps shared query state to the container list request', async () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('compose');
-    await wrapper.get('[data-testid="container-filter-runtime-target"]').setValue('7');
-    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
+    const panel = wrapper.get('[data-testid="resource-query-panel"]');
+    await panel.get('.management-query-search').setValue('compose');
+    await panel.get('[data-testid="resource-query-search"]').trigger('click');
     await flushPromises();
 
     expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      deployment_type: 'compose',
+      deployment_type: undefined,
       health: undefined,
-      keyword: undefined,
+      keyword: 'compose',
       limit: 20,
       offset: 0,
-      runtime_target_id: 7,
-      state: undefined,
-    });
-
-    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('standalone');
-    await nextTick();
-    await wrapper.get('[data-testid="table-refresh"]').trigger('click');
-    await flushPromises();
-
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      deployment_type: 'compose',
-      health: undefined,
-      keyword: undefined,
-      limit: 20,
-      offset: 0,
-      runtime_target_id: 7,
-      state: undefined,
-    });
-
-    await nextTick();
-    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
-    await flushPromises();
-
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      deployment_type: 'standalone',
-      health: undefined,
-      keyword: undefined,
-      limit: 20,
-      offset: 0,
-      runtime_target_id: 7,
+      runtime_target_id: undefined,
       state: undefined,
     });
   });
@@ -1500,14 +1482,15 @@ describe('container list page', () => {
     expect(wrapper.text()).toContain('当前容器运行时未返回容器。');
     expect(wrapper.text()).not.toContain('清除筛选');
 
-    await wrapper.get('[data-testid="container-filter-status"]').setValue('running');
-    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
+    const panel = wrapper.get('[data-testid="resource-query-panel"]');
+    await panel.get('.management-query-search').setValue('running');
+    await panel.get('[data-testid="resource-query-search"]').trigger('click');
     await flushPromises();
 
     expect(wrapper.text()).toContain('没有符合筛选条件的容器。');
     expect(wrapper.text()).toContain('清除筛选');
 
-    await wrapper.get('[data-testid="container-filter-status"]').setValue('all');
+    await panel.get('.management-query-search').setValue('');
     await flushPromises();
 
     expect(wrapper.text()).toContain('没有符合筛选条件的容器。');
@@ -1522,22 +1505,11 @@ describe('container list page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    const targetFilter = wrapper.get('[data-testid="container-filter-runtime-target"]');
-    expect((targetFilter.element as HTMLSelectElement).disabled).toBe(false);
+    const panel = wrapper.get('[data-testid="resource-query-panel"]');
+    await panel.get('[data-testid="resource-query-builder-trigger"]').trigger('click');
+    await nextTick();
+    expect(panel.findAll('.resource-query-panel__field')).toHaveLength(4);
     expect(wrapper.text()).not.toContain('Local Docker');
-    await wrapper.get('[data-testid="container-filter-deployment-type"]').setValue('standalone');
-    await wrapper.get('[data-testid="container-filter-apply"]').trigger('click');
-    await flushPromises();
-
-    expect(apiMocks.getContainers).toHaveBeenLastCalledWith({
-      deployment_type: 'standalone',
-      health: undefined,
-      keyword: undefined,
-      limit: 20,
-      offset: 0,
-      runtime_target_id: undefined,
-      state: undefined,
-    });
   });
 
   it('submits confirmed lifecycle actions as Tasks and refreshes only after success', async () => {
@@ -2225,16 +2197,17 @@ function mountPage(component: object = ContainerListPage) {
             () =>
               h('div', [
                 slots.default?.(),
-                ...(props.options as Array<{ content?: string; testId?: string; value?: string }>).map((option) =>
-                  h(
-                    'button',
-                    {
-                      disabled: Boolean((option as { disabled?: boolean }).disabled),
-                      'data-testid': option.testId,
-                      onClick: (event: MouseEvent) => emit('click', option, { e: event }),
-                    },
-                    option.content,
-                  ),
+                ...((props.options ?? []) as Array<{ content?: string; testId?: string; value?: string }>).map(
+                  (option) =>
+                    h(
+                      'button',
+                      {
+                        disabled: Boolean((option as { disabled?: boolean }).disabled),
+                        'data-testid': option.testId,
+                        onClick: (event: MouseEvent) => emit('click', option, { e: event }),
+                      },
+                      option.content,
+                    ),
                 ),
               ]),
         }),

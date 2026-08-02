@@ -2,16 +2,32 @@ import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getUpdateOperation, subscribeToUpdateOperation } from '../api/update';
+import {
+  getActiveUpdateOperation,
+  getUpdateOperation,
+  getUpdateOperationEvents,
+  subscribeToUpdateOperation,
+} from '../api/update';
+import type { UpdateOperation } from '../types/update';
 import { useUpdateProgressStore } from './progress';
 
 vi.mock('../api/update', () => ({
+  getActiveUpdateOperation: vi.fn(),
   getUpdateOperation: vi.fn(),
+  getUpdateOperationEvents: vi.fn(),
   subscribeToUpdateOperation: vi.fn(),
 }));
 
-const operation = (operationID: string, phase = 'READY', progress = 0) =>
-  ({ operation_id: operationID, runner_id: 'runner-1', phase, progress, message: '' }) as never;
+const operation = (operationID: string, phase: UpdateOperation['phase'] = 'READY', progress = 0): UpdateOperation =>
+  ({
+    operation_id: operationID,
+    runner_id: 'runner-1',
+    phase,
+    progress,
+    message: '',
+    state_available: true,
+    state_source: 'runner_state',
+  }) as UpdateOperation;
 const acknowledgement = (operationID: string) => ({ operation_id: operationID, runner_id: 'runner-1' }) as never;
 const streamController = () => ({ close: vi.fn(), reconnect: vi.fn() });
 
@@ -21,7 +37,9 @@ describe('update progress store', () => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
     vi.useFakeTimers();
+    vi.mocked(getActiveUpdateOperation).mockResolvedValue(null);
     vi.mocked(getUpdateOperation).mockResolvedValue(operation('operation-1'));
+    vi.mocked(getUpdateOperationEvents).mockResolvedValue([]);
     vi.mocked(subscribeToUpdateOperation).mockImplementation(streamController);
   });
 
@@ -41,9 +59,9 @@ describe('update progress store', () => {
   });
 
   it('discards an old snapshot after a new update session begins', async () => {
-    let resolveFirst: (value: never) => void = () => undefined;
+    let resolveFirst: (value: UpdateOperation) => void = () => undefined;
     vi.mocked(getUpdateOperation).mockImplementationOnce(
-      () => new Promise((resolve) => (resolveFirst = resolve as (value: never) => void)),
+      () => new Promise((resolve) => (resolveFirst = resolve as (value: UpdateOperation) => void)),
     );
     vi.mocked(getUpdateOperation).mockResolvedValueOnce(operation('operation-2'));
     const store = useUpdateProgressStore();
@@ -69,6 +87,72 @@ describe('update progress store', () => {
     expect(subscribeToUpdateOperation).toHaveBeenCalledWith('operation-1', expect.any(Object));
   });
 
+  it('discovers an active operation from the server when a new tab has no browser state', async () => {
+    vi.mocked(getActiveUpdateOperation).mockResolvedValue(operation('operation-1'));
+    const store = useUpdateProgressStore();
+
+    await store.resume();
+
+    expect(getActiveUpdateOperation).toHaveBeenCalledOnce();
+    expect(store.operation?.operation_id).toBe('operation-1');
+    expect(subscribeToUpdateOperation).toHaveBeenCalledWith('operation-1', expect.any(Object));
+  });
+
+  it('keeps active-operation recovery bound to its captured session after an async continuation', async () => {
+    vi.mocked(getActiveUpdateOperation).mockResolvedValue(operation('operation-1'));
+    const store = useUpdateProgressStore();
+    vi.spyOn(store, 'applyOperation').mockImplementation(async () => {
+      store.session += 1;
+    });
+    const refreshEvents = vi.spyOn(store, 'refreshEvents').mockResolvedValue();
+    const connect = vi.spyOn(store, 'connect').mockImplementation(() => undefined);
+
+    await store.resume();
+
+    expect(refreshEvents).toHaveBeenCalledWith(1);
+    expect(connect).toHaveBeenCalledWith(1);
+  });
+
+  it('keeps the shell idle when active operation discovery is temporarily unavailable', async () => {
+    vi.mocked(getActiveUpdateOperation).mockRejectedValue(new Error('service unavailable'));
+    const store = useUpdateProgressStore();
+
+    await expect(store.resume()).resolves.toBeUndefined();
+
+    expect(store.phase).toBe('idle');
+  });
+
+  it('replays missed node events and deduplicates an overlapping realtime revision', async () => {
+    vi.mocked(getUpdateOperationEvents).mockResolvedValue([
+      {
+        operation_id: 'operation-1',
+        revision: 1,
+        phase: 'PREFLIGHT',
+        message: 'checking_environment',
+        occurred_at: '',
+      },
+    ] as never);
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const onOperation = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
+
+    await onOperation({
+      event: {
+        operation_id: 'operation-1',
+        revision: 1,
+        phase: 'PREFLIGHT',
+        message: 'checking_environment',
+        occurred_at: '',
+      },
+    });
+    await onOperation({
+      event: { operation_id: 'operation-1', revision: 2, phase: 'BACKUP', message: 'creating_backup', occurred_at: '' },
+    });
+
+    expect(store.events.map((event) => event.revision)).toEqual([1, 2]);
+    expect(getUpdateOperationEvents).toHaveBeenCalledWith('operation-1', 0);
+  });
+
   it('stops the stream and preserves a terminal runner failure snapshot', async () => {
     const store = useUpdateProgressStore();
     await store.begin(acknowledgement('operation-1'));
@@ -79,6 +163,21 @@ describe('update progress store', () => {
     expect(store.phase).toBe('failed');
     expect(store.operation?.phase).toBe('FAILED');
     expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
+  });
+
+  it('does not render runner-state-unavailable as live READY progress', async () => {
+    const store = useUpdateProgressStore();
+    await store.begin(acknowledgement('operation-1'));
+    const callback = vi.mocked(subscribeToUpdateOperation).mock.calls[0][1].onOperation;
+
+    await callback({
+      ...operation('operation-1'),
+      state_available: false,
+      state_source: 'runner_state_unavailable' as const,
+    });
+
+    expect(store.phase).toBe('unavailable');
+    expect(store.operation?.operation_id).toBe('operation-1');
   });
 
   it('polls the runner snapshot while the realtime transport is unavailable', async () => {
@@ -106,7 +205,7 @@ describe('update progress store', () => {
     expect(getUpdateOperation).toHaveBeenCalledOnce();
   });
 
-  it('clears a persisted operation after an unrecoverable snapshot error', async () => {
+  it('keeps a persisted operation visible when its runner snapshot is unavailable', async () => {
     vi.mocked(getUpdateOperation).mockRejectedValueOnce(
       Object.assign(new Error('operation not found'), { isApiRequestError: true, status: 404 }),
     );
@@ -114,9 +213,9 @@ describe('update progress store', () => {
 
     await store.begin(acknowledgement('operation-1'));
 
-    expect(store.phase).toBe('failed');
-    expect(store.operationID).toBeNull();
-    expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBeNull();
+    expect(store.phase).toBe('unavailable');
+    expect(store.operationID).toBe('operation-1');
+    expect(sessionStorage.getItem('graft.platform-update.operation-id')).toBe('operation-1');
   });
 
   it('stops retrying after repeated recoverable snapshot errors', async () => {
@@ -126,8 +225,8 @@ describe('update progress store', () => {
     await store.begin(acknowledgement('operation-1'));
     await vi.advanceTimersByTimeAsync(12_000);
 
-    expect(store.phase).toBe('failed');
-    expect(store.operationID).toBeNull();
+    expect(store.phase).toBe('unavailable');
+    expect(store.operationID).toBe('operation-1');
     expect(getUpdateOperation).toHaveBeenCalledTimes(5);
   });
 });

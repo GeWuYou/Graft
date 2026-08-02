@@ -32,7 +32,9 @@
 
     <management-statistics-bar layout="chips" :items="metrics" :compact-items="compactMetrics" aria-live="polite" />
 
-    <resource-query-panel v-model="resourceQueryState" :config="queryConfig" :loading="query.isFetching.value" />
+    <resource-query-panel v-model="resourceQueryState" :config="queryConfig" :loading="query.isFetching.value">
+      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+    </resource-query-panel>
 
     <management-paged-table
       v-model:current="pagination.current"
@@ -674,7 +676,7 @@
 import { ArrowDownIcon, ArrowUpIcon, DeleteIcon, ImageIcon } from 'tdesign-icons-vue-next';
 import type { TableProps } from 'tdesign-vue-next';
 import { MessagePlugin } from 'tdesign-vue-next/es/message';
-import { computed, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -690,7 +692,12 @@ import {
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
-import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState } from '@/shared/components/query-list';
+import {
+  type ResourceQueryConfig,
+  ResourceQueryPanel,
+  type ResourceQueryState,
+  SavedQueryViewControl,
+} from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateTime } from '@/shared/observability';
@@ -700,7 +707,15 @@ import { isApiRequestError } from '@/utils/request';
 
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '../../../task/contract/task-observer';
 import { TaskDetailDrawer } from '../../../task/contract/task-ui';
-import { type DockerImageRecord, getDockerImage, getDockerImages } from '../../api/container';
+import {
+  deleteDockerImageSavedView,
+  type DockerImageRecord,
+  getDockerImage,
+  getDockerImages,
+  getDockerImageSavedViews,
+  postDockerImageSavedView,
+  putDockerImageSavedView,
+} from '../../api/container';
 import {
   batchRemoveDockerImages,
   type DockerImageBatchResult,
@@ -715,6 +730,7 @@ import { CONTAINER_TASK_TYPE } from '../../contract/task-types';
 import DockerCleanupLoadingHost from '../../shared/cleanup/DockerCleanupLoadingHost.vue';
 import { useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import { type DockerImageQueryState, useDockerImageQuery } from '../../shared/docker-image-queries';
+import { useDockerResourceSavedViews } from '../../shared/docker-resource-saved-views';
 
 type DockerImage = DockerImageRecord;
 type BatchFailureDetail = { id: string; name: string; tags: string[]; code: DockerImageRemoveErrorCode };
@@ -735,35 +751,48 @@ const pagination = reactive({ current: 1, pageSize: 20 });
 const keyword = ref('');
 const submittedKeyword = ref('');
 const queryConfig = computed<ResourceQueryConfig>(() => ({
-  resource: 'container-image',
+  resource: 'docker-image.list',
   search: true,
   filterBuilder: { enabled: true },
   placeholder: t('container.images.searchCompact'),
-  filters: [{ key: 'unused', label: t('container.images.unused'), type: 'boolean' }],
+  savedView: true,
 }));
 const resourceQueryState = computed<ResourceQueryState>({
   get: () => ({
     keyword: keyword.value,
-    filters: imageQueryUnused.value ? { unused: true } : {},
+    filters: {},
     page: pagination.current,
     pageSize: pagination.pageSize,
   }),
   set: (value) => {
     keyword.value = value.keyword;
     submittedKeyword.value = value.keyword.trim();
-    imageQueryUnused.value = value.filters.unused === true;
     pagination.current = value.page;
     pagination.pageSize = value.pageSize;
   },
 });
-const imageQueryUnused = ref(false);
+const savedViews = useDockerResourceSavedViews({
+  api: {
+    list: getDockerImageSavedViews,
+    create: postDockerImageSavedView,
+    update: putDockerImageSavedView,
+    remove: deleteDockerImageSavedView,
+  },
+  applyState: (state) => {
+    resourceQueryState.value = state.queryState;
+    pagination.pageSize = state.pageSize;
+  },
+  getState: () => ({ pageSize: pagination.pageSize, queryState: resourceQueryState.value, visibleColumns: [] }),
+  onError: (error: unknown) =>
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.images.loadFailed'))),
+});
 const imageQuery = computed<DockerImageQueryState>(() => ({
   pageSize: pagination.pageSize,
   offset: (pagination.current - 1) * pagination.pageSize,
   keyword: submittedKeyword.value,
-  unused: imageQueryUnused.value || undefined,
 }));
 const query = useDockerImageQuery(imageQuery);
+onMounted(() => void savedViews.load());
 const selectedImage = ref<DockerImage | null>(null);
 const detailDrawerVisible = ref(false);
 const detailLoading = ref(false);

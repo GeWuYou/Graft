@@ -1,58 +1,66 @@
 <template>
-  <section class="resource-query-panel" :data-resource="config.resource" data-testid="resource-query-panel">
+  <section
+    ref="panel"
+    class="resource-query-panel"
+    :data-resource="config.resource"
+    :data-layout-tier="layout.tier"
+    data-testid="resource-query-panel"
+  >
     <advanced-query-filter-builder-frame v-if="frame" :frame="frame" v-bind="{ messagePrefix }">
       <template #saved-query-views>
-        <saved-query-view-control v-if="config.savedView && savedViewController" :controller="savedViewController" />
         <slot name="saved-query-views" />
       </template>
       <template #toolbar-after-search><slot name="toolbar-after-search" /></template>
     </advanced-query-filter-builder-frame>
-    <management-toolbar v-else data-testid="resource-query-toolbar">
+    <management-toolbar v-else class="resource-query-panel__toolbar" data-testid="resource-query-toolbar">
       <template #filters>
         <div class="resource-query-panel__content">
-          <div class="resource-query-panel__main">
+          <div class="resource-query-panel__main" :data-command-layout="layout.commandBar">
             <t-input
               v-if="searchEnabled"
               :model-value="draft.keyword"
-              class="management-query-search"
+              class="resource-query-panel__keyword management-query-search"
               clearable
               :placeholder="config.placeholder ?? t('app.queryBar.searchPlaceholder')"
               @enter="apply"
               @update:model-value="updateKeyword"
             />
-            <slot name="toolbar-after-search" />
-            <t-popup
-              v-if="filters.length && !compact"
-              v-model:visible="filtersVisible"
-              attach="body"
-              placement="bottom-left"
-              trigger="click"
-            >
-              <template #content>
-                <div class="resource-query-panel__filter-popup">
-                  <filter-fields v-model="draft.filters" :filters="filters" />
-                </div>
-              </template>
-              <t-button data-testid="resource-query-builder-trigger" variant="outline">{{
-                t('app.queryBar.moreFilters')
-              }}</t-button>
-            </t-popup>
+            <div v-if="$slots['toolbar-after-search']" class="resource-query-panel__after-search">
+              <slot name="toolbar-after-search" />
+            </div>
             <t-button
-              v-else-if="filters.length"
+              v-if="filters.length"
+              class="resource-query-panel__filter-trigger"
               data-testid="resource-query-builder-trigger"
-              variant="outline"
-              @click="filtersVisible = true"
+              :aria-expanded="filtersVisible"
+              size="medium"
+              :theme="filtersVisible ? 'primary' : 'default'"
+              :variant="filtersVisible ? 'base' : 'outline'"
+              @click="compact ? openFilters() : toggleFilters()"
             >
               {{ t('app.queryBar.moreFilters') }}
             </t-button>
             <div class="resource-query-panel__commands">
-              <t-button data-testid="resource-query-search" theme="primary" :loading="loading" @click="apply">
+              <t-button
+                data-testid="resource-query-search"
+                size="medium"
+                theme="primary"
+                :loading="loading"
+                @click="apply"
+              >
                 {{ t('app.queryBar.search') }}
               </t-button>
-              <t-button data-testid="resource-query-reset" variant="outline" @click="reset">
+              <t-button data-testid="resource-query-reset" size="medium" variant="outline" @click="reset">
                 {{ t('app.queryBar.reset') }}
               </t-button>
             </div>
+            <div v-if="$slots['toolbar-actions']" class="resource-query-panel__toolbar-actions">
+              <slot name="toolbar-actions" />
+            </div>
+          </div>
+
+          <div v-if="filtersVisible && !compact && filters.length" class="resource-query-panel__expanded-filters">
+            <filter-fields v-model="draft.filters" :items="layout.fields" />
           </div>
 
           <div v-if="simpleFiltersVisible && $slots['simple-filters']" class="resource-query-panel__simple-filters">
@@ -70,8 +78,7 @@
               {{ quick.label }}
             </t-button>
           </div>
-          <div v-if="activeTags.length" class="resource-query-panel__tags" data-testid="resource-query-tags">
-            <span class="resource-query-panel__tags-label">{{ t('app.queryBar.applied') }}</span>
+          <div class="resource-query-panel__tags" data-testid="resource-query-tags">
             <t-tag
               v-for="tag in activeTags"
               :key="tag.key"
@@ -83,7 +90,6 @@
             >
               {{ tag.label }}
             </t-tag>
-            <t-button size="small" variant="text" @click="reset">{{ t('app.queryBar.clearAll') }}</t-button>
           </div>
         </div>
         <t-drawer
@@ -93,106 +99,120 @@
           placement="bottom"
           size="auto"
         >
-          <filter-fields v-model="draft.filters" :filters="filters" />
+          <filter-fields v-model="draft.filters" :items="layout.fields" />
           <template #footer>
-            <t-button variant="outline" @click="clearDraft">{{ t('app.queryBar.clear') }}</t-button>
-            <t-button theme="primary" @click="apply">{{ t('app.queryBar.apply') }}</t-button>
+            <t-button size="medium" variant="outline" @click="clearDraft">{{ t('app.queryBar.clear') }}</t-button>
+            <t-button size="medium" theme="primary" @click="apply">{{ t('app.queryBar.apply') }}</t-button>
           </template>
         </t-drawer>
-      </template>
-      <template v-if="(config.savedView && savedViewController) || $slots['saved-query-views']" #actions>
-        <saved-query-view-control v-if="config.savedView && savedViewController" :controller="savedViewController" />
-        <slot name="saved-query-views" />
       </template>
     </management-toolbar>
   </section>
 </template>
 <script setup lang="ts">
-import { computed, defineComponent, h, type PropType, ref, watch } from 'vue';
+import { computed, defineComponent, h, type PropType, ref, resolveComponent, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ManagementToolbar } from '@/shared/components/management';
-import { useViewportResponsiveVariant } from '@/shared/composables/useViewportResponsiveVariant';
 
 import AdvancedQueryFilterBuilderFrame, {
   type AdvancedQueryFilterBuilderFrameState,
 } from '../AdvancedQueryFilterBuilderFrame.vue';
-import type { SavedQueryViewController, SavedQueryViewId } from '../saved-query-views';
-import SavedQueryViewControl from '../SavedQueryViewControl.vue';
+import type { QueryLayoutItem } from './layout-engine';
 import type {
   ResourceQueryConfig,
   ResourceQueryFilterDefinition,
   ResourceQueryFilterValue,
   ResourceQueryState,
 } from './types';
+import { resolveResourceQueryField } from './types';
+import { useQueryDisclosureController } from './useQueryDisclosureController';
+import { useQueryPanelLayout } from './useQueryPanelLayout';
 
 const FilterFields = defineComponent({
   name: 'ResourceQueryFilterFields',
   props: {
-    filters: { type: Array as PropType<ResourceQueryFilterDefinition[]>, required: true },
+    items: { type: Array as PropType<QueryLayoutItem[]>, required: true },
     modelValue: { type: Object as PropType<Record<string, ResourceQueryFilterValue>>, required: true },
   },
   emits: ['update:modelValue'],
   setup(fieldProps, { emit: emitField }) {
+    const inputComponent = resolveComponent('t-input');
+    const selectComponent = resolveComponent('t-select');
+    const dateRangePickerComponent = resolveComponent('t-date-range-picker');
+    const inputNumberComponent = resolveComponent('t-input-number');
+    const switchComponent = resolveComponent('t-switch');
     const setValue = (key: string, value: ResourceQueryFilterValue) =>
       emitField('update:modelValue', { ...fieldProps.modelValue, [key]: value });
     return () =>
       h(
         'div',
         { class: 'resource-query-panel__fields' },
-        fieldProps.filters.map((field) => {
+        fieldProps.items.map(({ field, span }) => {
           const value = fieldProps.modelValue[field.key];
-          const common = { disabled: field.disabled, placeholder: field.placeholder, value };
+          const definition = resolveResourceQueryField(field);
+          const common = { disabled: definition.disabled, placeholder: definition.placeholder };
           let control;
-          if (field.type === 'select' || field.type === 'multi-select') {
-            control = h('t-select', {
+          if (definition.type === 'select' || definition.type === 'multi-select') {
+            control = h(selectComponent, {
               ...common,
               modelValue: value,
-              multiple: field.type === 'multi-select',
-              options: field.options ?? [],
+              value,
+              multiple: definition.type === 'multi-select',
+              options: definition.options ?? [],
               clearable: true,
               'onUpdate:modelValue': (next: ResourceQueryFilterValue) => setValue(field.key, next),
             });
-          } else if (field.type === 'date-range') {
-            control = h('t-date-range-picker', {
+          } else if (definition.type === 'date-range') {
+            control = h(dateRangePickerComponent, {
               ...common,
               modelValue: value,
+              value,
               clearable: true,
               'onUpdate:modelValue': (next: ResourceQueryFilterValue) => setValue(field.key, next),
             });
-          } else if (field.type === 'number-range') {
+          } else if (definition.type === 'number-range') {
             const range = Array.isArray(value) ? value : [];
+            const setRangeValue = (index: 0 | 1, next: number | undefined) => {
+              const nextRange = [range[0] ?? '', range[1] ?? ''];
+              nextRange[index] = next ?? '';
+              setValue(field.key, nextRange.every((item) => item === '') ? [] : nextRange);
+            };
             control = h('div', { class: 'resource-query-panel__number-range' }, [
-              h('t-input-number', {
+              h(inputNumberComponent, {
                 ...common,
                 modelValue: range[0],
-                'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [next ?? '', range[1] ?? '']),
+                value: range[0],
+                'onUpdate:modelValue': (next: number | undefined) => setRangeValue(0, next),
               }),
               h('span', { class: 'resource-query-panel__range-separator' }, '-'),
-              h('t-input-number', {
+              h(inputNumberComponent, {
                 ...common,
                 modelValue: range[1],
-                'onUpdate:modelValue': (next: number | undefined) => setValue(field.key, [range[0] ?? '', next ?? '']),
+                value: range[1],
+                'onUpdate:modelValue': (next: number | undefined) => setRangeValue(1, next),
               }),
             ]);
-          } else if (field.type === 'boolean') {
-            control = h('t-switch', {
-              disabled: field.disabled,
+          } else if (definition.type === 'boolean') {
+            control = h(switchComponent, {
+              disabled: definition.disabled,
               modelValue: Boolean(value),
               'onUpdate:modelValue': (next: boolean) => setValue(field.key, next),
             });
           } else {
-            control = h('t-input', {
+            control = h(inputComponent, {
               ...common,
               modelValue: typeof value === 'string' ? value : '',
+              value: typeof value === 'string' ? value : '',
               clearable: true,
               'onUpdate:modelValue': (next: string) => setValue(field.key, next),
             });
           }
-          return h('label', { class: 'resource-query-panel__field', key: field.key }, [
-            h('span', field.label),
-            control,
-          ]);
+          return h(
+            'label',
+            { class: 'resource-query-panel__field', key: field.key, style: { '--query-field-span': span } },
+            [h('span', field.label), control],
+          );
         }),
       );
   },
@@ -207,7 +227,6 @@ const props = withDefaults(
     messagePrefix?: string;
     modelValue?: ResourceQueryState;
     simpleFiltersVisible?: boolean;
-    savedViewController?: SavedQueryViewController<unknown, SavedQueryViewId>;
   }>(),
   {
     frame: undefined,
@@ -215,7 +234,6 @@ const props = withDefaults(
     messagePrefix: '',
     modelValue: undefined,
     simpleFiltersVisible: false,
-    savedViewController: undefined,
   },
 );
 
@@ -226,14 +244,20 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const viewport = useViewportResponsiveVariant();
 const emptyQueryState: ResourceQueryState = { keyword: '', filters: {}, page: 1, pageSize: 20 };
 const draft = ref<ResourceQueryState>(cloneState(props.modelValue ?? emptyQueryState));
-const filtersVisible = ref(false);
+const panel = ref<HTMLElement | null>(null);
 const filters = computed(() => (props.config.filterBuilder?.enabled === false ? [] : (props.config.filters ?? [])));
+const layout = useQueryPanelLayout(panel, filters);
+const {
+  open: openFilters,
+  toggle: toggleFilters,
+  useDrawer,
+  visible: filtersVisible,
+} = useQueryDisclosureController(computed(() => layout.value.tier));
 const quickFilters = computed(() => props.config.quickFilters ?? []);
 const searchEnabled = computed(() => props.config.search !== false);
-const compact = computed(() => viewport.value.density === 'compact');
+const compact = useDrawer;
 const activeTags = computed(() =>
   filters.value.flatMap((field) => {
     const value = (props.modelValue ?? emptyQueryState).filters[field.key];
@@ -259,9 +283,10 @@ function isEmpty(value: ResourceQueryFilterValue) {
 }
 
 function formatFilterValue(field: ResourceQueryFilterDefinition, value: ResourceQueryFilterValue) {
-  if (field.type === 'boolean') return value ? t('app.queryBar.yes') : t('app.queryBar.no');
+  const definition = resolveResourceQueryField(field);
+  if (definition.type === 'boolean') return value ? t('app.queryBar.yes') : t('app.queryBar.no');
   const formatOption = (candidate: string | number) =>
-    field.options?.find((option) => option.value === candidate)?.label ?? String(candidate);
+    definition.options?.find((option) => option.value === candidate)?.label ?? String(candidate);
   if (Array.isArray(value)) return value.map(formatOption).join(' ~ ');
   return typeof value === 'string' || typeof value === 'number' ? formatOption(value) : '';
 }
@@ -274,7 +299,9 @@ function apply() {
   const next = { ...cloneState(draft.value), page: 1 };
   emit('update:modelValue', next);
   emit('search', next);
-  filtersVisible.value = false;
+  if (compact.value) {
+    filtersVisible.value = false;
+  }
 }
 
 function reset() {
@@ -304,7 +331,12 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
 </script>
 <style scoped lang="less">
 .resource-query-panel {
+  container-type: inline-size;
   min-width: 0;
+}
+
+.resource-query-panel :deep(.resource-query-panel__toolbar) {
+  align-items: flex-start;
 }
 
 .resource-query-panel__content {
@@ -333,18 +365,64 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
 }
 
 .resource-query-panel__main {
+  align-items: center;
+  display: grid;
+  gap: var(--graft-density-gap-8);
+  grid-template-areas: 'search after-search filter commands toolbar';
+  grid-template-columns: minmax(18rem, 1.1fr) max-content max-content max-content minmax(17rem, 0.9fr);
   width: 100%;
 }
 
+.resource-query-panel__keyword {
+  grid-area: search;
+}
+
+.resource-query-panel__after-search {
+  grid-area: after-search;
+  min-width: 0;
+}
+
+.resource-query-panel__filter-trigger {
+  grid-area: filter;
+}
+
+.resource-query-panel__main[data-command-layout='stacked'] {
+  grid-template-areas:
+    'search after-search filter commands'
+    'toolbar toolbar toolbar toolbar';
+  grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+}
+
+.resource-query-panel__main[data-command-layout='compact'] {
+  grid-template-areas:
+    'search commands'
+    'after-search after-search'
+    'filter filter'
+    'toolbar toolbar';
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
 .resource-query-panel__main :deep(.management-query-search) {
-  flex: 0 1 clamp(280px, 24vw, 360px);
-  min-width: 240px;
-  width: clamp(280px, 24vw, 360px);
+  min-width: 0;
+  width: 100%;
 }
 
 .resource-query-panel__commands {
-  flex: 0 0 auto;
-  margin-left: auto;
+  grid-area: commands;
+}
+
+.resource-query-panel__toolbar-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  grid-area: toolbar;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.resource-query-panel__main[data-command-layout='stacked'] .resource-query-panel__toolbar-actions,
+.resource-query-panel__main[data-command-layout='compact'] .resource-query-panel__toolbar-actions {
+  justify-content: flex-start;
 }
 
 .resource-query-panel__tags {
@@ -353,25 +431,74 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   padding-bottom: var(--graft-density-gap-2);
 }
 
-.resource-query-panel__filter-popup {
-  max-height: min(560px, calc(100vh - 160px));
-  overflow: auto;
-  padding: var(--graft-density-gap-16);
-  width: min(560px, calc(100vw - 32px));
+.resource-query-panel__tags > :deep(.t-tag) {
+  flex: 0 0 auto;
+}
+
+.resource-query-panel__expanded-filters {
+  width: 100%;
 }
 
 .resource-query-panel__fields {
+  align-items: flex-end;
   display: grid;
   gap: var(--graft-density-gap-14);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  width: 100%;
+}
+
+.resource-query-panel :deep(.resource-query-panel__fields) {
+  align-items: flex-end;
+  display: grid;
+  gap: var(--graft-density-gap-14);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  width: 100%;
 }
 
 .resource-query-panel__field {
+  align-items: center;
   color: var(--td-text-color-secondary);
   display: flex;
-  flex-direction: column;
   font: var(--td-font-body-small);
   gap: var(--graft-density-gap-8);
+  grid-column: span var(--query-field-span, 3);
+  min-width: 0;
+}
+
+.resource-query-panel__field > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.resource-query-panel__field > :deep(.t-input),
+.resource-query-panel__field > :deep(.t-select),
+.resource-query-panel__field > :deep(.t-date-range-picker),
+.resource-query-panel__field > :deep(.t-input-number),
+.resource-query-panel__field > :deep(.resource-query-panel__number-range) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.resource-query-panel :deep(.resource-query-panel__field) {
+  align-items: center;
+  display: flex;
+  gap: var(--graft-density-gap-8);
+  grid-column: span var(--query-field-span, 3);
+  min-width: 0;
+}
+
+.resource-query-panel :deep(.resource-query-panel__field > span) {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.resource-query-panel :deep(.resource-query-panel__field > .t-input),
+.resource-query-panel :deep(.resource-query-panel__field > .t-select),
+.resource-query-panel :deep(.resource-query-panel__field > .t-date-range-picker),
+.resource-query-panel :deep(.resource-query-panel__field > .t-input-number),
+.resource-query-panel :deep(.resource-query-panel__field > .resource-query-panel__number-range) {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .resource-query-panel__number-range {
@@ -384,34 +511,53 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   min-width: 0;
 }
 
-.resource-query-panel__range-separator,
-.resource-query-panel__tags-label {
+.resource-query-panel__range-separator {
   color: var(--td-text-color-secondary);
 }
 
-.resource-query-panel__tags-label {
-  font: var(--td-font-body-small);
-  white-space: nowrap;
+@container (width < @screen-md) {
+  .resource-query-panel__main[data-command-layout='stacked'] {
+    grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+  }
+
+  .resource-query-panel__fields,
+  .resource-query-panel :deep(.resource-query-panel__fields) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
-@media (width <= 768px) {
+@container (width < @screen-sm) {
   .resource-query-panel__main {
     align-items: stretch;
-    flex-wrap: wrap;
+    grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
   }
 
   .resource-query-panel__main :deep(.management-query-search) {
-    flex-basis: 100%;
     max-width: none;
+    min-width: 0;
     width: 100%;
   }
 
-  .resource-query-panel__commands {
-    margin-left: 0;
+  .resource-query-panel__filter-trigger {
+    flex: 0 0 auto;
   }
 
   .resource-query-panel__fields {
-    grid-template-columns: 1fr;
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .resource-query-panel__field {
+    grid-column: 1;
+  }
+
+  .resource-query-panel :deep(.resource-query-panel__fields) {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .resource-query-panel :deep(.resource-query-panel__field) {
+    grid-column: 1;
   }
 }
 </style>

@@ -10,12 +10,18 @@
       </t-space>
       <t-space v-if="props.compactActions.length" class="management-batch-bar__compact-actions">
         <t-dropdown :options="props.compactActions" trigger="click" @click="handleCompactAction">
-          <t-button :data-testid="props.compactActionTestId" size="small" theme="primary" variant="outline">
+          <t-button :data-testid="props.compactActionTestId" :size="props.buttonSize" theme="primary" variant="outline">
             {{ props.compactActionLabel }}
           </t-button>
         </t-dropdown>
       </t-space>
-      <t-button :data-testid="clearTestId" size="small" theme="default" variant="text" @click="emit('clear')">
+      <t-button
+        :data-testid="clearTestId"
+        :size="props.buttonSize"
+        theme="default"
+        variant="text"
+        @click="emit('clear')"
+      >
         {{ clearLabel }}
       </t-button>
     </div>
@@ -34,6 +40,7 @@ const props = withDefaults(
     compactActionLabel?: string;
     compactActionTestId?: string;
     compactActions?: ManagementBatchAction[];
+    buttonSize?: 'small' | 'medium' | 'large';
     selectedLabel: string;
   }>(),
   {
@@ -41,6 +48,7 @@ const props = withDefaults(
     compactActionTestId: 'management-batch-actions',
     compactActions: () => [],
     clearTestId: '',
+    buttonSize: 'small',
   },
 );
 

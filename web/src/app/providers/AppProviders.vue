@@ -29,8 +29,4 @@ const { getComponentsLocale } = useLocale();
   height: 100%;
   min-height: 100%;
 }
-
-#nprogress .bar {
-  background: var(--td-brand-color) !important;
-}
 </style>

@@ -90,4 +90,22 @@ describe('UpdateProgressDialog', () => {
     expect(wrapper.find('[data-testid="update-progress-stage"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('safe failure reason');
   });
+
+  it('keeps received node events visible when the runner snapshot becomes unavailable', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({
+      operation: { operation_id: 'update-1', phase: 'PREFLIGHT', progress: 5 } as never,
+      phase: 'unavailable',
+      events: [
+        { operation_id: 'update-1', revision: 1, phase: 'PREFLIGHT', message: 'checking_environment', occurred_at: '' },
+      ],
+    });
+    const wrapper = mountDialog();
+
+    expect(wrapper.get('[data-testid="update-progress-events"] ol').classes()).toContain('graft-scrollbar');
+    expect(wrapper.get('[data-testid="update-progress-events"]').text()).toContain(
+      'update.center.history.messages.checking_environment',
+    );
+    expect(wrapper.text()).toContain('update.center.progress.sourceUnavailable');
+  });
 });

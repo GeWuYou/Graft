@@ -10,9 +10,9 @@ const selectStub = defineComponent({
   name: 'TSelectStub',
   props: ['modelValue', 'inputValue', 'empty'],
   emits: ['update:modelValue', 'update:inputValue'],
-  setup(props, { emit, slots }) {
+  setup(props, { attrs, emit, slots }) {
     return () =>
-      h('section', { 'data-testid': 'saved-view-select' }, [
+      h('section', { ...attrs, 'data-testid': 'saved-view-select' }, [
         h('span', { 'data-testid': 'saved-view-search' }, String(props.inputValue ?? '')),
         h('span', { 'data-testid': 'saved-view-empty' }, String(props.empty ?? '')),
         h('button', {
@@ -37,8 +37,8 @@ const optionStub = defineComponent({
 });
 
 const passthroughStub = defineComponent({
-  setup(_, { slots }) {
-    return () => h('div', slots.default?.());
+  setup(_, { attrs, slots }) {
+    return () => h('div', attrs, slots.default?.());
   },
 });
 
@@ -102,6 +102,24 @@ function createController() {
 }
 
 describe('SavedQueryViewControl', () => {
+  it('uses the medium size for the saved-view selector and actions', () => {
+    const wrapper = mount(SavedQueryViewControl, {
+      props: { controller: createController() },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          't-select': selectStub,
+          't-option': optionStub,
+          't-button': passthroughStub,
+          't-dialog': passthroughStub,
+          't-input': passthroughStub,
+        },
+      },
+    });
+
+    expect(wrapper.findAll('[size="medium"]')).toHaveLength(3);
+  });
+
   it('limits the initial list to ten views while keeping a selected view visible', () => {
     const wrapper = mount(SavedQueryViewControl, {
       props: { controller: createController() },

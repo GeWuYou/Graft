@@ -11,6 +11,126 @@ const (
 	BearerAuthScopes bearerAuthContextKey = "bearerAuth.Scopes"
 )
 
+// Defines values for GetDockerImageSavedViews401JSONResponseBodySuccess.
+const (
+	GetDockerImageSavedViews401JSONResponseBodySuccessFalse GetDockerImageSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImageSavedViews401JSONResponseBodySuccess enum.
+func (e GetDockerImageSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImageSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerImageSavedViews403JSONResponseBodySuccess.
+const (
+	GetDockerImageSavedViews403JSONResponseBodySuccessFalse GetDockerImageSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerImageSavedViews403JSONResponseBodySuccess enum.
+func (e GetDockerImageSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerImageSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageSavedView401JSONResponseBodySuccess.
+const (
+	PostDockerImageSavedView401JSONResponseBodySuccessFalse PostDockerImageSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageSavedView401JSONResponseBodySuccess enum.
+func (e PostDockerImageSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerImageSavedView403JSONResponseBodySuccess.
+const (
+	PostDockerImageSavedView403JSONResponseBodySuccessFalse PostDockerImageSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerImageSavedView403JSONResponseBodySuccess enum.
+func (e PostDockerImageSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerImageSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerImageSavedView401JSONResponseBodySuccess.
+const (
+	DeleteDockerImageSavedView401JSONResponseBodySuccessFalse DeleteDockerImageSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerImageSavedView401JSONResponseBodySuccess enum.
+func (e DeleteDockerImageSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerImageSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerImageSavedView403JSONResponseBodySuccess.
+const (
+	DeleteDockerImageSavedView403JSONResponseBodySuccessFalse DeleteDockerImageSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerImageSavedView403JSONResponseBodySuccess enum.
+func (e DeleteDockerImageSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerImageSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutDockerImageSavedView401JSONResponseBodySuccess.
+const (
+	PutDockerImageSavedView401JSONResponseBodySuccessFalse PutDockerImageSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutDockerImageSavedView401JSONResponseBodySuccess enum.
+func (e PutDockerImageSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutDockerImageSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutDockerImageSavedView403JSONResponseBodySuccess.
+const (
+	PutDockerImageSavedView403JSONResponseBodySuccessFalse PutDockerImageSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutDockerImageSavedView403JSONResponseBodySuccess enum.
+func (e PutDockerImageSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutDockerImageSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetContainersParamsState.
 const (
 	ContainerListStateCreated    GetContainersParamsState = "created"
@@ -734,6 +854,126 @@ const (
 func (e GetContainerDashboardSummary500JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case GetContainerDashboardSummary500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerSavedViews401JSONResponseBodySuccess.
+const (
+	GetContainerSavedViews401JSONResponseBodySuccessFalse GetContainerSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerSavedViews401JSONResponseBodySuccess enum.
+func (e GetContainerSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetContainerSavedViews403JSONResponseBodySuccess.
+const (
+	GetContainerSavedViews403JSONResponseBodySuccessFalse GetContainerSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetContainerSavedViews403JSONResponseBodySuccess enum.
+func (e GetContainerSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetContainerSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerSavedView401JSONResponseBodySuccess.
+const (
+	PostContainerSavedView401JSONResponseBodySuccessFalse PostContainerSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerSavedView401JSONResponseBodySuccess enum.
+func (e PostContainerSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostContainerSavedView403JSONResponseBodySuccess.
+const (
+	PostContainerSavedView403JSONResponseBodySuccessFalse PostContainerSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostContainerSavedView403JSONResponseBodySuccess enum.
+func (e PostContainerSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostContainerSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteContainerSavedView401JSONResponseBodySuccess.
+const (
+	DeleteContainerSavedView401JSONResponseBodySuccessFalse DeleteContainerSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteContainerSavedView401JSONResponseBodySuccess enum.
+func (e DeleteContainerSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteContainerSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteContainerSavedView403JSONResponseBodySuccess.
+const (
+	DeleteContainerSavedView403JSONResponseBodySuccessFalse DeleteContainerSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteContainerSavedView403JSONResponseBodySuccess enum.
+func (e DeleteContainerSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteContainerSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutContainerSavedView401JSONResponseBodySuccess.
+const (
+	PutContainerSavedView401JSONResponseBodySuccessFalse PutContainerSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutContainerSavedView401JSONResponseBodySuccess enum.
+func (e PutContainerSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutContainerSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutContainerSavedView403JSONResponseBodySuccess.
+const (
+	PutContainerSavedView403JSONResponseBodySuccessFalse PutContainerSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutContainerSavedView403JSONResponseBodySuccess enum.
+func (e PutContainerSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutContainerSavedView403JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -2909,6 +3149,126 @@ func (e GetDockerNetworks500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerNetworkSavedViews401JSONResponseBodySuccess.
+const (
+	GetDockerNetworkSavedViews401JSONResponseBodySuccessFalse GetDockerNetworkSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworkSavedViews401JSONResponseBodySuccess enum.
+func (e GetDockerNetworkSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetworkSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerNetworkSavedViews403JSONResponseBodySuccess.
+const (
+	GetDockerNetworkSavedViews403JSONResponseBodySuccessFalse GetDockerNetworkSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerNetworkSavedViews403JSONResponseBodySuccess enum.
+func (e GetDockerNetworkSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerNetworkSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetworkSavedView401JSONResponseBodySuccess.
+const (
+	PostDockerNetworkSavedView401JSONResponseBodySuccessFalse PostDockerNetworkSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetworkSavedView401JSONResponseBodySuccess enum.
+func (e PostDockerNetworkSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetworkSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetworkSavedView403JSONResponseBodySuccess.
+const (
+	PostDockerNetworkSavedView403JSONResponseBodySuccessFalse PostDockerNetworkSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetworkSavedView403JSONResponseBodySuccess enum.
+func (e PostDockerNetworkSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetworkSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetworkSavedView401JSONResponseBodySuccess.
+const (
+	DeleteDockerNetworkSavedView401JSONResponseBodySuccessFalse DeleteDockerNetworkSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetworkSavedView401JSONResponseBodySuccess enum.
+func (e DeleteDockerNetworkSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetworkSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetworkSavedView403JSONResponseBodySuccess.
+const (
+	DeleteDockerNetworkSavedView403JSONResponseBodySuccessFalse DeleteDockerNetworkSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetworkSavedView403JSONResponseBodySuccess enum.
+func (e DeleteDockerNetworkSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetworkSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutDockerNetworkSavedView401JSONResponseBodySuccess.
+const (
+	PutDockerNetworkSavedView401JSONResponseBodySuccessFalse PutDockerNetworkSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutDockerNetworkSavedView401JSONResponseBodySuccess enum.
+func (e PutDockerNetworkSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutDockerNetworkSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutDockerNetworkSavedView403JSONResponseBodySuccess.
+const (
+	PutDockerNetworkSavedView403JSONResponseBodySuccessFalse PutDockerNetworkSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutDockerNetworkSavedView403JSONResponseBodySuccess enum.
+func (e PutDockerNetworkSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutDockerNetworkSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerNetwork200JSONResponseBodyDataContextSource.
 const (
 	GetDockerNetwork200JSONResponseBodyDataContextSourceDockerResourceSourceCompose       GetDockerNetwork200JSONResponseBodyDataContextSource = "compose"
@@ -3332,6 +3692,126 @@ func (e PostDockerVolumeBatchRemove500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetDockerVolumeSavedViews401JSONResponseBodySuccess.
+const (
+	GetDockerVolumeSavedViews401JSONResponseBodySuccessFalse GetDockerVolumeSavedViews401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumeSavedViews401JSONResponseBodySuccess enum.
+func (e GetDockerVolumeSavedViews401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolumeSavedViews401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetDockerVolumeSavedViews403JSONResponseBodySuccess.
+const (
+	GetDockerVolumeSavedViews403JSONResponseBodySuccessFalse GetDockerVolumeSavedViews403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the GetDockerVolumeSavedViews403JSONResponseBodySuccess enum.
+func (e GetDockerVolumeSavedViews403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case GetDockerVolumeSavedViews403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeSavedView401JSONResponseBodySuccess.
+const (
+	PostDockerVolumeSavedView401JSONResponseBodySuccessFalse PostDockerVolumeSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeSavedView401JSONResponseBodySuccess enum.
+func (e PostDockerVolumeSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerVolumeSavedView403JSONResponseBodySuccess.
+const (
+	PostDockerVolumeSavedView403JSONResponseBodySuccessFalse PostDockerVolumeSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerVolumeSavedView403JSONResponseBodySuccess enum.
+func (e PostDockerVolumeSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerVolumeSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerVolumeSavedView401JSONResponseBodySuccess.
+const (
+	DeleteDockerVolumeSavedView401JSONResponseBodySuccessFalse DeleteDockerVolumeSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerVolumeSavedView401JSONResponseBodySuccess enum.
+func (e DeleteDockerVolumeSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerVolumeSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerVolumeSavedView403JSONResponseBodySuccess.
+const (
+	DeleteDockerVolumeSavedView403JSONResponseBodySuccessFalse DeleteDockerVolumeSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerVolumeSavedView403JSONResponseBodySuccess enum.
+func (e DeleteDockerVolumeSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerVolumeSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutDockerVolumeSavedView401JSONResponseBodySuccess.
+const (
+	PutDockerVolumeSavedView401JSONResponseBodySuccessFalse PutDockerVolumeSavedView401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutDockerVolumeSavedView401JSONResponseBodySuccess enum.
+func (e PutDockerVolumeSavedView401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutDockerVolumeSavedView401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PutDockerVolumeSavedView403JSONResponseBodySuccess.
+const (
+	PutDockerVolumeSavedView403JSONResponseBodySuccessFalse PutDockerVolumeSavedView403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PutDockerVolumeSavedView403JSONResponseBodySuccess enum.
+func (e PutDockerVolumeSavedView403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PutDockerVolumeSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerVolume200JSONResponseBodyDataContextSource.
 const (
 	GetDockerVolume200JSONResponseBodyDataContextSourceDockerResourceSourceCompose       GetDockerVolume200JSONResponseBodyDataContextSource = "compose"
@@ -3590,6 +4070,90 @@ type personalAccessTokenAuthContextKey string
 // refreshCookieContextKey is the context key for refreshCookie security scheme
 type refreshCookieContextKey string
 
+// GetDockerImageSavedViewsParams defines parameters for GetDockerImageSavedViews.
+type GetDockerImageSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerImageSavedViews401JSONResponseBodySuccess defines parameters for GetDockerImageSavedViews.
+type GetDockerImageSavedViews401JSONResponseBodySuccess bool
+
+// GetDockerImageSavedViews403JSONResponseBodySuccess defines parameters for GetDockerImageSavedViews.
+type GetDockerImageSavedViews403JSONResponseBodySuccess bool
+
+// PostDockerImageSavedViewJSONBody defines parameters for PostDockerImageSavedView.
+type PostDockerImageSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostDockerImageSavedViewParams defines parameters for PostDockerImageSavedView.
+type PostDockerImageSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerImageSavedView401JSONResponseBodySuccess defines parameters for PostDockerImageSavedView.
+type PostDockerImageSavedView401JSONResponseBodySuccess bool
+
+// PostDockerImageSavedView403JSONResponseBodySuccess defines parameters for PostDockerImageSavedView.
+type PostDockerImageSavedView403JSONResponseBodySuccess bool
+
+// DeleteDockerImageSavedViewParams defines parameters for DeleteDockerImageSavedView.
+type DeleteDockerImageSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteDockerImageSavedView401JSONResponseBodySuccess defines parameters for DeleteDockerImageSavedView.
+type DeleteDockerImageSavedView401JSONResponseBodySuccess bool
+
+// DeleteDockerImageSavedView403JSONResponseBodySuccess defines parameters for DeleteDockerImageSavedView.
+type DeleteDockerImageSavedView403JSONResponseBodySuccess bool
+
+// PutDockerImageSavedViewJSONBody defines parameters for PutDockerImageSavedView.
+type PutDockerImageSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutDockerImageSavedViewParams defines parameters for PutDockerImageSavedView.
+type PutDockerImageSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutDockerImageSavedView401JSONResponseBodySuccess defines parameters for PutDockerImageSavedView.
+type PutDockerImageSavedView401JSONResponseBodySuccess bool
+
+// PutDockerImageSavedView403JSONResponseBodySuccess defines parameters for PutDockerImageSavedView.
+type PutDockerImageSavedView403JSONResponseBodySuccess bool
+
 // GetContainersParams defines parameters for GetContainers.
 type GetContainersParams struct {
 	// Limit Optional maximum number of containers to return. The runtime accepts values from 1 to 100.
@@ -3748,6 +4312,90 @@ type GetContainerDashboardSummary403JSONResponseBodySuccess bool
 
 // GetContainerDashboardSummary500JSONResponseBodySuccess defines parameters for GetContainerDashboardSummary.
 type GetContainerDashboardSummary500JSONResponseBodySuccess bool
+
+// GetContainerSavedViewsParams defines parameters for GetContainerSavedViews.
+type GetContainerSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetContainerSavedViews401JSONResponseBodySuccess defines parameters for GetContainerSavedViews.
+type GetContainerSavedViews401JSONResponseBodySuccess bool
+
+// GetContainerSavedViews403JSONResponseBodySuccess defines parameters for GetContainerSavedViews.
+type GetContainerSavedViews403JSONResponseBodySuccess bool
+
+// PostContainerSavedViewJSONBody defines parameters for PostContainerSavedView.
+type PostContainerSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostContainerSavedViewParams defines parameters for PostContainerSavedView.
+type PostContainerSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostContainerSavedView401JSONResponseBodySuccess defines parameters for PostContainerSavedView.
+type PostContainerSavedView401JSONResponseBodySuccess bool
+
+// PostContainerSavedView403JSONResponseBodySuccess defines parameters for PostContainerSavedView.
+type PostContainerSavedView403JSONResponseBodySuccess bool
+
+// DeleteContainerSavedViewParams defines parameters for DeleteContainerSavedView.
+type DeleteContainerSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteContainerSavedView401JSONResponseBodySuccess defines parameters for DeleteContainerSavedView.
+type DeleteContainerSavedView401JSONResponseBodySuccess bool
+
+// DeleteContainerSavedView403JSONResponseBodySuccess defines parameters for DeleteContainerSavedView.
+type DeleteContainerSavedView403JSONResponseBodySuccess bool
+
+// PutContainerSavedViewJSONBody defines parameters for PutContainerSavedView.
+type PutContainerSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutContainerSavedViewParams defines parameters for PutContainerSavedView.
+type PutContainerSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutContainerSavedView401JSONResponseBodySuccess defines parameters for PutContainerSavedView.
+type PutContainerSavedView401JSONResponseBodySuccess bool
+
+// PutContainerSavedView403JSONResponseBodySuccess defines parameters for PutContainerSavedView.
+type PutContainerSavedView403JSONResponseBodySuccess bool
 
 // GetContainerParams defines parameters for GetContainer.
 type GetContainerParams struct {
@@ -4367,6 +5015,90 @@ type GetDockerNetworks403JSONResponseBodySuccess bool
 // GetDockerNetworks500JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks500JSONResponseBodySuccess bool
 
+// GetDockerNetworkSavedViewsParams defines parameters for GetDockerNetworkSavedViews.
+type GetDockerNetworkSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerNetworkSavedViews401JSONResponseBodySuccess defines parameters for GetDockerNetworkSavedViews.
+type GetDockerNetworkSavedViews401JSONResponseBodySuccess bool
+
+// GetDockerNetworkSavedViews403JSONResponseBodySuccess defines parameters for GetDockerNetworkSavedViews.
+type GetDockerNetworkSavedViews403JSONResponseBodySuccess bool
+
+// PostDockerNetworkSavedViewJSONBody defines parameters for PostDockerNetworkSavedView.
+type PostDockerNetworkSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostDockerNetworkSavedViewParams defines parameters for PostDockerNetworkSavedView.
+type PostDockerNetworkSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerNetworkSavedView401JSONResponseBodySuccess defines parameters for PostDockerNetworkSavedView.
+type PostDockerNetworkSavedView401JSONResponseBodySuccess bool
+
+// PostDockerNetworkSavedView403JSONResponseBodySuccess defines parameters for PostDockerNetworkSavedView.
+type PostDockerNetworkSavedView403JSONResponseBodySuccess bool
+
+// DeleteDockerNetworkSavedViewParams defines parameters for DeleteDockerNetworkSavedView.
+type DeleteDockerNetworkSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteDockerNetworkSavedView401JSONResponseBodySuccess defines parameters for DeleteDockerNetworkSavedView.
+type DeleteDockerNetworkSavedView401JSONResponseBodySuccess bool
+
+// DeleteDockerNetworkSavedView403JSONResponseBodySuccess defines parameters for DeleteDockerNetworkSavedView.
+type DeleteDockerNetworkSavedView403JSONResponseBodySuccess bool
+
+// PutDockerNetworkSavedViewJSONBody defines parameters for PutDockerNetworkSavedView.
+type PutDockerNetworkSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutDockerNetworkSavedViewParams defines parameters for PutDockerNetworkSavedView.
+type PutDockerNetworkSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutDockerNetworkSavedView401JSONResponseBodySuccess defines parameters for PutDockerNetworkSavedView.
+type PutDockerNetworkSavedView401JSONResponseBodySuccess bool
+
+// PutDockerNetworkSavedView403JSONResponseBodySuccess defines parameters for PutDockerNetworkSavedView.
+type PutDockerNetworkSavedView403JSONResponseBodySuccess bool
+
 // GetDockerNetwork200JSONResponseBodyDataContextSource defines parameters for GetDockerNetwork.
 type GetDockerNetwork200JSONResponseBodyDataContextSource string
 
@@ -4510,6 +5242,90 @@ type PostDockerVolumeBatchRemove403JSONResponseBodySuccess bool
 // PostDockerVolumeBatchRemove500JSONResponseBodySuccess defines parameters for PostDockerVolumeBatchRemove.
 type PostDockerVolumeBatchRemove500JSONResponseBodySuccess bool
 
+// GetDockerVolumeSavedViewsParams defines parameters for GetDockerVolumeSavedViews.
+type GetDockerVolumeSavedViewsParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// GetDockerVolumeSavedViews401JSONResponseBodySuccess defines parameters for GetDockerVolumeSavedViews.
+type GetDockerVolumeSavedViews401JSONResponseBodySuccess bool
+
+// GetDockerVolumeSavedViews403JSONResponseBodySuccess defines parameters for GetDockerVolumeSavedViews.
+type GetDockerVolumeSavedViews403JSONResponseBodySuccess bool
+
+// PostDockerVolumeSavedViewJSONBody defines parameters for PostDockerVolumeSavedView.
+type PostDockerVolumeSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PostDockerVolumeSavedViewParams defines parameters for PostDockerVolumeSavedView.
+type PostDockerVolumeSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PostDockerVolumeSavedView401JSONResponseBodySuccess defines parameters for PostDockerVolumeSavedView.
+type PostDockerVolumeSavedView401JSONResponseBodySuccess bool
+
+// PostDockerVolumeSavedView403JSONResponseBodySuccess defines parameters for PostDockerVolumeSavedView.
+type PostDockerVolumeSavedView403JSONResponseBodySuccess bool
+
+// DeleteDockerVolumeSavedViewParams defines parameters for DeleteDockerVolumeSavedView.
+type DeleteDockerVolumeSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// DeleteDockerVolumeSavedView401JSONResponseBodySuccess defines parameters for DeleteDockerVolumeSavedView.
+type DeleteDockerVolumeSavedView401JSONResponseBodySuccess bool
+
+// DeleteDockerVolumeSavedView403JSONResponseBodySuccess defines parameters for DeleteDockerVolumeSavedView.
+type DeleteDockerVolumeSavedView403JSONResponseBodySuccess bool
+
+// PutDockerVolumeSavedViewJSONBody defines parameters for PutDockerVolumeSavedView.
+type PutDockerVolumeSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
+	Name           string                 `json:"name"`
+	PageSize       int                    `json:"page_size"`
+	QueryState     map[string]interface{} `json:"query_state"`
+	VisibleColumns []string               `json:"visible_columns"`
+}
+
+// PutDockerVolumeSavedViewParams defines parameters for PutDockerVolumeSavedView.
+type PutDockerVolumeSavedViewParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *string `json:"X-Request-Id,omitempty"`
+}
+
+// PutDockerVolumeSavedView401JSONResponseBodySuccess defines parameters for PutDockerVolumeSavedView.
+type PutDockerVolumeSavedView401JSONResponseBodySuccess bool
+
+// PutDockerVolumeSavedView403JSONResponseBodySuccess defines parameters for PutDockerVolumeSavedView.
+type PutDockerVolumeSavedView403JSONResponseBodySuccess bool
+
 // GetDockerVolumeParams defines parameters for GetDockerVolume.
 type GetDockerVolumeParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -4581,8 +5397,20 @@ type PostDockerVolumeRemove409JSONResponseBodySuccess bool
 // PostDockerVolumeRemove500JSONResponseBodySuccess defines parameters for PostDockerVolumeRemove.
 type PostDockerVolumeRemove500JSONResponseBodySuccess bool
 
+// PostDockerImageSavedViewJSONRequestBody defines body for PostDockerImageSavedView for application/json ContentType.
+type PostDockerImageSavedViewJSONRequestBody PostDockerImageSavedViewJSONBody
+
+// PutDockerImageSavedViewJSONRequestBody defines body for PutDockerImageSavedView for application/json ContentType.
+type PutDockerImageSavedViewJSONRequestBody PutDockerImageSavedViewJSONBody
+
 // PostContainerBatchActionsJSONRequestBody defines body for PostContainerBatchActions for application/json ContentType.
 type PostContainerBatchActionsJSONRequestBody PostContainerBatchActionsJSONBody
+
+// PostContainerSavedViewJSONRequestBody defines body for PostContainerSavedView for application/json ContentType.
+type PostContainerSavedViewJSONRequestBody PostContainerSavedViewJSONBody
+
+// PutContainerSavedViewJSONRequestBody defines body for PutContainerSavedView for application/json ContentType.
+type PutContainerSavedViewJSONRequestBody PutContainerSavedViewJSONBody
 
 // PostContainerRemoveJSONRequestBody defines body for PostContainerRemove for application/json ContentType.
 type PostContainerRemoveJSONRequestBody PostContainerRemoveJSONBody
@@ -4605,8 +5433,20 @@ type PostDockerImageTagJSONRequestBody PostDockerImageTagJSONBody
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody PostDockerImageUntagJSONBody
 
+// PostDockerNetworkSavedViewJSONRequestBody defines body for PostDockerNetworkSavedView for application/json ContentType.
+type PostDockerNetworkSavedViewJSONRequestBody PostDockerNetworkSavedViewJSONBody
+
+// PutDockerNetworkSavedViewJSONRequestBody defines body for PutDockerNetworkSavedView for application/json ContentType.
+type PutDockerNetworkSavedViewJSONRequestBody PutDockerNetworkSavedViewJSONBody
+
 // PostDockerVolumeBatchRemoveJSONRequestBody defines body for PostDockerVolumeBatchRemove for application/json ContentType.
 type PostDockerVolumeBatchRemoveJSONRequestBody PostDockerVolumeBatchRemoveJSONBody
+
+// PostDockerVolumeSavedViewJSONRequestBody defines body for PostDockerVolumeSavedView for application/json ContentType.
+type PostDockerVolumeSavedViewJSONRequestBody PostDockerVolumeSavedViewJSONBody
+
+// PutDockerVolumeSavedViewJSONRequestBody defines body for PutDockerVolumeSavedView for application/json ContentType.
+type PutDockerVolumeSavedViewJSONRequestBody PutDockerVolumeSavedViewJSONBody
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody PostDockerVolumeRemoveJSONBody

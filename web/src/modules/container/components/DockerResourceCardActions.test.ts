@@ -7,6 +7,7 @@ import DockerResourceCardActions from './DockerResourceCardActions.vue';
 const TButtonStub = defineComponent({
   name: 'TButtonStub',
   props: {
+    size: { default: undefined, type: String },
     theme: { default: undefined, type: String },
     variant: { default: undefined, type: String },
   },
@@ -41,7 +42,11 @@ describe('DockerResourceCardActions', () => {
     const wrapper = mountActions();
 
     expect(wrapper.findAllComponents(TButtonStub)).toHaveLength(1);
-    expect(wrapper.findComponent(TButtonStub).props()).toMatchObject({ theme: 'primary', variant: 'outline' });
+    expect(wrapper.findComponent(TButtonStub).props()).toMatchObject({
+      size: 'medium',
+      theme: 'primary',
+      variant: 'outline',
+    });
     expect(wrapper.findComponent(TDropdownStub).exists()).toBe(false);
   });
 
@@ -51,6 +56,7 @@ describe('DockerResourceCardActions', () => {
     expect(wrapper.findComponent(TDropdownStub).props('options')).toEqual([
       expect.objectContaining({ theme: 'error', value: 'remove' }),
     ]);
+    expect(wrapper.findAllComponents(TButtonStub).every((button) => button.props('size') === 'medium')).toBe(true);
 
     await wrapper.findAll('button')[0].trigger('click');
     await wrapper.findAll('button')[2].trigger('click');

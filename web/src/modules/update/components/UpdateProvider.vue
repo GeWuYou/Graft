@@ -4,17 +4,21 @@
 import { onBeforeUnmount, onMounted } from 'vue';
 
 import { useUpdateDiscoveryStore } from '../store/discovery';
+import { useUpdateProgressStore } from '../store/progress';
 
 const discoveryStore = useUpdateDiscoveryStore();
+const progressStore = useUpdateProgressStore();
 
 onMounted(() => {
   void discoveryStore.ensureSnapshot();
+  void progressStore.resume();
   document.addEventListener('visibilitychange', handleVisibilityChange, false);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   discoveryStore.reset();
+  progressStore.reset();
 });
 
 function handleVisibilityChange() {

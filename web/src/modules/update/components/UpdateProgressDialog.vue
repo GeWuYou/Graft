@@ -15,7 +15,13 @@
     <section class="update-progress" data-testid="update-progress-dialog">
       <t-progress data-testid="update-progress-overall" :percentage="overallPercentage" :label="true" />
       <t-alert
-        :theme="progress.phase === 'failed' ? 'error' : progress.phase === 'success' ? 'success' : 'info'"
+        :theme="
+          progress.phase === 'failed' || progress.phase === 'unavailable'
+            ? 'error'
+            : progress.phase === 'success'
+              ? 'success'
+              : 'info'
+        "
         :message="phaseMessage"
       />
       <t-steps v-if="progress.operation" :current="currentStep" layout="vertical" readonly>
@@ -29,6 +35,18 @@
       </section>
       <section v-if="progress.phase === 'failed'" class="update-progress__failure">
         <p>{{ progress.operation?.message || t('update.center.progress.diagnosticUnavailable') }}</p>
+      </section>
+      <section v-if="progress.phase === 'unavailable'" class="update-progress__failure">
+        <p>{{ t('update.center.progress.sourceUnavailable') }}</p>
+      </section>
+      <section v-if="progress.events.length" class="update-progress__events" data-testid="update-progress-events">
+        <h3>{{ t('update.center.progress.events.title') }}</h3>
+        <ol class="graft-scrollbar">
+          <li v-for="event in progress.events" :key="event.revision">
+            <strong>{{ t(`update.center.history.phases.${event.phase}`) }}</strong>
+            <span>{{ eventMessage(event.message) }}</span>
+          </li>
+        </ol>
       </section>
       <t-button v-if="terminal" class="update-progress__close" @click="closeTerminalDialog">
         {{ t('update.center.progress.close') }}
@@ -80,12 +98,35 @@ const currentStageLabel = computed(() => {
   return t(`update.center.history.phases.${stageStatus.value}`);
 });
 const phaseMessage = computed(() => t(`update.center.progress.phase.${progress.phase}`));
-const terminal = computed(() => progress.phase === 'success' || progress.phase === 'failed');
+const terminal = computed(() => progress.isTerminal());
+
+const eventMessageKeys = new Set([
+  'runner_starting',
+  'runner_accepted',
+  'checking_environment',
+  'creating_backup',
+  'pulling_images',
+  'verifying_images',
+  'stopping_services',
+  'applying_update',
+  'running_migrations',
+  'starting_services',
+  'checking_health',
+  'update_completed',
+  'update_failed',
+  'rollback_completed',
+]);
 
 onMounted(() => progress.resume());
 
 function closeTerminalDialog() {
   if (terminal.value) progress.reset();
+}
+
+function eventMessage(message: string) {
+  return eventMessageKeys.has(message)
+    ? t(`update.center.history.messages.${message}`)
+    : t('update.center.progress.events.recorded');
 }
 </script>
 <style scoped lang="less">
@@ -119,6 +160,42 @@ function closeTerminalDialog() {
 }
 
 .update-progress__current-stage-heading strong {
+  color: var(--td-text-color-primary);
+  font-weight: var(--td-font-weight-medium);
+}
+
+.update-progress__events {
+  border-top: 1px solid var(--td-component-border);
+  display: grid;
+  gap: var(--td-comp-margin-s);
+  padding-top: var(--td-comp-paddingTB-m);
+}
+
+.update-progress__events h3 {
+  color: var(--td-text-color-primary);
+  font: var(--td-font-title-small);
+  margin: 0;
+}
+
+.update-progress__events ol {
+  display: grid;
+  gap: var(--td-comp-margin-xs);
+  list-style: none;
+  margin: 0;
+  max-height: 12rem;
+  overflow: auto;
+  padding: 0;
+}
+
+.update-progress__events li {
+  color: var(--td-text-color-secondary);
+  display: grid;
+  gap: var(--td-comp-margin-xs);
+  grid-template-columns: minmax(7rem, auto) minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
+
+.update-progress__events strong {
   color: var(--td-text-color-primary);
   font-weight: var(--td-font-weight-medium);
 }

@@ -39,13 +39,20 @@ identity needed to bind it to the accepted request. Phases are `READY`, `PREFLIG
 `ROLLBACK`. The controller records every transition before taking the associated irreversible step; `SUCCESS`,
 `FAILED`, and `ROLLBACK` are terminal.
 
+Event records are a user-visible, allowlisted action timeline rather than runner output. Each record is bound to one
+operation and has a monotonic revision, timestamp, phase, stable action code, and safe localized-message input.
+The server validates and may replay these records through the existing operation topic. Command lines, Compose or
+Docker stderr, host paths, backup locations, credentials, and arbitrary metadata are never event fields. Event files
+are operation-scoped so a revision from one operation cannot overwrite or be replayed as another operation's event.
+
 `server` is a read-only projection and delivery boundary:
 
 - It authorizes the request, freezes trusted runner input, starts the runner, and records the user request/audit fact.
 - It validates state schema, operation binding, monotonic revision, and event/snapshot integrity before serving it as
   the active operation API or publishing a sanitized snapshot on the existing realtime topic.
-- On startup and while running it reconciles the read-only state store. SSE/WebSocket is transport only; a reconnect
-  first reads the latest API snapshot and then subscribes, so unavailable server time is not mistaken for lost runner
+- On startup and while running it reconciles the read-only state store. The active-operation and bounded event-replay
+  APIs are read-only projections; a reconnect or new browser tab first reads the latest snapshot and missed events,
+  then subscribes. SSE/WebSocket is transport only, so unavailable server time is not mistaken for lost runner
   progress.
 - It projects only verified terminal state into PostgreSQL as append-only update history, backup/audit references, and
   safe diagnostics. PostgreSQL is the business-history authority after verified terminal projection, never the

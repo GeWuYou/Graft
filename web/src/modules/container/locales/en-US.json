@@ -395,6 +395,7 @@
         "table": "Table View"
       },
       "filters": {
+        "keyword": "Keyword",
         "searchPlaceholder": "Search Name, Image, ID, or Port",
         "status": "Container Status",
         "deploymentType": "Deployment type",

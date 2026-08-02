@@ -13,7 +13,9 @@ import type {
   CreateUpdateOperationRequest,
   UpdateFailureDiagnostic,
   UpdateOperation,
+  UpdateOperationEvent,
   UpdateOperationLaunchAcknowledgement,
+  UpdateOperationRealtimeMessage,
   UpdateStatus,
 } from '../types/update';
 
@@ -39,6 +41,13 @@ export function getUpdateOperations() {
   >;
 }
 
+/** 读取当前未结束的 runner 操作，供新标签页从服务端事实恢复升级会话。 */
+export function getActiveUpdateOperation() {
+  return request.get<UpdateOperation | null>({
+    url: UPDATE_API_PATH.ACTIVE_OPERATION,
+  }) as Promise<UpdateOperation | null>;
+}
+
 /** 读取单个升级操作，用于壳层升级进度会话轮询。 */
 export function getUpdateOperation(operationID: string) {
   return request.get<UpdateOperation>({
@@ -50,15 +59,23 @@ export function getUpdateOperation(operationID: string) {
 export function subscribeToUpdateOperation(
   operationID: string,
   options: Readonly<{
-    onOperation: (operation: UpdateOperation) => void | Promise<void>;
+    onOperation: (message: UpdateOperationRealtimeMessage) => void | Promise<void>;
     onStateChange?: (state: RealtimeEventStreamState) => void;
   }>,
 ): RealtimeTopicEventStreamController {
-  return openRealtimeTopicEventStream<UpdateOperation>({
+  return openRealtimeTopicEventStream<UpdateOperationRealtimeMessage>({
     topic: buildUpdateOperationTopicName(operationID),
     onMessage: options.onOperation,
     onStateChange: options.onStateChange,
   });
+}
+
+/** 以 revision 游标补齐 SSE 断线期间遗漏的受控节点事件。 */
+export function getUpdateOperationEvents(operationID: string, afterRevision: number) {
+  return request.get<UpdateOperationEvent[]>({
+    url: UPDATE_API_PATH.OPERATION_EVENTS.replace('{operationID}', encodeURIComponent(operationID)),
+    params: { after_revision: afterRevision },
+  }) as Promise<UpdateOperationEvent[]>;
 }
 
 /** 操作结束后读取服务端映射出的脱敏失败原因，不透传 runner 原始输出。 */

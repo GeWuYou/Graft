@@ -3,10 +3,20 @@ import { defineStore } from 'pinia';
 import type { RealtimeTopicEventStreamController } from '@/shared/realtime/sse-client';
 import { isApiRequestError } from '@/utils/request';
 
-import { getUpdateOperation, subscribeToUpdateOperation } from '../api/update';
-import type { UpdateOperation, UpdateOperationLaunchAcknowledgement } from '../types/update';
+import {
+  getActiveUpdateOperation,
+  getUpdateOperation,
+  getUpdateOperationEvents,
+  subscribeToUpdateOperation,
+} from '../api/update';
+import type {
+  UpdateOperation,
+  UpdateOperationEvent,
+  UpdateOperationLaunchAcknowledgement,
+  UpdateOperationRealtimeMessage,
+} from '../types/update';
 
-type ProgressPhase = 'idle' | 'running' | 'reconnecting' | 'success' | 'failed';
+type ProgressPhase = 'idle' | 'running' | 'reconnecting' | 'success' | 'failed' | 'unavailable';
 
 const SESSION_STORAGE_KEY = 'graft.platform-update.operation-id';
 const terminalSuccess = new Set<UpdateOperation['phase']>(['SUCCESS']);
@@ -36,6 +46,12 @@ function persistOperation(operationID: string | null) {
   }
 }
 
+function isOperationEvent(
+  message: UpdateOperationRealtimeMessage,
+): message is Extract<UpdateOperationRealtimeMessage, { event: UpdateOperationEvent }> {
+  return 'event' in message;
+}
+
 /** 壳层唯一的升级会话状态：runner 快照优先于 SSE，服务重建时轮询同一状态事实。 */
 export const useUpdateProgressStore = defineStore('update-progress', {
   state: () => {
@@ -49,6 +65,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       stream: null as RealtimeTopicEventStreamController | null,
       pollTimer: null as number | null,
       snapshotRetryCount: 0,
+      events: [] as UpdateOperationEvent[],
+      latestEventRevision: 0,
+      recoveringActiveOperation: false,
     };
   },
   getters: {
@@ -64,12 +83,33 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operation = null;
       this.lastActivePhase = null;
       this.snapshotRetryCount = 0;
+      this.events = [];
+      this.latestEventRevision = 0;
       this.phase = 'reconnecting';
       await this.refreshSnapshot(this.session);
     },
-    resume() {
+    async resume() {
       if (this.operationID && !this.stream && this.phase !== 'idle' && !this.isTerminal()) {
-        void this.refreshSnapshot(this.session);
+        await this.refreshSnapshot(this.session);
+        return;
+      }
+      if (this.operationID || this.recoveringActiveOperation || this.phase !== 'idle') return;
+      this.recoveringActiveOperation = true;
+      try {
+        const operation = await getActiveUpdateOperation();
+        if (!operation || this.operationID || this.phase !== 'idle') return;
+        this.session += 1;
+        const session = this.session;
+        persistOperation(operation.operation_id);
+        this.operationID = operation.operation_id;
+        this.phase = 'reconnecting';
+        await this.applyOperation(session, operation);
+        if (!this.isTerminal()) await this.refreshEvents(session);
+        if (!this.isTerminal() && !this.stream) this.connect(session);
+      } catch {
+        // 未知是否存在升级时，不能仅因 active 查询短暂失败而阻断后台壳；已知操作仍由快照恢复路径明确报告不可用。
+      } finally {
+        this.recoveringActiveOperation = false;
       }
     },
     async refreshSnapshot(session: number) {
@@ -79,6 +119,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         const operation = await getUpdateOperation(operationID);
         this.snapshotRetryCount = 0;
         await this.applyOperation(session, operation);
+        if (!this.isTerminal()) await this.refreshEvents(session);
         if (session === this.session && !this.isTerminal() && !this.stream) this.connect(session);
       } catch (error) {
         if (session !== this.session || this.isTerminal()) return;
@@ -95,12 +136,16 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       const operationID = this.operationID;
       if (!operationID || session !== this.session) return;
       this.stream = subscribeToUpdateOperation(operationID, {
-        onOperation: async (operation) => this.applyOperation(session, operation),
+        onOperation: async (message) => this.applyRealtimeMessage(session, message),
         onStateChange: (state) => {
           if (session !== this.session || this.isTerminal()) return;
           if (state === 'open') {
-            this.phase = 'running';
-            this.stopPolling();
+            void this.refreshEvents(session).finally(() => {
+              if (session === this.session && !this.isTerminal()) {
+                this.phase = 'running';
+                this.stopPolling();
+              }
+            });
           } else if (state !== 'idle') {
             this.phase = 'reconnecting';
             this.startPolling(session);
@@ -108,11 +153,46 @@ export const useUpdateProgressStore = defineStore('update-progress', {
         },
       });
     },
+    async applyRealtimeMessage(session: number, message: UpdateOperationRealtimeMessage) {
+      if (isOperationEvent(message)) {
+        this.appendEvent(message.event);
+        if (message.operation) await this.applyOperation(session, message.operation);
+        return;
+      }
+      await this.applyOperation(session, message);
+    },
+    async refreshEvents(session: number) {
+      const operationID = this.operationID;
+      if (!operationID || session !== this.session) return;
+      try {
+        const events = await getUpdateOperationEvents(operationID, this.latestEventRevision);
+        if (session !== this.session) return;
+        events.forEach((event) => this.appendEvent(event));
+      } catch (error) {
+        if (isUnrecoverableSnapshotError(error)) this.failSnapshotRecovery();
+      }
+    },
+    appendEvent(event: UpdateOperationEvent) {
+      const trackedOperationID = this.operationID ?? this.operation?.operation_id;
+      if (
+        !trackedOperationID ||
+        event.operation_id !== trackedOperationID ||
+        event.revision <= this.latestEventRevision
+      ) {
+        return;
+      }
+      this.events.push(event);
+      this.latestEventRevision = event.revision;
+    },
     async applyOperation(session: number, operation: UpdateOperation) {
       if (session !== this.session) return;
       if (this.operationID && operation.operation_id !== this.operationID) return;
       this.operation = operation;
       this.operationID = operation.operation_id;
+      if (!operation.state_available || operation.state_source === 'runner_state_unavailable') {
+        this.failSnapshotRecovery();
+        return;
+      }
       if (terminalSuccess.has(operation.phase)) {
         this.phase = 'success';
         this.stopStream();
@@ -136,7 +216,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.phase = 'running';
     },
     isTerminal() {
-      return this.phase === 'success' || this.phase === 'failed';
+      return this.phase === 'success' || this.phase === 'failed' || this.phase === 'unavailable';
     },
     stopStream() {
       this.stream?.close();
@@ -151,11 +231,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.pollTimer = null;
     },
     failSnapshotRecovery() {
-      this.phase = 'failed';
+      this.phase = 'unavailable';
       this.stopStream();
       this.stopPolling();
-      persistOperation(null);
-      this.operationID = null;
     },
     reset() {
       this.session += 1;
@@ -166,6 +244,9 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       this.operationID = null;
       this.lastActivePhase = null;
       this.snapshotRetryCount = 0;
+      this.events = [];
+      this.latestEventRevision = 0;
+      this.recoveringActiveOperation = false;
       this.phase = 'idle';
     },
   },

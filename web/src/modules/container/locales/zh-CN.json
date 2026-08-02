@@ -389,6 +389,7 @@
         "table": "表格视图"
       },
       "filters": {
+        "keyword": "关键词",
         "searchPlaceholder": "搜索名称、镜像、ID 或端口",
         "status": "容器状态",
         "deploymentType": "部署类型",

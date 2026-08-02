@@ -419,6 +419,13 @@ func TestComposeRunnerContainerConfigUsesOnlyFrozenMountsAndDigestImage(t *testi
 	}
 }
 
+func TestComposeRunnerContainerConfigAllowsOnlyChownForStateOwnership(t *testing.T) {
+	_, host := composeRunnerContainerConfig(fixtureRunnerInput("/opt/graft"), "runner-input", "graft-update-state")
+	if len(host.CapDrop) != 1 || host.CapDrop[0] != "ALL" || len(host.CapAdd) != 1 || host.CapAdd[0] != "CHOWN" || len(host.SecurityOpt) != 1 || host.SecurityOpt[0] != "no-new-privileges:true" {
+		t.Fatalf("runner capability hardening changed: %#v", host)
+	}
+}
+
 func TestSQLOperationStorePersistsHistoryWithoutReceiptContent(t *testing.T) {
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {

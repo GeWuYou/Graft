@@ -180,9 +180,11 @@
         },
         "messages": {
           "runner_accepted": "升级已受理",
+          "runner_starting": "升级运行器正在启动",
           "checking_environment": "正在检查环境",
           "creating_backup": "正在创建备份",
           "pulling_images": "正在拉取镜像",
+          "verifying_images": "正在验证镜像",
           "stopping_services": "正在停止服务",
           "applying_update": "正在应用更新",
           "running_migrations": "正在执行迁移",
@@ -203,7 +205,8 @@
           "running": "升级正在进行，请勿关闭此页面。",
           "reconnecting": "服务正在重建，正在重新连接升级状态…",
           "success": "升级完成，正在刷新页面…",
-          "failed": "升级未完成，请查看已脱敏的失败原因。"
+          "failed": "升级未完成，请查看已脱敏的失败原因。",
+          "unavailable": "升级状态暂时不可用，请查看已记录的节点并稍后重试。"
         },
         "steps": {
           "ready": "准备",
@@ -217,6 +220,8 @@
         },
         "currentStage": "当前阶段",
         "diagnosticUnavailable": "暂时无法读取本次升级的诊断详情，请在应用日志中按请求 ID 查询。",
+        "sourceUnavailable": "平台暂时无法读取升级运行器状态。已接收的节点记录仍保留在此处。",
+        "events": { "title": "升级节点", "recorded": "已记录升级节点" },
         "viewAppLogs": "查看应用日志",
         "close": "关闭"
       },

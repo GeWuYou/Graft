@@ -7,6 +7,27 @@ import removalText from '../../shared/volume-removal.ts?raw';
 import sourceText from './index.vue?raw';
 
 describe('docker volume asset management page', () => {
+  it('preserves a saved page while refreshing its restored query and localizes saved-view failures', () => {
+    expect(sourceText).toContain('pagination.pageSize = state.pageSize;\n    void refresh();');
+    expect(sourceText).toContain('await refresh();\n  await savedViews.load();');
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.list.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('`${operation}: ${String(cause)}`');
+  });
+
+  it('uses medium controls for page-level actions while retaining compact row actions', () => {
+    expect(sourceText).toContain(
+      'size="medium"\n          variant="outline"\n          :loading="cleanup.loading.value"',
+    );
+    expect(sourceText).toContain('button-size="medium"');
+    expect(sourceText).toContain('size="medium" theme="danger" variant="outline" @click="handleBatchRemove"');
+    expect(sourceText).toContain('size="medium" variant="outline" @click="resetFilters"');
+    expect(sourceText).toMatch(/size="medium"\s+theme="danger"\s+:disabled="!cleanup\.selectedIds\.value\.length"/);
+    expect(sourceText).toMatch(/size="small"\s+variant="text"\s+@click="cleanup\.clearSelection"/);
+    expect(sourceText).toMatch(/size="small"\s+variant="text"\s+:disabled="cleanup\.previewPage\.value === 1"/);
+  });
+
   it('renders a compact mobile asset card instead of stacking every table field', () => {
     expect(sourceText).toContain('cards-visible');
     expect(sourceText).toContain('density-scope="viewport"');

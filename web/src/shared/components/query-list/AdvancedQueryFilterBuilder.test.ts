@@ -19,6 +19,14 @@ const passthroughStub = defineComponent({
     return () => h('button', { ...attrs, onClick: () => emit('click') }, slots.default?.());
   },
 });
+const popupStub = defineComponent({
+  props: { visible: Boolean },
+  emits: ['update:visible'],
+  setup(props, { emit, slots }) {
+    return () =>
+      h('div', { onClick: () => emit('update:visible', !props.visible) }, [slots.default?.(), slots.content?.()]);
+  },
+});
 
 const inputStub = defineComponent({
   emits: ['enter'],
@@ -86,6 +94,7 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
+          't-popup': popupStub,
           't-collapse': collapseStub,
           't-collapse-panel': collapsePanelStub,
           't-input': inputStub,
@@ -97,6 +106,29 @@ describe('AdvancedQueryFilterBuilder', () => {
     await wrapper.get('[data-testid="close-filter-tag"]').trigger('click');
 
     expect(wrapper.emitted('reset')).toHaveLength(1);
+  });
+
+  it('always renders the active-filter row, including when no tags are active', async () => {
+    const wrapper = mount(AdvancedQueryFilterBuilder, {
+      props: { ...defaultProps, compactMode: true, tags: [] },
+      global: {
+        stubs: {
+          't-button': passthroughStub,
+          't-popup': popupStub,
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
+          't-input': inputStub,
+          't-tag': tagStub,
+        },
+      },
+    });
+
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').classes()).toContain('graft-scrollbar');
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toBe('');
+
+    await wrapper.setProps({ tags: defaultProps.tags });
+
+    expect(wrapper.get('[data-testid="query-filter-builder-tags"]').text()).toContain('Keyword: active');
   });
 
   it('keeps compact filter controls inside the collapsed panel while presets remain outside it', async () => {
@@ -113,6 +145,7 @@ describe('AdvancedQueryFilterBuilder', () => {
       global: {
         stubs: {
           't-button': passthroughStub,
+          't-popup': popupStub,
           't-collapse': collapseStub,
           't-collapse-panel': collapsePanelStub,
           't-input': inputStub,
@@ -131,5 +164,36 @@ describe('AdvancedQueryFilterBuilder', () => {
       .find((button) => button.text().trim() === 'Search')
       ?.trigger('click');
     expect(wrapper.emitted('search')).toHaveLength(1);
+  });
+
+  it('marks the add-filter trigger as pressed while its popup is open', async () => {
+    const wrapper = mount(AdvancedQueryFilterBuilder, {
+      props: {
+        ...defaultProps,
+        fields: [{ key: 'status', kind: 'select', label: 'Status' }],
+      },
+      global: {
+        stubs: {
+          't-button': passthroughStub,
+          't-popup': popupStub,
+          't-collapse': collapseStub,
+          't-collapse-panel': collapsePanelStub,
+          't-input': inputStub,
+        },
+      },
+    });
+    const trigger = wrapper.findAll('button').find((button) => button.text().trim() === 'Add Filter');
+
+    expect(trigger).toBeDefined();
+
+    expect(trigger?.attributes('theme')).toBe('default');
+    expect(trigger?.attributes('variant')).toBe('dashed');
+    expect(trigger?.attributes('aria-expanded')).toBe('false');
+
+    await trigger?.trigger('click');
+
+    expect(trigger?.attributes('theme')).toBe('primary');
+    expect(trigger?.attributes('variant')).toBe('base');
+    expect(trigger?.attributes('aria-expanded')).toBe('true');
   });
 });

@@ -28,6 +28,7 @@ export {
 export { default as ResourceQueryPanel } from './resource-query/ResourceQueryPanel.vue';
 export type {
   ResourceQueryConfig,
+  ResourceQueryFieldDefinition,
   ResourceQueryFilterDefinition,
   ResourceQueryFilterOption,
   ResourceQueryFilterType,

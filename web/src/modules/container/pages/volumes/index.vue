@@ -8,7 +8,13 @@
       :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
     >
       <template #actions>
-        <t-button v-if="canRemove" size="small" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
+        <t-button
+          v-if="canRemove"
+          size="medium"
+          variant="outline"
+          :loading="cleanup.loading.value"
+          @click="openCleanup"
+        >
           {{ t('container.volume.actions.cleanup') }}
         </t-button>
       </template>
@@ -25,42 +31,10 @@
       v-model="resourceQueryState"
       :config="queryConfig"
       :loading="loading"
-      :simple-filters-visible="advancedFiltersVisible"
       @reset="resetFilters"
       @search="applyFilters"
     >
-      <template #toolbar-after-search>
-        <t-select v-model="filters.usage" class="management-toolbar__select">
-          <t-option value="all" :label="t('container.volume.filters.allUsage')" />
-          <t-option value="used" :label="t('container.volume.status.inUse')" />
-          <t-option value="unused" :label="t('container.volume.status.unused')" />
-          <t-option value="abnormal" :label="t('container.volume.filters.abnormal')" />
-        </t-select>
-        <t-button variant="outline" @click="advancedFiltersVisible = !advancedFiltersVisible">
-          {{ t('container.resourceContext.moreFilters') }}
-        </t-button>
-      </template>
-      <template #simple-filters>
-        <docker-resource-context-filters
-          v-model:compose-project="filters.compose_project"
-          v-model:source="filters.source"
-          @apply="applyFilters"
-        />
-        <t-input
-          v-model="filters.driver"
-          class="management-toolbar__select"
-          clearable
-          :placeholder="t('container.volume.filters.driver')"
-          @enter="applyFilters"
-        />
-        <t-input
-          v-model="filters.scope"
-          class="management-toolbar__select"
-          clearable
-          :placeholder="t('container.volume.filters.scope')"
-          @enter="applyFilters"
-        />
-      </template>
+      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
     </resource-query-panel>
 
     <management-paged-table
@@ -86,12 +60,13 @@
     >
       <template v-if="selectedRowKeys.length" #batch>
         <management-batch-bar
+          button-size="medium"
           :selected-label="t('container.volume.batch.selected', { count: selectedRowKeys.length })"
           :clear-label="t('container.volume.batch.cancelSelection')"
           clear-test-id="docker-volume-batch-clear"
           @clear="clearSelection"
         >
-          <t-button v-if="canRemove" size="small" theme="danger" variant="outline" @click="handleBatchRemove">
+          <t-button v-if="canRemove" size="medium" theme="danger" variant="outline" @click="handleBatchRemove">
             {{ t('container.volume.batch.remove') }}
           </t-button>
         </management-batch-bar>
@@ -115,7 +90,9 @@
           "
         >
           <template v-if="hasActiveFilters" #action>
-            <t-button variant="outline" @click="resetFilters">{{ t('container.volume.filters.reset') }}</t-button>
+            <t-button size="medium" variant="outline" @click="resetFilters">{{
+              t('container.volume.filters.reset')
+            }}</t-button>
           </template>
         </t-empty>
         <div v-else class="docker-volume-page__cards">
@@ -197,7 +174,7 @@
       <template #empty>
         <t-empty :title="t('container.volume.pagination.empty')" :description="t('container.volume.list.description')">
           <template #action>
-            <t-button v-if="hasActiveFilters" variant="outline" @click="resetFilters">
+            <t-button v-if="hasActiveFilters" size="medium" variant="outline" @click="resetFilters">
               {{ t('container.volume.filters.reset') }}
             </t-button>
           </template>
@@ -283,10 +260,15 @@
       </docker-cleanup-loading-host>
       <template #footer>
         <t-space>
-          <t-button variant="outline" @click="cleanup.visible.value = false">{{
+          <t-button size="medium" variant="outline" @click="cleanup.visible.value = false">{{
             t('container.volume.cleanup.cancel')
           }}</t-button>
-          <t-button theme="danger" :disabled="!cleanup.selectedIds.value.length" @click="confirmCleanupRemoval">
+          <t-button
+            size="medium"
+            theme="danger"
+            :disabled="!cleanup.selectedIds.value.length"
+            @click="confirmCleanupRemoval"
+          >
             {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
           </t-button>
         </t-space>
@@ -345,7 +327,12 @@ import {
   TableActionMenu,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
-import { type ResourceQueryConfig, ResourceQueryPanel, type ResourceQueryState } from '@/shared/components/query-list';
+import {
+  type ResourceQueryConfig,
+  ResourceQueryPanel,
+  type ResourceQueryState,
+  SavedQueryViewControl,
+} from '@/shared/components/query-list';
 import ResourceDetailLayout from '@/shared/components/responsive/ResourceDetailLayout.vue';
 import { resolveLocalizedErrorMessage } from '@/shared/localized-api-error';
 import { formatBytes, formatLocaleDateOnly, formatLocaleDateTime } from '@/shared/observability';
@@ -353,19 +340,24 @@ import { usePermissionStore } from '@/store';
 
 import {
   batchRemoveDockerVolumes,
+  deleteDockerVolumeSavedView,
   type DockerVolumeDetail,
   type DockerVolumeListQuery,
   getDockerVolume,
+  getDockerVolumeSavedViews,
   listDockerVolumes,
+  postDockerVolumeSavedView,
+  putDockerVolumeSavedView,
   removeDockerVolume,
 } from '../../api/container';
 import DockerResourceCardActions from '../../components/DockerResourceCardActions.vue';
-import DockerResourceContextFilters from '../../components/DockerResourceContextFilters.vue';
 import VolumeDetailContent from '../../components/VolumeDetailContent.vue';
 import { CONTAINER_BOOTSTRAP_ROUTE } from '../../contract/bootstrap';
 import DockerCleanupLoadingHost from '../../shared/cleanup/DockerCleanupLoadingHost.vue';
 import { type CleanupBatchOutcome, useDockerCleanup } from '../../shared/cleanup/use-docker-cleanup';
 import ContainerReferenceList from '../../shared/ContainerReferenceList.vue';
+import { useDockerResourceSavedViews } from '../../shared/docker-resource-saved-views';
+import { getDockerResourceSourceLabel } from '../../shared/resource-presentation';
 import { getDockerVolumeStatusPresentation } from '../../shared/volume-presentation';
 import { openVolumeRemovalConfirmation } from '../../shared/volume-removal';
 
@@ -395,28 +387,79 @@ const filters = reactive<{
   compose_project: '',
 });
 const applied = ref({ ...filters });
-const advancedFiltersVisible = ref(false);
 const queryConfig = computed<ResourceQueryConfig>(() => ({
-  resource: 'container-volume',
+  resource: 'docker-volume.list',
   search: true,
-  filterBuilder: { enabled: false },
+  filterBuilder: { enabled: true },
   placeholder: t('container.volume.filters.keyword'),
+  savedView: true,
+  filters: [
+    {
+      key: 'usage',
+      label: t('container.volume.filters.usage'),
+      type: 'select',
+      options: [
+        { value: 'all', label: t('container.volume.filters.allUsage') },
+        { value: 'used', label: t('container.volume.status.inUse') },
+        { value: 'unused', label: t('container.volume.status.unused') },
+        { value: 'abnormal', label: t('container.volume.filters.abnormal') },
+      ],
+    },
+    {
+      key: 'source',
+      label: t('container.resourceContext.source'),
+      type: 'select',
+      options: ['compose', 'docker_default', 'docker', 'managed', 'imported', 'unknown'].map((value) => ({
+        value,
+        label: getDockerResourceSourceLabel(t, value as DockerResourceSource),
+      })),
+    },
+    { key: 'compose_project', label: t('container.resourceContext.project'), type: 'input' },
+    { key: 'driver', label: t('container.volume.filters.driver'), type: 'input' },
+    { key: 'scope', label: t('container.volume.filters.scope'), type: 'input' },
+  ],
 }));
 const resourceQueryState = computed<ResourceQueryState>({
   get: () => ({
     keyword: filters.keyword,
-    filters: { usage: filters.usage },
+    filters: {
+      driver: filters.driver,
+      scope: filters.scope,
+      usage: filters.usage,
+      source: filters.source,
+      compose_project: filters.compose_project,
+    },
     page: pagination.current,
     pageSize: pagination.pageSize,
   }),
   set: (value) => {
     filters.keyword = value.keyword;
+    filters.driver = String(value.filters.driver ?? '');
+    filters.scope = String(value.filters.scope ?? '');
     filters.usage = (value.filters.usage as UsageFilter) || 'all';
+    filters.source = (value.filters.source as DockerResourceSource) || '';
+    filters.compose_project = String(value.filters.compose_project ?? '');
     pagination.current = value.page;
     pagination.pageSize = value.pageSize;
   },
 });
 const pagination = reactive({ current: 1, pageSize: 20, total: 0 });
+const savedViews = useDockerResourceSavedViews({
+  api: {
+    list: getDockerVolumeSavedViews,
+    create: postDockerVolumeSavedView,
+    update: putDockerVolumeSavedView,
+    remove: deleteDockerVolumeSavedView,
+  },
+  applyState: (state) => {
+    resourceQueryState.value = state.queryState;
+    pagination.pageSize = state.pageSize;
+    void refresh();
+  },
+  getState: () => ({ pageSize: pagination.pageSize, queryState: resourceQueryState.value, visibleColumns: [] }),
+  onError: (cause: unknown) =>
+    MessagePlugin.error(resolveLocalizedErrorMessage(t, cause, t('container.volume.list.loadFailed'))),
+});
 const canRemove = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VOLUME_REMOVE));
 const hasActiveFilters = computed(() =>
   Boolean(
@@ -476,7 +519,10 @@ const paginationSummary = computed(() => {
     total: pagination.total,
   });
 });
-onMounted(() => void refresh());
+onMounted(async () => {
+  await refresh();
+  await savedViews.load();
+});
 watch(
   () => [pagination.current, pagination.pageSize],
   () => void refresh(),

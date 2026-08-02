@@ -1995,6 +1995,8 @@ type GetAuditLogSavedViews403JSONResponseBodySuccess bool
 
 // PostAuditLogSavedViewJSONBody defines parameters for PostAuditLogSavedView.
 type PostAuditLogSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`
@@ -2035,6 +2037,8 @@ type DeleteAuditLogSavedView403JSONResponseBodySuccess bool
 
 // PutAuditLogSavedViewJSONBody defines parameters for PutAuditLogSavedView.
 type PutAuditLogSavedViewJSONBody struct {
+	// IsDefault Whether this view becomes the user's default for this list surface.
+	IsDefault      *bool                  `json:"is_default,omitempty"`
 	Name           string                 `json:"name"`
 	PageSize       int                    `json:"page_size"`
 	QueryState     map[string]interface{} `json:"query_state"`

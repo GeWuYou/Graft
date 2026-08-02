@@ -9,7 +9,7 @@ const moduleID = "container"
 func NewModuleSpec() module.Spec {
 	return module.Spec{
 		ID:           moduleID,
-		Dependencies: []string{"user", "auth", "rbac", "system-config", "runtime-target", "task"},
+		Dependencies: []string{"user", "auth", "rbac", "saved-view", "system-config", "runtime-target", "task"},
 		Builder: module.BuilderFunc(func(module.BuildContext) (module.Module, error) {
 			return NewModule(), nil
 		}),

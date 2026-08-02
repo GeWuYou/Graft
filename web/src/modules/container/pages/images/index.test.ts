@@ -13,7 +13,14 @@ vi.mock('@/utils/logger', () => ({ createLogger: () => ({ error: vi.fn(), info: 
 vi.mock('@/utils/request', () => ({ isApiRequestError: () => false }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'zh-CN' }, t: (key: string) => key }) }));
 vi.mock('tdesign-vue-next/es/message', () => ({ MessagePlugin: { error: vi.fn(), success: vi.fn() } }));
-vi.mock('../../api/container', () => ({ getDockerImage: vi.fn(), getDockerImages: vi.fn() }));
+vi.mock('../../api/container', () => ({
+  deleteDockerImageSavedView: vi.fn(),
+  getDockerImage: vi.fn(),
+  getDockerImageSavedViews: vi.fn().mockResolvedValue([]),
+  getDockerImages: vi.fn(),
+  postDockerImageSavedView: vi.fn(),
+  putDockerImageSavedView: vi.fn(),
+}));
 vi.mock('../../api/image-actions', () => ({
   batchRemoveDockerImages: vi.fn(),
   pullDockerImage: vi.fn(),
@@ -98,6 +105,13 @@ function mountSelectionPage() {
 }
 
 describe('docker image list page', () => {
+  it('shows localized feedback when saved-view operations fail', () => {
+    expect(sourceText).toContain(
+      "MessagePlugin.error(resolveLocalizedErrorMessage(t, error, t('container.images.loadFailed')))",
+    );
+    expect(sourceText).not.toContain('saved image view ${operation} failed');
+  });
+
   it('centers a standalone detail loading indicator before the request resolves', () => {
     expect(sourceText).toContain('class="docker-images-detail-loading-host"');
     expect(sourceText).toContain('.docker-images-detail-loading-host {\n  min-height: 240px;');
@@ -203,12 +217,19 @@ describe('docker image list page', () => {
     expect(sourceText).toContain('layout="chips"');
   });
 
-  it('maps shared Query Bar search and unused-image filtering to server pagination', () => {
+  it('uses the shared Query Bar without a list-level image filter', () => {
     expect(sourceText).toContain('v-model="resourceQueryState"');
-    expect(sourceText).toContain("key: 'unused'");
+    expect(sourceText).toContain('<resource-query-panel');
+    expect(sourceText).toContain(':config="queryConfig"');
+    expect(sourceText).toContain('#toolbar-actions');
+    expect(sourceText).toContain('<saved-query-view-control :controller="savedViews" />');
+    expect(sourceText).not.toContain('toolbar-after-search');
+    expect(sourceText).not.toContain('simple-filters');
+    expect(sourceText).not.toContain('更多筛选');
+    expect(sourceText).not.toContain("key: 'unused'");
+    expect(sourceText).not.toContain('imageQueryUnused');
     expect(sourceText).toContain('submittedKeyword.value = value.keyword.trim();');
-    expect(sourceText).toContain('imageQueryUnused.value = value.filters.unused === true;');
-    expect(sourceText).toContain('unused: imageQueryUnused.value || undefined');
+    expect(sourceText).toContain('filters: {},');
   });
 
   it('renders a TDesign empty state with a keyword reset action', () => {
