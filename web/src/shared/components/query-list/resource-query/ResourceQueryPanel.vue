@@ -78,7 +78,7 @@
               {{ quick.label }}
             </t-button>
           </div>
-          <div class="resource-query-panel__tags" data-testid="resource-query-tags">
+          <div v-if="activeTags.length" class="resource-query-panel__tags" data-testid="resource-query-tags">
             <t-tag
               v-for="tag in activeTags"
               :key="tag.key"
@@ -369,7 +369,10 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
   display: grid;
   gap: var(--graft-density-gap-8);
   grid-template-areas: 'search after-search filter commands toolbar';
-  grid-template-columns: minmax(18rem, 1.1fr) max-content max-content max-content minmax(17rem, 0.9fr);
+  grid-template-columns: minmax(18rem, var(--graft-query-search-width)) max-content max-content max-content minmax(
+      17rem,
+      1fr
+    );
   width: 100%;
 }
 
@@ -384,6 +387,14 @@ function applyQuickFilter(patch: Record<string, ResourceQueryFilterValue>) {
 
 .resource-query-panel__filter-trigger {
   grid-area: filter;
+}
+
+.resource-query-panel__main[data-command-layout='split'] {
+  grid-template-areas: 'search after-search filter commands toolbar';
+  grid-template-columns: minmax(18rem, var(--graft-query-search-width)) max-content max-content max-content minmax(
+      17rem,
+      1fr
+    );
 }
 
 .resource-query-panel__main[data-command-layout='stacked'] {

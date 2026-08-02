@@ -67,6 +67,16 @@ func TestNormalizeTemplateCatalogQueryBoundsPageSize(t *testing.T) {
 	}
 }
 
+func TestTemplateManagementPageRejectsExcessiveLimit(t *testing.T) {
+	t.Parallel()
+
+	repository, _ := newTestSQLRepository(t)
+	_, err := repository.ListTemplateManagementPage(context.Background(), TemplateManagementQuery{Limit: templateManagementPageSizeMax + 1})
+	if !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for excessive limit, got %v", err)
+	}
+}
+
 func TestTemplateRepositoryHidesPublishedDetailAfterWithdrawalArchiveAndDelete(t *testing.T) {
 	t.Parallel()
 	repository, _ := newTestSQLRepository(t)

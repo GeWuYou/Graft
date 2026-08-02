@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -73,12 +74,56 @@ func (r routeRuntime) handlePublishedTemplateVersion(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleManagedTemplates(ginCtx *gin.Context) {
-	items, err := r.service.ListApplicationTemplates(ginCtx.Request.Context(), true)
+	limit, offset, err := templateManagementWindow(ginCtx)
+	if err != nil {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	query := projectstore.TemplateManagementQuery{Keyword: ginCtx.Query("keyword"), Status: ginCtx.Query("status"), Sort: ginCtx.Query("sort"), Limit: limit, Offset: offset}
+	if query.UpdatedAfter, err = templateManagementTime(ginCtx.Query("updated_after")); err != nil {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	if query.UpdatedBefore, err = templateManagementTime(ginCtx.Query("updated_before")); err != nil {
+		r.writeInvalidArgumentError(ginCtx)
+		return
+	}
+	page, err := r.service.ListApplicationTemplateManagementPage(ginCtx.Request.Context(), query)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
 		return
 	}
-	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ApplicationTemplateListResponse{Items: templateAggregatesHTTP(items)})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ApplicationTemplateListResponse{Items: templateAggregatesHTTP(page.Items), Total: page.Total, Limit: limit, Offset: offset})
+}
+
+func templateManagementWindow(c *gin.Context) (int, int, error) {
+	limit, offset := 20, 0
+	if raw := c.Query("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || !isTemplateManagementPageSize(parsed) {
+			return 0, 0, errProjectInvalidArgument
+		}
+		limit = parsed
+	}
+	if raw := c.Query("offset"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			return 0, 0, errProjectInvalidArgument
+		}
+		offset = parsed
+	}
+	return limit, offset, nil
+}
+
+func templateManagementTime(raw string) (*time.Time, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	value, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, errProjectInvalidArgument
+	}
+	return &value, nil
 }
 func (r routeRuntime) handleTemplateDetail(ginCtx *gin.Context) {
 	item, err := r.service.GetApplicationTemplate(ginCtx.Request.Context(), ginCtx.Param("templateId"))

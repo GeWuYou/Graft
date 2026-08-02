@@ -1172,6 +1172,44 @@
       "versionValue": "Version {version}",
       "operation": "Actions",
       "searchPlaceholder": "Search template name or description",
+      "updatedAtColumn": "Updated At",
+      "columnSettings": "Column Settings",
+      "resetColumns": "Reset Columns",
+      "paginationSummary": "{total} Templates",
+      "presets": {
+        "all": "All"
+      },
+      "sort": {
+        "updatedAt": "Updated At",
+        "name": "Template Name",
+        "status": "Status",
+        "version": "Version Number",
+        "asc": "Ascending",
+        "desc": "Descending"
+      },
+      "filters": {
+        "title": "Filters",
+        "add": "Add Filter",
+        "addSort": "Add Sort",
+        "filter": "Filter",
+        "moveDown": "Move Sort Down",
+        "moveUp": "Move Sort Up",
+        "presets": "Quick Filters",
+        "removeSort": "Remove Sort",
+        "reset": "Reset",
+        "search": "Search",
+        "sort": "Sort",
+        "sortDirection": "Select Sort Direction",
+        "sortField": "Select Sort Field",
+        "updatedRange": "Updated Time Range",
+        "updatedAfter": "Start Time",
+        "updatedBefore": "End Time",
+        "updatedRangeActive": "Updated Time Range Applied"
+      },
+      "savedViews": {
+        "deleteFailed": "Failed to delete the saved filter.",
+        "conflict": "Failed to save the filter. Check its name or conditions."
+      },
       "noDescription": "No description",
       "statusDraft": "Draft",
       "statusPublished": "Published",

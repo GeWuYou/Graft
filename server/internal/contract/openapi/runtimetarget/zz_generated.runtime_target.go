@@ -31,6 +31,84 @@ func (e GetRuntimeTargetsParamsLimit) Valid() bool {
 	}
 }
 
+// Defines values for GetRuntimeTargetsParamsProvider.
+const (
+	GetRuntimeTargetsParamsProviderDocker GetRuntimeTargetsParamsProvider = "docker"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsProvider enum.
+func (e GetRuntimeTargetsParamsProvider) Valid() bool {
+	switch e {
+	case GetRuntimeTargetsParamsProviderDocker:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsConnectionKind.
+const (
+	GetRuntimeTargetsParamsConnectionKindUnixSocket GetRuntimeTargetsParamsConnectionKind = "unix_socket"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsConnectionKind enum.
+func (e GetRuntimeTargetsParamsConnectionKind) Valid() bool {
+	switch e {
+	case GetRuntimeTargetsParamsConnectionKindUnixSocket:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsHealth.
+const (
+	GetRuntimeTargetsParamsHealthHealthy     GetRuntimeTargetsParamsHealth = "healthy"
+	GetRuntimeTargetsParamsHealthUnavailable GetRuntimeTargetsParamsHealth = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsHealth enum.
+func (e GetRuntimeTargetsParamsHealth) Valid() bool {
+	switch e {
+	case GetRuntimeTargetsParamsHealthHealthy:
+		return true
+	case GetRuntimeTargetsParamsHealthUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTargetsParamsSort.
+const (
+	GetRuntimeTargetsParamsSortDisplayNameAsc  GetRuntimeTargetsParamsSort = "display_name:asc"
+	GetRuntimeTargetsParamsSortDisplayNameDesc GetRuntimeTargetsParamsSort = "display_name:desc"
+	GetRuntimeTargetsParamsSortHealthAsc       GetRuntimeTargetsParamsSort = "health:asc"
+	GetRuntimeTargetsParamsSortHealthDesc      GetRuntimeTargetsParamsSort = "health:desc"
+	GetRuntimeTargetsParamsSortProviderAsc     GetRuntimeTargetsParamsSort = "provider:asc"
+	GetRuntimeTargetsParamsSortProviderDesc    GetRuntimeTargetsParamsSort = "provider:desc"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTargetsParamsSort enum.
+func (e GetRuntimeTargetsParamsSort) Valid() bool {
+	switch e {
+	case GetRuntimeTargetsParamsSortDisplayNameAsc:
+		return true
+	case GetRuntimeTargetsParamsSortDisplayNameDesc:
+		return true
+	case GetRuntimeTargetsParamsSortHealthAsc:
+		return true
+	case GetRuntimeTargetsParamsSortHealthDesc:
+		return true
+	case GetRuntimeTargetsParamsSortProviderAsc:
+		return true
+	case GetRuntimeTargetsParamsSortProviderDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind.
 const (
 	GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKindUnixSocket GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind = "unix_socket"
@@ -264,13 +342,13 @@ func (e GetRuntimeTarget500JSONResponseBodySuccess) Valid() bool {
 
 // Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind.
 const (
-	UnixSocket PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind = "unix_socket"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKindUnixSocket PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind = "unix_socket"
 )
 
 // Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind enum.
 func (e PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKind) Valid() bool {
 	switch e {
-	case UnixSocket:
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataConnectionKindUnixSocket:
 		return true
 	default:
 		return false
@@ -312,13 +390,13 @@ func (e PostRuntimeTargetRefresh200JSONResponseBodyDataProviderDetailsProvider) 
 
 // Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider.
 const (
-	Docker PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider = "docker"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProviderDocker PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider = "docker"
 )
 
 // Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider enum.
 func (e PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProvider) Valid() bool {
 	switch e {
-	case Docker:
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataRuntimeProviderDocker:
 		return true
 	default:
 		return false
@@ -396,8 +474,13 @@ type refreshCookieContextKey string
 
 // GetRuntimeTargetsParams defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParams struct {
-	Limit  *GetRuntimeTargetsParamsLimit `form:"limit,omitempty" json:"limit,omitempty"`
-	Offset *int                          `form:"offset,omitempty" json:"offset,omitempty"`
+	Limit          *GetRuntimeTargetsParamsLimit          `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset         *int                                   `form:"offset,omitempty" json:"offset,omitempty"`
+	Keyword        *string                                `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Provider       *GetRuntimeTargetsParamsProvider       `form:"provider,omitempty" json:"provider,omitempty"`
+	ConnectionKind *GetRuntimeTargetsParamsConnectionKind `form:"connection_kind,omitempty" json:"connection_kind,omitempty"`
+	Health         *GetRuntimeTargetsParamsHealth         `form:"health,omitempty" json:"health,omitempty"`
+	Sort           *GetRuntimeTargetsParamsSort           `form:"sort,omitempty" json:"sort,omitempty"`
 
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *string `json:"X-Graft-Locale,omitempty"`
@@ -409,6 +492,18 @@ type GetRuntimeTargetsParams struct {
 
 // GetRuntimeTargetsParamsLimit defines parameters for GetRuntimeTargets.
 type GetRuntimeTargetsParamsLimit int
+
+// GetRuntimeTargetsParamsProvider defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsProvider string
+
+// GetRuntimeTargetsParamsConnectionKind defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsConnectionKind string
+
+// GetRuntimeTargetsParamsHealth defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsHealth string
+
+// GetRuntimeTargetsParamsSort defines parameters for GetRuntimeTargets.
+type GetRuntimeTargetsParamsSort string
 
 // GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind defines parameters for GetRuntimeTargets.
 type GetRuntimeTargets200JSONResponseBodyDataItemsConnectionKind string

@@ -377,6 +377,10 @@ paths:
     $ref: ./paths/ops-applications.saved-view.yaml
   /api/runtime-targets:
     $ref: ./paths/runtime-targets.collection.yaml
+  /api/runtime-target-saved-views:
+    $ref: ./paths/runtime-targets.saved-views.yaml
+  /api/runtime-target-saved-views/{viewId}:
+    $ref: ./paths/runtime-targets.saved-view.yaml
   /api/runtime-targets/discover-local-docker:
     $ref: ./paths/runtime-targets.discover-local.yaml
   /api/runtime-targets/{id}:
@@ -415,6 +419,10 @@ paths:
     $ref: ./paths/ops-applications.templates.yaml
   /api/ops/applications/templates/manage:
     $ref: ./paths/ops-applications.templates.manage.yaml
+  /api/ops/applications/templates/saved-views:
+    $ref: ./paths/ops-applications.template-saved-views.yaml
+  /api/ops/applications/templates/saved-views/{viewId}:
+    $ref: ./paths/ops-applications.template-saved-view.yaml
   /api/ops/applications/templates/{templateId}:
     $ref: ./paths/ops-applications.template-detail.yaml
   /api/ops/applications/templates/{templateId}/published:

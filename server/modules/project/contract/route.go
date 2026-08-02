@@ -11,6 +11,10 @@ const (
 	ApplicationTemplatesRoute = "/templates"
 	// ApplicationTemplateManagementRoute 仅向模板管理员提供完整目录，避免草稿和归档版本泄露给创建者。
 	ApplicationTemplateManagementRoute = "/templates/manage"
+	// ApplicationTemplateSavedViewsRoute 标识模板管理列表保存视图集合接口。
+	ApplicationTemplateSavedViewsRoute = "/templates/saved-views"
+	// ApplicationTemplateSavedViewRoute 标识单个模板管理列表保存视图接口。
+	ApplicationTemplateSavedViewRoute = "/templates/saved-views/:viewId"
 	// ApplicationTemplateDetailRoute 标识模板详情和草稿编辑接口。
 	ApplicationTemplateDetailRoute = "/templates/:templateId"
 	// ApplicationTemplatePublishedRoute 标识创建者可读的已发布模板详情接口。

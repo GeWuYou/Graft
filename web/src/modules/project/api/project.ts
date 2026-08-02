@@ -31,6 +31,8 @@ import type {
   ApplicationTemplateCatalogQuery,
   ApplicationTemplateDraftRequest,
   ApplicationTemplateListResponse,
+  ApplicationTemplateSavedView,
+  ApplicationTemplateSavedViewRequest,
   ApplicationWorkspaceEntry,
   ApplicationWorkspaceFileAnnotationRequest,
   ApplicationWorkspaceFileAnnotationResponse,
@@ -115,6 +117,21 @@ type ApplicationManagedTemplatesPath = typeof OPENAPI_RUNTIME_PATH.getApplicatio
 type GetApplicationManagedTemplatesOperation = paths[ApplicationManagedTemplatesPath]['get'];
 type GetApplicationManagedTemplatesData = NonNullable<
   GetApplicationManagedTemplatesOperation['responses'][200]['content']['application/json']['data']
+>;
+type GetApplicationManagedTemplatesQuery = NonNullable<GetApplicationManagedTemplatesOperation['parameters']['query']>;
+type ApplicationTemplateSavedViewsOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.getApplicationTemplateSavedViews]['get'];
+type ApplicationTemplateSavedViewsData = NonNullable<
+  ApplicationTemplateSavedViewsOperation['responses'][200]['content']['application/json']['data']
+>;
+type ApplicationTemplateCreateSavedViewOperation =
+  paths[typeof OPENAPI_RUNTIME_PATH.postApplicationTemplateSavedView]['post'];
+type ApplicationTemplateCreateSavedViewData = NonNullable<
+  ApplicationTemplateCreateSavedViewOperation['responses'][201]['content']['application/json']['data']
+>;
+type ApplicationTemplateSavedViewOperation = paths[typeof OPENAPI_RUNTIME_PATH.putApplicationTemplateSavedView]['put'];
+type ApplicationTemplateUpdateSavedViewData = NonNullable<
+  ApplicationTemplateSavedViewOperation['responses'][200]['content']['application/json']['data']
 >;
 type ApplicationUpOperation = paths[typeof OPENAPI_RUNTIME_PATH.postApplicationUp]['post'];
 type ApplicationUpEnvelope = ApplicationUpOperation['responses'][202]['content']['application/json'];
@@ -349,8 +366,38 @@ export function getPublishedApplicationTemplateVersion(templateVersionId: string
 }
 
 /** 管理目录会返回草稿与归档项，只能由模板管理页面在已授权上下文中消费。 */
-export async function getApplicationManagedTemplates(): Promise<ApplicationTemplateListResponse> {
-  return request.get<GetApplicationManagedTemplatesData>({ url: OPENAPI_RUNTIME_PATH.getApplicationManagedTemplates });
+export async function getApplicationManagedTemplates(
+  query?: GetApplicationManagedTemplatesQuery,
+): Promise<ApplicationTemplateListResponse> {
+  return request.get<GetApplicationManagedTemplatesData>({
+    url: OPENAPI_RUNTIME_PATH.getApplicationManagedTemplates,
+    params: query,
+  });
+}
+
+export async function getApplicationTemplateSavedViews(): Promise<ApplicationTemplateSavedView[]> {
+  const data = await request.get<ApplicationTemplateSavedViewsData>({
+    url: OPENAPI_RUNTIME_PATH.getApplicationTemplateSavedViews,
+  });
+  return data.items ?? [];
+}
+
+export function postApplicationTemplateSavedView(payload: ApplicationTemplateSavedViewRequest) {
+  return request.post<ApplicationTemplateCreateSavedViewData>({
+    url: OPENAPI_RUNTIME_PATH.postApplicationTemplateSavedView,
+    data: payload,
+  }) as Promise<ApplicationTemplateSavedView>;
+}
+
+export function putApplicationTemplateSavedView(viewId: number, payload: ApplicationTemplateSavedViewRequest) {
+  return request.put<ApplicationTemplateUpdateSavedViewData>({
+    url: buildOpenApiRuntimePath('putApplicationTemplateSavedView', { viewId }),
+    data: payload,
+  }) as Promise<ApplicationTemplateSavedView>;
+}
+
+export function deleteApplicationTemplateSavedView(viewId: number) {
+  return request.delete({ url: buildOpenApiRuntimePath('deleteApplicationTemplateSavedView', { viewId }) });
 }
 
 export async function getApplicationTemplate(templateId: string): Promise<ApplicationTemplate> {

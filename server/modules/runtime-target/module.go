@@ -31,6 +31,7 @@ import (
 const maxRuntimeTargetID = uint64(^uint64(0) >> 1)
 
 const runtimeTargetListSummaryConcurrency = 4
+const runtimeTargetListKeywordMaxLength = 128
 
 // Module 暴露 runtime-target API 路由，并提供有界的本机 Docker 发现能力。
 type Module struct {
@@ -43,6 +44,7 @@ type Module struct {
 	runtimeLogger   *zap.Logger
 	i18n            *i18n.Service
 	events          event.TransactionalPublisher
+	savedViews      moduleapi.SavedViewService
 }
 
 // NewModule 构造 runtime-target 模块实例。
@@ -51,6 +53,8 @@ func NewModule(repository *store.SQLRepository) *Module {
 }
 
 // Register 声明 runtime-target 权限、菜单元数据和 API 路由。
+//
+//nolint:cyclop // 模块依赖与路由注册必须保持在同一显式装配边界。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || m.repository == nil {
 		return errors.New("runtime target repository is unavailable")
@@ -75,6 +79,11 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := m.configureRealtime(ctx, authorizer); err != nil {
 		return err
 	}
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return err
+	}
+	m.savedViews = savedViews
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	if err := ctx.Services.RegisterSingleton((*moduleapi.RuntimeTargetReader)(nil), func(_ containerdi.Resolver) (any, error) { return runtimeTargetReader{repository: m.repository}, nil }); err != nil {
 		return err
@@ -83,6 +92,10 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
+	ctx.Router.GET("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewList)
+	ctx.Router.POST("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewCreate)
+	ctx.Router.PUT("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewUpdate)
+	ctx.Router.DELETE("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewDelete)
 	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
 	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
 	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
@@ -285,7 +298,12 @@ func (m *Module) handleList(c *gin.Context) {
 	if !ok {
 		return
 	}
-	page, err := m.repository.ListPage(c.Request.Context(), limit, offset)
+	query := store.ListQuery{Limit: limit, Offset: offset, Keyword: c.Query("keyword"), Provider: c.Query("provider"), ConnectionKind: c.Query("connection_kind"), Health: c.Query("health"), Sort: c.Query("sort")}
+	if !validRuntimeTargetListQuery(query) {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	page, err := m.repository.ListQueryPage(c.Request.Context(), query)
 	if err != nil {
 		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 		return
@@ -304,6 +322,136 @@ func (m *Module) handleList(c *gin.Context) {
 			Unavailable int64 `json:"unavailable"`
 		}{Total: page.Summary.Total, Healthy: page.Summary.Healthy, Unavailable: page.Summary.Unavailable},
 	})
+}
+
+//nolint:cyclop // 每个白名单字段的拒绝条件保持独立，避免隐式解析规则。
+func validRuntimeTargetListQuery(query store.ListQuery) bool {
+	if len(strings.TrimSpace(query.Keyword)) > runtimeTargetListKeywordMaxLength {
+		return false
+	}
+	if query.Provider != "" && query.Provider != "docker" {
+		return false
+	}
+	if query.ConnectionKind != "" && query.ConnectionKind != "unix_socket" {
+		return false
+	}
+	if query.Health != "" && query.Health != "healthy" && query.Health != "unavailable" {
+		return false
+	}
+	switch query.Sort {
+	case "", "display_name:asc", "display_name:desc", "provider:asc", "provider:desc", "health:asc", "health:desc":
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *Module) savedViewOwner(c *gin.Context) (uint64, bool) { return httpx.SavedViewOwnerID(c) }
+func (m *Module) handleSavedViewList(c *gin.Context) {
+	owner, ok := m.savedViewOwner(c)
+	if !ok || m.savedViews == nil {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	views, err := m.savedViews.List(c.Request.Context(), owner, runtimeTargetSavedViewSurface)
+	if err != nil {
+		httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
+		return
+	}
+	items := make([]generated.SavedView, 0, len(views))
+	for _, view := range views {
+		item, mapErr := runtimeTargetSavedViewResponse(view)
+		if mapErr != nil {
+			httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+			return
+		}
+		items = append(items, item)
+	}
+	httpx.WriteSuccess(c, http.StatusOK, generated.SavedViewListResponse{Items: items})
+}
+func (m *Module) handleSavedViewCreate(c *gin.Context) {
+	owner, ok := m.savedViewOwner(c)
+	if !ok {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	var body generated.PostRuntimeTargetSavedViewJSONRequestBody
+	if c.ShouldBindJSON(&body) != nil {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	input, err := parseRuntimeTargetSavedViewInput(body)
+	if err != nil {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	view, err := m.savedViews.Create(c.Request.Context(), moduleapi.SavedViewCreateInput{OwnerUserID: owner, SurfaceKey: runtimeTargetSavedViewSurface, Name: input.Name, QueryState: input.QueryState, PageSize: input.PageSize, VisibleColumns: input.VisibleColumns, IsDefault: input.IsDefault})
+	if err != nil {
+		m.writeSavedViewError(c, err)
+		return
+	}
+	result, err := runtimeTargetSavedViewResponse(view)
+	if err != nil {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusCreated, result)
+}
+func (m *Module) handleSavedViewUpdate(c *gin.Context) {
+	owner, ok := m.savedViewOwner(c)
+	id, validID := httpx.SavedViewID(c)
+	if !ok || !validID {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	var body generated.PutRuntimeTargetSavedViewJSONRequestBody
+	if c.ShouldBindJSON(&body) != nil {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	input, err := parseRuntimeTargetSavedViewInput(body)
+	if err != nil {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	view, err := m.savedViews.Update(c.Request.Context(), moduleapi.SavedViewUpdateInput{ID: id, OwnerUserID: owner, SurfaceKey: runtimeTargetSavedViewSurface, Name: input.Name, QueryState: input.QueryState, PageSize: input.PageSize, VisibleColumns: input.VisibleColumns, IsDefault: input.IsDefault})
+	if err != nil {
+		m.writeSavedViewError(c, err)
+		return
+	}
+	result, err := runtimeTargetSavedViewResponse(view)
+	if err != nil {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusOK, result)
+}
+func (m *Module) handleSavedViewDelete(c *gin.Context) {
+	owner, ok := m.savedViewOwner(c)
+	id, validID := httpx.SavedViewID(c)
+	if !ok || !validID {
+		m.writeSavedViewInvalid(c)
+		return
+	}
+	if err := m.savedViews.Delete(c.Request.Context(), owner, runtimeTargetSavedViewSurface, id); err != nil {
+		m.writeSavedViewError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+func (m *Module) writeSavedViewInvalid(c *gin.Context) {
+	httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+}
+func (m *Module) writeSavedViewError(c *gin.Context, err error) {
+	if errors.Is(err, moduleapi.ErrSavedViewNotFound) {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusNotFound, "common.not_found", nil)
+		return
+	}
+	if errors.Is(err, moduleapi.ErrSavedViewConflict) {
+		httpx.AbortLocalizedError(c, m.i18n, http.StatusConflict, messagecontract.CommonInvalidArgument.String(), nil)
+		return
+	}
+	httpx.AbortAppError(c, m.i18n, m.runtimeLogger, err)
 }
 
 func mapRuntimeTargetSummaries(ctx context.Context, items []store.Target, concurrency int, mapItem func(context.Context, store.Target) generated.RuntimeTargetSummary) []generated.RuntimeTargetSummary {

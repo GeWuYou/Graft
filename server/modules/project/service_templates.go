@@ -20,6 +20,7 @@ var (
 )
 
 const templateCatalogSearchMaxLength = 128
+const templateManagementSearchMaxLength = 128
 
 // ComposeTemplateDefinition 是 Compose adapter 对通用模板 definition 的唯一解释。
 // 它不把 Docker、Podman 或 Swarm 字段泄漏到通用模板表。
@@ -157,6 +158,43 @@ func (s *Service) ListApplicationTemplates(ctx context.Context, includeArchived 
 		return nil, err
 	}
 	return repository.ListTemplates(ctx, projectstore.TemplateListQuery{IncludeArchived: includeArchived})
+}
+
+// ListApplicationTemplateManagementPage 返回管理员模板目录的服务端分页结果。
+//
+//nolint:gocyclo,cyclop // 查询状态白名单与边界值必须显式校验，避免将排序传入仓储 SQL。
+func (s *Service) ListApplicationTemplateManagementPage(ctx context.Context, query projectstore.TemplateManagementQuery) (projectstore.TemplateManagementPage, error) {
+	query.Keyword, query.Status, query.Sort = strings.TrimSpace(query.Keyword), strings.TrimSpace(query.Status), strings.TrimSpace(query.Sort)
+	if !isTemplateManagementPageSize(query.Limit) || query.Offset < 0 || len(query.Keyword) > templateManagementSearchMaxLength {
+		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
+	}
+	if query.Status != "" && query.Status != "draft" && query.Status != "published" && query.Status != "archived" {
+		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
+	}
+	if !isTemplateManagementSort(query.Sort) {
+		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
+	}
+	if query.UpdatedAfter != nil && query.UpdatedBefore != nil && query.UpdatedAfter.After(*query.UpdatedBefore) {
+		return projectstore.TemplateManagementPage{}, errProjectInvalidArgument
+	}
+	repository, err := s.templateRepositoryOrErr()
+	if err != nil {
+		return projectstore.TemplateManagementPage{}, err
+	}
+	return repository.ListTemplateManagementPage(ctx, query)
+}
+
+func isTemplateManagementPageSize(size int) bool {
+	return size == 10 || size == 20 || size == 50 || size == 100
+}
+
+func isTemplateManagementSort(value string) bool {
+	switch value {
+	case "", "updated_at:asc", "updated_at:desc", "display_name:asc", "display_name:desc", "status:asc", "status:desc", "version_number:asc", "version_number:desc":
+		return true
+	default:
+		return false
+	}
 }
 
 // GetApplicationTemplate 返回模板当前草稿；没有草稿时返回最新已发布版本。

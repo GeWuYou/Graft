@@ -54,6 +54,23 @@ type TemplateListQuery struct {
 	IncludeArchived       bool
 }
 
+// TemplateManagementQuery 描述模板管理目录的受限筛选、排序和分页状态。
+type TemplateManagementQuery struct {
+	Keyword       string
+	Status        string
+	UpdatedAfter  *time.Time
+	UpdatedBefore *time.Time
+	Sort          string
+	Limit         int
+	Offset        int
+}
+
+// TemplateManagementPage 返回过滤后的模板管理目录窗口与总数。
+type TemplateManagementPage struct {
+	Items []ApplicationTemplateAggregate
+	Total int64
+}
+
 // TemplateCatalogQuery 限定创建者可发现的已发布模板目录。
 type TemplateCatalogQuery struct {
 	DeploymentAdapterKind string
@@ -65,6 +82,7 @@ type TemplateCatalogQuery struct {
 }
 
 const (
+	templateManagementPageSizeMax  = 100
 	templateCatalogPageSizeDefault = 24
 	templateCatalogPageSizeMax     = 100
 )
@@ -132,6 +150,7 @@ type WithdrawTemplateInput struct {
 // 它独立于 Application 注册表，避免给既有 Application repository mock 增加无关责任。
 type TemplateRepository interface {
 	ListTemplates(ctx context.Context, query TemplateListQuery) ([]ApplicationTemplateAggregate, error)
+	ListTemplateManagementPage(ctx context.Context, query TemplateManagementQuery) (TemplateManagementPage, error)
 	ListTemplateCatalog(ctx context.Context, query TemplateCatalogQuery) (TemplateCatalogPage, error)
 	GetTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error)
 	GetPublishedTemplate(ctx context.Context, templateID string) (ApplicationTemplateAggregate, error)

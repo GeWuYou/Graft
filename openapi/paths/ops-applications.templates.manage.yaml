@@ -2,6 +2,14 @@ get:
   tags: [application]
   summary: List all Application templates for management
   operationId: getApplicationManagedTemplates
+  parameters:
+    - { name: keyword, in: query, schema: { type: string, maxLength: 128 } }
+    - { name: status, in: query, schema: { type: string, enum: [draft, published, archived] } }
+    - { name: updated_after, in: query, schema: { type: string, format: date-time } }
+    - { name: updated_before, in: query, schema: { type: string, format: date-time } }
+    - { name: sort, in: query, schema: { type: string, enum: [updated_at:asc, updated_at:desc, display_name:asc, display_name:desc, status:asc, status:desc, version_number:asc, version_number:desc], default: updated_at:desc } }
+    - { name: limit, in: query, schema: { type: integer, enum: [10, 20, 50, 100], default: 20 } }
+    - { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
   responses:
     '200':
       description: Application template management catalog, including drafts and archived templates.

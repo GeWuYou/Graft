@@ -51,6 +51,8 @@ export type ApplicationApplicationNameAvailabilityResponse =
 export type ApplicationTemplate = components['schemas']['application-template-response'];
 export type ApplicationTemplateVersion = components['schemas']['application-template-version'];
 export type ApplicationTemplateListResponse = components['schemas']['application-template-list-response'];
+export type ApplicationTemplateSavedView = components['schemas']['saved-view'];
+export type ApplicationTemplateSavedViewRequest = components['schemas']['saved-view-request'];
 export type ApplicationTemplateCatalogItem = components['schemas']['application-template-catalog-item'];
 export type ApplicationTemplateCatalogListResponse =
   components['schemas']['application-template-catalog-list-response'];

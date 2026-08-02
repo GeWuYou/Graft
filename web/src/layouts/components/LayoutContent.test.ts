@@ -12,6 +12,7 @@ import type { AppRouteMeta } from '@/utils/types';
 import LayoutContent from './LayoutContent.vue';
 
 const layoutStyleSource = readFileSync(join(process.cwd(), 'src/style/layout.less'), 'utf8');
+const layoutContentStyleSource = readFileSync(join(process.cwd(), 'src/layouts/components/LayoutContent.vue'), 'utf8');
 const cardSurfaceStyleSource = readFileSync(join(process.cwd(), 'src/shared/components/card-surface.less'), 'utf8');
 
 type DropdownPopupProps = {
@@ -646,6 +647,7 @@ describe('LayoutContent', () => {
 
   it('keeps the page main surface from collapsing while route content transitions', () => {
     const wrapper = mountLayoutContent();
+    const tabs = wrapper.get('[data-testid="tabs"]');
     const pageContainer = wrapper.get('.tdesign-starter-page-container');
     const pageMain = pageContainer.get('.tdesign-starter-page-container__main');
     const pageContent = pageMain.get('.tdesign-starter-page-container__content');
@@ -654,6 +656,7 @@ describe('LayoutContent', () => {
 
     expect(pageContainer.classes()).toContain('page-scroll');
     expect(pageContainer.classes()).toContain('graft-scrollbar');
+    expect(tabs.classes()).not.toContain('graft-scrollbar');
     expect(routeHost.element.compareDocumentPosition(footer.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(routeHost.element.parentElement).toBe(pageContent.element);
     expect(footer.element.parentElement).toBe(pageContainer.element);
@@ -669,6 +672,8 @@ describe('LayoutContent', () => {
     expect(layoutStyleSource).toContain('overflow: hidden auto;');
     expect(layoutStyleSource).not.toContain('overflow: auto hidden;');
     expect(layoutStyleSource).toContain('overflow: hidden;');
+    expect(layoutContentStyleSource).not.toContain('scrollbar-width: none;');
+    expect(layoutContentStyleSource).not.toContain('.t-tabs__nav-scroll::-webkit-scrollbar');
     expect(layoutStyleSource).toContain('flex: 1 0 auto;');
     expect(layoutStyleSource).toContain('min-height: 0;');
   });

@@ -7,6 +7,11 @@
       "title": "运行目标",
       "description": "管理 Docker、Kubernetes 等运行环境。",
       "reload": "重新加载",
+      "searchPlaceholder": "搜索名称或端点",
+      "columnSettings": "列设置",
+      "resetColumns": "重置列",
+      "savedViewError": "保存的筛选无法完成操作。",
+      "savedViewDeleteError": "无法删除保存的筛选。",
       "discoverLocalDocker": "发现本机 Docker",
       "discoverSuccess": "本机 Docker 发现完成。",
       "discoverError": "本机 Docker 发现失败。",
@@ -37,6 +42,18 @@
       "lastCheckedAt": "最后检查时间"
     },
     "columns": { "name": "名称", "provider": "提供方", "health": "健康状态" },
+    "filters": { "provider": "提供方", "connectionKind": "连接方式" },
+    "connectionKinds": { "unixSocket": "Unix Socket" },
+    "providers": { "docker": "Docker" },
+    "presets": { "all": "全部" },
+    "sort": {
+      "nameAsc": "名称：升序",
+      "nameDesc": "名称：降序",
+      "providerAsc": "提供方：升序",
+      "providerDesc": "提供方：降序",
+      "healthAsc": "健康：升序",
+      "healthDesc": "健康：降序"
+    },
     "status": { "healthy": "健康", "unavailable": "不可用" },
     "metrics": {
       "workloads": "工作负载",

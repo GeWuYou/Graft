@@ -141,10 +141,10 @@ describe('ResourceQueryPanel', () => {
     expect(wrapper.get('[data-testid="resource-query-tags"]').text()).not.toContain('Clear All');
   });
 
-  it('keeps the active-tag row visible when no filters are active', () => {
+  it('does not render an active-tag row when no filters are active', () => {
     const { wrapper } = mountPanel({ keyword: '', filters: {}, page: 1, pageSize: 20 });
 
-    expect(wrapper.get('[data-testid="resource-query-tags"]').text()).toBe('');
+    expect(wrapper.find('[data-testid="resource-query-tags"]').exists()).toBe(false);
   });
 
   it('does not reserve a second row until page-provided simple filters are explicitly expanded', async () => {

@@ -22,6 +22,11 @@ get:
     - name: offset
       in: query
       schema: {type: integer, minimum: 0, default: 0}
+    - { name: keyword, in: query, schema: { type: string, maxLength: 128 } }
+    - { name: provider, in: query, schema: { type: string, enum: [docker] } }
+    - { name: connection_kind, in: query, schema: { type: string, enum: [unix_socket] } }
+    - { name: health, in: query, schema: { type: string, enum: [healthy, unavailable], x-enum-varnames: [GetRuntimeTargetsParamsHealthHealthy, GetRuntimeTargetsParamsHealthUnavailable] } }
+    - { name: sort, in: query, schema: { type: string, enum: [display_name:asc, display_name:desc, provider:asc, provider:desc, health:asc, health:desc], x-enum-varnames: [GetRuntimeTargetsParamsSortDisplayNameAsc, GetRuntimeTargetsParamsSortDisplayNameDesc, GetRuntimeTargetsParamsSortProviderAsc, GetRuntimeTargetsParamsSortProviderDesc, GetRuntimeTargetsParamsSortHealthAsc, GetRuntimeTargetsParamsSortHealthDesc], default: display_name:asc } }
   responses:
     '200':
       description: Runtime target list.
