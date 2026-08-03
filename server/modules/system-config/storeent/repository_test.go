@@ -59,7 +59,7 @@ func TestRepositoryCompareAndSwapAndResetUseVersionConditions(t *testing.T) {
 	createdAt := time.Date(2026, time.August, 4, 0, 0, 0, 0, time.UTC)
 
 	mock.ExpectQuery("INSERT INTO system_config_values").
-		WithArgs("network.outbound", json.RawMessage(`{"enabled":true}`), sql.NullInt64{}, int64(0)).
+		WithArgs("network.outbound", json.RawMessage(`{"enabled":true}`), sql.NullInt64{}).
 		WillReturnRows(sqlmock.NewRows(columns).AddRow("network.outbound", []byte(`{"enabled":true}`), int64(1), createdAt, nil, createdAt, nil))
 	updated, err := repo.CompareAndSwapOverride(context.Background(), "network.outbound", json.RawMessage(`{"enabled":true}`), nil, 0)
 	if err != nil || updated.Version != 1 || string(updated.Value) != `{"enabled":true}` {
@@ -67,18 +67,40 @@ func TestRepositoryCompareAndSwapAndResetUseVersionConditions(t *testing.T) {
 	}
 
 	mock.ExpectQuery("INSERT INTO system_config_values").
-		WithArgs("network.outbound", json.RawMessage(`{"enabled":false}`), sql.NullInt64{}, int64(0)).
+		WithArgs("network.outbound", json.RawMessage(`{"enabled":false}`), sql.NullInt64{}).
 		WillReturnError(sql.ErrNoRows)
 	if _, err := repo.CompareAndSwapOverride(context.Background(), "network.outbound", json.RawMessage(`{"enabled":false}`), nil, 0); !errors.Is(err, systemconfigstore.ErrVersionConflict) {
 		t.Fatalf("expected stale CAS conflict, got %v", err)
 	}
 
-	mock.ExpectQuery("INSERT INTO system_config_values").
-		WithArgs("network.outbound", sql.NullInt64{}, int64(1)).
-		WillReturnRows(sqlmock.NewRows(columns).AddRow("network.outbound", nil, int64(2), createdAt, nil, createdAt, nil))
-	reset, err := repo.ResetOverride(context.Background(), "network.outbound", nil, 1)
-	if err != nil || reset.Version != 2 || reset.Value != nil {
+	mock.ExpectQuery("UPDATE system_config_values").
+		WithArgs("network.outbound", json.RawMessage(`{"enabled":false}`), sql.NullInt64{}, int64(1)).
+		WillReturnRows(sqlmock.NewRows(columns).AddRow("network.outbound", []byte(`{"enabled":false}`), int64(2), createdAt, nil, createdAt, nil))
+	updated, err = repo.CompareAndSwapOverride(context.Background(), "network.outbound", json.RawMessage(`{"enabled":false}`), nil, 1)
+	if err != nil || updated.Version != 2 || string(updated.Value) != `{"enabled":false}` {
+		t.Fatalf("expected version-matched CAS update, got %#v, %v", updated, err)
+	}
+
+	mock.ExpectQuery("UPDATE system_config_values").
+		WithArgs("network.outbound", json.RawMessage(`{"enabled":false}`), sql.NullInt64{}, int64(1)).
+		WillReturnError(sql.ErrNoRows)
+	if _, err := repo.CompareAndSwapOverride(context.Background(), "network.outbound", json.RawMessage(`{"enabled":false}`), nil, 1); !errors.Is(err, systemconfigstore.ErrVersionConflict) {
+		t.Fatalf("expected stale CAS update conflict, got %v", err)
+	}
+
+	mock.ExpectQuery("UPDATE system_config_values").
+		WithArgs("network.outbound", sql.NullInt64{}, int64(2)).
+		WillReturnRows(sqlmock.NewRows(columns).AddRow("network.outbound", nil, int64(3), createdAt, nil, createdAt, nil))
+	reset, err := repo.ResetOverride(context.Background(), "network.outbound", nil, 2)
+	if err != nil || reset.Version != 3 || reset.Value != nil {
 		t.Fatalf("expected version-retaining reset tombstone, got %#v, %v", reset, err)
+	}
+
+	mock.ExpectQuery("UPDATE system_config_values").
+		WithArgs("network.outbound", sql.NullInt64{}, int64(2)).
+		WillReturnError(sql.ErrNoRows)
+	if _, err := repo.ResetOverride(context.Background(), "network.outbound", nil, 2); !errors.Is(err, systemconfigstore.ErrVersionConflict) {
+		t.Fatalf("expected stale reset conflict, got %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("verify sql expectations: %v", err)

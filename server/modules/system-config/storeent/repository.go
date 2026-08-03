@@ -93,19 +93,26 @@ func (r *repository) CompareAndSwapOverride(ctx context.Context, key string, val
 		return systemconfigstore.Override{}, fmt.Errorf("compare and swap system config override: invalid expected version %d", expectedVersion)
 	}
 
-	row := r.db.QueryRowContext(
-		ctx,
-		`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
-		 SELECT $1, $2, 1, NOW(), $3, NOW(), $3 WHERE $4 = 0
-		 ON CONFLICT (key)
-		 DO UPDATE SET override_value = EXCLUDED.override_value, version = system_config_values.version + 1, updated_at = NOW(), updated_by = EXCLUDED.updated_by
-		 WHERE system_config_values.version = $4
-		 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
-		strings.TrimSpace(key),
-		value,
-		userIDValue,
-		expectedVersion,
-	)
+	var row *sql.Row
+	if expectedVersion == 0 {
+		row = r.db.QueryRowContext(
+			ctx,
+			`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
+			 VALUES ($1, $2, 1, NOW(), $3, NOW(), $3)
+			 ON CONFLICT (key) DO NOTHING
+			 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
+			strings.TrimSpace(key), value, userIDValue,
+		)
+	} else {
+		row = r.db.QueryRowContext(
+			ctx,
+			`UPDATE system_config_values
+			 SET override_value = $2, version = version + 1, updated_at = NOW(), updated_by = $3
+			 WHERE key = $1 AND version = $4
+			 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
+			strings.TrimSpace(key), value, userIDValue, expectedVersion,
+		)
+	}
 	override, err := scanOverride(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
@@ -127,14 +134,22 @@ func (r *repository) ResetOverride(ctx context.Context, key string, userID *uint
 	if expectedVersion < 0 {
 		return systemconfigstore.Override{}, fmt.Errorf("reset system config override: invalid expected version %d", expectedVersion)
 	}
-	row := r.db.QueryRowContext(ctx,
-		`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
-		 SELECT $1, NULL, 1, NOW(), $2, NOW(), $2 WHERE $3 = 0
-		 ON CONFLICT (key)
-		 DO UPDATE SET override_value = NULL, version = system_config_values.version + 1, updated_at = NOW(), updated_by = EXCLUDED.updated_by
-		 WHERE system_config_values.version = $3
-		 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
-		strings.TrimSpace(key), userIDValue, expectedVersion)
+	var row *sql.Row
+	if expectedVersion == 0 {
+		row = r.db.QueryRowContext(ctx,
+			`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
+			 VALUES ($1, NULL, 1, NOW(), $2, NOW(), $2)
+			 ON CONFLICT (key) DO NOTHING
+			 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
+			strings.TrimSpace(key), userIDValue)
+	} else {
+		row = r.db.QueryRowContext(ctx,
+			`UPDATE system_config_values
+			 SET override_value = NULL, version = version + 1, updated_at = NOW(), updated_by = $2
+			 WHERE key = $1 AND version = $3
+			 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
+			strings.TrimSpace(key), userIDValue, expectedVersion)
+	}
 	override, err := scanOverride(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
