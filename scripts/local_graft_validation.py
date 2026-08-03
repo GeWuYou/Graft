@@ -353,7 +353,13 @@ def require_initialised(root: Path, instance: str) -> None:
     directory = instance_root(root, instance)
     if not (directory / "compose.yml").is_file() or not (directory / ".env").is_file():
         raise LocalValidationError(f"{instance} is not initialized; run init first")
-    env_root = parse_env(directory / ".env").get("GRAFT_DEPLOYMENT_COMPOSE_ROOT")
+    env = parse_env(directory / ".env")
+    missing = {"GRAFT_IMAGE_TAG", "GRAFT_WEB_HOST_PORT"} - env.keys()
+    if missing:
+        raise LocalValidationError(
+            f"{instance} is missing required initialization keys: {', '.join(sorted(missing))}; run init first"
+        )
+    env_root = env.get("GRAFT_DEPLOYMENT_COMPOSE_ROOT")
     if env_root != str(directory.resolve()):
         raise LocalValidationError(
             f"{instance} has an unsafe GRAFT_DEPLOYMENT_COMPOSE_ROOT; run init to restore the local instance root"
@@ -375,6 +381,8 @@ def set_config(root: Path, instance: str, key: str, value: str) -> None:
             port = int(value)
         except ValueError as error:
             raise LocalValidationError("GRAFT_WEB_HOST_PORT must be an integer") from error
+        if not 1 <= port <= 65535:
+            raise LocalValidationError(f"GRAFT_WEB_HOST_PORT must be between 1 and 65535: {port}")
         validate_ports(root, proposed={instance: port})
         values["GRAFT_HTTPX_WEBSOCKET_ALLOWED_ORIGINS"] = f"http://127.0.0.1:{port},http://localhost:{port}"
     values[key] = value
