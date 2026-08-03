@@ -140,6 +140,25 @@ describe('UpdateProgressDialog', () => {
     );
   });
 
+  it('shows the same disconnected runner treatment for an expired lease', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({
+      operation: {
+        operation_id: 'update-1',
+        phase: 'READY',
+        progress: 0,
+        state_source: 'runner_lost',
+        state_available: false,
+      } as never,
+      phase: 'failed',
+    });
+    usePermissionStore().setBootstrapSnapshot({ permissions: [UPDATE_PERMISSION_CODE.MANAGE] } as never);
+    const wrapper = mountDialog();
+
+    expect(wrapper.find('[data-testid="update-progress-overall"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="update-progress-recovery"]').exists()).toBe(true);
+  });
+
   it('only offers runner recovery to update managers', () => {
     const progress = useUpdateProgressStore();
     progress.$patch({

@@ -26,6 +26,11 @@ const terminalSuccess = new Set<UpdateOperation['phase']>(['SUCCESS']);
 const terminalFailure = new Set<UpdateOperation['phase']>(['FAILED', 'ROLLBACK']);
 const POLL_INTERVAL_MS = 3000;
 const MAX_SNAPSHOT_RETRIES = 5;
+const runnerDisconnectedStateSources = new Set<UpdateOperation['state_source']>(['runner_lost', 'runner_terminated']);
+
+function isRunnerDisconnected(operation: UpdateOperation | null | undefined) {
+  return Boolean(operation && runnerDisconnectedStateSources.has(operation.state_source));
+}
 
 function isUnrecoverableSnapshotError(error: unknown) {
   return isApiRequestError(error) && error.status >= 400 && error.status < 500;
@@ -157,7 +162,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
           if (state === 'open') {
             void this.refreshEvents(session).finally(() => {
               if (session === this.session && !this.isTerminal()) {
-                if (this.recoveryPending && this.operation?.state_source === 'runner_terminated') {
+                if (this.recoveryPending && isRunnerDisconnected(this.operation)) {
                   this.phase = 'reconnecting';
                   this.startPolling(session);
                   return;
@@ -209,7 +214,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
       if (this.operationID && operation.operation_id !== this.operationID) return;
       this.operation = operation;
       this.operationID = operation.operation_id;
-      if (operation.state_source === 'runner_terminated') {
+      if (isRunnerDisconnected(operation)) {
         if (this.recoveryPending) {
           this.phase = 'reconnecting';
           this.startPolling(session);
@@ -258,7 +263,7 @@ export const useUpdateProgressStore = defineStore('update-progress', {
     },
     async recoverTerminatedRunner() {
       const operation = this.operation;
-      if (this.recoveryLoading || operation?.state_source !== 'runner_terminated') return;
+      if (this.recoveryLoading || !operation || !isRunnerDisconnected(operation)) return;
       const recoverySession = this.session;
       const operationID = operation.operation_id;
       const isCurrentRecovery = () => this.session === recoverySession && this.operation?.operation_id === operationID;

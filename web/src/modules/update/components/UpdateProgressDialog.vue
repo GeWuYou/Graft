@@ -119,13 +119,17 @@ const stageStatus = computed(() => {
   if (progress.lastActivePhase) return progress.lastActivePhase;
   return progress.operation?.phase ?? 'READY';
 });
-const runnerTerminated = computed(() => progress.operation?.state_source === 'runner_terminated');
+const runnerDisconnected = computed(() =>
+  ['runner_lost', 'runner_terminated'].includes(progress.operation?.state_source ?? ''),
+);
 const canRecoverTerminatedRunner = computed(
   () =>
-    runnerTerminated.value && !progress.recoveryPending && permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
+    runnerDisconnected.value &&
+    !progress.recoveryPending &&
+    permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
 );
-const showProgress = computed(() => !runnerTerminated.value);
-const showRunnerStage = computed(() => Boolean(progress.operation) && !runnerTerminated.value);
+const showProgress = computed(() => !runnerDisconnected.value);
+const showRunnerStage = computed(() => Boolean(progress.operation) && !runnerDisconnected.value);
 const currentStep = computed(() => stageIndex[stageStatus.value]);
 const overallPercentage = computed(() => progress.operation?.progress ?? 0);
 const currentStageLabel = computed(() => {

@@ -15,8 +15,10 @@
 4. **Independent backup capability**
    - 交付 `platform-backup` module 的配置与 PostgreSQL backup metadata、恢复入口和审计边界；更新只通过 capability 消费它。
 5. **Runner-owned Compose execution and recovery**
-   - 交付 runner-owned named state volume、版本化原子状态快照与 append events、互斥 lease、explicit migration、manifest-verified recreate、health confirmation、手动 recovery runner，以及 server 的只读 API/realtime/terminal-history projection。
-   - runner 是 active lifecycle controller；`server` 只记录已授权用户请求、验证并转发 runner state，且只将已验证 terminal result 投影到 history/audit/backup facts。runner 不接收 PostgreSQL credentials，也不提供 HTTP/realtime endpoint。
+   - 交付 runner-owned named state volume、schema-v2 版本化原子状态快照与 sparse append events、`lease_epoch` fencing、30 秒 heartbeat、五分钟 expiry、explicit migration、manifest-verified recreate、health confirmation、手动 recovery runner，以及 server 的只读 API/realtime/terminal-history projection。
+   - runner 是 active lifecycle controller；`server` 只记录已授权用户请求、每分钟 reconcile 并在查询时计算 lease、验证并转发 runner state，且只将已验证 terminal result 投影到 history/audit/backup facts。runner 不接收 PostgreSQL credentials，也不提供 HTTP/realtime endpoint。
+   - 过期 v2 lease、五分钟未产生首份状态的授权记录，以及超过 30 分钟兼容桥的 v1 snapshot 均投影为 `runner_lost`；Docker container inventory 不得决定活动状态或 recovery。recovery 只接受迁移前 `runner_lost` 操作，已有 state 传入绑定 snapshot，首状态缺失只传入授权身份和版本输入。
+   - `runner_terminated` 仅保留客户端消费兼容，直至最低支持升级来源全部生成 schema-v2 lease snapshot，届时移除 v1 30 分钟 bridge 与该兼容分支。
    - 自动化含义仅为管理员确认后的工作流自动执行，不包含无人值守更新。
    - 在 Beta 可靠性收敛中，Compose `.env` 使用完整 server/web 镜像引用与 `stable|beta|fixed|manual` 策略；runner pull 后验证 manifest digest，且 `manual` 不执行镜像变更。`nightly` 延后且不暴露。
 6. **Archive readiness**

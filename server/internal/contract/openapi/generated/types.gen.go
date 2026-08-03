@@ -3523,6 +3523,7 @@ func (e PlatformUpdateOperationPhase) Valid() bool {
 
 // Defines values for PlatformUpdateOperationStateSource.
 const (
+	RunnerLost             PlatformUpdateOperationStateSource = "runner_lost"
 	RunnerState            PlatformUpdateOperationStateSource = "runner_state"
 	RunnerStateUnavailable PlatformUpdateOperationStateSource = "runner_state_unavailable"
 	RunnerTerminated       PlatformUpdateOperationStateSource = "runner_terminated"
@@ -3532,6 +3533,8 @@ const (
 // Valid indicates whether the value is a known member of the PlatformUpdateOperationStateSource enum.
 func (e PlatformUpdateOperationStateSource) Valid() bool {
 	switch e {
+	case RunnerLost:
+		return true
 	case RunnerState:
 		return true
 	case RunnerStateUnavailable:
@@ -3788,6 +3791,7 @@ const (
 	PLATFORMUPDATEINVALIDTARGET                        PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_INVALID_TARGET"
 	PLATFORMUPDATENOELIGIBLENEWERRELEASE               PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_NO_ELIGIBLE_NEWER_RELEASE"
 	PLATFORMUPDATEOPERATIONSTARTFAILED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_OPERATION_START_FAILED"
+	PLATFORMUPDATERUNNERLOST                           PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_RUNNER_LOST"
 	PLATFORMUPDATERUNNERTERMINALFAILED                 PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
 	PLATFORMUPDATERUNNERTERMINATED                     PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_RUNNER_TERMINATED"
 	PLATFORMUPDATESOURCEVERSIONUNSUPPORTED             PlatformUpdateRolloutFailureCode = "PLATFORM_UPDATE_SOURCE_VERSION_UNSUPPORTED"
@@ -3815,6 +3819,8 @@ func (e PlatformUpdateRolloutFailureCode) Valid() bool {
 	case PLATFORMUPDATENOELIGIBLENEWERRELEASE:
 		return true
 	case PLATFORMUPDATEOPERATIONSTARTFAILED:
+		return true
+	case PLATFORMUPDATERUNNERLOST:
 		return true
 	case PLATFORMUPDATERUNNERTERMINALFAILED:
 		return true
@@ -12015,10 +12021,10 @@ type PlatformUpdateOperation struct {
 	SourceVersion string                           `json:"source_version"`
 	StartedAt     time.Time                        `json:"started_at"`
 
-	// StateAvailable Whether runner lifecycle state was available to verify this projection. A runner_terminated projection is explicitly unavailable even when it retains the last verified snapshot fields.
+	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_lost and legacy runner_terminated projections are explicitly unavailable even when they retain the last verified snapshot fields.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot.
+	// StateSource Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -12030,7 +12036,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot.
+// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.

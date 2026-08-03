@@ -1,8 +1,8 @@
 post:
   tags: [platform-update]
-  summary: Recover a terminated self-update runner
+  summary: Recover a lost self-update runner
   operationId: postPlatformUpdateOperationRecovery
-  description: Starts one protected, one-shot recovery runner for an operation whose bound runner exited before publishing a terminal snapshot. The server accepts recovery only for a matching exited runner and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
+  description: Starts one protected, one-shot recovery runner for an operation whose durable runner lease expired before publishing a terminal snapshot. The server accepts recovery only for a `runner_lost` operation and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
   security: [{ bearerAuth: [] }]
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
@@ -30,13 +30,13 @@ post:
         application/json:
           schema: { $ref: ../components/schemas/error-response.yaml }
     '409':
-      description: The runner is still running, the operation is already terminal, or recovery has already been accepted.
+      description: The runner lease has not expired, the operation is already terminal, or recovery has already been accepted.
       content:
         application/json:
           schema: { $ref: ../components/schemas/error-response.yaml }
     '500': { $ref: ../components/responses/internal-server-error.yaml }
     '503':
-      description: Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable.
+      description: Runner state, recovery launcher, or configured recovery image is temporarily unavailable.
       content:
         application/json:
           schema: { $ref: ../components/schemas/error-response.yaml }

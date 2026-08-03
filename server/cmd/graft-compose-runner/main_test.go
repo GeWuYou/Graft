@@ -5,12 +5,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"graft/server/modules/update"
 )
@@ -75,6 +77,8 @@ func TestRecoverTerminatedRunnerWritesARecoveryRunnerIdentity(t *testing.T) {
 	}
 	input := update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: "update-recovery-identity", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategyBetaTracking}}
 	persisted := update.NewRunnerState(input, "runner-original", update.RunnerPhaseReady, 0, "runner_accepted", "", update.RunnerState{})
+	persisted.LeaseHeartbeatAt = time.Now().UTC().Add(-10 * time.Minute)
+	persisted.LeaseExpiresAt = time.Now().UTC().Add(-5 * time.Minute)
 	if err := store.Write(persisted); err != nil {
 		t.Fatalf("write persisted runner state: %v", err)
 	}
@@ -82,7 +86,7 @@ func TestRecoverTerminatedRunnerWritesARecoveryRunnerIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read persisted runner state: %v", err)
 	}
-	contents, err := json.Marshal(persisted)
+	contents, err := json.Marshal(update.RunnerRecoveryInput{OperationID: persisted.OperationID, RunnerID: persisted.RunnerID, SourceVersion: persisted.SourceVersion, TargetVersion: persisted.TargetVersion, Strategy: persisted.Strategy, State: &persisted})
 	if err != nil {
 		t.Fatalf("marshal persisted runner state: %v", err)
 	}
@@ -99,6 +103,25 @@ func TestRecoverTerminatedRunnerWritesARecoveryRunnerIdentity(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), update.RunnerReceiptLogMarker) {
 		t.Fatalf("recovery receipt was not emitted: %q", output.String())
+	}
+}
+
+func TestRecoverTerminatedRunnerWritesTerminalStateWhenInitialSnapshotIsMissing(t *testing.T) {
+	store, err := update.NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new runner state store: %v", err)
+	}
+	recovery := update.RunnerRecoveryInput{OperationID: "update-recovery-missing", RunnerID: "runner-recovery-missing", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Strategy: string(update.DeploymentStrategyBetaTracking)}
+	contents, err := json.Marshal(recovery)
+	if err != nil {
+		t.Fatalf("marshal recovery input: %v", err)
+	}
+	if err := recoverTerminatedRunnerWithStore(base64.RawStdEncoding.EncodeToString(contents), store, io.Discard); err != nil {
+		t.Fatalf("recover missing initial state: %v", err)
+	}
+	state, err := store.Read()
+	if err != nil || !isTerminalPhase(state.Phase) || state.Receipt == nil {
+		t.Fatalf("terminal recovery state = %#v, %v", state, err)
 	}
 }
 

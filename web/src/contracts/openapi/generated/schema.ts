@@ -1578,7 +1578,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. When the bound runner has exited before publishing a terminal snapshot, `data.state_source` is `runner_terminated`, `data.state_available` is false, `data.error` is `PLATFORM_UPDATE_RUNNER_TERMINATED`, and the last verified phase/progress/message fields are retained for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. When a runner's durable lease expires before it publishes a terminal snapshot, `data.state_source` is `runner_lost`, `data.state_available` is false, `data.error` is `PLATFORM_UPDATE_RUNNER_LOST`, and the last verified phase/progress/message fields are retained for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -1636,8 +1636,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Recover a terminated self-update runner
-     * @description Starts one protected, one-shot recovery runner for an operation whose bound runner exited before publishing a terminal snapshot. The server accepts recovery only for a matching exited runner and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
+     * Recover a lost self-update runner
+     * @description Starts one protected, one-shot recovery runner for an operation whose durable runner lease expired before publishing a terminal snapshot. The server accepts recovery only for a `runner_lost` operation and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
      */
     post: operations['postPlatformUpdateOperationRecovery'];
     delete?: never;
@@ -6842,11 +6842,12 @@ export interface components {
       /** @description Controlled runner message key; never raw command output or deployment secrets. */
       message: string;
       /**
-       * @description Authority that produced this projection. runner_state_unavailable and runner_terminated never represent live runner progress; runner_terminated means the bound runner exited before publishing a terminal snapshot.
+       * @description Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
        * @enum {string}
        */
-      state_source: 'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_terminated';
-      /** @description Whether runner lifecycle state was available to verify this projection. A runner_terminated projection is explicitly unavailable even when it retains the last verified snapshot fields. */
+      state_source:
+        'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_lost' | 'runner_terminated';
+      /** @description Whether runner lifecycle state was available to verify this projection. runner_lost and legacy runner_terminated projections are explicitly unavailable even when they retain the last verified snapshot fields. */
       state_available: boolean;
       /** @description Controlled runner failure code; never raw command output or deployment secrets. */
       error?: string;
@@ -6900,6 +6901,7 @@ export interface components {
       | 'PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED'
       | 'PLATFORM_UPDATE_OPERATION_START_FAILED'
       | 'PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED'
+      | 'PLATFORM_UPDATE_RUNNER_LOST'
       | 'PLATFORM_UPDATE_RUNNER_TERMINATED';
     'platform-update-rollout-failure-data': {
       reason: components['schemas']['platform-update-rollout-failure-code'];
@@ -14487,7 +14489,7 @@ export interface operations {
           'application/json': components['schemas']['error-response'];
         };
       };
-      /** @description The runner is still running, the operation is already terminal, or recovery has already been accepted. */
+      /** @description The runner lease has not expired, the operation is already terminal, or recovery has already been accepted. */
       409: {
         headers: {
           [name: string]: unknown;
@@ -14497,7 +14499,7 @@ export interface operations {
         };
       };
       500: components['responses']['internal-server-error'];
-      /** @description Runner state, recovery launcher, configured recovery image, or Docker runtime is temporarily unavailable. */
+      /** @description Runner state, recovery launcher, or configured recovery image is temporarily unavailable. */
       503: {
         headers: {
           [name: string]: unknown;
