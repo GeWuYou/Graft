@@ -64,6 +64,7 @@ const menuIcons = {
   'audit-trail': history,
   'scheduled-automation': scheduledTasks,
   'platform-configuration': settings,
+  'platform-network': network,
   'system-maintenance': wrench,
   'platform-update': downloadCloud,
   backup: archive,

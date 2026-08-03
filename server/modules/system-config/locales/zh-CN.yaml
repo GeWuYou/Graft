@@ -23,6 +23,11 @@ systemConfig.domains.notification: 站内通知
 systemConfig.domains.application: 应用
 systemConfig.domains.ops: 基础设施
 systemConfig.domains.audit: 安全审计
+systemConfig.domains.network: 网络
+systemConfig.groups.network.outbound: 出站网络
+systemConfig.groups.network.outbound.description: 管理平台 HTTP(S) 请求的代理与绕过策略。
+systemConfig.network.network.outbound.title: 出站网络策略
+systemConfig.network.network.outbound.description: 平台主动发起 HTTP(S) 请求使用的代理与绕过策略。
 systemConfig.groups.coreHttpxLogRetention: 访问日志保留
 systemConfig.groupDescriptions.coreHttpxLogRetention: 管理访问日志清理的保留周期与批量策略。
 systemConfig.items.accessLogRetentionCleanup.title: 访问日志保留清理

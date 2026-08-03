@@ -1,12 +1,16 @@
 package update
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"graft/server/internal/moduleapi"
 )
 
 func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
@@ -27,7 +31,7 @@ func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
 	}))
 	defer server.Close()
 
-	provider := GitHubReleaseProvider{Repository: "owner/repo", Client: &http.Client{Transport: rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	provider := GitHubReleaseProvider{Repository: "owner/repo", ClientFactory: &outboundClientFactoryStub{client: &http.Client{Transport: rewriteTransport{base: http.DefaultTransport, target: server.URL}}}}
 	releases, err := provider.List(t.Context())
 	if err != nil {
 		t.Fatalf("list releases: %v", err)
@@ -35,6 +39,43 @@ func TestGitHubReleaseProviderRequiresVerifiedRunnerIdentity(t *testing.T) {
 	if len(releases) != 1 || releases[0].RunnerRef != "ghcr.io/gewuyou/graft-compose-runner@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" || releases[0].NotesURL == "" || releases[0].AssetSHA256["server.tar.gz"] == "" {
 		t.Fatalf("unexpected releases: %#v", releases)
 	}
+}
+
+func TestGitHubReleaseProviderUsesOutboundClientFactory(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/repos/owner/repo/releases" {
+			http.NotFound(writer, request)
+			return
+		}
+		_, _ = writer.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+	factory := &outboundClientFactoryStub{client: &http.Client{Transport: rewriteTransport{base: http.DefaultTransport, target: server.URL}}}
+	provider := GitHubReleaseProvider{Repository: "owner/repo", ClientFactory: factory}
+	if _, err := provider.List(context.Background()); err != nil {
+		t.Fatalf("list releases through factory: %v", err)
+	}
+	if factory.calls != 1 || factory.timeout != releaseHTTPTimeout {
+		t.Fatalf("expected one factory client with release timeout, got calls=%d timeout=%s", factory.calls, factory.timeout)
+	}
+}
+
+type outboundClientFactoryStub struct {
+	client  *http.Client
+	calls   int
+	timeout time.Duration
+}
+
+func (s *outboundClientFactoryStub) NewOutboundHTTPClient(_ context.Context, options ...moduleapi.OutboundHTTPClientOption) (*http.Client, error) {
+	s.calls++
+	configured := moduleapi.OutboundHTTPClientOptions{}
+	for _, option := range options {
+		if err := option(&configured); err != nil {
+			return nil, err
+		}
+	}
+	s.timeout = configured.Timeout
+	return s.client, nil
 }
 
 func TestValidReleaseManifestRejectsMissingRunner(t *testing.T) {

@@ -1,0 +1,5 @@
+menu.platform.network: 网络
+network.outbound.title: 出站网络
+network.outbound.description: 平台主动发起 HTTP(S) 请求使用的代理与绕过策略。
+network.outbound.authentication.description: 为后续 Secret Management 预留。
+network.diagnosticTargets.platformUpdate: 平台更新服务

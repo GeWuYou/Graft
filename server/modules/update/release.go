@@ -5,12 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"graft/server/internal/moduleapi"
 )
 
 const (
@@ -51,8 +54,8 @@ type ReleaseProvider interface {
 
 // GitHubReleaseProvider 只接受 GitHub Release 中与 tag 一致、包含官方 OCI digest 与 runner 身份的 manifest。
 type GitHubReleaseProvider struct {
-	Repository string
-	Client     *http.Client
+	Repository    string
+	ClientFactory moduleapi.OutboundHTTPClientFactory
 }
 
 type githubRelease struct {
@@ -109,9 +112,12 @@ func (p GitHubReleaseProvider) List(ctx context.Context) ([]Release, error) {
 	if repository == "" {
 		repository = defaultReleaseRepository
 	}
-	client := p.Client
-	if client == nil {
-		client = &http.Client{Timeout: releaseHTTPTimeout}
+	if p.ClientFactory == nil {
+		return nil, errors.New("outbound HTTP client factory is unavailable")
+	}
+	client, err := p.ClientFactory.NewOutboundHTTPClient(ctx, moduleapi.WithTimeout(releaseHTTPTimeout))
+	if err != nil {
+		return nil, fmt.Errorf("create outbound HTTP client: %w", err)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/"+repository+"/releases", nil)
 	if err != nil {

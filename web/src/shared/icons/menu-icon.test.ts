@@ -84,6 +84,7 @@ describe('resolveMenuIcon', () => {
       'audit-trail',
       'scheduled-automation',
       'platform-configuration',
+      'platform-network',
       'system-maintenance',
       'platform-update',
       'backup',

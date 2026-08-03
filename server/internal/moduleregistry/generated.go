@@ -10,6 +10,7 @@ import (
 	containermodule "graft/server/modules/container"
 	deploymentmodule "graft/server/modules/deployment"
 	monitormodule "graft/server/modules/monitor"
+	networkmodule "graft/server/modules/network"
 	notificationmodule "graft/server/modules/notification"
 	projectmodule "graft/server/modules/project"
 	rbacmodule "graft/server/modules/rbac"
@@ -31,6 +32,7 @@ var generatedModuleSpecs = []module.Spec{
 	containermodule.NewModuleSpec(),
 	deploymentmodule.NewModuleSpec(),
 	monitormodule.NewModuleSpec(),
+	networkmodule.NewModuleSpec(),
 	notificationmodule.NewModuleSpec(),
 	projectmodule.NewModuleSpec(),
 	rbacmodule.NewModuleSpec(),

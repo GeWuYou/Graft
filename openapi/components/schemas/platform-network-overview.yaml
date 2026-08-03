@@ -1,0 +1,9 @@
+type: object
+required: [policy, diagnostic_targets]
+properties:
+  policy:
+    $ref: ./platform-network-outbound-policy.yaml
+  diagnostic_targets:
+    type: array
+    items:
+      $ref: ./platform-network-diagnostic-target.yaml

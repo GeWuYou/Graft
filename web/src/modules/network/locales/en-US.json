@@ -1,0 +1,50 @@
+{
+  "menu": { "platform": { "network": "Network" } },
+  "network": {
+    "diagnosticTargets": { "platformUpdate": "Platform Update Service" },
+    "route": { "outbound": { "title": "Network", "breadcrumb": "Network" } },
+    "outbound": {
+      "eyebrow": "Platform",
+      "title": "Outbound Network",
+      "description": "Control the platform policy for outbound HTTP and HTTPS connections.",
+      "save": "Save",
+      "saveSuccess": "Outbound network policy saved.",
+      "saveFailed": "Outbound network policy could not be saved.",
+      "loadFailed": "Outbound network policy could not be loaded.",
+      "resetToDefault": "Reset to Default",
+      "resetSuccess": "Outbound network policy reset to its default.",
+      "resetFailed": "Outbound network policy could not be reset.",
+      "enabled": "Internet Access",
+      "enabledState": { "enabled": "Enabled", "disabled": "Disabled" },
+      "enabledHelp": "When disabled, platform HTTP clients connect directly.",
+      "httpProxy": "HTTP Proxy",
+      "httpsProxy": "HTTPS Proxy",
+      "proxyPlaceholder": "Enter HTTP proxy URL",
+      "noProxy": "No Proxy",
+      "noProxyHelp": "Hosts and networks that bypass the configured proxy.",
+      "noProxyPlaceholder": "Add a host, CIDR, or domain pattern",
+      "noProxySemantics": "Compatible with standard NO_PROXY matching semantics.",
+      "effectivePolicy": "Effective Policy",
+      "configurationSource": "Configuration Source",
+      "sourceDefault": "Default",
+      "sourceOverride": "Override",
+      "notConfigured": "Not configured",
+      "directConnection": "Direct connection",
+      "diagnostic": {
+        "title": "Connectivity Test",
+        "description": "Tests one fixed registered target using the current saved policy.",
+        "unavailable": "No diagnostic target is registered.",
+        "run": "Test Connection",
+        "running": "Testing connection",
+        "connected": "Connected",
+        "failed": "Connection failed",
+        "latency": "Latency",
+        "httpStatus": "HTTP Status",
+        "lastTested": "Last Tested",
+        "notTested": "Not tested",
+        "failedMessage": "The connectivity test could not be completed."
+      },
+      "dockerNotice": "This policy applies to platform HTTP integrations. Docker image pulls use the Docker daemon proxy configured on the runtime host."
+    }
+  }
+}

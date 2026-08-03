@@ -1508,6 +1508,61 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/network/outbound': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read the effective platform outbound-network policy */
+    get: operations['getPlatformNetworkOutbound'];
+    /** Update the platform outbound-network policy */
+    put: operations['putPlatformNetworkOutbound'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/outbound/reset': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reset the platform outbound-network policy to its module default */
+    post: operations['resetPlatformNetworkOutbound'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/platform/network/outbound/diagnostics/{targetId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Execute one fixed platform outbound-network diagnostic target
+     * @description The target is module-registered. The endpoint accepts no URL, host, DNS name, or other caller-controlled network destination.
+     */
+    post: operations['postPlatformNetworkDiagnostic'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/platform/updates/status': {
     parameters: {
       query?: never;
@@ -4149,6 +4204,13 @@ export interface components {
     UpdateSystemConfigRequest: components['schemas']['update-system-config-request'];
     EnvelopedSystemConfigItem: components['schemas']['enveloped-system-config-item'];
     EnvelopedSystemConfigListResponse: components['schemas']['enveloped-system-config-list-response'];
+    PlatformNetworkOutboundConfig: components['schemas']['platform-network-outbound-config'];
+    PlatformNetworkOutboundPolicy: components['schemas']['platform-network-outbound-policy'];
+    PlatformNetworkDiagnosticTarget: components['schemas']['platform-network-diagnostic-target'];
+    PlatformNetworkOverview: components['schemas']['platform-network-overview'];
+    PlatformNetworkDiagnosticResult: components['schemas']['platform-network-diagnostic-result'];
+    EnvelopedPlatformNetworkOverview: components['schemas']['enveloped-platform-network-overview'];
+    EnvelopedPlatformNetworkDiagnosticResult: components['schemas']['enveloped-platform-network-diagnostic-result'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
     PlatformDeploymentStrategy: components['schemas']['platform-deployment-strategy'];
     PlatformUpdateRelease: components['schemas']['platform-update-release'];
@@ -6665,6 +6727,76 @@ export interface components {
     'update-system-config-request': {
       /** @description JSON value to store as the user override for the registered definition. */
       value: unknown;
+    };
+    /** @description Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller. */
+    'platform-network-outbound-config': {
+      /** @description When false, every platform HTTP client connects directly regardless of the retained proxy values. */
+      enabled: boolean;
+      /** @description Optional unauthenticated HTTP proxy URL used only for HTTP requests. */
+      http_proxy: string;
+      /** @description Optional unauthenticated HTTPS proxy URL used only for HTTPS requests. */
+      https_proxy: string;
+      /** @description Hosts, domains, addresses, CIDRs, or host-port pairs that bypass a matching configured proxy using standard NO_PROXY-style matching semantics. */
+      no_proxy: string[];
+    };
+    /** @description Effective platform outbound-network policy and its configuration source. */
+    'platform-network-outbound-policy': {
+      config: components['schemas']['platform-network-outbound-config'];
+      /**
+       * @description Whether the effective policy is the module default or an administrator override.
+       * @enum {string}
+       */
+      source: 'default' | 'override';
+      /**
+       * Format: date-time
+       * @description UTC time of the persisted override update. Omitted while the default policy is effective.
+       */
+      updated_at?: string;
+      /** @description Display name of the administrator who last updated the override. Omitted while the default policy is effective. */
+      updated_by_name?: string;
+    };
+    /** @description A fixed, module-registered outbound-network diagnostic target. It never accepts a caller-supplied URL. */
+    'platform-network-diagnostic-target': {
+      id: string;
+      title_key: string;
+    };
+    'platform-network-overview': {
+      policy: components['schemas']['platform-network-outbound-policy'];
+      diagnostic_targets: components['schemas']['platform-network-diagnostic-target'][];
+    };
+    'enveloped-platform-network-overview': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-overview'];
+    };
+    /** @description Sanitized evidence from one bounded outbound-network diagnostic execution. */
+    'platform-network-diagnostic-result': {
+      target_id: string;
+      /** @enum {string} */
+      status: 'connected' | 'failed';
+      /**
+       * Format: int64
+       * @description Measured request latency when a response or transport result was obtained.
+       */
+      latency_ms?: number;
+      /** @description Upstream HTTP status when a response was received. */
+      http_status?: number;
+      /**
+       * Format: date-time
+       * @description UTC completion time for this diagnostic execution.
+       */
+      tested_at: string;
+      /** @description Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies. */
+      error?: string;
+    };
+    'enveloped-platform-network-diagnostic-result': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-diagnostic-result'];
     };
     /**
      * @description Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
@@ -14144,6 +14276,150 @@ export interface operations {
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       500: components['responses']['internal-server-error'];
+    };
+  };
+  getPlatformNetworkOutbound: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Effective outbound-network policy and registered diagnostics. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-overview'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  putPlatformNetworkOutbound: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['platform-network-outbound-config'];
+      };
+    };
+    responses: {
+      /** @description Updated effective outbound-network policy. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-overview'];
+        };
+      };
+      /** @description Invalid outbound-network policy. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  resetPlatformNetworkOutbound: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Default outbound-network policy is effective again. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-overview'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+    };
+  };
+  postPlatformNetworkDiagnostic: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        targetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Sanitized diagnostic result. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-diagnostic-result'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Diagnostic target not registered. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   getPlatformUpdateStatus: {

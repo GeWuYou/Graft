@@ -1,0 +1,50 @@
+{
+  "menu": { "platform": { "network": "网络" } },
+  "network": {
+    "diagnosticTargets": { "platformUpdate": "平台更新服务" },
+    "route": { "outbound": { "title": "网络", "breadcrumb": "网络" } },
+    "outbound": {
+      "eyebrow": "平台",
+      "title": "出站网络",
+      "description": "管理平台主动发起 HTTP 和 HTTPS 连接时使用的网络策略。",
+      "save": "保存",
+      "saveSuccess": "出站网络策略已保存。",
+      "saveFailed": "出站网络策略保存失败。",
+      "loadFailed": "出站网络策略加载失败。",
+      "resetToDefault": "恢复默认值",
+      "resetSuccess": "出站网络策略已恢复默认值。",
+      "resetFailed": "出站网络策略恢复默认值失败。",
+      "enabled": "互联网访问",
+      "enabledState": { "enabled": "已启用", "disabled": "已关闭" },
+      "enabledHelp": "关闭后，平台 HTTP 客户端将直接连接。",
+      "httpProxy": "HTTP 代理",
+      "httpsProxy": "HTTPS 代理",
+      "proxyPlaceholder": "http://proxy.company.com:8080",
+      "noProxy": "不使用代理",
+      "noProxyHelp": "命中这些主机或网络时将绕过已配置的代理。",
+      "noProxyPlaceholder": "添加主机、CIDR 或域名模式",
+      "noProxySemantics": "兼容标准 NO_PROXY 匹配语义。",
+      "effectivePolicy": "生效策略",
+      "configurationSource": "配置来源",
+      "sourceDefault": "默认值",
+      "sourceOverride": "覆盖值",
+      "notConfigured": "未配置",
+      "directConnection": "直接连接",
+      "diagnostic": {
+        "title": "连通性测试",
+        "description": "使用当前已保存策略测试一个固定注册目标。",
+        "unavailable": "未注册诊断目标。",
+        "run": "测试连接",
+        "running": "正在测试连接",
+        "connected": "连接成功",
+        "failed": "连接失败",
+        "latency": "延迟",
+        "httpStatus": "HTTP 状态",
+        "lastTested": "最后测试时间",
+        "notTested": "尚未测试",
+        "failedMessage": "连通性测试未能完成。"
+      },
+      "dockerNotice": "此策略仅适用于平台 HTTP 集成。Docker 镜像拉取使用运行主机上配置的 Docker daemon 代理。"
+    }
+  }
+}

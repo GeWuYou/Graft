@@ -1,0 +1,42 @@
+get:
+  tags: [platform-network]
+  summary: Read the effective platform outbound-network policy
+  operationId: getPlatformNetworkOutbound
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  responses:
+    '200':
+      description: Effective outbound-network policy and registered diagnostics.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+put:
+  tags: [platform-network]
+  summary: Update the platform outbound-network policy
+  operationId: putPlatformNetworkOutbound
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/platform-network-outbound-config.yaml }
+  responses:
+    '200':
+      description: Updated effective outbound-network policy.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
+    '400': { description: Invalid outbound-network policy. }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

@@ -1,0 +1,24 @@
+post:
+  tags: [platform-network]
+  summary: Execute one fixed platform outbound-network diagnostic target
+  operationId: postPlatformNetworkDiagnostic
+  description: The target is module-registered. The endpoint accepts no URL, host, DNS name, or other caller-controlled network destination.
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: targetId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  responses:
+    '200':
+      description: Sanitized diagnostic result.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-diagnostic-result.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Diagnostic target not registered. }

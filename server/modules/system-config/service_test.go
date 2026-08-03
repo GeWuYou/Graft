@@ -65,6 +65,35 @@ func TestServiceListsDefaultsAndStoresOverridesOnly(t *testing.T) {
 	assertResetDeletesOverride(t, service, repo)
 }
 
+func TestServiceRestrictsModuleManagedConfigToItsOwner(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:           "network.outbound",
+		Module:        "platform-network",
+		Group:         "network.outbound",
+		Title:         "Outbound network",
+		Type:          configregistry.ValueTypeObject,
+		DefaultValue:  json.RawMessage(`{"enabled":false}`),
+		ModuleManaged: true,
+	})
+	if _, err := service.Get(context.Background(), "network.outbound"); !errors.Is(err, errModuleManagedConfig) {
+		t.Fatalf("expected generic get to reject managed config, got %v", err)
+	}
+	items, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("list config: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected managed config omitted from generic list, got %#v", items)
+	}
+	if _, err := service.GetModuleConfig(context.Background(), "update", "network.outbound"); !errors.Is(err, errModuleConfigOwner) {
+		t.Fatalf("expected non-owner to be rejected, got %v", err)
+	}
+	item, err := service.UpdateModuleConfig(context.Background(), "platform-network", "network.outbound", json.RawMessage(`{"enabled":true}`), nil)
+	if err != nil || !item.HasOverride || string(item.EffectiveValue) != `{"enabled":true}` {
+		t.Fatalf("expected owner update to return effective override, got %#v, %v", item, err)
+	}
+}
+
 func TestServiceResolveDefaultConfigReturnsEffectiveOverride(t *testing.T) {
 	repo := newMemoryRepo()
 	service := newTestServiceWithRepo(t, repo, configregistry.Definition{

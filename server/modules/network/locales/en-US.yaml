@@ -1,0 +1,5 @@
+menu.platform.network: Network
+network.outbound.title: Outbound Network
+network.outbound.description: Platform proxy and no-proxy policy for outbound HTTP(S) requests.
+network.outbound.authentication.description: Reserved for future Secret Management.
+network.diagnosticTargets.platformUpdate: Platform Update Service

@@ -33,11 +33,13 @@ type Module struct {
 	operations  OperationStore
 	diagnostics FailureDiagnosticStore
 	rollout     *RolloutService
+	repository  string
 }
 
 // NewModule 创建 platform-update 模块。
 func NewModule(operations OperationStore, diagnostics FailureDiagnosticStore, cache DiscoveryCache) *Module {
-	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")}, cache), operations: operations, diagnostics: diagnostics}
+	repository := os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")
+	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: repository}, cache), operations: operations, diagnostics: diagnostics, repository: repository}
 }
 
 // Register 注册权限、菜单、读/check 路由和默认每日发现任务。
@@ -52,6 +54,9 @@ func (m *Module) Register(ctx *module.Context) error {
 		return err
 	}
 	if err := registerMenu(ctx.MenuRegistry); err != nil {
+		return err
+	}
+	if err := m.configureOutboundNetwork(ctx); err != nil {
 		return err
 	}
 	if err := m.configureDeploymentRuntime(ctx); err != nil {
@@ -73,6 +78,26 @@ func (m *Module) Register(ctx *module.Context) error {
 		}})
 	}
 	return registerRoutes(ctx, m.service, m.rollout, m.diagnostics)
+}
+
+func (m *Module) configureOutboundNetwork(ctx *module.Context) error {
+	factory, err := module.ResolveService[moduleapi.OutboundHTTPClientFactory](ctx.Services, (*moduleapi.OutboundHTTPClientFactory)(nil))
+	if err != nil {
+		if errors.Is(err, container.ErrServiceNotRegistered) {
+			// 独立模块单测可不装配完整模块图；真实运行时由 platform-network 依赖保证此能力存在。
+			return nil
+		}
+		return fmt.Errorf("resolve outbound HTTP client factory: %w", err)
+	}
+	diagnostics, err := module.ResolveService[moduleapi.OutboundDiagnosticRegistry](ctx.Services, (*moduleapi.OutboundDiagnosticRegistry)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve outbound diagnostic registry: %w", err)
+	}
+	m.service.provider = GitHubReleaseProvider{Repository: m.repository, ClientFactory: factory}
+	if err := diagnostics.RegisterOutboundDiagnosticTarget(platformUpdateDiagnosticTarget{factory: factory}); err != nil {
+		return fmt.Errorf("register platform update outbound diagnostic target: %w", err)
+	}
+	return nil
 }
 
 func (m *Module) validateRegistration(ctx *module.Context) error {

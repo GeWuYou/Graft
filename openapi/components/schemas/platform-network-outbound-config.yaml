@@ -1,0 +1,23 @@
+type: object
+description: Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
+required: [enabled, http_proxy, https_proxy, no_proxy]
+properties:
+  enabled:
+    type: boolean
+    description: When false, every platform HTTP client connects directly regardless of the retained proxy values.
+  http_proxy:
+    type: string
+    maxLength: 2048
+    description: Optional unauthenticated HTTP proxy URL used only for HTTP requests.
+  https_proxy:
+    type: string
+    maxLength: 2048
+    description: Optional unauthenticated HTTPS proxy URL used only for HTTPS requests.
+  no_proxy:
+    type: array
+    description: Hosts, domains, addresses, CIDRs, or host-port pairs that bypass a matching configured proxy using standard NO_PROXY-style matching semantics.
+    items:
+      type: string
+      minLength: 1
+      maxLength: 255
+    maxItems: 128

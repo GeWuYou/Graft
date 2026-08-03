@@ -68,11 +68,13 @@ type Definition struct {
 	Schema              json.RawMessage
 	DefaultValue        json.RawMessage
 	Sensitive           bool
-	Required            bool
-	RestartRequired     bool
-	RuntimeApplyMode    RuntimeApplyMode
-	Permission          string
-	Order               int
+	// ModuleManaged 表示该配置只允许声明 owner 通过 moduleapi 管理，通用 System Config API 不会暴露它。
+	ModuleManaged    bool
+	Required         bool
+	RestartRequired  bool
+	RuntimeApplyMode RuntimeApplyMode
+	Permission       string
+	Order            int
 }
 
 // Snapshot 返回可安全长期持有的副本；可变 JSON 与标签切片会被复制。

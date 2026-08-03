@@ -1,0 +1,18 @@
+post:
+  tags: [platform-network]
+  summary: Reset the platform outbound-network policy to its module default
+  operationId: resetPlatformNetworkOutbound
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  responses:
+    '200':
+      description: Default outbound-network policy is effective again.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }

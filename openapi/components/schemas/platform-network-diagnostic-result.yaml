@@ -1,0 +1,28 @@
+type: object
+description: Sanitized evidence from one bounded outbound-network diagnostic execution.
+required: [target_id, status, tested_at]
+properties:
+  target_id:
+    type: string
+    maxLength: 128
+  status:
+    type: string
+    enum: [connected, failed]
+  latency_ms:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Measured request latency when a response or transport result was obtained.
+  http_status:
+    type: integer
+    minimum: 100
+    maximum: 599
+    description: Upstream HTTP status when a response was received.
+  tested_at:
+    type: string
+    format: date-time
+    description: UTC completion time for this diagnostic execution.
+  error:
+    type: string
+    maxLength: 512
+    description: Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies.
