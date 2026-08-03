@@ -1,0 +1,17 @@
+type: object
+description: Effective platform outbound-network policy and its configuration source.
+required: [config, source]
+properties:
+  config:
+    $ref: ./platform-network-outbound-config.yaml
+  source:
+    type: string
+    enum: [default, override]
+    description: Whether the effective policy is the module default or an administrator override.
+  updated_at:
+    type: string
+    format: date-time
+    description: UTC time of the persisted override update. Omitted while the default policy is effective.
+  updated_by_name:
+    type: string
+    description: Display name of the administrator who last updated the override. Omitted while the default policy is effective.

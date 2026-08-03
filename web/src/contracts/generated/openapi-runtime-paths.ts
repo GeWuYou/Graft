@@ -94,6 +94,8 @@ export const OPENAPI_RUNTIME_PATH = {
   getPermission: '/api/permissions/{id}',
   getPermissions: '/api/permissions',
   getPlatformBackup: '/api/platform/backups/{id}',
+  getPlatformNetworkDiagnosticHistory: '/api/platform/network/outbound/diagnostics/{targetId}/history',
+  getPlatformNetworkOutbound: '/api/platform/network/outbound',
   getPlatformUpdateActiveOperation: '/api/platform/updates/active-operation',
   getPlatformUpdateFailureDiagnostic: '/api/platform/updates/diagnostics/{requestId}',
   getPlatformUpdateOperation: '/api/platform/updates/operations/{operationID}',
@@ -198,6 +200,7 @@ export const OPENAPI_RUNTIME_PATH = {
   postNotificationRead: '/api/notifications/{delivery_id}/read',
   postNotificationsReadAll: '/api/notifications/read-all',
   postPlatformBackup: '/api/platform/backups',
+  postPlatformNetworkDiagnostic: '/api/platform/network/outbound/diagnostics/{targetId}',
   postPlatformUpdateCheck: '/api/platform/updates/check',
   postPlatformUpdateOperation: '/api/platform/updates/operations',
   postPlatformUpdateOperationRecovery: '/api/platform/updates/operations/{operationID}/recovery',
@@ -250,9 +253,11 @@ export const OPENAPI_RUNTIME_PATH = {
   putDockerImageSavedView: '/api/docker/images/saved-views/{viewId}',
   putDockerNetworkSavedView: '/api/ops/docker/networks/saved-views/{viewId}',
   putDockerVolumeSavedView: '/api/ops/docker/volumes/saved-views/{viewId}',
+  putPlatformNetworkOutbound: '/api/platform/network/outbound',
   putRuntimeTargetSavedView: '/api/runtime-target-saved-views/{viewId}',
   putScheduledTask: '/api/scheduled-tasks/{taskKey}',
   putSystemConfig: '/api/system-configs/{key}',
+  resetPlatformNetworkOutbound: '/api/platform/network/outbound/reset',
   retryTaskStage: '/api/tasks/{taskId}/stages/{stageId}/retry',
 } as const;
 

@@ -20,6 +20,41 @@ type deploymentProfileRuntimeStub struct {
 	current func(context.Context) moduleapi.DeploymentContext
 }
 
+type outboundDiagnosticRegistryStub struct {
+	targets []moduleapi.OutboundDiagnosticTarget
+}
+
+func (s *outboundDiagnosticRegistryStub) RegisterOutboundDiagnosticTarget(target moduleapi.OutboundDiagnosticTarget) error {
+	s.targets = append(s.targets, target)
+	return nil
+}
+
+func (s *outboundDiagnosticRegistryStub) OutboundDiagnosticTarget(name string) (moduleapi.OutboundDiagnosticTarget, bool) {
+	for _, target := range s.targets {
+		if target.Name() == name {
+			return target, true
+		}
+	}
+	return nil, false
+}
+
+func (s *outboundDiagnosticRegistryStub) OutboundDiagnosticTargets() []moduleapi.OutboundDiagnosticTarget {
+	return append([]moduleapi.OutboundDiagnosticTarget(nil), s.targets...)
+}
+
+type outboundNetworkConsumerRegistryStub struct {
+	consumers []moduleapi.OutboundNetworkConsumer
+}
+
+func (s *outboundNetworkConsumerRegistryStub) RegisterOutboundNetworkConsumer(consumer moduleapi.OutboundNetworkConsumer) error {
+	s.consumers = append(s.consumers, consumer)
+	return nil
+}
+
+func (s *outboundNetworkConsumerRegistryStub) OutboundNetworkConsumers() []moduleapi.OutboundNetworkConsumer {
+	return append([]moduleapi.OutboundNetworkConsumer(nil), s.consumers...)
+}
+
 func (s deploymentProfileRuntimeStub) Current(ctx context.Context) moduleapi.DeploymentContext {
 	return s.current(ctx)
 }
@@ -120,6 +155,13 @@ func TestConfigureDeploymentRuntimePropagatesLifecycleCancellation(t *testing.T)
 	instance.service.profile()
 	if lookupErr != context.Canceled {
 		t.Fatalf("expected canceled lifecycle context to reach profile lookup, got %v", lookupErr)
+	}
+}
+
+func TestConfigureOutboundNetworkRejectsMissingFactory(t *testing.T) {
+	instance := NewModule(&memoryOperationStore{}, failureDiagnosticStoreStub{}, nil)
+	if err := instance.configureOutboundNetwork(&module.Context{Services: container.New()}); err == nil {
+		t.Fatal("expected missing outbound HTTP client factory to reject platform-update registration")
 	}
 }
 

@@ -3416,6 +3416,42 @@ func (e PlatformDeploymentStrategy) Valid() bool {
 	}
 }
 
+// Defines values for PlatformNetworkDiagnosticResultStatus.
+const (
+	PlatformNetworkDiagnosticResultStatusConnected PlatformNetworkDiagnosticResultStatus = "connected"
+	PlatformNetworkDiagnosticResultStatusFailed    PlatformNetworkDiagnosticResultStatus = "failed"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkDiagnosticResultStatus enum.
+func (e PlatformNetworkDiagnosticResultStatus) Valid() bool {
+	switch e {
+	case PlatformNetworkDiagnosticResultStatusConnected:
+		return true
+	case PlatformNetworkDiagnosticResultStatusFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformNetworkOutboundPolicySource.
+const (
+	PlatformNetworkOutboundPolicySourceDefault  PlatformNetworkOutboundPolicySource = "default"
+	PlatformNetworkOutboundPolicySourceOverride PlatformNetworkOutboundPolicySource = "override"
+)
+
+// Valid indicates whether the value is a known member of the PlatformNetworkOutboundPolicySource enum.
+func (e PlatformNetworkOutboundPolicySource) Valid() bool {
+	switch e {
+	case PlatformNetworkOutboundPolicySourceDefault:
+		return true
+	case PlatformNetworkOutboundPolicySourceOverride:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlatformUpdateComposeRootCandidateConfidence.
 const (
 	High   PlatformUpdateComposeRootCandidateConfidence = "high"
@@ -10793,6 +10829,37 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformNetworkDiagnosticHistory defines model for enveloped-platform-network-diagnostic-history.
+type EnvelopedPlatformNetworkDiagnosticHistory struct {
+	Code string `json:"code"`
+
+	// Data Bounded persisted diagnostic history for one fixed registered outbound-network target.
+	Data    PlatformNetworkDiagnosticHistory `json:"data"`
+	Message string                           `json:"message"`
+	Success bool                             `json:"success"`
+	TraceId string                           `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkDiagnosticResult defines model for enveloped-platform-network-diagnostic-result.
+type EnvelopedPlatformNetworkDiagnosticResult struct {
+	Code string `json:"code"`
+
+	// Data Sanitized evidence from one bounded outbound-network diagnostic execution.
+	Data    PlatformNetworkDiagnosticResult `json:"data"`
+	Message string                          `json:"message"`
+	Success bool                            `json:"success"`
+	TraceId string                          `json:"traceId"`
+}
+
+// EnvelopedPlatformNetworkOverview defines model for enveloped-platform-network-overview.
+type EnvelopedPlatformNetworkOverview struct {
+	Code    string                  `json:"code"`
+	Data    PlatformNetworkOverview `json:"data"`
+	Message string                  `json:"message"`
+	Success bool                    `json:"success"`
+	TraceId string                  `json:"traceId"`
+}
+
 // EnvelopedPlatformUpdateActiveOperation defines model for enveloped-platform-update-active-operation.
 type EnvelopedPlatformUpdateActiveOperation struct {
 	Code    string                   `json:"code"`
@@ -11948,6 +12015,87 @@ type PlatformBackupSummaryStatus string
 
 // PlatformDeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
 type PlatformDeploymentStrategy string
+
+// PlatformNetworkConsumer A module explicitly registered as a consumer of the platform outbound-network policy.
+type PlatformNetworkConsumer struct {
+	Id       string `json:"id"`
+	TitleKey string `json:"title_key"`
+}
+
+// PlatformNetworkDiagnosticHistory Bounded persisted diagnostic history for one fixed registered outbound-network target.
+type PlatformNetworkDiagnosticHistory struct {
+	Items    []PlatformNetworkDiagnosticResult `json:"items"`
+	TargetId string                            `json:"target_id"`
+}
+
+// PlatformNetworkDiagnosticResult Sanitized evidence from one bounded outbound-network diagnostic execution.
+type PlatformNetworkDiagnosticResult struct {
+	// Error Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies.
+	Error *string `json:"error,omitempty"`
+
+	// HttpStatus Upstream HTTP status when a response was received.
+	HttpStatus *int `json:"http_status,omitempty"`
+
+	// LatencyMs Measured request latency when a response or transport result was obtained.
+	LatencyMs *int64                                `json:"latency_ms,omitempty"`
+	Status    PlatformNetworkDiagnosticResultStatus `json:"status"`
+	TargetId  string                                `json:"target_id"`
+
+	// TestedAt UTC completion time for this diagnostic execution.
+	TestedAt time.Time `json:"tested_at"`
+}
+
+// PlatformNetworkDiagnosticResultStatus defines model for PlatformNetworkDiagnosticResult.Status.
+type PlatformNetworkDiagnosticResultStatus string
+
+// PlatformNetworkDiagnosticTarget A fixed, module-registered outbound-network diagnostic target. It never accepts a caller-supplied URL.
+type PlatformNetworkDiagnosticTarget struct {
+	Id       string `json:"id"`
+	TitleKey string `json:"title_key"`
+}
+
+// PlatformNetworkOutboundConfig Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
+type PlatformNetworkOutboundConfig struct {
+	// Enabled When false, every platform HTTP client connects directly regardless of the retained proxy values.
+	Enabled bool `json:"enabled"`
+
+	// HttpProxy Optional unauthenticated HTTP proxy URL used only for HTTP requests.
+	HttpProxy string `json:"http_proxy"`
+
+	// HttpsProxy Optional unauthenticated HTTPS proxy URL used only for HTTPS requests.
+	HttpsProxy string `json:"https_proxy"`
+
+	// NoProxy Hosts, domains, addresses, CIDRs, or host-port pairs that bypass a matching configured proxy using standard NO_PROXY-style matching semantics.
+	NoProxy []string `json:"no_proxy"`
+}
+
+// PlatformNetworkOutboundPolicy Effective platform outbound-network policy and its configuration source.
+type PlatformNetworkOutboundPolicy struct {
+	// Config Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
+	Config PlatformNetworkOutboundConfig `json:"config"`
+
+	// Source Whether the effective policy is the module default or an administrator override.
+	Source PlatformNetworkOutboundPolicySource `json:"source"`
+
+	// UpdatedAt UTC time of the persisted override update. Omitted while the default policy is effective.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+
+	// UpdatedByName Display name of the administrator who last updated the override. Omitted while the default policy is effective.
+	UpdatedByName *string `json:"updated_by_name,omitempty"`
+}
+
+// PlatformNetworkOutboundPolicySource Whether the effective policy is the module default or an administrator override.
+type PlatformNetworkOutboundPolicySource string
+
+// PlatformNetworkOverview defines model for platform-network-overview.
+type PlatformNetworkOverview struct {
+	// Consumers Modules explicitly registered as consumers of the effective platform outbound-network policy.
+	Consumers         []PlatformNetworkConsumer         `json:"consumers"`
+	DiagnosticTargets []PlatformNetworkDiagnosticTarget `json:"diagnostic_targets"`
+
+	// Policy Effective platform outbound-network policy and its configuration source.
+	Policy PlatformNetworkOutboundPolicy `json:"policy"`
+}
 
 // PlatformUpdateComposeRootCandidate defines model for platform-update-compose-root-candidate.
 type PlatformUpdateComposeRootCandidate struct {
@@ -14036,6 +14184,9 @@ type DockerVolumeListSource = DockerResourceSource
 // DockerVolumeListUsage defines model for docker-volume-list-usage.
 type DockerVolumeListUsage string
 
+// IfMatchHeader defines model for if-match-header.
+type IfMatchHeader = string
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -14084,11 +14235,20 @@ type SessionListLimit = int
 // TrendRangeQuery defines model for trend-range-query.
 type TrendRangeQuery string
 
+// BadRequest defines model for bad-request.
+type BadRequest = ErrorResponse
+
 // Forbidden defines model for forbidden.
 type Forbidden = ErrorResponse
 
 // InternalServerError defines model for internal-server-error.
 type InternalServerError = ErrorResponse
+
+// PreconditionFailed defines model for precondition-failed.
+type PreconditionFailed = ErrorResponse
+
+// PreconditionRequired defines model for precondition-required.
+type PreconditionRequired = ErrorResponse
 
 // Unauthorized defines model for unauthorized.
 type Unauthorized = ErrorResponse
@@ -16003,6 +16163,64 @@ type GetPlatformBackupParams struct {
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
 }
 
+// GetPlatformNetworkOutboundParams defines parameters for GetPlatformNetworkOutbound.
+type GetPlatformNetworkOutboundParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// PutPlatformNetworkOutboundParams defines parameters for PutPlatformNetworkOutbound.
+type PutPlatformNetworkOutboundParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
+// PostPlatformNetworkDiagnosticParams defines parameters for PostPlatformNetworkDiagnostic.
+type PostPlatformNetworkDiagnosticParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformNetworkDiagnosticHistoryParams defines parameters for GetPlatformNetworkDiagnosticHistory.
+type GetPlatformNetworkDiagnosticHistoryParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// ResetPlatformNetworkOutboundParams defines parameters for ResetPlatformNetworkOutbound.
+type ResetPlatformNetworkOutboundParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
+	IfMatch IfMatchHeader `json:"If-Match"`
+}
+
 // GetPlatformUpdateActiveOperationParams defines parameters for GetPlatformUpdateActiveOperation.
 type GetPlatformUpdateActiveOperationParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -17007,6 +17225,9 @@ type PostDockerVolumeRemoveJSONRequestBody = DockerVolumeRemoveRequest
 
 // PostPlatformBackupJSONRequestBody defines body for PostPlatformBackup for application/json ContentType.
 type PostPlatformBackupJSONRequestBody = CreatePlatformBackupRequest
+
+// PutPlatformNetworkOutboundJSONRequestBody defines body for PutPlatformNetworkOutbound for application/json ContentType.
+type PutPlatformNetworkOutboundJSONRequestBody = PlatformNetworkOutboundConfig
 
 // PostPlatformUpdateOperationJSONRequestBody defines body for PostPlatformUpdateOperation for application/json ContentType.
 type PostPlatformUpdateOperationJSONRequestBody = CreatePlatformUpdateOperationRequest

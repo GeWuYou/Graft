@@ -65,6 +65,89 @@ func TestServiceListsDefaultsAndStoresOverridesOnly(t *testing.T) {
 	assertResetDeletesOverride(t, service, repo)
 }
 
+func TestServiceRestrictsModuleManagedConfigToItsOwner(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:           "network.outbound",
+		Module:        "platform-network",
+		Group:         "network.outbound",
+		Title:         "Outbound network",
+		Type:          configregistry.ValueTypeObject,
+		DefaultValue:  json.RawMessage(`{"enabled":false}`),
+		ModuleManaged: true,
+	})
+	if _, err := service.Get(context.Background(), "network.outbound"); !errors.Is(err, errModuleManagedConfig) {
+		t.Fatalf("expected generic get to reject managed config, got %v", err)
+	}
+	items, err := service.List(context.Background())
+	if err != nil {
+		t.Fatalf("list config: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected managed config omitted from generic list, got %#v", items)
+	}
+	if _, err := service.GetModuleConfig(context.Background(), "update", "network.outbound"); !errors.Is(err, errModuleConfigOwner) {
+		t.Fatalf("expected non-owner to be rejected, got %v", err)
+	}
+	item, err := service.UpdateModuleConfig(context.Background(), "platform-network", "network.outbound", json.RawMessage(`{"enabled":true}`), nil, 0)
+	if err != nil || !item.HasOverride || item.UpdatedAt == nil || string(item.EffectiveValue) != `{"enabled":true}` {
+		t.Fatalf("expected owner update to return effective override, got %#v, %v", item, err)
+	}
+}
+
+func TestServiceModuleConfigCompareAndSwapPreservesResetVersion(t *testing.T) {
+	service := newTestService(t, configregistry.Definition{
+		Key:           "network.outbound",
+		Module:        "platform-network",
+		Group:         "network.outbound",
+		Title:         "Outbound network",
+		Type:          configregistry.ValueTypeObject,
+		DefaultValue:  json.RawMessage(`{"enabled":false}`),
+		ModuleManaged: true,
+	})
+
+	initial, err := service.GetModuleConfig(context.Background(), "platform-network", "network.outbound")
+	if err != nil || initial.Version != 0 || initial.HasOverride {
+		t.Fatalf("expected default module config at version zero, got %#v, %v", initial, err)
+	}
+	updated, err := service.UpdateModuleConfig(context.Background(), "platform-network", "network.outbound", json.RawMessage(`{"enabled":true}`), nil, initial.Version)
+	if err != nil || updated.Version != 1 || !updated.HasOverride {
+		t.Fatalf("expected first CAS write at version one, got %#v, %v", updated, err)
+	}
+	if _, err := service.UpdateModuleConfig(context.Background(), "platform-network", "network.outbound", json.RawMessage(`{"enabled":false}`), nil, initial.Version); !errors.Is(err, moduleapi.ErrModuleConfigVersionConflict) {
+		t.Fatalf("expected stale write to conflict, got %v", err)
+	}
+	reset, err := service.ResetModuleConfig(context.Background(), "platform-network", "network.outbound", nil, updated.Version)
+	if err != nil || reset.Version != 2 || reset.HasOverride || string(reset.EffectiveValue) != `{"enabled":false}` {
+		t.Fatalf("expected reset tombstone at version two, got %#v, %v", reset, err)
+	}
+	if _, err := service.ResetModuleConfig(context.Background(), "platform-network", "network.outbound", nil, updated.Version); !errors.Is(err, moduleapi.ErrModuleConfigVersionConflict) {
+		t.Fatalf("expected stale reset to conflict, got %v", err)
+	}
+
+	assertConcurrentCASWinner(t, service, reset.Version)
+}
+
+func assertConcurrentCASWinner(t *testing.T, service *Service, version int64) {
+	t.Helper()
+	var succeeded atomic.Int32
+	var writers sync.WaitGroup
+	for _, value := range []json.RawMessage{json.RawMessage(`{"enabled":true}`), json.RawMessage(`{"enabled":false}`)} {
+		writers.Add(1)
+		go func(value json.RawMessage) {
+			defer writers.Done()
+			if _, err := service.UpdateModuleConfig(context.Background(), "platform-network", "network.outbound", value, nil, version); err == nil {
+				succeeded.Add(1)
+			} else if !errors.Is(err, moduleapi.ErrModuleConfigVersionConflict) {
+				t.Errorf("concurrent CAS write: %v", err)
+			}
+		}(value)
+	}
+	writers.Wait()
+	if succeeded.Load() != 1 {
+		t.Fatalf("expected one concurrent CAS winner, got %d", succeeded.Load())
+	}
+}
+
 func TestServiceResolveDefaultConfigReturnsEffectiveOverride(t *testing.T) {
 	repo := newMemoryRepo()
 	service := newTestServiceWithRepo(t, repo, configregistry.Definition{
@@ -967,17 +1050,16 @@ func (r *memoryRepo) GetOverride(_ context.Context, key string) (systemconfigsto
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	value, ok := r.values[key]
+	override, ok := r.audit[key]
 	if !ok {
 		return systemconfigstore.Override{}, systemconfigstore.ErrOverrideNotFound
 	}
-	override := r.audit[key]
 	override.Key = key
-	override.Value = cloneRawMessage(value)
+	override.Value = cloneRawMessage(r.values[key])
 	return override, nil
 }
 
-func (r *memoryRepo) SetOverride(_ context.Context, key string, value json.RawMessage, userID *uint64) (systemconfigstore.Override, error) {
+func (r *memoryRepo) CompareAndSwapOverride(_ context.Context, key string, value json.RawMessage, userID *uint64, expectedVersion int64) (systemconfigstore.Override, error) {
 	if len(value) == 0 {
 		return systemconfigstore.Override{}, errors.New("value is required")
 	}
@@ -985,11 +1067,14 @@ func (r *memoryRepo) SetOverride(_ context.Context, key string, value json.RawMe
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.values[key] = cloneRawMessage(value)
 	override := r.audit[key]
+	if override.Version != expectedVersion {
+		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
+	}
 	now := time.Now().UTC()
 	override.Key = key
 	override.Value = cloneRawMessage(value)
+	override.Version++
 	if override.CreatedAt.IsZero() {
 		override.CreatedAt = now
 		override.CreatedBy = cloneUint64Pointer(userID)
@@ -997,16 +1082,31 @@ func (r *memoryRepo) SetOverride(_ context.Context, key string, value json.RawMe
 	override.UpdatedAt = now
 	override.UpdatedBy = cloneUint64Pointer(userID)
 	r.audit[key] = override
+	r.values[key] = cloneRawMessage(value)
 	return override, nil
 }
 
-func (r *memoryRepo) DeleteOverride(_ context.Context, key string) error {
+func (r *memoryRepo) ResetOverride(_ context.Context, key string, userID *uint64, expectedVersion int64) (systemconfigstore.Override, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	override := r.audit[key]
+	if override.Version != expectedVersion {
+		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
+	}
+	now := time.Now().UTC()
+	override.Key = key
+	override.Value = nil
+	override.Version++
+	if override.CreatedAt.IsZero() {
+		override.CreatedAt = now
+		override.CreatedBy = cloneUint64Pointer(userID)
+	}
+	override.UpdatedAt = now
+	override.UpdatedBy = cloneUint64Pointer(userID)
 	delete(r.values, key)
-	delete(r.audit, key)
-	return nil
+	r.audit[key] = override
+	return override, nil
 }
 
 func (r *memoryRepo) resetReadCounters() {

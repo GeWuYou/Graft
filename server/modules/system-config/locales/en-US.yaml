@@ -23,6 +23,11 @@ systemConfig.domains.notification: Notification
 systemConfig.domains.application: Application
 systemConfig.domains.ops: Infrastructure
 systemConfig.domains.audit: Security Audit
+systemConfig.domains.network: Network
+systemConfig.groups.network.outbound: Outbound Network
+systemConfig.groups.network.outbound.description: Manage the platform HTTP(S) proxy and no-proxy policy.
+systemConfig.network.network.outbound.title: Outbound Network Policy
+systemConfig.network.network.outbound.description: Platform proxy and no-proxy policy for outbound HTTP(S) requests.
 systemConfig.groups.coreHttpxLogRetention: Access Log Retention
 systemConfig.groupDescriptions.coreHttpxLogRetention: Manage access log cleanup retention and batch policy.
 systemConfig.items.accessLogRetentionCleanup.title: Access log retention cleanup

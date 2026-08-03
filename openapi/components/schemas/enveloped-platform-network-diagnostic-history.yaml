@@ -1,0 +1,9 @@
+type: object
+required: [success, code, message, traceId, data]
+properties:
+  success: { type: boolean }
+  code: { type: string }
+  message: { type: string }
+  traceId: { type: string }
+  data:
+    $ref: ./platform-network-diagnostic-history.yaml

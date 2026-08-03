@@ -1,0 +1,7 @@
+name: If-Match
+in: header
+required: true
+description: Strong entity tag for the complete Module Config representation being replaced.
+schema:
+  type: string
+  pattern: '^"[0-9]+"$'

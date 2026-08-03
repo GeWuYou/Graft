@@ -20,6 +20,7 @@ func TestEmbeddedLocaleResourcesIncludeMigratedModuleProviders(t *testing.T) {
 		"container":      {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"deployment":     {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"monitor":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
+		"network":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"project":        {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"rbac":           {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
 		"runtime-target": {i18n.LocaleENUS: {}, i18n.LocaleZHCN: {}},
@@ -68,6 +69,7 @@ func TestMigrationDirsUsesOwnerAlignedBaseline(t *testing.T) {
 		"modules/audit/migrations",
 		"modules/runtime-target/migrations",
 		"modules/system-config/migrations",
+		"modules/network/migrations",
 		"modules/scheduler/migrations",
 		"modules/task/migrations",
 		"modules/backup/migrations",
@@ -172,6 +174,8 @@ func TestDescriptorsStayAlignedWithModuleDirectories(t *testing.T) {
 			moduleID = "platform-update"
 		case "backup":
 			moduleID = "platform-backup"
+		case "network":
+			moduleID = "platform-network"
 		}
 		want = append(want, moduleID)
 	}

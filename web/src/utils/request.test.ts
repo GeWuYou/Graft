@@ -10,6 +10,7 @@ type MockConfig = Record<string, any>;
 type MockResponse = {
   status: number;
   data: unknown;
+  headers?: Record<string, string>;
   config?: MockConfig;
 };
 type MockError = {
@@ -266,6 +267,27 @@ describe('request auth handling', () => {
         }),
       }),
     );
+  });
+
+  it('returns unwrapped data with response headers through the opt-in response API', async () => {
+    const { request } = await loadRequestModule();
+
+    requestHandler.mockResolvedValueOnce({
+      status: 200,
+      headers: { etag: '"17"' },
+      data: {
+        success: true,
+        code: API_CODE.OK,
+        message: 'OK',
+        traceId: 'trace-users',
+        data: { ok: true },
+      },
+    });
+
+    await expect(request.getWithResponse<{ ok: boolean }>({ url: USERS_API_PATH })).resolves.toEqual({
+      data: { ok: true },
+      headers: { etag: '"17"' },
+    });
   });
 
   it('streams NDJSON through the canonical request boundary with session headers', async () => {

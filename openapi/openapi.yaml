@@ -14,6 +14,7 @@ x-tagGroups:
       - scheduled-tasks
       - tasks
       - system-config
+      - platform-network
       - platform-update
       - platform-backup
       - dashboard
@@ -58,6 +59,8 @@ tags:
   - name: tasks
     description: Platform Task Runtime history and operator controls.
   - name: system-config
+  - name: platform-network
+    description: Platform-managed outbound network policy and fixed connectivity diagnostics.
   - name: platform-update
     description: Self-hosted platform release discovery and installation capability preflight.
   - name: platform-backup
@@ -222,6 +225,14 @@ paths:
     $ref: ./paths/system-config.detail.yaml
   /api/system-configs/{key}/reset:
     $ref: ./paths/system-config.reset.yaml
+  /api/platform/network/outbound:
+    $ref: ./paths/platform-network.outbound.yaml
+  /api/platform/network/outbound/reset:
+    $ref: ./paths/platform-network.reset.yaml
+  /api/platform/network/outbound/diagnostics/{targetId}:
+    $ref: ./paths/platform-network.diagnostic.yaml
+  /api/platform/network/outbound/diagnostics/{targetId}/history:
+    $ref: ./paths/platform-network.diagnostic-history.yaml
   /api/platform/updates/status:
     $ref: ./paths/platform-updates.status.yaml
   /api/platform/updates/check:
@@ -763,6 +774,26 @@ components:
       $ref: ./components/schemas/enveloped-system-config-item.yaml
     EnvelopedSystemConfigListResponse:
       $ref: ./components/schemas/enveloped-system-config-list-response.yaml
+    PlatformNetworkOutboundConfig:
+      $ref: ./components/schemas/platform-network-outbound-config.yaml
+    PlatformNetworkOutboundPolicy:
+      $ref: ./components/schemas/platform-network-outbound-policy.yaml
+    PlatformNetworkDiagnosticTarget:
+      $ref: ./components/schemas/platform-network-diagnostic-target.yaml
+    PlatformNetworkConsumer:
+      $ref: ./components/schemas/platform-network-consumer.yaml
+    PlatformNetworkOverview:
+      $ref: ./components/schemas/platform-network-overview.yaml
+    PlatformNetworkDiagnosticResult:
+      $ref: ./components/schemas/platform-network-diagnostic-result.yaml
+    PlatformNetworkDiagnosticHistory:
+      $ref: ./components/schemas/platform-network-diagnostic-history.yaml
+    EnvelopedPlatformNetworkOverview:
+      $ref: ./components/schemas/enveloped-platform-network-overview.yaml
+    EnvelopedPlatformNetworkDiagnosticResult:
+      $ref: ./components/schemas/enveloped-platform-network-diagnostic-result.yaml
+    EnvelopedPlatformNetworkDiagnosticHistory:
+      $ref: ./components/schemas/enveloped-platform-network-diagnostic-history.yaml
     PlatformUpdateStatus:
       $ref: ./components/schemas/platform-update-status.yaml
     PlatformDeploymentStrategy:

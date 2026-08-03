@@ -98,6 +98,7 @@
         "scheduled-tasks",
         "tasks",
         "system-config",
+        "platform-network",
         "platform-update",
         "platform-backup",
         "dashboard",
@@ -189,6 +190,10 @@
     },
     {
       "name": "system-config"
+    },
+    {
+      "name": "platform-network",
+      "description": "Platform-managed outbound network policy and fixed connectivity diagnostics."
     },
     {
       "name": "platform-update",
@@ -8683,6 +8688,346 @@
         }
       }
     },
+    "/api/platform/network/outbound": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read the effective platform outbound-network policy",
+        "operationId": "getPlatformNetworkOutbound",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Effective outbound-network policy and registered diagnostics.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/etag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-overview"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Update the platform outbound-network policy",
+        "operationId": "putPlatformNetworkOutbound",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/if-match-header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/platform-network-outbound-config"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated effective outbound-network policy.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/etag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-overview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/bad-request"
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "412": {
+            "$ref": "#/components/responses/precondition-failed"
+          },
+          "428": {
+            "$ref": "#/components/responses/precondition-required"
+          }
+        }
+      }
+    },
+    "/api/platform/network/outbound/reset": {
+      "post": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Reset the platform outbound-network policy to its module default",
+        "operationId": "resetPlatformNetworkOutbound",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/if-match-header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default outbound-network policy is effective again.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/etag"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-overview"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "412": {
+            "$ref": "#/components/responses/precondition-failed"
+          },
+          "428": {
+            "$ref": "#/components/responses/precondition-required"
+          }
+        }
+      }
+    },
+    "/api/platform/network/outbound/diagnostics/{targetId}": {
+      "post": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Execute one fixed platform outbound-network diagnostic target",
+        "operationId": "postPlatformNetworkDiagnostic",
+        "description": "The target is module-registered. The endpoint accepts no URL, host, DNS name, or other caller-controlled network destination.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized diagnostic result.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-result"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Diagnostic target not registered.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/platform/network/outbound/diagnostics/{targetId}/history": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read bounded persisted history for one fixed outbound-network diagnostic target",
+        "operationId": "getPlatformNetworkDiagnosticHistory",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent sanitized diagnostic results in descending completion order.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-history"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid diagnostic history limit.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Diagnostic target not registered.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/platform/updates/status": {
       "get": {
         "tags": [
@@ -8922,7 +9267,7 @@
         ],
         "summary": "Read the active self-update operation",
         "operationId": "getPlatformUpdateActiveOperation",
-        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. When a runner's durable lease expires before it publishes a terminal snapshot, `data.state_source` is `runner_lost`, `data.state_available` is false, `data.error` is `PLATFORM_UPDATE_RUNNER_LOST`, and the last verified phase/progress/message fields are retained for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.",
+        "description": "Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.",
         "security": [
           {
             "bearerAuth": []
@@ -9085,7 +9430,7 @@
         ],
         "summary": "Recover a lost self-update runner",
         "operationId": "postPlatformUpdateOperationRecovery",
-        "description": "Starts one protected, one-shot recovery runner for an operation whose durable runner lease expired before publishing a terminal snapshot. The server accepts recovery only for a `runner_lost` operation and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.",
+        "description": "Starts one protected, one-shot recovery runner for a `runner_lost` operation caused by an expired durable lease or a missing runner-state snapshot beyond the loss window. A snapshot, when present, must be verified as pre-migration and non-terminal; missing-state recovery is also fenced by the operation claim. The server never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.",
         "security": [
           {
             "bearerAuth": []
@@ -20864,6 +21209,36 @@
       "EnvelopedSystemConfigListResponse": {
         "$ref": "#/components/schemas/enveloped-system-config-list-response"
       },
+      "PlatformNetworkOutboundConfig": {
+        "$ref": "#/components/schemas/platform-network-outbound-config"
+      },
+      "PlatformNetworkOutboundPolicy": {
+        "$ref": "#/components/schemas/platform-network-outbound-policy"
+      },
+      "PlatformNetworkDiagnosticTarget": {
+        "$ref": "#/components/schemas/platform-network-diagnostic-target"
+      },
+      "PlatformNetworkConsumer": {
+        "$ref": "#/components/schemas/platform-network-consumer"
+      },
+      "PlatformNetworkOverview": {
+        "$ref": "#/components/schemas/platform-network-overview"
+      },
+      "PlatformNetworkDiagnosticResult": {
+        "$ref": "#/components/schemas/platform-network-diagnostic-result"
+      },
+      "PlatformNetworkDiagnosticHistory": {
+        "$ref": "#/components/schemas/platform-network-diagnostic-history"
+      },
+      "EnvelopedPlatformNetworkOverview": {
+        "$ref": "#/components/schemas/enveloped-platform-network-overview"
+      },
+      "EnvelopedPlatformNetworkDiagnosticResult": {
+        "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-result"
+      },
+      "EnvelopedPlatformNetworkDiagnosticHistory": {
+        "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-history"
+      },
       "PlatformUpdateStatus": {
         "$ref": "#/components/schemas/platform-update-status"
       },
@@ -28201,6 +28576,281 @@
         "properties": {
           "value": {
             "description": "JSON value to store as the user override for the registered definition."
+          }
+        }
+      },
+      "platform-network-outbound-config": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.",
+        "required": [
+          "enabled",
+          "http_proxy",
+          "https_proxy",
+          "no_proxy"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "When false, every platform HTTP client connects directly regardless of the retained proxy values."
+          },
+          "http_proxy": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Optional unauthenticated HTTP proxy URL used only for HTTP requests."
+          },
+          "https_proxy": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Optional unauthenticated HTTPS proxy URL used only for HTTPS requests."
+          },
+          "no_proxy": {
+            "type": "array",
+            "description": "Hosts, domains, addresses, CIDRs, or host-port pairs that bypass a matching configured proxy using standard NO_PROXY-style matching semantics.",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "maxItems": 128
+          }
+        }
+      },
+      "platform-network-outbound-policy": {
+        "type": "object",
+        "description": "Effective platform outbound-network policy and its configuration source.",
+        "required": [
+          "config",
+          "source"
+        ],
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/platform-network-outbound-config"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "default",
+              "override"
+            ],
+            "description": "Whether the effective policy is the module default or an administrator override."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC time of the persisted override update. Omitted while the default policy is effective."
+          },
+          "updated_by_name": {
+            "type": "string",
+            "description": "Display name of the administrator who last updated the override. Omitted while the default policy is effective."
+          }
+        }
+      },
+      "platform-network-diagnostic-target": {
+        "type": "object",
+        "description": "A fixed, module-registered outbound-network diagnostic target. It never accepts a caller-supplied URL.",
+        "required": [
+          "id",
+          "title_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "title_key": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "platform-network-consumer": {
+        "type": "object",
+        "description": "A module explicitly registered as a consumer of the platform outbound-network policy.",
+        "required": [
+          "id",
+          "title_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "title_key": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "platform-network-overview": {
+        "type": "object",
+        "required": [
+          "policy",
+          "diagnostic_targets",
+          "consumers"
+        ],
+        "properties": {
+          "policy": {
+            "$ref": "#/components/schemas/platform-network-outbound-policy"
+          },
+          "diagnostic_targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/platform-network-diagnostic-target"
+            }
+          },
+          "consumers": {
+            "type": "array",
+            "description": "Modules explicitly registered as consumers of the effective platform outbound-network policy.",
+            "items": {
+              "$ref": "#/components/schemas/platform-network-consumer"
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-overview": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-overview"
+          }
+        }
+      },
+      "platform-network-diagnostic-result": {
+        "type": "object",
+        "description": "Sanitized evidence from one bounded outbound-network diagnostic execution.",
+        "required": [
+          "target_id",
+          "status",
+          "tested_at"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "failed"
+            ]
+          },
+          "latency_ms": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Measured request latency when a response or transport result was obtained."
+          },
+          "http_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599,
+            "description": "Upstream HTTP status when a response was received."
+          },
+          "tested_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "UTC completion time for this diagnostic execution."
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies."
+          }
+        }
+      },
+      "enveloped-platform-network-diagnostic-result": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-diagnostic-result"
+          }
+        }
+      },
+      "platform-network-diagnostic-history": {
+        "type": "object",
+        "description": "Bounded persisted diagnostic history for one fixed registered outbound-network target.",
+        "required": [
+          "target_id",
+          "items"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/platform-network-diagnostic-result"
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-diagnostic-history": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-diagnostic-history"
           }
         }
       },
@@ -39943,6 +40593,16 @@
           "minimum": 1
         }
       },
+      "if-match-header": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "description": "Strong entity tag for the complete Module Config representation being replaced.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"[0-9]+\"$"
+        }
+      },
       "docker-image-list-limit": {
         "name": "limit",
         "in": "query",
@@ -40456,6 +41116,13 @@
         "schema": {
           "type": "string"
         }
+      },
+      "etag": {
+        "description": "Strong entity tag representing the current Module Config version.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"[0-9]+\"$"
+        }
       }
     },
     "responses": {
@@ -40491,6 +41158,54 @@
       },
       "forbidden": {
         "description": "Forbidden request under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "bad-request": {
+        "description": "Invalid request under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "precondition-failed": {
+        "description": "The Module Config changed after the client read it.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          },
+          "ETag": {
+            "$ref": "#/components/headers/etag"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "precondition-required": {
+        "description": "A strong If-Match header is required for Module Config mutations.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

@@ -21,9 +21,12 @@ import (
 )
 
 var (
-	errDefinitionNotFound = errors.New("system config definition not found")
-	errInvalidConfigValue = errors.New("invalid system config value")
-	errSensitiveConfig    = errors.New("sensitive system config cannot be resolved as default config")
+	errDefinitionNotFound          = errors.New("system config definition not found")
+	errModuleManagedConfig         = errors.New("system config is managed by its owning module")
+	errModuleConfigOwner           = errors.New("system config module owner does not match")
+	errInvalidConfigValue          = errors.New("invalid system config value")
+	errSensitiveConfig             = errors.New("sensitive system config cannot be resolved as default config")
+	errModuleConfigVersionConflict = fmt.Errorf("module config compare and swap: %w", moduleapi.ErrModuleConfigVersionConflict)
 )
 
 const (
@@ -52,6 +55,8 @@ type ValueSnapshot struct {
 	DefaultValue   json.RawMessage
 	OverrideValue  json.RawMessage
 	HasOverride    bool
+	// Version 是配置资源的单调递增版本；未产生任何持久化状态时为零。
+	Version        int64
 	Status         ValueStatus
 	CreatedAt      *time.Time
 	CreatedBy      *uint64
@@ -169,6 +174,9 @@ func (s *Service) List(ctx context.Context) ([]ValueSnapshot, error) {
 	definitions := s.registry.Items()
 	items := make([]ValueSnapshot, 0, len(definitions))
 	for _, definition := range definitions {
+		if definition.ModuleManaged {
+			continue
+		}
 		item, err := s.snapshotFromCache(ctx, definition, cache)
 		if err != nil {
 			return nil, err
@@ -183,6 +191,9 @@ func (s *Service) Get(ctx context.Context, key string) (ValueSnapshot, error) {
 	definition, ok := s.registry.Get(key)
 	if !ok {
 		return ValueSnapshot{}, errDefinitionNotFound
+	}
+	if definition.ModuleManaged {
+		return ValueSnapshot{}, errModuleManagedConfig
 	}
 	cache, err := s.loadOverrideSnapshot(ctx)
 	if err != nil {
@@ -225,10 +236,13 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage,
 	if !ok {
 		return ValueSnapshot{}, errDefinitionNotFound
 	}
+	if definition.ModuleManaged {
+		return ValueSnapshot{}, errModuleManagedConfig
+	}
 	if err := validateValueForDefinition(definition, value); err != nil {
 		return ValueSnapshot{}, err
 	}
-	if _, err := s.store.SetOverride(ctx, definition.Key, value, userID); err != nil {
+	if _, err := s.compareAndSwapCurrentOverride(ctx, definition.Key, value, userID); err != nil {
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionUpdate)
@@ -241,11 +255,123 @@ func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) 
 	if !ok {
 		return ValueSnapshot{}, errDefinitionNotFound
 	}
-	if err := s.store.DeleteOverride(ctx, definition.Key); err != nil {
+	if definition.ModuleManaged {
+		return ValueSnapshot{}, errModuleManagedConfig
+	}
+	if _, err := s.resetCurrentOverride(ctx, definition.Key, nil); err != nil {
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionReset)
 	return s.Get(ctx, definition.Key)
+}
+
+// GetModuleConfig 只允许配置定义所属模块读取 module-managed 配置，避免其通过通用 API 泄露为平台全局编辑项。
+func (s *Service) GetModuleConfig(ctx context.Context, moduleName string, key string) (moduleapi.ModuleConfigValue, error) {
+	item, err := s.getManagedModuleConfig(ctx, moduleName, key)
+	if err != nil {
+		return moduleapi.ModuleConfigValue{}, err
+	}
+	return toModuleConfigValue(item), nil
+}
+
+// UpdateModuleConfig 只允许配置定义所属模块更新 module-managed 配置，并复用 System Config 的 schema 和快照失效语义。
+func (s *Service) UpdateModuleConfig(ctx context.Context, moduleName string, key string, value json.RawMessage, userID *uint64, expectedVersion int64) (moduleapi.ModuleConfigValue, error) {
+	definition, err := s.managedModuleDefinition(moduleName, key)
+	if err != nil {
+		return moduleapi.ModuleConfigValue{}, err
+	}
+	if err := validateValueForDefinition(definition, value); err != nil {
+		return moduleapi.ModuleConfigValue{}, err
+	}
+	if _, err := s.store.CompareAndSwapOverride(ctx, definition.Key, value, userID, expectedVersion); err != nil {
+		if errors.Is(err, systemconfigstore.ErrVersionConflict) {
+			return moduleapi.ModuleConfigValue{}, errModuleConfigVersionConflict
+		}
+		return moduleapi.ModuleConfigValue{}, err
+	}
+	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionUpdate)
+	return s.GetModuleConfig(ctx, moduleName, definition.Key)
+}
+
+// ResetModuleConfig 只允许配置定义所属模块恢复 module-managed 配置的模块默认值。
+func (s *Service) ResetModuleConfig(ctx context.Context, moduleName string, key string, userID *uint64, expectedVersion int64) (moduleapi.ModuleConfigValue, error) {
+	definition, err := s.managedModuleDefinition(moduleName, key)
+	if err != nil {
+		return moduleapi.ModuleConfigValue{}, err
+	}
+	if _, err := s.store.ResetOverride(ctx, definition.Key, userID, expectedVersion); err != nil {
+		if errors.Is(err, systemconfigstore.ErrVersionConflict) {
+			return moduleapi.ModuleConfigValue{}, errModuleConfigVersionConflict
+		}
+		return moduleapi.ModuleConfigValue{}, err
+	}
+	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionReset)
+	return s.GetModuleConfig(ctx, moduleName, definition.Key)
+}
+
+func (s *Service) compareAndSwapCurrentOverride(ctx context.Context, key string, value json.RawMessage, userID *uint64) (systemconfigstore.Override, error) {
+	expectedVersion, err := s.currentOverrideVersion(ctx, key)
+	if err != nil {
+		return systemconfigstore.Override{}, err
+	}
+	return s.store.CompareAndSwapOverride(ctx, key, value, userID, expectedVersion)
+}
+
+func (s *Service) resetCurrentOverride(ctx context.Context, key string, userID *uint64) (systemconfigstore.Override, error) {
+	expectedVersion, err := s.currentOverrideVersion(ctx, key)
+	if err != nil {
+		return systemconfigstore.Override{}, err
+	}
+	return s.store.ResetOverride(ctx, key, userID, expectedVersion)
+}
+
+func (s *Service) currentOverrideVersion(ctx context.Context, key string) (int64, error) {
+	override, err := s.store.GetOverride(ctx, key)
+	if errors.Is(err, systemconfigstore.ErrOverrideNotFound) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return override.Version, nil
+}
+
+func (s *Service) getManagedModuleConfig(ctx context.Context, moduleName string, key string) (ValueSnapshot, error) {
+	definition, err := s.managedModuleDefinition(moduleName, key)
+	if err != nil {
+		return ValueSnapshot{}, err
+	}
+	cache, err := s.loadOverrideSnapshot(ctx)
+	if err != nil {
+		return ValueSnapshot{}, err
+	}
+	return s.snapshotFromCache(ctx, definition, cache)
+}
+
+func (s *Service) managedModuleDefinition(moduleName string, key string) (configregistry.Definition, error) {
+	definition, ok := s.registry.Get(key)
+	if !ok {
+		return configregistry.Definition{}, errDefinitionNotFound
+	}
+	if !definition.ModuleManaged {
+		return configregistry.Definition{}, errModuleManagedConfig
+	}
+	if strings.TrimSpace(definition.Module) != strings.TrimSpace(moduleName) {
+		return configregistry.Definition{}, errModuleConfigOwner
+	}
+	return definition, nil
+}
+
+func toModuleConfigValue(snapshot ValueSnapshot) moduleapi.ModuleConfigValue {
+	return moduleapi.ModuleConfigValue{
+		EffectiveValue: cloneRawMessage(snapshot.EffectiveValue),
+		DefaultValue:   cloneRawMessage(snapshot.DefaultValue),
+		OverrideValue:  cloneRawMessage(snapshot.OverrideValue),
+		HasOverride:    snapshot.HasOverride,
+		Version:        snapshot.Version,
+		UpdatedAt:      cloneTimePointer(snapshot.UpdatedAt),
+		UpdatedByName:  snapshot.UpdatedByName,
+	}
 }
 
 // SnapshotCacheDebugState 返回统一快照读取路径的只读观测信息；观测接口不暴露底层存储访问能力。
@@ -267,7 +393,8 @@ func (s *Service) snapshotFromCache(
 	definition configregistry.Definition,
 	cache *overrideSnapshotCache,
 ) (ValueSnapshot, error) {
-	override, hasOverride := cache.overrides[definition.Key]
+	override, hasPersistedValue := cache.overrides[definition.Key]
+	hasOverride := hasPersistedValue && hasOverrideValue(override.Value)
 	effective := definition.DefaultValue
 	var overrideValue json.RawMessage
 	if hasOverride {
@@ -281,6 +408,7 @@ func (s *Service) snapshotFromCache(
 		DefaultValue:   cloneRawMessage(definition.DefaultValue),
 		OverrideValue:  cloneRawMessage(overrideValue),
 		HasOverride:    hasOverride,
+		Version:        override.Version,
 		Status:         ValueStatusDefault,
 		Masked:         definition.Sensitive,
 	}
@@ -524,6 +652,10 @@ func cloneRawMessage(raw json.RawMessage) json.RawMessage {
 	return cloned
 }
 
+func hasOverrideValue(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
+}
+
 // cloneUint64Pointer 深拷贝 uint64 指针；输入为 nil 时保留 nil 语义。
 func cloneUint64Pointer(value *uint64) *uint64 {
 	if value == nil {
@@ -533,11 +665,20 @@ func cloneUint64Pointer(value *uint64) *uint64 {
 	return &cloned
 }
 
+func cloneTimePointer(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	cloned := value.UTC()
+	return &cloned
+}
+
 // cloneOverride 创建 Override 的一个深副本，以防止对共享数据的意外修改。
 func cloneOverride(value systemconfigstore.Override) systemconfigstore.Override {
 	return systemconfigstore.Override{
 		Key:       value.Key,
 		Value:     cloneRawMessage(value.Value),
+		Version:   value.Version,
 		CreatedAt: value.CreatedAt,
 		CreatedBy: cloneUint64Pointer(value.CreatedBy),
 		UpdatedAt: value.UpdatedAt,

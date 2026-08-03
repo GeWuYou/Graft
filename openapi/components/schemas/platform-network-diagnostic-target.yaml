@@ -1,0 +1,10 @@
+type: object
+description: A fixed, module-registered outbound-network diagnostic target. It never accepts a caller-supplied URL.
+required: [id, title_key]
+properties:
+  id:
+    type: string
+    maxLength: 128
+  title_key:
+    type: string
+    maxLength: 256

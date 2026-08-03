@@ -1,0 +1,12 @@
+menu.platform.network: Network
+network.outbound.title: Outbound Network
+network.outbound.description: Platform proxy and no-proxy policy for outbound HTTP(S) requests.
+network.outbound.authentication.description: Authentication is not supported; proxy credentials must remain outside this policy.
+network.diagnosticTargets.platformUpdate: Platform Update Service
+network.consumers.platformUpdate: Platform Update
+rbac.permissionCatalog.platform-network.read.display: View Outbound Network Policy
+rbac.permissionCatalog.platform-network.read.description: Allows reading the effective platform outbound network policy and registered diagnostics.
+rbac.permissionCatalog.platform-network.write.display: Manage Outbound Network Policy
+rbac.permissionCatalog.platform-network.write.description: Allows changing and resetting the platform outbound network policy.
+rbac.permissionCatalog.platform-network.diagnose.display: Test Outbound Network Connectivity
+rbac.permissionCatalog.platform-network.diagnose.description: Allows testing a fixed registered outbound network diagnostic target.

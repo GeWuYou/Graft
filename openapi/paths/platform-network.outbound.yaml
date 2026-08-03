@@ -1,0 +1,48 @@
+get:
+  tags: [platform-network]
+  summary: Read the effective platform outbound-network policy
+  operationId: getPlatformNetworkOutbound
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+  responses:
+    '200':
+      description: Effective outbound-network policy and registered diagnostics.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+        ETag: { $ref: ../components/headers/etag.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+put:
+  tags: [platform-network]
+  summary: Update the platform outbound-network policy
+  operationId: putPlatformNetworkOutbound
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/if-match-header.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: { $ref: ../components/schemas/platform-network-outbound-config.yaml }
+  responses:
+    '200':
+      description: Updated effective outbound-network policy.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+        ETag: { $ref: ../components/headers/etag.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
+    '400':
+      $ref: ../components/responses/bad-request.yaml
+    '412': { $ref: ../components/responses/precondition-failed.yaml }
+    '428': { $ref: ../components/responses/precondition-required.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
