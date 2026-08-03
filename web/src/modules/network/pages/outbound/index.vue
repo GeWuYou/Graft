@@ -193,7 +193,8 @@ function copyPolicy(target: OutboundNetworkPolicy, sourcePolicy: OutboundNetwork
   target.enabled = sourcePolicy.enabled;
   target.http_proxy = sourcePolicy.http_proxy;
   target.https_proxy = sourcePolicy.https_proxy;
-  target.no_proxy = [...sourcePolicy.no_proxy];
+  // COMPAT(owner=server/modules/network/policy.go, cleanup=所有已部署后端均保证 no_proxy 序列化为数组): 兼容旧服务返回的 null，避免页面加载失败。
+  target.no_proxy = Array.isArray(sourcePolicy.no_proxy) ? [...sourcePolicy.no_proxy] : [];
 }
 
 function applyResponse(response: OutboundNetworkPolicyResponse) {

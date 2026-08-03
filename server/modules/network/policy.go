@@ -120,7 +120,7 @@ func validateProxyURL(raw string) (string, error) {
 
 func normalizeNoProxy(values []string) ([]string, error) {
 	if len(values) == 0 {
-		return nil, nil
+		return []string{}, nil
 	}
 	result := make([]string, 0, len(values))
 	for _, raw := range values {

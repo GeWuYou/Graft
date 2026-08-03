@@ -39,6 +39,16 @@ func TestDecodeOutboundPolicyRejectsUnsupportedProxyForms(t *testing.T) {
 	}
 }
 
+func TestDecodeOutboundPolicyNormalizesEmptyNoProxyAsJSONArray(t *testing.T) {
+	policy, err := decodeOutboundPolicy(json.RawMessage(`{"enabled":false,"http_proxy":"","https_proxy":"","no_proxy":[]}`))
+	if err != nil {
+		t.Fatalf("decode default outbound policy: %v", err)
+	}
+	if policy.NoProxy == nil || len(policy.NoProxy) != 0 {
+		t.Fatalf("expected an empty no_proxy array, got %#v", policy.NoProxy)
+	}
+}
+
 func TestProxyFuncUsesGoNoProxyMatching(t *testing.T) {
 	policy := moduleapi.OutboundNetworkPolicy{Enabled: true, HTTPProxy: "http://proxy.example:8080", HTTPSProxy: "http://proxy.example:8080", NoProxy: []string{"localhost", ".internal", "10.0.0.0/8", "example.com:8443"}}
 	proxy := proxyFunc(policy)
