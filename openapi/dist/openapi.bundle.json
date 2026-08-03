@@ -8778,7 +8778,19 @@
             }
           },
           "400": {
-            "description": "Invalid outbound-network policy."
+            "description": "Invalid outbound-network policy.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
@@ -8888,7 +8900,19 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Diagnostic target not registered."
+            "description": "Diagnostic target not registered.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           }
         }
       }
@@ -8950,6 +8974,21 @@
               }
             }
           },
+          "400": {
+            "description": "Invalid diagnostic history limit.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
+          },
           "401": {
             "$ref": "#/components/responses/unauthorized"
           },
@@ -8957,7 +8996,19 @@
             "$ref": "#/components/responses/forbidden"
           },
           "404": {
-            "description": "Diagnostic target not registered."
+            "description": "Diagnostic target not registered.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/error-response"
+                }
+              }
+            }
           }
         }
       }
@@ -28515,6 +28566,7 @@
       },
       "platform-network-outbound-config": {
         "type": "object",
+        "additionalProperties": false,
         "description": "Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.",
         "required": [
           "enabled",

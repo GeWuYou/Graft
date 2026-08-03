@@ -14498,6 +14498,16 @@ export interface operations {
           'application/json': components['schemas']['enveloped-platform-network-diagnostic-history'];
         };
       };
+      /** @description Invalid diagnostic history limit. */
+      400: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
+      };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
       /** @description Diagnostic target not registered. */

@@ -89,15 +89,15 @@ func (s *Service) Diagnose(ctx context.Context, targetName string) (moduleapi.Ou
 	}
 	result, err := target.ExecuteOutboundDiagnostic(ctx)
 	if err != nil {
-		s.logDiagnosticFailure("outbound diagnostic execution failed", targetName, err)
+		s.logDiagnosticFailure("outbound diagnostic execution failed", target.Name(), err)
 		result = moduleapi.OutboundDiagnosticResult{TestedAt: time.Now().UTC(), Message: errDiagnosticExecutionFailed.Error()}
 	}
 	if result.TestedAt.IsZero() {
 		result.TestedAt = time.Now().UTC()
 	}
 	if err := s.history.Append(ctx, targetName, result); err != nil {
-		s.logDiagnosticFailure("persist outbound diagnostic history failed", targetName, err)
-		return result, fmt.Errorf("persist outbound diagnostic history: %w", err)
+		s.logDiagnosticFailure("persist outbound diagnostic history failed", target.Name(), err)
+		return result, nil
 	}
 	return result, nil
 }

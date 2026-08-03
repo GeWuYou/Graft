@@ -38,7 +38,7 @@ func (t platformUpdateDiagnosticTarget) ExecuteOutboundDiagnostic(ctx context.Co
 		return moduleapi.OutboundDiagnosticResult{}, fmt.Errorf("create outbound diagnostic client: %w", err)
 	}
 	startedAt := time.Now()
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/GeWuYou/Graft/releases", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/"+defaultReleaseRepository+"/releases", nil)
 	if err != nil {
 		return moduleapi.OutboundDiagnosticResult{}, fmt.Errorf("create outbound diagnostic request: %w", err)
 	}

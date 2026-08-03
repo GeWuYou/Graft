@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -60,7 +59,7 @@ func TestServiceDiagnosePersistsSanitizedExecutionFailure(t *testing.T) {
 	if history.appendedTarget != "target" || history.appended.Message != result.Message {
 		t.Fatalf("expected persisted sanitized diagnostic, got %#v", history)
 	}
-	if observed.Len() != 1 || observed.All()[0].Message != "outbound diagnostic execution failed" {
+	if observed.Len() != 1 || observed.All()[0].Message != "outbound diagnostic execution failed" || observed.All()[0].ContextMap()["target_id"] != "target" {
 		t.Fatalf("expected raw execution failure to be logged, got %#v", observed.All())
 	}
 }
@@ -102,8 +101,8 @@ func TestServiceDiagnoseReturnsCompletedResultWhenHistoryPersistenceFails(t *tes
 	history := &diagnosticHistoryStoreStub{appendErr: errors.New("database unavailable")}
 	service := NewService(nil, diagnostics, NewConsumerRegistry(), history, nil)
 	result, err := service.Diagnose(context.Background(), "target")
-	if err == nil || !strings.Contains(err.Error(), "persist outbound diagnostic history") {
-		t.Fatalf("expected contextual history error, got %v", err)
+	if err != nil {
+		t.Fatalf("expected persistence failure to preserve the completed result, got %v", err)
 	}
 	if result.TestedAt.IsZero() {
 		t.Fatalf("expected completed diagnostic result, got %#v", result)

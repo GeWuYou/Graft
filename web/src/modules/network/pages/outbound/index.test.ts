@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 import OutboundNetworkPage from './index.vue';
+
+const pageSource = readFileSync(join(process.cwd(), 'src/modules/network/pages/outbound/index.vue'), 'utf8');
 
 const apiMocks = vi.hoisted(() => ({
   diagnoseOutboundNetwork: vi.fn(),
@@ -60,8 +65,8 @@ describe('outbound network settings page', () => {
     expect(wrapper.html()).toContain('network.outbound.routing.title');
     expect(wrapper.text()).toContain('network.outbound.diagnostics.noHistory');
     expect(apiMocks.getOutboundNetworkDiagnosticHistory).toHaveBeenCalledWith('platform-update', 5);
-    expect(wrapper.html()).not.toContain('platform-update-release');
-    expect(wrapper.html()).not.toContain('diagnosticUrl');
+    expect(pageSource).not.toContain('platform-update-release');
+    expect(pageSource).not.toContain('diagnosticUrl');
   });
 
   it('runs a diagnostic from the rendered action', async () => {
