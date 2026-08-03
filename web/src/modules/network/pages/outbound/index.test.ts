@@ -15,4 +15,12 @@ describe('outbound network settings page', () => {
     expect(source).not.toContain('platform-update-release');
     expect(source).not.toContain('diagnosticUrl');
   });
+
+  it('places the Docker boundary notice below the page header and above the action toolbar', () => {
+    const noticeIndex = source.indexOf('class="outbound-network-page__notice"');
+    const toolbarIndex = source.indexOf('<management-toolbar>');
+
+    expect(noticeIndex).toBeGreaterThan(source.indexOf('<page-header'));
+    expect(noticeIndex).toBeLessThan(toolbarIndex);
+  });
 });

@@ -12,6 +12,8 @@
       :description-fallback="t('network.outbound.description')"
     />
 
+    <t-alert class="outbound-network-page__notice" theme="info" :message="t('network.outbound.dockerNotice')" />
+
     <management-toolbar>
       <template #actions>
         <t-button theme="default" variant="outline" :loading="resetting" @click="resetToDefault">
@@ -123,12 +125,6 @@
           </t-card>
         </aside>
       </div>
-
-      <t-alert
-        class="outbound-network-page__docker-notice"
-        theme="info"
-        :message="t('network.outbound.dockerNotice')"
-      />
     </t-loading>
   </section>
 </template>
@@ -268,7 +264,7 @@ onMounted(load);
 }
 
 .outbound-network-page__alert,
-.outbound-network-page__docker-notice {
+.outbound-network-page__notice {
   margin: 0;
 }
 
