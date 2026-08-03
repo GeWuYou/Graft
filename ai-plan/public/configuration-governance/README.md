@@ -4,7 +4,7 @@
 
 - Topic objective: establish versioned, source-aware governance for deployment environment configuration and the official Compose topology.
 - Current status: `active`
-- Task class: `server`
+- Task class: `docs/automation with server impact`
 - Intake summary: long-running platform governance feature requiring an authoritative design, ADR, implementation roadmap, and bounded delivery batches.
 - Canonical authority:
   - `server/internal/config/schema/vN.yaml` embedded by `server/internal/config`

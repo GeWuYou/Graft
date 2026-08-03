@@ -94,29 +94,41 @@ func TestBatchLifecycleActionSubmitsOneTaskWithOrderedContainerStages(t *testing
 	if err != nil {
 		t.Fatalf("submit batch lifecycle action: %v", err)
 	}
-	assertBatchLifecycleTaskSubmission(t, tasks, result, []string{"container-1", "container-2"})
+	assertBatchLifecycleTaskSubmission(t, tasks, result, containerActionRemove, []string{"container-1", "container-2"})
 }
 
-func assertBatchLifecycleTaskSubmission(t *testing.T, tasks *containerTaskRuntimeStub, result BatchLifecycleActionResult, expectedRefs []string) {
+func assertBatchLifecycleTaskSubmission(t *testing.T, tasks *containerTaskRuntimeStub, result BatchLifecycleActionResult, action string, expectedRefs []string) {
 	t.Helper()
 	if len(tasks.submissions) != 1 || result.AcceptedCount != len(expectedRefs) || len(result.Items) != len(expectedRefs) {
 		t.Fatalf("expected one accepted task for %d containers, got submissions=%#v result=%#v", len(expectedRefs), tasks.submissions, result)
 	}
 	submission := tasks.submissions[0]
-	if submission.Type != containerLifecycleBatchTaskType(containerActionRemove) || submission.Owner.Type != containerLifecycleBatchOwnerType(containerActionRemove) || submission.IdempotencyKey != "batch-key" {
+	if submission.Type != containerLifecycleBatchTaskType(action) || submission.Owner.Type != containerLifecycleBatchOwnerType(action) || submission.IdempotencyKey != "batch-key" {
 		t.Fatalf("unexpected batch task submission %#v", submission)
 	}
 	if !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
 		t.Fatalf("expected fixed-length batch owner digest, got %q", submission.Owner.ID)
 	}
-	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, len(expectedRefs))
+	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, action, expectedRefs)
 	assertBatchLifecycleTaskItems(t, result.Items, expectedRefs)
 }
 
-func assertBatchLifecycleTaskStages(t *testing.T, stages []moduleapi.StagePlan, expectedCount int) {
+func assertBatchLifecycleTaskStages(t *testing.T, stages []moduleapi.StagePlan, action string, expectedRefs []string) {
 	t.Helper()
-	if len(stages) != expectedCount || stages[0].Key != "remove-1" || stages[len(stages)-1].Key != fmt.Sprintf("remove-%d", expectedCount) {
+	if len(stages) != len(expectedRefs) {
 		t.Fatalf("unexpected batch stages %#v", stages)
+	}
+	for index, stage := range stages {
+		if stage.Key != fmt.Sprintf("%s-%d", action, index+1) {
+			t.Fatalf("unexpected batch stage key %#v", stage)
+		}
+		var input containerLifecycleTaskInput
+		if err := json.Unmarshal(stage.Input, &input); err != nil {
+			t.Fatalf("decode batch stage input: %v", err)
+		}
+		if input.Ref != expectedRefs[index] {
+			t.Fatalf("expected stage %d to target %q, got %q", index, expectedRefs[index], input.Ref)
+		}
 	}
 }
 
@@ -136,10 +148,14 @@ func TestSubmitContainerLifecycleBatchActionUsesFixedLengthOwnerForMaximumBatch(
 		t.Fatalf("submit maximum batch lifecycle task: %v", err)
 	}
 	submission := tasks.submissions[0]
-	if len(submission.Owner.ID) > 191 || !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
+	if len(submission.Owner.ID) > moduleapi.TaskOwnerIDMaxRunes || !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
 		t.Fatalf("expected owner id to fit tasks.owner_id, got %q", submission.Owner.ID)
 	}
-	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, maxContainerBatchActionIDs)
+	expectedRefs := make([]string, len(refs))
+	for index, ref := range refs {
+		expectedRefs[index] = ref.Value
+	}
+	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, containerActionRemove, expectedRefs)
 }
 
 func assertBatchLifecycleTaskItems(t *testing.T, items []BatchLifecycleActionItem, ownerRefs []string) {

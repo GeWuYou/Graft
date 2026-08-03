@@ -5,10 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"gopkg.in/yaml.v3"
 )
+
+var workingDirectoryMu sync.Mutex
 
 func TestResolveAndValidateUsesDocumentedPrecedence(t *testing.T) {
 	envFile := filepath.Join(t.TempDir(), ".env")
@@ -38,6 +41,8 @@ func TestResolveAndValidateUsesDocumentedPrecedence(t *testing.T) {
 }
 
 func TestResolveAndValidateDiscoversEnvFileIndependentlyFromEnvironment(t *testing.T) {
+	workingDirectoryMu.Lock()
+	t.Cleanup(workingDirectoryMu.Unlock)
 	workingDirectory := t.TempDir()
 	previousDirectory, err := os.Getwd()
 	if err != nil {
@@ -68,6 +73,7 @@ func TestSchemaValidatesMigrationDeclarations(t *testing.T) {
 environment:
   - name: GRAFT_OLD_VALUE
     type: string
+    default: null
     deprecated: true
 `
 	var schema Schema
@@ -82,6 +88,7 @@ environment:
 environment:
   - name: GRAFT_REMOVED_VALUE
     type: string
+    default: null
     removed: true
     replacement: null
     severity: warning
@@ -95,6 +102,35 @@ changes: []
 	}
 	if schema.Changes == nil {
 		t.Fatal("expected changes declaration to be preserved")
+	}
+}
+
+func TestSchemaRejectsMissingNullableDeclarations(t *testing.T) {
+	missingDefault := `schema_version: 1
+environment:
+  - name: GRAFT_VALUE
+    type: string
+changes: []
+`
+	var schema Schema
+	if err := yaml.Unmarshal([]byte(missingDefault), &schema); err != nil {
+		t.Fatalf("decode missing default fixture: %v", err)
+	}
+	if err := schema.Validate(); err == nil || !strings.Contains(err.Error(), "default declaration") {
+		t.Fatalf("expected default declaration error, got %v", err)
+	}
+
+	missingChanges := `schema_version: 1
+environment:
+  - name: GRAFT_VALUE
+    type: string
+    default: null
+`
+	if err := yaml.Unmarshal([]byte(missingChanges), &schema); err != nil {
+		t.Fatalf("decode missing changes fixture: %v", err)
+	}
+	if err := schema.Validate(); err == nil || !strings.Contains(err.Error(), "changes declaration") {
+		t.Fatalf("expected changes declaration error, got %v", err)
 	}
 }
 

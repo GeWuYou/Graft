@@ -3,6 +3,7 @@ environment:
   - name: GRAFT_CONFIG_SCHEMA_VERSION
     type: integer
     required: true
+    default: null
     description: Configuration schema version used by this deployment.
     introduced: v1.0.0
   - name: GRAFT_APP_NAME
@@ -43,11 +44,13 @@ environment:
     introduced: v1.0.0
   - name: GRAFT_AUTH_JWT_SECRET
     type: string
+    default: null
     description: JWT signing secret. It may be replaced by GRAFT_AUTH_SIGNING_KEY.
     introduced: v1.0.0
     sensitive: true
   - name: GRAFT_AUTH_SIGNING_KEY
     type: string
+    default: null
     description: JWT signing key alternative to GRAFT_AUTH_JWT_SECRET.
     introduced: v1.0.0
     sensitive: true
@@ -73,6 +76,7 @@ environment:
     introduced: v1.0.0
   - name: GRAFT_OLD_STORAGE_PATH
     type: string
+    default: null
     description: Historical storage path.
     introduced: v0.9.0
     deprecated: true
@@ -80,6 +84,7 @@ environment:
     severity: warning
   - name: GRAFT_OLD_DATABASE_MODE
     type: string
+    default: null
     description: Historical database mode.
     introduced: v0.9.0
     removed: true

@@ -50,10 +50,11 @@ type EnvironmentRule struct {
 	Severity    Severity `yaml:"severity" json:"severity,omitempty"`
 	Sensitive   bool     `yaml:"sensitive" json:"sensitive"`
 
+	defaultDeclared     bool
 	replacementDeclared bool
 }
 
-// UnmarshalYAML 保留 replacement 是否显式声明，使 null 与缺失可被配置 Schema 校验区分。
+// UnmarshalYAML 保留可空字段是否显式声明，使 null 与缺失可被配置 Schema 校验区分。
 func (r *EnvironmentRule) UnmarshalYAML(value *yaml.Node) error {
 	type rawEnvironmentRule EnvironmentRule
 	var decoded rawEnvironmentRule
@@ -62,9 +63,11 @@ func (r *EnvironmentRule) UnmarshalYAML(value *yaml.Node) error {
 	}
 	*r = EnvironmentRule(decoded)
 	for index := 0; index+1 < len(value.Content); index += 2 {
-		if value.Content[index].Value == "replacement" {
+		switch value.Content[index].Value {
+		case "default":
+			r.defaultDeclared = true
+		case "replacement":
 			r.replacementDeclared = true
-			break
 		}
 	}
 	return nil
@@ -91,6 +94,25 @@ type Schema struct {
 	AnyOf       []AnyOfRule       `yaml:"any_of" json:"any_of"`
 	Compose     ComposeRule       `yaml:"compose" json:"compose"`
 	Changes     []SchemaChange    `yaml:"changes" json:"changes"`
+
+	changesDeclared bool
+}
+
+// UnmarshalYAML 保留 changes 是否显式声明，防止遗漏的迁移记录被空切片掩盖。
+func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
+	type rawSchema Schema
+	var decoded rawSchema
+	if err := value.Decode(&decoded); err != nil {
+		return err
+	}
+	*s = Schema(decoded)
+	for index := 0; index+1 < len(value.Content); index += 2 {
+		if value.Content[index].Value == "changes" {
+			s.changesDeclared = true
+			break
+		}
+	}
+	return nil
 }
 
 // ComposeRule 描述官方 Compose 部署所需的服务拓扑与字段契约。
@@ -146,6 +168,9 @@ func (s *Schema) Validate() error {
 	if err := validateEnvironmentRules(s.Environment); err != nil {
 		return err
 	}
+	if !s.changesDeclared {
+		return fmt.Errorf("configuration schema requires changes declaration")
+	}
 	return validateComposeRules(s.Compose.Services)
 }
 
@@ -171,7 +196,13 @@ func validateEnvironmentRules(rules []EnvironmentRule) error {
 
 func validateMigrationRule(rule EnvironmentRule) error {
 	if !rule.Deprecated && !rule.Removed {
+		if !rule.defaultDeclared {
+			return fmt.Errorf("configuration schema environment rule %s requires default declaration", rule.Name)
+		}
 		return nil
+	}
+	if !rule.defaultDeclared {
+		return fmt.Errorf("deprecated or removed configuration %s requires default declaration", rule.Name)
 	}
 	if !rule.replacementDeclared {
 		return fmt.Errorf("deprecated or removed configuration %s requires replacement declaration", rule.Name)
