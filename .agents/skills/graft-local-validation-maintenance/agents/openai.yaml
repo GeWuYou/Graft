@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Local Validation Maintenance"
+  short_description: "Maintain local Graft validation environments safely."
+  default_prompt: "Use $graft-local-validation-maintenance to update a local Graft validation instance while preserving its data."
