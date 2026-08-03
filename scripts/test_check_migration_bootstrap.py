@@ -221,19 +221,23 @@ class LifecycleTests(unittest.TestCase):
 
     def test_main_applies_historical_migrations_before_current_chain(self) -> None:
         target = MODULE.BootstrapTarget("temporary-postgres", 42424)
+        call_order: list[str] = []
         with mock.patch.object(
             MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=None, upgrade_from="v0.11.0-beta.38")
         ), mock.patch.object(MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))), mock.patch.object(
             MODULE, "start_postgres", return_value=target
         ), mock.patch.object(MODULE, "wait_for_postgres"), mock.patch.object(
-            MODULE, "apply_historical_migrations"
-        ) as apply_historical_migrations, mock.patch.object(MODULE, "apply_migrations") as apply_migrations, mock.patch.object(
+            MODULE, "apply_historical_migrations", side_effect=lambda *args, **kwargs: call_order.append("historical")
+        ) as apply_historical_migrations, mock.patch.object(
+            MODULE, "apply_migrations", side_effect=lambda *args, **kwargs: call_order.append("current")
+        ) as apply_migrations, mock.patch.object(
             MODULE, "check_schema_contract", return_value='{"findings": []}\n'
         ), mock.patch.object(MODULE, "remove_postgres"):
             self.assertEqual(MODULE.main(), 0)
 
         apply_historical_migrations.assert_called_once_with(target, "v0.11.0-beta.38")
         apply_migrations.assert_called_once_with(target)
+        self.assertEqual(call_order, ["historical", "current"])
 
 
 if __name__ == "__main__":

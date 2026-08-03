@@ -49,12 +49,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          upgrade_from="$(git tag --merged HEAD --sort=-version:refname | sed -n '/^v[0-9]/ {p; q;}')"
-          if [[ -z "${upgrade_from}" ]]; then
-            upgrade_from="HEAD^"
+          upgrade_from=""
+          while read -r candidate; do
+            if git cat-file -e "${candidate}:server/internal/cli/migrate.go" 2>/dev/null \
+              && git show "${candidate}:server/internal/cli/migrate.go" | grep -q -- 'allow-dirty'; then
+              upgrade_from="${candidate}"
+              break
+            fi
+          done < <(git tag --merged HEAD --sort=-version:refname | sed -n '/^v[0-9]/p')
+          if [[ -n "${upgrade_from}" ]]; then
+            git rev-parse --verify "${upgrade_from}^{commit}"
+            echo "MIGRATION_UPGRADE_FROM=${upgrade_from}" >> "${GITHUB_ENV}"
+          else
+            echo "No compatible historical migration baseline found; skipping upgrade chain."
           fi
-          git rev-parse --verify "${upgrade_from}^{commit}"
-          echo "MIGRATION_UPGRADE_FROM=${upgrade_from}" >> "${GITHUB_ENV}"
       - name: Bootstrap the empty PostgreSQL schema and check catalog contracts
         shell: bash
         run: |
