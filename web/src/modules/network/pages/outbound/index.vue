@@ -368,6 +368,14 @@ function applyResponse(response: OutboundNetworkOverview) {
   }
 }
 
+function resolveLocalizedErrorMessage(error: unknown, fallbackKey: string): string {
+  const messageKey =
+    error && typeof error === 'object' && 'messageKey' in error && typeof error.messageKey === 'string'
+      ? error.messageKey
+      : undefined;
+  return messageKey && t(messageKey) !== messageKey ? t(messageKey) : t(fallbackKey);
+}
+
 async function loadDiagnosticHistory() {
   if (!selectedTargetID.value) {
     diagnosticHistory.value = [];
@@ -387,11 +395,7 @@ async function load() {
     applyResponse(await getOutboundNetworkPolicy());
     await loadDiagnosticHistory();
   } catch (error) {
-    const messageKey =
-      error && typeof error === 'object' && 'messageKey' in error && typeof error.messageKey === 'string'
-        ? error.messageKey
-        : undefined;
-    errorMessage.value = messageKey && t(messageKey) !== messageKey ? t(messageKey) : t('network.outbound.loadFailed');
+    errorMessage.value = resolveLocalizedErrorMessage(error, 'network.outbound.loadFailed');
   } finally {
     loading.value = false;
   }
@@ -406,8 +410,8 @@ async function save() {
   try {
     applyResponse(await updateOutboundNetworkPolicy({ ...form, no_proxy: [...form.no_proxy] }));
     MessagePlugin.success(t('network.outbound.saveSuccess'));
-  } catch {
-    MessagePlugin.error(t('network.outbound.saveFailed'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(error, 'network.outbound.saveFailed'));
   } finally {
     saving.value = false;
   }
@@ -418,8 +422,8 @@ async function resetToDefault() {
   try {
     applyResponse(await resetOutboundNetworkPolicy());
     MessagePlugin.success(t('network.outbound.resetSuccess'));
-  } catch {
-    MessagePlugin.error(t('network.outbound.resetFailed'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(error, 'network.outbound.resetFailed'));
   } finally {
     resetting.value = false;
   }
@@ -431,8 +435,8 @@ async function runDiagnostic() {
   try {
     await diagnoseOutboundNetwork(selectedTargetID.value);
     await loadDiagnosticHistory();
-  } catch {
-    MessagePlugin.error(t('network.outbound.diagnostics.failedMessage'));
+  } catch (error) {
+    MessagePlugin.error(resolveLocalizedErrorMessage(error, 'network.outbound.diagnostics.failedMessage'));
   } finally {
     diagnosing.value = false;
   }

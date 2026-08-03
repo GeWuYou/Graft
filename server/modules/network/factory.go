@@ -3,11 +3,13 @@ package network
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/net/http/httpproxy"
 
@@ -21,6 +23,15 @@ type HTTPClientFactory struct {
 	policy    string
 	transport *http.Transport
 }
+
+const (
+	defaultDialTimeout           = 30 * time.Second
+	defaultDialKeepAlive         = 30 * time.Second
+	defaultMaxIdleConnections    = 100
+	defaultIdleConnTimeout       = 90 * time.Second
+	defaultTLSHandshakeTimeout   = 10 * time.Second
+	defaultExpectContinueTimeout = 1 * time.Second
+)
 
 // NewHTTPClientFactory 创建出站 HTTP client factory。
 func NewHTTPClientFactory(provider moduleapi.OutboundNetworkProvider) (*HTTPClientFactory, error) {
@@ -63,11 +74,7 @@ func (f *HTTPClientFactory) transportForPolicy(policy moduleapi.OutboundNetworkP
 	if f.transport != nil && f.policy == fingerprint {
 		return f.transport, nil
 	}
-	base, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		return nil, errors.New("default HTTP transport has unexpected type")
-	}
-	transport := base.Clone()
+	transport := newDefaultTransport()
 	transport.Proxy = proxyFunc(policy)
 	previous := f.transport
 	f.transport, f.policy = transport, fingerprint
@@ -75,6 +82,17 @@ func (f *HTTPClientFactory) transportForPolicy(policy moduleapi.OutboundNetworkP
 		previous.CloseIdleConnections()
 	}
 	return transport, nil
+}
+
+func newDefaultTransport() *http.Transport {
+	return &http.Transport{
+		DialContext:           (&net.Dialer{Timeout: defaultDialTimeout, KeepAlive: defaultDialKeepAlive}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          defaultMaxIdleConnections,
+		IdleConnTimeout:       defaultIdleConnTimeout,
+		TLSHandshakeTimeout:   defaultTLSHandshakeTimeout,
+		ExpectContinueTimeout: defaultExpectContinueTimeout,
+	}
 }
 
 func outboundPolicyFingerprint(policy moduleapi.OutboundNetworkPolicy) string {

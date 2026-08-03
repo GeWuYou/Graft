@@ -120,6 +120,24 @@ func TestHTTPClientFactoryDoesNotUseEnvironmentProxy(t *testing.T) {
 	}
 }
 
+func TestHTTPClientFactoryDoesNotDependOnDefaultTransportType(t *testing.T) {
+	original := http.DefaultTransport
+	http.DefaultTransport = roundTripperStub{}
+	t.Cleanup(func() { http.DefaultTransport = original })
+
+	factory, err := NewHTTPClientFactory(outboundNetworkProviderStub{})
+	if err != nil {
+		t.Fatalf("new factory: %v", err)
+	}
+	client, err := factory.NewOutboundHTTPClient(context.Background())
+	if err != nil {
+		t.Fatalf("new client with custom default transport: %v", err)
+	}
+	if _, ok := client.Transport.(*http.Transport); !ok {
+		t.Fatalf("expected factory-owned HTTP transport, got %T", client.Transport)
+	}
+}
+
 func TestHTTPClientFactoryReusesTransportUntilPolicyChanges(t *testing.T) {
 	provider := &mutableOutboundNetworkProvider{policy: moduleapi.OutboundNetworkPolicy{Enabled: true, HTTPProxy: "http://proxy.example:8080"}}
 	factory, err := NewHTTPClientFactory(provider)
@@ -153,6 +171,12 @@ type outboundNetworkProviderStub struct {
 
 type mutableOutboundNetworkProvider struct {
 	policy moduleapi.OutboundNetworkPolicy
+}
+
+type roundTripperStub struct{}
+
+func (roundTripperStub) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("round trip is not expected in this test")
 }
 
 func (s *mutableOutboundNetworkProvider) CurrentOutboundNetworkPolicy(context.Context) (moduleapi.OutboundNetworkPolicy, error) {
