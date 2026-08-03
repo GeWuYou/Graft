@@ -39,10 +39,10 @@ require golang.org/x/text v0.40.0
 require (
 	github.com/containerd/errdefs v1.0.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.48
+	github.com/mattn/go-sqlite3 v1.14.49
 	github.com/moby/moby/api v1.55.0
-	github.com/moby/moby/client v0.5.0
-	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/moby/moby/client v0.5.1
+	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/oapi-codegen/runtime v1.6.0
 	github.com/robfig/cron/v3 v3.0.1
 )
@@ -106,11 +106,12 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
 )
 
 require (
-	ariga.io/atlas v1.2.3
+	ariga.io/atlas v1.3.0
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
