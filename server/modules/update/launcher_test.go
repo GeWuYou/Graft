@@ -102,7 +102,7 @@ func TestLaunchRecoveryMarksClaimReleasableAfterSuccessfulUnstartedCleanup(t *te
 		inspected: mobyclient.ContainerInspectResult{Container: containertypes.InspectResponse{State: &containertypes.State{Running: false}}},
 	}
 	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-cleanup", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-cleanup", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
-	err := (&dockerComposeRunnerLauncher{client: client}).LaunchRecovery(context.Background(), state, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "recovery-claim")
+	err := (&dockerComposeRunnerLauncher{client: client}).LaunchRecovery(context.Background(), RunnerRecoveryInput{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, Strategy: state.Strategy, State: &state}, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "recovery-claim")
 	if !recoveryLaunchFailedBeforeContainerStart(err) {
 		t.Fatalf("successful cleanup must prove a releasable recovery failure: %v", err)
 	}

@@ -20,7 +20,6 @@ const (
 	rolloutFailureComposePreflightFailed        = "PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED"
 	rolloutFailureOperationStartFailed          = "PLATFORM_UPDATE_OPERATION_START_FAILED"
 	rolloutFailureRunnerTerminal                = "PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED"
-	rolloutFailureRunnerTerminated              = "PLATFORM_UPDATE_RUNNER_TERMINATED"
 )
 
 type rolloutStartFailure struct {

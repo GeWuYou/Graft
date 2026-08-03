@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
+	"fmt"
 	"testing"
-	"unicode/utf8"
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
@@ -80,67 +79,90 @@ func TestSubmitContainerLifecycleActionPublishesAcceptedTaskAudit(t *testing.T) 
 	}
 }
 
-func TestBatchTaskIdempotencyKeyIsStablePerActionAndContainer(t *testing.T) {
+func TestBatchLifecycleActionSubmitsOneTaskWithOrderedContainerStages(t *testing.T) {
 	t.Parallel()
 
-	key := batchTaskIdempotencyKey("batch-key", containerActionStart, "container-1")
-	if key != "batch-key:start:container-1" {
-		t.Fatalf("unexpected batch task idempotency key %q", key)
+	tasks := &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}}
+	service, err := newRouteTestService(containerServiceOptions{
+		runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true, tasks: tasks,
+		defaultTail: defaultContainerLogsDefaultTail, maxTail: defaultContainerLogsMaxTail,
+	})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
 	}
-	if key != batchTaskIdempotencyKey("batch-key", containerActionStart, "container-1") {
-		t.Fatal("expected duplicate batch item to reuse its idempotency key")
+	result, err := service.BatchLifecycleAction(context.Background(), BatchActionCommand{Action: containerActionRemove, IDs: []string{"container-1", "container-2"}, Force: true}, 7, "batch-key")
+	if err != nil {
+		t.Fatalf("submit batch lifecycle action: %v", err)
 	}
-	if key == batchTaskIdempotencyKey("batch-key", containerActionStart, "container-2") {
-		t.Fatal("expected different containers to use distinct idempotency keys")
+	assertBatchLifecycleTaskSubmission(t, tasks, result, containerActionRemove, []string{"container-1", "container-2"})
+}
+
+func assertBatchLifecycleTaskSubmission(t *testing.T, tasks *containerTaskRuntimeStub, result BatchLifecycleActionResult, action string, expectedRefs []string) {
+	t.Helper()
+	if len(tasks.submissions) != 1 || result.AcceptedCount != len(expectedRefs) || len(result.Items) != len(expectedRefs) {
+		t.Fatalf("expected one accepted task for %d containers, got submissions=%#v result=%#v", len(expectedRefs), tasks.submissions, result)
 	}
-	longKey := batchTaskIdempotencyKey(strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes), containerActionStart, "container-1")
-	if utf8.RuneCountInString(longKey) > moduleapi.TaskIdempotencyKeyMaxRunes {
-		t.Fatalf("expected bounded idempotency key, got %d characters", utf8.RuneCountInString(longKey))
+	submission := tasks.submissions[0]
+	if submission.Type != containerLifecycleBatchTaskType(action) || submission.Owner.Type != containerLifecycleBatchOwnerType(action) || submission.IdempotencyKey != "batch-key" {
+		t.Fatalf("unexpected batch task submission %#v", submission)
 	}
-	if longKey != batchTaskIdempotencyKey(strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes), containerActionStart, "container-1") {
-		t.Fatal("expected long batch key derivation to be stable")
+	if !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
+		t.Fatalf("expected fixed-length batch owner digest, got %q", submission.Owner.ID)
 	}
-	if longKey == batchTaskIdempotencyKey(strings.Repeat("a", moduleapi.TaskIdempotencyKeyMaxRunes), containerActionStart, "container-2") {
-		t.Fatal("expected distinct containers to retain distinct derived keys")
+	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, action, expectedRefs)
+	assertBatchLifecycleTaskItems(t, result.Items, expectedRefs)
+}
+
+func assertBatchLifecycleTaskStages(t *testing.T, stages []moduleapi.StagePlan, action string, expectedRefs []string) {
+	t.Helper()
+	if len(stages) != len(expectedRefs) {
+		t.Fatalf("unexpected batch stages %#v", stages)
+	}
+	for index, stage := range stages {
+		if stage.Key != fmt.Sprintf("%s-%d", action, index+1) {
+			t.Fatalf("unexpected batch stage key %#v", stage)
+		}
+		var input containerLifecycleTaskInput
+		if err := json.Unmarshal(stage.Input, &input); err != nil {
+			t.Fatalf("decode batch stage input: %v", err)
+		}
+		if input.Ref != expectedRefs[index] {
+			t.Fatalf("expected stage %d to target %q, got %q", index, expectedRefs[index], input.Ref)
+		}
 	}
 }
 
-func TestBatchLifecycleActionKeepsItemKeysIndependentOfRequestOrder(t *testing.T) {
-	keysFor := func(ids []string) map[string]string {
-		tasks := &containerTaskRuntimeStub{}
-		service, err := newRouteTestService(containerServiceOptions{
-			runtime:                 fakeRuntime{},
-			enabled:                 true,
-			dangerousActionsEnabled: true,
-			tasks:                   tasks,
-			defaultTail:             defaultContainerLogsDefaultTail,
-			maxTail:                 defaultContainerLogsMaxTail,
-		})
-		if err != nil {
-			t.Fatalf("new service: %v", err)
-		}
-		result, err := service.BatchLifecycleAction(context.Background(), BatchActionCommand{Action: containerActionStart, IDs: ids}, 7, "batch-key")
-		if err != nil {
-			t.Fatalf("submit batch lifecycle action: %v", err)
-		}
-		if result.AcceptedCount != len(ids) {
-			t.Fatalf("unexpected batch result %#v", result)
-		}
-		keys := make(map[string]string, len(tasks.submissions))
-		for _, submission := range tasks.submissions {
-			keys[submission.Owner.ID] = submission.IdempotencyKey
-		}
-		return keys
-	}
+func TestSubmitContainerLifecycleBatchActionUsesFixedLengthOwnerForMaximumBatch(t *testing.T) {
+	t.Parallel()
 
-	first := keysFor([]string{"container-1", "container-2"})
-	second := keysFor([]string{"container-2", "container-1"})
-	if len(first) != len(second) {
-		t.Fatalf("unexpected idempotency key sets %#v %#v", first, second)
+	refs := make([]Ref, maxContainerBatchActionIDs)
+	for index := range refs {
+		refs[index] = Ref{Value: fmt.Sprintf("%064x", index)}
 	}
-	for ref, key := range first {
-		if second[ref] != key {
-			t.Fatalf("container %q received order-dependent keys %q and %q", ref, key, second[ref])
+	tasks := &containerTaskRuntimeStub{receipt: moduleapi.TaskReceipt{TaskID: 42, Status: moduleapi.TaskStatusPending}}
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true, tasks: tasks})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	if _, err := service.SubmitContainerLifecycleBatchAction(context.Background(), refs, containerActionRemove, ActionOptions{Force: true}, 7, "batch-key"); err != nil {
+		t.Fatalf("submit maximum batch lifecycle task: %v", err)
+	}
+	submission := tasks.submissions[0]
+	if len(submission.Owner.ID) > moduleapi.TaskOwnerIDMaxRunes || !isContainerLifecycleBatchOwnerID(submission.Owner.ID) {
+		t.Fatalf("expected owner id to fit tasks.owner_id, got %q", submission.Owner.ID)
+	}
+	expectedRefs := make([]string, len(refs))
+	for index, ref := range refs {
+		expectedRefs[index] = ref.Value
+	}
+	assertBatchLifecycleTaskStages(t, submission.Plan.Stages, containerActionRemove, expectedRefs)
+}
+
+func assertBatchLifecycleTaskItems(t *testing.T, items []BatchLifecycleActionItem, ownerRefs []string) {
+	t.Helper()
+	for index, item := range items {
+		if !item.Accepted || item.TaskID != 42 || item.ID != ownerRefs[index] {
+			t.Fatalf("expected each item to reference the shared task, got %#v", items)
 		}
 	}
 }
@@ -230,9 +252,75 @@ func TestContainerLifecycleTaskExecutorUsesRunAction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal task input: %v", err)
 	}
+	run := &dockerImagePullStageRun{input: input, stageID: 13}
 	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRestart, cancels: make(map[uint64]context.CancelFunc)}
-	if err := executor.Execute(context.Background(), &dockerImagePullStageRun{input: input, stageID: 13}); err != nil {
+	if err := executor.Execute(context.Background(), run); err != nil {
 		t.Fatalf("execute lifecycle task: %v", err)
+	}
+	if len(run.logs) != 1 || run.logs[0].Stream != "system" || run.logs[0].Level != "info" || run.logs[0].Line != "container lifecycle action restart completed" {
+		t.Fatalf("expected sanitized success result log, got %#v", run.logs)
+	}
+}
+
+func TestContainerLifecycleTaskExecutorWritesFailureResultLog(t *testing.T) {
+	t.Parallel()
+
+	actionErr := errors.New("runtime action failed")
+	service, err := newRouteTestService(containerServiceOptions{runtime: failingRuntime{err: actionErr}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
+	if err != nil {
+		t.Fatalf("marshal task input: %v", err)
+	}
+	run := &dockerImagePullStageRun{input: input, stageID: 13}
+	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRemove, cancels: make(map[uint64]context.CancelFunc)}
+	if err := executor.Execute(context.Background(), run); !errors.Is(err, actionErr) {
+		t.Fatalf("expected action failure, got %v", err)
+	}
+	if len(run.logs) != 1 || run.logs[0].Stream != "system" || run.logs[0].Level != "error" || run.logs[0].Line != "container lifecycle action remove failed" {
+		t.Fatalf("expected sanitized failure result log, got %#v", run.logs)
+	}
+}
+
+func TestContainerLifecycleTaskExecutorKeepsSuccessfulActionWhenResultLogFails(t *testing.T) {
+	t.Parallel()
+
+	logErr := errors.New("append log failed")
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
+	if err != nil {
+		t.Fatalf("marshal task input: %v", err)
+	}
+	run := &lifecycleTaskStageRun{dockerImagePullStageRun: dockerImagePullStageRun{input: input, stageID: 13}, appendLogErr: logErr}
+	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRestart, cancels: make(map[uint64]context.CancelFunc)}
+	if err := executor.Execute(context.Background(), run); err != nil {
+		t.Fatalf("successful lifecycle action must not fail when result log append fails: %v", err)
+	}
+}
+
+func TestContainerLifecycleTaskExecutorJoinsActionAndResultLogFailures(t *testing.T) {
+	t.Parallel()
+
+	actionErr := errors.New("runtime action failed")
+	logErr := errors.New("append log failed")
+	service, err := newRouteTestService(containerServiceOptions{runtime: failingRuntime{err: actionErr}, enabled: true, dangerousActionsEnabled: true})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	input, err := json.Marshal(containerLifecycleTaskInput{Ref: "container-1"})
+	if err != nil {
+		t.Fatalf("marshal task input: %v", err)
+	}
+	run := &lifecycleTaskStageRun{dockerImagePullStageRun: dockerImagePullStageRun{input: input, stageID: 13}, appendLogErr: logErr}
+	executor := &containerLifecycleTaskExecutor{service: service, action: containerActionRemove, cancels: make(map[uint64]context.CancelFunc)}
+	err = executor.Execute(context.Background(), run)
+	if !errors.Is(err, actionErr) || !errors.Is(err, logErr) {
+		t.Fatalf("expected joined action and log failures, got %v", err)
 	}
 }
 
@@ -259,24 +347,57 @@ func TestContainerLifecycleTaskOwnerAuthorizerUsesActionPermission(t *testing.T)
 
 	for _, action := range containerLifecycleTaskActions() {
 		t.Run(action, func(t *testing.T) {
-			authorizer := &recordingAuthorizer{}
-			service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, authorizer: authorizer})
-			if err != nil {
-				t.Fatalf("new service: %v", err)
-			}
-			err = (containerLifecycleTaskOwnerAuthorizer{service: service, action: action}).AuthorizeTaskOwner(
-				context.Background(),
-				&moduleapi.CurrentUser{ID: 7},
-				moduleapi.TaskOwnerActionRetry,
-				moduleapi.TaskOwner{Type: containerLifecycleTaskOwnerType(action), ID: "container-1"},
-			)
-			if err != nil {
-				t.Fatalf("authorize task owner: %v", err)
-			}
-			if len(authorizer.permissions) != 1 || authorizer.permissions[0] != permissionForAction(action) {
-				t.Fatalf("expected %s permission, got %#v", permissionForAction(action), authorizer.permissions)
+			for _, batch := range []bool{false, true} {
+				assertContainerLifecycleTaskOwnerAuthorization(t, action, batch)
 			}
 		})
+	}
+}
+
+func TestValidateContainerLifecycleTaskOwnerWrapsMalformedLegacyBatchOwner(t *testing.T) {
+	t.Parallel()
+
+	err := validateContainerLifecycleTaskOwner("not-json", true)
+	var syntaxErr *json.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("expected wrapped JSON syntax error, got %v", err)
+	}
+	if err := validateContainerLifecycleTaskOwner(`[]`, true); err == nil {
+		t.Fatal("expected empty legacy batch owner to stay invalid")
+	}
+}
+
+type lifecycleTaskStageRun struct {
+	dockerImagePullStageRun
+	appendLogErr error
+}
+
+func (r *lifecycleTaskStageRun) AppendLog(ctx context.Context, entry moduleapi.TaskLogEntry) error {
+	if r.appendLogErr != nil {
+		return r.appendLogErr
+	}
+	return r.dockerImagePullStageRun.AppendLog(ctx, entry)
+}
+
+func assertContainerLifecycleTaskOwnerAuthorization(t *testing.T, action string, batch bool) {
+	t.Helper()
+	authorizer := &recordingAuthorizer{}
+	service, err := newRouteTestService(containerServiceOptions{runtime: fakeRuntime{}, enabled: true, authorizer: authorizer})
+	if err != nil {
+		t.Fatalf("new service: %v", err)
+	}
+	owner := moduleapi.TaskOwner{Type: containerLifecycleTaskOwnerType(action), ID: "container-1"}
+	if batch {
+		owner = moduleapi.TaskOwner{Type: containerLifecycleBatchOwnerType(action), ID: `["container-1","container-2"]`}
+	}
+	err = (containerLifecycleTaskOwnerAuthorizer{service: service, action: action, batch: batch}).AuthorizeTaskOwner(
+		context.Background(), &moduleapi.CurrentUser{ID: 7}, moduleapi.TaskOwnerActionRetry, owner,
+	)
+	if err != nil {
+		t.Fatalf("authorize task owner: %v", err)
+	}
+	if len(authorizer.permissions) != 1 || authorizer.permissions[0] != permissionForAction(action) {
+		t.Fatalf("expected %s permission, got %#v", permissionForAction(action), authorizer.permissions)
 	}
 }
 

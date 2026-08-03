@@ -25,11 +25,13 @@ Work contract summary:
 
 Locked decisions:
 
-1. A named runner-owned state volume stores the sole active operation state as versioned atomic snapshot plus append
-   events; server reads it only after integrity and binding validation.
+1. A named runner-owned state volume stores the sole active operation state as versioned atomic snapshot plus sparse
+   append events. Schema v2 uses `lease_epoch`, a 30-second heartbeat and five-minute expiry; server reads it only
+   after integrity, binding and lease validation.
 2. The runner never receives PostgreSQL credentials or exposes a public API; server projects verified terminal results
    into business history and relays sanitized snapshots through the existing realtime boundary.
-3. A non-terminal stale operation requires an authorized manual recovery runner; server does not fabricate a phase.
+3. `runner_lost` is lease-derived rather than Docker-derived. A non-terminal pre-migration lost operation requires an
+   authorized manual recovery runner; server does not fabricate a phase, including when first state is missing.
 
 Implementation guardrails:
 
@@ -45,8 +47,10 @@ Current batch plan:
    recovery path.
 2. Completed: server request admission, read-only projection, terminal history migration, API/realtime contract
    convergence, Compose state-volume wiring, and Update Center recovery rendering.
-3. Current: resolve outstanding validation remediation, rerun cross-boundary validation, and perform the
-   archive-readiness review. Do not restart the completed implementation batches.
+3. Completed: durable lease/fencing (`lease_epoch`, 30-second heartbeat, five-minute expiry, `runner_lost`, and
+   recovery fencing).
+4. Current: rerun cross-boundary validation and perform the archive-readiness review. Do not restart the completed
+   implementation batches.
 
 Loop instructions:
 

@@ -18,6 +18,8 @@ var (
 const (
 	// TaskIdempotencyKeyMaxRunes 是 Task Runtime 接受的幂等提交键最大字符数。
 	TaskIdempotencyKeyMaxRunes = 128
+	// TaskOwnerIDMaxRunes 与 tasks.owner_id 的持久化长度保持一致，供跨模块 owner 构造与校验复用。
+	TaskOwnerIDMaxRunes = 191
 )
 
 // TaskType 标识一种由消费者拥有的 Task 计划类型。

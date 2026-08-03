@@ -47,6 +47,31 @@
   focused Update Center tests. The full Web entrypoint was also run but remains blocked by unrelated Container
   saved-view lint, i18n, and unused-export failures already present in the worktree.
 
+## 2026-08-03 Durable Lease And Fencing Authority
+
+- Replaced Docker container observability as active-state authority with the runner-owned state-volume durable lease.
+  Every schema-v2 non-terminal snapshot carries `lease_epoch`, `lease_heartbeat_at`, and `lease_expires_at`; the
+  runner renews every 30 seconds and a lease expires after five minutes. Heartbeat revises only `current.json` and
+  does not create an action event or UI phase.
+- Phase, heartbeat, and terminal writes share fencing: only the matching `runner_id + lease_epoch` can write while
+  the lease is unexpired. Expiry prevents the old runner from reviving or overwriting state; recovery increments epoch
+  and writes only the safe terminal conclusion.
+- Server reconciles leases each minute and computes them on API reads. Expired v2 state, a first snapshot missing for
+  five minutes after authorization, and v1 state beyond the 15-minute execution plus 15-minute grace bridge project
+  `runner_lost` with last verified progress as diagnostics and `state_available=false`.
+- Recovery now requires a pre-migration `runner_lost` projection. It receives the bound snapshot when present, or
+  authorization identity plus frozen version/deployment input when first state is missing; server never fabricates a
+  phase. Docker inventory, container existence, exit code, and logs are not recovery or liveness authority. Keep
+  `runner_terminated` consumption only until all minimum-supported sources create schema-v2 lease snapshots.
+
+## 2026-08-03 PR Review Remediation
+
+- Added a bounded consecutive-heartbeat failure threshold that cancels the runner execution context after state-volume
+  lease renewal can no longer be trusted, with a direct regression test for cancellation.
+- Aligned OpenAPI recovery descriptions, generated web bindings, Update Center recovery eligibility, and active-topic
+  recovery materials with missing-state `runner_lost` behavior; legacy `runner_terminated` remains diagnostic-only.
+- Validation passed: `go run ./cmd/graft validate backend`, `just openapi-check`, and `bun run check`.
+
 ## Loop Batch State
 
 ```json
@@ -57,7 +82,8 @@
     "runner-state-controller-foundation",
     "compose-state-volume-and-lifecycle-integration",
     "server-projection-history-api-and-realtime",
-    "update-center-recovery-rendering"
+    "update-center-recovery-rendering",
+    "durable-lease-fencing-and-runner-lost-convergence"
   ],
   "pending_batches": [
     "cross-boundary-validation-and-archive-readiness"

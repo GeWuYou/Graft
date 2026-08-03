@@ -34,10 +34,20 @@ secrets.
 
 The authoritative state includes `operation`, `phase`, `progress`, safe `message`, `started_at`, `finished_at`,
 safe structured `error`, and `runner_id`, plus version/schema/revision and the frozen target/deployment snapshot
-identity needed to bind it to the accepted request. Phases are `READY`, `PREFLIGHT`, `BACKUP`, `PULL_IMAGES`,
+identity needed to bind it to the accepted request. Schema v2 adds `lease_epoch`, `lease_heartbeat_at`, and
+`lease_expires_at` to every non-terminal snapshot. Initialization writes `READY` with the first lease; the runner
+renews it every 30 seconds with a five-minute expiry and a new snapshot revision. Heartbeats update only the atomic
+snapshot and revision: the sparse append-only event timeline remains limited to replayable business phase/action
+nodes. Phases are `READY`, `PREFLIGHT`, `BACKUP`, `PULL_IMAGES`,
 `STOP_SERVICES`, `APPLY_UPDATE`, `MIGRATION`, `START_SERVICES`, `HEALTH_CHECK`, `SUCCESS`, `FAILED`, and
 `ROLLBACK`. The controller records every transition before taking the associated irreversible step; `SUCCESS`,
 `FAILED`, and `ROLLBACK` are terminal.
+
+Lease fencing is enforced inside the state-volume write boundary shared by phase reporting, heartbeat, and terminal
+writing. A runner may renew or write a non-terminal state only when its `runner_id` and `lease_epoch` match the
+unexpired lease. Once expired, that runner cannot revive the lease or write another phase. A recovery runner may take
+over only an expired lease, increments `lease_epoch`, and can write the safe terminal conclusion. An old runner that
+resumes after recovery is therefore unable to overwrite the recovered result.
 
 Event records are a user-visible, allowlisted action timeline rather than runner output. Each record is bound to one
 operation and has a monotonic revision, timestamp, phase, stable action code, and safe localized-message input.
@@ -48,9 +58,9 @@ are operation-scoped so a revision from one operation cannot overwrite or be rep
 `server` is a read-only projection and delivery boundary:
 
 - It authorizes the request, freezes trusted runner input, starts the runner, and records the user request/audit fact.
-- It validates state schema, operation binding, monotonic revision, and event/snapshot integrity before serving it as
-  the active operation API or publishing a sanitized snapshot on the existing realtime topic.
-- On startup and while running it reconciles the read-only state store. The active-operation and bounded event-replay
+- It validates state schema, operation binding, monotonic revision, lease semantics, and event/snapshot integrity
+  before serving it as the active operation API or publishing a sanitized snapshot on the existing realtime topic.
+- On startup and at least once per minute while running it reconciles the read-only state store. The active-operation and bounded event-replay
   APIs are read-only projections; a reconnect or new browser tab first reads the latest snapshot and missed events,
   then subscribes. SSE/WebSocket is transport only, so unavailable server time is not mistaken for lost runner
   progress.
@@ -60,29 +70,31 @@ are operation-scoped so a revision from one operation cannot overwrite or be rep
 
 The runner has no PostgreSQL credentials and no runner HTTP, SSE, or WebSocket service. The state store enforces one
 non-terminal operation by rejecting a write for a different `OperationID` while the prior snapshot is non-terminal.
-Invalid state or an integrity mismatch fails closed. A stale non-terminal operation is recovered only by a newly
-authorized manual recovery runner, which reads the prior state and writes its own bound recovery transition; `server`
-must not mutate a runner phase to simulate recovery.
+Invalid state or an integrity mismatch fails closed. `update_operations` remains an authorization and recovery-launch
+coordination record, not a lease table or active-state authority.
 
-When Docker proves that the runner bound to a non-terminal snapshot has exited, `server` must not continue to project
-that snapshot as live execution. It preserves the last verified `phase`, `progress`, and safe `message` solely as
-diagnostic context, projects `state_source=runner_terminated`, `state_available=false`, and the stable safe error
-`PLATFORM_UPDATE_RUNNER_TERMINATED`, then persists one allowlisted operation diagnostic. Raw container logs, paths,
-commands, exit-detail text, and secrets remain host-operator evidence and never cross the API boundary. The browser
-must treat this projection as terminal for its current session rather than polling indefinitely.
+`server` derives `runner_lost` without querying Docker container inventory, existence, exit code, or logs. For a v2
+snapshot, an unexpired lease is active and an expired `lease_expires_at` projects
+`state_source=runner_lost`, `state_available=false`, and `PLATFORM_UPDATE_RUNNER_LOST`; the last verified phase,
+progress, and safe message remain diagnostic context only. If the first snapshot was never written, the same
+projection begins five minutes after the database authorization record was created. Existing v1 snapshots remain
+read-compatible only through a 30-minute bridge (15-minute execution limit plus 15-minute grace), after which they
+also project `runner_lost`. The v1 branch may be removed only after every minimum-supported upgrade source writes a
+schema-v2 lease snapshot. `runner_terminated` remains a wire-consumption compatibility value during that bridge, but
+is not produced from Docker observation.
 
 Recovery is an explicit `platform-update.manage` action, exposed as `POST /api/platform/updates/operations/{operationID}/recovery`.
-It can launch exactly one recovery runner only when the recorded runner identity matches an exited container and the
-verified snapshot is non-terminal and pre-migration. The recovery runner concludes the interrupted operation with a
-safe terminal result; it never resumes the upgrade. Running, terminal, mismatched, already-recovered, unavailable,
-or post-migration operations fail closed. After that terminal result is projected, the normal new-update path may
-evaluate eligibility again.
+It can launch exactly one recovery runner only for a `runner_lost`, pre-migration operation. When a verified snapshot
+exists, server passes that bound snapshot to the recovery runner. When first state is missing, it passes only the
+authorization identity and frozen version/deployment inputs; server must not invent `READY` or any execution phase.
+The recovery runner concludes the interrupted operation with a safe terminal result; it never resumes the upgrade.
+Running, terminal, non-lost, already-recovered, unavailable, or post-migration operations fail closed. After that
+terminal result is projected, the normal new-update path may evaluate eligibility again.
 
-Before the potentially slow Docker image pull, server atomically records an opaque recovery-launch coordination claim
-on the request record. This is authorization and duplicate-launch evidence only, not a runner phase or progress
-projection. A claim is released only when Docker is proven not to have created a recovery container; after container
-creation is attempted it remains durable so retries fail closed until the recovery runner publishes its terminal
-result.
+Before the potentially slow recovery image pull, server atomically records an opaque recovery-launch coordination
+claim on the request record. This is authorization and duplicate-launch evidence only, not a runner phase, lease, or
+progress projection. A claim is released only when launch is proven not to have created a recovery runner; after a
+creation attempt it remains durable so retries fail closed until the recovery runner publishes its terminal result.
 
 The controlled order is `PREFLIGHT -> BACKUP -> PULL_IMAGES -> STOP_SERVICES -> APPLY_UPDATE -> MIGRATION ->
 START_SERVICES -> HEALTH_CHECK -> terminal`. Before migration begins, a failure may restore the configuration/image
@@ -92,8 +104,10 @@ failure concludes `FAILED` with operator recovery evidence.
 ## Consequences
 
 The Update Center can lose its server connection during a recreate without losing the execution fact. Once the new
-server starts, it observes the current state or terminal result and resumes API/SSE delivery. Retained runner logs may
-remain diagnostic evidence, but they are not status authority and cannot settle an update operation.
+server starts, it observes the current lease-backed state or terminal result and resumes API/SSE delivery. Retained
+runner logs may remain best-effort diagnostic evidence for an existing terminal receipt, but they are not status
+authority and cannot settle, lose, or recover an update operation. Removing or pruning a runner container therefore
+does not change the durable-state decision; the unrenewed lease does.
 
 The prior `update_operations` running-state and Task Runtime receipt-settlement model must be replaced by a server
 request record plus verified terminal history projection. The public update contract must expose the runner snapshot

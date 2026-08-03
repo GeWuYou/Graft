@@ -42,7 +42,7 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 		t.Fatalf("resolve task runtime registrar: %v", err)
 	}
 	tasks, ok := resolved.(*containerTaskRuntimeStub)
-	if !ok || len(tasks.executors) != 5 || len(tasks.authorizers) != 5 {
+	if !ok || len(tasks.executors) != 5 || len(tasks.authorizers) != 9 {
 		t.Fatalf("expected Docker image and lifecycle task registrations, got %#v", resolved)
 	}
 	for _, action := range containerLifecycleTaskActions() {
@@ -55,6 +55,11 @@ func TestModuleRegistersContainerFoundation(t *testing.T) {
 			return authorizer.OwnerType() == containerLifecycleTaskOwnerType(action)
 		}) {
 			t.Fatalf("expected %s lifecycle owner authorizer, got %#v", action, tasks.authorizers)
+		}
+		if !slices.ContainsFunc(tasks.authorizers, func(authorizer moduleapi.TaskOwnerAuthorizer) bool {
+			return authorizer.OwnerType() == containerLifecycleBatchOwnerType(action)
+		}) {
+			t.Fatalf("expected %s batch lifecycle owner authorizer, got %#v", action, tasks.authorizers)
 		}
 	}
 }

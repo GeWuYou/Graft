@@ -32,6 +32,10 @@ func main() {
 		}
 		bootstrapLogger.Error("execute graft command failed", zap.Error(err))
 		_ = logger.Close(bootstrapLogger)
+		var coded interface{ ExitCode() int }
+		if errors.As(err, &coded) && coded.ExitCode() != 0 {
+			os.Exit(coded.ExitCode())
+		}
 		os.Exit(1)
 	}
 }

@@ -3,10 +3,12 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
 
+import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { usePermissionStore } from '@/store';
 
 import { UPDATE_PERMISSION_CODE } from '../contract/permissions';
 import { useUpdateProgressStore } from '../store/progress';
+import type { UpdateOperation } from '../types/update';
 import UpdateProgressDialog from './UpdateProgressDialog.vue';
 
 vi.mock('vue-i18n', async (importOriginal) => ({
@@ -27,6 +29,41 @@ const progressStub = defineComponent({
   },
   template: '<section data-testid="progress" :data-percentage="percentage" :data-label="label" />',
 });
+
+function operation(overrides: Partial<UpdateOperation> = {}): UpdateOperation {
+  return {
+    operation_id: 'update-1',
+    operation: 'self_update',
+    runner_id: 'runner-1',
+    source_version: '1.0.0',
+    target_version: '1.1.0',
+    deployment_strategy: 'beta_tracking',
+    phase: 'READY',
+    progress: 0,
+    message: 'runner_accepted',
+    state_source: 'runner_state',
+    state_available: true,
+    started_at: '',
+    updated_at: '',
+    ...overrides,
+  };
+}
+
+function managerBootstrapSnapshot(): BootstrapResponse {
+  return {
+    user: { id: 1, username: 'manager', display_name: 'Manager' },
+    must_change_password: false,
+    roles: ['manager'],
+    permissions: [UPDATE_PERMISSION_CODE.MANAGE],
+    menus: [],
+    locale: {
+      current_locale: 'zh-CN',
+      default_locale: 'zh-CN',
+      fallback_locale: 'zh-CN',
+      supported_locales: ['zh-CN'],
+    },
+  };
+}
 
 function mountDialog() {
   return mount(UpdateProgressDialog, {
@@ -140,7 +177,20 @@ describe('UpdateProgressDialog', () => {
     );
   });
 
-  it('only offers runner recovery to update managers', () => {
+  it('shows the same disconnected runner treatment for an expired lease', () => {
+    const progress = useUpdateProgressStore();
+    progress.$patch({
+      operation: operation({ state_source: 'runner_lost', state_available: false }),
+      phase: 'failed',
+    });
+    usePermissionStore().setBootstrapSnapshot(managerBootstrapSnapshot());
+    const wrapper = mountDialog();
+
+    expect(wrapper.find('[data-testid="update-progress-overall"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="update-progress-recovery"]').exists()).toBe(true);
+  });
+
+  it('does not offer recovery for legacy runner termination states', () => {
     const progress = useUpdateProgressStore();
     progress.$patch({
       operation: {
@@ -155,23 +205,21 @@ describe('UpdateProgressDialog', () => {
 
     expect(mountDialog().find('[data-testid="update-progress-recovery"]').exists()).toBe(false);
 
-    usePermissionStore().setBootstrapSnapshot({ permissions: [UPDATE_PERMISSION_CODE.MANAGE] } as never);
+    usePermissionStore().setBootstrapSnapshot(managerBootstrapSnapshot());
 
-    expect(mountDialog().get('[data-testid="update-progress-recovery"]').text()).toContain(
-      'update.center.progress.recovery.action',
-    );
+    expect(mountDialog().find('[data-testid="update-progress-recovery"]').exists()).toBe(false);
   });
 
   it('starts controlled runner recovery from the terminal dialog', async () => {
     const progress = useUpdateProgressStore();
     const recover = vi.spyOn(progress, 'recoverTerminatedRunner').mockResolvedValue();
-    usePermissionStore().setBootstrapSnapshot({ permissions: [UPDATE_PERMISSION_CODE.MANAGE] } as never);
+    usePermissionStore().setBootstrapSnapshot(managerBootstrapSnapshot());
     progress.$patch({
       operation: {
         operation_id: 'update-1',
         phase: 'READY',
         progress: 0,
-        state_source: 'runner_terminated',
+        state_source: 'runner_lost',
         state_available: false,
       } as never,
       phase: 'failed',

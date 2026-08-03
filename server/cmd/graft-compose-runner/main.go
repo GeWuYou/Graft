@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"graft/server/internal/moduleapi"
@@ -30,6 +31,8 @@ const (
 	privateFilePermission                 os.FileMode = 0o600
 	composeFileArgumentCapacityMultiplier             = 2
 	runnerExecutionTimeout                            = 15 * time.Minute
+	runnerLeaseHeartbeatInterval                      = 30 * time.Second
+	runnerLeaseHeartbeatFailureLimit                  = 3
 	healthzCurlTimeoutSeconds                         = "30"
 	runnerIDRandomBytes                               = 12
 	runnerProtocolVersion                             = 2
@@ -49,6 +52,8 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
+	defer cancel()
 	reporter, err := newStateReporter(input)
 	if err != nil {
 		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
@@ -58,8 +63,9 @@ func main() {
 		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
 		fatal(err)
 	}
-	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
-	defer cancel()
+	reporter.cancelOnHeartbeatFailure = cancel
+	reporter.StartHeartbeat()
+	defer reporter.StopHeartbeat()
 	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{reporter: reporter})
 	finalizeErr := reporter.Finalize(receipt)
 	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
@@ -90,28 +96,38 @@ func recoverTerminatedRunner(encoded string) error {
 	return recoverTerminatedRunnerWithStore(encoded, store, os.Stdout)
 }
 
-func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateStore, writer io.Writer) error {
+//nolint:cyclop,gocyclo // 两种恢复输入需要在同一原子状态边界内完成严格绑定校验。
+func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWriter, writer io.Writer) error {
 	contents, err := base64.RawStdEncoding.DecodeString(encoded)
 	if err != nil {
 		return fmt.Errorf("decode recovery runner state: %w", err)
 	}
-	var state update.RunnerState
-	if err := json.Unmarshal(contents, &state); err != nil {
+	var input update.RunnerRecoveryInput
+	if err := json.Unmarshal(contents, &input); err != nil {
 		return fmt.Errorf("decode recovery runner state: %w", err)
 	}
+	if input.State != nil && (input.State.OperationID != input.OperationID || input.State.RunnerID != input.RunnerID) {
+		return errors.New("recovery runner state binding changed")
+	}
 	persisted, err := store.Read()
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("read persisted recovery runner state: %w", err)
 	}
-	if persisted.OperationID != state.OperationID || persisted.RunnerID != state.RunnerID || persisted.Revision != state.Revision || persisted.Digest != state.Digest {
+	if input.State != nil && (errors.Is(err, os.ErrNotExist) || persisted.OperationID != input.OperationID || persisted.RunnerID != input.RunnerID || persisted.Revision != input.State.Revision || persisted.Digest != input.State.Digest) {
 		return errors.New("recovery runner state binding changed")
+	}
+	if input.State == nil && !errors.Is(err, os.ErrNotExist) {
+		return errors.New("recovery runner unexpectedly found a state snapshot")
+	}
+	if input.State == nil {
+		persisted = update.RunnerState{}
 	}
 	recoveryRunnerID, err := newRunnerID()
 	if err != nil {
 		return err
 	}
-	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: persisted.OperationID, RunnerID: recoveryRunnerID, SourceVersion: persisted.SourceVersion, TargetVersion: persisted.TargetVersion}, runnerID: recoveryRunnerID, current: persisted}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: persisted.OperationID, RunnerID: recoveryRunnerID, FailureCode: "invalid_input", FailureStage: "runner_recovery", FailureDetail: "interrupted_before_migration"}
+	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: update.RunnerFailureCodeInvalidInput, FailureStage: "runner_recovery", FailureDetail: "interrupted_before_migration"}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}
@@ -202,10 +218,15 @@ func (a *actions) Report(phase update.RunnerPhase, progress int, message, failur
 }
 
 type stateReporter struct {
-	store    update.RunnerStateStore
-	input    update.RunnerInput
-	runnerID string
-	current  update.RunnerState
+	store                    update.RunnerStateWriter
+	input                    update.RunnerInput
+	runnerID                 string
+	current                  update.RunnerState
+	mu                       sync.Mutex
+	stop                     chan struct{}
+	done                     chan struct{}
+	heartbeatFailures        int
+	cancelOnHeartbeatFailure context.CancelFunc
 }
 
 func newStateReporter(input update.RunnerInput) (*stateReporter, error) {
@@ -241,6 +262,12 @@ func (r *stateReporter) Initialize() error {
 }
 
 func (r *stateReporter) write(phase update.RunnerPhase, progress int, message, failure string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.writeLocked(phase, progress, message, failure)
+}
+
+func (r *stateReporter) writeLocked(phase update.RunnerPhase, progress int, message, failure string) error {
 	if r == nil || r.store == nil {
 		return errors.New("runner state reporter is unavailable")
 	}
@@ -252,11 +279,92 @@ func (r *stateReporter) write(phase update.RunnerPhase, progress int, message, f
 	return nil
 }
 
+// StartHeartbeat 独立于稀疏业务阶段上报续租持久执行权。
+func (r *stateReporter) StartHeartbeat() {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	if r.stop != nil || r.current.OperationID == "" {
+		r.mu.Unlock()
+		return
+	}
+	r.stop, r.done = make(chan struct{}), make(chan struct{})
+	stop, done := r.stop, r.done
+	r.mu.Unlock()
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(runnerLeaseHeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				if r.heartbeat() {
+					return
+				}
+			}
+		}
+	}()
+}
+
+// heartbeat 只在连续续租失败达到阈值后取消 runner 执行，避免一次短暂 I/O 故障中断升级。
+func (r *stateReporter) heartbeat() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	if r.current.OperationID == "" || isTerminalPhase(r.current.Phase) {
+		r.mu.Unlock()
+		return false
+	}
+	cancel := context.CancelFunc(nil)
+	next, err := r.store.Heartbeat(r.current)
+	if err == nil {
+		r.current = next
+		r.heartbeatFailures = 0
+	} else {
+		r.heartbeatFailures++
+		if r.heartbeatFailures >= runnerLeaseHeartbeatFailureLimit {
+			cancel = r.cancelOnHeartbeatFailure
+		}
+	}
+	r.mu.Unlock()
+	if cancel == nil {
+		return false
+	}
+	cancel()
+	return true
+}
+
+// StopHeartbeat 停止续租 goroutine 并等待退出，确保 Finalize 不会与后台 heartbeat 争用状态快照。
+func (r *stateReporter) StopHeartbeat() {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	stop, done := r.stop, r.done
+	r.stop, r.done = nil, nil
+	r.mu.Unlock()
+	if stop != nil {
+		close(stop)
+		<-done
+	}
+}
+
+func isTerminalPhase(phase update.RunnerPhase) bool {
+	return phase == update.RunnerPhaseSuccess || phase == update.RunnerPhaseFailed || phase == update.RunnerPhaseRollback
+}
+
 // Finalize 将受控 receipt 附加到最终快照，供新 server 只读结算终态历史。
 func (r *stateReporter) Finalize(receipt update.RunnerReceipt) error {
-	if r == nil || r.store == nil || r.current.OperationID == "" {
+	if r == nil || r.store == nil || r.input.OperationID == "" {
 		return errors.New("runner state reporter is unavailable")
 	}
+	r.StopHeartbeat()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	receipt.RunnerID = r.runnerID
 	phase, progress, message, failure := r.current.Phase, r.current.Progress, r.current.Message, r.current.Error
 	if receipt.Succeeded {

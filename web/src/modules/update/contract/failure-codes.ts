@@ -17,6 +17,7 @@ export const UPDATE_OPERATION_FAILURE_CODE = {
   COMPOSE_PREFLIGHT_FAILED: 'PLATFORM_UPDATE_COMPOSE_PREFLIGHT_FAILED',
   OPERATION_START_FAILED: 'PLATFORM_UPDATE_OPERATION_START_FAILED',
   RUNNER_TERMINAL_FAILED: 'PLATFORM_UPDATE_RUNNER_TERMINAL_FAILED',
+  RUNNER_LOST: 'PLATFORM_UPDATE_RUNNER_LOST',
   RUNNER_TERMINATED: 'PLATFORM_UPDATE_RUNNER_TERMINATED',
 } as const satisfies Record<string, UpdateOperationFailureCode>;
 
@@ -37,6 +38,7 @@ export const UPDATE_OPERATION_FAILURE_MESSAGE_KEY: Record<UpdateOperationFailure
   [UPDATE_OPERATION_FAILURE_CODE.COMPOSE_PREFLIGHT_FAILED]: 'update.center.confirmation.failure.composePreflightFailed',
   [UPDATE_OPERATION_FAILURE_CODE.OPERATION_START_FAILED]: 'update.center.confirmation.failure.startFailed',
   [UPDATE_OPERATION_FAILURE_CODE.RUNNER_TERMINAL_FAILED]: 'update.center.confirmation.failure.runnerTerminalFailed',
+  [UPDATE_OPERATION_FAILURE_CODE.RUNNER_LOST]: 'update.center.confirmation.failure.runnerLost',
   [UPDATE_OPERATION_FAILURE_CODE.RUNNER_TERMINATED]: 'update.center.confirmation.failure.runnerTerminated',
 };
 

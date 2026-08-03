@@ -429,7 +429,7 @@ func TestComposeRunnerContainerConfigAllowsOnlyChownForStateOwnership(t *testing
 
 func TestComposeRunnerRecoveryContainerConfigOnlyMountsStateVolume(t *testing.T) {
 	state := NewRunnerState(RunnerInput{OperationID: "update-recovery-config", SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}, "runner-recovery-config", RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
-	config, host := composeRunnerRecoveryContainerConfig(state, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "bound-state", "graft-update-state")
+	config, host := composeRunnerRecoveryContainerConfig(RunnerRecoveryInput{OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, Strategy: state.Strategy, State: &state}, "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64), "bound-state", "graft-update-state")
 	if config.Image == "" || len(config.Env) != 1 || config.Env[0] != "GRAFT_UPDATE_RUNNER_RECOVERY_STATE_B64=bound-state" || config.Labels["io.graft.update.recovery"] != "true" {
 		t.Fatalf("recovery runner config is not bound: %#v", config)
 	}
@@ -651,8 +651,12 @@ func (l *recoveryLauncher) ReadRunnerFailures(context.Context) ([]RunnerFailureE
 	l.failureReads++
 	return l.failures, nil
 }
-func (l *recoveryLauncher) LaunchRecovery(_ context.Context, state RunnerState, _, _ string) error {
-	l.recovered = state
+func (l *recoveryLauncher) LaunchRecovery(_ context.Context, input RunnerRecoveryInput, _, _ string) error {
+	if input.State != nil {
+		l.recovered = *input.State
+	} else {
+		l.recovered = RunnerState{OperationID: input.OperationID, RunnerID: input.RunnerID}
+	}
 	if l.recoveryErr == nil {
 		l.recoveryContainerExists = true
 	}

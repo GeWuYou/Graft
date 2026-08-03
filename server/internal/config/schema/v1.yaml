@@ -1,0 +1,168 @@
+schema_version: 1
+environment:
+  - name: GRAFT_CONFIG_SCHEMA_VERSION
+    type: integer
+    required: true
+    default: null
+    description: Configuration schema version used by this deployment.
+    introduced: v1.0.0
+  - name: GRAFT_APP_NAME
+    type: string
+    default: graft
+    description: Application name used in logs and runtime diagnostics.
+    introduced: v1.0.0
+  - name: GRAFT_APP_ENV
+    type: string
+    default: local
+    description: Application environment.
+    introduced: v1.0.0
+  - name: GRAFT_HTTP_ADDR
+    type: string
+    default: ":8080"
+    description: HTTP listen address.
+    introduced: v1.0.0
+  - name: GRAFT_DATABASE_DRIVER
+    type: string
+    default: postgres
+    description: Database driver.
+    introduced: v1.0.0
+  - name: GRAFT_DATABASE_URL
+    type: string
+    default: postgres://graft:graft@localhost:5432/graft?sslmode=disable
+    description: PostgreSQL connection string.
+    introduced: v1.0.0
+    sensitive: true
+  - name: GRAFT_REDIS_ADDR
+    type: string
+    default: localhost:6379
+    description: Redis address.
+    introduced: v1.0.0
+  - name: GRAFT_LOG_LEVEL
+    type: string
+    default: info
+    description: Process log level.
+    introduced: v1.0.0
+  - name: GRAFT_AUTH_JWT_SECRET
+    type: string
+    default: null
+    description: JWT signing secret. It may be replaced by GRAFT_AUTH_SIGNING_KEY.
+    introduced: v1.0.0
+    sensitive: true
+  - name: GRAFT_AUTH_SIGNING_KEY
+    type: string
+    default: null
+    description: JWT signing key alternative to GRAFT_AUTH_JWT_SECRET.
+    introduced: v1.0.0
+    sensitive: true
+  - name: GRAFT_LOG_FORMAT
+    type: string
+    default: auto
+    description: Process log output format.
+    introduced: v1.0.0
+  - name: GRAFT_LOG_COLOR
+    type: string
+    default: auto
+    description: Console log color policy.
+    introduced: v1.0.0
+  - name: GRAFT_GIN_MODE
+    type: string
+    default: auto
+    description: Gin runtime mode.
+    introduced: v1.0.0
+  - name: GRAFT_BACKUP_ARTIFACT_ROOT
+    type: string
+    default: /var/lib/graft/backups
+    description: Backup artifact root inside the server container.
+    introduced: v1.0.0
+  - name: GRAFT_OLD_STORAGE_PATH
+    type: string
+    default: null
+    description: Historical storage path.
+    introduced: v0.9.0
+    deprecated: true
+    replacement: GRAFT_STORAGE_ROOT
+    severity: warning
+  - name: GRAFT_OLD_DATABASE_MODE
+    type: string
+    default: null
+    description: Historical database mode.
+    introduced: v0.9.0
+    removed: true
+    replacement: null
+    severity: error
+any_of:
+  - keys: [GRAFT_AUTH_JWT_SECRET, GRAFT_AUTH_SIGNING_KEY]
+    description: A JWT signing secret or signing key is required.
+compose:
+  services:
+    - name: postgres
+      required: true
+      environment: [POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD]
+      volumes:
+        - target: /var/lib/postgresql/data
+      restart: unless-stopped
+    - name: redis
+      required: true
+      command_contains: [redis-server]
+      restart: unless-stopped
+    - name: config-validate
+      required: true
+      volumes:
+        - target: /opt/graft/deployment/compose.yml
+          read_only: true
+        - target: /opt/graft/deployment/.env
+          read_only: true
+      user: "0:0"
+      command_contains: [config, validate]
+      restart: "no"
+    - name: bootstrap
+      required: true
+      environment: [GRAFT_AUTH_JWT_SECRET]
+      command_contains: [migrate, up]
+      restart: "no"
+      depends_on:
+        - service: config-validate
+          condition: service_completed_successfully
+    - name: application-root-init
+      required: true
+      volumes:
+        - target: /opt/graft/apps
+      user: "0:0"
+      restart: "no"
+      depends_on:
+        - service: config-validate
+          condition: service_completed_successfully
+    - name: backup-root-init
+      required: true
+      volumes:
+        - target: /var/lib/graft/backups
+      user: "0:0"
+      restart: "no"
+      depends_on:
+        - service: config-validate
+          condition: service_completed_successfully
+    - name: server
+      required: true
+      environment: [GRAFT_AUTH_JWT_SECRET]
+      volumes:
+        - target: /var/run/docker.sock
+        - target: /var/lib/graft/update-state
+          read_only: true
+      user: "0:0"
+      entrypoint_contains: [/app/graft serve]
+      restart: unless-stopped
+      depends_on:
+        - service: bootstrap
+          condition: service_completed_successfully
+        - service: application-root-init
+          condition: service_completed_successfully
+        - service: backup-root-init
+          condition: service_completed_successfully
+    - name: web
+      required: true
+      ports: ["80"]
+      restart: unless-stopped
+      depends_on:
+        - service: server
+          condition: service_healthy
+changes: []

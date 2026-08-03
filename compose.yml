@@ -40,6 +40,16 @@ services:
       timeout: 3s
       retries: 10
 
+  config-validate:
+    image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
+    restart: "no"
+    # The deployment .env may be root-owned, so this short-lived read-only check runs as root.
+    user: "0:0"
+    command: ["config", "validate", "--env-file", "/opt/graft/deployment/.env", "--compose-file", "/opt/graft/deployment/compose.yml"]
+    volumes:
+      - ${COMPOSE_FILE_DIR:-.}/compose.yml:/opt/graft/deployment/compose.yml:ro
+      - ${COMPOSE_FILE_DIR:-.}/.env:/opt/graft/deployment/.env:ro
+
   bootstrap:
     image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
     restart: "no"
@@ -47,6 +57,8 @@ services:
       - .env
     command: ["migrate", "up"]
     depends_on:
+      config-validate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -77,6 +89,9 @@ services:
         test "$(stat -c '%a' /opt/graft/apps)" = "750"
     volumes:
       - ${GRAFT_APPLICATION_ROOT_HOST_PATH:-/opt/graft/apps}:/opt/graft/apps
+    depends_on:
+      config-validate:
+        condition: service_completed_successfully
 
   backup-root-init:
     image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}
@@ -91,6 +106,9 @@ services:
         chmod 0700 "${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}"
     volumes:
       - ${GRAFT_BACKUP_ARTIFACT_HOST_PATH:-/opt/graft/backups}:${GRAFT_BACKUP_ARTIFACT_ROOT:-/var/lib/graft/backups}
+    depends_on:
+      config-validate:
+        condition: service_completed_successfully
 
   server:
     image: ghcr.io/gewuyou/graft-server:${GRAFT_IMAGE_TAG:?GRAFT_IMAGE_TAG is required}

@@ -19,6 +19,7 @@ var serveNewRuntime = func(ctx context.Context) (runtimeRunner, error) {
 	return app.NewRuntime(ctx)
 }
 var serveNotifyContext = signal.NotifyContext
+var serveConfigValidator = validateStartupConfiguration
 
 // newServeCommand 创建纯运行时启动命令。
 //
@@ -37,6 +38,10 @@ func newServeCommand() *cobra.Command {
 // 它把 CLI 上下文转换为可响应 SIGINT 和 SIGTERM 的运行时上下文，让
 // `app.Runtime` 能沿同一条显式生命周期路径完成关闭。
 func runServe(cmd *cobra.Command, _ []string) error {
+	if err := serveConfigValidator(cmd); err != nil {
+		return err
+	}
+
 	baseCtx := cmd.Context()
 	if baseCtx == nil {
 		// 测试或嵌入式调用可能没有预置命令上下文，这里回退到后台上下文，

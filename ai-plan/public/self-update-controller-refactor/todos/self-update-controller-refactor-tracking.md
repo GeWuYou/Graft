@@ -48,10 +48,10 @@ closeout:
   materials required by the Work Contract.
 - ADR-009 is the lifecycle authority: the runner writes active state to a named volume, server only verifies and
   projects it, and database history is terminal-only.
-- Production beta evidence identified a concrete authority repair: the runner can fail before its first state write,
-  leaving the request projection falsely at `READY/0%` and therefore absent from terminal-only history. This batch
-  repairs the narrow runner capability/state-write boundary and adds validated, replayable allowlisted action events
-  to the existing server API/realtime projection and Update Center.
+- Durable liveness is the state-volume lease, not Docker container observability. Schema v2 adds `lease_epoch`,
+  `lease_heartbeat_at`, and `lease_expires_at`; heartbeat is every 30 seconds and expiry is five minutes. The server
+  derives `runner_lost` for an expired lease, a five-minute missing first state, or the v1 30-minute compatibility
+  bridge, then permits only pre-migration terminal recovery.
 
 ## Task Checklist
 
@@ -62,6 +62,7 @@ closeout:
 - [x] server request admission, read-only projection, terminal-history migration, API, and realtime convergence
 - [x] Update Center active-state recovery rendering and localization
 - [x] runner state-write repair, replayable node-event projection, and Update Center recovery rendering
+- [x] durable lease/fencing, `runner_lost` projection and recovery convergence across runner/server/OpenAPI/Web
 - [ ] cross-boundary validation, Compose interruption/restart evidence, and archive-readiness review
 
 ## Acceptance Conditions
@@ -76,6 +77,10 @@ closeout:
 - Public contracts expose no old server-owned lifecycle aliases or raw runner diagnostics.
 - A failed runner initialization is explicit to the user and cannot remain indefinitely indistinguishable from
   `runner_starting`; verified terminal results remain eligible for exactly-once history projection.
+- A v2 heartbeat produces no action event; an expired lease cannot be revived by its old runner, while a recovery
+  runner's incremented epoch can safely write the terminal conclusion.
+- Runner loss is derived without Docker inventory. Recovery is available only to an authorized administrator for a
+  pre-migration `runner_lost` operation, using its bound snapshot or authorization-only input when state is absent.
 - A new tab and an SSE reconnect recover the current operation plus bounded, revision-deduplicated allowlisted node
   events without treating browser storage or the SSE stream as state authority.
 
@@ -89,7 +94,8 @@ closeout:
     "runner-state-controller-foundation",
     "compose-state-volume-and-lifecycle-integration",
     "server-projection-history-api-and-realtime",
-    "update-center-recovery-rendering"
+    "update-center-recovery-rendering",
+    "durable-lease-fencing-and-runner-lost-convergence"
   ],
   "pending_batches": [
     "cross-boundary-validation-and-archive-readiness"
@@ -104,7 +110,7 @@ closeout:
 
 - PR #237 has completed the web, contract-governance, migration-governance, and static security checks for this
   refactor.
-- Runner ownership, API/OpenAPI freshness, and complete backend validation now pass. The Update Center's strict
-  typecheck and focused upgrade tests pass. The repository-wide `bun run check` remains blocked only by unrelated
-  in-progress Container saved-view lint, i18n, and unused-export findings; those files are outside this topic's
-  ownership and must be resolved before archive readiness can claim a full frontend gate.
+- Durable lease/fencing and API/OpenAPI freshness pass. Backend validation ran `go run ./cmd/graft validate backend`,
+  `go test ./modules/update/...`, and `go build ./cmd/graft`; `bun run lint:i18n` and the repository-wide `bun run
+  check` also pass. Compose interruption/restart evidence and archive-readiness review remain pending before the topic
+  can close.

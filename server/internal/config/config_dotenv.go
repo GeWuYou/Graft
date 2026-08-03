@@ -14,14 +14,7 @@ import (
 // 当 `GRAFT_ENV_FILE` 有值时优先加载该路径；否则会在工作目录向上查找可用的 `.env` 文件并加载。
 // 返回加载过程中的错误。
 func loadDotenv() error {
-	if explicit := strings.TrimSpace(os.Getenv("GRAFT_ENV_FILE")); explicit != "" {
-		if err := godotenv.Load(explicit); err != nil {
-			return fmt.Errorf("load %s: %w", explicit, err)
-		}
-		return nil
-	}
-
-	dotenvPath, err := findDotenvPath()
+	dotenvPath, err := ResolveEnvFile("")
 	if err != nil {
 		return err
 	}
@@ -30,6 +23,18 @@ func loadDotenv() error {
 	}
 
 	return nil
+}
+
+// ResolveEnvFile 只解析 dotenv 输入路径而不加载它，保证校验能以只读方式保留来源。
+// 显式参数优先于 GRAFT_ENV_FILE，两者缺失时才按仓库边界自动发现。
+func ResolveEnvFile(path string) (string, error) {
+	if explicit := strings.TrimSpace(path); explicit != "" {
+		return explicit, nil
+	}
+	if explicit := strings.TrimSpace(os.Getenv("GRAFT_ENV_FILE")); explicit != "" {
+		return explicit, nil
+	}
+	return findDotenvPath()
 }
 
 // findDotenvPath 查找可加载的 .env 文件路径。

@@ -795,14 +795,14 @@ const viewportStateSurfaceModel = computed<LogViewerViewportState>(() => {
   if (props.paused) {
     return {
       state: 'paused',
-      description: props.emptyDescriptionLabel || props.emptyLabel,
+      description: props.emptyDescriptionLabel || '',
       title: props.emptyLabel,
     };
   }
 
   return {
     state: 'empty',
-    description: props.emptyDescriptionLabel || props.emptyLabel,
+    description: props.emptyDescriptionLabel || '',
     title: props.emptyLabel,
   };
 });

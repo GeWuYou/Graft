@@ -547,6 +547,20 @@ describe('LogViewer', () => {
     expect(wrapper.text()).toContain('等待容器输出...');
     expect(wrapper.find('.legacy-empty-placeholder').exists()).toBe(true);
   });
+
+  it('does not duplicate the empty title when no description is provided', () => {
+    const wrapper = mount(LogViewer, {
+      props: {
+        ...labels,
+        emptyDescriptionLabel: undefined,
+        entries: [],
+        paused: true,
+      },
+      global: { components: tdesignComponents, plugins: [createTestI18n()] },
+    });
+
+    expect(wrapper.get('.stream-viewport-state-surface--paused').text()).toBe('暂无日志');
+  });
 });
 
 const tdesignComponents = {

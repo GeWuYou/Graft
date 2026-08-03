@@ -30,6 +30,7 @@ type migrateTestHooks struct {
 	readDir                    func(string) ([]os.DirEntry, error)
 	openExecutor               func(string, atlasmigrate.Dir, atlasmigrate.Logger, bool) (*atlasExecutorHandle, error)
 	schemaContractRunner       func(context.Context, string) (migrationcontract.Result, error)
+	configValidator            func(*cobra.Command) error
 }
 
 func captureMigrateTestHooks() migrateTestHooks {
@@ -40,6 +41,7 @@ func captureMigrateTestHooks() migrateTestHooks {
 		readDir:                    migrateReadDir,
 		openExecutor:               migrateOpenExecutor,
 		schemaContractRunner:       migrateSchemaContractRunner,
+		configValidator:            migrateConfigValidator,
 	}
 }
 
@@ -50,6 +52,7 @@ func (hooks migrateTestHooks) restore() {
 	migrateReadDir = hooks.readDir
 	migrateOpenExecutor = hooks.openExecutor
 	migrateSchemaContractRunner = hooks.schemaContractRunner
+	migrateConfigValidator = hooks.configValidator
 }
 
 func setMigrateCommandTestEnv(t *testing.T) {
@@ -57,6 +60,7 @@ func setMigrateCommandTestEnv(t *testing.T) {
 	t.Setenv("GRAFT_DATABASE_URL", "postgres://user:pass@localhost:5432/graft?sslmode=disable")
 	t.Setenv("GRAFT_REDIS_ADDR", "127.0.0.1:6379")
 	t.Setenv("GRAFT_AUTH_JWT_SECRET", "test-signing-secret")
+	t.Setenv("GRAFT_CONFIG_SCHEMA_VERSION", "1")
 }
 
 func newSilentMigrateCommand() *cobra.Command {
@@ -1278,6 +1282,25 @@ func TestRunMigrateUpFallsBackToBackgroundContext(t *testing.T) {
 
 	if capturedCtx == nil {
 		t.Fatal("expected migrate command to receive fallback context")
+	}
+}
+
+func TestRunMigrateUpStopsBeforeExecutorWhenConfigurationIsInvalid(t *testing.T) {
+	hooks := captureMigrateTestHooks()
+	defer hooks.restore()
+
+	called := false
+	migrateConfigValidator = func(*cobra.Command) error { return errors.New("configuration validation failed") }
+	migrateOpenExecutor = func(string, atlasmigrate.Dir, atlasmigrate.Logger, bool) (*atlasExecutorHandle, error) {
+		called = true
+		return nil, nil
+	}
+
+	if err := runMigrateUp(newSilentMigrateCommand(), migrateUpOptions{}); err == nil {
+		t.Fatal("expected configuration validation failure")
+	}
+	if called {
+		t.Fatal("migration executor must not be created after configuration validation failure")
 	}
 }
 

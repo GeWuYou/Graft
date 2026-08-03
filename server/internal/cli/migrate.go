@@ -32,6 +32,7 @@ var migrateEmbeddedMigrationDirByPath = moduleregistry.EmbeddedMigrationDirByPat
 var migrateReadDir = os.ReadDir
 var migrateOpenExecutor = openAtlasExecutor
 var migrateSchemaContractRunner = runMigrationSchemaContract
+var migrateConfigValidator = validateStartupConfiguration
 
 // migrateUpOptions 封装一次显式迁移执行所需的输入。
 type migrateUpOptions struct {
@@ -104,6 +105,10 @@ func newMigrateCommand() *cobra.Command {
 // runMigrateUp 应用待处理的 Atlas 迁移，并在执行完成后关闭数据库资源。
 // 迁移目录解析、执行或关闭过程中发生错误时返回错误；当没有待处理迁移时返回 nil。
 func runMigrateUp(cmd *cobra.Command, opts migrateUpOptions) (err error) {
+	if err := migrateConfigValidator(cmd); err != nil {
+		return err
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)

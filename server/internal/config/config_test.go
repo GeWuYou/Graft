@@ -978,6 +978,8 @@ func TestValidateBackupConfigRejectsRelativeRootAndConfigValidateWiresIt(t *test
 
 func chdir(t *testing.T, dir string) {
 	t.Helper()
+	workingDirectoryMu.Lock()
+	t.Cleanup(workingDirectoryMu.Unlock)
 
 	previous, err := os.Getwd()
 	if err != nil {

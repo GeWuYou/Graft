@@ -132,14 +132,6 @@ func runnerTerminalFailureDiagnostic(operation ComposeUpdateOperation, receipt R
 	}
 }
 
-func runnerTerminatedFailureDiagnostic(operation ComposeUpdateOperation, evidence RunnerFailureEvidence) FailureDiagnostic {
-	detail := "runner exited before publishing a terminal state"
-	if evidence.FailureCode == RunnerFailureCodeStateWriteFailed && evidence.FailureStage == RunnerFailureStagePermissionDenied {
-		detail = "runner could not access the update state volume"
-	}
-	return FailureDiagnostic{RequestID: operation.RequestID, OperationID: operation.OperationID, TaskID: operation.TaskID, TargetVersion: operation.TargetVersion, FailureCode: rolloutFailureRunnerTerminated, FailureStage: evidence.FailureCode, Summary: runnerFailureDiagnosticSummary, Detail: detail, OccurredAt: time.Now().UTC()}
-}
-
 // runnerReceiptFailureDiagnostic 只接受 runner 的固定无秘密备份事实，未知字段降级为通用诊断，避免透传 runner 输出。
 func runnerReceiptFailureDiagnostic(receipt RunnerReceipt) (string, string) {
 	stage := runnerFailureStageReceipt

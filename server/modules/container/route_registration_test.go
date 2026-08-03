@@ -282,7 +282,7 @@ func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("expected batch lifecycle 202, got %d: %s", response.Code, response.Body.String())
 	}
-	if len(tasks.submissions) != 1 || tasks.submissions[0].Owner.ID != "container-1" || tasks.submissions[0].IdempotencyKey != "batch-start:start:container-1" {
+	if len(tasks.submissions) != 1 || tasks.submissions[0].Type != containerLifecycleBatchTaskType(containerActionStart) || tasks.submissions[0].IdempotencyKey != "batch-start" {
 		t.Fatalf("unexpected lifecycle submissions: %#v", tasks.submissions)
 	}
 	body := response.Body.String()
@@ -298,7 +298,7 @@ func TestContainerBatchLifecycleReturnsOrderedTaskPartialResults(t *testing.T) {
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("expected batch remove 202, got %d: %s", response.Code, response.Body.String())
 	}
-	if len(tasks.submissions) != 2 || tasks.submissions[1].Type != containerLifecycleTaskType(containerActionRemove) || tasks.submissions[1].Owner.Type != containerLifecycleTaskOwnerType(containerActionRemove) {
+	if len(tasks.submissions) != 2 || tasks.submissions[1].Type != containerLifecycleBatchTaskType(containerActionRemove) || tasks.submissions[1].Owner.Type != containerLifecycleBatchOwnerType(containerActionRemove) {
 		t.Fatalf("unexpected remove task submission: %#v", tasks.submissions)
 	}
 	var removeInput containerLifecycleTaskInput

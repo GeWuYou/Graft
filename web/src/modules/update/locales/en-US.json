@@ -168,6 +168,7 @@
           "composePreflightFailed": "The current Compose project did not pass the upgrade preflight check.",
           "startFailed": "The upgrade task could not be started. Use the request ID to inspect the server logs.",
           "runnerTerminalFailed": "The upgrade did not complete. Review the sanitized cause and application logs.",
+          "runnerLost": "The update runner lease expired. Review the sanitized cause and application logs.",
           "runnerTerminated": "The update runner exited early. Review the sanitized cause and application logs.",
           "generic": "The upgrade request could not be started. Try again later."
         }
@@ -239,7 +240,7 @@
         "diagnosticUnavailable": "The diagnostic detail is temporarily unavailable. Look up the request ID in application logs.",
         "sourceUnavailable": "The platform cannot currently read the update runner state. Received stage records remain available here.",
         "recovery": {
-          "description": "The update runner exited early. A controlled recovery writes the actual failed or rollback result.",
+          "description": "The update runner is no longer connected. A controlled recovery writes the actual failed or rollback result.",
           "action": "Start Controlled Recovery",
           "failed": "The controlled recovery could not be started. Try again later."
         },
