@@ -1,0 +1,4 @@
+interface:
+  display_name: "Graft Local Validation Bootstrap"
+  short_description: "Create isolated local Graft validation environments."
+  default_prompt: "Use $graft-local-validation-bootstrap to initialize the local beta, latest, and fixed-version Graft validation environments."
