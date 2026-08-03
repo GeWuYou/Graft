@@ -34,6 +34,47 @@ class MigrationEnvironmentTests(unittest.TestCase):
         self.assertEqual(environment["GRAFT_REDIS_ADDR"], "127.0.0.1:6379")
 
 
+class HistoricalMigrationTests(unittest.TestCase):
+    def test_materialize_historical_server_archives_only_server_tree(self) -> None:
+        with self.subTest("returns extracted server directory"):
+            with mock.patch.object(MODULE, "run_command") as run_command:
+                with mock.patch.object(MODULE.Path, "is_dir", return_value=True):
+                    historical_server = MODULE.materialize_historical_server("v0.11.0-beta.38", Path("/tmp/historical"))
+
+        self.assertEqual(historical_server, Path("/tmp/historical/server"))
+        self.assertEqual(
+            run_command.call_args_list[0].args[0],
+            [
+                "git",
+                "archive",
+                "--format=tar",
+                "--output=/tmp/historical/historical-server.tar",
+                "v0.11.0-beta.38",
+                "server",
+            ],
+        )
+        self.assertEqual(
+            run_command.call_args_list[1].args[0],
+            ["tar", "--extract", "--file", "/tmp/historical/historical-server.tar", "--directory", "/tmp/historical"],
+        )
+
+    def test_apply_historical_migrations_uses_historical_server_with_target_environment(self) -> None:
+        target = MODULE.BootstrapTarget("temporary-postgres", 42424)
+        temporary_directory = mock.Mock()
+        temporary_directory.__enter__ = mock.Mock(return_value="/tmp/historical")
+        temporary_directory.__exit__ = mock.Mock(return_value=None)
+        historical_server = Path("/tmp/historical/server")
+        with mock.patch.object(MODULE.tempfile, "TemporaryDirectory", return_value=temporary_directory), mock.patch.object(
+            MODULE, "materialize_historical_server", return_value=historical_server
+        ) as materialize_historical_server, mock.patch.object(MODULE, "run_command") as run_command:
+            MODULE.apply_historical_migrations(target, "v0.11.0-beta.38")
+
+        materialize_historical_server.assert_called_once_with("v0.11.0-beta.38", Path("/tmp/historical"))
+        self.assertEqual(run_command.call_args.args[0], ["go", "run", "./cmd/graft", "migrate", "up", "--allow-dirty"])
+        self.assertEqual(run_command.call_args.kwargs["cwd"], historical_server)
+        self.assertEqual(run_command.call_args.kwargs["env"], MODULE.migration_environment(target))
+
+
 class SchemaContractTests(unittest.TestCase):
     def test_check_schema_contract_uses_disposable_database_environment(self) -> None:
         target = MODULE.BootstrapTarget("temporary-postgres", 42424)
@@ -117,7 +158,7 @@ class ImagePullTests(unittest.TestCase):
 class LifecycleTests(unittest.TestCase):
     def test_main_cleans_up_after_success(self) -> None:
         target = MODULE.BootstrapTarget("temporary-postgres", 42424)
-        with mock.patch.object(MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=None)), mock.patch.object(
+        with mock.patch.object(MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=None, upgrade_from=None)), mock.patch.object(
             MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))
         ), mock.patch.object(MODULE, "start_postgres", return_value=target), mock.patch.object(
             MODULE, "wait_for_postgres"
@@ -129,7 +170,7 @@ class LifecycleTests(unittest.TestCase):
         remove_postgres.assert_called_once_with("graft-migration-bootstrap-abc123def456")
 
     def test_main_emits_diagnostics_and_cleans_up_after_failure(self) -> None:
-        with mock.patch.object(MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=None)), mock.patch.object(
+        with mock.patch.object(MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=None, upgrade_from=None)), mock.patch.object(
             MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))
         ), mock.patch.object(MODULE, "start_postgres", side_effect=RuntimeError("docker unavailable")), mock.patch.object(
             MODULE, "print_diagnostics"
@@ -144,7 +185,7 @@ class LifecycleTests(unittest.TestCase):
         command_error = MODULE.CommandError("schema check failed", stdout='{"findings": [{"name": "users"}]}\n')
         schema_report = mock.Mock()
         with mock.patch.object(
-            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=schema_report)
+            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=schema_report, upgrade_from=None)
         ) as parse_args, mock.patch.object(
             MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))
         ), mock.patch.object(MODULE, "start_postgres", return_value=target), mock.patch.object(
@@ -164,7 +205,7 @@ class LifecycleTests(unittest.TestCase):
         command_error = MODULE.CommandError("schema check failed", stdout="migration check output\n")
         schema_report = mock.Mock()
         with mock.patch.object(
-            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=schema_report)
+            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=schema_report, upgrade_from=None)
         ), mock.patch.object(
             MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))
         ), mock.patch.object(MODULE, "start_postgres", return_value=target), mock.patch.object(
@@ -177,6 +218,26 @@ class LifecycleTests(unittest.TestCase):
             self.assertEqual(MODULE.main(), 1)
 
         schema_report.write_text.assert_not_called()
+
+    def test_main_applies_historical_migrations_before_current_chain(self) -> None:
+        target = MODULE.BootstrapTarget("temporary-postgres", 42424)
+        call_order: list[str] = []
+        with mock.patch.object(
+            MODULE, "parse_args", return_value=mock.Mock(keep_container=False, schema_report=None, upgrade_from="v0.11.0-beta.38")
+        ), mock.patch.object(MODULE, "uuid", mock.Mock(uuid4=lambda: mock.Mock(hex="abc123def456"))), mock.patch.object(
+            MODULE, "start_postgres", return_value=target
+        ), mock.patch.object(MODULE, "wait_for_postgres"), mock.patch.object(
+            MODULE, "apply_historical_migrations", side_effect=lambda *args, **kwargs: call_order.append("historical")
+        ) as apply_historical_migrations, mock.patch.object(
+            MODULE, "apply_migrations", side_effect=lambda *args, **kwargs: call_order.append("current")
+        ) as apply_migrations, mock.patch.object(
+            MODULE, "check_schema_contract", return_value='{"findings": []}\n'
+        ), mock.patch.object(MODULE, "remove_postgres"):
+            self.assertEqual(MODULE.main(), 0)
+
+        apply_historical_migrations.assert_called_once_with(target, "v0.11.0-beta.38")
+        apply_migrations.assert_called_once_with(target)
+        self.assertEqual(call_order, ["historical", "current"])
 
 
 if __name__ == "__main__":

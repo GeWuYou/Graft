@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply Graft's full migration chain to an empty disposable PostgreSQL database."""
+"""Validate empty-database bootstrap and historical-database migration upgrades."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 
@@ -151,6 +152,29 @@ def apply_migrations(target: BootstrapTarget) -> None:
     )
 
 
+def materialize_historical_server(ref: str, destination: Path) -> Path:
+    archive_path = destination / "historical-server.tar"
+    run_command(
+        ["git", "archive", "--format=tar", f"--output={archive_path}", ref, "server"],
+        cwd=REPO_ROOT,
+    )
+    run_command(["tar", "--extract", "--file", str(archive_path), "--directory", str(destination)])
+    historical_server = destination / "server"
+    if not historical_server.is_dir():
+        raise RuntimeError(f"historical migration source {ref!r} does not contain server/")
+    return historical_server
+
+
+def apply_historical_migrations(target: BootstrapTarget, ref: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="graft-migration-upgrade-") as temporary_directory:
+        historical_server = materialize_historical_server(ref, Path(temporary_directory))
+        run_command(
+            ["go", "run", "./cmd/graft", "migrate", "up", "--allow-dirty"],
+            cwd=historical_server,
+            env=migration_environment(target),
+        )
+
+
 def check_schema_contract(target: BootstrapTarget) -> str:
     result = run_command(
         ["go", "run", "./cmd/graft", "migrate", "check-schema", "--mode", "enforce", "--format", "json"],
@@ -181,6 +205,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keep-container", action="store_true", help="retain the disposable PostgreSQL container for diagnosis")
     parser.add_argument("--schema-report", type=Path, help="write the PostgreSQL catalog report to this path")
+    parser.add_argument(
+        "--upgrade-from",
+        help="Git ref whose server migration chain is applied before the current default chain",
+    )
     return parser.parse_args()
 
 
@@ -191,6 +219,9 @@ def main() -> int:
     try:
         target = start_postgres(container_name)
         wait_for_postgres(target)
+        if args.upgrade_from is not None:
+            print(f"applying historical migration chain from {args.upgrade_from}")
+            apply_historical_migrations(target, args.upgrade_from)
         apply_migrations(target)
         schema_report = check_schema_contract(target)
         if args.schema_report is not None:
