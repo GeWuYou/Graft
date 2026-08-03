@@ -53,6 +53,7 @@ func (p *PolicyProvider) CurrentOutboundNetworkPolicy(ctx context.Context) (modu
 	return decodeOutboundPolicy(value.EffectiveValue)
 }
 
+//nolint:cyclop // 策略解码按安全校验顺序拒绝不同类别的非法输入，拆分会掩盖该边界。
 func decodeOutboundPolicy(raw json.RawMessage) (moduleapi.OutboundNetworkPolicy, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil {
@@ -92,6 +93,7 @@ func decodeOutboundPolicy(raw json.RawMessage) (moduleapi.OutboundNetworkPolicy,
 	return moduleapi.OutboundNetworkPolicy{Enabled: config.Enabled, HTTPProxy: httpProxy, HTTPSProxy: httpsProxy, NoProxy: noProxy}, nil
 }
 
+//nolint:cyclop // 每个 URL 组成部分都必须独立拒绝，避免不支持的代理能力进入运行时。
 func validateProxyURL(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
@@ -142,6 +144,7 @@ func normalizeNoProxy(values []string) ([]string, error) {
 	return result, nil
 }
 
+//nolint:cyclop,gocyclo // NO_PROXY 的受支持语法分支必须在一个校验入口中保持可审计。
 func validateNoProxyEntry(value string) error {
 	if value == "*" {
 		return nil
@@ -158,9 +161,7 @@ func validateNoProxyEntry(value string) error {
 	} else if strings.Contains(host, "*") {
 		return fmt.Errorf("%w: no_proxy wildcard is invalid", errInvalidOutboundPolicy)
 	}
-	if strings.HasPrefix(host, ".") {
-		host = strings.TrimPrefix(host, ".")
-	}
+	host = strings.TrimPrefix(host, ".")
 	if host == "" {
 		return fmt.Errorf("%w: no_proxy host is invalid", errInvalidOutboundPolicy)
 	}
@@ -191,6 +192,7 @@ func validPort(value string) bool {
 	return err == nil && port > 0
 }
 
+//nolint:cyclop,gocyclo // 主机名字符与标签边界校验应保持为无分配的直接扫描。
 func validHostname(value string) bool {
 	if len(value) > 253 || value == "" {
 		return false

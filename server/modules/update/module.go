@@ -43,6 +43,8 @@ func NewModule(operations OperationStore, diagnostics FailureDiagnosticStore, ca
 }
 
 // Register 注册权限、菜单、读/check 路由和默认每日发现任务。
+//
+//nolint:cyclop // 注册顺序定义 Update 的启动依赖与失败边界，保持线性可审计。
 func (m *Module) Register(ctx *module.Context) error {
 	if err := m.validateRegistration(ctx); err != nil {
 		return err

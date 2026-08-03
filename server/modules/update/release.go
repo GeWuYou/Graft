@@ -107,6 +107,8 @@ type releaseManifestArtifacts struct {
 }
 
 // List 获取并验证上游 Release；任一个 Release 的 manifest 无效时仅跳过该版本。
+//
+//nolint:cyclop // 发行目录读取、HTTP 边界和逐项验证必须在同一线性流程中保持可审计。
 func (p GitHubReleaseProvider) List(ctx context.Context) ([]Release, error) {
 	repository := strings.TrimSpace(p.Repository)
 	if repository == "" {

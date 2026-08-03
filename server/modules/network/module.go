@@ -27,6 +27,8 @@ type Module struct {
 func NewModule() *Module { return &Module{} }
 
 // Register 注册出站策略定义和稳定消费能力；策略读取始终经由 System Config 快照，不读取进程环境变量。
+//
+//nolint:cyclop // 注册顺序是模块生命周期与失败边界，保持为一个显式的线性序列。
 func (m *Module) Register(ctx *module.Context) error {
 	if m == nil || ctx == nil || ctx.ConfigRegistry == nil || ctx.Services == nil {
 		return errors.New("platform-network module context is unavailable")
@@ -80,7 +82,19 @@ func registerMessages(localizer *i18n.Service) error {
 		return errors.New("i18n service is unavailable")
 	}
 	for _, locale := range []i18n.LocaleTag{i18n.LocaleZHCN, i18n.LocaleENUS} {
-		for _, key := range []i18n.MessageKey{"menu.platform.network", "network.outbound.title", "network.outbound.description", "network.outbound.authentication.description", "network.diagnosticTargets.platformUpdate"} {
+		for _, key := range []i18n.MessageKey{
+			"menu.platform.network",
+			"network.outbound.title",
+			"network.outbound.description",
+			"network.outbound.authentication.description",
+			"network.diagnosticTargets.platformUpdate",
+			"rbac.permissionCatalog.platform-network.read.display",
+			"rbac.permissionCatalog.platform-network.read.description",
+			"rbac.permissionCatalog.platform-network.write.display",
+			"rbac.permissionCatalog.platform-network.write.description",
+			"rbac.permissionCatalog.platform-network.diagnose.display",
+			"rbac.permissionCatalog.platform-network.diagnose.description",
+		} {
 			if len(localizer.RegisteredMessageResources(locale, key)) == 0 {
 				return fmt.Errorf("platform-network locale resource missing %s for %s", key, locale)
 			}

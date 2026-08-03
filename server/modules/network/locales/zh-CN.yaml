@@ -3,3 +3,9 @@ network.outbound.title: 出站网络
 network.outbound.description: 平台主动发起 HTTP(S) 请求使用的代理与绕过策略。
 network.outbound.authentication.description: 为后续 Secret Management 预留。
 network.diagnosticTargets.platformUpdate: 平台更新服务
+rbac.permissionCatalog.platform-network.read.display: 查看出站网络策略
+rbac.permissionCatalog.platform-network.read.description: 允许查看平台生效的出站网络策略和已注册诊断目标。
+rbac.permissionCatalog.platform-network.write.display: 管理出站网络策略
+rbac.permissionCatalog.platform-network.write.description: 允许修改和恢复平台出站网络策略。
+rbac.permissionCatalog.platform-network.diagnose.display: 测试出站网络连通性
+rbac.permissionCatalog.platform-network.diagnose.description: 允许测试一个固定注册的出站网络诊断目标。
