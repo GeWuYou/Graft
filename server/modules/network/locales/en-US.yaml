@@ -3,6 +3,7 @@ network.outbound.title: Outbound Network
 network.outbound.description: Platform proxy and no-proxy policy for outbound HTTP(S) requests.
 network.outbound.authentication.description: Reserved for future Secret Management.
 network.diagnosticTargets.platformUpdate: Platform Update Service
+network.consumers.platformUpdate: Platform Update
 rbac.permissionCatalog.platform-network.read.display: View Outbound Network Policy
 rbac.permissionCatalog.platform-network.read.description: Allows reading the effective platform outbound network policy and registered diagnostics.
 rbac.permissionCatalog.platform-network.write.display: Manage Outbound Network Policy

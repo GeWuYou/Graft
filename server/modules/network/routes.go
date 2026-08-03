@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -43,7 +44,28 @@ func registerNetworkRoutes(ctx *module.Context, service *Service) error {
 	group.PUT(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handlePut)
 	group.POST(networkcontract.OutboundNetworkResetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handleReset)
 	group.POST(networkcontract.OutboundNetworkDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleDiagnostic)
+	group.GET(networkcontract.OutboundNetworkDiagnosticHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleDiagnosticHistory)
 	return nil
+}
+
+func (r routeRuntime) handleDiagnosticHistory(ginCtx *gin.Context) {
+	targetName := strings.TrimSpace(ginCtx.Param("targetId"))
+	params, limit, ok := bindDiagnosticHistoryParams(ginCtx)
+	if !ok {
+		r.badRequest(ginCtx)
+		return
+	}
+	networkGeneratedHandler{}.GetPlatformNetworkDiagnosticHistory(targetName, params)
+	items, err := r.service.DiagnosticHistory(ginCtx.Request.Context(), targetName, limit)
+	if err != nil {
+		r.writeError(ginCtx, err)
+		return
+	}
+	results := make([]generated.PlatformNetworkDiagnosticResult, 0, len(items))
+	for _, item := range items {
+		results = append(results, toDiagnosticResult(targetName, item))
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.PlatformNetworkDiagnosticHistory{TargetId: targetName, Items: results})
 }
 
 func (r routeRuntime) handleGet(ginCtx *gin.Context) {
@@ -117,7 +139,19 @@ func toOverview(value Overview) generated.PlatformNetworkOverview {
 	if value.HasOverride {
 		source = generated.PlatformNetworkOutboundPolicySourceOverride
 	}
-	return generated.PlatformNetworkOverview{Policy: generated.PlatformNetworkOutboundPolicy{Config: generated.PlatformNetworkOutboundConfig{Enabled: value.Policy.Enabled, HttpProxy: value.Policy.HTTPProxy, HttpsProxy: value.Policy.HTTPSProxy, NoProxy: append([]string(nil), value.Policy.NoProxy...)}, Source: source}, DiagnosticTargets: targets}
+	consumers := make([]generated.PlatformNetworkConsumer, 0, len(value.Consumers))
+	for _, consumer := range value.Consumers {
+		consumers = append(consumers, generated.PlatformNetworkConsumer{Id: consumer.Name(), TitleKey: consumer.DisplayName()})
+	}
+	policy := generated.PlatformNetworkOutboundPolicy{Config: generated.PlatformNetworkOutboundConfig{Enabled: value.Policy.Enabled, HttpProxy: value.Policy.HTTPProxy, HttpsProxy: value.Policy.HTTPSProxy, NoProxy: append([]string(nil), value.Policy.NoProxy...)}, Source: source}
+	if value.UpdatedAt != nil {
+		updatedAt := value.UpdatedAt.UTC()
+		policy.UpdatedAt = &updatedAt
+	}
+	if name := strings.TrimSpace(value.UpdatedByName); name != "" {
+		policy.UpdatedByName = &name
+	}
+	return generated.PlatformNetworkOverview{Policy: policy, DiagnosticTargets: targets, Consumers: consumers}
 }
 
 func toDiagnosticResult(targetName string, value moduleapi.OutboundDiagnosticResult) generated.PlatformNetworkDiagnosticResult {
@@ -161,6 +195,8 @@ func (networkGeneratedHandler) ResetPlatformNetworkOutbound(generated.ResetPlatf
 }
 func (networkGeneratedHandler) PostPlatformNetworkDiagnostic(string, generated.PostPlatformNetworkDiagnosticParams) {
 }
+func (networkGeneratedHandler) GetPlatformNetworkDiagnosticHistory(string, generated.GetPlatformNetworkDiagnosticHistoryParams) {
+}
 
 func bindGetParams(ginCtx *gin.Context) generated.GetPlatformNetworkOutboundParams {
 	locale, requestID := commonHeaders(ginCtx)
@@ -180,6 +216,21 @@ func bindResetParams(ginCtx *gin.Context) generated.ResetPlatformNetworkOutbound
 func bindDiagnosticParams(ginCtx *gin.Context) generated.PostPlatformNetworkDiagnosticParams {
 	locale, requestID := commonHeaders(ginCtx)
 	return generated.PostPlatformNetworkDiagnosticParams{XGraftLocale: locale, XRequestId: requestID}
+}
+
+func bindDiagnosticHistoryParams(ginCtx *gin.Context) (generated.GetPlatformNetworkDiagnosticHistoryParams, int, bool) {
+	locale, requestID := commonHeaders(ginCtx)
+	params := generated.GetPlatformNetworkDiagnosticHistoryParams{XGraftLocale: locale, XRequestId: requestID}
+	limit := 20
+	if raw := strings.TrimSpace(ginCtx.Query("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > maxDiagnosticHistoryLimit {
+			return generated.GetPlatformNetworkDiagnosticHistoryParams{}, 0, false
+		}
+		limit = parsed
+		params.Limit = &limit
+	}
+	return params, limit, true
 }
 
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {

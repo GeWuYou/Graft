@@ -11,13 +11,23 @@ import (
 
 const platformUpdateDiagnosticTargetName = "platform-update-release"
 
+type platformUpdateOutboundNetworkConsumer struct{}
+
+func (platformUpdateOutboundNetworkConsumer) Name() string { return "platform-update" }
+
+func (platformUpdateOutboundNetworkConsumer) DisplayName() string {
+	return "network.consumers.platformUpdate"
+}
+
 type platformUpdateDiagnosticTarget struct {
 	factory moduleapi.OutboundHTTPClientFactory
 }
 
 func (t platformUpdateDiagnosticTarget) Name() string { return platformUpdateDiagnosticTargetName }
 
-func (t platformUpdateDiagnosticTarget) DisplayName() string { return "network.diagnosticTargets.platformUpdate" }
+func (t platformUpdateDiagnosticTarget) DisplayName() string {
+	return "network.diagnosticTargets.platformUpdate"
+}
 
 func (t platformUpdateDiagnosticTarget) ExecuteOutboundDiagnostic(ctx context.Context) (moduleapi.OutboundDiagnosticResult, error) {
 	if t.factory == nil {

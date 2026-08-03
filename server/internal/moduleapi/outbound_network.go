@@ -13,6 +13,8 @@ type ModuleConfigValue struct {
 	DefaultValue   json.RawMessage
 	OverrideValue  json.RawMessage
 	HasOverride    bool
+	UpdatedAt      *time.Time
+	UpdatedByName  string
 }
 
 // ModuleConfigManager 仅向配置声明 owner 暴露模块管理配置的读取和写入能力。
@@ -94,4 +96,17 @@ type OutboundDiagnosticRegistry interface {
 	RegisterOutboundDiagnosticTarget(OutboundDiagnosticTarget) error
 	OutboundDiagnosticTarget(string) (OutboundDiagnosticTarget, bool)
 	OutboundDiagnosticTargets() []OutboundDiagnosticTarget
+}
+
+// OutboundNetworkConsumer 是显式声明使用平台出站网络策略的模块消费者。
+// 它与诊断目标分离，避免没有诊断能力的消费者从页面运行态中消失。
+type OutboundNetworkConsumer interface {
+	Name() string
+	DisplayName() string
+}
+
+// OutboundNetworkConsumerRegistry 注册使用平台策略的模块消费者。
+type OutboundNetworkConsumerRegistry interface {
+	RegisterOutboundNetworkConsumer(OutboundNetworkConsumer) error
+	OutboundNetworkConsumers() []OutboundNetworkConsumer
 }

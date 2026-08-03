@@ -95,9 +95,16 @@ func (m *Module) configureOutboundNetwork(ctx *module.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve outbound diagnostic registry: %w", err)
 	}
+	consumers, err := module.ResolveService[moduleapi.OutboundNetworkConsumerRegistry](ctx.Services, (*moduleapi.OutboundNetworkConsumerRegistry)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve outbound network consumer registry: %w", err)
+	}
 	m.service.provider = GitHubReleaseProvider{Repository: m.repository, ClientFactory: factory}
 	if err := diagnostics.RegisterOutboundDiagnosticTarget(platformUpdateDiagnosticTarget{factory: factory}); err != nil {
 		return fmt.Errorf("register platform update outbound diagnostic target: %w", err)
+	}
+	if err := consumers.RegisterOutboundNetworkConsumer(platformUpdateOutboundNetworkConsumer{}); err != nil {
+		return fmt.Errorf("register platform update outbound network consumer: %w", err)
 	}
 	return nil
 }

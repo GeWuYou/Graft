@@ -1,6 +1,7 @@
 package network
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -21,6 +22,13 @@ const (
 // Module 拥有平台主动 HTTP(S) 访问策略、client factory 和固定诊断目标注册表。
 type Module struct {
 	service *Service
+}
+
+type runtimeServices struct {
+	provider    moduleapi.OutboundNetworkProvider
+	factory     moduleapi.OutboundHTTPClientFactory
+	diagnostics moduleapi.OutboundDiagnosticRegistry
+	consumers   moduleapi.OutboundNetworkConsumerRegistry
 }
 
 // NewModule 创建 platform-network 模块实例。
@@ -45,30 +53,58 @@ func (m *Module) Register(ctx *module.Context) error {
 	if err := registerOutboundConfig(ctx.ConfigRegistry); err != nil {
 		return fmt.Errorf("register outbound network config: %w", err)
 	}
+	runtime, service, err := buildRuntimeServices(ctx)
+	if err != nil {
+		return err
+	}
+	m.service = service
+	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundNetworkProvider)(nil), func(container.Resolver) (any, error) { return runtime.provider, nil }); err != nil {
+		return fmt.Errorf("register outbound network provider: %w", err)
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundHTTPClientFactory)(nil), func(container.Resolver) (any, error) { return runtime.factory, nil }); err != nil {
+		return fmt.Errorf("register outbound HTTP client factory: %w", err)
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundDiagnosticRegistry)(nil), func(container.Resolver) (any, error) { return runtime.diagnostics, nil }); err != nil {
+		return fmt.Errorf("register outbound diagnostic registry: %w", err)
+	}
+	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundNetworkConsumerRegistry)(nil), func(container.Resolver) (any, error) { return runtime.consumers, nil }); err != nil {
+		return fmt.Errorf("register outbound network consumer registry: %w", err)
+	}
+	return registerNetworkRoutes(ctx, m.service)
+}
+
+func buildRuntimeServices(ctx *module.Context) (runtimeServices, *Service, error) {
 	configs, err := module.ResolveService[moduleapi.ModuleConfigManager](ctx.Services, (*moduleapi.ModuleConfigManager)(nil))
 	if err != nil {
-		return fmt.Errorf("resolve module config manager: %w", err)
+		return runtimeServices{}, nil, fmt.Errorf("resolve module config manager: %w", err)
 	}
 	provider, err := NewPolicyProvider(configs)
 	if err != nil {
-		return err
+		return runtimeServices{}, nil, err
 	}
 	factory, err := NewHTTPClientFactory(provider)
 	if err != nil {
-		return err
+		return runtimeServices{}, nil, err
 	}
-	diagnostics := NewDiagnosticRegistry()
-	m.service = NewService(configs, diagnostics)
-	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundNetworkProvider)(nil), func(container.Resolver) (any, error) { return provider, nil }); err != nil {
-		return fmt.Errorf("register outbound network provider: %w", err)
+	repository, err := newSQLDiagnosticHistoryStore(ctx)
+	if err != nil {
+		return runtimeServices{}, nil, err
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundHTTPClientFactory)(nil), func(container.Resolver) (any, error) { return factory, nil }); err != nil {
-		return fmt.Errorf("register outbound HTTP client factory: %w", err)
+	diagnostics, consumers := NewDiagnosticRegistry(), NewConsumerRegistry()
+	runtime := runtimeServices{provider: provider, factory: factory, diagnostics: diagnostics, consumers: consumers}
+	return runtime, NewService(configs, diagnostics, consumers, repository), nil
+}
+
+func newSQLDiagnosticHistoryStore(ctx *module.Context) (DiagnosticHistoryStore, error) {
+	db, err := module.ResolveService[*sql.DB](ctx.Services, (*sql.DB)(nil))
+	if err != nil {
+		return nil, fmt.Errorf("resolve sql db: %w", err)
 	}
-	if err := ctx.Services.RegisterSingleton((*moduleapi.OutboundDiagnosticRegistry)(nil), func(container.Resolver) (any, error) { return diagnostics, nil }); err != nil {
-		return fmt.Errorf("register outbound diagnostic registry: %w", err)
+	repository, err := NewSQLDiagnosticHistoryStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("build outbound diagnostic history store: %w", err)
 	}
-	return registerNetworkRoutes(ctx, m.service)
+	return repository, nil
 }
 
 // Boot 不在启动时访问外网，避免平台启动可用性依赖远程目标。
@@ -88,6 +124,7 @@ func registerMessages(localizer *i18n.Service) error {
 			"network.outbound.description",
 			"network.outbound.authentication.description",
 			"network.diagnosticTargets.platformUpdate",
+			"network.consumers.platformUpdate",
 			"rbac.permissionCatalog.platform-network.read.display",
 			"rbac.permissionCatalog.platform-network.read.description",
 			"rbac.permissionCatalog.platform-network.write.display",

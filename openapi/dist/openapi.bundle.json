@@ -8893,6 +8893,75 @@
         }
       }
     },
+    "/api/platform/network/outbound/diagnostics/{targetId}/history": {
+      "get": {
+        "tags": [
+          "platform-network"
+        ],
+        "summary": "Read bounded persisted history for one fixed outbound-network diagnostic target",
+        "operationId": "getPlatformNetworkDiagnosticHistory",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/locale-header"
+          },
+          {
+            "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "name": "targetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent sanitized diagnostic results in descending completion order.",
+            "headers": {
+              "X-Request-Id": {
+                "$ref": "#/components/headers/request-id"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-history"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/forbidden"
+          },
+          "404": {
+            "description": "Diagnostic target not registered."
+          }
+        }
+      }
+    },
     "/api/platform/updates/status": {
       "get": {
         "tags": [
@@ -21083,17 +21152,26 @@
       "PlatformNetworkDiagnosticTarget": {
         "$ref": "#/components/schemas/platform-network-diagnostic-target"
       },
+      "PlatformNetworkConsumer": {
+        "$ref": "#/components/schemas/platform-network-consumer"
+      },
       "PlatformNetworkOverview": {
         "$ref": "#/components/schemas/platform-network-overview"
       },
       "PlatformNetworkDiagnosticResult": {
         "$ref": "#/components/schemas/platform-network-diagnostic-result"
       },
+      "PlatformNetworkDiagnosticHistory": {
+        "$ref": "#/components/schemas/platform-network-diagnostic-history"
+      },
       "EnvelopedPlatformNetworkOverview": {
         "$ref": "#/components/schemas/enveloped-platform-network-overview"
       },
       "EnvelopedPlatformNetworkDiagnosticResult": {
         "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-result"
+      },
+      "EnvelopedPlatformNetworkDiagnosticHistory": {
+        "$ref": "#/components/schemas/enveloped-platform-network-diagnostic-history"
       },
       "PlatformUpdateStatus": {
         "$ref": "#/components/schemas/platform-update-status"
@@ -28519,11 +28597,30 @@
           }
         }
       },
+      "platform-network-consumer": {
+        "type": "object",
+        "description": "A module explicitly registered as a consumer of the platform outbound-network policy.",
+        "required": [
+          "id",
+          "title_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "title_key": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
       "platform-network-overview": {
         "type": "object",
         "required": [
           "policy",
-          "diagnostic_targets"
+          "diagnostic_targets",
+          "consumers"
         ],
         "properties": {
           "policy": {
@@ -28533,6 +28630,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/platform-network-diagnostic-target"
+            }
+          },
+          "consumers": {
+            "type": "array",
+            "description": "Modules explicitly registered as consumers of the effective platform outbound-network policy.",
+            "items": {
+              "$ref": "#/components/schemas/platform-network-consumer"
             }
           }
         }
@@ -28632,6 +28736,54 @@
           },
           "data": {
             "$ref": "#/components/schemas/platform-network-diagnostic-result"
+          }
+        }
+      },
+      "platform-network-diagnostic-history": {
+        "type": "object",
+        "description": "Bounded persisted diagnostic history for one fixed registered outbound-network target.",
+        "required": [
+          "target_id",
+          "items"
+        ],
+        "properties": {
+          "target_id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/platform-network-diagnostic-result"
+            }
+          }
+        }
+      },
+      "enveloped-platform-network-diagnostic-history": {
+        "type": "object",
+        "required": [
+          "success",
+          "code",
+          "message",
+          "traceId",
+          "data"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/platform-network-diagnostic-history"
           }
         }
       },

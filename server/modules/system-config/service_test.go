@@ -89,7 +89,7 @@ func TestServiceRestrictsModuleManagedConfigToItsOwner(t *testing.T) {
 		t.Fatalf("expected non-owner to be rejected, got %v", err)
 	}
 	item, err := service.UpdateModuleConfig(context.Background(), "platform-network", "network.outbound", json.RawMessage(`{"enabled":true}`), nil)
-	if err != nil || !item.HasOverride || string(item.EffectiveValue) != `{"enabled":true}` {
+	if err != nil || !item.HasOverride || item.UpdatedAt == nil || string(item.EffectiveValue) != `{"enabled":true}` {
 		t.Fatalf("expected owner update to return effective override, got %#v, %v", item, err)
 	}
 }

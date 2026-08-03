@@ -1,12 +1,15 @@
 {
   "menu": { "platform": { "network": "Network" } },
   "network": {
+    "consumers": { "platformUpdate": "Update Service" },
     "diagnosticTargets": { "platformUpdate": "Platform Update Service" },
     "route": { "outbound": { "title": "Network", "breadcrumb": "Network" } },
     "outbound": {
       "eyebrow": "Platform",
       "title": "Outbound Network",
       "description": "Control the platform policy for outbound HTTP and HTTPS connections.",
+      "saved": "Saved",
+      "unsaved": "Unsaved Changes",
       "save": "Save",
       "saveSuccess": "Outbound network policy saved.",
       "saveFailed": "Outbound network policy could not be saved.",
@@ -14,37 +17,82 @@
       "resetToDefault": "Reset to Default",
       "resetSuccess": "Outbound network policy reset to its default.",
       "resetFailed": "Outbound network policy could not be reset.",
-      "enabled": "Internet Access",
-      "enabledState": { "enabled": "Enabled", "disabled": "Disabled" },
-      "enabledHelp": "When disabled, platform HTTP clients connect directly.",
       "httpProxy": "HTTP Proxy",
       "httpsProxy": "HTTPS Proxy",
-      "proxyPlaceholder": "Enter HTTP proxy URL",
+      "proxyPlaceholder": "Proxy URL, e.g. http://proxy.company.com:8080",
       "noProxy": "No Proxy",
-      "noProxyHelp": "Hosts and networks that bypass the configured proxy.",
       "noProxyPlaceholder": "Add a host, CIDR, or domain pattern",
       "noProxySemantics": "Compatible with standard NO_PROXY matching semantics.",
-      "effectivePolicy": "Effective Policy",
       "configurationSource": "Configuration Source",
       "sourceDefault": "Default",
       "sourceOverride": "Override",
-      "notConfigured": "Not configured",
-      "directConnection": "Direct connection",
-      "diagnostic": {
-        "title": "Connectivity Test",
-        "description": "Tests one fixed registered target using the current saved policy.",
-        "unavailable": "No diagnostic target is registered.",
-        "run": "Test Connection",
-        "running": "Testing connection",
+      "notConfigured": "Not Configured",
+      "scope": {
+        "title": "Policy Scope",
+        "description": "The policy only affects platform-initiated HTTP(S) requests.",
+        "platformHttp": "Platform HTTP(S)",
+        "registeredConsumers": "Registered Consumers",
+        "docker": "Docker Pulls Excluded",
+        "browser": "Browser Traffic Excluded"
+      },
+      "overview": {
+        "kicker": "Network Overview",
+        "healthy": "Healthy",
+        "degraded": "Needs Attention",
+        "unverified": "Not Verified",
+        "healthyDescription": "The latest fixed-target diagnostic passed and the current policy is active.",
+        "degradedDescription": "The latest fixed-target diagnostic failed. Review runtime state and proxy configuration.",
+        "unverifiedDescription": "The current policy is loaded but has no saved-policy diagnostic result yet.",
+        "mode": "Current Mode",
+        "lastTested": "Last Tested",
+        "lastChanged": "Last Changed",
+        "usingDefault": "Using Module Default",
+        "unknownUser": "Unknown Administrator",
+        "changedBy": "{user} · {time}"
+      },
+      "routing": {
+        "title": "Outbound Routing",
+        "description": "Define how platform HTTP(S) clients select proxy and bypass rules.",
+        "mode": {
+          "title": "Connection Mode",
+          "description": "Direct connections do not use retained proxy endpoints.",
+          "direct": "Direct Connection",
+          "proxy": "Proxy Routing"
+        },
+        "proxy": {
+          "title": "Proxy Endpoints",
+          "description": "Configure proxies for HTTP and HTTPS independently. Proxy routing requires at least one endpoint.",
+          "required": "Configure at least one proxy endpoint before enabling proxy routing."
+        },
+        "bypass": { "title": "Bypass Rules", "description": "Matching hosts and networks bypass configured proxies." }
+      },
+      "runtime": {
+        "title": "Runtime Status",
+        "policy": "Effective Policy",
+        "mode": "Routing Mode",
+        "bypass": "Bypass Rules",
+        "ruleCount": "{count} Rules",
+        "consumers": "Consumers",
+        "inherited": "Use Platform Policy",
+        "noConsumers": "No policy consumers are registered."
+      },
+      "diagnostics": {
+        "title": "Diagnostics",
+        "description": "Test a fixed registered target with the current saved effective policy.",
+        "noTarget": "No diagnostic targets are registered.",
+        "run": "Run Diagnostic",
+        "running": "Running Diagnostic",
+        "latest": "Latest Result",
         "connected": "Connected",
-        "failed": "Connection failed",
+        "failed": "Failed",
         "latency": "Latency",
         "httpStatus": "HTTP Status",
         "lastTested": "Last Tested",
-        "notTested": "Not tested",
-        "failedMessage": "The connectivity test could not be completed."
-      },
-      "dockerNotice": "This policy applies to platform HTTP integrations. Docker image pulls use the Docker daemon proxy configured on the runtime host."
+        "notTested": "Not Tested",
+        "failedMessage": "The connectivity diagnostic could not be completed.",
+        "history": "Recent Diagnostics",
+        "noHistory": "This target has no saved diagnostic records."
+      }
     }
   }
 }

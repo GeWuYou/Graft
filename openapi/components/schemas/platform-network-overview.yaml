@@ -1,5 +1,5 @@
 type: object
-required: [policy, diagnostic_targets]
+required: [policy, diagnostic_targets, consumers]
 properties:
   policy:
     $ref: ./platform-network-outbound-policy.yaml
@@ -7,3 +7,8 @@ properties:
     type: array
     items:
       $ref: ./platform-network-diagnostic-target.yaml
+  consumers:
+    type: array
+    description: Modules explicitly registered as consumers of the effective platform outbound-network policy.
+    items:
+      $ref: ./platform-network-consumer.yaml

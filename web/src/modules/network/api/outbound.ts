@@ -4,6 +4,7 @@ import { request } from '@/utils/request';
 
 import type {
   OutboundNetworkDiagnostic,
+  OutboundNetworkDiagnosticHistory,
   OutboundNetworkPolicy,
   OutboundNetworkPolicyResponse,
 } from '../types/outbound';
@@ -17,28 +18,35 @@ type ResetOutboundOperation = paths[typeof OPENAPI_RUNTIME_PATH.resetPlatformNet
 type ResetOutboundData = NonNullable<ResetOutboundOperation['responses'][200]['content']['application/json']['data']>;
 type DiagnosticOperation = paths[typeof OPENAPI_RUNTIME_PATH.postPlatformNetworkDiagnostic]['post'];
 type DiagnosticData = NonNullable<DiagnosticOperation['responses'][200]['content']['application/json']['data']>;
+type DiagnosticHistoryOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformNetworkDiagnosticHistory]['get'];
+type DiagnosticHistoryData = NonNullable<
+  DiagnosticHistoryOperation['responses'][200]['content']['application/json']['data']
+>;
 
 export function getOutboundNetworkPolicy() {
   return request.get<GetOutboundData>({
     url: OPENAPI_RUNTIME_PATH.getPlatformNetworkOutbound,
   }) as Promise<OutboundNetworkPolicyResponse>;
 }
-
 export function updateOutboundNetworkPolicy(policy: OutboundNetworkPolicy) {
   return request.put<PutOutboundData>({
     url: OPENAPI_RUNTIME_PATH.putPlatformNetworkOutbound,
     data: policy as PutOutboundBody,
   }) as Promise<OutboundNetworkPolicyResponse>;
 }
-
 export function resetOutboundNetworkPolicy() {
   return request.post<ResetOutboundData>({
     url: OPENAPI_RUNTIME_PATH.resetPlatformNetworkOutbound,
   }) as Promise<OutboundNetworkPolicyResponse>;
 }
-
 export function diagnoseOutboundNetwork(targetId: string) {
   return request.post<DiagnosticData>({
     url: buildOpenApiRuntimePath('postPlatformNetworkDiagnostic', { targetId }),
   }) as Promise<OutboundNetworkDiagnostic>;
+}
+export function getOutboundNetworkDiagnosticHistory(targetId: string, limit: number) {
+  return request.get<DiagnosticHistoryData>({
+    url: buildOpenApiRuntimePath('getPlatformNetworkDiagnosticHistory', { targetId }),
+    params: { limit },
+  }) as Promise<OutboundNetworkDiagnosticHistory>;
 }

@@ -9,6 +9,8 @@ const (
 	OutboundNetworkResetRoute = "/outbound/reset"
 	// OutboundNetworkDiagnosticRoute 执行固定注册的出站网络诊断。
 	OutboundNetworkDiagnosticRoute = "/outbound/diagnostics/:targetId"
+	// OutboundNetworkDiagnosticHistoryRoute 返回固定注册目标的有限诊断历史。
+	OutboundNetworkDiagnosticHistoryRoute = "/outbound/diagnostics/:targetId/history"
 	// NetworkMenuPath 是平台网络页面的稳定前端路由。
 	NetworkMenuPath = "/platform/network"
 )

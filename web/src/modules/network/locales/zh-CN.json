@@ -1,12 +1,15 @@
 {
   "menu": { "platform": { "network": "网络" } },
   "network": {
+    "consumers": { "platformUpdate": "更新服务" },
     "diagnosticTargets": { "platformUpdate": "平台更新服务" },
     "route": { "outbound": { "title": "网络", "breadcrumb": "网络" } },
     "outbound": {
       "eyebrow": "平台",
       "title": "出站网络",
       "description": "管理平台主动发起 HTTP 和 HTTPS 连接时使用的网络策略。",
+      "saved": "已保存",
+      "unsaved": "未保存的更改",
       "save": "保存",
       "saveSuccess": "出站网络策略已保存。",
       "saveFailed": "出站网络策略保存失败。",
@@ -14,37 +17,82 @@
       "resetToDefault": "恢复默认值",
       "resetSuccess": "出站网络策略已恢复默认值。",
       "resetFailed": "出站网络策略恢复默认值失败。",
-      "enabled": "互联网访问",
-      "enabledState": { "enabled": "已启用", "disabled": "已关闭" },
-      "enabledHelp": "关闭后，平台 HTTP 客户端将直接连接。",
       "httpProxy": "HTTP 代理",
       "httpsProxy": "HTTPS 代理",
       "proxyPlaceholder": "http://proxy.company.com:8080",
       "noProxy": "不使用代理",
-      "noProxyHelp": "命中这些主机或网络时将绕过已配置的代理。",
       "noProxyPlaceholder": "添加主机、CIDR 或域名模式",
       "noProxySemantics": "兼容标准 NO_PROXY 匹配语义。",
-      "effectivePolicy": "生效策略",
       "configurationSource": "配置来源",
       "sourceDefault": "默认值",
       "sourceOverride": "覆盖值",
       "notConfigured": "未配置",
-      "directConnection": "直接连接",
-      "diagnostic": {
-        "title": "连通性测试",
-        "description": "使用当前已保存策略测试一个固定注册目标。",
-        "unavailable": "未注册诊断目标。",
-        "run": "测试连接",
-        "running": "正在测试连接",
-        "connected": "连接成功",
-        "failed": "连接失败",
+      "scope": {
+        "title": "策略范围",
+        "description": "策略只影响平台主动发起的 HTTP(S) 请求。",
+        "platformHttp": "平台 HTTP(S)",
+        "registeredConsumers": "已注册消费者",
+        "docker": "不影响 Docker 拉取",
+        "browser": "不影响浏览器流量"
+      },
+      "overview": {
+        "kicker": "网络概览",
+        "healthy": "运行正常",
+        "degraded": "需要关注",
+        "unverified": "尚未验证",
+        "healthyDescription": "最近一次固定目标诊断已通过，当前策略正在生效。",
+        "degradedDescription": "最近一次固定目标诊断失败，请检查运行态与代理配置。",
+        "unverifiedDescription": "当前策略已加载，但还没有已保存策略的诊断结果。",
+        "mode": "当前模式",
+        "lastTested": "最后测试",
+        "lastChanged": "最后修改",
+        "usingDefault": "使用模块默认值",
+        "unknownUser": "未知管理员",
+        "changedBy": "{user} · {time}"
+      },
+      "routing": {
+        "title": "出站路由",
+        "description": "定义平台 HTTP(S) 客户端如何选择代理与绕过规则。",
+        "mode": {
+          "title": "连接模式",
+          "description": "直接连接不会使用已保留的代理端点。",
+          "direct": "直接连接",
+          "proxy": "代理路由"
+        },
+        "proxy": {
+          "title": "代理端点",
+          "description": "分别为 HTTP 和 HTTPS 请求配置代理；启用代理路由时至少需要一个端点。",
+          "required": "启用代理路由时至少配置一个代理端点。"
+        },
+        "bypass": { "title": "绕过规则", "description": "命中规则的主机和网络将绕过已配置的代理。" }
+      },
+      "runtime": {
+        "title": "运行时状态",
+        "policy": "生效策略",
+        "mode": "路由模式",
+        "bypass": "绕过规则",
+        "ruleCount": "{count} 条规则",
+        "consumers": "消费者",
+        "inherited": "使用平台策略",
+        "noConsumers": "没有已注册的策略消费者。"
+      },
+      "diagnostics": {
+        "title": "诊断",
+        "description": "使用当前已保存的有效策略测试固定注册目标。",
+        "noTarget": "没有已注册的诊断目标。",
+        "run": "运行诊断",
+        "running": "正在运行诊断",
+        "latest": "最新结果",
+        "connected": "已连接",
+        "failed": "失败",
         "latency": "延迟",
         "httpStatus": "HTTP 状态",
         "lastTested": "最后测试时间",
         "notTested": "尚未测试",
-        "failedMessage": "连通性测试未能完成。"
-      },
-      "dockerNotice": "此策略仅适用于平台 HTTP 集成。Docker 镜像拉取使用运行主机上配置的 Docker daemon 代理。"
+        "failedMessage": "连通性诊断未能完成。",
+        "history": "近期诊断",
+        "noHistory": "此目标还没有已保存的诊断记录。"
+      }
     }
   }
 }

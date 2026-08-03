@@ -10829,6 +10829,17 @@ type EnvelopedPlatformBackupListResponse struct {
 	TraceId string `json:"traceId"`
 }
 
+// EnvelopedPlatformNetworkDiagnosticHistory defines model for enveloped-platform-network-diagnostic-history.
+type EnvelopedPlatformNetworkDiagnosticHistory struct {
+	Code string `json:"code"`
+
+	// Data Bounded persisted diagnostic history for one fixed registered outbound-network target.
+	Data    PlatformNetworkDiagnosticHistory `json:"data"`
+	Message string                           `json:"message"`
+	Success bool                             `json:"success"`
+	TraceId string                           `json:"traceId"`
+}
+
 // EnvelopedPlatformNetworkDiagnosticResult defines model for enveloped-platform-network-diagnostic-result.
 type EnvelopedPlatformNetworkDiagnosticResult struct {
 	Code string `json:"code"`
@@ -12005,6 +12016,18 @@ type PlatformBackupSummaryStatus string
 // PlatformDeploymentStrategy Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
 type PlatformDeploymentStrategy string
 
+// PlatformNetworkConsumer A module explicitly registered as a consumer of the platform outbound-network policy.
+type PlatformNetworkConsumer struct {
+	Id       string `json:"id"`
+	TitleKey string `json:"title_key"`
+}
+
+// PlatformNetworkDiagnosticHistory Bounded persisted diagnostic history for one fixed registered outbound-network target.
+type PlatformNetworkDiagnosticHistory struct {
+	Items    []PlatformNetworkDiagnosticResult `json:"items"`
+	TargetId string                            `json:"target_id"`
+}
+
 // PlatformNetworkDiagnosticResult Sanitized evidence from one bounded outbound-network diagnostic execution.
 type PlatformNetworkDiagnosticResult struct {
 	// Error Sanitized failure summary without URLs, proxy values, credentials, or upstream response bodies.
@@ -12066,6 +12089,8 @@ type PlatformNetworkOutboundPolicySource string
 
 // PlatformNetworkOverview defines model for platform-network-overview.
 type PlatformNetworkOverview struct {
+	// Consumers Modules explicitly registered as consumers of the effective platform outbound-network policy.
+	Consumers         []PlatformNetworkConsumer         `json:"consumers"`
 	DiagnosticTargets []PlatformNetworkDiagnosticTarget `json:"diagnostic_targets"`
 
 	// Policy Effective platform outbound-network policy and its configuration source.
@@ -16148,6 +16173,18 @@ type PutPlatformNetworkOutboundParams struct {
 
 // PostPlatformNetworkDiagnosticParams defines parameters for PostPlatformNetworkDiagnostic.
 type PostPlatformNetworkDiagnosticParams struct {
+	// XGraftLocale Explicit locale override header already supported by the runtime.
+	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
+
+	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+	// through the response header and envelope traceId field.
+	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+}
+
+// GetPlatformNetworkDiagnosticHistoryParams defines parameters for GetPlatformNetworkDiagnosticHistory.
+type GetPlatformNetworkDiagnosticHistoryParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
 	// XGraftLocale Explicit locale override header already supported by the runtime.
 	XGraftLocale *LocaleHeader `json:"X-Graft-Locale,omitempty"`
 

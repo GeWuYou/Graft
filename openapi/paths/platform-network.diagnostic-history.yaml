@@ -1,0 +1,27 @@
+get:
+  tags: [platform-network]
+  summary: Read bounded persisted history for one fixed outbound-network diagnostic target
+  operationId: getPlatformNetworkDiagnosticHistory
+  security: [{ bearerAuth: [] }]
+  parameters:
+    - $ref: ../components/parameters/locale-header.yaml
+    - $ref: ../components/parameters/request-id-header.yaml
+    - name: targetId
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    - name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    '200':
+      description: Recent sanitized diagnostic results in descending completion order.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/enveloped-platform-network-diagnostic-history.yaml }
+    '401': { $ref: ../components/responses/unauthorized.yaml }
+    '403': { $ref: ../components/responses/forbidden.yaml }
+    '404': { description: Diagnostic target not registered. }

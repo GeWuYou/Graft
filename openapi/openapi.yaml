@@ -231,6 +231,8 @@ paths:
     $ref: ./paths/platform-network.reset.yaml
   /api/platform/network/outbound/diagnostics/{targetId}:
     $ref: ./paths/platform-network.diagnostic.yaml
+  /api/platform/network/outbound/diagnostics/{targetId}/history:
+    $ref: ./paths/platform-network.diagnostic-history.yaml
   /api/platform/updates/status:
     $ref: ./paths/platform-updates.status.yaml
   /api/platform/updates/check:
@@ -778,14 +780,20 @@ components:
       $ref: ./components/schemas/platform-network-outbound-policy.yaml
     PlatformNetworkDiagnosticTarget:
       $ref: ./components/schemas/platform-network-diagnostic-target.yaml
+    PlatformNetworkConsumer:
+      $ref: ./components/schemas/platform-network-consumer.yaml
     PlatformNetworkOverview:
       $ref: ./components/schemas/platform-network-overview.yaml
     PlatformNetworkDiagnosticResult:
       $ref: ./components/schemas/platform-network-diagnostic-result.yaml
+    PlatformNetworkDiagnosticHistory:
+      $ref: ./components/schemas/platform-network-diagnostic-history.yaml
     EnvelopedPlatformNetworkOverview:
       $ref: ./components/schemas/enveloped-platform-network-overview.yaml
     EnvelopedPlatformNetworkDiagnosticResult:
       $ref: ./components/schemas/enveloped-platform-network-diagnostic-result.yaml
+    EnvelopedPlatformNetworkDiagnosticHistory:
+      $ref: ./components/schemas/enveloped-platform-network-diagnostic-history.yaml
     PlatformUpdateStatus:
       $ref: ./components/schemas/platform-update-status.yaml
     PlatformDeploymentStrategy:

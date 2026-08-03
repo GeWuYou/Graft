@@ -332,6 +332,8 @@ func toModuleConfigValue(snapshot ValueSnapshot) moduleapi.ModuleConfigValue {
 		DefaultValue:   cloneRawMessage(snapshot.DefaultValue),
 		OverrideValue:  cloneRawMessage(snapshot.OverrideValue),
 		HasOverride:    snapshot.HasOverride,
+		UpdatedAt:      cloneTimePointer(snapshot.UpdatedAt),
+		UpdatedByName:  snapshot.UpdatedByName,
 	}
 }
 
@@ -617,6 +619,14 @@ func cloneUint64Pointer(value *uint64) *uint64 {
 		return nil
 	}
 	cloned := *value
+	return &cloned
+}
+
+func cloneTimePointer(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	cloned := value.UTC()
 	return &cloned
 }
 

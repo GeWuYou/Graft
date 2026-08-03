@@ -1563,6 +1563,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/platform/network/outbound/diagnostics/{targetId}/history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read bounded persisted history for one fixed outbound-network diagnostic target */
+    get: operations['getPlatformNetworkDiagnosticHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/platform/updates/status': {
     parameters: {
       query?: never;
@@ -4207,10 +4224,13 @@ export interface components {
     PlatformNetworkOutboundConfig: components['schemas']['platform-network-outbound-config'];
     PlatformNetworkOutboundPolicy: components['schemas']['platform-network-outbound-policy'];
     PlatformNetworkDiagnosticTarget: components['schemas']['platform-network-diagnostic-target'];
+    PlatformNetworkConsumer: components['schemas']['platform-network-consumer'];
     PlatformNetworkOverview: components['schemas']['platform-network-overview'];
     PlatformNetworkDiagnosticResult: components['schemas']['platform-network-diagnostic-result'];
+    PlatformNetworkDiagnosticHistory: components['schemas']['platform-network-diagnostic-history'];
     EnvelopedPlatformNetworkOverview: components['schemas']['enveloped-platform-network-overview'];
     EnvelopedPlatformNetworkDiagnosticResult: components['schemas']['enveloped-platform-network-diagnostic-result'];
+    EnvelopedPlatformNetworkDiagnosticHistory: components['schemas']['enveloped-platform-network-diagnostic-history'];
     PlatformUpdateStatus: components['schemas']['platform-update-status'];
     PlatformDeploymentStrategy: components['schemas']['platform-deployment-strategy'];
     PlatformUpdateRelease: components['schemas']['platform-update-release'];
@@ -6760,9 +6780,16 @@ export interface components {
       id: string;
       title_key: string;
     };
+    /** @description A module explicitly registered as a consumer of the platform outbound-network policy. */
+    'platform-network-consumer': {
+      id: string;
+      title_key: string;
+    };
     'platform-network-overview': {
       policy: components['schemas']['platform-network-outbound-policy'];
       diagnostic_targets: components['schemas']['platform-network-diagnostic-target'][];
+      /** @description Modules explicitly registered as consumers of the effective platform outbound-network policy. */
+      consumers: components['schemas']['platform-network-consumer'][];
     };
     'enveloped-platform-network-overview': {
       success: boolean;
@@ -6797,6 +6824,18 @@ export interface components {
       message: string;
       traceId: string;
       data: components['schemas']['platform-network-diagnostic-result'];
+    };
+    /** @description Bounded persisted diagnostic history for one fixed registered outbound-network target. */
+    'platform-network-diagnostic-history': {
+      target_id: string;
+      items: components['schemas']['platform-network-diagnostic-result'][];
+    };
+    'enveloped-platform-network-diagnostic-history': {
+      success: boolean;
+      code: string;
+      message: string;
+      traceId: string;
+      data: components['schemas']['platform-network-diagnostic-history'];
     };
     /**
      * @description Deployment update strategy derived only from the injected GRAFT_IMAGE_TAG.
@@ -14409,6 +14448,48 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['enveloped-platform-network-diagnostic-result'];
+        };
+      };
+      401: components['responses']['unauthorized'];
+      403: components['responses']['forbidden'];
+      /** @description Diagnostic target not registered. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getPlatformNetworkDiagnosticHistory: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: {
+        /** @description Explicit locale override header already supported by the runtime. */
+        'X-Graft-Locale'?: components['parameters']['locale-header'];
+        /**
+         * @description Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
+         *     through the response header and envelope traceId field.
+         */
+        'X-Request-Id'?: components['parameters']['request-id-header'];
+      };
+      path: {
+        targetId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Recent sanitized diagnostic results in descending completion order. */
+      200: {
+        headers: {
+          'X-Request-Id': components['headers']['request-id'];
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['enveloped-platform-network-diagnostic-history'];
         };
       };
       401: components['responses']['unauthorized'];

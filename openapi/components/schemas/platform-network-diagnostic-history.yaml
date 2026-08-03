@@ -1,0 +1,12 @@
+type: object
+description: Bounded persisted diagnostic history for one fixed registered outbound-network target.
+required: [target_id, items]
+properties:
+  target_id:
+    type: string
+    maxLength: 128
+  items:
+    type: array
+    maxItems: 100
+    items:
+      $ref: ./platform-network-diagnostic-result.yaml
