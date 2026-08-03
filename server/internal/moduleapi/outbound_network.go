@@ -22,9 +22,9 @@ type ModuleConfigValue struct {
 // 调用方必须传入自己的稳定模块标识和配置 key。实现会拒绝非 module-managed 配置及 owner 不匹配的访问，
 // 防止业务模块绕过 System Config 的通用 API 或互相修改配置。
 type ModuleConfigManager interface {
-	GetModuleConfig(context.Context, string, string) (ModuleConfigValue, error)
-	UpdateModuleConfig(context.Context, string, string, json.RawMessage, *uint64) (ModuleConfigValue, error)
-	ResetModuleConfig(context.Context, string, string) (ModuleConfigValue, error)
+	GetModuleConfig(ctx context.Context, moduleName string, key string) (ModuleConfigValue, error)
+	UpdateModuleConfig(ctx context.Context, moduleName string, key string, value json.RawMessage, userID *uint64) (ModuleConfigValue, error)
+	ResetModuleConfig(ctx context.Context, moduleName string, key string) (ModuleConfigValue, error)
 }
 
 // OutboundNetworkPolicy 是平台 HTTP(S) 出站策略，不包含超时、重试或其他 HTTP client 行为。
@@ -39,7 +39,7 @@ type OutboundNetworkPolicy struct {
 //
 // 该能力只负责平台代理和绕过策略；Docker daemon、SMTP 和浏览器流量不属于此边界。
 type OutboundNetworkProvider interface {
-	CurrentOutboundNetworkPolicy(context.Context) (OutboundNetworkPolicy, error)
+	CurrentOutboundNetworkPolicy(ctx context.Context) (OutboundNetworkPolicy, error)
 }
 
 // OutboundHTTPClientOptions 是 HTTP client 行为选项。网络策略本身不承载这些字段。
@@ -70,7 +70,7 @@ func (e outboundHTTPClientOptionError) Error() string { return string(e) }
 
 // OutboundHTTPClientFactory 为平台主动 HTTP(S) 请求创建应用当前网络策略的 client。
 type OutboundHTTPClientFactory interface {
-	NewOutboundHTTPClient(context.Context, ...OutboundHTTPClientOption) (*http.Client, error)
+	NewOutboundHTTPClient(ctx context.Context, options ...OutboundHTTPClientOption) (*http.Client, error)
 }
 
 // OutboundDiagnosticTarget 是固定、注册式出站连通性诊断目标。
@@ -79,7 +79,7 @@ type OutboundHTTPClientFactory interface {
 type OutboundDiagnosticTarget interface {
 	Name() string
 	DisplayName() string
-	ExecuteOutboundDiagnostic(context.Context) (OutboundDiagnosticResult, error)
+	ExecuteOutboundDiagnostic(ctx context.Context) (OutboundDiagnosticResult, error)
 }
 
 // OutboundDiagnosticResult 是不含请求 URL、代理地址或凭据的诊断结果。
@@ -93,8 +93,8 @@ type OutboundDiagnosticResult struct {
 
 // OutboundDiagnosticRegistry 注册固定的网络诊断目标。
 type OutboundDiagnosticRegistry interface {
-	RegisterOutboundDiagnosticTarget(OutboundDiagnosticTarget) error
-	OutboundDiagnosticTarget(string) (OutboundDiagnosticTarget, bool)
+	RegisterOutboundDiagnosticTarget(target OutboundDiagnosticTarget) error
+	OutboundDiagnosticTarget(name string) (OutboundDiagnosticTarget, bool)
 	OutboundDiagnosticTargets() []OutboundDiagnosticTarget
 }
 
@@ -107,6 +107,6 @@ type OutboundNetworkConsumer interface {
 
 // OutboundNetworkConsumerRegistry 注册使用平台策略的模块消费者。
 type OutboundNetworkConsumerRegistry interface {
-	RegisterOutboundNetworkConsumer(OutboundNetworkConsumer) error
+	RegisterOutboundNetworkConsumer(consumer OutboundNetworkConsumer) error
 	OutboundNetworkConsumers() []OutboundNetworkConsumer
 }

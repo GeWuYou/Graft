@@ -92,7 +92,7 @@ func buildRuntimeServices(ctx *module.Context) (runtimeServices, *Service, error
 	}
 	diagnostics, consumers := NewDiagnosticRegistry(), NewConsumerRegistry()
 	runtime := runtimeServices{provider: provider, factory: factory, diagnostics: diagnostics, consumers: consumers}
-	return runtime, NewService(configs, diagnostics, consumers, repository), nil
+	return runtime, NewService(configs, diagnostics, consumers, repository, ctx.Logger), nil
 }
 
 func newSQLDiagnosticHistoryStore(ctx *module.Context) (DiagnosticHistoryStore, error) {

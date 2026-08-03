@@ -128,7 +128,7 @@ func normalizeNoProxy(values []string) ([]string, error) {
 		if value == "" {
 			return nil, fmt.Errorf("%w: no_proxy entries must not be empty", errInvalidOutboundPolicy)
 		}
-		if strings.ContainsAny(value, "\r\n, /@") {
+		if strings.ContainsAny(value, "\r\n, @") {
 			return nil, fmt.Errorf("%w: no_proxy entries must be individual values", errInvalidOutboundPolicy)
 		}
 		if err := validateNoProxyEntry(value); err != nil {
@@ -158,7 +158,8 @@ func validateNoProxyEntry(value string) error {
 	host := value
 	if strings.HasPrefix(host, "*.") {
 		host = strings.TrimPrefix(host, "*")
-	} else if strings.Contains(host, "*") {
+	}
+	if strings.Contains(host, "*") {
 		return fmt.Errorf("%w: no_proxy wildcard is invalid", errInvalidOutboundPolicy)
 	}
 	host = strings.TrimPrefix(host, ".")

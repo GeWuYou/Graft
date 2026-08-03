@@ -24,4 +24,10 @@ get:
           schema: { $ref: ../components/schemas/enveloped-platform-network-diagnostic-history.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
-    '404': { description: Diagnostic target not registered. }
+    '404':
+      description: Diagnostic target not registered.
+      headers:
+        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+      content:
+        application/json:
+          schema: { $ref: ../components/schemas/error-response.yaml }

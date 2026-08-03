@@ -1,4 +1,5 @@
 type: object
+additionalProperties: false
 description: Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
 required: [enabled, http_proxy, https_proxy, no_proxy]
 properties:

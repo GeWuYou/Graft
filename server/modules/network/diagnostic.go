@@ -38,7 +38,7 @@ func (r *ConsumerRegistry) RegisterOutboundNetworkConsumer(consumer moduleapi.Ou
 
 // OutboundNetworkConsumers 返回按稳定名称排序的消费者快照。
 func (r *ConsumerRegistry) OutboundNetworkConsumers() []moduleapi.OutboundNetworkConsumer {
-	if r == nil {
+	if r == nil || r.entries == nil {
 		return nil
 	}
 	entries := r.entries.items()

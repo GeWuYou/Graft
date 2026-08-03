@@ -66,6 +66,32 @@ func TestPlatformUpdateTaskOwnerAuthorizerFailsClosedForInvalidTaskOwner(t *test
 }
 
 func TestModuleRegisterRegistersPlatformUpdateTaskOwnerAuthorizer(t *testing.T) {
+	fixture := newPlatformUpdateRegisterTestContext(t)
+	instance := NewModule(&memoryOperationStore{}, failureDiagnosticStoreStub{}, nil)
+	if err := instance.Register(fixture.ctx); err != nil {
+		t.Fatalf("register platform update module: %v", err)
+	}
+	defer func() { _ = instance.Shutdown(nil) }()
+	if len(fixture.runtime.authorizers) != 1 || fixture.runtime.authorizers[0].OwnerType() != platformUpdateTaskOwnerType {
+		t.Fatalf("expected one platform update task owner authorizer, got %#v", fixture.runtime.authorizers)
+	}
+	if len(fixture.diagnostics.targets) != 1 || fixture.diagnostics.targets[0].Name() != platformUpdateDiagnosticTargetName {
+		t.Fatalf("expected one platform update diagnostic target, got %#v", fixture.diagnostics)
+	}
+	if len(fixture.consumers.consumers) != 1 || fixture.consumers.consumers[0].Name() != moduleID {
+		t.Fatalf("expected one platform update outbound network consumer, got %#v", fixture.consumers)
+	}
+}
+
+type platformUpdateRegisterTestFixture struct {
+	ctx         *module.Context
+	runtime     *updateTaskRuntimeStub
+	diagnostics *outboundDiagnosticRegistryStub
+	consumers   *outboundNetworkConsumerRegistryStub
+}
+
+func newPlatformUpdateRegisterTestContext(t *testing.T) platformUpdateRegisterTestFixture {
+	t.Helper()
 	services := container.New()
 	runtime := &updateTaskRuntimeStub{}
 	if err := services.RegisterSingleton((*moduleapi.TaskService)(nil), func(container.Resolver) (any, error) { return runtime, nil }); err != nil {
@@ -85,6 +111,17 @@ func TestModuleRegisterRegistersPlatformUpdateTaskOwnerAuthorizer(t *testing.T) 
 	if err := services.RegisterSingleton((*moduleapi.DeploymentRuntime)(nil), func(container.Resolver) (any, error) { return deploymentRuntime, nil }); err != nil {
 		t.Fatalf("register deployment runtime: %v", err)
 	}
+	diagnostics := &outboundDiagnosticRegistryStub{}
+	if err := services.RegisterSingleton((*moduleapi.OutboundHTTPClientFactory)(nil), func(container.Resolver) (any, error) { return &outboundClientFactoryStub{}, nil }); err != nil {
+		t.Fatalf("register outbound HTTP client factory: %v", err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.OutboundDiagnosticRegistry)(nil), func(container.Resolver) (any, error) { return diagnostics, nil }); err != nil {
+		t.Fatalf("register outbound diagnostic registry: %v", err)
+	}
+	consumers := &outboundNetworkConsumerRegistryStub{}
+	if err := services.RegisterSingleton((*moduleapi.OutboundNetworkConsumerRegistry)(nil), func(container.Resolver) (any, error) { return consumers, nil }); err != nil {
+		t.Fatalf("register outbound network consumer registry: %v", err)
+	}
 	localizer := i18n.MustNew(config.I18nConfig{DefaultLocale: "zh-CN", FallbackLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}})
 	resources, err := updatelocales.EmbeddedLocaleResources()
 	if err != nil {
@@ -93,15 +130,7 @@ func TestModuleRegisterRegistersPlatformUpdateTaskOwnerAuthorizer(t *testing.T) 
 	if err := localizer.RegisterEmbeddedLocaleResources(resources); err != nil {
 		t.Fatalf("register update locale resources: %v", err)
 	}
-
-	instance := NewModule(&memoryOperationStore{}, failureDiagnosticStoreStub{}, nil)
-	if err := instance.Register(&module.Context{Services: services, Config: &config.Config{Backup: config.BackupConfig{ArtifactRoot: "/var/lib/graft/backups"}}, I18n: localizer, PermissionRegistry: permission.NewRegistry(), MenuRegistry: menu.NewRegistry()}); err != nil {
-		t.Fatalf("register platform update module: %v", err)
-	}
-	defer func() { _ = instance.Shutdown(nil) }()
-	if len(runtime.authorizers) != 1 || runtime.authorizers[0].OwnerType() != platformUpdateTaskOwnerType {
-		t.Fatalf("expected one platform update task owner authorizer, got %#v", runtime.authorizers)
-	}
+	return platformUpdateRegisterTestFixture{ctx: &module.Context{Services: services, Config: &config.Config{Backup: config.BackupConfig{ArtifactRoot: "/var/lib/graft/backups"}}, I18n: localizer, PermissionRegistry: permission.NewRegistry(), MenuRegistry: menu.NewRegistry()}, runtime: runtime, diagnostics: diagnostics, consumers: consumers}
 }
 
 type recordingUpdateTaskAuthorizer struct {

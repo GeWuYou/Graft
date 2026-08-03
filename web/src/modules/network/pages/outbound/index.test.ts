@@ -1,30 +1,78 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { flushPromises, mount } from '@vue/test-utils';
+import { describe, expect, it, vi } from 'vitest';
+import { defineComponent, h } from 'vue';
 
-import { describe, expect, it } from 'vitest';
+import OutboundNetworkPage from './index.vue';
 
-const source = readFileSync(join(process.cwd(), 'src/modules/network/pages/outbound/index.vue'), 'utf8');
+const apiMocks = vi.hoisted(() => ({
+  diagnoseOutboundNetwork: vi.fn(),
+  getOutboundNetworkDiagnosticHistory: vi.fn(),
+  getOutboundNetworkPolicy: vi.fn(),
+  resetOutboundNetworkPolicy: vi.fn(),
+  updateOutboundNetworkPolicy: vi.fn(),
+}));
+
+vi.mock('../../api/outbound', () => apiMocks);
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
+  useI18n: () => ({
+    locale: { value: 'en-US' },
+    t: (key: string) => key,
+  }),
+}));
+vi.mock('@/shared/components/management', () => ({ formatCompactDateTime: (value: string) => value }));
+
+const pageHeaderStub = defineComponent({
+  setup(_, { slots }) {
+    return () => h('header', slots.default?.());
+  },
+});
+
+const policyResponse = () => ({
+  policy: {
+    config: { enabled: false, http_proxy: '', https_proxy: '', no_proxy: [] },
+    source: 'default' as const,
+    updated_at: null,
+    updated_by_name: null,
+  },
+  diagnostic_targets: [{ id: 'platform-update', title_key: 'network.diagnosticTargets.platformUpdate' }],
+  consumers: [],
+});
+
+function mountPage() {
+  apiMocks.getOutboundNetworkPolicy.mockResolvedValue(policyResponse());
+  apiMocks.getOutboundNetworkDiagnosticHistory.mockResolvedValue({ items: [] });
+  return mount(OutboundNetworkPage, {
+    global: {
+      stubs: { PageHeader: pageHeaderStub },
+    },
+  });
+}
 
 describe('outbound network settings page', () => {
-  it('organizes overview, runtime, routing, and persisted diagnostics into one settings surface', () => {
-    expect(source).toContain('data-page-type="settings"');
-    expect(source).toContain("t('network.outbound.resetToDefault')");
-    expect(source).toContain("t('network.outbound.overview.kicker')");
-    expect(source).toContain("t('network.outbound.runtime.title')");
-    expect(source).toContain("t('network.outbound.routing.title')");
-    expect(source).toContain("t('network.outbound.diagnostics.history')");
-    expect(source).toContain('diagnoseOutboundNetwork');
-    expect(source).toContain('getOutboundNetworkDiagnosticHistory');
-    expect(source).not.toContain('platform-update-release');
-    expect(source).not.toContain('diagnosticUrl');
+  it('renders the settings surface and loads empty diagnostic history', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.attributes('data-page-type')).toBe('settings');
+    expect(wrapper.text()).toContain('network.outbound.overview.kicker');
+    expect(wrapper.html()).toContain('network.outbound.runtime.title');
+    expect(wrapper.html()).toContain('network.outbound.routing.title');
+    expect(wrapper.text()).toContain('network.outbound.diagnostics.noHistory');
+    expect(apiMocks.getOutboundNetworkDiagnosticHistory).toHaveBeenCalledWith('platform-update', 5);
+    expect(wrapper.html()).not.toContain('platform-update-release');
+    expect(wrapper.html()).not.toContain('diagnosticUrl');
   });
 
-  it('keeps policy scope beneath the page header and places runtime beside configuration', () => {
-    const scopeIndex = source.indexOf('class="outbound-network-page__scope"');
-    const workspaceIndex = source.indexOf('class="outbound-network-page__workspace"');
+  it('runs a diagnostic from the rendered action', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    apiMocks.diagnoseOutboundNetwork.mockResolvedValue({});
+    apiMocks.getOutboundNetworkDiagnosticHistory.mockResolvedValue({ items: [] });
 
-    expect(scopeIndex).toBeGreaterThan(source.indexOf('<page-header'));
-    expect(scopeIndex).toBeLessThan(workspaceIndex);
-    expect(source).toContain('grid-template-columns: minmax(0, 8fr) minmax(19rem, 4fr)');
+    await wrapper.find('.outbound-network-page__diagnostic-action').trigger('click');
+    await flushPromises();
+
+    expect(apiMocks.diagnoseOutboundNetwork).toHaveBeenCalledWith('platform-update');
   });
 });

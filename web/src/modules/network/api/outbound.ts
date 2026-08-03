@@ -3,10 +3,10 @@ import type { paths } from '@/contracts/openapi/generated/schema';
 import { request } from '@/utils/request';
 
 import type {
+  OutboundNetworkConfig,
   OutboundNetworkDiagnostic,
   OutboundNetworkDiagnosticHistory,
-  OutboundNetworkPolicy,
-  OutboundNetworkPolicyResponse,
+  OutboundNetworkOverview,
 } from '../types/outbound';
 
 type GetOutboundOperation = paths[typeof OPENAPI_RUNTIME_PATH.getPlatformNetworkOutbound]['get'];
@@ -26,18 +26,18 @@ type DiagnosticHistoryData = NonNullable<
 export function getOutboundNetworkPolicy() {
   return request.get<GetOutboundData>({
     url: OPENAPI_RUNTIME_PATH.getPlatformNetworkOutbound,
-  }) as Promise<OutboundNetworkPolicyResponse>;
+  }) as Promise<OutboundNetworkOverview>;
 }
-export function updateOutboundNetworkPolicy(policy: OutboundNetworkPolicy) {
+export function updateOutboundNetworkPolicy(policy: OutboundNetworkConfig) {
   return request.put<PutOutboundData>({
     url: OPENAPI_RUNTIME_PATH.putPlatformNetworkOutbound,
     data: policy as PutOutboundBody,
-  }) as Promise<OutboundNetworkPolicyResponse>;
+  }) as Promise<OutboundNetworkOverview>;
 }
 export function resetOutboundNetworkPolicy() {
   return request.post<ResetOutboundData>({
     url: OPENAPI_RUNTIME_PATH.resetPlatformNetworkOutbound,
-  }) as Promise<OutboundNetworkPolicyResponse>;
+  }) as Promise<OutboundNetworkOverview>;
 }
 export function diagnoseOutboundNetwork(targetId: string) {
   return request.post<DiagnosticData>({

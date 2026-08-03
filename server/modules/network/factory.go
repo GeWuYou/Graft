@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/net/http/httpproxy"
 
@@ -14,7 +16,10 @@ import (
 
 // HTTPClientFactory 使用当前平台网络策略创建独立 HTTP client；它不会读取或修改进程环境变量。
 type HTTPClientFactory struct {
-	provider moduleapi.OutboundNetworkProvider
+	provider  moduleapi.OutboundNetworkProvider
+	mu        sync.Mutex
+	policy    string
+	transport *http.Transport
 }
 
 // NewHTTPClientFactory 创建出站 HTTP client factory。
@@ -43,13 +48,37 @@ func (f *HTTPClientFactory) NewOutboundHTTPClient(ctx context.Context, options .
 			return nil, err
 		}
 	}
-	transport, ok := http.DefaultTransport.(*http.Transport)
+	transport, err := f.transportForPolicy(policy)
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{Transport: transport, Timeout: configured.Timeout}, nil
+}
+
+func (f *HTTPClientFactory) transportForPolicy(policy moduleapi.OutboundNetworkPolicy) (*http.Transport, error) {
+	// 按完整策略指纹复用连接池；策略热更新时只关闭旧 transport 的空闲连接，避免影响已在途请求。
+	fingerprint := outboundPolicyFingerprint(policy)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.transport != nil && f.policy == fingerprint {
+		return f.transport, nil
+	}
+	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return nil, errors.New("default HTTP transport has unexpected type")
 	}
-	cloned := transport.Clone()
-	cloned.Proxy = proxyFunc(policy)
-	return &http.Client{Transport: cloned, Timeout: configured.Timeout}, nil
+	transport := base.Clone()
+	transport.Proxy = proxyFunc(policy)
+	previous := f.transport
+	f.transport, f.policy = transport, fingerprint
+	if previous != nil {
+		previous.CloseIdleConnections()
+	}
+	return transport, nil
+}
+
+func outboundPolicyFingerprint(policy moduleapi.OutboundNetworkPolicy) string {
+	return strings.Join([]string{strconv.FormatBool(policy.Enabled), policy.HTTPProxy, policy.HTTPSProxy, strings.Join(policy.NoProxy, "\x00")}, "\x00")
 }
 
 func proxyFunc(policy moduleapi.OutboundNetworkPolicy) func(*http.Request) (*url.URL, error) {

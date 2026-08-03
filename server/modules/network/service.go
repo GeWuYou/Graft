@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"graft/server/internal/moduleapi"
 )
 
@@ -22,11 +24,12 @@ type Service struct {
 	diagnostics moduleapi.OutboundDiagnosticRegistry
 	consumers   moduleapi.OutboundNetworkConsumerRegistry
 	history     DiagnosticHistoryStore
+	logger      *zap.Logger
 }
 
 // NewService 创建 Network 模块服务。
-func NewService(configs moduleapi.ModuleConfigManager, diagnostics moduleapi.OutboundDiagnosticRegistry, consumers moduleapi.OutboundNetworkConsumerRegistry, history DiagnosticHistoryStore) *Service {
-	return &Service{configs: configs, diagnostics: diagnostics, consumers: consumers, history: history}
+func NewService(configs moduleapi.ModuleConfigManager, diagnostics moduleapi.OutboundDiagnosticRegistry, consumers moduleapi.OutboundNetworkConsumerRegistry, history DiagnosticHistoryStore, logger *zap.Logger) *Service {
+	return &Service{configs: configs, diagnostics: diagnostics, consumers: consumers, history: history, logger: logger}
 }
 
 // Overview 读取当前有效策略及可执行的固定诊断目标。
@@ -79,21 +82,31 @@ func (s *Service) Diagnose(ctx context.Context, targetName string) (moduleapi.Ou
 	if s == nil || s.diagnostics == nil || s.history == nil {
 		return moduleapi.OutboundDiagnosticResult{}, errors.New("platform network service is unavailable")
 	}
-	target, ok := s.diagnostics.OutboundDiagnosticTarget(strings.TrimSpace(targetName))
+	targetName = strings.TrimSpace(targetName)
+	target, ok := s.diagnostics.OutboundDiagnosticTarget(targetName)
 	if !ok {
 		return moduleapi.OutboundDiagnosticResult{}, errDiagnosticTargetNotFound
 	}
 	result, err := target.ExecuteOutboundDiagnostic(ctx)
 	if err != nil {
+		s.logDiagnosticFailure("outbound diagnostic execution failed", targetName, err)
 		result = moduleapi.OutboundDiagnosticResult{TestedAt: time.Now().UTC(), Message: errDiagnosticExecutionFailed.Error()}
 	}
 	if result.TestedAt.IsZero() {
 		result.TestedAt = time.Now().UTC()
 	}
-	if err := s.history.Append(ctx, strings.TrimSpace(targetName), result); err != nil {
-		return moduleapi.OutboundDiagnosticResult{}, err
+	if err := s.history.Append(ctx, targetName, result); err != nil {
+		s.logDiagnosticFailure("persist outbound diagnostic history failed", targetName, err)
+		return result, fmt.Errorf("persist outbound diagnostic history: %w", err)
 	}
 	return result, nil
+}
+
+func (s *Service) logDiagnosticFailure(message string, targetName string, err error) {
+	if s.logger == nil {
+		return
+	}
+	s.logger.Error(message, zap.String("module", moduleID), zap.String("target_id", targetName), zap.Error(err))
 }
 
 // DiagnosticHistory 读取固定注册目标的有限诊断历史，拒绝未注册目标以维持诊断边界。

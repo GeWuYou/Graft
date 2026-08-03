@@ -1,7 +1,7 @@
 menu.platform.network: Network
 network.outbound.title: Outbound Network
 network.outbound.description: Platform proxy and no-proxy policy for outbound HTTP(S) requests.
-network.outbound.authentication.description: Reserved for future Secret Management.
+network.outbound.authentication.description: Authentication is not supported; proxy credentials must remain outside this policy.
 network.diagnosticTargets.platformUpdate: Platform Update Service
 network.consumers.platformUpdate: Platform Update
 rbac.permissionCatalog.platform-network.read.display: View Outbound Network Policy

@@ -39,6 +39,9 @@ type Module struct {
 // NewModule 创建 platform-update 模块。
 func NewModule(operations OperationStore, diagnostics FailureDiagnosticStore, cache DiscoveryCache) *Module {
 	repository := os.Getenv("GRAFT_UPDATE_RELEASE_REPOSITORY")
+	if repository == "" {
+		repository = defaultReleaseRepository
+	}
 	return &Module{service: NewServiceWithCache(GitHubReleaseProvider{Repository: repository}, cache), operations: operations, diagnostics: diagnostics, repository: repository}
 }
 
@@ -85,10 +88,6 @@ func (m *Module) Register(ctx *module.Context) error {
 func (m *Module) configureOutboundNetwork(ctx *module.Context) error {
 	factory, err := module.ResolveService[moduleapi.OutboundHTTPClientFactory](ctx.Services, (*moduleapi.OutboundHTTPClientFactory)(nil))
 	if err != nil {
-		if errors.Is(err, container.ErrServiceNotRegistered) {
-			// 独立模块单测可不装配完整模块图；真实运行时由 platform-network 依赖保证此能力存在。
-			return nil
-		}
 		return fmt.Errorf("resolve outbound HTTP client factory: %w", err)
 	}
 	diagnostics, err := module.ResolveService[moduleapi.OutboundDiagnosticRegistry](ctx.Services, (*moduleapi.OutboundDiagnosticRegistry)(nil))

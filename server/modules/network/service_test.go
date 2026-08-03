@@ -3,8 +3,13 @@ package network
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 
 	"graft/server/internal/moduleapi"
 )
@@ -19,7 +24,7 @@ func TestServiceOverviewIncludesRealOverrideAttributionAndRegisteredConsumers(t 
 	if err := consumers.RegisterOutboundNetworkConsumer(outboundConsumerStub{name: "platform-update"}); err != nil {
 		t.Fatalf("register consumer: %v", err)
 	}
-	service := NewService(moduleConfigManagerStub{value: moduleapi.ModuleConfigValue{EffectiveValue: json.RawMessage(`{"enabled":false,"http_proxy":"","https_proxy":"","no_proxy":[]}`), HasOverride: true, UpdatedAt: &updatedAt, UpdatedByName: "Graft Admin"}}, diagnostics, consumers, &diagnosticHistoryStoreStub{})
+	service := NewService(&moduleConfigManagerStub{value: moduleapi.ModuleConfigValue{EffectiveValue: json.RawMessage(`{"enabled":false,"http_proxy":"","https_proxy":"","no_proxy":[]}`), HasOverride: true, UpdatedAt: &updatedAt, UpdatedByName: "Graft Admin"}}, diagnostics, consumers, &diagnosticHistoryStoreStub{}, nil)
 	overview, err := service.Overview(context.Background())
 	if err != nil {
 		t.Fatalf("overview: %v", err)
@@ -43,7 +48,8 @@ func TestServiceDiagnosePersistsSanitizedExecutionFailure(t *testing.T) {
 		t.Fatalf("register diagnostic target: %v", err)
 	}
 	history := &diagnosticHistoryStoreStub{}
-	service := NewService(nil, diagnostics, NewConsumerRegistry(), history)
+	core, observed := observer.New(zap.ErrorLevel)
+	service := NewService(nil, diagnostics, NewConsumerRegistry(), history, zap.New(core))
 	result, err := service.Diagnose(context.Background(), "target")
 	if err != nil {
 		t.Fatalf("diagnose: %v", err)
@@ -54,15 +60,67 @@ func TestServiceDiagnosePersistsSanitizedExecutionFailure(t *testing.T) {
 	if history.appendedTarget != "target" || history.appended.Message != result.Message {
 		t.Fatalf("expected persisted sanitized diagnostic, got %#v", history)
 	}
+	if observed.Len() != 1 || observed.All()[0].Message != "outbound diagnostic execution failed" {
+		t.Fatalf("expected raw execution failure to be logged, got %#v", observed.All())
+	}
 }
 
-type moduleConfigManagerStub struct{ value moduleapi.ModuleConfigValue }
+func TestServiceDiagnoseRejectsUnregisteredTarget(t *testing.T) {
+	service := NewService(nil, NewDiagnosticRegistry(), NewConsumerRegistry(), &diagnosticHistoryStoreStub{}, nil)
+	if _, err := service.Diagnose(context.Background(), "missing"); !errors.Is(err, errDiagnosticTargetNotFound) {
+		t.Fatalf("expected unregistered target to be rejected, got %v", err)
+	}
+}
+
+func TestServiceDiagnosticHistoryRejectsUnregisteredTargetBeforeStoreRead(t *testing.T) {
+	history := &diagnosticHistoryStoreStub{}
+	service := NewService(nil, NewDiagnosticRegistry(), NewConsumerRegistry(), history, nil)
+	if _, err := service.DiagnosticHistory(context.Background(), "missing", 20); !errors.Is(err, errDiagnosticTargetNotFound) {
+		t.Fatalf("expected unregistered target to be rejected, got %v", err)
+	}
+	if history.listCalled {
+		t.Fatal("expected history store not to be read for unregistered target")
+	}
+}
+
+func TestServiceUpdateRejectsInvalidPolicyBeforeWrite(t *testing.T) {
+	configs := &moduleConfigManagerStub{}
+	service := NewService(configs, NewDiagnosticRegistry(), NewConsumerRegistry(), &diagnosticHistoryStoreStub{}, nil)
+	if _, err := service.Update(context.Background(), moduleapi.OutboundNetworkPolicy{Enabled: true, HTTPProxy: "socks5://proxy.example:1080", NoProxy: []string{}}, nil); !errors.Is(err, errInvalidOutboundPolicy) {
+		t.Fatalf("expected invalid policy to be rejected, got %v", err)
+	}
+	if configs.updateCalled {
+		t.Fatal("expected invalid policy not to be persisted")
+	}
+}
+
+func TestServiceDiagnoseReturnsCompletedResultWhenHistoryPersistenceFails(t *testing.T) {
+	diagnostics := NewDiagnosticRegistry()
+	if err := diagnostics.RegisterOutboundDiagnosticTarget(diagnosticTargetStub{name: "target"}); err != nil {
+		t.Fatalf("register diagnostic target: %v", err)
+	}
+	history := &diagnosticHistoryStoreStub{appendErr: errors.New("database unavailable")}
+	service := NewService(nil, diagnostics, NewConsumerRegistry(), history, nil)
+	result, err := service.Diagnose(context.Background(), "target")
+	if err == nil || !strings.Contains(err.Error(), "persist outbound diagnostic history") {
+		t.Fatalf("expected contextual history error, got %v", err)
+	}
+	if result.TestedAt.IsZero() {
+		t.Fatalf("expected completed diagnostic result, got %#v", result)
+	}
+}
+
+type moduleConfigManagerStub struct {
+	value        moduleapi.ModuleConfigValue
+	updateCalled bool
+}
 
 func (s moduleConfigManagerStub) GetModuleConfig(context.Context, string, string) (moduleapi.ModuleConfigValue, error) {
 	return s.value, nil
 }
-func (moduleConfigManagerStub) UpdateModuleConfig(context.Context, string, string, json.RawMessage, *uint64) (moduleapi.ModuleConfigValue, error) {
-	return moduleapi.ModuleConfigValue{}, nil
+func (s *moduleConfigManagerStub) UpdateModuleConfig(context.Context, string, string, json.RawMessage, *uint64) (moduleapi.ModuleConfigValue, error) {
+	s.updateCalled = true
+	return s.value, nil
 }
 func (moduleConfigManagerStub) ResetModuleConfig(context.Context, string, string) (moduleapi.ModuleConfigValue, error) {
 	return moduleapi.ModuleConfigValue{}, nil
@@ -71,13 +129,16 @@ func (moduleConfigManagerStub) ResetModuleConfig(context.Context, string, string
 type diagnosticHistoryStoreStub struct {
 	appendedTarget string
 	appended       moduleapi.OutboundDiagnosticResult
+	appendErr      error
+	listCalled     bool
 }
 
 func (s *diagnosticHistoryStoreStub) Append(_ context.Context, target string, result moduleapi.OutboundDiagnosticResult) error {
 	s.appendedTarget, s.appended = target, result
-	return nil
+	return s.appendErr
 }
-func (*diagnosticHistoryStoreStub) List(context.Context, string, int) ([]moduleapi.OutboundDiagnosticResult, error) {
+func (s *diagnosticHistoryStoreStub) List(context.Context, string, int) ([]moduleapi.OutboundDiagnosticResult, error) {
+	s.listCalled = true
 	return nil, nil
 }
 

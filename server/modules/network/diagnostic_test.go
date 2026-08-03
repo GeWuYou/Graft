@@ -23,6 +23,13 @@ func TestDiagnosticRegistryRejectsDuplicateTargetAndReturnsSortedSnapshot(t *tes
 	}
 }
 
+func TestConsumerRegistryZeroValueReturnsEmptySnapshot(t *testing.T) {
+	var registry ConsumerRegistry
+	if consumers := registry.OutboundNetworkConsumers(); consumers != nil {
+		t.Fatalf("expected zero-value registry to return nil snapshot, got %#v", consumers)
+	}
+}
+
 type diagnosticTargetStub struct{ name string }
 
 func (s diagnosticTargetStub) Name() string        { return s.name }

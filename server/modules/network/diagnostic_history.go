@@ -11,7 +11,10 @@ import (
 	"graft/server/internal/moduleapi"
 )
 
-const maxDiagnosticHistoryLimit = 100
+const (
+	maxDiagnosticHistoryLimit        = 100
+	maxDiagnosticHistoryMessageRunes = 512
+)
 
 // DiagnosticHistoryStore 持久化并按目标读取经净化的出站诊断结果。
 type DiagnosticHistoryStore interface {
@@ -45,7 +48,7 @@ func (s *SQLDiagnosticHistoryStore) Append(ctx context.Context, targetID string,
 	}
 	var message any
 	if result.Message != "" {
-		message = result.Message
+		message = truncateDiagnosticHistoryMessage(result.Message)
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO platform_network_diagnostic_history
 		(target_id, connected, latency_ms, http_status, error_message, tested_at)
@@ -54,6 +57,15 @@ func (s *SQLDiagnosticHistoryStore) Append(ctx context.Context, targetID string,
 		return fmt.Errorf("append outbound diagnostic history: %w", err)
 	}
 	return nil
+}
+
+func truncateDiagnosticHistoryMessage(value string) string {
+	// 数据库列按字符数限制，使用 rune 截断可避免把多字节 UTF-8 字符切成非法序列。
+	runes := []rune(value)
+	if len(runes) <= maxDiagnosticHistoryMessageRunes {
+		return value
+	}
+	return string(runes[:maxDiagnosticHistoryMessageRunes])
 }
 
 // List 返回目标的最近诊断历史，按完成时间与主键倒序稳定排列。

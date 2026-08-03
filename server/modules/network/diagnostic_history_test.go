@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,5 +58,29 @@ func TestSQLDiagnosticHistoryStoreRejectsUnboundedList(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unexpected SQL for invalid list: %v", err)
+	}
+}
+
+func TestSQLDiagnosticHistoryStoreTruncatesMessageByRunes(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("open sql mock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	store, err := NewSQLDiagnosticHistoryStore(db)
+	if err != nil {
+		t.Fatalf("new store: %v", err)
+	}
+	testedAt := time.Date(2026, 8, 3, 12, 0, 0, 0, time.UTC)
+	message := strings.Repeat("诊", maxDiagnosticHistoryMessageRunes+1)
+	truncated := strings.Repeat("诊", maxDiagnosticHistoryMessageRunes)
+	mock.ExpectExec("INSERT INTO platform_network_diagnostic_history").
+		WithArgs("platform-update-release", false, int64(0), nil, truncated, testedAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	if err := store.Append(context.Background(), "platform-update-release", moduleapi.OutboundDiagnosticResult{Message: message, TestedAt: testedAt}); err != nil {
+		t.Fatalf("append history with long message: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet SQL expectations: %v", err)
 	}
 }

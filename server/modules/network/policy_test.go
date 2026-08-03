@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ func TestRegisterOutboundConfigDefinesModuleManagedRuntimeHotPolicy(t *testing.T
 func TestDecodeOutboundPolicyRejectsUnsupportedProxyForms(t *testing.T) {
 	for _, raw := range []string{
 		`{"enabled":true,"http_proxy":"socks5://proxy.example:1080","https_proxy":"","no_proxy":[]}`,
-		`{"enabled":true,"http_proxy":"http://user:secret@proxy.example:8080","https_proxy":"","no_proxy":[]}`,
+		`{"enabled":true,"http_proxy":"http://placeholder-user:placeholder-value@proxy.example:8080","https_proxy":"","no_proxy":[]}`,
 		`{"enabled":true,"http_proxy":"http://proxy.example:8080/path","https_proxy":"","no_proxy":[]}`,
 		`{"enabled":true,"http_proxy":"http://proxy.example:8080","https_proxy":"","no_proxy":[],"authentication":{}}`,
 	} {
@@ -69,11 +70,29 @@ func TestProxyFuncUsesGoNoProxyMatching(t *testing.T) {
 	}
 }
 
+func TestDecodeOutboundPolicyAcceptsCIDRNoProxyEntry(t *testing.T) {
+	policy, err := decodeOutboundPolicy(json.RawMessage(`{"enabled":true,"http_proxy":"http://proxy.example:8080","https_proxy":"","no_proxy":["10.0.0.0/8"]}`))
+	if err != nil {
+		t.Fatalf("decode policy with CIDR no_proxy entry: %v", err)
+	}
+	if len(policy.NoProxy) != 1 || policy.NoProxy[0] != "10.0.0.0/8" {
+		t.Fatalf("unexpected normalized no_proxy values: %#v", policy.NoProxy)
+	}
+}
+
 func TestDecodeOutboundPolicyRejectsMalformedNoProxyEntries(t *testing.T) {
-	for _, entry := range []string{"example.com:invalid", "10.0.0.0/99", "http://internal", "*.bad*example"} {
-		raw := json.RawMessage(`{"enabled":true,"http_proxy":"http://proxy.example:8080","https_proxy":"","no_proxy":["` + entry + `"]}`)
-		if _, err := decodeOutboundPolicy(raw); !errors.Is(err, errInvalidOutboundPolicy) {
-			t.Fatalf("expected malformed no_proxy entry %q to fail, got %v", entry, err)
+	for _, testCase := range []struct {
+		entry    string
+		expected string
+	}{
+		{entry: "example.com:invalid", expected: "no_proxy host-port is invalid"},
+		{entry: "10.0.0.0/99", expected: "no_proxy CIDR is invalid"},
+		{entry: "http://internal", expected: "no_proxy CIDR is invalid"},
+		{entry: "*.bad*example", expected: "no_proxy wildcard is invalid"},
+	} {
+		raw := json.RawMessage(`{"enabled":true,"http_proxy":"http://proxy.example:8080","https_proxy":"","no_proxy":["` + testCase.entry + `"]}`)
+		if _, err := decodeOutboundPolicy(raw); !errors.Is(err, errInvalidOutboundPolicy) || !strings.Contains(err.Error(), testCase.expected) {
+			t.Fatalf("expected malformed no_proxy entry %q to fail with %q, got %v", testCase.entry, testCase.expected, err)
 		}
 	}
 }
@@ -100,8 +119,43 @@ func TestHTTPClientFactoryDoesNotUseEnvironmentProxy(t *testing.T) {
 	}
 }
 
+func TestHTTPClientFactoryReusesTransportUntilPolicyChanges(t *testing.T) {
+	provider := &mutableOutboundNetworkProvider{policy: moduleapi.OutboundNetworkPolicy{Enabled: true, HTTPProxy: "http://proxy.example:8080"}}
+	factory, err := NewHTTPClientFactory(provider)
+	if err != nil {
+		t.Fatalf("new factory: %v", err)
+	}
+	first, err := factory.NewOutboundHTTPClient(context.Background())
+	if err != nil {
+		t.Fatalf("new first client: %v", err)
+	}
+	second, err := factory.NewOutboundHTTPClient(context.Background())
+	if err != nil {
+		t.Fatalf("new second client: %v", err)
+	}
+	if first.Transport != second.Transport {
+		t.Fatal("expected unchanged policy to reuse its transport")
+	}
+	provider.policy.NoProxy = []string{"localhost"}
+	replaced, err := factory.NewOutboundHTTPClient(context.Background())
+	if err != nil {
+		t.Fatalf("new replacement client: %v", err)
+	}
+	if first.Transport == replaced.Transport {
+		t.Fatal("expected changed policy to replace its transport")
+	}
+}
+
 type outboundNetworkProviderStub struct {
 	policy moduleapi.OutboundNetworkPolicy
+}
+
+type mutableOutboundNetworkProvider struct {
+	policy moduleapi.OutboundNetworkPolicy
+}
+
+func (s *mutableOutboundNetworkProvider) CurrentOutboundNetworkPolicy(context.Context) (moduleapi.OutboundNetworkPolicy, error) {
+	return s.policy, nil
 }
 
 func (s outboundNetworkProviderStub) CurrentOutboundNetworkPolicy(context.Context) (moduleapi.OutboundNetworkPolicy, error) {

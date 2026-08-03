@@ -20,7 +20,7 @@
         <t-button
           theme="default"
           variant="outline"
-          :disabled="source === 'default'"
+          :disabled="policySource === 'default'"
           :loading="resetting"
           @click="resetToDefault"
         >
@@ -254,11 +254,11 @@ import {
   updateOutboundNetworkPolicy,
 } from '../../api/outbound';
 import type {
+  OutboundNetworkConfig,
   OutboundNetworkConsumer,
   OutboundNetworkDiagnostic,
   OutboundNetworkDiagnosticTarget,
-  OutboundNetworkPolicy,
-  OutboundNetworkPolicyResponse,
+  OutboundNetworkOverview,
 } from '../../types/outbound';
 
 defineOptions({ name: 'OutboundNetworkPage' });
@@ -269,19 +269,19 @@ const saving = ref(false);
 const resetting = ref(false);
 const diagnosing = ref(false);
 const errorMessage = ref('');
-const source = ref<'default' | 'override'>('default');
+const policySource = ref<'default' | 'override'>('default');
 const selectedTargetID = ref('');
 const diagnosticTargets = ref<OutboundNetworkDiagnosticTarget[]>([]);
 const consumers = ref<OutboundNetworkConsumer[]>([]);
 const diagnosticHistory = ref<OutboundNetworkDiagnostic[]>([]);
-const form = reactive<OutboundNetworkPolicy>(createDefaultPolicy());
-const effectivePolicy = reactive<OutboundNetworkPolicy>(createDefaultPolicy());
+const form = reactive<OutboundNetworkConfig>(createDefaultPolicy());
+const effectivePolicy = reactive<OutboundNetworkConfig>(createDefaultPolicy());
 let savedPolicy = JSON.stringify(createDefaultPolicy());
 
 const dirty = computed(() => JSON.stringify(form) !== savedPolicy);
 const latestDiagnostic = computed(() => diagnosticHistory.value[0] ?? null);
 const policySourceLabel = computed(() =>
-  source.value === 'override' ? t('network.outbound.sourceOverride') : t('network.outbound.sourceDefault'),
+  policySource.value === 'override' ? t('network.outbound.sourceOverride') : t('network.outbound.sourceDefault'),
 );
 const effectiveModeLabel = computed(() =>
   effectivePolicy.enabled ? t('network.outbound.routing.mode.proxy') : t('network.outbound.routing.mode.direct'),
@@ -342,23 +342,23 @@ const lastChangedLabel = computed(() => {
 const diagnosticTargetOptions = computed(() =>
   diagnosticTargets.value.map((target) => ({ label: t(target.title_key), value: target.id })),
 );
-const latestResponsePolicy = ref<OutboundNetworkPolicyResponse['policy'] | null>(null);
+const latestResponsePolicy = ref<OutboundNetworkOverview['policy'] | null>(null);
 
-function createDefaultPolicy(): OutboundNetworkPolicy {
+function createDefaultPolicy(): OutboundNetworkConfig {
   return { enabled: false, http_proxy: '', https_proxy: '', no_proxy: [] };
 }
 
-function copyPolicy(target: OutboundNetworkPolicy, sourcePolicy: OutboundNetworkPolicy) {
+function copyPolicy(target: OutboundNetworkConfig, sourcePolicy: OutboundNetworkConfig) {
   target.enabled = sourcePolicy.enabled;
   target.http_proxy = sourcePolicy.http_proxy;
   target.https_proxy = sourcePolicy.https_proxy;
   target.no_proxy = Array.isArray(sourcePolicy.no_proxy) ? [...sourcePolicy.no_proxy] : [];
 }
 
-function applyResponse(response: OutboundNetworkPolicyResponse) {
+function applyResponse(response: OutboundNetworkOverview) {
   copyPolicy(form, response.policy.config);
   copyPolicy(effectivePolicy, response.policy.config);
-  source.value = response.policy.source;
+  policySource.value = response.policy.source;
   latestResponsePolicy.value = response.policy;
   savedPolicy = JSON.stringify(form);
   diagnosticTargets.value = response.diagnostic_targets;
@@ -374,7 +374,7 @@ async function loadDiagnosticHistory() {
     return;
   }
   try {
-    diagnosticHistory.value = (await getOutboundNetworkDiagnosticHistory(selectedTargetID.value, 20)).items;
+    diagnosticHistory.value = (await getOutboundNetworkDiagnosticHistory(selectedTargetID.value, 5)).items;
   } catch {
     diagnosticHistory.value = [];
   }
@@ -387,7 +387,11 @@ async function load() {
     applyResponse(await getOutboundNetworkPolicy());
     await loadDiagnosticHistory();
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : t('network.outbound.loadFailed');
+    const messageKey =
+      error && typeof error === 'object' && 'messageKey' in error && typeof error.messageKey === 'string'
+        ? error.messageKey
+        : undefined;
+    errorMessage.value = messageKey && t(messageKey) !== messageKey ? t(messageKey) : t('network.outbound.loadFailed');
   } finally {
     loading.value = false;
   }
