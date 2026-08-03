@@ -44,7 +44,7 @@ jobs:
 
       - name: Initialize CodeQL for Go
         if: matrix.language == 'go'
-        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81
+        uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38
         with:
           languages: ${{ matrix.language }}
           queries: security-extended,security-and-quality
@@ -52,7 +52,7 @@ jobs:
 
       - name: Initialize CodeQL for JavaScript and TypeScript
         if: matrix.language == 'javascript-typescript'
-        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81
+        uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38
         with:
           languages: ${{ matrix.language }}
           queries: security-extended,security-and-quality
@@ -63,6 +63,6 @@ jobs:
         run: go build ./...
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81
+        uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38
         with:
           category: "/language:${{ matrix.language }}"
