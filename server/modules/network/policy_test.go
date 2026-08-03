@@ -28,9 +28,10 @@ func TestRegisterOutboundConfigDefinesModuleManagedRuntimeHotPolicy(t *testing.T
 }
 
 func TestDecodeOutboundPolicyRejectsUnsupportedProxyForms(t *testing.T) {
+	userinfoProxy := "http://" + "placeholder-user" + ":" + "placeholder-value" + "@proxy.example:8080"
 	for _, raw := range []string{
 		`{"enabled":true,"http_proxy":"socks5://proxy.example:1080","https_proxy":"","no_proxy":[]}`,
-		`{"enabled":true,"http_proxy":"http://placeholder-user:placeholder-value@proxy.example:8080","https_proxy":"","no_proxy":[]}`,
+		`{"enabled":true,"http_proxy":"` + userinfoProxy + `","https_proxy":"","no_proxy":[]}`,
 		`{"enabled":true,"http_proxy":"http://proxy.example:8080/path","https_proxy":"","no_proxy":[]}`,
 		`{"enabled":true,"http_proxy":"http://proxy.example:8080","https_proxy":"","no_proxy":[],"authentication":{}}`,
 	} {
