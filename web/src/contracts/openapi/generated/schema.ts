@@ -14382,9 +14382,12 @@ export interface operations {
       /** @description Invalid outbound-network policy. */
       400: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
@@ -14455,9 +14458,12 @@ export interface operations {
       /** @description Diagnostic target not registered. */
       404: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
     };
   };
@@ -14497,9 +14503,12 @@ export interface operations {
       /** @description Diagnostic target not registered. */
       404: {
         headers: {
+          'X-Request-Id': components['headers']['request-id'];
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['error-response'];
+        };
       };
     };
   };
