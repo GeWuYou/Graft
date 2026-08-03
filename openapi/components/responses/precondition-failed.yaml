@@ -1,0 +1,7 @@
+description: The Module Config changed after the client read it.
+headers:
+  X-Request-Id: { $ref: ../headers/request-id.yaml }
+  ETag: { $ref: ../headers/etag.yaml }
+content:
+  application/json:
+    schema: { $ref: ../schemas/error-response.yaml }

@@ -45,7 +45,7 @@ const policyResponse = () => ({
 });
 
 function mountPage() {
-  apiMocks.getOutboundNetworkPolicy.mockResolvedValue(policyResponse());
+  apiMocks.getOutboundNetworkPolicy.mockResolvedValue({ data: policyResponse(), etag: '"0"' });
   apiMocks.getOutboundNetworkDiagnosticHistory.mockResolvedValue({ items: [] });
   return mount(OutboundNetworkPage, {
     global: {
@@ -79,5 +79,12 @@ describe('outbound network settings page', () => {
     await flushPromises();
 
     expect(apiMocks.diagnoseOutboundNetwork).toHaveBeenCalledWith('platform-update');
+  });
+
+  it('keeps a visible reload action for conditional request failures', () => {
+    expect(pageSource).toContain('status === 412');
+    expect(pageSource).toContain('status === 428');
+    expect(pageSource).toContain('reloadLatestPolicy');
+    expect(pageSource).toContain('network.outbound.precondition.message');
   });
 });

@@ -6,13 +6,17 @@ post:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/if-match-header.yaml
   responses:
     '200':
       description: Default outbound-network policy is effective again.
       headers:
         X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+        ETag: { $ref: ../components/headers/etag.yaml }
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }
+    '412': { $ref: ../components/responses/precondition-failed.yaml }
+    '428': { $ref: ../components/responses/precondition-required.yaml }

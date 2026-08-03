@@ -17,6 +17,11 @@
       "resetToDefault": "Reset to Default",
       "resetSuccess": "Outbound network policy reset to its default.",
       "resetFailed": "Outbound network policy could not be reset.",
+      "precondition": {
+        "title": "Configuration Changed",
+        "message": "This policy was changed by another administrator. Your unsaved changes were kept. Reload the latest configuration before saving again.",
+        "reload": "Reload Latest Configuration"
+      },
       "httpProxy": "HTTP Proxy",
       "httpsProxy": "HTTPS Proxy",
       "proxyPlaceholder": "Proxy URL, e.g. http://proxy.company.com:8080",

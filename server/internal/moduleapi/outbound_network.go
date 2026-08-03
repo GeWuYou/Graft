@@ -3,9 +3,13 @@ package moduleapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 )
+
+// ErrModuleConfigVersionConflict 表示模块配置的 If-Match 版本已过期。
+var ErrModuleConfigVersionConflict = errors.New("module config version conflict")
 
 // ModuleConfigValue 是模块管理配置的有效 JSON 值与覆盖状态；它不暴露 System Config 的存储实现。
 type ModuleConfigValue struct {
@@ -13,6 +17,8 @@ type ModuleConfigValue struct {
 	DefaultValue   json.RawMessage
 	OverrideValue  json.RawMessage
 	HasOverride    bool
+	// Version 是 Module Config 的单调递增版本，用于构造强 ETag 和 HTTP If-Match 条件。
+	Version        int64
 	UpdatedAt      *time.Time
 	UpdatedByName  string
 }
@@ -23,8 +29,8 @@ type ModuleConfigValue struct {
 // 防止业务模块绕过 System Config 的通用 API 或互相修改配置。
 type ModuleConfigManager interface {
 	GetModuleConfig(ctx context.Context, moduleName string, key string) (ModuleConfigValue, error)
-	UpdateModuleConfig(ctx context.Context, moduleName string, key string, value json.RawMessage, userID *uint64) (ModuleConfigValue, error)
-	ResetModuleConfig(ctx context.Context, moduleName string, key string) (ModuleConfigValue, error)
+	UpdateModuleConfig(ctx context.Context, moduleName string, key string, value json.RawMessage, userID *uint64, expectedVersion int64) (ModuleConfigValue, error)
+	ResetModuleConfig(ctx context.Context, moduleName string, key string, userID *uint64, expectedVersion int64) (ModuleConfigValue, error)
 }
 
 // OutboundNetworkPolicy 是平台 HTTP(S) 出站策略，不包含超时、重试或其他 HTTP client 行为。

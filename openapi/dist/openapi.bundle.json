@@ -8714,6 +8714,9 @@
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/etag"
               }
             },
             "content": {
@@ -8749,6 +8752,9 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/if-match-header"
           }
         ],
         "requestBody": {
@@ -8767,6 +8773,9 @@
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/etag"
               }
             },
             "content": {
@@ -8778,25 +8787,19 @@
             }
           },
           "400": {
-            "description": "Invalid outbound-network policy.",
-            "headers": {
-              "X-Request-Id": {
-                "$ref": "#/components/headers/request-id"
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/error-response"
-                }
-              }
-            }
+            "$ref": "#/components/responses/bad-request"
           },
           "401": {
             "$ref": "#/components/responses/unauthorized"
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "412": {
+            "$ref": "#/components/responses/precondition-failed"
+          },
+          "428": {
+            "$ref": "#/components/responses/precondition-required"
           }
         }
       }
@@ -8819,6 +8822,9 @@
           },
           {
             "$ref": "#/components/parameters/request-id-header"
+          },
+          {
+            "$ref": "#/components/parameters/if-match-header"
           }
         ],
         "responses": {
@@ -8827,6 +8833,9 @@
             "headers": {
               "X-Request-Id": {
                 "$ref": "#/components/headers/request-id"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/etag"
               }
             },
             "content": {
@@ -8842,6 +8851,12 @@
           },
           "403": {
             "$ref": "#/components/responses/forbidden"
+          },
+          "412": {
+            "$ref": "#/components/responses/precondition-failed"
+          },
+          "428": {
+            "$ref": "#/components/responses/precondition-required"
           }
         }
       }
@@ -28567,7 +28582,7 @@
       "platform-network-outbound-config": {
         "type": "object",
         "additionalProperties": false,
-        "description": "Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.",
+        "description": "Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.",
         "required": [
           "enabled",
           "http_proxy",
@@ -40578,6 +40593,16 @@
           "minimum": 1
         }
       },
+      "if-match-header": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "description": "Strong entity tag for the complete Module Config representation being replaced.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"[0-9]+\"$"
+        }
+      },
       "docker-image-list-limit": {
         "name": "limit",
         "in": "query",
@@ -41091,6 +41116,13 @@
         "schema": {
           "type": "string"
         }
+      },
+      "etag": {
+        "description": "Strong entity tag representing the current Module Config version.",
+        "schema": {
+          "type": "string",
+          "pattern": "^\"[0-9]+\"$"
+        }
       }
     },
     "responses": {
@@ -41126,6 +41158,54 @@
       },
       "forbidden": {
         "description": "Forbidden request under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "bad-request": {
+        "description": "Invalid request under existing error envelope semantics.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "precondition-failed": {
+        "description": "The Module Config changed after the client read it.",
+        "headers": {
+          "X-Request-Id": {
+            "$ref": "#/components/headers/request-id"
+          },
+          "ETag": {
+            "$ref": "#/components/headers/etag"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/error-response"
+            }
+          }
+        }
+      },
+      "precondition-required": {
+        "description": "A strong If-Match header is required for Module Config mutations.",
         "headers": {
           "X-Request-Id": {
             "$ref": "#/components/headers/request-id"

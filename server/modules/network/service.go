@@ -45,11 +45,11 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	if err != nil {
 		return Overview{}, err
 	}
-	return Overview{Policy: policy, HasOverride: value.HasOverride, UpdatedAt: value.UpdatedAt, UpdatedByName: value.UpdatedByName, DiagnosticTargets: s.diagnostics.OutboundDiagnosticTargets(), Consumers: s.consumers.OutboundNetworkConsumers()}, nil
+	return Overview{Policy: policy, HasOverride: value.HasOverride, Version: value.Version, UpdatedAt: value.UpdatedAt, UpdatedByName: value.UpdatedByName, DiagnosticTargets: s.diagnostics.OutboundDiagnosticTargets(), Consumers: s.consumers.OutboundNetworkConsumers()}, nil
 }
 
 // Update 保存经过 Network 领域校验的出站策略；该策略只包含代理选择，不包含 HTTP client 行为。
-func (s *Service) Update(ctx context.Context, input moduleapi.OutboundNetworkPolicy, userID *uint64) (Overview, error) {
+func (s *Service) Update(ctx context.Context, input moduleapi.OutboundNetworkPolicy, userID *uint64, expectedVersion int64) (Overview, error) {
 	if s == nil || s.configs == nil {
 		return Overview{}, errors.New("platform network service is unavailable")
 	}
@@ -60,18 +60,18 @@ func (s *Service) Update(ctx context.Context, input moduleapi.OutboundNetworkPol
 	if _, err := decodeOutboundPolicy(raw); err != nil {
 		return Overview{}, err
 	}
-	if _, err := s.configs.UpdateModuleConfig(ctx, moduleID, outboundConfigKey, raw, userID); err != nil {
+	if _, err := s.configs.UpdateModuleConfig(ctx, moduleID, outboundConfigKey, raw, userID, expectedVersion); err != nil {
 		return Overview{}, fmt.Errorf("update outbound network config: %w", err)
 	}
 	return s.Overview(ctx)
 }
 
 // Reset 恢复模块默认的直接连接策略。
-func (s *Service) Reset(ctx context.Context) (Overview, error) {
+func (s *Service) Reset(ctx context.Context, userID *uint64, expectedVersion int64) (Overview, error) {
 	if s == nil || s.configs == nil {
 		return Overview{}, errors.New("platform network service is unavailable")
 	}
-	if _, err := s.configs.ResetModuleConfig(ctx, moduleID, outboundConfigKey); err != nil {
+	if _, err := s.configs.ResetModuleConfig(ctx, moduleID, outboundConfigKey, userID, expectedVersion); err != nil {
 		return Overview{}, fmt.Errorf("reset outbound network config: %w", err)
 	}
 	return s.Overview(ctx)
@@ -124,6 +124,7 @@ func (s *Service) DiagnosticHistory(ctx context.Context, targetName string, limi
 type Overview struct {
 	Policy            moduleapi.OutboundNetworkPolicy
 	HasOverride       bool
+	Version           int64
 	UpdatedAt         *time.Time
 	UpdatedByName     string
 	DiagnosticTargets []moduleapi.OutboundDiagnosticTarget

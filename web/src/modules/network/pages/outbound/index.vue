@@ -56,6 +56,12 @@
       :title="t('network.outbound.loadFailed')"
       :message="errorMessage"
     />
+    <div v-if="preconditionMessage" class="outbound-network-page__precondition-alert">
+      <t-alert theme="warning" :title="t('network.outbound.precondition.title')" :message="preconditionMessage" />
+      <t-button theme="warning" variant="outline" :loading="loading" @click="reloadLatestPolicy">
+        {{ t('network.outbound.precondition.reload') }}
+      </t-button>
+    </div>
 
     <t-loading :loading="loading" class="outbound-network-page__loading">
       <section class="outbound-network-page__overview" aria-labelledby="network-overview-title">
@@ -269,6 +275,7 @@ const saving = ref(false);
 const resetting = ref(false);
 const diagnosing = ref(false);
 const errorMessage = ref('');
+const preconditionMessage = ref('');
 const policySource = ref<'default' | 'override'>('default');
 const selectedTargetID = ref('');
 const diagnosticTargets = ref<OutboundNetworkDiagnosticTarget[]>([]);
@@ -276,6 +283,7 @@ const consumers = ref<OutboundNetworkConsumer[]>([]);
 const diagnosticHistory = ref<OutboundNetworkDiagnostic[]>([]);
 const form = reactive<OutboundNetworkConfig>(createDefaultPolicy());
 const effectivePolicy = reactive<OutboundNetworkConfig>(createDefaultPolicy());
+const etag = ref<string | null>(null);
 let savedPolicy = JSON.stringify(createDefaultPolicy());
 
 const dirty = computed(() => JSON.stringify(form) !== savedPolicy);
@@ -355,14 +363,16 @@ function copyPolicy(target: OutboundNetworkConfig, sourcePolicy: OutboundNetwork
   target.no_proxy = Array.isArray(sourcePolicy.no_proxy) ? [...sourcePolicy.no_proxy] : [];
 }
 
-function applyResponse(response: OutboundNetworkOverview) {
-  copyPolicy(form, response.policy.config);
-  copyPolicy(effectivePolicy, response.policy.config);
-  policySource.value = response.policy.source;
-  latestResponsePolicy.value = response.policy;
+function applyResponse(response: Awaited<ReturnType<typeof getOutboundNetworkPolicy>>) {
+  const payload = response.data;
+  copyPolicy(form, payload.policy.config);
+  copyPolicy(effectivePolicy, payload.policy.config);
+  policySource.value = payload.policy.source;
+  latestResponsePolicy.value = payload.policy;
+  etag.value = response.etag;
   savedPolicy = JSON.stringify(form);
-  diagnosticTargets.value = response.diagnostic_targets;
-  consumers.value = response.consumers;
+  diagnosticTargets.value = payload.diagnostic_targets;
+  consumers.value = payload.consumers;
   if (!diagnosticTargets.value.some((target) => target.id === selectedTargetID.value)) {
     selectedTargetID.value = diagnosticTargets.value[0]?.id ?? '';
   }
@@ -393,6 +403,7 @@ async function load() {
   errorMessage.value = '';
   try {
     applyResponse(await getOutboundNetworkPolicy());
+    preconditionMessage.value = '';
     await loadDiagnosticHistory();
   } catch (error) {
     errorMessage.value = resolveLocalizedErrorMessage(error, 'network.outbound.loadFailed');
@@ -401,16 +412,42 @@ async function load() {
   }
 }
 
+function isPreconditionFailure(error: unknown) {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'status' in error &&
+    ((error as { status?: unknown }).status === 412 || (error as { status?: unknown }).status === 428),
+  );
+}
+
+function showPreconditionFailure() {
+  preconditionMessage.value = t('network.outbound.precondition.message');
+}
+
+async function reloadLatestPolicy() {
+  await load();
+}
+
 async function save() {
   if (form.enabled && !form.http_proxy.trim() && !form.https_proxy.trim()) {
     MessagePlugin.error(t('network.outbound.routing.proxy.required'));
     return;
   }
+  if (!etag.value) {
+    showPreconditionFailure();
+    return;
+  }
   saving.value = true;
   try {
-    applyResponse(await updateOutboundNetworkPolicy({ ...form, no_proxy: [...form.no_proxy] }));
+    applyResponse(await updateOutboundNetworkPolicy({ ...form, no_proxy: [...form.no_proxy] }, etag.value));
+    preconditionMessage.value = '';
     MessagePlugin.success(t('network.outbound.saveSuccess'));
   } catch (error) {
+    if (isPreconditionFailure(error)) {
+      showPreconditionFailure();
+      return;
+    }
     MessagePlugin.error(resolveLocalizedErrorMessage(error, 'network.outbound.saveFailed'));
   } finally {
     saving.value = false;
@@ -418,11 +455,20 @@ async function save() {
 }
 
 async function resetToDefault() {
+  if (!etag.value) {
+    showPreconditionFailure();
+    return;
+  }
   resetting.value = true;
   try {
-    applyResponse(await resetOutboundNetworkPolicy());
+    applyResponse(await resetOutboundNetworkPolicy(etag.value));
+    preconditionMessage.value = '';
     MessagePlugin.success(t('network.outbound.resetSuccess'));
   } catch (error) {
+    if (isPreconditionFailure(error)) {
+      showPreconditionFailure();
+      return;
+    }
     MessagePlugin.error(resolveLocalizedErrorMessage(error, 'network.outbound.resetFailed'));
   } finally {
     resetting.value = false;
@@ -467,6 +513,12 @@ onMounted(load);
 .outbound-network-page__scope-content > div:first-child {
   display: grid;
   gap: var(--td-comp-margin-xs);
+}
+
+.outbound-network-page__precondition-alert {
+  align-items: center;
+  display: flex;
+  gap: var(--td-comp-margin-l);
 }
 
 .outbound-network-page__scope-content span,

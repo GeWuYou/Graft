@@ -6748,7 +6748,7 @@ export interface components {
       /** @description JSON value to store as the user override for the registered definition. */
       value: unknown;
     };
-    /** @description Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller. */
+    /** @description Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller. */
     'platform-network-outbound-config': {
       /** @description When false, every platform HTTP client connects directly regardless of the retained proxy values. */
       enabled: boolean;
@@ -9915,6 +9915,37 @@ export interface components {
         'application/json': components['schemas']['error-response'];
       };
     };
+    /** @description Invalid request under existing error envelope semantics. */
+    'bad-request': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description The Module Config changed after the client read it. */
+    'precondition-failed': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        ETag: components['headers']['etag'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
+    /** @description A strong If-Match header is required for Module Config mutations. */
+    'precondition-required': {
+      headers: {
+        'X-Request-Id': components['headers']['request-id'];
+        [name: string]: unknown;
+      };
+      content: {
+        'application/json': components['schemas']['error-response'];
+      };
+    };
   };
   parameters: {
     /** @description Explicit locale override header already supported by the runtime. */
@@ -10003,6 +10034,8 @@ export interface components {
     'realtime-topic-query': string;
     /** @description Private saved-view identifier. */
     'saved-view-id': number;
+    /** @description Strong entity tag for the complete Module Config representation being replaced. */
+    'if-match-header': string;
     /** @description Optional maximum number of Docker images to return. The runtime accepts values from 1 to 100. */
     'docker-image-list-limit': number;
     /** @description Optional zero-based offset for Docker images. */
@@ -10092,6 +10125,8 @@ export interface components {
   headers: {
     /** @description Stable request identifier echoed by the runtime. */
     'request-id': string;
+    /** @description Strong entity tag representing the current Module Config version. */
+    etag: string;
   };
   pathItems: never;
 }
@@ -14338,6 +14373,7 @@ export interface operations {
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
+          ETag: components['headers']['etag'];
           [name: string]: unknown;
         };
         content: {
@@ -14351,7 +14387,7 @@ export interface operations {
   putPlatformNetworkOutbound: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -14359,6 +14395,8 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Strong entity tag for the complete Module Config representation being replaced. */
+        'If-Match': components['parameters']['if-match-header'];
       };
       path?: never;
       cookie?: never;
@@ -14373,30 +14411,24 @@ export interface operations {
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
+          ETag: components['headers']['etag'];
           [name: string]: unknown;
         };
         content: {
           'application/json': components['schemas']['enveloped-platform-network-overview'];
         };
       };
-      /** @description Invalid outbound-network policy. */
-      400: {
-        headers: {
-          'X-Request-Id': components['headers']['request-id'];
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['error-response'];
-        };
-      };
+      400: components['responses']['bad-request'];
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      412: components['responses']['precondition-failed'];
+      428: components['responses']['precondition-required'];
     };
   };
   resetPlatformNetworkOutbound: {
     parameters: {
       query?: never;
-      header?: {
+      header: {
         /** @description Explicit locale override header already supported by the runtime. */
         'X-Graft-Locale'?: components['parameters']['locale-header'];
         /**
@@ -14404,6 +14436,8 @@ export interface operations {
          *     through the response header and envelope traceId field.
          */
         'X-Request-Id'?: components['parameters']['request-id-header'];
+        /** @description Strong entity tag for the complete Module Config representation being replaced. */
+        'If-Match': components['parameters']['if-match-header'];
       };
       path?: never;
       cookie?: never;
@@ -14414,6 +14448,7 @@ export interface operations {
       200: {
         headers: {
           'X-Request-Id': components['headers']['request-id'];
+          ETag: components['headers']['etag'];
           [name: string]: unknown;
         };
         content: {
@@ -14422,6 +14457,8 @@ export interface operations {
       };
       401: components['responses']['unauthorized'];
       403: components['responses']['forbidden'];
+      412: components['responses']['precondition-failed'];
+      428: components['responses']['precondition-required'];
     };
   };
   postPlatformNetworkDiagnostic: {

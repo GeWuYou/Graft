@@ -1,0 +1,4 @@
+description: Strong entity tag representing the current Module Config version.
+schema:
+  type: string
+  pattern: '^"[0-9]+"$'

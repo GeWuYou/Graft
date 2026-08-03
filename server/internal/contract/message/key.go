@@ -56,6 +56,12 @@ const (
 	// CommonNotFound 表示资源不存在或不在调用方可见范围内。
 	CommonNotFound Key = "common.not_found"
 
+	// ModuleConfigPreconditionFailed 表示 Module Config 在客户端读取后已被修改。
+	ModuleConfigPreconditionFailed Key = "module_config.precondition_failed"
+
+	// ModuleConfigPreconditionRequired 表示 Module Config 修改缺少 If-Match。
+	ModuleConfigPreconditionRequired Key = "module_config.precondition_required"
+
 	// CommonConjunction 表示运行时界面文案共用的连接词。
 	CommonConjunction Key = "common.conjunction"
 

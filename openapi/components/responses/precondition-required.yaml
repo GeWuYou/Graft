@@ -1,0 +1,6 @@
+description: A strong If-Match header is required for Module Config mutations.
+headers:
+  X-Request-Id: { $ref: ../headers/request-id.yaml }
+content:
+  application/json:
+    schema: { $ref: ../schemas/error-response.yaml }

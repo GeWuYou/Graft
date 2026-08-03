@@ -17,6 +17,11 @@
       "resetToDefault": "恢复默认值",
       "resetSuccess": "出站网络策略已恢复默认值。",
       "resetFailed": "出站网络策略恢复默认值失败。",
+      "precondition": {
+        "title": "配置已变更",
+        "message": "另一位管理员已修改此策略。已保留您的未保存更改，请重新加载最新配置后再保存。",
+        "reload": "重新加载最新配置"
+      },
       "httpProxy": "HTTP 代理",
       "httpsProxy": "HTTPS 代理",
       "proxyPlaceholder": "http://proxy.company.com:8080",

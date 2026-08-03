@@ -11,6 +11,7 @@ get:
       description: Effective outbound-network policy and registered diagnostics.
       headers:
         X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+        ETag: { $ref: ../components/headers/etag.yaml }
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
@@ -24,6 +25,7 @@ put:
   parameters:
     - $ref: ../components/parameters/locale-header.yaml
     - $ref: ../components/parameters/request-id-header.yaml
+    - $ref: ../components/parameters/if-match-header.yaml
   requestBody:
     required: true
     content:
@@ -34,15 +36,13 @@ put:
       description: Updated effective outbound-network policy.
       headers:
         X-Request-Id: { $ref: ../components/headers/request-id.yaml }
+        ETag: { $ref: ../components/headers/etag.yaml }
       content:
         application/json:
           schema: { $ref: ../components/schemas/enveloped-platform-network-overview.yaml }
     '400':
-      description: Invalid outbound-network policy.
-      headers:
-        X-Request-Id: { $ref: ../components/headers/request-id.yaml }
-      content:
-        application/json:
-          schema: { $ref: ../components/schemas/error-response.yaml }
+      $ref: ../components/responses/bad-request.yaml
+    '412': { $ref: ../components/responses/precondition-failed.yaml }
+    '428': { $ref: ../components/responses/precondition-required.yaml }
     '401': { $ref: ../components/responses/unauthorized.yaml }
     '403': { $ref: ../components/responses/forbidden.yaml }

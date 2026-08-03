@@ -23,7 +23,7 @@ func TestServiceOverviewIncludesRealOverrideAttributionAndRegisteredConsumers(t 
 	if err := consumers.RegisterOutboundNetworkConsumer(outboundConsumerStub{name: "platform-update"}); err != nil {
 		t.Fatalf("register consumer: %v", err)
 	}
-	service := NewService(&moduleConfigManagerStub{value: moduleapi.ModuleConfigValue{EffectiveValue: json.RawMessage(`{"enabled":false,"http_proxy":"","https_proxy":"","no_proxy":[]}`), HasOverride: true, UpdatedAt: &updatedAt, UpdatedByName: "Graft Admin"}}, diagnostics, consumers, &diagnosticHistoryStoreStub{}, nil)
+	service := NewService(&moduleConfigManagerStub{value: moduleapi.ModuleConfigValue{EffectiveValue: json.RawMessage(`{"enabled":false,"http_proxy":"","https_proxy":"","no_proxy":[]}`), HasOverride: true, Version: 7, UpdatedAt: &updatedAt, UpdatedByName: "Graft Admin"}}, diagnostics, consumers, &diagnosticHistoryStoreStub{}, nil)
 	overview, err := service.Overview(context.Background())
 	if err != nil {
 		t.Fatalf("overview: %v", err)
@@ -33,6 +33,9 @@ func TestServiceOverviewIncludesRealOverrideAttributionAndRegisteredConsumers(t 
 	}
 	if len(overview.Consumers) != 1 || overview.Consumers[0].Name() != "platform-update" {
 		t.Fatalf("expected registered platform update consumer, got %#v", overview.Consumers)
+	}
+	if overview.Version != 7 {
+		t.Fatalf("expected module config version, got %#v", overview)
 	}
 }
 
@@ -85,7 +88,7 @@ func TestServiceDiagnosticHistoryRejectsUnregisteredTargetBeforeStoreRead(t *tes
 func TestServiceUpdateRejectsInvalidPolicyBeforeWrite(t *testing.T) {
 	configs := &moduleConfigManagerStub{}
 	service := NewService(configs, NewDiagnosticRegistry(), NewConsumerRegistry(), &diagnosticHistoryStoreStub{}, nil)
-	if _, err := service.Update(context.Background(), moduleapi.OutboundNetworkPolicy{Enabled: true, HTTPProxy: "socks5://proxy.example:1080", NoProxy: []string{}}, nil); !errors.Is(err, errInvalidOutboundPolicy) {
+	if _, err := service.Update(context.Background(), moduleapi.OutboundNetworkPolicy{Enabled: true, HTTPProxy: "socks5://proxy.example:1080", NoProxy: []string{}}, nil, 0); !errors.Is(err, errInvalidOutboundPolicy) {
 		t.Fatalf("expected invalid policy to be rejected, got %v", err)
 	}
 	if configs.updateCalled {
@@ -117,11 +120,11 @@ type moduleConfigManagerStub struct {
 func (s moduleConfigManagerStub) GetModuleConfig(context.Context, string, string) (moduleapi.ModuleConfigValue, error) {
 	return s.value, nil
 }
-func (s *moduleConfigManagerStub) UpdateModuleConfig(context.Context, string, string, json.RawMessage, *uint64) (moduleapi.ModuleConfigValue, error) {
+func (s *moduleConfigManagerStub) UpdateModuleConfig(context.Context, string, string, json.RawMessage, *uint64, int64) (moduleapi.ModuleConfigValue, error) {
 	s.updateCalled = true
 	return s.value, nil
 }
-func (moduleConfigManagerStub) ResetModuleConfig(context.Context, string, string) (moduleapi.ModuleConfigValue, error) {
+func (moduleConfigManagerStub) ResetModuleConfig(context.Context, string, string, *uint64, int64) (moduleapi.ModuleConfigValue, error) {
 	return moduleapi.ModuleConfigValue{}, nil
 }
 

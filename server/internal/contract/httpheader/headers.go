@@ -16,6 +16,12 @@ const (
 	// Authorization 携带调用方的认证方案和令牌。
 	Authorization Name = "Authorization"
 
+	// ETag 携带资源当前表示的 Strong ETag。
+	ETag Name = "ETag"
+
+	// IfMatch 携带调用方读取到的资源 Strong ETag，用于条件写入。
+	IfMatch Name = "If-Match"
+
 	// Locale 携带平台定义的显式语言区域覆盖值。
 	Locale Name = "X-Graft-Locale"
 

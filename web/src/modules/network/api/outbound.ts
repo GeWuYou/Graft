@@ -23,21 +23,39 @@ type DiagnosticHistoryData = NonNullable<
   DiagnosticHistoryOperation['responses'][200]['content']['application/json']['data']
 >;
 
+function readETag(headers: unknown): string | null {
+  if (!headers || typeof headers !== 'object') {
+    return null;
+  }
+
+  const candidate = headers as { get?: (name: string) => unknown; etag?: unknown };
+  const value = candidate.get?.('etag') ?? candidate.etag;
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
 export function getOutboundNetworkPolicy() {
-  return request.get<GetOutboundData>({
-    url: OPENAPI_RUNTIME_PATH.getPlatformNetworkOutbound,
-  }) as Promise<OutboundNetworkOverview>;
+  return request
+    .getWithResponse<GetOutboundData>({
+      url: OPENAPI_RUNTIME_PATH.getPlatformNetworkOutbound,
+    })
+    .then(({ data, headers }) => ({ data: data as OutboundNetworkOverview, etag: readETag(headers) }));
 }
-export function updateOutboundNetworkPolicy(policy: OutboundNetworkConfig) {
-  return request.put<PutOutboundData>({
-    url: OPENAPI_RUNTIME_PATH.putPlatformNetworkOutbound,
-    data: policy as PutOutboundBody,
-  }) as Promise<OutboundNetworkOverview>;
+export function updateOutboundNetworkPolicy(policy: OutboundNetworkConfig, etag: string) {
+  return request
+    .putWithResponse<PutOutboundData>({
+      url: OPENAPI_RUNTIME_PATH.putPlatformNetworkOutbound,
+      data: policy as PutOutboundBody,
+      headers: { 'If-Match': etag },
+    })
+    .then(({ data, headers }) => ({ data: data as OutboundNetworkOverview, etag: readETag(headers) }));
 }
-export function resetOutboundNetworkPolicy() {
-  return request.post<ResetOutboundData>({
-    url: OPENAPI_RUNTIME_PATH.resetPlatformNetworkOutbound,
-  }) as Promise<OutboundNetworkOverview>;
+export function resetOutboundNetworkPolicy(etag: string) {
+  return request
+    .postWithResponse<ResetOutboundData>({
+      url: OPENAPI_RUNTIME_PATH.resetPlatformNetworkOutbound,
+      headers: { 'If-Match': etag },
+    })
+    .then(({ data, headers }) => ({ data: data as OutboundNetworkOverview, etag: readETag(headers) }));
 }
 export function diagnoseOutboundNetwork(targetId: string) {
   return request.post<DiagnosticData>({

@@ -21,11 +21,12 @@ import (
 )
 
 var (
-	errDefinitionNotFound  = errors.New("system config definition not found")
-	errModuleManagedConfig = errors.New("system config is managed by its owning module")
-	errModuleConfigOwner   = errors.New("system config module owner does not match")
-	errInvalidConfigValue  = errors.New("invalid system config value")
-	errSensitiveConfig     = errors.New("sensitive system config cannot be resolved as default config")
+	errDefinitionNotFound          = errors.New("system config definition not found")
+	errModuleManagedConfig         = errors.New("system config is managed by its owning module")
+	errModuleConfigOwner           = errors.New("system config module owner does not match")
+	errInvalidConfigValue          = errors.New("invalid system config value")
+	errSensitiveConfig             = errors.New("sensitive system config cannot be resolved as default config")
+	errModuleConfigVersionConflict = fmt.Errorf("module config compare and swap: %w", moduleapi.ErrModuleConfigVersionConflict)
 )
 
 const (
@@ -54,6 +55,8 @@ type ValueSnapshot struct {
 	DefaultValue   json.RawMessage
 	OverrideValue  json.RawMessage
 	HasOverride    bool
+	// Version 是配置资源的单调递增版本；未产生任何持久化状态时为零。
+	Version        int64
 	Status         ValueStatus
 	CreatedAt      *time.Time
 	CreatedBy      *uint64
@@ -239,7 +242,7 @@ func (s *Service) Update(ctx context.Context, key string, value json.RawMessage,
 	if err := validateValueForDefinition(definition, value); err != nil {
 		return ValueSnapshot{}, err
 	}
-	if _, err := s.store.SetOverride(ctx, definition.Key, value, userID); err != nil {
+	if _, err := s.compareAndSwapCurrentOverride(ctx, definition.Key, value, userID); err != nil {
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionUpdate)
@@ -255,7 +258,7 @@ func (s *Service) Reset(ctx context.Context, key string) (ValueSnapshot, error) 
 	if definition.ModuleManaged {
 		return ValueSnapshot{}, errModuleManagedConfig
 	}
-	if err := s.store.DeleteOverride(ctx, definition.Key); err != nil {
+	if _, err := s.resetCurrentOverride(ctx, definition.Key, nil); err != nil {
 		return ValueSnapshot{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionReset)
@@ -272,7 +275,7 @@ func (s *Service) GetModuleConfig(ctx context.Context, moduleName string, key st
 }
 
 // UpdateModuleConfig 只允许配置定义所属模块更新 module-managed 配置，并复用 System Config 的 schema 和快照失效语义。
-func (s *Service) UpdateModuleConfig(ctx context.Context, moduleName string, key string, value json.RawMessage, userID *uint64) (moduleapi.ModuleConfigValue, error) {
+func (s *Service) UpdateModuleConfig(ctx context.Context, moduleName string, key string, value json.RawMessage, userID *uint64, expectedVersion int64) (moduleapi.ModuleConfigValue, error) {
 	definition, err := s.managedModuleDefinition(moduleName, key)
 	if err != nil {
 		return moduleapi.ModuleConfigValue{}, err
@@ -280,7 +283,10 @@ func (s *Service) UpdateModuleConfig(ctx context.Context, moduleName string, key
 	if err := validateValueForDefinition(definition, value); err != nil {
 		return moduleapi.ModuleConfigValue{}, err
 	}
-	if _, err := s.store.SetOverride(ctx, definition.Key, value, userID); err != nil {
+	if _, err := s.store.CompareAndSwapOverride(ctx, definition.Key, value, userID, expectedVersion); err != nil {
+		if errors.Is(err, systemconfigstore.ErrVersionConflict) {
+			return moduleapi.ModuleConfigValue{}, errModuleConfigVersionConflict
+		}
 		return moduleapi.ModuleConfigValue{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionUpdate)
@@ -288,16 +294,46 @@ func (s *Service) UpdateModuleConfig(ctx context.Context, moduleName string, key
 }
 
 // ResetModuleConfig 只允许配置定义所属模块恢复 module-managed 配置的模块默认值。
-func (s *Service) ResetModuleConfig(ctx context.Context, moduleName string, key string) (moduleapi.ModuleConfigValue, error) {
+func (s *Service) ResetModuleConfig(ctx context.Context, moduleName string, key string, userID *uint64, expectedVersion int64) (moduleapi.ModuleConfigValue, error) {
 	definition, err := s.managedModuleDefinition(moduleName, key)
 	if err != nil {
 		return moduleapi.ModuleConfigValue{}, err
 	}
-	if err := s.store.DeleteOverride(ctx, definition.Key); err != nil {
+	if _, err := s.store.ResetOverride(ctx, definition.Key, userID, expectedVersion); err != nil {
+		if errors.Is(err, systemconfigstore.ErrVersionConflict) {
+			return moduleapi.ModuleConfigValue{}, errModuleConfigVersionConflict
+		}
 		return moduleapi.ModuleConfigValue{}, err
 	}
 	s.invalidateSnapshotCacheForKey(definition.Key, snapshotInvalidationActionReset)
 	return s.GetModuleConfig(ctx, moduleName, definition.Key)
+}
+
+func (s *Service) compareAndSwapCurrentOverride(ctx context.Context, key string, value json.RawMessage, userID *uint64) (systemconfigstore.Override, error) {
+	expectedVersion, err := s.currentOverrideVersion(ctx, key)
+	if err != nil {
+		return systemconfigstore.Override{}, err
+	}
+	return s.store.CompareAndSwapOverride(ctx, key, value, userID, expectedVersion)
+}
+
+func (s *Service) resetCurrentOverride(ctx context.Context, key string, userID *uint64) (systemconfigstore.Override, error) {
+	expectedVersion, err := s.currentOverrideVersion(ctx, key)
+	if err != nil {
+		return systemconfigstore.Override{}, err
+	}
+	return s.store.ResetOverride(ctx, key, userID, expectedVersion)
+}
+
+func (s *Service) currentOverrideVersion(ctx context.Context, key string) (int64, error) {
+	override, err := s.store.GetOverride(ctx, key)
+	if errors.Is(err, systemconfigstore.ErrOverrideNotFound) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return override.Version, nil
 }
 
 func (s *Service) getManagedModuleConfig(ctx context.Context, moduleName string, key string) (ValueSnapshot, error) {
@@ -332,6 +368,7 @@ func toModuleConfigValue(snapshot ValueSnapshot) moduleapi.ModuleConfigValue {
 		DefaultValue:   cloneRawMessage(snapshot.DefaultValue),
 		OverrideValue:  cloneRawMessage(snapshot.OverrideValue),
 		HasOverride:    snapshot.HasOverride,
+		Version:        snapshot.Version,
 		UpdatedAt:      cloneTimePointer(snapshot.UpdatedAt),
 		UpdatedByName:  snapshot.UpdatedByName,
 	}
@@ -356,7 +393,8 @@ func (s *Service) snapshotFromCache(
 	definition configregistry.Definition,
 	cache *overrideSnapshotCache,
 ) (ValueSnapshot, error) {
-	override, hasOverride := cache.overrides[definition.Key]
+	override, hasPersistedValue := cache.overrides[definition.Key]
+	hasOverride := hasPersistedValue && hasOverrideValue(override.Value)
 	effective := definition.DefaultValue
 	var overrideValue json.RawMessage
 	if hasOverride {
@@ -370,6 +408,7 @@ func (s *Service) snapshotFromCache(
 		DefaultValue:   cloneRawMessage(definition.DefaultValue),
 		OverrideValue:  cloneRawMessage(overrideValue),
 		HasOverride:    hasOverride,
+		Version:        override.Version,
 		Status:         ValueStatusDefault,
 		Masked:         definition.Sensitive,
 	}
@@ -613,6 +652,10 @@ func cloneRawMessage(raw json.RawMessage) json.RawMessage {
 	return cloned
 }
 
+func hasOverrideValue(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
+}
+
 // cloneUint64Pointer 深拷贝 uint64 指针；输入为 nil 时保留 nil 语义。
 func cloneUint64Pointer(value *uint64) *uint64 {
 	if value == nil {
@@ -635,6 +678,7 @@ func cloneOverride(value systemconfigstore.Override) systemconfigstore.Override 
 	return systemconfigstore.Override{
 		Key:       value.Key,
 		Value:     cloneRawMessage(value.Value),
+		Version:   value.Version,
 		CreatedAt: value.CreatedAt,
 		CreatedBy: cloneUint64Pointer(value.CreatedBy),
 		UpdatedAt: value.UpdatedAt,

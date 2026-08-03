@@ -8,7 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"graft/server/internal/contract/errorcode"
 	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
@@ -75,31 +77,42 @@ func (r routeRuntime) handleGet(ginCtx *gin.Context) {
 		r.writeError(ginCtx, err)
 		return
 	}
+	writeModuleConfigETag(ginCtx, overview.Version)
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toOverview(overview))
 }
 
 func (r routeRuntime) handlePut(ginCtx *gin.Context) {
+	expectedVersion, ok := r.bindIfMatch(ginCtx)
+	if !ok {
+		return
+	}
 	var request generated.PutPlatformNetworkOutboundJSONRequestBody
 	if err := ginCtx.ShouldBindJSON(&request); err != nil {
 		r.badRequest(ginCtx)
 		return
 	}
 	networkGeneratedHandler{}.PutPlatformNetworkOutbound(bindPutParams(ginCtx), request)
-	overview, err := r.service.Update(ginCtx.Request.Context(), moduleapi.OutboundNetworkPolicy{Enabled: request.Enabled, HTTPProxy: request.HttpProxy, HTTPSProxy: request.HttpsProxy, NoProxy: request.NoProxy}, currentUserID(ginCtx))
+	overview, err := r.service.Update(ginCtx.Request.Context(), moduleapi.OutboundNetworkPolicy{Enabled: request.Enabled, HTTPProxy: request.HttpProxy, HTTPSProxy: request.HttpsProxy, NoProxy: request.NoProxy}, currentUserID(ginCtx), expectedVersion)
 	if err != nil {
 		r.writeError(ginCtx, err)
 		return
 	}
+	writeModuleConfigETag(ginCtx, overview.Version)
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toOverview(overview))
 }
 
 func (r routeRuntime) handleReset(ginCtx *gin.Context) {
+	expectedVersion, ok := r.bindIfMatch(ginCtx)
+	if !ok {
+		return
+	}
 	networkGeneratedHandler{}.ResetPlatformNetworkOutbound(bindResetParams(ginCtx))
-	overview, err := r.service.Reset(ginCtx.Request.Context())
+	overview, err := r.service.Reset(ginCtx.Request.Context(), currentUserID(ginCtx), expectedVersion)
 	if err != nil {
 		r.writeError(ginCtx, err)
 		return
 	}
+	writeModuleConfigETag(ginCtx, overview.Version)
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toOverview(overview))
 }
 
@@ -119,6 +132,13 @@ func (r routeRuntime) badRequest(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) writeError(ginCtx *gin.Context, err error) {
+	if errors.Is(err, moduleapi.ErrModuleConfigVersionConflict) {
+		if overview, overviewErr := r.service.Overview(ginCtx.Request.Context()); overviewErr == nil {
+			writeModuleConfigETag(ginCtx, overview.Version)
+		}
+		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusPreconditionFailed, messagecontract.ModuleConfigPreconditionFailed.String(), nil)
+		return
+	}
 	if errors.Is(err, errDiagnosticTargetNotFound) {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusNotFound, "common.not_found", map[string]any{"resource": "outbound diagnostic target"})
 		return
@@ -128,6 +148,29 @@ func (r routeRuntime) writeError(ginCtx *gin.Context, err error) {
 		return
 	}
 	httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
+}
+
+func (r routeRuntime) bindIfMatch(ginCtx *gin.Context) (int64, bool) {
+	raw := ginCtx.GetHeader(httpheader.IfMatch.String())
+	if raw == "" {
+		httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, http.StatusPreconditionRequired, errorcode.ModuleConfigPreconditionRequired.String(), messagecontract.ModuleConfigPreconditionRequired.String(), nil)
+		ginCtx.Abort()
+		return 0, false
+	}
+	if len(raw) < 3 || raw[0] != '"' || raw[len(raw)-1] != '"' {
+		r.badRequest(ginCtx)
+		return 0, false
+	}
+	version, err := strconv.ParseInt(raw[1:len(raw)-1], 10, 64)
+	if err != nil || version < 0 {
+		r.badRequest(ginCtx)
+		return 0, false
+	}
+	return version, true
+}
+
+func writeModuleConfigETag(ginCtx *gin.Context, version int64) {
+	ginCtx.Header(httpheader.ETag.String(), strconv.Quote(strconv.FormatInt(version, 10)))
 }
 
 func toOverview(value Overview) generated.PlatformNetworkOverview {

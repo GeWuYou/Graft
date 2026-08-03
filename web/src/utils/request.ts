@@ -23,7 +23,13 @@ import { patchGlobalLoggerContext } from '@/utils/logger';
 
 type RequestConfig = AxiosRequestConfigRetry & {
   requestOptions?: RequestOptions;
+  returnResponseHeaders?: boolean;
 };
+
+export type RequestResponse<T> = Readonly<{
+  data: T;
+  headers: AxiosResponse<T>['headers'];
+}>;
 
 export type NdjsonPostConfig = Readonly<{
   data: unknown;
@@ -34,9 +40,13 @@ export type NdjsonPostConfig = Readonly<{
 
 interface RequestInstance {
   get<T>(config: RequestConfig): Promise<T>;
+  getWithResponse<T>(config: RequestConfig): Promise<RequestResponse<T>>;
   post<T>(config: RequestConfig): Promise<T>;
+  postWithResponse<T>(config: RequestConfig): Promise<RequestResponse<T>>;
   put<T>(config: RequestConfig): Promise<T>;
+  putWithResponse<T>(config: RequestConfig): Promise<RequestResponse<T>>;
   delete<T>(config: RequestConfig): Promise<T>;
+  deleteWithResponse<T>(config: RequestConfig): Promise<RequestResponse<T>>;
   postNdjson(config: NdjsonPostConfig): Promise<void>;
 }
 
@@ -151,6 +161,16 @@ async function requestWithMethod<T>(method: 'get' | 'post' | 'put' | 'delete', c
   return response as T;
 }
 
+async function requestWithResponse<T>(
+  method: 'get' | 'post' | 'put' | 'delete',
+  config: RequestConfig,
+): Promise<RequestResponse<T>> {
+  return requestWithMethod<RequestResponse<T>>(method, {
+    ...config,
+    returnResponseHeaders: true,
+  });
+}
+
 async function postNdjson(config: NdjsonPostConfig, authRefreshAttempted = false): Promise<void> {
   if (!authRefreshAttempted && shouldRefreshBeforeRequest()) {
     await refreshClientSessionWithFailureHandling();
@@ -242,10 +262,13 @@ async function normalizeStreamingError(response: Response): Promise<ApiRequestEr
   });
 }
 
-function unwrapResponse<T>(response: AxiosResponse<T | ApiEnvelope<T>>): T {
+function unwrapResponse<T>(response: AxiosResponse<T | ApiEnvelope<T>>): T | RequestResponse<T> {
   const payload = response.data;
 
   if (!isApiEnvelope(payload)) {
+    if ((response.config as RequestConfig).returnResponseHeaders) {
+      return { data: payload as T, headers: response.headers };
+    }
     return payload as T;
   }
 
@@ -255,7 +278,11 @@ function unwrapResponse<T>(response: AxiosResponse<T | ApiEnvelope<T>>): T {
   }
 
   syncLoggerCorrelation(payload.traceId);
-  return payload.data;
+  const data = payload.data;
+  if ((response.config as RequestConfig).returnResponseHeaders) {
+    return { data, headers: response.headers };
+  }
+  return data;
 }
 
 function isApiEnvelope<T>(payload: unknown): payload is ApiEnvelope<T> {
@@ -427,14 +454,26 @@ export const request: RequestInstance = {
   get<T>(config: RequestConfig) {
     return requestWithMethod<T>('get', config);
   },
+  getWithResponse<T>(config: RequestConfig) {
+    return requestWithResponse<T>('get', config);
+  },
   post<T>(config: RequestConfig) {
     return requestWithMethod<T>('post', config);
+  },
+  postWithResponse<T>(config: RequestConfig) {
+    return requestWithResponse<T>('post', config);
   },
   put<T>(config: RequestConfig) {
     return requestWithMethod<T>('put', config);
   },
+  putWithResponse<T>(config: RequestConfig) {
+    return requestWithResponse<T>('put', config);
+  },
   delete<T>(config: RequestConfig) {
     return requestWithMethod<T>('delete', config);
+  },
+  deleteWithResponse<T>(config: RequestConfig) {
+    return requestWithResponse<T>('delete', config);
   },
   postNdjson(config: NdjsonPostConfig) {
     return postNdjson(config);

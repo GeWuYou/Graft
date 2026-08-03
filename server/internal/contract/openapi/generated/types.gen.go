@@ -12054,7 +12054,7 @@ type PlatformNetworkDiagnosticTarget struct {
 	TitleKey string `json:"title_key"`
 }
 
-// PlatformNetworkOutboundConfig Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
+// PlatformNetworkOutboundConfig Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
 type PlatformNetworkOutboundConfig struct {
 	// Enabled When false, every platform HTTP client connects directly regardless of the retained proxy values.
 	Enabled bool `json:"enabled"`
@@ -12071,7 +12071,7 @@ type PlatformNetworkOutboundConfig struct {
 
 // PlatformNetworkOutboundPolicy Effective platform outbound-network policy and its configuration source.
 type PlatformNetworkOutboundPolicy struct {
-	// Config Platform outbound-network policy inputs. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
+	// Config Complete platform outbound-network policy replacement. PUT submits the full configuration object; partial updates require a future PATCH contract. This policy controls proxy selection only; HTTP client timeout, retry, tracing, and TLS behavior belong to the client factory or its caller.
 	Config PlatformNetworkOutboundConfig `json:"config"`
 
 	// Source Whether the effective policy is the module default or an administrator override.
@@ -14184,6 +14184,9 @@ type DockerVolumeListSource = DockerResourceSource
 // DockerVolumeListUsage defines model for docker-volume-list-usage.
 type DockerVolumeListUsage string
 
+// IfMatchHeader defines model for if-match-header.
+type IfMatchHeader = string
+
 // LocaleHeader defines model for locale-header.
 type LocaleHeader = string
 
@@ -14232,11 +14235,20 @@ type SessionListLimit = int
 // TrendRangeQuery defines model for trend-range-query.
 type TrendRangeQuery string
 
+// BadRequest defines model for bad-request.
+type BadRequest = ErrorResponse
+
 // Forbidden defines model for forbidden.
 type Forbidden = ErrorResponse
 
 // InternalServerError defines model for internal-server-error.
 type InternalServerError = ErrorResponse
+
+// PreconditionFailed defines model for precondition-failed.
+type PreconditionFailed = ErrorResponse
+
+// PreconditionRequired defines model for precondition-required.
+type PreconditionRequired = ErrorResponse
 
 // Unauthorized defines model for unauthorized.
 type Unauthorized = ErrorResponse
@@ -16169,6 +16181,9 @@ type PutPlatformNetworkOutboundParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
+	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
 // PostPlatformNetworkDiagnosticParams defines parameters for PostPlatformNetworkDiagnostic.
@@ -16201,6 +16216,9 @@ type ResetPlatformNetworkOutboundParams struct {
 	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
 	// through the response header and envelope traceId field.
 	XRequestId *RequestIdHeader `json:"X-Request-Id,omitempty"`
+
+	// IfMatch Strong entity tag for the complete Module Config representation being replaced.
+	IfMatch IfMatchHeader `json:"If-Match"`
 }
 
 // GetPlatformUpdateActiveOperationParams defines parameters for GetPlatformUpdateActiveOperation.

@@ -33,7 +33,7 @@ func (r *repository) ListOverrides(ctx context.Context) (overrides []systemconfi
 
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT key, override_value, created_at, created_by, updated_at, updated_by
+		`SELECT key, override_value, version, created_at, created_by, updated_at, updated_by
 		 FROM system_config_values`,
 	)
 	if err != nil {
@@ -67,7 +67,7 @@ func (r *repository) GetOverride(ctx context.Context, key string) (systemconfigs
 
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT key, override_value, created_at, created_by, updated_at, updated_by
+		`SELECT key, override_value, version, created_at, created_by, updated_at, updated_by
 		 FROM system_config_values WHERE key = $1`,
 		strings.TrimSpace(key),
 	)
@@ -81,42 +81,68 @@ func (r *repository) GetOverride(ctx context.Context, key string) (systemconfigs
 	return override, nil
 }
 
-func (r *repository) SetOverride(ctx context.Context, key string, value json.RawMessage, userID *uint64) (systemconfigstore.Override, error) {
+func (r *repository) CompareAndSwapOverride(ctx context.Context, key string, value json.RawMessage, userID *uint64, expectedVersion int64) (systemconfigstore.Override, error) {
 	if r == nil || r.db == nil {
 		return systemconfigstore.Override{}, errors.New("system config repository is unavailable")
 	}
 	userIDValue, err := nullableInt64(userID)
 	if err != nil {
-		return systemconfigstore.Override{}, fmt.Errorf("set system config override: %w", err)
+		return systemconfigstore.Override{}, fmt.Errorf("compare and swap system config override: %w", err)
+	}
+	if expectedVersion < 0 {
+		return systemconfigstore.Override{}, fmt.Errorf("compare and swap system config override: invalid expected version %d", expectedVersion)
 	}
 
 	row := r.db.QueryRowContext(
 		ctx,
-		`INSERT INTO system_config_values (key, override_value, created_at, created_by, updated_at, updated_by)
-		 VALUES ($1, $2, NOW(), $3, NOW(), $3)
+		`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
+		 SELECT $1, $2, 1, NOW(), $3, NOW(), $3 WHERE $4 = 0
 		 ON CONFLICT (key)
-		 DO UPDATE SET override_value = EXCLUDED.override_value, updated_at = NOW(), updated_by = EXCLUDED.updated_by
-		 RETURNING key, override_value, created_at, created_by, updated_at, updated_by`,
+		 DO UPDATE SET override_value = EXCLUDED.override_value, version = system_config_values.version + 1, updated_at = NOW(), updated_by = EXCLUDED.updated_by
+		 WHERE system_config_values.version = $4
+		 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
 		strings.TrimSpace(key),
 		value,
 		userIDValue,
+		expectedVersion,
 	)
 	override, err := scanOverride(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
+	}
 	if err != nil {
-		return systemconfigstore.Override{}, fmt.Errorf("set system config override: %w", err)
+		return systemconfigstore.Override{}, fmt.Errorf("compare and swap system config override: %w", err)
 	}
 	return override, nil
 }
 
-func (r *repository) DeleteOverride(ctx context.Context, key string) error {
+func (r *repository) ResetOverride(ctx context.Context, key string, userID *uint64, expectedVersion int64) (systemconfigstore.Override, error) {
 	if r == nil || r.db == nil {
-		return errors.New("system config repository is unavailable")
+		return systemconfigstore.Override{}, errors.New("system config repository is unavailable")
 	}
-
-	if _, err := r.db.ExecContext(ctx, `DELETE FROM system_config_values WHERE key = $1`, strings.TrimSpace(key)); err != nil {
-		return fmt.Errorf("delete system config override: %w", err)
+	userIDValue, err := nullableInt64(userID)
+	if err != nil {
+		return systemconfigstore.Override{}, fmt.Errorf("reset system config override: %w", err)
 	}
-	return nil
+	if expectedVersion < 0 {
+		return systemconfigstore.Override{}, fmt.Errorf("reset system config override: invalid expected version %d", expectedVersion)
+	}
+	row := r.db.QueryRowContext(ctx,
+		`INSERT INTO system_config_values (key, override_value, version, created_at, created_by, updated_at, updated_by)
+		 SELECT $1, NULL, 1, NOW(), $2, NOW(), $2 WHERE $3 = 0
+		 ON CONFLICT (key)
+		 DO UPDATE SET override_value = NULL, version = system_config_values.version + 1, updated_at = NOW(), updated_by = EXCLUDED.updated_by
+		 WHERE system_config_values.version = $3
+		 RETURNING key, override_value, version, created_at, created_by, updated_at, updated_by`,
+		strings.TrimSpace(key), userIDValue, expectedVersion)
+	override, err := scanOverride(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return systemconfigstore.Override{}, systemconfigstore.ErrVersionConflict
+	}
+	if err != nil {
+		return systemconfigstore.Override{}, fmt.Errorf("reset system config override: %w", err)
+	}
+	return override, nil
 }
 
 type rowScanner interface {
@@ -125,13 +151,15 @@ type rowScanner interface {
 
 func scanOverride(row rowScanner) (systemconfigstore.Override, error) {
 	var override systemconfigstore.Override
+	var value []byte
 	var createdAt time.Time
 	var createdBy sql.NullInt64
 	var updatedAt time.Time
 	var updatedBy sql.NullInt64
-	if err := row.Scan(&override.Key, &override.Value, &createdAt, &createdBy, &updatedAt, &updatedBy); err != nil {
+	if err := row.Scan(&override.Key, &value, &override.Version, &createdAt, &createdBy, &updatedAt, &updatedBy); err != nil {
 		return systemconfigstore.Override{}, err
 	}
+	override.Value = append(json.RawMessage(nil), value...)
 	override.CreatedAt = createdAt.UTC()
 	override.CreatedBy = uint64FromNullInt64(createdBy)
 	override.UpdatedAt = updatedAt.UTC()

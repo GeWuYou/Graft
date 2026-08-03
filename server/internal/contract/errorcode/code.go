@@ -62,6 +62,12 @@ const (
 	// CommonNotFound 表示资源不存在或不在调用方可见范围内。
 	CommonNotFound Code = "COMMON_NOT_FOUND"
 
+	// ModuleConfigPreconditionFailed 表示 Module Config 的 If-Match 已过期。
+	ModuleConfigPreconditionFailed Code = "MODULE_CONFIG_PRECONDITION_FAILED"
+
+	// ModuleConfigPreconditionRequired 表示 Module Config 修改请求缺少 If-Match。
+	ModuleConfigPreconditionRequired Code = "MODULE_CONFIG_PRECONDITION_REQUIRED"
+
 	// RbacCannotRemoveOwnAdminRole 表示替换内置管理员角色时阻止自我锁定。
 	RbacCannotRemoveOwnAdminRole Code = "RBAC_CANNOT_REMOVE_OWN_ADMIN_ROLE"
 
@@ -100,6 +106,8 @@ var messageKeyCodes = map[messagecontract.Key]Code{
 	messagecontract.CommonInternalError:                  CommonInternalError,
 	messagecontract.CommonInvalidArgument:                CommonInvalidArgument,
 	messagecontract.CommonNotFound:                       CommonNotFound,
+	messagecontract.ModuleConfigPreconditionFailed:       ModuleConfigPreconditionFailed,
+	messagecontract.ModuleConfigPreconditionRequired:     ModuleConfigPreconditionRequired,
 	messagecontract.RbacCannotRemoveOwnAdminRole:         RbacCannotRemoveOwnAdminRole,
 	messagecontract.RbacBuiltinAdminPermissionsImmutable: RbacBuiltinAdminPermissionsImmutable,
 	messagecontract.PermissionNotFound:                   PermissionNotFound,
