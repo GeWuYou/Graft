@@ -8,7 +8,10 @@ services:
   bootstrap:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never
-    command: ["migrate", "up", "--allow-dirty"]
+    command:
+      - |
+        /app/graft update cutover-v1
+        exec /app/graft migrate up --allow-dirty
   application-root-init:
     image: ${GRAFT_RELEASE_SERVER_IMAGE}:${GRAFT_RELEASE_IMAGE_TAG}
     pull_policy: never

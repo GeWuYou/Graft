@@ -3562,7 +3562,6 @@ const (
 	RunnerLost             PlatformUpdateOperationStateSource = "runner_lost"
 	RunnerState            PlatformUpdateOperationStateSource = "runner_state"
 	RunnerStateUnavailable PlatformUpdateOperationStateSource = "runner_state_unavailable"
-	RunnerTerminated       PlatformUpdateOperationStateSource = "runner_terminated"
 	TerminalHistory        PlatformUpdateOperationStateSource = "terminal_history"
 )
 
@@ -3574,8 +3573,6 @@ func (e PlatformUpdateOperationStateSource) Valid() bool {
 	case RunnerState:
 		return true
 	case RunnerStateUnavailable:
-		return true
-	case RunnerTerminated:
 		return true
 	case TerminalHistory:
 		return true
@@ -12169,10 +12166,10 @@ type PlatformUpdateOperation struct {
 	SourceVersion string                           `json:"source_version"`
 	StartedAt     time.Time                        `json:"started_at"`
 
-	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_lost and legacy runner_terminated projections are explicitly unavailable even when they retain the last verified snapshot fields.
+	// StateAvailable Whether runner lifecycle state was available to verify this projection. runner_lost is explicitly unavailable even when it retains the last verified snapshot fields.
 	StateAvailable bool `json:"state_available"`
 
-	// StateSource Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
+	// StateSource Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
 	StateSource   PlatformUpdateOperationStateSource `json:"state_source"`
 	TargetVersion string                             `json:"target_version"`
 	UpdatedAt     time.Time                          `json:"updated_at"`
@@ -12184,7 +12181,7 @@ type PlatformUpdateOperationOperation string
 // PlatformUpdateOperationPhase defines model for PlatformUpdateOperation.Phase.
 type PlatformUpdateOperationPhase string
 
-// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
+// PlatformUpdateOperationStateSource Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
 type PlatformUpdateOperationStateSource string
 
 // PlatformUpdateOperationEvent defines model for platform-update-operation-event.

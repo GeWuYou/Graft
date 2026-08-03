@@ -5,7 +5,7 @@ import { defineComponent, h } from 'vue';
 
 import { usePermissionStore } from '@/store';
 
-import { createUpdateOperation, getUpdateFailureDiagnostic } from '../../api/update';
+import { createUpdateOperation, getUpdateFailureDiagnostic, getUpdateOperationDiagnostic } from '../../api/update';
 import DiagnosticDrawer from '../../components/DiagnosticDrawer.vue';
 import { UPDATE_OPERATION_FAILURE_CODE } from '../../contract/failure-codes';
 import { UPDATE_PERMISSION_CODE } from '../../contract/permissions';
@@ -18,6 +18,7 @@ const apiMocks = vi.hoisted(() => ({
   createUpdateOperation: vi.fn(),
   getUpdateOperation: vi.fn(),
   getUpdateFailureDiagnostic: vi.fn(),
+  getUpdateOperationDiagnostic: vi.fn(),
   getUpdateOperations: vi.fn(),
   subscribeToUpdateOperation: vi.fn(() => ({ close: vi.fn(), reconnect: vi.fn() })),
 }));
@@ -157,6 +158,7 @@ describe('UpdateCenter', () => {
       message: '',
     });
     apiMocks.getUpdateFailureDiagnostic.mockResolvedValue(null);
+    apiMocks.getUpdateOperationDiagnostic.mockResolvedValue(null);
     apiMocks.createUpdateOperation.mockResolvedValue({ operation_id: 'operation-1', runner_id: 'runner-1' });
     vi.clearAllMocks();
   });
@@ -540,6 +542,40 @@ describe('UpdateCenter', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain('update.center.history.viewCause');
+  });
+
+  it('loads a failed history cause directly without opening live progress tracking', async () => {
+    apiMocks.getUpdateOperations.mockResolvedValueOnce([
+      {
+        operation_id: 'failed-operation',
+        runner_id: 'failed-runner',
+        phase: 'FAILED',
+        progress: 100,
+        message: 'update_failed',
+      },
+    ]);
+    apiMocks.getUpdateOperationDiagnostic.mockResolvedValueOnce({
+      operation_id: 'failed-operation',
+      request_id: 'request-update-42',
+      target_version: '1.1.0',
+      failure_code: UPDATE_OPERATION_FAILURE_CODE.RUNNER_TERMINAL_FAILED,
+      failure_stage: 'runner_launch',
+      summary: 'runner failed',
+      detail: 'sanitized history detail',
+      occurred_at: '2026-07-27T10:00:00Z',
+    });
+    const wrapper = mountCenter();
+    await flushPromises();
+
+    const causeButton = wrapper.findAll('button').find((button) => button.text() === 'update.center.history.viewCause');
+    expect(causeButton).toBeDefined();
+    await causeButton!.trigger('click');
+    await flushPromises();
+
+    expect(getUpdateOperationDiagnostic).toHaveBeenCalledWith('failed-operation');
+    expect(apiMocks.getUpdateOperation).not.toHaveBeenCalled();
+    expect(apiMocks.subscribeToUpdateOperation).not.toHaveBeenCalled();
+    expect(wrapper.get('[data-testid="history-operation-diagnostic"]').text()).toContain('sanitized history detail');
   });
 
   it('localizes known runner history messages instead of rendering their internal codes', async () => {

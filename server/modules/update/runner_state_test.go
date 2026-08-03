@@ -458,13 +458,11 @@ func expireRunnerLease(state *RunnerState) {
 	state.LeaseExpiresAt = time.Now().UTC().Add(-5 * time.Minute)
 }
 
-func TestRolloutProjectsExpiredAndLegacyRunnerStatesAsLost(t *testing.T) {
+func TestRolloutProjectsExpiredRunnerStatesAsLost(t *testing.T) {
 	for _, test := range []struct {
-		name   string
-		legacy bool
+		name string
 	}{
 		{name: "v2 lease"},
-		{name: "v1 compatibility", legacy: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			store, err := NewFileRunnerStateStore(t.TempDir())
@@ -473,13 +471,7 @@ func TestRolloutProjectsExpiredAndLegacyRunnerStatesAsLost(t *testing.T) {
 			}
 			input := RunnerInput{OperationID: "update-lost-" + strings.ReplaceAll(test.name, " ", "-"), SourceVersion: "1.0.0", TargetVersion: "1.1.0", Preflight: ComposePreflight{DeploymentStrategy: DeploymentStrategyBetaTracking}}
 			state := NewRunnerState(input, "runner-lost-"+strings.ReplaceAll(test.name, " ", "-"), RunnerPhaseReady, 0, "runner_accepted", "", RunnerState{})
-			if test.legacy {
-				state.SchemaVersion = 1
-				state.StartedAt = time.Now().UTC().Add(-31 * time.Minute)
-				state.LeaseEpoch, state.LeaseHeartbeatAt, state.LeaseExpiresAt = 0, time.Time{}, time.Time{}
-			} else {
-				expireRunnerLease(&state)
-			}
+			expireRunnerLease(&state)
 			if err := store.Write(state); err != nil {
 				t.Fatalf("write state: %v", err)
 			}
@@ -490,6 +482,19 @@ func TestRolloutProjectsExpiredAndLegacyRunnerStatesAsLost(t *testing.T) {
 				t.Fatalf("runner lost projection = %#v, %v", view, err)
 			}
 		})
+	}
+}
+
+func TestFileRunnerStateStoreRejectsLegacySchemaV1Snapshot(t *testing.T) {
+	store, err := NewFileRunnerStateStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("new state store: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(store.root, "current.json"), []byte(`{"schema_version":1,"operation_id":"update-legacy-fixture","runner_id":"runner-legacy-fixture"}`), 0o600); err != nil {
+		t.Fatalf("write legacy state: %v", err)
+	}
+	if _, err := store.Read(); err == nil {
+		t.Fatal("expected schema-v1 snapshot rejection")
 	}
 }
 

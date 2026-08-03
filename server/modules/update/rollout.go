@@ -57,7 +57,6 @@ const maxActiveOperationScan = 100
 const runnerStatePollInterval = 2 * time.Second
 
 const recoveryClaimRandomBytes = 16
-const legacyRunnerLostAfter = 30 * time.Minute
 const missingRunnerStateLostAfter = 5 * time.Minute
 
 type receiptPolling struct {
@@ -347,10 +346,7 @@ func runnerLeaseLost(state RunnerState, now time.Time) bool {
 	if isTerminalRunnerPhase(state.Phase) {
 		return false
 	}
-	if state.SchemaVersion >= runnerStateSchemaVersion {
-		return !state.LeaseExpiresAt.After(now)
-	}
-	return !state.StartedAt.Add(legacyRunnerLostAfter).After(now)
+	return !state.LeaseExpiresAt.After(now)
 }
 
 func newRecoveryClaimID() (string, error) {

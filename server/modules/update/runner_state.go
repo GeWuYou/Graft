@@ -235,7 +235,7 @@ func (s *FileRunnerStateStore) write(next RunnerState, appendEvent bool) error {
 			if isTerminalRunnerPhase(previous.Phase) && (next.RunnerID != previous.RunnerID || next.LeaseEpoch != previous.LeaseEpoch || next.Phase != previous.Phase) {
 				return errors.New("runner terminal state is immutable")
 			}
-			if previous.SchemaVersion >= 2 && !isTerminalRunnerPhase(previous.Phase) {
+			if !isTerminalRunnerPhase(previous.Phase) {
 				expired := !s.currentTime().Before(previous.LeaseExpiresAt)
 				if expired {
 					if !isTerminalRunnerPhase(next.Phase) || next.LeaseEpoch != previous.LeaseEpoch+1 || next.RunnerID == previous.RunnerID {
@@ -432,7 +432,7 @@ func NewRunnerState(input RunnerInput, runnerID string, phase RunnerPhase, progr
 		state.StartedAt, state.Revision = previous.StartedAt, previous.Revision+1
 		state.SourceVersion, state.TargetVersion, state.Strategy = previous.SourceVersion, previous.TargetVersion, previous.Strategy
 		state.LeaseEpoch = previous.LeaseEpoch
-		if previous.SchemaVersion >= 2 && runnerID != previous.RunnerID {
+		if runnerID != previous.RunnerID {
 			state.LeaseEpoch++
 		}
 	}
@@ -444,13 +444,13 @@ func NewRunnerState(input RunnerInput, runnerID string, phase RunnerPhase, progr
 
 //nolint:cyclop,gocyclo // 单个快照的全部不变量必须在读取边界一次性验证。
 func validateRunnerState(value RunnerState) error {
-	if (value.SchemaVersion != 1 && value.SchemaVersion != runnerStateSchemaVersion) || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(value.Strategy)) || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || !validRunnerStateMessage(value.Message) || !validRunnerStateFailure(value.Error) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
+	if value.SchemaVersion != runnerStateSchemaVersion || !runnerOperationID.MatchString(value.OperationID) || !runnerOperationID.MatchString(value.RunnerID) || strings.TrimSpace(value.SourceVersion) == "" || strings.TrimSpace(value.TargetVersion) == "" || !validDeploymentStrategy(DeploymentStrategy(value.Strategy)) || value.Operation != "self_update" || !validRunnerPhase(value.Phase) || !validRunnerStateMessage(value.Message) || !validRunnerStateFailure(value.Error) || value.Progress < 0 || value.Progress > 100 || value.Revision == 0 || value.StartedAt.IsZero() || value.UpdatedAt.IsZero() {
 		return errors.New("runner state is invalid")
 	}
 	if isTerminalRunnerPhase(value.Phase) != (value.FinishedAt != nil) {
 		return errors.New("runner state terminal timestamp is invalid")
 	}
-	if value.SchemaVersion >= 2 && !isTerminalRunnerPhase(value.Phase) && (value.LeaseEpoch == 0 || value.LeaseHeartbeatAt.IsZero() || value.LeaseExpiresAt.IsZero() || !value.LeaseExpiresAt.After(value.LeaseHeartbeatAt)) {
+	if !isTerminalRunnerPhase(value.Phase) && (value.LeaseEpoch == 0 || value.LeaseHeartbeatAt.IsZero() || value.LeaseExpiresAt.IsZero() || !value.LeaseExpiresAt.After(value.LeaseHeartbeatAt)) {
 		return errors.New("runner state lease is invalid")
 	}
 	return nil

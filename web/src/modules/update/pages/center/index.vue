@@ -233,6 +233,33 @@
           </template>
         </t-table>
       </t-card>
+
+      <t-dialog
+        v-model:visible="historyDiagnosticVisible"
+        :header="t('update.center.confirmation.diagnosticTitle')"
+        :confirm-btn="{ disabled: true }"
+        :cancel-btn="{ content: t('update.center.progress.close') }"
+      >
+        <t-loading v-if="historyDiagnosticLoading" />
+        <t-alert v-else-if="historyDiagnosticError" theme="warning" :message="historyDiagnosticError" />
+        <section
+          v-else-if="historyDiagnostic"
+          class="update-center__diagnostic"
+          data-testid="history-operation-diagnostic"
+        >
+          <dl>
+            <div>
+              <dt>{{ t('update.center.confirmation.diagnosticCode') }}</dt>
+              <dd>{{ historyDiagnostic.failure_code }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('update.center.confirmation.diagnosticStage') }}</dt>
+              <dd>{{ failureStageLabel(historyDiagnostic.failure_stage) }}</dd>
+            </div>
+          </dl>
+          <pre>{{ historyDiagnostic.detail }}</pre>
+        </section>
+      </t-dialog>
     </template>
 
     <diagnostic-drawer
@@ -343,7 +370,12 @@ import { copyText } from '@/shared/observability/copy';
 import { usePermissionStore } from '@/store';
 import { isApiRequestError } from '@/utils/request';
 
-import { createUpdateOperation, getUpdateFailureDiagnostic, getUpdateOperations } from '../../api/update';
+import {
+  createUpdateOperation,
+  getUpdateFailureDiagnostic,
+  getUpdateOperationDiagnostic,
+  getUpdateOperations,
+} from '../../api/update';
 import DiagnosticDrawer from '../../components/DiagnosticDrawer.vue';
 import {
   getAvailableUpdateRelease,
@@ -389,6 +421,10 @@ const operationError = ref('');
 const operationRequestId = ref('');
 const operationDiagnostic = ref<UpdateFailureDiagnostic | null>(null);
 const diagnosticUnavailable = ref(false);
+const historyDiagnosticVisible = ref(false);
+const historyDiagnosticLoading = ref(false);
+const historyDiagnosticError = ref('');
+const historyDiagnostic = ref<UpdateFailureDiagnostic | null>(null);
 const selectedCandidateKey = ref('');
 const selectedFixedVersion = ref('');
 const diagnosticVisible = ref(false);
@@ -677,10 +713,22 @@ function hasRunnerFailure(operation: UpdateOperation) {
 }
 
 function showHistoryCause(operation: UpdateOperation) {
-  if (props.dataSource) {
-    return;
-  }
-  void progressStore.begin({ operation_id: operation.operation_id, runner_id: operation.runner_id });
+  if (props.dataSource) return;
+
+  historyDiagnosticVisible.value = true;
+  historyDiagnosticLoading.value = true;
+  historyDiagnosticError.value = '';
+  historyDiagnostic.value = null;
+  void getUpdateOperationDiagnostic(operation.operation_id)
+    .then((diagnostic) => {
+      historyDiagnostic.value = diagnostic;
+    })
+    .catch(() => {
+      historyDiagnosticError.value = t('update.center.history.causeUnavailable');
+    })
+    .finally(() => {
+      historyDiagnosticLoading.value = false;
+    });
 }
 
 function historyMessage(message: string | undefined) {

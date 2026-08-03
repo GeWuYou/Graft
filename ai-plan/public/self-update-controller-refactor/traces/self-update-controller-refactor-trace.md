@@ -56,20 +56,19 @@
 - Phase, heartbeat, and terminal writes share fencing: only the matching `runner_id + lease_epoch` can write while
   the lease is unexpired. Expiry prevents the old runner from reviving or overwriting state; recovery increments epoch
   and writes only the safe terminal conclusion.
-- Server reconciles leases each minute and computes them on API reads. Expired v2 state, a first snapshot missing for
-  five minutes after authorization, and v1 state beyond the 15-minute execution plus 15-minute grace bridge project
-  `runner_lost` with last verified progress as diagnostics and `state_available=false`.
+- Server reconciles leases each minute and computes them on API reads. Expired v2 state or a first snapshot missing for
+  five minutes after authorization projects `runner_lost` with last verified progress as diagnostics and
+  `state_available=false`. Bootstrap performs the one-shot v1 cutover before migration; runtime does not consume v1.
 - Recovery now requires a pre-migration `runner_lost` projection. It receives the bound snapshot when present, or
   authorization identity plus frozen version/deployment input when first state is missing; server never fabricates a
-  phase. Docker inventory, container existence, exit code, and logs are not recovery or liveness authority. Keep
-  `runner_terminated` consumption only until all minimum-supported sources create schema-v2 lease snapshots.
+  phase. Docker inventory, container existence, exit code, and logs are not recovery or liveness authority.
 
 ## 2026-08-03 PR Review Remediation
 
 - Added a bounded consecutive-heartbeat failure threshold that cancels the runner execution context after state-volume
   lease renewal can no longer be trusted, with a direct regression test for cancellation.
 - Aligned OpenAPI recovery descriptions, generated web bindings, Update Center recovery eligibility, and active-topic
-  recovery materials with missing-state `runner_lost` behavior; legacy `runner_terminated` remains diagnostic-only.
+  recovery materials with missing-state `runner_lost` behavior; the beta cutover removes legacy runtime compatibility.
 - Validation passed: `go run ./cmd/graft validate backend`, `just openapi-check`, and `bun run check`.
 
 ## Loop Batch State

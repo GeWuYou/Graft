@@ -10,12 +10,12 @@ import (
 	"reflect"
 
 	"graft/server/modules/auth/ent/migrate"
+	"graft/server/modules/rbac/ent"
 
 	"graft/server/modules/auth/ent/authcredential"
 	"graft/server/modules/auth/ent/authpersonalaccesstoken"
 	"graft/server/modules/auth/ent/authrefreshsession"
 
-	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 )

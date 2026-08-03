@@ -50,8 +50,8 @@ closeout:
   projects it, and database history is terminal-only.
 - Durable liveness is the state-volume lease, not Docker container observability. Schema v2 adds `lease_epoch`,
   `lease_heartbeat_at`, and `lease_expires_at`; heartbeat is every 30 seconds and expiry is five minutes. The server
-  derives `runner_lost` for an expired lease, a five-minute missing first state, or the v1 30-minute compatibility
-  bridge, then permits only pre-migration terminal recovery.
+  derives `runner_lost` for an expired lease or a five-minute missing first state, then permits only pre-migration
+  terminal recovery. Bootstrap performs the idempotent v1 cutover before migration; runtime accepts v2 only.
 
 ## Task Checklist
 

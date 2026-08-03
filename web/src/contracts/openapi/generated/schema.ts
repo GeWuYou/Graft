@@ -1650,7 +1650,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -7013,12 +7013,11 @@ export interface components {
       /** @description Controlled runner message key; never raw command output or deployment secrets. */
       message: string;
       /**
-       * @description Authority that produced this projection. runner_state_unavailable, runner_lost, and legacy runner_terminated never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
+       * @description Authority that produced this projection. runner_state_unavailable and runner_lost never represent live runner progress; runner_lost means the runner's durable lease expired before it published a terminal snapshot.
        * @enum {string}
        */
-      state_source:
-        'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_lost' | 'runner_terminated';
-      /** @description Whether runner lifecycle state was available to verify this projection. runner_lost and legacy runner_terminated projections are explicitly unavailable even when they retain the last verified snapshot fields. */
+      state_source: 'runner_state' | 'terminal_history' | 'runner_state_unavailable' | 'runner_lost';
+      /** @description Whether runner lifecycle state was available to verify this projection. runner_lost is explicitly unavailable even when it retains the last verified snapshot fields. */
       state_available: boolean;
       /** @description Controlled runner failure code; never raw command output or deployment secrets. */
       error?: string;
