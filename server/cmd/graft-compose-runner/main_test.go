@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,47 @@ import (
 
 	"graft/server/modules/update"
 )
+
+type heartbeatFailureStore struct {
+	current  update.RunnerState
+	failures int
+}
+
+func (s *heartbeatFailureStore) Read() (update.RunnerState, error) { return s.current, nil }
+
+func (s *heartbeatFailureStore) Write(state update.RunnerState) error {
+	s.current = state
+	return nil
+}
+
+func (s *heartbeatFailureStore) Heartbeat(update.RunnerState) (update.RunnerState, error) {
+	if s.failures > 0 {
+		s.failures--
+		return update.RunnerState{}, errors.New("state volume unavailable")
+	}
+	return s.current, nil
+}
+
+func TestStateReporterHeartbeatCancelsAfterConsecutiveFailures(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	input := update.RunnerInput{OperationID: "heartbeat-cancel", SourceVersion: "1.0.0", TargetVersion: "1.1.0"}
+	state := update.NewRunnerState(input, "runner-1", update.RunnerPhaseReady, 0, "runner_accepted", "", update.RunnerState{})
+	reporter := &stateReporter{store: &heartbeatFailureStore{current: state, failures: runnerLeaseHeartbeatFailureLimit}, current: state, cancelOnHeartbeatFailure: cancel}
+	for attempt := 1; attempt < runnerLeaseHeartbeatFailureLimit; attempt++ {
+		if reporter.heartbeat() {
+			t.Fatalf("heartbeat cancelled on failure %d", attempt)
+		}
+	}
+	if !reporter.heartbeat() {
+		t.Fatal("heartbeat did not cancel after consecutive failures")
+	}
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("runner context was not cancelled")
+	}
+}
 
 func TestReadRunnerInputPrefersInlinePayload(t *testing.T) {
 	input := update.RunnerInput{ProtocolVersion: 2, OperationID: "inline-operation"}

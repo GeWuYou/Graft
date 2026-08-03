@@ -33,24 +33,25 @@ type RunnerStateReporter interface {
 }
 
 const (
-	runnerFailureInvalidInput = "invalid_input"
-	runnerFailureBackup       = "backup_failed"
-	runnerFailurePull         = "pull_failed"
-	runnerFailureImageVerify  = "image_verification_failed"
-	runnerFailureStopServices = "stop_services_failed"
-	runnerFailureMigration    = "migration_failed"
-	runnerFailureRecreate     = "recreate_failed"
-	runnerFailureDockerHealth = "docker_health_failed"
-	runnerFailureHealthz      = "healthz_failed"
-	runnerProgressPreflight   = 5
-	runnerProgressBackup      = 15
-	runnerProgressPullImages  = 30
-	runnerProgressStop        = 45
-	runnerProgressApply       = 60
-	runnerProgressMigration   = 70
-	runnerProgressStart       = 82
-	runnerProgressHealth      = 92
-	runnerProgressTerminal    = 100
+	// RunnerFailureCodeInvalidInput 标识 runner 输入或受控恢复快照无法通过校验。
+	RunnerFailureCodeInvalidInput = "invalid_input"
+	runnerFailureBackup           = "backup_failed"
+	runnerFailurePull             = "pull_failed"
+	runnerFailureImageVerify      = "image_verification_failed"
+	runnerFailureStopServices     = "stop_services_failed"
+	runnerFailureMigration        = "migration_failed"
+	runnerFailureRecreate         = "recreate_failed"
+	runnerFailureDockerHealth     = "docker_health_failed"
+	runnerFailureHealthz          = "healthz_failed"
+	runnerProgressPreflight       = 5
+	runnerProgressBackup          = 15
+	runnerProgressPullImages      = 30
+	runnerProgressStop            = 45
+	runnerProgressApply           = 60
+	runnerProgressMigration       = 70
+	runnerProgressStart           = 82
+	runnerProgressHealth          = 92
+	runnerProgressTerminal        = 100
 )
 
 // RunnerBackupFailureStage 标识备份期间可安全暴露给操作者的固定失败阶段。
@@ -131,7 +132,7 @@ func ExecuteComposeRunner(ctx context.Context, input RunnerInput, actions Compos
 
 func runRunnerBackup(ctx context.Context, input RunnerInput, actions ComposeRunnerActions, reporter RunnerStateReporter, receipt *RunnerReceipt) error {
 	if err := validateRunnerExecution(input, actions); err != nil {
-		receipt.FailureCode = runnerFailureInvalidInput
+		receipt.FailureCode = RunnerFailureCodeInvalidInput
 		return finalizeRunnerError(*receipt, errors.Join(err, reportRunnerState(reporter, RunnerPhaseFailed, runnerProgressTerminal, "update_failed", receipt.FailureCode)))
 	}
 	emitRunnerProgress(RunnerProgressBackingUp)

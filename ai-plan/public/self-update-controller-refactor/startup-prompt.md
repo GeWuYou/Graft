@@ -47,9 +47,10 @@ Current batch plan:
    recovery path.
 2. Completed: server request admission, read-only projection, terminal history migration, API/realtime contract
    convergence, Compose state-volume wiring, and Update Center recovery rendering.
-3. Current: deliver durable lease/fencing (`lease_epoch`, 30-second heartbeat, five-minute expiry, `runner_lost`, and
-   recovery fencing), then rerun cross-boundary validation and perform the archive-readiness review. Do not restart
-   the completed implementation batches.
+3. Completed: durable lease/fencing (`lease_epoch`, 30-second heartbeat, five-minute expiry, `runner_lost`, and
+   recovery fencing).
+4. Current: rerun cross-boundary validation and perform the archive-readiness review. Do not restart the completed
+   implementation batches.
 
 Loop instructions:
 

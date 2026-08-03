@@ -1578,7 +1578,7 @@ export interface paths {
     };
     /**
      * Read the active self-update operation
-     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` and `data.state_available` is false; this is not a fabricated READY progress state. When a runner's durable lease expires before it publishes a terminal snapshot, `data.state_source` is `runner_lost`, `data.state_available` is false, `data.error` is `PLATFORM_UPDATE_RUNNER_LOST`, and the last verified phase/progress/message fields are retained for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.
+     * @description Returns the runner-owned active operation for tab recovery. `data` is null only when no unfinished operation exists. When an unfinished request exists but its runner-state snapshot is absent, `data.state_source` is `runner_state_unavailable` until the missing-state loss window elapses; it is then projected as `runner_lost` with `data.state_available` false and `data.error` set to `PLATFORM_UPDATE_RUNNER_LOST`. An expired durable lease is also projected as `runner_lost`, retaining the last verified phase/progress/message fields for diagnosis. `runner_terminated` remains a legacy equivalent for older runner snapshots. A 503 is reserved for a runner-state source that cannot be read.
      */
     get: operations['getPlatformUpdateActiveOperation'];
     put?: never;
@@ -1637,7 +1637,7 @@ export interface paths {
     put?: never;
     /**
      * Recover a lost self-update runner
-     * @description Starts one protected, one-shot recovery runner for an operation whose durable runner lease expired before publishing a terminal snapshot. The server accepts recovery only for a `runner_lost` operation and a verified pre-migration non-terminal snapshot; it never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
+     * @description Starts one protected, one-shot recovery runner for a `runner_lost` operation caused by an expired durable lease or a missing runner-state snapshot beyond the loss window. A snapshot, when present, must be verified as pre-migration and non-terminal; missing-state recovery is also fenced by the operation claim. The server never resumes the upgrade or fabricates a lifecycle phase. The recovery runner writes a safe terminal failure/rollback result, after which a new update may be started.
      */
     post: operations['postPlatformUpdateOperationRecovery'];
     delete?: never;

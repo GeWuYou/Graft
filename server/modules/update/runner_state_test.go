@@ -71,14 +71,14 @@ func TestFileRunnerStateStoreHeartbeatDoesNotAppendEventAndExpiredWriterIsFenced
 	if err := store.Write(stale); err == nil {
 		t.Fatal("expired runner must not resume its lease")
 	}
-	recovery := NewRunnerState(input, "runner-lease-recovery", RunnerPhaseFailed, 100, "update_failed", runnerFailureInvalidInput, heartbeat)
+	recovery := NewRunnerState(input, "runner-lease-recovery", RunnerPhaseFailed, 100, "update_failed", RunnerFailureCodeInvalidInput, heartbeat)
 	if err := store.Write(recovery); err != nil {
 		t.Fatalf("recovery epoch must write terminal state: %v", err)
 	}
 	if recovery.LeaseEpoch != heartbeat.LeaseEpoch+1 {
 		t.Fatalf("recovery epoch = %d, want %d", recovery.LeaseEpoch, heartbeat.LeaseEpoch+1)
 	}
-	oldRunnerTerminal := NewRunnerState(input, ready.RunnerID, RunnerPhaseRollback, 100, "rollback_completed", runnerFailureInvalidInput, heartbeat)
+	oldRunnerTerminal := NewRunnerState(input, ready.RunnerID, RunnerPhaseRollback, 100, "rollback_completed", RunnerFailureCodeInvalidInput, heartbeat)
 	if err := store.Write(oldRunnerTerminal); err == nil {
 		t.Fatal("old runner must not overwrite recovery terminal state")
 	}
@@ -332,7 +332,7 @@ func TestRolloutReadsActiveRunnerStateWithoutHistoryStore(t *testing.T) {
 	}
 }
 
-func TestRolloutRecoverRequiresBoundTerminatedRunnerEvidence(t *testing.T) {
+func TestRolloutRecoverBindsExpiredLeaseSnapshot(t *testing.T) {
 	t.Setenv("GRAFT_UPDATE_RECOVERY_RUNNER_IMAGE", "ghcr.io/gewuyou/graft-compose-runner@sha256:"+strings.Repeat("a", 64))
 	store, err := NewFileRunnerStateStore(t.TempDir())
 	if err != nil {
@@ -358,16 +358,6 @@ func TestRolloutRecoverRequiresBoundTerminatedRunnerEvidence(t *testing.T) {
 		t.Fatalf("second recovery must retain the accepted launch claim: %v", err)
 	}
 
-	operations = &memoryOperationStore{items: map[string]ComposeUpdateOperation{state.OperationID: {OperationID: state.OperationID, RunnerID: state.RunnerID, SourceVersion: state.SourceVersion, TargetVersion: state.TargetVersion, DeploymentStrategy: DeploymentStrategyBetaTracking, Outcome: ExecutionOutcomePlanning}}}
-	rollout.operations = operations
-	launcher.recovered = RunnerState{}
-	launcher.failures[0].RunnerID = ""
-	if _, err := rollout.Recover(t.Context(), state.OperationID); err != nil {
-		t.Fatalf("recover with fallback terminated evidence: %v", err)
-	}
-
-	launcher.recovered = RunnerState{}
-	launcher.failures[0].RunnerID = "runner-other"
 }
 
 func TestRolloutRecoverReleasesClaimOnlyForProvenPreStartFailure(t *testing.T) {

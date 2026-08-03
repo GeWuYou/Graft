@@ -66,8 +66,8 @@ type RunnerState struct {
 	UpdatedAt     time.Time   `json:"updated_at"`
 	// LeaseEpoch 让 recovery runner 拒绝随后恢复执行的过期 writer 覆盖终态。
 	LeaseEpoch       uint64         `json:"lease_epoch,omitempty"`
-	LeaseHeartbeatAt time.Time      `json:"lease_heartbeat_at,omitempty"`
-	LeaseExpiresAt   time.Time      `json:"lease_expires_at,omitempty"`
+	LeaseHeartbeatAt time.Time      `json:"lease_heartbeat_at"`
+	LeaseExpiresAt   time.Time      `json:"lease_expires_at"`
 	FinishedAt       *time.Time     `json:"finished_at,omitempty"`
 	Error            string         `json:"error,omitempty"`
 	Revision         uint64         `json:"revision"`
@@ -467,7 +467,7 @@ func validRunnerStateMessage(message string) bool {
 
 func validRunnerStateFailure(failure string) bool {
 	switch failure {
-	case "", runnerFailureInvalidInput, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz:
+	case "", RunnerFailureCodeInvalidInput, runnerFailureBackup, runnerFailurePull, runnerFailureImageVerify, runnerFailureStopServices, runnerFailureMigration, runnerFailureRecreate, runnerFailureDockerHealth, runnerFailureHealthz:
 		return true
 	default:
 		return false

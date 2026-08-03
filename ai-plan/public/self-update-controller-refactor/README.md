@@ -12,8 +12,8 @@
   Deployment Runtime snapshots.
 - Completed so far: Work Intake bootstrap, ADR-009, design/roadmap authority convergence, runner state-store and
   controller lifecycle, Compose state-volume integration, server projection/API/realtime convergence, and Update
-  Center recovery rendering.
-- In progress: durable lease/fencing convergence, then cross-boundary validation and archive-readiness review.
+  Center recovery rendering, and durable lease/fencing convergence.
+- In progress: cross-boundary validation and archive-readiness review.
 
 ## Recovery Receipt
 
@@ -52,8 +52,8 @@ Out of scope:
 - Docker container existence, exit state and inventory no longer decide liveness: an expired v2 lease, missing first
   state after five minutes, or v1's 30-minute bridge projects `runner_lost`; recovery is only pre-migration and must
   conclude terminally.
-- Next step: implement and validate durable lease/fencing across runner, server/OpenAPI and Update Center, then rerun
-  the required cross-boundary validation and archive-readiness review. Do not restart an already-completed batch.
+- Durable lease/fencing convergence is complete across runner, server/OpenAPI, and Update Center.
+- Next step: rerun the required cross-boundary validation and archive-readiness review. Do not restart an already-completed batch.
 
 ## Work Intake
 

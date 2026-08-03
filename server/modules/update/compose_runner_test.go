@@ -97,7 +97,7 @@ func TestExecuteComposeRunnerRejectsDigestMismatchBeforeBackup(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected digest authority rejection")
 	}
-	if receipt.FailureCode != runnerFailureInvalidInput || len(actions.trace) != 0 {
+	if receipt.FailureCode != RunnerFailureCodeInvalidInput || len(actions.trace) != 0 {
 		t.Fatalf("receipt = %#v, trace = %#v", receipt, actions.trace)
 	}
 }

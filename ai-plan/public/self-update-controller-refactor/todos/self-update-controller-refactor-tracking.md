@@ -110,6 +110,7 @@ closeout:
 
 - PR #237 has completed the web, contract-governance, migration-governance, and static security checks for this
   refactor.
-- Durable lease/fencing, API/OpenAPI freshness, and the complete backend validation pass. `bun run lint:i18n` and the
-  repository-wide `bun run check` also pass. Compose interruption/restart evidence and archive-readiness review remain
-  pending before the topic can close.
+- Durable lease/fencing and API/OpenAPI freshness pass. Backend validation ran `go run ./cmd/graft validate backend`,
+  `go test ./modules/update/...`, and `go build ./cmd/graft`; `bun run lint:i18n` and the repository-wide `bun run
+  check` also pass. Compose interruption/restart evidence and archive-readiness review remain pending before the topic
+  can close.

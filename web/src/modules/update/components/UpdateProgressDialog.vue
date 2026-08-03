@@ -124,7 +124,7 @@ const runnerDisconnected = computed(() =>
 );
 const canRecoverTerminatedRunner = computed(
   () =>
-    runnerDisconnected.value &&
+    progress.operation?.state_source === 'runner_lost' &&
     !progress.recoveryPending &&
     permissionStore.hasPermission(UPDATE_PERMISSION_CODE.MANAGE),
 );

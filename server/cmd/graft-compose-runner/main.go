@@ -32,6 +32,7 @@ const (
 	composeFileArgumentCapacityMultiplier             = 2
 	runnerExecutionTimeout                            = 15 * time.Minute
 	runnerLeaseHeartbeatInterval                      = 30 * time.Second
+	runnerLeaseHeartbeatFailureLimit                  = 3
 	healthzCurlTimeoutSeconds                         = "30"
 	runnerIDRandomBytes                               = 12
 	runnerProtocolVersion                             = 2
@@ -51,6 +52,8 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
+	defer cancel()
 	reporter, err := newStateReporter(input)
 	if err != nil {
 		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
@@ -60,10 +63,9 @@ func main() {
 		_ = writeRunnerFailureLog(os.Stdout, runnerStateFailureEvidence(input, err))
 		fatal(err)
 	}
+	reporter.cancelOnHeartbeatFailure = cancel
 	reporter.StartHeartbeat()
 	defer reporter.StopHeartbeat()
-	runnerCtx, cancel := context.WithTimeout(context.Background(), runnerExecutionTimeout)
-	defer cancel()
 	receipt, executionErr := update.ExecuteComposeRunner(runnerCtx, input, &actions{reporter: reporter})
 	finalizeErr := reporter.Finalize(receipt)
 	if cleanupErr := cleanupBackupStaging(input); cleanupErr != nil {
@@ -125,7 +127,7 @@ func recoverTerminatedRunnerWithStore(encoded string, store update.RunnerStateWr
 		return err
 	}
 	reporter := &stateReporter{store: store, input: update.RunnerInput{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, SourceVersion: input.SourceVersion, TargetVersion: input.TargetVersion, Preflight: update.ComposePreflight{DeploymentStrategy: update.DeploymentStrategy(input.Strategy)}}, runnerID: recoveryRunnerID, current: persisted}
-	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: "invalid_input", FailureStage: "runner_recovery", FailureDetail: "interrupted_before_migration"}
+	receipt := update.RunnerReceipt{ProtocolVersion: runnerProtocolVersion, OperationID: input.OperationID, RunnerID: recoveryRunnerID, FailureCode: update.RunnerFailureCodeInvalidInput, FailureStage: "runner_recovery", FailureDetail: "interrupted_before_migration"}
 	if err := reporter.Finalize(receipt); err != nil {
 		return fmt.Errorf("persist recovered terminal runner state: %w", err)
 	}
@@ -216,13 +218,15 @@ func (a *actions) Report(phase update.RunnerPhase, progress int, message, failur
 }
 
 type stateReporter struct {
-	store    update.RunnerStateWriter
-	input    update.RunnerInput
-	runnerID string
-	current  update.RunnerState
-	mu       sync.Mutex
-	stop     chan struct{}
-	done     chan struct{}
+	store                    update.RunnerStateWriter
+	input                    update.RunnerInput
+	runnerID                 string
+	current                  update.RunnerState
+	mu                       sync.Mutex
+	stop                     chan struct{}
+	done                     chan struct{}
+	heartbeatFailures        int
+	cancelOnHeartbeatFailure context.CancelFunc
 }
 
 func newStateReporter(input update.RunnerInput) (*stateReporter, error) {
@@ -297,19 +301,44 @@ func (r *stateReporter) StartHeartbeat() {
 			case <-stop:
 				return
 			case <-ticker.C:
-				r.mu.Lock()
-				if r.current.OperationID != "" && !isTerminalPhase(r.current.Phase) {
-					next, err := r.store.Heartbeat(r.current)
-					if err == nil {
-						r.current = next
-					}
+				if r.heartbeat() {
+					return
 				}
-				r.mu.Unlock()
 			}
 		}
 	}()
 }
 
+// heartbeat 只在连续续租失败达到阈值后取消 runner 执行，避免一次短暂 I/O 故障中断升级。
+func (r *stateReporter) heartbeat() bool {
+	if r == nil {
+		return false
+	}
+	r.mu.Lock()
+	if r.current.OperationID == "" || isTerminalPhase(r.current.Phase) {
+		r.mu.Unlock()
+		return false
+	}
+	cancel := context.CancelFunc(nil)
+	next, err := r.store.Heartbeat(r.current)
+	if err == nil {
+		r.current = next
+		r.heartbeatFailures = 0
+	} else {
+		r.heartbeatFailures++
+		if r.heartbeatFailures >= runnerLeaseHeartbeatFailureLimit {
+			cancel = r.cancelOnHeartbeatFailure
+		}
+	}
+	r.mu.Unlock()
+	if cancel == nil {
+		return false
+	}
+	cancel()
+	return true
+}
+
+// StopHeartbeat 停止续租 goroutine 并等待退出，确保 Finalize 不会与后台 heartbeat 争用状态快照。
 func (r *stateReporter) StopHeartbeat() {
 	if r == nil {
 		return

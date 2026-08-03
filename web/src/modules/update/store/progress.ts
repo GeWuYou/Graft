@@ -26,7 +26,7 @@ const terminalSuccess = new Set<UpdateOperation['phase']>(['SUCCESS']);
 const terminalFailure = new Set<UpdateOperation['phase']>(['FAILED', 'ROLLBACK']);
 const POLL_INTERVAL_MS = 3000;
 const MAX_SNAPSHOT_RETRIES = 5;
-const runnerDisconnectedStateSources = new Set<UpdateOperation['state_source']>(['runner_lost', 'runner_terminated']);
+const runnerDisconnectedStateSources = new Set<UpdateOperation['state_source']>(['runner_lost']);
 
 function isRunnerDisconnected(operation: UpdateOperation | null | undefined) {
   return Boolean(operation && runnerDisconnectedStateSources.has(operation.state_source));

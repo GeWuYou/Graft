@@ -200,7 +200,7 @@ describe('update progress store', () => {
     const runnerTerminatedOperation: UpdateOperation = {
       ...operation('operation-1'),
       state_available: false,
-      state_source: 'runner_terminated',
+      state_source: 'runner_lost',
       failure_diagnostic_available: true,
     };
     await callback(runnerTerminatedOperation);
@@ -234,7 +234,7 @@ describe('update progress store', () => {
     expect(getUpdateOperationDiagnostic).toHaveBeenCalledWith('operation-1');
   });
 
-  it('keeps runner termination terminal when the protected diagnostic cannot be read', async () => {
+  it('keeps runner loss terminal when the protected diagnostic cannot be read', async () => {
     vi.mocked(getUpdateOperationDiagnostic).mockRejectedValueOnce(new Error('diagnostic unavailable'));
     const store = useUpdateProgressStore();
     await store.begin(acknowledgement('operation-1'));
@@ -242,7 +242,7 @@ describe('update progress store', () => {
     const runnerTerminatedOperation: UpdateOperation = {
       ...operation('operation-1'),
       state_available: false,
-      state_source: 'runner_terminated',
+      state_source: 'runner_lost',
       failure_diagnostic_available: true,
     };
 
@@ -261,7 +261,7 @@ describe('update progress store', () => {
       operation: {
         ...operation('operation-1'),
         state_available: false,
-        state_source: 'runner_terminated',
+        state_source: 'runner_lost',
       } as UpdateOperation,
       phase: 'failed',
     });
@@ -293,14 +293,14 @@ describe('update progress store', () => {
     expect(store.operationID).toBe('operation-1');
   });
 
-  it('keeps the terminated runner visible when protected recovery cannot be accepted', async () => {
+  it('keeps the lost runner visible when protected recovery cannot be accepted', async () => {
     vi.mocked(recoverUpdateOperation).mockRejectedValueOnce(new Error('recovery unavailable'));
     const store = useUpdateProgressStore();
     store.$patch({
       operation: {
         ...operation('operation-1'),
         state_available: false,
-        state_source: 'runner_terminated',
+        state_source: 'runner_lost',
       } as UpdateOperation,
       phase: 'failed',
     });
@@ -308,11 +308,11 @@ describe('update progress store', () => {
     await store.recoverTerminatedRunner();
 
     expect(store.phase).toBe('failed');
-    expect(store.operation?.state_source).toBe('runner_terminated');
+    expect(store.operation?.state_source).toBe('runner_lost');
     expect(store.recoveryError).toBe(true);
   });
 
-  it('does not restart a terminated runner after the session is reset during recovery', async () => {
+  it('does not restart a lost runner after the session is reset during recovery', async () => {
     let resolveRecovery: (value: UpdateOperationLaunchAcknowledgement) => void = () => undefined;
     vi.mocked(recoverUpdateOperation).mockImplementationOnce(
       () =>
@@ -325,7 +325,7 @@ describe('update progress store', () => {
       operation: {
         ...operation('operation-1'),
         state_available: false,
-        state_source: 'runner_terminated',
+        state_source: 'runner_lost',
       } as UpdateOperation,
       phase: 'failed',
     });
@@ -343,12 +343,12 @@ describe('update progress store', () => {
     expect(getUpdateOperation).not.toHaveBeenCalled();
   });
 
-  it('keeps polling when the recovery acknowledgement is followed by the stale terminated projection', async () => {
+  it('keeps polling when the recovery acknowledgement is followed by the stale lost projection', async () => {
     vi.mocked(getUpdateOperation)
       .mockResolvedValueOnce({
         ...operation('operation-1'),
         state_available: false,
-        state_source: 'runner_terminated',
+        state_source: 'runner_lost',
       } as UpdateOperation)
       .mockResolvedValueOnce(operation('operation-1', 'FAILED', 100));
     const store = useUpdateProgressStore();
@@ -356,7 +356,7 @@ describe('update progress store', () => {
       operation: {
         ...operation('operation-1'),
         state_available: false,
-        state_source: 'runner_terminated',
+        state_source: 'runner_lost',
       } as UpdateOperation,
       phase: 'failed',
     });
@@ -406,7 +406,7 @@ describe('update progress store', () => {
     expect(store.operation?.phase).toBe('ROLLBACK');
   });
 
-  it('ignores a snapshot that returns after runner termination invalidates its session', async () => {
+  it('ignores a snapshot that returns after runner loss invalidates its session', async () => {
     let resolveSnapshot: (value: UpdateOperation) => void = () => undefined;
     vi.mocked(getUpdateOperation)
       .mockResolvedValueOnce(operation('operation-1'))
@@ -421,7 +421,7 @@ describe('update progress store', () => {
     await callback({
       ...operation('operation-1'),
       state_available: false,
-      state_source: 'runner_terminated',
+      state_source: 'runner_lost',
       failure_diagnostic_available: false,
     } as UpdateOperation);
     resolveSnapshot(operation('operation-1', 'BACKUP', 20));
@@ -429,7 +429,7 @@ describe('update progress store', () => {
 
     expect(store.phase).toBe('failed');
     expect(store.operationID).toBeNull();
-    expect(store.operation?.state_source).toBe('runner_terminated');
+    expect(store.operation?.state_source).toBe('runner_lost');
   });
 
   it('polls the runner snapshot while the realtime transport is unavailable', async () => {
