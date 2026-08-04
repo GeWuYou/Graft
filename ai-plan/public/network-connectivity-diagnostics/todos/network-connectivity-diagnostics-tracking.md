@@ -43,10 +43,10 @@ closeout:
 
 ## Current Recovery Point
 
-- Phase 1 established the canonical registry, typed capabilities, extensible sanitized report envelope, and Platform
-  Update adapter without changing persistence, APIs, routes, RBAC, migrations, or web consumers.
+- Phase 1 accepted: `ca21f69a` established the canonical registry, typed capabilities, extensible sanitized report
+  envelope, and Platform Update adapter without changing persistence, APIs, routes, RBAC, migrations, or web consumers.
 - No unresolved authority escalation is known.
-- Next step: the loop controller validates the Phase 1 closeout and may dispatch the persistence/API/security slice.
+- Next step: Phase 2 replaces the legacy persistence/API boundary with target/check/report storage and secure batch execution.
 
 ## Task Checklist
 
@@ -66,14 +66,15 @@ closeout:
 ```json
 {
   "loop_mode": "topic-completion-loop",
-  "completed_batches": [],
+  "completed_batches": [
+    "phase-1-authority-registry-probe-core"
+  ],
   "pending_batches": [
-    "phase-1-authority-registry-probe-core",
     "phase-2-persistence-api-security",
     "phase-3-web-experience-integration"
   ],
-  "current_batch": "phase-1-authority-registry-probe-core",
-  "next_batch": "phase-2-persistence-api-security",
-  "closeout_status": "not-started"
+  "current_batch": "phase-2-persistence-api-security",
+  "next_batch": "phase-3-web-experience-integration",
+  "closeout_status": "phase-1-settled"
 }
 ```
